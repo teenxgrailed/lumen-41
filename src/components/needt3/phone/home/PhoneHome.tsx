@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { LuCheck, LuTarget } from "react-icons/lu";
 
 import { formatInTimeZone } from "@/lib/date-utils";
-import { clock, durLabel, laterPatch, moveOverdue } from "@/lib/needt3/day";
+import { clock, durLabel, moveOverdue } from "@/lib/needt3/day";
 import {
   habitColor,
   habitDoneOn,
@@ -20,11 +20,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
-import {
-  useTasks,
-  useToggleTask,
-  useUpdateTask,
-} from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -42,7 +38,6 @@ import {
   pkCx,
   pkDotSweep,
   pkReduced,
-  usePkExit,
 } from "../kit";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
@@ -50,6 +45,7 @@ import { usePhoneClock } from "./clock";
 import { homeView, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
 import { useTaskPull } from "./pull";
+import type { HomeController } from "./useHomeController";
 
 const copy = strings["mobile-v2-plates.jsx"];
 const none = () => undefined;
@@ -68,50 +64,30 @@ const none = () => undefined;
  * the desktop Home leaves it as a //todo too), and a plain field here would
  * overwrite it.
  */
-export function PhoneHome() {
+export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const { today, now } = usePhoneClock();
   const tz = useTimeZone();
   const tasksQuery = useTasks();
   const projects = useProjects().data;
   const habitsQuery = useHabits();
   const checkinsQuery = useCheckins();
-  const toggleTask = useToggleTask();
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const setFocusOpen = useNeedt3Ui((s) => s.setFocusOpen);
   const openTask = usePhoneOverlays((s) => s.openTask);
 
-  const [fold, setFold] = useState({
-    tomorrow: true,
-    done: true,
-    habits: true,
-  });
-  const flip = (k: keyof typeof fold) => () =>
-    setFold((f) => ({ ...f, [k]: !f[k] }));
-  const [skipped, setSkipped] = useState<string[]>([]);
-  // Ids whose write is in flight after the row has left: they stay out of the
-  // lists until the optimistic change lands, so a row never blinks back.
-  const [gone, setGone] = useState<Record<string, 1>>({});
-  const hide = (id: string, on: boolean) =>
-    setGone((m) => {
-      if (on) return { ...m, [id]: 1 };
-      const n = { ...m };
-      delete n[id];
-      return n;
-    });
+  const {
+    fold,
+    setFold,
+    flip,
+    skipped,
+    setSkipped,
+    gone,
+    exit: X,
+    check,
+  } = ctl;
 
   const all = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
-
-  const X = usePkExit<V3Task>((t, kind) => {
-    hide(t.id, true);
-    const run =
-      kind === "later"
-        ? updateTask
-            .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
-            .then(({ undo }) => snack(copy.X.moved_to_tomorrow, undo))
-        : toggleTask.toggle(t);
-    void run.catch(none).finally(() => hide(t.id, false));
-  });
 
   const v = useMemo(
     () =>
@@ -170,10 +146,6 @@ export function PhoneHome() {
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
     return p ? { name: p.name, color: p.color } : null;
-  };
-  const check = (t: V3Task) => {
-    if (t.done) void toggleTask.toggle(t).catch(none);
-    else X.exit(t, "check");
   };
   const row = (t: V3Task, o: { late?: boolean; tomorrow?: boolean } = {}) => (
     <PkTaskRow

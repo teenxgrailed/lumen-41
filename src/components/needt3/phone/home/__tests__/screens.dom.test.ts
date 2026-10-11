@@ -14,9 +14,10 @@ import { type Root, createRoot } from "react-dom/client";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
-import { PhoneCalendar } from "../../calendar/PhoneCalendar";
+import { PhoneUiProvider } from "../../../root/phone-ui-context";
+import { CalendarFaces } from "../../calendar/CalendarFaces";
 import { usePhoneOverlays } from "../../overlays/store";
-import { PhoneHome } from "../PhoneHome";
+import { HomeFaces } from "../HomeFaces";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -158,12 +159,23 @@ const seed = (tasks: V3Task[] | undefined = TASKS) => {
   );
 };
 
-const mount = (screen: typeof PhoneHome) =>
-  act(() =>
-    root.render(
-      h(QueryClientProvider, { client }, h(screen as FunctionComponent))
+// The route components, as the frame draws them: a face switch over a stub
+// desktop face, under the frame's phone-ui context.
+const desktop = h("div", { "data-desktop": "" });
+const PhoneHome = () => h(HomeFaces, { desktop });
+const PhoneCalendar = () => h(CalendarFaces, { desktop });
+const render = (screen: FunctionComponent, ui: "phone" | "desktop") =>
+  root.render(
+    h(
+      QueryClientProvider,
+      { client },
+      h(PhoneUiProvider, { value: ui }, h(screen))
     )
   );
+const mount = (screen: FunctionComponent) => act(() => render(screen, "phone"));
+/** The window crosses 700 px: same tree, another face. */
+const swap = (screen: FunctionComponent, ui: "phone" | "desktop") =>
+  act(() => render(screen, ui));
 
 beforeEach(() => {
   jest.useFakeTimers({
@@ -502,5 +514,80 @@ describe("Calendar", () => {
     mount(PhoneCalendar);
     expect(host.textContent).toContain("Nothing planned");
     expect(host.textContent).toContain("A free day.");
+  });
+});
+
+describe("two faces, one state (crossing 700 px)", () => {
+  it("Home keeps Skip and the open sections across a swap and back", () => {
+    mount(PhoneHome);
+    click(q("[data-v2p-skip]"));
+    click(q(".v2p-habits .pk-sec-fold"));
+    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
+    swap(PhoneHome, "desktop");
+    expect(qa(".pk-screen")).toHaveLength(0);
+    expect(qa("[data-desktop]")).toHaveLength(1);
+    swap(PhoneHome, "phone");
+    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
+    expect(qa("[data-v2p-habit]")).toHaveLength(1);
+  });
+
+  it("a row that is mid-exit still writes, once, when the window is resized", async () => {
+    jest.useFakeTimers({ now: NOW });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({
+        matches: false, // motion on: the exit plays in steps
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      }),
+    });
+    mount(PhoneHome);
+    click(q('[data-pk-row="pm"] .pk-check'));
+    expect(toggle).not.toHaveBeenCalled(); // the check is still showing
+    swap(PhoneHome, "desktop");
+    await act(async () => {
+      jest.advanceTimersByTime(700);
+    });
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(toggle.mock.calls[0]).toEqual([
+      expect.objectContaining({ id: "pm" }),
+    ]);
+    swap(PhoneHome, "phone");
+    await act(async () => {
+      jest.advanceTimersByTime(700);
+    });
+    expect(toggle).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Calendar", () => {
+    beforeEach(() =>
+      client.setQueryData(qk.tasks({}), [
+        task("loose", { title: "Reply to Sam" }),
+        task("t1", { scheduledStart: `${TODAY}T14:30`, estimatedMinutes: 60 }),
+      ])
+    );
+    it("keeps the picked day and the view", () => {
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-04']"));
+      click(q("[data-v2p-view-btn=month]"));
+      click(q("[data-v2p-mc='2026-09-10']"));
+      swap(PhoneCalendar, "desktop");
+      expect(qa(".pk-screen")).toHaveLength(0);
+      swap(PhoneCalendar, "phone");
+      expect(q("[data-v2p-month-day]").getAttribute("data-v2p-month-day")).toBe(
+        "2026-09-10"
+      );
+      expect(q("[data-v2p-view]").getAttribute("data-v2p-view")).toBe("month");
+    });
+    it("keeps an open fold", () => {
+      mount(PhoneCalendar);
+      expect(qa("[data-v2p-tl=loose]")).toHaveLength(0);
+      click(q(".v2p-fold .pk-sec-fold"));
+      expect(qa("[data-v2p-tl=loose]")).toHaveLength(1);
+      swap(PhoneCalendar, "desktop");
+      swap(PhoneCalendar, "phone");
+      expect(qa("[data-v2p-tl=loose]")).toHaveLength(1);
+    });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef } from "react";
 
 import { LuPlus } from "react-icons/lu";
 
@@ -47,6 +47,7 @@ import {
   weekOf,
   weekRange,
 } from "./model";
+import type { CalendarController } from "./useCalendarController";
 import { useSwipeStep } from "./useSwipeStep";
 
 const copy = strings["mobile-v2-plates.jsx"].V2pCalendar;
@@ -65,7 +66,7 @@ const VIEWS: readonly [CalView, string][] = [
  * cannot be changed here, and the sheet only reads). Add event writes a
  * Needt-calendar event through `useCreateEvent` (the sheet is P3's).
  */
-export function PhoneCalendar() {
+export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const { today, hour } = usePhoneClock();
   const settings = useSettings();
   const startDay = settings.data?.weekStartDay ?? "monday";
@@ -74,12 +75,8 @@ export function PhoneCalendar() {
   const openEvent = usePhoneOverlays((s) => s.openEvent);
   const openNewEvent = usePhoneOverlays((s) => s.openNewEvent);
 
-  const [view, setView] = useState<CalView>("schedule");
-  const [picked, setPicked] = useState<string | null>(null);
+  const { view, setView, picked, setPicked, fold, flip } = ctl;
   const day = picked ?? today;
-  const [fold, setFold] = useState({ past: true, loose: true });
-  const flip = (k: keyof typeof fold) => () =>
-    setFold((f) => ({ ...f, [k]: !f[k] }));
 
   const tasksQuery = useTasks();
   const range = visibleRange(day, startDay);

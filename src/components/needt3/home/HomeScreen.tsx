@@ -7,8 +7,7 @@ import { useRouter } from "next/navigation";
 import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
-import { PhoneHome } from "@/components/needt3/phone/home/PhoneHome";
-import { usePhoneUi } from "@/components/needt3/root/phone-ui-context";
+import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
@@ -648,11 +647,11 @@ function DesktopHome() {
 const EventIcon = () => <FiCalendar size={13} aria-hidden />;
 
 /**
- * The route's Home. The frame says which face to draw (`usePhoneUi`): the
- * phone's day (phone/home) under 700 px, the desktop face otherwise. The
- * route component stays mounted when the width crosses; only what it draws
- * differs, and each face keeps its own hooks.
+ * The route's Home. The frame says which face to draw (`usePhoneUi`, read in
+ * `HomeFaces`): the phone's day (phone/home) under 700 px, the desktop face
+ * otherwise. The phone's state lives in `HomeFaces`, above the switch, so
+ * crossing the width loses none of it.
  */
 export function HomeScreen() {
-  return usePhoneUi() === "phone" ? <PhoneHome /> : <DesktopHome />;
+  return <HomeFaces desktop={<DesktopHome />} />;
 }
