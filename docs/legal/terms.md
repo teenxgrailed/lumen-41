@@ -130,7 +130,7 @@ Do not use Needt to:
 
 Needt's software, design, name and logo belong to us or our licensors. These terms give you a personal, non-transferable right to use Needt as offered and no other rights in it. If you send us feedback or ideas, we may use them without obligation to you.
 
-Needt is built on a fork of the open-source FluidCalendar project. [[CHECK: confirm FluidCalendar's licence and whether it requires a notice to users of the hosted service, or an offer of source code if any part is AGPL.]]
+Parts of Needt are open-source software, used under their own licences. Those licences, not these terms, govern that software.
 
 ---
 

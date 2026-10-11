@@ -45,7 +45,6 @@ These sentences describe behaviour from open pull requests. Merge them, or rewri
 - Sanctions wording (terms §3).
 - Creem's handling of the EU/UK withdrawal right and the express-request acknowledgment (terms §5.5).
 - Unpublished AI fair-use allowance under EU consumer law (terms §6).
-- FluidCalendar licence obligations for the hosted service (terms §10).
 - Liability clause for EU consumers; whether to keep the business indemnity (terms §14).
 - Choice of law, competent court, and any ODR notice (terms §16).
 
