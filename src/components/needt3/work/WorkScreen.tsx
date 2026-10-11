@@ -25,7 +25,9 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { TaskDialogHost } from "../dialogs/TaskDialog";
+import { PhoneProjects, PhoneTasks } from "../phone/tasks";
 import { useDesignV3 } from "../root/V3Root";
+import { usePhoneUi } from "../root/phone-ui-context";
 import { StScreen } from "../states/StScreen";
 import { Task } from "../task/Task";
 import { MiniCard, ProjectCard } from "./ProjectCards";
@@ -79,7 +81,15 @@ export function WorkScreen({
   projectId?: string | null;
 }) {
   const v3 = useDesignV3();
+  const phone = usePhoneUi() === "phone";
   if (!v3) return null;
+  // The phone draws its own face (phone/tasks); this route stays mounted.
+  if (phone)
+    return mode === "tasks" ? (
+      <PhoneTasks />
+    ) : (
+      <PhoneProjects projectId={projectId} />
+    );
   return <WorkScreenContent mode={mode} projectId={projectId} />;
 }
 

@@ -1,0 +1,249 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+import {
+  addedLabel,
+  createDraft,
+  durLabel,
+  moveOverdue,
+} from "@/lib/needt3/day";
+import { useProjects } from "@/lib/needt3/hooks/projects";
+import {
+  useCreateTask,
+  useTasks,
+  useUpdateTask,
+} from "@/lib/needt3/hooks/tasks";
+import type { V3Project, V3Task } from "@/lib/needt3/map";
+
+import { StScreen } from "../../states/StScreen";
+import { PkDropZone, usePkDrag } from "../drag";
+import { PkButton, PkEmpty, PkNumber, PkScreen, PkSection, pkCx } from "../kit";
+import { snack } from "../overlays/snack";
+import { usePhoneOverlays } from "../overlays/store";
+import { usePkToday } from "../overlays/today";
+import { TaskParam } from "./TaskParam";
+import {
+  DONE_ZONE,
+  PTK_TABS,
+  type PtkTab,
+  ptkHeader,
+  ptkModel,
+  ptkSpecs,
+  taskHits,
+} from "./model";
+import { PtkBar, cappedRows, useFolds, useMore } from "./parts";
+import { EMPTY, copy } from "./strings";
+import { useTaskRows } from "./useTaskRows";
+
+const NO_TASKS: V3Task[] = [];
+const NO_PROJECTS: V3Project[] = [];
+const none = () => undefined;
+
+/** The tab the person was on last, kept while the app stays open. */
+let lastTab: PtkTab = "today";
+
+/**
+ * Tasks on the phone (phone-tasks.jsx PtkTasks): a compact segmented control
+ * (Inbox · Today · Upcoming · All, open counts), one header line ("Done 3 of
+ * 9 · 2 h 50 left") over a thin bar, the tab's sections as PkSection (each
+ * folds; Done is one fold at the bottom, shut), PkTaskRow everywhere. Pull
+ * down = search / add to today. Hold a row to lift it and drop it in another
+ * section (the day, the project or the time is the data: `dropPatch`).
+ *
+ * Data: `useTasks` / `useProjects`; the loading, offline and error states are
+ * the states layer's (`StScreen`).
+ */
+export function PhoneTasks() {
+  const tasksQ = useTasks();
+  const projectsQ = useProjects();
+  return (
+    <StScreen query={tasksQ} screen="tasks">
+      <TaskParam />
+      <TasksBody
+        tasks={tasksQ.data ?? NO_TASKS}
+        projects={projectsQ.data ?? NO_PROJECTS}
+      />
+    </StScreen>
+  );
+}
+
+function TasksBody({
+  tasks,
+  projects,
+}: {
+  tasks: V3Task[];
+  projects: V3Project[];
+}) {
+  const today = usePkToday();
+  const [tab, setTabRaw] = useState<PtkTab>(lastTab);
+  const setTab = (id: PtkTab) => {
+    lastTab = id;
+    setTabRaw(id);
+  };
+  const { fold, flip } = useFolds();
+  const more = useMore();
+  const openTask = usePhoneOverlays((s) => s.openTask);
+  const update = useUpdateTask();
+  const create = useCreateTask();
+
+  const R = useTaskRows({ today, projects });
+  const m = useMemo(
+    () => ptkModel({ tasks, projects, today, tab }),
+    [tasks, projects, today, tab]
+  );
+  const specs = useMemo(
+    () => ptkSpecs(tab, m.sections, projects, today),
+    [tab, m.sections, projects, today]
+  );
+  const dz = usePkDrag({ specs, tasks: m.live, busy: R.busy });
+  const h = ptkHeader(m.scope, today, R.busy);
+
+  /* The header: one compact line for the tab, never the hero. */
+  const left = h.mins ? `${durLabel(h.mins)} left` : null;
+  const sub = (
+    <span className="ptk-sub" data-ptk-count={`${h.doneN}/${h.total}`}>
+      {h.total ? (
+        <span>
+          Done <PkNumber value={h.doneN} label={String(h.doneN)} /> of{" "}
+          <PkNumber value={h.total} label={String(h.total)} />
+        </span>
+      ) : (
+        <span>
+          <PkNumber value={h.openN} label={String(h.openN)} /> open
+        </span>
+      )}
+      {left ? <span className="ptk-sub-sep">{left}</span> : null}
+      {h.late && tab !== "upcoming" ? (
+        <span className="ptk-sub-sep ptk-sub-late">
+          <span className="pk-alert-dot" />
+          {h.late} overdue
+        </span>
+      ) : null}
+    </span>
+  );
+  const head = (
+    <>
+      <PtkBar pct={h.total ? h.doneN / h.total : 0} />
+      <div
+        className="ptk-seg"
+        role="tablist"
+        aria-label={copy.PtkTasks.which_tasks}
+      >
+        {PTK_TABS.map(([id, label]) => {
+          const n = m.counts[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={pkCx("ptk-seg-btn", tab === id && "is-on")}
+              onClick={() => setTab(id)}
+              data-ptk-tab={id}
+            >
+              <span>{label}</span>
+              {n ? (
+                <span className="ptk-seg-n">{n > 99 ? "99+" : n}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  /* Pull down: search a title, open it, or Enter adds to today. */
+  const addToday = (title: string) => {
+    const text = title.trim();
+    if (!text) return;
+    create
+      .mutateAsync({ draft: createDraft({ title: text }, today) })
+      .then(({ result, undo }) =>
+        snack(addedLabel(result ?? { dueDate: today }, today), undo)
+      )
+      .catch(none);
+  };
+  const pull = {
+    search: (q: string) => taskHits(m.live, q, today),
+    onPick: (hit: { id: string }) => {
+      const t = m.live.find((x) => x.id === hit.id);
+      if (t) openTask(t);
+    },
+    onAdd: addToday,
+  };
+
+  /* Overdue → today, one write per task, one Undo for all. */
+  const moveToToday = () => {
+    const r = moveOverdue(m.live, today);
+    if (!r) return;
+    Promise.all(
+      r.moves.map((mv) => update.mutateAsync({ id: mv.id, patch: mv.patch }))
+    ).then(
+      (done) => snack(r.label, () => Promise.all(done.map((d) => d.undo()))),
+      none
+    );
+  };
+
+  const empty = !m.live.length ? EMPTY.all : EMPTY[tab];
+  return (
+    <PkScreen
+      screen="tasks"
+      title={copy.PtkTasks.tasks}
+      sub={sub}
+      head={head}
+      headClass="ptk-head"
+      onPull={pull}
+    >
+      <div key={tab} ref={dz.ref} className="ptk-swap" data-ptk-view={tab}>
+        {m.sections.map((s) => (
+          <PkDropZone
+            key={s.key}
+            k={s.key}
+            spec={specs[s.key]}
+            folded={!!fold[s.key]}
+          >
+            <PkSection
+              title={s.title}
+              tone={s.tone}
+              count={s.tasks.length}
+              folded={!!fold[s.key]}
+              onFold={flip(s.key)}
+              action={
+                s.key === "overdue" ? (
+                  <PkButton kind="chip" onClick={moveToToday}>
+                    {copy.PtkTasks.move_to_today}
+                  </PkButton>
+                ) : null
+              }
+            >
+              {cappedRows(s.tasks, R.row, more.all(s.key), more.open(s.key))}
+            </PkSection>
+          </PkDropZone>
+        ))}
+        {!m.sections.length ? <PkEmpty line={empty} /> : null}
+        {m.done.length ? (
+          <PkDropZone
+            k={DONE_ZONE}
+            spec={specs[DONE_ZONE]}
+            folded={!!fold[DONE_ZONE]}
+          >
+            <PkSection
+              title={copy.PtkTasks.done}
+              count={m.done.length}
+              folded={!!fold[DONE_ZONE]}
+              onFold={flip(DONE_ZONE)}
+            >
+              {cappedRows(
+                m.done,
+                R.row,
+                more.all(DONE_ZONE),
+                more.open(DONE_ZONE)
+              )}
+            </PkSection>
+          </PkDropZone>
+        ) : null}
+      </div>
+    </PkScreen>
+  );
+}
