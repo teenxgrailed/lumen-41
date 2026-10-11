@@ -9,6 +9,7 @@ import type {
 
 const LOG_SOURCE = "ComposioIntegrationProvider";
 const API_BASE = "https://backend.composio.dev/api/v3.1";
+const COMPOSIO_TIMEOUT_MS = 10_000;
 
 const CURATED_TOOLKITS: Omit<IntegrationCatalogItem, "configured">[] = [
   {
@@ -133,6 +134,7 @@ async function composioRequest<T>(
   const current = config();
   if (!current) throw new Error("Composio is not configured");
   const response = await fetch(`${API_BASE}${path}`, {
+    signal: AbortSignal.timeout(COMPOSIO_TIMEOUT_MS),
     ...init,
     headers: {
       Accept: "application/json",
@@ -241,13 +243,16 @@ export class ComposioIntegrationProvider implements IntegrationProvider {
    * Composio to revoke the upstream grant as well. The ids we stored are
    * joined with the ones Composio lists for the user, so a connection whose
    * callback never reached us is removed too. A connection already gone
-   * (404) counts as removed, which makes a second run harmless.
+   * (404) counts as removed, which makes a second run harmless. Ids in
+   * `keep` are never deleted: another account still uses them, and deleting
+   * with `revoke_on_delete` would end that account's access too.
    */
   async deleteUserConnections(
     userId: string,
-    knownConnectionIds: string[] = []
-  ): Promise<{ deleted: string[]; failed: string[] }> {
-    if (!this.isConfigured()) return { deleted: [], failed: [] };
+    knownConnectionIds: string[] = [],
+    keep: string[] = []
+  ): Promise<{ deleted: string[]; failed: string[]; kept: string[] }> {
+    if (!this.isConfigured()) return { deleted: [], failed: [], kept: [] };
     const ids = new Set(knownConnectionIds.filter(Boolean));
     try {
       let cursor: string | null = null;
@@ -259,7 +264,7 @@ export class ComposioIntegrationProvider implements IntegrationProvider {
           next_cursor?: string | null;
         } = await composioRequest(`/connected_accounts?${query.toString()}`);
         for (const item of listing.items ?? []) {
-          if (item.id && (!item.user_id || item.user_id === userId)) {
+          if (item.id && item.user_id === userId) {
             ids.add(item.id);
           }
         }
@@ -276,7 +281,12 @@ export class ComposioIntegrationProvider implements IntegrationProvider {
 
     const deleted: string[] = [];
     const failed: string[] = [];
+    const kept: string[] = [];
     for (const id of ids) {
+      if (keep.includes(id)) {
+        kept.push(id);
+        continue;
+      }
       try {
         await composioRequest(
           `/connected_accounts/${encodeURIComponent(id)}?revoke_on_delete=true`,
@@ -297,7 +307,7 @@ export class ComposioIntegrationProvider implements IntegrationProvider {
         );
       }
     }
-    return { deleted, failed };
+    return { deleted, failed, kept };
   }
 }
 

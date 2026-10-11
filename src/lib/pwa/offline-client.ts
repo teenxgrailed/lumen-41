@@ -111,6 +111,9 @@ export async function clearNeedtOfflineData() {
 }
 
 export const SIGN_OUT_SYNC_TIMEOUT_MS = 3000;
+/* Written by PWARegister and WorkspaceProvider while the person is signed in. */
+const OFFLINE_USER_ID_KEY = "needt-offline-user-id";
+const ACTIVE_WORKSPACE_KEY = "needt-active-workspace-id";
 
 /**
  * Gives changes saved offline one short chance to reach the server, then
@@ -124,10 +127,42 @@ export async function prepareNeedtSignOut(
   try {
     const worker = await activeWorker();
     if (worker) {
+      /* The worker forgets its scope when the browser evicts it, and a sync
+         without a scope sends nothing, so it is told again first. */
+      const userId = window.localStorage.getItem(OFFLINE_USER_ID_KEY);
+      const workspaceId = window.localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+      if (userId && workspaceId) {
+        await postWithAck(worker, {
+          type: "NEEDT_SET_OFFLINE_SCOPE",
+          scope: { userId, workspaceId, schemaVersion: OFFLINE_SCHEMA_VERSION },
+        });
+      }
       await postWithAck(worker, { type: "NEEDT_SYNC_NOW" }, timeoutMs);
     }
   } catch {
     // A worker that cannot sync must not keep the person signed in.
   }
   await clearNeedtOfflineData();
+}
+
+/**
+ * Clears the device only when the server says nobody is signed in. A failed
+ * request proves nothing, so it leaves everything in place.
+ */
+export async function clearIfSignedOut(
+  fetchSession: () => Promise<Response> = () =>
+    fetch("/api/auth/session", { cache: "no-store" })
+): Promise<boolean> {
+  try {
+    const response = await fetchSession();
+    if (!response.ok) return false;
+    const session = (await response.json().catch(() => null)) as {
+      user?: unknown;
+    } | null;
+    if (session?.user) return false;
+  } catch {
+    return false;
+  }
+  await clearNeedtOfflineData();
+  return true;
 }

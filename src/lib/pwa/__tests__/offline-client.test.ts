@@ -1,5 +1,6 @@
 import {
   DEVICE_PREFERENCE_KEYS,
+  clearIfSignedOut,
   clearUserScopedStorage,
   prepareNeedtSignOut,
 } from "../offline-client";
@@ -83,14 +84,17 @@ describe("sign-out storage cleanup", () => {
 });
 
 describe("sign-out offline sync", () => {
-  const messages: { type: string }[] = [];
+  const messages: { type: string; scope?: unknown }[] = [];
   let answerSync = true;
 
   beforeEach(() => {
     messages.length = 0;
     answerSync = true;
     const worker = {
-      postMessage: (message: { type: string }, ports: MessagePort[]) => {
+      postMessage: (
+        message: { type: string; scope?: unknown },
+        ports: MessagePort[]
+      ) => {
         messages.push(message);
         if (message.type === "NEEDT_SYNC_NOW" && !answerSync) return;
         ports[0].postMessage({ ok: true });
@@ -119,6 +123,44 @@ describe("sign-out offline sync", () => {
 
     expect(messages.map(({ type }) => type)).toEqual([
       "NEEDT_SYNC_NOW",
+      "NEEDT_CLEAR_OFFLINE_DATA",
+    ]);
+  });
+
+  it("tells an evicted worker its scope again before the sync", async () => {
+    localStorage.setItem("needt-offline-user-id", "user-1");
+    localStorage.setItem("needt-active-workspace-id", "ws-1");
+
+    await prepareNeedtSignOut(50);
+
+    expect(messages).toEqual([
+      {
+        type: "NEEDT_SET_OFFLINE_SCOPE",
+        scope: { userId: "user-1", workspaceId: "ws-1", schemaVersion: 2 },
+      },
+      { type: "NEEDT_SYNC_NOW" },
+      { type: "NEEDT_CLEAR_OFFLINE_DATA" },
+    ]);
+    expect(localStorage.getItem("needt-offline-user-id")).toBeNull();
+  });
+
+  it("clears after reconnecting only when the server confirms no session", async () => {
+    const response = (body: unknown, ok = true) =>
+      Promise.resolve({ ok, json: async () => body } as Response);
+
+    await expect(
+      clearIfSignedOut(() => response({ user: { id: "user-1" } }))
+    ).resolves.toBe(false);
+    await expect(clearIfSignedOut(() => response({}, false))).resolves.toBe(
+      false
+    );
+    await expect(
+      clearIfSignedOut(() => Promise.reject(new Error("offline")))
+    ).resolves.toBe(false);
+    expect(messages).toEqual([]);
+
+    await expect(clearIfSignedOut(() => response({}))).resolves.toBe(true);
+    expect(messages.map(({ type }) => type)).toEqual([
       "NEEDT_CLEAR_OFFLINE_DATA",
     ]);
   });

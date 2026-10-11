@@ -39,6 +39,10 @@ describe("offline privacy and replay contract", () => {
     expect(signOutHelper.indexOf("await prepareNeedtSignOut()")).toBeLessThan(
       signOutHelper.indexOf("await signOut(")
     );
+    expect(serviceWorker).toContain("workspaceId: nextScope.workspaceId,");
+    expect(serviceWorker).toMatch(
+      /async function flushQueue\(\) \{\n  await restoreActiveScope\(\);/
+    );
     expect(serviceWorker).toMatch(
       /NEEDT_SYNC_NOW[\s\S]*?flushQueue\(\)[\s\S]*?event\.ports\[0\]\?\.postMessage/
     );

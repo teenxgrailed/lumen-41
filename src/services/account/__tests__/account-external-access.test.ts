@@ -31,18 +31,18 @@ jest.mock("@/services/integrations/composio-provider", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    calendarWebhook: { findMany: jest.fn() },
-    connectedAccount: { findMany: jest.fn() },
-    account: { findMany: jest.fn() },
+    calendarWebhook: { findMany: jest.fn(), count: jest.fn() },
+    connectedAccount: { findMany: jest.fn(), count: jest.fn() },
+    account: { findMany: jest.fn(), count: jest.fn() },
     externalIntegration: { findMany: jest.fn() },
     pushSubscription: { deleteMany: jest.fn() },
   },
 }));
 
 const db = prisma as unknown as {
-  calendarWebhook: { findMany: jest.Mock };
-  connectedAccount: { findMany: jest.Mock };
-  account: { findMany: jest.Mock };
+  calendarWebhook: { findMany: jest.Mock; count: jest.Mock };
+  connectedAccount: { findMany: jest.Mock; count: jest.Mock };
+  account: { findMany: jest.Mock; count: jest.Mock };
   externalIntegration: { findMany: jest.Mock };
   pushSubscription: { deleteMany: jest.Mock };
 };
@@ -60,26 +60,46 @@ describe("external access revocation on account deletion", () => {
     jest.clearAllMocks();
     global.fetch = fetchMock as unknown as typeof fetch;
     db.calendarWebhook.findMany.mockResolvedValue([
-      { provider: "GOOGLE", feedId: "feed-g" },
-      { provider: "OUTLOOK", feedId: "feed-o" },
+      {
+        provider: "GOOGLE",
+        feedId: "feed-g",
+        channelId: "chan-1",
+        subscriptionId: null,
+      },
+      {
+        provider: "OUTLOOK",
+        feedId: "feed-o",
+        channelId: null,
+        subscriptionId: "sub-1",
+      },
     ]);
-    db.connectedAccount.findMany.mockResolvedValue([{ id: "acct-g" }]);
+    db.calendarWebhook.count.mockResolvedValue(0);
+    db.connectedAccount.count.mockResolvedValue(0);
+    db.account.count.mockResolvedValue(0);
+    db.connectedAccount.findMany.mockResolvedValue([
+      { id: "acct-g", email: "person@gmail.com" },
+    ]);
     getTokens.mockResolvedValue({
       accessToken: "google-access",
       refreshToken: "google-refresh",
       expiresAt: new Date(0),
     });
     db.account.findMany.mockResolvedValue([
-      { refresh_token: null, access_token: "signin-access" },
-    ]);
-    db.externalIntegration.findMany.mockResolvedValue([
-      { externalConnectionId: "ca_1" },
+      {
+        refresh_token: null,
+        access_token: "signin-access",
+        user: { email: "person@gmail.com" },
+      },
     ]);
     composio.isConfigured.mockReturnValue(true);
     composio.deleteUserConnections.mockResolvedValue({
       deleted: ["ca_1", "ca_2"],
       failed: [],
+      kept: [],
     });
+    db.externalIntegration.findMany.mockImplementation(async (args) =>
+      args.where.NOT ? [] : [{ externalConnectionId: "ca_1" }]
+    );
     db.pushSubscription.deleteMany.mockResolvedValue({ count: 2 });
     fetchMock.mockResolvedValue({
       ok: true,
@@ -95,12 +115,17 @@ describe("external access revocation on account deletion", () => {
   it("stops channels, revokes Google, deletes Composio and push access", async () => {
     const report = await revokeExternalAccessForDeletion("user-1");
 
-    expect(disableGoogleWatch).toHaveBeenCalledWith("feed-g");
-    expect(disableOutlookSubscription).toHaveBeenCalledWith("feed-o");
-    expect(db.calendarWebhook.findMany).toHaveBeenCalledWith({
-      where: { feed: { userId: "user-1" } },
-      select: { provider: true, feedId: true },
+    expect(disableGoogleWatch).toHaveBeenCalledWith("feed-g", {
+      timeoutMs: 10_000,
+      stopRemote: true,
     });
+    expect(disableOutlookSubscription).toHaveBeenCalledWith("feed-o", {
+      timeoutMs: 10_000,
+      stopRemote: true,
+    });
+    expect(db.calendarWebhook.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { feed: { userId: "user-1" } } })
+    );
 
     const revoked = fetchMock.mock.calls.map(([url, init]) => [
       url,
@@ -111,9 +136,11 @@ describe("external access revocation on account deletion", () => {
       ["https://oauth2.googleapis.com/revoke", "token=signin-access"],
     ]);
 
-    expect(composio.deleteUserConnections).toHaveBeenCalledWith("user-1", [
-      "ca_1",
-    ]);
+    expect(composio.deleteUserConnections).toHaveBeenCalledWith(
+      "user-1",
+      ["ca_1"],
+      []
+    );
     expect(db.pushSubscription.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
@@ -122,6 +149,7 @@ describe("external access revocation on account deletion", () => {
       googleGrantsRevoked: 2,
       composioConnectionsDeleted: 2,
       pushSubscriptionsDeleted: 2,
+      sharedAccessKept: 0,
       failures: [],
     });
   });
@@ -184,6 +212,7 @@ describe("external access revocation on account deletion", () => {
     composio.deleteUserConnections.mockResolvedValue({
       deleted: [],
       failed: [],
+      kept: [],
     });
     db.pushSubscription.deleteMany.mockResolvedValue({ count: 0 });
 
@@ -191,5 +220,71 @@ describe("external access revocation on account deletion", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(report.failures).toEqual([]);
+  });
+  it("leaves a Google identity alone when another account uses it", async () => {
+    db.connectedAccount.count.mockResolvedValue(1);
+
+    const report = await revokeExternalAccessForDeletion("user-1");
+
+    expect(db.connectedAccount.count).toHaveBeenCalledWith({
+      where: {
+        provider: "GOOGLE",
+        email: { equals: "person@gmail.com", mode: "insensitive" },
+        NOT: { userId: "user-1" },
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getTokens).not.toHaveBeenCalled();
+    expect(report.googleGrantsRevoked).toBe(0);
+    expect(report.sharedAccessKept).toBeGreaterThanOrEqual(2);
+  });
+
+  it("drops only the row of a channel another account's feed shares", async () => {
+    db.calendarWebhook.count.mockResolvedValue(1);
+
+    await revokeExternalAccessForDeletion("user-1");
+
+    expect(db.calendarWebhook.count).toHaveBeenCalledWith({
+      where: {
+        feed: { NOT: { userId: "user-1" } },
+        OR: [{ channelId: "chan-1" }],
+      },
+    });
+    expect(disableGoogleWatch).toHaveBeenCalledWith("feed-g", {
+      timeoutMs: 10_000,
+      stopRemote: false,
+    });
+    expect(disableOutlookSubscription).toHaveBeenCalledWith("feed-o", {
+      timeoutMs: 10_000,
+      stopRemote: false,
+    });
+  });
+
+  it("keeps a Composio connection another account references", async () => {
+    db.externalIntegration.findMany.mockImplementation(async (args) =>
+      args.where.NOT
+        ? [{ externalConnectionId: "ca_1" }]
+        : [{ externalConnectionId: "ca_1" }]
+    );
+
+    await revokeExternalAccessForDeletion("user-1");
+
+    expect(composio.deleteUserConnections).toHaveBeenCalledWith(
+      "user-1",
+      ["ca_1"],
+      ["ca_1"]
+    );
+  });
+
+  it("returns when the budget runs out, whatever a provider is doing", async () => {
+    jest
+      .mocked(disableGoogleWatch)
+      .mockImplementation(() => new Promise<void>(() => undefined));
+
+    const report = await revokeExternalAccessForDeletion("user-1", 20);
+
+    expect(report.failures).toContain("budget");
+    expect(db.pushSubscription.deleteMany).not.toHaveBeenCalled();
+    jest.mocked(disableGoogleWatch).mockReset();
   });
 });

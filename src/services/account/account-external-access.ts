@@ -8,13 +8,16 @@ import { TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "AccountExternalAccess";
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-const REVOKE_TIMEOUT_MS = 10_000;
+const PROVIDER_TIMEOUT_MS = 10_000;
+export const EXTERNAL_REVOCATION_BUDGET_MS = 60_000;
 
 export interface ExternalAccessRevocationReport {
   webhooksStopped: number;
   googleGrantsRevoked: number;
   composioConnectionsDeleted: number;
   pushSubscriptionsDeleted: number;
+  /** Channels, grants and connections left alone because another account uses them. */
+  sharedAccessKept: number;
   failures: string[];
 }
 
@@ -33,7 +36,7 @@ async function revokeGoogleToken(token: string): Promise<boolean> {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ token }).toString(),
-    signal: AbortSignal.timeout(REVOKE_TIMEOUT_MS),
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (response.ok) return true;
   const body = await response.text().catch(() => "");
@@ -47,18 +50,46 @@ async function stopCalendarWebhooks(
 ) {
   const webhooks = await prisma.calendarWebhook.findMany({
     where: { feed: { userId } },
-    select: { provider: true, feedId: true },
+    select: {
+      provider: true,
+      feedId: true,
+      channelId: true,
+      subscriptionId: true,
+    },
   });
   for (const webhook of webhooks) {
     try {
+      /* A channel or subscription id that another account's feed also
+         points at is not this account's to stop: only our row goes. */
+      const sharedIds = [webhook.channelId, webhook.subscriptionId].filter(
+        (id): id is string => Boolean(id)
+      );
+      const shared =
+        sharedIds.length > 0 &&
+        (await prisma.calendarWebhook.count({
+          where: {
+            feed: { NOT: { userId } },
+            OR: [
+              ...(webhook.channelId ? [{ channelId: webhook.channelId }] : []),
+              ...(webhook.subscriptionId
+                ? [{ subscriptionId: webhook.subscriptionId }]
+                : []),
+            ],
+          },
+        })) > 0;
+      const options = {
+        timeoutMs: PROVIDER_TIMEOUT_MS,
+        stopRemote: !shared,
+      };
       if (webhook.provider === "GOOGLE") {
-        await disableGoogleWatch(webhook.feedId);
+        await disableGoogleWatch(webhook.feedId, options);
       } else if (webhook.provider === "OUTLOOK") {
-        await disableOutlookSubscription(webhook.feedId);
+        await disableOutlookSubscription(webhook.feedId, options);
       } else {
         continue;
       }
-      report.webhooksStopped += 1;
+      if (shared) report.sharedAccessKept += 1;
+      else report.webhooksStopped += 1;
     } catch (error) {
       report.failures.push(`webhook:${webhook.provider}`);
       await logger.warn(
@@ -74,6 +105,34 @@ async function stopCalendarWebhooks(
   }
 }
 
+/**
+ * Google revokes a grant for the Google identity and our OAuth client
+ * together, not for one Needt account. When another Needt account holds the
+ * same Google identity (a shared calendar, an owner's test accounts), a revoke
+ * here would cut that account off too, so it is skipped and only this
+ * account's rows are deleted.
+ */
+async function googleIdentityUsedElsewhere(
+  userId: string,
+  email: string | null
+): Promise<boolean> {
+  if (!email) return false;
+  const insensitive = { equals: email, mode: "insensitive" as const };
+  const [connected, signIn] = await Promise.all([
+    prisma.connectedAccount.count({
+      where: { provider: "GOOGLE", email: insensitive, NOT: { userId } },
+    }),
+    prisma.account.count({
+      where: {
+        provider: "google",
+        NOT: { userId },
+        user: { email: insensitive },
+      },
+    }),
+  ]);
+  return connected + signIn > 0;
+}
+
 async function revokeGoogleGrants(
   userId: string,
   report: ExternalAccessRevocationReport
@@ -81,10 +140,14 @@ async function revokeGoogleGrants(
   const tokens: string[] = [];
   const connected = await prisma.connectedAccount.findMany({
     where: { userId, provider: "GOOGLE" },
-    select: { id: true },
+    select: { id: true, email: true },
   });
   for (const account of connected) {
     try {
+      if (await googleIdentityUsedElsewhere(userId, account.email)) {
+        report.sharedAccessKept += 1;
+        continue;
+      }
       const stored = await TokenManager.getInstance().getTokens(
         account.id,
         userId
@@ -102,9 +165,17 @@ async function revokeGoogleGrants(
   }
   const signIn = await prisma.account.findMany({
     where: { userId, provider: "google" },
-    select: { refresh_token: true, access_token: true },
+    select: {
+      refresh_token: true,
+      access_token: true,
+      user: { select: { email: true } },
+    },
   });
   for (const account of signIn) {
+    if (await googleIdentityUsedElsewhere(userId, account.user.email)) {
+      report.sharedAccessKept += 1;
+      continue;
+    }
     const token = account.refresh_token || account.access_token;
     if (token) tokens.push(token);
   }
@@ -145,8 +216,24 @@ async function deleteComposioConnections(
     }
     return;
   }
-  const result = await composioProvider.deleteUserConnections(userId, known);
+  const referencedElsewhere =
+    known.length > 0
+      ? await prisma.externalIntegration.findMany({
+          where: {
+            provider: composioProvider.id,
+            externalConnectionId: { in: known },
+            NOT: { userId },
+          },
+          select: { externalConnectionId: true },
+        })
+      : [];
+  const result = await composioProvider.deleteUserConnections(
+    userId,
+    known,
+    referencedElsewhere.map(({ externalConnectionId }) => externalConnectionId)
+  );
   report.composioConnectionsDeleted += result.deleted.length;
+  report.sharedAccessKept += result.kept.length;
   if (result.failed.length > 0) report.failures.push("composio:delete");
 }
 
@@ -166,13 +253,15 @@ async function deleteComposioConnections(
  * provider answer that means "already gone".
  */
 export async function revokeExternalAccessForDeletion(
-  userId: string
+  userId: string,
+  budgetMs = EXTERNAL_REVOCATION_BUDGET_MS
 ): Promise<ExternalAccessRevocationReport> {
   const report: ExternalAccessRevocationReport = {
     webhooksStopped: 0,
     googleGrantsRevoked: 0,
     composioConnectionsDeleted: 0,
     pushSubscriptionsDeleted: 0,
+    sharedAccessKept: 0,
     failures: [],
   };
   const steps: [string, () => Promise<void>][] = [
@@ -189,18 +278,38 @@ export async function revokeExternalAccessForDeletion(
       },
     ],
   ];
-  for (const [name, step] of steps) {
-    try {
-      await step();
-    } catch (error) {
-      report.failures.push(name);
-      await logger.warn(
-        "External access revocation step failed",
-        { step: name, error: errorMessage(error) },
-        LOG_SOURCE
-      );
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const runSteps = async () => {
+    for (const [name, step] of steps) {
+      if (timedOut) return;
+      try {
+        await step();
+      } catch (error) {
+        report.failures.push(name);
+        await logger.warn(
+          "External access revocation step failed",
+          { step: name, error: errorMessage(error) },
+          LOG_SOURCE
+        );
+      }
     }
-  }
+  };
+  /* Each provider call has its own timeout; the budget bounds the whole run,
+     so a provider that hangs past it cannot hold the deletion sweep. A step
+     still running when the budget ends finishes in the background and its
+     results are not reported. */
+  await Promise.race([
+    runSteps(),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        report.failures.push("budget");
+        resolve();
+      }, budgetMs);
+    }),
+  ]);
+  clearTimeout(timer);
   await logger.info(
     "External access revoked before account deletion",
     {
@@ -208,6 +317,7 @@ export async function revokeExternalAccessForDeletion(
       googleGrantsRevoked: report.googleGrantsRevoked,
       composioConnectionsDeleted: report.composioConnectionsDeleted,
       pushSubscriptionsDeleted: report.pushSubscriptionsDeleted,
+      sharedAccessKept: report.sharedAccessKept,
       failures: report.failures,
     },
     LOG_SOURCE

@@ -170,6 +170,7 @@ async function setActiveScope(scope) {
   await putItem(currentDb, STORE_META, {
     key: "activeIdentity",
     userId: nextScope.userId,
+    workspaceId: nextScope.workspaceId,
     updatedAt: Date.now(),
   });
   if (activeScope?.key !== nextScope.key) {
@@ -322,7 +323,21 @@ async function queueWhenOffline(request) {
   }
 }
 
+// The scope lives in memory and is gone after the browser evicts the worker;
+// the identity saved with it in IndexedDB brings it back so a sync still runs.
+async function restoreActiveScope() {
+  if (activeScope) return activeScope;
+  const db = await openDb();
+  const identity = await getItem(db, STORE_META, "activeIdentity");
+  const restored = identity
+    ? normalizeScope({ ...identity, schemaVersion: OFFLINE_SCHEMA_VERSION })
+    : null;
+  if (restored && !activeScope) activeScope = restored;
+  return activeScope;
+}
+
 async function flushQueue() {
+  await restoreActiveScope();
   if (!activeScope) return;
   const db = await openDb();
   const allItems = await getAll(db, STORE_QUEUE);

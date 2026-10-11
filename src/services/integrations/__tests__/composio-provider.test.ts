@@ -37,6 +37,8 @@ describe("Composio connection deletion", () => {
           items: [
             { id: "ca_listed", user_id: "user-1" },
             { id: "ca_other", user_id: "someone-else" },
+            { id: "ca_unowned" },
+            { id: "ca_shared", user_id: "user-1" },
           ],
           next_cursor: null,
         })
@@ -44,10 +46,12 @@ describe("Composio connection deletion", () => {
       .mockResolvedValueOnce(json(200, { success: true }))
       .mockResolvedValueOnce(json(404, { error: "not found" }));
 
-    const result = await new ComposioIntegrationProvider().deleteUserConnections(
-      "user-1",
-      ["ca_stored"]
-    );
+    const result =
+      await new ComposioIntegrationProvider().deleteUserConnections(
+        "user-1",
+        ["ca_stored"],
+        ["ca_shared"]
+      );
 
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls[0]).toBe(
@@ -58,7 +62,14 @@ describe("Composio connection deletion", () => {
       "https://backend.composio.dev/api/v3.1/connected_accounts/ca_listed?revoke_on_delete=true",
     ]);
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "DELETE" });
-    expect(result).toEqual({ deleted: ["ca_stored", "ca_listed"], failed: [] });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      signal: expect.any(AbortSignal),
+    });
+    expect(result).toEqual({
+      deleted: ["ca_stored", "ca_listed"],
+      failed: [],
+      kept: ["ca_shared"],
+    });
   });
 
   it("does nothing without an API key", async () => {
@@ -66,7 +77,7 @@ describe("Composio connection deletion", () => {
 
     await expect(
       new ComposioIntegrationProvider().deleteUserConnections("user-1", ["x"])
-    ).resolves.toEqual({ deleted: [], failed: [] });
+    ).resolves.toEqual({ deleted: [], failed: [], kept: [] });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
