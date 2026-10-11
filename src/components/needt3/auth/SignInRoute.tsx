@@ -16,8 +16,11 @@ import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { isPublicSignupEnabledClient } from "@/lib/auth/client-public-signup";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
 import { logger } from "@/lib/logger";
+import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
 
+import { PhoneAuth } from "../phone/auth";
+import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
 import {
   type AuthMode,
@@ -42,13 +45,24 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export function V3SignInRoute({
   callbackUrl,
   error,
+  initialUi = "desktop",
+  uiForced = false,
 }: {
   callbackUrl?: string;
   error?: string;
+  /** The server's pick for the first render (`phoneUiFrom`). */
+  initialUi?: PhoneUi;
+  /** The `needt-ui` cookie pinned a side: the width never overrides it. */
+  uiForced?: boolean;
 }) {
+  /* A signed-out visitor has no frame around the page, so this route reads the
+     same server pick and width listener the frame does. */
+  const ui = useResolvedPhoneUi(initialUi, uiForced);
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
   const [mode, setMode] = React.useState<AuthMode>("login");
-  const [allowSignup, setAllowSignup] = React.useState(false);
+  /* null until /api/auth/public-signup has answered: neither "Create one" nor
+     the waitlist line is drawn before then. */
+  const [allowSignup, setAllowSignup] = React.useState<boolean | null>(null);
   const [configured, setConfigured] = React.useState<readonly AuthProvider[]>(
     []
   );
@@ -191,9 +205,11 @@ export function V3SignInRoute({
     }
   }, []);
 
+  const Screen = ui === "phone" ? PhoneAuth : AuthScreen;
+
   return (
     <AuthScope>
-      <AuthScreen
+      <Screen
         mode={mode}
         onMode={setMode}
         onDone={() => {
@@ -220,7 +236,8 @@ export function V3SignInRoute({
           );
         }}
         notice={oauthErrorMessage(error) || null}
-        allowSignup={allowSignup}
+        allowSignup={allowSignup === true}
+        signupClosed={allowSignup === false}
         aside={
           <button
             type="button"

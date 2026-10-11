@@ -38,11 +38,13 @@ import {
 import { NeedtLockup } from "../wordmark";
 import {
   type AuthMode,
+  WAITLIST,
   mailProblem,
   mailProblemText,
   passwordShort,
   refusalText,
   resendClock,
+  showWaitlist,
   submitLabel,
   submitStep,
 } from "./auth-logic";
@@ -87,6 +89,8 @@ export interface AuthScreenProps {
   notice?: string | null;
   /** Whether "Create one" is offered at all. */
   allowSignup?: boolean;
+  /** Sign-up answered "closed" (not: still unknown): show the waitlist line. */
+  signupClosed?: boolean;
   /** One quiet line under the password (resend confirmation). */
   aside?: React.ReactNode;
   /** Where Terms and Privacy go. */
@@ -252,6 +256,7 @@ export function AuthScreen({
   onRecover,
   notice,
   allowSignup = true,
+  signupClosed = false,
   aside,
   termsHref = "/terms",
   privacyHref = "/privacy",
@@ -710,6 +715,15 @@ export function AuthScreen({
           >
             {signup ? "Sign in" : "Create one"}
           </button>
+        </p>
+      ) : null}
+      {showWaitlist({ mode, signupClosed }) ? (
+        <p className="axs-switch" data-px-calm data-auth-waitlist>
+          {WAITLIST.lead}
+          <a className="ax-link auth-signin-text-4" href={WAITLIST.href}>
+            {WAITLIST.host}
+          </a>
+          .
         </p>
       ) : null}
       <p className="axs-note" data-px-calm>
