@@ -38,14 +38,17 @@ import {
 import { NeedtLockup } from "../wordmark";
 import {
   type AuthMode,
+  WAITLIST,
   mailProblem,
   mailProblemText,
   passwordShort,
   refusalText,
   resendClock,
+  showWaitlist,
   submitLabel,
   submitStep,
 } from "./auth-logic";
+import { type AuthFields, useAuthFields } from "./use-auth-fields";
 
 export type { AuthMode } from "./auth-logic";
 
@@ -87,12 +90,16 @@ export interface AuthScreenProps {
   notice?: string | null;
   /** Whether "Create one" is offered at all. */
   allowSignup?: boolean;
+  /** Sign-up answered "closed" (not: still unknown): show the waitlist line. */
+  signupClosed?: boolean;
   /** One quiet line under the password (resend confirmation). */
   aside?: React.ReactNode;
   /** Where Terms and Privacy go. */
   termsHref?: string;
   privacyHref?: string;
   seed?: { mail?: string };
+  /** The host owns the two fields (so a face swap keeps what was typed). */
+  fields?: AuthFields;
 }
 
 function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
@@ -252,15 +259,16 @@ export function AuthScreen({
   onRecover,
   notice,
   allowSignup = true,
+  signupClosed = false,
   aside,
   termsHref = "/terms",
   privacyHref = "/privacy",
   seed,
+  fields,
 }: AuthScreenProps) {
   const signup = mode !== "login";
   const online = useOnline();
-  const [mail, setMail] = React.useState(seed?.mail ?? "");
-  const [pass, setPass] = React.useState("");
+  const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
   const [show, setShow] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [refused, setRefused] = React.useState<{
@@ -270,7 +278,7 @@ export function AuthScreen({
   const [touched, setTouched] = React.useState(false);
   /* Craft asks for the address first; the password arrives under it once the
      address is in. */
-  const [withPass, setWithPass] = React.useState(false);
+  const [withPass, setWithPass] = React.useState(pass.length > 0);
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [recover, setRecover] = React.useState<Recover>(null);
@@ -710,6 +718,15 @@ export function AuthScreen({
           >
             {signup ? "Sign in" : "Create one"}
           </button>
+        </p>
+      ) : null}
+      {showWaitlist({ mode, signupClosed }) ? (
+        <p className="axs-switch" data-px-calm data-auth-waitlist>
+          {WAITLIST.lead}
+          <a className="ax-link auth-signin-text-4" href={WAITLIST.href}>
+            {WAITLIST.host}
+          </a>
+          .
         </p>
       ) : null}
       <p className="axs-note" data-px-calm>

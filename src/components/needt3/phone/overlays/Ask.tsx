@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { StGlyph } from "../../states/StGlyph";
 import { PkSheet, pkCx } from "../kit";
 import { ask as copy } from "./strings";
 
@@ -135,7 +136,7 @@ export function PkAsk({ open, onClose, reply }: PkAskProps) {
       <div ref={list} className="pov-ask-list" data-pov-ask="">
         {blocked ? (
           <div className="pov-ask-note" role="status">
-            <LuInfo size={16} />
+            <StGlyph name="cloud-off" size={16} fallback={LuInfo} />
             <span className="pov-ask-note-text">
               <span>Ask Needt isn’t connected on the phone yet.</span>
             </span>
