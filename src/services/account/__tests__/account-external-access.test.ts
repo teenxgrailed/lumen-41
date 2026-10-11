@@ -3,6 +3,7 @@ import { composioProvider } from "@/services/integrations/composio-provider";
 import { disableGoogleWatch } from "@/lib/calendar-webhooks/google";
 import { disableOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
 import { prisma } from "@/lib/prisma";
+import { encryptSecret } from "@/lib/security/secret-encryption";
 import { TokenManager } from "@/lib/token-manager";
 
 import { revokeExternalAccessForDeletion } from "../account-external-access";
@@ -286,5 +287,45 @@ describe("external access revocation on account deletion", () => {
     expect(report.failures).toContain("budget");
     expect(db.pushSubscription.deleteMany).not.toHaveBeenCalled();
     jest.mocked(disableGoogleWatch).mockReset();
+  });
+  it("opens an encrypted sign-in token before sending it to Google", async () => {
+    db.connectedAccount.findMany.mockResolvedValue([]);
+    db.account.findMany.mockResolvedValue([
+      {
+        refresh_token: encryptSecret("signin-refresh"),
+        access_token: encryptSecret("signin-access"),
+        user: { email: "person@gmail.com" },
+      },
+    ]);
+
+    const report = await revokeExternalAccessForDeletion("user-1");
+
+    const bodies = fetchMock.mock.calls.map(
+      ([, init]) => (init as RequestInit).body
+    );
+    expect(bodies).toEqual(["token=signin-refresh"]);
+    expect(String(bodies)).not.toContain("enc:v1:");
+    expect(report.googleGrantsRevoked).toBe(1);
+  });
+
+  it("never sends a token it could not open", async () => {
+    db.connectedAccount.findMany.mockResolvedValue([]);
+    db.account.findMany.mockResolvedValue([
+      {
+        refresh_token: "enc:v1:not.real.ciphertext",
+        access_token: null,
+        user: { email: "person@gmail.com" },
+      },
+    ]);
+    getTokens.mockResolvedValue({
+      accessToken: "enc:v1:still-sealed",
+      expiresAt: new Date(0),
+    });
+
+    const report = await revokeExternalAccessForDeletion("user-1");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(report.googleGrantsRevoked).toBe(0);
+    expect(report.failures).toContain("google:decrypt");
   });
 });

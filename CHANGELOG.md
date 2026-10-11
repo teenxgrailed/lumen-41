@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync.
 - Hosted AI requests are routed only to OpenRouter hosts based in the US or
   the EU, with known hosts elsewhere refused on every request.
-
 - Registration is closed until launch. People who already have an account
   keep signing in with a password, Google or Microsoft; a new account is
   refused — the sign-up endpoint answers 403 `SIGNUPS_CLOSED`, and an OAuth

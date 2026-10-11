@@ -4,6 +4,10 @@ import { disableGoogleWatch } from "@/lib/calendar-webhooks/google";
 import { disableOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import {
+  decryptOptionalSecret,
+  isEncryptedSecret,
+} from "@/lib/security/secret-encryption";
 import { TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "AccountExternalAccess";
@@ -176,11 +180,30 @@ async function revokeGoogleGrants(
       report.sharedAccessKept += 1;
       continue;
     }
-    const token = account.refresh_token || account.access_token;
-    if (token) tokens.push(token);
+    try {
+      /* NextAuth rows hold `enc:v1:` ciphertext; only the opened token is
+         Google's to see. A row that cannot be opened is skipped. */
+      const token =
+        decryptOptionalSecret(account.refresh_token) ||
+        decryptOptionalSecret(account.access_token);
+      if (token) tokens.push(token);
+    } catch (error) {
+      report.failures.push("google:decrypt");
+      await logger.warn(
+        "Could not open a Google sign-in token for revocation",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
+    }
   }
 
   for (const token of new Set(tokens)) {
+    /* Ciphertext is never sent: Google would answer `invalid_token`, which
+       reads as "already revoked", and the grant would stay live. */
+    if (isEncryptedSecret(token)) {
+      report.failures.push("google:ciphertext");
+      continue;
+    }
     try {
       if (await revokeGoogleToken(token)) report.googleGrantsRevoked += 1;
     } catch (error) {
