@@ -1,0 +1,232 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { addDays } from "@/lib/needt3/derive";
+import { useCreateEvent } from "@/lib/needt3/hooks/events";
+import { useArchiveMail, useMail, useMarkRead } from "@/lib/needt3/hooks/mail";
+import { useMailAccounts } from "@/lib/needt3/hooks/mail-accounts";
+import { useMailSync } from "@/lib/needt3/hooks/mail-sync";
+import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import {
+  useCreateTask,
+  useTasks,
+  useTrashTask,
+} from "@/lib/needt3/hooks/tasks";
+import type { V3MailThread } from "@/lib/needt3/map";
+import { notify } from "@/lib/notifications";
+
+import strings from "../../../../docs/port/prototype/port/strings/en.json";
+import {
+  type MakeWhen,
+  mailTaskDraft,
+  tabList,
+  withPending,
+} from "../phone/mail/model";
+import { type MailTab, groupByDay, madeTasks, tabCounts } from "./derive";
+
+const copy = strings["MailScreen.jsx"];
+
+/**
+ * The phone Mailbox's controller. It is called ONCE by the route component
+ * (`MailFaces`), above the face switch, and handed down: the selected view,
+ * the open message, the tasks being made and every write live here, so
+ * crossing 700 px never loses them or repeats a write. The data itself is
+ * TanStack Query, shared with the desktop face by key.
+ *
+ * Every write goes through the v3 hooks (`useMarkRead`, `useArchiveMail`,
+ * `useCreateTask` with the mail as the task's origin, `useCreateEvent`,
+ * `useMailSync`). Mail stays read-only at the provider: nothing here sends,
+ * drafts or trashes.
+ */
+export function useMailbox() {
+  const tz = useTimeZone();
+  const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
+  const mail = useMail("inbox");
+  const tasks = useTasks();
+  const accounts = useMailAccounts();
+  const markRead = useMarkRead();
+  const archiveMail = useArchiveMail();
+  const createTask = useCreateTask();
+  const trashTask = useTrashTask();
+  const createEvent = useCreateEvent();
+  const sync = useMailSync();
+
+  const [tab, setTab] = useState<MailTab>("needs");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [readOpen, setReadOpen] = useState(false);
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const busy = useRef(new Set<string>());
+
+  const live = useMemo(() => mail.data ?? [], [mail.data]);
+  const madeServer = useMemo(() => madeTasks(tasks.data ?? []), [tasks.data]);
+  const made = useMemo(
+    () => withPending(madeServer, pending),
+    [madeServer, pending]
+  );
+  const list = useMemo(() => tabList(live, tab, made), [live, tab, made]);
+  const counts = tabCounts(live, made);
+  const groups = groupByDay(list, today);
+  const unread = live.filter((m) => !m.isRead).length;
+  const down = (accounts.data ?? []).filter((a) => a.status === "ERROR");
+
+  // A pending mark is only a bridge: it goes once the server's task shows.
+  useEffect(() => {
+    if (!pending.size) return;
+    if (![...pending].some((id) => madeServer.has(id))) return;
+    setPending((p) => new Set([...p].filter((id) => !madeServer.has(id))));
+  }, [pending, madeServer]);
+
+  /** One write per message at a time: a double tap or a second face repeats nothing. */
+  const once = useCallback(async (key: string, run: () => Promise<void>) => {
+    if (busy.current.has(key)) return;
+    busy.current.add(key);
+    try {
+      await run();
+    } catch {
+      // the hook already reverted the cache and told the person
+    } finally {
+      busy.current.delete(key);
+    }
+  }, []);
+
+  const undoable = (msg: string, undo: () => Promise<void>) =>
+    notify.success(msg, {
+      action: { label: "Undo", onClick: () => void undo() },
+    });
+
+  const close = useCallback(() => setOpenId(null), []);
+
+  const open = useCallback(
+    (m: V3MailThread) => {
+      setOpenId(m.id);
+      if (!m.isRead)
+        void once(`read:${m.id}`, async () => {
+          await markRead.mutateAsync({ id: m.id, isRead: true });
+        });
+    },
+    [markRead, once]
+  );
+
+  const archive = useCallback(
+    (m: V3MailThread) =>
+      once(`archive:${m.id}`, async () => {
+        setOpenId((id) => (id === m.id ? null : id));
+        await archiveMail.mutateAsync({ id: m.id });
+        //todo: Undo needs an un-archive action on /api/mail/messages/[id].
+        notify.success(copy.MailScreen.archived);
+      }),
+    [archiveMail, once]
+  );
+
+  const makeTask = useCallback(
+    (m: V3MailThread, when: MakeWhen) =>
+      once(`task:${m.id}`, async () => {
+        setPending((p) => new Set(p).add(m.id));
+        try {
+          const { undo } = await createTask.mutateAsync({
+            draft: mailTaskDraft(m, when, today),
+          });
+          undoable(
+            when === "later"
+              ? copy.mlMakeTask.task_made_for_later
+              : copy.mlMakeTask.task_made_its_in_inbox,
+            undo
+          );
+        } catch (error) {
+          setPending((p) => new Set([...p].filter((id) => id !== m.id)));
+          throw error;
+        }
+      }),
+    [createTask, once, today]
+  );
+
+  const takeBack = useCallback(
+    (m: V3MailThread) =>
+      once(`untask:${m.id}`, async () => {
+        const taskId = madeServer.get(m.id);
+        if (!taskId) return;
+        const { undo } = await trashTask.trash(taskId);
+        undoable("Task moved to Trash", undo);
+      }),
+    [madeServer, once, trashTask]
+  );
+
+  /** Tomorrow 10:00, 30 min, on the person's own Needt calendar. */
+  const toCalendar = useCallback(
+    (m: V3MailThread) =>
+      once(`event:${m.id}`, async () => {
+        const day = addDays(today, 1);
+        const { undo } = await createEvent({
+          title: m.subject || copy.MailScreen.no_subject,
+          startAt: `${day}T10:00`,
+          endAt: `${day}T10:30`,
+          isAllDay: false,
+        });
+        undoable(copy.mlToCalendar.added_to_calendar_tomorrow_10_00, undo);
+      }),
+    [createEvent, once, today]
+  );
+
+  const toggleRead = useCallback(
+    (m: V3MailThread) =>
+      once(`read:${m.id}`, async () => {
+        const { undo } = await markRead.mutateAsync({
+          id: m.id,
+          isRead: !m.isRead,
+        });
+        undoable(
+          m.isRead ? copy._module.marked_as_unread : "Marked as read",
+          undo
+        );
+      }),
+    [markRead, once]
+  );
+
+  const syncNow = useCallback(
+    () =>
+      once("sync", async () => {
+        try {
+          const { queued } = await sync.mutateAsync();
+          if (queued) notify.info("Syncing your mail…");
+          else notify.info("There is no connected account to sync.");
+        } catch {
+          notify.error("Could not start the sync. Try again in a moment.");
+        }
+      }),
+    [once, sync]
+  );
+
+  return {
+    today,
+    tz,
+    mail,
+    tasks,
+    accounts,
+    live,
+    made,
+    madeServer,
+    list,
+    counts,
+    groups,
+    unread,
+    down,
+    tab,
+    setTab,
+    readOpen,
+    toggleReadOpen: () => setReadOpen((v) => !v),
+    openId,
+    open,
+    close,
+    archive,
+    makeTask,
+    takeBack,
+    toCalendar,
+    toggleRead,
+    syncNow,
+    syncing: sync.isPending,
+  };
+}
+
+export type Mailbox = ReturnType<typeof useMailbox>;
