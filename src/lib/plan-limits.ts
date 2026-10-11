@@ -1,10 +1,25 @@
 import type { SubscriptionPlan } from "@prisma/client";
 
 /**
- * What each plan may use. Kept free of server imports so client code (the
- * habits screen, pricing) reads the same numbers the API enforces in
- * `@/lib/entitlements`; never copy a limit into a component constant.
+ * What each plan allows. Client-safe (no Prisma client, no server code) so the
+ * paywall can print the same numbers the server enforces; `@/lib/entitlements`
+ * re-exports it and does the enforcing. `null` means unlimited.
  */
+export interface PlanLimits {
+  calendars: number | null;
+  autoScheduledTasks: number | null;
+  boards: number | null;
+  mailboxes: number | null;
+  aiAgent: boolean;
+  focusStats: boolean;
+  advancedFocusModes: boolean;
+  remindersPerTask: number | null;
+  bookingPages: number | null;
+  advancedNudges: boolean;
+  /** Active (non-archived) habits; a trial counts as Pro. */
+  habits: number | null;
+}
+
 export const PLAN_LIMITS = {
   FREE: {
     calendars: 1,
@@ -45,20 +60,4 @@ export const PLAN_LIMITS = {
     advancedNudges: true,
     habits: null,
   },
-} as const satisfies Record<
-  SubscriptionPlan,
-  {
-    calendars: number | null;
-    autoScheduledTasks: number | null;
-    boards: number | null;
-    mailboxes: number | null;
-    aiAgent: boolean;
-    focusStats: boolean;
-    advancedFocusModes: boolean;
-    remindersPerTask: number | null;
-    bookingPages: number | null;
-    advancedNudges: boolean;
-    /** Active (non-archived) habits; a trial counts as Pro. */
-    habits: number | null;
-  }
->;
+} as const satisfies Record<SubscriptionPlan, PlanLimits>;
