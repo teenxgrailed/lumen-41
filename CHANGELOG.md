@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connected-calendar, mail and task credentials are encrypted at rest:
+  Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
+  AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens
+  NextAuth keeps. Existing rows are encrypted by the worker at start; reads
+  accept both forms meanwhile. The session no longer carries the sign-in
+  provider's OAuth tokens to the browser, and the worker refuses to start in
+  production without `AI_ENCRYPTION_KEY` or `NEXTAUTH_SECRET`.
 - Registration is closed until launch. People who already have an account
   keep signing in with a password, Google or Microsoft; a new account is
   refused — the sign-up endpoint answers 403 `SIGNUPS_CLOSED`, and an OAuth

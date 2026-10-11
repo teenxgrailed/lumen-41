@@ -8,6 +8,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
+import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-oauth-scopes";
@@ -101,7 +102,9 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
   }
 
   return {
-    adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
+    adapter: withEncryptedAccountTokens(
+      PrismaAdapter(prisma) as NonNullable<NextAuthOptions["adapter"]>
+    ),
     // Add secret for production - required for security
     secret: authSecret(),
 
@@ -127,15 +130,21 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
       // This branch's jwt supersedes main's: it keeps token.sub and the role
       // instead of early-returning a fresh token object that dropped both.
       async jwt({ token, account, user }) {
+        // Sessions issued before the provider tokens were dropped still carry
+        // them; strip them so they stop riding along in the cookie.
+        const legacy = token as Record<string, unknown>;
+        delete legacy.accessToken;
+        delete legacy.refreshToken;
+
         if (user) {
           token.sub = user.id;
           token.role = (user as UserWithRole).role;
         }
 
-        // Initial sign in
+        // Initial sign in. The provider's OAuth tokens are deliberately not
+        // copied into the JWT: the session callback would hand them to the
+        // browser via /api/auth/session, and nothing in Needt uses them.
         if (account) {
-          token.accessToken = account.access_token;
-          token.refreshToken = account.refresh_token;
           token.expiresAt = account.expires_at;
           token.provider = account.provider;
           if (account.type === "oauth" && user?.id && user.email) {
@@ -173,8 +182,6 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
 
         return {
           ...session,
-          accessToken: token.accessToken,
-          refreshToken: token.refreshToken,
           expiresAt: token.expiresAt,
           provider: token.provider,
         };
