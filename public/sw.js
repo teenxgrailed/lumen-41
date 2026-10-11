@@ -101,7 +101,11 @@ self.addEventListener("message", (event) => {
       clearOfflineData().then(() => event.ports[0]?.postMessage({ ok: true }))
     );
   } else if (event.data?.type === "NEEDT_SYNC_NOW") {
-    event.waitUntil(flushQueue());
+    event.waitUntil(
+      flushQueue()
+        .catch(() => undefined)
+        .then(() => event.ports[0]?.postMessage({ ok: true }))
+    );
   } else if (event.data?.type === "NEEDT_OFFLINE_STATE_REQUEST") {
     event.waitUntil(broadcastQueueState());
   }

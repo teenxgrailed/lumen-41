@@ -4,11 +4,10 @@ import * as React from "react";
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { signOut } from "next-auth/react";
-
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { newDate } from "@/lib/date-utils";
 import type { NeedtPerson, NeedtTask } from "@/lib/needt/types";
 import { resolveThemeMode } from "@/lib/theme";
@@ -190,7 +189,7 @@ export function NeedtAppShell({
         focusExitIn={focusSession.exitIn}
         onOpenPalette={onOpenPalette}
         onSignOut={() => {
-          void signOut({ callbackUrl: "/auth/signin" });
+          void signOutOfNeedt();
         }}
         bindKeys={false}
       >

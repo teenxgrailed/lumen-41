@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { signIn, signOut } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import Image from "next/image";
 
 import { Loader2, LogOut, ShieldCheck, Trash2, UserRound } from "lucide-react";
@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { newDate } from "@/lib/date-utils";
 import { notify } from "@/lib/notifications";
-import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
 import { SettingRow, SettingsCard, SettingsSection } from "./SettingsSection";
 
@@ -46,8 +46,7 @@ export function AccountSettings() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await clearNeedtOfflineData();
-    await signOut({ callbackUrl: "/auth/signin" });
+    await signOutOfNeedt();
   };
 
   const scheduleDeletion = async () => {

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Deleting an account now cuts third-party access before the data goes:
+  Google and Outlook calendar push channels are stopped, the Google grant is
+  revoked at Google, Composio connections are deleted and revoked upstream,
+  and Web Push endpoints are dropped. Microsoft and CalDAV credentials, which
+  have no revoke call, are deleted with the account. Each step is
+  best-effort and never holds the deletion up.
+- The one-trial-per-email record no longer keeps the email: it stores a keyed
+  hash of the normalized address, and the worker rewrites existing records.
+- Signing out from any menu now clears the account's data from the browser —
+  every localStorage key except the theme and other device preferences, plus
+  the offline cache — after giving changes saved offline a few seconds to
+  sync.
+- Hosted AI requests are routed only to OpenRouter hosts based in the US or
+  the EU, with known hosts elsewhere refused on every request.
+
 - Registration is closed until launch. People who already have an account
   keep signing in with a password, Google or Microsoft; a new account is
   refused — the sign-up endpoint answers 403 `SIGNUPS_CLOSED`, and an OAuth

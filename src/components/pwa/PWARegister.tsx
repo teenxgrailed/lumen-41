@@ -106,7 +106,11 @@ export function PWARegister() {
   useEffect(() => {
     const userId = session?.user?.id;
     if (status === "unauthenticated" || !userId) {
-      if (status === "unauthenticated") void clearNeedtOfflineData();
+      /* Offline, the session check fails the same way a signed-out one
+         does, and clearing then would throw away changes saved offline. */
+      if (status === "unauthenticated" && navigator.onLine) {
+        void clearNeedtOfflineData();
+      }
       return;
     }
 
