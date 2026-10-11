@@ -29,7 +29,9 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { V3DragProvider, useV3Drag } from "../drag/DragHost";
 import { RichMenu } from "../menu/RichMenu";
+import { PhoneCalendar } from "../phone/calendar/PhoneCalendar";
 import { useDesignV3 } from "../root/V3Root";
+import { usePhoneUi } from "../root/phone-ui-context";
 import { StScreen } from "../states/StScreen";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
@@ -79,7 +81,10 @@ const quote = (s: string) => `“${s}”`;
 export function CalendarCraft() {
   const v3 = useDesignV3();
   const host = useV3Drag();
+  const phone = usePhoneUi() === "phone";
   if (!v3) return null;
+  // the phone's own face (phone/calendar); the desktop face below is untouched
+  if (phone) return <PhoneCalendar />;
   // the shell's drag host when it has one; until then the calendar's own
   return host ? (
     <CalendarScreen />
