@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 
 import { laterPatch } from "@/lib/needt3/day";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
@@ -14,6 +14,8 @@ import { isAhead, projectOf } from "./model";
 import { SAY } from "./strings";
 
 const none = () => undefined;
+
+type ExitKind = "check" | "done" | "later";
 
 /**
  * The rows both screens draw, with their exits (usePtkRows): swipe right or
@@ -39,7 +41,13 @@ export function useTaskRows({
   const update = useUpdateTask();
   const openTask = usePhoneOverlays((s) => s.openTask);
 
-  const X = usePkExit<V3Task>((t, kind) => {
+  // Rows whose exit is playing and whose write has not gone out yet. The exit
+  // is timers; if this face unmounts first (a swap to the desktop face, a
+  // route change) the timers are dropped, so the write is made then instead of
+  // being lost.
+  const pending = useRef(new Map<string, { t: V3Task; kind: ExitKind }>());
+  const write = (t: V3Task, kind: ExitKind) => {
+    pending.current.delete(t.id);
     if (kind === "later") {
       update
         .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
@@ -48,7 +56,20 @@ export function useTaskRows({
       // The hook has told the person and put the old fields back on a failure.
       update.mutateAsync({ id: t.id, patch: { done: true } }).catch(none);
     }
-  });
+  };
+  const writeRef = useRef(write);
+  writeRef.current = write;
+  const X = usePkExit<V3Task>((t, kind) => writeRef.current(t, kind));
+  useEffect(() => {
+    const left = pending.current;
+    return () => {
+      for (const [, p] of [...left]) writeRef.current(p.t, p.kind);
+    };
+  }, []);
+  const exit = (t: V3Task, kind: ExitKind) => {
+    if (!pending.current.has(t.id)) pending.current.set(t.id, { t, kind });
+    X.exit(t, kind);
+  };
 
   const reopen = useCallback(
     (t: V3Task) => {
@@ -70,9 +91,9 @@ export function useTaskRows({
         out={!!X.out[t.id]}
         canDone={!t.done}
         canLater={!t.done && !isAhead(t, today)}
-        onCheck={(x) => (x.done ? reopen(x) : X.exit(x, "check"))}
+        onCheck={(x) => (x.done ? reopen(x) : exit(x, "check"))}
         onOpen={openTask}
-        onSwipe={(side) => X.exit(t, side)}
+        onSwipe={(side) => exit(t, side)}
       />
     );
   };

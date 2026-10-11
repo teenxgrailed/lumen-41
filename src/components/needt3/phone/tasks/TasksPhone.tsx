@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
   addedLabel,
@@ -17,6 +17,7 @@ import {
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { StScreen } from "../../states/StScreen";
+import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
 import { PkButton, PkEmpty, PkNumber, PkScreen, PkSection, pkCx } from "../kit";
 import { snack } from "../overlays/snack";
@@ -24,6 +25,7 @@ import { usePhoneOverlays } from "../overlays/store";
 import { usePkToday } from "../overlays/today";
 import { TaskParam } from "./TaskParam";
 import {
+  DONE_FOLD,
   DONE_ZONE,
   PTK_TABS,
   type PtkTab,
@@ -32,7 +34,7 @@ import {
   ptkSpecs,
   taskHits,
 } from "./model";
-import { PtkBar, cappedRows, useFolds, useMore } from "./parts";
+import { PtkBar, cappedRows } from "./parts";
 import { EMPTY, copy } from "./strings";
 import { useTaskRows } from "./useTaskRows";
 
@@ -40,8 +42,14 @@ const NO_TASKS: V3Task[] = [];
 const NO_PROJECTS: V3Project[] = [];
 const none = () => undefined;
 
-/** The tab the person was on last, kept while the app stays open. */
+/**
+ * The tab the person was on last, kept while the app stays open and seeded
+ * into `useWorkState` when the Tasks route opens on the phone. The live tab is
+ * the shared state's (it survives a face swap); this only remembers it across
+ * visits.
+ */
 let lastTab: PtkTab = "today";
+export const phoneTab = (): PtkTab => lastTab;
 
 /**
  * Tasks on the phone (phone-tasks.jsx PtkTasks): a compact segmented control
@@ -54,13 +62,14 @@ let lastTab: PtkTab = "today";
  * Data: `useTasks` / `useProjects`; the loading, offline and error states are
  * the states layer's (`StScreen`).
  */
-export function PhoneTasks() {
+export function PhoneTasks({ state }: { state: WorkState }) {
   const tasksQ = useTasks();
   const projectsQ = useProjects();
   return (
     <StScreen query={tasksQ} screen="tasks">
       <TaskParam />
       <TasksBody
+        state={state}
         tasks={tasksQ.data ?? NO_TASKS}
         projects={projectsQ.data ?? NO_PROJECTS}
       />
@@ -69,20 +78,22 @@ export function PhoneTasks() {
 }
 
 function TasksBody({
+  state,
   tasks,
   projects,
 }: {
+  state: WorkState;
   tasks: V3Task[];
   projects: V3Project[];
 }) {
   const today = usePkToday();
-  const [tab, setTabRaw] = useState<PtkTab>(lastTab);
+  // The four tabs are the desktop's tabs too, so the shared tab always fits.
+  const tab = state.tab as PtkTab;
   const setTab = (id: PtkTab) => {
     lastTab = id;
-    setTabRaw(id);
+    state.setTab(id);
   };
-  const { fold, flip } = useFolds();
-  const more = useMore();
+  const { fold, flip } = state;
   const openTask = usePhoneOverlays((s) => s.openTask);
   const update = useUpdateTask();
   const create = useCreateTask();
@@ -217,7 +228,12 @@ function TasksBody({
                 ) : null
               }
             >
-              {cappedRows(s.tasks, R.row, more.all(s.key), more.open(s.key))}
+              {cappedRows(
+                s.tasks,
+                R.row,
+                !!state.more[s.key],
+                state.openMore(s.key)
+              )}
             </PkSection>
           </PkDropZone>
         ))}
@@ -226,19 +242,19 @@ function TasksBody({
           <PkDropZone
             k={DONE_ZONE}
             spec={specs[DONE_ZONE]}
-            folded={!!fold[DONE_ZONE]}
+            folded={!!fold[DONE_FOLD]}
           >
             <PkSection
               title={copy.PtkTasks.done}
               count={m.done.length}
-              folded={!!fold[DONE_ZONE]}
-              onFold={flip(DONE_ZONE)}
+              folded={!!fold[DONE_FOLD]}
+              onFold={flip(DONE_FOLD)}
             >
               {cappedRows(
                 m.done,
                 R.row,
-                more.all(DONE_ZONE),
-                more.open(DONE_ZONE)
+                !!state.more[DONE_FOLD],
+                state.openMore(DONE_FOLD)
               )}
             </PkSection>
           </PkDropZone>

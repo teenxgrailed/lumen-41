@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type CSSProperties,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type ReactNode } from "react";
 
 import { LuFolder } from "react-icons/lu";
 
@@ -123,24 +117,6 @@ export function cappedRows<T>(
   return out;
 }
 
-/** Which sections have been opened past their cap (kept by the screen). */
-export function useMore() {
-  const [more, setMore] = useState<Record<string, boolean>>({});
-  return {
-    all: (k: string) => !!more[k],
-    open: (k: string) => () => setMore((m) => ({ ...m, [k]: true })),
-  };
-}
-
-/** Which sections are folded; Done starts shut. */
-export function useFolds() {
-  const [fold, setFold] = useState<Record<string, boolean>>({ Done: true });
-  return {
-    fold,
-    flip: (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] })),
-  };
-}
-
 export interface ActionItem {
   id: string;
   icon: ReactNode;
@@ -189,35 +165,30 @@ export function PtkActions({
   );
 }
 
-/** Name and colour of a project; a name another project has is refused. */
+/**
+ * Name and colour of a project; a name another project has is refused. What
+ * is typed is held by the caller (`useWorkState`), not here, so it survives a
+ * swap to the desktop face.
+ */
 export function PtkEditSheet({
   open,
   p,
   projects,
+  values,
+  onValues,
   onClose,
   onSave,
 }: {
   open: boolean;
   p: V3Project | null;
   projects: readonly Pick<V3Project, "id" | "name">[];
+  values: { name: string; color: string } | null;
+  onValues: (v: { name: string; color: string }) => void;
   onClose: () => void;
   onSave: (v: { name: string; color: string }) => void;
 }) {
-  const [name, setName] = useState("");
-  const [hue, setHue] = useState<string>(PTK_SWATCHES[0][1]);
-  const seeded = useRef<string | null>(null);
-  useEffect(() => {
-    if (!open) {
-      seeded.current = null;
-      return;
-    }
-    if (p && seeded.current !== p.id) {
-      seeded.current = p.id;
-      setName(p.name);
-      setHue(p.color || PTK_SWATCHES[0][1]);
-    }
-  }, [open, p]);
-
+  const name = values?.name ?? "";
+  const hue = values?.color ?? PTK_SWATCHES[0][1];
   const clean = name.trim();
   const dupe = nameTaken(clean, projects, p?.id);
   const ok = !!clean && !dupe;
@@ -248,9 +219,13 @@ export function PtkEditSheet({
           label={c.name}
           id="ptk-edit-name"
           value={name}
-          onChange={setName}
+          onChange={(n) => onValues({ name: n, color: hue })}
           placeholder={c.project_name}
           inputProps={{
+            enterKeyHint: "done",
+            autoComplete: "off",
+            "aria-invalid": dupe || undefined,
+            "aria-describedby": dupe ? "ptk-edit-err" : undefined,
             onKeyDown: (e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -261,7 +236,9 @@ export function PtkEditSheet({
           }}
         />
         {dupe ? (
-          <p className="ptk-edit-err">{c.a_project_with_this_name_exists}</p>
+          <p className="ptk-edit-err" id="ptk-edit-err" role="alert">
+            {c.a_project_with_this_name_exists}
+          </p>
         ) : null}
         <div className="ptk-edit-colours">
           <span className="pk-label">{c.colour}</span>
@@ -275,7 +252,7 @@ export function PtkEditSheet({
                 aria-label={label}
                 className={pkCx("ptk-swatch", hue === v && "is-on")}
                 style={hueStyle(v)}
-                onClick={() => setHue(v)}
+                onClick={() => onValues({ name, color: v })}
               />
             ))}
           </div>

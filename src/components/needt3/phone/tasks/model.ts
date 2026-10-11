@@ -9,7 +9,12 @@
  * sections a tab shows, and what a drop into each one means.
  */
 import { clock } from "@/lib/needt3/day";
-import { addDays, dueLabel, at as hourAt } from "@/lib/needt3/derive";
+import {
+  addDays,
+  daysBetween,
+  dueLabel,
+  at as hourAt,
+} from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import {
@@ -45,6 +50,8 @@ export interface PtkSection {
 
 /** The key of the Done zone (a locked one: a row may only leave it). */
 export const DONE_ZONE = "Done";
+/** Where the Done fold is kept: the desktop's key, so a face swap keeps it shut or open. */
+export const DONE_FOLD = "__done";
 
 const pickable = (t: Pick<V3Task, "noSlot" | "trashedAt">) =>
   !t.noSlot && !t.trashedAt;
@@ -114,7 +121,8 @@ export function ptkModel(opts: {
   else if (tab === "upcoming") {
     const days = [...new Set(upcoming.map((t) => t.dueDate as string))].sort();
     sections = days.map((day) => ({
-      key: `day-${day}`,
+      // the desktop's key (day-1 = tomorrow): both faces fold the same section
+      key: `day-${daysBetween(today, day)}`,
       title: upcomingTitle(day, today),
       day,
       tasks: upcoming.filter((t) => t.dueDate === day),

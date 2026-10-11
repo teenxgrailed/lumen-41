@@ -224,13 +224,13 @@ describe("ptkSpecs and dropPatch", () => {
   it("Upcoming: each day's section carries its own date and the weekday as label", () => {
     const m = model("upcoming");
     const specs = ptkSpecs("upcoming", m.sections, [], TODAY);
-    expect(specs["day-2026-09-02"]).toMatchObject({
+    expect(specs["day-1"]).toMatchObject({
       date: "2026-09-02",
       label: "Tomorrow",
     });
-    expect(specs["day-2026-09-03"].label).toBe("Thursday");
+    expect(specs["day-2"].label).toBe("Thursday");
     const w = dropPatch(
-      drop("fri", "day-2026-09-04", "day-2026-09-03", null, null),
+      drop("fri", "day-3", "day-2", null, null),
       specs,
       tasks,
       TODAY

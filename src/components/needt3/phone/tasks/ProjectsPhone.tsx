@@ -23,6 +23,7 @@ import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { StScreen } from "../../states/StScreen";
 import { projectHue, projectStats } from "../../work/model";
+import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
 import { PkButton, PkEmpty, PkNumber, PkScreen, PkSection } from "../kit";
 import { snack } from "../overlays/snack";
@@ -30,6 +31,7 @@ import { usePhoneOverlays } from "../overlays/store";
 import { usePkToday } from "../overlays/today";
 import { TaskParam } from "./TaskParam";
 import {
+  DONE_FOLD,
   DONE_ZONE,
   deleteLine,
   deletedLabel,
@@ -47,8 +49,6 @@ import {
   PtkRing,
   PtkTile,
   cappedRows,
-  useFolds,
-  useMore,
 } from "./parts";
 import { SAY, copy } from "./strings";
 import { useTaskRows } from "./useTaskRows";
@@ -64,8 +64,10 @@ const none = () => undefined;
  */
 export function PhoneProjects({
   projectId = null,
+  state,
 }: {
   projectId?: string | null;
+  state: WorkState;
 }) {
   const projectsQ = useProjects();
   const tasksQ = useTasks();
@@ -75,6 +77,7 @@ export function PhoneProjects({
     <StScreen query={query} screen="projects">
       <TaskParam />
       <ProjectsBody
+        state={state}
         projects={projectsQ.data ?? NO_PROJECTS}
         tasks={tasksQ.data ?? NO_TASKS}
         projectId={projectId}
@@ -85,11 +88,13 @@ export function PhoneProjects({
 }
 
 function ProjectsBody({
+  state,
   projects,
   tasks,
   projectId,
   loaded,
 }: {
+  state: WorkState;
   projects: V3Project[];
   tasks: V3Task[];
   projectId: string | null;
@@ -111,6 +116,7 @@ function ProjectsBody({
     return (
       <div key={`p-${page.id}`} className="ptk-stage">
         <ProjectPageView
+          state={state}
           p={page}
           projects={projects}
           tasks={live}
@@ -216,11 +222,13 @@ function ProjectList({
 /* ══ a project's page ═════════════════════════════════════════════════════ */
 
 function ProjectPageView({
+  state,
   p,
   projects,
   tasks,
   onBack,
 }: {
+  state: WorkState;
   p: V3Project;
   projects: V3Project[];
   tasks: V3Task[];
@@ -234,11 +242,11 @@ function ProjectPageView({
   const updateProject = useUpdateProject();
   const archive = useArchiveProject();
   const R = useTaskRows({ today, projects, hideProject: true });
-  const { fold, flip } = useFolds();
-  const more = useMore();
-  const [draft, setDraft] = useState("");
+  const fold = state.pageFold;
+  const flip = state.flipPage;
+  const { draft, setDraft } = state;
   const [menu, setMenu] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const editing = state.editId === p.id;
 
   const mine = useMemo(
     () => tasks.filter((t) => t.projectId === p.id),
@@ -284,7 +292,7 @@ function ProjectPageView({
       .then(({ undo }) => snack(deletedLabel(p.name, open.length), undo), none);
   };
   const save = (v: { name: string; color: string }) => {
-    setEditing(false);
+    state.stopEdit();
     updateProject
       .mutateAsync({ id: p.id, patch: v })
       .then(({ undo }) => snack(SAY.saved, undo), none);
@@ -368,6 +376,7 @@ function ProjectPageView({
             placeholder={addLabel}
             aria-label={addLabel}
             enterKeyHint="done"
+            autoComplete="off"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -406,7 +415,12 @@ function ProjectPageView({
                 folded={!!fold[g.key]}
                 onFold={flip(g.key)}
               >
-                {cappedRows(g.tasks, R.row, more.all(g.key), more.open(g.key))}
+                {cappedRows(
+                  g.tasks,
+                  R.row,
+                  !!state.more[g.key],
+                  state.openMore(g.key)
+                )}
               </PkSection>
             </PkDropZone>
           ))}
@@ -414,19 +428,19 @@ function ProjectPageView({
             <PkDropZone
               k={DONE_ZONE}
               spec={specs[DONE_ZONE]}
-              folded={!!fold[DONE_ZONE]}
+              folded={!!fold[DONE_FOLD]}
             >
               <PkSection
                 title={c.done}
                 count={done.length}
-                folded={!!fold[DONE_ZONE]}
-                onFold={flip(DONE_ZONE)}
+                folded={!!fold[DONE_FOLD]}
+                onFold={flip(DONE_FOLD)}
               >
                 {cappedRows(
                   done,
                   R.row,
-                  more.all(DONE_ZONE),
-                  more.open(DONE_ZONE)
+                  !!state.more[DONE_FOLD],
+                  state.openMore(DONE_FOLD)
                 )}
               </PkSection>
             </PkDropZone>
@@ -452,7 +466,7 @@ function ProjectPageView({
             line: c.name_and_colour,
             onClick: () => {
               setMenu(false);
-              setEditing(true);
+              state.startEdit(p);
             },
           },
           {
@@ -469,7 +483,9 @@ function ProjectPageView({
         open={editing}
         p={p}
         projects={projects}
-        onClose={() => setEditing(false)}
+        values={state.edit}
+        onValues={state.setEdit}
+        onClose={state.stopEdit}
         onSave={save}
       />
     </>

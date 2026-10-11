@@ -25,7 +25,7 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { TaskDialogHost } from "../dialogs/TaskDialog";
-import { PhoneProjects, PhoneTasks } from "../phone/tasks";
+import { PhoneProjects, PhoneTasks, phoneTab } from "../phone/tasks";
 import { useDesignV3 } from "../root/V3Root";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { StScreen } from "../states/StScreen";
@@ -45,6 +45,7 @@ import {
   workModel,
 } from "./model";
 import { Capped, Fold, PageAddButton, Seg2, WkEmpty } from "./parts";
+import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
 const EMPTY_PROJECTS: V3Project[] = [];
@@ -82,23 +83,30 @@ export function WorkScreen({
 }) {
   const v3 = useDesignV3();
   const phone = usePhoneUi() === "phone";
+  // One controller above the face switch: crossing 700 px swaps the faces and
+  // must keep the tab, the folds, a typed line and an open edit sheet.
+  const state = useWorkState(
+    mode === "projects" ? "all" : phone ? phoneTab() : "today"
+  );
   if (!v3) return null;
   // The phone draws its own face (phone/tasks); this route stays mounted.
   if (phone)
     return mode === "tasks" ? (
-      <PhoneTasks />
+      <PhoneTasks state={state} />
     ) : (
-      <PhoneProjects projectId={projectId} />
+      <PhoneProjects projectId={projectId} state={state} />
     );
-  return <WorkScreenContent mode={mode} projectId={projectId} />;
+  return <WorkScreenContent mode={mode} projectId={projectId} state={state} />;
 }
 
 function WorkScreenContent({
   mode,
   projectId,
+  state,
 }: {
   mode: "tasks" | "projects";
   projectId: string | null;
+  state: WorkState;
 }) {
   const isProjects = mode === "projects";
   const router = useRouter();
@@ -115,11 +123,8 @@ function WorkScreenContent({
   const updateProject = useUpdateProject();
   const archiveProject = useArchiveProject();
 
-  const [tab, setTab] = useState<WorkTab>(isProjects ? "all" : "today");
-  const [fold, setFold] = useState<Record<string, boolean>>({ __done: true });
-  const flip = (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] }));
+  const { tab, setTab, fold, flip } = state;
   const [pf, setPf] = useState<ProjectFilter>(null);
-  const [editing, setEditing] = useState<V3Project | null>(null);
 
   const prefs = settings.data?.prefs ?? {};
   const pview = prefs.projectsView === "list" ? "list" : "cards";
@@ -136,11 +141,14 @@ function WorkScreenContent({
   const page = projectId
     ? (projects.find((p) => p.id === projectId) ?? null)
     : null;
+  const editing = state.editId
+    ? (projects.find((p) => p.id === state.editId) ?? null)
+    : null;
 
   const sheetOpen = params.get("new") === "project" || !!editing;
   const openNew = () => setParam("new", "project");
   const closeSheet = () => {
-    setEditing(null);
+    state.stopEdit();
     if (params.get("new")) setParam("new", null);
   };
   const openTask = (id: string) => setParam("task", id);
@@ -305,6 +313,8 @@ function WorkScreenContent({
         onSave={saveProject}
         projects={projects}
         initial={editing}
+        values={editing ? state.edit : null}
+        onValues={state.setEdit}
         title={editing ? "Edit project" : undefined}
         cta={editing ? "Save" : undefined}
       />
@@ -366,8 +376,12 @@ function WorkScreenContent({
               tasks={liveAll}
               today={today}
               onOpenTask={openTask}
-              onEdit={() => setEditing(page)}
+              onEdit={() => state.startEdit(page)}
               onDelete={() => deleteProject(page)}
+              fold={state.pageFold}
+              onFold={state.flipPage}
+              draft={state.draft}
+              onDraft={state.setDraft}
             />
           ) : null}
           {isProjects && !projectId && pview === "cards" && projects.length ? (

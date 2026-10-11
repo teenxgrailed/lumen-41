@@ -18,6 +18,7 @@ import { browserTimeZone } from "@/lib/needt3/hooks/core";
 import type { V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
+import { useWorkState } from "../../../work/useWorkState";
 import { usePhoneOverlays } from "../../overlays/store";
 import { dayIn } from "../../overlays/today";
 import { PhoneTasks } from "../TasksPhone";
@@ -103,6 +104,11 @@ const fire = (el: Element | Window, type: string, p = {}) =>
   });
 
 // the write is a few promise hops and a query cancel: let them all run
+// the screen takes the controller from above, as WorkScreen gives it
+function Harness() {
+  return h(PhoneTasks, { state: useWorkState("today") });
+}
+
 const settle = async () => {
   for (let i = 0; i < 4; i++)
     await act(async () => {
@@ -168,9 +174,7 @@ function mount() {
   });
   qc.setQueryData(qk.tasks({}), TASKS);
   qc.setQueryData(qk.projects(), []);
-  act(() => root.render(h(QueryClientProvider, { client: qc }, h(PhoneTasks))));
-  // the tab the person left last is remembered; every test starts on Today
-  act(() => host.querySelector<HTMLElement>("[data-ptk-tab=today]")!.click());
+  act(() => root.render(h(QueryClientProvider, { client: qc }, h(Harness))));
 }
 
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel)!;
@@ -219,6 +223,14 @@ describe("PhoneTasks", () => {
     mount();
     expect(usePhoneOverlays.getState().taskId).toBe("late");
     expect(mockReplace).toHaveBeenCalledWith("/tasks?x=1", { scroll: false });
+  });
+
+  it("a tap in the first 300 ms after the window opened still lands", () => {
+    // the kit's tap guards used to start at 0 and swallowed it
+    jest.spyOn(performance, "now").mockReturnValue(100);
+    mount();
+    act(() => rowOpen("open").click());
+    expect(usePhoneOverlays.getState().taskId).toBe("open");
   });
 
   it("a swipe right writes done", async () => {

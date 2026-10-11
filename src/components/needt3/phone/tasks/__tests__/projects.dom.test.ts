@@ -17,6 +17,7 @@ import { browserTimeZone } from "@/lib/needt3/hooks/core";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
+import { useWorkState } from "../../../work/useWorkState";
 import { dayIn } from "../../overlays/today";
 import { PhoneProjects } from "../ProjectsPhone";
 
@@ -104,6 +105,10 @@ beforeEach(() => {
   jest
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => null);
+  // CI starts this file within 300 ms of its window opening: every tap guard
+  // (PullDown, Row) must let a tap through then. Pinning the clock there makes
+  // the test see that case on every machine.
+  jest.spyOn(performance, "now").mockReturnValue(100);
   push.mockClear();
   replace.mockClear();
   sent = [];
@@ -139,6 +144,11 @@ afterEach(() => {
   host.remove();
 });
 
+// the screen takes the controller from above, as WorkScreen gives it
+function Harness({ projectId }: { projectId: string | null }) {
+  return h(PhoneProjects, { projectId, state: useWorkState("all") });
+}
+
 function mount(projectId: string | null = null) {
   const qc = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
@@ -147,7 +157,7 @@ function mount(projectId: string | null = null) {
   qc.setQueryData(qk.projects(), [OPS, LAB]);
   act(() =>
     root.render(
-      h(QueryClientProvider, { client: qc }, h(PhoneProjects, { projectId }))
+      h(QueryClientProvider, { client: qc }, h(Harness, { projectId }))
     )
   );
 }
