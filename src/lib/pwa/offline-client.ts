@@ -38,11 +38,14 @@ async function postWithAck(
   if (typeof MessageChannel === "undefined") return false;
   return new Promise<boolean>((resolve) => {
     const channel = new MessageChannel();
-    const timeout = window.setTimeout(() => resolve(false), timeoutMs);
-    channel.port1.onmessage = () => {
+    // An open port with a listener is never released; close it either way.
+    const settle = (acknowledged: boolean) => {
       window.clearTimeout(timeout);
-      resolve(true);
+      channel.port1.close();
+      resolve(acknowledged);
     };
+    const timeout = window.setTimeout(() => settle(false), timeoutMs);
+    channel.port1.onmessage = () => settle(true);
     worker.postMessage(message, [channel.port2]);
   });
 }
