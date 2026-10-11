@@ -108,7 +108,7 @@ export function PkRow({
   const wrap = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
   const G = useRef<Drag | null>(null);
-  const ended = useRef(0);
+  const ended = useRef(Number.NEGATIVE_INFINITY);
   const frame = useRef(frameWriter());
   const [armed, setArmed] = useState<SwipeSide | null>(null);
   const done = !!doneIn || phase === "check";
