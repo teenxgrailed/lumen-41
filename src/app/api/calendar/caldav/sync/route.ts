@@ -54,7 +54,11 @@ export async function PUT(req: NextRequest) {
       logger.error(
         "Invalid CalDAV calendar",
         {
-          feed: JSON.stringify(feed),
+          // Never the row itself: `feed.account` carries the provider's
+          // tokens (or the CalDAV password).
+          feedId: String(feedId),
+          feedType: feed?.type ?? null,
+          hasAccount: Boolean(feed?.account),
           timestamp: new Date().toISOString(),
         },
         LOG_SOURCE
