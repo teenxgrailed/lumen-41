@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import {
+  bumpSessionVersion,
+  forgetSessionState,
+} from "@/lib/auth/session-version";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
@@ -102,8 +106,10 @@ export async function POST(request: NextRequest) {
     // Hash the new password
     const hashedPassword = await hash(password, 10);
 
-    // Update the password and mark token as used
+    // Update the password, mark the token as used and sign the person out
+    // of every device that was signed in with the old password.
     await prisma.$transaction([
+      bumpSessionVersion(resetRequest.user.id),
       prisma.account.update({
         where: {
           id: resetRequest.user.accounts[0].id,
@@ -121,6 +127,7 @@ export async function POST(request: NextRequest) {
         },
       }),
     ]);
+    forgetSessionState(resetRequest.user.id);
 
     logger.info(
       "Password reset successful",

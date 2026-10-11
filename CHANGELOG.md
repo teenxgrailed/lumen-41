@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Security: a session now lasts 30 days and slides — every visit renews it,
+  and a device left unused for 30 days is signed out (it was one year).
+  Settings › Account has "Sign out of all devices"
+  (`POST /api/account/sessions/revoke`), which signs out every device
+  including this one; other devices stop working within a minute. Resetting a
+  password does the same, and a deleted or disabled account is signed out
+  everywhere.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.

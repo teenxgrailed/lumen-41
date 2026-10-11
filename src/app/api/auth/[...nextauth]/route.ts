@@ -33,6 +33,10 @@ declare module "next-auth/jwt" {
     refreshToken?: string;
     expiresAt?: number;
     role?: string;
+    /** User.sessionVersion this token was issued under. */
+    sessionVersion?: number;
+    /** Epoch ms of the last database check of sessionVersion. */
+    sessionVersionCheckedAt?: number;
   }
 }
 
