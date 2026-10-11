@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
 import {
   FiAlertTriangle,
   FiCheckCircle,
@@ -16,20 +15,7 @@ import {
 
 import { CalDAVAccountForm } from "@/components/settings/CalDAVAccountForm";
 
-import {
-  connectToolkit,
-  disconnectCalendar,
-  disconnectMailbox,
-  disconnectToolkit,
-  useCatalog,
-} from "@/lib/needt3/hooks/catalog";
-import { useConnections } from "@/lib/needt3/hooks/connections";
-import { usePlan } from "@/lib/needt3/hooks/plan";
 import { priceStrings } from "@/lib/needt3/pricing";
-import { qk } from "@/lib/needt3/query-keys";
-import { notify } from "@/lib/notifications";
-
-import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
 import { Art } from "../menu/Art";
@@ -37,19 +23,13 @@ import { PlEmpty, StScreen } from "../states/StScreen";
 import {
   CATEGORY_LABEL,
   type CnItem,
-  type Show,
-  aiToolsLocked,
-  buildItems,
   categoriesOf,
-  connectPlan,
-  counts,
-  disconnectKind,
   disconnectTitle,
-  filterItems,
   pillOf,
   statusLine,
 } from "./derive";
 import { mergeQueries } from "./query";
+import type { ConnectionsController } from "./useConnectionsController";
 
 const P = priceStrings();
 
@@ -286,8 +266,6 @@ function AiPromo({ onPlans }: { onPlans: () => void }) {
   );
 }
 
-const TAB_KEY = "needt.connections.tab";
-
 /**
  * Connections (connections.jsx `ConnectionsScreen`): every app and service
  * Needt can read, one card each, with Connect / Reconnect / Disconnect. Google
@@ -302,87 +280,32 @@ const TAB_KEY = "needt.connections.tab";
  * sheet's scope list, Sync now / Sync settings, the sticky glass toolbar, and
  * the "sidebar: 1 issue" link.
  */
-export function ConnectionsScreen() {
-  const qc = useQueryClient();
-  const plan = usePlan();
-  const accounts = useConnections();
-  const catalog = useCatalog();
-  const openSettings = useNeedt3Ui((s) => s.openSettings);
-  const [tab, setTab] = useState<"apps" | "ai">("apps");
-  const [q, setQ] = useState("");
-  const [chip, setChip] = useState("all");
-  const [show, setShow] = useState<Show>("all");
-  const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<CnItem | null>(null);
-  const [caldav, setCaldav] = useState(false);
-
-  useEffect(() => {
-    // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
-    if (window.location.hash === "#ai") return setTab("ai");
-    try {
-      if (window.localStorage.getItem(TAB_KEY) === "ai") setTab("ai");
-    } catch {
-      /* private mode: the tab starts on Apps */
-    }
-  }, []);
-  const pickTab = (t: "apps" | "ai") => {
-    setTab(t);
-    try {
-      window.localStorage.setItem(TAB_KEY, t);
-    } catch {
-      /* the choice lasts until reload */
-    }
-  };
-
-  const items = useMemo(
-    () =>
-      catalog.data
-        ? buildItems(
-            catalog.data.catalog,
-            catalog.data.integrations,
-            accounts.data ?? []
-          )
-        : [],
-    [catalog.data, accounts.data]
-  );
-  const shown = filterItems(items, { q, chip, show });
-  const c = counts(items);
-  const locked = aiToolsLocked(plan.data?.kind);
-
-  const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
-
-  const connect = async (item: CnItem) => {
-    const how = connectPlan(item);
-    if (how.kind === "unavailable") return void notify.info(how.reason);
-    if (how.kind === "caldav") return setCaldav(true);
-    if (how.kind === "navigate") return void window.location.assign(how.href);
-    setBusy(item.key);
-    const r = await connectToolkit(how.toolkit);
-    if (!r.ok) {
-      notify.error(r.error);
-      setBusy(null);
-    }
-  };
-  const disconnect = async (item: CnItem) => {
-    if (!item.accountId) return;
-    setBusy(item.key);
-    const kind = disconnectKind(item);
-    const r =
-      kind === "calendar"
-        ? await disconnectCalendar(item.accountId)
-        : kind === "mailbox"
-          ? await disconnectMailbox(item.accountId)
-          : await disconnectToolkit(item.accountId);
-    setBusy(null);
-    setConfirm(null);
-    if (!r.ok) return void notify.error(r.error);
-    notify.success(
-      item.account && item.account !== item.name
-        ? `${item.name} (${item.account}) disconnected`
-        : `${item.name} disconnected`
-    );
-    await refresh();
-  };
+export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
+  const {
+    accounts,
+    catalog,
+    openSettings,
+    tab,
+    pickTab,
+    q,
+    setQ,
+    chip,
+    setChip,
+    show,
+    setShow,
+    busy,
+    confirm,
+    setConfirm,
+    caldav,
+    setCaldav,
+    items,
+    shown,
+    counts: c,
+    locked,
+    connect,
+    disconnect,
+    caldavDone,
+  } = ctl;
 
   return (
     <div className="scroll-inner" data-v3-screen="connections">
@@ -553,11 +476,7 @@ export function ConnectionsScreen() {
       >
         <span className="cn-sheet-title">Connect Apple / iCloud</span>
         <CalDAVAccountForm
-          onSuccess={() => {
-            setCaldav(false);
-            notify.success("Apple / iCloud connected");
-            void refresh();
-          }}
+          onSuccess={caldavDone}
           onCancel={() => setCaldav(false)}
         />
       </Sheet>
