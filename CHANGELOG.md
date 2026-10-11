@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Privacy: the app no longer loads Inter, Instrument Serif and JetBrains Mono
+  from Google Fonts, so a visitor's IP address is no longer sent to Google on
+  page load. The same font files are now served from the app itself
+  (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
+  Google import so a re-sync cannot bring it back. Every subset Google
+  served is kept — Cyrillic, Greek and Vietnamese included — and a page
+  downloads only the subsets its text uses. The files have hashed names and
+  are cached by browsers for a year.
 - Fixed: typing a new Google or Outlook client secret or Resend API key in
   admin system settings saved only its first character. Secret fields now
   save once, when you leave the field or press Enter, and the field keeps
