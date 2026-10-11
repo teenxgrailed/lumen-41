@@ -1,0 +1,133 @@
+/* ───────── P11 · phone Settings (phone-settings.jsx, styles/phone-settings.css) ─────────
+ * The vendored phone-settings.css draws a place: a full-height PkScreen with
+ * drill-in pages laid over it. The port's Settings is a PkSheet of pages (the
+ * desktop's object, the sheet PermanentHosts mounts), so the rows, groups,
+ * controls, plan card and appearance tiles keep the vendored `ps-*` rules and
+ * this file adds only what the sheet needs. Type is 13 / 12 px; colour only
+ * from the tokens the vendored sheets already use; transform and opacity only. */
+
+/* Settings sits under every other phone sheet (task, paywall, composer): it
+ * is mounted after them in the frame, so at the same z-index it would cover
+ * the paywall that its own rows open. The picker sheet is a sibling mounted
+ * after it and stays above. */
+.needt-v3 .pk-sheet-layer:has(> .ps11-sheet) {
+  z-index: 59;
+}
+
+/* Rule 12: the sheet is the one blur of its stack. The glass cards, the
+ * profile row, the plan card and the chips inside Settings (and inside its
+ * pickers) keep their tint and edge and lose their own backdrop filter. */
+.needt-v3
+  :is(.ps11-sheet, .ps-pick-sheet)
+  :is(.ps-card, .ps-profile, .ps-plan-card, .ps-pro-mark, .pk-glass, .pk-btn) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* The header: a back chip over the page's name, or just "Settings". */
+.needt-v3 .ps11-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .ps11-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--v2p-raise);
+  color: var(--v2p-ink);
+  font: 500 13px/1 var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s var(--pk-ease, ease);
+}
+.needt-v3 .ps11-back:active {
+  transform: scale(0.96);
+}
+.needt-v3 .ps11-back:focus-visible {
+  outline: 2px solid var(--v2p-lav);
+  outline-offset: 2px;
+}
+.needt-v3 .ps11-title {
+  min-width: 0;
+}
+.needt-v3 .ps11-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 13px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+
+/* The page under the header: a page comes in from the right, the list comes
+ * back from the left. Fill is backwards, so nothing is left running once it
+ * has landed (getAnimations() is empty). */
+.needt-v3 .ps11-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.needt-v3 .ps11-stage.is-coming {
+  animation: v3-ps-page-in 0.34s var(--pk-ease, ease) backwards;
+}
+.needt-v3 .ps11-stage.is-back {
+  animation: v3-ps11-back 0.3s var(--pk-ease, ease) backwards;
+}
+@keyframes v3-ps11-back {
+  from {
+    transform: translate3d(-18%, 0, 0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* A control that waits for its value's source to load. */
+.needt-v3 .ps-row.is-off {
+  opacity: 0.55;
+}
+.needt-v3 .ps-switch:disabled,
+.needt-v3 .ps-seg-btn:disabled,
+.needt-v3 .ps-slot:disabled {
+  opacity: 0.55;
+}
+.needt-v3 .ps-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.needt-v3 a.pk-btn {
+  text-decoration: none;
+}
+.needt-v3 .ps-embed {
+  padding: 12px 14px 14px;
+  box-shadow: inset 0 1px 0 var(--v2p-line);
+}
+
+/* A theme tile's picture is the desktop's 128 x 80 drawing at half size. */
+.needt-v3 .ps-theme-pic {
+  height: 40px;
+}
+.needt-v3 .ps-theme-pic > .ps-theme-scale {
+  width: 128px;
+  height: 80px;
+  transform: scale(0.5);
+  transform-origin: 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ps11-stage.is-coming,
+  .needt-v3 .ps11-stage.is-back {
+    animation: none;
+  }
+  .needt-v3 .ps11-back {
+    transition: none;
+  }
+}
