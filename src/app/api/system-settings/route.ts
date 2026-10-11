@@ -7,6 +7,7 @@ import {
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 const LOG_SOURCE = "SystemSettingsAPI";
 
@@ -55,7 +56,11 @@ export async function PATCH(request: NextRequest) {
   if (authResponse) return authResponse;
 
   try {
-    const updates = withoutMaskedSecrets(await request.json());
+    // Fields still carrying the mask are dropped so a stored secret survives a
+    // form that echoes back what it loaded; real values are encrypted.
+    const updates = sealSystemSettingsSecrets(
+      withoutMaskedSecrets(await request.json())
+    );
 
     const settings = await prisma.$transaction(async (tx) => {
       // Check if any SystemSettings record exists

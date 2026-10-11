@@ -82,6 +82,9 @@ const COLUMNS: Column[] = [
   { table: "Account", column: "access_token", covered: true },
   { table: "Account", column: "refresh_token", covered: true },
   { table: "Account", column: "id_token", covered: false },
+  { table: "SystemSettings", column: "googleClientSecret", covered: true },
+  { table: "SystemSettings", column: "outlookClientSecret", covered: true },
+  { table: "SystemSettings", column: "resendApiKey", covered: true },
   { table: "MailAccount", column: "encryptedCredentials", covered: false },
   { table: "AISettings", column: "encryptedApiKey", covered: false },
   {
@@ -110,7 +113,12 @@ async function snapshot(): Promise<Snapshot> {
 }
 
 function totals(result: ProviderSecretsBackfillResult) {
-  const tables = [result.connectedAccount, result.taskProvider, result.account];
+  const tables = [
+    result.connectedAccount,
+    result.taskProvider,
+    result.account,
+    result.systemSettings,
+  ];
   return tables.reduce(
     (sum, t) => ({
       scanned: sum.scanned + t.scanned,
@@ -342,6 +350,25 @@ async function seed() {
     },
   });
   plaintext.set(`MailAccount.encryptedCredentials.${mailId}`, imapCreds);
+  // Admin-saved OAuth client secrets and the Resend key, plaintext as every
+  // release before this one stored them.
+  const systemSecrets = {
+    googleClientSecret: "verify-google-client-secret",
+    outlookClientSecret: "verify-outlook-client-secret",
+    resendApiKey: "verify-resend-api-key",
+  };
+  await prisma.systemSettings.create({
+    data: {
+      id: "default",
+      googleClientId: "gid",
+      outlookClientId: "oid",
+      ...systemSecrets,
+    },
+  });
+  for (const [column, value] of Object.entries(systemSecrets)) {
+    plaintext.set(`SystemSettings.${column}.default`, value);
+  }
+
   const aiKey = "sk-verify-ai-key-value";
   const ai = await prisma.aISettings.create({
     data: { userId: userA, encryptedApiKey: legacyAiEncrypt(aiKey) },
@@ -578,14 +605,13 @@ async function verifyTokenManager() {
       };
     },
   });
-  await prisma.systemSettings.create({
-    data: {
-      googleClientId: "gid",
-      googleClientSecret: "gsecret",
-      outlookClientId: "oid",
-      outlookClientSecret: "osecret",
-    },
+  // The seeded SystemSettings row is encrypted by now; the providers must
+  // still receive the plaintext client secret.
+  const settingsRow = await prisma.systemSettings.findUniqueOrThrow({
+    where: { id: "default" },
   });
+  assert(isEncryptedSecret(settingsRow.googleClientSecret));
+  assert(isEncryptedSecret(settingsRow.outlookClientSecret));
 
   const tm = TokenManager.getInstance();
   const userId = `${PREFIX}user-a`;
@@ -608,6 +634,11 @@ async function verifyTokenManager() {
       const sent = received[`/${provider}`];
       assert(sent, `${provider}: token endpoint was not called`);
       assert.equal(sent.get("grant_type"), "refresh_token");
+      assert.equal(
+        sent.get("client_secret"),
+        plaintext.get(`SystemSettings.${provider}ClientSecret.default`),
+        `${provider}: sent something other than the plaintext client secret`
+      );
       assert.equal(
         sent.get("refresh_token"),
         plaintext.get(`ConnectedAccount.refreshToken.${id}`),
@@ -640,7 +671,7 @@ async function verifyTokenManager() {
       const read = await tm.getTokens(id, userId);
       assert.equal(read?.accessToken, `new-access-for-${provider}`);
       results[provider] =
-        "ok: sent plaintext refresh, stored enc:v1:, returned plaintext";
+        "ok: sent plaintext refresh and client secret, stored enc:v1:, returned plaintext";
     }
   } finally {
     server.close();

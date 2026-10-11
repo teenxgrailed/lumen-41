@@ -19,6 +19,8 @@ const DEFAULT_BATCH_SIZE = 200;
  * - TaskProvider.accessToken / refreshToken - unused by current code, covered
  *   so no plaintext copy survives.
  * - Account.access_token / refresh_token - NextAuth sign-in tokens.
+ * - SystemSettings.googleClientSecret / outlookClientSecret / resendApiKey -
+ *   the OAuth client secrets and the Resend key an admin saves.
  *
  * Idempotent: rows already in the target form are skipped. Each row is
  * updated only if its columns still hold the values that were read, so a
@@ -40,6 +42,7 @@ export interface ProviderSecretsBackfillResult {
   connectedAccount: ProviderSecretsTableResult;
   taskProvider: ProviderSecretsTableResult;
   account: ProviderSecretsTableResult;
+  systemSettings: ProviderSecretsTableResult;
 }
 
 type SecretRow = { id: string } & Record<string, string | null>;
@@ -130,6 +133,36 @@ const TABLES: SecretTable[] = [
           data: {
             access_token: next.access_token,
             refresh_token: next.refresh_token,
+          },
+        })
+      ).count,
+  },
+  {
+    name: "systemSettings",
+    columns: ["googleClientSecret", "outlookClientSecret", "resendApiKey"],
+    fetch: (afterId, take) =>
+      prisma.systemSettings.findMany({
+        ...page(afterId, take),
+        select: {
+          id: true,
+          googleClientSecret: true,
+          outlookClientSecret: true,
+          resendApiKey: true,
+        },
+      }),
+    update: async (id, expected, next) =>
+      (
+        await prisma.systemSettings.updateMany({
+          where: {
+            id,
+            googleClientSecret: expected.googleClientSecret,
+            outlookClientSecret: expected.outlookClientSecret,
+            resendApiKey: expected.resendApiKey,
+          },
+          data: {
+            googleClientSecret: next.googleClientSecret,
+            outlookClientSecret: next.outlookClientSecret,
+            resendApiKey: next.resendApiKey,
           },
         })
       ).count,
@@ -229,18 +262,26 @@ export async function backfillProviderSecrets(
   const direction = options.direction ?? "encrypt";
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
 
-  const [connectedAccount, taskProvider, account] = [
+  const [connectedAccount, taskProvider, account, systemSettings] = [
     await processTable(TABLES[0], direction, batchSize),
     await processTable(TABLES[1], direction, batchSize),
     await processTable(TABLES[2], direction, batchSize),
+    await processTable(TABLES[3], direction, batchSize),
   ];
-  const result = { direction, connectedAccount, taskProvider, account };
+  const result = {
+    direction,
+    connectedAccount,
+    taskProvider,
+    account,
+    systemSettings,
+  };
 
   const counts: Record<string, number> = {};
   for (const [table, tableResult] of Object.entries({
     connectedAccount,
     taskProvider,
     account,
+    systemSettings,
   })) {
     for (const [key, value] of Object.entries(tableResult)) {
       counts[`${table}.${key}`] = value;

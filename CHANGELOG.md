@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Google and Outlook OAuth client secrets and the Resend API key saved in
+  admin system settings are encrypted at rest (`enc:v1:`), like provider
+  tokens. Existing values are encrypted by the same worker-start backfill;
+  the admin form still shows the mask and keeps a secret that is not retyped.
 - Connected-calendar, mail and task credentials are encrypted at rest:
   Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
   AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens

@@ -12,6 +12,7 @@ jest.mock("@/lib/prisma", () => ({
     connectedAccount: { findMany: jest.fn(), updateMany: jest.fn() },
     taskProvider: { findMany: jest.fn(), updateMany: jest.fn() },
     account: { findMany: jest.fn(), updateMany: jest.fn() },
+    systemSettings: { findMany: jest.fn(), updateMany: jest.fn() },
   },
 }));
 jest.mock("@/lib/logger", () => ({
@@ -28,6 +29,7 @@ const mockPrisma = prisma as unknown as {
   connectedAccount: Delegate;
   taskProvider: Delegate;
   account: Delegate;
+  systemSettings: Delegate;
 };
 
 // Serves rows like Prisma cursor pagination does: ordered by id, `skip: 1`
@@ -49,6 +51,41 @@ describe("backfillProviderSecrets", () => {
     jest.clearAllMocks();
     serve(mockPrisma.taskProvider, []);
     serve(mockPrisma.account, []);
+    serve(mockPrisma.systemSettings, []);
+  });
+
+  it("encrypts system settings secrets and leaves empty ones alone", async () => {
+    serve(mockPrisma.connectedAccount, []);
+    serve(mockPrisma.systemSettings, [
+      {
+        id: "default",
+        googleClientSecret: "google-client-secret-value",
+        outlookClientSecret: "",
+        resendApiKey: null,
+      },
+    ]);
+
+    const encrypted = await backfillProviderSecrets();
+    expect(encrypted.systemSettings).toEqual({
+      scanned: 1,
+      updated: 1,
+      skipped: 0,
+      failed: 0,
+    });
+    const { where, data } =
+      mockPrisma.systemSettings.updateMany.mock.calls[0][0];
+    expect(where).toEqual({
+      id: "default",
+      googleClientSecret: "google-client-secret-value",
+      outlookClientSecret: "",
+      resendApiKey: null,
+    });
+    expect(isEncryptedSecret(data.googleClientSecret)).toBe(true);
+    expect(decryptSecret(data.googleClientSecret)).toBe(
+      "google-client-secret-value"
+    );
+    expect(data.outlookClientSecret).toBe("");
+    expect(data.resendApiKey).toBeNull();
   });
 
   it("encrypts plaintext rows and skips rows that are already encrypted", async () => {

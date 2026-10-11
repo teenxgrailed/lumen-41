@@ -106,7 +106,10 @@ re-encryption step; web and worker must hold the same value.
 ## Stored provider credentials
 
 Provider tokens and CalDAV passwords in `ConnectedAccount` and NextAuth
-`Account` are stored as `enc:v1:` AES-256-GCM. The worker encrypts any
+`Account`, and the Google/Outlook OAuth client secrets and Resend API key an
+admin saves in `SystemSettings`, are stored as `enc:v1:` AES-256-GCM. The
+decrypt pass below covers `SystemSettings` too: an older release would send
+the ciphertext to Google, Microsoft and Resend as the client secret or key. The worker encrypts any
 remaining plaintext rows at every start and logs
 `Provider secrets backfill finished` with per-table counts. To re-run it
 without a restart, as an admin at needt.app in the browser console:
