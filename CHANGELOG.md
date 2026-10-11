@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Security: mail, task-sync and system-settings API responses no longer
+  include stored provider credentials. Admin system settings show a mask in
+  place of saved secrets, and saving the form without retyping one keeps it.
 - Registration is closed until launch. People who already have an account
   keep signing in with a password, Google or Microsoft; a new account is
   refused — the sign-up endpoint answers 403 `SIGNUPS_CLOSED`, and an OAuth

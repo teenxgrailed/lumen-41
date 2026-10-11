@@ -5,6 +5,7 @@ import { MailProvider } from "@prisma/client";
 import { ImapFlow } from "imapflow";
 import { z } from "zod";
 
+import { toPublicMailAccount } from "@/lib/api/public-records";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   try {
-    return NextResponse.json(await listMailAccounts(auth.userId));
+    const accounts = await listMailAccounts(auth.userId);
+    return NextResponse.json(accounts.map(toPublicMailAccount));
   } catch (error) {
     return routeErrorResponse(
       error,
@@ -107,7 +109,7 @@ export async function POST(request: NextRequest) {
     });
     await ensureMailSyncSchedule(account.id);
     await enqueueMailSync(account.id);
-    return NextResponse.json(account, { status: 201 });
+    return NextResponse.json(toPublicMailAccount(account), { status: 201 });
   } catch (error) {
     return routeErrorResponse(
       error,

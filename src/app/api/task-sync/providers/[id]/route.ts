@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
+import {
+  publicTaskProviderSelect,
+  toPublicTaskProvider,
+} from "@/lib/api/public-records";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
@@ -171,10 +175,11 @@ export async function PATCH(
         syncEnabled: validatedData.syncEnabled,
         defaultProjectId: validatedData.defaultProjectId,
       },
+      select: publicTaskProviderSelect,
     });
 
     return NextResponse.json({
-      provider: updatedProvider,
+      provider: toPublicTaskProvider(updatedProvider),
     });
   } catch (error) {
     logger.error(
