@@ -403,30 +403,6 @@
   --border: var(--nva-line);
 }
 
-/* The sky band behind the three tiles, until PxSky is ported: the brand's own
- * sky tokens as a still gradient (lavender by day, night by night), the tiles
- * on it as glass in the sky's ink. */
-.needt-v3 .nva-tiles[data-px-scope] {
-  --px-ground: linear-gradient(
-    160deg,
-    var(--sky-lavender-top),
-    var(--sky-lavender-mid) 55%,
-    var(--sky-lavender-low)
-  );
-  --px-ink: var(--sky-on-light-ink);
-  --px-ink-2: var(--sky-on-light-ink-2);
-}
-.needt-v3 .nva-tiles[data-px-night="1"] {
-  --px-ground: linear-gradient(
-    160deg,
-    var(--sky-night-top),
-    var(--sky-night-mid) 55%,
-    var(--sky-night-low)
-  );
-  --px-ink: var(--sky-on-dark-ink);
-  --px-ink-2: var(--sky-on-dark-ink-2);
-}
-
 /* SSR draws the menu unplaced; it shows once it has measured its frame. */
 .needt-v3 .nva:not([data-nva-ready]) {
   visibility: hidden;

@@ -228,11 +228,12 @@ export function PkSheet({
         S.y.x = target;
         S.y.v = 0;
         paint();
+        syncMoving();
         return;
       }
       run();
     },
-    [S, paint, run]
+    [S, paint, run, syncMoving]
   );
 
   /* The morph (`from`): the sheet grows out of a rect on the screen — menu A's
@@ -584,12 +585,12 @@ export function PkSheet({
     const ts = (e: TouchEvent) => {
       if (!S.open || S.drag || e.touches.length !== 1 || fieldish(e.target))
         return;
-      begin(
-        e.touches[0].clientX,
-        e.touches[0].clientY,
-        !!bodyEl.current?.contains(e.target as Node)
-      );
-      el.addEventListener("touchmove", tm, { passive: false });
+      const inBody = !!bodyEl.current?.contains(e.target as Node);
+      begin(e.touches[0].clientX, e.touches[0].clientY, inBody);
+      // a scrolled body scrolls: only a touch that can drag the sheet holds
+      // the scroll thread with a non-passive listener
+      if (!inBody || (bodyEl.current?.scrollTop ?? 0) <= 0)
+        el.addEventListener("touchmove", tm, { passive: false });
       el.addEventListener("touchend", te);
       el.addEventListener("touchcancel", tc);
     };

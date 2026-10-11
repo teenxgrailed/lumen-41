@@ -169,8 +169,9 @@ export function PkPullDown<H extends PullHit = PullHit>({
       if (still) {
         S.y.x = S.target;
         S.y.v = 0;
-        paint();
+        // raf first: paint() reads it to clear the screen's moving flag
         S.raf = 0;
+        paint();
         return;
       }
       S.raf = requestAnimationFrame(tick);

@@ -43,7 +43,9 @@ import { type Spring, springStep } from "@/lib/needt3/spring";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { PxSky } from "../../scenes";
 import { type EndReason, frameWriter, pkTrack } from "../kit/pointer";
+import { usePkSkyMood } from "../kit/theme";
 import { type PkSide, pkReduced } from "../kit/util";
 import { MenuGlyph } from "./Glyph";
 import { menuFocusMove, menuIsOpen, setInert } from "./a11y";
@@ -76,8 +78,8 @@ import { type MenuCounts, menuBadge, menuStatus } from "./status";
  *
  * Not ported: the in-card Settings list (the prototype's `u` spring and
  * `NvaSettings`): Settings, and the account row, open the Settings sheet via
- * the UI store. The sky behind the three tiles is the CSS fallback (PxSky is
- * not ported).
+ * the UI store. The sky behind the three tiles is PxSky at the phone's 15 fps,
+ * parked while the menu is a pill.
  */
 
 export interface MenuMe {
@@ -695,6 +697,7 @@ export function Menu(props: MenuProps) {
   /* While the card is up the screen behind it is not reachable by keyboard,
      pointer or screen reader (it is the host `ShellFrame` marks). */
   const isOpen = menuIsOpen(mode);
+  const sky = usePkSkyMood();
   useEffect(() => {
     const host =
       R.root?.closest("[data-v2p-frame]")?.querySelector("[data-v2p-host]") ??
@@ -1008,11 +1011,18 @@ export function Menu(props: MenuProps) {
               }}
               className="nva-tiles"
               data-px-scope=""
-              data-px-night={side === "dark" ? "1" : undefined}
+              data-px-night={sky.dark ? "1" : undefined}
             >
-              {/* //todo: the brand sky (scenes.jsx PxSky) is not ported; the
-                  band is the CSS fallback behind the same glass tiles. */}
-              <div className="nva-sky" aria-hidden="true" data-nva-sky="" />
+              <div className="nva-sky" aria-hidden="true" data-nva-sky="">
+                <PxSky
+                  horizon="none"
+                  fps={15}
+                  radius={32}
+                  mood={sky.mood ?? undefined}
+                  dark={sky.dark}
+                  parked={!isOpen}
+                />
+              </div>
               {top.map((id) => {
                 const bd = menuBadge(id, counts);
                 return (
