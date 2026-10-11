@@ -38,6 +38,9 @@ export function MaTile({
   );
 }
 
+/** The id of the hint under a field, so its input can name it. */
+const HintId = React.createContext<string | undefined>(undefined);
+
 export function MaField({
   label,
   hint,
@@ -48,11 +51,22 @@ export function MaField({
   hint?: string | null;
   error?: boolean;
 }>) {
+  const hintId = React.useId();
   return (
     <label className={pkCx("mau-field", error && "is-error")}>
       <span className="mau-field-label">{label}</span>
-      {children}
-      {hint ? <span className="mau-field-hint">{hint}</span> : null}
+      <HintId.Provider value={hint ? hintId : undefined}>
+        {children}
+      </HintId.Provider>
+      {hint ? (
+        <span
+          id={hintId}
+          className="mau-field-hint"
+          role={error ? "alert" : undefined}
+        >
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -70,10 +84,12 @@ export const MaInput = React.forwardRef<
   { onChange, invalid, icon: Icon, label, className, ...rest },
   ref
 ) {
+  const hintId = React.useContext(HintId);
   const input = (
     <input
       {...rest}
       ref={ref}
+      aria-describedby={rest["aria-describedby"] ?? hintId}
       aria-label={label}
       aria-invalid={invalid || undefined}
       className={pkCx("mau-input", Icon && "has-icon", className)}

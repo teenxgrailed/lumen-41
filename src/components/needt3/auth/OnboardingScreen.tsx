@@ -45,7 +45,7 @@ import { NeedtLockup } from "../wordmark";
 import { SidebarGame } from "./SidebarGame";
 import { CALS, USES } from "./onboarding-data";
 import { STEPS, STEP_IDS, STEP_SKY } from "./onboarding-steps";
-import { useOnboarding } from "./useOnboarding";
+import { type Onboarding, useOnboarding } from "./useOnboarding";
 
 const HEAD: Record<(typeof STEP_IDS)[number], React.ReactNode> = {
   use: (
@@ -343,13 +343,15 @@ function StepArt({
 
 export function OnboardingScreen({ startAt }: { startAt?: string | null }) {
   const ui = usePhoneUi();
-  /* The phone's setup is its own face on the same controller; a resize across
-     700px swaps the face and keeps nothing but the route. */
-  if (ui === "phone") return <PhoneSetup startAt={startAt} />;
-  return <DesktopOnboarding startAt={startAt} />;
+  /* One controller above the face switch: a resize across 700px swaps the face
+     and keeps the step, the typed values and the first task (no second
+     create), and the third step saves the list of the face on screen. */
+  const ob = useOnboarding({ startAt, ui });
+  if (ui === "phone") return <PhoneSetup ob={ob} />;
+  return <DesktopOnboarding ob={ob} />;
 }
 
-function DesktopOnboarding({ startAt }: { startAt?: string | null }) {
+function DesktopOnboarding({ ob }: { ob: Onboarding }) {
   const {
     i,
     dir,
@@ -384,7 +386,7 @@ function DesktopOnboarding({ startAt }: { startAt?: string | null }) {
     addTask,
     finish,
     connect,
-  } = useOnboarding({ startAt, ui: "desktop" });
+  } = ob;
 
   return (
     <div

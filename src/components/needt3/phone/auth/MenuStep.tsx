@@ -85,6 +85,8 @@ export function MenuStep({
     () => () => {
       off.current?.();
       off.current = null;
+      /* a drag in progress had told the host the sky is parked: undo that */
+      if (drag.current?.on) live.current.onMoving?.(false);
       drag.current = null;
       frames.cancel();
       window.clearTimeout(swallowTimer.current);

@@ -47,7 +47,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { CALS, USES } from "../../auth/onboarding-data";
 import { STEPS, STEP_SKY } from "../../auth/onboarding-steps";
 import { DEFAULT_PICK, MENU_N } from "../../auth/phone-menu-pick";
-import { useOnboarding } from "../../auth/useOnboarding";
+import type { Onboarding } from "../../auth/useOnboarding";
 import { PwMiniTask, PxDots } from "../../scenes";
 import { pkCx } from "../kit";
 import { MenuStep } from "./MenuStep";
@@ -204,7 +204,7 @@ function Select({
   );
 }
 
-export function PhoneSetup({ startAt }: { startAt?: string | null }) {
+export function PhoneSetup({ ob }: { ob: Onboarding }) {
   const {
     i,
     id,
@@ -237,7 +237,7 @@ export function PhoneSetup({ startAt }: { startAt?: string | null }) {
     addTask,
     finish,
     connect,
-  } = useOnboarding({ startAt, ui: "phone" });
+  } = ob;
   /* A slot of the pill is being dragged: the sky holds its frame meanwhile. */
   const [moving, setMoving] = React.useState(false);
   const step = STEPS[i];
@@ -411,6 +411,8 @@ export function PhoneSetup({ startAt }: { startAt?: string | null }) {
                     className="co-input"
                     value={title}
                     spellCheck={false}
+                    autoComplete="off"
+                    enterKeyHint="done"
                     placeholder="New task"
                     aria-label="Task title"
                     data-ob-composer

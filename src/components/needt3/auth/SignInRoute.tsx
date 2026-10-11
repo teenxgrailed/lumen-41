@@ -13,7 +13,6 @@ import { FaMicrosoft } from "react-icons/fa";
 import { LuChrome } from "react-icons/lu";
 
 import { safeCallbackPath } from "@/lib/auth/callback-url";
-import { isPublicSignupEnabledClient } from "@/lib/auth/client-public-signup";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
 import { logger } from "@/lib/logger";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
@@ -42,6 +41,30 @@ const OAUTH: Readonly<
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/**
+ * Whether public sign-up is open: true / false, or null when the answer could
+ * not be had. Unlike the shared `isPublicSignupEnabledClient` (which folds an
+ * error into false), an error here stays unknown, so a network blip never
+ * tells a stranger that sign-ups are closed.
+ */
+async function fetchPublicSignup(): Promise<boolean | null> {
+  try {
+    const response = await fetch("/api/auth/public-signup", {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { enabled?: unknown };
+    return typeof data.enabled === "boolean" ? data.enabled : null;
+  } catch (e) {
+    void logger.warn(
+      "Could not read the public sign-up switch",
+      { error: message(e) },
+      LOG_SOURCE
+    );
+    return null;
+  }
+}
+
 export function V3SignInRoute({
   callbackUrl,
   error,
@@ -60,6 +83,14 @@ export function V3SignInRoute({
   const ui = useResolvedPhoneUi(initialUi, uiForced);
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
   const [mode, setMode] = React.useState<AuthMode>("login");
+  /* The two fields live here, above the face switch: crossing 700px keeps what
+     was typed. */
+  const [mail, setMail] = React.useState("");
+  const [pass, setPass] = React.useState("");
+  const fields = React.useMemo(
+    () => ({ mail, pass, setMail, setPass }),
+    [mail, pass]
+  );
   /* null until /api/auth/public-signup has answered: neither "Create one" nor
      the waitlist line is drawn before then. */
   const [allowSignup, setAllowSignup] = React.useState<boolean | null>(null);
@@ -72,9 +103,20 @@ export function V3SignInRoute({
   const typed = React.useRef("");
   /** A new account goes on to setup; a returning one to where it was going. */
   const dest = React.useRef(safeCallbackUrl);
+  const leaving = React.useRef(false);
+
+  /* A full load, not a router push: the session cookie is new and every server
+     component on the way in has to see it. Done here, in the route that
+     survives a face swap, and not only in the screen's `onDone`, which is
+     skipped when the screen it belongs to has been replaced mid-request. */
+  const leave = React.useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    window.location.href = dest.current;
+  }, []);
 
   React.useEffect(() => {
-    void isPublicSignupEnabledClient().then(setAllowSignup);
+    void fetchPublicSignup().then(setAllowSignup);
     void getProviders()
       .then((available: Record<string, ClientSafeProvider> | null) => {
         if (!available) return;
@@ -151,9 +193,10 @@ export function V3SignInRoute({
         void logger.error("Sign in failed", { error: message(e) }, LOG_SOURCE);
         return { ok: false, network: true };
       }
+      leave();
       return { ok: true };
     },
-    [safeCallbackUrl]
+    [safeCallbackUrl, leave]
   );
 
   const recover = React.useCallback(async (email: string) => {
@@ -212,11 +255,8 @@ export function V3SignInRoute({
       <Screen
         mode={mode}
         onMode={setMode}
-        onDone={() => {
-          /* A full load, not a router push: the session cookie is new and every
-             server component on the way in has to see it. */
-          window.location.href = dest.current;
-        }}
+        onDone={leave}
+        fields={fields}
         onSubmit={submit}
         onRecover={recover}
         providers={configured}

@@ -47,6 +47,7 @@ import {
   resendClock,
   showWaitlist,
 } from "../../auth/auth-logic";
+import { useAuthFields } from "../../auth/use-auth-fields";
 import {
   MaBrand,
   MaButton,
@@ -87,12 +88,12 @@ export function PhoneAuth({
   termsHref = "/terms",
   privacyHref = "/privacy",
   seed,
+  fields,
 }: PhoneAuthProps) {
   const signup = mode !== "login";
   const online = useOnline();
   const offline = !online;
-  const [mail, setMail] = React.useState(seed?.mail ?? "");
-  const [pass, setPass] = React.useState("");
+  const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
   const [touched, setTouched] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [refused, setRefused] = React.useState<{
@@ -270,7 +271,15 @@ export function PhoneAuth({
               {limitRow}
               {netRow}
               {recover === "ask" ? (
-                <>
+                <form
+                  /* the fields stay the flex children of .mau-form */
+                  style={{ display: "contents" }}
+                  noValidate
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void sendLink();
+                  }}
+                >
                   <MaField label="Email" error={!!mProblem} hint={mText}>
                     <MaInput
                       label="Email"
@@ -281,19 +290,20 @@ export function PhoneAuth({
                       placeholder="Email"
                       icon={LuMail}
                       autoComplete="email"
+                      enterKeyHint="send"
                       invalid={!!mProblem}
                     />
                   </MaField>
                   <MaButton
                     primary
-                    onClick={() => void sendLink()}
+                    type="submit"
                     disabled={offline || busy}
                     data-auth-send-link
                   >
                     <LuMail size={16} aria-hidden />
                     {busy ? "Sending…" : "Send reset link"}
                   </MaButton>
-                </>
+                </form>
               ) : (
                 <span
                   className="mau-resend"
@@ -420,6 +430,7 @@ export function PhoneAuth({
                 placeholder="Email"
                 icon={LuMail}
                 autoComplete="email"
+                enterKeyHint="next"
                 invalid={!!mProblem || refused?.reason === "taken"}
               />
             </MaField>
@@ -445,6 +456,7 @@ export function PhoneAuth({
                 placeholder="Password"
                 icon={LuLock}
                 autoComplete={signup ? "new-password" : "current-password"}
+                enterKeyHint="go"
                 invalid={short || wrongPair}
               />
             </MaField>

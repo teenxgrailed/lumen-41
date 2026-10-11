@@ -149,6 +149,36 @@ describe("phone sign-in: the form", () => {
     expect(password().getAttribute("aria-invalid")).toBe("true");
   });
 
+  it("an error is named by its field and announced", () => {
+    mountAuth();
+    typeInto(email(), "ana");
+    typeInto(password(), "short");
+    submit();
+    const describedBy = email().getAttribute("aria-describedby")!;
+    expect(describedBy).toBeTruthy();
+    const hint = host.querySelector(`[id="${describedBy}"]`)!;
+    expect(hint.textContent).toBe("Include an @ in the address.");
+    expect(hint.getAttribute("role")).toBe("alert");
+    expect(password().getAttribute("aria-describedby")).toBeTruthy();
+    expect(email().getAttribute("enterkeyhint")).toBe("next");
+    expect(password().getAttribute("enterkeyhint")).toBe("go");
+  });
+
+  it("recovery is a form: Enter in the address sends the link", async () => {
+    const onRecover = jest.fn(async () => true);
+    mountAuth({ onRecover });
+    click(q("[data-auth-forgot]")!);
+    typeInto(email(), "ana@x.ch");
+    await act(async () => {
+      q<HTMLFormElement>(
+        '[data-auth-screen="recover-ask"] form'
+      )!.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    expect(onRecover).toHaveBeenCalledWith("ana@x.ch");
+  });
+
   it("a good pair is sent with the address trimmed, then onDone", async () => {
     const props = mountAuth();
     typeInto(email(), "  ana@x.ch ");
@@ -332,6 +362,16 @@ describe("Build your menu", () => {
     act(() => root.render(h("div")));
     fire(window, "pointerup", { x: 40, id: 4 });
     expect(seen.menu).toEqual(["home", "docs", "ask"]);
+  });
+
+  it("leaving the step mid-drag tells the host the drag is over", () => {
+    const moving = jest.fn();
+    mountMenu(undefined, moving);
+    fire(slot(0), "pointerdown", { x: 0, id: 4 });
+    fire(window, "pointermove", { x: 40, id: 4 });
+    expect(moving).toHaveBeenLastCalledWith(true);
+    act(() => root.render(h("div")));
+    expect(moving).toHaveBeenLastCalledWith(false);
   });
 
   it("the arrow keys move the focused slot", () => {
