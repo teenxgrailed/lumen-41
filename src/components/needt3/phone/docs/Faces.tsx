@@ -7,6 +7,7 @@ import { DocumentScreen } from "../../document/DocumentScreen";
 import { usePhoneUi } from "../../root/phone-ui-context";
 import { DocsPhone } from "./DocsPhone";
 import { ReaderPhone } from "./ReaderPhone";
+import { useDocsPhone } from "./useDocsPhone";
 
 /**
  * The Docs route's two faces. The route component renders one tree at every
@@ -14,7 +15,11 @@ import { ReaderPhone } from "./ReaderPhone";
  * `usePhoneUi()`. The desktop face is `DocsScreen`, untouched.
  */
 export function DocsFace() {
-  return usePhoneUi() === "phone" ? <DocsPhone /> : <DocsScreen />;
+  const ui = usePhoneUi();
+  // Called once, above the switch: the phone face's sort, Quick Open words
+  // and create guard survive a resize across 700 px.
+  const ctl = useDocsPhone();
+  return ui === "phone" ? <DocsPhone ctl={ctl} /> : <DocsScreen />;
 }
 
 /**

@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 
 import { PkScrim } from "../kit/Scrim";
-import { pkCx, pkMarkMoving } from "../kit/util";
+import { pkCx } from "../kit/util";
 
 export type PdMenuItem =
   | { sep: true }
@@ -50,15 +50,32 @@ export function PdMenu({
 
   // The card is the one blur while it springs open and shut: the screen's own
   // bands rest for as long as it is out and the 0.24 s it takes to go back.
+  // The host is found while the layer is attached and kept: by the time an
+  // unmount cleanup runs the layer no longer is, and the flag must still go.
+  const host = useRef<Element | null>(null);
   useEffect(() => {
     if (!open) return undefined;
     const el = layer.current;
+    host.current = el?.closest("[data-v2p-host]") ?? el?.parentElement ?? null;
     window.clearTimeout(settle.current);
-    pkMarkMoving(el, true);
+    host.current?.toggleAttribute("data-pk-moving", true);
     return () => {
-      settle.current = window.setTimeout(() => pkMarkMoving(el, false), 300);
+      const h = host.current;
+      settle.current = window.setTimeout(
+        () => h?.toggleAttribute("data-pk-moving", false),
+        300
+      );
     };
   }, [open]);
+
+  // Unmounting while it is out must not leave the host marked as moving.
+  useEffect(
+    () => () => {
+      window.clearTimeout(settle.current);
+      host.current?.toggleAttribute("data-pk-moving", false);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!open) return undefined;

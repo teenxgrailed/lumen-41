@@ -6,13 +6,14 @@
  * From template, a card opening its page, a failed load (retry), no access,
  * and one create at a time.
  */
-import { act, createElement as h } from "react";
+import { act, createElement as h, createElement as mockH } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3Doc } from "@/lib/needt3/map";
 
-import { DocsPhone } from "../DocsPhone";
+import { PhoneUiProvider } from "../../../root/phone-ui-context";
+import { DocsFace } from "../Faces";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -20,6 +21,11 @@ import { DocsPhone } from "../DocsPhone";
 
 // StScreen reads the flag from V3Root, which pulls in the whole frame and its CSS.
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
+
+// The desktop grid is not under test here: a stub marks that it is the one shown.
+jest.mock("../../../docs/DocsScreen", () => ({
+  DocsScreen: () => mockH("i", { "data-face": "docs-desktop" }),
+}));
 
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -112,7 +118,17 @@ afterEach(() => {
   host.remove();
 });
 
-const mount = () => act(() => root.render(h(DocsPhone)));
+let ui: "phone" | "desktop" = "phone";
+const render = () =>
+  act(() => root.render(h(PhoneUiProvider, { value: ui }, h(DocsFace))));
+const mount = () => {
+  ui = "phone";
+  render();
+};
+const swap = (to: "phone" | "desktop") => {
+  ui = to;
+  render();
+};
 const $ = <T extends Element>(sel: string) => host.querySelector<T>(sel)!;
 const titles = () =>
   Array.from(host.querySelectorAll(".pd-card-title")).map((e) =>
@@ -317,5 +333,64 @@ describe("states", () => {
     };
     mount();
     expect($("[data-st-state='offline']").textContent).toContain("offline");
+  });
+});
+
+describe("crossing 700 px (two faces, one state)", () => {
+  it("keeps the sort and the Quick Open words, and takes the desktop's later sort", () => {
+    query = ok(three());
+    mount();
+    click($("[data-pd-more='list']"));
+    click($("[data-pd-item='sort-name']"));
+    type($<HTMLInputElement>("[data-pd-quickopen] input"), "r");
+    expect(titles()).toEqual(["Bravo"]);
+    swap("desktop");
+    expect($("[data-face='docs-desktop']")).not.toBeNull();
+    expect(host.querySelector("[data-pd-card]")).toBeNull();
+    swap("phone");
+    expect($<HTMLInputElement>("[data-pd-quickopen] input").value).toBe("r");
+    expect(titles()).toEqual(["Bravo"]);
+    // the desktop grid wrote another sort while it was shown
+    swap("desktop");
+    window.localStorage.setItem(
+      "needt.docsSort",
+      JSON.stringify({ key: "name", dir: "desc" })
+    );
+    swap("phone");
+    type($<HTMLInputElement>("[data-pd-quickopen] input"), "");
+    expect(titles()).toEqual(["Untitled", "Bravo", "Alpha"]);
+  });
+
+  it("never repeats a create across a swap, and still opens the new page", async () => {
+    query = ok([]);
+    let done!: (v: unknown) => void;
+    mutateAsync.mockReturnValue(
+      new Promise((r) => {
+        done = r;
+      })
+    );
+    mount();
+    click($("[data-pd-new]"));
+    swap("desktop");
+    swap("phone");
+    click($("[data-pd-new]"));
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    // the follow-up runs from the surviving hook, even with the desktop face up
+    swap("desktop");
+    await act(async () => {
+      done({ result: { id: "new9" }, undo: jest.fn() });
+    });
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/pages/new9");
+  });
+
+  it("a tap in the first 300 ms of the page's life is not swallowed", () => {
+    query = ok(three());
+    jest.spyOn(performance, "now").mockReturnValue(5);
+    mount();
+    click($("[data-pd-card='a']"));
+    click($("[data-pd-new-tpl]"));
+    expect(push).toHaveBeenCalledWith("/pages/a");
+    expect(push).toHaveBeenCalledWith("/templates");
   });
 });

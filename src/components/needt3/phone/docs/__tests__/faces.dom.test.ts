@@ -25,6 +25,7 @@ jest.mock("../../../document/DocumentScreen", () => ({
   }) =>
     mockH("i", { "data-face": "doc-desktop", "data-id": p.pageId }, p.children),
 }));
+jest.mock("../useDocsPhone", () => ({ useDocsPhone: () => ({}) }));
 jest.mock("../DocsPhone", () => ({
   DocsPhone: () => mockH("i", { "data-face": "docs-phone" }),
 }));

@@ -7,20 +7,26 @@
  * write, a stale plan's 403 does too); Share (full access only, invite
  * checks, roles, General access).
  */
-import { act, createElement as h } from "react";
+import { act, createElement as h, createElement as mockH } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3Doc } from "@/lib/needt3/map";
 
+import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { usePhoneOverlays } from "../../overlays/store";
 import { phoneCover } from "../../shell/cover";
+import { DocumentFace } from "../Faces";
 import { ReaderPhone } from "../ReaderPhone";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+jest.mock("../../../document/DocumentScreen", () => ({
+  DocumentScreen: (p: { children: import("react").ReactNode }) =>
+    mockH("i", { "data-face": "doc-desktop" }, p.children),
+}));
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
@@ -497,5 +503,84 @@ describe("Share", () => {
       person: expect.objectContaining({ userId: "u2" }),
       role: "EDITOR",
     });
+  });
+});
+
+describe("two faces, one state", () => {
+  const face = (ui: "phone" | "desktop") =>
+    act(() =>
+      root.render(
+        h(PhoneUiProvider, {
+          value: ui,
+          children: h(DocumentFace, {
+            pageId: "d1",
+            children: h("input", { "data-editor-field": "" }),
+          }),
+        })
+      )
+    );
+
+  it("a Delete that lands after the width crossed 700 px still leaves the page", async () => {
+    let done!: (v: unknown) => void;
+    trash.mockReturnValue(
+      new Promise((r) => {
+        done = r;
+      })
+    );
+    face("phone");
+    openMenu();
+    click(item("delete")!);
+    face("desktop");
+    expect($("[data-face='doc-desktop']")).not.toBeNull();
+    await act(async () => {
+      done({ result: null, undo: jest.fn() });
+    });
+    expect(trash).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/pages");
+  });
+
+  it("unmounting with the menu out leaves no moving flag on the host", () => {
+    const frame = document.createElement("div");
+    frame.setAttribute("data-v2p-host", "");
+    document.body.appendChild(frame);
+    const r2 = createRoot(frame);
+    act(() =>
+      r2.render(
+        h(ReaderPhone, {
+          pageId: "d1",
+          children: h("input", { "data-editor-field": "" }),
+        })
+      )
+    );
+    click(frame.querySelector("[data-pd-more='doc']")!);
+    expect(frame.hasAttribute("data-pk-moving")).toBe(true);
+    act(() => r2.unmount());
+    expect(frame.hasAttribute("data-pk-moving")).toBe(false);
+    frame.remove();
+  });
+});
+
+describe("Share: the invite field's error", () => {
+  it("is announced and tied to the field", () => {
+    access = { myRole: "FULL_ACCESS", ownerId: "u1", workspaceId: "w1" };
+    mount();
+    openMenu();
+    click(item("share")!);
+    const input = $<HTMLInputElement>("[data-pd-invite]");
+    expect(input.getAttribute("aria-describedby")).toBeNull();
+    act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )!.set!.call(input, "nope");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const id = input.getAttribute("aria-describedby")!;
+    const msg = document.getElementById(id)!;
+    expect(msg.getAttribute("role")).toBe("alert");
+    expect(msg.textContent).toContain("full email");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("enterkeyhint")).toBe("send");
+    expect(input.getAttribute("autocomplete")).toBe("off");
   });
 });

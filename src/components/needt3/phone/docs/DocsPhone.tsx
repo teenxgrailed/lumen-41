@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -20,28 +20,14 @@ import {
 } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
-import {
-  useCreateDoc,
-  useDocs,
-  useTrashDoc,
-  useUpdateDoc,
-} from "@/lib/needt3/hooks/docs";
+import { useDocs, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
 import { useDocTokens } from "../../docs/DocParts";
 import { ageLabel } from "../../docs/labels";
-import {
-  DOC_SORTS,
-  type DocSort,
-  type DocSortKey,
-  dirLabel,
-  nextSort,
-  readSort,
-  sortDocs,
-  writeSort,
-} from "../../docs/sort";
+import { DOC_SORTS, dirLabel, sortDocs } from "../../docs/sort";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { StSkeleton } from "../../states/StSkeleton";
 import { screenState } from "../../states/status";
@@ -53,6 +39,7 @@ import { usePhoneCover } from "../shell/cover";
 import { DocCard } from "./DocCard";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { docsSub, matchDocs, pullHits } from "./logic";
+import type { DocSortKey, DocsPhoneCtl } from "./useDocsPhone";
 
 const docHref = (id: string) => `/pages/${encodeURIComponent(id)}`;
 
@@ -92,20 +79,17 @@ function useDocActions() {
  * The data and the rules are the desktop grid's: `useDocs`, the stored sort
  * (`needt.docsSort`), `useCreateDoc`, pin and Trash with Undo.
  */
-export function DocsPhone() {
+export function DocsPhone({ ctl }: { ctl: DocsPhoneCtl }) {
   const router = useRouter();
   const query = useDocs();
   const projects = useProjects();
   const read = useDocTokens();
-  const create = useCreateDoc();
   const act = useDocActions();
-  const [sort, setSortState] = useState<DocSort>({
-    key: "updated",
-    dir: "desc",
-  });
-  // The stored sort is per browser; read it after mount (no SSR mismatch).
-  useEffect(() => setSortState(readSort()), []);
-  const [q, setQ] = useState("");
+  // The sort, Quick Open words and the create guard live above the face
+  // switch (useDocsPhone); the stored sort is read after mount and again
+  // whenever this face comes back.
+  const { sort, q, setQ, newDoc, creating, refreshSort } = ctl;
+  useEffect(() => refreshSort(), [refreshSort]);
   const [menu, setMenu] = useState(false);
   const [held, setHeld] = useState<V3Doc | null>(null);
   const now = newDate().getTime();
@@ -128,25 +112,8 @@ export function DocsPhone() {
   }, [projects.data]);
 
   const open = (id: string) => router.push(docHref(id));
-  const making = useRef(false);
-  const newDoc = (title = "") => {
-    if (making.current) return;
-    making.current = true;
-    void create
-      .mutateAsync({ draft: { title } })
-      .then(({ result }) => {
-        if (result) open(result.id);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        making.current = false;
-      });
-  };
-
   const setSort = (key: DocSortKey) => {
-    const next = nextSort(sort, key);
-    setSortState(next);
-    writeSort(next);
+    ctl.setSort(key);
     setMenu(false);
   };
   const sortItems: PdMenuItem[] = [
@@ -256,6 +223,7 @@ export function DocsPhone() {
                     placeholder="Quick Open"
                     aria-label="Quick Open"
                     enterKeyHint="go"
+                    autoComplete="off"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && shown.length) {
                         e.preventDefault();
@@ -279,7 +247,7 @@ export function DocsPhone() {
                     kind="primary"
                     small
                     icon={<LuPlus size={16} aria-hidden />}
-                    disabled={create.isPending}
+                    disabled={creating}
                     onClick={() => newDoc()}
                     data-pd-new=""
                   >

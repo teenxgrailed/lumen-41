@@ -222,6 +222,9 @@ export function ShareSheetPhone({
                 placeholder={copy.invite_by_email}
                 aria-label={copy.email_address}
                 aria-invalid={!check.ok && check.reason === "invalid"}
+                enterKeyHint="send"
+                autoComplete="off"
+                aria-describedby={hint ? "pd-invite-hint" : undefined}
                 data-pd-invite=""
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => {
@@ -256,7 +259,11 @@ export function ShareSheetPhone({
                 {copy.invite}
               </PkButton>
             </div>
-            {hint ? <p className="pd-sp-note">{hint}</p> : null}
+            {hint ? (
+              <p className="pd-sp-note" id="pd-invite-hint" role="alert">
+                {hint}
+              </p>
+            ) : null}
 
             <span className="pd-ps-label">{copy.people_with_access}</span>
             <div className="pd-rows-sheet" role="list">

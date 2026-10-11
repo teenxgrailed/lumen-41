@@ -90,6 +90,15 @@ export function ReaderPhone({
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [typing, setTyping] = useState(false);
+  // The follow-up of an async action must not depend on this face still being
+  // there: if the width crossed 700 px meanwhile, leave by the router.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   // The menu, a sheet and the keyboard take the screen: menu A steps down.
   usePhoneCover(menu || sheet !== null || typing);
@@ -198,7 +207,8 @@ export function ReaderPhone({
           await undo();
           router.push(`/pages/${encodeURIComponent(doc.id)}`);
         });
-        slide.back();
+        if (alive.current) slide.back();
+        else router.push("/pages");
       })
       .catch(() => undefined);
   };
