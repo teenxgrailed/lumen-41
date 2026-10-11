@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from Google Fonts, so a visitor's IP address is no longer sent to Google on
   page load. The same font files are now served from the app itself
   (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
-  Google import so a re-sync cannot bring it back.
+  Google import so a re-sync cannot bring it back. Every subset Google
+  served is kept — Cyrillic, Greek and Vietnamese included — and a page
+  downloads only the subsets its text uses. The files have hashed names and
+  are cached by browsers for a year.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.
