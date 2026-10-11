@@ -5,60 +5,10 @@ import {
 } from "@prisma/client";
 
 import { endOfMonth, newDate, startOfMonth } from "@/lib/date-utils";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 
-export const PLAN_LIMITS = {
-  FREE: {
-    calendars: 1,
-    autoScheduledTasks: 15,
-    boards: 1,
-    mailboxes: 0,
-    aiAgent: false,
-    focusStats: false,
-    advancedFocusModes: false,
-    remindersPerTask: 1,
-    bookingPages: 1,
-    advancedNudges: false,
-  },
-  PRO: {
-    calendars: null,
-    autoScheduledTasks: null,
-    boards: null,
-    mailboxes: 3,
-    aiAgent: true,
-    focusStats: true,
-    advancedFocusModes: true,
-    remindersPerTask: null,
-    bookingPages: null,
-    advancedNudges: true,
-  },
-  LIFETIME: {
-    calendars: null,
-    autoScheduledTasks: null,
-    boards: null,
-    mailboxes: 3,
-    aiAgent: true,
-    focusStats: true,
-    advancedFocusModes: true,
-    remindersPerTask: null,
-    bookingPages: null,
-    advancedNudges: true,
-  },
-} as const satisfies Record<
-  SubscriptionPlan,
-  {
-    calendars: number | null;
-    autoScheduledTasks: number | null;
-    boards: number | null;
-    mailboxes: number | null;
-    aiAgent: boolean;
-    focusStats: boolean;
-    advancedFocusModes: boolean;
-    remindersPerTask: number | null;
-    bookingPages: number | null;
-    advancedNudges: boolean;
-  }
->;
+export { PLAN_LIMITS } from "@/lib/plan-limits";
 
 export type LimitStatus = {
   allowed: boolean;
@@ -139,6 +89,19 @@ export async function canCreateBoard(userId: string): Promise<LimitStatus> {
     prisma.board.count({ where: { userId } }),
   ]);
   return limitStatus(plan, PLAN_LIMITS[plan].boards, used);
+}
+
+/**
+ * Free keeps three active habits (owner decision 2026-10-10). Archived habits
+ * do not count, and habits above the limit after a downgrade stay editable:
+ * only creating or restoring one more is refused.
+ */
+export async function canCreateHabit(userId: string): Promise<LimitStatus> {
+  const [plan, used] = await Promise.all([
+    getPlan(userId),
+    prisma.habit.count({ where: { userId, archivedAt: null } }),
+  ]);
+  return limitStatus(plan, PLAN_LIMITS[plan].habits, used);
 }
 
 export async function canAutoScheduleMore(

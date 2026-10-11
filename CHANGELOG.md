@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Free keeps three active habits, enforced by the API: creating a fourth, or
+  restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
+  Pro, Lifetime and trials are unlimited. Habits above the limit after a
+  downgrade stay and stay editable. An archived habit is restored with
+  `PATCH /api/habits/:id` and `{ "archived": false }`.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.
