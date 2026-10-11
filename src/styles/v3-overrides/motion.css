@@ -890,6 +890,7 @@
   align-items: center;
   justify-content: space-between;
   margin: 0 -14px;
+}
 
 /* P8 phone Mailbox (S8). The row keeps PkRow's string title and time, so the
    unread state is a data attribute on the hold box: a heavier sender and the
