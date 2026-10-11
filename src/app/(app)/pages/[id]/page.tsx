@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 
-import { DocumentScreen } from "@/components/needt3/document/DocumentScreen";
+import { DocumentFace } from "@/components/needt3/phone/docs";
 import { PageWorkspace } from "@/components/pages/PageWorkspace";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
@@ -22,9 +22,10 @@ export default async function PagePage({
   const editor = (
     <PageWorkspace pageId={id} documentFormatVersion={editorV2 ? 2 : 1} />
   );
-  // design_v3: the same editor, inside the v3 document chrome.
+  // design_v3: the same editor, inside the v3 document chrome (the phone's
+  // reader on a phone, the desktop's document screen otherwise).
   if (await isDesignV3()) {
-    return <DocumentScreen pageId={id}>{editor}</DocumentScreen>;
+    return <DocumentFace pageId={id}>{editor}</DocumentFace>;
   }
   return editor;
 }
