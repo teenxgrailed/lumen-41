@@ -12,12 +12,20 @@ jest.mock("@/lib/security/rate-limit", () => ({
   enforceRateLimits: jest.fn().mockResolvedValue(null),
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: jest.fn(), update: jest.fn() } },
+  prisma: {
+    $transaction: jest.fn(),
+    user: { findUnique: jest.fn(), update: jest.fn() },
+    connectorSettings: { updateMany: jest.fn() },
+  },
 }));
 
 const userModel = prisma.user as unknown as {
   findUnique: jest.Mock;
   update: jest.Mock;
+};
+const db = prisma as unknown as {
+  $transaction: jest.Mock;
+  connectorSettings: { updateMany: jest.Mock };
 };
 
 function revokeRequest() {
@@ -39,6 +47,7 @@ describe("POST /api/account/sessions/revoke", () => {
 
     expect(response.status).toBe(401);
     expect(userModel.update).not.toHaveBeenCalled();
+    expect(db.connectorSettings.updateMany).not.toHaveBeenCalled();
   });
 
   it("refuses a caller whose session was already revoked", async () => {
@@ -59,6 +68,7 @@ describe("POST /api/account/sessions/revoke", () => {
 
     expect(response.status).toBe(401);
     expect(userModel.update).not.toHaveBeenCalled();
+    expect(db.connectorSettings.updateMany).not.toHaveBeenCalled();
   });
 
   it("increments the caller's session version", async () => {
@@ -74,12 +84,25 @@ describe("POST /api/account/sessions/revoke", () => {
       isActive: true,
       sessionVersion: 2,
     });
-    userModel.update.mockResolvedValue({ sessionVersion: 3 });
+    userModel.update.mockReturnValue("session-version-write");
+    db.connectorSettings.updateMany.mockReturnValue("connector-revoke");
+    db.$transaction.mockResolvedValue([{ sessionVersion: 3 }, { count: 1 }]);
 
     const response = await POST(revokeRequest());
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ revoked: true });
+    await expect(response.json()).resolves.toMatchObject({
+      revoked: true,
+      connectorTokensRevoked: 1,
+    });
+    expect(db.$transaction).toHaveBeenCalledWith([
+      "session-version-write",
+      "connector-revoke",
+    ]);
+    expect(db.connectorSettings.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", tokenHash: { not: null } },
+      data: { tokenHash: null, tokenPreview: null },
+    });
     expect(userModel.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { sessionVersion: { increment: 1 } },

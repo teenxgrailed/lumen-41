@@ -217,7 +217,7 @@ export function AccountSettings() {
         </SettingRow>
         <SettingRow
           label="All devices"
-          description="Sign out everywhere, including this device. Other devices are signed out within a minute."
+          description="Sign out everywhere, including this device. Other devices are signed out within a minute. The connector token stops working, so external tools must be reconnected with a new one."
         >
           <Button
             type="button"

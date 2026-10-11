@@ -4,8 +4,8 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 
 import {
-  bumpSessionVersion,
   forgetSessionState,
+  revokeAllAccess,
 } from "@/lib/auth/session-version";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -106,10 +106,11 @@ export async function POST(request: NextRequest) {
     // Hash the new password
     const hashedPassword = await hash(password, 10);
 
-    // Update the password, mark the token as used and sign the person out
-    // of every device that was signed in with the old password.
+    // Update the password, mark the token as used, sign the person out of
+    // every device that was signed in with the old password and revoke the
+    // connector token external tools use.
     await prisma.$transaction([
-      bumpSessionVersion(resetRequest.user.id),
+      ...revokeAllAccess(resetRequest.user.id),
       prisma.account.update({
         where: {
           id: resetRequest.user.accounts[0].id,

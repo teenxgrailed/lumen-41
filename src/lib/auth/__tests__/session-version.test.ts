@@ -135,6 +135,61 @@ describe("session version", () => {
     expect(findUnique).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the token unchanged when the database read fails", async () => {
+    findUnique.mockRejectedValue(
+      Object.assign(new Error("Timed out fetching a new connection"), {
+        code: "P2024",
+      })
+    );
+    const token = {
+      sub: "user-1",
+      sessionVersion: 4,
+      sessionVersionCheckedAt: NOW - SESSION_VERSION_RECHECK_MS,
+    };
+
+    await expect(enforceSessionVersion(token, NOW)).resolves.toBe(token);
+
+    // The check time was not moved, so the next request checks again.
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 5 });
+    await expect(enforceSessionVersion(token, NOW + 1)).rejects.toBeInstanceOf(
+      SessionRevokedError
+    );
+  });
+
+  it("lets an API request through when the database read fails, uncached", async () => {
+    findUnique.mockRejectedValueOnce(new Error("Connection refused"));
+    await expect(isApiSessionCurrent({ sub: "user-1" }, NOW)).resolves.toBe(
+      true
+    );
+
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 1 });
+    await expect(isApiSessionCurrent({ sub: "user-1" }, NOW + 1)).resolves.toBe(
+      false
+    );
+    expect(findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("never refuses a new sign-in from a cache filled by the old one", async () => {
+    // This instance cached the old session's state...
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 0 });
+    await isApiSessionCurrent({ sub: "user-1", sessionVersion: 0 }, NOW);
+
+    // ...then another instance revoked and the person signed in again.
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 1 });
+    await expect(
+      isApiSessionCurrent({ sub: "user-1", sessionVersion: 1 }, NOW + 1)
+    ).resolves.toBe(true);
+  });
+
+  it("does not cache a refusal", async () => {
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 2 });
+
+    await isApiSessionCurrent({ sub: "user-1", sessionVersion: 1 }, NOW);
+    await isApiSessionCurrent({ sub: "user-1", sessionVersion: 1 }, NOW + 1);
+
+    expect(findUnique).toHaveBeenCalledTimes(2);
+  });
+
   it("re-reads at once after this process revoked the user", async () => {
     findUnique.mockResolvedValue({ isActive: true, sessionVersion: 0 });
     await isApiSessionCurrent({ sub: "user-1" }, NOW);

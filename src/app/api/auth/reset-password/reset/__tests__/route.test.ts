@@ -14,6 +14,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
     account: { update: jest.fn() },
+    connectorSettings: { updateMany: jest.fn() },
     passwordReset: { findFirst: jest.fn(), update: jest.fn() },
     user: { update: jest.fn() },
   },
@@ -22,6 +23,7 @@ jest.mock("@/lib/prisma", () => ({
 const mocked = prisma as unknown as {
   $transaction: jest.Mock;
   account: { update: jest.Mock };
+  connectorSettings: { updateMany: jest.Mock };
   passwordReset: { findFirst: jest.Mock; update: jest.Mock };
   user: { update: jest.Mock };
 };
@@ -40,6 +42,7 @@ describe("POST /api/auth/reset-password/reset", () => {
     mocked.account.update.mockReturnValue("account-write");
     mocked.passwordReset.update.mockReturnValue("token-write");
     mocked.user.update.mockReturnValue("session-version-write");
+    mocked.connectorSettings.updateMany.mockReturnValue("connector-revoke");
     mocked.$transaction.mockResolvedValue([]);
   });
 
@@ -59,8 +62,16 @@ describe("POST /api/auth/reset-password/reset", () => {
       select: { sessionVersion: true },
     });
     expect(mocked.$transaction).toHaveBeenCalledWith(
-      expect.arrayContaining(["session-version-write", "account-write"])
+      expect.arrayContaining([
+        "session-version-write",
+        "connector-revoke",
+        "account-write",
+      ])
     );
+    expect(mocked.connectorSettings.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", tokenHash: { not: null } },
+      data: { tokenHash: null, tokenPreview: null },
+    });
   });
 
   it("leaves sessions alone when the reset token is invalid", async () => {
@@ -70,5 +81,6 @@ describe("POST /api/auth/reset-password/reset", () => {
 
     expect(response.status).toBe(400);
     expect(mocked.user.update).not.toHaveBeenCalled();
+    expect(mocked.connectorSettings.updateMany).not.toHaveBeenCalled();
   });
 });

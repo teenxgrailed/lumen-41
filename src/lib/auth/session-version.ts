@@ -1,7 +1,12 @@
 import type { JWT } from "next-auth/jwt";
 
+import { revokeConnectorTokens } from "@/services/connectors/auth";
+
 import { newDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+
+const LOG_SOURCE = "SessionVersion";
 
 /**
  * "Sign out of all devices" works by version, not by a session table: every
@@ -67,11 +72,38 @@ export async function issueSessionVersion(
 }
 
 /**
+ * Reads the state for a check, or undefined when the database could not be
+ * reached. A failed read must never sign anyone out: a restart, a full pool
+ * (P2024) or a timeout during a deploy would otherwise end every session that
+ * happens to be re-checked at that moment.
+ */
+async function tryReadSessionState(
+  userId: string,
+  context: string
+): Promise<SessionState | undefined> {
+  try {
+    return await readSessionState(userId);
+  } catch (error) {
+    await logger.warn(
+      "Session version check skipped: database read failed",
+      {
+        context,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      LOG_SOURCE
+    );
+    return undefined;
+  }
+}
+
+/**
  * jwt callback, on every session read: throws SessionRevokedError when the
  * token was revoked. NextAuth answers a throwing jwt callback with an empty
  * session and clears the session cookie, which is what signs the device out.
  * The last check time lives in the token, so the database is read at most
- * once per SESSION_VERSION_RECHECK_MS per session.
+ * once per SESSION_VERSION_RECHECK_MS per session. Only a confirmed mismatch,
+ * a deleted user or a deactivated one rejects; when the read fails the token
+ * is kept as it is and checked again on the next request.
  */
 export async function enforceSessionVersion(
   token: JWT,
@@ -86,7 +118,8 @@ export async function enforceSessionVersion(
   ) {
     return token;
   }
-  const state = await readSessionState(token.sub);
+  const state = await tryReadSessionState(token.sub, "jwt");
+  if (state === undefined) return token;
   if (!sessionStateAllows(state, token)) throw new SessionRevokedError();
   return {
     ...token,
@@ -98,11 +131,17 @@ export async function enforceSessionVersion(
 /*
  * API routes read the cookie with getToken, which never runs the jwt callback
  * and cannot write the token back, so the recheck interval for them is kept in
- * this process instead. Each server instance re-reads a user at most once per
+ * this process instead. Only a state that allowed a token is cached: a token
+ * the cache would refuse is checked against the database first, so a new
+ * sign-in after a revoke on another instance is never refused from a stale
+ * entry. Each server instance re-reads an allowed user at most once per
  * SESSION_VERSION_RECHECK_MS; a revoke on this instance drops the entry
  * immediately.
  */
-const apiCache = new Map<string, { state: SessionState; readAt: number }>();
+const apiCache = new Map<
+  string,
+  { state: NonNullable<SessionState>; readAt: number }
+>();
 
 export async function isApiSessionCurrent(
   token: VersionedToken,
@@ -113,18 +152,36 @@ export async function isApiSessionCurrent(
   if (
     cached &&
     nowMs >= cached.readAt &&
-    nowMs - cached.readAt < SESSION_VERSION_RECHECK_MS
+    nowMs - cached.readAt < SESSION_VERSION_RECHECK_MS &&
+    sessionStateAllows(cached.state, token)
   ) {
-    return sessionStateAllows(cached.state, token);
+    return true;
   }
-  const state = await readSessionState(token.sub);
+  const state = await tryReadSessionState(token.sub, "api");
+  // Same rule as the jwt callback: an unreachable database is not a revoke.
+  if (state === undefined) return true;
+  if (!state || !sessionStateAllows(state, token)) {
+    apiCache.delete(token.sub);
+    return false;
+  }
   if (apiCache.size >= MAX_CACHED_USERS) apiCache.clear();
   apiCache.set(token.sub, { state, readAt: nowMs });
-  return sessionStateAllows(state, token);
+  return true;
 }
 
 export function forgetSessionState(userId: string) {
   apiCache.delete(userId);
+}
+
+/**
+ * Everything "sign out of all devices" and a password reset revoke: every
+ * session (by version) and the connector token external tools use, which
+ * would otherwise keep working with the old credentials. Returned unawaited
+ * so the writes can join an array `prisma.$transaction([...])` next to the
+ * change that caused them.
+ */
+export function revokeAllAccess(userId: string) {
+  return [bumpSessionVersion(userId), revokeConnectorTokens(userId)] as const;
 }
 
 /**
