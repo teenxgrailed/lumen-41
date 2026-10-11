@@ -82,3 +82,43 @@ export function refusalText(
 export function resendClock(seconds: number): string {
   return "0:" + String(Math.max(0, seconds)).padStart(2, "0");
 }
+
+/**
+ * The line shown instead of "Create one" while public sign-up is closed
+ * (FeatureFlag `signups_open`, read from /api/auth/public-signup): new people
+ * join the waitlist on the marketing site. Desktop and phone share it.
+ */
+export const WAITLIST = {
+  lead: "New here? Join the waitlist at ",
+  host: "needt.app",
+  href: "https://needt.app",
+} as const;
+
+/** The waitlist line belongs to sign-in only, and only once the answer is in. */
+export function showWaitlist(a: {
+  mode: AuthMode;
+  /** The sign-up switch answered "closed" (not: has not answered yet). */
+  signupClosed: boolean;
+}): boolean {
+  return a.signupClosed && a.mode === "login";
+}
+
+/** The phone shows both fields at once, so its button is never "Continue". */
+export function phoneSubmitLabel(mode: AuthMode, busy: boolean): string {
+  if (busy) return mode === "signup" ? "Creating…" : "Signing in…";
+  return mode === "signup" ? "Create the account" : "Sign in";
+}
+
+/** The sentence under a network failure. */
+export function netFailureText(a: { recover: boolean; signup: boolean }) {
+  return a.recover
+    ? "Couldn’t send the link — check your connection"
+    : a.signup
+      ? "Couldn’t create your account — check your connection"
+      : "Couldn’t sign in — check your connection";
+}
+
+/** Both fields are good enough to send. */
+export function formReady(f: { mail: string; pass: string }): boolean {
+  return validMail(f.mail) && f.pass.length >= MIN_PASSWORD;
+}
