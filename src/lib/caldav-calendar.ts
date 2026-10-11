@@ -3,6 +3,7 @@ import ICAL from "ical.js";
 import { DAVDepth, DAVResponse, createDAVClient } from "tsdav";
 
 import { APP_NAME } from "@/lib/app-config";
+import { openConnectedAccountTokens } from "@/lib/connected-account-secrets";
 import { newDate, newDateFromYMD } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -87,7 +88,10 @@ function buildInstanceReference(
   return property;
 }
 
-function localInstanceExternalEventId(masterExternalEventId: string, start: Date) {
+function localInstanceExternalEventId(
+  masterExternalEventId: string,
+  start: Date
+) {
   return `${masterExternalEventId}__${start.toISOString()}`;
 }
 
@@ -108,14 +112,16 @@ function occurrenceReferenceStart(
  */
 export class CalDAVCalendarService {
   private client: ExtendedDAVClient | null = null;
+  private account: ConnectedAccount;
 
   /**
    * Creates a new CalDAV calendar service
-   * @param prisma Prisma client instance
    * @param account Connected account with CalDAV credentials
    */
-  constructor(private account: ConnectedAccount) {
-    // Initialize client when needed
+  constructor(account: ConnectedAccount) {
+    // The stored password is encrypted; decrypt once here so every request
+    // below authenticates with the plaintext. Client is created when needed.
+    this.account = openConnectedAccountTokens(account);
   }
 
   /**
@@ -196,8 +202,8 @@ export class CalDAVCalendarService {
 
       // Get all occurrences between the start and end dates
       const excludedStarts = new Set(
-        ((masterEvent as CalDAVEvent).excludedInstanceStarts ?? []).map((date) =>
-          date.toISOString()
+        ((masterEvent as CalDAVEvent).excludedInstanceStarts ?? []).map(
+          (date) => date.toISOString()
         )
       );
       const occurrences = rule
@@ -218,10 +224,7 @@ export class CalDAVCalendarService {
           return {
             ...masterEvent,
             externalEventId: masterEvent.externalEventId
-              ? localInstanceExternalEventId(
-                  masterEvent.externalEventId,
-                  date
-                )
+              ? localInstanceExternalEventId(masterEvent.externalEventId, date)
               : null,
             start: date,
             end: endDate,
@@ -449,7 +452,8 @@ export class CalDAVCalendarService {
               return [];
             });
           if (excludedInstanceStarts.length > 0) {
-            (event as CalDAVEvent).excludedInstanceStarts = excludedInstanceStarts;
+            (event as CalDAVEvent).excludedInstanceStarts =
+              excludedInstanceStarts;
           }
 
           // Set event properties based on its type
@@ -668,7 +672,9 @@ export class CalDAVCalendarService {
     try {
       if (mode === "single") {
         if (!eventWithFeed.masterEventId) {
-          throw new Error("A recurring instance is required for a single update");
+          throw new Error(
+            "A recurring instance is required for a single update"
+          );
         }
         return await this.updateSingleOccurrence(
           eventWithFeed,
@@ -881,10 +887,12 @@ export class CalDAVCalendarService {
     );
     const instanceExternalEventId =
       eventWithFeed.externalEventId ??
-      localInstanceExternalEventId(masterEvent.externalEventId, occurrenceStart);
+      localInstanceExternalEventId(
+        masterEvent.externalEventId,
+        occurrenceStart
+      );
 
-    const timeZone =
-      event.timeZone ?? (await this.resolveUserTimeZone(userId));
+    const timeZone = event.timeZone ?? (await this.resolveUserTimeZone(userId));
     const exceptionCalendar = new ICAL.Component(
       ICAL.parse(
         this.convertToICalendar({
@@ -911,12 +919,13 @@ export class CalDAVCalendarService {
     );
     exceptionVevent.addProperty(recurrenceId);
 
-    const recurrenceIdValue = (recurrenceId.getFirstValue() as ICAL.Time).toString();
+    const recurrenceIdValue = (
+      recurrenceId.getFirstValue() as ICAL.Time
+    ).toString();
     const recurrenceIdTzid = recurrenceId.getParameter("tzid");
     for (const existingException of vcalendar.getAllSubcomponents("vevent")) {
-      const existingRecurrenceId = existingException.getFirstProperty(
-        "recurrence-id"
-      );
+      const existingRecurrenceId =
+        existingException.getFirstProperty("recurrence-id");
       if (
         existingRecurrenceId &&
         (existingRecurrenceId.getFirstValue() as ICAL.Time).toString() ===
@@ -975,7 +984,9 @@ export class CalDAVCalendarService {
     try {
       if (mode === "single") {
         if (!event.masterEventId) {
-          throw new Error("A recurring instance is required for a single delete");
+          throw new Error(
+            "A recurring instance is required for a single delete"
+          );
         }
         await this.deleteSingleOccurrence(event, calendarPath, userId);
         return;
@@ -1156,12 +1167,13 @@ export class CalDAVCalendarService {
       masterVevent,
       occurrenceStart
     );
-    const recurrenceIdValue = (recurrenceId.getFirstValue() as ICAL.Time).toString();
+    const recurrenceIdValue = (
+      recurrenceId.getFirstValue() as ICAL.Time
+    ).toString();
     const recurrenceIdTzid = recurrenceId.getParameter("tzid");
     for (const existingException of vcalendar.getAllSubcomponents("vevent")) {
-      const existingRecurrenceId = existingException.getFirstProperty(
-        "recurrence-id"
-      );
+      const existingRecurrenceId =
+        existingException.getFirstProperty("recurrence-id");
       if (
         existingRecurrenceId &&
         (existingRecurrenceId.getFirstValue() as ICAL.Time).toString() ===
@@ -1712,9 +1724,9 @@ export class CalDAVCalendarService {
   } {
     const hasRRule = vevent.hasProperty("rrule");
     const hasRecurrenceId = vevent.hasProperty("recurrence-id");
-    const recurrenceIdValue = vevent.getFirstPropertyValue("recurrence-id") as
-      | ICAL.Time
-      | null;
+    const recurrenceIdValue = vevent.getFirstPropertyValue(
+      "recurrence-id"
+    ) as ICAL.Time | null;
     const recurrenceIdStart = recurrenceIdValue?.toJSDate();
     const uidValue = vevent.getFirstPropertyValue("uid");
     const uid = uidValue ? String(uidValue) : crypto.randomUUID();

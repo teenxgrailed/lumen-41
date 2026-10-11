@@ -6,6 +6,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddCalendar } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { encryptSecret } from "@/lib/security/secret-encryption";
 
 import {
   classifyCalDAVError,
@@ -179,7 +180,8 @@ export async function POST(request: NextRequest) {
           email: username,
           caldavUrl: fullUrl,
           caldavUsername: username,
-          accessToken: password, // Store password as access token
+          // The password is stored in accessToken, encrypted at rest.
+          accessToken: encryptSecret(password),
           userId, // Associate with the current user
           expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Set expiry to 1 year from now
         },
