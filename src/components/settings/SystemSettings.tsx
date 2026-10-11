@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NeedtPicker } from "@/components/ui/needt-picker";
 
-import { clearResendInstance } from "@/lib/email/resend";
 import { logger } from "@/lib/logger";
 
 import { useSettingsStore } from "@/store/settings";
 
+import { SecretInput } from "./SecretInput";
 import { SettingRow, SettingsSection } from "./SettingsSection";
 
 const LOG_SOURCE = "SystemSettings";
@@ -66,11 +66,6 @@ export function SystemSettings() {
       });
       const data = await response.json();
       updateSystemSettings(data);
-
-      // Clear Resend instance if the API key was updated
-      if ("resendApiKey" in updates) {
-        clearResendInstance();
-      }
     } catch (error) {
       logger.error(
         "Failed to update system settings",
@@ -154,11 +149,11 @@ export function SystemSettings() {
 
             <div className="space-y-2">
               <Label>Google Client Secret</Label>
-              <Input
-                type="password"
-                value={system.googleClientSecret || ""}
-                onChange={(e) =>
-                  handleUpdate({ googleClientSecret: e.target.value })
+              <SecretInput
+                aria-label="Google Client Secret"
+                stored={system.googleClientSecret || ""}
+                onCommit={(value) =>
+                  handleUpdate({ googleClientSecret: value })
                 }
                 placeholder="Enter your client secret"
               />
@@ -219,11 +214,11 @@ export function SystemSettings() {
 
             <div className="space-y-2">
               <Label>Outlook Client Secret</Label>
-              <Input
-                type="password"
-                value={system.outlookClientSecret || ""}
-                onChange={(e) =>
-                  handleUpdate({ outlookClientSecret: e.target.value })
+              <SecretInput
+                aria-label="Outlook Client Secret"
+                stored={system.outlookClientSecret || ""}
+                onCommit={(value) =>
+                  handleUpdate({ outlookClientSecret: value })
                 }
                 placeholder="Enter your client secret"
               />
@@ -301,10 +296,10 @@ export function SystemSettings() {
         >
           <div className="space-y-2">
             <Label>Resend API Key</Label>
-            <Input
-              type="password"
-              value={system.resendApiKey || ""}
-              onChange={(e) => handleUpdate({ resendApiKey: e.target.value })}
+            <SecretInput
+              aria-label="Resend API Key"
+              stored={system.resendApiKey || ""}
+              onCommit={(value) => handleUpdate({ resendApiKey: value })}
               placeholder="Enter your Resend API key"
             />
             <p className="text-sm text-muted-foreground">
