@@ -1,5 +1,6 @@
 import { MailAccountStatus, MailProvider, Prisma } from "@prisma/client";
 
+import { publicMailAccountSelect } from "@/lib/api/public-records";
 import { newDate } from "@/lib/date-utils";
 import { MailMessageSyncInput } from "@/lib/mail/types";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +13,8 @@ export async function listMailAccounts(userId: string) {
   return prisma.mailAccount.findMany({
     where: { userId },
     orderBy: [{ status: "asc" }, { address: "asc" }],
-    include: {
+    select: {
+      ...publicMailAccountSelect,
       _count: {
         select: {
           messages: {
