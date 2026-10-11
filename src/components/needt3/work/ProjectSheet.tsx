@@ -19,6 +19,8 @@ export function ProjectSheet({
   initial,
   title = "New project",
   cta = "Create",
+  values,
+  onValues,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,14 +29,28 @@ export function ProjectSheet({
   initial?: Pick<V3Project, "id" | "name" | "color"> | null;
   title?: string;
   cta?: string;
+  /**
+   * What the sheet shows, held by the caller (WorkScreen keeps it above the
+   * phone / desktop switch so a half-typed edit survives a resize). Without it
+   * the sheet keeps its own, seeded from `initial` each time it opens.
+   */
+  values?: { name: string; color: string } | null;
+  onValues?: (v: { name: string; color: string }) => void;
 }) {
-  const [name, setName] = useState("");
-  const [hue, setHue] = useState(PROJECT_SWATCHES[0][1]);
+  const [ownName, setOwnName] = useState("");
+  const [ownHue, setOwnHue] = useState<string>(PROJECT_SWATCHES[0][1]);
+  const held = !!values && !!onValues;
   useEffect(() => {
-    if (!open) return;
-    setName(initial?.name ?? "");
-    setHue(initial?.color ?? PROJECT_SWATCHES[0][1]);
-  }, [open, initial]);
+    if (!open || held) return;
+    setOwnName(initial?.name ?? "");
+    setOwnHue(initial?.color ?? PROJECT_SWATCHES[0][1]);
+  }, [open, initial, held]);
+  const name = held ? values.name : ownName;
+  const hue = held ? values.color : ownHue;
+  const setName = (n: string) =>
+    held ? onValues({ ...values, name: n }) : setOwnName(n);
+  const setHue = (c: string) =>
+    held ? onValues({ ...values, color: c }) : setOwnHue(c);
 
   const clean = name.trim();
   const dupe = nameTaken(clean, projects, initial?.id);

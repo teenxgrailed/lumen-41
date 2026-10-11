@@ -948,3 +948,17 @@
 .needt-v3 a.pk-btn.is-chip {
   color: var(--v2p-ink);
 }
+
+/* ───────── P6 · phone Tasks + Projects (phone-tasks.jsx, styles/phone-tasks.css) ─────────
+   Self-contained: it only corrects the vendored file. Rule 2 (chrome type is
+   13 / 12 px, never 14): phone-tasks.css sets the segmented control and the
+   "Show N more" line in 14 px. Rule 12 (transform / opacity / clip-path
+   only): the project ring's fill eased stroke-dashoffset, an SVG repaint per
+   frame; it now snaps (the bar beside it still scales). */
+.needt-v3 .ptk-seg-btn,
+.needt-v3 .ptk-more {
+  font-size: 13px;
+}
+.needt-v3 .ptk-ring-fill {
+  transition: none;
+}
