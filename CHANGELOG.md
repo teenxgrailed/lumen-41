@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Privacy: the app no longer loads Inter, Instrument Serif and JetBrains Mono
+  from Google Fonts, so a visitor's IP address is no longer sent to Google on
+  page load. The same font files are now served from the app itself
+  (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
+  Google import so a re-sync cannot bring it back.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.
