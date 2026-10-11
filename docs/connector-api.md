@@ -106,5 +106,64 @@ Payload:
 }
 ```
 
+## Moodboard items
+
+A moodboard's references (the grid the board page and the phone wall draw).
+These routes take the signed-in session today, not a connector token, and
+answer for the workspace the session is in (`x-workspace-id` to name another
+one you belong to).
+
+```http
+GET    /api/moodboards/:id/items
+POST   /api/moodboards/:id/items
+PATCH  /api/moodboards/:id/items/:itemId
+DELETE /api/moodboards/:id/items/:itemId
+```
+
+Order: `position` ascending, then `createdAt`, then `id`. A new item without a
+`position` goes to the end (largest position + 1).
+
+Access: the board's creator, a workspace owner and an editor read and write; a
+viewer (by workspace role or by a viewer grant on the board) only reads. A
+board that is missing, archived, in another workspace or out of reach answers
+`403 {"error":"Moodboard access denied"}`, the same as `/api/moodboards/:id`.
+An `itemId` that is not on the board in the URL is `404`.
+
+Create:
+
+```bash
+curl -X POST http://localhost:3000/api/moodboards/BOARD_ID/items \
+  -H "Content-Type: application/json" \
+  -b "next-auth.session-token=..." \
+  -d '{
+    "kind": "image",
+    "url": "https://images.example.com/chair.jpg",
+    "title": "Chair",
+    "ratio": 1.5,
+    "source": { "name": "Example", "domain": "example.com" }
+  }'
+```
+
+Fields (anything else in the body is a `400`):
+
+| Field          | Type                                   | Notes                                                               |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `kind`         | `image` \| `link` \| `color` \| `note` | create only; fixed afterwards                                       |
+| `url`          | string \| null                         | http(s) URL or a path on this site; required for `image` and `link` |
+| `color`        | string \| null                         | hex, `#rgb` to `#rrggbbaa`; required for `color`                    |
+| `text`         | string \| null                         | up to 10,000 characters; required for `note`                        |
+| `title`        | string \| null                         | up to 240                                                           |
+| `ratio`        | number \| null                         | height / width, 0.05 to 20                                          |
+| `colorName`    | string \| null                         | up to 120                                                           |
+| `source`       | `{ name?, domain? }` \| null           | where the reference came from                                       |
+| `thumbnailUrl` | string \| null                         | same rules as `url`                                                 |
+| `position`     | number                                 | wall order                                                          |
+
+`data:` and `javascript:` addresses are refused: the item stores an address,
+not the file. `PATCH` takes any of the fields above except `kind`; `null`
+clears one. Responses carry `{ "item": {...} }` (list: `{ "items": [...] }`)
+with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
+`DELETE` answers `204`.
+
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.
