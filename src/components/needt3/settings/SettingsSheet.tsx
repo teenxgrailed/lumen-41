@@ -20,6 +20,8 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import { PhoneSettings } from "../phone/settings/PhoneSettings";
+import { usePhoneUi } from "../root/phone-ui-context";
 import { Avatar, initialsOf } from "../shell/Avatar";
 import { AboutSection } from "./AboutSection";
 import { AccountSection } from "./AccountSection";
@@ -105,13 +107,21 @@ export function SettingsSheet() {
   const close = useNeedt3Ui((s) => s.closeSettings);
   const session = useSession();
   const plan = usePlan();
+  const ui = usePhoneUi();
   const [section, setSection] = useState<SectionId>("account");
+  // The phone shows a list of sections before any one of them. `list` is that
+  // state; it lives here, above the face switch, with `section`, so crossing
+  // 700 px keeps where the person is (the desktop never shows the list).
+  const [list, setList] = useState(true);
   const [saved, setSaved] = useState(0);
   const navRef = useRef<HTMLElement>(null);
 
   // Each opening starts on the section it was asked for.
   useEffect(() => {
-    if (open) setSection(sectionOf(want));
+    if (open) {
+      setSection(sectionOf(want));
+      setList(!want);
+    }
   }, [open, want]);
 
   useEffect(() => {
@@ -121,6 +131,14 @@ export function SettingsSheet() {
   }, [saved]);
 
   const mark = useCallback(() => setSaved(Date.now()), []);
+  const pick = useCallback((id: SectionId) => {
+    setSection(id);
+    setList(false);
+  }, []);
+  const phonePage = useCallback(
+    (id: SectionId | null) => (id ? pick(id) : setList(true)),
+    [pick]
+  );
 
   const user = session.data?.user;
   const name = user?.name || user?.email?.split("@")[0] || "Account";
@@ -132,13 +150,26 @@ export function SettingsSheet() {
     const at = NAV_FLAT.indexOf(section);
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSection(NAV_FLAT[Math.min(at + 1, NAV_FLAT.length - 1)]);
+      pick(NAV_FLAT[Math.min(at + 1, NAV_FLAT.length - 1)]);
     }
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSection(NAV_FLAT[Math.max(at - 1, 0)]);
+      pick(NAV_FLAT[Math.max(at - 1, 0)]);
     }
   };
+
+  if (ui === "phone")
+    return (
+      <MarkProvider value={mark}>
+        <PhoneSettings
+          open={open}
+          onClose={close}
+          page={list ? null : section}
+          onPage={phonePage}
+          saved={saved}
+        />
+      </MarkProvider>
+    );
 
   return (
     <MarkProvider value={mark}>
@@ -161,7 +192,7 @@ export function SettingsSheet() {
             className="settings-stack settings-me"
             type="button"
             data-settings-me
-            onClick={() => setSection("account")}
+            onClick={() => pick("account")}
             title="Open Account"
           >
             <span className="settings-span">
@@ -186,7 +217,7 @@ export function SettingsSheet() {
             className="settings-plan"
             type="button"
             data-settings-plan={kind}
-            onClick={() => setSection("plan")}
+            onClick={() => pick("plan")}
           >
             <span className="settings-layer">
               <span className="base-row">
@@ -241,7 +272,7 @@ export function SettingsSheet() {
                       if (item.jump) {
                         close();
                         router.push(item.jump);
-                      } else setSection(item.id as SectionId);
+                      } else pick(item.id as SectionId);
                     }}
                   >
                     {item.name}
