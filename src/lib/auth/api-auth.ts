@@ -9,6 +9,10 @@ import {
   requiresEmailVerificationBeforeAccess,
 } from "@/lib/auth/email-verification-access";
 import {
+  isApiSessionCurrent,
+  sessionStateAllows,
+} from "@/lib/auth/session-version";
+import {
   type WorkspaceAccess,
   WorkspaceAuthorizationError,
   requestedWorkspaceId,
@@ -48,6 +52,11 @@ export async function authenticateRequest(
   const userId = token.sub;
   if (!userId) {
     logger.warn("No user ID found in token", {}, logSource);
+    return { response: new NextResponse("Unauthorized", { status: 401 }) };
+  }
+
+  if (!(await isApiSessionCurrent(token))) {
+    logger.warn("Revoked session used against API", { userId }, logSource);
     return { response: new NextResponse("Unauthorized", { status: 401 }) };
   }
 
@@ -110,9 +119,9 @@ export async function requireAuth(
 
     const user = await prisma.user.findUnique({
       where: { id: token.sub },
-      select: { isActive: true },
+      select: { isActive: true, sessionVersion: true },
     });
-    if (!user?.isActive) {
+    if (!user || !sessionStateAllows(user, token)) {
       logger.warn(
         "Inactive or missing user attempted API access",
         { userId: token.sub, path: req.nextUrl.pathname },
@@ -171,9 +180,14 @@ export async function requireAdmin(
 
     const user = await prisma.user.findUnique({
       where: { id: token.sub },
-      select: { emailVerified: true, isActive: true, role: true },
+      select: {
+        emailVerified: true,
+        isActive: true,
+        role: true,
+        sessionVersion: true,
+      },
     });
-    if (!user?.isActive) {
+    if (!user || !sessionStateAllows(user, token)) {
       logger.warn(
         "Inactive or missing user attempted admin API access",
         { userId: token.sub, path: req.nextUrl.pathname },
