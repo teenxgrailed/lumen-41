@@ -1,9 +1,14 @@
 import {
+  WAITLIST,
+  formReady,
   mailProblem,
   mailProblemText,
+  netFailureText,
   passwordShort,
+  phoneSubmitLabel,
   refusalText,
   resendClock,
+  showWaitlist,
   submitLabel,
   submitStep,
 } from "../auth-logic";
@@ -69,5 +74,43 @@ describe("refusals", () => {
     expect(resendClock(30)).toBe("0:30");
     expect(resendClock(7)).toBe("0:07");
     expect(resendClock(-1)).toBe("0:00");
+  });
+});
+
+describe("closed sign-ups", () => {
+  it("the waitlist line is the one sentence both screens show", () => {
+    expect(WAITLIST.lead + WAITLIST.host).toBe(
+      "New here? Join the waitlist at needt.app"
+    );
+    expect(WAITLIST.href).toBe("https://needt.app");
+  });
+  it('shows only on sign-in, only once the answer is "closed"', () => {
+    expect(showWaitlist({ mode: "login", signupClosed: true })).toBe(true);
+    // not answered yet, or open
+    expect(showWaitlist({ mode: "login", signupClosed: false })).toBe(false);
+    // someone already on the sign-up form keeps it
+    expect(showWaitlist({ mode: "signup", signupClosed: true })).toBe(false);
+  });
+});
+
+describe("the phone form", () => {
+  it("sends only when both fields are good", () => {
+    expect(formReady({ mail: "ana@x.ch", pass: "12345678" })).toBe(true);
+    expect(formReady({ mail: "ana@x.ch", pass: "1234567" })).toBe(false);
+    expect(formReady({ mail: "ana", pass: "12345678" })).toBe(false);
+    expect(formReady({ mail: "", pass: "" })).toBe(false);
+  });
+  it("labels its one button", () => {
+    expect(phoneSubmitLabel("login", false)).toBe("Sign in");
+    expect(phoneSubmitLabel("signup", false)).toBe("Create the account");
+    expect(phoneSubmitLabel("login", true)).toBe("Signing in…");
+    expect(phoneSubmitLabel("signup", true)).toBe("Creating…");
+  });
+  it("names the failure by what was being done", () => {
+    expect(netFailureText({ recover: true, signup: false })).toMatch(/link/);
+    expect(netFailureText({ recover: false, signup: true })).toMatch(/account/);
+    expect(netFailureText({ recover: false, signup: false })).toMatch(
+      /sign in/
+    );
   });
 });

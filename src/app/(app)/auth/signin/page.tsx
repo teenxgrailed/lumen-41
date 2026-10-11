@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth/next";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { V3SignInRoute } from "@/components/needt3/auth/SignInRoute";
@@ -7,6 +8,11 @@ import { SignInRoute } from "@/components/needt/auth/SignInRoute";
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { isAuthDesignV3 } from "@/lib/needt3/auth-design";
+import {
+  PHONE_UI_COOKIE,
+  parseUiCookie,
+  phoneUiFrom,
+} from "@/lib/needt3/phone-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +39,22 @@ export default async function SignInPage({
   // The v3 screen draws its own sky and scope. A stranger sees it only once
   // design_v3 is on for everyone (see isAuthDesignV3); until then, the old one.
   if (await isAuthDesignV3(false)) {
-    return <V3SignInRoute callbackUrl={callbackUrl} error={error} />;
+    // The phone gets its own face; the server picks it for the first render
+    // the way the signed-in frame does (cookie, Sec-CH-UA-Mobile, user agent).
+    const [reqHeaders, jar] = await Promise.all([headers(), cookies()]);
+    const uiCookie = jar.get(PHONE_UI_COOKIE)?.value;
+    return (
+      <V3SignInRoute
+        callbackUrl={callbackUrl}
+        error={error}
+        initialUi={phoneUiFrom({
+          secChUaMobile: reqHeaders.get("sec-ch-ua-mobile"),
+          userAgent: reqHeaders.get("user-agent"),
+          cookie: uiCookie,
+        })}
+        uiForced={parseUiCookie(uiCookie) !== null}
+      />
+    );
   }
 
   // The screen draws its own full-bleed frame, so the page adds none.
