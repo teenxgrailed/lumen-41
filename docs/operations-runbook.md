@@ -97,6 +97,65 @@ Required security/delivery variables include `RATE_LIMIT_HASH_SECRET`,
 `SENTRY_DSN`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and
 `VAPID_SUBJECT`.
 
+`AI_ENCRYPTION_KEY` encrypts every stored credential (AI keys, IMAP
+credentials, Google/Outlook OAuth tokens, CalDAV passwords). When it is unset
+the key is derived from `NEXTAUTH_SECRET`, so rotating `NEXTAUTH_SECRET` would
+make all of them unreadable. Never change `AI_ENCRYPTION_KEY` without a
+re-encryption step; web and worker must hold the same value.
+
+## Stored provider credentials
+
+Provider tokens and CalDAV passwords in `ConnectedAccount` and NextAuth
+`Account` are stored as `enc:v1:` AES-256-GCM. The worker encrypts any
+remaining plaintext rows at every start and logs
+`Provider secrets backfill finished` with per-table counts. To re-run it
+without a restart, as an admin at needt.app in the browser console:
+
+```js
+await fetch("/api/admin/provider-secrets", {
+  method: "POST",
+  body: JSON.stringify({ direction: "encrypt" }),
+}).then((r) => r.json());
+```
+
+### Key fingerprint check
+
+Web and worker must derive the same key. In Coolify, open each application
+(web and worker) → Terminal (or `docker exec -it <container> sh` on the host)
+and run:
+
+```sh
+node -e 'const c=require("crypto");const n=process.env.AI_ENCRYPTION_KEY?"AI_ENCRYPTION_KEY":process.env.NEXTAUTH_SECRET?"NEXTAUTH_SECRET":null;if(!n){console.log("NO KEY");process.exit(1)}const k=c.createHash("sha256").update(process.env[n]).digest();console.log(n,c.createHash("sha256").update(k).digest("hex").slice(0,12))'
+```
+
+It prints the source variable and a 12-character fingerprint of the derived
+key (a hash of the key, safe to paste). Both containers must print the same
+line; `NO KEY` means the worker will refuse to start.
+
+### Rollback past the encryption release
+
+Releases before provider-secret encryption send stored values to Google,
+Microsoft and CalDAV as they are. Redeploying such an image while rows are
+encrypted, or without first stopping the worker, breaks every calendar, mail
+and task integration until each user reconnects. In this order:
+
+1. Coolify → worker application → **Stop**. A running worker of the new
+   release re-encrypts everything at its next start.
+2. As an admin at needt.app, in the browser console (the web app of the new
+   release must still be running):
+
+   ```js
+   await fetch("/api/admin/provider-secrets", {
+     method: "POST",
+     body: JSON.stringify({ direction: "decrypt" }),
+   }).then((r) => r.json());
+   ```
+
+   Check that every table reports `failed: 0`.
+
+3. Redeploy the previous image for web and worker together, then start the
+   worker.
+
 ## External prerequisites
 
 - Google domain verification: owner — product administrator.

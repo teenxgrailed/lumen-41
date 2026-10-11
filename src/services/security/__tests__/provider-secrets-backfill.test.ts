@@ -123,7 +123,11 @@ describe("backfillProviderSecrets", () => {
 
   it("covers NextAuth Account tokens and leaves id_token alone", async () => {
     serve(mockPrisma.account, [
-      { id: "n", access_token: "ya29.x", refresh_token: "1//y" },
+      {
+        id: "n",
+        access_token: "signin-access-fixture",
+        refresh_token: "signin-refresh-fixture",
+      },
     ]);
     serve(mockPrisma.connectedAccount, []);
 
@@ -134,7 +138,7 @@ describe("backfillProviderSecrets", () => {
       "access_token",
       "refresh_token",
     ]);
-    expect(decryptSecret(call.data.access_token)).toBe("ya29.x");
+    expect(decryptSecret(call.data.access_token)).toBe("signin-access-fixture");
   });
 
   it("decrypt direction restores plaintext for a rollback", async () => {

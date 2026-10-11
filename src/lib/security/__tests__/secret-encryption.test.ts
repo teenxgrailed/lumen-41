@@ -47,10 +47,10 @@ describe("encryptSecret / decryptSecret", () => {
   });
 
   it("round-trips and marks the value with the versioned prefix", () => {
-    const stored = encryptSecret("ya29.a0-google-access-token");
+    const stored = encryptSecret("google-access-fixture");
     expect(stored.startsWith(ENCRYPTED_SECRET_PREFIX)).toBe(true);
-    expect(stored).not.toContain("ya29");
-    expect(decryptSecret(stored)).toBe("ya29.a0-google-access-token");
+    expect(stored).not.toContain("google-access-fixture");
+    expect(decryptSecret(stored)).toBe("google-access-fixture");
   });
 
   it("uses a fresh IV for every write", () => {
@@ -92,6 +92,20 @@ describe("encryptSecret / decryptSecret", () => {
       expect(String(error)).not.toContain("super-secret-value");
       expect(String(error)).not.toContain(stored);
     }
+  });
+
+  it("rejects a truncated auth tag", () => {
+    const stored = encryptSecret("value");
+    const [iv, tag, body] = stored
+      .slice(ENCRYPTED_SECRET_PREFIX.length)
+      .split(".");
+    const shortTag = Buffer.from(tag, "base64url")
+      .subarray(0, 4)
+      .toString("base64url");
+    const forged = `${ENCRYPTED_SECRET_PREFIX}${iv}.${shortTag}.${body}`;
+
+    expect(() => decryptSecret(forged)).toThrow(/could not be decrypted/);
+    expect(decryptLegacyAiSecret(`${iv}.${shortTag}.${body}`)).toBeNull();
   });
 
   it("detects encrypted values", () => {

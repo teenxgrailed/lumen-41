@@ -31,8 +31,8 @@ describe("withEncryptedAccountTokens", () => {
       type: "oauth",
       provider: "google",
       providerAccountId: "123",
-      access_token: "ya29.access",
-      refresh_token: "1//refresh",
+      access_token: "google-access-fixture",
+      refresh_token: "google-refresh-fixture",
       id_token: "eyJ.id.token",
       expires_at: 1,
     } as never);
@@ -42,8 +42,12 @@ describe("withEncryptedAccountTokens", () => {
       unknown
     >;
     expect(isEncryptedSecret(written.access_token as string)).toBe(true);
-    expect(decryptSecret(written.access_token as string)).toBe("ya29.access");
-    expect(decryptSecret(written.refresh_token as string)).toBe("1//refresh");
+    expect(decryptSecret(written.access_token as string)).toBe(
+      "google-access-fixture"
+    );
+    expect(decryptSecret(written.refresh_token as string)).toBe(
+      "google-refresh-fixture"
+    );
     expect(written.id_token).toBe("eyJ.id.token");
     expect(written.providerAccountId).toBe("123");
     expect(adapter.getUser).toBe(getUser);

@@ -6,6 +6,9 @@ const LOG_SOURCE = "SecretEncryption";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
+// GCM accepts shorter tags unless told otherwise, which would let a forged
+// truncated tag through. Every value ever written used 16 bytes.
+const AUTH_TAG_LENGTH = 16;
 
 // DO NOT rename this literal. It is the key-derivation fallback for
 // AES-256-GCM: development databases created without AI_ENCRYPTION_KEY or
@@ -81,7 +84,14 @@ export function getSecretEncryptionKey(): Buffer {
 /** AES-256-GCM as `iv.tag.ciphertext`, each part base64url, no prefix. */
 export function sealWithSecretKey(value: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, getSecretEncryptionKey(), iv);
+  const cipher = crypto.createCipheriv(
+    ALGORITHM,
+    getSecretEncryptionKey(),
+    iv,
+    {
+      authTagLength: AUTH_TAG_LENGTH,
+    }
+  );
   const encrypted = Buffer.concat([
     cipher.update(value, "utf8"),
     cipher.final(),
@@ -100,11 +110,13 @@ export function openWithSecretKey(value: string): string | null {
     .map((part) => Buffer.from(part, "base64url"));
 
   if (!iv || !tag || !encrypted) return null;
+  if (tag.length !== AUTH_TAG_LENGTH) return null;
 
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
     getSecretEncryptionKey(),
-    iv
+    iv,
+    { authTagLength: AUTH_TAG_LENGTH }
   );
   decipher.setAuthTag(tag);
 
