@@ -14,6 +14,7 @@ import { useSettingsStore } from "@/store/settings";
 
 import { SecretInput } from "./SecretInput";
 import { SettingRow, SettingsSection } from "./SettingsSection";
+import { saveSystemSettings } from "./system-settings-save";
 
 const LOG_SOURCE = "SystemSettings";
 
@@ -57,23 +58,8 @@ export function SystemSettings() {
       });
   }, [updateSystemSettings]);
 
-  const handleUpdate = async (updates: Partial<typeof system>) => {
-    try {
-      const response = await fetch("/api/system-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      const data = await response.json();
-      updateSystemSettings(data);
-    } catch (error) {
-      logger.error(
-        "Failed to update system settings",
-        { error: error instanceof Error ? error.message : "Unknown error" },
-        LOG_SOURCE
-      );
-    }
-  };
+  const handleUpdate = (updates: Partial<typeof system>) =>
+    saveSystemSettings(updates, updateSystemSettings);
 
   return (
     <AdminOnly

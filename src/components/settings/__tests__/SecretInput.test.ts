@@ -116,4 +116,71 @@ describe("SecretInput", () => {
 
     expect(onCommit).not.toHaveBeenCalled();
   });
+
+  it("never wipes a secret the settings load revealed under an untouched field", () => {
+    const onCommit = jest.fn();
+    // Focused before GET /api/system-settings answered...
+    const input = render("", onCommit);
+    act(() => input.focus());
+    // ...which then reports a stored secret.
+    render(SECRET_MASK, onCommit);
+    act(() => input.blur());
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(input.value).toBe(SECRET_MASK);
+  });
+
+  it("throws the edit away on Escape", () => {
+    const onCommit = jest.fn();
+    const input = render(SECRET_MASK, onCommit);
+
+    act(() => input.focus());
+    type(input, "half-typed");
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(input);
+    expect(input.value).toBe(SECRET_MASK);
+  });
+
+  it("saves a pasted secret once", () => {
+    const onCommit = jest.fn();
+    const input = render(SECRET_MASK, onCommit);
+
+    act(() => input.focus());
+    type(input, "pasted-client-secret-value");
+    act(() => input.blur());
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith("pasted-client-secret-value");
+  });
+
+  it("keeps the typed value after a failed save so leaving again retries", async () => {
+    const onCommit = jest
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const input = render(SECRET_MASK, onCommit);
+
+    act(() => input.focus());
+    type(input, "retry-me-secret");
+    await act(async () => input.blur());
+
+    expect(input.value).toBe("retry-me-secret");
+
+    act(() => input.focus());
+    await act(async () => input.blur());
+
+    expect(onCommit).toHaveBeenCalledTimes(2);
+    expect(onCommit).toHaveBeenLastCalledWith("retry-me-secret");
+  });
+
+  it("asks password managers not to fill it", () => {
+    const input = render("", jest.fn());
+    expect(input.getAttribute("autocomplete")).toBe("new-password");
+  });
 });
