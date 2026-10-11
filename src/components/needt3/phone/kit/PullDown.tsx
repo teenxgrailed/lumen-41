@@ -103,7 +103,7 @@ export function PkPullDown<H extends PullHit = PullHit>({
     H: 220,
     drag: null,
     open: false,
-    ended: 0,
+    ended: Number.NEGATIVE_INFINITY,
     skyOn: false,
     moving: false,
   }).current;
