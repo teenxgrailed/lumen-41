@@ -1,0 +1,96 @@
+# Needt
+
+> AI day planner: tasks, calendar, docs, moodboards and an AI agent in one place. Tasks get slots in your free time and the day rebuilds when plans move. Free plan; Pro $7/month or $59/year; Lifetime $149. Remote MCP server (Pro and Lifetime) at a personal address, https://mcp.needt.app/u/<name>.
+
+## Product
+- [Home](https://needt.app/)
+- [Pricing](https://needt.app/pricing/)
+- [Connect AI over MCP](https://needt.app/resources/mcp/)
+- [API](https://needt.app/resources/api/)
+- [Help](https://needt.app/help/)
+
+## Connect AI guides
+- [Connect Needt to Claude](https://needt.app/resources/mcp/claude/)
+- [Connect Needt to ChatGPT](https://needt.app/resources/mcp/chatgpt/)
+- [Connect Needt to Claude Code](https://needt.app/resources/mcp/claude-code/)
+- [Connect Needt to Cursor](https://needt.app/resources/mcp/cursor/)
+- [Connect Needt to Codex](https://needt.app/resources/mcp/codex/)
+- [Connect Needt to VS Code](https://needt.app/resources/mcp/vscode/)
+- [Connect Needt to Gemini CLI](https://needt.app/resources/mcp/gemini/)
+- [Connect Needt to Windsurf](https://needt.app/resources/mcp/windsurf/)
+- [Connect Needt to Raycast](https://needt.app/resources/mcp/raycast/)
+- [Connect Needt to other MCP clients](https://needt.app/resources/mcp/other/)
+
+## Templates
+- [Free Weekly Planner Template (that plans itself)](https://needt.app/templates/weekly-planner/): A free weekly planner template in Markdown and CSV: fixed events, three weekly outcomes, estimated tasks per day. Use it on paper or let Needt schedule it.
+- [Free Daily Planner Template (Markdown + CSV)](https://needt.app/templates/daily-planner/): Free daily planner template: a top three, an hour-by-hour plan built around your meetings, and a shutdown note. Paper, notes app, or auto-planned in Needt.
+- [Time-Blocking Schedule Template (Free)](https://needt.app/templates/time-blocking-schedule/): Free time-blocking schedule template: a week of deep, shallow, meeting and buffer blocks with exact times. Download Markdown or CSV, or let Needt rebuild it.
+- [Timeboxing Template: Fixed Time, Clear Done](https://needt.app/templates/timeboxing/): Free timeboxing template: each task gets a hard time limit, a definition of done and a review line. Markdown and CSV downloads, plus how Needt schedules boxes.
+- [Content Calendar Template (Free, with Draft Dates)](https://needt.app/templates/content-calendar/): Free content calendar template for blogs, newsletters, videos: publish date, draft-by date, status and production hours. Markdown and CSV, or plan it in Needt.
+- [Social Media Content Calendar Template (Free)](https://needt.app/templates/social-media-content-calendar/): Free social media content calendar: posts per platform with time, format, hook and status, plus weekly batch slots to make them. Markdown and CSV downloads.
+- [Free Moodboard Template (Palette + References)](https://needt.app/templates/moodboard/): Free moodboard template: a brief, 12–20 references, a hex palette, texture notes and three keep words. Use it in any notes app or as a shareable board in Needt.
+- [Brand Moodboard Template: Palette, Type, Voice](https://needt.app/templates/brand-moodboard/): Free brand moodboard template: positioning line, hex palette with usage roles, type pairing, photo direction and do/don't pairs. For new brands and refreshes.
+- [Meeting Notes Template with Action Items](https://needt.app/templates/meeting-notes/): Free meeting notes template: goal, timed agenda, decisions, and action items with owner, estimate and due date. Markdown and CSV. Turn actions into tasks.
+- [Weekly Review Template: 30-Minute Checklist](https://needt.app/templates/weekly-review/): Free weekly review template: a 30-minute checklist to clear inboxes, review the past week, scan the next two, and pick three outcomes. Markdown and CSV.
+- [Eisenhower Matrix Template (Do, Schedule, Delegate)](https://needt.app/templates/eisenhower-matrix/): Free Eisenhower matrix template: sort tasks by urgent and important, then give each quadrant an action and a date. Markdown and CSV, plus Needt scheduling.
+- [Ivy Lee Method Template: Six Tasks, In Order](https://needt.app/templates/ivy-lee-method/): Free Ivy Lee method template: six tasks for tomorrow, ranked, written the evening before, worked top-down, leftovers carried over. Markdown and CSV downloads.
+- [1-3-5 List Template: One Big, Three Medium, Five Small](https://needt.app/templates/1-3-5-list/): Free 1-3-5 list template: one big task, three medium and five small, sized to a real day with estimates. Markdown and CSV, plus how Needt schedules it.
+- [Habit Tracker Template (Weekly, Printable)](https://needt.app/templates/habit-tracker/): Free habit tracker template: up to five habits, each with a minimum version, a cue and a time slot, plus a weekly grid and tally. Markdown and CSV downloads.
+- [Project Timeline Template (Phases + Milestones)](https://needt.app/templates/project-timeline/): Free project timeline template: phases, milestones, dependencies and hour estimates, worked backwards from launch. Markdown and CSV you can import anywhere.
+
+## Use cases
+- [ADHD Planner That Rebuilds Your Day](https://needt.app/for/adhd/): Plan with ADHD without a 40-item list: Needt turns tasks into visible time blocks and re-plans when you run over. A planning tool, not treatment.
+- [AI Study Planner for Students](https://needt.app/for/students/): Needt puts your timetable, deadlines and study sessions on one calendar. Type "essay, 6h, due Nov 3" and it spreads the work across free gaps between classes.
+- [AI Planner for Freelancers](https://needt.app/for/freelancers/): Juggling three clients, revisions and invoices? Needt books client work into real hours, turns client emails into tasks and rebuilds the week when a call moves.
+- [Content Planner for Creators](https://needt.app/for/content-creators/): Plan videos as script, shoot, edit and publish steps with real time on your calendar. Needt keeps the content calendar honest when a shoot slips.
+- [Planner with Moodboards for Designers](https://needt.app/for/designers/): Needt keeps moodboards, briefs and design time in one app. Protect long blocks for real design work, slot feedback rounds and share boards with clients by link.
+- [Weekly Planner for Solo Founders](https://needt.app/for/founders/): Solo founder doing product, sales and support? Needt books maker time, sales calls and admin into one week and re-plans when an investor call lands.
+- [Daily Planner for Small Business Owners](https://needt.app/for/small-business/): For owners of a small shop or agency: Needt plans orders, supplier calls and admin around opening hours and turns customer emails into tasks.
+- [Planner with MCP and API for Developers](https://needt.app/for/developers/): Needt has a remote MCP server and a REST API. Add tasks from Claude Code or Cursor, re-plan your day from the terminal and keep focus blocks safe from meetings.
+- [AI Planner for Life Admin and Family](https://needt.app/for/personal/): Bills, forms, errands, kids’ appointments: Needt gives life admin real time slots around work and family, with reminders before each deadline.
+- [Remote Work Day Planner](https://needt.app/for/remote-workers/): Working from home with back-to-back calls? Needt fits deep work between meetings, plans breaks and a stop time, and re-plans when calls run over.
+
+## Integrations
+- [Google Calendar + Needt: auto-schedule tasks into your calendar](https://needt.app/integrations/google-calendar/): Connect Google Calendar to Needt: it reads your events, fits tasks into free time, and can write task blocks back. Setup, what syncs, limits and fixes.
+- [Outlook Calendar + Needt: plan tasks around Microsoft 365](https://needt.app/integrations/outlook-calendar/): Connect Outlook or Microsoft 365 calendars to Needt. Tasks fit around your meetings; work accounts may need admin consent. Setup, sync, limits, fixes.
+- [iCloud Calendar + Needt: plan tasks around Apple Calendar](https://needt.app/integrations/icloud-calendar/): Connect iCloud (Apple Calendar) to Needt with an app-specific password over CalDAV. Step-by-step setup, what syncs, plan limits and common fixes.
+- [Gmail + Needt: turn emails into scheduled tasks](https://needt.app/integrations/gmail/): Connect Gmail to Needt and turn emails into tasks with estimates and deadlines, then let Needt schedule them. Setup, what it reads, Pro limits, fixes.
+- [Claude + Needt: plan your day from a Claude chat (MCP)](https://needt.app/integrations/claude/): Connect Claude to Needt with the remote MCP server at mcp.needt.app. Create tasks, run the scheduler and reschedule from chat. Setup, tools, limits.
+- [ChatGPT + Needt: manage your plan from ChatGPT (MCP)](https://needt.app/integrations/chatgpt/): Connect ChatGPT to Needt via developer mode and the MCP server at mcp.needt.app. Which ChatGPT plans can write tasks, setup steps, prompts and fixes.
+- [Import from Todoist to Needt: CSV and backup guide](https://needt.app/integrations/todoist/): Move your Todoist tasks to Needt: export a project CSV or a backup, import in Settings → Import. What's kept, what isn't, and what to check after.
+- [Import from Notion to Needt: Markdown & CSV export guide](https://needt.app/integrations/notion/): Move Notion task databases and pages into Needt: export as Markdown & CSV, upload in Settings → Import. What's kept, what isn't, and what to check.
+
+## Compare
+- [Best Motion Alternative in 2026 vs Motion](https://needt.app/compare/motion/): Needt vs Motion: both auto-schedule tasks around meetings. Compare price ($59/yr vs $19/seat/mo), free plan, docs, moodboards and MCP for solo planners.
+- [Best Sunsama Alternative in 2026 vs Sunsama](https://needt.app/compare/sunsama/): Needt vs Sunsama: guided daily planning vs a day that plans and rebuilds itself. Compare price ($59/yr vs $17/mo yearly), free plan, docs and email.
+- [Best Akiflow Alternative in 2026 vs Akiflow](https://needt.app/compare/akiflow/): Needt vs Akiflow: universal inbox and manual time-blocking vs auto-scheduling with a free plan. Price, trial, calendars and MCP compared, checked Oct 2026.
+- [Best Reclaim Alternative in 2026 vs Reclaim.ai](https://needt.app/compare/reclaim/): Needt vs Reclaim.ai: calendar-only scheduling vs a full planner with iCloud, CalDAV, docs and email. Plans, price and limits compared, checked Oct 2026.
+- [Best TickTick Alternative in 2026 vs TickTick](https://needt.app/compare/ticktick/): Needt vs TickTick: a cheap, capable to-do list vs a planner that schedules tasks into your day. Free limits, Premium price and calendar support compared.
+- [Todoist + Notion Alternative in 2026 vs the Stack](https://needt.app/compare/todoist-notion/): Replace the Todoist + Notion + calendar stack with one planner. Compare price ($180/yr vs $59), auto-scheduling, docs and Needt's Todoist and Notion import.
+- [Notion Calendar Alternative in 2026 vs Notion Calendar](https://needt.app/compare/notion-calendar/): Needt vs Notion Calendar: a free, polished calendar vs a planner that schedules tasks into free time. Calendars, scheduling links, Notion sync and price.
+- [Best Tiimo Alternative in 2026 vs Tiimo](https://needt.app/compare/tiimo/): Needt vs Tiimo: a calm visual planner for neurodivergent minds vs a planner that schedules tasks around meetings. Free plan, web access, AI and calendars.
+- [Best Structured Alternative in 2026 vs Structured](https://needt.app/compare/structured/): Needt vs Structured: a simple visual timeline vs a planner that fills the timeline for you. Free features, Pro price ($29.99/yr), calendars and AI compared.
+
+## Guides
+- [What Is Time Blocking? How to Do It (Step by Step)](https://needt.app/learn/time-blocking/): Time blocking means giving every task a slot on your calendar instead of a spot on a list. Here is how to do it in seven steps, with a real example day.
+- [How to Time Block in Google Calendar (2026 Guide)](https://needt.app/learn/time-blocking-google-calendar/): Time block in Google Calendar with events, colors, tasks and focus time. Exact clicks, a full example week, and how to automate the blocks with Needt.
+- [What Is Auto Scheduling (AI Scheduling)? How It Works](https://needt.app/learn/auto-scheduling/): Auto scheduling places your tasks into free calendar time and rebuilds the plan when things move. How it works, what it can't do, and how to set it up well.
+- [Time Blocking for ADHD: A Practical, Flexible Method](https://needt.app/learn/time-blocking-adhd/): A time blocking method built for ADHD brains: shorter blocks, visible transitions, buffers and easy re-planning. Practical steps and an example day.
+- [Connect Claude to Google Calendar (and Your Tasks)](https://needt.app/learn/connect-claude-to-your-calendar/): Connect Claude to Google Calendar with Anthropic's connector, or add Needt over MCP so Claude can schedule tasks too. Setup steps, prompts and limits.
+- [How to Do a Weekly Review (30-Minute Checklist)](https://needt.app/learn/weekly-review/): A weekly review clears loose ends, checks every project and sets up next week. Here is a 30-minute version of David Allen's GTD review, with an example.
+- [How to Plan Your Week in 15 Minutes (Simple Method)](https://needt.app/learn/plan-your-week/): Plan your week in 15 minutes: set three outcomes, map fixed events, estimate tasks, block the big rocks, leave slack. Timed steps and a real example.
+- [How to Plan a Content Calendar: A 6-Step Workflow](https://needt.app/learn/content-calendar-workflow/): Plan a content calendar that you actually ship: pick a cadence, build pillars, batch production, and schedule the work, not just publish dates. With example.
+- [How to Make a Moodboard (Step-by-Step Guide)](https://needt.app/learn/make-a-moodboard/): Make a moodboard that guides real decisions: write the brief, collect wide, cut hard, pull a palette, annotate why. Steps, example and common mistakes.
+- [Needt Getting Started Guide: Your First Day](https://needt.app/learn/getting-started/): Your first day in Needt: sign up, connect a calendar, add tasks the natural way, auto-schedule, use Ask, install the app and connect an AI assistant via MCP.
+
+## Glossary
+- [Timeboxing: Definition, Origin and Example](https://needt.app/glossary/timeboxing/): Timeboxing means giving a task a fixed time limit and stopping when it ends. Where it came from, how to do it, a real example, and when it backfires.
+- [Task Batching: What It Is and How to Do It](https://needt.app/glossary/task-batching/): Task batching groups similar small tasks, like email, calls or errands, into one block so you switch less. How it works, an example day, and its limits.
+- [Eisenhower Matrix: Meaning, Origin and Example](https://needt.app/glossary/eisenhower-matrix/): The Eisenhower Matrix sorts tasks by urgent and important into four boxes: do, schedule, delegate, drop. Its real origin, an example, and where it falls short.
+- [Pomodoro Technique: How It Works and When It Fails](https://needt.app/glossary/pomodoro-technique/): The Pomodoro Technique splits work into 25-minute intervals with short breaks. Francesco Cirillo's method explained, with an example and honest limits.
+- [Eat the Frog: Meaning, Origin and How to Use It](https://needt.app/glossary/eat-the-frog/): Eat the frog means doing your hardest, most important task first thing. Where the phrase really comes from, how to apply it, and when it backfires.
+- [Deep Work: Cal Newport's Definition, Explained](https://needt.app/glossary/deep-work/): Deep work is distraction-free focus on cognitively hard tasks. Cal Newport's 2016 definition, how to schedule it, an example week, and its critics.
+- [Planning Fallacy: Why Tasks Take Longer Than Planned](https://needt.app/glossary/planning-fallacy/): The planning fallacy is our habit of underestimating how long our own tasks take. Kahneman and Tversky's 1979 idea, the evidence, and practical fixes.
+- [Parkinson's Law: Meaning, Origin and Examples](https://needt.app/glossary/parkinsons-law/): Parkinson's law says work expands to fill the time available for its completion. C. N. Parkinson's 1955 essay, what it means for planning, and its limits.
+- [Getting Things Done (GTD): The Method Explained](https://needt.app/glossary/getting-things-done/): Getting Things Done is David Allen's 2001 method: capture everything, clarify, organize, reflect, engage. The five steps, an example, and where GTD gets heavy.
+- [Context Switching: What It Costs and How to Cut It](https://needt.app/glossary/context-switching/): Context switching is moving attention between tasks, and each switch has a cost. What research shows, a real example day, and how to plan for fewer switches.

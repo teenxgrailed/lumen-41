@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Outlook Calendar + Needt: plan tasks around Microsoft 365</title>
+<meta name="description" content="Connect Outlook or Microsoft 365 calendars to Needt. Tasks fit around your meetings; work accounts may need admin consent. Setup, sync, limits, fixes.">
+<link rel="canonical" href="https://needt.app/integrations/outlook-calendar/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Needt">
+<meta property="og:title" content="Outlook Calendar + Needt: plan tasks around Microsoft 365">
+<meta property="og:description" content="Connect Outlook or Microsoft 365 calendars to Needt. Tasks fit around your meetings; work accounts may need admin consent. Setup, sync, limits, fixes.">
+<meta property="og:url" content="https://needt.app/integrations/outlook-calendar/">
+<meta property="og:image" content="https://needt.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#c4c5e4">
+<link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+<link rel="preload" href="../../assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../vendor/sky-tokens.css?v=19b">
+<link rel="stylesheet" href="../../styles.css?v=19b">
+<link rel="stylesheet" href="../../pages.css?v=19b">
+<!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
+<script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
+-->
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Integrations", "item": "https://needt.app/integrations/"}, {"@type": "ListItem", "position": 2, "name": "Outlook / Microsoft 365", "item": "https://needt.app/integrations/outlook-calendar/"}]}</script>
+</head>
+<body class="page">
+<script>window.NEEDT_SIGNUP = "https://use.needt.app/auth/signin";</script>
+<header class="nav" id="nav">
+  <div class="nav-pill">
+    <a class="brand" href="../../" aria-label="Needt home"><img src="../../assets/icon.svg" alt=""><span class="brand-word">Needt</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <div class="nav-item">
+        <button class="nav-link nav-trigger" aria-expanded="false" aria-controls="m-product">Product <svg class="chev" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="menu" id="m-product" role="menu"><div class="mega">
+          <div class="mega-main">
+            <a role="menuitem" class="mc" href="../../integrations/" class="is-current" aria-current="page"><em class="mi mi-mint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></svg></em><b>Integrations</b><span>Calendars, mail, Claude, ChatGPT</span></a>
+            <a role="menuitem" class="mc" href="../../templates/"><em class="mi mi-pink"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></em><b>Templates</b><span>Weekly, daily, time blocking, content</span></a>
+            <a role="menuitem" class="mc" href="../../for/"><em class="mi mi-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a5 5 0 0 0-3.5-4.8"/></svg></em><b>Use cases</b><span>Freelancers, students, founders, ADHD</span></a>
+            <a role="menuitem" class="mc" href="../../changelog/"><em class="mi mi-lilac"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></em><b>What’s new</b><span>What shipped, week by week</span></a>
+          </div>
+          <div class="mega-side">
+            <a role="menuitem" class="ms" href="../../#tour"><em class="mi mi-lav"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></em><b>Product tour</b></a>
+            <a role="menuitem" class="ms" href="../../download/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></em><b>Download</b></a>
+            <a role="menuitem" class="ms" href="../../security/"><em class="mi mi-peach"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.2-3 7.6-7 9-4-1.4-7-4.8-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg></em><b>Security</b></a>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="nav-item">
+        <button class="nav-link nav-trigger" aria-expanded="false" aria-controls="m-res">Resources <svg class="chev" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="menu" id="m-res" role="menu"><div class="mega">
+          <div class="mega-main">
+            <a role="menuitem" class="mc" href="../../resources/"><em class="mi mi-lilac"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v16H6.5A1.5 1.5 0 0 0 5 20.5v-16Z"/><path d="M5 20.5A1.5 1.5 0 0 0 6.5 22H19M9 7h6"/></svg></em><b>Ideas &amp; guides</b><span>Workflows with AI, the API and more</span></a>
+            <a role="menuitem" class="mc" href="../../resources/mcp/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.9L19 9.7l-4.9 1.8L12 17l-1.8-5.5L5 9.7l5.2-1.8L12 3ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg></em><b>Connect AI</b><span>Claude, ChatGPT, Cursor — step by step</span></a>
+            <a role="menuitem" class="mc" href="../../blog/"><em class="mi mi-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></svg></em><b>Blog</b><span>Planning, focus and AI</span></a>
+            <a role="menuitem" class="mc" href="../../learn/"><em class="mi mi-mint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></em><b>Learn</b><span>Time blocking, weekly reviews, setup</span></a>
+          </div>
+          <div class="mega-side">
+            <a role="menuitem" class="ms" href="../../compare/"><em class="mi mi-peach"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7a8 8 0 0 0-14.5-1.5M4 4v4h4M4 17a8 8 0 0 0 14.5 1.5M20 20v-4h-4"/></svg></em><b>Compare</b></a>
+            <a role="menuitem" class="ms" href="../../resources/api/"><em class="mi mi-lav"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></svg></em><b>API</b></a>
+            <a role="menuitem" class="ms" href="../../glossary/"><em class="mi mi-pink"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></em><b>Glossary</b></a>
+            <a role="menuitem" class="ms" href="../../help/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17.2v.1"/></svg></em><b>Help</b></a>
+          </div>
+        </div>        </div>
+      </div>
+      <a class="nav-link" href="../../pricing/">Pricing</a>
+      <a class="nav-link" href="../../download/">Download</a>
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
+      <a class="btn btn-primary btn-sm js-signup" href="https://use.needt.app/auth/signin">Try it free</a>
+      <button class="nav-burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+    </div>
+  </div>
+</header>
+<main id="top">
+<section class="phero" data-px-scope>
+  <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="a"></div></div>
+  <div class="wrap phero-in">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../integrations/">Integrations</a> <span>/</span> <span>Outlook / Microsoft 365</span></nav><span class="eyebrow on-sky" data-px-calm>Integration · Calendar</span>
+    <h1 class="display" data-px-calm>Outlook <i>+ Needt</i></h1>
+    <p class="lead" data-px-calm>Connect your Outlook or Microsoft 365 calendar and Needt fits your tasks into the time your meetings leave free. It works with personal Outlook.com accounts and work or school accounts, though some companies require an admin to approve the app first.</p><div class="pair" data-px-calm style="justify-content:center;margin-top:28px"><img src="../../assets/icon.svg" alt="Needt"><span>+</span><img src="../../assets/logos/outlook.svg" alt="Outlook / Microsoft 365"></div>
+  </div>
+</section><section class="sec tight"><div class="wrap"><figure class="realshot"><img class="rs-desk" src="../../assets/steps/apps-calendars.webp" alt="Needt Connections: Google, Apple and Outlook calendars" fetchpriority="high"></figure></div></section><section class="sec tight"><div class="wrap pagebody"><nav class="toc" aria-label="On this page"><span class="fh2">On this page</span><a href="#what-it-does">What the integration does</a><a href="#setup">Set it up</a><a href="#what-syncs">What syncs and what doesn't</a><a href="#which-calendar">Which calendar should hold task blocks?</a><a href="#workflows">Example workflows</a><a href="#limits">Limits by plan</a><a href="#troubleshooting">Troubleshooting</a></nav><article class="prose"><h2 id="what-it-does">What the <i>integration</i> does</h2><p>Needt reads events from the Outlook calendars you connect, including Teams meetings, and treats them as busy. Your tasks get slots around them, ordered by deadline, priority and energy. When you want, Needt writes the scheduled task blocks back to a calendar so your coworkers see you as busy during focus work.</p><h2 id="setup">Set it <i>up</i></h2><ol class="steps"><li>In Needt, open <span class="ui">Settings → Calendars</span>.</li><li>Choose <strong>Outlook / Microsoft 365</strong>. A Microsoft sign-in window opens.</li><li>Sign in with your Outlook.com or work account and accept the permissions Microsoft shows.</li><li>Select the calendars to include, then open <span class="ui">Calendar</span> to see events and tasks together.</li></ol><div class="callout note">Work or school account? Many organizations turn off user consent for new apps. You may see “Approval required” instead of the permission screen. That means your admin has to approve Needt. Microsoft explains this in its docs on <a href="https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/user-admin-consent-overview" rel="noopener">user and admin consent</a> and the <a href="https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/admin-consent-workflow-overview" rel="noopener">admin consent workflow</a>.</div><h2 id="what-syncs">What syncs and what <i>doesn't</i></h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Item</th><th>Direction</th><th>Notes</th></tr></thead><tbody><tr><th>Events and Teams meetings</th><td data-label="Direction">Outlook → Needt</td><td data-label="Notes">Read as busy time. Needt doesn't edit them.</td></tr><tr><th>Scheduled task blocks</th><td data-label="Direction">Needt → Outlook</td><td data-label="Notes">Only if you choose to write them.</td></tr><tr><th>Task details</th><td data-label="Direction">Stay in Needt</td><td data-label="Notes">Estimates, subtasks and notes don't go to Outlook.</td></tr><tr><th>Room bookings, invites, RSVPs</th><td data-label="Direction">Not managed</td><td data-label="Notes">Keep using Outlook or Teams for these.</td></tr></tbody></table></div><h2 id="which-calendar">Which calendar should hold <i>task blocks</i>?</h2><p>If coworkers book you through Outlook's scheduling assistant, write task blocks to your main work calendar so a 2-hour report block reads as busy. If you'd rather keep tasks private, create a separate calendar in Outlook, name it “Needt”, and write blocks there. Either way, your Teams meetings stay exactly as they are. Needt only moves its own blocks when the day changes, and asks you to confirm.</p><h2 id="workflows">Example <i>workflows</i></h2><h3>Protect focus time from meeting creep</h3><p>Alex's Outlook shows a 10:00 stand-up and a 14:00–15:00 Teams review. Alex adds “write Q4 report, 2h, by Thu #Clients, high energy”. Needt places it 10:30–12:30, when Alex's energy is set high, and writes the block to Outlook so the slot shows as busy.</p><h3>Sunday-night plan for the week</h3><p>Ask Needt “Plan my week around my Outlook meetings”. You get a draft week with tasks spread across open gaps. Pair it with the <a href="../../templates/weekly-planner/">weekly planner</a> if you like to review on paper first.</p><h3>Personal and work in one view</h3><p>On Pro, connect your work Microsoft 365 calendar and a personal Google or iCloud calendar. A 17:30 gym class in the personal calendar now blocks Needt from scheduling a work task there.</p><h2 id="limits">Limits by <i>plan</i></h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead><tbody><tr><th>Connected calendars</th><td data-label="Free">1</td><td data-label="Pro">Unlimited</td></tr><tr><th>Auto-scheduled tasks</th><td data-label="Free">15 per month</td><td data-label="Pro">Unlimited</td></tr><tr><th>Booking pages</th><td data-label="Free">1</td><td data-label="Pro">Unlimited</td></tr></tbody></table></div><p>Pro is $7/month or $59/year. See <a href="../../pricing/">pricing</a>.</p><h2 id="troubleshooting">Troubleshooting</h2><ul><li><strong>“Need admin approval”.</strong> Your tenant blocks user consent. Send your IT team the request, or connect a personal calendar meanwhile.</li><li><strong>Shared or delegated calendars don't show.</strong> Open them in Outlook first so they're added to your account, then reconnect in Needt.</li><li><strong>Access stopped working.</strong> You or an admin may have revoked permissions. Work accounts can review them in the <a href="https://support.microsoft.com/en-us/account-billing/edit-or-revoke-application-permissions-in-the-my-apps-portal-169be2b4-ee26-4338-aea8-d19bb2f329ee" rel="noopener">My Apps portal</a>. Then reconnect in <span class="ui">Settings → Calendars</span>.</li><li><strong>Times look shifted by an hour.</strong> Check that the time zone in Needt matches the one in Outlook.</li></ul></article></div></section><section class="sec tight"><div class="wrap"><div class="banner rv" style="margin-top:56px"><div><h3>Plan the day you actually have.</h3><p>Tasks, calendar and docs in one place. Free plan + 14 days of Pro.</p></div><a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Try it free <span class="arr">→</span></a></div></div></section><section class="sec white"><div class="wrap"><div class="sec-head center"><h2 class="h2">Questions, <i>answered.</i></h2></div><div class="faq"><details><summary>Does it work with Outlook.com and Hotmail?</summary><div class="a"><p>Yes. Personal Microsoft accounts and work or school Microsoft 365 accounts both connect through Microsoft sign-in.</p></div></details><details><summary>Why does my company account ask for admin approval?</summary><div class="a"><p>Your organization controls which apps can access company data. An admin approves Needt once, then you can connect.</p></div></details><details><summary>Will Needt move my Teams meetings?</summary><div class="a"><p>No. Needt only reads meetings. It moves its own task blocks, never your events.</p></div></details><details><summary>Can I use Outlook mail too?</summary><div class="a"><p>Yes. Outlook is also supported as a mailbox on Pro (up to 3 mailboxes), so you can turn emails into tasks.</p></div></details><details><summary>Can I connect Outlook and Google at the same time?</summary><div class="a"><p>Yes, on Pro. Free connects one calendar in total.</p></div></details><details><summary>Does it work with on-premises Exchange?</summary><div class="a"><p>Needt connects through Microsoft's cloud sign-in. If your Exchange calendar offers CalDAV, you can try the generic CalDAV option instead.</p></div></details></div></div></section><section class="sec rel"><div class="wrap"><div class="sec-head"><h2 class="h2">Keep <i>going.</i></h2></div><div class="grid g3 carousel"><a class="rcard rv" href="../../integrations/google-calendar/"><span class="tagline">Integration</span><h3>Google Calendar + Needt</h3><p>Needt reads your Google Calendar, then fits tasks into the free time between meetings.</p><span class="more">Open</span></a><a class="rcard rv" href="../../integrations/gmail/"><span class="tagline">Integration</span><h3>Gmail + Needt</h3><p>Turn Gmail messages into scheduled tasks. Needt suggests the task; you confirm.</p><span class="more">Open</span></a><a class="rcard rv" href="../../learn/auto-scheduling/"><span class="tagline">Guide</span><h3>Auto-scheduling, explained</h3><p>How auto-scheduling places tasks in free time, what inputs it needs, and where it honestly falls short.</p><span class="more">Open</span></a><a class="rcard rv" href="../../for/remote-workers/"><span class="tagline">Use case</span><h3>Needt for Remote workers</h3><p>Video calls, async work and a clear end to the day: a plan that keeps home and work from blurring.</p><span class="more">Open</span></a><a class="rcard rv" href="../../templates/weekly-planner/"><span class="tagline">Template</span><h3>Weekly planner template</h3><p>One page for the week: fixed events, three outcomes, and every task with an estimate and a day.</p><span class="more">Open</span></a></div></div></section>
+</main>
+<div class="page-night" data-px-scope>
+  <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div></div>
+  <section class="final">
+    <div class="wrap final-in">
+      <img class="icon3d" src="../../assets/icon-dark.svg" alt="">
+      <h2 class="display" data-px-calm>Your day, <i>finally planned.</i></h2>
+      <div class="cta-row" data-px-calm>
+        <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Try it free <span class="arr">→</span></a>
+        <a class="btn btn-raised btn-lg" href="https://use.needt.app/auth/signin">Log in</a>
+      </div>
+      <p class="cta-note">Free plan + 14 days of Pro. No card.</p>
+    </div>
+    <footer class="foot">
+    <div class="wrap">
+      <div class="foot-top" data-px-calm>
+        <div class="foot-brand">
+          <a class="brand" href="../../"><img src="../../assets/icon-dark.svg" alt=""><span class="brand-word">Needt</span></a>
+          <p>Everything you’re working on, in one place.</p>
+          <div class="socials">
+            <a class="soc" href="https://x.com/needtapp" rel="noopener" aria-label="Needt on X"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></a>
+            <a class="soc" href="https://instagram.com/needtapp" rel="noopener" aria-label="Needt on Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+            <a class="soc" href="https://www.reddit.com/user/needtapp" rel="noopener" aria-label="Needt on Reddit"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9.2" cy="13" r="1.2"/><circle cx="14.8" cy="13" r="1.2"/><path d="M9.3 16.3c1.6 1 3.8 1 5.4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="17.5" cy="4.5" r="1.6"/><path d="M12 6l1.2-3.2 4.3.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></a>
+            <a class="soc" href="https://facebook.com/needtapp" rel="noopener" aria-label="Needt on Facebook"><svg viewBox="0 0 24 24"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H8v3h2.5V21Z"/></svg></a>
+            <a class="soc" href="mailto:hello@needt.app" aria-label="Email Needt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></a>
+          </div>
+        </div>
+        <div class="foot-cols">
+          <div><span class="fh">Product</span><a href="../../#tour">Tour</a><a href="../../pricing/">Pricing</a><a href="../../templates/">Templates</a><a href="../../integrations/">Integrations</a><a href="../../download/">Download</a><a href="../../changelog/">Changelog</a></div>
+          <div><span class="fh">Use cases</span><a href="../../for/freelancers/">Freelancers</a><a href="../../for/students/">Students</a><a href="../../for/founders/">Founders</a><a href="../../for/content-creators/">Creators</a><a href="../../for/adhd/">ADHD</a><a href="../../for/">All use cases</a></div>
+          <div><span class="fh">Resources</span><a href="../../learn/">Learn</a><a href="../../blog/">Blog</a><a href="../../resources/mcp/">Connect AI (MCP)</a><a href="../../resources/api/">API</a><a href="../../compare/">Compare</a><a href="../../glossary/">Glossary</a><a href="../../help/">Help</a></div>
+          <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
+          <div><span class="fh">Legal</span><a href="../../privacy/">Privacy</a><a href="../../terms/">Terms</a><a href="../../security/">Security</a></div>
+        </div>
+      </div>
+      <div class="foot-base"><span>Made by one person.</span><span>© 2026 Needt. Built for one day at a time.</span></div>
+    </div>
+    <div class="floor" aria-hidden="true"><span class="floor-word" id="floor-word">Needt</span></div>
+  </footer>
+  </section>
+</div>
+<a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro, no card</span></a>
+<script src="../../vendor/sky.js?v=19b" defer></script>
+<script src="../../site.js?v=19b" defer></script>
+</body>
+</html>

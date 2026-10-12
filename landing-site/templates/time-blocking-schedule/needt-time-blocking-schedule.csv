@@ -1,0 +1,11 @@
+title,date,start,end,duration_min,block_type,project,notes
+Homepage copy,2026-10-12,09:00,11:30,150,Deep,Website,Notifications off
+Email,2026-10-12,11:30,12:00,30,Shallow,,
+Team sync,2026-10-12,13:00,14:00,60,Meeting,Clients,Fixed
+Buffer,2026-10-12,14:00,14:30,30,Buffer,,Leave empty
+Invoices,2026-10-12,16:00,17:00,60,Shallow,Clients,Lumen + Northwind
+Shop checkout,2026-10-13,09:00,11:30,150,Deep,Shop,High energy
+Copy edits,2026-10-13,13:00,14:00,60,Deep,Website,
+Client call,2026-10-13,14:00,15:00,60,Meeting,Clients,Fixed
+Client report,2026-10-14,09:00,11:30,150,Deep,Clients,
+Spanish,2026-10-14,16:00,17:00,60,Personal,Spanish,Unit 4
