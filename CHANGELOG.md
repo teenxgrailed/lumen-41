@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Templates and Shared now open on the painted-sky banner from the design
+  (kicker, big serif title, meta line and up to three of the place's own pages
+  on frosted glass) instead of a plain header. Moodboards cards show the first
+  three references as a collage (the grey glyph only for an empty board) with
+  the reference count, and Free sees "3 boards · Free includes 1 · Upgrade for
+  more" and the one "Unlimited moodboards" card. Habits shows "Last four
+  months" again (a dot a day, All or one habit) and Free reads "4 habits · Free
+  includes 3 · Upgrade for more". `GET /api/moodboards` now also sends
+  `itemCount` and `preview` (the first three references), and the new
+  `GET /api/habits/history` sends each habit's last 124 days. The painted sky no
+  longer turns to night on a light page when the old theme setting is dark.
 - Fixed (Notion import review): links, bookmarks, files, images and covers
   keep only `http`, `https`, `mailto` and Needt page addresses (anything else,
   such as `javascript:`, comes in as plain text with a note), and page blocks
