@@ -48,7 +48,12 @@ import {
   submitLabel,
   submitStep,
 } from "./auth-logic";
-import { type AuthFields, useAuthFields } from "./use-auth-fields";
+import {
+  type AuthFields,
+  type AuthSteps,
+  useAuthFields,
+  useAuthSteps,
+} from "./use-auth-fields";
 
 export type { AuthMode } from "./auth-logic";
 
@@ -100,6 +105,8 @@ export interface AuthScreenProps {
   seed?: { mail?: string };
   /** The host owns the two fields (so a face swap keeps what was typed). */
   fields?: AuthFields;
+  /** The host owns the flow's steps too (recovery, refusal, ...). */
+  steps?: AuthSteps;
 }
 
 function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
@@ -246,8 +253,6 @@ function Collage() {
   );
 }
 
-type Recover = null | "ask" | "sent";
-
 export function AuthScreen({
   mode,
   onMode,
@@ -265,23 +270,29 @@ export function AuthScreen({
   privacyHref = "/privacy",
   seed,
   fields,
+  steps,
 }: AuthScreenProps) {
   const signup = mode !== "login";
   const online = useOnline();
   const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
   const [show, setShow] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  const [refused, setRefused] = React.useState<{
-    reason: "taken" | "wrong" | null;
-    message: string | null;
-  } | null>(null);
-  const [touched, setTouched] = React.useState(false);
   /* Craft asks for the address first; the password arrives under it once the
-     address is in. */
-  const [withPass, setWithPass] = React.useState(pass.length > 0);
+     address is in. These steps may live in the host (see `steps`). */
+  const {
+    refused,
+    setRefused,
+    touched,
+    setTouched,
+    withPass: passAsked,
+    setWithPass,
+    recover,
+    setRecover,
+  } = useAuthSteps(steps);
+  /* A password typed on the other face is already there. */
+  const withPass = passAsked || pass.length > 0;
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
-  const [recover, setRecover] = React.useState<Recover>(null);
   const [limited, setLimited] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   const lastTry = React.useRef<(() => Promise<void>) | null>(null);
