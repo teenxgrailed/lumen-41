@@ -11,7 +11,7 @@ import { useMark } from "../../settings/SettingsContext";
 import { PkGlyph, pkCx } from "../kit";
 import { type MenuPlaceId, menuTilesFrom, menuWord } from "../menu/places";
 import { PILL_PLACES, PILL_SIZE, toggleSlot } from "./model";
-import { PsGroup, PsRow } from "./parts";
+import { PsGroup, PsRow, usePs } from "./parts";
 
 const noop = () => undefined;
 
@@ -22,14 +22,15 @@ const noop = () => undefined;
  * only when the pill is full again, and only into the loaded prefs
  * (`useSetPref` refuses before they load, and the rows are off until then).
  *
- * The half-filled pill is this page's own until it is saved; the saved
- * three always come from the prefs.
+ * The half-filled pill (`pill`) lives in `SettingsSheet`, above the face
+ * switch, so crossing 700 px keeps it; the saved three always come from the
+ * prefs.
  */
 export function MenuPage() {
   const mark = useMark();
   const settings = useSettings();
   const setPref = useSetPref();
-  const [draft, setDraft] = useState<MenuPlaceId[] | null>(null);
+  const { pill: draft, setPill: setDraft } = usePs();
   const [shake, setShake] = useState(0);
   const pending = useRef(false);
   const ready = !!settings.data;
