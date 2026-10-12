@@ -2,8 +2,9 @@
  * @jest-environment jsdom
  *
  * Two faces, one state: the controller is called once by the route
- * component, above the switch, so the open message survives a resize across
- * 700 px in both directions and the route does not remount.
+ * component, above the switch, and handed to BOTH faces, so what is open and
+ * the selected view survive a resize across 700 px in both directions and the
+ * route does not remount.
  */
 import { act, createElement as h } from "react";
 
@@ -18,47 +19,69 @@ import { PhoneUiProvider } from "../../../root/phone-ui-context";
 
 const mounts = { route: 0 };
 
+type FakeBox = {
+  tab: string;
+  setTab: (t: string) => void;
+  openId: string | null;
+  open: (m: { id: string }) => void;
+};
+
 jest.mock("../../../mail/useMailbox", () => {
   const react = jest.requireActual<typeof import("react")>("react");
   return {
     useMailbox: () => {
       const [openId, setOpenId] = react.useState<string | null>(null);
+      const [tab, setTab] = react.useState("needs");
       react.useEffect(() => {
         mounts.route += 1;
       }, []);
-      return { openId, open: (m: { id: string }) => setOpenId(m.id) };
+      return {
+        openId,
+        tab,
+        setTab,
+        open: (m: { id: string }) => setOpenId(m.id),
+      };
     },
   };
 });
-jest.mock("../../../mail/MailScreen", () => ({
-  MailScreen: () => {
-    const react = jest.requireActual<typeof import("react")>("react");
-    return react.createElement("div", { "data-face": "desktop" });
-  },
-}));
-jest.mock("../PhoneMail", () => ({
-  PhoneMail: ({
-    box,
-  }: {
-    box: { openId: string | null; open: (m: { id: string }) => void };
-  }) => {
+
+// both faces are stateless drawings of the one box, as the real ones are
+const face =
+  (name: string) =>
+  ({ box }: { box: FakeBox }) => {
     const react = jest.requireActual<typeof import("react")>("react");
     return react.createElement(
-      "button",
-      {
-        "data-face": "phone",
-        "data-open": box.openId ?? "",
-        onClick: () => box.open({ id: "m7" }),
-      },
-      "open"
+      "div",
+      { "data-face": name, "data-open": box.openId ?? "", "data-tab": box.tab },
+      react.createElement("button", {
+        "data-act": "open",
+        onClick: () => box.open({ id: name === "phone" ? "m7" : "m9" }),
+      }),
+      react.createElement("button", {
+        "data-act": "tab",
+        onClick: () => box.setTab("all"),
+      })
     );
-  },
+  };
+jest.mock("../../../mail/MailScreen", () => ({
+  MailScreen: (p: { box: FakeBox }) => face("desktop")(p),
+}));
+jest.mock("../PhoneMail", () => ({
+  PhoneMail: (p: { box: FakeBox }) => face("phone")(p),
 }));
 
 let host: HTMLDivElement;
 let root: Root;
 const render = (ui: "phone" | "desktop") =>
   act(() => root.render(h(PhoneUiProvider, { value: ui }, h(MailFaces))));
+const click = (sel: string) =>
+  act(() => {
+    host
+      .querySelector<HTMLElement>(sel)!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+const attr = (f: string, name: string) =>
+  host.querySelector(`[data-face=${f}]`)?.getAttribute(name);
 
 beforeEach(() => {
   mounts.route = 0;
@@ -71,22 +94,29 @@ afterEach(() => {
   host.remove();
 });
 
-it("the open message survives phone → desktop → phone, and the route mounts once", () => {
+it("the open message and the tab survive phone → desktop → phone, and the route mounts once", () => {
   render("phone");
-  act(() => {
-    host
-      .querySelector<HTMLElement>("[data-face=phone]")!
-      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
-  });
-  expect(
-    host.querySelector("[data-face=phone]")?.getAttribute("data-open")
-  ).toBe("m7");
+  click("[data-face=phone] [data-act=open]");
+  click("[data-face=phone] [data-act=tab]");
+  expect(attr("phone", "data-open")).toBe("m7");
   render("desktop");
-  expect(host.querySelector("[data-face=desktop]")).not.toBeNull();
   expect(host.querySelector("[data-face=phone]")).toBeNull();
+  expect(attr("desktop", "data-open")).toBe("m7");
+  expect(attr("desktop", "data-tab")).toBe("all");
   render("phone");
-  expect(
-    host.querySelector("[data-face=phone]")?.getAttribute("data-open")
-  ).toBe("m7");
+  expect(attr("phone", "data-open")).toBe("m7");
+  expect(attr("phone", "data-tab")).toBe("all");
+  expect(mounts.route).toBe(1);
+});
+
+it("what is opened on the desktop is still open on the phone, and back", () => {
+  render("desktop");
+  click("[data-face=desktop] [data-act=open]");
+  click("[data-face=desktop] [data-act=tab]");
+  render("phone");
+  expect(attr("phone", "data-open")).toBe("m9");
+  expect(attr("phone", "data-tab")).toBe("all");
+  render("desktop");
+  expect(attr("desktop", "data-open")).toBe("m9");
   expect(mounts.route).toBe(1);
 });

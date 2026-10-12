@@ -11,7 +11,9 @@ import { act, createElement as h } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3MailThread } from "@/lib/needt3/map";
+import { notify } from "@/lib/notifications";
 
+import { notices } from "../../../mail/strings";
 import { type Mailbox, useMailbox } from "../../../mail/useMailbox";
 
 (
@@ -33,6 +35,7 @@ const m1 = {
 const mocks = {
   createTask: jest.fn(),
   archive: jest.fn(),
+  trash: jest.fn(),
   markRead: jest.fn(),
   tasks: [] as unknown[],
 };
@@ -45,6 +48,7 @@ jest.mock("@/lib/needt3/hooks/mail", () => ({
   useMail: () => ({ data: [m1], status: "success" }),
   useMarkRead: () => ({ mutateAsync: mocks.markRead }),
   useArchiveMail: () => ({ mutateAsync: mocks.archive }),
+  useTrashMail: () => ({ mutateAsync: mocks.trash }),
 }));
 jest.mock("@/lib/needt3/hooks/mail-accounts", () => ({
   useMailAccounts: () => ({ data: [], isSuccess: true }),
@@ -74,6 +78,7 @@ beforeEach(() => {
   mocks.tasks = [];
   mocks.createTask.mockReset();
   mocks.archive.mockReset();
+  mocks.trash.mockReset();
   mocks.markRead.mockReset();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -130,6 +135,73 @@ describe("archive and open", () => {
       void box.archive(m1);
     });
     expect(mocks.archive).toHaveBeenCalledTimes(1);
+    // archiving reads it too, in the same request
+    expect(mocks.archive).toHaveBeenCalledWith({ id: "m1", read: true });
     expect(box.openId).toBeNull();
+  });
+});
+
+describe("marking read", () => {
+  it("the automatic read on open does not block a later Mark as unread", async () => {
+    // the auto mark-read never answers; the person marks it unread meanwhile
+    mocks.markRead.mockImplementation(() => new Promise(() => undefined));
+    await act(async () => box.open(m1));
+    expect(mocks.markRead).toHaveBeenCalledTimes(1);
+    expect(mocks.markRead).toHaveBeenLastCalledWith({
+      id: "m1",
+      isRead: true,
+    });
+    await act(async () => {
+      void box.setRead({ ...m1, isRead: true }, false);
+    });
+    expect(mocks.markRead).toHaveBeenCalledTimes(2);
+    expect(mocks.markRead).toHaveBeenLastCalledWith({
+      id: "m1",
+      isRead: false,
+    });
+  });
+
+  it("Mark as unread says so with the strings-file words", async () => {
+    mocks.markRead.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => {
+      await box.toggleRead({ ...m1, isRead: true });
+    });
+    expect(notify.success).toHaveBeenCalledWith(
+      notices.markedUnread,
+      expect.anything()
+    );
+    expect(notices.markedUnread).toBe("Marked as unread");
+  });
+
+  it("archiving a message that is already read does not ask to mark it read", async () => {
+    mocks.archive.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => {
+      await box.archive({ ...m1, isRead: true });
+    });
+    expect(mocks.archive).toHaveBeenCalledWith({ id: "m1", read: false });
+  });
+});
+
+describe("the desktop's writes", () => {
+  it("trash goes through once and closes the open message", async () => {
+    mocks.trash.mockResolvedValue({ undo: async () => undefined });
+    mocks.markRead.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => box.open(m1));
+    await act(async () => {
+      void box.trash(m1);
+      void box.trash(m1);
+    });
+    expect(mocks.trash).toHaveBeenCalledTimes(1);
+    expect(mocks.trash).toHaveBeenCalledWith({ id: "m1", trashed: true });
+    expect(box.openId).toBeNull();
+  });
+
+  it("opening sets reading for the narrow desktop layout", async () => {
+    mocks.markRead.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => box.open(m1));
+    expect(box.reading).toBe(true);
+    act(() => box.setReading(false));
+    expect(box.reading).toBe(false);
+    expect(box.openId).toBe("m1");
   });
 });

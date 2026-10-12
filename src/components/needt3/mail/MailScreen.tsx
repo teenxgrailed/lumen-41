@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -24,25 +24,11 @@ import {
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
-import { addDays, liveMail, mailDayLabel, mailTime } from "@/lib/needt3/derive";
-import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
-import {
-  useArchiveMail,
-  useMail,
-  useMarkRead,
-  useThread,
-  useTrashMail,
-} from "@/lib/needt3/hooks/mail";
-import { useMailAccounts, useMailRef } from "@/lib/needt3/hooks/mail-accounts";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
-import {
-  useCreateTask,
-  useTasks,
-  useTrashTask,
-} from "@/lib/needt3/hooks/tasks";
+import { formatInTimeZone } from "@/lib/date-utils";
+import { mailDayLabel, mailTime } from "@/lib/needt3/derive";
+import { useThread } from "@/lib/needt3/hooks/mail";
+import { useMailRef } from "@/lib/needt3/hooks/mail-accounts";
 import type { V3MailThread } from "@/lib/needt3/map";
-import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { PopMenu } from "./PopMenu";
@@ -50,14 +36,11 @@ import {
   MAIL_TABS,
   type MailTab,
   firstName,
-  groupByDay,
-  inTab,
   initials,
-  madeTasks,
   providerLabel,
   providerLink,
-  tabCounts,
 } from "./derive";
+import type { Mailbox } from "./useMailbox";
 
 const copy = strings["MailScreen.jsx"];
 const tabLabel: Record<MailTab, string> = {
@@ -252,115 +235,34 @@ function IconButton({
   );
 }
 
-export function MailScreen() {
-  const tz = useTimeZone();
-  const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-  const mail = useMail("inbox");
-  const tasks = useTasks();
-  const accounts = useMailAccounts();
-  const [tab, setTab] = useState<MailTab>("needs");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [reading, setReading] = useState(false);
+export function MailScreen({ box }: { box: Mailbox }) {
+  const { tz, today, mail, tasks, accounts, live, list, counts, groups } = box;
+  const made = box.made;
+  const { tab, setTab, openId, reading, setReading, down } = box;
   const narrow = useNarrow();
   const router = useRouter();
 
-  const markRead = useMarkRead();
-  const trashMail = useTrashMail();
-  const archiveMail = useArchiveMail();
-  const createTask = useCreateTask();
-  const trashTask = useTrashTask();
-  const calendars = useCalendars();
-  const events = useEventLifecycle();
-
-  const live = useMemo(() => liveMail(mail.data ?? []), [mail.data]);
-  const made = useMemo(() => madeTasks(tasks.data ?? []), [tasks.data]);
-  const list = live.filter((m) => inTab(m, tab, made));
-  const counts = tabCounts(live, made);
-  const groups = groupByDay(list, today);
   const open =
     live.find((m) => m.id === openId) ?? (narrow ? null : (list[0] ?? null));
   const thread = useThread(open?.id);
   const ref = useMailRef(open?.id, thread.isSuccess);
   const link = providerLink(ref.data);
   const via = providerLabel(ref.data?.provider);
-  const down = (accounts.data ?? []).filter((a) => a.status === "ERROR");
 
   const showList = !narrow || !reading;
   const showMsg = !narrow || reading;
 
-  const pick = (m: V3MailThread) => {
-    setOpenId(m.id);
-    setReading(true);
-    if (!m.isRead) void markRead.mutateAsync({ id: m.id, isRead: true });
-  };
+  const pick = (m: V3MailThread) => box.open(m);
 
-  const undoable = (msg: string, undo: () => Promise<void>) =>
-    notify.success(msg, {
-      action: { label: "Undo", onClick: () => void undo() },
-    });
+  const makeTask = (m: V3MailThread, when: "today" | "later") =>
+    box.makeTask(m, when);
+  const toCalendar = (m: V3MailThread) => box.toCalendar(m);
+  const takeBack = (m: V3MailThread) => box.takeBack(m);
+  const archive = (m: V3MailThread) => box.archive(m);
+  const trash = (m: V3MailThread) => box.trash(m);
+  const markUnread = (m: V3MailThread) => box.setRead(m, false);
 
-  const makeTask = async (m: V3MailThread, when: "today" | "later") => {
-    const { undo } = await createTask.mutateAsync({
-      draft: {
-        title: m.suggestedTask || m.subject || copy.MailScreen.no_subject,
-        dueDate: when === "later" ? null : today,
-        noSlot: when === "later",
-        estimatedMinutes: 15,
-        source: { kind: "mail", id: m.id, quote: null },
-      },
-    });
-    undoable(
-      when === "later"
-        ? copy.mlMakeTask.task_made_for_later
-        : copy.mlMakeTask.task_made_its_in_inbox,
-      undo
-    );
-  };
-
-  /* Tomorrow 10:00, 30 min, on the person's own Needt calendar. */
-  const toCalendar = async (m: V3MailThread) => {
-    const feed = (calendars.data ?? []).find(
-      (f) => f.type === "LOCAL" && f.enabled !== false
-    );
-    if (!feed) {
-      notify.error("There is no Needt calendar to add this to.");
-      return;
-    }
-    const day = addDays(today, 1);
-    const { undo } = await events.mutateAsync({
-      create: {
-        title: m.subject || copy.MailScreen.no_subject,
-        startAt: `${day}T10:00`,
-        endAt: `${day}T10:30`,
-        isAllDay: false,
-        calendarId: feed.id,
-      },
-    });
-    undoable(copy.mlToCalendar.added_to_calendar_tomorrow_10_00, undo);
-  };
-
-  const takeBack = async (taskId: string) => {
-    const { undo } = await trashTask.trash(taskId);
-    undoable("Task moved to Trash", undo);
-  };
-
-  const archive = async (m: V3MailThread) => {
-    await archiveMail.mutateAsync({ id: m.id });
-    //todo: Undo needs an un-archive action on /api/mail/messages/[id].
-    notify.success(copy.MailScreen.archived);
-  };
-
-  const trash = async (m: V3MailThread) => {
-    const { undo } = await trashMail.mutateAsync({ id: m.id, trashed: true });
-    undoable(copy.MailScreen.moved_to_trash, undo);
-  };
-
-  const markUnread = async (m: V3MailThread) => {
-    const { undo } = await markRead.mutateAsync({ id: m.id, isRead: false });
-    undoable(copy._module.marked_as_unread, undo);
-  };
-
-  const madeId = open ? made.get(open.id) : undefined;
+  const madeId = open ? box.madeServer.get(open.id) : undefined;
   const madeTask = madeId
     ? (tasks.data ?? []).find((t) => t.id === madeId)
     : undefined;
@@ -497,7 +399,7 @@ export function MailScreen() {
                     type="button"
                     className="nx-btn nx-btn-secondary"
                     title={copy.MailScreen.task_made_click_to_take_it_back}
-                    onClick={() => void takeBack(madeId)}
+                    onClick={() => void takeBack(open)}
                   >
                     <FiCheck size={14} aria-hidden />
                     {copy.MailScreen.task_made}
