@@ -41,6 +41,7 @@ import {
   WAITLIST,
   mailProblem,
   mailProblemText,
+  oauthButtonLabel,
   passwordShort,
   refusalText,
   resendClock,
@@ -626,9 +627,7 @@ export function AuthScreen({
                 <span className="auth-raised-row">
                   <p.icon size={16} aria-hidden="true" />
                 </span>
-                {providerBusy === p.id
-                  ? "Opening…"
-                  : `Continue with ${p.label}`}
+                {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
               </button>
             ))}
           </div>

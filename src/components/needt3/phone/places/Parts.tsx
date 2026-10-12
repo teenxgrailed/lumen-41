@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { BrandIcon, brandIdFor } from "../../brand";
 import { type ScreenQuery, errorText, screenState } from "../../states/status";
 import { PkButton, PkEmpty, pkCx } from "../kit";
 
@@ -63,18 +64,9 @@ export function PplRow({
   );
 }
 
-/** A provider's mark: its first letter on the quiet tile (brand marks are not ported, as on the desktop). */
-export function PplTile({ name, size }: { name: string; size?: number }) {
-  const z = size ?? 40;
-  return (
-    <span
-      className="ppl-tile"
-      aria-hidden="true"
-      style={{ width: z, height: z }}
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  );
+/** A provider's brand mark on its app-icon tile (36 in rows, 44 in the account sheet). */
+export function PplTile({ slug, size = 36 }: { slug: string; size?: number }) {
+  return <BrandIcon id={brandIdFor(slug)} size={size} />;
 }
 
 const WIDTHS = [62, 48, 70, 54, 66, 44];

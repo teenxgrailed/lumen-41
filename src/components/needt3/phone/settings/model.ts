@@ -11,6 +11,7 @@ import type { V3Alerts, V3Schedule } from "@/lib/needt3/hooks/account";
 import type { V3Connection } from "@/lib/needt3/hooks/connections";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 
+import { type BrandId, brandIdForConnection } from "../../brand";
 import {
   SECTION_TITLES,
   type SectionId,
@@ -95,6 +96,24 @@ export function connectionsLine(
     connected: all.filter((c) => c.state === "connected").length,
     attention: all.find((c) => c.state === "error")?.label ?? null,
   };
+}
+
+/**
+ * The brand marks the Connections row shows: the first three different apps
+ * that are connected (an IMAP mailbox has no mark and is skipped).
+ */
+export function connectionMarks(
+  list: readonly V3Connection[] | undefined,
+  max = 3
+): BrandId[] {
+  const out: BrandId[] = [];
+  for (const c of list ?? []) {
+    if (c.state !== "connected") continue;
+    const id = brandIdForConnection(c);
+    if (id && !out.includes(id)) out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 /* ---------- the pill's three places (Menu page) ---------- */

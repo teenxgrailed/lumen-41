@@ -9,8 +9,6 @@ import * as React from "react";
 import { type ClientSafeProvider, getProviders, signIn } from "next-auth/react";
 
 import type { IconType } from "react-icons";
-import { FaMicrosoft } from "react-icons/fa";
-import { LuChrome } from "react-icons/lu";
 
 import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
@@ -18,6 +16,7 @@ import { logger } from "@/lib/logger";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
 
+import { brandGlyph } from "../brand";
 import { PhoneAuth } from "../phone/auth";
 import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
@@ -37,8 +36,8 @@ type OAuthProviderId = "google" | "azure-ad";
 const OAUTH: Readonly<
   Record<OAuthProviderId, { label: string; icon: IconType }>
 > = {
-  google: { label: "Google", icon: LuChrome },
-  "azure-ad": { label: "Microsoft", icon: FaMicrosoft },
+  google: { label: "Google", icon: brandGlyph("google") },
+  "azure-ad": { label: "Microsoft", icon: brandGlyph("microsoft") },
 };
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));

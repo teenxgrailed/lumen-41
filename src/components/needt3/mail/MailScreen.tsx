@@ -31,6 +31,7 @@ import { useMailRef } from "@/lib/needt3/hooks/mail-accounts";
 import type { V3MailThread } from "@/lib/needt3/map";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
+import { BrandIcon, brandIdForConnection } from "../brand";
 import { PopMenu } from "./PopMenu";
 import {
   MAIL_TABS,
@@ -275,23 +276,33 @@ export function MailScreen({ box }: { box: Mailbox }) {
       <header className="ml-head">
         <h1 className="ml-title">{copy.MailScreen.mailbox}</h1>
         <span className="ml-accts">
-          {(accounts.data ?? []).map((a) => (
-            <span key={a.id} className="ml-acct" title={a.address}>
-              <span
-                className="ml-acct-dot"
-                style={{ background: "var(--text-quaternary)" }}
-              />
-              {providerLabel(a.provider) === "your mail app"
-                ? a.address
-                : providerLabel(a.provider)}
-              {a.status === "ERROR" ? (
-                <span
-                  className="ml-acct-down"
-                  title="Disconnected — reconnect below"
-                />
-              ) : null}
-            </span>
-          ))}
+          {(accounts.data ?? []).map((a) => {
+            const mark = brandIdForConnection({
+              kind: "mail",
+              provider: a.provider,
+            });
+            return (
+              <span key={a.id} className="ml-acct" title={a.address}>
+                {mark ? (
+                  <BrandIcon id={mark} size={16} />
+                ) : (
+                  <span
+                    className="ml-acct-dot"
+                    style={{ background: "var(--text-quaternary)" }}
+                  />
+                )}
+                {providerLabel(a.provider) === "your mail app"
+                  ? a.address
+                  : providerLabel(a.provider)}
+                {a.status === "ERROR" ? (
+                  <span
+                    className="ml-acct-down"
+                    title="Disconnected — reconnect below"
+                  />
+                ) : null}
+              </span>
+            );
+          })}
         </span>
         <span className="ml-tabs">
           {MAIL_TABS.map((id) => (
