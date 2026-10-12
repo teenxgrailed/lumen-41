@@ -1,6 +1,6 @@
 import { newDateFromYMD } from "@/lib/date-utils";
 
-import { hexToRgb, moodNameFor, pack } from "../sky-palette";
+import { hexToRgb, moodNameFor, pack, sceneIsDark } from "../sky-palette";
 
 describe("sky moods", () => {
   it("picks one mood per local day, the same every call", () => {
@@ -42,5 +42,30 @@ describe("colour helpers", () => {
     expect((px >> 16) & 255).toBe(3);
     expect(px >>> 24).toBe(255);
     expect((pack(999, -5, 0) >>> 0) & 255).toBe(255);
+  });
+});
+
+describe("sceneIsDark", () => {
+  /** A chain of ancestors, nearest first, each with its data-theme (or none). */
+  const chain = (...themes: (string | null)[]) => ({
+    closest: (sel: string) => {
+      expect(sel).toBe("[data-theme]");
+      const t = themes.find((x) => x !== null);
+      return t == null ? null : { getAttribute: () => t };
+    },
+  });
+
+  it("reads the nearest theme scope", () => {
+    expect(sceneIsDark(chain("dark") as never)).toBe(true);
+    expect(sceneIsDark(chain("light") as never)).toBe(false);
+  });
+
+  it("does not walk past a light scope to a dark <html>", () => {
+    // .needt-v3[data-theme=light] inside html[data-theme=dark]
+    expect(sceneIsDark(chain("light", "dark") as never)).toBe(false);
+  });
+
+  it("is light with no scope at all", () => {
+    expect(sceneIsDark(chain(null) as never)).toBe(false);
   });
 });

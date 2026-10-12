@@ -634,6 +634,20 @@ export interface ApiMoodboard {
   trashedAt?: string | null;
   /** Only the single-board route sends the caller's role. */
   accessRole?: string | null;
+  /** The list route only: how many references the board holds. */
+  itemCount?: number;
+  /** The list route only: the board's first references, for the grid cover. */
+  preview?: ApiBoardPreview[];
+}
+
+/** One reference as the list sends it: just what a cover tile draws. */
+export interface ApiBoardPreview {
+  id: string;
+  kind: string;
+  url?: string | null;
+  color?: string | null;
+  text?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 /** What the caller may do on a board (`MoodboardAccessRole`). */
@@ -651,7 +665,24 @@ export interface V3Board {
   trashedAt: string | null;
   /** The caller's role; null when the route did not send it (the list). */
   accessRole?: BoardRole | null;
+  /** References on the board; null when the route did not say (the single-board read). */
+  itemCount?: number | null;
+  /** The first references in wall order (at most three), for the grid cover. */
+  preview?: V3BoardPreview[];
 }
+
+export type V3BoardPreviewKind = "image" | "link" | "color" | "note";
+
+export interface V3BoardPreview {
+  id: string;
+  kind: V3BoardPreviewKind;
+  url: string | null;
+  color: string | null;
+  text: string | null;
+  thumbnailUrl: string | null;
+}
+
+const PREVIEW_KINDS: readonly string[] = ["image", "link", "color", "note"];
 
 export function boardFromApi(row: ApiMoodboard): V3Board {
   return {
@@ -670,6 +701,17 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
       row.accessRole === "VIEWER"
         ? row.accessRole
         : null,
+    itemCount: typeof row.itemCount === "number" ? row.itemCount : null,
+    preview: (row.preview ?? [])
+      .filter((p) => PREVIEW_KINDS.includes(p.kind))
+      .map((p) => ({
+        id: p.id,
+        kind: p.kind as V3BoardPreviewKind,
+        url: p.url ?? null,
+        color: p.color ?? null,
+        text: p.text ?? null,
+        thumbnailUrl: p.thumbnailUrl ?? null,
+      })),
   };
 }
 

@@ -7,6 +7,8 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { MOODBOARD_ITEM_ORDER } from "./moodboard-item-service";
+
 export type MoodboardActor = MoodboardAccessActor;
 
 /** One shape for every moodboard response, including the design v3 fields. */
@@ -40,14 +42,48 @@ function scope(actor: MoodboardActor) {
   return actor.workspace ? { workspaceId: actor.workspace.workspaceId } : null;
 }
 
+/**
+ * The grid's collage: how many references a board holds and its first
+ * three in wall order, so the list draws every cover from one query instead
+ * of one items request per board. Only what a tile needs; a long note's text
+ * is cut so the list stays small.
+ */
+export const MOODBOARD_PREVIEW_COUNT = 3;
+const PREVIEW_TEXT_MAX = 120;
+
+const previewSelect = {
+  id: true,
+  kind: true,
+  url: true,
+  color: true,
+  text: true,
+  thumbnailUrl: true,
+} satisfies Prisma.MoodboardItemSelect;
+
 export async function listMoodboards(actor: MoodboardActor) {
   const workspace = scope(actor);
   if (!workspace) return [];
-  return prisma.moodboard.findMany({
+  const rows = await prisma.moodboard.findMany({
     where: { ...workspace, archivedAt: null },
-    select: moodboardSelect,
+    select: {
+      ...moodboardSelect,
+      _count: { select: { items: true } },
+      items: {
+        orderBy: MOODBOARD_ITEM_ORDER,
+        take: MOODBOARD_PREVIEW_COUNT,
+        select: previewSelect,
+      },
+    },
     orderBy: { updatedAt: "desc" },
   });
+  return rows.map(({ _count, items, ...board }) => ({
+    ...board,
+    itemCount: _count.items,
+    preview: items.map((item) => ({
+      ...item,
+      text: item.text ? item.text.slice(0, PREVIEW_TEXT_MAX) : item.text,
+    })),
+  }));
 }
 
 export async function createMoodboard(
