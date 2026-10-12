@@ -35,14 +35,14 @@ objective: The opened Document screen on the desktop matches the prototype (chro
 
 ## Working state
 
-- Everything committed except this handoff, the CHANGELOG line and the evidence folder (committed in the next commit). Temporary harness `src/app/style/docopen` deleted. No other dirty files.
+- Everything committed. Temporary harness `src/app/style/docopen` deleted. No other dirty files.
 - Merge note: `src/styles/v3-entry.css` ends with `@import "./v3-overrides/doc-opened.css";`; fix/docs-miniature appends its own import on the same line range: keep both.
 
 ## Verification
 
 - Real browser: headless Chromium (`/opt/pw-browsers/chromium`) against the dev server (webpack) with a temporary uncommitted harness (real `V3Root` + `DocumentFace` + `PageWorkspace`, Playwright-stubbed `/api`), and the prototype served statically; 1440x900 light and dark, plus 1100 and 800 wide spot checks. Measured sheet padding, radius, font, colour, shadow, title box, rule and first block offsets against the prototype: equal (the port's first row is at the prototype's 147).
 - Functional run in the harness: Insert tab (Heading 2 added, Table added), outline follows, Find "1 of 7", title wraps (80 px), Enter focuses the page, breadcrumb follows the title, Separator dots applies.
-- Gates: type-check, `npm run lint` (0 warnings), `npm run tokens:check`, `npm run check:ui-contracts` green; unit and build: see the report.
+- Gates (all green): `tsc --noEmit`, `npm run lint` (0 warnings), `CI=true TZ=UTC npm run test:unit -- --runInBand` and plain `npm run test:unit` (428 suites, 3684 tests, 5 suites skipped), `npm run tokens:check`, `npm run check:ui-contracts`, `flock /tmp/build.lock npm run build` (+ postbuild), every `v3-overrides/*.css` parsed with postcss and brace-balanced, `check:agent-handoffs` clean for this file.
 - NOT verified in a real browser: Safari / Firefox (Custom Highlight API for Find is Chromium / Safari 17.2+ / Firefox 140+; without it the count and stepping still work, matches are not marked), the real collaboration socket and real Page options dialogs (the harness answers 404 to the collaboration token and the editor falls back to its REST path), a Free-plan 403 round trip.
 
 ## Decisions and constraints
