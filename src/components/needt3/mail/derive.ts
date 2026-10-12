@@ -130,7 +130,8 @@ export function composeLink(account: {
   if (account.provider === "OUTLOOK") {
     return "https://outlook.office.com/mail/deeplink/compose";
   }
-  return `mailto:${encodeURIComponent(account.address)}`;
+  /* No recipient: the new message is not addressed to the person themselves. */
+  return "mailto:";
 }
 
 export interface HeaderAccount {

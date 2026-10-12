@@ -192,7 +192,7 @@ describe("composeLink", () => {
   });
   it("opens the default mail app for IMAP, which has no web app", () => {
     expect(composeLink({ provider: "IMAP", address: "me@host.ch" })).toBe(
-      "mailto:me%40host.ch"
+      "mailto:"
     );
   });
 });
