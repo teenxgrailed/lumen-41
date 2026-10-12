@@ -70,4 +70,9 @@ describe("brand ids", () => {
     );
     expect(ids).toEqual(["gcal", "ical", "ocal"]);
   });
+
+  it("has no mark for Fastmail: its only free-licence artwork is CC BY / CC BY-SA, so it takes the generic tile", () => {
+    expect(brandIdFor("fastmail")).toBeNull();
+    expect(hasBrandIcon("fastmail")).toBe(false);
+  });
 });

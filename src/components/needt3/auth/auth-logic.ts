@@ -122,3 +122,14 @@ export function netFailureText(a: { recover: boolean; signup: boolean }) {
 export function formReady(f: { mail: string; pass: string }): boolean {
   return validMail(f.mail) && f.pass.length >= MIN_PASSWORD;
 }
+
+/**
+ * The text on a sign-in provider's button, as the providers' own button
+ * guidelines word it: "Continue with Google", "Sign in with Microsoft". One
+ * place so the desktop and the phone say the same.
+ */
+export function oauthButtonLabel(provider: { id: string; label: string }) {
+  return provider.id === "azure-ad"
+    ? `Sign in with ${provider.label}`
+    : `Continue with ${provider.label}`;
+}

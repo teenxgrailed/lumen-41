@@ -4,6 +4,7 @@ import {
   mailProblem,
   mailProblemText,
   netFailureText,
+  oauthButtonLabel,
   passwordShort,
   phoneSubmitLabel,
   refusalText,
@@ -111,6 +112,17 @@ describe("the phone form", () => {
     expect(netFailureText({ recover: false, signup: true })).toMatch(/account/);
     expect(netFailureText({ recover: false, signup: false })).toMatch(
       /sign in/
+    );
+  });
+});
+
+describe("sign-in provider buttons", () => {
+  it("word each button the way its provider's guidelines do", () => {
+    expect(oauthButtonLabel({ id: "google", label: "Google" })).toBe(
+      "Continue with Google"
+    );
+    expect(oauthButtonLabel({ id: "azure-ad", label: "Microsoft" })).toBe(
+      "Sign in with Microsoft"
     );
   });
 });

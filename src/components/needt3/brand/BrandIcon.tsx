@@ -156,7 +156,7 @@ function subscribeDay(fn: () => void) {
 
 /** The key is a string so the store only reports a change when the day changes. */
 const dayNow = () => toLocalDateKey(newDate());
-/** The server does not know the person's day: it draws the page blank. */
+/** The server does not know the person's day: it draws the neutral face. */
 const dayServer = () => "";
 
 function useToday(given: Date | undefined): Date | null {
@@ -165,6 +165,12 @@ function useToday(given: Date | undefined): Date | null {
   return key ? newDate() : null;
 }
 
+/**
+ * The calendar's face. Until the person's day is known (the server render and
+ * the first client render that must match it) the weekday and the date are
+ * quiet placeholders: a short bar and a dash, so the tile is a calendar and not
+ * a blank square; the real weekday and date replace them as soon as it mounts.
+ */
 function CalendarFace({ size, date }: { size: number; date: Date | null }) {
   const day = date ? format(date, "EEE").toUpperCase() : "";
   const num = date ? format(date, "d") : "";
@@ -175,30 +181,56 @@ function CalendarFace({ size, date }: { size: number; date: Date | null }) {
       viewBox="0 0 100 100"
       aria-hidden="true"
       focusable="false"
+      data-ical-face={date ? "date" : "neutral"}
       style={{ display: "block", fontFamily: "var(--font-sans)" }}
     >
-      <text
-        x="50"
-        y="30"
-        textAnchor="middle"
-        fontSize="19"
-        fontWeight="600"
-        letterSpacing="0.4"
-        fill="#FF3B30"
-      >
-        {day}
-      </text>
-      <text
-        x="50"
-        y="76"
-        textAnchor="middle"
-        fontSize="50"
-        fontWeight="400"
-        letterSpacing="-1.5"
-        fill="#1C1C1E"
-      >
-        {num}
-      </text>
+      {date ? (
+        <>
+          <text
+            x="50"
+            y="30"
+            textAnchor="middle"
+            fontSize="19"
+            fontWeight="600"
+            letterSpacing="0.4"
+            fill="#FF3B30"
+          >
+            {day}
+          </text>
+          <text
+            x="50"
+            y="76"
+            textAnchor="middle"
+            fontSize="50"
+            fontWeight="400"
+            letterSpacing="-1.5"
+            fill="#1C1C1E"
+          >
+            {num}
+          </text>
+        </>
+      ) : (
+        <>
+          <rect
+            x="34"
+            y="21"
+            width="32"
+            height="8"
+            rx="4"
+            fill="#FF3B30"
+            opacity="0.5"
+          />
+          <rect
+            x="38"
+            y="57"
+            width="24"
+            height="9"
+            rx="4.5"
+            fill="#1C1C1E"
+            opacity="0.22"
+          />
+        </>
+      )}
     </svg>
   );
 }

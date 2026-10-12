@@ -16,7 +16,6 @@
  *   thesvg-color:*   theSVG Color                              MIT
  *   devicon:*        Devicon                                   MIT
  *   iconoir:*        Iconoir                                   MIT
- *   selfhst:*        selfh.st/icons                            CC BY 4.0 (credit: selfh.st/icons; Fastmail only)
  *
  * A mark is drawn one of three ways (see `look`):
  *   tile  - the mark inset on a rounded-square tile (white for full-colour
@@ -72,7 +71,6 @@ const SPEC = {
   discord: ["Discord", "si:discord", "#5865F2", 0.6, W],
   telegram: ["Telegram", "si:telegram", "#26A5E4", 0.7, W],
   protonmail: ["Proton Mail", "si:protonmail", W, 0.58, "#6D4AFF"],
-  fastmail: ["Fastmail", "selfhst:fastmail", W, 0.82],
   zoom: ["Zoom", "logos:zoom-icon", "#0B5CFF", 1],
   calendly: ["Calendly", "si:calendly", W, 0.6, "#006BFF"],
   /* Tasks, notes, files */
@@ -122,7 +120,6 @@ const SOURCES = {
   "thesvg-color": (n) => `https://api.iconify.design/thesvg-color/${n}.svg`,
   devicon: (n) => `https://api.iconify.design/devicon/${n}.svg`,
   iconoir: (n) => `https://api.iconify.design/iconoir/${n}.svg`,
-  selfhst: (n) => `https://api.iconify.design/selfhst/${n}.svg`,
   si: (n) =>
     `https://cdn.jsdelivr.net/npm/simple-icons@${SI_VERSION}/icons/${n}.svg`,
 };
@@ -132,7 +129,6 @@ const LICENCE = {
   "thesvg-color": "MIT",
   devicon: "MIT",
   iconoir: "MIT",
-  selfhst: "CC-BY-4.0 (selfh.st/icons)",
 };
 
 const ALLOWED = new Set([
@@ -295,8 +291,7 @@ const body = `/**
  * here (the design-token check scans stylesheets only).
  *
  * Source artwork and licences: logos (CC0-1.0), Simple Icons ${SI_VERSION} (CC0-1.0),
- * theSVG Color (MIT), Devicon (MIT), Iconoir (MIT), and the Fastmail mark from
- * selfh.st/icons (CC BY 4.0, credit: selfh.st/icons). The marks themselves are
+ * theSVG Color (MIT), Devicon (MIT) and Iconoir (MIT). The marks themselves are
  * the property of their owners; the product owner cleared their use (CLAUDE.md,
  * Conventions: Brand marks).
  */
