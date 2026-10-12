@@ -42,6 +42,8 @@ const query = (data: unknown) => ({
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useHabits: () => query(mockHabits),
   useCheckins: () => query([]),
+  // the desktop screen's "Last four months" read; nothing to draw from here
+  useCheckinHistory: () => query(undefined),
   useToggleHabitToday: () => ({ mutate: mockToggle }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
   useUpdateHabit: () => ({ mutateAsync: mockUpdate }),

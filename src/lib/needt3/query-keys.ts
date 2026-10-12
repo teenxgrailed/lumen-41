@@ -49,6 +49,8 @@ export const qk = {
   habits: () => [V3, "habits"] as const,
   checkins: (range?: DateRange) =>
     range ? ([V3, "checkins", range] as const) : ([V3, "checkins"] as const),
+  /** The long read for "Last four months"; under `checkins`, so a tick refreshes it too. */
+  checkinHistory: () => [V3, "checkins", "history"] as const,
 
   mail: (folder?: MailFolder) =>
     folder ? ([V3, "mail", folder] as const) : ([V3, "mail"] as const),
