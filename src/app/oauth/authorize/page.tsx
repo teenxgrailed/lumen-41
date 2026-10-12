@@ -5,8 +5,13 @@ import {
   clientRedirect,
   validateAuthorizationRequest,
 } from "@/services/oauth/authorize";
-import { AUTHORIZE_PARAMS, SCOPE_LABELS } from "@/services/oauth/consent";
-import { listUserWorkspaces } from "@/services/workspaces/workspace-service";
+import {
+  AUTHORIZE_PARAMS,
+  SCOPE_LABELS,
+  consentWorkspaces,
+} from "@/services/oauth/consent";
+
+import { Button } from "@/components/ui/button";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 
@@ -19,8 +24,8 @@ type PageProps = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-dvh place-items-center bg-[var(--surface-base)] px-4 py-10 text-[var(--text-primary)]">
-      <div className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6 text-[13px]">
+    <main className="grid min-h-dvh place-items-center bg-background px-4 py-10 text-foreground">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-[13px]">
         {children}
       </div>
     </main>
@@ -46,10 +51,8 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     return (
       <Shell>
         <h1 className="text-[15px] font-semibold">This link cannot connect</h1>
-        <p className="mt-2 text-[var(--text-secondary)]">
-          {result.description}
-        </p>
-        <p className="mt-3 text-[12px] text-[var(--text-tertiary)]">
+        <p className="mt-2 text-muted-foreground">{result.description}</p>
+        <p className="mt-3 text-[12px] text-muted-foreground">
           Nothing was shared. Start the connection again from the app you came
           from.
         </p>
@@ -74,7 +77,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   }
 
   const { request } = result;
-  const workspaces = await listUserWorkspaces(session.user.id);
+  const workspaces = await consentWorkspaces(session.user.id);
   const redirectHost = new URL(request.redirectUri).host;
   const wantsWrite = request.scopes.includes("needt.write");
   const wantsMail = request.scopes.includes("mail.read");
@@ -84,16 +87,13 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
       <h1 className="text-[15px] font-semibold">
         Connect {request.client.name} to Needt?
       </h1>
-      <p className="mt-2 text-[var(--text-secondary)]">
+      <p className="mt-2 text-muted-foreground">
         {request.client.name} will act as {session.user.email ?? "you"}. After
         you allow it, Needt sends you back to{" "}
-        <span className="font-medium text-[var(--text-primary)]">
-          {redirectHost}
-        </span>
-        .
+        <span className="font-medium text-foreground">{redirectHost}</span>.
       </p>
       {request.client.kind === "dcr" ? (
-        <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">
+        <p className="mt-2 text-[12px] text-muted-foreground">
           This app registered itself; Needt cannot confirm who made it. Only
           continue if you started this connection.
         </p>
@@ -108,7 +108,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
         })}
 
         <fieldset className="space-y-2">
-          <legend className="mb-2 text-[12px] font-medium text-[var(--text-secondary)]">
+          <legend className="mb-2 text-[12px] font-medium text-muted-foreground">
             It may
           </legend>
           <label className="flex items-start gap-2">
@@ -131,7 +131,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
               <input type="checkbox" name="mail" className="mt-0.5" />
               <span>
                 {SCOPE_LABELS["mail.read"]}
-                <span className="block text-[12px] text-[var(--text-tertiary)]">
+                <span className="block text-[12px] text-muted-foreground">
                   Off unless you tick it. Message bodies are not shared.
                 </span>
               </span>
@@ -140,13 +140,13 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
         </fieldset>
 
         <label className="mt-5 block">
-          <span className="mb-1 block text-[12px] font-medium text-[var(--text-secondary)]">
+          <span className="mb-1 block text-[12px] font-medium text-muted-foreground">
             Only in this workspace
           </span>
           <select
             name="workspaceId"
             defaultValue={workspaces[0]?.workspace.id}
-            className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--surface-base)] px-2 py-1.5"
+            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
           >
             {workspaces.map(({ workspace, role }) => (
               <option key={workspace.id} value={workspace.id}>
@@ -157,24 +157,19 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
         </label>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="submit"
-            name="decision"
-            value="deny"
-            className="rounded-md border border-[var(--border-subtle)] px-3 py-1.5"
-          >
+          <Button type="submit" name="decision" value="deny" variant="outline">
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             name="decision"
             value="allow"
-            className="rounded-md bg-[var(--text-primary)] px-3 py-1.5 font-medium text-[var(--surface-base)]"
+            variant="secondary"
           >
             Allow
-          </button>
+          </Button>
         </div>
-        <p className="mt-4 text-[12px] text-[var(--text-tertiary)]">
+        <p className="mt-4 text-[12px] text-muted-foreground">
           You can disconnect it any time in Settings › Connected apps.
         </p>
       </form>

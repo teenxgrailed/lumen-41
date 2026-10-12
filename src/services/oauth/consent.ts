@@ -40,3 +40,18 @@ export const SCOPE_LABELS: Record<McpScope, string> = {
   "needt.write": "Create and change them, and run the scheduler",
   "mail.read": "See your mail: senders, subjects and snippets",
 };
+
+/**
+ * The workspaces a person can limit a connection to. The personal workspace
+ * is created lazily on first access; resolving access first makes sure a
+ * person who never opened the app still has one to pick.
+ */
+export async function consentWorkspaces(userId: string) {
+  const [{ resolveWorkspaceAccess }, { listUserWorkspaces }] =
+    await Promise.all([
+      import("@/lib/auth/workspace-auth"),
+      import("@/services/workspaces/workspace-service"),
+    ]);
+  await resolveWorkspaceAccess({ userId });
+  return listUserWorkspaces(userId);
+}

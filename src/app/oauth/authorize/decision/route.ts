@@ -5,9 +5,12 @@ import {
   clientRedirect,
   validateAuthorizationRequest,
 } from "@/services/oauth/authorize";
-import { AUTHORIZE_PARAMS, grantedScopes } from "@/services/oauth/consent";
+import {
+  AUTHORIZE_PARAMS,
+  consentWorkspaces,
+  grantedScopes,
+} from "@/services/oauth/consent";
 import { createAuthorizationCode } from "@/services/oauth/grants";
-import { listUserWorkspaces } from "@/services/workspaces/workspace-service";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { publicAppUrl } from "@/lib/public-url";
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
   }
 
   const workspaceId = form.get("workspaceId");
-  const workspaces = await listUserWorkspaces(userId);
+  const workspaces = await consentWorkspaces(userId);
   const chosen = workspaces.find((w) => w.workspace.id === workspaceId);
   if (!chosen) return page(400, "Pick one of your workspaces.");
 

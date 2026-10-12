@@ -83,7 +83,9 @@ const nextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          // same-origin, not no-referrer: no-referrer makes Chrome send
+          // "Origin: null" on the consent POST, which the CSRF check refuses.
+          { key: "Referrer-Policy", value: "same-origin" },
         ],
       },
       {
