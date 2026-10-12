@@ -89,13 +89,13 @@ curl -X POST http://localhost:3000/api/connect/reschedule \
 
 ## Imports
 
-Bring projects and tasks in from another tool. Todoist only for now. The
+Bring projects, tasks and pages in from another tool: Todoist and Notion. The
 whole surface is behind the `imports` feature flag: while it is off for you,
 `GET` answers `{"enabled": false, "sources": {}, "runs": []}` and every other
 route answers `404 IMPORTS_DISABLED`.
 
 ```http
-GET  /api/connect/imports              # flag state, configured sources, last 5 runs
+GET  /api/connect/imports              # flag state, configured sources, last 5 runs of each
 POST /api/connect/imports              # start
 GET  /api/connect/imports/:id          # status, progress, warnings
 POST /api/connect/imports/:id/cancel   # stop a queued or running run
@@ -105,7 +105,9 @@ The same routes exist under `/api/imports` for the signed-in session (the
 Settings screen uses those).
 
 Start with a Todoist personal API token (Todoist -> Settings ->
-Integrations -> Developer); the run is queued at once:
+Integrations -> Developer) or a Notion internal integration token (the pages
+shared with that integration are what gets imported); the run is queued at
+once:
 
 ```bash
 curl -X POST http://localhost:3000/api/connect/imports \
@@ -115,12 +117,15 @@ curl -X POST http://localhost:3000/api/connect/imports \
 ```
 
 `202 {"run": {...}}`. Without `token` the answer is
-`{"authorizeUrl": "https://.../api/imports/todoist/authorize?workspaceId=..."}`:
-open it in a browser where you are signed in to Needt to go through Todoist's
-consent screen (read-only scope `data:read`); the run starts when Todoist
-sends you back. That path needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`
-on the server, else `503 NOT_CONFIGURED`. One run per source at a time:
-another start while one is queued or running is `409 IMPORT_IN_PROGRESS`.
+`{"authorizeUrl": "https://.../api/imports/<source>/authorize?workspaceId=..."}`:
+open it in a browser where you are signed in to Needt to go through the
+source's consent screen (Todoist: read-only scope `data:read`; Notion: its own
+page picker, where you choose which pages and databases are shared); the run
+starts when the source sends you back. That path needs `TODOIST_CLIENT_ID` /
+`TODOIST_CLIENT_SECRET` (or `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`) on the
+server, else `503 NOT_CONFIGURED`; `GET` says which sources are configured. One
+run per source at a time: another start while one is queued or running is
+`409 IMPORT_IN_PROGRESS`.
 
 A run:
 
@@ -147,11 +152,12 @@ A run:
 
 `status` is `queued`, `running`, `done`, `failed` or `cancelled`. A failed
 run says why in its last warning (`todoist_unauthorized`,
-`todoist_rate_limited`, `todoist_unavailable`, `worker_unavailable`,
-`worker_lost`, `import_failed`). `worker_lost` means the background worker
+`todoist_rate_limited`, `todoist_unavailable`, `notion_unauthorized`,
+`notion_rate_limited`, `notion_unavailable`, `notion_forbidden`,
+`worker_unavailable`, `worker_lost`, `import_failed`). `worker_lost` means the background worker
 went away mid-run: a run still queued after 2 hours, or running with no
 progress for 30 minutes, is failed by a sweep every 10 minutes. A run of
-another user is `404`. The Todoist token is kept encrypted on the run only
+another user is `404`. The source token is kept encrypted on the run only
 while it is queued or running and is erased when it ends; it is never
 returned.
 
@@ -183,6 +189,49 @@ priority, project, stage; tags are only added) and never duplicates them.
 Rows are matched within the workspace the run imports into: importing into
 another workspace makes fresh rows there and leaves the first ones as they
 were.
+
+### Notion
+
+Notion shows its own page picker during the consent step: you choose the pages
+and databases to share, and only those (with everything under them) are
+imported. The run reads them through Notion's API (version `2026-03-11`,
+paced to 3 requests a second, waiting out `Retry-After` when Notion limits
+it). Pages come in as private pages of the importing person, so importing into
+a shared workspace shares nothing until you choose to.
+
+| Notion                                                                                                             | Needt                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Page                                                                                                               | Page, under its parent; a page whose parent was not shared becomes a root                                                                                                                                                |
+| Icon (emoji), cover                                                                                                | Page icon, cover (files are downloaded; other icons are left out and counted)                                                                                                                                            |
+| Paragraphs, headings, lists, to-dos, quotes, code                                                                  | The same blocks; nested lists keep their nesting                                                                                                                                                                         |
+| Callout, toggle                                                                                                    | Callout and toggle blocks (a toggle's children follow it as ordinary blocks)                                                                                                                                             |
+| Columns, synced blocks                                                                                             | The children in reading order (a synced block no longer syncs; a note says so)                                                                                                                                           |
+| Table                                                                                                              | Table (rich text only)                                                                                                                                                                                                   |
+| Child page, database reference, page mention                                                                       | A link to the imported page; to one that was not imported, a Notion link and a note                                                                                                                                      |
+| Image, file, PDF, audio, video                                                                                     | Image / file block; Notion-hosted files are downloaded the moment they are fetched (they expire after about an hour), up to 10 MB each and 200 MB a run; over that, or failing, the Notion link stays and a note says so |
+| Bookmark, embed, link preview                                                                                      | Bookmark / link block with the real address                                                                                                                                                                              |
+| Equation                                                                                                           | Code (`latex`), with a note                                                                                                                                                                                              |
+| Database                                                                                                           | A page holding a database with a Table view; each row is a page with its values, and its body                                                                                                                            |
+| Title, text, number, select, status, multi-select, date, checkbox, URL, email, phone, files, created / edited time | Title, text, number, select, select, multi-select, date, checkbox, URL, email, phone, files, date                                                                                                                        |
+| People, relation, rollup, formula, created by, edited by, unique ID                                                | Text: a snapshot of what Notion showed (names, titles of related pages, the computed value); one note per database names the kinds kept as text                                                                          |
+
+Only addresses Needt opens are kept: `http`, `https`, `mailto` and Needt page
+paths. A link, bookmark, file, image or cover with any other address
+(`javascript:`, `data:` and the like) comes in as plain text and is counted as
+`link_unsafe`. Files are downloaded only from Notion's own hosts, a redirect
+to any other host stops the download, and a file keeps its type only when it
+is a common image, PDF, audio, video, text or CSV type; anything else
+(including SVG and HTML) is stored as an opaque download.
+
+Skipped: comments, views, live formulas, buttons, verification, templates,
+page permissions, the source of a synced block, and turning databases into
+tasks. A second run updates the pages whose last edit in Notion moved and skips
+the rest; a page deleted in Notion is left alone in Needt. Notes (`warnings`)
+include `truncated` (Notion returned part of a very large page),
+`unknown_blocks`, `unsupported_block`, `link_unresolved`, `link_unsafe`,
+`equation`,
+`synced_block`, `asset_oversize`, `asset_budget`, `asset_failed`,
+`properties_flattened`, `database_truncated` and `database_rows_failed`.
 
 ## Operations
 

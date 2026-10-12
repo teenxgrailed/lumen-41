@@ -37,6 +37,7 @@ import {
   pack,
   paletteFor,
   readMoodTable,
+  sceneIsDark,
   smooth,
 } from "./sky-palette";
 import {
@@ -503,12 +504,7 @@ export function startSky(
 
   function readPalette(force: boolean): boolean {
     if (!table) table = readMoodTable(root);
-    // The nearest scope decides: a light `.needt-v3` under a dark `<html
-    // data-theme>` (the old shell's own theme) is a light sky.
-    const dark =
-      opt.dark != null
-        ? !!opt.dark
-        : root.closest("[data-theme]")?.getAttribute("data-theme") === "dark";
+    const dark = opt.dark != null ? !!opt.dark : sceneIsDark(root);
     const p = paletteFor(table, dark, opt.mood, newDate());
     const h: SkyHorizon = promo || own === "none" ? "none" : own;
     const c: SkyClouds = promo ? "wispy" : ownClouds;

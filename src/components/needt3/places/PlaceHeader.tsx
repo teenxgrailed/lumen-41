@@ -7,9 +7,7 @@ import { Art, type ArtName } from "../menu/Art";
 /**
  * The place's picture (or a "+" button), the title and one quiet line
  * (places.jsx `PlaceHeader`).
- * //todo: Templates and Shared open on a painted-sky banner (`PlSceneHeader`
- * + `PxSky`, scenes.jsx 1–1465); the sky engine is not ported yet, so they
- * use this plain header, which is what the prototype falls back to too.
+ * Templates and Shared open on the painted-sky banner instead (`PlSceneHeader`).
  */
 export function PlaceHeader({
   art,

@@ -5,6 +5,7 @@
  */
 import {
   type Checkin,
+  daysBetween,
   habitDays,
   habitDoneOn,
   habitKept,
@@ -137,4 +138,135 @@ export function timeLeft(local: {
     i < dayOfYear ? "spent" : i === dayOfYear ? "now" : "open"
   );
   return { hoursLeft, daysLeft: len - dayOfYear - 1, hours, days };
+}
+
+/* ---------- last four months (Habits.jsx HabitMonths) ---------- */
+
+/** "Last four months": this month and the three before it. The history route's 124 days always cover them (3 × 31 + 31). */
+export const MONTHS_SHOWN = 4;
+
+export const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+export const MONTH_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+export interface MonthDot {
+  day: number;
+  date: string;
+  kind: "ahead" | "on" | "miss";
+  /** Share of the shown habits kept that day, 0..1. */
+  ratio: number;
+  kept: number;
+  today: boolean;
+}
+
+export interface MonthRow {
+  /** "2026-09". */
+  key: string;
+  /** 0..11 */
+  month: number;
+  current: boolean;
+  dots: MonthDot[];
+}
+
+function daysInMonth(year: number, month0: number) {
+  if (month0 === 1) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [3, 5, 8, 10].includes(month0) ? 30 : 31;
+}
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * One row per month, the current one last: a dot a day, "ahead" past today,
+ * "on" when any of `habitIds` was kept that day, otherwise "miss". `ratio` is
+ * the share kept, which sets how strong the dot is.
+ */
+export function monthRows(
+  today: string,
+  habitIds: readonly string[],
+  checkins: readonly Checkin[],
+  months = MONTHS_SHOWN
+): MonthRow[] {
+  const year = Number(today.slice(0, 4));
+  const month0 = Number(today.slice(5, 7)) - 1;
+  const ids = new Set(habitIds);
+  const kept = new Map<string, Set<string>>();
+  for (const c of checkins) {
+    if (!c.done || !ids.has(c.habitId)) continue;
+    const set = kept.get(c.date) ?? new Set<string>();
+    set.add(c.habitId);
+    kept.set(c.date, set);
+  }
+  const rows: MonthRow[] = [];
+  for (let k = months - 1; k >= 0; k--) {
+    const idx = year * 12 + month0 - k;
+    const y = Math.floor(idx / 12);
+    const m = idx - y * 12;
+    const dots: MonthDot[] = [];
+    for (let day = 1; day <= daysInMonth(y, m); day++) {
+      const date = `${y}-${two(m + 1)}-${two(day)}`;
+      const back = daysBetween(date, today);
+      if (back < 0) {
+        dots.push({
+          day,
+          date,
+          kind: "ahead",
+          ratio: 0,
+          kept: 0,
+          today: false,
+        });
+        continue;
+      }
+      const n = kept.get(date)?.size ?? 0;
+      dots.push({
+        day,
+        date,
+        kind: n > 0 ? "on" : "miss",
+        ratio: ids.size ? n / ids.size : 0,
+        kept: n,
+        today: back === 0,
+      });
+    }
+    rows.push({
+      key: `${y}-${two(m + 1)}`,
+      month: m,
+      current: k === 0,
+      dots,
+    });
+  }
+  return rows;
+}
+
+/** Days this month with at least one habit kept ("1 active day in September"). */
+export function activeDays(rows: readonly MonthRow[]) {
+  const current = rows.find((r) => r.current);
+  return current ? current.dots.filter((d) => d.kind === "on").length : 0;
 }

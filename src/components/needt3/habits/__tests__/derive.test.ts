@@ -1,13 +1,15 @@
-import type { Checkin } from "@/lib/needt3/derive";
+import { type Checkin, daysBetween } from "@/lib/needt3/derive";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 import checkinFixtures from "../../../../../docs/port/prototype/port/fixtures/habitCheckins.json";
 import habitFixtures from "../../../../../docs/port/prototype/port/fixtures/habits.json";
 import {
   FREE_HABITS,
+  activeDays,
   capHabits,
   habitCard,
   habitGate,
+  monthRows,
   normTime,
   streakText,
   timeLeft,
@@ -150,5 +152,99 @@ describe("timeLeft", () => {
     expect(
       timeLeft({ year: 2100, dayOfYear: 0, hour: 0, minute: 0 }).days
     ).toHaveLength(365);
+  });
+});
+
+describe("monthRows (Last four months)", () => {
+  const kept = (habitId: string, date: string): Checkin => ({
+    habitId,
+    date,
+    done: true,
+  });
+
+  it("is this month and the three before it, the current one last", () => {
+    const rows = monthRows("2026-09-01", ["h"], []);
+    expect(rows.map((r) => r.key)).toEqual([
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+    ]);
+    expect(rows.map((r) => r.dots.length)).toEqual([30, 31, 31, 30]);
+    expect(rows.map((r) => r.current)).toEqual([false, false, false, true]);
+  });
+
+  it("counts a leap February and crosses the new year", () => {
+    const rows = monthRows("2028-01-15", ["h"], []);
+    expect(rows.map((r) => r.key)).toEqual([
+      "2027-10",
+      "2027-11",
+      "2027-12",
+      "2028-01",
+    ]);
+    expect(monthRows("2028-03-10", ["h"], [])[2].dots).toHaveLength(29);
+    expect(monthRows("2027-03-10", ["h"], [])[2].dots).toHaveLength(28);
+  });
+
+  it("marks days past today as ahead and today as the only control", () => {
+    const sep = monthRows("2026-09-10", ["h"], [])[3].dots;
+    expect(sep[9]).toMatchObject({ day: 10, today: true, kind: "miss" });
+    expect(sep[10].kind).toBe("ahead");
+    expect(sep.filter((d) => d.today)).toHaveLength(1);
+  });
+
+  it("fills a day when any shown habit was kept, by the share kept", () => {
+    const rows = monthRows(
+      "2026-09-10",
+      ["a", "b"],
+      [
+        kept("a", "2026-08-05"),
+        kept("b", "2026-08-05"),
+        kept("a", "2026-09-02"),
+      ]
+    );
+    const aug5 = rows[2].dots[4];
+    expect(aug5).toMatchObject({ kind: "on", kept: 2, ratio: 1 });
+    expect(rows[3].dots[1]).toMatchObject({ kind: "on", kept: 1, ratio: 0.5 });
+    expect(rows[3].dots[2].kind).toBe("miss");
+  });
+
+  it("ignores habits that are not shown and checkins that are off", () => {
+    const rows = monthRows(
+      "2026-09-10",
+      ["a"],
+      [
+        kept("zzz", "2026-09-02"),
+        { habitId: "a", date: "2026-09-03", done: false },
+      ]
+    );
+    expect(rows[3].dots[1].kind).toBe("miss");
+    expect(rows[3].dots[2].kind).toBe("miss");
+    expect(activeDays(rows)).toBe(0);
+  });
+
+  it("counts this month's active days", () => {
+    const rows = monthRows(
+      "2026-09-10",
+      ["a"],
+      [
+        kept("a", "2026-09-01"),
+        kept("a", "2026-09-04"),
+        kept("a", "2026-08-30"),
+      ]
+    );
+    expect(activeDays(rows)).toBe(2);
+  });
+
+  it("never reaches further back than the history route's 124 days", () => {
+    for (const today of [
+      "2026-12-31",
+      "2026-05-31",
+      "2028-03-31",
+      "2026-08-31",
+    ]) {
+      const first = monthRows(today, ["a"], [])[0].dots[0].date;
+      expect(daysBetween(first, today) + 1).toBeLessThanOrEqual(124);
+    }
   });
 });

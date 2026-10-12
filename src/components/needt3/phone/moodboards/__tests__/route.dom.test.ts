@@ -68,6 +68,9 @@ jest.mock("@/lib/needt3/hooks/plan", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
+  // the desktop grid's dismissable upsell: no settings loaded, so none shows
+  useSettings: () => query(undefined),
+  useSetPref: () => jest.fn(),
 }));
 jest.mock("../../overlays/snack", () => ({
   snack: (...a: unknown[]) => mockSnack(...a),
