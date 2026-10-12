@@ -9,7 +9,8 @@ import { type PhoneBoardItem, itemName, wallColumns } from "./model";
 
 /* The prototype's MbmMedia, read-only: the picture, the swatch, the link
    card, the note. The classes are the vendored mobile.css / phone-habits.css. */
-function TileFace({ it }: { it: PhoneBoardItem }) {
+/** The picture, the swatch, the link card or the note (MbmMedia). */
+export function TileFace({ it, big }: { it: PhoneBoardItem; big?: boolean }) {
   const ratio = it.ratio || 1;
   if (it.kind === "image")
     return (
@@ -25,7 +26,7 @@ function TileFace({ it }: { it: PhoneBoardItem }) {
   if (it.kind === "color")
     return (
       <span
-        className="mbm-media-2"
+        className={pkCx("mbm-media-2", big && "is-big")}
         style={
           {
             aspectRatio: String(1 / ratio),
@@ -45,7 +46,10 @@ function TileFace({ it }: { it: PhoneBoardItem }) {
   if (it.kind === "link") {
     const domain = it.source?.domain || "";
     return (
-      <span className="mbm-media-5" style={{ borderRadius: 18 }}>
+      <span
+        className={pkCx("mbm-media-5", big && "is-big")}
+        style={{ borderRadius: 18 }}
+      >
         {it.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- remote preview image of unknown size
           <img
@@ -66,7 +70,10 @@ function TileFace({ it }: { it: PhoneBoardItem }) {
     );
   }
   return (
-    <span className="mbm-media-12" style={{ borderRadius: 18 }}>
+    <span
+      className={pkCx("mbm-media-12", big && "is-big")}
+      style={{ borderRadius: 18 }}
+    >
       <span className="mbm-media-13">{it.text}</span>
       <span className="mbm-media-11">
         <LuText size={11} aria-hidden />

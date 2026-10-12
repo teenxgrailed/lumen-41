@@ -7,7 +7,10 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  type V3BoardItem,
+  useAddBoardItem,
   useCreateBoard,
+  useRemoveBoardItem,
   useTrashBoard,
   useUpdateBoard,
 } from "@/lib/needt3/hooks/boards";
@@ -16,8 +19,11 @@ import type { V3Board } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
 import {
+  type AddAsk,
   type NameAsk,
   UNTITLED_BOARD,
+  addDraft,
+  blankAdd,
   boardQuota,
   nameOk,
   renameChanges,
@@ -56,8 +62,11 @@ export function useBoardsController(opts: BoardsControllerOptions) {
   const create = useCreateBoard();
   const update = useUpdateBoard();
   const trash = useTrashBoard();
+  const addItem = useAddBoardItem();
+  const removeItem = useRemoveBoardItem();
 
   const [ask, setAsk] = useState<NameAsk | null>(null);
+  const [add, setAdd] = useState<AddAsk | null>(null);
   const [saving, setSaving] = useState(false);
   /* A second tap before the first write settles must write nothing. */
   const busy = useRef(false);
@@ -160,8 +169,62 @@ export function useBoardsController(opts: BoardsControllerOptions) {
     }
   };
 
+  /* ── a board's references (the items routes) ── */
+
+  const openAdd = (boardId: string) => setAdd(blankAdd(boardId));
+  const closeAdd = () => setAdd(null);
+  const patchAdd = (p: Partial<AddAsk>) =>
+    setAdd((a) => (a ? { ...a, ...p } : a));
+
+  /** Save the add sheet's link / colour / note to the end of the wall. */
+  const submitAdd = async () => {
+    const a = add;
+    if (!a || busy.current) return false;
+    const draft = addDraft(a);
+    if (!draft) return false;
+    busy.current = true;
+    setSaving(true);
+    try {
+      const { undo } = await addItem.mutateAsync({
+        boardId: a.boardId,
+        draft,
+      });
+      snack("Added to this board", undo);
+      setAdd(null);
+      return true;
+    } catch {
+      return false; // the hook told the person; the sheet and the text stay
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  };
+
+  /** Remove a reference from the board, with Undo (it comes back in place). */
+  const removeReference = async (boardId: string, item: V3BoardItem) => {
+    if (busy.current) return false;
+    busy.current = true;
+    setSaving(true);
+    try {
+      const { undo } = await removeItem.mutateAsync({ boardId, id: item.id });
+      snack("Reference removed", undo);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      busy.current = false;
+      setSaving(false);
+    }
+  };
+
   return {
     ask,
+    add,
+    openAdd,
+    closeAdd,
+    patchAdd,
+    submitAdd,
+    removeReference,
     saving,
     open,
     back,

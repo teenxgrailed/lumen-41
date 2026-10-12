@@ -881,3 +881,33 @@
 .needt-v3 .ptk-swap {
   animation-fill-mode: backwards;
 }
+
+/* ───────── P9 · phone Habits + Moodboards (phone-habits.jsx, styles/phone-habits.css) ─────────
+   Self-contained: it only corrects the vendored file. A habit's name sits in a
+   flex row (hue dot + name), where `text-overflow` does not apply to the bare
+   text, so the title takes the remaining width in its own box and ellipsizes.
+   Rule 2 (chrome type is 13 / 12 px, never 14): the days-per-week segmented
+   control is 14 px in the vendored file. A link card's address and a note can
+   be one very long word; they wrap or clip inside the card. */
+.needt-v3 .phb-habit-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .phb-seg-btn {
+  font-size: 13px;
+}
+.needt-v3 .mbm-media-10,
+.needt-v3 .mbm-media-13 {
+  overflow-wrap: anywhere;
+}
+.needt-v3 .mbm-media-9 {
+  min-width: 0;
+}
+.needt-v3 .mbm-media-11 {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}

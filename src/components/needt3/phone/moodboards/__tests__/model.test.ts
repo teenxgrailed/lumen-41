@@ -2,14 +2,23 @@ import { FREE_BOARDS } from "../../../places/derive";
 import {
   BOARDS_PAYWALL_FEATURE,
   type PhoneBoardItem,
+  SWATCHES,
+  addDraft,
+  blankAdd,
   boardCountLine,
   boardMeta,
   boardQuota,
+  checkAdd,
   itemName,
   madeLine,
   nameOk,
+  parseLink,
+  pickedColour,
+  referenceCount,
   renameChanges,
   searchBoards,
+  searchItems,
+  typedHex,
   wallColumns,
 } from "../model";
 
@@ -23,6 +32,8 @@ const item = (p: Partial<PhoneBoardItem> & { id: string }): PhoneBoardItem => ({
   colorName: null,
   source: null,
   thumbnailUrl: null,
+  position: 0,
+  createdAt: null,
   ...p,
 });
 
@@ -133,5 +144,97 @@ describe("naming", () => {
     const list = [{ title: "Rooms" }, { title: "Kitchen" }];
     expect(searchBoards(list, "room")).toEqual([{ title: "Rooms" }]);
     expect(searchBoards(list, "")).toEqual([]);
+  });
+});
+
+describe("adding a reference", () => {
+  const ask = (p: object) => ({ ...blankAdd("b1"), ...p });
+
+  it("reads a pasted address like the prototype", () => {
+    expect(parseLink("")).toBeNull();
+    expect(parseLink("localhost")).toBeNull();
+    expect(parseLink("www.are.na/block/1987")).toEqual({
+      url: "https://www.are.na/block/1987",
+      domain: "are.na",
+      name: "Are.na",
+      title: "Are.na",
+    });
+    expect(parseLink("https://ssense.com/en-us/women/oak-chair")).toMatchObject(
+      {
+        name: "SSENSE",
+        title: "Oak chair",
+      }
+    );
+  });
+
+  it("a link needs a domain; the error shows only for typed text", () => {
+    expect(checkAdd(ask({ step: "link", link: "" }))).toEqual({
+      ok: false,
+      error: null,
+    });
+    expect(checkAdd(ask({ step: "link", link: "nope" })).error).toMatch(
+      /domain/
+    );
+    expect(checkAdd(ask({ step: "link", link: "are.na" })).ok).toBe(true);
+  });
+
+  it("a typed hex wins over the swatch, a bad one does not", () => {
+    expect(typedHex("c2410c")).toBe("#C2410C");
+    expect(typedHex("#c2410")).toBeNull();
+    expect(pickedColour({ swatch: 3, hex: "" })).toEqual({
+      color: SWATCHES[3][0],
+      name: SWATCHES[3][1],
+      typed: false,
+    });
+    expect(pickedColour({ swatch: 3, hex: "#fff000" })).toEqual({
+      color: "#FFF000",
+      name: "Custom",
+      typed: true,
+    });
+    expect(pickedColour({ swatch: 3, hex: "zz" }).typed).toBe(false);
+  });
+
+  it("makes the drafts the route accepts", () => {
+    expect(addDraft(ask({ step: "pick" }))).toBeNull();
+    expect(addDraft(ask({ step: "note", note: "  " }))).toBeNull();
+    expect(addDraft(ask({ step: "note", note: " Oak " }))).toEqual({
+      kind: "note",
+      text: "Oak",
+      ratio: 0.7,
+    });
+    expect(addDraft(ask({ step: "color", swatch: 0 }))).toEqual({
+      kind: "color",
+      color: "#16161A",
+      colorName: "Ink",
+      ratio: 0.8,
+    });
+    expect(addDraft(ask({ step: "link", link: "are.na" }))?.kind).toBe("link");
+  });
+
+  it("every swatch is a hex the route accepts", () => {
+    for (const [hex] of SWATCHES) expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+  });
+});
+
+describe("searching a board", () => {
+  const items = [
+    item({ id: "a", title: "Oak chair" }),
+    item({ id: "b", kind: "color", color: "#D7263D", colorName: "Signal red" }),
+    item({
+      id: "c",
+      kind: "link",
+      source: { name: "Are.na", domain: "are.na" },
+    }),
+  ];
+  it("matches title, colour name, hex and site", () => {
+    expect(searchItems(items, "oak").map((x) => x.id)).toEqual(["a"]);
+    expect(searchItems(items, "signal").map((x) => x.id)).toEqual(["b"]);
+    expect(searchItems(items, "d7263d").map((x) => x.id)).toEqual(["b"]);
+    expect(searchItems(items, "are.na").map((x) => x.id)).toEqual(["c"]);
+    expect(searchItems(items, " ")).toEqual([]);
+  });
+  it("counts references", () => {
+    expect(referenceCount(1)).toBe("1 reference");
+    expect(referenceCount(0)).toBe("0 references");
   });
 });

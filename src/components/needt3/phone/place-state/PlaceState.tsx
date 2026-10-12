@@ -2,35 +2,40 @@
 
 import type { ReactNode } from "react";
 
-import strings from "../../../../../docs/port/prototype/port/strings/en.json";
-import { type ScreenQuery, errorText, screenState } from "../../states/status";
-import { PkButton, PkEmpty } from "../kit";
-
-const copy = strings["states.jsx"];
+import { StError } from "../../states/StScreen";
+import { type SkeletonKind, StSkeleton } from "../../states/StSkeleton";
+import {
+  SCREEN_KIND,
+  type ScreenQuery,
+  errorText,
+  screenState,
+} from "../../states/status";
+import { PkEmpty } from "../kit";
 
 export const OFFLINE_TEXT = "You’re offline — reconnect to load this.";
 
-const LOADING: Record<string, string> = {
-  habits: "Loading your habits…",
-  moodboards: "Loading your moodboards…",
-};
-
 /**
- * The phone's data states for a place's body: first load, error + retry,
- * offline with nothing cached, and no access. The same decision as the
- * desktop's `StScreen` (`screenState`: cached content always wins, except
- * after a 403) in the phone kit's own quiet empty block, because `StScreen`
- * lays a full-screen layer over the nearest positioned box, which on the
- * phone would hide the title. //todo: swap for P4's phone states layer when
- * it lands.
+ * The phone's data states for a place's body: the skeleton on first load,
+ * the error row with Retry, the offline row with nothing cached, and no
+ * access. The same decision as the desktop's `StScreen` (`screenState`:
+ * cached content always wins, except after a 403) and the same `StSkeleton` /
+ * `StError`, drawn inside the screen's scroller because `StScreen` lays a
+ * full-screen layer over the nearest positioned box, which on the phone would
+ * hide the title. //todo: swap for P4's phone states layer when it lands.
  */
 export function PlaceState({
   query,
   screen,
+  kind,
+  text,
   children,
 }: {
   query: ScreenQuery;
   screen: string;
+  /** Skeleton shape; defaults to the screen's kind in `SCREEN_KIND`. */
+  kind?: SkeletonKind;
+  /** The error row's words, when the screen name does not say it. */
+  text?: string;
   children: ReactNode;
 }) {
   const state = screenState(query);
@@ -41,9 +46,10 @@ export function PlaceState({
         role="status"
         aria-live="polite"
         aria-busy="true"
+        aria-label="Loading"
         data-phb-state="loading"
       >
-        <PkEmpty sky={false} line={LOADING[screen] ?? "Loading…"} />
+        <StSkeleton kind={kind ?? SCREEN_KIND[screen] ?? "list"} />
       </div>
     );
   if (state === "no-access")
@@ -57,16 +63,10 @@ export function PlaceState({
       </div>
     );
   return (
-    <div role="alert" data-phb-state={state}>
-      <PkEmpty
-        sky={false}
-        title={state === "offline" ? "Offline" : "Couldn’t load"}
-        line={state === "offline" ? OFFLINE_TEXT : errorText(screen)}
-        action={
-          <PkButton kind="chip" onClick={() => void query.refetch()}>
-            {copy.StError.retry}
-          </PkButton>
-        }
+    <div data-phb-state={state}>
+      <StError
+        text={state === "offline" ? OFFLINE_TEXT : (text ?? errorText(screen))}
+        onRetry={query.refetch}
       />
     </div>
   );

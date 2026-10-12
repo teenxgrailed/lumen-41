@@ -26,6 +26,10 @@ import { MoodboardRoute, MoodboardsRoute } from "../MoodboardsRoute";
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockTrash = jest.fn();
+const mockAdd = jest.fn();
+const mockRemove = jest.fn();
+const mockRetry = jest.fn();
+let mockItemsQuery: Record<string, unknown> = {};
 const mockSnack = jest.fn();
 const mockPush = jest.fn();
 let mockBoards: unknown[] = [];
@@ -47,6 +51,9 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
   useCreateBoard: () => ({ mutateAsync: mockCreate }),
   useUpdateBoard: () => ({ mutateAsync: mockUpdate }),
   useTrashBoard: () => ({ mutateAsync: mockTrash }),
+  useAddBoardItem: () => ({ mutateAsync: mockAdd }),
+  useRemoveBoardItem: () => ({ mutateAsync: mockRemove }),
+  useBoardItems: () => mockItemsQuery,
 }));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => query({ kind: mockPlanKind }),
@@ -74,6 +81,22 @@ class RO {
   unobserve() {}
   disconnect() {}
 }
+
+const item = (id: string, extra = {}) => ({
+  id,
+  kind: "note",
+  url: null,
+  color: null,
+  text: `Words ${id}`,
+  title: null,
+  ratio: 0.7,
+  colorName: null,
+  source: null,
+  thumbnailUrl: null,
+  position: 1,
+  createdAt: "2026-10-09T10:00:00Z",
+  ...extra,
+});
 
 const board = (id: string, title: string, extra = {}) => ({
   id,
@@ -106,16 +129,11 @@ const mount = (ui: "phone" | "desktop", el: ReturnType<typeof h>) =>
     )
   );
 const list = (ui: "phone" | "desktop") => mount(ui, h(MoodboardsRoute));
-const page = (
-  ui: "phone" | "desktop",
-  id = "b1",
-  items: readonly unknown[] | null = []
-) =>
+const page = (ui: "phone" | "desktop", id = "b1") =>
   mount(
     ui,
     h(MoodboardRoute, {
       id,
-      items: items as never,
       workspace: h("div", { "data-workspace": "" }),
     })
   );
@@ -161,10 +179,19 @@ beforeEach(() => {
   jest
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => null);
-  [mockCreate, mockUpdate, mockTrash, mockSnack, mockPush, mockInfo].forEach(
-    (m) => m.mockReset()
-  );
+  [
+    mockCreate,
+    mockUpdate,
+    mockTrash,
+    mockSnack,
+    mockPush,
+    mockInfo,
+    mockAdd,
+    mockRemove,
+    mockRetry,
+  ].forEach((m) => m.mockReset());
   mockBoards = [];
+  mockItemsQuery = query([]);
   client = new QueryClient();
   usePhoneOverlays.setState({ paywall: false });
   host = document.createElement("div");
@@ -324,18 +351,49 @@ describe("one board", () => {
     seed("monthly");
   });
 
-  it("shows the board page once its references are read", () => {
+  it("shows the board with its references on the wall", () => {
+    mockItemsQuery = query([item("i1"), item("i2")]);
     page("phone");
     expect(q("[data-phb-page]")?.textContent).toContain("Rooms");
-    expect(host.textContent).toContain("Nothing on this board yet");
+    expect(q("[data-phb-page]")?.textContent).toContain("2 references");
+    expect(host.querySelectorAll("[data-phb-item]")).toHaveLength(2);
     expect(q("[data-workspace]")).toBeNull();
   });
 
-  it("until they can be read, the phone gets the existing workspace", () => {
-    page("phone", "b1", null);
-    expect(q("[data-workspace]")).not.toBeNull();
-    expect(q("[data-phb-page]")).toBeNull();
-    expect(host.textContent).not.toContain("References are not available");
+  it("an empty board says so and offers Add", () => {
+    page("phone");
+    expect(host.textContent).toContain("Nothing on this board yet");
+    expect(host.textContent).not.toContain("not available");
+  });
+
+  it("shows the skeleton while the references load, never a dead end", () => {
+    mockItemsQuery = {
+      data: undefined,
+      status: "pending",
+      fetchStatus: "fetching",
+      error: null,
+      refetch: mockRetry,
+    };
+    page("phone");
+    expect(q('[data-phb-state="loading"]')).not.toBeNull();
+    expect(q(".st-skeleton")).not.toBeNull();
+    expect(host.textContent).not.toContain("not available");
+    expect(q("[data-phb-item]")).toBeNull();
+  });
+
+  it("shows the error row with Retry when the references fail", () => {
+    mockItemsQuery = {
+      data: undefined,
+      status: "error",
+      fetchStatus: "idle",
+      error: new Error("500"),
+      refetch: mockRetry,
+    };
+    page("phone");
+    expect(q("[data-st-error]")?.textContent).toContain("references");
+    expect(host.textContent).not.toContain("not available");
+    click(q("[data-st-retry]"));
+    expect(mockRetry).toHaveBeenCalledTimes(1);
   });
 
   it("other widths keep the existing workspace", () => {
@@ -401,5 +459,153 @@ describe("one board", () => {
     await flush();
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockSnack).not.toHaveBeenCalled();
+  });
+});
+
+describe("a board's references", () => {
+  beforeEach(() => {
+    mockBoards = [board("b1", "Rooms")];
+    seed("monthly");
+  });
+  const area = () => doc<HTMLTextAreaElement>("#phb-note");
+  function typeArea(el: HTMLTextAreaElement, value: string) {
+    const set = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value"
+    )?.set;
+    act(() => {
+      set?.call(el, value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  const openNote = () => {
+    click(q("[data-phb-add]"));
+    click(doc('[data-phb-kind="note"]'));
+  };
+
+  it("adds a note once, with Undo", async () => {
+    let resolve: (v: unknown) => void = () => undefined;
+    mockAdd.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    page("phone");
+    openNote();
+    typeArea(area()!, "  Oak, matte  ");
+    const save = doc("[data-phb-add-save]");
+    click(save);
+    click(save);
+    expect(mockAdd).toHaveBeenCalledTimes(1);
+    expect(mockAdd).toHaveBeenCalledWith({
+      boardId: "b1",
+      draft: { kind: "note", text: "Oak, matte", ratio: 0.7 },
+    });
+    const undo = jest.fn();
+    await act(async () => {
+      resolve({ result: item("n1"), undo });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(mockSnack).toHaveBeenCalledWith("Added to this board", undo);
+  });
+
+  it("a half-typed note survives crossing 700 px, and one save is one write", async () => {
+    mockAdd.mockResolvedValue({ result: item("n1"), undo: jest.fn() });
+    page("phone");
+    openNote();
+    typeArea(area()!, "Oak");
+    page("desktop");
+    expect(q("[data-workspace]")).not.toBeNull();
+    page("phone");
+    expect(area()?.value).toBe("Oak");
+    expect(mockAdd).not.toHaveBeenCalled();
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    expect(mockAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed add keeps the sheet and the text", async () => {
+    mockAdd.mockRejectedValue(new Error("403"));
+    page("phone");
+    openNote();
+    typeArea(area()!, "Oak");
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    await flush();
+    expect(area()?.value).toBe("Oak");
+    expect(mockSnack).not.toHaveBeenCalled();
+  });
+
+  it("adds a link from a pasted address, and refuses one without a domain", async () => {
+    mockAdd.mockReturnValue(new Promise(() => undefined));
+    page("phone");
+    click(q("[data-phb-add]"));
+    click(doc('[data-phb-kind="link"]'));
+    typeInto(doc<HTMLInputElement>("#phb-link")!, "localhost");
+    expect(doc("#phb-link-err")?.getAttribute("role")).toBe("alert");
+    expect(doc<HTMLButtonElement>("[data-phb-add-save]")?.disabled).toBe(true);
+    typeInto(doc<HTMLInputElement>("#phb-link")!, "www.are.na/block/1987");
+    expect(doc("#phb-link-err")).toBeNull();
+    // Enter in the field is not stopped by the button's disabled state
+    const pressEnter = () =>
+      act(() => {
+        doc("#phb-link")?.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Enter",
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+      });
+    pressEnter();
+    pressEnter();
+    await flush();
+    expect(mockAdd).toHaveBeenCalledTimes(1);
+    expect(mockAdd).toHaveBeenCalledWith({
+      boardId: "b1",
+      draft: {
+        kind: "link",
+        url: "https://www.are.na/block/1987",
+        title: "Are.na",
+        source: { name: "Are.na", domain: "are.na" },
+        ratio: 0.75,
+      },
+    });
+  });
+
+  it("adds a colour: a swatch by default, a typed hex when valid", async () => {
+    mockAdd.mockResolvedValue({ result: item("n1"), undo: jest.fn() });
+    page("phone");
+    click(q("[data-phb-add]"));
+    click(doc('[data-phb-kind="color"]'));
+    typeInto(doc<HTMLInputElement>("#phb-hex")!, "c2410c");
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    expect(mockAdd).toHaveBeenCalledWith({
+      boardId: "b1",
+      draft: {
+        kind: "color",
+        color: "#C2410C",
+        colorName: "Custom",
+        ratio: 0.8,
+      },
+    });
+  });
+
+  it("removes a reference once, with Undo", async () => {
+    mockItemsQuery = query([item("i1"), item("i2")]);
+    const undo = jest.fn();
+    mockRemove.mockResolvedValue({ result: undefined, undo });
+    page("phone");
+    click(q('[data-phb-item="i2"]'));
+    expect(doc('[data-phb-detail="i2"]')).not.toBeNull();
+    const rm = doc("[data-phb-item-remove]");
+    click(rm);
+    click(rm);
+    await flush();
+    expect(mockRemove).toHaveBeenCalledTimes(1);
+    expect(mockRemove).toHaveBeenCalledWith({ boardId: "b1", id: "i2" });
+    expect(mockSnack).toHaveBeenCalledWith("Reference removed", undo);
   });
 });

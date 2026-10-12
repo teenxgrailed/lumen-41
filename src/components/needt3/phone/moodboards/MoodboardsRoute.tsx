@@ -11,7 +11,7 @@ import { usePhoneUi } from "../../root/phone-ui-context";
 import { usePhoneOverlays } from "../overlays/store";
 import { PhoneBoardPage } from "./PhoneBoardPage";
 import { PhoneBoards } from "./PhoneBoards";
-import { BOARDS_PAYWALL_FEATURE, type PhoneBoardItem } from "./model";
+import { BOARDS_PAYWALL_FEATURE } from "./model";
 
 function useBlocked() {
   const phone = usePhoneUi() === "phone";
@@ -38,29 +38,21 @@ export function MoodboardsRoute() {
 }
 
 /**
- * `/moodboards/[id]`: the existing board workspace (`workspace`, passed in by
- * the server page) at every width, until a board's references can be read.
- * The phone board page replaces it on the phone ONLY when `items` is non-null.
- *
- * //todo: the board items API (PR #127) lands the read; then the page passes
- * `useBoardItems(id).data` as `items` and phones get PhoneBoardPage. Until
- * then `items` is always null and nothing changes for phones.
+ * `/moodboards/[id]`: the phone board page under 700 px (the references come
+ * from the items API), the existing board workspace (`workspace`, passed in
+ * by the server page) at every other width. The controller (rename draft, the
+ * add sheet's draft, the in-flight writes) is called here, above the switch,
+ * so crossing 700 px keeps a half-typed reference and writes once.
  */
 export function MoodboardRoute({
   id,
   workspace,
-  items = null,
 }: {
   id: string;
   workspace: ReactNode;
-  items?: readonly PhoneBoardItem[] | null;
 }) {
   const ui = usePhoneUi();
   const onBlocked = useBlocked();
   const ctl = useBoardsController({ onBlocked });
-  return ui === "phone" && items !== null ? (
-    <PhoneBoardPage ctl={ctl} id={id} items={items} />
-  ) : (
-    workspace
-  );
+  return ui === "phone" ? <PhoneBoardPage ctl={ctl} id={id} /> : workspace;
 }

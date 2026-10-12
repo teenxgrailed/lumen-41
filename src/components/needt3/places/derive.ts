@@ -10,14 +10,18 @@ import {
 } from "@/lib/date-utils";
 import type { V3Board } from "@/lib/needt3/map";
 import { isSharedWithMe } from "@/lib/needt3/shared";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 export { isSharedWithMe };
 
 /** Trash keeps an item this long (owner decision 2026-10-09; no purge job yet). */
 export const TRASH_DAYS = 30;
 
-/** Free keeps one moodboard (places.jsx `PL_FREE_BOARDS`). */
-export const FREE_BOARDS = 1;
+/**
+ * Free's moodboard limit, read from the plan table (`@/lib/plan-limits`);
+ * never a local constant (places.jsx `PL_FREE_BOARDS` is 1 there too).
+ */
+export const FREE_BOARDS: number = PLAN_LIMITS.FREE.boards;
 
 /* ---------- moodboards ---------- */
 

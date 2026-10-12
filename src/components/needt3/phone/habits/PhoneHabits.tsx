@@ -135,7 +135,7 @@ function HabitHistory({
         <span className="phb-habit-main">
           <span className="phb-habit-name">
             <span className="pk-hue" />
-            {h.title}
+            <span className="phb-habit-title">{h.title}</span>
           </span>
           <span className="phb-habit-cap">
             {kept} {t.PhbMonths.of_the_last} {dots.length} days
