@@ -87,6 +87,92 @@ curl -X POST http://localhost:3000/api/connect/reschedule \
   -H "Authorization: Bearer needt_REPLACE_ME"
 ```
 
+## Imports
+
+Bring projects and tasks in from another tool. Todoist only for now. The
+whole surface is behind the `imports` feature flag: while it is off for you,
+`GET` answers `{"enabled": false, "sources": {}, "runs": []}` and every other
+route answers `404 IMPORTS_DISABLED`.
+
+```http
+GET  /api/connect/imports              # flag state, configured sources, last 5 runs
+POST /api/connect/imports              # start
+GET  /api/connect/imports/:id          # status, progress, warnings
+POST /api/connect/imports/:id/cancel   # stop a queued or running run
+```
+
+The same routes exist under `/api/imports` for the signed-in session (the
+Settings screen uses those).
+
+Start with a Todoist personal API token (Todoist -> Settings ->
+Integrations -> Developer); the run is queued at once:
+
+```bash
+curl -X POST http://localhost:3000/api/connect/imports \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{"source": "todoist", "token": "TODOIST_PERSONAL_TOKEN"}'
+```
+
+`202 {"run": {...}}`. Without `token` the answer is
+`{"authorizeUrl": "https://.../api/imports/todoist/authorize?workspaceId=..."}`:
+open it in a browser where you are signed in to Needt to go through Todoist's
+consent screen (read-only scope `data:read`); the run starts when Todoist
+sends you back. That path needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`
+on the server, else `503 NOT_CONFIGURED`. One run per source at a time:
+another start while one is queued or running is `409 IMPORT_IN_PROGRESS`.
+
+A run:
+
+```json
+{
+  "run": {
+    "id": "run_id",
+    "source": "todoist",
+    "status": "running",
+    "counts": { "total": 240, "done": 120, "skipped": 6, "failed": 0 },
+    "warnings": [
+      {
+        "code": "recurrence_unsupported",
+        "message": "\"Renew passport\" repeats \"every 3rd workday of the month\" in Todoist, which Needt could not read; it was imported without repeating.",
+        "externalId": "6X7rM8997g3RQmv7"
+      }
+    ],
+    "startedAt": "2026-10-12T10:00:00.000Z",
+    "finishedAt": null,
+    "createdAt": "2026-10-12T09:59:58.000Z"
+  }
+}
+```
+
+`status` is `queued`, `running`, `done`, `failed` or `cancelled`. A failed
+run says why in its last warning (`todoist_unauthorized`,
+`todoist_rate_limited`, `todoist_unavailable`, `worker_unavailable`,
+`import_failed`). A run of another user is `404`. The Todoist token is kept
+encrypted on the run only while it is queued or running and is erased when
+it ends; it is never returned.
+
+What lands where:
+
+| Todoist                                                                                                                                  | Needt                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Project (nested ones flattened, path in the description)                                                                                 | Project                                                                                                             |
+| Inbox                                                                                                                                    | Inbox (no project)                                                                                                  |
+| Section                                                                                                                                  | Project stage                                                                                                       |
+| Task                                                                                                                                     | Task, not auto-scheduled                                                                                            |
+| Sub-task, first level                                                                                                                    | Part of its task                                                                                                    |
+| Sub-task, deeper                                                                                                                         | Task in the same project, parent named in the description                                                           |
+| Label                                                                                                                                    | Tag (by name)                                                                                                       |
+| Comment                                                                                                                                  | Appended to the description with its date                                                                           |
+| Priority p1 / p2 / p3 / p4                                                                                                               | URGENT / HIGH / MEDIUM / LOW                                                                                        |
+| Due date, deadline, duration in minutes                                                                                                  | `dueDate`, `deadline`, `estimatedMinutes`                                                                           |
+| Repeat ("every day", "every 2 weeks", "every mon, fri", "every weekday", "every month on the 15th", "every last day", "every year", ...) | `recurrenceRule` (RRULE); a repeat it cannot read is dropped with a warning and its wording kept in the description |
+
+Skipped and counted: completed and deleted tasks, archived projects and
+sections, file attachments, reminders, Inbox sections. Running an import
+again updates the rows the last one made (title, description, dates,
+priority, project, stage; tags are only added) and never duplicates them.
+
 ## Webhooks
 
 Settings -> Connectors can send best-effort POSTs for:

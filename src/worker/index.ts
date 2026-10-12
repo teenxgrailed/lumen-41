@@ -8,6 +8,7 @@ import {
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
+import { processImportRun } from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
 import {
@@ -78,6 +79,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
@@ -234,6 +236,10 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await finalizeDueAccountDeletions();
 }
 
+async function processImport(job: Job<ImportJobData>) {
+  await processImportRun(job.data.importRunId);
+}
+
 // BullMQ and the app can resolve distinct compatible ioredis patch versions,
 // so bridge their nominal types at this boundary.
 const connection = getRedisConnection() as unknown as ConnectionOptions;
@@ -286,6 +292,11 @@ const workers = [
     processAccountLifecycle,
     { connection, concurrency: 1 }
   ),
+  // One import at a time: a full Todoist account is thousands of writes.
+  new Worker<ImportJobData>(QUEUE_NAMES.imports, processImport, {
+    connection,
+    concurrency: 1,
+  }),
 ];
 
 for (const worker of workers) {

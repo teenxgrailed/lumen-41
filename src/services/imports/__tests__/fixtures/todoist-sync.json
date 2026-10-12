@@ -1,0 +1,363 @@
+{
+  "full_sync": true,
+  "sync_token": "TnYUZEpuzf2FMA9qzyY3j4xky6dXiYejmSO85S5paZ_a9y1FI85mBbIWZGpW",
+  "temp_id_mapping": {},
+  "projects": [
+    {
+      "id": "6Jf8VQXxpwv56VQ7",
+      "name": "Inbox",
+      "color": "grey",
+      "parent_id": null,
+      "child_order": 0,
+      "is_archived": false,
+      "is_deleted": false,
+      "is_favorite": false,
+      "inbox_project": true,
+      "view_style": "list",
+      "updated_at": "2026-09-01T08:00:00.000000Z"
+    },
+    {
+      "id": "6Jf8VQXxpwv56VQ8",
+      "name": "Work",
+      "color": "berry_red",
+      "parent_id": null,
+      "child_order": 1,
+      "is_archived": false,
+      "is_deleted": false,
+      "is_favorite": true,
+      "view_style": "board",
+      "updated_at": "2026-09-20T10:15:00.000000Z"
+    },
+    {
+      "id": "6Jf8VQXxpwv56VQ9",
+      "name": "Clients",
+      "color": "blue",
+      "parent_id": "6Jf8VQXxpwv56VQ8",
+      "child_order": 2,
+      "is_archived": false,
+      "is_deleted": false,
+      "view_style": "list",
+      "updated_at": "2026-09-21T10:15:00.000000Z"
+    },
+    {
+      "id": "6Jf8VQXxpwv56VR1",
+      "name": "Old stuff",
+      "color": "grey",
+      "parent_id": null,
+      "child_order": 3,
+      "is_archived": true,
+      "is_deleted": false,
+      "view_style": "list",
+      "updated_at": "2025-01-01T00:00:00.000000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "6X7FxXvX84jHphx2",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "name": "Doing",
+      "section_order": 2,
+      "is_archived": false,
+      "is_deleted": false,
+      "is_collapsed": false,
+      "updated_at": "2026-09-20T10:15:00.000000Z"
+    },
+    {
+      "id": "6X7FxXvX84jHphx1",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "name": "Backlog",
+      "section_order": 1,
+      "is_archived": false,
+      "is_deleted": false,
+      "is_collapsed": false,
+      "updated_at": "2026-09-20T10:15:00.000000Z"
+    },
+    {
+      "id": "6X7FxXvX84jHphx3",
+      "project_id": "6Jf8VQXxpwv56VQ7",
+      "name": "Someday",
+      "section_order": 1,
+      "is_archived": false,
+      "is_deleted": false,
+      "updated_at": "2026-09-01T08:00:00.000000Z"
+    }
+  ],
+  "labels": [
+    {
+      "id": "2156154810",
+      "name": "deep-work",
+      "color": "charcoal",
+      "item_order": 0,
+      "is_deleted": false,
+      "is_favorite": false
+    },
+    {
+      "id": "2156154811",
+      "name": "calls",
+      "color": "lime_green",
+      "item_order": 1,
+      "is_deleted": false,
+      "is_favorite": false
+    },
+    {
+      "id": "2156154812",
+      "name": "retired",
+      "color": "grey",
+      "item_order": 2,
+      "is_deleted": true,
+      "is_favorite": false
+    }
+  ],
+  "items": [
+    {
+      "id": "6X7rM8997g3RQmvh",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx2",
+      "parent_id": null,
+      "content": "Ship the Q4 roadmap",
+      "description": "Draft is in the shared drive.",
+      "priority": 4,
+      "child_order": 1,
+      "labels": ["deep-work"],
+      "due": {
+        "date": "2026-10-20",
+        "is_recurring": false,
+        "string": "Oct 20",
+        "lang": "en",
+        "timezone": null
+      },
+      "deadline": { "date": "2026-10-24", "lang": "en" },
+      "duration": { "amount": 90, "unit": "minute" },
+      "checked": false,
+      "is_deleted": false,
+      "added_at": "2026-09-20T10:15:00.000000Z",
+      "updated_at": "2026-10-01T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv1",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx2",
+      "parent_id": "6X7rM8997g3RQmvh",
+      "content": "Collect team input",
+      "description": "",
+      "priority": 1,
+      "child_order": 1,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-01T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv2",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx2",
+      "parent_id": "6X7rM8997g3RQmvh",
+      "content": "Write the summary",
+      "description": "One page max",
+      "priority": 1,
+      "child_order": 2,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-01T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv3",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx2",
+      "parent_id": "6X7rM8997g3RQmv2",
+      "content": "Check numbers with finance",
+      "description": "",
+      "priority": 2,
+      "child_order": 1,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-01T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv4",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx2",
+      "parent_id": "6X7rM8997g3RQmvh",
+      "content": "Book the review room",
+      "description": "",
+      "priority": 1,
+      "child_order": 3,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": true,
+      "is_deleted": false,
+      "completed_at": "2026-10-02T09:00:00.000000Z",
+      "updated_at": "2026-10-02T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv5",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": "6X7FxXvX84jHphx1",
+      "parent_id": null,
+      "content": "Weekly review",
+      "description": "",
+      "priority": 3,
+      "child_order": 2,
+      "labels": ["deep-work", "team-shared"],
+      "due": {
+        "date": "2026-10-17T16:00:00Z",
+        "is_recurring": true,
+        "string": "every fri at 6pm",
+        "lang": "en",
+        "timezone": "Europe/Kyiv"
+      },
+      "deadline": null,
+      "duration": { "amount": 30, "unit": "minute" },
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-03T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv6",
+      "project_id": "6Jf8VQXxpwv56VQ9",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Invoice Acme",
+      "description": "",
+      "priority": 2,
+      "child_order": 1,
+      "labels": ["calls"],
+      "due": {
+        "date": "2026-10-31",
+        "is_recurring": true,
+        "string": "every last day",
+        "lang": "en",
+        "timezone": null
+      },
+      "deadline": null,
+      "duration": { "amount": 2, "unit": "day" },
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-03T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv7",
+      "project_id": "6Jf8VQXxpwv56VQ7",
+      "section_id": "6X7FxXvX84jHphx3",
+      "parent_id": null,
+      "content": "Renew passport",
+      "description": "",
+      "priority": 1,
+      "child_order": 1,
+      "labels": [],
+      "due": {
+        "date": "2026-11-03",
+        "is_recurring": true,
+        "string": "every 3rd workday of the month",
+        "lang": "en",
+        "timezone": null
+      },
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-04T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv8",
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Old finished thing",
+      "description": "",
+      "priority": 1,
+      "child_order": 9,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": true,
+      "is_deleted": false,
+      "updated_at": "2026-08-04T09:00:00.000000Z"
+    },
+    {
+      "id": "6X7rM8997g3RQmv9",
+      "project_id": "6Jf8VQXxpwv56VR1",
+      "section_id": null,
+      "parent_id": null,
+      "content": "Task in an archived project",
+      "description": "",
+      "priority": 1,
+      "child_order": 1,
+      "labels": [],
+      "due": null,
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2025-01-01T09:00:00.000000Z"
+    }
+  ],
+  "notes": [
+    {
+      "id": "6X7gfQHG59V8CJJV",
+      "item_id": "6X7rM8997g3RQmvh",
+      "content": "Remember the hiring slide",
+      "posted_at": "2026-10-02T08:30:00.000000Z",
+      "posted_uid": "2671355",
+      "file_attachment": null,
+      "is_deleted": false,
+      "reactions": null
+    },
+    {
+      "id": "6X7gfQHG59V8CJJW",
+      "item_id": "6X7rM8997g3RQmvh",
+      "content": "Latest draft attached",
+      "posted_at": "2026-10-03T08:30:00.000000Z",
+      "posted_uid": "2671355",
+      "file_attachment": {
+        "file_name": "roadmap.pdf",
+        "file_size": 120034,
+        "file_type": "application/pdf",
+        "file_url": "https://files.todoist.com/example/roadmap.pdf",
+        "resource_type": "file"
+      },
+      "is_deleted": false
+    },
+    {
+      "id": "6X7gfQHG59V8CJJX",
+      "item_id": "6X7rM8997g3RQmv5",
+      "content": "deleted comment",
+      "posted_at": "2026-10-03T08:30:00.000000Z",
+      "file_attachment": null,
+      "is_deleted": true
+    }
+  ],
+  "project_notes": [
+    {
+      "id": "6X7gfQHG59V8CJK1",
+      "project_id": "6Jf8VQXxpwv56VQ9",
+      "content": "Main contact: billing@acme.example",
+      "posted_at": "2026-09-22T08:30:00.000000Z",
+      "file_attachment": null,
+      "is_deleted": false
+    }
+  ],
+  "reminders": [
+    {
+      "id": "6X7Vfq5rqPMM5j5q",
+      "item_id": "6X7rM8997g3RQmvh",
+      "type": "relative",
+      "minute_offset": 30,
+      "is_deleted": false
+    }
+  ]
+}

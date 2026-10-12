@@ -8,6 +8,7 @@ import { sendJson } from "@/lib/needt3/hooks/core";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { notify } from "@/lib/notifications";
 
+import { ImportGroup } from "./ImportGroup";
 import { useMark } from "./SettingsContext";
 import { readPref } from "./derive";
 import { SBtn, SGroup, SRow, V3Switch } from "./kit";
@@ -15,8 +16,9 @@ import { SBtn, SGroup, SRow, V3Switch } from "./kit";
 /**
  * Data & privacy. Export tasks and the full export use the routes the old
  * Settings uses; the rest of the prototype's rows have nothing behind them.
+ * Import from Todoist sits behind the `imports` flag (ImportGroup).
  * //todo: Tasks as CSV (the route sends JSON), Documents as Markdown, the
- * Import menu (Markdown, Notion, Google Docs, .ics, CSV: import.jsx).
+ * rest of the Import menu (Markdown, Notion, Google Docs, .ics, CSV: import.jsx).
  */
 export function DataSection() {
   const mark = useMark();
@@ -70,6 +72,7 @@ export function DataSection() {
           </SBtn>
         </SRow>
       </SGroup>
+      <ImportGroup />
       <SGroup title="Privacy">
         <SRow
           title="Share usage data"

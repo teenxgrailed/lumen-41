@@ -33,6 +33,7 @@ export const qk = {
   task: (id: string) => [V3, "task", id] as const,
 
   projects: () => [V3, "projects"] as const,
+  imports: () => [V3, "imports"] as const,
   project: (id: string) => [V3, "project", id] as const,
 
   events: (range?: DateRange) =>
