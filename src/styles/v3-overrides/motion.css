@@ -859,3 +859,25 @@
 .needt-v3 .dc-bd-out {
   animation-duration: 280ms;
 }
+
+/* ───────── P6 · phone Tasks + Projects (phone-tasks.jsx, styles/phone-tasks.css) ─────────
+   Self-contained: it only corrects the vendored file. Rule 2 (chrome type is
+   13 / 12 px, never 14): phone-tasks.css sets the segmented control and the
+   "Show N more" line in 14 px. Rule 12 (transform / opacity / clip-path
+   only): the project ring's fill eased stroke-dashoffset, an SVG repaint per
+   frame; it now snaps (the bar beside it still scales). */
+.needt-v3 .ptk-seg-btn,
+.needt-v3 .ptk-more {
+  font-size: 13px;
+}
+.needt-v3 .ptk-ring-fill {
+  transition: none;
+}
+/* V-B8: an entry holds no end state. The vendored `.ptk-swap` runs its rise
+   with fill-mode `both`, so the finished animation stays in
+   `document.getAnimations()` for the life of the screen (the phone acceptance
+   list wants it empty after 3 s idle). `backwards` keeps only the "from"
+   frame while it waits to start. */
+.needt-v3 .ptk-swap {
+  animation-fill-mode: backwards;
+}
