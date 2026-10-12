@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useRouter } from "next/navigation";
-
 import {
   LuArrowDown,
   LuArrowUp,
@@ -12,11 +10,7 @@ import {
   LuPlus,
 } from "react-icons/lu";
 
-import {
-  useBoards,
-  useCreateBoard,
-  useTrashBoard,
-} from "@/lib/needt3/hooks/boards";
+import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -39,6 +33,7 @@ import {
   pickBoardSort,
   sortBoards,
 } from "./derive";
+import type { BoardsController } from "./useBoardsController";
 
 const mb = strings["places.jsx"].MoodboardsScreen;
 const SORT_KEY = "needt.mbSort";
@@ -60,6 +55,14 @@ const writeSort = (sort: BoardSort) => {
 
 const upgrade = () => window.location.assign("/settings#billing");
 
+/** The desktop's notice when a new board is refused by the Free allowance. */
+export function notifyBoardsBlocked() {
+  notify.info(
+    `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}. Upgrade to Pro for more.`,
+    { action: { label: "See plans", onClick: upgrade } }
+  );
+}
+
 /**
  * Moodboards (places.jsx `MoodboardsScreen`): a grid of boards, not a canvas.
  * Create, sort, open and delete (to Trash, with Undo).
@@ -70,12 +73,9 @@ const upgrade = () => window.location.assign("/settings#billing");
  * at `/moodboards/[id]`. Both come with an items route.
  * //todo: members avatars / "Private" lock on the card need the members list.
  */
-export function MoodboardsScreen() {
-  const router = useRouter();
+export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
   const boards = useBoards();
   const plan = usePlan();
-  const create = useCreateBoard();
-  const trash = useTrashBoard();
   const [sort, setSortState] = useState<BoardSort>(DEFAULT_BOARD_SORT);
   useEffect(() => setSortState(readSort()), []);
 
@@ -93,32 +93,15 @@ export function MoodboardsScreen() {
       return next;
     });
 
-  const open = (id: string) => router.push(`/moodboards/${id}`);
+  const open = ctl.open;
 
-  const newBoard = async () => {
-    if (gate.atLimit) {
-      notify.info(
-        `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}. Upgrade to Pro for more.`,
-        { action: { label: "See plans", onClick: upgrade } }
-      );
-      return;
-    }
-    const made = await create.mutateAsync({
-      draft: { title: mb.untitled_moodboard },
-    });
-    if (!made.result) return;
-    notify.success(mb.moodboard_created, {
-      action: { label: "Undo", onClick: () => void made.undo() },
-    });
-    open(made.result.id);
-  };
+  // Create, the notice with Undo and opening the board are the controller's:
+  // they are not left to a screen that may unmount mid-write.
+  const newBoard = () =>
+    ctl.make(mb.untitled_moodboard, () => mb.moodboard_created);
 
-  const remove = async (b: V3Board) => {
-    const gone = await trash.mutateAsync({ id: b.id, trashed: true });
-    notify.success(`“${b.title || mb.untitled_moodboard}” moved to Trash`, {
-      action: { label: "Undo", onClick: () => void gone.undo() },
-    });
-  };
+  const remove = (b: V3Board) =>
+    ctl.remove({ id: b.id, title: b.title || mb.untitled_moodboard });
 
   // Right-click on a card: Open, Delete board.
   useEffect(

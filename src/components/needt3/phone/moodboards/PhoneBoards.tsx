@@ -10,6 +10,7 @@ import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Board } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import type { BoardsController } from "../../places/useBoardsController";
 import {
   PkActions,
   type PkActs,
@@ -18,17 +19,18 @@ import {
   PkHold,
   PkScreen,
 } from "../kit";
+import { usePhoneOverlays } from "../overlays/store";
 import { PlaceState } from "../place-state/PlaceState";
 import { NameSheet } from "./NameSheet";
 import { BoardCover } from "./Wall";
 import {
+  BOARDS_PAYWALL_FEATURE,
   UNTITLED_BOARD,
   boardCountLine,
   boardMeta,
   boardQuota,
   searchBoards,
 } from "./model";
-import type { PhoneBoardsController } from "./usePhoneBoards";
 
 const t = strings["phone-habits.jsx"];
 
@@ -77,16 +79,17 @@ function BoardCard({
  * opens at `/moodboards/[id]` (PhoneBoardPage).
  *
  * Free keeps FREE_BOARDS: the count is in the header and a new board past it
- * opens the paywall sheet. State is the controller's (`usePhoneBoards`).
+ * opens the paywall sheet. State is the controller's (`useBoardsController`).
  *
  * //todo: "Shared with you", the owner's name, member faces and "Leave board"
  * need the board's members and the caller's role: the list route sends
  * neither, and invite-by-email is MISSING (data map §7).
  */
-export function PhoneBoards({ ctl }: { ctl: PhoneBoardsController }) {
+export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
   const boards = useBoards();
   const plan = usePlan();
   const tz = useTimeZone();
+  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const [acts, setActs] = useState<PkActs | null>(null);
 
   const live = (boards.data ?? []).filter((b) => !b.trashedAt);
@@ -157,10 +160,10 @@ export function PhoneBoards({ ctl }: { ctl: PhoneBoardsController }) {
                       {" · "}
                       <PkButton
                         kind="inline"
-                        onClick={ctl.openUpgrade}
+                        onClick={() => openPaywall(BOARDS_PAYWALL_FEATURE)}
                         data-phb-upgrade
                       >
-                        Upgrade for more
+                        {strings["paywall.jsx"].ProLimit.upgrade_for_more}
                       </PkButton>
                     </>
                   ) : null}

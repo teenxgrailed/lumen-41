@@ -57,12 +57,17 @@ jest.mock("@/lib/needt3/hooks/settings", () => ({
 jest.mock("../../overlays/snack", () => ({
   snack: (...a: unknown[]) => mockSnack(...a),
 }));
-jest.mock("../../../places/MoodboardsScreen", () => {
-  const { createElement } = jest.requireActual("react");
-  return {
-    MoodboardsScreen: () => createElement("div", { "data-desktop-boards": "" }),
-  };
-});
+const mockInfo = jest.fn();
+jest.mock("@/lib/notifications", () => ({
+  notify: {
+    info: (...a: unknown[]) => mockInfo(...a),
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+// The desktop screen reads the flag from V3Root, which pulls in the whole frame.
+jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => false }));
 
 class RO {
   observe() {}
@@ -101,12 +106,17 @@ const mount = (ui: "phone" | "desktop", el: ReturnType<typeof h>) =>
     )
   );
 const list = (ui: "phone" | "desktop") => mount(ui, h(MoodboardsRoute));
-const page = (ui: "phone" | "desktop", id = "b1") =>
+const page = (
+  ui: "phone" | "desktop",
+  id = "b1",
+  items: readonly unknown[] | null = []
+) =>
   mount(
     ui,
     h(MoodboardRoute, {
       id,
-      desktop: h("div", { "data-desktop-board": "" }),
+      items: items as never,
+      workspace: h("div", { "data-workspace": "" }),
     })
   );
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel);
@@ -151,8 +161,8 @@ beforeEach(() => {
   jest
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => null);
-  [mockCreate, mockUpdate, mockTrash, mockSnack, mockPush].forEach((m) =>
-    m.mockReset()
+  [mockCreate, mockUpdate, mockTrash, mockSnack, mockPush, mockInfo].forEach(
+    (m) => m.mockReset()
   );
   mockBoards = [];
   client = new QueryClient();
@@ -202,10 +212,53 @@ describe("the boards list", () => {
   it("the face is the route's choice and the desktop screen is untouched", () => {
     seed("free");
     list("desktop");
-    expect(q("[data-desktop-boards]")).not.toBeNull();
+    expect(q('[data-v3-screen="moodboards"]')).not.toBeNull();
     list("phone");
-    expect(q("[data-desktop-boards]")).toBeNull();
+    expect(q('[data-v3-screen="moodboards"]')).toBeNull();
     expect(q("[data-phb-newboard]")).not.toBeNull();
+  });
+});
+
+describe("both faces share the controller", () => {
+  it("a create started on the desktop is one create when the phone is drawn", async () => {
+    seed("monthly");
+    let resolve: (v: unknown) => void = () => undefined;
+    mockCreate.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    list("desktop");
+    click(q("[data-page-add]"));
+    expect(mockCreate).toHaveBeenCalledWith({
+      draft: { title: "Untitled moodboard" },
+    });
+    list("phone");
+    click(q("[data-phb-newboard]"));
+    typeInto(doc<HTMLInputElement>("#phb-board-name")!, "Rooms");
+    enter();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve({ result: board("n1", "Untitled"), undo: jest.fn() });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith("/moodboards/n1");
+  });
+
+  it("a refused add goes to the notice on the desktop and the paywall on the phone", () => {
+    mockBoards = [board("b1", "Rooms")];
+    seed("free");
+    list("desktop");
+    click(q("[data-page-add]"));
+    expect(mockInfo).toHaveBeenCalledTimes(1);
+    expect(usePhoneOverlays.getState().paywall).toBe(false);
+    list("phone");
+    click(q("[data-phb-newboard]"));
+    expect(usePhoneOverlays.getState().paywall).toBe("more than 1 moodboard");
+    expect(mockInfo).toHaveBeenCalledTimes(1);
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -271,15 +324,23 @@ describe("one board", () => {
     seed("monthly");
   });
 
-  it("shows the board and says its references cannot be read yet", () => {
+  it("shows the board page once its references are read", () => {
     page("phone");
     expect(q("[data-phb-page]")?.textContent).toContain("Rooms");
-    expect(host.textContent).toContain("References are not available yet");
+    expect(host.textContent).toContain("Nothing on this board yet");
+    expect(q("[data-workspace]")).toBeNull();
+  });
+
+  it("until they can be read, the phone gets the existing workspace", () => {
+    page("phone", "b1", null);
+    expect(q("[data-workspace]")).not.toBeNull();
+    expect(q("[data-phb-page]")).toBeNull();
+    expect(host.textContent).not.toContain("References are not available");
   });
 
   it("other widths keep the existing workspace", () => {
     page("desktop");
-    expect(q("[data-desktop-board]")).not.toBeNull();
+    expect(q("[data-workspace]")).not.toBeNull();
     expect(q("[data-phb-page]")).toBeNull();
   });
 

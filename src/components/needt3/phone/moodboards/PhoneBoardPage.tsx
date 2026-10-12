@@ -8,6 +8,7 @@ import { useBoards } from "@/lib/needt3/hooks/boards";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import type { BoardsController } from "../../places/useBoardsController";
 import {
   PkActions,
   type PkActs,
@@ -21,7 +22,6 @@ import { PlaceState } from "../place-state/PlaceState";
 import { NameSheet } from "./NameSheet";
 import { Wall } from "./Wall";
 import { type PhoneBoardItem, UNTITLED_BOARD, madeLine } from "./model";
-import type { PhoneBoardsController } from "./usePhoneBoards";
 
 const t = strings["phone-habits.jsx"];
 
@@ -39,12 +39,12 @@ const t = strings["phone-habits.jsx"];
 export function PhoneBoardPage({
   ctl,
   id,
-  items = null,
+  items,
 }: {
-  ctl: PhoneBoardsController;
+  ctl: BoardsController;
   id: string;
-  /** The board's references; null = they cannot be read yet (no route). */
-  items?: readonly PhoneBoardItem[] | null;
+  /** The board's references, read from the items route. */
+  items: readonly PhoneBoardItem[];
 }) {
   const boards = useBoards();
   const tz = useTimeZone();
@@ -126,12 +126,6 @@ export function PhoneBoardPage({
                     {t.PhbBoardPage.moodboards}
                   </PkButton>
                 }
-              />
-            ) : items === null ? (
-              <PkEmpty
-                sky={false}
-                title="References are not available yet"
-                line="This board keeps its photos, links, colours and notes, but the phone cannot read them yet."
               />
             ) : items.length ? (
               <Wall items={items} />

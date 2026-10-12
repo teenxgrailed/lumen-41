@@ -11,6 +11,7 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { FREE_HABITS } from "../../../habits/derive";
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { usePhoneOverlays } from "../../overlays/store";
 import { HabitsRoute } from "../HabitsRoute";
@@ -55,12 +56,17 @@ jest.mock("@/lib/needt3/hooks/settings", () => ({
 jest.mock("../../overlays/snack", () => ({
   snack: (...a: unknown[]) => mockSnack(...a),
 }));
-jest.mock("../../../habits/HabitsScreen", () => {
-  const { createElement } = jest.requireActual("react");
-  return {
-    HabitsScreen: () => createElement("div", { "data-desktop-habits": "" }),
-  };
-});
+// The desktop screens read the flag from V3Root, which pulls in the whole frame.
+jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => false }));
+
+const mockInfo = jest.fn();
+jest.mock("@/lib/notifications", () => ({
+  notify: {
+    info: (...a: unknown[]) => mockInfo(...a),
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 class RO {
   observe() {}
@@ -68,6 +74,8 @@ class RO {
   disconnect() {}
 }
 
+const full = () =>
+  Array.from({ length: FREE_HABITS }, (_, i) => habit(`f${i}`, `H${i}`));
 const habit = (id: string, title: string) => ({
   id,
   title,
@@ -123,6 +131,7 @@ beforeEach(() => {
   mockUpdate.mockReset();
   mockArchive.mockReset();
   mockSnack.mockReset();
+  mockInfo.mockReset();
   mockPlanKind = "free";
   mockHabits = [habit("a", "Read"), habit("b", "Run")];
   usePhoneOverlays.setState({ paywall: false });
@@ -142,32 +151,40 @@ afterEach(() => {
 describe("the Free allowance", () => {
   it("shows the count on Free and nothing on Pro", () => {
     render("phone");
-    expect(q("[data-phb-quota]")?.textContent).toMatch(/^2 of 3 habits/);
+    expect(q("[data-phb-quota]")?.textContent).toMatch(
+      new RegExp(`^2 of ${FREE_HABITS} habits`)
+    );
     mockPlanKind = "yearly";
     render("phone");
     expect(q("[data-phb-quota]")).toBeNull();
   });
 
   it("a new habit at the limit opens the paywall, not the sheet", () => {
-    mockHabits = [habit("a", "A"), habit("b", "B"), habit("c", "C")];
+    mockHabits = full();
     render("phone");
-    expect(q("[data-phb-quota]")?.textContent).toMatch(/^3 of 3 habits/);
+    expect(q("[data-phb-quota]")?.textContent).toMatch(
+      new RegExp(`^${FREE_HABITS} of ${FREE_HABITS} habits`)
+    );
     click(q("[data-phb-new]"));
-    expect(usePhoneOverlays.getState().paywall).toBe("more than 3 habits");
+    expect(usePhoneOverlays.getState().paywall).toBe(
+      `more than ${FREE_HABITS} habits`
+    );
     expect(doc("#phb-name")).toBeNull();
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("the Upgrade link at the limit opens the paywall", () => {
-    mockHabits = [habit("a", "A"), habit("b", "B"), habit("c", "C")];
+    mockHabits = full();
     render("phone");
     click(q("[data-phb-upgrade]"));
-    expect(usePhoneOverlays.getState().paywall).toBe("more than 3 habits");
+    expect(usePhoneOverlays.getState().paywall).toBe(
+      `more than ${FREE_HABITS} habits`
+    );
   });
 
   it("while the plan is unknown nothing is blocked", () => {
     mockPlanKind = undefined;
-    mockHabits = [habit("a", "A"), habit("b", "B"), habit("c", "C")];
+    mockHabits = full();
     render("phone");
     click(q("[data-phb-new]"));
     expect(usePhoneOverlays.getState().paywall).toBe(false);
@@ -188,10 +205,10 @@ describe("one state across the face swap", () => {
 
   it("the face is the route's choice and the desktop face is untouched", () => {
     render("desktop");
-    expect(q("[data-desktop-habits]")).not.toBeNull();
+    expect(q('[data-v3-screen="habits"]')).not.toBeNull();
     expect(q("[data-phb-new]")).toBeNull();
     render("phone");
-    expect(q("[data-desktop-habits]")).toBeNull();
+    expect(q('[data-v3-screen="habits"]')).toBeNull();
     expect(q("[data-phb-new]")).not.toBeNull();
   });
 
@@ -203,6 +220,79 @@ describe("one state across the face swap", () => {
     expect(doc("#phb-name")).toBeNull();
     render("phone");
     expect(doc<HTMLInputElement>("#phb-name")?.value).toBe("Stretch");
+  });
+});
+
+describe("both faces share the controller", () => {
+  const desktopInput = () => doc<HTMLInputElement>('input[name="habit-name"]');
+
+  it("a draft started on the desktop survives the swap, and Create writes once", async () => {
+    mockCreate.mockResolvedValue({
+      result: habit("n", "Stretch"),
+      undo: jest.fn(),
+    });
+    render("desktop");
+    click(q("[data-page-add]"));
+    typeInto(desktopInput()!, "Stretch");
+    render("phone");
+    expect(doc<HTMLInputElement>("#phb-name")?.value).toBe("Stretch");
+    click(doc("[data-phb-create]"));
+    await flush();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    render("desktop");
+    await flush();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(desktopInput()).toBeNull();
+  });
+
+  it("a draft started on the phone survives the swap to the desktop sheet", async () => {
+    mockCreate.mockResolvedValue({
+      result: habit("n", "Stretch"),
+      undo: jest.fn(),
+    });
+    render("phone");
+    click(q("[data-phb-new]"));
+    typeInto(doc<HTMLInputElement>("#phb-name")!, "Stretch");
+    render("desktop");
+    expect(desktopInput()?.value).toBe("Stretch");
+    click(doc(".pl-habit-save"));
+    await flush();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a save running on one face cannot be repeated from the other", async () => {
+    let resolve: (v: unknown) => void = () => undefined;
+    mockCreate.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    render("desktop");
+    click(q("[data-page-add]"));
+    typeInto(desktopInput()!, "Stretch");
+    click(doc(".pl-habit-save"));
+    render("phone");
+    click(doc("[data-phb-create]"));
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve({ result: habit("n", "Stretch"), undo: jest.fn() });
+      await Promise.resolve();
+    });
+    await flush();
+  });
+
+  it("a refused add goes to the notice on the desktop and the paywall on the phone", () => {
+    mockHabits = full();
+    render("desktop");
+    click(q("[data-page-add]"));
+    expect(mockInfo).toHaveBeenCalledTimes(1);
+    expect(usePhoneOverlays.getState().paywall).toBe(false);
+    render("phone");
+    click(q("[data-phb-new]"));
+    expect(usePhoneOverlays.getState().paywall).toBe(
+      `more than ${FREE_HABITS} habits`
+    );
+    expect(mockInfo).toHaveBeenCalledTimes(1);
   });
 });
 

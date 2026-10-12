@@ -1,21 +1,32 @@
 "use client";
 
-import { HabitsScreen } from "../../habits/HabitsScreen";
+import {
+  HabitsScreen,
+  archivedNotice,
+  notifyHabitsBlocked,
+} from "../../habits/HabitsScreen";
+import { useHabitsController } from "../../habits/useHabitsController";
 import { usePhoneUi } from "../../root/phone-ui-context";
+import { usePhoneOverlays } from "../overlays/store";
 import { PhoneHabits } from "./PhoneHabits";
-import { usePhoneHabits } from "./usePhoneHabits";
+import { HABITS_PAYWALL_FEATURE } from "./model";
 
 /**
  * The Habits route's body: the phone face under 700 px, the desktop screen
- * above. The phone controller is called here, above the face switch, so the
- * new / edit sheet, its draft and a running save belong to the route and not
- * to the face (crossing 700 px keeps the draft; a write is never repeated).
- * Its queries share keys with the desktop face, so calling it on a wide
- * screen fetches nothing extra. The desktop screen is not touched: it keeps
- * its own sheet state, and its writes go through the same mutation hooks.
+ * above. The controller is called here, above the face switch, and handed to
+ * BOTH faces, so the new / edit sheet, its draft, "show all" and a running
+ * save belong to the route: crossing 700 px keeps the draft and a write is
+ * made once. The only thing that differs by face is where a refused add
+ * goes: the phone's paywall sheet, the desktop's notice.
  */
 export function HabitsRoute() {
   const ui = usePhoneUi();
-  const ctl = usePhoneHabits();
-  return ui === "phone" ? <PhoneHabits ctl={ctl} /> : <HabitsScreen />;
+  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
+  const phone = ui === "phone";
+  const ctl = useHabitsController({
+    onBlocked: () =>
+      phone ? openPaywall(HABITS_PAYWALL_FEATURE) : notifyHabitsBlocked(),
+    ...(phone ? {} : { archivedMessage: archivedNotice }),
+  });
+  return phone ? <PhoneHabits ctl={ctl} /> : <HabitsScreen ctl={ctl} />;
 }

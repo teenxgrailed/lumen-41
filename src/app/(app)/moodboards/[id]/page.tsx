@@ -12,6 +12,7 @@ export default async function MoodboardPage({
   const workspace = <MoodboardWorkspace moodboardId={id} />;
   /* Flag on: the phone gets its own board page, every other width keeps the
      workspace. Flag off: exactly the workspace, as before. */
-  if (await isDesignV3()) return <MoodboardRoute id={id} desktop={workspace} />;
+  if (await isDesignV3())
+    return <MoodboardRoute id={id} workspace={workspace} />;
   return workspace;
 }

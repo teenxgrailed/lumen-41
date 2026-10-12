@@ -2,38 +2,65 @@
 
 import type { ReactNode } from "react";
 
-import { MoodboardsScreen } from "../../places/MoodboardsScreen";
+import {
+  MoodboardsScreen,
+  notifyBoardsBlocked,
+} from "../../places/MoodboardsScreen";
+import { useBoardsController } from "../../places/useBoardsController";
 import { usePhoneUi } from "../../root/phone-ui-context";
+import { usePhoneOverlays } from "../overlays/store";
 import { PhoneBoardPage } from "./PhoneBoardPage";
 import { PhoneBoards } from "./PhoneBoards";
-import { usePhoneBoards } from "./usePhoneBoards";
+import { BOARDS_PAYWALL_FEATURE, type PhoneBoardItem } from "./model";
+
+function useBlocked() {
+  const phone = usePhoneUi() === "phone";
+  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
+  return () =>
+    phone ? openPaywall(BOARDS_PAYWALL_FEATURE) : notifyBoardsBlocked();
+}
 
 /**
  * `/moodboards`: the phone grid under 700 px, the desktop screen above. The
  * controller (naming sheet, its draft, the in-flight create) is called here,
- * above the face switch, so crossing 700 px neither loses the draft nor
- * repeats a create. The desktop screen is not touched.
+ * above the face switch, and handed to BOTH faces, so crossing 700 px
+ * neither loses the draft nor repeats a create.
  */
 export function MoodboardsRoute() {
   const ui = usePhoneUi();
-  const ctl = usePhoneBoards();
-  return ui === "phone" ? <PhoneBoards ctl={ctl} /> : <MoodboardsScreen />;
+  const onBlocked = useBlocked();
+  const ctl = useBoardsController({ onBlocked });
+  return ui === "phone" ? (
+    <PhoneBoards ctl={ctl} />
+  ) : (
+    <MoodboardsScreen ctl={ctl} />
+  );
 }
 
 /**
- * `/moodboards/[id]`: the phone board page under 700 px; above it, `desktop`
- * (the existing board workspace, passed in by the server page so it renders
- * exactly as before). The controller owns no query, so on a wide screen this
- * costs nothing but its own (empty) state.
+ * `/moodboards/[id]`: the existing board workspace (`workspace`, passed in by
+ * the server page) at every width, until a board's references can be read.
+ * The phone board page replaces it on the phone ONLY when `items` is non-null.
+ *
+ * //todo: the board items API (PR #127) lands the read; then the page passes
+ * `useBoardItems(id).data` as `items` and phones get PhoneBoardPage. Until
+ * then `items` is always null and nothing changes for phones.
  */
 export function MoodboardRoute({
   id,
-  desktop,
+  workspace,
+  items = null,
 }: {
   id: string;
-  desktop: ReactNode;
+  workspace: ReactNode;
+  items?: readonly PhoneBoardItem[] | null;
 }) {
   const ui = usePhoneUi();
-  const ctl = usePhoneBoards();
-  return ui === "phone" ? <PhoneBoardPage ctl={ctl} id={id} /> : desktop;
+  const onBlocked = useBlocked();
+  const ctl = useBoardsController({ onBlocked });
+  return ui === "phone" && items !== null ? (
+    <PhoneBoardPage ctl={ctl} id={id} items={items} />
+  ) : (
+    workspace
+  );
 }

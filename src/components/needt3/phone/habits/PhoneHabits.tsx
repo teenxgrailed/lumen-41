@@ -16,6 +16,7 @@ import type { V3Habit, V3Project } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { PER_WEEK_CHOICES, timeLeft } from "../../habits/derive";
+import type { HabitsController } from "../../habits/useHabitsController";
 import {
   PkActions,
   type PkActs,
@@ -32,8 +33,10 @@ import {
   pkCx,
   pkReduced,
 } from "../kit";
+import { usePhoneOverlays } from "../overlays/store";
 import { PlaceState } from "../place-state/PlaceState";
 import {
+  HABITS_PAYWALL_FEATURE,
   type HabitForm,
   checkHabitForm,
   clockFacts,
@@ -44,7 +47,6 @@ import {
   streakFigure,
   streakLabel,
 } from "./model";
-import type { PhoneHabitsController } from "./usePhoneHabits";
 
 const t = strings["phone-habits.jsx"];
 
@@ -376,14 +378,15 @@ function HabitSheet({
  *
  * Free keeps FREE_HABITS: the count sits in the header and a new habit past
  * it opens the paywall sheet. State is the controller's
- * (`usePhoneHabits`, held above the face switch).
+ * (`useHabitsController`, held above the face switch).
  *
  * //todo: hold-to-reorder and Move up / Down: habits have no order column or
  * route. //todo: "The last months": the API returns only the 14-day strip.
  * //todo: tick a past day: only /completions/today exists (data map §6).
  */
-export function PhoneHabits({ ctl }: { ctl: PhoneHabitsController }) {
+export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
   const sc = useRef<HTMLElement | null>(null);
+  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const [acts, setActs] = useState<PkActs | null>(null);
   const { list, shown, checkins, projects, today, quota, kept } = ctl;
 
@@ -479,10 +482,10 @@ export function PhoneHabits({ ctl }: { ctl: PhoneHabitsController }) {
                 {" · "}
                 <PkButton
                   kind="inline"
-                  onClick={ctl.openUpgrade}
+                  onClick={() => openPaywall(HABITS_PAYWALL_FEATURE)}
                   data-phb-upgrade
                 >
-                  Upgrade for more
+                  {strings["paywall.jsx"].ProLimit.upgrade_for_more}
                 </PkButton>
               </>
             ) : null}

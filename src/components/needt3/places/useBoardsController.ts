@@ -15,40 +15,47 @@ import type { V3Plan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
-import { snack } from "../overlays/snack";
-import { usePhoneOverlays } from "../overlays/store";
 import {
-  BOARDS_PAYWALL_FEATURE,
   type NameAsk,
   UNTITLED_BOARD,
   boardQuota,
   nameOk,
   renameChanges,
-} from "./model";
+} from "../phone/moodboards/model";
+import { snack } from "../phone/overlays/snack";
 
 /** The place's list route; a board is one level under it. */
 export const BOARDS_PATH = "/moodboards";
 
+export interface BoardsControllerOptions {
+  /**
+   * A new board was refused by the Free allowance. The phone opens the
+   * paywall sheet; the desktop shows its notice. The route knows which face
+   * is drawn, so it passes this (read at the moment of the tap).
+   */
+  onBlocked: () => void;
+}
+
 /**
- * What the phone Moodboards screens hold, called ONCE by each route component
- * above the phone / desktop face switch (round-2 rule: two faces, one
- * state). The naming sheet and what is typed into it, and the in-flight
- * create / rename / delete live here, so crossing 700 px keeps the draft and
- * a board is never created twice by a swap. It owns no query: the Free
- * allowance is read from the cache at the moment of the tap (`quota()`), so
- * calling it on a wide screen (the board route's desktop face is the old
- * workspace) fetches nothing extra. The faces read the data themselves.
+ * What the Moodboards screens hold, called ONCE by the route component above
+ * the phone / desktop face switch and handed to BOTH faces (round-2 rule: two
+ * faces, one state). The naming sheet and what is typed into it, and the
+ * in-flight create / rename / delete live here, so crossing 700 px keeps the
+ * draft and a board is never created twice by a swap. It owns no query: the
+ * Free allowance is read from the cache at the moment of the tap
+ * (`quota()`), so the faces read the data themselves.
  *
  * A board's references have no API route yet (data map §7: `MoodboardItem`
  * items CRUD is MISSING), so add / remove / move / reorder are not here.
  */
-export function usePhoneBoards() {
+export function useBoardsController(opts: BoardsControllerOptions) {
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
   const router = useRouter();
   const qc = useQueryClient();
   const create = useCreateBoard();
   const update = useUpdateBoard();
   const trash = useTrashBoard();
-  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
 
   const [ask, setAsk] = useState<NameAsk | null>(null);
   const [saving, setSaving] = useState(false);
@@ -66,7 +73,7 @@ export function usePhoneBoards() {
   /** A new board past the Free allowance goes to the paywall, not the sheet. */
   const blocked = () => {
     if (!quota().atLimit) return false;
-    openPaywall(BOARDS_PAYWALL_FEATURE);
+    optsRef.current.onBlocked();
     return true;
   };
 
@@ -83,7 +90,10 @@ export function usePhoneBoards() {
   const setValue = (value: string) => setAsk((a) => (a ? { ...a, value } : a));
 
   /** Make a board and open it. The title comes from the sheet or the pull-down. */
-  const make = async (title: string) => {
+  const make = async (
+    title: string,
+    madeMessage?: (name: string) => string
+  ) => {
     if (busy.current || blocked()) return false;
     busy.current = true;
     setSaving(true);
@@ -91,7 +101,10 @@ export function usePhoneBoards() {
     try {
       const made = await create.mutateAsync({ draft: { title: name } });
       if (!made.result) return false;
-      snack(`Board “${name}” made`, made.undo);
+      snack(
+        madeMessage ? madeMessage(name) : `Board “${name}” made`,
+        made.undo
+      );
       setAsk(null);
       open(made.result.id);
       return true;
@@ -160,8 +173,7 @@ export function usePhoneBoards() {
     submit,
     remove,
     quota,
-    openUpgrade: () => openPaywall(BOARDS_PAYWALL_FEATURE),
   };
 }
 
-export type PhoneBoardsController = ReturnType<typeof usePhoneBoards>;
+export type BoardsController = ReturnType<typeof useBoardsController>;

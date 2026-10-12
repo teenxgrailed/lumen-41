@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { liveHabits } from "@/lib/needt3/derive";
@@ -17,24 +17,33 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Habit } from "@/lib/needt3/map";
 
-import { capHabits } from "../../habits/derive";
-import { snack } from "../overlays/snack";
-import { usePhoneOverlays } from "../overlays/store";
 import {
   BLANK_HABIT_FORM,
-  HABITS_PAYWALL_FEATURE,
   type HabitForm,
   checkHabitForm,
   formFields,
   formFromHabit,
   habitQuota,
   keptToday,
-} from "./model";
+} from "../phone/habits/model";
+import { snack } from "../phone/overlays/snack";
+import { capHabits } from "./derive";
+
+export interface HabitsControllerOptions {
+  /**
+   * A new habit was refused by the Free allowance. The phone opens the
+   * paywall sheet; the desktop shows its notice. The route knows which face
+   * is drawn, so it passes this (read at the moment of the tap).
+   */
+  onBlocked: () => void;
+  /** The notice after an archive; the faces word it differently. */
+  archivedMessage?: (title: string) => string;
+}
 
 /**
- * Everything the phone Habits screen holds, called ONCE by the route
- * component above the phone / desktop face switch (round-2 rule: two faces,
- * one state). The new / edit sheet, what has been typed into it, the "show
+ * Everything the Habits screen holds, called ONCE by the route component
+ * above the phone / desktop face switch and handed to BOTH faces (round-2
+ * rule: two faces, one state). The new / edit sheet, what has been typed into it, the "show
  * all" fold and the in-flight write live here, so crossing 700 px while the
  * sheet is open keeps the draft, and a save that is running can neither be
  * repeated by the other face nor lost with the face that started it. The
@@ -44,7 +53,9 @@ import {
  * derived from the checkins at render time, and the time-left card reads its
  * own clock.
  */
-export function usePhoneHabits() {
+export function useHabitsController(opts: HabitsControllerOptions) {
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const habits = useHabits();
@@ -55,7 +66,6 @@ export function usePhoneHabits() {
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
   const archiveHabit = useArchiveHabit();
-  const openPaywall = usePhoneOverlays((s) => s.openPaywall);
 
   const [form, setForm] = useState<HabitForm | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,15 +81,13 @@ export function usePhoneHabits() {
   const kept = keptToday(list, checkins, today);
   const { over, shown } = capHabits(list, all);
 
-  const tick = useCallback(
-    (h: V3Habit, done: boolean) => toggleToday.mutate({ id: h.id, done }),
-    [toggleToday]
-  );
+  const tick = (h: V3Habit, done: boolean) =>
+    toggleToday.mutate({ id: h.id, done });
 
   /** A new habit past the Free allowance goes to the paywall, not the sheet. */
   const blocked = () => {
     if (!quota.atLimit) return false;
-    openPaywall(HABITS_PAYWALL_FEATURE);
+    optsRef.current.onBlocked();
     return true;
   };
 
@@ -145,7 +153,9 @@ export function usePhoneHabits() {
       await archiveHabit.mutateAsync({ id: h.id });
       //todo: Undo needs an un-archive write on /api/habits/[id] (the
       // prototype's snack undoes with archivedAt = null).
-      snack(`Archived “${h.title}”`);
+      snack(
+        (optsRef.current.archivedMessage ?? ((t) => `Archived “${t}”`))(h.title)
+      );
     } catch {
       /* the hook told the person */
     }
@@ -175,8 +185,7 @@ export function usePhoneHabits() {
     save,
     create,
     archive,
-    openUpgrade: () => openPaywall(HABITS_PAYWALL_FEATURE),
   };
 }
 
-export type PhoneHabitsController = ReturnType<typeof usePhoneHabits>;
+export type HabitsController = ReturnType<typeof useHabitsController>;
