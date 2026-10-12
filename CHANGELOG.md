@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A brand-new account (credentials or OAuth) goes on to the v3 first-run
   setup; people who already use Needt go straight to the app. A
   `FeatureFlagOverride` set to false still keeps one person on the old design.
+- The pages the reset and confirmation mails open are v3 too, on desktop and
+  phone: "Set a new password" (same server rule and rate limits; a dead link
+  offers a new one) and "Confirm your email" (confirm on a press, then
+  continue to the app; an expired or used link sends a new one).
+  `/auth/reset-password` without a token opens sign-in on "Forgot your
+  password?".
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

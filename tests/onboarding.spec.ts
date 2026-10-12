@@ -228,7 +228,9 @@ test.describe("clean-database first run", () => {
       await page.goto(
         `/auth/confirm-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(rawToken)}`
       );
+      // The v3 page: confirm on a press, then say so and offer the way in.
       await page.getByRole("button", { name: "Confirm email" }).click();
+      await page.getByRole("button", { name: "Continue to Needt" }).click();
       await page.waitForURL(/\/settings\?emailVerification=verified$/, {
         timeout: 30_000,
         waitUntil: "commit",
