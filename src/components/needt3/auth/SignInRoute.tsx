@@ -27,6 +27,8 @@ import {
   type AuthResult,
   AuthScreen,
 } from "./AuthScreen";
+import { fetchPublicSignup, signupFlags } from "./public-signup-state";
+import { useAuthSteps } from "./use-auth-fields";
 
 const LOG_SOURCE = "needt3-signin";
 
@@ -40,30 +42,6 @@ const OAUTH: Readonly<
 };
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-/**
- * Whether public sign-up is open: true / false, or null when the answer could
- * not be had. Unlike the shared `isPublicSignupEnabledClient` (which folds an
- * error into false), an error here stays unknown, so a network blip never
- * tells a stranger that sign-ups are closed.
- */
-async function fetchPublicSignup(): Promise<boolean | null> {
-  try {
-    const response = await fetch("/api/auth/public-signup", {
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as { enabled?: unknown };
-    return typeof data.enabled === "boolean" ? data.enabled : null;
-  } catch (e) {
-    void logger.warn(
-      "Could not read the public sign-up switch",
-      { error: message(e) },
-      LOG_SOURCE
-    );
-    return null;
-  }
-}
 
 export function V3SignInRoute({
   callbackUrl,
@@ -91,6 +69,8 @@ export function V3SignInRoute({
     () => ({ mail, pass, setMail, setPass }),
     [mail, pass]
   );
+  /* ... and so do the flow's steps: recovery open, last refusal, touched. */
+  const steps = useAuthSteps(undefined);
   /* null until /api/auth/public-signup has answered: neither "Create one" nor
      the waitlist line is drawn before then. */
   const [allowSignup, setAllowSignup] = React.useState<boolean | null>(null);
@@ -257,6 +237,7 @@ export function V3SignInRoute({
         onMode={setMode}
         onDone={leave}
         fields={fields}
+        steps={steps}
         onSubmit={submit}
         onRecover={recover}
         providers={configured}
@@ -276,8 +257,7 @@ export function V3SignInRoute({
           );
         }}
         notice={oauthErrorMessage(error) || null}
-        allowSignup={allowSignup === true}
-        signupClosed={allowSignup === false}
+        {...signupFlags(allowSignup)}
         aside={
           <button
             type="button"
