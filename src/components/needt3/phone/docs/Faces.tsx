@@ -4,7 +4,7 @@ import { type ReactNode, useLayoutEffect, useState } from "react";
 
 import { createPortal } from "react-dom";
 
-import { useDoc } from "@/lib/needt3/hooks/docs";
+import { useDoc, usePageEditSync } from "@/lib/needt3/hooks/docs";
 
 import { DocsScreen } from "../../docs/DocsScreen";
 import { useDocsController } from "../../docs/useDocsController";
@@ -54,6 +54,9 @@ export function DocumentFace({
 }) {
   const ui = usePhoneUi();
   const state = screenState(useDoc(pageId));
+  // What the editor writes (title, pin …) follows into the caches on either
+  // face, so it is applied here, above the face switch.
+  usePageEditSync(pageId);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 

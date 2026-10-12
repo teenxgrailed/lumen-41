@@ -728,6 +728,8 @@ export interface ApiPage {
   style?: Record<string, unknown> | null;
   createdAt?: string;
   updatedAt?: string;
+  /** Present on `GET /api/pages/:id`: a database page has no text editor. */
+  database?: { id: string } | null;
 }
 
 export interface V3Doc {
@@ -741,6 +743,8 @@ export interface V3Doc {
   style: Record<string, unknown> | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** A database page: rows, not blocks, so no Insert tab. */
+  isDatabase?: boolean;
 }
 
 export function docFromApi(row: ApiPage): V3Doc {
@@ -755,5 +759,6 @@ export function docFromApi(row: ApiPage): V3Doc {
     style: row.style ?? null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+    ...(row.database ? { isDatabase: true } : null),
   };
 }

@@ -131,7 +131,12 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
-import { announcePagePatched } from "@/lib/needt3/page-events";
+import {
+  PAGE_PATCHED_EVENT,
+  type PagePatchedDetail,
+  announcePagePatched,
+  docFieldsOf,
+} from "@/lib/needt3/page-events";
 import { notify } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { randomId } from "@/lib/uuid";
@@ -467,7 +472,15 @@ export function PageWorkspace({
   const headSlots = useDocHeadSlots();
   const v3Layer = useV3PortalContainer();
   const inChrome = Boolean(headSlots.status && headSlots.more);
+  // Inside the v3 frame (desktop chrome, Focus Mode, phone reader). The old
+  // shell has no portal layer, so everything gated on this is absent there.
+  const inV3 = Boolean(v3Layer);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  // What the server holds for the fields the v3 chrome follows (so a failed
+  // write can put the chrome back), and a title typed in the v3 frame whose
+  // write (on blur) has not been sent yet.
+  const savedRef = useRef<ReturnType<typeof docFieldsOf>>({});
+  const dirtyTitleRef = useRef<string | null>(null);
   const autosave = useRef<PageAutosave | null>(null);
   const pageRevisionRef = useRef<number | null>(null);
   const hydrated = useRef(false);
@@ -949,6 +962,10 @@ export function PageWorkspace({
       if (cancelled) return;
       pageRevisionRef.current = loaded.contentRevision;
       setPage(loaded);
+      savedRef.current = docFieldsOf(
+        loaded as unknown as Record<string, unknown>
+      );
+      dirtyTitleRef.current = null;
       const draftKey = pageCollaborationDraftKey(pageId);
       const legacyDraftKey = legacyPageCollaborationDraftKey(pageId);
       const currentDraft = localStorage.getItem(draftKey);
@@ -1113,14 +1130,32 @@ export function PageWorkspace({
     setPage((current) =>
       current ? ({ ...current, ...values } as PageDetail) : current
     );
-    announcePagePatched({ pageId, values });
-    const response = await fetch(`/api/pages/${pageId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    if (!response.ok) {
+    if (inV3) {
+      announcePagePatched({ pageId, values });
+      if ("title" in values) dirtyTitleRef.current = null;
+    }
+    let response: Response | null = null;
+    try {
+      response = await fetch(`/api/pages/${pageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+    } catch (error) {
+      if (!inV3) throw error;
+    }
+    if (!response?.ok) {
       notify.error("Could not update page");
+      // The chrome followed the write: put it back to what the server holds.
+      if (inV3) {
+        const saved = savedRef.current as Record<string, unknown>;
+        const back = Object.fromEntries(
+          Object.keys(docFieldsOf(values)).map((key) => [key, saved[key]])
+        );
+        announcePagePatched({ pageId, values: back });
+      }
+    } else if (inV3) {
+      savedRef.current = { ...savedRef.current, ...docFieldsOf(values) };
     }
     window.dispatchEvent(new Event("pages-changed"));
   };
@@ -1745,9 +1780,14 @@ export function PageWorkspace({
   }, [inChrome, pageTitle, hasPage]);
 
   // A block picked in the v3 inspector's Insert tab (see `page-commands`).
+  // A database page has no text editor to put it in.
+  const isDatabase = Boolean(page?.database);
   const commandRef = useRef(applyCommand);
-  commandRef.current = applyCommand;
   useEffect(() => {
+    commandRef.current = applyCommand;
+  });
+  useEffect(() => {
+    if (!inV3 || isDatabase) return undefined;
     const on = (event: Event) => {
       const detail = (
         event as CustomEvent<{ pageId?: string; command?: string }>
@@ -1759,12 +1799,15 @@ export function PageWorkspace({
     };
     window.addEventListener(PAGE_COMMAND_EVENT, on);
     return () => window.removeEventListener(PAGE_COMMAND_EVENT, on);
-  }, [canEdit, editor, pageId]);
+  }, [canEdit, editor, inV3, isDatabase, pageId]);
 
   // A tool of "Page options" opened from outside (the v3 Info tab's Versions).
   const toolRef = useRef(openTool);
-  toolRef.current = openTool;
   useEffect(() => {
+    toolRef.current = openTool;
+  });
+  useEffect(() => {
+    if (!inV3 || isDatabase) return undefined;
     const on = (event: Event) => {
       const detail = (event as CustomEvent<{ pageId?: string; tool?: string }>)
         .detail;
@@ -1773,7 +1816,57 @@ export function PageWorkspace({
     };
     window.addEventListener(PAGE_TOOL_EVENT, on);
     return () => window.removeEventListener(PAGE_TOOL_EVENT, on);
-  }, [pageId]);
+  }, [inV3, isDatabase, pageId]);
+
+  // The v3 chrome (the Info tab's Pin) changes a field the editor also holds:
+  // take it, so the star in "Page options" agrees. The editor's own
+  // announcements (`from: "editor"`) are not echoed back.
+  useEffect(() => {
+    if (!inV3) return undefined;
+    const on = (event: Event) => {
+      const detail = (event as CustomEvent<PagePatchedDetail>).detail;
+      if (!detail || detail.pageId !== pageId || detail.from !== "chrome")
+        return;
+      const fields = docFieldsOf(detail.values);
+      savedRef.current = { ...savedRef.current, ...fields };
+      setPage((current) =>
+        current ? ({ ...current, ...fields } as PageDetail) : current
+      );
+    };
+    window.addEventListener(PAGE_PATCHED_EVENT, on);
+    return () => window.removeEventListener(PAGE_PATCHED_EVENT, on);
+  }, [inV3, pageId]);
+
+  // A title typed in the v3 frame is written on blur. Leaving the page, or
+  // the chrome swapping its title field (700px, Focus Mode), fires no blur:
+  // send what was typed.
+  const flushRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    flushRef.current = () => {
+      const title = dirtyTitleRef.current;
+      if (title === null || !canEdit) return;
+      dirtyTitleRef.current = null;
+      void fetch(`/api/pages/${pageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+        keepalive: true,
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Title not saved");
+          savedRef.current = { ...savedRef.current, title };
+        })
+        .catch(() => {
+          notify.error("Could not update page");
+          announcePagePatched({
+            pageId,
+            values: { title: savedRef.current.title },
+          });
+        })
+        .finally(() => window.dispatchEvent(new Event("pages-changed")));
+    };
+  });
+  useEffect(() => () => flushRef.current(), [inChrome, pageId]);
 
   if (!page) {
     return (
@@ -1810,7 +1903,7 @@ export function PageWorkspace({
         aria-live="polite"
       >
         <span
-          data-collab={collaborationStatus}
+          data-collab={inV3 ? collaborationStatus : undefined}
           className={cn(
             "h-1.5 w-1.5 rounded-full",
             collaborationStatus === "connected"
@@ -2284,12 +2377,18 @@ export function PageWorkspace({
             onChange={(event) => {
               const title = event.target.value.replace(/[\r\n]+/g, " ");
               setPage({ ...page, title });
+              dirtyTitleRef.current = title;
               announcePagePatched({ pageId, values: { title } });
             }}
             onBlur={() => void patchPage({ title: page.title })}
             onKeyDown={(event) => {
               // Enter ends the title and goes to the first line of the page.
-              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+              // 229 is Safari's Enter that confirms an IME composition.
+              if (
+                event.key === "Enter" &&
+                !event.nativeEvent.isComposing &&
+                event.keyCode !== 229
+              ) {
                 event.preventDefault();
                 editor?.commands.focus("start");
               }
@@ -2299,22 +2398,33 @@ export function PageWorkspace({
           />
         ) : (
           <input
-            data-page-title=""
+            data-page-title={inV3 ? "" : undefined}
             value={page.title}
             readOnly={!canEdit}
-            onChange={(event) =>
-              setPage({ ...page, title: event.target.value })
-            }
+            onChange={(event) => {
+              setPage({ ...page, title: event.target.value });
+              if (inV3) {
+                dirtyTitleRef.current = event.target.value;
+                announcePagePatched({
+                  pageId,
+                  values: { title: event.target.value },
+                });
+              }
+            }}
             onBlur={() => void patchPage({ title: page.title })}
             className="mb-3 w-full border-0 bg-transparent p-0 text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.045em] outline-none ring-0 placeholder:text-[var(--text-disabled)] focus:ring-0 sm:text-5xl"
             placeholder="Untitled"
           />
         )}
         <div
-          data-page-meta=""
+          data-page-meta={inV3 ? "" : undefined}
           className="mb-12 flex items-center gap-2 text-[11px] text-[var(--text-muted)]"
         >
-          <span data-page-edited="">{pageEditedLabel(page.updatedAt)}</span>
+          {inV3 ? (
+            <span data-page-edited="">{pageEditedLabel(page.updatedAt)}</span>
+          ) : (
+            pageEditedLabel(page.updatedAt)
+          )}
           {page.blocks.some((block) => block.createdBy === "AI") && (
             <span className="ml-2 flex items-center gap-1">
               <Sparkles className="h-3 w-3" /> Written with AI
@@ -2464,7 +2574,9 @@ export function PageWorkspace({
                       role="menuitem"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyCommand(command.id)}
-                      data-active={index === slashIndex ? "" : undefined}
+                      data-active={
+                        inV3 && index === slashIndex ? "" : undefined
+                      }
                       className={cn(
                         "flex min-h-11 w-full items-center gap-3 rounded-[var(--control-radius)] px-2.5 py-2 text-left hover:bg-[var(--menu-item-hover)] sm:min-h-0",
                         index === slashIndex && "bg-[var(--menu-item-hover)]"

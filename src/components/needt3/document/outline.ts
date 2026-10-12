@@ -79,14 +79,8 @@ export function findRanges(
   const out: Range[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const text = cased
-      ? (n.nodeValue ?? "")
-      : (n.nodeValue ?? "").toLowerCase();
-    for (
-      let at = text.indexOf(needle);
-      at >= 0;
-      at = text.indexOf(needle, at + needle.length)
-    ) {
+    const original = n.nodeValue ?? "";
+    for (const at of occurrences(original, needle, cased)) {
       const r = document.createRange();
       r.setStart(n, at);
       r.setEnd(n, at + needle.length);
@@ -112,4 +106,32 @@ export function statsOf(editor: HTMLElement | null): PageStats {
     characters: text.replace(/[\r\n]/g, "").length,
     blocks: editor.children.length,
   };
+}
+
+/**
+ * Offsets in `text` where `needle` (already lower-cased unless `cased`) starts.
+ * Lower-casing can change a string's length ("İ" becomes two code units), and
+ * the offsets must be the original node's, so a text whose lower-case form is
+ * a different length is compared one window at a time instead.
+ */
+export function occurrences(text: string, needle: string, cased: boolean) {
+  const out: number[] = [];
+  if (!needle) return out;
+  const hay = cased ? text : text.toLowerCase();
+  if (hay.length === text.length) {
+    for (
+      let at = hay.indexOf(needle);
+      at >= 0;
+      at = hay.indexOf(needle, at + needle.length)
+    )
+      out.push(at);
+    return out;
+  }
+  for (let at = 0; at + needle.length <= text.length; ) {
+    if (text.slice(at, at + needle.length).toLowerCase() === needle) {
+      out.push(at);
+      at += needle.length;
+    } else at += 1;
+  }
+  return out;
 }

@@ -9,6 +9,12 @@ export const PAGE_PATCHED_EVENT = "needt:page-patched";
 export interface PagePatchedDetail {
   pageId: string;
   values: Record<string, unknown>;
+  /**
+   * Who wrote: the editor (default) tells the chrome's caches; the chrome
+   * (the Info tab's Pin) tells the editor, whose own copy of the field would
+   * otherwise stay behind.
+   */
+  from?: "editor" | "chrome";
 }
 
 export function announcePagePatched(detail: PagePatchedDetail) {

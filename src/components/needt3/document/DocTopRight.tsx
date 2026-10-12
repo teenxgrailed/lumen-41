@@ -15,6 +15,12 @@ import { useDocPanel } from "./panel";
 
 const copy = docsCopy;
 
+// Stable callbacks: an inline ref would be called with null and then the
+// element again on every render, which empties the slots (and closes the
+// editor's Page options menu) each time this re-renders.
+const setStatusSlot = (el: HTMLElement | null) => setDocHeadSlot("status", el);
+const setMoreSlot = (el: HTMLElement | null) => setDocHeadSlot("more", el);
+
 /**
  * The top bar's right side while a document is open (prototype `DocTopRight`):
  * who you are, Insert (opens the inspector on its Insert tab, or closes it
@@ -22,7 +28,7 @@ const copy = docsCopy;
  * "Page options" menu are drawn into the two slots at either end (see
  * `pages/doc-head-slot`).
  */
-export function DocTopRight() {
+export function DocTopRight({ isDatabase = false }: { isDatabase?: boolean }) {
   const session = useSession();
   const [panelOpen, setPanelOpen] = useDocPanel();
   const tab = useNeedt3Ui((s) => s.docTab);
@@ -34,34 +40,33 @@ export function DocTopRight() {
   const insertOn = panelOpen && tab === "insert";
   return (
     <>
-      <span
-        ref={(el) => setDocHeadSlot("status", el)}
-        className="base-row doc-head-slot"
-      />
+      <span ref={setStatusSlot} className="base-row doc-head-slot" />
       <Avatar
         initials={initialsOf(name)}
         name={name}
         size={28}
         src={user?.image}
       />
-      <button
-        type="button"
-        className="nx-btn nx-btn-secondary nx-btn-sm"
-        data-doc-insert-btn=""
-        aria-expanded={insertOn}
-        title={copy.DocTopRight.insert_a_block_or_type_on_the_page}
-        onClick={() => {
-          if (insertOn) {
-            setPanelOpen(false);
-            return;
-          }
-          setTab("insert");
-          setPanelOpen(true);
-        }}
-      >
-        <LuPlus size={14} aria-hidden />
-        {copy.DocTopRight.insert}
-      </button>
+      {isDatabase ? null : (
+        <button
+          type="button"
+          className="nx-btn nx-btn-secondary nx-btn-sm"
+          data-doc-insert-btn=""
+          aria-expanded={insertOn}
+          title={copy.DocTopRight.insert_a_block_or_type_on_the_page}
+          onClick={() => {
+            if (insertOn) {
+              setPanelOpen(false);
+              return;
+            }
+            setTab("insert");
+            setPanelOpen(true);
+          }}
+        >
+          <LuPlus size={14} aria-hidden />
+          {copy.DocTopRight.insert}
+        </button>
+      )}
       <button
         type="button"
         className="nx-btn nx-btn-secondary nx-btn-sm"
@@ -73,10 +78,7 @@ export function DocTopRight() {
         <LuUsers size={14} aria-hidden />
         {copy.DocTopRight.share}
       </button>
-      <span
-        ref={(el) => setDocHeadSlot("more", el)}
-        className="base-row doc-head-slot"
-      />
+      <span ref={setMoreSlot} className="base-row doc-head-slot" />
     </>
   );
 }

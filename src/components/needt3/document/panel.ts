@@ -30,3 +30,26 @@ export function useDocPanel(): [boolean, (open: boolean) => void] {
   );
   return [open, set];
 }
+
+/**
+ * ⌘⌥\ / Ctrl+Alt+\ toggles the panel. Matched by the physical key only: on
+ * AltGr layouts (German, Nordic, Polish …) `\` is AltGr + a key, which the
+ * browser reports as Ctrl+Alt with the AltGraph modifier, and that keystroke
+ * is a character the person is typing.
+ */
+export function isPanelShortcut(
+  e: Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "altKey" | "code"> & {
+    getModifierState?: (key: string) => boolean;
+  }
+) {
+  if (e.getModifierState?.("AltGraph")) return false;
+  return (e.metaKey || e.ctrlKey) && e.altKey && e.code === "Backslash";
+}
+
+/**
+ * A database page has rows, not text blocks, so the inspector has no Insert
+ * tab for it; a request for that tab (the top bar's Insert) shows Style.
+ */
+export function inspectorTab<T extends string>(tab: T, isDatabase: boolean) {
+  return isDatabase && tab === "insert" ? "style" : tab;
+}

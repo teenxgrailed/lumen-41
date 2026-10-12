@@ -201,7 +201,7 @@ export function Topbar() {
         />
       </span>
       <span className="base-row shell-tab-bar-row-2">
-        {docId ? <DocTopRight /> : null}
+        {docId ? <DocTopRight isDatabase={!!doc.data?.isDatabase} /> : null}
         {/* //todo: StOfflineIndicator (S4 states) mounts here. */}
         <TopIcons />
         {docId ? <DocPanelToggle /> : null}

@@ -17,14 +17,10 @@ import { runPageTool } from "@/components/pages/page-commands";
 
 import { newDate } from "@/lib/date-utils";
 import { useDocAccess } from "@/lib/needt3/hooks/doc-share";
-import {
-  useDoc,
-  usePageEditSync,
-  useTrashDoc,
-  useUpdateDoc,
-} from "@/lib/needt3/hooks/docs";
+import { useDoc, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
+import { announcePagePatched } from "@/lib/needt3/page-events";
 import { notify } from "@/lib/notifications";
 
 import { type DocTab, useNeedt3Ui } from "@/store/needt3-ui";
@@ -44,7 +40,7 @@ import { InsertPanel } from "./InsertPanel";
 import { ShareSheet } from "./ShareSheet";
 import { StylePanel } from "./StylePanel";
 import { NO_STATS, type PageStats, outlineOf, statsOf } from "./outline";
-import { useDocPanel } from "./panel";
+import { inspectorTab, isPanelShortcut, useDocPanel } from "./panel";
 
 const copy = docsCopy;
 const NARROW = 900;
@@ -52,7 +48,7 @@ const NARROW = 900;
 const num = (n: number) => n.toLocaleString("en-US");
 
 /** Info tab: the page's facts and the actions the chrome owns. */
-function InfoPanel({ doc, stats }: { doc: V3Doc; stats: PageStats }) {
+export function InfoPanel({ doc, stats }: { doc: V3Doc; stats: PageStats }) {
   const c = copy.InfoPanel;
   const router = useRouter();
   const update = useUpdateDoc();
@@ -116,19 +112,31 @@ function InfoPanel({ doc, stats }: { doc: V3Doc; stats: PageStats }) {
         className="nav-row docs-action-line-1 docs-action"
         disabled={!canEdit}
         aria-pressed={doc.isFavorite}
-        onClick={() =>
+        onClick={() => {
+          const next = !doc.isFavorite;
+          // The editor holds its own copy of the pin (its "Page options" star).
+          const tell = (v: boolean) =>
+            announcePagePatched({
+              pageId: doc.id,
+              values: { isFavorite: v },
+              from: "chrome",
+            });
+          tell(next);
           void update
-            .mutateAsync({
-              id: doc.id,
-              patch: { isFavorite: !doc.isFavorite },
-            })
+            .mutateAsync({ id: doc.id, patch: { isFavorite: next } })
             .then(({ undo }) =>
-              notify.success(doc.isFavorite ? "Unpinned" : "Pinned", {
-                action: { label: "Undo", onClick: () => void undo() },
+              notify.success(next ? "Pinned" : "Unpinned", {
+                action: {
+                  label: "Undo",
+                  onClick: () => {
+                    tell(!next);
+                    void undo();
+                  },
+                },
               })
             )
-            .catch(() => undefined)
-        }
+            .catch(() => tell(!next));
+        }}
       >
         <LuStar
           size={15}
@@ -254,7 +262,6 @@ export function DocumentScreen({
   const query = useDoc(pageId);
   const doc = query.data;
   const access = useDocAccess(pageId);
-  usePageEditSync(pageId);
   const read = useDocTokens();
   const s = styleOf(doc);
   const font = fontOf(s.font);
@@ -291,11 +298,7 @@ export function DocumentScreen({
   // ⌘⌥\ toggles the panel (⌘\ alone is the sidebar, the shell's).
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.altKey &&
-        (e.code === "Backslash" || e.key === "\\")
-      ) {
+      if (isPanelShortcut(e)) {
         e.preventDefault();
         setPanelOpen(!panelOpen);
       }
@@ -354,11 +357,14 @@ export function DocumentScreen({
     ...(s.font !== "sans" ? { "--font-sans": font.css } : null),
   } as CSSProperties;
 
+  const isDatabase = !!doc?.isDatabase;
+  const shown: DocTab = inspectorTab(tab, isDatabase);
   const tabs: [DocTab, string][] = [
     ["insert", copy.DocumentScreen.insert],
     ["style", copy.DocumentScreen.style],
     ["info", copy.DocumentScreen.info],
   ];
+  const offered = tabs.filter(([id]) => !(isDatabase && id === "insert"));
   const look = bdOn
     ? (faded ? "faded" : "immersive") + (s.bdBlur ? " blur" : "")
     : undefined;
@@ -437,15 +443,15 @@ export function DocumentScreen({
           >
             <aside className="docs-document-screen-8">
               <div className="docs-dc-seg-1" role="tablist">
-                {tabs.map(([id, label]) => (
+                {offered.map(([id, label]) => (
                   <button
                     key={id}
                     type="button"
                     role="tab"
-                    aria-selected={tab === id}
+                    aria-selected={shown === id}
                     className={
                       "docs-document-screen-9 docs-document-screen-s1" +
-                      (tab === id ? " is-on" : "")
+                      (shown === id ? " is-on" : "")
                     }
                     onClick={() => setTab(id)}
                   >
@@ -457,16 +463,16 @@ export function DocumentScreen({
                   prototype's own block model; the editor has its selection
                   bar and "/" menu, so it is not ported. */}
               <div
-                key={tab}
+                key={shown}
                 className="scroll-inner nx-swap docs-document-screen-10"
               >
                 {doc ? (
-                  tab === "insert" ? (
+                  shown === "insert" ? (
                     <InsertPanel
                       pageId={pageId}
                       canEdit={!!access.data && access.data.myRole !== "VIEWER"}
                     />
-                  ) : tab === "style" ? (
+                  ) : shown === "style" ? (
                     <StylePanel doc={doc} read={read} />
                   ) : (
                     <InfoPanel doc={doc} stats={stats} />

@@ -71,7 +71,7 @@ export function usePageEditSync(id: string | null | undefined) {
     if (!id) return undefined;
     const on = (event: Event) => {
       const detail = (event as CustomEvent<PagePatchedDetail>).detail;
-      if (!detail || detail.pageId !== id) return;
+      if (!detail || detail.pageId !== id || detail.from === "chrome") return;
       const patch = docFieldsOf(detail.values);
       if (!Object.keys(patch).length) return;
       qc.setQueryData<V3Doc>(qk.doc(id), (cur) =>

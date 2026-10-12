@@ -8,6 +8,7 @@
 import {
   EDITOR_SELECTOR,
   findRanges,
+  occurrences,
   outlineOf,
   scrollToOutline,
 } from "../outline";
@@ -87,5 +88,25 @@ describe("findRanges", () => {
     expect(findRanges(ed, "", false)).toEqual([]);
     expect(findRanges(null, "text", false)).toEqual([]);
     expect(findRanges(ed, "absent", false)).toEqual([]);
+  });
+});
+
+describe("Find on text whose lower-case form is longer", () => {
+  // "İ" (U+0130) lower-cases to two code units, so offsets taken from the
+  // lower-cased string point past the real text and Range.setStart throws.
+  it("keeps the offsets of the original text and does not throw", () => {
+    const text = "İstanbul and Istanbul";
+    expect(text.toLowerCase().length).not.toBe(text.length);
+    expect(occurrences(text, "and", false)).toEqual([9]);
+    const ed = page("<p>İİİ and more and</p>");
+    const found = findRanges(ed, "and", false);
+    expect(found.map((r) => r.toString())).toEqual(["and", "and"]);
+    expect(found[0].startOffset).toBe(4);
+  });
+
+  it("matches the same words when the length does not change", () => {
+    expect(occurrences("The the THE", "the", false)).toEqual([0, 4, 8]);
+    expect(occurrences("The the THE", "the", true)).toEqual([4]);
+    expect(occurrences("abc", "", false)).toEqual([]);
   });
 });
