@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { enqueueImportRun } from "@/lib/queue/enqueue";
 
+import { getNotionOAuthConfig } from "./notion/client";
 import { getTodoistOAuthConfig } from "./todoist/client";
 import { type ImportCounts, type ImportWarning, emptyCounts } from "./types";
 
@@ -19,7 +20,7 @@ import { type ImportCounts, type ImportWarning, emptyCounts } from "./types";
 const LOG_SOURCE = "ImportService";
 
 export const IMPORTS_FEATURE_FLAG = "imports";
-export const IMPORT_SOURCES = ["todoist"] as const;
+export const IMPORT_SOURCES = ["todoist", "notion"] as const;
 export type SupportedImportSource = (typeof IMPORT_SOURCES)[number];
 
 /** A run still queued or running after this long is treated as abandoned. */
@@ -30,8 +31,16 @@ export function importsEnabled(userId: string) {
 }
 
 export function importSourceConfigured(source: SupportedImportSource) {
-  return source === "todoist" && getTodoistOAuthConfig() !== null;
+  return source === "notion"
+    ? getNotionOAuthConfig() !== null
+    : getTodoistOAuthConfig() !== null;
 }
+
+/** The name a person knows each source by. */
+export const IMPORT_SOURCE_LABEL: Record<SupportedImportSource, string> = {
+  todoist: "Todoist",
+  notion: "Notion",
+};
 
 /* ---------- OAuth state ---------- */
 
@@ -42,6 +51,7 @@ interface StatePayload {
   n: string; // nonce, also held in an httpOnly cookie
   w: string; // workspace the run lands in
   e: number; // expiry, epoch ms
+  s?: SupportedImportSource; // source; a state without one is Todoist's
 }
 
 function sign(userId: string, payload: string) {
@@ -56,13 +66,18 @@ function sign(userId: string, payload: string) {
  * cannot be replayed into another session) and paired with a nonce cookie
  * (so a link someone else started cannot be completed in this browser).
  */
-export function createImportOAuthState(userId: string, workspaceId: string) {
+export function createImportOAuthState(
+  userId: string,
+  workspaceId: string,
+  source: SupportedImportSource = "todoist"
+) {
   const nonce = crypto.randomBytes(16).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({
       n: nonce,
       w: workspaceId,
       e: newDate().getTime() + IMPORT_STATE_TTL_SECONDS * 1_000,
+      s: source,
     } satisfies StatePayload)
   ).toString("base64url");
   return { state: `${payload}.${sign(userId, payload)}`, nonce };
@@ -71,7 +86,8 @@ export function createImportOAuthState(userId: string, workspaceId: string) {
 export function verifyImportOAuthState(
   state: string | null,
   userId: string,
-  cookieNonce: string | undefined
+  cookieNonce: string | undefined,
+  source: SupportedImportSource = "todoist"
 ): { workspaceId: string } | null {
   if (!state || !cookieNonce) return null;
   const [payload, signature] = state.split(".");
@@ -93,7 +109,8 @@ export function verifyImportOAuthState(
       typeof parsed.w !== "string" ||
       typeof parsed.e !== "number" ||
       parsed.e < newDate().getTime() ||
-      parsed.n !== cookieNonce
+      parsed.n !== cookieNonce ||
+      (parsed.s ?? "todoist") !== source
     ) {
       return null;
     }
@@ -163,12 +180,20 @@ export function findActiveImportRun(userId: string, source: ImportSource) {
   });
 }
 
-export function listImportRuns(userId: string, take = 5) {
-  return prisma.importRun.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take,
-  });
+/** The last `take` runs of each source, newest first. */
+export async function listImportRuns(userId: string, take = 5) {
+  const perSource = await Promise.all(
+    IMPORT_SOURCES.map((source) =>
+      prisma.importRun.findMany({
+        where: { userId, source },
+        orderBy: { createdAt: "desc" },
+        take,
+      })
+    )
+  );
+  return perSource
+    .flat()
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 /** Owner-only read: another user's run is indistinguishable from none. */

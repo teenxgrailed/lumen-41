@@ -3085,6 +3085,7 @@ enum ImportEntityType {
   page
   database
   record
+  asset
 }
 
 /// One import from another tool. The source token lives here only while the

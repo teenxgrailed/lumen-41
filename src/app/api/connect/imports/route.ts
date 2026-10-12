@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     userId: auth.userId,
     workspaceId: auth.workspace.workspaceId,
     body,
-    authorizeUrl: (workspaceId) => {
-      const url = publicAppUrl("/api/imports/todoist/authorize", request);
+    authorizeUrl: (workspaceId, source) => {
+      const url = publicAppUrl(`/api/imports/${source}/authorize`, request);
       url.searchParams.set("workspaceId", workspaceId);
       return url.toString();
     },

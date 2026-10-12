@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Import from Notion (behind the same `imports` feature flag). Settings ->
+  Data -> Import sends you to Notion, where you pick the pages and databases
+  to share in Notion's own page picker; only those are imported, with their
+  tree, text, tables, images and files, and databases with their rows. Links
+  between imported pages keep working, a second run updates only what
+  changed, and pages Notion could only partly return, blocks Needt cannot
+  show and database properties kept as text are listed as notes. Needs
+  `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`; additive migration
+  `20261012120000_import_asset_entity`.
 - Import from Todoist (behind the new `imports` feature flag, off unless a
   flag row turns it on). Settings -> Data -> Import sends you through
   Todoist's read-only consent screen, then a background job brings in
