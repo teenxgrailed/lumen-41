@@ -2,17 +2,20 @@ import type { CatalogEntry, IntegrationRow } from "@/lib/needt3/hooks/catalog";
 import type { V3Connection } from "@/lib/needt3/hooks/connections";
 
 import {
+  CHIP_LABEL,
   type CnItem,
   aiToolsLocked,
   buildItems,
   categoriesOf,
+  chipOf,
+  chipsOf,
   connectPlan,
   counts,
   disconnectKind,
   disconnectTitle,
   filterItems,
+  heroStatus,
   pillOf,
-  statusLine,
 } from "../derive";
 
 const entry = (
@@ -166,23 +169,32 @@ describe("filterItems / counts", () => {
     );
     expect(slugs).not.toContain("needt-api");
   });
-  it("a chip keeps one category; search matches name and description", () => {
+  it("a chip keeps one group; search matches name, description and chip name", () => {
     expect(
-      filterItems(items, { q: "", chip: "notes", show: "all" }).map(
+      filterItems(items, { q: "", chip: "work", show: "all" }).map(
         (i) => i.slug
       )
-    ).toEqual(["notion"]);
+    ).toEqual(["needt-api", "notion", "linear"]);
+    expect(
+      filterItems(items, { q: "", chip: "cal", show: "all" }).map((i) => i.slug)
+    ).toEqual(["google-calendar", "icloud-calendar"]);
     expect(
       filterItems(items, { q: "linear", chip: "all", show: "all" })
     ).toHaveLength(1);
     expect(
       filterItems(items, { q: "  CALENDAR ", chip: "all", show: "all" }).length
     ).toBeGreaterThan(0);
+    // The chip's own name finds its cards, as in the prototype's haystack.
+    expect(
+      filterItems(items, { q: "mail & chat", chip: "all", show: "all" }).map(
+        (i) => i.slug
+      )
+    ).toEqual(["gmail", "outlook-mail"]);
     expect(filterItems(items, { q: "zzz", chip: "all", show: "all" })).toEqual(
       []
     );
   });
-  it("categories once, in order; counts and status line", () => {
+  it("categories once, in order; counts", () => {
     expect(categoriesOf(items)).toEqual([
       "calendar",
       "developer",
@@ -190,13 +202,76 @@ describe("filterItems / counts", () => {
       "tasks",
       "communication",
     ]);
-    const c = counts(items);
-    expect(c).toEqual({ connected: 2, issues: 1 });
-    expect(statusLine(c)).toBe("2 connected · 1 needs attention");
-    expect(statusLine({ connected: 0, issues: 2 })).toBe(
-      "0 connected · 2 need attention"
-    );
-    expect(statusLine({ connected: 3, issues: 0 })).toBe("3 connected");
+    expect(counts(items)).toEqual({ connected: 2, issues: 1 });
+  });
+});
+
+describe("chips: our categories onto the prototype's", () => {
+  const e = (slug: string, category: CatalogEntry["category"]) =>
+    chipOf({ slug, category });
+  it("maps every real category onto one chip", () => {
+    expect(e("slack", "communication")).toBe("mail");
+    expect(e("google-calendar", "calendar")).toBe("cal");
+    expect(e("todoist", "tasks")).toBe("work");
+    expect(e("notion", "notes")).toBe("work");
+    expect(e("linear", "developer")).toBe("work");
+    expect(e("needt-api", "developer")).toBe("work");
+    expect(e("openai", "ai")).toBe("work");
+    expect(e("googledrive", "files")).toBe("files");
+  });
+  it("files GitHub under Files and the design tools under Creative", () => {
+    expect(e("github", "developer")).toBe("files");
+    expect(e("gitlab", "developer")).toBe("files");
+    expect(e("figma", "files")).toBe("creative");
+    expect(e("pinterest", "notes")).toBe("creative");
+  });
+  it("draws only the chips that have a card, in the prototype's order", () => {
+    const items = buildItems(catalog, rows, [acct({})]);
+    expect(chipsOf(items)).toEqual(["mail", "cal", "work"]);
+    expect(chipsOf(items).map((id) => CHIP_LABEL[id])).toEqual([
+      "Mail & chat",
+      "Calendars",
+      "Work",
+    ]);
+    expect(chipsOf([])).toEqual([]);
+  });
+});
+
+describe("heroStatus", () => {
+  const s = (state: CnItem["state"], name = "Gmail") => ({ name, state });
+  it("a card that lost access wins: names it, red", () => {
+    expect(
+      heroStatus([s("connected"), s("disconnected", "Outlook")], "apps")
+    ).toEqual({
+      text: "Outlook needs reconnecting",
+      tone: "bad",
+      names: ["Outlook"],
+    });
+    expect(
+      heroStatus(
+        [s("disconnected", "Outlook"), s("disconnected", "Slack")],
+        "apps"
+      ).text
+    ).toBe("Outlook, Slack need reconnecting");
+  });
+  it("two accounts of one app name it once", () => {
+    expect(
+      heroStatus(
+        [s("disconnected", "Outlook"), s("disconnected", "Outlook")],
+        "apps"
+      ).names
+    ).toEqual(["Outlook"]);
+  });
+  it("counts what is live, and says nothing is when nothing is", () => {
+    expect(
+      heroStatus([s("connected"), s("connected", "Notion")], "apps")
+    ).toMatchObject({ text: "2 connected · all syncing", tone: "ok" });
+    expect(heroStatus([s("connected")], "ai").text).toBe("1 connected");
+    expect(heroStatus([s("none")], "apps")).toMatchObject({
+      text: "Nothing connected yet",
+      tone: "none",
+    });
+    expect(heroStatus([], "ai").text).toBe("No AI tools connected yet");
   });
 });
 

@@ -6,9 +6,12 @@
  */
 import {
   CATEGORY_LABEL,
+  CHIP_LABEL,
+  CHIP_ORDER,
   type CnItem,
   type Show,
-  categoriesOf,
+  chipOf,
+  chipsOf,
 } from "../../connections/derive";
 import type { ConnectionsTab } from "../../connections/useConnectionsController";
 import { trashMeta } from "../../places/derive";
@@ -30,7 +33,8 @@ export function connectionsSub(
       (issues.length === 1 ? " needs reconnecting" : " need reconnecting")
     );
   const live = items.filter((i) => i.state === "connected").length;
-  return live ? `${live} connected` : "Nothing connected yet";
+  // Nothing needs reconnecting, so "all syncing" (the desktop pill says the same).
+  return live ? `${live} connected · all syncing` : "Nothing connected yet";
 }
 
 export interface ConnectionGroup {
@@ -41,16 +45,18 @@ export interface ConnectionGroup {
 
 /**
  * The apps tab's sections: "Needs you" first (accounts that lost access), then
- * one section per category in catalog order. An empty section is not drawn.
+ * one section per chip in the prototype's order (Mail & chat, Calendars, Work,
+ * Files, Creative: `chipOf` maps our categories onto them). An empty section
+ * is not drawn.
  */
 export function groupConnections(shown: readonly CnItem[]) {
   const down = shown.filter((i) => i.state === "disconnected");
   const rest = shown.filter((i) => i.state !== "disconnected");
-  const groups: ConnectionGroup[] = categoriesOf(rest).map((cat) => ({
-    id: cat,
-    label: CATEGORY_LABEL[cat] ?? cat,
-    items: rest.filter((i) => i.category === cat),
-  }));
+  const groups: ConnectionGroup[] = CHIP_ORDER.map((id) => ({
+    id,
+    label: CHIP_LABEL[id],
+    items: rest.filter((i) => chipOf(i) === id),
+  })).filter((g) => g.items.length);
   return { down, groups };
 }
 
@@ -77,15 +83,12 @@ export interface ChipDef {
   label: string;
 }
 
-/** "All", "Connected", then the categories in catalog order. */
+/** "All", "Connected", then the prototype's chips that have a card. */
 export function connectionChips(items: readonly CnItem[]): ChipDef[] {
   return [
     { id: "all", label: "All" },
     { id: "connected", label: "Connected" },
-    ...categoriesOf(items).map((cat) => ({
-      id: cat,
-      label: CATEGORY_LABEL[cat] ?? cat,
-    })),
+    ...chipsOf(items).map((id) => ({ id, label: CHIP_LABEL[id] })),
   ];
 }
 

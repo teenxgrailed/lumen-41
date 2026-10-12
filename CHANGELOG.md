@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connections (desktop, new design): the screen now sits on the printed sky
+  like the rest of the new design: a centred hero ("Sources", a large
+  Connections title, one line, and a pill that says "Outlook needs
+  reconnecting" when something lost access), centred tabs with the connected
+  count, the Connected / All apps switch, the Mail & chat, Calendars, Work and
+  Files chips, search, and glass cards in three, two or one column. The
+  toolbar stays in view while you scroll. The phone uses the same chips and
+  sections.
+
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and
   workspace roles. Every write is logged with its inverse, so it can be undone
