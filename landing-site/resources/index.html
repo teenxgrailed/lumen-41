@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resources — Needt</title>
+<meta name="description" content="Connect Needt to Claude, ChatGPT, Cursor and more over MCP, automate with the API, and start from ready-made workflow ideas.">
+<link rel="canonical" href="https://needt.app/resources/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Needt">
+<meta property="og:title" content="Resources — Needt">
+<meta property="og:description" content="Connect Needt to Claude, ChatGPT, Cursor and more over MCP, automate with the API, and start from ready-made workflow ideas.">
+<meta property="og:url" content="https://needt.app/resources/">
+<meta property="og:image" content="https://needt.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#c4c5e4">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="preload" href="../assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../vendor/sky-tokens.css?v=19b">
+<link rel="stylesheet" href="../styles.css?v=19b">
+<link rel="stylesheet" href="../pages.css?v=19b">
+<!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
+<script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
+-->
+</head>
+<body class="page">
+<script>window.NEEDT_SIGNUP = "https://use.needt.app/auth/signin";</script>
+<header class="nav" id="nav">
+  <div class="nav-pill">
+    <a class="brand" href="../" aria-label="Needt home"><img src="../assets/icon.svg" alt=""><span class="brand-word">Needt</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <div class="nav-item">
+        <button class="nav-link nav-trigger" aria-expanded="false" aria-controls="m-product">Product <svg class="chev" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="menu" id="m-product" role="menu"><div class="mega">
+          <div class="mega-main">
+            <a role="menuitem" class="mc" href="../integrations/"><em class="mi mi-mint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></svg></em><b>Integrations</b><span>Calendars, mail, Claude, ChatGPT</span></a>
+            <a role="menuitem" class="mc" href="../templates/"><em class="mi mi-pink"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></em><b>Templates</b><span>Weekly, daily, time blocking, content</span></a>
+            <a role="menuitem" class="mc" href="../for/"><em class="mi mi-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3 3 0 0 1 0 6M21 20a5 5 0 0 0-3.5-4.8"/></svg></em><b>Use cases</b><span>Freelancers, students, founders, ADHD</span></a>
+            <a role="menuitem" class="mc" href="../changelog/"><em class="mi mi-lilac"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></em><b>What’s new</b><span>What shipped, week by week</span></a>
+          </div>
+          <div class="mega-side">
+            <a role="menuitem" class="ms" href="../#tour"><em class="mi mi-lav"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></em><b>Product tour</b></a>
+            <a role="menuitem" class="ms" href="../download/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></em><b>Download</b></a>
+            <a role="menuitem" class="ms" href="../security/"><em class="mi mi-peach"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.2-3 7.6-7 9-4-1.4-7-4.8-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg></em><b>Security</b></a>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="nav-item">
+        <button class="nav-link nav-trigger is-current" aria-expanded="false" aria-controls="m-res">Resources <svg class="chev" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="menu" id="m-res" role="menu"><div class="mega">
+          <div class="mega-main">
+            <a role="menuitem" class="mc" href="../resources/" class="is-current" aria-current="page"><em class="mi mi-lilac"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v16H6.5A1.5 1.5 0 0 0 5 20.5v-16Z"/><path d="M5 20.5A1.5 1.5 0 0 0 6.5 22H19M9 7h6"/></svg></em><b>Ideas &amp; guides</b><span>Workflows with AI, the API and more</span></a>
+            <a role="menuitem" class="mc" href="../resources/mcp/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.9L19 9.7l-4.9 1.8L12 17l-1.8-5.5L5 9.7l5.2-1.8L12 3ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg></em><b>Connect AI</b><span>Claude, ChatGPT, Cursor — step by step</span></a>
+            <a role="menuitem" class="mc" href="../blog/"><em class="mi mi-sun"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></svg></em><b>Blog</b><span>Planning, focus and AI</span></a>
+            <a role="menuitem" class="mc" href="../learn/"><em class="mi mi-mint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></em><b>Learn</b><span>Time blocking, weekly reviews, setup</span></a>
+          </div>
+          <div class="mega-side">
+            <a role="menuitem" class="ms" href="../compare/"><em class="mi mi-peach"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7a8 8 0 0 0-14.5-1.5M4 4v4h4M4 17a8 8 0 0 0 14.5 1.5M20 20v-4h-4"/></svg></em><b>Compare</b></a>
+            <a role="menuitem" class="ms" href="../resources/api/"><em class="mi mi-lav"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4"/></svg></em><b>API</b></a>
+            <a role="menuitem" class="ms" href="../glossary/"><em class="mi mi-pink"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg></em><b>Glossary</b></a>
+            <a role="menuitem" class="ms" href="../help/"><em class="mi mi-sky"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V14M12 17.2v.1"/></svg></em><b>Help</b></a>
+          </div>
+        </div>        </div>
+      </div>
+      <a class="nav-link" href="../pricing/">Pricing</a>
+      <a class="nav-link" href="../download/">Download</a>
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
+      <a class="btn btn-primary btn-sm js-signup" href="https://use.needt.app/auth/signin">Try it free</a>
+      <button class="nav-burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+    </div>
+  </div>
+</header>
+<main id="top">
+<section class="phero" data-px-scope>
+  <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="c"></div></div>
+  <div class="wrap phero-in">
+    <span class="eyebrow on-sky" data-px-calm>Resources</span>
+    <h1 class="display" data-px-calm>Imagine your day, <i>connected.</i></h1>
+    <p class="lead" data-px-calm>Needt works with the assistants and tools you already use. Connect an AI over MCP, automate with the API, or start from one of the ideas below.</p><div class="hstack" aria-hidden="true">
+  <img class="h-back" src="../assets/today-light.webp" alt=""><img class="h-front" src="../assets/steps/sheet-claude.webp" alt="">
+  <img class="fl f1" src="../assets/logos/chatgpt.svg" alt=""><img class="fl f2" src="../assets/logos/claude.svg" alt=""><img class="fl f3" src="../assets/logos/cursor.svg" alt="">
+  <img class="fl f4" src="../assets/logos/raycast.svg" alt=""><img class="fl f5" src="../assets/logos/n8n.svg" alt=""><img class="fl f6" src="../assets/logos/claudecode.svg" alt=""><img class="fl f7" src="../assets/logos/gemini.svg" alt="">
+</div>
+  </div>
+</section>
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">Ideas</span><h2 class="h2">Some ideas to <i>get you started.</i></h2>
+      <p class="lead">Small workflows that save a few minutes every day. Each one takes about two minutes to set up.</p></div>
+    <div class="grid g3 carousel"><a class="rcard idea rv" style="--d:0.00s" href="../resources/mcp/claude/">
+  <div class="stack"><img class="s-back" src="../assets/ask-light.webp" alt="" loading="lazy"><img class="s-front" src="../assets/today-light.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/claude.svg" alt=""></div></div>
+  <h3>Morning brief</h3><p>Ask Claude for the day before you open anything else. It reads your schedule, flags what slipped and suggests the first block.</p>
+  <span class="more">Set up with MCP</span>
+</a><a class="rcard idea rv" style="--d:0.05s" href="../resources/mcp/chatgpt/">
+  <div class="stack"><img class="s-back" src="../assets/calendar-light.webp" alt="" loading="lazy"><img class="s-front" src="../assets/composer-light.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/chatgpt.svg" alt=""><img src="../assets/logos/gmail.svg" alt=""></div></div>
+  <h3>Inbox to plan</h3><p>Paste a messy email thread into ChatGPT. The asks become tasks with estimates and deadlines, placed into free time.</p>
+  <span class="more">Set up with MCP</span>
+</a><a class="rcard idea rv" style="--d:0.10s" href="../resources/mcp/claude-code/">
+  <div class="stack"><img class="s-back" src="../assets/steps/sheet-cursor.webp" alt="" loading="lazy"><img class="s-front" src="../assets/calendar-light.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/claudecode.svg" alt=""></div></div>
+  <h3>TODOs from your code</h3><p>Working in the terminal? Claude Code turns the TODOs in a branch into tasks under your project, without leaving the repo.</p>
+  <span class="more">Set up with MCP</span>
+</a><a class="rcard idea rv" style="--d:0.15s" href="../resources/mcp/raycast/">
+  <div class="stack"><img class="s-back ph" src="../assets/phone-tasks.webp" alt="" loading="lazy"><img class="s-front" src="../assets/calendar-light.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/raycast.svg" alt=""></div></div>
+  <h3>One-keystroke capture</h3><p>A Raycast AI command that adds a task from anywhere on your Mac. Needt finds it a slot.</p>
+  <span class="more">Set up with MCP</span>
+</a><a class="rcard idea rv" style="--d:0.20s" href="../resources/api/#shortcuts">
+  <div class="stack"><img class="s-back ph" src="../assets/phone-home.webp" alt="" loading="lazy"><img class="s-front ph" src="../assets/phone-calendar.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/shortcuts.svg" alt=""></div></div>
+  <h3>Siri, add a task</h3><p>An Apple Shortcut posts one line to the API. Say it on a walk, see it scheduled when you sit down.</p>
+  <span class="more">Set up with the API</span>
+</a><a class="rcard idea rv" style="--d:0.25s" href="../resources/api/#automations">
+  <div class="stack"><img class="s-back" src="../assets/docs-light.webp" alt="" loading="lazy"><img class="s-front" src="../assets/calendar-light.webp" alt="" loading="lazy"><div class="badges"><img src="../assets/icon.svg" alt=""><img src="../assets/logos/n8n.svg" alt=""><img src="../assets/logos/zapier.svg" alt=""></div></div>
+  <h3>Forms and tickets in</h3><p>Every new form entry, ticket or starred email becomes a Needt task through n8n, Zapier or Make.</p>
+  <span class="more">Set up with the API</span>
+</a></div>
+  </div>
+</section>
+
+<section class="sec white" id="mcp">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">MCP</span><h2 class="h2">Connect your <i>AI assistant.</i></h2>
+      <p class="lead">One address works in every client that speaks the Model Context Protocol. Pick yours for the exact steps.</p></div>
+    <div class="appgrid"><a class="app" href="../resources/mcp/claude/"><img src="../assets/logos/claude.svg" alt=""><span>Claude</span></a><a class="app" href="../resources/mcp/chatgpt/"><img src="../assets/logos/chatgpt.svg" alt=""><span>ChatGPT</span></a><a class="app" href="../resources/mcp/claude-code/"><img src="../assets/logos/claudecode.svg" alt=""><span>Claude Code</span></a><a class="app" href="../resources/mcp/cursor/"><img src="../assets/logos/cursor.svg" alt=""><span>Cursor</span></a><a class="app" href="../resources/mcp/codex/"><img src="../assets/logos/codex.svg" alt=""><span>Codex</span></a><a class="app" href="../resources/mcp/vscode/"><img src="../assets/logos/copilot.svg" alt=""><span>VS Code</span></a><a class="app" href="../resources/mcp/gemini/"><img src="../assets/logos/gemini.svg" alt=""><span>Gemini CLI</span></a><a class="app" href="../resources/mcp/windsurf/"><img src="../assets/logos/windsurf.svg" alt=""><span>Windsurf</span></a><a class="app" href="../resources/mcp/raycast/"><img src="../assets/logos/raycast.svg" alt=""><span>Raycast</span></a><a class="app" href="../resources/mcp/other/"><img src="../assets/logos/mcp.svg" alt=""><span>Other clients</span></a></div>
+  </div>
+</section>
+
+<section class="sec" id="api">
+  <div class="wrap">
+    <div class="sec-head"><span class="eyebrow">API</span><h2 class="h2">Or build it <i>yourself.</i></h2>
+      <p class="lead">A small HTTP API for tasks and the schedule, with a personal token. Enough for Shortcuts, n8n, Zapier, Make or your own script.</p></div>
+    <div class="tiles">
+      <a class="tile" href="../resources/api/#quickstart"><img src="../assets/logos/api.svg" alt=""><span>cURL<small>Quickstart</small></span><span class="go">→</span></a>
+      <a class="tile" href="../resources/api/#shortcuts"><img src="../assets/logos/shortcuts.svg" alt=""><span>Apple Shortcuts<small>iPhone, Mac</small></span><span class="go">→</span></a>
+      <a class="tile" href="../resources/api/#automations"><img src="../assets/logos/n8n.svg" alt=""><span>n8n<small>HTTP Request node</small></span><span class="go">→</span></a>
+      <a class="tile" href="../resources/api/#automations"><img src="../assets/logos/zapier.svg" alt=""><span>Zapier<small>Webhooks by Zapier</small></span><span class="go">→</span></a>
+      <a class="tile" href="../resources/api/#automations"><img src="../assets/logos/make.svg" alt=""><span>Make<small>HTTP module</small></span><span class="go">→</span></a>
+      <a class="tile" href="../resources/api/#reference"><img src="../assets/logos/webhooks.svg" alt=""><span>Reference<small>Endpoints and fields</small></span><span class="go">→</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="sec white">
+  <div class="wrap">
+    <div class="sec-head" style="display:flex;justify-content:space-between;align-items:end;max-width:none;gap:20px;flex-wrap:wrap"><div><span class="eyebrow">Blog</span><h2 class="h2">From the <i>blog.</i></h2></div><a class="btn btn-raised" href="../blog/">All posts</a></div>
+    <div class="posts carousel"><a class="post-card rv" href="../blog/ai-assistant-calendar-mcp/"><div class="cover c-night"><div class="ask"><div class="q">What’s overdue?</div><div class="a"><b>Two things.</b> The August report (due yesterday) and the invoice for Clients. I can fit both before 3 pm.</div><div class="chips"><span>Plan them</span><span>Move to tomorrow</span></div></div></div><h3>Your AI assistant can now see your calendar</h3><p>What MCP is, what it’s good for in a planner, and the three rules that keep an assistant from making a mess of your week.</p><div class="meta"><span>11 Oct 2026</span><span class="dot"></span><span>6 min read</span></div></a><a class="post-card rv" href="../blog/plan-your-day-in-five-minutes/"><div class="cover c-sand"><img class="shotc" src="../assets/today-light.webp" alt=""></div><h3>Plan your day in five minutes</h3><p>Why every plan runs long, and a five-step morning routine built on what the research actually says.</p><div class="meta"><span>8 Oct 2026</span><span class="dot"></span><span>7 min read</span></div></a><a class="post-card rv" href="../blog/five-tabs-one-plan/"><div class="cover c-peri"><div class="tabs5"><img src="../assets/logos/todoist.svg" alt=""><img src="../assets/logos/notion.svg" alt=""><img src="../assets/logos/gcal.svg" alt=""><img src="../assets/logos/gmail.svg" alt=""><img src="../assets/logos/sunsama.png" alt=""></div></div><h3>Five tabs, one plan</h3><p>Each switch between apps costs two seconds. Twelve hundred of them a day cost something bigger.</p><div class="meta"><span>6 Oct 2026</span><span class="dot"></span><span>6 min read</span></div></a></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="grid g3">
+      <a class="rcard rv" href="../templates/"><span class="tagline">Templates</span><h3>Templates that plan themselves</h3><p>Weekly, daily, time blocking, content calendar, moodboard.</p><span class="more">Browse templates</span></a>
+      <a class="rcard rv" style="--d:.05s" href="../learn/"><span class="tagline">Learn</span><h3>Guides</h3><p>Time blocking, weekly reviews, planning with Claude.</p><span class="more">Start learning</span></a>
+      <a class="rcard rv" style="--d:.1s" href="../for/"><span class="tagline">Use cases</span><h3>For your kind of day</h3><p>Freelancers, students, founders, creators, ADHD.</p><span class="more">Find yours</span></a>
+      <a class="rcard rv" href="../integrations/"><span class="tagline">Integrations</span><h3>Connected</h3><p>Google, Outlook, iCloud, Gmail, Claude, ChatGPT, imports.</p><span class="more">See integrations</span></a>
+      <a class="rcard rv" style="--d:.05s" href="../compare/"><span class="tagline">Compare</span><h3>Needt vs …</h3><p>Motion, Sunsama, Akiflow, Reclaim, Tiimo and more.</p><span class="more">See comparisons</span></a>
+      <a class="rcard rv" style="--d:.1s" href="../glossary/"><span class="tagline">Glossary</span><h3>Planning words</h3><p>Timeboxing, Pomodoro, GTD, the planning fallacy.</p><span class="more">Open glossary</span></a>
+      <a class="rcard rv" href="../help/"><span class="tagline">Help</span><h3>Questions</h3><p>Plans, calendars, AI, your data.</p><span class="more">Read answers</span></a>
+      <a class="rcard rv" style="--d:.05s" href="../changelog/"><span class="tagline">Changelog</span><h3>What’s new</h3><p>Everything that shipped, newest first.</p><span class="more">Open changelog</span></a>
+      <a class="rcard rv" style="--d:.1s" href="../security/"><span class="tagline">Security</span><h3>Your data</h3><p>What we keep, what a model sees.</p><span class="more">How it works</span></a>
+    </div>
+  </div>
+</section>
+</main>
+<div class="page-night" data-px-scope>
+  <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div></div>
+  <section class="final">
+    <div class="wrap final-in">
+      <img class="icon3d" src="../assets/icon-dark.svg" alt="">
+      <h2 class="display" data-px-calm>Your day, <i>finally planned.</i></h2>
+      <div class="cta-row" data-px-calm>
+        <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Try it free <span class="arr">→</span></a>
+        <a class="btn btn-raised btn-lg" href="https://use.needt.app/auth/signin">Log in</a>
+      </div>
+      <p class="cta-note">Free plan + 14 days of Pro. No card.</p>
+    </div>
+    <footer class="foot">
+    <div class="wrap">
+      <div class="foot-top" data-px-calm>
+        <div class="foot-brand">
+          <a class="brand" href="../"><img src="../assets/icon-dark.svg" alt=""><span class="brand-word">Needt</span></a>
+          <p>Everything you’re working on, in one place.</p>
+          <div class="socials">
+            <a class="soc" href="https://x.com/needtapp" rel="noopener" aria-label="Needt on X"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg></a>
+            <a class="soc" href="https://instagram.com/needtapp" rel="noopener" aria-label="Needt on Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+            <a class="soc" href="https://www.reddit.com/user/needtapp" rel="noopener" aria-label="Needt on Reddit"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9.2" cy="13" r="1.2"/><circle cx="14.8" cy="13" r="1.2"/><path d="M9.3 16.3c1.6 1 3.8 1 5.4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="17.5" cy="4.5" r="1.6"/><path d="M12 6l1.2-3.2 4.3.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></a>
+            <a class="soc" href="https://facebook.com/needtapp" rel="noopener" aria-label="Needt on Facebook"><svg viewBox="0 0 24 24"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 3.9v2.3H8v3h2.5V21Z"/></svg></a>
+            <a class="soc" href="mailto:hello@needt.app" aria-label="Email Needt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></a>
+          </div>
+        </div>
+        <div class="foot-cols">
+          <div><span class="fh">Product</span><a href="../#tour">Tour</a><a href="../pricing/">Pricing</a><a href="../templates/">Templates</a><a href="../integrations/">Integrations</a><a href="../download/">Download</a><a href="../changelog/">Changelog</a></div>
+          <div><span class="fh">Use cases</span><a href="../for/freelancers/">Freelancers</a><a href="../for/students/">Students</a><a href="../for/founders/">Founders</a><a href="../for/content-creators/">Creators</a><a href="../for/adhd/">ADHD</a><a href="../for/">All use cases</a></div>
+          <div><span class="fh">Resources</span><a href="../learn/">Learn</a><a href="../blog/">Blog</a><a href="../resources/mcp/">Connect AI (MCP)</a><a href="../resources/api/">API</a><a href="../compare/">Compare</a><a href="../glossary/">Glossary</a><a href="../help/">Help</a></div>
+          <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
+          <div><span class="fh">Legal</span><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a><a href="../security/">Security</a></div>
+        </div>
+      </div>
+      <div class="foot-base"><span>Made by one person.</span><span>© 2026 Needt. Built for one day at a time.</span></div>
+    </div>
+    <div class="floor" aria-hidden="true"><span class="floor-word" id="floor-word">Needt</span></div>
+  </footer>
+  </section>
+</div>
+<a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro, no card</span></a>
+<script src="../vendor/sky.js?v=19b" defer></script>
+<script src="../site.js?v=19b" defer></script>
+</body>
+</html>
