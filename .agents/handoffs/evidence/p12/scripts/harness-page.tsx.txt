@@ -1,0 +1,82 @@
+"use client";
+/* TEMPORARY P12 harness. Never commit. Copy to src/app/style/p12/page.tsx
+   (/style is a public route, so no session or cookie is needed), run
+   `flock /tmp/build.lock npm run build` and `next start -p 3413`, delete it
+   again. Playwright serves /api/* from lib.js (seed()). */
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+
+import { V3SignInRoute } from "@/components/needt3/auth/SignInRoute";
+import { OnboardingScreen } from "@/components/needt3/auth/OnboardingScreen";
+import { CalendarCraft } from "@/components/needt3/calendar/CalendarCraft";
+import { HomeScreen } from "@/components/needt3/home/HomeScreen";
+import { MailFaces } from "@/components/needt3/mail/MailFaces";
+import { DocsFace, DocumentFace } from "@/components/needt3/phone/docs";
+import { HabitsRoute } from "@/components/needt3/phone/habits/HabitsRoute";
+import {
+  MoodboardRoute,
+  MoodboardsRoute,
+} from "@/components/needt3/phone/moodboards/MoodboardsRoute";
+import {
+  ConnectionsFace,
+  SharedFace,
+  TemplatesFace,
+  TrashFace,
+} from "@/components/needt3/phone/places";
+import { usePhoneOverlays } from "@/components/needt3/phone/overlays/store";
+import { V3Root } from "@/components/needt3/root/V3Root";
+import { WorkScreen } from "@/components/needt3/work/WorkScreen";
+
+import { useNeedt3Ui } from "@/store/needt3-ui";
+
+const editor = (
+  <div style={{ padding: 16, fontSize: 16 }}>
+    <p>Editor body placeholder for the harness.</p>
+  </div>
+);
+
+const SCREENS: Record<string, () => ReactNode> = {
+  home: () => <HomeScreen />,
+  calendar: () => <CalendarCraft />,
+  tasks: () => (
+    <Suspense fallback={null}>
+      <WorkScreen mode="tasks" />
+    </Suspense>
+  ),
+  projects: () => (
+    <Suspense fallback={null}>
+      <WorkScreen mode="projects" />
+    </Suspense>
+  ),
+  project: () => (
+    <Suspense fallback={null}>
+      <WorkScreen mode="projects" projectId="p-ops" />
+    </Suspense>
+  ),
+  docs: () => <DocsFace />,
+  doc: () => <DocumentFace pageId="pg1">{editor}</DocumentFace>,
+  mail: () => <MailFaces />,
+  habits: () => <HabitsRoute />,
+  moodboards: () => <MoodboardsRoute />,
+  moodboard: () => <MoodboardRoute id="mb1" desktop={null} />,
+  connections: () => <ConnectionsFace />,
+  templates: () => <TemplatesFace />,
+  shared: () => <SharedFace />,
+  trash: () => <TrashFace />,
+  setup: () => <OnboardingScreen />,
+};
+
+export default function Harness() {
+  const [screen, setScreen] = useState<string | null>(null);
+  useEffect(() => {
+    Object.assign(window, { __ui: useNeedt3Ui, __ov: usePhoneOverlays });
+    setScreen(new URLSearchParams(window.location.search).get("screen") ?? "home");
+  }, []);
+  if (!screen) return null;
+  if (screen === "signin") return <V3SignInRoute initialUi="phone" uiForced />;
+  const make = SCREENS[screen];
+  return (
+    <V3Root initialUi="phone" uiForced>
+      {make ? make() : null}
+    </V3Root>
+  );
+}
