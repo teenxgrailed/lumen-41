@@ -22,7 +22,12 @@ import {
   workHourChoices,
   workHoursValid,
 } from "../derive";
-import { PREF_DEFAULTS, accentFromPrefs, readPref } from "../derive";
+import {
+  PREF_DEFAULTS,
+  accentFromPrefs,
+  importRunSummary,
+  readPref,
+} from "../derive";
 
 describe("deep links", () => {
   it("opens the section a hash names, with or without #", () => {
@@ -197,5 +202,36 @@ describe("working hours", () => {
     expect(starts).toEqual(["07:00", "08:00", "09:00"]);
     const ends = workHourChoices("end", 17, 18).map(([v]) => v);
     expect(ends).toEqual(["17:00", "19:00", "20:00"]);
+  });
+});
+
+describe("import notices and summary", () => {
+  it("says what the Todoist callback came back with", () => {
+    expect(settingsNotices("?import=todoist-started")[0]).toMatchObject({
+      tone: "success",
+      title: "Todoist import started",
+    });
+    expect(settingsNotices("?import=todoist-failed")[0].tone).toBe("error");
+    expect(settingsNotices("?import=unknown")).toEqual([]);
+  });
+
+  it("summarises a run in one line", () => {
+    const counts = { total: 20, done: 12, skipped: 3, failed: 1 };
+    expect(importRunSummary({ status: "running", counts, warnings: [] })).toBe(
+      "Importing: 16 of 20."
+    );
+    expect(importRunSummary({ status: "done", counts, warnings: [] })).toBe(
+      "Last import: 12 imported, 3 skipped, 1 failed."
+    );
+    expect(
+      importRunSummary({
+        status: "failed",
+        counts,
+        warnings: [
+          { code: "plan_limit", message: "limit" },
+          { code: "todoist_rate_limited", message: "Try again later." },
+        ],
+      })
+    ).toBe("Last import failed. Try again later.");
   });
 });

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Import from Todoist (behind the new `imports` feature flag, off unless a
+  flag row turns it on). Settings -> Data -> Import sends you through
+  Todoist's read-only consent screen, then a background job brings in
+  projects (nesting flattened, the path kept in the description), sections
+  as project stages, open tasks with due date, deadline, estimate, priority,
+  labels, comments and common repeats, and first-level sub-tasks as task
+  parts. Running it again updates what it brought in and never duplicates.
+  Completed and archived items, attachments and reminders are skipped and
+  counted; progress and warnings show while it runs. The same is reachable
+  from outside: `POST /api/imports`, `GET /api/imports/:id`,
+  `POST /api/imports/:id/cancel`, and the same under `/api/connect/imports`
+  with a connector token (which also accepts a Todoist personal API token).
+  Floating due times are read in Todoist's zone or yours; a run whose worker
+  died is failed by a 10-minute sweep and its token erased; rows are matched
+  per workspace. Needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`;
+  additive migration `20261012090000_imports`.
 - Moodboards: a board's references can be read and written through the API.
   `GET`/`POST /api/moodboards/:id/items` and `PATCH`/`DELETE
 /api/moodboards/:id/items/:itemId` list the wall in order and add, change,

@@ -46,6 +46,15 @@ AZURE_AD_TENANT_ID="common"
 
 Google is needed for Google Calendar and Google Tasks. Azure AD is needed for Outlook Calendar and Microsoft task sync. These can also be configured from the in-app System Settings where supported.
 
+## Todoist Import (optional)
+
+```bash
+TODOIST_CLIENT_ID=""
+TODOIST_CLIENT_SECRET=""
+```
+
+Register an app at https://developer.todoist.com/appconsole.html with the OAuth redirect URL `<NEXTAUTH_URL>/api/imports/todoist/callback`. Without these values Settings -> Data shows the Todoist import as not set up, and `POST /api/imports` answers `503 NOT_CONFIGURED` (a Todoist personal API token passed as `token` still works). The import is also behind the `imports` feature flag, off unless a flag row turns it on.
+
 ## Apple / iCloud Calendar
 
 No env vars are required for Apple Calendar in the current baseline. Use the CalDAV connection form with:
