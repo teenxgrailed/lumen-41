@@ -1,10 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 
 import { notify } from "@/lib/notifications";
+
+/**
+ * The banner's height, published on <html> while it shows, so a full-height
+ * frame (the design_v3 frame) can start below it instead of under it.
+ */
+export const TOP_BANNER_VAR = "--needt-top-banner";
 
 type VerificationStatus = {
   email: string | null;
@@ -19,8 +31,12 @@ export function EmailVerificationGate({
   children?: React.ReactNode;
   initialStatus: VerificationStatus | null;
 }) {
-  const [status, setStatus] = useState<VerificationStatus | null>(initialStatus);
+  const [status, setStatus] = useState<VerificationStatus | null>(
+    initialStatus
+  );
   const [sending, setSending] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const showBanner = Boolean(status?.email && !status.verified);
 
   const loadStatus = useCallback(async () => {
     const response = await fetch("/api/auth/email-verification/status");
@@ -31,6 +47,30 @@ export function EmailVerificationGate({
   useEffect(() => {
     if (initialStatus) void loadStatus();
   }, [initialStatus, loadStatus]);
+
+  // One observer on one element: the banner wraps to two lines on a narrow
+  // phone, and the frame below must follow its real height.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const el = bannerRef.current;
+    if (!showBanner || !el) {
+      root.style.removeProperty(TOP_BANNER_VAR);
+      return undefined;
+    }
+    const publish = () =>
+      root.style.setProperty(
+        TOP_BANNER_VAR,
+        `${Math.ceil(el.getBoundingClientRect().height)}px`
+      );
+    publish();
+    const observer =
+      typeof ResizeObserver === "function" ? new ResizeObserver(publish) : null;
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty(TOP_BANNER_VAR);
+    };
+  }, [showBanner]);
 
   async function resend() {
     setSending(true);
@@ -72,8 +112,12 @@ export function EmailVerificationGate({
 
   return (
     <>
-      {status?.email && !status.verified && (
-        <div className="fixed inset-x-0 top-0 z-[100] flex min-h-11 items-center justify-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-center text-xs text-[var(--text-secondary)]">
+      {showBanner && (
+        <div
+          ref={bannerRef}
+          data-top-banner=""
+          className="fixed inset-x-0 top-0 z-[100] flex min-h-11 items-center justify-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] px-4 py-2 text-center text-xs text-[var(--text-secondary)]"
+        >
           <span>Confirm your email to start 14 days of Pro.</span>
           <Button
             className="h-7 px-2 text-xs"

@@ -110,7 +110,10 @@ export function V3Root({
     <DesignV3Context.Provider value={true}>
       <div
         ref={scopeRef}
-        className={`needt-v3 ${V3_FONT_CLASSES} relative z-10 flex h-dvh min-h-0 flex-col overflow-hidden`}
+        // pt-[var(--needt-top-banner)]: start below a fixed top banner (the
+        // email confirmation, EmailVerificationGate's TOP_BANNER_VAR) instead
+        // of under it; 0 when there is none.
+        className={`needt-v3 ${V3_FONT_CLASSES} relative z-10 flex h-dvh min-h-0 flex-col overflow-hidden pt-[var(--needt-top-banner,0px)]`}
         data-theme={resolved.side}
         data-drift={resolved.drift ? "on" : undefined}
         data-accent={accent}
