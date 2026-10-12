@@ -1,7 +1,10 @@
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 
 import {
+  CANVAS_CACHE_SIZE,
+  CANVAS_CACHE_TTL_MS,
   canvasProjection,
+  clearCanvasSceneCache,
   readCanvasFile,
   readCanvasProjection,
 } from "../moodboard-canvas";
@@ -127,9 +130,21 @@ describe("canvasProjection", () => {
 
 describe("reading the canvas", () => {
   beforeEach(() => {
+    clearCanvasSceneCache();
     prisma.moodboardCollaborationState.findUnique.mockReset();
     prisma.moodboardSnapshot.findFirst.mockReset();
   });
+
+  /** The state row as the database answers: its version, or its bytes. */
+  const stateRow = (state: Buffer | null, updatedAt = new Date(1_000)) =>
+    prisma.moodboardCollaborationState.findUnique.mockImplementation(
+      async ({
+        select,
+      }: {
+        select: { updatedAt?: boolean; state?: boolean };
+      }) =>
+        state === null ? null : select.updatedAt ? { updatedAt } : { state }
+    );
 
   function liveState() {
     const doc = new Y.Doc();
@@ -142,44 +157,101 @@ describe("reading the canvas", () => {
   }
 
   it("reads the live Yjs state, and only reads", async () => {
-    prisma.moodboardCollaborationState.findUnique.mockResolvedValue({
-      state: liveState(),
-    });
+    stateRow(liveState());
     const r = await readCanvasProjection("b1");
     expect(r.items.map((i) => i.id)).toEqual(["canvas:img", "canvas:t-high"]);
-    expect(prisma.moodboardCollaborationState.findUnique).toHaveBeenCalledTimes(
-      1
-    );
     // nothing in the mock can write: a create/update call would be a TypeError
   });
 
   it("falls back to the newest snapshot when there is no live state", async () => {
-    prisma.moodboardCollaborationState.findUnique.mockResolvedValue(null);
+    stateRow(null);
     prisma.moodboardSnapshot.findFirst.mockResolvedValue({ scene });
     const r = await readCanvasProjection("b1");
     expect(r.items).toHaveLength(3);
   });
 
   it("is empty for a board that never had a canvas", async () => {
-    prisma.moodboardCollaborationState.findUnique.mockResolvedValue(null);
+    stateRow(null);
     prisma.moodboardSnapshot.findFirst.mockResolvedValue(null);
     expect(await readCanvasProjection("b1")).toEqual({ items: [], skipped: 0 });
   });
 
   it("does not take the grid down when the state cannot be decoded", async () => {
-    prisma.moodboardCollaborationState.findUnique.mockResolvedValue({
-      state: Buffer.from([1, 2, 3, 4, 5]),
-    });
+    stateRow(Buffer.from([1, 2, 3, 4, 5]));
     expect(await readCanvasProjection("b1")).toEqual({ items: [], skipped: 0 });
   });
 
   it("streams a picture's bytes, only for the image types the grid shows", async () => {
-    prisma.moodboardCollaborationState.findUnique.mockResolvedValue(null);
+    stateRow(null);
     prisma.moodboardSnapshot.findFirst.mockResolvedValue({ scene });
     const f = await readCanvasFile("b1", "f1");
     expect(f?.mime).toBe("image/png");
     expect(f?.bytes.length).toBeGreaterThan(0);
     expect(await readCanvasFile("b1", "f2")).toBeNull(); // svg can carry script
     expect(await readCanvasFile("b1", "nope")).toBeNull();
+  });
+
+  describe("the decoded scene is cached", () => {
+    const bytesReads = () =>
+      prisma.moodboardCollaborationState.findUnique.mock.calls.filter(
+        ([a]: [{ select: { state?: boolean } }]) => a.select.state
+      ).length;
+    afterEach(() => jest.useRealTimers());
+
+    it("decodes once, then serves the same version from memory (items and picture requests)", async () => {
+      stateRow(liveState());
+      await readCanvasProjection("b1");
+      await readCanvasProjection("b1");
+      await readCanvasFile("b1", "f1");
+      expect(bytesReads()).toBe(1);
+    });
+
+    it("decodes again when the state's version changes", async () => {
+      stateRow(liveState(), new Date(1_000));
+      await readCanvasProjection("b1");
+      stateRow(liveState(), new Date(2_000));
+      await readCanvasProjection("b1");
+      expect(bytesReads()).toBe(2);
+    });
+
+    it("decodes again once the entry is older than the TTL", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+      stateRow(liveState());
+      await readCanvasProjection("b1");
+      jest.setSystemTime(Date.now() + CANVAS_CACHE_TTL_MS - 1);
+      await readCanvasProjection("b1");
+      expect(bytesReads()).toBe(1);
+      jest.setSystemTime(Date.now() + 2);
+      await readCanvasProjection("b1");
+      expect(bytesReads()).toBe(2);
+    });
+
+    it("never shares a scene across boards", async () => {
+      stateRow(liveState());
+      await readCanvasProjection("b1");
+      await readCanvasProjection("b2"); // same version, other board
+      expect(bytesReads()).toBe(2);
+    });
+
+    it("keeps at most CANVAS_CACHE_SIZE boards, the least recently used goes first", async () => {
+      stateRow(liveState());
+      for (let i = 0; i < CANVAS_CACHE_SIZE; i++)
+        await readCanvasProjection(`board-${i}`);
+      await readCanvasProjection("board-0"); // touch the oldest: it is kept
+      await readCanvasProjection("one-too-many"); // evicts board-1
+      const before = bytesReads();
+      await readCanvasProjection("board-0");
+      expect(bytesReads()).toBe(before); // still cached
+      await readCanvasProjection("board-1");
+      expect(bytesReads()).toBe(before + 1); // evicted
+    });
+
+    it("a board without a live state (snapshot only) is not cached and costs no decode", async () => {
+      stateRow(null);
+      prisma.moodboardSnapshot.findFirst.mockResolvedValue({ scene });
+      await readCanvasProjection("b1");
+      await readCanvasProjection("b1");
+      expect(bytesReads()).toBe(0);
+    });
   });
 });

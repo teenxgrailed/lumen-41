@@ -55,7 +55,7 @@ Tests: items route (reorder, upload, asset address, canvas, unfurl, Date updated
 - Phone "Move to board…": needs a cross-board move route (todo in `PhoneBoardPage`).
 - Invite by email for someone with no account here: only workspace members can be reached (as the docs Share sheet). `ShareInvite` exists but has no accept step (todo).
 - Canvas shapes, arrows and strokes have no grid form; `?view=canvas` still opens the canvas under the flag (no UI link). The public link page does not show canvas tiles.
-- Orphaned `MoodboardAsset` rows (a removed tile keeps its picture so Undo works) have no purge job yet (todo in the item service, with the Trash 30-day purge).
+- Orphaned `MoodboardAsset` rows are purged opportunistically (upload and tile delete, 1 h grace); there is still no background job, so an abandoned board keeps its last pictures until someone writes to it (todo, with the Trash 30-day purge).
 - Tasks' Delete forever and Empty Trash (other lane's routes).
 
 ## Security review follow-up (2026-10-12, second commit)
@@ -71,7 +71,18 @@ Fixed after an independent review, each with a test that goes red when the fix i
 - A board in Trash refuses item writes, uploads, grants, title and link changes (409/403); restore is the one change allowed, and leaving and reading stay allowed.
 - The note autosave flushes a pending (under 400 ms) edit when the detail unmounts.
 
-Known limits (not built): no per-workspace storage quota; no per-user rate limit on server-side fetches; no re-unfurl when a link's url is patched; DNS resolution is outside the 4 s abort signal; the canvas Yjs state is decoded on every `GET /items`; reorder ties and gaps under concurrent writers resolve by the row lock order; the "Private" lock wording (owner question); hotlinked link thumbnails on the public page reveal the viewer's IP to that site; public assets have no ETag or rate limit.
+Known limits (not built): no re-unfurl when a link's url is patched; DNS resolution is outside the 4 s abort signal; reorder ties and gaps under concurrent writers resolve by the row lock order; the "Private" lock wording (owner question); hotlinked link thumbnails on the public page reveal the viewer's IP to that site; public assets have no ETag or rate limit.
+
+## Integrator review of PR #155 (2026-10-12, third commit)
+
+- Origin/main merged first (CHANGELOG union).
+- Storage: `MOODBOARD_WORKSPACE_STORAGE_BYTES` (200 MB, `//todo` to move into PLAN_LIMITS) is the total of `MoodboardAsset.size` over the workspace's boards, summed inside the upload transaction after the board row lock; over it is `413` ("Your workspace's moodboard pictures are full (200 MB). Remove some pictures to add more."). Same for every plan, no new gate. Per-picture cap lowered to 1.5 MB (`MOODBOARD_IMAGE_MAX_BYTES`); the client downscale re-encodes lighter once when the first JPEG is over it. The 413/415/409-not-full replies are shown with `notify.error(message)` (only the 500-reference "full" stays an info notice).
+- Orphans: deleting a tile sweeps the board's other pictures that nothing shows and that are older than the 1 h grace. The removed tile's own picture stays for that hour, so Undo (a new tile at the same address) works; after the hour Undo of that tile is refused cleanly (400) rather than showing a broken picture.
+- Canvas decode: `readCanvasScene` reads `updatedAt` first and keeps the decoded scene in an in-process LRU keyed `boardId:updatedAt` (20 boards, 60 s TTL, one entry per board, never shared across boards; any write moves `updatedAt` and misses). Per-process only.
+- Asset route: `Cache-Control: private, max-age=300` (a removed picture can linger in the viewer's browser up to 5 min; the server stops serving at once); CSP sandbox, nosniff and the live-tile check unchanged.
+- Docs: `docs/connector-api.md` now says Delete forever is the creator or a workspace owner, plus the new caps.
+- Unfurl rate limit: 30 reads per person per 10 min (in-process sliding window); over it the link tile is created as sent, no error.
+- Not verified: multi-process behaviour of the cache and the limiter (each process has its own); Postgres (the `SUM(size)` is the Prisma aggregate on the existing column, no migration).
 
 ## Working state
 
@@ -90,7 +101,7 @@ Known limits (not built): no per-workspace storage quota; no per-user rate limit
 - Reorder lists ids and the server places them in the listed ids' slots, so a reference added by someone else meanwhile is not displaced, and Undo is the same call with the old order.
 - New references go to the front of the wall (the prototype), by an explicit `position` (lowest − 1); the API default stays "end".
 - A board is shown as private (lock, "Only you") when nobody else has a grant and the link is off. In a team workspace every member can still read a board by workspace role, so the lock overstates that case (owner question).
-- The old canvas read is capped at 200 tiles and decodes the board's Yjs state on each items read (no write, no state row created); `listMoodboards` never reads it.
+- The old canvas read is capped at 200 tiles and decodes the board's Yjs state on a cache miss (60 s LRU, see the third commit; no write, no state row created); `listMoodboards` never reads it.
 
 ## Blockers
 

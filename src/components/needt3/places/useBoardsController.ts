@@ -24,7 +24,7 @@ import {
   useUpdateBoard,
   useUpdateBoardItem,
 } from "@/lib/needt3/hooks/boards";
-import { isBoardFull } from "@/lib/needt3/hooks/core";
+import { isBoardFull, isUploadRefusal } from "@/lib/needt3/hooks/core";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
@@ -247,6 +247,7 @@ export function useBoardsController(opts: BoardsControllerOptions) {
       /* The hook told the person, except for a full board (409), which is
          answered here; the sheet and the text stay either way. */
       if (isBoardFull(error)) notify.info(BOARD_FULL_TEXT);
+      else if (isUploadRefusal(error)) notify.error(error.message);
       return false;
     } finally {
       busy.current = false;
@@ -295,6 +296,7 @@ export function useBoardsController(opts: BoardsControllerOptions) {
       return true;
     } catch (error) {
       if (isBoardFull(error)) notify.info(BOARD_FULL_TEXT);
+      else if (isUploadRefusal(error)) notify.error(error.message);
       return false;
     } finally {
       busy.current = false;
@@ -380,6 +382,7 @@ export function useBoardsController(opts: BoardsControllerOptions) {
       return true;
     } catch (error) {
       if (isBoardFull(error)) notify.info(BOARD_FULL_TEXT);
+      else if (isUploadRefusal(error)) notify.error(error.message);
       // Whatever went up before the failure is kept; the hook told the person.
       if (undos.length)
         snack(`${undos.length} added before it stopped`, async () => {

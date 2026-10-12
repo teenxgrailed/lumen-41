@@ -373,6 +373,32 @@ export async function touchMoodboard(
   });
 }
 
+/** Server-side page fetches per person: 30 per 10 minutes; beyond that a link is saved as typed. */
+const UNFURL_WINDOW_MS = 10 * 60 * 1000;
+const UNFURL_MAX = 30;
+const unfurls = new Map<string, number[]>();
+
+/** Sliding window, in this process only (a limit on abuse, not a quota). */
+export function allowUnfurl(userId: string, now = Date.now()) {
+  const recent = (unfurls.get(userId) ?? []).filter(
+    (t) => now - t < UNFURL_WINDOW_MS
+  );
+  if (recent.length >= UNFURL_MAX) {
+    unfurls.set(userId, recent);
+    return false;
+  }
+  recent.push(now);
+  unfurls.set(userId, recent);
+  // Keep the table small: forget people whose window has emptied.
+  if (unfurls.size > 5000) {
+    for (const [id, times] of unfurls)
+      if (!times.some((t) => now - t < UNFURL_WINDOW_MS)) unfurls.delete(id);
+  }
+  return true;
+}
+
+export const resetUnfurlLimiter = () => unfurls.clear();
+
 export async function createMoodboardItem(
   actor: MoodboardAccessActor,
   moodboardId: string,
@@ -385,7 +411,12 @@ export async function createMoodboardItem(
     throw new MoodboardItemRequiredFieldError(kind, "url");
   // A link's preview is read from the page itself, outside the transaction
   // (it can take seconds). Whatever it cannot read, the link keeps as sent.
-  if (kind === "link" && fields.url && !fields.thumbnailUrl) {
+  if (
+    kind === "link" &&
+    fields.url &&
+    !fields.thumbnailUrl &&
+    allowUnfurl(actor.userId)
+  ) {
     const preview = await unfurlLink(fields.url);
     if (preview) {
       if (preview.title) fields.title = preview.title;
@@ -474,9 +505,11 @@ export async function deleteMoodboardItem(
     });
     if (count === 0) throw new MoodboardItemNotFoundError();
     await touchMoodboard(tx, moodboardId);
+    // Pictures that were orphaned longer ago than the grace window go now. The
+    // picture of the tile just removed stays for that window, so Undo (a new
+    // tile at the same address) still has it.
+    await sweepOrphanAssets(tx, moodboardId);
   });
-  // The picture row of an uploaded image is kept, so Undo can put the tile
-  // back. //todo: a worker job that deletes assets no tile points at.
 }
 
 /* ---------- the whole grid: own rows, then what the canvas stored ---------- */
@@ -597,7 +630,12 @@ export async function reorderMoodboardItems(
 /* ---------- pictures ---------- */
 
 /** The client downsizes to JPEG ≤ 900 px, so a real upload is far below this. */
-export const MOODBOARD_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+export const MOODBOARD_IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+/**
+ * All the pictures a workspace keeps on its moodboards, whatever the plan.
+ * //todo: move into PLAN_LIMITS (src/lib/plan-limits.ts) once pictures are a plan matter.
+ */
+export const MOODBOARD_WORKSPACE_STORAGE_BYTES = 200 * 1024 * 1024;
 export const MOODBOARD_ASSET_LIMIT = 1000;
 /** How long a picture no tile shows is kept (Undo of a removal) before it is swept. */
 const ORPHAN_ASSET_HOURS = 1;
@@ -609,15 +647,24 @@ export const MOODBOARD_IMAGE_TYPES = [
 ] as const;
 
 export class MoodboardUploadError extends Error {
-  constructor(readonly code: "EMPTY" | "TOO_LARGE" | "BAD_TYPE" | "TOO_MANY") {
+  constructor(
+    readonly code:
+      | "EMPTY"
+      | "TOO_LARGE"
+      | "BAD_TYPE"
+      | "TOO_MANY"
+      | "STORAGE_FULL"
+  ) {
     super(
-      code === "TOO_LARGE"
-        ? "Pictures must be 4 MB or smaller"
-        : code === "BAD_TYPE"
-          ? "Only JPEG, PNG, WebP and GIF pictures are accepted"
-          : code === "TOO_MANY"
-            ? "This board has too many unused pictures; try again in an hour"
-            : "Choose a picture"
+      code === "STORAGE_FULL"
+        ? `Your workspace's moodboard pictures are full (${MOODBOARD_WORKSPACE_STORAGE_BYTES / 1024 / 1024} MB). Remove some pictures to add more.`
+        : code === "TOO_LARGE"
+          ? "Pictures must be 1.5 MB or smaller"
+          : code === "BAD_TYPE"
+            ? "Only JPEG, PNG, WebP and GIF pictures are accepted"
+            : code === "TOO_MANY"
+              ? "This board has too many unused pictures; try again in an hour"
+              : "Choose a picture"
     );
     this.name = "MoodboardUploadError";
   }
@@ -654,6 +701,33 @@ export function sniffImageType(bytes: Uint8Array): string | null {
 }
 
 /**
+ * Delete the pictures no tile of the board shows, once they are older than the
+ * grace window. A tile that was just removed keeps its picture for that
+ * window, so Undo (which makes the tile again from the same address) still
+ * finds it; after it, the picture is gone for good.
+ */
+async function sweepOrphanAssets(
+  tx: Pick<typeof prisma, "moodboardItem" | "moodboardAsset">,
+  moodboardId: string
+) {
+  const shown = await tx.moodboardItem.findMany({
+    where: { moodboardId, kind: "image" },
+    select: { url: true },
+  });
+  const keep = shown.flatMap((i) => {
+    const a = i.url ? parseAssetPath(i.url) : null;
+    return a && a.moodboardId === moodboardId ? [a.assetId] : [];
+  });
+  await tx.moodboardAsset.deleteMany({
+    where: {
+      moodboardId,
+      id: { notIn: keep },
+      createdAt: { lt: subHours(newDate(), ORPHAN_ASSET_HOURS) },
+    },
+  });
+}
+
+/**
  * Store a picture and add its tile in one step, so a failed upload leaves no
  * stray row. The type is read from the bytes, the size is capped, and the
  * board's item limit applies exactly as for any other reference.
@@ -686,26 +760,26 @@ export async function createMoodboardImage(
     await lockBoard(tx, moodboardId);
     const count = await tx.moodboardItem.count({ where: { moodboardId } });
     if (count >= MOODBOARD_ITEM_LIMIT) throw new MoodboardItemLimitError();
-    // Pictures no tile shows any more (a removed tile keeps its picture for an
-    // hour so Undo works) are swept here, so an emptied board takes uploads again.
-    const shown = await tx.moodboardItem.findMany({
-      where: { moodboardId, kind: "image" },
-      select: { url: true },
-    });
-    const keep = shown.flatMap((i) => {
-      const a = i.url ? parseAssetPath(i.url) : null;
-      return a && a.moodboardId === moodboardId ? [a.assetId] : [];
-    });
-    await tx.moodboardAsset.deleteMany({
-      where: {
-        moodboardId,
-        id: { notIn: keep },
-        createdAt: { lt: subHours(newDate(), ORPHAN_ASSET_HOURS) },
-      },
-    });
+    await sweepOrphanAssets(tx, moodboardId);
     const assets = await tx.moodboardAsset.count({ where: { moodboardId } });
     if (assets >= MOODBOARD_ASSET_LIMIT)
       throw new MoodboardUploadError("TOO_MANY");
+    // The workspace's total, checked under the board's row lock.
+    const board = await tx.moodboard.findFirst({
+      where: { id: moodboardId },
+      select: { workspaceId: true },
+    });
+    if (board) {
+      const used = await tx.moodboardAsset.aggregate({
+        where: { moodboard: { workspaceId: board.workspaceId } },
+        _sum: { size: true },
+      });
+      if (
+        (used._sum.size ?? 0) + input.bytes.length >
+        MOODBOARD_WORKSPACE_STORAGE_BYTES
+      )
+        throw new MoodboardUploadError("STORAGE_FULL");
+    }
     let at = input.position;
     if (at === undefined || !Number.isFinite(at)) {
       const last = await tx.moodboardItem.aggregate({

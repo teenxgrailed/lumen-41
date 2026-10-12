@@ -100,11 +100,12 @@ jest.mock("../../overlays/snack", () => ({
   snack: (...a: unknown[]) => mockSnack(...a),
 }));
 const mockInfo = jest.fn();
+const mockError = jest.fn();
 jest.mock("@/lib/notifications", () => ({
   notify: {
     info: (...a: unknown[]) => mockInfo(...a),
     success: jest.fn(),
-    error: jest.fn(),
+    error: (...a: unknown[]) => mockError(...a),
   },
 }));
 
@@ -215,6 +216,7 @@ beforeEach(() => {
     mockSnack,
     mockPush,
     mockInfo,
+    mockError,
     mockAdd,
     mockRemove,
     mockSaveItem,
@@ -653,6 +655,22 @@ describe("a board's references", () => {
     await flush();
     expect(mockInfo).toHaveBeenCalledTimes(1);
     expect(mockInfo).toHaveBeenCalledWith("This board holds 500 references");
+    expect(mockSnack).not.toHaveBeenCalled();
+    expect(area()?.value).toBe("Oak");
+  });
+
+  it("a refused picture (413) says why, in the server's words, and keeps the sheet", async () => {
+    const why = "Your workspace's moodboard pictures are full (200 MB).";
+    mockAdd.mockRejectedValue(new ApiError(413, why));
+    page("phone");
+    openNote();
+    typeArea(area()!, "Oak");
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    await flush();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError).toHaveBeenCalledWith(why);
+    expect(mockInfo).not.toHaveBeenCalled();
     expect(mockSnack).not.toHaveBeenCalled();
     expect(area()?.value).toBe("Oak");
   });

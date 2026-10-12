@@ -113,21 +113,70 @@ export function canvasProjection(
   };
 }
 
+/**
+ * Decoding a board's Yjs state costs a lot (pictures are inside it), and the
+ * grid asks for it on every items read and every canvas picture. The decoded
+ * scene is kept per board and per state version (the row's `updatedAt`), at
+ * most CANVAS_CACHE_SIZE boards, each for CANVAS_CACHE_TTL_MS; a changed
+ * state has a new key, so a stale scene is never served, and a key names one
+ * board, so nothing is shared across boards. In this process only.
+ */
+export const CANVAS_CACHE_SIZE = 20;
+export const CANVAS_CACHE_TTL_MS = 60_000;
+const sceneCache = new Map<string, { scene: MoodboardScene; at: number }>();
+
+export const clearCanvasSceneCache = () => sceneCache.clear();
+
+function cachedScene(key: string, now = Date.now()) {
+  const hit = sceneCache.get(key);
+  if (!hit) return null;
+  sceneCache.delete(key);
+  if (now - hit.at > CANVAS_CACHE_TTL_MS) return null;
+  sceneCache.set(key, hit); // most recently used goes last
+  return hit.scene;
+}
+
+function rememberScene(key: string, scene: MoodboardScene, now = Date.now()) {
+  // A board keeps one entry: older versions of it are dropped.
+  const board = key.slice(0, key.lastIndexOf(":"));
+  for (const k of sceneCache.keys())
+    if (k.startsWith(`${board}:`)) sceneCache.delete(k);
+  sceneCache.set(key, { scene, at: now });
+  while (sceneCache.size > CANVAS_CACHE_SIZE) {
+    const oldest = sceneCache.keys().next().value;
+    if (oldest === undefined) break;
+    sceneCache.delete(oldest);
+  }
+}
+
 /** The canvas's current scene: the live Yjs state, else the newest snapshot; null when it never had one. */
 export async function readCanvasScene(
   moodboardId: string
 ): Promise<MoodboardScene | null> {
-  const stored = await prisma.moodboardCollaborationState.findUnique({
+  // The row's version first (cheap, no bytes): the decoded scene is reused
+  // while it is unchanged and fresh (see sceneCache).
+  const version = await prisma.moodboardCollaborationState.findUnique({
     where: { moodboardId },
-    select: { state: true },
+    select: { updatedAt: true },
   });
-  if (stored) {
-    const doc = new Y.Doc();
-    try {
-      Y.applyUpdate(doc, new Uint8Array(stored.state));
-      return readMoodboardScene(doc);
-    } finally {
-      doc.destroy();
+  if (version) {
+    const key = `${moodboardId}:${version.updatedAt.getTime()}`;
+    const hit = cachedScene(key);
+    if (hit) return hit;
+    const stored = await prisma.moodboardCollaborationState.findUnique({
+      where: { moodboardId },
+      select: { state: true },
+    });
+    if (stored) {
+      const doc = new Y.Doc();
+      try {
+        Y.applyUpdate(doc, new Uint8Array(stored.state));
+        const scene = readMoodboardScene(doc);
+        rememberScene(key, scene);
+        return scene;
+      } finally {
+        doc.destroy();
+      }
     }
   }
   const snapshot = await prisma.moodboardSnapshot.findFirst({

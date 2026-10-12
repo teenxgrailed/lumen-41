@@ -166,6 +166,10 @@ export function hueOf(s: string | null | undefined): number {
 /** The longest side a picture is shrunk to before it is uploaded. */
 export const IMAGE_MAX_SIDE = 900;
 export const JPEG_QUALITY = 0.8;
+/** The second try for a picture that is still over the server's size limit. */
+export const JPEG_QUALITY_LIGHT = 0.6;
+/** The server's limit for one picture (MOODBOARD_IMAGE_MAX_BYTES: 1.5 MB). */
+export const UPLOAD_MAX_BYTES = 1.5 * 1024 * 1024;
 
 /** The size to draw a w × h picture at so its longest side is at most `max` (never enlarged). */
 export function fitWithin(w: number, h: number, max = IMAGE_MAX_SIDE) {

@@ -18,7 +18,7 @@ const LOG_SOURCE = "MoodboardItemUploadAPI";
 type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * Add a picture: multipart `file` (JPEG, PNG, WebP or GIF, up to 4 MB; the
+ * Add a picture: multipart `file` (JPEG, PNG, WebP or GIF, up to 1.5 MB; the
  * type is read from the bytes), optional `title`, `ratio` (height / width) and
  * `position`. The picture and its tile are written together; the tile's `url`
  * is `/api/moodboards/:id/assets/:assetId`.
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   );
   if (body === "too_large") {
     return NextResponse.json(
-      { error: "Pictures must be 4 MB or smaller" },
+      { error: "Pictures must be 1.5 MB or smaller" },
       { status: 413 }
     );
   }

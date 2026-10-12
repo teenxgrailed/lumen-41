@@ -131,9 +131,28 @@ export interface UndoableMutationOptions<V, R> {
   rollback?: "snapshot" | "refetch";
 }
 
-/** The items route said the board is full (409). */
+/** The items route said the board is full (409 "Moodboard is full"). */
 export function isBoardFull(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409;
+  return (
+    error instanceof ApiError &&
+    error.status === 409 &&
+    error.message === "Moodboard is full"
+  );
+}
+
+/**
+ * The server refused a picture or a write with words meant for the person:
+ * too big (413), not a picture (415), the workspace's pictures are full (413),
+ * too many unused pictures or a board in Trash (409). The caller shows
+ * `error.message`.
+ */
+export function isUploadRefusal(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    (error.status === 413 ||
+      error.status === 415 ||
+      (error.status === 409 && !isBoardFull(error)))
+  );
 }
 
 /** The server refused the write because the plan does not allow it. */

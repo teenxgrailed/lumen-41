@@ -22,8 +22,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         "Content-Length": String(asset.bytes.length),
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'; sandbox",
-        // The id never points at other bytes, so the browser may keep it.
-        "Cache-Control": "private, max-age=31536000, immutable",
+        // A removed picture can still be shown from the browser's copy for
+        // five minutes; the server stops serving it at once.
+        "Cache-Control": "private, max-age=300",
       },
     });
   } catch (error) {

@@ -17,6 +17,7 @@ import {
   fetchJson,
   findListItem,
   isBoardFull,
+  isUploadRefusal,
   patchListItem,
   previousFields,
   sendJson,
@@ -309,7 +310,8 @@ export function useAddBoardItem() {
     scope: BOARD_ITEMS_SCOPE,
     label: "add the reference",
     rollback: "refetch", // a snapshot would also undo other edits that succeeded
-    quiet: isBoardFull, // the caller words it: BOARD_FULL_TEXT
+    // the caller words these: BOARD_FULL_TEXT, or the server's own message
+    quiet: (e) => isBoardFull(e) || isUploadRefusal(e),
     inverseFromResult: true,
     inverse: (_qc, vars, result) =>
       !("removeId" in vars) && result

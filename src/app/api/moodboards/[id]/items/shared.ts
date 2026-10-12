@@ -57,7 +57,7 @@ export function moodboardItemErrorResponse(
       { error: error.message },
       {
         status:
-          error.code === "TOO_LARGE"
+          error.code === "TOO_LARGE" || error.code === "STORAGE_FULL"
             ? 413
             : error.code === "BAD_TYPE"
               ? 415

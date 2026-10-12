@@ -439,19 +439,28 @@ DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
   1..n; the answer is the wall in its new order. An id that is not on the board
   is `404` and nothing moves; a repeated id, an empty list or more than 500 ids
   is `400`.
-- **Upload** takes a JPEG, PNG, WebP or GIF up to 4 MB (the type is read from
+- **Upload** takes a JPEG, PNG, WebP or GIF up to 1.5 MB (the type is read from
   the bytes: `415` otherwise, `413` over the size). The picture and its `image`
   item are written together (`201 { "item" }`). The item counts toward the
   500; the board page shrinks pictures to a JPEG of at most 900 px first.
+  A workspace also holds at most 200 MB of pictures in all its boards, the same
+  on every plan: past that an upload is `413` with "Your workspace's moodboard
+  pictures are full (200 MB). Remove some pictures to add more." Pictures
+  nothing refers to any more are freed an hour after they were added (when a
+  tile is removed, the picture of that tile stays for that hour so Undo works).
+  A picture is served with `Cache-Control: private, max-age=300`, only while a
+  tile on its board refers to it.
 - **Links** are read server-side when created without `thumbnailUrl`: the
   page's title, site name and picture address replace what was sent. Only
   `https` pages on the default port, never a private, loopback or link-local
   address (also after redirects), at most 1 MB and 4 seconds. Anything that
-  fails leaves the link as sent.
+  fails leaves the link as sent. Each person is read at most 30 times in 10
+  minutes; over that, the link is saved as sent, without an error.
 - **List** order is the server's; `name` ignores case. Any change to a board's
   references, people or title moves its `updatedAt` ("Date updated").
-- **Delete forever** only works for a board already in Trash and with full
-  access (`409` otherwise).
+- **Delete forever** only works for a board already in Trash (`409` otherwise)
+  and only for the board's creator or a workspace owner; someone who was only
+  given full access on the board is refused (`403`).
 - **Permissions**: reading who is on a board is open to anyone who can see it;
   giving, changing or removing a role needs full access, and an invite reaches
   people already in the workspace (`403 WORKSPACE_MEMBER_REQUIRED` otherwise;

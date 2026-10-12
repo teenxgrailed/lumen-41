@@ -9,6 +9,10 @@ import {
 } from "@/app/api/moodboards/[id]/items/route";
 import { POST as UPLOAD } from "@/app/api/moodboards/[id]/items/upload/route";
 import { MOODBOARD_ITEM_LIMIT } from "@/services/moodboards/moodboard-item-service";
+import {
+  allowUnfurl,
+  resetUnfurlLimiter,
+} from "@/services/moodboards/moodboard-item-service";
 import { unfurlLink } from "@/services/moodboards/unfurl";
 import {
   MoodboardAccessRole,
@@ -60,6 +64,7 @@ const db: {
     bytes?: Buffer;
     mimeType?: string;
     createdAt?: Date;
+    size?: number;
   }[];
   seq: number;
 } = {
@@ -114,6 +119,23 @@ jest.mock("@/lib/prisma", () => {
       return (v.length - 1) / 2;
     }),
     moodboardAsset: {
+      aggregate: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { moodboard: { workspaceId: string } };
+        }) => ({
+          _sum: {
+            size: db.assets
+              .filter(
+                (a) =>
+                  db.boards.find((b) => b.id === a.moodboardId)?.workspaceId ===
+                  where.moodboard.workspaceId
+              )
+              .reduce((n, a) => n + (a.size ?? 0), 0),
+          },
+        })
+      ),
       deleteMany: jest.fn(
         async ({
           where,
@@ -130,7 +152,8 @@ jest.mock("@/lib/prisma", () => {
               !(
                 a.moodboardId === where.moodboardId &&
                 !where.id.notIn.includes(a.id) &&
-                (a.createdAt ?? new Date(0)) < where.createdAt.lt
+                // an asset seeded without a date is fresh (inside the grace)
+                (a.createdAt ?? new Date()) < where.createdAt.lt
               )
           );
           return { count: before - db.assets.length };
@@ -410,7 +433,7 @@ beforeEach(() => {
       select,
     }: {
       where: Record<string, unknown>;
-      select: { accessGrants: { where: { userId: string } } };
+      select: { accessGrants?: { where: { userId: string } } };
     }) => {
       const board = db.boards.find((b) =>
         matches(b as unknown as Record<string, unknown>, where)
@@ -422,7 +445,7 @@ beforeEach(() => {
         workspaceId: board.workspaceId,
         trashedAt: board.trashedAt ?? null,
         accessGrants: board.grants
-          .filter((g) => g.userId === select.accessGrants.where.userId)
+          .filter((g) => g.userId === select.accessGrants?.where.userId)
           .map((g) => ({ role: g.role })),
       };
     }
@@ -936,9 +959,9 @@ describe("POST /api/moodboards/:id/items/upload", () => {
     expect(db.assets).toHaveLength(0);
   });
 
-  it("refuses a picture over 4 MB (413)", async () => {
+  it("refuses a picture over 1.5 MB (413) with the limit in the words", async () => {
     as("editor");
-    const big = Buffer.concat([JPEG, Buffer.alloc(4 * 1024 * 1024)]);
+    const big = Buffer.concat([JPEG, Buffer.alloc(1.5 * 1024 * 1024)]);
     expect((await uploadRequest(big)).status).toBe(413);
     expect(db.assets).toHaveLength(0);
   });
@@ -1262,7 +1285,7 @@ describe("an upload checks who you are before it reads anything", () => {
     expect(req.headers.get("content-length")).toBeNull();
     expect((await upload(req)).status).toBe(413);
     expect(state.cancelled).toBe(true);
-    expect(state.pulled).toBeLessThan(6 * 1024 * 1024);
+    expect(state.pulled).toBeLessThan(2.5 * 1024 * 1024);
   });
 
   it("a lying Content-Length does not help either", async () => {
@@ -1271,7 +1294,7 @@ describe("an upload checks who you are before it reads anything", () => {
       "content-length": "100",
     });
     expect((await upload(req)).status).toBe(413);
-    expect(state.pulled).toBeLessThan(6 * 1024 * 1024);
+    expect(state.pulled).toBeLessThan(2.5 * 1024 * 1024);
   });
 });
 
@@ -1415,5 +1438,202 @@ describe("pictures: orphans, caps and who may still read one", () => {
       })
     );
     expect(res.status).toBe(404);
+  });
+});
+
+/* ---------- storage, orphans on delete, unfurl limit, cache header ---------- */
+
+describe("a workspace's pictures are bounded in total, for every plan", () => {
+  const MB = 1024 * 1024;
+  it("refuses an upload that would pass the workspace total (413), under the board lock, and stores nothing", async () => {
+    as("editor");
+    db.assets.push({
+      id: "big",
+      moodboardId: "board-a",
+      size: 199 * MB + 800 * 1024,
+    });
+    const res = await uploadRequest(
+      Buffer.concat([JPEG, Buffer.alloc(300 * 1024)])
+    );
+    expect(res.status).toBe(413);
+    const { error } = (await res.json()) as { error: string };
+    expect(error).toContain("moodboard pictures are full (200 MB)");
+    expect(error).toContain("Remove some pictures");
+    expect(db.assets).toHaveLength(1);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  it("counts every board of the workspace, and none of another workspace", async () => {
+    as("editor");
+    db.boards.push({
+      id: "board-c",
+      workspaceId: "ws-a",
+      createdById: "creator",
+      archivedAt: null,
+      grants: [],
+    });
+    db.assets.push(
+      {
+        id: "other-board",
+        moodboardId: "board-c",
+        size: 199 * MB + 900 * 1024,
+      },
+      { id: "elsewhere", moodboardId: "board-b", size: 500 * MB }
+    );
+    expect(
+      (await uploadRequest(Buffer.concat([JPEG, Buffer.alloc(300 * 1024)])))
+        .status
+    ).toBe(413);
+    db.assets = [{ id: "elsewhere", moodboardId: "board-b", size: 500 * MB }];
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+  });
+
+  it("frees room when pictures are removed (and swept)", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    db.assets.push({
+      id: "old",
+      moodboardId: "board-a",
+      size: 200 * MB,
+      createdAt: new Date("2026-10-12T08:00:00Z"),
+    });
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+    jest.useRealTimers();
+  });
+});
+
+describe("removing a tile purges orphaned pictures but keeps its own for Undo", () => {
+  const OLD = new Date("2026-10-12T08:00:00Z");
+  beforeEach(() =>
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"))
+  );
+  afterEach(() => jest.useRealTimers());
+
+  it("sweeps old orphans on delete; the tile just removed keeps its picture; Undo (the same address) works", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/mine",
+        text: null,
+      })
+    );
+    db.assets.push(
+      {
+        id: "mine",
+        moodboardId: "board-a",
+        createdAt: new Date("2026-10-12T11:55:00Z"),
+      },
+      { id: "orphan", moodboardId: "board-a", createdAt: OLD },
+      { id: "elsewhere", moodboardId: "board-b", createdAt: OLD }
+    );
+    expect((await remove("img")).status).toBe(204);
+    const ids = db.assets.map((a) => a.id);
+    expect(ids).toContain("mine"); // grace window: Undo needs it
+    expect(ids).not.toContain("orphan"); // purged on delete
+    expect(ids).toContain("elsewhere"); // another board is not touched
+    // Undo: the client makes the tile again from the same address
+    const undo = await create({
+      kind: "image",
+      url: "/api/moodboards/board-a/assets/mine",
+    });
+    expect(undo.status).toBe(201);
+  });
+
+  it("after the grace window the picture of a removed tile is gone too, and Undo is refused cleanly", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/mine",
+        text: null,
+      })
+    );
+    db.assets.push({ id: "mine", moodboardId: "board-a", createdAt: OLD });
+    await remove("img");
+    expect(db.assets.map((a) => a.id)).not.toContain("mine");
+    expect(
+      (
+        await create({
+          kind: "image",
+          url: "/api/moodboards/board-a/assets/mine",
+        })
+      ).status
+    ).toBe(400);
+  });
+});
+
+describe("link unfurls are rate limited per person", () => {
+  beforeEach(() => {
+    resetUnfurlLimiter();
+    (unfurlLink as jest.Mock).mockResolvedValue({
+      title: "Page",
+      siteName: null,
+      thumbnailUrl: null,
+    });
+  });
+  const link = (n: number) =>
+    create({ kind: "link", url: `https://a.example.com/${n}`, title: "Typed" });
+
+  it("after 30 in 10 minutes a link is saved as typed, with no error", async () => {
+    as("editor");
+    for (let i = 0; i < 30; i++) expect((await link(i)).status).toBe(201);
+    expect(unfurlLink).toHaveBeenCalledTimes(30);
+    const res = await link(31);
+    expect(res.status).toBe(201);
+    expect(unfurlLink).toHaveBeenCalledTimes(30);
+    expect(((await res.json()) as { item: { title: string } }).item.title).toBe(
+      "Typed"
+    );
+  });
+
+  it("is per person: another user still gets previews", async () => {
+    as("editor");
+    for (let i = 0; i < 31; i++) await link(i);
+    as("owner");
+    await link(99);
+    expect(unfurlLink).toHaveBeenCalledTimes(31);
+  });
+
+  it("slides: room comes back after ten minutes", () => {
+    const t0 = 1_000_000;
+    for (let i = 0; i < 30; i++) expect(allowUnfurl("u", t0 + i)).toBe(true);
+    expect(allowUnfurl("u", t0 + 100)).toBe(false);
+    expect(allowUnfurl("u", t0 + 10 * 60 * 1000 + 1)).toBe(true);
+  });
+});
+
+describe("a picture's cache header", () => {
+  it("is five minutes, private, with the sandbox headers kept", async () => {
+    db.assets.push({
+      id: "asset-1",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+    db.items.push(
+      item({
+        id: "shown",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/asset-1",
+        text: null,
+      })
+    );
+    as("viewer");
+    const res = await must(
+      ASSET(request("/api/moodboards/board-a/assets/asset-1", "GET"), {
+        params: Promise.resolve({ id: "board-a", assetId: "asset-1" }),
+      })
+    );
+    expect(res.headers.get("cache-control")).toBe("private, max-age=300");
+    expect(res.headers.get("content-security-policy")).toContain(
+      "default-src 'none'; sandbox"
+    );
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });
 });
