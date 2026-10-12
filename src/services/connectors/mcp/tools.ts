@@ -10,12 +10,39 @@ import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
-import { getPage, listPages } from "@/services/pages/page-service";
+import { createLocalEvent } from "@/services/connectors/local-events";
+import {
+  HabitCompletionDateError,
+  setHabitCompletionToday,
+} from "@/services/habits/habit-service";
+import {
+  getMoodboard,
+  listMoodboards,
+} from "@/services/moodboards/moodboard-service";
+import {
+  appendPageBlocks,
+  createPage,
+  getPage,
+  listPages,
+} from "@/services/pages/page-service";
+import {
+  PAGE_TEXT_MAX_LENGTH,
+  pageBlocksFromText,
+} from "@/services/pages/page-text-blocks";
+import {
+  PageCollaborationActiveError,
+  PageRevisionConflictError,
+  writePageBlocks,
+} from "@/services/pages/page-write-path";
 import {
   SEARCHABLE_TYPES,
   searchWorkspace,
 } from "@/services/search/workspace-search";
-import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
+import {
+  type TaskFieldPatch,
+  updateTaskFields,
+} from "@/services/tasks/task-update";
+import { PageAuthor, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
 import {
@@ -27,6 +54,8 @@ import { newDate } from "@/lib/date-utils";
 import { listMailMessages } from "@/lib/mail-db";
 import type { McpScope } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
+
+import { TaskStatus } from "@/types/task";
 
 import { type JsonSchema, zodToJsonSchema } from "./json-schema";
 
@@ -130,14 +159,18 @@ async function callRoute(
     : toolError({ status: response.status, error: payload });
 }
 
-async function readAccess(
-  ctx: McpToolContext
+async function workspaceAccess(
+  ctx: McpToolContext,
+  role: WorkspaceRole
 ): Promise<{ workspace: WorkspaceAccess } | { error: McpToolResult }> {
   const auth = await authorizeConnectorWorkspace(
     ctx.request,
     ctx.userId,
-    WorkspaceRole.VIEWER,
-    { workspaceId: ctx.workspaceId, boundWorkspaceId: ctx.auth.workspaceId }
+    role,
+    {
+      workspaceId: ctx.workspaceId,
+      boundWorkspaceId: ctx.auth.workspaceId,
+    }
   );
   if ("response" in auth && auth.response) {
     return {
@@ -150,6 +183,13 @@ async function readAccess(
   return { workspace: auth.workspace as WorkspaceAccess };
 }
 
+const readAccess = (ctx: McpToolContext) =>
+  workspaceAccess(ctx, WorkspaceRole.VIEWER);
+
+/** Writes need an editor seat in the workspace the call resolves to. */
+const writeAccess = (ctx: McpToolContext) =>
+  workspaceAccess(ctx, WorkspaceRole.EDITOR);
+
 const LIST_TYPES = [
   "task",
   "project",
@@ -158,6 +198,7 @@ const LIST_TYPES = [
   "page",
   "habit",
   "mail",
+  "moodboard",
 ] as const;
 type ListType = (typeof LIST_TYPES)[number];
 
@@ -202,6 +243,17 @@ function cursorArgs(cursor: string | undefined): {
   skip?: number;
 } {
   return cursor ? { cursor: { id: cursor }, skip: 1 } : {};
+}
+
+/** Cursor paging over a list a service returns whole. */
+function sliceAfter<T extends { id: string }>(
+  rows: T[],
+  args: { limit: number; cursor?: string }
+) {
+  const start = args.cursor
+    ? rows.findIndex((row) => row.id === args.cursor) + 1
+    : 0;
+  return page(rows.slice(start, start + args.limit + 1), args.limit);
 }
 
 async function listRows(
@@ -285,13 +337,10 @@ async function listRows(
         }),
         args.limit
       );
-    case "page": {
-      const rows = await listPages({ userId, workspace });
-      const start = args.cursor
-        ? rows.findIndex((row) => row.id === args.cursor) + 1
-        : 0;
-      return page(rows.slice(start, start + take), args.limit);
-    }
+    case "page":
+      return sliceAfter(await listPages({ userId, workspace }), args);
+    case "moodboard":
+      return sliceAfter(await listMoodboards({ userId, workspace }), args);
     case "habit":
       return page(
         await prisma.habit.findMany({
@@ -366,6 +415,8 @@ async function getRow(
         where: { id, account: { userId } },
         select: { ...mailSelect, bodyHtml: true },
       });
+    case "moodboard":
+      return getMoodboard({ userId, workspace }, id);
   }
 }
 
@@ -414,7 +465,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail.",
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard.",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -449,7 +500,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, or mail (with body).",
+      "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, mail (with body), or moodboard (title and your access role).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -531,6 +582,317 @@ export const MCP_TOOLS: McpTool[] = [
       callRoute(ctx, controlPost, "/api/connect/control", "POST", args),
   }),
 ];
+
+const taskStatus = z.enum([
+  TaskStatus.TODO,
+  TaskStatus.IN_PROGRESS,
+  TaskStatus.COMPLETED,
+]);
+const isoDate = z.string().min(1);
+const pageText = z
+  .string()
+  .min(1)
+  .max(PAGE_TEXT_MAX_LENGTH)
+  .describe(
+    "Body text. Markdown headings (#, ##, ###), -, 1. and - [ ] lists, > quotes, ``` code and --- rules become blocks; inline formatting stays as text."
+  );
+const pageFormat = z
+  .enum(["markdown", "plain"])
+  .default("markdown")
+  .describe("plain: one paragraph per line.");
+
+async function updateTask(
+  ctx: McpToolContext,
+  taskId: string,
+  patch: TaskFieldPatch
+): Promise<McpToolResult> {
+  const access = await writeAccess(ctx);
+  if ("error" in access) return access.error;
+  const result = await updateTaskFields({
+    userId: ctx.userId,
+    workspace: access.workspace,
+    taskId,
+    patch,
+  });
+  return result.ok
+    ? toolResult({ changed: result.changed, task: result.task })
+    : toolError({ status: result.status, error: result.error });
+}
+
+/** Page write-path refusals the caller can act on, as tool errors. */
+function pageWriteError(error: unknown): McpToolResult {
+  if (error instanceof PageCollaborationActiveError) {
+    return toolError({
+      status: 409,
+      error:
+        "This page is open for live editing in Needt. Try again once it is closed.",
+    });
+  }
+  if (error instanceof PageRevisionConflictError) {
+    return toolError({
+      status: 409,
+      error: "The page changed while writing. Try again.",
+    });
+  }
+  if (error instanceof Error && error.message === "Parent page not found") {
+    return toolError({ status: 404, error: error.message });
+  }
+  if (error instanceof Error && error.message === "Page has too many blocks") {
+    return toolError({ status: 413, error: error.message });
+  }
+  throw error;
+}
+
+function pageSummary(
+  written: {
+    id: string;
+    title: string;
+    parentId: string | null;
+    contentRevision: number;
+    blocks: unknown[];
+  },
+  appendedBlocks: number
+) {
+  return {
+    id: written.id,
+    title: written.title,
+    parentId: written.parentId,
+    contentRevision: written.contentRevision,
+    blockCount: written.blocks.length,
+    appendedBlocks,
+  };
+}
+
+const WRITE_TOOLS: McpTool[] = [
+  defineTool({
+    name: "needt_update_task",
+    description:
+      "Change a task: title, description, dueDate, estimatedMinutes, priority, energy, status or projectId. Only these fields are accepted. Needt re-runs the scheduler afterwards.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z
+      .object({
+        id: z.string().min(1).describe("Task id."),
+        title: z.string().min(1).max(500).optional(),
+        description: z.string().max(20_000).nullable().optional(),
+        dueDate: isoDate
+          .nullable()
+          .optional()
+          .describe("ISO 8601; null clears it."),
+        estimatedMinutes: z
+          .number()
+          .int()
+          .min(1)
+          .max(24 * 60)
+          .nullable()
+          .optional(),
+        priority: priority.optional(),
+        energy: energy.optional(),
+        status: taskStatus.optional(),
+        projectId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("Project in the same workspace; null removes it."),
+      })
+      .strict(),
+    async invoke(ctx, args) {
+      const dueDate =
+        args.dueDate == null ? args.dueDate : newDate(args.dueDate);
+      if (dueDate && Number.isNaN(dueDate.getTime())) {
+        return toolError({ status: 400, error: "dueDate must be ISO 8601" });
+      }
+      return updateTask(ctx, args.id, {
+        title: args.title,
+        description: args.description,
+        dueDate,
+        estimatedMinutes: args.estimatedMinutes,
+        priorityLevel: args.priority,
+        energyRequired: args.energy,
+        status: args.status,
+        projectId: args.projectId,
+      });
+    },
+  }),
+  defineTool({
+    name: "needt_complete_task",
+    description:
+      "Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z.object({
+      id: z.string().min(1).describe("Task id."),
+      done: z.boolean().default(true),
+    }),
+    invoke: (ctx, args) =>
+      updateTask(ctx, args.id, {
+        status: args.done ? TaskStatus.COMPLETED : TaskStatus.TODO,
+      }),
+  }),
+  defineTool({
+    name: "needt_create_event",
+    description:
+      "Create an event in a Needt calendar (the first one when feedId is omitted; synced Google, Outlook and CalDAV calendars are refused). Events are personal, so this works in the personal workspace only.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      title: z.string().min(1).max(500),
+      start: isoDate.describe("ISO 8601 start."),
+      end: isoDate.describe("ISO 8601 end, after start."),
+      allDay: z.boolean().optional(),
+      location: z.string().max(1000).optional(),
+      description: z.string().max(20_000).optional(),
+      feedId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("A Needt calendar id from needt_list type calendar."),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      if (access.workspace.workspaceKind !== WorkspaceKind.PERSONAL) {
+        return toolError({
+          status: 403,
+          error:
+            "Personal calendar actions are unavailable in shared workspaces.",
+        });
+      }
+      const created = await createLocalEvent(ctx.userId, args);
+      return created.ok
+        ? toolResult(created.event)
+        : toolError({ status: created.status, error: created.error });
+    },
+  }),
+  defineTool({
+    name: "needt_create_page",
+    description:
+      "Create a page in the active workspace, optionally under a parent page you can edit, with an optional Markdown or plain-text body.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      title: z.string().min(1).max(240),
+      body: pageText.optional(),
+      format: pageFormat,
+      parentId: z.string().min(1).optional().describe("Parent page id."),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      const actor = { userId: ctx.userId, workspace: access.workspace };
+      const blocks = args.body
+        ? pageBlocksFromText(args.body, args.format)
+        : [];
+      try {
+        const created = await createPage(actor, {
+          title: args.title,
+          parentId: args.parentId ?? null,
+          createdBy: PageAuthor.AI,
+        });
+        const written = blocks.length
+          ? await writePageBlocks(
+              actor,
+              created.id,
+              blocks.map((block, index) => ({
+                ...block,
+                position: (index + 1) * 1024,
+              })),
+              PageAuthor.AI,
+              1,
+              created.contentRevision
+            )
+          : created;
+        return toolResult(pageSummary(written ?? created, blocks.length));
+      } catch (error) {
+        return pageWriteError(error);
+      }
+    },
+  }),
+  defineTool({
+    name: "needt_append_page",
+    description:
+      "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      id: z.string().min(1).describe("Page id."),
+      text: pageText,
+      format: pageFormat,
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      const blocks = pageBlocksFromText(args.text, args.format);
+      if (blocks.length === 0) {
+        return toolError({ status: 400, error: "text has no content" });
+      }
+      try {
+        const written = await appendPageBlocks(
+          { userId: ctx.userId, workspace: access.workspace },
+          args.id,
+          blocks,
+          PageAuthor.AI
+        );
+        if (!written) {
+          return toolError({
+            status: 404,
+            error: "Page not found, or you cannot edit it.",
+          });
+        }
+        return toolResult(pageSummary(written, blocks.length));
+      } catch (error) {
+        return pageWriteError(error);
+      }
+    },
+  }),
+  defineTool({
+    name: "needt_log_habit",
+    description:
+      "Mark a habit kept for a day (today in your time zone by default), or not kept with kept: false. Safe to repeat. Future days are refused.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z.object({
+      id: z.string().min(1).describe("Habit id."),
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("yyyy-MM-dd in your time zone; today when omitted."),
+      kept: z.boolean().default(true),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      try {
+        const result = await setHabitCompletionToday({
+          userId: ctx.userId,
+          workspace: access.workspace,
+          habitId: args.id,
+          completed: args.kept,
+          dateKey: args.date,
+        });
+        if (!result) {
+          return toolError({ status: 404, error: "Habit not found" });
+        }
+        return toolResult({
+          habitId: result.habitId,
+          date: result.date,
+          kept: result.completed,
+        });
+      } catch (error) {
+        if (error instanceof HabitCompletionDateError) {
+          return toolError({ status: 400, error: error.message });
+        }
+        throw error;
+      }
+    },
+  }),
+];
+
+MCP_TOOLS.push(...WRITE_TOOLS);
 
 MCP_TOOLS.unshift(
   defineTool({
