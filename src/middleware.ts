@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { authSecret } from "@/lib/auth/auth-secret";
+import { mcpHost } from "@/lib/mcp-config";
 import { publicAppUrl } from "@/lib/public-url";
 
 // List of public routes that don't require authentication
 const publicRoutes = [
+  "/.well-known/",
   "/setup",
   "/api/setup/check",
   "/auth/signin",
@@ -56,8 +58,39 @@ function isPublicRoute(pathname: string): boolean {
 /**
  * Middleware for handling authentication and authorization
  */
+/** The host the request was addressed to, as the reverse proxy saw it. */
+function requestHost(request: NextRequest): string {
+  const raw =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    request.nextUrl.host;
+  return raw.split(",")[0].trim().toLowerCase();
+}
+
+const MCP_METADATA_PATHS = new Set([
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/oauth-protected-resource/mcp",
+]);
+
+/**
+ * `mcp.needt.app` serves the MCP endpoint and its metadata and nothing else:
+ * no app pages, no session cookies, no sign-in redirects.
+ */
+function mcpHostResponse(request: NextRequest): NextResponse {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/mcp") {
+    return NextResponse.rewrite(new URL(`/api/mcp${search}`, request.url));
+  }
+  if (MCP_METADATA_PATHS.has(pathname)) return NextResponse.next();
+  return NextResponse.json({ error: "not_found" }, { status: 404 });
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (requestHost(request) === mcpHost()) {
+    return mcpHostResponse(request);
+  }
 
   // Allow static files to bypass authentication
   const hasStaticExtension = staticFileExtensions.some((ext) =>

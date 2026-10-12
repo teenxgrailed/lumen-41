@@ -10,10 +10,18 @@ Authorization: Bearer needt_...
 Content-Type: application/json
 ```
 
-## MCP (Claude Code, Claude Desktop, other agents)
+## MCP (Claude Code, Claude Desktop, claude.ai, ChatGPT)
 
-The same token opens a remote MCP server at `/api/mcp` (Streamable HTTP,
-stateless JSON; POST only).
+Needt runs a remote MCP server (Streamable HTTP, stateless, JSON responses,
+POST only, protocol versions `2025-11-25`, `2025-06-18`, `2025-03-26`,
+`2024-11-05`). JSON-RPC batches are refused (`-32600`).
+
+| URL                             | Who uses it                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `https://mcp.needt.app/mcp`     | Canonical resource; OAuth clients (claude.ai, ChatGPT)   |
+| `https://use.needt.app/api/mcp` | Clients that send a personal `needt_…` token in a header |
+
+With a personal token:
 
 1. Settings -> Personal API -> Generate token (shown once; rotating it
    disconnects every agent).
@@ -24,22 +32,72 @@ claude mcp add --transport http needt https://use.needt.app/api/mcp \
   --header "Authorization: Bearer needt_REPLACE_ME"
 ```
 
-Add `--header "x-workspace-id: <id>"` to work in a shared workspace. Clients
-that only launch local processes can use the stdio bridge in `mcp/`.
+Clients that only launch local processes can use the stdio bridge in `mcp/`.
 
-| Tool                | What it does                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| `needt_search`      | Text search across tasks, projects, events, pages, habits, mail                                      |
-| `needt_list`        | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
-| `needt_get`         | One object in full by `type` and `id`                                                                |
-| `needt_create_task` | `POST /api/connect/tasks`                                                                            |
-| `needt_schedule`    | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
-| `needt_reschedule`  | `POST /api/connect/reschedule`                                                                       |
-| `needt_control`     | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+### Authorization
 
-Write tools run the connector routes in-process, so auth, workspace scoping
-and confirmation rules are the routes' own. Requests are rate-limited per IP
-and per user (120/min). OAuth for claude.ai connectors is not available yet.
+A request without a usable token gets `401` with
+
+```http
+WWW-Authenticate: Bearer resource_metadata="https://mcp.needt.app/.well-known/oauth-protected-resource/mcp", scope="needt.read needt.write mail.read"
+```
+
+The metadata (RFC 9728) is served at
+`/.well-known/oauth-protected-resource` and
+`/.well-known/oauth-protected-resource/mcp` on both hosts. It names the
+resource `https://mcp.needt.app/mcp` and the authorization server
+`https://use.needt.app`.
+
+| Scope         | Allows                                                       |
+| ------------- | ------------------------------------------------------------ |
+| `needt.read`  | Search, list and read tasks, projects, events, pages, habits |
+| `needt.write` | Create and change them, run the scheduler                    |
+| `mail.read`   | Mail in search, `needt_list`/`needt_get` with `type: mail`   |
+
+A personal token carries all three and is not tied to a workspace. A call
+that needs a scope the token lacks gets `403` with
+`WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
+scope; search without `mail.read` simply leaves mail out.
+
+The same token rules apply to the `/api/connect/*` routes below: reads need
+`needt.read`, writes `needt.write`.
+
+### Workspaces
+
+Every tool takes an optional `workspaceId` argument (OAuth clients cannot
+send headers). Header clients can also send `x-workspace-id: <id>`.
+`needt_whoami` lists the person's workspaces. Without either, calls act in
+the personal workspace — or, for an OAuth grant, in the workspace chosen at
+consent; an OAuth grant cannot act in any other.
+
+### Tools
+
+Every tool carries `readOnlyHint` and `destructiveHint` annotations.
+
+| Tool                | Scope                                          | What it does                                                                                         |
+| ------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `needt_whoami`      | —                                              | The person, token kind, scopes, current workspace and all workspaces                                 |
+| `needt_search`      | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                      |
+| `needt_list`        | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
+| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`                                                                |
+| `needt_create_task` | `needt.write`                                  | `POST /api/connect/tasks`                                                                            |
+| `needt_schedule`    | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
+| `needt_reschedule`  | `needt.write`                                  | `POST /api/connect/reschedule`                                                                       |
+| `needt_control`     | `needt.write`                                  | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+
+Write tools run the connector routes in-process with the caller's own token,
+so auth, workspace scoping and confirmation rules are the routes' own.
+
+### Limits
+
+| Limit                   | Per minute |
+| ----------------------- | ---------- |
+| Every call, per person  | 120        |
+| Write tools, per person | 30         |
+| Every call, per IP      | 600        |
+
+The per-IP limit is generous because hosted clients share a few egress
+addresses. Over a limit the answer is `429` with `Retry-After`.
 
 ## Create Task
 

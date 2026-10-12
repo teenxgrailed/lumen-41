@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authenticateConnectorToken } from "@/services/connectors/auth";
 import {
-  type JsonRpcResponse,
+  authenticateBearer,
+  hasScopes,
+  insufficientScopeResponse,
+} from "@/services/connectors/bearer";
+import {
+  batchRejectedResponse,
   handleMcpMessage,
   parseErrorResponse,
+  toolCallOf,
 } from "@/services/connectors/mcp/server";
+import { requiredScopes } from "@/services/connectors/mcp/tools";
 
+import { bearerChallenge, mcpResource } from "@/lib/mcp-config";
 import { publicAppUrl } from "@/lib/public-url";
 import {
   accountRule,
@@ -17,22 +24,30 @@ import {
 /**
  * Remote MCP endpoint (Streamable HTTP, stateless, JSON responses only).
  *
+ * Served at the canonical resource `https://mcp.needt.app/mcp` (the
+ * middleware rewrites that host's `/mcp` here) and, for clients that send a
+ * personal token in a header, at `https://use.needt.app/api/mcp`:
+ *
  *   claude mcp add --transport http needt https://use.needt.app/api/mcp \
  *     --header "Authorization: Bearer needt_…"
  *
  * The JSON-RPC layer is written by hand (`src/services/connectors/mcp/`):
- * stateless JSON mode needs only initialize, ping, tools/list and tools/call,
- * which is smaller than pulling in `@modelcontextprotocol/sdk` and its
- * express/zod@3.25 peer range.
- *
- * //todo OAuth 2.1 authorization (protected-resource metadata, dynamic client
- * registration, PKCE) so claude.ai custom connectors can connect without a
- * pasted token. Until then only the personal connector token is accepted.
+ * stateless JSON mode needs only initialize, ping, tools/list and tools/call.
+ * JSON-RPC batches are refused (removed from MCP in 2025-06-18).
  */
 
 const ROUTE = "/api/mcp";
 const MAX_BODY_BYTES = 256 * 1024;
-const RATE_LIMIT_PER_MINUTE = 120;
+
+/** Per person, every call. */
+export const MCP_USER_LIMIT_PER_MINUTE = 120;
+/** Per person, calls to tools that change something. */
+export const MCP_WRITE_LIMIT_PER_MINUTE = 30;
+/**
+ * Per IP. Generous on purpose: claude.ai and ChatGPT call from a few shared
+ * egress addresses, so one IP carries many people.
+ */
+export const MCP_IP_LIMIT_PER_MINUTE = 600;
 
 function jsonRpcError(status: number, message: string, headers?: HeadersInit) {
   return NextResponse.json(
@@ -41,13 +56,9 @@ function jsonRpcError(status: number, message: string, headers?: HeadersInit) {
   );
 }
 
-function unauthorized(request: NextRequest) {
-  const metadata = publicAppUrl(
-    "/.well-known/oauth-protected-resource",
-    request
-  ).toString();
+function unauthorized() {
   return jsonRpcError(401, "Unauthorized", {
-    "WWW-Authenticate": `Bearer resource_metadata="${metadata}"`,
+    "WWW-Authenticate": bearerChallenge(),
   });
 }
 
@@ -63,27 +74,36 @@ export async function DELETE() {
   return methodNotAllowed();
 }
 
+/** Origins a browser-based client may call from: the app and the MCP host. */
+function allowedOrigin(origin: string, request: NextRequest) {
+  return (
+    origin === publicAppUrl("/", request).origin ||
+    origin === new URL(mcpResource()).origin
+  );
+}
+
 export async function POST(request: NextRequest) {
   // Browsers attach Origin; a page on another site must not drive this
   // endpoint even if it somehow holds a token (DNS-rebinding guard).
   const origin = request.headers.get("origin");
-  if (origin && origin !== publicAppUrl("/", request).origin) {
+  if (origin && !allowedOrigin(origin, request)) {
     return jsonRpcError(403, "Forbidden origin");
   }
 
-  const userId = await authenticateConnectorToken(
-    request.headers.get("authorization")
+  const ipLimited = await enforceRateLimits(
+    [ipRule(request, "mcp:ip", MCP_IP_LIMIT_PER_MINUTE, 60)],
+    { route: ROUTE }
   );
-  if (!userId) return unauthorized(request);
+  if (ipLimited) return ipLimited;
 
-  const limited = await enforceRateLimits(
-    [
-      ipRule(request, "mcp:ip", RATE_LIMIT_PER_MINUTE, 60),
-      accountRule(userId, "mcp:user", RATE_LIMIT_PER_MINUTE, 60),
-    ],
-    { route: ROUTE, userId }
+  const auth = await authenticateBearer(request);
+  if (!auth) return unauthorized();
+
+  const userLimited = await enforceRateLimits(
+    [accountRule(auth.userId, "mcp:user", MCP_USER_LIMIT_PER_MINUTE, 60)],
+    { route: ROUTE, userId: auth.userId }
   );
-  if (limited) return limited;
+  if (userLimited) return userLimited;
 
   const raw = await request.text();
   if (raw.length > MAX_BODY_BYTES) {
@@ -95,13 +115,27 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json(parseErrorResponse(), { status: 400 });
   }
+  if (Array.isArray(body)) {
+    return NextResponse.json(batchRejectedResponse(), { status: 400 });
+  }
 
-  const ctx = { request, userId };
-  const messages = Array.isArray(body) ? body : [body];
-  const responses = (
-    await Promise.all(messages.map((message) => handleMcpMessage(ctx, message)))
-  ).filter((response): response is JsonRpcResponse => response !== null);
+  const call = toolCallOf(body);
+  if (call) {
+    const needed = requiredScopes(call.tool, call.args);
+    if (!hasScopes(auth, needed)) return insufficientScopeResponse(needed);
+    if (!call.tool.annotations.readOnlyHint) {
+      const writeLimited = await enforceRateLimits(
+        [accountRule(auth.userId, "mcp:write", MCP_WRITE_LIMIT_PER_MINUTE, 60)],
+        { route: ROUTE, userId: auth.userId }
+      );
+      if (writeLimited) return writeLimited;
+    }
+  }
 
-  if (!responses.length) return new NextResponse(null, { status: 202 });
-  return NextResponse.json(Array.isArray(body) ? responses : responses[0]);
+  const response = await handleMcpMessage(
+    { request, userId: auth.userId, auth },
+    body
+  );
+  if (!response) return new NextResponse(null, { status: 202 });
+  return NextResponse.json(response);
 }

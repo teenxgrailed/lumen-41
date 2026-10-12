@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 
 import {
+  type McpTool,
   type McpToolContext,
   findMcpTool,
   listMcpTools,
@@ -10,6 +11,7 @@ import {
 const LOG_SOURCE = "mcp-server";
 
 export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
+  "2025-11-25",
   "2025-06-18",
   "2025-03-26",
   "2024-11-05",
@@ -53,6 +55,32 @@ export function parseErrorResponse(): JsonRpcResponse {
   return failure(null, PARSE_ERROR, "Parse error");
 }
 
+/** Batches were removed from MCP in 2025-06-18; this server never takes one. */
+export function batchRejectedResponse(): JsonRpcResponse {
+  return failure(null, INVALID_REQUEST, "Batch requests are not supported");
+}
+
+/**
+ * The tool a `tools/call` message names, with its parsed arguments, so the
+ * transport can check scopes and write limits before running it. Null for
+ * anything else or for arguments the tool would reject anyway.
+ */
+export function toolCallOf(
+  message: unknown
+): { tool: McpTool; args: unknown } | null {
+  if (!message || typeof message !== "object") return null;
+  const { method, params } = message as JsonRpcMessage;
+  if (method !== "tools/call") return null;
+  const { name, arguments: rawArgs } = (params ?? {}) as {
+    name?: unknown;
+    arguments?: unknown;
+  };
+  const tool = findMcpTool(name);
+  if (!tool) return null;
+  const parsed = tool.input.safeParse(rawArgs ?? {});
+  return parsed.success ? { tool, args: parsed.data } : null;
+}
+
 function negotiateProtocol(params: unknown): string {
   const requested =
     params && typeof params === "object"
@@ -80,8 +108,13 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
       toolError({ error: "Invalid arguments", issues: parsed.error.issues })
     );
   }
+  // workspaceId is the transport's business (which workspace to act in),
+  // not the tool's: it goes on the context and leaves the arguments.
+  const { workspaceId, ...args } = (parsed.data ?? {}) as {
+    workspaceId?: string;
+  } & Record<string, unknown>;
   try {
-    return result(id, await tool.invoke(ctx, parsed.data));
+    return result(id, await tool.invoke({ ...ctx, workspaceId }, args));
   } catch (error) {
     logger.error(
       "MCP tool failed",
@@ -125,7 +158,7 @@ export async function handleMcpMessage(
         capabilities: { tools: { listChanged: false } },
         serverInfo: MCP_SERVER_INFO,
         instructions:
-          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_search or needt_list, read with needt_get, change with needt_control and needt_create_task.",
+          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_whoami to see the account, scopes and workspaces; find things with needt_search or needt_list, read with needt_get, change with needt_control and needt_create_task. Every tool takes an optional workspaceId.",
       });
     case "ping":
       return result(id, {});

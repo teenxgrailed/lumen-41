@@ -8,6 +8,7 @@ import {
 } from "@/app/api/connect/schedule/route";
 import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
+import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { getPage, listPages } from "@/services/pages/page-service";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { listMailMessages } from "@/lib/mail-db";
+import type { McpScope } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
 
 import { type JsonSchema, zodToJsonSchema } from "./json-schema";
@@ -35,6 +37,13 @@ export interface McpToolContext {
   /** The incoming MCP request; carries the caller's bearer token and workspace. */
   request: NextRequest;
   userId: string;
+  /** Who the bearer token speaks for: its kind, scopes and bound workspace. */
+  auth: BearerAuth;
+  /**
+   * The `workspaceId` tool argument: OAuth clients (claude.ai, ChatGPT)
+   * cannot send the X-Workspace-Id header, so every tool takes it.
+   */
+  workspaceId?: string;
 }
 
 export interface McpToolResult {
@@ -52,7 +61,13 @@ export interface McpTool<S extends z.ZodTypeAny = z.ZodTypeAny> {
   name: string;
   description: string;
   input: S;
-  annotations?: McpToolAnnotations;
+  /** Every tool says whether it reads or writes, and whether it can destroy. */
+  annotations: McpToolAnnotations & {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+  };
+  /** Scopes the call needs; defaults to read for read-only tools, else write. */
+  scopes?(args: z.infer<S>): McpScope[];
   invoke(ctx: McpToolContext, args: z.infer<S>): Promise<McpToolResult>;
 }
 
@@ -91,7 +106,8 @@ async function callRoute(
   if (workspaceHeader) headers.set(WORKSPACE_HEADER, workspaceHeader);
 
   const url = new URL(path, ctx.request.url);
-  const workspaceQuery = ctx.request.nextUrl.searchParams.get("workspaceId");
+  const workspaceQuery =
+    ctx.workspaceId ?? ctx.request.nextUrl.searchParams.get("workspaceId");
   if (workspaceQuery) url.searchParams.set("workspaceId", workspaceQuery);
 
   const response = await handler(
@@ -120,7 +136,8 @@ async function readAccess(
   const auth = await authorizeConnectorWorkspace(
     ctx.request,
     ctx.userId,
-    WorkspaceRole.VIEWER
+    WorkspaceRole.VIEWER,
+    { workspaceId: ctx.workspaceId, boundWorkspaceId: ctx.auth.workspaceId }
   );
   if ("response" in auth && auth.response) {
     return {
@@ -360,8 +377,8 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_search",
     description:
-      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get.",
-    annotations: { readOnlyHint: true },
+      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope.",
+    annotations: { readOnlyHint: true, destructiveHint: false },
     input: z.object({
       query: z.string().min(1).describe("Text to look for."),
       types: z
@@ -379,13 +396,17 @@ export const MCP_TOOLS: McpTool[] = [
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
+      // Without mail.read, mail is simply not searched (not an error).
+      const types = ctx.auth.scopes.includes("mail.read")
+        ? args.types
+        : (args.types ?? [...SEARCHABLE_TYPES]).filter((t) => t !== "mail");
       return toolResult({
         results: await searchWorkspace({
           userId: ctx.userId,
           workspace: access.workspace,
           query: args.query,
           take: args.limit,
-          types: args.types,
+          types,
         }),
       });
     },
@@ -394,7 +415,9 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_list",
     description:
       "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail.",
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    scopes: (args) =>
+      args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
     input: z.object({
       type: z.enum(LIST_TYPES),
       limit: z.number().int().min(1).max(MCP_LIST_LIMIT_MAX).default(25),
@@ -427,7 +450,9 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_get",
     description:
       "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, or mail (with body).",
-    annotations: { readOnlyHint: true },
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    scopes: (args) =>
+      args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
     input: z.object({ type: z.enum(LIST_TYPES), id: z.string().min(1) }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
@@ -443,6 +468,7 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_create_task",
     description:
       "Create an auto-scheduled task. Needt runs the scheduler immediately and returns the task with its scheduled blocks.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
     input: z.object({
       title: z.string().min(1),
       description: z.string().optional(),
@@ -461,7 +487,9 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_schedule",
     description:
-      "Return the upcoming schedule. With run: true (default) Needt re-runs the scheduler first.",
+      "Return the upcoming schedule. With run: true (default) Needt re-runs the scheduler first, which can move auto-scheduled tasks.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    scopes: (args) => (args.run ? ["needt.write"] : ["needt.read"]),
     input: z.object({ run: z.boolean().default(true) }),
     invoke: (ctx, args) =>
       args.run
@@ -472,6 +500,7 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_reschedule",
     description:
       "Re-run the scheduler and send the schedule.changed webhook if one is configured.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
     input: z.object({}),
     invoke: (ctx) =>
       callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
@@ -480,7 +509,7 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_control",
     description:
       "Change Needt projects, tasks, local calendars and events. Use action: overview to inspect the workspace. delete_* actions archive the object and require confirm: true; restore_* brings it back.",
-    annotations: { destructiveHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true },
     input: z.object({
       action: z.enum(CONNECTOR_CONTROL_ACTIONS),
       id: z.string().optional(),
@@ -503,8 +532,75 @@ export const MCP_TOOLS: McpTool[] = [
   }),
 ];
 
+MCP_TOOLS.unshift(
+  defineTool({
+    name: "needt_whoami",
+    description:
+      "Who this connection acts for: the person, the token kind (personal or OAuth), its scopes, and the workspace calls act in by default. Lists the person's workspaces so later calls can pass workspaceId.",
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    scopes: () => [],
+    input: z.object({}),
+    async invoke(ctx) {
+      const [user, memberships] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: ctx.userId },
+          select: { id: true, name: true, email: true },
+        }),
+        prisma.workspaceMember.findMany({
+          where: { userId: ctx.userId },
+          select: {
+            role: true,
+            workspace: { select: { id: true, name: true, kind: true } },
+          },
+        }),
+      ]);
+      const access = await readAccess(ctx);
+      return toolResult({
+        user,
+        token: {
+          kind: ctx.auth.kind,
+          scopes: ctx.auth.scopes,
+          clientId: ctx.auth.clientId ?? null,
+          boundWorkspaceId: ctx.auth.workspaceId ?? null,
+        },
+        workspace:
+          "workspace" in access
+            ? {
+                id: access.workspace.workspaceId,
+                kind: access.workspace.workspaceKind,
+                role: access.workspace.role,
+              }
+            : null,
+        workspaces: memberships.map((m) => ({ ...m.workspace, role: m.role })),
+      });
+    },
+  })
+);
+
+/** Every tool also takes an optional workspaceId (see McpToolContext). */
+const WORKSPACE_ARG = z
+  .string()
+  .min(1)
+  .optional()
+  .describe(
+    "Workspace to act in (from needt_whoami). Defaults to the connection's workspace, else the personal one."
+  );
+
+function inputWithWorkspace(tool: McpTool): z.ZodTypeAny {
+  return tool.input instanceof z.ZodObject
+    ? tool.input.extend({ workspaceId: WORKSPACE_ARG })
+    : tool.input;
+}
+
 export function findMcpTool(name: unknown): McpTool | undefined {
-  return MCP_TOOLS.find((tool) => tool.name === name);
+  const tool = MCP_TOOLS.find((candidate) => candidate.name === name);
+  return tool ? { ...tool, input: inputWithWorkspace(tool) } : undefined;
+}
+
+/** The scopes a call needs, from the tool's own rule or its read/write kind. */
+export function requiredScopes(tool: McpTool, args: unknown): McpScope[] {
+  if (tool.scopes) return tool.scopes(args as never);
+  return tool.annotations.readOnlyHint ? ["needt.read"] : ["needt.write"];
 }
 
 export function listMcpTools(): {
@@ -516,7 +612,7 @@ export function listMcpTools(): {
   return MCP_TOOLS.map((tool) => ({
     name: tool.name,
     description: tool.description,
-    inputSchema: zodToJsonSchema(tool.input),
-    ...(tool.annotations ? { annotations: tool.annotations } : {}),
+    inputSchema: zodToJsonSchema(inputWithWorkspace(tool)),
+    annotations: tool.annotations,
   }));
 }
