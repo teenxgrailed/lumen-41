@@ -51,6 +51,9 @@ jest.mock("@/services/time-tracking/timeEntries", () => ({
   recomputeTaskActuals: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@/lib/mail-db", () => ({ getMailMessage: jest.fn() }));
+jest.mock("@/lib/entitlements", () => ({
+  getPlan: jest.fn().mockResolvedValue("FREE"),
+}));
 jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUser: jest.fn(),
   scheduleAllTasksForUserDetailed: jest.fn(),
@@ -369,9 +372,9 @@ describe("reversible ops: the stored inverse restores the prior state", () => {
     );
     expect(run.result.changedTaskIds).toEqual([moved.id]);
     expect(
-      (action(run.actionId).targetVersions as { id: string }[]).map(
-        (row) => row.id
-      )
+      (action(run.actionId).targetVersions as { model: string; id: string }[])
+        .filter((row) => row.model === "task")
+        .map((row) => row.id)
     ).toEqual([moved.id]);
 
     expect((await undoAction(run.actionId!, OWNER_ID)).status).toBe("undone");

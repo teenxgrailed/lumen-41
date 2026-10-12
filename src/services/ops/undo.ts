@@ -48,14 +48,16 @@ export type ActionUndoResult =
 
 function asTouched(value: unknown): TouchedRow[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(
-    (row): row is TouchedRow =>
-      typeof row === "object" &&
-      row !== null &&
-      TOUCHED_MODELS.includes((row as TouchedRow).model) &&
-      typeof (row as TouchedRow).id === "string" &&
-      typeof (row as TouchedRow).updatedAt === "string"
-  );
+  return value
+    .filter(
+      (row): row is TouchedRow =>
+        typeof row === "object" &&
+        row !== null &&
+        TOUCHED_MODELS.includes((row as TouchedRow).model) &&
+        typeof (row as TouchedRow).id === "string" &&
+        typeof (row as TouchedRow).updatedAt === "string"
+    )
+    .map((row) => ({ ...row, beforeUpdatedAt: row.beforeUpdatedAt ?? null }));
 }
 
 async function currentVersion(
@@ -69,15 +71,18 @@ async function currentVersion(
       ? await tx.task.findUnique({ where: { id }, select })
       : model === "project"
         ? await tx.project.findUnique({ where: { id }, select })
-        : await tx.habit.findUnique({ where: { id }, select });
+        : model === "habit"
+          ? await tx.habit.findUnique({ where: { id }, select })
+          : await tx.scheduledBlock.findUnique({ where: { id }, select });
   return row?.updatedAt.toISOString() ?? null;
 }
 
 /**
- * A row matches when it still carries the version this action left, or the
- * version a later, already-undone action left when it restored the row. The
- * second case is what lets a run undo in reverse order without tripping on
- * its own restores.
+ * A row matches when it still carries the version this action left. Inside
+ * one run it also matches when the next action on that row (the one whose
+ * `beforeUpdatedAt` is this action's `updatedAt`) has already been undone and
+ * the row still carries the version that undo left. Anything else, including
+ * an edit that landed between this action and the next, is a conflict.
  */
 async function findConflicts(
   tx: OpClient,
@@ -86,18 +91,30 @@ async function findConflicts(
   const targets = asTouched(action.targetVersions);
   if (!targets.length) return [];
 
-  const laterUndone = await tx.agentAction.findMany({
-    where: {
-      userId: action.userId,
-      workspaceId: action.workspaceId,
-      status: "undone",
-      createdAt: { gte: action.createdAt },
-      id: { not: action.id },
-    },
-    orderBy: { undoneAt: "desc" },
-    select: { undoneVersions: true },
-    take: 200,
-  });
+  const laterUndone = action.runId
+    ? await tx.agentAction.findMany({
+        where: {
+          runId: action.runId,
+          userId: action.userId,
+          status: "undone",
+          id: { not: action.id },
+          createdAt: { gte: action.createdAt },
+        },
+        select: { targetVersions: true, undoneVersions: true },
+      })
+    : [];
+
+  const restoredBySuccessor = (target: TouchedRow, current: string) =>
+    laterUndone.some((later) => {
+      const applied = asTouched(later.targetVersions).find(
+        (row) => row.model === target.model && row.id === target.id
+      );
+      if (applied?.beforeUpdatedAt !== target.updatedAt) return false;
+      const restored = asTouched(later.undoneVersions).find(
+        (row) => row.model === target.model && row.id === target.id
+      );
+      return restored?.updatedAt === current;
+    });
 
   const conflicts: UndoConflict[] = [];
   for (const target of targets) {
@@ -113,10 +130,7 @@ async function findConflicts(
       continue;
     }
     if (current === target.updatedAt) continue;
-    const latestRestore = laterUndone
-      .flatMap((row) => asTouched(row.undoneVersions))
-      .find((row) => row.model === target.model && row.id === target.id);
-    if (latestRestore?.updatedAt === current) continue;
+    if (restoredBySuccessor(target, current)) continue;
     conflicts.push({
       model: target.model,
       id: target.id,
@@ -128,12 +142,16 @@ async function findConflicts(
   return conflicts;
 }
 
+const UNDOABLE_STATUSES = ["applied", "undo_conflict"];
+
 async function undoLoadedAction(
   action: AgentAction,
   actor: OpActor
 ): Promise<ActionUndoResult> {
   const base = { actionId: action.id, op: action.op };
-  if (action.status === "undone") return { ...base, status: "already_undone" };
+  if (action.status === "undone" || action.status === "undoing") {
+    return { ...base, status: "already_undone" };
+  }
   if (action.status === "failed") {
     return { ...base, status: "not_undoable", reason: "failed" };
   }
@@ -166,13 +184,26 @@ async function undoLoadedAction(
   }
 
   const outcome = await prisma.$transaction(async (tx) => {
+    // Claim first: a second undo of the same action waits on this row and
+    // then finds nothing to claim, so the inverse runs at most once.
+    const claim = await tx.agentAction.updateMany({
+      where: { id: action.id, status: { in: UNDOABLE_STATUSES } },
+      data: { status: "undoing" },
+    });
+    if (claim.count === 0) {
+      const latest = await tx.agentAction.findUnique({
+        where: { id: action.id },
+        select: { status: true },
+      });
+      return { kind: "claimed_elsewhere" as const, status: latest?.status };
+    }
     const conflicts = await findConflicts(tx, action);
     if (conflicts.length) {
       await tx.agentAction.update({
         where: { id: action.id },
         data: { status: "undo_conflict" },
       });
-      return { conflicts, output: null };
+      return { kind: "conflict" as const, conflicts };
     }
     const output = await applyInverse(
       inverse,
@@ -187,10 +218,15 @@ async function undoLoadedAction(
         undoneVersions: toJson(output.touched ?? []),
       },
     });
-    return { conflicts, output };
+    return { kind: "undone" as const, output };
   });
 
-  if (outcome.conflicts.length) {
+  if (outcome.kind === "claimed_elsewhere") {
+    return outcome.status === "failed"
+      ? { ...base, status: "not_undoable", reason: "failed" }
+      : { ...base, status: "already_undone" };
+  }
+  if (outcome.kind === "conflict") {
     logger.info(
       "Undo refused: rows changed after the action",
       { actionId: action.id, conflicts: outcome.conflicts.length },

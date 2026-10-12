@@ -29,14 +29,25 @@ export interface OpContext {
   runId?: string | null;
 }
 
-/** A row an op changed, with the version it left behind. */
+/**
+ * A row an op changed: the version it found (`beforeUpdatedAt`, null for a
+ * row the op created) and the version it left (`updatedAt`). Undo compares
+ * the current version with `updatedAt`; the pair lets it tell its own run's
+ * restores apart from someone else's edit.
+ */
 export interface TouchedRow {
   model: TouchedModel;
   id: string;
   updatedAt: string;
+  beforeUpdatedAt: string | null;
 }
 
-export const TOUCHED_MODELS = ["task", "project", "habit"] as const;
+export const TOUCHED_MODELS = [
+  "task",
+  "project",
+  "habit",
+  "scheduledBlock",
+] as const;
 export type TouchedModel = (typeof TOUCHED_MODELS)[number];
 
 export interface OpInverse {

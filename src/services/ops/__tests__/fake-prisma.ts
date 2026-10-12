@@ -63,6 +63,7 @@ export function createFakePrisma() {
     agentRun: [],
     userSettings: [],
     connectorSettings: [],
+    taskReminder: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -155,6 +156,11 @@ export function createFakePrisma() {
             child.orderBy ? compare(a[child.orderBy], b[child.orderBy]) : 0
           )
           .map((candidate) => clone(candidate));
+      } else if (model === "task" && key === "project") {
+        const project = tables.project.find(
+          (candidate) => candidate.id === row.projectId
+        );
+        out.project = project ? clone(project) : null;
       } else if (key === "tags") {
         out.tags = ((row.tags as { id: string }[]) ?? []).map((tag) => ({
           id: tag.id,

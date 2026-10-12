@@ -44,6 +44,9 @@ jest.mock("@/services/time-tracking/timeEntries", () => ({
   recomputeTaskActuals: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock("@/lib/mail-db", () => ({ getMailMessage: jest.fn() }));
+jest.mock("@/lib/entitlements", () => ({
+  getPlan: jest.fn().mockResolvedValue("FREE"),
+}));
 jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUser: jest.fn(),
   scheduleAllTasksForUserDetailed: jest.fn(),

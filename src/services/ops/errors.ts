@@ -4,7 +4,9 @@ export type OpErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
-  | "UNSUPPORTED";
+  | "UNSUPPORTED"
+  | "PROJECT_ARCHIVED"
+  | "APPLIED_NOT_UNDOABLE";
 
 const STATUS: Record<OpErrorCode, number> = {
   OP_NOT_FOUND: 404,
@@ -13,6 +15,8 @@ const STATUS: Record<OpErrorCode, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   UNSUPPORTED: 422,
+  PROJECT_ARCHIVED: 409,
+  APPLIED_NOT_UNDOABLE: 500,
 };
 
 export class OpError extends Error {

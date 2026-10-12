@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from `/api/agent/runs/:id/undo`). Undo refuses, and says which rows, when
   something changed after the action. External tools list and run the same
   operations through `GET /api/connect/ops` and `POST /api/connect/ops/:name`
-  with their connector token. The chat agent and MCP server move onto it in
-  follow-up changes.
+  with their connector token. Operations follow the app's rules: default
+  reminders on new tasks, read-only tasks in archived projects, no habit
+  marks on future days. The log is pruned 30 days after the undo window. The
+  chat agent and MCP server move onto it in follow-up changes.
 
 - Release: when two merges land close together, the older release run no
   longer asks Coolify for an image the newer run has not pushed yet. It

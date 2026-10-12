@@ -4,10 +4,14 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { newDate } from "@/lib/date-utils";
+import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
+import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
 
 import { OpError } from "../errors";
 import {
+  assertProjectActive,
   dateInputSchema,
   dateOrNull,
   dayKeySchema,
@@ -100,9 +104,13 @@ function restorableToData(fields: RestorableFields) {
   return data as Prisma.TaskUncheckedUpdateInput;
 }
 
-async function snapshotBlocks(ctx: OpContext, id: string) {
+async function snapshotBlocks(
+  ctx: OpContext,
+  id: string,
+  userId?: string | null
+) {
   const blocks = await ctx.tx.scheduledBlock.findMany({
-    where: { taskId: id },
+    where: { taskId: id, ...(userId ? { userId } : {}) },
     orderBy: { chunkIndex: "asc" },
   });
   return blocks.map(
@@ -120,9 +128,12 @@ async function snapshotBlocks(ctx: OpContext, id: string) {
 async function replaceBlocks(
   ctx: OpContext,
   id: string,
-  blocks: BlockSnapshot[]
+  blocks: BlockSnapshot[],
+  userId?: string | null
 ) {
-  await ctx.tx.scheduledBlock.deleteMany({ where: { taskId: id } });
+  await ctx.tx.scheduledBlock.deleteMany({
+    where: { taskId: id, ...(userId ? { userId } : {}) },
+  });
   if (blocks.length) {
     await ctx.tx.scheduledBlock.createMany({
       data: blocks.map((block) => ({
@@ -246,7 +257,7 @@ export const taskCreate = defineOp({
         workspaceId: ctx.workspaceId,
         assigneeId: ctx.userId,
         title: input.title,
-        description: input.notes,
+        description: sanitizeTaskDescriptionForStorage(input.notes),
         status: "todo",
         priorityLevel: input.priority ?? "MEDIUM",
         projectId: input.projectId,
@@ -254,6 +265,9 @@ export const taskCreate = defineOp({
         duration: input.estimateMinutes,
         dueDate: due,
         deadline: due,
+        // Same as /api/connect/tasks: the scheduler may place it. Unlike that
+        // route nothing is placed yet, so autoScheduled stays false until
+        // schedule.auto (or the next scheduler run) places it.
         isAutoScheduled: input.autoSchedule,
         autoScheduled: false,
         scheduleLocked: false,
@@ -270,11 +284,20 @@ export const taskCreate = defineOp({
       },
       include: { tags: { select: { id: true } } },
     });
+    // Same default reminders as POST /api/tasks.
+    await ctx.tx.taskReminder.createMany({
+      data: defaultTaskReminderRows(
+        await getPlan(ctx.userId),
+        task,
+        task.assigneeId ?? ctx.userId
+      ),
+      skipDuplicates: true,
+    });
     return {
       result: { task: taskView(task) },
       before: null,
       inverse: { op: "task.archive", input: { taskId: task.id } },
-      touched: [touched("task", task)],
+      touched: [touched("task", task, null)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -302,6 +325,7 @@ export const taskUpdate = defineOp({
     }),
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
+    assertProjectActive(task);
     const data: Prisma.TaskUncheckedUpdateInput = {};
     const keys: (keyof RestorableFields)[] = [];
 
@@ -310,7 +334,10 @@ export const taskUpdate = defineOp({
       keys.push("title");
     }
     if (input.notes !== undefined) {
-      data.description = input.notes;
+      data.description =
+        input.notes === null
+          ? null
+          : (sanitizeTaskDescriptionForStorage(input.notes) ?? null);
       keys.push("description");
     }
     if (input.dueDate !== undefined) {
@@ -360,7 +387,7 @@ export const taskUpdate = defineOp({
           ...(input.tagIds ? { tagIds: previousTagIds } : {}),
         },
       },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -374,6 +401,7 @@ export const taskComplete = defineOp({
   input: z.object({ taskId }).strict(),
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
+    assertProjectActive(task);
     if (task.status === "completed") {
       return { result: { task: taskView(task), changed: false } };
     }
@@ -400,7 +428,7 @@ export const taskComplete = defineOp({
       result: { task: taskView(updated), changed: true },
       before: { fields },
       inverse: { op: "task.restore", input: { taskId: task.id, fields } },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [
         () => schedulePushTaskBlock(schedulingUserId, task.id),
         () => recomputeTaskActuals(task.id).then(() => undefined),
@@ -442,7 +470,7 @@ export const taskUncomplete = defineOp({
       result: { task: taskView(updated), changed: true },
       before: { fields },
       inverse: { op: "task.restore", input: { taskId: task.id, fields } },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -468,8 +496,8 @@ export const taskArchive = defineOp({
       "scheduledEnd",
       "scheduleLocked",
     ]);
-    const blocks = await snapshotBlocks(ctx, task.id);
     const schedulingUserId = task.assigneeId ?? ctx.userId;
+    const blocks = await snapshotBlocks(ctx, task.id, schedulingUserId);
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: {
@@ -482,15 +510,23 @@ export const taskArchive = defineOp({
       },
       include: { tags: { select: { id: true } } },
     });
-    await ctx.tx.scheduledBlock.deleteMany({ where: { taskId: task.id } });
+    // Same scope as DELETE /api/tasks/[id]: only the scheduling user's blocks.
+    await ctx.tx.scheduledBlock.deleteMany({
+      where: { taskId: task.id, userId: schedulingUserId },
+    });
     return {
       result: { task: taskView(updated), changed: true },
       before: { fields, blocks },
       inverse: {
         op: "task.restore",
-        input: { taskId: task.id, fields, blocks },
+        input: {
+          taskId: task.id,
+          fields,
+          blocks,
+          blocksUserId: schedulingUserId,
+        },
       },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [
         () => schedulePushTaskBlock(schedulingUserId, task.id),
         publishTasksUpdated(ctx.userId),
@@ -524,7 +560,7 @@ export const taskUnarchive = defineOp({
       result: { task: taskView(updated), changed: true },
       before: { fields: pickRestorable(task, ["isArchived", "archivedAt"]) },
       inverse: { op: "task.archive", input: { taskId: task.id } },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -538,6 +574,7 @@ export const taskMoveToDay = defineOp({
   input: z.object({ taskId, date: dayKeySchema }).strict(),
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
+    assertProjectActive(task);
     const timeZone = await userTimeZone(ctx.tx, ctx.userId);
     const fields = pickRestorable(task, [
       "scheduledStart",
@@ -583,7 +620,7 @@ export const taskMoveToDay = defineOp({
         op: "task.restore",
         input: { taskId: task.id, fields, blocks },
       },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [
         () => schedulePushTaskBlock(schedulingUserId, task.id),
         publishTasksUpdated(ctx.userId),
@@ -604,6 +641,7 @@ export const taskRestore = defineOp({
       fields: restorableFields,
       tagIds: z.array(z.string()).optional(),
       blocks: z.array(blockSnapshot).optional(),
+      blocksUserId: z.string().optional(),
     })
     .strict(),
   async run(ctx, input) {
@@ -613,7 +651,7 @@ export const taskRestore = defineOp({
     const keys = Object.keys(input.fields) as (keyof RestorableFields)[];
     const current = pickRestorable(task, keys);
     const currentBlocks = input.blocks
-      ? await snapshotBlocks(ctx, task.id)
+      ? await snapshotBlocks(ctx, task.id, input.blocksUserId)
       : undefined;
     const currentTagIds = task.tags.map((tag) => tag.id);
 
@@ -627,7 +665,9 @@ export const taskRestore = defineOp({
       },
       include: { tags: { select: { id: true } } },
     });
-    if (input.blocks) await replaceBlocks(ctx, task.id, input.blocks);
+    if (input.blocks) {
+      await replaceBlocks(ctx, task.id, input.blocks, input.blocksUserId);
+    }
     const schedulingUserId = task.assigneeId ?? ctx.userId;
     return {
       result: { task: taskView(updated) },
@@ -639,9 +679,10 @@ export const taskRestore = defineOp({
           fields: current,
           ...(input.tagIds ? { tagIds: currentTagIds } : {}),
           ...(currentBlocks ? { blocks: currentBlocks } : {}),
+          ...(input.blocksUserId ? { blocksUserId: input.blocksUserId } : {}),
         },
       },
-      touched: [touched("task", updated)],
+      touched: [touched("task", updated, task)],
       afterCommit: [
         () => schedulePushTaskBlock(schedulingUserId, task.id),
         publishTasksUpdated(ctx.userId),

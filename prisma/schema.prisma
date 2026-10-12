@@ -2051,7 +2051,7 @@ model AgentAction {
   before         Json?
   inverse        Json?
   targetVersions Json      @default("[]")
-  status         String    @default("applied") // applied | undone | undo_conflict | failed
+  status         String    @default("applied") // applied | undoing | undone | undo_conflict | failed
   undoableUntil  DateTime?
   undoneAt       DateTime?
   undoneVersions Json?

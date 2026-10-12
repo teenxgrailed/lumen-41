@@ -180,7 +180,30 @@ export async function runOp<Result = unknown>(
   let action: Awaited<ReturnType<typeof recordAction>>;
   if (op.transactional === false) {
     output = await op.run(buildContext(options, prisma), input);
-    action = await recordAction(prisma, op, input, output, options);
+    try {
+      action = await recordAction(prisma, op, input, output, options);
+    } catch (error) {
+      // The change is already in the database and cannot be rolled back
+      // here. Keep the snapshot in the logs so it can be restored by hand.
+      logger.error(
+        "Op applied but its action log row could not be written",
+        {
+          op: op.name,
+          userId: options.userId,
+          workspaceId: options.workspace.workspaceId,
+          before: JSON.stringify(output.before ?? null),
+          inverse: JSON.stringify(output.inverse ?? null),
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      );
+      await runAfterCommit(op.name, output.afterCommit);
+      throw new OpError(
+        "APPLIED_NOT_UNDOABLE",
+        "The change was applied but could not be recorded, so it cannot be undone",
+        { op: op.name, result: toJson(output.result ?? null) }
+      );
+    }
   } else {
     ({ output, action } = await prisma.$transaction(async (tx) => {
       const result = await op.run(buildContext(options, tx), input);

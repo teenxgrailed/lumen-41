@@ -59,7 +59,7 @@ export const projectCreate = defineOp({
       result: { project: projectView(project) },
       before: null,
       inverse: { op: "project.archive", input: { projectId: project.id } },
-      touched: [touched("project", project)],
+      touched: [touched("project", project, null)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -87,7 +87,7 @@ export const projectArchive = defineOp({
         op: "project.restore",
         input: { projectId: project.id, status: project.status },
       },
-      touched: [touched("project", updated)],
+      touched: [touched("project", updated, project)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -116,7 +116,7 @@ export const projectRestore = defineOp({
         op: "project.restore",
         input: { projectId: project.id, status: project.status },
       },
-      touched: [touched("project", updated)],
+      touched: [touched("project", updated, project)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },

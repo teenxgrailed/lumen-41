@@ -59,7 +59,7 @@ export const mailToTask = defineOp({
       result: { task: taskView(task), messageId: message.id },
       before: null,
       inverse: { op: "task.archive", input: { taskId: task.id } },
-      touched: [touched("task", task)],
+      touched: [touched("task", task, null)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -74,7 +74,15 @@ async function setHabitDay(
   input: z.infer<typeof habitInput>,
   completed: boolean
 ) {
-  const dateKey = input.date ?? (await habitTodayKey(ctx.userId));
+  const today = await habitTodayKey(ctx.userId);
+  const dateKey = input.date ?? today;
+  // Keys are YYYY-MM-DD, so string order is calendar order.
+  if (dateKey > today) {
+    throw new OpError(
+      "INVALID_INPUT",
+      "A habit cannot be logged for a future day"
+    );
+  }
   const outcome = await setHabitCompletion(ctx.tx, {
     userId: ctx.userId,
     workspace: ctx.workspace,

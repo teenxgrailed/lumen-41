@@ -13,7 +13,16 @@ const LOG_SOURCE = "ops-helpers";
 
 export const dayKeySchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a calendar day as YYYY-MM-DD");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a calendar day as YYYY-MM-DD")
+  .refine(
+    (value) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [year, month, day] = value.split("-").map(Number);
+      const date = newDate(Date.UTC(year, month - 1, day));
+      return date.toISOString().slice(0, 10) === value;
+    },
+    { message: "Not a real calendar day" }
+  );
 
 /** Accepts an ISO date-time or a YYYY-MM-DD day; rejects anything Date cannot read. */
 export const dateInputSchema = z
@@ -37,11 +46,18 @@ export function dateOrNull(value: string | null | undefined) {
   return value ? newDate(value) : null;
 }
 
+/** `before` is the row as the op read it before writing; null when the op created it. */
 export function touched(
   model: TouchedRow["model"],
-  row: { id: string; updatedAt: Date }
+  row: { id: string; updatedAt: Date },
+  before: { updatedAt: Date } | null
 ): TouchedRow {
-  return { model, id: row.id, updatedAt: row.updatedAt.toISOString() };
+  return {
+    model,
+    id: row.id,
+    updatedAt: row.updatedAt.toISOString(),
+    beforeUpdatedAt: before ? before.updatedAt.toISOString() : null,
+  };
 }
 
 export async function findScopedTask(
@@ -55,10 +71,22 @@ export async function findScopedTask(
       ...ctx.scope,
       ...(options.includeArchived ? {} : { isArchived: false }),
     },
-    include: { tags: { select: { id: true } } },
+    include: {
+      tags: { select: { id: true } },
+      project: { select: { status: true } },
+    },
   });
   if (!task) throw new OpError("NOT_FOUND", "Task not found");
   return task;
+}
+
+/** Same rule as PUT /api/tasks/[id]: a task in an archived project is read-only. */
+export function assertProjectActive(task: {
+  project: { status: string } | null;
+}) {
+  if (task.project?.status === "archived") {
+    throw new OpError("PROJECT_ARCHIVED", "The task's project is archived");
+  }
 }
 
 export async function findScopedProject(ctx: OpContext, projectId: string) {

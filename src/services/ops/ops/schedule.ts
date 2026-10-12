@@ -15,7 +15,7 @@ import {
   userTimeZone,
 } from "../helpers";
 import { defineOp } from "../types";
-import type { TouchedRow } from "../types";
+import type { OpContext, TouchedRow } from "../types";
 
 const snapshotSchema = z
   .object({
@@ -76,14 +76,35 @@ function only(snapshot: ScheduleSnapshot, ids: Set<string>): ScheduleSnapshot {
   };
 }
 
+async function blockVersions(
+  ctx: OpContext,
+  taskIds: string[]
+): Promise<TouchedRow[]> {
+  if (!taskIds.length) return [];
+  const blocks = await ctx.tx.scheduledBlock.findMany({
+    where: { taskId: { in: taskIds } },
+    select: { id: true, updatedAt: true },
+    orderBy: { id: "asc" },
+  });
+  // The scheduler recreates blocks, so there is no earlier version to keep.
+  return blocks.map((block) => ({
+    model: "scheduledBlock",
+    id: block.id,
+    updatedAt: block.updatedAt.toISOString(),
+    beforeUpdatedAt: null,
+  }));
+}
+
 export const scheduleAuto = defineOp({
   name: "schedule.auto",
   description:
-    "Run the auto-scheduler over the workspace's open tasks. Undo puts every task it moved back where it was.",
+    "Run the auto-scheduler over the workspace's open tasks. Undo puts every task it moved back where it was. Placement changes made by anything else while it runs are attributed to this run.",
   risk: "reversible",
   transactional: false,
   input: z.object({}).strict(),
   async run(ctx) {
+    //todo: hold a per-user advisory lock around capture -> schedule ->
+    // capture so a concurrent edit is not folded into this run's diff.
     const before = await captureSnapshot(ctx.userId, ctx.workspace);
     await scheduleAllTasksForUser(ctx.userId, {
       workspaceId:
@@ -102,13 +123,23 @@ export const scheduleAuto = defineOp({
         )
         .map((task) => task.id)
     );
-    const touchedRows: TouchedRow[] = after.tasks
-      .filter((task) => changed.has(task.id))
-      .map((task) => ({
-        model: "task",
-        id: task.id,
-        updatedAt: task.updatedAt,
-      }));
+    const beforeVersions = new Map(
+      before.tasks.map((task) => [task.id, task.updatedAt])
+    );
+    // The scheduler bumps every unlocked task it clears, so its own block
+    // changes always move Task.updatedAt. Block rows are versioned too, so a
+    // later block-only edit by someone else still counts as a conflict.
+    const touchedRows: TouchedRow[] = [
+      ...after.tasks
+        .filter((task) => changed.has(task.id))
+        .map((task) => ({
+          model: "task" as const,
+          id: task.id,
+          updatedAt: task.updatedAt,
+          beforeUpdatedAt: beforeVersions.get(task.id) ?? null,
+        })),
+      ...(await blockVersions(ctx, [...changed])),
+    ];
     const previous = only(before, changed);
 
     return {
@@ -128,7 +159,14 @@ export const scheduleAuto = defineOp({
             };
           }),
       },
-      before: previous,
+      // The inverse already carries the full snapshot; keep `before` small.
+      before: {
+        tasks: previous.tasks.map((task) => ({
+          id: task.id,
+          scheduledStart: task.scheduledStart,
+          scheduledEnd: task.scheduledEnd,
+        })),
+      },
       inverse: changed.size
         ? { op: "schedule.restore", input: { snapshot: previous } }
         : null,
@@ -151,6 +189,9 @@ export const scheduleRestore = defineOp({
       await captureSnapshot(ctx.userId, ctx.workspace, ctx.tx),
       ids
     );
+    const currentVersions = new Map(
+      current.tasks.map((task) => [task.id, task.updatedAt])
+    );
     await restoreSnapshot(ctx.userId, ctx.workspace, input.snapshot, ctx.tx);
     const rows = await ctx.tx.task.findMany({
       where: { id: { in: [...ids] }, ...ctx.scope },
@@ -158,13 +199,20 @@ export const scheduleRestore = defineOp({
     });
     return {
       result: { restoredTaskIds: rows.map((row) => row.id) },
-      before: current,
+      before: { taskIds: [...ids] },
       inverse: { op: "schedule.restore", input: { snapshot: current } },
-      touched: rows.map((row) => ({
-        model: "task" as const,
-        id: row.id,
-        updatedAt: row.updatedAt.toISOString(),
-      })),
+      touched: [
+        ...rows.map((row) => ({
+          model: "task" as const,
+          id: row.id,
+          updatedAt: row.updatedAt.toISOString(),
+          beforeUpdatedAt: currentVersions.get(row.id) ?? null,
+        })),
+        ...(await blockVersions(
+          ctx,
+          rows.map((row) => row.id)
+        )),
+      ],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
