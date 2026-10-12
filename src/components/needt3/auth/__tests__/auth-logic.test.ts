@@ -1,4 +1,5 @@
 import {
+  MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
   formReady,
   mailProblem,
@@ -10,6 +11,7 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
+  splitSignInProviders,
   submitLabel,
   submitStep,
 } from "../auth-logic";
@@ -124,5 +126,56 @@ describe("sign-in provider buttons", () => {
     expect(oauthButtonLabel({ id: "azure-ad", label: "Microsoft" })).toBe(
       "Sign in with Microsoft"
     );
+    expect(oauthButtonLabel({ id: "apple", label: "Apple" })).toBe(
+      "Sign in with Apple"
+    );
+    expect(oauthButtonLabel({ id: "github", label: "GitHub" })).toBe(
+      "Continue with GitHub"
+    );
+    expect(oauthButtonLabel({ id: "openai", label: "ChatGPT" })).toBe(
+      "Sign in with ChatGPT"
+    );
+    expect(oauthButtonLabel({ id: "linkedin", label: "LinkedIn" })).toBe(
+      "Sign in with LinkedIn"
+    );
+    expect(oauthButtonLabel({ id: "twitter", label: "X" })).toBe(
+      "Sign in with X"
+    );
+    expect(oauthButtonLabel({ id: "discord", label: "Discord" })).toBe(
+      "Continue with Discord"
+    );
+  });
+
+  it("show Google, Apple and GitHub; the rest wait behind “More ways”", () => {
+    const all = [
+      "google",
+      "apple",
+      "github",
+      "azure-ad",
+      "openai",
+      "discord",
+      "twitter",
+      "linkedin",
+    ].map((id) => ({ id }));
+    const { main, more } = splitSignInProviders(all);
+    expect(main.map((p) => p.id)).toEqual(["google", "apple", "github"]);
+    expect(more.map((p) => p.id)).toEqual([
+      "azure-ad",
+      "openai",
+      "discord",
+      "twitter",
+      "linkedin",
+    ]);
+    expect(MORE_SIGN_IN_WAYS_LABEL).toBe("More ways to sign in");
+  });
+
+  it("with none of the three configured, the rest show directly", () => {
+    expect(
+      splitSignInProviders([{ id: "azure-ad" }, { id: "discord" }])
+    ).toEqual({ main: [{ id: "azure-ad" }, { id: "discord" }], more: [] });
+    expect(splitSignInProviders([{ id: "github" }])).toEqual({
+      main: [{ id: "github" }],
+      more: [],
+    });
   });
 });

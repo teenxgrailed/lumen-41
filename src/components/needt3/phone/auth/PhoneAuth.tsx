@@ -36,6 +36,7 @@ import { useOnline } from "@/lib/needt3/use-online";
 import type { AuthScreenProps } from "../../auth/AuthScreen";
 import {
   MIN_PASSWORD,
+  MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
   formReady,
   mailProblem,
@@ -47,6 +48,7 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
+  splitSignInProviders,
 } from "../../auth/auth-logic";
 import { useAuthFields, useAuthSteps } from "../../auth/use-auth-fields";
 import {
@@ -97,6 +99,13 @@ export function PhoneAuth({
   const { touched, setTouched, refused, setRefused, recover, setRecover } =
     useAuthSteps(steps);
   const [busy, setBusy] = React.useState(false);
+  /* Google, Apple and GitHub show; the rest wait behind "More ways". */
+  const [moreWays, setMoreWays] = React.useState(false);
+  const { main: mainProviders, more: moreProviders } =
+    splitSignInProviders(providers);
+  const shownProviders = moreWays
+    ? [...mainProviders, ...moreProviders]
+    : mainProviders;
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [limited, setLimited] = React.useState(false);
@@ -389,10 +398,17 @@ export function PhoneAuth({
                 password is the most expensive thing on the screen. */}
             {providers.length ? (
               <>
-                <div className="mau-pair">
-                  {providers.map((p) => (
+                {/* Two short labels share a row; three or more stack, as
+                    "Continue with Google" does not fit half a phone. */}
+                <div
+                  className={
+                    shownProviders.length > 2 ? "mau-pair is-stack" : "mau-pair"
+                  }
+                >
+                  {shownProviders.map((p) => (
                     <MaButton
                       key={p.id}
+                      data-provider={p.id}
                       onClick={() => onProvider?.(p.id)}
                       disabled={offline || providerBusy !== null}
                     >
@@ -400,6 +416,16 @@ export function PhoneAuth({
                       {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
                     </MaButton>
                   ))}
+                  {moreProviders.length && !moreWays ? (
+                    <button
+                      type="button"
+                      className="mau-link mau-more-ways"
+                      aria-expanded={false}
+                      onClick={() => setMoreWays(true)}
+                    >
+                      {MORE_SIGN_IN_WAYS_LABEL}
+                    </button>
+                  ) : null}
                 </div>
                 <span className="mau-or">
                   <span aria-hidden="true" className="mau-or-rule" />

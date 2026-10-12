@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- More ways to sign in: Apple, GitHub, Sign in with ChatGPT, Discord, X and
+  LinkedIn join Google and Microsoft. The sign-in and sign-up screens (desktop
+  and phone) show Google, Apple and GitHub; "More ways to sign in" reveals the
+  rest. A provider shows only once it is configured in System Settings
+  (secrets encrypted) or the environment. A provider sign-in joins an existing
+  account only on an email the provider verified; otherwise it is refused
+  with "sign in the way you did before", and X never joins an existing
+  account. Closed registration applies to every provider. Microsoft sign-in
+  no longer asks for calendar and task access (the Outlook connection does).
+  Owner setup: `docs/operations/sign-in-providers.md`.
+
 - Design v3 for everyone: a migration turns the `design_v3` flag on at a
   100 % rollout, so sign-in, sign-up and password recovery wear the v3
   screens for every visitor and every signed-in person lands in the v3 app.

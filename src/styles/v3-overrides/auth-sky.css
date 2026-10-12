@@ -220,3 +220,32 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Sign-in providers (owner decision 2026-10-12): three buttons, then a quiet
+   "More ways to sign in" that reveals the rest in the same stack. */
+.needt-v3 .ax-link.auth-more-ways {
+  align-self: center;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.needt-v3 .mau-pair.is-stack {
+  flex-direction: column;
+}
+.needt-v3 .mau-link.mau-more-ways {
+  align-self: center;
+}
+
+/* Sign in with Apple, per Apple's Human Interface Guidelines: a black button
+   on a light surface and a white one on a dark surface, the Apple mark left of
+   an approved title. Ink and paper are the theme's own text and background,
+   which are exactly that pair; the brand's colour, not the accent. */
+.needt-v3 .auth-oauth[data-provider="apple"] {
+  background: var(--text-primary);
+  color: var(--background);
+  box-shadow: none;
+}
+.needt-v3 .mau-btn[data-provider="apple"] {
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}

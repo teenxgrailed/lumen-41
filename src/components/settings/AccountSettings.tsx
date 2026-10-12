@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
+import { signInProviderLabel } from "@/lib/auth/sign-in-provider-ids";
 import { newDate } from "@/lib/date-utils";
 import { notify } from "@/lib/notifications";
 
@@ -285,7 +286,7 @@ export function AccountSettings() {
                     >
                       <ShieldCheck className="h-4 w-4" />
                       Sign in with{" "}
-                      {provider === "azure-ad" ? "Microsoft" : "Google"}
+                      {signInProviderLabel(provider)}
                     </Button>
                   ))}
                 </div>

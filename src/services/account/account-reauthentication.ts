@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 
+import { isSignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { addHours, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
@@ -34,7 +35,7 @@ export async function beginOAuthReauthentication(
   sessionHash: string,
   provider: string
 ): Promise<string> {
-  if (!new Set(["google", "azure-ad"]).has(provider)) {
+  if (!isSignInProviderId(provider)) {
     throw new Error("UNSUPPORTED_REAUTH_PROVIDER");
   }
   const account = await prisma.account.findFirst({

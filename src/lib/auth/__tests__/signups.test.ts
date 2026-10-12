@@ -1,5 +1,6 @@
 import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { SIGN_IN_PROVIDER_IDS } from "@/lib/auth/sign-in-provider-ids";
 import {
   SIGNUPS_CLOSED_REDIRECT,
   areSignupsOpen,
@@ -22,13 +23,15 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     featureFlag: { findUnique: jest.fn() },
     account: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), updateMany: jest.fn() },
+    user: { findFirst: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+    systemSettings: { findFirst: jest.fn() },
   },
 }));
 
 const flagRow = jest.mocked(prisma.featureFlag.findUnique);
 const linkedAccount = jest.mocked(prisma.account.findUnique);
-const userByEmail = jest.mocked(prisma.user.findUnique);
+const userByEmail = jest.mocked(prisma.user.findFirst);
+const usersByEmail = jest.mocked(prisma.user.findMany);
 
 function setFlag(row: { enabled: boolean; rolloutPercentage: number } | null) {
   flagRow.mockResolvedValue(row as never);
@@ -51,6 +54,8 @@ beforeEach(() => {
   jest.mocked(getOutlookCredentials).mockResolvedValue({} as never);
   linkedAccount.mockResolvedValue(null);
   userByEmail.mockResolvedValue(null);
+  usersByEmail.mockResolvedValue([]);
+  jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue(null);
 });
 
 afterAll(() => {
@@ -140,7 +145,7 @@ describe("oauthSignInGate", () => {
     ).resolves.toBe(true);
     expect(userByEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { email: "Old@Example.com" },
+        where: { email: { equals: "Old@Example.com", mode: "insensitive" } },
       })
     );
   });
@@ -205,6 +210,48 @@ describe("NextAuth signIn callback", () => {
         },
       } as never)
     ).resolves.toBe(true);
-    expect(prisma.user.updateMany).toHaveBeenCalled();
+    // lastAuthenticatedAt is stamped by id in the jwt callback now.
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
+});
+
+describe("closed registration covers every sign-in provider", () => {
+  it.each(SIGN_IN_PROVIDER_IDS)(
+    "%s: a new account is refused while sign-up is closed",
+    async (provider) => {
+      setFlag(null);
+      const options = await getAuthOptions();
+      await expect(
+        options.callbacks!.signIn!({
+          user: { id: "profile-1", email: "new@example.com" },
+          account: {
+            provider,
+            type: "oauth",
+            providerAccountId: `${provider}-new`,
+          },
+          profile: { email: "new@example.com", email_verified: true },
+        } as never)
+      ).resolves.toBe(SIGNUPS_CLOSED_REDIRECT);
+    }
+  );
+
+  it.each(SIGN_IN_PROVIDER_IDS)(
+    "%s: an existing user still signs in while sign-up is closed",
+    async (provider) => {
+      setFlag(null);
+      linkedAccount.mockResolvedValue({ id: "acc-1" } as never);
+      const options = await getAuthOptions();
+      await expect(
+        options.callbacks!.signIn!({
+          user: { id: "user-1", email: "old@example.com" },
+          account: {
+            provider,
+            type: "oauth",
+            providerAccountId: `${provider}-old`,
+          },
+          profile: {},
+        } as never)
+      ).resolves.toBe(true);
+    }
+  );
 });
