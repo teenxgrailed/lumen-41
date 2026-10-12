@@ -12,6 +12,12 @@ import {
   weekday,
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import {
+  hourOn,
+  isOnToday,
+  isOverdue as overdue,
+  taskDay,
+} from "@/lib/needt3/task-day";
 
 export type WorkTab = "inbox" | "today" | "upcoming" | "all";
 export type ProjectSort = "manual" | "name" | "open";
@@ -36,9 +42,14 @@ type WorkTask = Pick<
 > &
   Partial<Pick<V3Task, "noSlot" | "isFixed">>;
 
-/** Open and due before today. */
-export const isOverdue = (t: WorkTask, today: string) =>
-  !t.done && !!t.dueDate && t.dueDate < today;
+/** Open and due before today (`@/lib/needt3/task-day`, the one rule). */
+export const isOverdue = (t: WorkTask, today: string) => overdue(t, today);
+
+/** Today's order: timed ones by the hour of their block today, untimed last. */
+export const byTimeOn =
+  (today: string) =>
+  <T extends WorkTask>(a: T, b: T) =>
+    (hourOn(a, today) ?? 99) - (hourOn(b, today) ?? 99);
 
 /** By the hour it sits at; unplaced tasks last, order otherwise kept. */
 export function byTime<T extends WorkTask>(a: T, b: T) {
@@ -129,21 +140,21 @@ export function workModel(opts: {
     : liveAll;
 
   const last = addDays(today, UPCOMING_DAYS);
-  const inbox = live.filter((t) => !t.dueDate && !t.isFixed && !t.done);
-  const todayL = live.filter((t) => isOverdue(t, today) || t.dueDate === today);
-  const upcoming = live.filter(
-    (t) =>
-      !isOverdue(t, today) &&
-      !!t.dueDate &&
-      t.dueDate > today &&
-      t.dueDate <= last
-  );
+  const dayOf = (t: V3Task) => taskDay(t, today);
+  const noDay = (t: V3Task) => !dayOf(t) && !t.isFixed;
+  const inbox = live.filter((t) => noDay(t) && !t.done);
+  // Today = overdue (due before today) + due or scheduled today
+  const todayL = live.filter((t) => isOverdue(t, today) || isOnToday(t, today));
+  const upcoming = live.filter((t) => {
+    const d = dayOf(t);
+    return !isOverdue(t, today) && !!d && d > today && d <= last;
+  });
 
   let sections: Section[] = [];
   let done: V3Task[] = [];
   if (tab === "inbox") {
     sections = [{ key: "inbox", title: "Inbox", tasks: inbox }];
-    done = live.filter((t) => !t.dueDate && !t.isFixed && t.done);
+    done = live.filter((t) => noDay(t) && t.done);
   } else if (tab === "today") {
     sections = [
       {
@@ -165,7 +176,7 @@ export function workModel(opts: {
       sections.push({
         key: `day-${i}`,
         title: upcomingTitle(day, today),
-        tasks: upcoming.filter((t) => t.dueDate === day),
+        tasks: upcoming.filter((t) => dayOf(t) === day),
       });
     }
     done = upcoming.filter((t) => t.done);
@@ -194,7 +205,7 @@ export function workModel(opts: {
       ...s,
       tasks: sorted(
         s.tasks.filter((t) => !t.done),
-        byTime
+        s.key === "today" ? byTimeOn(today) : byTime
       ),
     }))
     .filter((s) => s.tasks.length);
@@ -285,22 +296,22 @@ export function projectGroups(
       key: "Today",
       title: "Today",
       tasks: sorted(
-        open.filter((t) => !late(t) && t.dueDate === today),
-        byTime
+        open.filter((t) => !late(t) && isOnToday(t, today)),
+        byTimeOn(today)
       ),
     },
     {
       key: "Upcoming",
       title: "Upcoming",
       tasks: sorted(
-        open.filter((t) => !late(t) && !!t.dueDate && t.dueDate > today),
+        open.filter((t) => !late(t) && (taskDay(t, today) ?? "") > today),
         byDay
       ),
     },
     {
       key: "No date",
       title: "No date",
-      tasks: open.filter((t) => !late(t) && !t.dueDate),
+      tasks: open.filter((t) => !late(t) && !taskDay(t, today)),
     },
   ].filter((g) => g.tasks.length);
   return {
