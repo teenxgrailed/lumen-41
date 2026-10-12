@@ -17,6 +17,7 @@ import {
 } from "react-icons/lu";
 
 import { PkSheet, pkCx } from "../kit";
+import type { MenuPlaceId } from "../menu/places";
 
 /* The small pieces every Settings page shares (phone-settings.jsx Ps*). The
    look is the vendored styles/phone-settings.css (`ps-*`): a group is a glass
@@ -39,12 +40,17 @@ interface PsCtx {
   upgrade: (feature?: string) => void;
   /** Close Settings and go to a route (Connections). */
   leave: (href: string) => void;
+  /** The Menu page's half-filled pill; null = what is saved. Owned above the face switch. */
+  pill: MenuPlaceId[] | null;
+  setPill: (pill: MenuPlaceId[] | null) => void;
 }
 
 const Ctx = createContext<PsCtx>({
   pick: () => undefined,
   upgrade: () => undefined,
   leave: () => undefined,
+  pill: null,
+  setPill: () => undefined,
 });
 export const PsProvider = Ctx.Provider;
 export const usePs = () => useContext(Ctx);

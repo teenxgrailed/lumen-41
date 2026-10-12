@@ -52,7 +52,7 @@ export function PhoneState({
 }: {
   query: ScreenQuery;
   screen: string;
-  kind?: "list" | "calendar";
+  kind?: "list";
 }) {
   const state = screenState(query);
   if (state === "content") return null;

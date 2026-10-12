@@ -122,12 +122,36 @@
   transform-origin: 0 0;
 }
 
+/* Rule 12: inside the sheets only transform (and opacity) transition. The
+ * vendored rules also ease background-color, color and box-shadow, which
+ * repaint every frame; here the state change is instant and the tap's press
+ * and the knob's travel stay on the compositor. */
+.needt-v3
+  :is(.ps11-sheet, .ps-pick-sheet)
+  :is(.ps-row.is-open, .ps-switch, .ps-seg-btn) {
+  transition: none;
+}
+.needt-v3 :is(.ps11-sheet, .ps-pick-sheet) .ps-switch-knob {
+  transition: transform 0.32s var(--pk-spring, ease);
+}
+.needt-v3 :is(.ps11-sheet, .ps-pick-sheet) .ps-theme-pic {
+  transition: transform 0.18s var(--pk-ease, ease);
+}
+.needt-v3 :is(.ps11-sheet, .ps-pick-sheet) .ps-accent {
+  transition: transform 0.18s var(--pk-ease, ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .needt-v3 .ps11-stage.is-coming,
   .needt-v3 .ps11-stage.is-back {
     animation: none;
   }
   .needt-v3 .ps11-back {
+    transition: none;
+  }
+  .needt-v3
+    :is(.ps11-sheet, .ps-pick-sheet)
+    :is(.ps-switch-knob, .ps-theme-pic, .ps-accent) {
     transition: none;
   }
 }

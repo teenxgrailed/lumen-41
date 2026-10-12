@@ -21,6 +21,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import type { MenuPlaceId } from "../phone/menu/places";
 import { PhoneSettings } from "../phone/settings/PhoneSettings";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { Avatar, initialsOf } from "../shell/Avatar";
@@ -114,6 +115,10 @@ export function SettingsSheet() {
   // state; it lives here, above the face switch, with `section`, so crossing
   // 700 px keeps where the person is (the desktop never shows the list).
   const [list, setList] = useState(true);
+  // The phone's Menu page has no desktop section; its flag and the half-filled
+  // pill sit here with the page, so a crossing keeps a pill being edited.
+  const [menu, setMenu] = useState(false);
+  const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   const [saved, setSaved] = useState(0);
   const navRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -133,6 +138,8 @@ export function SettingsSheet() {
       setSection(sectionOf(want));
       setList(!want && uiRef.current === "phone");
       sectionY.current = 0;
+      setMenu(false);
+      setPill(null);
     }
   }, [open, want]);
 
@@ -156,6 +163,8 @@ export function SettingsSheet() {
       return id;
     });
     setList(false);
+    setMenu(false);
+    setPill(null);
   }, []);
   // On the phone, opening a page from the list is a fresh visit: it starts
   // at its top even when it is the section shown last. Only a 700 px
@@ -199,6 +208,10 @@ export function SettingsSheet() {
           page={list ? null : section}
           onPage={phonePage}
           saved={saved}
+          menu={menu}
+          onMenu={setMenu}
+          pill={pill}
+          onPill={setPill}
           pageY={sectionY}
         />
       </MarkProvider>

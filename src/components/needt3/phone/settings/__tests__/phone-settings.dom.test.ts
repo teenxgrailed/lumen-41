@@ -19,6 +19,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { MarkProvider } from "../../../settings/SettingsContext";
 import type { SectionId } from "../../../settings/derive";
 import { PkTheme } from "../../kit";
+import type { MenuPlaceId } from "../../menu/places";
 import { usePhoneOverlays } from "../../overlays/store";
 import { PhoneSettings } from "../PhoneSettings";
 
@@ -142,6 +143,8 @@ const onMark = jest.fn();
 
 function Harness({ initial }: { initial: SectionId | null }) {
   const [page, setPage] = useState<SectionId | null>(initial);
+  const [menu, setMenu] = useState(false);
+  const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   return h(
     QueryClientProvider,
     { client },
@@ -157,6 +160,10 @@ function Harness({ initial }: { initial: SectionId | null }) {
           page,
           onPage: setPage,
           saved: 0,
+          menu,
+          onMenu: setMenu,
+          pill,
+          onPill: setPill,
         })
       )
     )
