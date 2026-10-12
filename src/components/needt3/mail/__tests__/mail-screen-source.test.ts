@@ -7,6 +7,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const source = readFileSync(join(__dirname, "..", "MailScreen.tsx"), "utf8");
+const identifiers = new Set(source.match(/[A-Za-z_$][\w$]*/g) ?? []);
 
 describe("MailScreen.tsx", () => {
   it.each([
@@ -17,7 +18,7 @@ describe("MailScreen.tsx", () => {
     "useTrashTask",
     "useEventLifecycle",
   ])("does not import %s", (hook) => {
-    expect(source).not.toMatch(new RegExp(`\\b${hook}\\b`));
+    expect(identifiers.has(hook)).toBe(false);
   });
 
   it("takes the controller as a prop", () => {
