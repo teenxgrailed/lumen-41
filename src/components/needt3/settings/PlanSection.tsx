@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { FiCheck, FiChevronRight } from "react-icons/fi";
 
+import { failedPaymentMessage } from "@/lib/creem/failed-payment";
 import {
   type CheckoutChoice,
   openBillingPortal,
@@ -52,6 +53,7 @@ export function PlanSection() {
   const info = planInfo(kind);
   const pro = isPro(kind);
   const closed = b ? !b.configured : false;
+  const paymentFailed = b?.paymentFailed ?? false;
 
   const buy = async (id: string, choice: CheckoutChoice) => {
     setBusy(id);
@@ -191,6 +193,20 @@ export function PlanSection() {
               billing is switched on.
             </span>
           ) : null}
+          {paymentFailed && b ? (
+            <span
+              className="base-meta"
+              role="alert"
+              data-settings-payment-failed
+              style={{ color: "var(--destructive)" }}
+            >
+              {failedPaymentMessage({
+                effectivePlan:
+                  b.plan === "PRO" || b.plan === "LIFETIME" ? b.plan : "FREE",
+                currentPeriodEnd: b.currentPeriodEnd,
+              })}
+            </span>
+          ) : null}
           {error ? (
             <span
               className="base-meta"
@@ -203,7 +219,7 @@ export function PlanSection() {
           {b?.canManageBilling ? (
             <span className="settings-grid-3 is-one">
               <SBtn disabled={busy === "portal"} onClick={() => void portal()}>
-                Invoices and payment
+                {paymentFailed ? "Manage billing" : "Invoices and payment"}
               </SBtn>
             </span>
           ) : null}
