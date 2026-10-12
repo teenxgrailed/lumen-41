@@ -6,6 +6,7 @@ import { LuStar } from "react-icons/lu";
 
 import type { V3Doc } from "@/lib/needt3/map";
 
+import { MiniRows } from "../../docs/DocMini";
 import { DcCover } from "../../docs/DocParts";
 import { backdropVars } from "../../docs/backdrop";
 import { type TokenReader, fontOf, pageVars, styleOf } from "../../docs/style";
@@ -19,9 +20,8 @@ const MINI_SCALE = 0.5;
 /**
  * The card's picture (phone-docs.jsx `PdCardPage` 238): the document's
  * backdrop as the frame, its page inside in its own colour with the cover on
- * top, and the title set in the page's own ink and font at half size.
- * //todo: the page's first blocks in miniature (`PdMini`): the list API
- * sends no block content, so only the title is real here.
+ * top, and the title set in the page's own ink and font at half size, then
+ * the page's first blocks (`PdMini`) from the list's `preview`.
  */
 function CardPicture({ doc, read }: { doc: V3Doc; read: TokenReader }) {
   const s = styleOf(doc);
@@ -58,6 +58,7 @@ function CardPicture({ doc, read }: { doc: V3Doc; read: TokenReader }) {
             >
               {doc.title || "Untitled"}
             </span>
+            {doc.preview ? <MiniRows rows={doc.preview} /> : null}
           </span>
         </span>
       </span>

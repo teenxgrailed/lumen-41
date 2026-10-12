@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Docs: each document card in the grid now shows its page in miniature, as
+  the design does: the first blocks (headings, paragraphs, lists, to-dos,
+  quotes, callouts, code, dividers, a picture) drawn small on the page's own
+  colour. `GET /api/pages` adds a short `preview` to every live page, a list of
+  `{ type, text }` rows (at most 8 rows, 120 characters a row, 600 in all;
+  plain text, no HTML), read for the whole list with one extra query.
+  `?preview=false` leaves it out. Pages you cannot see still return nothing,
+  and the trash list has no preview. The phone's Docs cards draw it too.
+
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and
   workspace roles. Every write is logged with its inverse, so it can be undone

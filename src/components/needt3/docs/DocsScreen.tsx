@@ -38,6 +38,7 @@ import { useExit } from "../ctx/useExit";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { StScreen } from "../states/StScreen";
+import { DocMiniature } from "./DocMini";
 import { DcCover, DocThumb, docsCopy, useDocTokens } from "./DocParts";
 import { backdropVars } from "./backdrop";
 import { ageLabel } from "./labels";
@@ -202,14 +203,13 @@ function DocCard({
             </div>
             <DocMeta doc={doc} project={project} now={now} />
           </div>
-          {/* //todo: the page's first blocks in miniature (MiniBlock). The
-              list API sends no block content; it needs a short preview
-              field on GET /api/pages before cards can draw it. */}
           <div
             className={
               "docs-doc-card-7 docs-doc-card-s2" + (masonry ? " is-on" : "")
             }
-          />
+          >
+            <DocMiniature rows={doc.preview ?? []} />
+          </div>
         </div>
       </div>
     </div>
