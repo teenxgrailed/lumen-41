@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import { newDate } from "@/lib/date-utils";
-import { useBoards, useTrashBoard } from "@/lib/needt3/hooks/boards";
-import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
-import { useTasks, useTrashTask } from "@/lib/needt3/hooks/tasks";
-import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { registerCtx } from "../ctx/registry";
@@ -16,6 +11,7 @@ import { StScreen } from "../states/StScreen";
 import { PlaceHeader } from "./PlaceHeader";
 import { trashMeta, trashSections } from "./derive";
 import { mergeQueries } from "./query";
+import type { TrashController } from "./useTrashController";
 
 const tr = strings["places.jsx"].TrashScreen;
 
@@ -84,40 +80,24 @@ const COPY = {
   emptyLine: "Delete a task or a moodboard \u2014 it lands here first.",
 };
 
-export function TrashScreen() {
-  const timeZone = useTimeZone();
-  const tasks = useTasks({ scope: "trash" });
-  const boards = useBoards();
-  const projects = useProjects();
-  const trashTask = useTrashTask();
-  const trashBoard = useTrashBoard();
+export function TrashScreen({ c }: { c: TrashController }) {
+  const {
+    timeZone,
+    tasks,
+    boards,
+    dead,
+    gone,
+    projectName,
+    restoreTask,
+    restoreBoard,
+  } = c;
 
   const now = newDate();
-  const projectName = (id: string | null) =>
-    id ? projects.data?.find((p) => p.id === id)?.name : undefined;
-  const gone = useMemo(
-    () => (boards.data ?? []).filter((b) => b.trashedAt),
-    [boards.data]
-  );
-  const dead = useMemo(() => tasks.data ?? [], [tasks.data]);
   const { total, headings } = trashSections({
     pages: 0, //todo: trashed pages, once a list mode and a restore route exist
     tasks: dead.length,
     boards: gone.length,
   });
-
-  const restoreTask = async (id: string, title: string) => {
-    const back = await trashTask.restore(id);
-    notify.success(`Restored “${title || tr.untitled}”`, {
-      action: { label: "Undo", onClick: () => void back.undo() },
-    });
-  };
-  const restoreBoard = async (id: string, title: string) => {
-    const back = await trashBoard.mutateAsync({ id, trashed: false });
-    notify.success(`Restored “${title || tr.untitled_moodboard}”`, {
-      action: { label: "Undo", onClick: () => void back.undo() },
-    });
-  };
 
   // Right-click on a row: Restore (the rows carry data-ctx / data-ctx-id).
   useEffect(() => {

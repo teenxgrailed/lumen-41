@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  toPublicSystemSettings,
+  withoutMaskedSecrets,
+} from "@/lib/api/public-records";
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(settings);
+    return NextResponse.json(toPublicSystemSettings(settings));
   } catch (error) {
     logger.error(
       "Failed to fetch system settings",
@@ -51,7 +55,7 @@ export async function PATCH(request: NextRequest) {
   if (authResponse) return authResponse;
 
   try {
-    const updates = await request.json();
+    const updates = withoutMaskedSecrets(await request.json());
 
     const settings = await prisma.$transaction(async (tx) => {
       // Check if any SystemSettings record exists
@@ -83,7 +87,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(settings);
+    return NextResponse.json(toPublicSystemSettings(settings));
   } catch (error) {
     logger.error(
       "Failed to update system settings",
