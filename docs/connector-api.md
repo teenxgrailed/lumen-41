@@ -160,8 +160,15 @@ Fields (anything else in the body is a `400`):
 | `position`     | number                                 | wall order                                                          |
 
 `data:` and `javascript:` addresses are refused: the item stores an address,
-not the file. `PATCH` takes any of the fields above except `kind`; `null`
-clears one. Responses carry `{ "item": {...} }` (list: `{ "items": [...] }`)
+not the file. A path on this site may not contain `\`, must stay on this site
+once normalised, and may not point under `/api/`. `PATCH` takes any of the
+fields above except `kind`; `null` clears one, except the field the item's kind
+requires (`url` on `image`/`link`, `color` on `color`, `text` on `note`), which
+is a `400`.
+
+A board holds at most 500 items, the same on every plan. A `POST` to a full
+board answers `409 {"error":"Moodboard is full","limit":500}`; the list
+returns at most 500. Responses carry `{ "item": {...} }` (list: `{ "items": [...] }`)
 with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
 `DELETE` answers `204`.
 

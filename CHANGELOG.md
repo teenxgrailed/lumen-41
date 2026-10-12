@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 /api/moodboards/:id/items/:itemId` list the wall in order and add, change,
   move or remove an image, link, colour or note. The board's creator, owners
   and editors write; viewers read; anyone else gets the same answer as for a
-  board that does not exist. Documented in `docs/connector-api.md`.
+  board that does not exist. A board holds at most 500 references on every
+  plan; adding one more answers 409. Documented in `docs/connector-api.md`.
 - Documents: a backdrop (document themes, and every "All Styles" preset but
   Default) is now Pro on the server too. `PATCH /api/pages/:id` and
   `POST /api/pages` answer a Free plan that sets one with 403

@@ -25,10 +25,18 @@ export const MOODBOARD_ITEM_ORDER = [
   { id: "asc" },
 ] satisfies Prisma.MoodboardItemOrderByWithRelationInput[];
 
+/** Abuse limit on one board, the same for every plan. */
+export const MOODBOARD_ITEM_LIMIT = 500;
+
+const SAME_SITE_BASE = "https://x.invalid";
+
 /**
  * A reference by address: an absolute http(s) URL, or a path on this origin
  * (an asset Needt already serves). `data:`, `javascript:` and protocol-relative
  * `//host` addresses are refused, so the column never becomes an upload path.
+ * A path may not hold a backslash (a browser reads `/\evil.com` as another
+ * host), must stay on this origin once normalised, and may not point into
+ * `/api/`, so a reference never becomes a call to our own API.
  */
 const referenceUrl = z
   .string()
@@ -37,7 +45,17 @@ const referenceUrl = z
   .max(2048)
   .refine(
     (value) => {
-      if (value.startsWith("/")) return !value.startsWith("//");
+      if (value.includes("\\")) return false;
+      if (value.startsWith("/")) {
+        if (value.startsWith("//")) return false;
+        try {
+          const url = new URL(value, SAME_SITE_BASE);
+          if (url.origin !== SAME_SITE_BASE) return false;
+          return url.pathname !== "/api" && !url.pathname.startsWith("/api/");
+        } catch {
+          return false;
+        }
+      }
       try {
         const url = new URL(value);
         return url.protocol === "https:" || url.protocol === "http:";
@@ -206,6 +224,33 @@ export class MoodboardItemAccessError extends Error {
   }
 }
 
+/** The board already holds MOODBOARD_ITEM_LIMIT references. */
+export class MoodboardItemLimitError extends Error {
+  readonly limit = MOODBOARD_ITEM_LIMIT;
+  constructor() {
+    super("Moodboard is full");
+    this.name = "MoodboardItemLimitError";
+  }
+}
+
+/** A patch would clear the field the item's kind cannot do without. */
+export class MoodboardItemRequiredFieldError extends Error {
+  constructor(
+    readonly kind: string,
+    readonly field: "url" | "color" | "text"
+  ) {
+    super(`A ${kind} reference needs ${field}`);
+    this.name = "MoodboardItemRequiredFieldError";
+  }
+}
+
+const REQUIRED_FIELD: Record<string, "url" | "color" | "text"> = {
+  image: "url",
+  link: "url",
+  color: "color",
+  note: "text",
+};
+
 /** The item id is not on the board named in the URL. */
 export class MoodboardItemNotFoundError extends Error {
   constructor() {
@@ -233,6 +278,7 @@ export async function listMoodboardItems(
     where: { moodboardId },
     select: itemSelect,
     orderBy: MOODBOARD_ITEM_ORDER,
+    take: MOODBOARD_ITEM_LIMIT,
   });
   return items.map(toPublicMoodboardItem);
 }
@@ -245,6 +291,8 @@ export async function createMoodboardItem(
   await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
   const { position, kind, ...fields } = input;
   const item = await prisma.$transaction(async (tx) => {
+    const count = await tx.moodboardItem.count({ where: { moodboardId } });
+    if (count >= MOODBOARD_ITEM_LIMIT) throw new MoodboardItemLimitError();
     let at = position;
     if (at === undefined) {
       const last = await tx.moodboardItem.aggregate({
@@ -275,9 +323,16 @@ export async function updateMoodboardItem(
   await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
   const existing = await prisma.moodboardItem.findFirst({
     where: { id: itemId, moodboardId },
-    select: { id: true },
+    select: { id: true, kind: true },
   });
   if (!existing) throw new MoodboardItemNotFoundError();
+  const required = REQUIRED_FIELD[existing.kind];
+  if (required) {
+    const next = input[required];
+    if (next === null || next === "") {
+      throw new MoodboardItemRequiredFieldError(existing.kind, required);
+    }
+  }
   const { position, ...fields } = input;
   const item = await prisma.moodboardItem.update({
     where: { id: existing.id },

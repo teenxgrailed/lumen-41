@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { DELETE, PATCH } from "@/app/api/moodboards/[id]/items/[itemId]/route";
 import { GET, POST } from "@/app/api/moodboards/[id]/items/route";
+import { MOODBOARD_ITEM_LIMIT } from "@/services/moodboards/moodboard-item-service";
 import {
   MoodboardAccessRole,
   WorkspaceKind,
@@ -94,6 +95,12 @@ jest.mock("@/lib/prisma", () => {
           db.items.find((i) =>
             matches(i as unknown as Record<string, unknown>, where)
           ) ?? null
+      ),
+      count: jest.fn(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          db.items.filter((i) =>
+            matches(i as unknown as Record<string, unknown>, where)
+          ).length
       ),
       aggregate: jest.fn(
         async ({ where }: { where: Record<string, unknown> }) => {
@@ -354,6 +361,14 @@ describe("GET /api/moodboards/:id/items", () => {
     }
   );
 
+  it("reads at most the item limit", async () => {
+    as("viewer");
+    await list();
+    expect(prisma.moodboardItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: MOODBOARD_ITEM_LIMIT })
+    );
+  });
+
   it("returns only public fields and a cleaned source", async () => {
     as("viewer");
     const { items } = await (await list()).json();
@@ -479,6 +494,11 @@ describe("POST /api/moodboards/:id/items", () => {
     ["a data: url", { kind: "image", url: "data:image/png;base64,AAAA" }],
     ["a javascript: url", { kind: "link", url: "javascript:alert(1)" }],
     ["a protocol-relative url", { kind: "link", url: "//evil.example/x" }],
+    ["a backslash path", { kind: "link", url: "/\\evil.com" }],
+    ["a slash-backslash-slash path", { kind: "link", url: "/\\/evil.com" }],
+    ["a path into our API", { kind: "image", url: "/api/x" }],
+    ["a dotted path into our API", { kind: "image", url: "/a/../api/x" }],
+    ["an API thumbnail", { kind: "note", text: "x", thumbnailUrl: "/api/x" }],
     ["a non-finite ratio", { kind: "note", text: "x", ratio: "wide" }],
     ["an extra source key", { kind: "note", text: "x", source: { a: 1 } }],
   ])("returns 400 for %s", async (_label, body) => {
@@ -497,9 +517,35 @@ describe("POST /api/moodboards/:id/items", () => {
     as("editor");
     const response = await create({
       kind: "image",
-      url: "/api/pages/page-1/assets/asset-1",
+      url: "/images/moodboard/chair.jpg",
     });
     expect(response.status).toBe(201);
+  });
+
+  it("answers 409 once the board holds the item limit, and writes nothing", async () => {
+    for (let i = db.items.length; i < MOODBOARD_ITEM_LIMIT + 1; i += 1) {
+      db.items.push(item({ id: `fill-${i}`, moodboardId: "board-a" }));
+    }
+    // board-b's item does not count against board-a.
+    expect(db.items.filter((i) => i.moodboardId === "board-a")).toHaveLength(
+      MOODBOARD_ITEM_LIMIT
+    );
+    as("editor");
+    const response = await create({ kind: "note", text: "one more" });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Moodboard is full",
+      limit: 500,
+    });
+    expect(prisma.moodboardItem.create).not.toHaveBeenCalled();
+  });
+
+  it("still adds the last item that fits under the limit", async () => {
+    for (let i = db.items.length; i < MOODBOARD_ITEM_LIMIT; i += 1) {
+      db.items.push(item({ id: `fill-${i}`, moodboardId: "board-a" }));
+    }
+    as("editor");
+    expect((await create({ kind: "note", text: "last" })).status).toBe(201);
   });
 });
 
@@ -533,6 +579,42 @@ describe("PATCH /api/moodboards/:id/items/:itemId", () => {
     ).json();
     expect(updated.title).toBeNull();
     expect(updated.source).toBeNull();
+  });
+
+  it.each([
+    ["url on an image", "a-tie-1", { url: null }],
+    ["url on an image with an empty string", "a-tie-1", { url: "" }],
+    ["url on a link", "link-1", { url: null }],
+    ["color on a colour", "color-1", { color: null }],
+    ["text on a note", "a-late", { text: null }],
+    ["text on a note with an empty string", "a-late", { text: "" }],
+  ])("returns 400 for a patch that clears %s", async (_label, id, body) => {
+    db.items.push(
+      item({
+        id: "link-1",
+        moodboardId: "board-a",
+        kind: "link",
+        url: "https://example.com",
+        text: null,
+      }),
+      item({
+        id: "color-1",
+        moodboardId: "board-a",
+        kind: "color",
+        color: "#c2410c",
+        text: null,
+      })
+    );
+    as("editor");
+    expect((await patch(id, body)).status).toBe(400);
+    expect(prisma.moodboardItem.update).not.toHaveBeenCalled();
+  });
+
+  it("lets a note clear a field its kind does not need", async () => {
+    as("editor");
+    expect((await patch("a-late", { url: null, color: null })).status).toBe(
+      200
+    );
   });
 
   it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(

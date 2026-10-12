@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  MOODBOARD_ITEM_LIMIT,
   MoodboardItemAccessError,
+  MoodboardItemLimitError,
   MoodboardItemNotFoundError,
+  MoodboardItemRequiredFieldError,
 } from "@/services/moodboards/moodboard-item-service";
 import type { ZodSchema } from "zod";
 
@@ -23,6 +26,21 @@ export function moodboardItemErrorResponse(
     return NextResponse.json(
       { error: "Moodboard access denied" },
       { status: 403 }
+    );
+  }
+  if (error instanceof MoodboardItemLimitError) {
+    return NextResponse.json(
+      { error: "Moodboard is full", limit: MOODBOARD_ITEM_LIMIT },
+      { status: 409 }
+    );
+  }
+  if (error instanceof MoodboardItemRequiredFieldError) {
+    return NextResponse.json(
+      {
+        error: "Invalid moodboard item",
+        issues: [{ path: [error.field], message: error.message }],
+      },
+      { status: 400 }
     );
   }
   if (error instanceof MoodboardItemNotFoundError) {
