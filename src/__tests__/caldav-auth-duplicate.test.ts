@@ -5,6 +5,10 @@ import { Prisma } from "@prisma/client";
 import * as apiAuth from "@/lib/auth/api-auth";
 import * as entitlements from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import {
+  decryptSecret,
+  isEncryptedSecret,
+} from "@/lib/security/secret-encryption";
 
 jest.mock("@/lib/auth/api-auth");
 jest.mock("@/lib/entitlements");
@@ -98,5 +102,22 @@ describe("CalDAV auth route - duplicate server handling", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({ success: true, accountId: "acc-1" });
+  });
+
+  it("stores the CalDAV password encrypted, never as plaintext", async () => {
+    mockPrisma.connectedAccount.create.mockResolvedValue({ id: "acc-2" });
+
+    await POST(
+      makeRequest({
+        serverUrl: "https://server-c.example.com",
+        username: "FOO",
+        password: "app-specific-password",
+      })
+    );
+
+    const { data } = mockPrisma.connectedAccount.create.mock.calls[0][0];
+    expect(data.accessToken).not.toContain("app-specific-password");
+    expect(isEncryptedSecret(data.accessToken)).toBe(true);
+    expect(decryptSecret(data.accessToken)).toBe("app-specific-password");
   });
 });

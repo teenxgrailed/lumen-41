@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import {
+  decryptSecret,
+  isEncryptedSecret,
+} from "@/lib/security/secret-encryption";
 import { TokenManager } from "@/lib/token-manager";
 
 jest.mock("@/lib/prisma", () => ({
@@ -54,13 +58,14 @@ describe("TokenManager.storeTokens (OAuth)", () => {
     expect(mockPrisma.connectedAccount.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "acc-1" },
-        data: expect.objectContaining({
-          accessToken: "access-1",
-          refreshToken: "refresh-1",
-          expiresAt: tokens.expiresAt,
-        }),
+        data: expect.objectContaining({ expiresAt: tokens.expiresAt }),
       })
     );
+    const { data } = mockPrisma.connectedAccount.update.mock.calls[0][0];
+    expect(isEncryptedSecret(data.accessToken)).toBe(true);
+    expect(isEncryptedSecret(data.refreshToken)).toBe(true);
+    expect(decryptSecret(data.accessToken)).toBe("access-1");
+    expect(decryptSecret(data.refreshToken)).toBe("refresh-1");
     expect(mockPrisma.connectedAccount.create).not.toHaveBeenCalled();
     expect(id).toBe("acc-1");
   });
@@ -82,10 +87,12 @@ describe("TokenManager.storeTokens (OAuth)", () => {
           provider: "OUTLOOK",
           email: "user@outlook.com",
           userId: "user-2",
-          accessToken: "access-1",
         }),
       })
     );
+    const { data } = mockPrisma.connectedAccount.create.mock.calls[0][0];
+    expect(data.accessToken).not.toBe("access-1");
+    expect(decryptSecret(data.accessToken)).toBe("access-1");
     expect(mockPrisma.connectedAccount.update).not.toHaveBeenCalled();
     expect(id).toBe("acc-new");
   });

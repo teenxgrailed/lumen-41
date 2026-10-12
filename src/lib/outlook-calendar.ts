@@ -2,6 +2,7 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { ConnectedAccount } from "@prisma/client";
 import { Frequency, RRule } from "rrule";
 
+import { openConnectedAccountTokens } from "@/lib/connected-account-secrets";
 import { logger } from "@/lib/logger";
 
 import { useSettingsStore } from "@/store/settings";
@@ -71,7 +72,11 @@ export class OutlookCalendarService {
   private client: Client;
   private tokenManager: TokenManager;
 
-  constructor(private account: ConnectedAccount) {
+  private account: ConnectedAccount;
+
+  constructor(account: ConnectedAccount) {
+    // Stored tokens are encrypted; the Graph client needs the plaintext.
+    this.account = openConnectedAccountTokens(account);
     this.tokenManager = TokenManager.getInstance();
     this.client = this.createClient();
   }

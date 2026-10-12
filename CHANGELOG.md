@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Google and Outlook OAuth client secrets and the Resend API key saved in
+  admin system settings are encrypted at rest (`enc:v1:`), like provider
+  tokens. Existing values are encrypted by the same worker-start backfill;
+  the admin form still shows the mask and keeps a secret that is not retyped.
+- Connected-calendar, mail and task credentials are encrypted at rest:
+  Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
+  AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens
+  NextAuth keeps. Existing rows are encrypted by the worker at start; reads
+  accept both forms meanwhile. The session no longer carries the sign-in
+  provider's OAuth tokens to the browser, and the worker refuses to start in
+  production without `AI_ENCRYPTION_KEY` or `NEXTAUTH_SECRET`.
 - Free keeps three active habits, enforced by the API: creating a fourth, or
   restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
   Pro, Lifetime and trials are unlimited. Habits above the limit after a

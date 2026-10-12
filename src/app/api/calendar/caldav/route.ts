@@ -7,6 +7,7 @@ import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/security/secret-encryption";
 
 import {
   classifyCalDAVError,
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       const client = createCalDAVClient(
         account.caldavUrl,
         account.caldavUsername,
-        account.accessToken
+        decryptSecret(account.accessToken)
       );
 
       // Login to the CalDAV server

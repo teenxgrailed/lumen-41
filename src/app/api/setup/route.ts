@@ -6,6 +6,7 @@ import { hash } from "bcryptjs";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { migrateExistingData } from "@/lib/setup-migration";
+import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 const LOG_SOURCE = "SetupAPI";
 
@@ -72,6 +73,10 @@ export async function POST(request: Request) {
     await migrateExistingData(adminUser.id);
 
     // Create default settings for the admin user
+    const { resendApiKey: setupResendApiKey } = sealSystemSettingsSecrets({
+      resendApiKey: process.env.RESEND_API_KEY || null,
+    });
+
     await Promise.all([
       // Create user settings
       prisma.userSettings.create({
@@ -140,7 +145,7 @@ export async function POST(request: Request) {
         where: { id: "default" },
         update: {
           publicSignup: true,
-          resendApiKey: process.env.RESEND_API_KEY || null,
+          resendApiKey: setupResendApiKey,
         },
         create: {
           id: "default",
@@ -153,7 +158,7 @@ export async function POST(request: Request) {
             debug: 3,
           },
           publicSignup: true,
-          resendApiKey: process.env.RESEND_API_KEY || null,
+          resendApiKey: setupResendApiKey,
         },
       }),
     ]);
