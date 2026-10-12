@@ -51,6 +51,7 @@ jest.mock("../PhoneSettings", () => {
       open: boolean;
       page: string | null;
       onPage: (p: string | null) => void;
+      pageY?: { current: number };
     }) {
       return React.createElement(
         "div",
@@ -58,10 +59,21 @@ jest.mock("../PhoneSettings", () => {
           "data-phone-settings": "",
           "data-open": String(p.open),
           "data-page": p.page ?? "list",
+          "data-page-y": String(p.pageY?.current ?? 0),
         },
+        React.createElement("button", {
+          "data-scroll-page": "",
+          onClick: () => {
+            if (p.pageY) p.pageY.current = 240;
+          },
+        }),
         React.createElement("button", {
           "data-go": "day",
           onClick: () => p.onPage("day"),
+        }),
+        React.createElement("button", {
+          "data-go": "tasks",
+          onClick: () => p.onPage("tasks"),
         }),
         React.createElement("button", {
           "data-back": "",
@@ -128,6 +140,17 @@ const click = (el: Element | null) =>
     el!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 
+// jsdom does no layout: give elements a scrollTop that remembers its value.
+Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+  configurable: true,
+  get(this: HTMLElement & { __y?: number }) {
+    return this.__y ?? 0;
+  },
+  set(this: HTMLElement & { __y?: number }, y: number) {
+    this.__y = y;
+  },
+});
+
 beforeEach(() => {
   G.__facesLog = { mounts: 0, unmounts: 0 };
   useNeedt3Ui.setState({ settingsOpen: false, settingsSection: null });
@@ -191,6 +214,57 @@ describe("SettingsSheet faces", () => {
     expect(q("[data-phone-settings]")?.getAttribute("data-open")).toBe("false");
     act(() => useNeedt3Ui.getState().openSettings());
     expect(page()).toBe("list");
+  });
+
+  it("opened on the desktop, the phone continues on the section, not the list", () => {
+    render("desktop");
+    act(() => useNeedt3Ui.getState().openSettings());
+    expect(section()).toBe("account");
+    render("phone");
+    expect(page()).toBe("account");
+  });
+
+  it("the section keeps its scroll across the crossing, both ways", () => {
+    render("desktop");
+    act(() => useNeedt3Ui.getState().openSettings("tasks"));
+    const panel = q("#settings-panel")!;
+    panel.scrollTop = 180;
+    act(() => {
+      panel.dispatchEvent(new Event("scroll"));
+    });
+    render("phone");
+    expect(page()).toBe("tasks");
+    expect(q("[data-phone-settings]")?.getAttribute("data-page-y")).toBe("180");
+    click(q("[data-scroll-page]"));
+    render("desktop");
+    expect(q("#settings-panel")!.scrollTop).toBe(240);
+  });
+
+  it("a new section starts at its top", () => {
+    render("desktop");
+    act(() => useNeedt3Ui.getState().openSettings("tasks"));
+    const panel = q("#settings-panel")!;
+    panel.scrollTop = 180;
+    act(() => {
+      panel.dispatchEvent(new Event("scroll"));
+    });
+    click(q('[data-settings-nav="day"]'));
+    render("phone");
+    expect(page()).toBe("day");
+    expect(q("[data-phone-settings]")?.getAttribute("data-page-y")).toBe("0");
+  });
+
+  it("on the phone, a page opened again from the list starts at its top", () => {
+    render("phone");
+    act(() => useNeedt3Ui.getState().openSettings());
+    click(q('[data-go="tasks"]'));
+    expect(page()).toBe("tasks");
+    click(q("[data-scroll-page]"));
+    click(q("[data-back]"));
+    expect(page()).toBe("list");
+    click(q('[data-go="tasks"]'));
+    expect(page()).toBe("tasks");
+    expect(q("[data-phone-settings]")?.getAttribute("data-page-y")).toBe("0");
   });
 
   it("crossing 700 px never remounts the host", () => {
