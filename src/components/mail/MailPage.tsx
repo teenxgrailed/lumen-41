@@ -197,7 +197,11 @@ export function MailPage() {
   }, [selectedAccount, selectedFocusedSplitId, selectedId]);
 
   useEffect(() => {
-    void Promise.all([loadAccounts(), loadFocusedSplits(), loadMessages()]).catch((error) => {
+    void Promise.all([
+      loadAccounts(),
+      loadFocusedSplits(),
+      loadMessages(),
+    ]).catch((error) => {
       void logger.error(
         "Failed to load the inbox",
         { error: error instanceof Error ? error.message : String(error) },
@@ -378,7 +382,9 @@ export function MailPage() {
       notify.error("Could not remove focused Mail split");
       return;
     }
-    setFocusedSplits((current) => current.filter((item) => item.id !== split.id));
+    setFocusedSplits((current) =>
+      current.filter((item) => item.id !== split.id)
+    );
     if (selectedFocusedSplitId === split.id) setSelectedFocusedSplitId(null);
     notify.success(`Focused split ${split.name} removed`);
   };
@@ -546,9 +552,10 @@ export function MailPage() {
               ? accounts.find((account) => account.id === selectedAccount)
                   ?.address
               : selectedFocusedSplitId
-                ? focusedSplits.find((split) => split.id === selectedFocusedSplitId)
-                    ?.name
-              : "All inboxes"}
+                ? focusedSplits.find(
+                    (split) => split.id === selectedFocusedSplitId
+                  )?.name
+                : "All inboxes"}
           </span>
           <Button
             variant="ghost"
@@ -898,10 +905,17 @@ function CreateFocusedSplitDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || !message?.fromAddress}>
+            <Button
+              type="submit"
+              disabled={submitting || !message?.fromAddress}
+            >
               {submitting ? "Creating..." : "Create split"}
             </Button>
           </DialogFooter>
@@ -970,6 +984,9 @@ function ConnectMailDialog({
               disabled={!oauthAvailability.google.configured}
             >
               {oauthAvailability.google.configured ? (
+                // An OAuth start is a server redirect, not a page: a full
+                // navigation on purpose.
+                // eslint-disable-next-line @next/next/no-html-link-for-pages
                 <a href="/api/mail/oauth/google/auth">
                   <Mail className="mr-2 h-4 w-4" />
                   Continue with Gmail
@@ -988,6 +1005,9 @@ function ConnectMailDialog({
               disabled={!oauthAvailability.outlook.configured}
             >
               {oauthAvailability.outlook.configured ? (
+                // An OAuth start is a server redirect, not a page: a full
+                // navigation on purpose.
+                // eslint-disable-next-line @next/next/no-html-link-for-pages
                 <a href="/api/mail/oauth/outlook/auth">
                   <Mail className="mr-2 h-4 w-4" />
                   Continue with Outlook

@@ -171,6 +171,36 @@ describe("Docs home", () => {
     expect($("[data-pd-card='b'] .pd-card-proj").textContent).toBe("Home");
   });
 
+  it("a card draws the page's first blocks under its title", () => {
+    query = ok([
+      doc("a", "Alpha", {
+        preview: [
+          { type: "h2", text: "Scope" },
+          { type: "todo", text: "Ticked", checked: true },
+          { type: "li", text: "A bullet" },
+        ],
+      }),
+      doc("b", "Bravo", { preview: [] }),
+      doc("c", "Charlie"),
+    ]);
+    mount();
+    const mini = (id: string) =>
+      host.querySelector(`[data-pd-card='${id}'] .pd-card-mini`)!;
+    expect(mini("a").querySelector(".docs-mini-doc-2")?.textContent).toBe(
+      "Alpha"
+    );
+    expect(mini("a").querySelector(".docs-mini-block-1")?.textContent).toBe(
+      "Scope"
+    );
+    expect(mini("a").querySelectorAll(".docs-mini-todo.is-on")).toHaveLength(1);
+    expect(mini("a").querySelector(".docs-mini-li")?.textContent).toBe(
+      "•A bullet"
+    );
+    // An empty page and a doc with no preview field keep the title alone.
+    expect(mini("b").querySelectorAll(".docs-mini-doc-1 > *")).toHaveLength(1);
+    expect(mini("c").querySelectorAll(".docs-mini-doc-1 > *")).toHaveLength(1);
+  });
+
   it("a card opens its page", () => {
     query = ok(three());
     mount();

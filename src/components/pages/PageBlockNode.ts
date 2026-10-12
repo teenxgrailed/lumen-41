@@ -1,5 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
+import { APP_PATHS, safeUrl } from "@/lib/pages/safe-url";
+
 const LABELS: Record<string, string> = {
   CALLOUT: "Callout",
   TOGGLE: "Toggle",
@@ -14,6 +16,9 @@ const LABELS: Record<string, string> = {
   TASK_REFERENCE: "Task",
   PROJECT_REFERENCE: "Project",
 };
+
+/** Task and project references link into the app outside /pages. */
+const BLOCK_PATHS = [...APP_PATHS, "/tasks", "/projects"];
 
 export const PageBlockNode = Node.create({
   name: "needtPageBlock",
@@ -45,13 +50,13 @@ export const PageBlockNode = Node.create({
         title?: string;
         name?: string;
       };
+      // Stored attrs are untrusted (imports, API writes): the address is only
+      // drawn as an href / src when it passes the shared allowlist.
       url =
-        typeof data.url === "string" &&
-        (data.url.startsWith("/") ||
-          data.url.startsWith("https://") ||
-          data.url.startsWith("http://"))
-          ? data.url
-          : "";
+        safeUrl(data.url, {
+          paths: BLOCK_PATHS,
+          allowMailto: String(node.attrs.kind) !== "IMAGE",
+        }) ?? "";
       name = data.name || "";
       detail = data.text || data.title || name || data.url || data.date || "";
     } catch {

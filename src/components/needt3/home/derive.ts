@@ -14,6 +14,13 @@ import {
   weekday,
 } from "@/lib/needt3/derive";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
+import {
+  hourOn,
+  isOverdue,
+  overdueTasks,
+  taskDay,
+  todayTasks,
+} from "@/lib/needt3/task-day";
 
 /** HomeToday.jsx HD_CAP: a section shows this many rows, then "Show all N". */
 export const HOME_CAP = 25;
@@ -32,18 +39,16 @@ export const proFromPlan = (kind: string | null | undefined) =>
 export const PARTS = ["Morning", "Afternoon", "Evening"] as const;
 export type DayPart = (typeof PARTS)[number];
 
-/** The day of a task's `scheduledStart` ("YYYY-MM-DD"), or null. The stamp is
- *  already local to the saved time zone (map.ts `isoToStamp`). */
-const scheduledDay = (t: Pick<V3Task, "scheduledStart">) =>
-  t.scheduledStart ? t.scheduledStart.slice(0, 10) : null;
-
 /**
- * The day a task is placed on: the day of its `scheduledStart` when it has
- * one, else its due day (a due-only task sits in that day's list without an
- * hour). A task due today but scheduled tomorrow belongs to tomorrow.
+ * The day a task is placed on (`@/lib/needt3/task-day` `taskDay`, the one
+ * rule): due before today → its due day; due today → today; scheduled today
+ * or later → that day; else its due day or none.
  */
-export function dayOf(t: Pick<V3Task, "dueDate" | "scheduledStart">) {
-  return scheduledDay(t) ?? t.dueDate ?? null;
+export function dayOf(
+  t: Pick<V3Task, "dueDate" | "scheduledStart">,
+  today: string
+) {
+  return taskDay(t, today);
 }
 
 /**
@@ -51,7 +56,7 @@ export function dayOf(t: Pick<V3Task, "dueDate" | "scheduledStart">) {
  * With `day`, only a `scheduledStart` on that day gives an hour.
  */
 export const hourAt = (t: Pick<V3Task, "scheduledStart">, day?: string) =>
-  day != null && scheduledDay(t) !== day ? null : hourOf(t.scheduledStart);
+  day != null ? hourOn(t, day) : hourOf(t.scheduledStart);
 
 export function partOf(at: number | null): DayPart | null {
   return at == null
@@ -80,10 +85,8 @@ export function hours(min: number) {
   );
 }
 
-const byHour = (a: V3Task, b: V3Task) => (hourAt(a) ?? 99) - (hourAt(b) ?? 99);
-
 export interface HomeSplit {
-  /** Open tasks from before today, oldest first. */
+  /** Open overdue tasks (due before today), oldest first. */
   late: V3Task[];
   /** Everything that belongs to today (open and done), by hour. */
   day: V3Task[];
@@ -94,16 +97,9 @@ export interface HomeSplit {
 /** Sorts live tasks into the three groups Home draws. `noSlot` tasks stay out. */
 export function splitHome(tasks: readonly V3Task[], today: string): HomeSplit {
   const live = tasks.filter((t) => !t.trashedAt && !t.noSlot);
-  const late = live
-    .filter((t) => {
-      const d = dayOf(t);
-      return !t.done && !!d && d < today;
-    })
-    .sort(
-      (a, b) => (dayOf(a) ?? "").localeCompare(dayOf(b) ?? "") || byHour(a, b)
-    );
-  const day = live.filter((t) => dayOf(t) === today).sort(byHour);
-  const inbox = live.filter((t) => !t.done && !dayOf(t) && !t.isFixed);
+  const late = overdueTasks(live, today);
+  const day = todayTasks(live, today);
+  const inbox = live.filter((t) => !t.done && !dayOf(t, today) && !t.isFixed);
   return { late, day, inbox };
 }
 
@@ -146,16 +142,15 @@ export function dayState(
 /** Day sections: Morning / Afternoon / Evening / Anytime today, empty ones dropped. */
 export function sectionsOf(
   day: readonly V3Task[],
-  visible: (t: V3Task) => boolean
+  visible: (t: V3Task) => boolean,
+  today?: string
 ): [string, V3Task[]][] {
+  const h = (t: V3Task) => hourAt(t, today);
   const out: [string, V3Task[]][] = PARTS.map((p) => [
     p,
-    day.filter((t) => partOf(hourAt(t)) === p && visible(t)),
+    day.filter((t) => partOf(h(t)) === p && visible(t)),
   ]);
-  out.push([
-    "Anytime today",
-    day.filter((t) => hourAt(t) == null && visible(t)),
-  ]);
+  out.push(["Anytime today", day.filter((t) => h(t) == null && visible(t))]);
   return out.filter(([, list]) => list.length > 0);
 }
 
@@ -212,9 +207,8 @@ export function nextUpNote(pick: NextUp, nowHour: number, today: string) {
   const t = pick.task;
   const at = hourAt(t, today);
   const d = dur(t.estimatedMinutes);
-  const day = dayOf(t);
-  if (day && day < today) {
-    const since = t.dueDate && t.dueDate < today ? t.dueDate : day;
+  if (isOverdue(t, today) && t.dueDate) {
+    const since = t.dueDate;
     return `Overdue since ${dayLabel(since)} · the oldest thing still open, ${d || "no estimate"}${pick.moreLate ? ` · +${pick.moreLate} overdue` : ""}`;
   }
   if (at != null && at < nowHour) {
@@ -373,7 +367,9 @@ export function weekAhead(
   return Array.from({ length: 7 }, (_, i) => {
     const date = addDays(today, i + 1);
     const dow = weekday(date);
-    const list = live.filter((t) => dayOf(t) === date).sort(byHour);
+    const list = live
+      .filter((t) => dayOf(t, today) === date)
+      .sort((x, y) => (hourAt(x, date) ?? 99) - (hourAt(y, date) ?? 99));
     const evs = eventsInRange(events, date, addDays(date, 1))
       .map(eventBlock)
       .filter((b) => b.date === date && b.at != null)

@@ -19,6 +19,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continue to the app; an expired or used link sends a new one).
   `/auth/reset-password` without a token opens sign-in on "Forgot your
   password?".
+- Docs: each document card in the grid now shows its page in miniature, as
+  the design does: the first blocks (headings, paragraphs, lists, to-dos,
+  quotes, callouts, code, dividers, a picture) drawn small on the page's own
+  colour. `GET /api/pages` adds a short `preview` to every live page, a list of
+  `{ type, text }` rows (at most 8 rows, 120 characters a row, 600 in all;
+  plain text, no HTML), read for the whole list with one extra query.
+  `?preview=false` leaves it out. Pages you cannot see still return nothing,
+  and the trash list has no preview. The phone's Docs cards draw it too.
+- Connections (desktop, new design): the screen now sits on the printed sky
+  like the rest of the new design: a centred hero ("Sources", a large
+  Connections title, one line, and a pill that says "Outlook needs
+  reconnecting" when something lost access), centred tabs with the connected
+  count, the Connected / All apps switch, the Mail & chat, Calendars, Work and
+  Files chips, search, and glass cards in three, two or one column. The
+  toolbar stays in view while you scroll. The phone uses the same chips and
+  sections.
+- Settings (design_v3, desktop sheet): the rail rows have their icons, the
+  person is a disc of initials, and the plan card is the printed sky with the
+  PRO badge. Appearance shows each theme as the Home screen drawn small
+  (System cut down the middle, Time on the diagonal), the nine accent
+  swatches show their own colours in the light theme again, the accent card
+  has its progress bar, and the Time card says where the sun is. Select
+  controls use the up-down chevron. About has What's new, and a paid plan's
+  line says when it renews.
+- Mailbox (desktop, design v3): the header now matches the design. It always
+  shows your accounts as chips (Gmail / Outlook, with a red dot when one needs
+  reconnecting), the tabs Needs you / All / Made into tasks plus Sent and
+  Drafts, and a New message button. Sent and Drafts are drawn but off ("Sent
+  folder isn't synced yet"): Needt does not store those folders, and mail stays
+  read-only at the provider. New message opens Gmail's or Outlook's own compose
+  window in a new tab (a menu when you have two accounts). With no account
+  connected the header no longer goes empty: Gmail and Outlook show as not
+  connected, the list says "No mail account connected" with Open Connections,
+  and New message waits for an account.
+- Templates and Shared now open on the painted-sky banner from the design
+  (kicker, big serif title, meta line and up to three of the place's own pages
+  on frosted glass) instead of a plain header. Moodboards cards show the first
+  three references as a collage (the grey glyph only for an empty board) with
+  the reference count, and Free sees "3 boards · Free includes 1 · Upgrade for
+  more" and the one "Unlimited moodboards" card. Habits shows "Last four
+  months" again (a dot a day, All or one habit) and Free reads "4 habits · Free
+  includes 3 · Upgrade for more". `GET /api/moodboards` now also sends
+  `itemCount` and `preview` (the first three references), and the new
+  `GET /api/habits/history` sends each habit's last 124 days. The painted sky no
+  longer turns to night on a light page when the old theme setting is dark.
+- Fixed (Notion import review): links, bookmarks, files, images and covers
+  keep only `http`, `https`, `mailto` and Needt page addresses (anything else,
+  such as `javascript:`, comes in as plain text with a note), and page blocks
+  draw a link or image only for such an address. Page files are served with a
+  sandbox policy and no content sniffing, and SVG is always a download. The
+  importer stores only common file types (anything else is an opaque
+  download), downloads only from Notion's own hosts including every redirect,
+  and keeps a long run alive for the sweeper.
+- Import from Notion (behind the same `imports` feature flag). Settings ->
+  Data -> Import sends you to Notion, where you pick the pages and databases
+  to share in Notion's own page picker; only those are imported, with their
+  tree, text, tables, images and files, and databases with their rows. Links
+  between imported pages keep working, a second run updates only what
+  changed, and pages Notion could only partly return, blocks Needt cannot
+  show and database properties kept as text are listed as notes. Needs
+  `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`; additive migration
+  `20261012120000_import_asset_entity`.
+- Fixed (design_v3): one overdue rule everywhere. A task is overdue only when
+  its due date is before today in your time zone; a passed block or a stale
+  scheduled time no longer counts, and a task due or scheduled today sits in
+  Today. Home, Tasks (desktop and phone), the sidebar badge and Move to today
+  now agree. A date-only due date no longer turns overdue a day early west of
+  UTC.
+- Fixed (design_v3): the Tasks "Today" tab draws its Today group (tasks due or
+  scheduled today, timed ones by time), not only Overdue.
+- Fixed (design_v3): the sidebar plan pill says "Lifetime" for Lifetime, as
+  Settings → Plan does.
+- Added (design_v3): "Sign out of all devices" in Settings → Account, on the
+  desktop and the phone, with a confirm.
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
+  an unknown address shows a 404 inside the app instead of the old dark page.
+- Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
+  and syncs them; before, the account had no calendars and the calendar stayed
+  empty. A CalDAV fetch that fails no longer archives every event of the
+  calendar, and events the server returns again come back.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

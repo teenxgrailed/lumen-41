@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { FiCheck, FiLock } from "react-icons/fi";
+import { LuSun, LuSunrise, LuSunset } from "react-icons/lu";
 
+import { newDate } from "@/lib/date-utils";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
@@ -13,13 +15,16 @@ import {
   THEMES,
   type ThemeChoice,
   type TimePalettes,
+  placeFromTz,
   readTimePalettes,
+  timeThemeAt,
 } from "@/lib/needt3/theme";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { Miniature } from "./Miniature";
 import { useMark } from "./SettingsContext";
-import { accentLocked, isPro, themeLocked } from "./derive";
+import { accentLocked, isPro, themeLocked, timeNow } from "./derive";
 import { ProPill, SGroup } from "./kit";
 
 /**
@@ -153,6 +158,37 @@ export function usePalettes() {
   return p;
 }
 
+/** A theme tile's picture: the Home screen drawn small in that theme. */
+function ThemeMini({ id, accent }: { id: ThemeChoice; accent: string }) {
+  if (id === "system")
+    return <Miniature width={128} accent={accent} half={["light", "dark"]} />;
+  if (id === "time")
+    return (
+      <Miniature width={128} accent={accent} diagonal={["light", "dark"]} />
+    );
+  return <Miniature width={128} accent={accent} theme={id} />;
+}
+
+/** The Time card's live reading: where the sun is, and what comes next. */
+function TimeNow({ palettes }: { palettes: TimePalettes | null }) {
+  if (!palettes) return null;
+  const now = timeNow(timeThemeAt(newDate(), placeFromTz(), palettes));
+  const Icon =
+    now.icon === "sunrise"
+      ? LuSunrise
+      : now.icon === "sunset"
+        ? LuSunset
+        : LuSun;
+  return (
+    <div className="base-row settings-time-now-time-now" data-time-now>
+      <span className="settings-time-now-row">
+        <Icon size={14} aria-hidden />
+      </span>
+      <span>{now.line}</span>
+    </div>
+  );
+}
+
 export function AppearanceSection({
   onUpgrade,
 }: {
@@ -215,7 +251,7 @@ export function AppearanceSection({
               >
                 <span className="settings-theme-tile-span">
                   <span className="settings-theme-tile-span-2">
-                    <ThemePicture id={id} palettes={palettes} />
+                    <ThemeMini id={id} accent={accent} />
                   </span>
                 </span>
                 <span className="settings-theme-tile-span-3">
@@ -226,8 +262,7 @@ export function AppearanceSection({
             );
           })}
         </div>
-        {/* //todo: the Time card's live reading (where the sun is, what
-            comes next — TimeNow) needs the Drift reading from V3Root. */}
+        {theme === "time" ? <TimeNow palettes={palettes} /> : null}
       </SGroup>
       <SGroup
         title={
@@ -301,6 +336,9 @@ export function AppearanceSection({
               {cur.gradient
                 ? "Fills take the blend; text and rings take its middle."
                 : "Selection, links, the now-line and progress."}
+            </span>
+            <span className="settings-accent-card-span">
+              <span className="settings-accent-card-span-2" />
             </span>
           </div>
         </div>

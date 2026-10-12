@@ -1,0 +1,28 @@
+/* Design v3 — the Mailbox header's honest controls. HAND-WRITTEN additions;
+ * src/styles/v3/ is generated and never edited.
+ *
+ * The prototype's header can send, so its Sent / Drafts tabs always work. The
+ * product's mail is read-only at the provider (owner, 2026-10-09) and the sync
+ * stores no Sent or Drafts view, so those two tabs are drawn but held (the
+ * disabled look every .nx-btn already has), and an account chip that is not
+ * connected is a link to Connections. Nothing here adds a colour or a shadow.
+ */
+.needt-v3 .ml-tab.is-held {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.needt-v3 .ml-tab.is-held:hover {
+  background: transparent;
+  color: var(--text-tertiary);
+}
+.needt-v3 a.ml-acct.is-link {
+  text-decoration: none;
+  transition: background-color 140ms ease;
+}
+.needt-v3 a.ml-acct.is-link:hover {
+  background: var(--fill-4);
+}
+.needt-v3 a.ml-acct.is-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

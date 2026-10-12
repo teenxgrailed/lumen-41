@@ -8,7 +8,7 @@ import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { Art } from "../menu/Art";
 import { PlEmpty, StScreen } from "../states/StScreen";
 import { PlDocCard } from "./PlDocCard";
-import { PlaceHeader } from "./PlaceHeader";
+import { PlSceneHeader } from "./PlSceneHeader";
 import { roleLabel, sharedMeta } from "./derive";
 
 const sh = strings["places.jsx"].SharedScreen;
@@ -28,10 +28,20 @@ export function SharedScreen() {
 
   return (
     <div className="scroll-inner pl-page" data-v3-screen="shared">
-      <PlaceHeader
-        art="stack"
+      <PlSceneHeader
+        variant="d"
+        kicker={sh.shared}
         title={sh.shared_with_me}
         meta={sharedMeta(list.length)}
+        // The caption is the role: the list route does not say who shared a
+        // page, so the prototype's "From Lena" cannot be drawn yet.
+        prints={list.slice(0, 3).map(({ doc, role }) => ({
+          id: doc.id,
+          title: doc.title || "Untitled",
+          caption: roleLabel(role),
+          doc,
+          onOpen: () => router.push(`/pages/${doc.id}`),
+        }))}
       />
       <StScreen query={shared} kind="grid" screen="shared">
         {!list.length ? (

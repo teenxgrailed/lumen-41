@@ -286,19 +286,20 @@ describe("placement comes from scheduledStart", () => {
   const FRIDAY = "2026-09-04";
   const TOMORROW = "2026-09-02";
 
-  it("due today but scheduled tomorrow 09:00 is not today's", () => {
+  it("due today but scheduled tomorrow 09:00 is today's, without an hour (owner rule 2026-10-12)", () => {
     const t = task({ dueDate: TODAY, scheduledStart: at(TOMORROW, "09:00") });
     const s = splitHome([t], TODAY);
-    expect(s.day).toEqual([]);
+    expect(s.day.map((x) => x.id)).toEqual([t.id]);
     expect(s.late).toEqual([]);
+    expect(sectionsOf(s.day, () => true, TODAY)).toEqual([
+      ["Anytime today", [t]],
+    ]);
     expect(scheduleItems([t], [], TODAY)).toEqual([]);
-    // the day list never gives it today's hour, so no "Was planned for 09:00"
     const pick = pickNextUp([], [t]);
     expect(nextUpNote(pick!, 14, TODAY)).not.toContain("09:00");
-    // it is tomorrow's, at 09:00
+    // not tomorrow's as well
     const week = weekAhead([t], [], TODAY, capacityFrom(undefined));
-    expect(week[0].date).toBe(TOMORROW);
-    expect(week[0].tasks.map((x) => x.id)).toEqual([t.id]);
+    expect(week.some((d) => d.tasks.length)).toBe(false);
   });
 
   it("scheduled today 10:00 and due Friday sits on today at 10:00", () => {

@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import {
   IMPORT_SOURCES,
+  IMPORT_SOURCE_LABEL,
+  type SupportedImportSource,
   cancelImportRun,
   createImportRun,
   findActiveImportRun,
@@ -22,7 +24,10 @@ import {
 
 const startSchema = z.object({
   source: z.enum(IMPORT_SOURCES),
-  /** A Todoist personal API token, for scripts that skip the OAuth step. */
+  /**
+   * A personal token, for scripts that skip the OAuth step: a Todoist
+   * personal API token, or a Notion internal integration token.
+   */
   token: z.string().trim().min(1).max(512).optional(),
 });
 
@@ -43,7 +48,10 @@ export async function listImportsResponse(userId: string) {
   const runs = await listImportRuns(userId);
   return NextResponse.json({
     enabled: true,
-    sources: { todoist: { configured: importSourceConfigured("todoist") } },
+    sources: {
+      todoist: { configured: importSourceConfigured("todoist") },
+      notion: { configured: importSourceConfigured("notion") },
+    },
     runs: runs.map(serializeImportRun),
   });
 }
@@ -52,14 +60,17 @@ export async function startImportResponse(input: {
   userId: string;
   workspaceId: string;
   body: unknown;
-  /** Absolute URL of /api/imports/todoist/authorize on this deployment. */
-  authorizeUrl: (workspaceId: string) => string;
+  /** Absolute URL of /api/imports/<source>/authorize on this deployment. */
+  authorizeUrl: (workspaceId: string, source: SupportedImportSource) => string;
 }) {
   if (!(await importsEnabled(input.userId))) return notAvailable();
   const parsed = startSchema.safeParse(input.body ?? {});
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'source must be "todoist"', details: parsed.error.flatten() },
+      {
+        error: 'source must be "todoist" or "notion"',
+        details: parsed.error.flatten(),
+      },
       { status: 400 }
     );
   }
@@ -90,14 +101,14 @@ export async function startImportResponse(input: {
   if (!importSourceConfigured(source)) {
     return NextResponse.json(
       {
-        error: "Todoist import is not configured on this server",
+        error: `${IMPORT_SOURCE_LABEL[source]} import is not configured on this server`,
         code: "NOT_CONFIGURED",
       },
       { status: 503 }
     );
   }
   return NextResponse.json({
-    authorizeUrl: input.authorizeUrl(input.workspaceId),
+    authorizeUrl: input.authorizeUrl(input.workspaceId, source),
   });
 }
 
