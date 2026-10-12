@@ -64,8 +64,7 @@ export function AccountSettings() {
         method: "POST",
       });
       if (!response.ok) throw new Error("REVOKE_FAILED");
-      await clearNeedtOfflineData();
-      await signOut({ callbackUrl: "/auth/signin" });
+      await signOutOfNeedt();
     } catch {
       notify.error("Could not sign out of all devices");
       setIsRevoking(false);
