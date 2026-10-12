@@ -152,6 +152,33 @@ describe("crossing 700px", () => {
     );
   });
 
+  it("keeps the open recovery step and the server's last refusal", async () => {
+    signIn.mockResolvedValue({ error: "CredentialsSignin" });
+    await mount();
+    // a refusal on the phone face is still on screen after the swap
+    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await act(async () => {
+      q<HTMLFormElement>("form")!.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    expect(host.textContent).toContain("That email and password do not match.");
+    await swap(false);
+    expect(face()).toBe("desktop");
+    expect(host.textContent).toContain("That email and password do not match.");
+    // an open "Forgot password?" survives the way back
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-forgot]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
+    await swap(true);
+    expect(face()).toBe("phone");
+    expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
+  });
+
   it("a sign-in that finishes after the swap still redirects, once", async () => {
     let resolve!: (v: unknown) => void;
     signIn.mockReturnValue(new Promise((r) => (resolve = r)));
