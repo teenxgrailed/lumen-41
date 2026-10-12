@@ -29,11 +29,13 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { V3DragProvider, useV3Drag } from "../drag/DragHost";
 import { RichMenu } from "../menu/RichMenu";
+import { CalendarFaces } from "../phone/calendar/CalendarFaces";
+import type { CalendarController } from "../phone/calendar/useCalendarController";
 import { useDesignV3 } from "../root/V3Root";
 import { StScreen } from "../states/StScreen";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
-import { type Draft, WeekView } from "./WeekView";
+import { WeekView } from "./WeekView";
 import {
   type CalItem,
   calendarItems,
@@ -81,16 +83,20 @@ export function CalendarCraft() {
   const host = useV3Drag();
   if (!v3) return null;
   // the shell's drag host when it has one; until then the calendar's own
-  return host ? (
-    <CalendarScreen />
-  ) : (
-    <V3DragProvider>
-      <CalendarScreen />
-    </V3DragProvider>
-  );
+  const desktop = (ctl: CalendarController) =>
+    host ? (
+      <CalendarScreen ctl={ctl} />
+    ) : (
+      <V3DragProvider>
+        <CalendarScreen ctl={ctl} />
+      </V3DragProvider>
+    );
+  // the face is chosen, and the route's state kept, in CalendarFaces: one
+  // controller, handed to the phone face and to this one
+  return <CalendarFaces desktop={desktop} />;
 }
 
-function CalendarScreen() {
+function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const router = useRouter();
   const params = useSearchParams();
   const tz = useTimeZone();
@@ -105,9 +111,22 @@ function CalendarScreen() {
 
   /* View, Hide done and the Agenda size are remembered in UserSettings
      (prefs `view`, `calHideDone`, `calDays`); local state answers at once. */
-  const [viewLocal, setViewLocal] = useState<View | null>(null);
-  const [hideLocal, setHideLocal] = useState<boolean | null>(null);
-  const [nLocal, setNLocal] = useState<AgendaSize | null>(null);
+  const {
+    viewLocal,
+    setViewLocal,
+    hideLocal,
+    setHideLocal,
+    nLocal,
+    setNLocal,
+    weekFrom,
+    setWeekFrom,
+    narrowFrom,
+    setNarrowFrom,
+    agendaFrom,
+    setAgendaFrom,
+    draft,
+    setDraft,
+  } = ctl;
   const view: View = viewLocal ?? (prefs.view === "days" ? "days" : "week");
   const hideDone = hideLocal ?? prefs.calHideDone === true;
   const n: AgendaSize =
@@ -132,9 +151,6 @@ function CalendarScreen() {
 
   /* What is on screen: a week (or three days from a day when narrow) and the
      Agenda's own span, both paged. */
-  const [weekFrom, setWeekFrom] = useState<string | null>(null);
-  const [narrowFrom, setNarrowFrom] = useState<string | null>(null);
-  const [agendaFrom, setAgendaFrom] = useState<string | null>(null);
   const thisWeek = weekStart(today, weekStartDay);
   const weekDays = narrow
     ? daySpan(narrowFrom ?? today, 3)
@@ -187,7 +203,6 @@ function CalendarScreen() {
   const updateEvent = useUpdateEvent();
   const lifecycle = useEventLifecycle();
   const createEvent = useCreateEvent();
-  const [draft, setDraft] = useState<Draft | null>(null);
 
   const undoable = (message: string, undo: () => Promise<void>) =>
     notify.success(message, {
@@ -252,7 +267,16 @@ function CalendarScreen() {
       at: freeSlot(timed, today, hour, bounds.end),
       key: newDate().getTime(),
     });
-  }, [today, timed, hour, bounds.end]);
+  }, [
+    today,
+    timed,
+    hour,
+    bounds.end,
+    setViewLocal,
+    setWeekFrom,
+    setNarrowFrom,
+    setDraft,
+  ]);
 
   /* Create → New event arrives as /calendar?new=event (the shell's link). */
   const wantsNew = params?.get("new") === "event";
