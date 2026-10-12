@@ -47,7 +47,7 @@ import {
 } from "../../settings/derive";
 import { initialsOf } from "../../shell/Avatar";
 import { PkButton, PkGlyph, PkSheet, PkSkyPlate, pkCx } from "../kit";
-import { menuTilesFrom, menuWord } from "../menu/places";
+import { type MenuPlaceId, menuTilesFrom, menuWord } from "../menu/places";
 import { usePhoneOverlays } from "../overlays/store";
 import { AccountPage, useSignOut } from "./AccountPage";
 import { AppearancePage } from "./AppearancePage";
@@ -312,6 +312,12 @@ export interface PhoneSettingsProps {
   onPage: (page: SectionId | null) => void;
   /** Changes each time a write lands; the header says "Saved" for a moment. */
   saved: number;
+  /** The Menu page is on show (it has no desktop section). Owned above the face switch. */
+  menu: boolean;
+  onMenu: (on: boolean) => void;
+  /** The Menu page's half-filled pill; null = what is saved. Owned above the face switch. */
+  pill: MenuPlaceId[] | null;
+  onPill: (pill: MenuPlaceId[] | null) => void;
 }
 
 /**
@@ -323,10 +329,10 @@ export interface PhoneSettingsProps {
  *
  * Two faces, one state: which page is on show (`page`) and the "Saved" mark
  * live in `SettingsSheet`, which `PermanentHosts` mounts outside the
- * UI-dependent slot, so crossing 700 px keeps the page. What stays here is
- * the face's own and holds no data: the open picker, the fold, the Menu
- * page's half-filled pill. Every control writes the moment it changes, so a
- * swap never loses or repeats a write.
+ * UI-dependent slot, so crossing 700 px keeps the page, the Menu page and
+ * its half-filled pill. What stays here is the face's own and holds no data:
+ * the open picker and the fold. Every control writes the moment it changes, so
+ * a swap never loses or repeats a write.
  */
 export function PhoneSettings({
   open,
@@ -334,11 +340,14 @@ export function PhoneSettings({
   page,
   onPage,
   saved,
+  menu,
+  onMenu,
+  pill,
+  onPill,
 }: PhoneSettingsProps) {
   const router = useRouter();
   const [live, setLive] = useState(open);
   if (open && !live) setLive(true);
-  const [menu, setMenu] = useState(false);
   const [dir, setDir] = useState<"in" | "out" | null>(null);
   const [spec, setSpec] = useState<PsPickSpec | null>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -349,19 +358,20 @@ export function PhoneSettings({
     (id: PsPageId) => {
       listY.current = scrollerOf(stage.current)?.scrollTop ?? 0;
       setDir("in");
-      if (id === "menu") setMenu(true);
+      if (id === "menu") onMenu(true);
       else {
-        setMenu(false);
+        onMenu(false);
         onPage(id);
       }
     },
-    [onPage]
+    [onPage, onMenu]
   );
   const back = useCallback(() => {
     setDir("out");
-    setMenu(false);
+    onMenu(false);
+    onPill(null);
     onPage(null);
-  }, [onPage]);
+  }, [onPage, onMenu, onPill]);
 
   /* The page opens at its top; the list comes back where it was left. */
   useLayoutEffect(() => {
@@ -399,8 +409,10 @@ export function PhoneSettings({
         onClose();
         router.push(href);
       },
+      pill,
+      setPill: onPill,
     }),
-    [onClose, router]
+    [onClose, router, pill, onPill]
   );
 
   const title = current ? (
@@ -430,7 +442,6 @@ export function PhoneSettings({
         onClose={onClose}
         onShut={() => {
           setLive(false);
-          setMenu(false);
           setDir(null);
           setSpec(null);
         }}

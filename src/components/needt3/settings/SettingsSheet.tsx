@@ -20,6 +20,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import type { MenuPlaceId } from "../phone/menu/places";
 import { PhoneSettings } from "../phone/settings/PhoneSettings";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { Avatar, initialsOf } from "../shell/Avatar";
@@ -113,6 +114,10 @@ export function SettingsSheet() {
   // state; it lives here, above the face switch, with `section`, so crossing
   // 700 px keeps where the person is (the desktop never shows the list).
   const [list, setList] = useState(true);
+  // The phone's Menu page has no desktop section; its flag and the half-filled
+  // pill sit here with the page, so a crossing keeps a pill being edited.
+  const [menu, setMenu] = useState(false);
+  const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   const [saved, setSaved] = useState(0);
   const navRef = useRef<HTMLElement>(null);
 
@@ -121,6 +126,8 @@ export function SettingsSheet() {
     if (open) {
       setSection(sectionOf(want));
       setList(!want);
+      setMenu(false);
+      setPill(null);
     }
   }, [open, want]);
 
@@ -134,6 +141,7 @@ export function SettingsSheet() {
   const pick = useCallback((id: SectionId) => {
     setSection(id);
     setList(false);
+    setMenu(false);
   }, []);
   const phonePage = useCallback(
     (id: SectionId | null) => (id ? pick(id) : setList(true)),
@@ -167,6 +175,10 @@ export function SettingsSheet() {
           page={list ? null : section}
           onPage={phonePage}
           saved={saved}
+          menu={menu}
+          onMenu={setMenu}
+          pill={pill}
+          onPill={setPill}
         />
       </MarkProvider>
     );

@@ -51,6 +51,10 @@ jest.mock("../PhoneSettings", () => {
       open: boolean;
       page: string | null;
       onPage: (p: string | null) => void;
+      menu: boolean;
+      onMenu: (on: boolean) => void;
+      pill: string[] | null;
+      onPill: (pill: string[] | null) => void;
     }) {
       return React.createElement(
         "div",
@@ -58,7 +62,16 @@ jest.mock("../PhoneSettings", () => {
           "data-phone-settings": "",
           "data-open": String(p.open),
           "data-page": p.page ?? "list",
+          "data-menu": String(p.menu),
+          "data-pill": p.pill ? p.pill.join(",") : "saved",
         },
+        React.createElement("button", {
+          "data-go-menu": "",
+          onClick: () => {
+            p.onMenu(true);
+            p.onPill(["docs", "ask"]);
+          },
+        }),
         React.createElement("button", {
           "data-go": "day",
           onClick: () => p.onPage("day"),
@@ -191,6 +204,29 @@ describe("SettingsSheet faces", () => {
     expect(q("[data-phone-settings]")?.getAttribute("data-open")).toBe("false");
     act(() => useNeedt3Ui.getState().openSettings());
     expect(page()).toBe("list");
+  });
+
+  it("a half-edited pill on the Menu page survives a crossing, and a desktop section leaves the page", () => {
+    render("phone");
+    act(() => useNeedt3Ui.getState().openSettings());
+    click(q("[data-go-menu]"));
+    const menu = () => q("[data-phone-settings]")?.dataset.menu;
+    const pill = () => q("[data-phone-settings]")?.dataset.pill;
+    expect([menu(), pill()]).toEqual(["true", "docs,ask"]);
+    render("desktop");
+    render("phone");
+    expect([menu(), pill()]).toEqual(["true", "docs,ask"]);
+    // a section chosen on the desktop is a page of its own: not the Menu page
+    render("desktop");
+    click(q('[data-settings-nav="tasks"]'));
+    render("phone");
+    expect(menu()).toBe("false");
+    expect(page()).toBe("tasks");
+    // each opening starts clean
+    click(q("[data-go-menu]"));
+    act(() => useNeedt3Ui.getState().closeSettings());
+    act(() => useNeedt3Ui.getState().openSettings());
+    expect([menu(), pill()]).toEqual(["false", "saved"]);
   });
 
   it("crossing 700 px never remounts the host", () => {
