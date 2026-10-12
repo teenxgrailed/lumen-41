@@ -120,7 +120,11 @@ export function PlanSection() {
                           kind === "yearly"
                             ? `${P.yearly} / year (${P.yearlyPerMonth}/mo)`
                             : `${P.monthly} / month`,
-                          renewsText(b?.currentPeriodEnd, newDate()),
+                          renewsText(
+                            b?.currentPeriodEnd,
+                            newDate(),
+                            b?.cancelAtPeriodEnd === true
+                          ),
                         ]
                           .filter(Boolean)
                           .join(" · ")}

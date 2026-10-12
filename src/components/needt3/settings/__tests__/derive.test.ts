@@ -307,4 +307,11 @@ describe("renewsText", () => {
   it("keeps the year further out", () => {
     expect(renewsText("2027-10-07T12:00:00Z", now)).toBe("renews 7 Oct 2027");
   });
+  it("says it ends, not renews, when it is set to cancel", () => {
+    expect(renewsText("2026-11-07T12:00:00Z", now, true)).toBe("ends 7 Nov");
+    expect(renewsText("2027-10-07T12:00:00Z", now, true)).toBe(
+      "ends 7 Oct 2027"
+    );
+    expect(renewsText("2026-11-07T12:00:00Z", now, false)).toBe("renews 7 Nov");
+  });
 });

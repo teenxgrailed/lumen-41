@@ -4,7 +4,7 @@
  * locks, and the hour / weekday helpers the Your day rows need.
  */
 import { calendarConnectionNotice } from "@/lib/calendar-connection-status";
-import { newDate } from "@/lib/date-utils";
+import { formatShortDate, newDate } from "@/lib/date-utils";
 import type { AccentId, ThemeChoice, TimeReading } from "@/lib/needt3/theme";
 
 export type SectionId =
@@ -300,18 +300,15 @@ export function planInfo(kind: string | null | undefined): PlanInfo {
  */
 export function renewsText(
   periodEnd: string | null | undefined,
-  now: Date
+  now: Date,
+  cancelAtPeriodEnd = false
 ): string {
   if (!periodEnd) return "";
   const d = newDate(periodEnd);
   if (Number.isNaN(d.getTime())) return "";
   const soon = d.getTime() - now.getTime() < 330 * 86_400_000;
-  const text = d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    ...(soon ? {} : { year: "numeric" }),
-  });
-  return `renews ${text}`;
+  /* A subscription set to cancel does not renew: it ends on that date. */
+  return `${cancelAtPeriodEnd ? "ends" : "renews"} ${formatShortDate(d, !soon)}`;
 }
 
 /** Width of the trial bar: days left over the trial length, 0–100. */
