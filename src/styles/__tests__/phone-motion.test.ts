@@ -392,3 +392,105 @@ describe("progressive blurs keep one layer", () => {
       ]).toEqual(["mau-glass-blur", variant, true]);
   });
 });
+
+/* ---------- 8. the 13 px sweep never beats a more specific vendored size ---------- */
+
+/** Selector list split on the commas outside parentheses. */
+function splitTop(selector: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of selector) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      out.push(norm(cur));
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(norm(cur));
+  return out;
+}
+
+/** Specificity as [ids, classes + attributes + pseudo-classes, types]. :is/:not/:has
+ *  count as their heaviest argument. */
+function specificity(selector: string): [number, number, number] {
+  let s = selector.replace(
+    /::?[a-z-]+\(([^()]*(\([^()]*\))?[^()]*)\)/g,
+    (m, inner: string) => {
+      if (/^::?(is|not|has|where)\(/.test(m)) {
+        if (m.startsWith(":where(")) return "";
+        const best = inner
+          .split(",")
+          .map((a) => specificity(a.trim()))
+          .sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2] - y[2])
+          .pop() ?? [0, 0, 0];
+        return `${"#x".repeat(best[0])}${".x".repeat(best[1])}${"x ".repeat(best[2])}`;
+      }
+      return ".x";
+    }
+  );
+  const ids = (s.match(/#[\w-]+/g) ?? []).length;
+  s = s.replace(/#[\w-]+/g, "");
+  const cls = (s.match(/\.[\w-]+|\[[^\]]*\]|:[a-z-]+/g) ?? []).length;
+  s = s.replace(/\.[\w-]+|\[[^\]]*\]|::?[a-z-]+/g, " ");
+  const types = (s.match(/(^|[\s>+~])[a-zA-Z][\w-]*/g) ?? []).length;
+  return [ids, cls, types];
+}
+const atLeast = (a: number[], b: number[]) =>
+  a[0] !== b[0] ? a[0] > b[0] : a[1] !== b[1] ? a[1] > b[1] : a[2] >= b[2];
+
+describe("the 13 px override is no more specific than the rule it corrects", () => {
+  /** Vendored rules that set a size of their own, more specific than the 14 px one. */
+  const KEEP: { selector: string; size: string; classes: string[] }[] = [
+    {
+      selector: ".needt-v3 .pml-avatar.is-big",
+      size: "15px",
+      classes: ["pml-avatar", "is-big"],
+    },
+    {
+      selector: ".needt-v3 .ps-plan-terms",
+      size: "12px",
+      classes: ["ps-plan-terms"],
+    },
+    {
+      selector: ".needt-v3 .mbm-media-12.is-big .mbm-media-13",
+      size: "19px",
+      classes: ["mbm-media-13"],
+    },
+  ];
+  const sweep = decls.filter(
+    (d) =>
+      d.file === "v3-overrides/phone-perf.css" &&
+      d.prop === "font-size" &&
+      d.value === "13px"
+  );
+
+  for (const k of KEEP) {
+    it(`${k.selector} keeps ${k.size}`, () => {
+      const vendored = decls.find(
+        (d) =>
+          d.selector === k.selector &&
+          /font/.test(d.prop) &&
+          d.value.includes(k.size.replace("px", "px"))
+      );
+      expect(vendored).toBeDefined();
+      const spec = specificity(k.selector);
+      const beats: string[] = [];
+      for (const d of sweep) {
+        for (const piece of splitTop(d.selector)) {
+          const named = [...piece.matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
+          if (!named.some((c) => k.classes.includes(c))) continue;
+          if (atLeast(specificity(piece), spec)) beats.push(piece);
+        }
+      }
+      expect(beats).toEqual([]);
+    });
+  }
+
+  it("the specificity helper counts what it should", () => {
+    expect(specificity(".needt-v3 .pml-avatar.is-big")).toEqual([0, 3, 0]);
+    expect(specificity(".needt-v3 :is(.a, .b.c.d)")).toEqual([0, 4, 0]);
+    expect(specificity(".needt-v3 .x:not(.y) > button")).toEqual([0, 3, 1]);
+  });
+});

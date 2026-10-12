@@ -40,8 +40,13 @@
  * width (a layout pass per frame for the row). It snaps to its width now and
  * only its opacity eases. Owner question: is the grow worth a clip-path
  * version? */
-.needt-v3 .px-dot {
+.needt-v3 .mau-dots .px-dot {
   transition: opacity 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .mau-dots .px-dot {
+    transition: none;
+  }
 }
 
 /* ── Paywall sheet ────────────────────────────────────────────────────────
@@ -56,51 +61,50 @@
 /* ── Rule 2: chrome type is 13 / 12 px, never 14 ──────────────────────────
  * The vendored phone sheets set these in 14 px (the prototype predates the
  * rule; P6 already corrected its own two). Only the size moves, each rule keeps
- * its own line height. The mail quote (.pml-quote-text) and the mail time are
- * chrome of a list row, not document body (16 px, .pml-html). */
-.needt-v3
-  :is(
-    .pk-sub,
-    .pk-pull-none,
-    .pk-sheet-meta,
-    .pov-opt,
-    .pov-late,
-    .pov-cchip,
-    .pov-ask-sub,
-    .pov-ask-note-text,
-    .pd-tab,
-    .pd-empty-line,
-    .pd-date,
-    .pml-banner-title,
-    .pml-avatar,
-    .pml-time,
-    .pml-view,
-    .pml-quote-text,
-    .pml-co-ccbtn,
-    .phb-seg-btn,
-    .phb-proj,
-    .phb-open,
-    .ppl-act.pk-btn.is-small,
-    .ppl-card-use.pk-btn.is-small,
-    .ppl-avatar,
-    .ppl-chip,
-    .ppl-explain,
-    .ppl-check,
-    .ps-pro-line,
-    .ps-plan-line,
-    .ps-plan-terms,
-    .ps-trial,
-    .v2p-seg-btn,
-    .v2p-ev-line,
-    .ma-menu-label,
-    .ma-menu-tile.is-in .ma-menu-label,
-    .mau-link,
-    .mau-resend,
-    .mau-chip,
-    .nva-tile-label,
-    .nva-seg-btn,
-    .mbm-media-13
-  ) {
+ * its own line height. A plain list, no :is(): every entry has the specificity
+ * of the vendored 14 px rule it corrects, so a more specific vendored size
+ * still wins (.pml-avatar.is-big 15, .ps-plan-terms 12, .mbm-media-12.is-big
+ * .mbm-media-13 19: the test pins them). The mail quote and time are chrome of
+ * a list row, not document body (16 px, .pml-html). */
+.needt-v3 .pk-sub,
+.needt-v3 .pk-pull-none,
+.needt-v3 .pk-sheet-meta,
+.needt-v3 .pov-opt,
+.needt-v3 .pov-late,
+.needt-v3 .pov-cchip,
+.needt-v3 .pov-ask-sub,
+.needt-v3 .pov-ask-note-text,
+.needt-v3 .pd-tab,
+.needt-v3 .pd-empty-line,
+.needt-v3 .pd-date,
+.needt-v3 .pml-banner-title,
+.needt-v3 .pml-avatar,
+.needt-v3 .pml-time,
+.needt-v3 .pml-view,
+.needt-v3 .pml-quote-text,
+.needt-v3 .pml-co-ccbtn,
+.needt-v3 .phb-seg-btn,
+.needt-v3 .phb-proj,
+.needt-v3 .phb-open,
+.needt-v3 .ppl-act.pk-btn.is-small,
+.needt-v3 .ppl-card-use.pk-btn.is-small,
+.needt-v3 .ppl-avatar,
+.needt-v3 .ppl-chip,
+.needt-v3 .ppl-explain,
+.needt-v3 .ppl-check,
+.needt-v3 .ps-pro-line,
+.needt-v3 .ps-plan-line,
+.needt-v3 .ps-trial,
+.needt-v3 .v2p-seg-btn,
+.needt-v3 .v2p-ev-line,
+.needt-v3 .ma-menu-label,
+.needt-v3 .ma-menu-tile.is-in .ma-menu-label,
+.needt-v3 .mau-link,
+.needt-v3 .mau-resend,
+.needt-v3 .mau-chip,
+.needt-v3 .nva-tile-label,
+.needt-v3 .nva-seg-btn,
+.needt-v3 .mbm-media-13 {
   font-size: 13px;
 }
 
