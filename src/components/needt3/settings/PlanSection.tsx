@@ -19,7 +19,7 @@ import { ProPill, SBtn, SGroup, SRow } from "./kit";
 const P = priceStrings();
 
 /** What Pro unlocks (paywall.jsx `PRO_FEATURES`); each is marked PRO where it lives. */
-const PRO_FEATURES: readonly (readonly [string, string])[] = [
+export const PRO_FEATURES: readonly (readonly [string, string])[] = [
   ["Plan my day", "Needt places what has no time yet into your free hours"],
   ["Week load", "Each day's plan against your working hours"],
   ["Document themes", "All Styles and backdrops for your pages"],

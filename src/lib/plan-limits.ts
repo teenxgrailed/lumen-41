@@ -16,6 +16,8 @@ export interface PlanLimits {
   remindersPerTask: number | null;
   bookingPages: number | null;
   advancedNudges: boolean;
+  /** Active (non-archived) habits; a trial counts as Pro. */
+  habits: number | null;
 }
 
 export const PLAN_LIMITS = {
@@ -30,6 +32,7 @@ export const PLAN_LIMITS = {
     remindersPerTask: 1,
     bookingPages: 1,
     advancedNudges: false,
+    habits: 3,
   },
   PRO: {
     calendars: null,
@@ -42,6 +45,7 @@ export const PLAN_LIMITS = {
     remindersPerTask: null,
     bookingPages: null,
     advancedNudges: true,
+    habits: null,
   },
   LIFETIME: {
     calendars: null,
@@ -54,5 +58,6 @@ export const PLAN_LIMITS = {
     remindersPerTask: null,
     bookingPages: null,
     advancedNudges: true,
+    habits: null,
   },
 } as const satisfies Record<SubscriptionPlan, PlanLimits>;

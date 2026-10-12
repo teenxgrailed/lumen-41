@@ -455,8 +455,8 @@ export function HabitsScreen() {
   const list = liveHabits(habits.data ?? []);
   const checkins = checkinsQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
-  //todo: the habit quota is not enforced by the server (PLAN_LIMITS has no
-  // habits entry); this gate is the prototype's client-side Free limit.
+  // The same limit the API enforces (POST /api/habits answers 403
+  // UPGRADE_REQUIRED past it); this gate only saves the round trip.
   const gate = habitGate(plan.data?.kind, list.length);
   const kept = list.filter((h) => habitDoneOn(h.id, today, checkins)).length;
   const { over, shown } = capHabits(list, all);
