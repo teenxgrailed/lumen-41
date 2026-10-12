@@ -23,6 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PATCH /api/moodboards/:id/items` (reorder), `POST …/items/upload`,
   `GET …/assets/:id`, `?sort=&dir=` on the list, `DELETE …?permanent=true`,
   `PUT …/permissions` by email, and Leave through `DELETE …/permissions`.
+- Docs: each document card in the grid now shows its page in miniature, as
+  the design does: the first blocks (headings, paragraphs, lists, to-dos,
+  quotes, callouts, code, dividers, a picture) drawn small on the page's own
+  colour. `GET /api/pages` adds a short `preview` to every live page, a list of
+  `{ type, text }` rows (at most 8 rows, 120 characters a row, 600 in all;
+  plain text, no HTML), read for the whole list with one extra query.
+  `?preview=false` leaves it out. Pages you cannot see still return nothing,
+  and the trash list has no preview. The phone's Docs cards draw it too.
+- Connections (desktop, new design): the screen now sits on the printed sky
+  like the rest of the new design: a centred hero ("Sources", a large
+  Connections title, one line, and a pill that says "Outlook needs
+  reconnecting" when something lost access), centred tabs with the connected
+  count, the Connected / All apps switch, the Mail & chat, Calendars, Work and
+  Files chips, search, and glass cards in three, two or one column. The
+  toolbar stays in view while you scroll. The phone uses the same chips and
+  sections.
 - Settings (design_v3, desktop sheet): the rail rows have their icons, the
   person is a disc of initials, and the plan card is the printed sky with the
   PRO badge. Appearance shows each theme as the Home screen drawn small

@@ -64,7 +64,9 @@ describe("connectionsSub", () => {
         true
       )
     ).toBe("Outlook Mail, Gmail need reconnecting");
-    expect(connectionsSub([gcal, notion], "apps", true)).toBe("1 connected");
+    expect(connectionsSub([gcal, notion], "apps", true)).toBe(
+      "1 connected"
+    );
     expect(connectionsSub([notion], "apps", true)).toBe(
       "Nothing connected yet"
     );
@@ -78,15 +80,15 @@ describe("connectionsSub", () => {
 });
 
 describe("groupConnections", () => {
-  it("puts lost access first, then one section per category in catalog order", () => {
+  it("puts lost access first, then one section per chip in the prototype's order", () => {
     const { down, groups } = groupConnections([gcal, outlook, gmail, notion]);
     expect(down.map((i) => i.slug)).toEqual(["outlook-mail"]);
     expect(
       groups.map((g) => [g.id, g.label, g.items.map((i) => i.slug)])
     ).toEqual([
-      ["calendar", "Calendars", ["google-calendar"]],
-      ["communication", "Mail & chat", ["gmail"]],
-      ["notes", "Notes", ["notion"]],
+      ["mail", "Mail & chat", ["gmail"]],
+      ["cal", "Calendars", ["google-calendar"]],
+      ["work", "Work", ["notion"]],
     ]);
   });
   it("draws no empty section", () => {
@@ -128,44 +130,42 @@ describe("connectionMeta", () => {
 
 describe("chips", () => {
   const items = [gcal, outlook, notion];
-  it("All, Connected, then the categories in catalog order", () => {
+  it("All, Connected, then the prototype's chips that have a card", () => {
     expect(connectionChips(items).map((c) => c.id)).toEqual([
       "all",
       "connected",
-      "calendar",
-      "communication",
-      "notes",
+      "mail",
+      "cal",
+      "work",
     ]);
   });
   it("All is pressed only when nothing narrows the list", () => {
     expect(chipPressed("all", { chip: "all", show: "all" })).toBe(true);
-    expect(chipPressed("all", { chip: "notes", show: "all" })).toBe(false);
+    expect(chipPressed("all", { chip: "work", show: "all" })).toBe(false);
     expect(chipPressed("all", { chip: "all", show: "connected" })).toBe(false);
     expect(chipPressed("connected", { chip: "all", show: "connected" })).toBe(
       true
     );
-    expect(chipPressed("notes", { chip: "notes", show: "all" })).toBe(true);
+    expect(chipPressed("work", { chip: "work", show: "all" })).toBe(true);
   });
   it("a chip toggles itself; All clears both", () => {
-    expect(pickChip("notes", { chip: "all", show: "all" })).toEqual({
-      chip: "notes",
+    expect(pickChip("work", { chip: "all", show: "all" })).toEqual({
+      chip: "work",
       show: "all",
     });
-    expect(pickChip("notes", { chip: "notes", show: "all" })).toEqual({
+    expect(pickChip("work", { chip: "work", show: "all" })).toEqual({
       chip: "all",
       show: "all",
     });
-    expect(pickChip("connected", { chip: "notes", show: "all" })).toEqual({
-      chip: "notes",
+    expect(pickChip("connected", { chip: "work", show: "all" })).toEqual({
+      chip: "work",
       show: "connected",
     });
-    expect(pickChip("connected", { chip: "notes", show: "connected" })).toEqual(
-      {
-        chip: "notes",
-        show: "all",
-      }
-    );
-    expect(pickChip("all", { chip: "notes", show: "connected" })).toEqual({
+    expect(pickChip("connected", { chip: "work", show: "connected" })).toEqual({
+      chip: "work",
+      show: "all",
+    });
+    expect(pickChip("all", { chip: "work", show: "connected" })).toEqual({
       chip: "all",
       show: "all",
     });
