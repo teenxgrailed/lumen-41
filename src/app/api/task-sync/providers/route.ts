@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
+import {
+  publicTaskProviderSelect,
+  toPublicTaskProvider,
+} from "@/lib/api/public-records";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { GOOGLE_TASKS_SYNC_ENABLED } from "@/lib/google-oauth-scopes";
@@ -39,9 +43,10 @@ export async function GET(request: NextRequest) {
       where: {
         userId,
       },
+      select: publicTaskProviderSelect,
     });
 
-    return NextResponse.json(providers);
+    return NextResponse.json(providers.map(toPublicTaskProvider));
   } catch (error) {
     logger.error(
       "Failed to get task providers",
@@ -74,10 +79,7 @@ export async function POST(request: NextRequest) {
     // Parse and validate the request body
     const body = await request.json();
     const validatedData = createProviderSchema.parse(body);
-    if (
-      validatedData.type === "GOOGLE" &&
-      !GOOGLE_TASKS_SYNC_ENABLED
-    ) {
+    if (validatedData.type === "GOOGLE" && !GOOGLE_TASKS_SYNC_ENABLED) {
       return NextResponse.json(
         { error: "Google Tasks sync is temporarily unavailable." },
         { status: 503 }

@@ -1,0 +1,159 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
+
+import {
+  connectToolkit,
+  disconnectCalendar,
+  disconnectMailbox,
+  disconnectToolkit,
+  useCatalog,
+} from "@/lib/needt3/hooks/catalog";
+import { useConnections } from "@/lib/needt3/hooks/connections";
+import { usePlan } from "@/lib/needt3/hooks/plan";
+import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
+
+import { useNeedt3Ui } from "@/store/needt3-ui";
+
+import {
+  type CnItem,
+  type Show,
+  aiToolsLocked,
+  buildItems,
+  connectPlan,
+  counts,
+  disconnectKind,
+  filterItems,
+} from "./derive";
+
+export const TAB_KEY = "needt.connections.tab";
+
+export type ConnectionsTab = "apps" | "ai";
+
+/**
+ * Everything Connections keeps or does, in one hook so the route calls it once
+ * above its two faces (desktop cards, phone rows). Crossing 700 px swaps the
+ * face; the tab, the search, the chip, the pending connect / disconnect, the
+ * open confirm and the CalDAV sheet all live here and survive it.
+ */
+export function useConnectionsController() {
+  const qc = useQueryClient();
+  const plan = usePlan();
+  const accounts = useConnections();
+  const catalog = useCatalog();
+  const openSettings = useNeedt3Ui((s) => s.openSettings);
+  const [tab, setTab] = useState<ConnectionsTab>("apps");
+  const [q, setQ] = useState("");
+  const [chip, setChip] = useState("all");
+  const [show, setShow] = useState<Show>("all");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<CnItem | null>(null);
+  const [caldav, setCaldav] = useState(false);
+
+  useEffect(() => {
+    // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
+    if (window.location.hash === "#ai") return setTab("ai");
+    try {
+      if (window.localStorage.getItem(TAB_KEY) === "ai") setTab("ai");
+    } catch {
+      /* private mode: the tab starts on Apps */
+    }
+  }, []);
+  const pickTab = (t: ConnectionsTab) => {
+    setTab(t);
+    try {
+      window.localStorage.setItem(TAB_KEY, t);
+    } catch {
+      /* the choice lasts until reload */
+    }
+  };
+
+  const items = useMemo(
+    () =>
+      catalog.data
+        ? buildItems(
+            catalog.data.catalog,
+            catalog.data.integrations,
+            accounts.data ?? []
+          )
+        : [],
+    [catalog.data, accounts.data]
+  );
+  const shown = filterItems(items, { q, chip, show });
+  const c = counts(items);
+  const locked = aiToolsLocked(plan.data?.kind);
+
+  const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
+
+  const connect = async (item: CnItem) => {
+    const how = connectPlan(item);
+    if (how.kind === "unavailable") return void notify.info(how.reason);
+    if (how.kind === "caldav") return setCaldav(true);
+    if (how.kind === "navigate") return void window.location.assign(how.href);
+    setBusy(item.key);
+    const r = await connectToolkit(how.toolkit);
+    if (!r.ok) {
+      notify.error(r.error);
+      setBusy(null);
+    }
+  };
+  const disconnect = async (item: CnItem) => {
+    if (!item.accountId) return;
+    setBusy(item.key);
+    const kind = disconnectKind(item);
+    const r =
+      kind === "calendar"
+        ? await disconnectCalendar(item.accountId)
+        : kind === "mailbox"
+          ? await disconnectMailbox(item.accountId)
+          : await disconnectToolkit(item.accountId);
+    setBusy(null);
+    setConfirm(null);
+    if (!r.ok) return void notify.error(r.error);
+    notify.success(
+      item.account && item.account !== item.name
+        ? `${item.name} (${item.account}) disconnected`
+        : `${item.name} disconnected`
+    );
+    await refresh();
+  };
+
+  /** Apple / iCloud connected: close the form, say so, reload the list. */
+  const caldavDone = () => {
+    setCaldav(false);
+    notify.success("Apple / iCloud connected");
+    void refresh();
+  };
+
+  return {
+    plan,
+    accounts,
+    catalog,
+    openSettings,
+    tab,
+    pickTab,
+    q,
+    setQ,
+    chip,
+    setChip,
+    show,
+    setShow,
+    busy,
+    confirm,
+    setConfirm,
+    caldav,
+    setCaldav,
+    items,
+    shown,
+    counts: c,
+    locked,
+    connect,
+    disconnect,
+    caldavDone,
+  };
+}
+
+export type ConnectionsController = ReturnType<typeof useConnectionsController>;

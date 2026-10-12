@@ -1,4 +1,5 @@
 import type { Checkin } from "@/lib/needt3/derive";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 import checkinFixtures from "../../../../../docs/port/prototype/port/fixtures/habitCheckins.json";
 import habitFixtures from "../../../../../docs/port/prototype/port/fixtures/habits.json";
@@ -89,6 +90,11 @@ describe("capHabits", () => {
 });
 
 describe("habitGate", () => {
+  it("uses the limit the API enforces", () => {
+    expect(FREE_HABITS).toBe(PLAN_LIMITS.FREE.habits);
+    expect(FREE_HABITS).toBe(3);
+  });
+
   it("stops Free at three habits", () => {
     expect(habitGate("free", FREE_HABITS - 1).atLimit).toBe(false);
     expect(habitGate("free", FREE_HABITS)).toEqual({

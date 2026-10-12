@@ -31,7 +31,7 @@ const VIEWS: readonly (readonly [string, string])[] = [
 ];
 
 /** The browser's zones, with the saved one first if the list lacks it. */
-function zoneOptions(current: string) {
+export function zoneOptions(current: string) {
   let all: string[] = [];
   try {
     all =
