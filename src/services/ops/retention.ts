@@ -2,7 +2,7 @@ import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
-import { UNDO_WINDOW_DAYS } from "./registry";
+import { UNDO_WINDOW_DAYS } from "./constants";
 
 const LOG_SOURCE = "ops-retention";
 
