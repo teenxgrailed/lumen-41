@@ -256,6 +256,25 @@ describe("what is on the screen", () => {
     expect(host.textContent).toContain("unread");
   });
 
+  it("a long subject and the Task chip share the meta line; the full text stays in the label", () => {
+    const long =
+      "Re: Fwd: Quarterly planning offsite logistics, travel budget and the revised agenda for everyone";
+    const box = fakeBox({
+      live: [thread("m1", { subject: long })],
+      made: new Map([["m1", "t1"]]),
+    });
+    mount(box);
+    const open = row("m1");
+    const meta = open.querySelector(".pk-row-meta")!;
+    expect([...meta.children].map((c) => c.className)).toEqual([
+      "pml-tag",
+      "pml-subject",
+    ]);
+    expect(meta.querySelector(".pml-subject")?.textContent).toBe(long);
+    expect(open.querySelector(".pk-row-title")?.textContent).toBe("Sender m1");
+    expect(open.getAttribute("aria-label")).toContain(long);
+  });
+
   it("offers no send, draft or trash anywhere", () => {
     const box = fakeBox();
     mount(box);
