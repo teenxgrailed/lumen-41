@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
-
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
 import { Prisma } from "@prisma/client";
+import { createHash } from "node:crypto";
 
 import {
   type WorkspaceAccess,
@@ -72,13 +71,16 @@ export class SchedulePreviewConflictError extends Error {
   }
 }
 
-async function captureSnapshot(
+type SnapshotClient = Prisma.TransactionClient;
+
+export async function captureSnapshot(
   userId: string,
-  workspace: WorkspaceAccess
+  workspace: WorkspaceAccess,
+  client: SnapshotClient = prisma
 ): Promise<ScheduleSnapshot> {
   const scope = workspaceDataScopeWhere(workspace, userId);
   const [tasks, blocks] = await Promise.all([
-    prisma.task.findMany({
+    client.task.findMany({
       where: { ...scope, isArchived: false },
       select: {
         id: true,
@@ -93,7 +95,7 @@ async function captureSnapshot(
       },
       orderBy: { id: "asc" },
     }),
-    prisma.scheduledBlock.findMany({
+    client.scheduledBlock.findMany({
       where: { userId, task: scope },
       select: {
         taskId: true,
@@ -309,7 +311,7 @@ async function computeStagedSnapshot(
     const { scheduleResult } = await scheduleAllTasksForUserDetailed(
       stagingUser.id,
       {
-      entitlementUserId: userId,
+        entitlementUserId: userId,
       }
     );
     const [stagedTasks, stagedBlocks] = await Promise.all([
@@ -348,38 +350,38 @@ async function computeStagedSnapshot(
       unscheduled: scheduleResult.unscheduled,
       snapshot: {
         tasks: before.tasks.map((task) => {
-        const staged = stagedByOriginal.get(task.id);
-        return staged
-          ? {
-              ...task,
-              scheduledStart: staged.scheduledStart?.toISOString() ?? null,
-              scheduledEnd: staged.scheduledEnd?.toISOString() ?? null,
-              scheduleScore: staged.scheduleScore,
-              lastScheduled: staged.lastScheduled?.toISOString() ?? null,
-              isAutoScheduled: staged.isAutoScheduled,
-              autoScheduled: staged.autoScheduled,
-            }
+          const staged = stagedByOriginal.get(task.id);
+          return staged
+            ? {
+                ...task,
+                scheduledStart: staged.scheduledStart?.toISOString() ?? null,
+                scheduledEnd: staged.scheduledEnd?.toISOString() ?? null,
+                scheduleScore: staged.scheduleScore,
+                lastScheduled: staged.lastScheduled?.toISOString() ?? null,
+                isAutoScheduled: staged.isAutoScheduled,
+                autoScheduled: staged.autoScheduled,
+              }
             : task;
         }),
         blocks: [
-        ...before.blocks.filter(
-          (block) => !mutableOriginalIds.has(block.taskId)
-        ),
-        ...stagedBlocks.flatMap((block): SnapshotBlock[] => {
-          const originalId = originalIdByStaged.get(block.taskId);
-          return originalId
-            ? [
-                {
-                  taskId: originalId,
-                  start: block.start.toISOString(),
-                  end: block.end.toISOString(),
-                  chunkIndex: block.chunkIndex,
-                  chunkCount: block.chunkCount,
-                  isFrozen: block.isFrozen,
-                },
-              ]
-            : [];
-        }),
+          ...before.blocks.filter(
+            (block) => !mutableOriginalIds.has(block.taskId)
+          ),
+          ...stagedBlocks.flatMap((block): SnapshotBlock[] => {
+            const originalId = originalIdByStaged.get(block.taskId);
+            return originalId
+              ? [
+                  {
+                    taskId: originalId,
+                    start: block.start.toISOString(),
+                    end: block.end.toISOString(),
+                    chunkIndex: block.chunkIndex,
+                    chunkCount: block.chunkCount,
+                    isFrozen: block.isFrozen,
+                  },
+                ]
+              : [];
+          }),
         ],
       },
     };
@@ -464,13 +466,18 @@ function snapshotsMatch(current: ScheduleSnapshot, expected: ScheduleSnapshot) {
   return JSON.stringify(current) === JSON.stringify(expected);
 }
 
-async function restoreSnapshot(
+/**
+ * Writes a snapshot back. Pass `client` to run inside a caller's transaction
+ * (the ops undo path); without it the restore opens its own.
+ */
+export async function restoreSnapshot(
   userId: string,
   workspace: WorkspaceAccess,
-  snapshot: ScheduleSnapshot
+  snapshot: ScheduleSnapshot,
+  client?: SnapshotClient
 ) {
   const scope = workspaceDataScopeWhere(workspace, userId);
-  const ownedTasks = await prisma.task.findMany({
+  const ownedTasks = await (client ?? prisma).task.findMany({
     where: { ...scope, id: { in: snapshot.tasks.map((task) => task.id) } },
     select: { id: true },
   });
@@ -478,7 +485,7 @@ async function restoreSnapshot(
   const tasks = snapshot.tasks.filter((task) => ownedIds.has(task.id));
   const blocks = snapshot.blocks.filter((block) => ownedIds.has(block.taskId));
 
-  await prisma.$transaction(async (tx) => {
+  const write = async (tx: SnapshotClient) => {
     await tx.scheduledBlock.deleteMany({
       where: { userId, taskId: { in: [...ownedIds] } },
     });
@@ -514,7 +521,13 @@ async function restoreSnapshot(
         })),
       });
     }
-  });
+  };
+
+  if (client) {
+    await write(client);
+  } else {
+    await prisma.$transaction(write);
+  }
 }
 
 export function diffScheduleSnapshots(

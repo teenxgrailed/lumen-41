@@ -14,6 +14,8 @@ import {
   reserveLifetimeCheckout,
 } from "@/lib/creem/lifetime-cap";
 import { newDate } from "@/lib/date-utils";
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
@@ -61,6 +63,15 @@ export async function POST(request: NextRequest) {
   if (!isCreemConfigured()) {
     return NextResponse.json(
       { error: "Billing is not configured." },
+      { status: 503 }
+    );
+  }
+
+  // Payments stay closed until the owner turns the flag on (legal pages
+  // published, payment provider review passed), whatever screen asks.
+  if (!(await isFeatureEnabled(BILLING_CHECKOUT, auth.userId))) {
+    return NextResponse.json(
+      { error: "Checkout opens soon." },
       { status: 503 }
     );
   }

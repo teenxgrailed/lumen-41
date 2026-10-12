@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import {
+  parseV3Fields,
+  userSettingsV3FieldsSchema,
+} from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "UserSettingsAPI";
@@ -51,6 +55,10 @@ export async function PATCH(request: NextRequest) {
     const userId = auth.userId;
 
     const updates = await request.json();
+    const v3 = parseV3Fields(userSettingsV3FieldsSchema, updates);
+    if (!v3.ok) {
+      return NextResponse.json({ error: v3.error }, { status: 400 });
+    }
 
     const settings = await prisma.userSettings.upsert({
       where: { userId },

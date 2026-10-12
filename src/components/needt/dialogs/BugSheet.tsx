@@ -11,7 +11,7 @@
  *
  * The kit read `window.__app` and the root element's class list for the
  * screen and the theme. This component has no shell to reach into — it is
- * exported, not mounted (see PORT.md's build note) — so the caller, which
+ * it takes no route of its own — so the caller, which
  * does have that context, hands the two facts in as props instead of this
  * file reaching for a global.
  *

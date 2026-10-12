@@ -18,4 +18,14 @@ export const habitInputSchema = z.object({
     .default(SchedulingTaskPriority.MEDIUM),
   scheduleId: z.string().min(1).nullable().optional(),
   isActive: z.boolean().default(true),
+  // Design v3: time of day, weekly quota, project, own colour and glyph.
+  at: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .nullable()
+    .optional(),
+  quota: z.number().int().min(1).max(7).nullable().optional(),
+  projectId: z.string().min(1).nullable().optional(),
+  color: z.string().trim().max(64).nullable().optional(),
+  icon: z.string().trim().max(64).nullable().optional(),
 });

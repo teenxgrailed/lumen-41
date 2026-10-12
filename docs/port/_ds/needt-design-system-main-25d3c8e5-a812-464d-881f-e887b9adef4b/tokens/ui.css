@@ -1,0 +1,216 @@
+/* UI component classes — the families DESIGN.md names but does not draw:
+   form rows, inputs, selects, checkboxes, radios, switches, menus, dialogs,
+   tooltips, popovers, the date picker, calendar blocks, empty and loading
+   states. Every value here derives from the tokens; no new grey, no 14px, no
+   solid accent fill. New classes carry an `nt-` prefix; the measured classes in
+   components.css keep their original names.
+
+   States covered on every control: rest, hover, active, focus-visible,
+   disabled, and where applicable error / loading / selected. */
+
+/* ── FORM ROW ─────────────────────────────────────────────────────────────
+   One label-column width (--form-label-w, measured — see spacing.css) and one
+   row height (--form-row-h) for every row in the system. Do not override them
+   per form. Labels truncate on one line; they never wrap. */
+.nt-form { display: flex; flex-direction: column; gap: var(--form-row-gap); }
+.nt-form-group { display: flex; flex-direction: column; gap: var(--form-row-gap); }
+.nt-form + .nt-form-group, .nt-form-group + .nt-form-group { margin-top: var(--form-group-gap); }
+.nt-form-group-title { font: var(--type-meta-medium); color: var(--text-quaternary); text-transform: none; margin-bottom: var(--space-6); }
+.nt-row { display: grid; grid-template-columns: var(--form-label-w) minmax(0, 1fr); align-items: center; column-gap: var(--space-16); min-height: var(--form-row-h); }
+.nt-row-stacked { align-items: start; }
+.nt-row-label { font: var(--type-ui); color: var(--text-quaternary); align-self: center; padding-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-row-stacked > .nt-row-label { padding-top: 8px; }
+.nt-row-control { display: flex; align-items: center; gap: var(--space-8); min-width: 0; min-height: var(--form-row-h); }
+.nt-row-hint { grid-column: 2; font: var(--type-meta); color: var(--text-muted); margin-top: var(--space-6); }
+.nt-row-error { grid-column: 2; font: var(--type-meta); color: var(--destructive); margin-top: var(--space-6); }
+.nt-row[data-disabled="true"] .nt-row-label { color: var(--text-disabled); }
+
+/* ── INPUT / TEXTAREA ─────────────────────────────────────────────────────
+   Controls are recessed: transparent fill, inset ring. */
+.nt-input { display: block; width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font: var(--type-ui); color: var(--text-primary); transition: box-shadow var(--transition-hover), background-color var(--transition-hover); }
+.nt-input:hover { background: var(--fill-1); }
+.nt-input:focus, .nt-input:focus-visible { outline: none; background: transparent; box-shadow: var(--shadow-focus); }
+.nt-input:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.nt-input[aria-invalid="true"] { box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset; }
+.nt-input[aria-invalid="true"]:focus-visible { box-shadow: var(--shadow-focus-destructive); }
+.nt-input-plain { box-shadow: none; padding-left: 0; }
+textarea.nt-input { height: auto; min-height: 72px; padding: 8px; resize: vertical; line-height: var(--lh-ui); }
+.nt-input-sm { height: var(--control-h-sm); border-radius: var(--radius-md); }
+
+/* ── SELECT ─────────────────────────────────────────────────────────────── */
+.nt-select { position: relative; display: inline-flex; align-items: center; width: 100%; }
+.nt-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font: var(--type-ui); color: var(--text-primary); cursor: default; text-align: left; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.nt-select-trigger:hover { background: var(--fill-1); }
+.nt-select-trigger:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.nt-select-trigger[aria-expanded="true"] { box-shadow: var(--shadow-focus); }
+.nt-select-trigger:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.nt-select-trigger[data-placeholder="true"] { color: var(--text-disabled); }
+.nt-select-trigger[aria-invalid="true"] { box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset; }
+.nt-select-trigger[aria-invalid="true"]:focus-visible, .nt-select-trigger[aria-invalid="true"][aria-expanded="true"] { box-shadow: var(--shadow-focus-destructive); }
+/* Loading keeps the trigger's exact geometry and takes it out of the tab order;
+   the spinner replaces the caret rather than sitting beside it. */
+.nt-select-trigger[data-loading="true"] { color: var(--text-quaternary); pointer-events: none; }
+.nt-select-trigger[data-loading="true"]:hover { background: transparent; }
+.nt-select-caret { color: var(--text-muted); flex: none; }
+
+/* ── CHECKBOX / RADIO ─────────────────────────────────────────────────────
+   16px box, inset ring at rest, accent fill at 24% with accent glyph when on.
+   No solid accent fill. */
+.nt-check { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--type-ui); color: var(--text-secondary); cursor: default; min-height: var(--form-row-h); }
+.nt-check-box { flex: none; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-xs); background: transparent; box-shadow: var(--shadow-inset-ring); color: transparent; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.nt-check:hover .nt-check-box { background: var(--fill-3); }
+.nt-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.nt-check input:focus-visible + .nt-check-box { box-shadow: var(--shadow-focus); }
+.nt-check[data-checked="true"] .nt-check-box { background: var(--fill-accent-strong); color: var(--accent); box-shadow: none; }
+.nt-check[data-indeterminate="true"] .nt-check-box { background: var(--fill-accent-strong); color: var(--accent); box-shadow: none; }
+.nt-check[data-disabled="true"] { color: var(--text-disabled); }
+.nt-check[data-disabled="true"] .nt-check-box { background: var(--fill-2); box-shadow: none; color: var(--text-disabled); }
+.nt-radio-box { border-radius: var(--radius-pill); }
+
+/* ── SWITCH ───────────────────────────────────────────────────────────────
+   28×16 track, 12px knob. Off: fill-5. On: accent at 24% with an accent knob. */
+.nt-switch { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--type-ui); color: var(--text-secondary); cursor: default; min-height: var(--form-row-h); }
+.nt-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.nt-switch-track { flex: none; position: relative; width: 28px; height: 16px; border-radius: var(--radius-pill); background: var(--fill-5); transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.nt-switch:hover .nt-switch-track { background: var(--fill-6); }
+.nt-switch input:focus-visible + .nt-switch-track { box-shadow: var(--shadow-focus); }
+.nt-switch-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: var(--radius-pill); background: var(--surface-raised); box-shadow: var(--shadow-raised); transition: transform var(--transition-hover), background-color var(--transition-hover); }
+.nt-switch[data-checked="true"] .nt-switch-track { background: var(--fill-accent-strong); }
+.nt-switch[data-checked="true"] .nt-switch-knob { transform: translateX(12px); background: var(--accent); box-shadow: none; }
+.nt-switch[data-disabled="true"] { color: var(--text-disabled); }
+.nt-switch[data-disabled="true"] .nt-switch-track { background: var(--fill-2); }
+
+/* ── MENU (dropdown and context — one implementation) ─────────────────────
+   Popover surface: raised fill, radius 12, floating shadow, 4px inner pad.
+   Rows are 32px, radius 8, transparent at rest. */
+.nt-menu { min-width: 200px; padding: var(--space-4); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); z-index: var(--z-dropdown); }
+.nt-menu-item { display: flex; align-items: center; gap: var(--space-8); width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-ui); color: var(--text-secondary); text-align: left; cursor: default; transition: background-color var(--transition-hover); }
+.nt-menu-item:hover { background: var(--fill-3); color: var(--text-primary); }
+.nt-menu-item:active { background: var(--fill-5); }
+.nt-menu-item:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.nt-menu-item[data-selected="true"] { background: var(--fill-accent); color: var(--accent); }
+.nt-menu-item[data-variant="destructive"] { color: var(--destructive); }
+.nt-menu-item[data-variant="destructive"]:hover { background: var(--fill-destructive); }
+.nt-menu-item[data-disabled="true"], .nt-menu-item:disabled { color: var(--text-disabled); background: transparent; }
+.nt-menu-shortcut { margin-left: auto; font: var(--type-meta); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.nt-menu-label { padding: var(--space-6) var(--space-8) var(--space-4); font: var(--type-meta-medium); color: var(--text-muted); }
+.nt-menu-sep { height: 1px; margin: var(--space-4) var(--space-8); background: var(--border); }
+
+/* ── POPOVER ──────────────────────────────────────────────────────────── */
+.nt-popover { padding: var(--space-16); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); z-index: var(--z-dropdown); }
+
+/* ── TOOLTIP ──────────────────────────────────────────────────────────────
+   12px, one line, no arrow, no blur. Appears on hover of its trigger. */
+.nt-tooltip-wrap { position: relative; display: inline-flex; }
+.nt-tooltip { position: absolute; pointer-events: none; opacity: 0; padding: 4px 8px; border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-floating); font: var(--type-meta); color: var(--text-secondary); white-space: nowrap; z-index: var(--z-tooltip); transition: opacity var(--transition-hover); }
+.nt-tooltip-wrap:hover > .nt-tooltip, .nt-tooltip-wrap:focus-within > .nt-tooltip { opacity: 1; }
+.nt-tooltip[data-side="top"] { bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+.nt-tooltip[data-side="bottom"] { top: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+.nt-tooltip[data-side="right"] { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+.nt-tooltip[data-side="left"] { right: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+.nt-tooltip-key { margin-left: 6px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ── DIALOG ───────────────────────────────────────────────────────────────
+   840×620, header 84, footer 54, aside minmax(320px, 356px). */
+.nt-scrim { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: var(--z-modal); display: grid; place-items: center; }
+.nt-dialog { display: flex; flex-direction: column; width: var(--dialog-w); max-width: calc(100vw - 40px); height: var(--dialog-h); max-height: calc(100vh - 40px); border-radius: var(--radius-4xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); overflow: hidden; }
+.nt-dialog-sm { width: 480px; height: auto; }
+.nt-dialog-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); min-height: var(--dialog-header-h); padding: 0 var(--space-20); }
+.nt-dialog-title { font: var(--type-page-title); color: var(--text-primary); margin: 0; }
+.nt-dialog-sub { font: var(--type-meta); color: var(--text-muted); margin: var(--space-4) 0 0; }
+.nt-dialog-body { flex: 1; min-height: 0; display: grid; overflow: hidden; }
+.nt-dialog-body-split { grid-template-columns: minmax(0, 1fr) minmax(var(--dialog-aside-min), var(--dialog-aside-max)); }
+.nt-dialog-main { padding: var(--space-4) var(--space-20) var(--space-20); overflow: auto; }
+.nt-dialog-aside { padding: var(--space-4) var(--space-20) var(--space-20); overflow: auto; box-shadow: var(--border) 1px 0 0 0 inset; }
+.nt-dialog-footer { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); min-height: var(--dialog-footer-h); padding: 0 var(--space-20); box-shadow: var(--border) 0 1px 0 0 inset; }
+
+/* ── DATE PICKER ──────────────────────────────────────────────────────────
+   28px cells, radius 8. Today gets the strong accent fill; the selected day
+   gets the accent fill plus accent text. Never a solid accent cell. */
+.nt-datepicker { width: 252px; padding: var(--space-8); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.nt-dp-head { display: flex; align-items: center; justify-content: space-between; height: var(--control-h-sm); padding: 0 var(--space-4); }
+.nt-dp-month { font: var(--type-ui-medium); color: var(--text-primary); }
+.nt-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-2); margin-top: var(--space-4); }
+.nt-dp-dow { display: grid; place-items: center; height: 20px; font: var(--type-meta-medium); color: var(--text-muted); }
+.nt-dp-cell { display: grid; place-items: center; height: var(--control-h-sm); border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-ui); color: var(--text-secondary); cursor: default; font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
+.nt-dp-cell:hover { background: var(--fill-3); }
+.nt-dp-cell:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.nt-dp-cell[data-outside="true"] { color: var(--text-disabled); }
+.nt-dp-cell[data-today="true"] { background: var(--fill-accent-strong); color: var(--accent); font-weight: var(--weight-medium); }
+.nt-dp-cell[data-selected="true"] { background: var(--fill-accent); color: var(--accent); font-weight: var(--weight-medium); box-shadow: var(--shadow-focus); }
+.nt-dp-cell:disabled { color: var(--text-disabled); background: transparent; }
+.nt-dp-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-4); padding-top: var(--space-4); box-shadow: var(--border) 0 1px 0 0 inset; }
+
+/* ── CALENDAR BLOCK ───────────────────────────────────────────────────────
+   The rail means movability: grey rail = fixed, project-colour rail = the
+   scheduler placed it and can move it again. Priority is rail thickness.
+   Overdue overrides in red. Nothing else rides the rail. */
+.nt-block { position: relative; display: flex; flex-direction: column; gap: 1px; min-height: 28px; padding: 5px 8px 5px 11px; border-radius: var(--radius-md); background: var(--fill-4); overflow: hidden; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.nt-block::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--text-muted); }
+.nt-block[data-priority="high"]::before { width: 6px; }
+.nt-block[data-movable="true"]::before { background: var(--block-color, var(--accent)); }
+.nt-block[data-overdue="true"]::before { background: var(--destructive); }
+.nt-block:hover { box-shadow: var(--shadow-ring); }
+.nt-block[data-selected="true"] { box-shadow: var(--shadow-focus); }
+.nt-block[data-done="true"] .nt-block-title { color: var(--text-muted); text-decoration: line-through; }
+.nt-block-title { flex: none; font: var(--type-meta-medium); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Under 30 minutes there is no room for two lines: title and time share one. */
+.nt-block[data-compact="true"] { flex-direction: row; align-items: center; gap: var(--space-6); padding-top: 0; padding-bottom: 0; }
+.nt-block[data-compact="true"] .nt-block-title { min-width: 0; }
+.nt-block[data-compact="true"] .nt-block-time { flex: none; margin-left: auto; }
+.nt-block-time { flex: none; font: var(--type-meta); color: var(--text-quaternary); font-variant-numeric: tabular-nums; }
+
+/* ── EMPTY STATE ──────────────────────────────────────────────────────────
+   An outline icon, one sentence at --text-disabled, one action. */
+.nt-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-11); padding: var(--space-20); text-align: center; color: var(--text-disabled); }
+.nt-empty-icon { color: var(--text-muted); }
+.nt-empty-text { font: var(--type-ui); color: var(--text-disabled); max-width: 320px; }
+
+/* ── LOADING ──────────────────────────────────────────────────────────────
+   One spinner, and skeleton rows that use fill-3 → fill-5. Rotation is the
+   only motion in the product that is not a 0.15s or 0.25s transition. */
+.nt-spinner { display: inline-block; border-radius: var(--radius-pill); border: 1.5px solid var(--fill-6); border-top-color: var(--text-quaternary); animation: needt-spin 0.7s linear infinite; }
+.nt-skeleton { border-radius: var(--radius-xs); background: var(--fill-3); }
+
+/* ── STATUS DOT ───────────────────────────────────────────────────────── */
+.nt-dot { display: inline-block; width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--text-muted); flex: none; }
+.nt-dot[data-tone="accent"] { background: var(--accent); }
+.nt-dot[data-tone="success"] { background: var(--success); }
+.nt-dot[data-tone="info"] { background: var(--info); }
+.nt-dot[data-tone="destructive"] { background: var(--destructive); }
+
+/* ── DAY TIMELINE ─────────────────────────────────────────────────────────
+   One hour is --hour-h and every position derives from it, so a block's height
+   is its duration. Free time is drawn as space, not as an object: the gap has
+   no fill and no ring, so occupied work reads as raised surfaces against the
+   canvas and the amount left is legible as size before any label is read. */
+.nt-timeline { display: grid; grid-template-columns: 52px minmax(0, 1fr); padding-top: var(--space-8); }
+.nt-timeline-gutter { position: relative; }
+.nt-timeline-hour { position: absolute; left: 0; transform: translateY(-7px); font: var(--type-meta); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.nt-timeline-track { position: relative; }
+.nt-timeline-rule { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
+/* Blocks sit above the now-line. The line must never cross a title: a
+   horizontal line through text is how this system marks a task done, so a
+   1px accent line over an overdue task would say the opposite of the truth. */
+.nt-timeline-slot { position: absolute; left: 8px; right: 8px; z-index: var(--z-local); }
+.nt-timeline-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--accent); z-index: var(--z-base); }
+/* The moment falls inside a placed block: draw a tick, not a rule. */
+.nt-timeline-now[data-clipped="true"] { right: auto; width: 6px; }
+.nt-timeline-now-label { position: absolute; left: -46px; top: -7px; font: var(--type-meta-medium); color: var(--accent); font-variant-numeric: tabular-nums; }
+
+/* A free gap. Rest: nothing at all. Hover (only when it can take a task):
+   the faintest wash, and the affordance appears. */
+.nt-free { position: relative; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); transition: background-color var(--transition-hover); }
+/* Elapsed free time: still space, but not offered. */
+.nt-free[data-past="true"] { pointer-events: none; }
+.nt-free[data-actionable="true"]:hover { background: var(--fill-2); }
+.nt-free-label { display: flex; align-items: baseline; gap: 5px; font: var(--type-meta); color: var(--text-disabled); }
+.nt-free[data-actionable="true"]:hover .nt-free-label { color: var(--text-muted); }
+.nt-free-quantity { font-variant-numeric: tabular-nums; }
+.nt-free-action { font: var(--type-meta-medium); color: var(--accent); margin-left: var(--space-4); }
+
+/* The free-time headline: the one number the screen exists to answer, so it
+   takes the display serif rather than another 13px caption. */
+.nt-freetime { display: flex; flex-direction: column; gap: var(--space-2); }
+.nt-freetime-value { font-family: var(--font-display); font-size: 40px; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.nt-freetime-caption { font: var(--type-meta); color: var(--text-quaternary); }

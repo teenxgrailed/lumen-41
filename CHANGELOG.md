@@ -11,6 +11,269 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   push, OAuth, hosted AI, Sentry, collaboration, Redis, webhooks, cron — as
   configured or not, with a live check for Redis and the collaboration
   server and a button that sends one Sentry test event. Never a secret value.
+- Moodboards (design v3) get the grid logic of the design on desktop and phone.
+  A board is a grid of pictures, links, colours and notes: Add (Upload images,
+  drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
+  opened on the side with a note that saves itself, drag to reorder (hold and
+  drag on the phone), "View as guest", Share with View / Edit by email,
+  "Anyone with the link" (a read-only page at `/b/<id>/<token>`; turning it off retires that address for good) and Leave
+  board. Pictures are shrunk to a JPEG of at most 900 px (1.5 MB at most) before
+  upload and stored with the board, with a 200 MB picture total per workspace on
+  every plan ("Your workspace's moodboard pictures are full" when it is reached); a pasted link is read server-side for its title and
+  picture (https only, nothing private is ever contacted; 30 reads per person per 10
+  minutes, then the link is saved as typed). The list sorts by
+  Name, Date created or Date updated on the server, a board's Date updated
+  moves with every change to it, Trash can Delete forever, and the Pinterest
+  row says "Coming soon". The old collaborative canvas stays on the flag-off
+  route; with the flag on, what it stored shows on the grid read-only. New API:
+  `PATCH /api/moodboards/:id/items` (reorder), `POST …/items/upload`,
+  `GET …/assets/:id`, `?sort=&dir=` on the list, `DELETE …?permanent=true`,
+  `PUT …/permissions` by email, and Leave through `DELETE …/permissions`.
+- Fixed (design_v3, opened document): the document screen now matches the
+  prototype at desktop width, light and dark. The top bar shows
+  "Documents / title" with the avatar, Insert and Share on the right, and the
+  editor's save state and Page options menu (now drawn as a v3 menu); the left
+  rail becomes the document's own panel (Contents, Find, a switcher back to the
+  places); the page keeps the sheet's measures (760 or 1080 wide, 32px bold
+  title that wraps, rule under it in the chosen separator, 16px body, to-do,
+  quote, code, table, image and callout blocks); the inspector has Insert (adds
+  a block at the cursor), Style (now with Separator Style and the PRO badge)
+  and Info (Versions, Numbers); the selection bar and the "/" menu are v3
+  surfaces; the editor's own toolbar is not drawn. The title follows the
+  breadcrumb and the rail as you type. Free users who tap a Pro style now get
+  the paywall sheet.
+- Docs: each document card in the grid now shows its page in miniature, as
+  the design does: the first blocks (headings, paragraphs, lists, to-dos,
+  quotes, callouts, code, dividers, a picture) drawn small on the page's own
+  colour. `GET /api/pages` adds a short `preview` to every live page, a list of
+  `{ type, text }` rows (at most 8 rows, 120 characters a row, 600 in all;
+  plain text, no HTML), read for the whole list with one extra query.
+  `?preview=false` leaves it out. Pages you cannot see still return nothing,
+  and the trash list has no preview. The phone's Docs cards draw it too.
+- Connections (desktop, new design): the screen now sits on the printed sky
+  like the rest of the new design: a centred hero ("Sources", a large
+  Connections title, one line, and a pill that says "Outlook needs
+  reconnecting" when something lost access), centred tabs with the connected
+  count, the Connected / All apps switch, the Mail & chat, Calendars, Work and
+  Files chips, search, and glass cards in three, two or one column. The
+  toolbar stays in view while you scroll. The phone uses the same chips and
+  sections.
+- Settings (design_v3, desktop sheet): the rail rows have their icons, the
+  person is a disc of initials, and the plan card is the printed sky with the
+  PRO badge. Appearance shows each theme as the Home screen drawn small
+  (System cut down the middle, Time on the diagonal), the nine accent
+  swatches show their own colours in the light theme again, the accent card
+  has its progress bar, and the Time card says where the sun is. Select
+  controls use the up-down chevron. About has What's new, and a paid plan's
+  line says when it renews.
+- Mailbox (desktop, design v3): the header now matches the design. It always
+  shows your accounts as chips (Gmail / Outlook, with a red dot when one needs
+  reconnecting), the tabs Needs you / All / Made into tasks plus Sent and
+  Drafts, and a New message button. Sent and Drafts are drawn but off ("Sent
+  folder isn't synced yet"): Needt does not store those folders, and mail stays
+  read-only at the provider. New message opens Gmail's or Outlook's own compose
+  window in a new tab (a menu when you have two accounts). With no account
+  connected the header no longer goes empty: Gmail and Outlook show as not
+  connected, the list says "No mail account connected" with Open Connections,
+  and New message waits for an account.
+- Templates and Shared now open on the painted-sky banner from the design
+  (kicker, big serif title, meta line and up to three of the place's own pages
+  on frosted glass) instead of a plain header. Moodboards cards show the first
+  three references as a collage (the grey glyph only for an empty board) with
+  the reference count, and Free sees "3 boards · Free includes 1 · Upgrade for
+  more" and the one "Unlimited moodboards" card. Habits shows "Last four
+  months" again (a dot a day, All or one habit) and Free reads "4 habits · Free
+  includes 3 · Upgrade for more". `GET /api/moodboards` now also sends
+  `itemCount` and `preview` (the first three references), and the new
+  `GET /api/habits/history` sends each habit's last 124 days. The painted sky no
+  longer turns to night on a light page when the old theme setting is dark.
+- Fixed (Notion import review): links, bookmarks, files, images and covers
+  keep only `http`, `https`, `mailto` and Needt page addresses (anything else,
+  such as `javascript:`, comes in as plain text with a note), and page blocks
+  draw a link or image only for such an address. Page files are served with a
+  sandbox policy and no content sniffing, and SVG is always a download. The
+  importer stores only common file types (anything else is an opaque
+  download), downloads only from Notion's own hosts including every redirect,
+  and keeps a long run alive for the sweeper.
+- Import from Notion (behind the same `imports` feature flag). Settings ->
+  Data -> Import sends you to Notion, where you pick the pages and databases
+  to share in Notion's own page picker; only those are imported, with their
+  tree, text, tables, images and files, and databases with their rows. Links
+  between imported pages keep working, a second run updates only what
+  changed, and pages Notion could only partly return, blocks Needt cannot
+  show and database properties kept as text are listed as notes. Needs
+  `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`; additive migration
+  `20261012120000_import_asset_entity`.
+- Fixed (design_v3): one overdue rule everywhere. A task is overdue only when
+  its due date is before today in your time zone; a passed block or a stale
+  scheduled time no longer counts, and a task due or scheduled today sits in
+  Today. Home, Tasks (desktop and phone), the sidebar badge and Move to today
+  now agree. A date-only due date no longer turns overdue a day early west of
+  UTC.
+- Fixed (design_v3): the Tasks "Today" tab draws its Today group (tasks due or
+  scheduled today, timed ones by time), not only Overdue.
+- Fixed (design_v3): the sidebar plan pill says "Lifetime" for Lifetime, as
+  Settings → Plan does.
+- Added (design_v3): "Sign out of all devices" in Settings → Account, on the
+  desktop and the phone, with a confirm.
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
+  an unknown address shows a 404 inside the app instead of the old dark page.
+- Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
+  and syncs them; before, the account had no calendars and the calendar stayed
+  empty. A CalDAV fetch that fails no longer archives every event of the
+  calendar, and events the server returns again come back.
+
+- Operations and undo: task, project, schedule, mail-to-task and habit
+  changes now have one registry (`src/services/ops`) with strict inputs and
+  workspace roles. Every write is logged with its inverse, so it can be undone
+  for seven days from `POST /api/agent/actions/:id/undo` (or a whole agent run
+  from `/api/agent/runs/:id/undo`). Undo refuses, and says which rows, when
+  something changed after the action. External tools list and run the same
+  operations through `GET /api/connect/ops` and `POST /api/connect/ops/:name`
+  with their connector token. Operations follow the app's rules: default
+  reminders on new tasks, read-only tasks in archived projects, no habit
+  marks on future days. The log is pruned 30 days after the undo window. The
+  chat agent and MCP server move onto it in follow-up changes.
+
+- Fixed: a page in the trash could not be restored. `PATCH /api/pages/:id`
+  with `{ "trashed": false }` now brings it back, with its children, blocks
+  and files, for anyone who could have trashed it; restoring twice changes
+  nothing, and a page whose parent is still in the trash comes back at the
+  top level. `GET /api/pages?trashed=true` lists the trash.
+- Release: when two merges land close together, the older release run no
+  longer asks Coolify for an image the newer run has not pushed yet. It
+  stands down and the newer run deploys, so production stops showing failed
+  deployments for commits that were already superseded.
+- The Google and Outlook OAuth client secrets and the Resend API key saved in
+  admin system settings are encrypted at rest (`enc:v1:`), like provider
+  tokens. Existing values are encrypted by the same worker-start backfill;
+  the admin form still shows the mask and keeps a secret that is not retyped.
+- Connected-calendar, mail and task credentials are encrypted at rest:
+  Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
+  AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens
+  NextAuth keeps. Existing rows are encrypted by the worker at start; reads
+  accept both forms meanwhile. The session no longer carries the sign-in
+  provider's OAuth tokens to the browser, and the worker refuses to start in
+  production without `AI_ENCRYPTION_KEY` or `NEXTAUTH_SECRET`.
+- Deleting an account now cuts third-party access before the data goes:
+  Google and Outlook calendar push channels are stopped, the Google grant is
+  revoked at Google, Composio connections are deleted and revoked upstream,
+  and Web Push endpoints are dropped. Microsoft and CalDAV credentials, which
+  have no revoke call, are deleted with the account. Each step is
+  best-effort and never holds the deletion up.
+- The one-trial-per-email record no longer keeps the email: it stores a keyed
+  hash of the normalized address, and the worker rewrites existing records.
+- Signing out from any menu now clears the account's data from the browser —
+  every localStorage key except the theme and other device preferences, plus
+  the offline cache — after giving changes saved offline a few seconds to
+  sync.
+- Hosted AI requests are routed only to OpenRouter hosts based in the US or
+  the EU, with known hosts elsewhere refused on every request.
+- Free keeps three active habits, enforced by the API: creating a fourth, or
+  restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
+  Pro, Lifetime and trials are unlimited. Habits above the limit after a
+  downgrade stay and stay editable. An archived habit is restored with
+  `PATCH /api/habits/:id` and `{ "archived": false }`.
+- Security: a session now lasts 30 days and slides — every visit renews it,
+  and a device left unused for 30 days is signed out (it was one year).
+  Settings › Account has "Sign out of all devices"
+  (`POST /api/account/sessions/revoke`), which signs out every device
+  including this one; other devices stop working within a minute. Resetting a
+  password does the same, and a deleted or disabled account is signed out
+  everywhere.
+- Privacy: the app no longer loads Inter, Instrument Serif and JetBrains Mono
+  from Google Fonts, so a visitor's IP address is no longer sent to Google on
+  page load. The same font files are now served from the app itself
+  (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
+  Google import so a re-sync cannot bring it back. Every subset Google
+  served is kept — Cyrillic, Greek and Vietnamese included — and a page
+  downloads only the subsets its text uses. The files have hashed names and
+  are cached by browsers for a year.
+- Fixed: typing a new Google or Outlook client secret or Resend API key in
+  admin system settings saved only its first character. Secret fields now
+  save once, when you leave the field or press Enter, and the field keeps
+  what you typed while it has focus. The server drops its cached Resend
+  client when the key changes.
+- Import from Todoist (behind the new `imports` feature flag, off unless a
+  flag row turns it on). Settings -> Data -> Import sends you through
+  Todoist's read-only consent screen, then a background job brings in
+  projects (nesting flattened, the path kept in the description), sections
+  as project stages, open tasks with due date, deadline, estimate, priority,
+  labels, comments and common repeats, and first-level sub-tasks as task
+  parts. Running it again updates what it brought in and never duplicates.
+  Completed and archived items, attachments and reminders are skipped and
+  counted; progress and warnings show while it runs. The same is reachable
+  from outside: `POST /api/imports`, `GET /api/imports/:id`,
+  `POST /api/imports/:id/cancel`, and the same under `/api/connect/imports`
+  with a connector token (which also accepts a Todoist personal API token).
+  Floating due times are read in Todoist's zone or yours; a run whose worker
+  died is failed by a 10-minute sweep and its token erased; rows are matched
+  per workspace. Needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`;
+  additive migration `20261012090000_imports`.
+- Moodboards: a board's references can be read and written through the API.
+  `GET`/`POST /api/moodboards/:id/items` and `PATCH`/`DELETE
+/api/moodboards/:id/items/:itemId` list the wall in order and add, change,
+  move or remove an image, link, colour or note. The board's creator, owners
+  and editors write; viewers read; anyone else gets the same answer as for a
+  board that does not exist. A board holds at most 500 references on every
+  plan; adding one more answers 409. Documented in `docs/connector-api.md`.
+- Documents: a backdrop (document themes, and every "All Styles" preset but
+  Default) is now Pro on the server too. `PATCH /api/pages/:id` and
+  `POST /api/pages` answer a Free plan that sets one with 403
+  `UPGRADE_REQUIRED`; a backdrop already on a page after a downgrade stays and
+  other edits still save, and going back to no backdrop is always allowed.
+  The v3 Style panel opens the plan page when the server refuses.
+- Billing: `GET /api/billing` reports `checkoutEnabled`, read from the new
+  server-controlled `billing_checkout` feature flag (off unless a flag row
+  turns it on). The v3 paywall keeps its checkout button off and says
+  checkout opens soon until it is on; its Free and Pro lists now print the
+  limits the server enforces (`PLAN_LIMITS`).
+- Design v3 port, foundations (behind the `design_v3` flag, off for
+  everyone): the new design's tokens, themes and stylesheets are vendored
+  under a `.needt-v3` scope (`npm run tokens:sync:v3`, guarded by
+  `npm run tokens:check`), with the licensed Exposure face and Newsreader /
+  Nunito. A person with the flag sees the app inside the new frame, themed
+  System / Light / Dark / Time with nine accents; nobody else sees a change.
+- The API takes the fields the new design writes: Trash and the "from
+  mail / doc / chat" origin on tasks, "don't split", a project's tint and
+  manual order, a habit's own colour, glyph, time, weekly quota and
+  project, a document's style and project, Trash and "needs a reply" on
+  mail (Needt's copy only — mail stays read-only at the provider), and a
+  moodboard's project, link share, Pinterest board and Trash. Each is
+  validated, so a bad value is a 400 rather than a stored surprise. The
+  database gained them additively, plus tables for task attachments,
+  per-person page views, invites by email, per-tool AI access on a page,
+  moodboard tiles, notifications and MCP/API access links.
+
+- Brief and Canvas: a connected tool's writing is no longer shown as your
+  own. Authorship is carried by the ink and a mark in the margin, and the
+  list of authors was closed to four — anything else fell back to "you",
+  silently, mark and all. The list is open now, and an author we do not
+  recognise writes in the neutral agent ink under whatever name it gave
+  when it connected.
+
+- Notifications now appear in the corner the rest of the product speaks
+  from, as the design's own cards, instead of as toasts in the opposite
+  one. Everything in the app raises a message through one facade, so
+  nothing else changed to move them. A repeated status replaces the last
+  one of its name rather than stacking beside it, a failure interrupts a
+  screen reader instead of waiting politely, and a message that carries a
+  button still carries it.
+- Security: mail, task-sync and system-settings API responses no longer
+  include stored provider credentials. Admin system settings show a mask in
+  place of saved secrets, and saving the form without retyping one keeps it.
+- Registration is closed until launch. People who already have an account
+  keep signing in with a password, Google or Microsoft; a new account is
+  refused — the sign-up endpoint answers 403 `SIGNUPS_CLOSED`, and an OAuth
+  sign-in that would create a user lands back on sign-in with a line pointing
+  to the waitlist at needt.app. It opens when the `signups_open` feature flag
+  is enabled at 100%.
+- The waitlist has a backend: `POST /api/waitlist` takes `{ email, ref? }`
+  from the landing page at needt.app (CORS for needt.app and www.needt.app),
+  puts the address straight onto the list in our own database, rate-limits
+  per address and per IP, and answers the same `{ ok: true }` whether the
+  address was new or already there.
+
 - Sign in wears the design. It was the last screen still drawn in the
   pre-port chrome, and the first one anybody sees. The behaviour underneath
   is the same one that shipped before — the same providers, the same

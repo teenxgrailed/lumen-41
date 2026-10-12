@@ -1,0 +1,26 @@
+[
+  {
+    "boardId": "mb-ss27",
+    "email": "maksym@needt.app",
+    "role": "owner",
+    "name": "Maksym"
+  },
+  {
+    "boardId": "mb-shoot",
+    "email": "maksym@needt.app",
+    "role": "owner",
+    "name": "Maksym"
+  },
+  {
+    "boardId": "mb-shoot",
+    "email": "lena@studio.ch",
+    "role": "edit",
+    "name": "Lena"
+  },
+  {
+    "boardId": "mb-shop",
+    "email": "maksym@needt.app",
+    "role": "owner",
+    "name": "Maksym"
+  }
+]

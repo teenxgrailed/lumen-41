@@ -1,0 +1,323 @@
+/* Design v3 - scenes.jsx PX_CSS (the printed sky, glass, badges, dots).
+ * HAND-WRITTEN, not vendored: the prototype keeps these rules in a JS string
+ * (injected at run time), so the sync script never sees them. Rescoped under
+ * .needt-v3 (.dark -> [data-theme=dark]); corrections are marked V-*. */
+
+.needt-v3 .px-sky,
+.needt-v3 [data-px-scope] {
+  --px-ground: var(--sky-ground);
+  --px-ink: var(--sky-ink);
+  --px-ink-2: var(--sky-ink-2);
+  --px-ink-3: var(--sky-ink-3);
+  --px-halo: var(--sky-halo);
+  --px-shadow: var(--sky-shadow);
+  --px-line: var(--sky-line);
+  --px-tint: var(--sky-tint);
+  --px-hue: var(--sky-hue);
+  --px-chip: var(--sky-chip);
+  --px-chip-hover: var(--sky-chip-hover);
+  --px-chip-ink: var(--sky-chip-ink);
+}
+.needt-v3 .px-sky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--px-ink);
+  background: var(--px-ground);
+}
+.needt-v3 .px-canvas,
+.needt-v3 .px-dotscreen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  image-rendering: auto;
+}
+.needt-v3 .px-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-size: 128px 128px;
+}
+.needt-v3[data-theme="dark"] .px-grain {
+  opacity: 0.035;
+}
+.needt-v3 .px-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+.needt-v3 .px-display {
+  font-family: "Exposure VAR", Georgia, serif;
+  font-weight: 400;
+  font-variation-settings: "EXPO" -14;
+  letter-spacing: -0.01em;
+  line-height: 0.96;
+}
+.needt-v3 .px-display em {
+  font-style: italic;
+  font-variation-settings: "EXPO" 8;
+  padding-right: 0.04em;
+}
+.needt-v3 .px-on-sky {
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 18px var(--px-halo);
+}
+.needt-v3 .px-kicker {
+  font:
+    600 11px/14px ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--px-ink-3);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+}
+.needt-v3 .px-glass .px-kicker {
+  color: var(--text-tertiary);
+  text-shadow: none;
+}
+
+/* Glass — measured from Craft's paywall plan card. */
+.needt-v3 .px-glass {
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 26px;
+  color: var(--text-primary);
+  background-color: var(--white-a60);
+  background-image: linear-gradient(var(--white-a0) 0%, var(--white-a80) 100%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow:
+    var(--black-a4) 0 8px 16px -4px,
+    var(--black-a8) 0 12px 24px -4px,
+    var(--color-white) 0 0 0 1px inset,
+    var(--white-a60) 0 0 0 1px,
+    var(--black-a19) 0 0 0 1px;
+  transition:
+    box-shadow 220ms ease,
+    transform 220ms cubic-bezier(0.2, 0.9, 0.24, 1);
+}
+.needt-v3 .px-glass.is-strong {
+  background-color: var(--white-a72);
+}
+.needt-v3 .px-glass.is-best {
+  box-shadow:
+    var(--black-a4) 0 8px 16px -4px,
+    var(--black-a8) 0 12px 24px -4px,
+    var(--color-white) 0 0 0 1px inset,
+    var(--ink-fixed) 0 0 0 1px;
+}
+.needt-v3[data-theme="dark"] .px-glass {
+  background-color: var(--smoke-a55);
+  background-image: linear-gradient(var(--smoke-a0) 0%, var(--smoke-a85) 100%);
+  box-shadow:
+    var(--black-a30) 0 10px 20px -6px,
+    var(--black-a45) 0 24px 48px -12px,
+    var(--white-a8) 0 0 0 1px inset,
+    var(--white-a10) 0 0 0 1px;
+}
+.needt-v3[data-theme="dark"] .px-glass.is-strong {
+  background-color: var(--smoke-a70);
+}
+.needt-v3[data-theme="dark"] .px-glass.is-best {
+  box-shadow:
+    var(--black-a30) 0 10px 20px -6px,
+    var(--black-a45) 0 24px 48px -12px,
+    var(--white-a8) 0 0 0 1px inset,
+    var(--white-a85) 0 0 0 1px;
+}
+.needt-v3 .px-glass.is-click:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--black-a6) 0 10px 20px -4px,
+    var(--black-a12) 0 18px 32px -6px,
+    var(--color-white) 0 0 0 1px inset,
+    var(--white-a60) 0 0 0 1px,
+    var(--black-a19) 0 0 0 1px;
+}
+.needt-v3[data-theme="dark"] .px-glass.is-click:hover {
+  box-shadow:
+    var(--black-a35) 0 12px 24px -6px,
+    var(--black-a50) 0 28px 56px -12px,
+    var(--white-a10) 0 0 0 1px inset,
+    var(--white-a14) 0 0 0 1px;
+}
+.needt-v3 .px-glass .px-caption {
+  display: block;
+  padding: 8px 4px 0;
+  font: 500 12px/14px var(--font-sans);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .px-glass .nx-btn-secondary {
+  background: var(--surface-raised);
+}
+/* Craft's segmented-control track. */
+.needt-v3 .px-track {
+  background-color: var(--white-a30);
+  background-image: linear-gradient(var(--white-a0) 0%, var(--white-a40) 100%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  border-radius: 9999px;
+  box-shadow:
+    var(--white-a60) 0 0 0 1px inset,
+    var(--black-a6) 0 0 0 1px;
+}
+.needt-v3[data-theme="dark"] .px-track {
+  background-color: var(--smoke-a40);
+  background-image: linear-gradient(var(--smoke-a0) 0%, var(--smoke-a60) 100%);
+  box-shadow:
+    var(--white-a8) 0 0 0 1px inset,
+    var(--white-a10) 0 0 0 1px;
+}
+/* Entry animations on the sky release their end state (a held animation
+   makes a backdrop root, and glass inside it would blur nothing). */
+.needt-v3 .px-sky .nx-swap,
+.needt-v3 .px-sky .nx-pop,
+.needt-v3 .px-sky .pw-print-in,
+.needt-v3 .px-sky .ax-step,
+.needt-v3 .px-sky .mb-step,
+.needt-v3 [data-px-scope] .nx-swap,
+.needt-v3 [data-px-scope] .pw-print-in,
+.needt-v3 [data-px-scope] .mb-step {
+  animation-fill-mode: backwards !important;
+}
+
+.needt-v3 .px-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 3px 8px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  white-space: nowrap;
+  font: 600 11px/13px var(--font-sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-on-fill);
+  background: var(--badge-dark-bg);
+}
+.needt-v3[data-theme="dark"] .px-badge {
+  box-shadow: var(--white-a16) 0 0 0 1px inset;
+}
+.needt-v3 .px-badge.is-green {
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+}
+.needt-v3[data-theme="dark"] .px-badge.is-green {
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+  box-shadow: none;
+}
+.needt-v3 .px-badge.is-glass {
+  color: var(--px-chip-ink);
+  background: var(--px-chip);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: var(--white-a60) 0 0 0 1px inset;
+}
+
+.needt-v3 .px-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  cursor: default;
+  color: var(--px-chip-ink);
+  background-color: var(--white-a55);
+  background-image: linear-gradient(var(--white-a0), var(--white-a35));
+  box-shadow:
+    var(--white-a70) 0 0 0 1px inset,
+    var(--black-a8) 0 0 0 1px,
+    var(--black-a8) 0 4px 10px -4px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  transition:
+    background-color 140ms ease,
+    transform 90ms ease;
+}
+.needt-v3 .px-chip-btn:hover {
+  background-color: var(--white-a78);
+}
+.needt-v3[data-theme="dark"] .px-chip-btn {
+  background-color: var(--smoke-a55);
+  background-image: none;
+  box-shadow:
+    var(--white-a10) 0 0 0 1px inset,
+    var(--black-a30) 0 4px 10px -4px;
+}
+.needt-v3[data-theme="dark"] .px-chip-btn:hover {
+  background-color: var(--smoke-hi-a75);
+}
+.needt-v3 .px-chip-btn:active {
+  transform: scale(0.97);
+}
+
+.needt-v3 .px-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: var(--px-chip-ink);
+  background-color: var(--white-a30);
+  background-image: linear-gradient(var(--white-a0), var(--white-a40));
+  box-shadow: var(--white-a60) 0 0 0 1px inset;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.needt-v3[data-theme="dark"] .px-dots {
+  background-color: var(--smoke-a45);
+  background-image: none;
+  box-shadow: var(--white-a10) 0 0 0 1px inset;
+}
+.needt-v3 .px-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  cursor: default;
+  background: currentColor;
+  opacity: 0.25;
+  transition:
+    width 260ms cubic-bezier(0.2, 0.9, 0.24, 1),
+    opacity 200ms ease;
+}
+.needt-v3 .px-dot.is-done {
+  opacity: 0.5;
+}
+.needt-v3 .px-dot.is-on {
+  width: 26px;
+  opacity: 1;
+}
+.needt-v3 button.px-dot:hover {
+  opacity: 0.7;
+}
+.needt-v3 button.px-dot.is-on:hover {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .px-glass,
+  .needt-v3 .px-dot {
+    transition: none;
+  }
+}

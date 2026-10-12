@@ -23,11 +23,17 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: teenxgrails/needt
-  RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  IMAGE_PREFIX: ghcr.io/teenxgrails/needt
+  # Only `changes` reads this; every later job uses the SHA it decided.
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+# Production runs prebuilt images. CI builds web, worker and collaboration
+# here and pushes them tagged with the full commit SHA; Coolify only pulls the
+# tag and restarts. Building on the production host is what used to starve
+# the running site: ~17 minutes of three Node builds per merge on the same
+# four cores as Postgres, and two outages when builds ran side by side.
 jobs:
-  gates:
+  changes:
     if: >-
       (github.event_name == 'workflow_dispatch' &&
        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
@@ -36,14 +42,65 @@ jobs:
        github.event.workflow_run.head_repository.full_name == github.repository &&
        github.event.workflow_run.head_branch == github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.decide.outputs.sha }}
+      deploy: ${{ steps.decide.outputs.deploy }}
+      previous_sha: ${{ steps.decide.outputs.previous_sha }}
+    env:
+      WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          # The diff below runs against whatever production last served,
+          # which can be several merges back.
+          fetch-depth: 0
+      - name: Decide what this run releases
+        id: decide
+        run: |
+          previous_sha=unknown
+          response=$(curl --silent --show-error --max-time 30 "${WEB_HEALTH_URL:-}" || true)
+          candidate=$(printf '%s' "$response" | jq -r \
+            'if .ok == true and .db == "ok" then (.buildSha // empty) else empty end' \
+            2>/dev/null || true)
+          if [[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            previous_sha=$candidate
+          fi
+          echo "previous_sha=$previous_sha" >> "$GITHUB_OUTPUT"
+
+          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          # Compare against what production actually runs, not HEAD~1, so
+          # merges that landed while a release was skipped are never lost.
+          # Unknown history means deploy: a skipped release is the worse error.
+          if [ "$previous_sha" = unknown ] || ! git cat-file -e "$previous_sha^{commit}" 2>/dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$previous_sha" "$HEAD_SHA")
+          shipped=$(printf '%s\n' "$changed" | grep -vE \
+            '^(docs/|openspec/|\.agents/|\.claude/|design-refs/)|\.md$' || true)
+          if [ -z "$changed" ] || [ -n "$shipped" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only documentation changed since $previous_sha; nothing to deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  gates:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.changes.outputs.sha }}
       - name: Verify checked-out release commit
-        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+        run: test "$(git rev-parse HEAD)" = "${{ needs.changes.outputs.sha }}"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
@@ -60,23 +117,53 @@ jobs:
       - name: Verify executable collaboration runtime
         run: timeout 30s npm run check:collaboration-runtime
 
-  publish:
-    needs: gates
+  images:
+    needs: [changes, gates]
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: read
       packages: write
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: production
+            image: web
+          - target: worker
+            image: worker
+          - target: collaboration
+            image: collaboration
+    env:
+      RELEASE_SHA: ${{ needs.changes.outputs.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ env.RELEASE_SHA }}
-          # metadata-action reads the git context; a depth-1 checkout at a ref
-          # leaves a grafted detached HEAD it cannot resolve.
-          fetch-depth: 0
+          ref: ${{ needs.changes.outputs.sha }}
       - name: Verify checked-out release commit
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      - name: Validate build-time configuration
+        if: matrix.target == 'production'
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_COLLABORATION_URL: ${{ vars.NEXT_PUBLIC_COLLABORATION_URL }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${{ vars.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        # Next inlines these into the browser bundle. A missing one does not
+        # fail the build; it ships a site without push or error reporting.
+        run: |
+          : "${NEXT_PUBLIC_APP_URL:?vars.NEXT_PUBLIC_APP_URL is required}"
+          : "${NEXT_PUBLIC_COLLABORATION_URL:?vars.NEXT_PUBLIC_COLLABORATION_URL is required}"
+          : "${NEXT_PUBLIC_VAPID_PUBLIC_KEY:?vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY is required}"
+          : "${NEXT_PUBLIC_SENTRY_DSN:?vars.NEXT_PUBLIC_SENTRY_DSN is required}"
+          : "${NEXT_PUBLIC_SENTRY_ENVIRONMENT:?vars.NEXT_PUBLIC_SENTRY_ENVIRONMENT is required}"
+          : "${SENTRY_AUTH_TOKEN:?SENTRY_AUTH_TOKEN is required}"
+          : "${SENTRY_ORG:?SENTRY_ORG is required}"
+          : "${SENTRY_PROJECT:?SENTRY_PROJECT is required}"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -84,86 +171,73 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Validate Sentry source-map upload configuration
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-        run: |
-          : "${SENTRY_AUTH_TOKEN:?SENTRY_AUTH_TOKEN is required}"
-          : "${SENTRY_ORG:?SENTRY_ORG is required}"
-          : "${SENTRY_PROJECT:?SENTRY_PROJECT is required}"
-      - id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
-        with:
-          context: git
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,format=long
-            type=raw,value=main
-      - id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
-          file: docker/production/Dockerfile
+          file: Dockerfile
+          target: ${{ matrix.target }}
           push: true
           platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ env.RELEASE_SHA }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:main
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
           build-args: |
             NEEDT_BUILD_SHA=${{ env.RELEASE_SHA }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_COLLABORATION_URL=${{ vars.NEXT_PUBLIC_COLLABORATION_URL }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_ENVIRONMENT=${{ vars.NEXT_PUBLIC_SENTRY_ENVIRONMENT }}
           secrets: |
             sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
             sentry_org=${{ secrets.SENTRY_ORG }}
             sentry_project=${{ secrets.SENTRY_PROJECT }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # One cache scope per target, or the three builds evict each other.
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,scope=${{ matrix.target }},mode=max
 
   deploy-web:
-    needs: gates
+    needs: [changes, images]
     runs-on: ubuntu-latest
     environment: production
-    outputs:
-      previous_sha: ${{ steps.previous-production.outputs.sha }}
     env:
-      WEB_HOOK: ${{ secrets.COOLIFY_WEB_WEBHOOK_URL }}
+      COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      WEB_UUID: ${{ secrets.COOLIFY_WEB_UUID }}
       WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
-      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
     steps:
-      # The redeploy runs scripts/trigger-coolify-deploy.sh, so this job needs
-      # the repository on disk like deploy-runtimes does.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.changes.outputs.sha }}
       - name: Validate production deployment configuration
         run: |
-          : "${WEB_HOOK:?COOLIFY_WEB_WEBHOOK_URL is required}"
+          : "${COOLIFY_API_URL:?COOLIFY_API_URL is required}"
           : "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
+          : "${WEB_UUID:?COOLIFY_WEB_UUID is required}"
           : "${WEB_HEALTH_URL:?NEEDT_PRODUCTION_HEALTH_URL is required}"
-      - name: Record current healthy web SHA
-        id: previous-production
-        run: |
-          previous_sha=unknown
-          response=$(curl --silent --show-error --max-time 30 "$WEB_HEALTH_URL" || true)
-          candidate=$(printf '%s' "$response" | jq -r \
-            'if .ok == true and .db == "ok" then (.buildSha // empty) else empty end' \
-            2>/dev/null || true)
-          if [[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            previous_sha=$candidate
-          else
-            echo "::warning::Previous production health is unavailable; continuing with bootstrap deployment."
-          fi
-          echo "sha=$previous_sha" >> "$GITHUB_OUTPUT"
-      - name: Trigger web redeploy
-        run: >-
-          ./scripts/trigger-coolify-deploy.sh "$WEB_HOOK"
+      # Coolify deploys the current head of main, not the commit this run
+      # built. When two merges land close together, the older run would ask
+      # Coolify for an image the newer run has not pushed yet, and the pull
+      # fails. The newer run deploys its own commit, so the older one stands
+      # down instead of failing.
+      - name: Check this release is still the head of main
+        id: head
+        run: ./scripts/release-is-current.sh || true
+      # Web goes first: its entrypoint applies the database migrations the
+      # worker and collaboration images of the same release expect.
+      - name: Deploy the web image
+        if: ${{ steps.head.outputs.current == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$WEB_UUID"
       - name: Wait for the exact web SHA and database health
+        if: ${{ steps.head.outputs.current == 'true' }}
         run: |
-          # A cold image build plus container start has taken well over ten
-          # minutes in production; 45 keeps a real failure visible without
-          # reporting a red release for a deploy that is still working.
-          for attempt in $(seq 1 270); do
+          # Pulling and restarting a prebuilt image takes a minute or two;
+          # ten minutes keeps a slow pull from reading as a failure.
+          for attempt in $(seq 1 60); do
             response=$(curl --fail --silent --show-error --max-time 30 "$WEB_HEALTH_URL" || true)
             healthy_sha=$(printf '%s' "$response" | jq -r \
               'if .ok == true and .db == "ok" then (.buildSha // "") else "" end' \
@@ -172,70 +246,81 @@ jobs:
               echo "Production web is healthy at $DEPLOY_SHA"
               exit 0
             fi
+            if ! ./scripts/release-is-current.sh >/dev/null; then
+              echo "A newer commit reached main while waiting; its release takes over."
+              exit 0
+            fi
             echo "Waiting for production web SHA (attempt $attempt/60)"
             sleep 10
           done
           echo "Production web did not reach expected SHA $DEPLOY_SHA" >&2
           exit 1
-      - name: Record manual rollback instructions
+      - name: Record rollback instructions
         if: ${{ failure() }}
         run: |
+          previous='${{ needs.changes.outputs.previous_sha }}'
           {
             echo "## Production deployment failed"
             echo
-            echo "Previous healthy web SHA: \`${{ steps.previous-production.outputs.sha || 'unknown' }}\`."
+            echo "Previous healthy web SHA: \`${previous:-unknown}\`."
             echo "Inspect the current production SHA before acting; a newer healthy release must not be rolled back."
-            echo "If rollback is required, use Coolify Deployments to restore the previous successful local image."
+            echo "To roll back, use the resource's Deployments view in Coolify; Migrations only move forward, so a rollback is safe only across additive schema changes."
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::Production deployment failed; inspect Coolify and use its deployment rollback when required."
+          echo "::error::Production deployment failed; see the run summary."
 
   deploy-runtimes:
-    needs: deploy-web
+    needs: [changes, images, deploy-web]
     runs-on: ubuntu-latest
     environment: production
     env:
-      WORKER_HOOK: ${{ secrets.COOLIFY_WORKER_WEBHOOK_URL }}
-      COLLABORATION_HOOK: ${{ secrets.COOLIFY_COLLABORATION_WEBHOOK_URL }}
+      COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      WORKER_UUID: ${{ secrets.COOLIFY_WORKER_UUID }}
+      COLLABORATION_UUID: ${{ secrets.COOLIFY_COLLABORATION_UUID }}
       WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
       COLLABORATION_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL }}
-      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ env.RELEASE_SHA }}
+          ref: ${{ needs.changes.outputs.sha }}
       - name: Verify checked-out release commit
-        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+        run: test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
       - name: Validate runtime deployment configuration
         run: |
-          : "${WORKER_HOOK:?COOLIFY_WORKER_WEBHOOK_URL is required}"
-          : "${COLLABORATION_HOOK:?COOLIFY_COLLABORATION_WEBHOOK_URL is required}"
+          : "${COOLIFY_API_URL:?COOLIFY_API_URL is required}"
           : "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
+          : "${WORKER_UUID:?COOLIFY_WORKER_UUID is required}"
+          : "${COLLABORATION_UUID:?COOLIFY_COLLABORATION_UUID is required}"
           : "${WEB_HEALTH_URL:?NEEDT_PRODUCTION_HEALTH_URL is required}"
           : "${COLLABORATION_HEALTH_URL:?NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL is required}"
-      - name: Trigger worker redeploy
-        run: >-
-          ./scripts/trigger-coolify-deploy.sh "$WORKER_HOOK"
-      - name: Trigger collaboration redeploy
-        run: >-
-          ./scripts/trigger-coolify-deploy.sh "$COLLABORATION_HOOK"
+      - name: Check this release is still the head of main
+        id: head
+        run: ./scripts/release-is-current.sh || true
+      - name: Deploy the worker image
+        if: ${{ steps.head.outputs.current == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$WORKER_UUID"
+      - name: Deploy the collaboration image
+        if: ${{ steps.head.outputs.current == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$COLLABORATION_UUID"
       - name: Wait for all runtime SHAs
+        if: ${{ steps.head.outputs.current == 'true' }}
         env:
-          # The worker image took 54 minutes to build on 15 September.
-          RUNTIME_SHA_TIMEOUT_MS: "4500000"
+          RUNTIME_SHA_TIMEOUT_MS: "600000"
           RUNTIME_SHA_POLL_INTERVAL_MS: "10000"
         run: npm run check:runtime-shas
-      - name: Record manual rollback instructions
+      - name: Record rollback instructions
         if: ${{ failure() }}
         run: |
+          previous='${{ needs.changes.outputs.previous_sha }}'
           {
             echo "## Runtime deployment failed"
             echo
-            echo "Previous healthy web SHA: \`${{ needs.deploy-web.outputs.previous_sha || 'unknown' }}\`."
+            echo "Previous healthy web SHA: \`${previous:-unknown}\`."
             echo "Inspect the current production SHAs before acting; a newer healthy release must not be rolled back."
-            echo "If rollback is required, use Coolify Deployments to restore the previous successful local images."
+            echo "To roll back, use each runtime's Deployments view in Coolify."
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::Runtime deployment failed; inspect Coolify and use its deployment rollback when required."
+          echo "::error::Runtime deployment failed; see the run summary."

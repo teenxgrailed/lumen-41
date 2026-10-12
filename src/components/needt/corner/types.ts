@@ -33,6 +33,13 @@ export interface NoticeAct {
   say?: string;
   /** A screen id the shell knows how to reach. */
   go?: string;
+  /**
+   * Something only the caller can do — opening a deep link, retrying the
+   * request that failed. The prototype had no such act because a prototype
+   * has nothing to run; the application does, and a button that cannot do
+   * the one thing it is for is worse than no button.
+   */
+  run?: () => void;
 }
 
 /** What a caller hands to `notify`. */
@@ -47,6 +54,12 @@ export interface NoticePayload {
   ms?: number;
   /** Waits until it is dismissed or acted on, however long that takes. */
   sticky?: boolean;
+  /**
+   * A name for a recurring message, so the next one of its kind replaces the
+   * last instead of stacking beside it. A sync that reports itself six times
+   * is one notice six times, not six notices.
+   */
+  key?: string;
 }
 
 /** A payload once the stack owns it. */
@@ -62,6 +75,9 @@ export interface NoticeApi {
   notify: (payload: NoticePayload) => string;
   /** Send one away, animation included. */
   dismiss: (id: string) => void;
+  /** Send all of them away. A caller that asks to clear without naming one
+   * means the lot. */
+  dismissAll: () => void;
 }
 
 /** What the stack itself reads. Separate, so a caller that only fires does

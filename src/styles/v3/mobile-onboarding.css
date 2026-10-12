@@ -1,0 +1,309 @@
+/* ========================================================================
+   Needt design v3 — styles/mobile-onboarding.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* MOBILE ONBOARDING — "Build your menu" (MobileAuth.jsx MaMenuStep, 08.10.26).
+   The bottom pill in miniature: black on the light themes, white on the dark
+   ones (the inverse-button tokens), three slots; under it the sections as
+   tiles in the desktop sidebar's look. Colours only from tokens. Motion only
+   on taps: a slot's chip lands, a full pill shakes once. */
+
+.needt-v3 .ma-menu { display: flex; flex-direction: column; gap: 10px; }
+.needt-v3 .ma-menu-gap { margin-top: 6px; }
+.needt-v3 .ma-menu .px-kicker { color: var(--ppl-auth-ink-2); }
+
+/* A sliver of a phone screen with the pill floating at its foot. */
+.needt-v3 .ma-menu-preview { position: relative; height: 150px; border-radius: 24px; overflow: hidden;
+  background: var(--v2p-ground); box-shadow: inset 0 0 0 1px var(--v2p-line); }
+.needt-v3 .ma-menu-screen { position: absolute; inset: 16px 18px auto; display: flex; flex-direction: column; gap: 9px; }
+.needt-v3 .ma-menu-line { display: block; height: 8px; width: 78%; border-radius: 9999px; background: var(--v2p-raise); }
+.needt-v3 .ma-menu-line.is-title { height: 14px; width: 44%; background: var(--v2p-raise-2); margin-bottom: 3px; }
+.needt-v3 .ma-menu-line.is-short { width: 52%; }
+
+.needt-v3 .ma-menu-pill { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 9999px;
+  background: var(--v2p-ink); box-shadow: var(--v2p-plate-shadow); }
+.needt-v3 .ma-menu-pill.is-nudge { animation: v3-ma-menu-nudge 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes v3-ma-menu-nudge {
+  0%, 100% { transform: translateX(-50%); }
+  20% { transform: translateX(calc(-50% - 6px)); }
+  40% { transform: translateX(calc(-50% + 5px)); }
+  60% { transform: translateX(calc(-50% - 3px)); }
+  80% { transform: translateX(calc(-50% + 2px)); }
+}
+
+.needt-v3 .ma-menu-slot { position: relative; width: 56px; height: 48px; padding: 0; border: 0; border-radius: 9999px; cursor: default;
+  display: grid; place-items: center; background: transparent; touch-action: none; -webkit-tap-highlight-color: transparent;
+  transition: transform 180ms cubic-bezier(0.2, 0.9, 0.24, 1), box-shadow 140ms ease; }
+.needt-v3 .ma-menu-slot:disabled { cursor: default; }
+.needt-v3 .ma-menu-slot.is-lifted { z-index: 2; transition: none; }
+.needt-v3 .ma-menu-slot:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 1px; }
+
+/* A filled slot: the section's glyph on a small round of the theme's surface. */
+.needt-v3 .ma-menu-chip { width: 40px; height: 40px; border-radius: 9999px; display: grid; place-items: center;
+  background: var(--v2p-ground); }
+.needt-v3 .ma-menu-slot.is-lifted .ma-menu-chip { box-shadow: var(--shadow-raised); }
+.needt-v3 .ma-menu-chip.is-land { animation: v3-ma-menu-land 320ms cubic-bezier(0.2, 0.9, 0.24, 1.2); }
+@keyframes v3-ma-menu-land { from { transform: scale(0.6); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+/* An empty slot is a dashed hole; the next one to fill is lavender. */
+.needt-v3 .ma-menu-hole { width: 34px; height: 34px; border-radius: 9999px; box-sizing: border-box;
+  border: 1.5px dashed var(--ppl-auth-hole); }
+.needt-v3 .ma-menu-slot.is-next .ma-menu-hole { border: 2px solid var(--v2p-lav); }
+
+.needt-v3 .ma-menu-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; min-height: 18px; }
+.needt-v3 .ma-menu-names { font: 500 13px/18px var(--font-sans); color: var(--ppl-auth-ink-2); text-align: center; }
+.needt-v3 .ma-menu-reset { border: 0; padding: 0 2px; min-height: 24px; background: transparent; cursor: default; -webkit-appearance: none; appearance: none;
+  font: 500 13px/18px var(--font-sans); color: var(--ppl-auth-ink-2); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Sections, three to a row, drawn like the desktop sidebar tiles (.sb-place-box). */
+.needt-v3 .ma-menu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.needt-v3 .ma-menu-tile { position: relative; height: 70px; min-width: 0; border: 0; border-radius: 20px; cursor: default;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 10px 10px 9px; box-sizing: border-box;
+  background: var(--ppl-auth-field); -webkit-tap-highlight-color: transparent;
+  transition: background-color 140ms ease, box-shadow 160ms ease, transform 140ms cubic-bezier(0.2, 0.9, 0.24, 1); }
+.needt-v3 .ma-menu-tile:active { transform: scale(0.97); transition-duration: 90ms; }
+.needt-v3 .ma-menu-tile.is-in { background: var(--ppl-auth-field-on); box-shadow: inset 0 0 0 1.5px var(--ppl-auth-ink); }
+.needt-v3 .ma-menu-tile:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .ma-menu-tile .ma-menu-svg,
+.needt-v3 .ma-menu-tile .shell-place-glyph-svg { flex: none; }
+.needt-v3 .ma-menu-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 500 14px/18px var(--font-sans); letter-spacing: -0.01em; color: var(--ppl-auth-ink-2); }
+.needt-v3 .ma-menu-tile.is-in .ma-menu-label { font: 600 14px/18px var(--font-sans); color: var(--ppl-auth-ink); }
+.needt-v3 .ma-menu-num { position: absolute; top: 8px; right: 8px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 9999px; display: grid; place-items: center; font: var(--type-meta-medium); line-height: 18px;
+  font-variant-numeric: tabular-nums; background: var(--v2p-ink); color: var(--v2p-ground); }
+
+.needt-v3 .ma-menu-say { text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ma-menu-pill.is-nudge,
+.needt-v3 .ma-menu-chip.is-land { animation: none; }
+  .needt-v3 .ma-menu-slot,
+.needt-v3 .ma-menu-tile { transition: none; }
+}
+
+/* ══ SIGN-IN AND SETUP ON PLATES (MobileAuth.jsx, 08.10.26) ══════════════════
+   The pixel sky fills the whole screen (sign-in and setup are, with the
+   paywall and Pro, the only phone screens that keep it). Over it: huge tight
+   type in the sky's own ink (--px-ink, set per mood for contrast), and the
+   form on a GLASS PLATE — a see-through wash over three backdrop blurs, each
+   stronger and masked further toward the plate's edges. Content scrolls under
+   a progressive blur band at the status bar. Inside the glass, Plates
+   controls: soft raised fields, one ink primary per step, quiet / text for
+   the rest. Dark: muted dark glass, no white surfaces except the primary.
+   Motion only on events (the step slides in, a tap presses). */
+.needt-v3 .mau-scene { position: absolute; inset: 0; z-index: 2; font-family: var(--font-sans); }
+.needt-v3 .mau-plain { position: absolute; inset: 0; background: var(--v2p-ground); --px-ink: var(--v2p-ink); --px-ink-2: var(--v2p-ink-2); }
+.needt-v3 .mau-stage { position: absolute; inset: 0; display: flex; flex-direction: column; }
+
+/* the band at the status bar: 4 → 10 → 22px, each masked further up */
+.needt-v3 .mau-band { position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 3; pointer-events: none; }
+.needt-v3 .mau-band-blur { position: absolute; inset: 0; }
+.needt-v3 .mau-band-blur.is-1 { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to top, transparent, #000 40%); mask-image: linear-gradient(to top, transparent, #000 40%); }
+.needt-v3 .mau-band-blur.is-2 { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to top, transparent 30%, #000 70%); mask-image: linear-gradient(to top, transparent 30%, #000 70%); }
+.needt-v3 .mau-band-blur.is-3 { -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  -webkit-mask-image: linear-gradient(to top, transparent 60%, #000 92%); mask-image: linear-gradient(to top, transparent 60%, #000 92%); }
+
+/* sign-in: one column that scrolls under the band */
+.needt-v3 .mau-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; display: flex; flex-direction: column; gap: 18px; padding: 60px 16px 28px; box-sizing: border-box; }
+.needt-v3 .mau-scroll::-webkit-scrollbar { display: none; }
+
+.needt-v3 .mau-brand { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 4px; }
+.needt-v3 .mau-lockup { color: var(--px-ink); }
+.needt-v3 .mau-word { color: var(--px-ink); }
+.needt-v3 .mau-date { flex: none; transform: rotate(4deg); }
+
+.needt-v3 .mau-head { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+.needt-v3 .mau-kicker { font: 600 12px/16px var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--px-ink-2); }
+.needt-v3 .mau-kicker.is-in { color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-title { margin: 0; font: 600 44px/44px var(--font-sans); letter-spacing: -0.05em; color: var(--px-ink); text-wrap: balance; }
+.needt-v3 .mau-title-2 { color: var(--px-ink-2); }
+.needt-v3 .mau-line { margin: 4px 0 0; max-width: 320px; font: 400 16px/22px var(--font-sans); letter-spacing: -0.01em; color: var(--px-ink-2); text-wrap: pretty; }
+
+/* the glass plate: wash + blurs that grow toward the edges */
+.needt-v3 .mau-glass { position: relative; flex: none; border-radius: 32px; box-shadow: var(--ppl-auth-glass-edge), var(--ppl-auth-shadow); color: var(--ppl-auth-ink); }
+.needt-v3 .mau-glass-blur,
+.needt-v3 .mau-glass-wash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+.needt-v3 .mau-glass-blur.is-1 { -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4); }
+.needt-v3 .mau-glass-blur.is-2 { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  -webkit-mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, transparent 55%, #000 100%); mask-image: radial-gradient(ellipse 72% 70% at 50% 50%, transparent 55%, #000 100%); }
+.needt-v3 .mau-glass-blur.is-3 { -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+  -webkit-mask-image: radial-gradient(ellipse 68% 64% at 50% 50%, transparent 72%, #000 100%); mask-image: radial-gradient(ellipse 68% 64% at 50% 50%, transparent 72%, #000 100%); }
+.needt-v3 .mau-glass-wash { background: var(--ppl-auth-glass); }
+.needt-v3 .mau-glass-in { position: relative; z-index: 1; }
+
+.needt-v3 .mau-form { display: flex; flex-direction: column; gap: 14px; padding: 18px 16px 16px; }
+.needt-v3 .mau-pair { display: flex; gap: 8px; }
+.needt-v3 .mau-pair > .mau-btn { flex: 1; min-width: 0; }
+
+.needt-v3 .mau-or { display: flex; align-items: center; gap: 12px; font: 500 12px/16px var(--font-sans); color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-or-rule { flex: 1; height: 1px; background: var(--v2p-line); }
+
+.needt-v3 .mau-field { display: flex; flex-direction: column; gap: 7px; }
+.needt-v3 .mau-field-label { padding: 0 4px; font: 600 12px/16px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-field-hint { padding: 0 4px; font: 400 13px/17px var(--font-sans); color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-field.is-error .mau-field-hint { color: var(--v2p-alert); }
+.needt-v3 .mau-input { width: 100%; height: 52px; box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 18px; outline: none; -webkit-appearance: none; appearance: none;
+  background: var(--ppl-auth-field); color: var(--ppl-auth-ink); font: 400 17px/22px var(--font-sans); letter-spacing: -0.01em; transition: box-shadow 0.2s ease, background-color 0.2s ease; }
+.needt-v3 .mau-input::placeholder { color: var(--v2p-ink-3); }
+.needt-v3 .mau-input:focus { background: var(--ppl-auth-field-on); box-shadow: inset 0 0 0 1.5px var(--v2p-lav-ring); }
+.needt-v3 .mau-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--v2p-alert); }
+
+.needt-v3 .mau-btn { position: relative; width: 100%; height: 52px; padding: 0 18px; border: 0; border-radius: 26px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 600 16px/1 var(--font-sans); letter-spacing: -0.01em; cursor: default; -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s var(--pk-ease, ease), opacity 0.18s ease; }
+.needt-v3 .mau-btn.is-primary { background: var(--v2p-ink); color: var(--v2p-ground); }
+.needt-v3 .mau-btn.is-quiet { background: var(--ppl-auth-quiet); color: var(--ppl-auth-ink); }
+.needt-v3 .mau-btn.is-auto { width: auto; }
+.needt-v3 .mau-btn:active:not(:disabled) { transform: scale(0.97); }
+.needt-v3 .mau-btn:disabled { opacity: 0.4; }
+.needt-v3 .mau-btn:focus-visible,
+.needt-v3 .mau-text:focus-visible,
+.needt-v3 .mau-link:focus-visible,
+.needt-v3 .mau-chip:focus-visible,
+.needt-v3 .mau-skip:focus-visible,
+.needt-v3 .mau-pick:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .mau-demo { margin-left: 4px; padding: 2px 7px; border-radius: 8px; background: var(--ppl-auth-field-on); color: var(--v2p-ink-2); font: 500 11px/14px var(--font-sans); }
+.needt-v3 .mau-btn.is-primary .mau-demo { background: var(--v2p-raise-2); color: var(--v2p-ink); }
+
+.needt-v3 .mau-link { align-self: flex-start; min-height: 32px; padding: 0 4px; border: 0; background: none; cursor: default; color: var(--ppl-auth-ink); font: 500 14px/18px var(--font-sans);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--v2p-ink-3); }
+.needt-v3 .mau-link:disabled { opacity: 0.4; }
+.needt-v3 .mau-forgot { align-self: flex-end; margin-top: -6px; }
+.needt-v3 .mau-resend { padding: 0 4px; font: 400 14px/20px var(--font-sans); color: var(--ppl-auth-ink-2); text-wrap: pretty; }
+.needt-v3 .mau-resend .mau-link { min-height: 0; padding: 0; display: inline; }
+.needt-v3 .mau-wait { color: var(--ppl-auth-ink); font-variant-numeric: tabular-nums; }
+
+/* the line under the plate: a small glass chip on the sky */
+.needt-v3 .mau-chip { flex: none; align-self: center; min-height: 40px; padding: 0 16px; border: 0; border-radius: 20px; cursor: default;
+  background: var(--ppl-auth-chip); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--ppl-auth-glass-edge);
+  color: var(--ppl-auth-ink); font: 500 14px/18px var(--font-sans); }
+.needt-v3 .mau-chip u { text-underline-offset: 3px; }
+
+/* notes inside the glass */
+.needt-v3 .mau-note.ma-note { border-radius: 16px; background: var(--ppl-auth-field); color: var(--ppl-auth-ink-2); font: 400 13px/18px var(--font-sans); }
+.needt-v3 .mau-note.ma-note.is-attention { background: var(--v2p-lav-soft); color: var(--ppl-auth-ink); }
+.needt-v3 .mau-note.ma-note.is-attention > svg { color: var(--v2p-alert); }
+
+/* ── setup: progress + theme + Skip, the step's head, the glass with a footer ── */
+.needt-v3 .mau-setup { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 58px 16px 30px; box-sizing: border-box; }
+.needt-v3 .mau-top { flex: none; display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.needt-v3 .mau-dots { flex: none; }
+.needt-v3 .mau-theme.auth-theme { margin-left: auto; background: var(--ppl-auth-chip); background-image: none; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--ppl-auth-glass-edge); }
+.needt-v3 .mau-theme .auth-theme-b { padding: 0 8px; color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-theme .auth-theme-b.is-on { background: var(--v2p-ink); color: var(--v2p-ground); box-shadow: none; }
+.needt-v3 .mau-skip { flex: none; min-height: 32px; padding: 0 12px; border: 0; border-radius: 16px; cursor: default; background: var(--ppl-auth-chip);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--ppl-auth-glass-edge); color: var(--ppl-auth-ink); font: 500 13px/1 var(--font-sans); }
+.needt-v3 .mau-head.is-step { flex: none; }
+.needt-v3 .mau-head.is-step .mau-title { font-size: 40px; line-height: 42px; }
+.needt-v3 .mau-head.is-step .mau-line { font-size: 15px; line-height: 21px; }
+
+.needt-v3 .mau-glass.is-fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.needt-v3 .mau-glass.is-fill > .mau-glass-in { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.needt-v3 .mau-step { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; display: flex; flex-direction: column; gap: 14px; padding: 16px 14px 12px; }
+.needt-v3 .mau-step::-webkit-scrollbar { display: none; }
+.needt-v3 .mau-foot { flex: none; display: flex; align-items: center; gap: 4px; padding: 10px 10px 10px 8px; box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .mau-foot-main { flex: 1; display: flex; justify-content: flex-end; }
+.needt-v3 .mau-foot-main > .mau-btn { flex: 1; }
+.needt-v3 .mau-text { flex: none; min-height: 48px; padding: 0 12px; border: 0; border-radius: 24px; background: transparent; cursor: default; display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ppl-auth-ink-2); font: 500 15px/1 var(--font-sans); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .mau-text:active { background: var(--ppl-auth-field); }
+.needt-v3 .mau-skiptask { margin-left: auto; }
+
+.needt-v3 .mau-picks { display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .mau-hint { padding: 2px 4px 0; font: 400 13px/18px var(--font-sans); color: var(--ppl-auth-ink-2); text-wrap: pretty; }
+.needt-v3 .mau-pick { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px 8px 12px; box-sizing: border-box; border: 0; border-radius: 20px; cursor: default; text-align: left;
+  background: var(--ppl-auth-field); color: var(--ppl-auth-ink); -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s var(--pk-ease, ease); }
+.needt-v3 .mau-pick:active { transform: scale(0.98); }
+.needt-v3 .mau-pick.is-on { background: var(--ppl-auth-field-on); box-shadow: inset 0 0 0 1.5px var(--ppl-auth-ink); }
+.needt-v3 .mau-pick.is-error { box-shadow: inset 0 0 0 1.5px var(--v2p-alert); }
+.needt-v3 .mau-pick-glyph { flex: none; width: 36px; height: 36px; border-radius: 18px; display: grid; place-items: center; background: var(--ppl-auth-quiet); color: var(--ppl-auth-ink); }
+.needt-v3 .mau-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .mau-pick-label { font: 600 16px/21px var(--font-sans); letter-spacing: -0.015em; }
+.needt-v3 .mau-pick-sub { font: 400 13px/17px var(--font-sans); color: var(--ppl-auth-ink-2); }
+.needt-v3 .mau-pick-sub.is-error { color: var(--v2p-alert); }
+.needt-v3 .mau-check { flex: none; width: 24px; height: 24px; border-radius: 12px; box-sizing: border-box; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3); color: var(--v2p-ground);
+  transition: background-color 0.18s ease, box-shadow 0.18s ease; }
+.needt-v3 .mau-check.is-multi { border-radius: 8px; }
+.needt-v3 .mau-pick.is-on .mau-check { background: var(--v2p-ink); box-shadow: none; }
+
+/* hours and zone: the shared selects (auth.css), in the glass's fields */
+.needt-v3 .mau-hours { gap: 8px; }
+.needt-v3 .mau-scene .auth-select select { border-radius: 16px; background: var(--ppl-auth-field); box-shadow: none; color: var(--ppl-auth-ink); }
+.needt-v3 .mau-scene .ma-hours .auth-select { height: 48px; }
+.needt-v3 .mau-scene .auth-ob-to { color: var(--ppl-auth-ink-2); }
+/* the first task: the composer line, as a field on the glass */
+.needt-v3 .mau-scene .co-box.auth-ma-composer { border-radius: 22px; background: var(--ppl-auth-field-on); box-shadow: inset 0 0 0 1px var(--v2p-line); }
+.needt-v3 .mau-scene .auth-tl { border-radius: 18px; }
+.needt-v3 .mau-why.auth-ob-why { color: var(--ppl-auth-ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .mau-btn,
+.needt-v3 .mau-pick,
+.needt-v3 .mau-check,
+.needt-v3 .mau-input { transition: none; }
+}
+.needt-v3 .mau-scene .auth-ma-composer .mb-composer-14 { background: var(--v2p-lav-soft); color: var(--v2p-lav); }
+
+/* ── ICONS EVERYWHERE (wave 3, 09.10.26) ──────────────────────────────────────
+   Every step, pick, field and button carries an icon: coloured glyph tiles
+   (PkGlyph, or .ma-tile — the same tile where phone-kit is not loaded) for
+   steps and picks; an outline glyph inside fields and buttons. */
+.needt-v3 .ma-tile { --ma-tile: 40px; flex: none; display: inline-grid; place-items: center; width: var(--ma-tile); height: var(--ma-tile);
+  border-radius: calc(var(--ma-tile) * 0.32); box-sizing: border-box; color: var(--ma-tile-hue, var(--v2p-lav));
+  background: color-mix(in oklch, var(--ma-tile-hue, var(--v2p-lav)) 16%, var(--mob2-tile-ground));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--ma-tile-hue, var(--v2p-lav)) 18%, transparent); }
+.needt-v3 .ma-tile .ma-menu-svg { width: 56%; height: 56%; }
+.needt-v3 .ma-tile.is-brand { width: auto; height: auto; background: none; box-shadow: none; }
+.needt-v3 .mau-scene .ma-tile-pk.pk-glyph { background: color-mix(in oklch, var(--pk-gl-hue, var(--v2p-lav)) 16%, var(--mob2-tile-ground)); }
+
+/* the step's kicker: tile + words */
+.needt-v3 .mau-kicker { display: inline-flex; align-items: center; gap: 10px; }
+.needt-v3 .mau-head .mau-kicker { align-self: flex-start; }
+
+/* picks: the tile replaces the round glyph */
+.needt-v3 .mau-pick-glyph { width: auto; height: auto; border-radius: 0; background: none; }
+
+/* fields with a leading icon */
+.needt-v3 .mau-input-wrap { position: relative; display: block; }
+.needt-v3 .mau-input.has-icon { padding-left: 46px; }
+.needt-v3 .mau-input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; color: var(--ppl-auth-ink-2); pointer-events: none; }
+.needt-v3 .mau-input-wrap:focus-within .mau-input-icon { color: var(--v2p-lav); }
+
+/* buttons, links and chips with an icon */
+.needt-v3 .mau-link,
+.needt-v3 .mau-chip,
+.needt-v3 .mau-skip { display: inline-flex; align-items: center; gap: 6px; }
+.needt-v3 .mau-chip { justify-content: center; }
+.needt-v3 .mau-skip { gap: 2px; padding-right: 8px; }
+.needt-v3 .mau-resend .mau-link { display: inline; }
+.needt-v3 .ma-menu-reset { display: inline-flex; align-items: center; gap: 4px; }
+.needt-v3 .ma-menu-kicker { display: inline-flex; align-items: center; gap: 6px; }
+
+/* hints with a leading glyph */
+.needt-v3 .mau-hint.has-icon { display: flex; align-items: flex-start; gap: 8px; }
+.needt-v3 .mau-hint.has-icon > svg { flex: none; margin-top: 2px; color: var(--v2p-lav); }
+
+/* labels with a tile (hours, zone) */
+.needt-v3 .mau-field-label.has-tile { display: inline-flex; align-items: center; gap: 10px; padding-left: 0; }
+
+/* selects with a leading icon */
+.needt-v3 .mau-scene .auth-select.has-icon select { padding-left: 36px; }
+.needt-v3 .ma-select-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; color: var(--ppl-auth-ink-2); pointer-events: none; z-index: 1; }
+
+/* the theme switch: an icon each; the words only on the chosen one */
+.needt-v3 .mau-theme .auth-theme-b { display: inline-flex; align-items: center; gap: 5px; }
+.needt-v3 .mau-theme .auth-theme-b:not(.is-on) .ma-theme-l { display: none; }
+
+/* the first task: a task tile at the head of the composer line */
+.needt-v3 .ma-first-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.needt-v3 .ma-first-row > .co-input { flex: 1; min-width: 0; }
+
+/* the reason line: the AI's orb */
+.needt-v3 .mau-why.auth-ob-why { align-items: flex-start; }
+.needt-v3 .mau-why.auth-ob-why > :first-child { flex: none; }

@@ -135,7 +135,7 @@ function NoticeCard({
             one of the things a notice is offering to do. */}
         <span className="nf-x">
           <CornerIconButton
-            label="Dismiss"
+            label="Dismiss notification"
             variant="ghost"
             onClick={() => onClose(notice.id)}
           >
@@ -168,15 +168,28 @@ export function NotificationStack({
     dismiss(notice.id);
     if (action.say) onSay?.(action.say);
     if (action.go) onGo?.(action.go);
+    action.run?.();
   }
 
   if (hidden || !notices.length) return null;
 
   const cards = shown(notices);
+  /* A failure has to interrupt; everything else can wait for a pause. The
+     region is one element for the whole stack, so the politeness is the
+     loudest thing currently in it. */
+  const urgent = cards.some((notice) => notice.kind === "risk");
 
   return (
     <div
       className="nf-stack"
+      /* The companion keeps clear of this; a card it sat on top of could not
+         be read or dismissed. The marker belongs on the stack, which is the
+         size of the cards, not on the frame that anchors it. */
+      data-assistant-avoid
+      role="region"
+      aria-label="Needt notifications"
+      aria-live={urgent ? "assertive" : "polite"}
+      aria-atomic="false"
       /* Hovering stops the dismiss clock. Reaching for a card is the clearest
          possible statement that you are not finished with it. */
       onMouseEnter={hold}

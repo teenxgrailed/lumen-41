@@ -3,11 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createMoodboard,
   listMoodboards,
+  parseMoodboardSort,
 } from "@/services/moodboards/moodboard-service";
 import { WorkspaceRole } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import {
+  moodboardV3FieldsSchema,
+  parseV3Fields,
+} from "@/lib/needt3/api-fields";
 
 const LOG_SOURCE = "MoodboardsAPI";
 
@@ -15,7 +20,10 @@ export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   try {
-    return NextResponse.json({ moodboards: await listMoodboards(auth) });
+    // Sorted here, not in the browser: ?sort=updated|created|name&dir=asc|desc.
+    const params = request.nextUrl.searchParams;
+    const sort = parseMoodboardSort(params.get("sort"), params.get("dir"));
+    return NextResponse.json({ moodboards: await listMoodboards(auth, sort) });
   } catch (error) {
     return routeErrorResponse(
       error,
@@ -33,8 +41,11 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   try {
     const body = await request.json().catch(() => ({}));
+    const v3 = parseV3Fields(moodboardV3FieldsSchema, body);
+    if (!v3.ok) return NextResponse.json({ error: v3.error }, { status: 400 });
     const moodboard = await createMoodboard(auth, {
       title: typeof body.title === "string" ? body.title : undefined,
+      projectId: v3.data.projectId,
     });
     if (!moodboard) {
       return NextResponse.json(

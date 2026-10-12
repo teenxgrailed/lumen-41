@@ -58,16 +58,22 @@ export function pageVisibilityWhere(actor: PageAccessActor) {
   };
 }
 
+/**
+ * Trashed pages are invisible to every check unless `includeTrashed` is set,
+ * which only the restore path does: a page in the trash can be brought back
+ * by whoever could have trashed it, and by nobody else.
+ */
 export async function resolvePageAccess(
   actor: PageAccessActor,
   pageId: string,
-  requiredRole: PageAccessRole = PageAccessRole.VIEWER
+  requiredRole: PageAccessRole = PageAccessRole.VIEWER,
+  options: { includeTrashed?: boolean } = {}
 ) {
   const page = await prisma.page.findFirst({
     where: {
       id: pageId,
       ...workspaceDataScopeWhere(actor.workspace, actor.userId),
-      trashedAt: null,
+      ...(options.includeTrashed ? {} : { trashedAt: null }),
     },
     select: {
       id: true,

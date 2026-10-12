@@ -4,11 +4,16 @@ import { POST } from "@/app/api/auth/register/route";
 import { hash } from "bcryptjs";
 
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
+import { areSignupsOpen } from "@/lib/auth/signups";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth/public-signup", () => ({
   isPublicSignupEnabled: jest.fn(),
+}));
+jest.mock("@/lib/auth/signups", () => ({
+  ...jest.requireActual("@/lib/auth/signups"),
+  areSignupsOpen: jest.fn(),
 }));
 jest.mock("@/lib/security/rate-limit", () => ({
   accountRule: jest.fn(() => ({ identifier: "account" })),
@@ -35,6 +40,23 @@ describe("public registration", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.mocked(sendEmailVerification).mockResolvedValue({ sent: true });
+    jest.mocked(areSignupsOpen).mockResolvedValue(true);
+  });
+
+  it("refuses with SIGNUPS_CLOSED while registration is closed", async () => {
+    jest.mocked(areSignupsOpen).mockResolvedValue(false);
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+
+    const response = await POST(
+      registrationRequest({ email: "user@example.com", password: "password" })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "Registration is closed — join the waitlist at needt.app",
+      code: "SIGNUPS_CLOSED",
+    });
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it("rejects registration when public signup is disabled", async () => {
@@ -103,9 +125,7 @@ describe("public registration", () => {
     );
     expect(sendEmailVerification).toHaveBeenCalledWith({
       userId: "user-1",
-      baseUrl: new URL(
-        process.env.NEXTAUTH_URL ?? "http://localhost"
-      ).origin,
+      baseUrl: new URL(process.env.NEXTAUTH_URL ?? "http://localhost").origin,
     });
   });
 });

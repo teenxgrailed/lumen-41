@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="app-icon/favicon.ico" sizes="32x32"><link rel="icon" href="app-icon/needt-icon-small.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="app-icon/apple-touch-icon.png"><title>Needt — on a phone</title>
+<!-- SOURCE PAGE. mobile.html is generated from this file by `node build.js`. -->
+<!-- The live phone (08.10.26): ONE phone — every place is a Plates screen (mobile-v2-plates.jsx: Home, Calendar and the shell V2pLivePhone; phone-*.jsx: the other places, window.PkPlaces) on the phone kit (phone-kit.jsx), with the shared sheets (phone-overlays.jsx) and menu A (nav-a.jsx) over them. The old phone code is _archive/Mobile.legacy.jsx; the old 30-frame sheet is _archive/mobile-dev-sheet.html. -->
+<link rel="stylesheet" href="../_ds/needt-design-system-main-25d3c8e5-a812-464d-881f-e887b9adef4b/styles.css?v=1009b">
+<link rel="stylesheet" href="themes.css?v=1009b">
+<link rel="stylesheet" href="composer.css?v=1009b">
+<link rel="stylesheet" href="exposure-wordmark.css?v=1009b">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="../_ds/needt-design-system-main-25d3c8e5-a812-464d-881f-e887b9adef4b/_ds_bundle.js?v=1009b"></script>
+<script type="module" src="needt-icons.js?v=1009b"></script>
+<style>
+html,body{height:100%}body{margin:0;overflow:auto;background:var(--background)}#root{width:100%;height:100%}
+/* A phone scrolls sideways with a finger, so the scrollbar is not the
+   affordance and does not need to be drawn. */
+.mb-strip { scrollbar-width: none; -ms-overflow-style: none; }
+/* A setup step arrives from the side it came from: with no rail to show where
+   you are, the direction of travel is the only progress cue the screen has. */
+@keyframes mb-step-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+.mb-step { animation: mb-step-in 0.26s cubic-bezier(0.2, 0.9, 0.24, 1); }
+@media (prefers-reduced-motion: reduce) { .mb-step { animation: none; } }
+.mb-strip::-webkit-scrollbar { display: none; }
+</style>
+<link rel="stylesheet" href="styles/base.css?v=1009b">
+<link rel="stylesheet" href="styles/mobile.css?v=1009b">
+<link rel="stylesheet" href="styles/scenes.css?v=1009b">
+<link rel="stylesheet" href="styles/paywall.css?v=1009b">
+<link rel="stylesheet" href="styles/auth.css?v=1009b">
+<link rel="stylesheet" href="styles/mobile-onboarding.css?v=1009b">
+<link rel="stylesheet" href="styles/tasks.css?v=1009b">
+<link rel="stylesheet" href="styles/habits.css?v=1009b">
+<link rel="stylesheet" href="styles/calendar.css?v=1009b">
+<link rel="stylesheet" href="styles/docs.css?v=1009b">
+<link rel="stylesheet" href="styles/mobile-nav.css?v=1009b">
+<link rel="stylesheet" href="styles/nav-a.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-kit.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-overlays.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-tasks.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-drag.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-docs.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-mail.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-habits.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-places.css?v=1009b">
+<link rel="stylesheet" href="styles/phone-settings.css?v=1009b">
+<link rel="stylesheet" href="styles/mobile-v2-plates.css?v=1009b">
+</head><body><div id="root"></div>
+<script src="cssvar.js?v=1009b"></script>
+<script src="sync.js?v=1009b"></script>
+<script src="platform.js?v=1009b"></script>
+<script src="Data.js?v=1009b"></script>
+<script src="brand-icons.js?v=1009b"></script>
+<script src="connections-data.js?v=1009b"></script>
+<script type="text/babel" src="ios-frame.jsx?v=1009b"></script>
+<script type="text/babel" src="AiOrb.jsx?v=1009b"></script>
+<script type="text/babel" src="app-icon.jsx?v=1009b"></script>
+<script type="text/babel" src="Composer.jsx?v=1009b"></script>
+<script type="text/babel" src="ColumnsView.jsx?v=1009b"></script>
+<script type="text/babel" src="ExposureWordmark.jsx?v=1009b"></script>
+<script type="text/babel" src="Miniature.jsx?v=1009b"></script>
+<script type="text/babel" src="Drift.jsx?v=1009b"></script>
+<script type="text/babel" src="popovers.jsx?v=1009b"></script>
+<script type="text/babel" src="scenes.jsx?v=1009b"></script>
+<script type="text/babel" src="paywall.jsx?v=1009b"></script>
+<script type="text/babel" src="paywall-sheet.jsx?v=1009b"></script>
+<script type="text/babel" src="stores.jsx?v=1009b"></script>
+<script type="text/babel" src="sidebar-kit.jsx?v=1009b"></script>
+<script type="text/babel" src="Sidebar.jsx?v=1009b"></script>
+<script type="text/babel" src="Habits.jsx?v=1009b"></script>
+<script type="text/babel" src="task.jsx?v=1009b"></script>
+<script type="text/babel" src="calendar2.jsx?v=1009b"></script>
+<script type="text/babel" src="states.jsx?v=1009b"></script>
+<script type="text/babel" src="MobileAuth.jsx?v=1009b"></script>
+<script type="text/babel" src="doc-style.jsx?v=1009b"></script>
+<script type="text/babel" src="Mobile.jsx?v=1009b"></script>
+<script type="text/babel" src="nav-a.jsx?v=1009b"></script>
+<script type="text/babel" src="mobile-nav.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-kit.jsx?v=1009b"></script>
+<script type="text/babel" src="mobile-v2-plates.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-overlays.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-tasks.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-drag.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-docs.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-mail.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-habits.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-places.jsx?v=1009b"></script>
+<script type="text/babel" src="phone-settings.jsx?v=1009b"></script>
+<script type="text/babel">
+/* THE PHONE — one live phone and a light / dark switch, nothing else. On a
+   real phone (a narrow viewport) the device frame goes and the app is the
+   screen. ?theme=dark|light picks the theme once; otherwise the phone wears
+   the one theme desktop and phone share (needtSettings "theme", synced live
+   through needtSync — a change on the desktop arrives here), falling back to
+   this page's last look (needt.phone.theme). Settings inside menu A and the
+   switch above the phone change it for both. */
+function phoneTheme() {
+  try {
+    const q = new URLSearchParams(window.location.search).get("theme");
+    if (q) return q === "dark" || q === "dim" ? "dark" : "light";
+    const S = window.needtSettings;
+    if (S && S.has("theme")) return v2pResolveTheme(S.get("theme"));
+    return localStorage.getItem("needt.phone.theme") === "dark" ? "dark" : "light";
+  } catch (e) { return "light"; }
+}
+const phoneBare = () => window.innerWidth < 500;
+function PhonePage() {
+  const [theme, setThemeRaw] = React.useState(phoneTheme);
+  const keep = (t) => { setThemeRaw(t); if (window.needtSync) window.needtSync.set("needt.phone.theme", t); };
+  const setTheme = (v) => {
+    const t = v === "dark" ? "dark" : "light";
+    keep(t);
+    const S = window.needtSettings;
+    if (S && v2pResolveTheme(S.get("theme")) !== t) S.set("theme", t);
+  };
+  React.useEffect(() => (window.needtSync ? window.needtSync.subscribe("needt.settings", (v, info) => {
+    if (info.origin === "remote" && v && v.theme) keep(v2pResolveTheme(v.theme));
+  }) : undefined), []);
+  const [bare, setBare] = React.useState(phoneBare);
+  React.useEffect(() => {
+    const r = () => setBare(phoneBare());
+    window.addEventListener("resize", r);
+    return () => window.removeEventListener("resize", r);
+  }, []);
+  if (bare) return <window.V2pLivePhone bare theme={theme} onTheme={setTheme} />;
+  return (
+    <div className={"app v2p-page " + (theme === "dark" ? "dark" : "paper")} data-phone-page="">
+      <div className="mn-theme" role="radiogroup" aria-label="Theme">
+        {[["light", "Light"], ["dark", "Dark"]].map(([id, label]) => (
+          <button key={id} type="button" role="radio" aria-checked={theme === id} className={"mn-theme-btn" + (theme === id ? " is-on" : "")} onClick={() => setTheme(id)} data-mn-theme={id}>{label}</button>
+        ))}
+      </div>
+      <window.V2pLivePhone theme={theme} onTheme={setTheme} />
+    </div>
+  );
+}
+const __root = document.getElementById("root");
+if (__root) ReactDOM.createRoot(__root).render(<PhonePage />);
+</script>
+</body></html>

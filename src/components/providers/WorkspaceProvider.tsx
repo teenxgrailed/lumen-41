@@ -137,8 +137,17 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     if (!activeWorkspaceId) return;
     if (previousWorkspaceIdRef.current === activeWorkspaceId) return;
 
+    const isFirstResolve = previousWorkspaceIdRef.current === null;
     previousWorkspaceIdRef.current = activeWorkspaceId;
-    queryClient.clear();
+    if (isFirstResolve) {
+      // First resolve after a hard load: queries that mounted before the
+      // workspace was known must refetch in its scope. clear() would orphan
+      // their observers (they stay pending forever — v3 screens sat on the
+      // skeleton); resetQueries() drops the data and refetches what is mounted.
+      void queryClient.resetQueries();
+    } else {
+      queryClient.clear();
+    }
     resetWorkspaceStores();
     useTaskStore.setState({ loading: true });
     useProjectStore.setState({ loading: true });

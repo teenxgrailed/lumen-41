@@ -1,0 +1,127 @@
+/* Component classes — the measured metrics, one class each, for consumers
+   writing plain HTML. React consumers should use the components in
+   components/ instead; these two paths render identically. */
+
+/* Sidebar nav row. Active is a fill plus a weight bump — never an underline,
+   never a left accent bar. */
+.nav-row { display: flex; align-items: center; gap: var(--space-8); height: var(--control-h); padding: var(--pad-nav-row); border-radius: var(--radius-md); font: var(--type-ui); color: var(--text-secondary); background: transparent; border: 0; width: 100%; cursor: default; transition: background-color var(--transition-hover), color var(--transition-hover); }
+.nav-row:hover { background: var(--fill-3); color: var(--text-primary); }
+.nav-row[aria-current], .nav-row.is-active { background: var(--fill-4); color: var(--text-primary); font-weight: var(--weight-medium); }
+
+/* Command bar. Labelled with a verb ("Open"), not a magnifier. Inset ring. */
+.command-bar { display: flex; align-items: center; gap: var(--space-8); height: var(--control-h); padding: var(--pad-search); border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font-size: var(--text-ui); color: var(--text-quaternary); }
+
+/* The button. A raised object, not a tinted patch of the canvas: the white
+   surface lifted by five very thin shadow layers plus a ring — the avatar's
+   treatment, at control size. This is the default; there is still no filled
+   primary button in this system.
+   Press settles the object back toward the page rather than darkening it. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: var(--control-h); padding: var(--pad-button); border: 0; border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--text-primary); font: var(--type-ui-medium); cursor: default; box-shadow: var(--shadow-raised); transition: background-color var(--transition-hover), box-shadow var(--transition-hover), color var(--transition-hover); }
+.btn:hover { box-shadow: var(--shadow-raised-hover); }
+.btn:active { box-shadow: var(--shadow-raised-press); }
+.btn:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+/* Flat variants sit IN the surface instead of on it — for secondary actions
+   beside a raised one, and for controls inside an already-raised object
+   (a dialog footer, a popover) where a second lift would stack. */
+.btn-flat { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
+.btn-flat:hover { background: var(--fill-4); box-shadow: none; }
+.btn-flat:active { background: var(--fill-5); box-shadow: none; }
+.btn-outline { background: transparent; color: var(--text-secondary); box-shadow: var(--shadow-inset-ring); }
+.btn-outline:hover { background: var(--fill-2); box-shadow: var(--shadow-inset-ring); }
+.btn-outline:active { background: var(--fill-3); box-shadow: var(--shadow-inset-ring); }
+.btn-accent { background: var(--fill-accent); color: var(--accent); box-shadow: none; }
+.btn-accent:hover { background: var(--fill-accent-strong); box-shadow: none; }
+.btn-accent:active { background: var(--fill-accent-strong); box-shadow: none; }
+.btn-destructive { background: var(--fill-destructive); color: var(--destructive); box-shadow: none; }
+.btn-destructive:hover { background: var(--fill-destructive-strong); box-shadow: none; }
+.btn-destructive:active { background: var(--fill-destructive-strong); box-shadow: none; }
+.btn-ghost { background: transparent; color: var(--text-secondary); box-shadow: none; }
+.btn-ghost:hover { background: var(--fill-3); box-shadow: none; }
+.btn-ghost:active { background: var(--fill-5); box-shadow: none; }
+.btn-icon { display: grid; place-items: center; width: var(--control-w-icon); height: var(--control-h-sm); padding: var(--pad-icon-button); border: 0; border-radius: var(--radius-md); background: var(--surface-raised); color: var(--text-primary); cursor: default; box-shadow: var(--shadow-raised); transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.btn-icon:hover { box-shadow: var(--shadow-raised-hover); }
+.btn-icon:active { box-shadow: var(--shadow-raised-press); }
+.btn-icon:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.btn-icon.btn-flat { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
+.btn-icon.btn-flat:hover { background: var(--fill-4); color: var(--text-primary); box-shadow: none; }
+.btn-icon.btn-flat:active { background: var(--fill-5); box-shadow: none; }
+.btn-icon.btn-flat:disabled { background: var(--fill-2); color: var(--text-disabled); box-shadow: none; }
+.btn-icon.btn-ghost { background: transparent; box-shadow: none; }
+.btn-icon.btn-ghost:hover { background: var(--fill-3); box-shadow: none; }
+.btn-icon.btn-ghost:active { background: var(--fill-5); box-shadow: none; }
+.btn-icon.btn-ghost:disabled { background: transparent; color: var(--text-disabled); box-shadow: none; }
+.btn-icon.btn-accent { background: var(--fill-accent); color: var(--accent); box-shadow: none; }
+.btn-icon.btn-accent:hover { background: var(--fill-accent-strong); box-shadow: none; }
+.btn-icon.btn-accent:disabled { background: var(--fill-2); color: var(--text-disabled); box-shadow: none; }
+
+/* Segmented control. Selected segment takes the accent as fill AND as text. */
+.segment { height: var(--control-h); padding: var(--pad-button); border: 0; border-radius: var(--radius-lg); background: var(--fill-3); color: var(--text-muted); font: var(--type-ui-medium); }
+.segment[aria-selected="true"], .segment.is-selected { background: var(--fill-accent); color: var(--accent); }
+
+/* Chip — the small inline action. 28px tall, asymmetric padding. */
+.chip { display: inline-flex; align-items: center; gap: var(--space-4); height: var(--control-h-sm); padding: var(--pad-chip); border: 0; border-radius: var(--radius-md); background: var(--fill-3); color: var(--text-muted); font: var(--type-ui-medium); }
+.chip.is-accent { background: var(--fill-accent); color: var(--accent); }
+
+/* Card. Ring only, no resting blur. It reads because the ground is darker.
+   Hover promotes the ring one fill step; selected takes the accent fill and the
+   accent ring, the same pair the segmented control and the date cell use.
+   The shadow never changes size on hover — this system rings, it does not
+   lift. */
+.card { background: var(--surface-raised); border-radius: var(--radius-3xl); box-shadow: var(--shadow-ring); }
+.card[data-interactive="true"] { cursor: default; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.card[data-interactive="true"]:hover { box-shadow: var(--shadow-ring-strong); }
+.card[data-interactive="true"]:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.card[data-selected="true"] { background: var(--fill-accent); box-shadow: var(--shadow-focus); }
+.card[data-selected="true"]:hover { background: var(--fill-accent); box-shadow: var(--shadow-focus); }
+/* The title's default colour lives here, not inline: an inline colour outranks
+   every stylesheet rule, which silently kills the selected state. */
+.card-title { color: var(--text-primary); }
+.card[data-selected="true"] .card-title { color: var(--accent); }
+
+/* Small raised object: avatar, space switcher. */
+.raised { border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+
+/* Floating action, bottom right — the ONLY backdrop blur in the product. */
+.floating { height: 40px; border-radius: var(--radius-floating); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.glass { backdrop-filter: saturate(1.5) blur(32px); -webkit-backdrop-filter: saturate(1.5) blur(32px); }
+
+/* Selection: translucent accent fill plus a 2px inset ring. */
+.selected { background: var(--fill-accent); box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+
+/* Calendar. Today is the only element that gets the strong accent fill. */
+.cal-day { padding: var(--space-16); border-radius: var(--radius-3xl); background: var(--fill-5); }
+.cal-day.is-today { background: var(--fill-accent-strong); }
+.cal-strip { padding: var(--space-8); border-radius: var(--radius-4xl); background: var(--background); box-shadow: var(--shadow-container); }
+
+/* The document sheet. */
+.doc-sheet-page { max-width: var(--doc-max-w); border-radius: var(--radius-sheet); background: var(--surface-raised); box-shadow: var(--shadow-sheet); font: var(--type-body); }
+
+/* Editor floating toolbar — 85% opaque fill, not a blur alone. */
+.toolbar-floating { height: 45px; padding: 4.5px; border-radius: var(--radius-pill); background: var(--toolbar-fill); box-shadow: var(--shadow-toolbar); }
+
+/* Menu row inside a popover. */
+.menu-row { display: flex; align-items: center; gap: var(--space-8); height: var(--menu-row-h); padding: var(--pad-menu-row); border-radius: var(--radius-lg); font-size: var(--text-ui); color: var(--text-secondary); }
+.menu-row:hover { background: var(--fill-2); }
+
+/* Pill toggle group — full round, 3px inner padding. */
+.toggle-group { display: inline-flex; gap: var(--space-2); height: var(--control-h); padding: 3px; border-radius: var(--radius-pill); background: var(--fill-3); }
+
+/* Form row — one label column width, one row height. */
+.form-row { display: grid; grid-template-columns: var(--form-label-w) 1fr; align-items: center; column-gap: var(--space-16); min-height: var(--form-row-h); }
+.form-row > .form-label { font: var(--type-ui); color: var(--text-quaternary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Empty-state hint in the sidebar: grey, italic, one size down. */
+.empty-hint { font-size: var(--text-meta); font-style: italic; color: var(--text-muted); }
+
+/* Display type — serif, 28px and up only. */
+.display { font-family: var(--font-display); letter-spacing: var(--tracking-display); font-weight: var(--weight-regular); }
+
+/* Controls that appear only on hover of their row. */
+.reveal-on-hover { opacity: 0; transition: opacity var(--transition-hover); }
+.group:hover .reveal-on-hover, .reveal-on-hover:focus-visible { opacity: 1; }
+
+.theme-surface { transition: background-color var(--transition-theme), border-color var(--transition-theme), color var(--transition-theme); }
+.shadow-ring { box-shadow: var(--shadow-ring); }
+.shadow-inset-ring { box-shadow: var(--shadow-inset-ring); }
+.shadow-raised { box-shadow: var(--shadow-raised); }
+.shadow-floating { box-shadow: var(--shadow-floating); }

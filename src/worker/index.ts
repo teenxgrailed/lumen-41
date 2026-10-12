@@ -8,8 +8,13 @@ import {
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
+import {
+  processImportRun,
+  sweepStuckImportRuns,
+} from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
+import { pruneAgentActionLog } from "@/services/ops/retention";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -68,6 +73,7 @@ import {
   closeQueues,
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
+  getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
   getReminderQueue,
@@ -78,6 +84,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
@@ -93,6 +100,7 @@ import {
   scrubSentryEvent,
   scrubSentrySpan,
 } from "@/lib/sentry/privacy";
+import { hashLegacyTrialEmailKeys } from "@/lib/trials/trial-service";
 
 const LOG_SOURCE = "NeedtWorker";
 const WEBHOOK_RENEW_INTERVAL_MS = 6 * 60 * 60 * 1_000;
@@ -217,6 +225,15 @@ async function processLifetimeCheckoutReconciliation() {
 }
 
 async function processTrials() {
+  try {
+    await hashLegacyTrialEmailKeys();
+  } catch (error) {
+    await logger.error(
+      "Could not hash legacy trial email keys",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
   await processTrialLifecycle();
 }
 
@@ -232,6 +249,15 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await expireAccountExports();
   await deleteExpiredReauthentications();
   await finalizeDueAccountDeletions();
+  await pruneAgentActionLog();
+}
+
+async function processImport(job: Job<ImportJobData>) {
+  if ("importRunId" in job.data) {
+    await processImportRun(job.data.importRunId);
+    return;
+  }
+  await sweepStuckImportRuns();
 }
 
 // BullMQ and the app can resolve distinct compatible ioredis patch versions,
@@ -286,6 +312,11 @@ const workers = [
     processAccountLifecycle,
     { connection, concurrency: 1 }
   ),
+  // One import at a time: a full Todoist account is thousands of writes.
+  new Worker<ImportJobData>(QUEUE_NAMES.imports, processImport, {
+    connection,
+    concurrency: 1,
+  }),
 ];
 
 for (const worker of workers) {
@@ -313,6 +344,11 @@ for (const worker of workers) {
 }
 
 export async function start(): Promise<void> {
+  // Listen first. Everything below talks to Redis and Postgres and can take
+  // a while on a cold host; a health check that cannot connect until all of
+  // it finishes reads as a dead container and gets it restarted mid-start.
+  // Release readiness is still proven by the Redis heartbeat, not this port.
+  workerHealthServer = await startWorkerHealthServer();
   await runWorkerStartupChecks();
   if (isGitBuildSha(BUILD_SHA)) {
     releaseHeartbeatRedis =
@@ -379,6 +415,11 @@ export async function start(): Promise<void> {
     { every: 60 * 60_000 },
     { name: "sweep-account-lifecycle", data: { kind: "sweep" } }
   );
+  await getImportQueue().upsertJobScheduler(
+    "import-stuck-run-sweep",
+    { every: 10 * 60_000 },
+    { name: "sweep-imports", data: { kind: "sweep" } }
+  );
   const mailAccountIds = await listActiveMailAccountIds();
   await Promise.all(
     mailAccountIds.map((accountId) => ensureMailSyncSchedule(accountId))
@@ -386,7 +427,6 @@ export async function start(): Promise<void> {
   await Promise.all(
     mailAccountIds.map((accountId) => ensureImapIdleWatcher(accountId))
   );
-  workerHealthServer = await startWorkerHealthServer();
   await logger.info(
     "Needt background worker started",
     {

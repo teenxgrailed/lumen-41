@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { openSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 export async function getGoogleCredentials() {
   if (!process.env.DATABASE_URL) {
@@ -9,8 +10,9 @@ export async function getGoogleCredentials() {
   }
 
   try {
-    const settings = await prisma.systemSettings.findFirst();
-    if (settings) {
+    const stored = await prisma.systemSettings.findFirst();
+    if (stored) {
+      const settings = openSystemSettingsSecrets(stored);
       return {
         clientId: settings.googleClientId || process.env.GOOGLE_CLIENT_ID!,
         clientSecret:
@@ -38,8 +40,9 @@ export async function getOutlookCredentials() {
   }
 
   try {
-    const settings = await prisma.systemSettings.findFirst();
-    if (settings) {
+    const stored = await prisma.systemSettings.findFirst();
+    if (stored) {
+      const settings = openSystemSettingsSecrets(stored);
       return {
         clientId: settings.outlookClientId || process.env.AZURE_AD_CLIENT_ID!,
         clientSecret:

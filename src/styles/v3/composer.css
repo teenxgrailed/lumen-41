@@ -1,0 +1,167 @@
+/* ========================================================================
+   Needt design v3 — composer.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* THE COMPOSER — shared by both shells.
+ *
+ * Extracted from index.html, which is where it could not stay: the phone
+ * renders the same component and inherited none of these rules, so the sheet
+ * came up unstyled and its shelf never collapsed. Anything two shells draw
+ * lives in a file, not in one of them.
+ */
+/* THE COMPOSER. The scrim is a dimmer, not a wall: the day stays legible
+   behind it, because what you are typing is about what you can see. */
+.needt-v3 .auth-enter { overflow-y: auto; }
+.needt-v3 .co-scrim { position: absolute; inset: 0; z-index: 600; display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 20px 26px; background: transparent; }
+.needt-v3 .co-box {
+  --co-neon: 88, 148, 255;
+  position: relative; width: min(680px, 100%); display: flex; flex-direction: column; gap: 9px;
+  padding: 12px 12px 10px; border-radius: var(--radius-2xl);
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    var(--shadow-ring),
+    0 1px 2px 0 rgba(0, 0, 0, 0.04),
+    0 10px 20px -6px rgba(0, 0, 0, 0.06),
+    0 24px 56px -20px rgba(0, 0, 0, 0.14);
+  transition: box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+/* Typing brightens the tube, and the tube is the ::after layer — the box keeps
+   its own ring and cast shadow throughout. A second is-live box-shadow here
+   replaced them with the glow stack, whose tightest layer landed on the edge
+   as a crisp blue outline: exactly the ring this surface must not draw. */
+.needt-v3 .co-box.is-live { transition-duration: 0.28s; }
+/* On a dark ground the tube runs at full strength — the core is nearly white,
+   which is what makes the blue around it read as emitted rather than painted. */
+.needt-v3[data-theme="dark"] .co-box,
+.needt-v3[data-theme="dim"] .co-box {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.13),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 2px 4px 0 rgba(0, 0, 0, 0.4),
+    0 12px 30px -8px rgba(0, 0, 0, 0.36),
+    0 30px 70px -22px rgba(0, 0, 0, 0.5); }
+
+@keyframes v3-needt-co-arrive {
+  0% { transform: translate(var(--co-dx, 0px), var(--co-dy, 0px)) scale(var(--co-sx, 1), var(--co-sy, 1));
+       opacity: 0.4; border-radius: var(--radius-floating); }
+  100% { transform: none; opacity: 1; border-radius: var(--radius-2xl); }
+}
+.needt-v3 .co-arrive { animation: v3-needt-co-arrive 0.5s cubic-bezier(0.22, 0.68, 0.24, 1) both; transform-origin: 50% 100%; }
+
+/* THE TUBE IS ITS OWN LAYER. It comes up over 0.7s — slow enough to read as
+   warming rather than switching — and then breathes on a 5.2s cycle, the same
+   period the wordmark and the focus aura use, so everything alive in this
+   product breathes at one rate. */
+/* The breath starts where the fade ended. The transition brings the tube to
+   full over 0.7s and the animation takes over at exactly that moment, so its
+   first frame must also be full — a cycle that opened at 0.62 dropped the glow
+   a third of the way down the instant it began. Full → dim → full. */
+@keyframes v3-needt-co-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
+.needt-v3 .co-box::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  opacity: 0; transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    inset 0 0 18px -1px rgba(var(--co-neon), 0.22),
+    0 0 4px 1px rgba(var(--co-neon), 0.62),
+    0 0 12px 2px rgba(var(--co-neon), 0.4),
+    0 0 34px 6px rgba(var(--co-neon), 0.22),
+    0 0 80px 16px rgba(var(--co-neon), 0.12);
+}
+.needt-v3[data-theme="dark"] .co-box::after,
+.needt-v3[data-theme="dim"] .co-box::after {
+  box-shadow:
+    inset 0 0 30px -1px rgba(var(--co-neon), 0.4),
+    0 0 3px 1px rgba(240, 246, 255, 0.9),
+    0 0 12px 2px rgba(var(--co-neon), 0.92),
+    0 0 30px 5px rgba(var(--co-neon), 0.56),
+    0 0 70px 12px rgba(var(--co-neon), 0.32),
+    0 0 140px 30px rgba(var(--co-neon), 0.16);
+}
+/* One breath when the field first takes text (is-live is added), then the
+   glow holds still while the text sits there. */
+.needt-v3 .co-box.is-live::after { opacity: 1; animation: v3-needt-co-glow 5.2s ease-in-out 0.7s 1; }
+
+@keyframes v3-needt-co-discharge {
+  0%   { opacity: 0.85; transform: scale(1); }
+  14%  { opacity: 1; transform: scale(1.012); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* The line: one input with its own text made transparent, and the parse drawn
+   underneath in the same metrics. Both must agree to the pixel or the marks
+   drift off the words. */
+.needt-v3 .co-line { position: relative; height: 34px; overflow: visible; }
+.needt-v3 .co-input,
+.needt-v3 .co-mirror {
+  position: absolute; inset: 0; width: 100%; height: 34px; margin: 0; padding: 0 2px;
+  font: var(--weight-regular) 17px / 34px var(--font-sans); letter-spacing: 0;
+  white-space: pre; border: 0; background: transparent;
+}
+.needt-v3 .co-input { color: transparent; caret-color: var(--text-primary); outline: none; overflow-x: auto; z-index: 1; }
+/* The system rings ANY focused element — `*:focus-visible` in base.css sets a
+   2px inset accent ring, and this input clears the outline but not that.
+   Here the ring is redundant twice over: the whole panel lights up on focus,
+   and the ring lands on the line rather than around the surface. The glow is
+   the focus signal for this one control. */
+.needt-v3 .co-input:focus,
+.needt-v3 .co-input:focus-visible { box-shadow: none; }
+.needt-v3 .co-input::placeholder { color: var(--text-disabled); }
+.needt-v3 .co-input::-webkit-scrollbar { display: none; }
+.needt-v3 .co-mirror { color: var(--text-primary); pointer-events: none; }
+/* The send key is the loudest control on the surface, and it gets there the
+   way this system allows: the accent as a translucent fill with the accent
+   itself as the glyph. A solid accent surface on a button is forbidden outright
+   — solid accent belongs to a mark, never to a surface. */
+.needt-v3 .co-go { display: grid; place-items: center; width: 32px; height: 32px; border: 0; cursor: default;
+  border-radius: var(--radius-md); background: var(--fill-accent); color: var(--accent);
+  box-shadow: var(--shadow-inset-ring);
+  transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v3 .co-go:hover { background: var(--fill-accent-strong); }
+.needt-v3 .co-go:active { box-shadow: var(--shadow-focus); }
+/* What was made leaves the line and goes to live somewhere: it lifts off and
+   fades, so a create is something you watch depart rather than a field going
+   blank. */
+@keyframes v3-needt-co-flight {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.96); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -74px) scale(1.02); }
+}
+.needt-v3 .co-flight { position: absolute; left: 50%; top: 8px; z-index: 3; pointer-events: none;
+  max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 7px 13px; border-radius: var(--radius-lg);
+  background: var(--surface-raised); box-shadow: var(--shadow-floating);
+  font: var(--type-ui-medium); color: var(--text-primary);
+  animation: v3-needt-co-flight 0.46s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.needt-v3 .co-shelf {
+  display: grid; grid-template-rows: 0fr; overflow: hidden; margin-bottom: -9px;
+  transition: grid-template-rows 0.34s cubic-bezier(0.2, 0.78, 0.22, 1),
+              margin-bottom 0.34s cubic-bezier(0.2, 0.78, 0.22, 1),
+              opacity 0.22s ease;
+  opacity: 0; pointer-events: none;
+}
+.needt-v3 .co-shelf.is-open { grid-template-rows: 1fr; margin-bottom: 0; opacity: 1; pointer-events: auto; }
+.needt-v3 .co-shelf-inner { min-height: 0; overflow: hidden; }
+.needt-v3 .co-shelf-body { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 9px; }
+.needt-v3 .co-note { animation: v3-needt-drop-in 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* The rule under the shelf is drawn at its foot, so the open panel reads as
+   two registers — what the task is above, what you are typing below. */
+.needt-v3 .co-shelf-inner { box-shadow: none; }
+.needt-v3 .co-shelf.is-open .co-shelf-inner { box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .co-draft { animation: v3-needt-drop-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* Listening: the bars are the level, so they move at different rates rather
+   than as one block. */
+@keyframes v3-needt-co-bar { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+.needt-v3 .co-bars { display: flex; align-items: center; gap: 3px; height: 20px; }
+.needt-v3 .co-bars i { display: block; width: 3px; height: 100%; border-radius: 2px; background: var(--accent);
+  transform-origin: 50% 50%; animation: v3-needt-co-bar 0.72s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .co-flight,
+.needt-v3 .co-draft,
+.needt-v3 .co-bars i,
+.needt-v3 .co-scrim,
+.needt-v3 .co-arrive { animation: none; }
+  .needt-v3 .co-box.is-live::after { animation: none; }
+}

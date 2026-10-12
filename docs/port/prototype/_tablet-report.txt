@@ -1,0 +1,68 @@
+TABLET + WINDOW INSET + EDGE CASES — 07.10.26
+Verified with Playwright at 1440x900 and 768x1024 (/tmp/claude-0/tab-test.js,
+screens in /tmp/claude-0/tab-*.png, edge-*.png). No page errors, no page-level
+horizontal scroll at either size.
+
+SHELL
+- app.css: below 960px the old `#root { min-width: 960px }` floor is lifted
+  (it forced a 960-wide page with sideways scroll at 768).
+- Sidebar: App.jsx already floats it under 1100 (narrow/sbFloat) — toggle in
+  the top bar, click-away closes. Added a visible scrim (.sb-float-scrim gets
+  --nx-scrim + fade) in app.css. No App.jsx change needed for this.
+
+PER SCREEN AT 768
+- Home: summary cards wrap (Next up full row, Progress + Streak, Habits full
+  row; 1 column under 480 container). Schedule + Inbox rail already drops under
+  the list (<940 container). "Today · week 36" hides under 760 container; tab
+  labels no longer wrap.
+- Tasks: project mini-cards scroll sideways (masked edge), unchanged; tabs nowrap.
+- Projects: card grid auto-fills (3 + wrap). Long names clamp to 2 lines.
+- Calendar: Week becomes "3 days" starting today; ‹ › page 3 days at a time
+  inside the week (beyond it: toast), Today jumps back. Days view unchanged.
+- Docs: grid 2 columns (1 under 480); masonry 2 columns.
+- Doc: inspector hidden by default under 900 and, when opened with the top-bar
+  toggle, floats over the page (shadow, 272 wide) instead of squeezing it.
+  Page padding tightens. Re-opens itself when the window is wide again.
+- Mail: stacked — list full width; a message opens in place of the list with a
+  "‹ Mail" back button. Split view >= 900.
+- Moodboards: already 2 columns. Templates/Shared: sky banner already inside
+  content (radius 20); prints hide at this width.
+- Connections: 2 columns (container query); 1 under 600 container.
+
+WINDOW INSET (Connections, from Craft)
+- The sky is a window: 12px gap right/bottom (margin 0 -8px -8px against main's
+  20px padding), 14px corners, 1px hairline overlay (.nx-window in app.css),
+  thin custom scrollbar inside it (.nx-scroll).
+- All main scroll areas (main .scroll-inner) get the same 8px track / 4px
+  rounded translucent thumb (webkit), thin scrollbar-color fallback (Firefox).
+  Note: Playwright headless hides scrollbars by default; pass
+  ignoreDefaultArgs:['--hide-scrollbars'] to see them.
+
+EDGE CASES
+- Long names: task rows/cards/sidebar/doc cards/doc list ellipsize with a
+  title tooltip; section titles ellipsize; project card names clamp to 2
+  lines; doc page title and h1/h2 wrap with overflow-wrap:anywhere +
+  hyphens:auto; top-bar breadcrumb stays one line with ellipsis.
+- Many tasks: Home sections show 25 rows + "Show all N" (Show fewer); Tasks /
+  Projects sections 50 + "Show all N"; Home schedule rail shows 24 rows around
+  now + "Show all N". 500 tasks: each screen switch ~0.9s incl. the 900ms wait.
+- Project without colour: neutral grey frame/dot/folder (projectHue fallback).
+  Row dots now use the project's own colour for user projects too.
+- Empty / one: existing empty states render; one-task day shows rail below.
+
+PROTOTYPE SWITCH (work.jsx)
+  window.__edgeData('long'|'german'|'empty'|'one'|'many'|'nocolor'|'reset')
+  swaps tasks (__app.setTasksRaw), docs (docStore) and projects (projectStore)
+  in place; persists like real edits until 'reset' (back to seeds). Returns
+  {kind, tasks, projects, docs} counts.
+
+APP.JSX — SUGGESTED (not applied)
+1. Doc panel auto-hide uses __app.setDocPanel(false), which App persists to
+   localStorage ("needt.docPanel"=0). Better: keep a session-only narrow
+   override in App (e.g. docPanelNarrow state) so the desktop preference is
+   never overwritten.
+2. Optional: SB_NARROW is 1100; if the drawer should only apply < 900 as the
+   brief says, change SB_NARROW to 900 (all screens were checked with the
+   drawer active at 768; 900–1100 keeps today's behaviour).
+3. Optional: main padding "0 20px 20px" could drop to "0 16px 16px" under
+   900 for a little more room; screens already fit without it.

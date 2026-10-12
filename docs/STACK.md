@@ -99,12 +99,28 @@ Web and worker use expand/contract deployment:
 5. enable feature flags only after the smoke test;
 6. contract/remove old fields only after at least one fallback release.
 
-Before pushing a release that may auto-deploy, set **Source commit availability**
-to **Available during build** for the web, worker, and collaboration Coolify
-resources. (Older Coolify versions label this **Include Source Commit in
-Build**.) The root `Dockerfile` maps Coolify's `SOURCE_COMMIT` build argument to
-`NEEDT_BUILD_SHA`, which is the identity checked by `/api/health`; redeploy web
-and verify it reports a 40-character Git SHA before promoting a new commit.
-Deployment webhooks use `COOLIFY_API_TOKEN`; Coolify rollback is a manual action
-from the resource's Deployments view and is available only while the previous
-image remains local.
+Production runs **prebuilt images**. `.github/workflows/docker-publish.yml`
+builds web (`production` target), worker and collaboration from the root
+`Dockerfile` in GitHub Actions and pushes them to
+`ghcr.io/teenxgrails/needt-{web,worker,collaboration}:<full SHA>`. Each Coolify
+resource builds `docker/runtime/<app>.Dockerfile`, a single
+`FROM ghcr.io/teenxgrails/needt-<app>:${SOURCE_COMMIT}`, so its "build" is a
+pull of the image CI pushed for that exact commit;
+`scripts/coolify-deploy-image.sh` only asks for the deploy. Building there used to cost ~17
+minutes of CPU per merge on the same four cores as Postgres, and two outages
+when builds overlapped.
+
+- The release SHA reaches the image as the `NEEDT_BUILD_SHA` build argument;
+  `/api/health` checks it. A Coolify source build still works as a fallback
+  through `SOURCE_COMMIT` (**Source commit availability → Available during
+  build**).
+- `NEXT_PUBLIC_*` values are inlined into the browser bundle at build time, so
+  they live as GitHub `production` environment **variables**, not in Coolify.
+  The `images` job fails if one is empty.
+- A merge that touches only documentation (`docs/`, `openspec/`, `.agents/`,
+  `.claude/`, `design-refs/`, `*.md`) since the SHA production serves does not
+  release.
+- Roll back from the resource's Deployments view in Coolify. Migrations only
+  move forward, so this is safe only across additive schema changes.
+- The server pulls from GHCR with a read-only `read:packages` login made once
+  over SSH (`docker login ghcr.io`).

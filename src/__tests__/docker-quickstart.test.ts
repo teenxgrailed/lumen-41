@@ -251,9 +251,21 @@ describe("production migration tooling", () => {
     );
   });
 
-  it("exposes the Coolify source commit as the runtime build identity", () => {
+  it("takes the build identity from CI, falling back to Coolify's source commit", () => {
     expect(rootDockerfile).toContain("ARG SOURCE_COMMIT=local");
-    expect(rootDockerfile).toContain("ENV NEEDT_BUILD_SHA=$SOURCE_COMMIT");
+    expect(rootDockerfile).toContain("ARG NEEDT_BUILD_SHA");
+    // Once per final stage plus the web builder, never in `base`, where it
+    // would invalidate the cached `npm ci` layers on every commit.
+    expect(
+      rootDockerfile.match(
+        /ENV NEEDT_BUILD_SHA=\$\{NEEDT_BUILD_SHA:-\$SOURCE_COMMIT\}/g
+      )
+    ).toHaveLength(4);
+    const base = rootDockerfile.slice(
+      rootDockerfile.indexOf("AS base"),
+      rootDockerfile.indexOf("AS development")
+    );
+    expect(base).not.toContain("NEEDT_BUILD_SHA");
   });
 
   it("never downloads a floating Prisma major during container startup", () => {

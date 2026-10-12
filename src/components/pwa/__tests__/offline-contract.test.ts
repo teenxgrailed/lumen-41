@@ -22,21 +22,30 @@ describe("offline privacy and replay contract", () => {
     expect(serviceWorker).toContain("await clearStore(db, STORE_SNAPSHOTS)");
     expect(serviceWorker).toContain("await clearStore(db, STORE_META)");
 
-    const userMenu = readFileSync(
+    for (const path of [
       "src/components/navigation/UserMenu.tsx",
-      "utf8"
-    );
-    const accountSettings = readFileSync(
       "src/components/settings/AccountSettings.tsx",
+      "src/components/needt/settings/SettingsRoute.tsx",
+      "src/components/needt/shell/NeedtAppShell.tsx",
+    ]) {
+      const source = readFileSync(path, "utf8");
+      expect(source).toContain("signOutOfNeedt()");
+      expect(source).not.toMatch(/\bsignOut\(\{/);
+    }
+    const signOutHelper = readFileSync(
+      "src/lib/auth/client-sign-out.ts",
       "utf8"
     );
-    expect(userMenu).toContain("await clearNeedtOfflineData();");
-    expect(accountSettings).toContain("await clearNeedtOfflineData();");
-    const offlineClient = readFileSync("src/lib/pwa/offline-client.ts", "utf8");
-    expect(offlineClient).toContain('"task-data-storage"');
-    expect(offlineClient).toContain('"project-store"');
-    expect(offlineClient).toContain('"focus-timer-storage"');
-    expect(offlineClient).toContain('"fluid_calendar_logs"');
+    expect(signOutHelper.indexOf("await prepareNeedtSignOut()")).toBeLessThan(
+      signOutHelper.indexOf("await signOut(")
+    );
+    expect(serviceWorker).toContain("workspaceId: nextScope.workspaceId,");
+    expect(serviceWorker).toMatch(
+      /async function flushQueue\(\) \{\n  await restoreActiveScope\(\);/
+    );
+    expect(serviceWorker).toMatch(
+      /NEEDT_SYNC_NOW[\s\S]*?flushQueue\(\)[\s\S]*?event\.ports\[0\]\?\.postMessage/
+    );
   });
 
   it("queues only explicit offline-safe mutations", () => {

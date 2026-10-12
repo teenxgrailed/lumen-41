@@ -1,0 +1,47 @@
+/* Base — reset, body defaults, scrollbars, focus. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: var(--font-size-base); }
+
+body {
+  margin: 0;
+  font: var(--type-ui);
+  font-family: var(--font-default);
+  background: var(--background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-theme), color var(--transition-theme);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::-webkit-scrollbar { width: var(--scrollbar-w); height: var(--scrollbar-w); }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--radius-xs); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Inside a scrolling region: 4px, visible only on hover of the group. */
+.scroll-inner::-webkit-scrollbar { width: var(--scrollbar-w-inner); }
+.scroll-inner::-webkit-scrollbar-thumb { background: transparent; }
+.scroll-inner:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+
+*:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+::selection { background: var(--fill-accent-strong); }
+
+::placeholder { color: var(--text-disabled); }
+
+/* Icons. Outline is the default, and the fill is pinned from the wrapper span
+   that Icon renders — not from the svg itself. Icon libraries build their svg
+   from their own attribute set and drop arbitrary props, so neither fill="none"
+   nor a data-* attribute reaches the element; every outline glyph would inherit
+   fill="currentColor" and render solid. A descendant rule from a wrapper the
+   system owns is immune to whatever the library does with attrs. */
+[data-needt-icon] > svg { display: block; width: 100%; height: 100%; }
+[data-needt-icon] svg, [data-needt-icon] svg * { fill: none; stroke: currentColor; }
+[data-needt-icon="filled"] svg, [data-needt-icon="filled"] svg * { fill: currentColor; }

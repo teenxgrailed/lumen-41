@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { WorkspaceRole } from "@prisma/client";
 import crypto from "crypto";
 
+import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import {
   type WorkspaceAccess,
   WorkspaceAuthorizationError,
   requestedWorkspaceId,
   resolveWorkspaceAccess,
 } from "@/lib/auth/workspace-auth";
-import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { prisma } from "@/lib/prisma";
 
 export function generateConnectorToken() {
@@ -18,6 +18,18 @@ export function generateConnectorToken() {
 
 export function hashConnectorToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Invalidates the user's connector token (the `needt_…` bearer external tools
+ * use). The webhook settings stay; the person generates a new token and
+ * reconnects their tools. Returned unawaited so it can join a transaction.
+ */
+export function revokeConnectorTokens(userId: string) {
+  return prisma.connectorSettings.updateMany({
+    where: { userId, tokenHash: { not: null } },
+    data: { tokenHash: null, tokenPreview: null },
+  });
 }
 
 export async function ensureConnectorSettings(userId: string) {

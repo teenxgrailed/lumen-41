@@ -1,4 +1,5 @@
 import {
+  inviteMoodboardMember,
   listMoodboardAccessGrants,
   removeMoodboardAccessGrant,
   setMoodboardAccessGrant,
@@ -14,13 +15,17 @@ jest.mock("@/lib/auth/moodboard-auth", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    moodboard: { findFirst: jest.fn() },
+    moodboard: { findFirst: jest.fn(), update: jest.fn() },
     moodboardAccessGrant: {
       findMany: jest.fn(),
       upsert: jest.fn(),
       deleteMany: jest.fn(),
     },
-    workspaceMember: { findUnique: jest.fn() },
+    workspaceMember: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -32,43 +37,115 @@ const { prisma } =
 const resolveAccess = resolveMoodboardAccess as jest.Mock;
 const moodboardFindFirst = prisma.moodboard.findFirst as jest.Mock;
 const memberFindUnique = prisma.workspaceMember.findUnique as jest.Mock;
+const memberFindFirst = prisma.workspaceMember.findFirst as jest.Mock;
+const memberFindMany = prisma.workspaceMember.findMany as jest.Mock;
 const grantUpsert = prisma.moodboardAccessGrant.upsert as jest.Mock;
 
-const actor = {
-  userId: "owner",
-  workspace: {
-    enabled: true,
-    workspaceId: "workspace",
-    workspaceKind: WorkspaceKind.SHARED,
-    role: WorkspaceRole.OWNER,
-    dataScope: { mode: "workspace" as const, workspaceId: "workspace" },
-  },
-};
+const workspace = (role: WorkspaceRole) => ({
+  enabled: true,
+  workspaceId: "workspace",
+  workspaceKind: WorkspaceKind.SHARED,
+  role,
+  dataScope: { mode: "workspace" as const, workspaceId: "workspace" },
+});
+const actor = { userId: "owner", workspace: workspace(WorkspaceRole.OWNER) };
+const viewer = { userId: "viewer", workspace: workspace(WorkspaceRole.VIEWER) };
+
+const RANK = { VIEWER: 0, EDITOR: 1, FULL_ACCESS: 2 } as const;
+/** The real resolver's rule: the actor's role, if it reaches the required one. */
+function actAs(role: MoodboardAccessRole | null, trashed = false) {
+  resolveAccess.mockImplementation(
+    async (
+      _a: unknown,
+      _id: string,
+      required: MoodboardAccessRole = MoodboardAccessRole.VIEWER
+    ) =>
+      role && RANK[role] >= RANK[required]
+        ? { moodboardId: "board", role, trashed }
+        : null
+  );
+}
 
 describe("Moodboard access grants", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resolveAccess.mockResolvedValue({
-      moodboardId: "board",
-      role: MoodboardAccessRole.FULL_ACCESS,
-    });
+    actAs(MoodboardAccessRole.FULL_ACCESS);
     moodboardFindFirst.mockResolvedValue({
       id: "board",
       createdById: "owner",
       workspaceId: "workspace",
+      linkShare: false,
+      createdBy: { name: "Owen", email: "o@x.io", image: null },
+    });
+    (prisma.moodboardAccessGrant.findMany as jest.Mock).mockResolvedValue([]);
+    memberFindMany.mockResolvedValue([]);
+  });
+
+  describe("listing", () => {
+    it("tells a caller with no access nothing, and reads nothing", async () => {
+      actAs(null);
+      await expect(
+        listMoodboardAccessGrants(actor, "board")
+      ).rejects.toMatchObject({ code: "MOODBOARD_NOT_FOUND", status: 404 });
+      expect(prisma.moodboardAccessGrant.findMany).not.toHaveBeenCalled();
+      expect(memberFindMany).not.toHaveBeenCalled();
+    });
+
+    it("lets a viewer see who is on the board, but not who could be invited", async () => {
+      actAs(MoodboardAccessRole.VIEWER);
+      const res = await listMoodboardAccessGrants(viewer, "board");
+      expect(res.myRole).toBe(MoodboardAccessRole.VIEWER);
+      expect(res.creator).toMatchObject({ name: "Owen" });
+      expect(res.candidates).toEqual([]);
+      expect(memberFindMany).not.toHaveBeenCalled();
+    });
+
+    it("gives full access the workspace members an invite can reach", async () => {
+      memberFindMany.mockResolvedValue([
+        {
+          userId: "m1",
+          user: { name: "Lena", email: "lena@x.io", image: null },
+        },
+      ]);
+      const res = await listMoodboardAccessGrants(actor, "board");
+      expect(res.candidates).toEqual([
+        {
+          userId: "m1",
+          user: { name: "Lena", email: "lena@x.io", image: null },
+        },
+      ]);
     });
   });
 
-  it("requires Full Access before listing grants", async () => {
-    resolveAccess.mockResolvedValue(null);
-
-    await expect(
-      listMoodboardAccessGrants(actor, "board")
-    ).rejects.toMatchObject({
-      code: "MOODBOARD_FULL_ACCESS_REQUIRED",
-      status: 403,
-    });
-    expect(prisma.moodboardAccessGrant.findMany).not.toHaveBeenCalled();
+  describe("changing roles needs full access, on the server", () => {
+    it.each([MoodboardAccessRole.VIEWER, MoodboardAccessRole.EDITOR])(
+      "a %s cannot give, change or invite",
+      async (role) => {
+        actAs(role);
+        const who = { userId: "x", workspace: workspace(WorkspaceRole.EDITOR) };
+        await expect(
+          setMoodboardAccessGrant(
+            who,
+            "board",
+            "m1",
+            MoodboardAccessRole.EDITOR
+          )
+        ).rejects.toMatchObject({ code: "MOODBOARD_FULL_ACCESS_REQUIRED" });
+        await expect(
+          inviteMoodboardMember(
+            who,
+            "board",
+            "m@x.io",
+            MoodboardAccessRole.VIEWER
+          )
+        ).rejects.toMatchObject({ code: "MOODBOARD_FULL_ACCESS_REQUIRED" });
+        await expect(
+          removeMoodboardAccessGrant(who, "board", "m1")
+        ).rejects.toMatchObject({ code: "MOODBOARD_FULL_ACCESS_REQUIRED" });
+        expect(grantUpsert).not.toHaveBeenCalled();
+        expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+      }
+    );
   });
 
   it("refuses to grant access to a non-member", async () => {
@@ -85,7 +162,7 @@ describe("Moodboard access grants", () => {
     expect(prisma.moodboardAccessGrant.upsert).not.toHaveBeenCalled();
   });
 
-  it("stores a direct role only for a current workspace member", async () => {
+  it("stores a direct role only for a current workspace member, and moves Date updated", async () => {
     memberFindUnique.mockResolvedValue({ userId: "member" });
     grantUpsert.mockResolvedValue({
       userId: "member",
@@ -118,15 +195,123 @@ describe("Moodboard access grants", () => {
         }),
       })
     );
+    expect(prisma.moodboard.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "board" } })
+    );
   });
 
-  it("keeps the creator's Full Access fixed", async () => {
-    await expect(
-      removeMoodboardAccessGrant(actor, "board", "owner")
-    ).rejects.toMatchObject({
-      code: "MOODBOARD_CREATOR_ACCESS_FIXED",
-      status: 403,
+  describe("invite by email", () => {
+    it("finds a workspace member by email, ignoring case, and gives the role", async () => {
+      memberFindFirst.mockResolvedValue({ userId: "lena" });
+      memberFindUnique.mockResolvedValue({ userId: "lena" });
+      grantUpsert.mockResolvedValue({ userId: "lena", role: "EDITOR" });
+      await inviteMoodboardMember(
+        actor,
+        "board",
+        " Lena@Studio.CH ",
+        MoodboardAccessRole.EDITOR
+      );
+      expect(memberFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            workspaceId: "workspace",
+            user: { email: { equals: "Lena@Studio.CH", mode: "insensitive" } },
+          },
+        })
+      );
+      expect(grantUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ userId: "lena", role: "EDITOR" }),
+        })
+      );
     });
-    expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+
+    it("answers for an address outside the workspace without creating anything", async () => {
+      memberFindFirst.mockResolvedValue(null);
+      await expect(
+        inviteMoodboardMember(
+          actor,
+          "board",
+          "x@elsewhere.io",
+          MoodboardAccessRole.VIEWER
+        )
+      ).rejects.toMatchObject({
+        code: "WORKSPACE_MEMBER_REQUIRED",
+        status: 403,
+      });
+      expect(grantUpsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a board in Trash keeps its people as they are", () => {
+    beforeEach(() => actAs(MoodboardAccessRole.FULL_ACCESS, true));
+
+    it("refuses to give, invite or remove (409), and writes nothing", async () => {
+      await expect(
+        setMoodboardAccessGrant(
+          actor,
+          "board",
+          "m1",
+          MoodboardAccessRole.EDITOR
+        )
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED", status: 409 });
+      await expect(
+        inviteMoodboardMember(
+          actor,
+          "board",
+          "m@x.io",
+          MoodboardAccessRole.VIEWER
+        )
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED" });
+      await expect(
+        removeMoodboardAccessGrant(actor, "board", "m1")
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED" });
+      expect(grantUpsert).not.toHaveBeenCalled();
+      expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("still lists who is on it, and still lets someone leave", async () => {
+      await expect(
+        listMoodboardAccessGrants(actor, "board")
+      ).resolves.toBeTruthy();
+      actAs(MoodboardAccessRole.VIEWER, true);
+      await removeMoodboardAccessGrant(viewer, "board", "viewer");
+      expect(prisma.moodboardAccessGrant.deleteMany).toHaveBeenCalled();
+    });
+  });
+
+  describe("removing", () => {
+    it("keeps the creator's Full Access fixed", async () => {
+      await expect(
+        removeMoodboardAccessGrant(actor, "board", "owner")
+      ).rejects.toMatchObject({
+        code: "MOODBOARD_CREATOR_ACCESS_FIXED",
+        status: 403,
+      });
+      expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("lets full access remove someone else", async () => {
+      await removeMoodboardAccessGrant(actor, "board", "m1");
+      expect(prisma.moodboardAccessGrant.deleteMany).toHaveBeenCalledWith({
+        where: { moodboardId: "board", userId: "m1" },
+      });
+    });
+
+    it("lets anyone on the board take themselves off (Leave board)", async () => {
+      actAs(MoodboardAccessRole.VIEWER);
+      await removeMoodboardAccessGrant(viewer, "board", "viewer");
+      expect(prisma.moodboardAccessGrant.deleteMany).toHaveBeenCalledWith({
+        where: { moodboardId: "board", userId: "viewer" },
+      });
+    });
+
+    it("does not let a stranger leave a board they cannot see", async () => {
+      actAs(null);
+      await expect(
+        removeMoodboardAccessGrant(viewer, "board", "viewer")
+      ).rejects.toMatchObject({ code: "MOODBOARD_NOT_FOUND" });
+      expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+    });
   });
 });

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 const read = (path: string) => readFileSync(path, "utf8");
 const dockerignore = read(".dockerignore");
 const dockerfile = read("docker/production/Dockerfile");
+const rootDockerfile = read("Dockerfile");
 const workflow = read(".github/workflows/docker-publish.yml");
 const deployGuide = read("docs/deploy.md");
 const envTemplate = read("ENV_TEMPLATE.md");
@@ -44,11 +45,15 @@ describe("production environment contract", () => {
   it("passes only the non-secret build identity to docker-publish", () => {
     const args = buildArgs(workflow);
 
-    expect(workflow.match(/^  RELEASE_SHA:/gm)).toHaveLength(1);
-    expect(args).toContain(
-      "NEEDT_BUILD_SHA=${{ env.RELEASE_SHA }}"
-    );
+    // The release SHA is decided once, by the `changes` job, so a rollback
+    // and a normal release tag images the same way.
+    expect(workflow).toContain("RELEASE_SHA: ${{ needs.changes.outputs.sha }}");
+    expect(args).toContain("NEEDT_BUILD_SHA=${{ env.RELEASE_SHA }}");
+    // Build args are baked into image layers: only public values belong.
     expect(args).not.toMatch(/secrets\./i);
+    for (const line of args.split("\n").filter(Boolean)) {
+      expect(line.trim()).toMatch(/^(NEEDT_BUILD_SHA|NEXT_PUBLIC_[A-Z_]+)=/);
+    }
     for (const secret of runtimeSecrets) {
       expect(args).not.toContain(`${secret}=`);
     }
@@ -70,6 +75,9 @@ describe("production environment contract", () => {
 
   it("does not declare runtime secrets as production-image arguments or environment", () => {
     for (const secret of runtimeSecrets) {
+      expect(rootDockerfile).not.toMatch(
+        new RegExp(`^(?:ARG|ENV)\\s+${secret}(?:=|\\s|$)`, "m")
+      );
       expect(dockerfile).not.toMatch(
         new RegExp(`^(?:ARG|ENV)\\s+${secret}(?:=|\\s|$)`, "m")
       );

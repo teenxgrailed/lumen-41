@@ -1,0 +1,50 @@
+[
+  {
+    "id": "de",
+    "title": "German",
+    "projectId": "german",
+    "color": null,
+    "icon": null,
+    "schedule": {
+      "time": "18:00",
+      "perWeek": null
+    },
+    "archivedAt": null
+  },
+  {
+    "id": "walk",
+    "title": "Walk before work",
+    "projectId": null,
+    "color": null,
+    "icon": null,
+    "schedule": {
+      "time": "08:15",
+      "perWeek": null
+    },
+    "archivedAt": null
+  },
+  {
+    "id": "gym",
+    "title": "Gym",
+    "projectId": null,
+    "color": null,
+    "icon": null,
+    "schedule": {
+      "time": "07:00",
+      "perWeek": 3
+    },
+    "archivedAt": null
+  },
+  {
+    "id": "read",
+    "title": "Read twenty pages",
+    "projectId": null,
+    "color": null,
+    "icon": null,
+    "schedule": {
+      "time": null,
+      "perWeek": null
+    },
+    "archivedAt": null
+  }
+]

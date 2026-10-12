@@ -1,0 +1,72 @@
+[
+  {
+    "id": "e1",
+    "title": "Standup",
+    "startAt": "2026-08-31T10:30",
+    "endAt": "2026-08-31T10:45",
+    "isAllDay": false,
+    "calendarId": "work",
+    "source": "google",
+    "externalId": "gcal-e1"
+  },
+  {
+    "id": "e2",
+    "title": "Standup",
+    "startAt": "2026-09-01T10:30",
+    "endAt": "2026-09-01T10:45",
+    "isAllDay": false,
+    "calendarId": "work",
+    "source": "google",
+    "externalId": "gcal-e2"
+  },
+  {
+    "id": "e3",
+    "title": "Lunch with Jonas",
+    "startAt": "2026-09-01T13:00",
+    "endAt": "2026-09-01T13:45",
+    "isAllDay": false,
+    "calendarId": "personal",
+    "source": "apple",
+    "externalId": "icloud-e3"
+  },
+  {
+    "id": "e4",
+    "title": "1:1 Anna",
+    "startAt": "2026-09-03T11:00",
+    "endAt": "2026-09-03T11:30",
+    "isAllDay": false,
+    "calendarId": "work",
+    "source": "google",
+    "externalId": "gcal-e4"
+  },
+  {
+    "id": "e5",
+    "title": "Print atelier visit",
+    "startAt": "2026-09-02T16:00",
+    "endAt": "2026-09-02T17:00",
+    "isAllDay": false,
+    "calendarId": "work",
+    "source": "google",
+    "externalId": "gcal-e5"
+  },
+  {
+    "id": "e6",
+    "title": "Photo shoot — jackets",
+    "startAt": "2026-09-04T15:00",
+    "endAt": "2026-09-04T16:30",
+    "isAllDay": false,
+    "calendarId": "work",
+    "source": "google",
+    "externalId": "gcal-e6"
+  },
+  {
+    "id": "e7",
+    "title": "Flea market",
+    "startAt": "2026-09-05T11:00",
+    "endAt": "2026-09-05T13:00",
+    "isAllDay": false,
+    "calendarId": "personal",
+    "source": "apple",
+    "externalId": "icloud-e7"
+  }
+]

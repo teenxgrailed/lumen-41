@@ -1,41 +1,44 @@
 import { readFileSync } from "node:fs";
 
 const workflow = readFileSync(".github/workflows/docker-publish.yml", "utf8");
-const deployScript = readFileSync("scripts/trigger-coolify-deploy.sh", "utf8");
+const deployScript = readFileSync("scripts/coolify-deploy-image.sh", "utf8");
+
+function job(name: string) {
+  const start = workflow.indexOf(`\n  ${name}:\n`);
+  expect(start).toBeGreaterThan(-1);
+  const next = workflow.slice(start + 1).search(/\n  [a-z-]+:\n/);
+  return next === -1
+    ? workflow.slice(start)
+    : workflow.slice(start, start + 1 + next);
+}
 
 describe("production deployment workflow", () => {
   it("accepts privileged workflow runs only from a successful main push in this repository", () => {
-    expect(workflow).toContain("github.event.workflow_run.event == 'push'");
-    expect(workflow).toContain(
+    const changes = job("changes");
+    expect(changes).toContain("github.event.workflow_run.event == 'push'");
+    expect(changes).toContain(
       "github.event.workflow_run.head_repository.full_name == github.repository"
     );
-    expect(workflow).toContain(
+    expect(changes).toContain(
       "github.event.workflow_run.head_branch == github.event.repository.default_branch"
     );
-    expect(workflow).toContain(
+    expect(changes).toContain(
       "github.event.workflow_run.conclusion == 'success'"
     );
-    expect(workflow).toContain(
+    expect(changes).toContain(
       "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
     );
-    // Every checkout pins the release commit, deploy-web's included.
-    expect(workflow.match(/ref: \$\{\{ env\.RELEASE_SHA \}\}/g)).toHaveLength(
-      4
-    );
+    // Every later job hangs off `changes`, so none can run without the gate.
+    for (const name of ["gates", "images", "deploy-web", "deploy-runtimes"]) {
+      expect(job(name)).toMatch(/needs: (changes|\[changes)/);
+    }
     expect(workflow).not.toContain(
       "ref: ${{ github.event.repository.default_branch }}"
     );
-    expect(workflow.match(/Verify checked-out release commit/g)).toHaveLength(
-      3
-    );
-    expect(workflow).toContain("context: git");
-    expect(workflow).toContain("type=raw,value=main");
-    expect(workflow).not.toContain("enable={{is_default_branch}}");
+    // Every checkout after `changes` pins the one release SHA it decided.
     expect(
-      workflow.match(
-        /DEPLOY_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/g
-      )
-    ).toHaveLength(2);
+      workflow.match(/ref: \$\{\{ needs\.changes\.outputs\.sha \}\}/g)
+    ).toHaveLength(4);
   });
 
   it("pins every third-party action to an immutable commit", () => {
@@ -48,15 +51,59 @@ describe("production deployment workflow", () => {
     }
   });
 
-  it("fails closed when required deployment configuration is missing", () => {
-    expect(workflow).toContain(
-      "${WEB_HOOK:?COOLIFY_WEB_WEBHOOK_URL is required}"
+  it("skips the release when only documentation changed since production", () => {
+    const changes = job("changes");
+    // Compared with what production serves, not HEAD~1, so merges landed
+    // during a skipped release are never lost.
+    expect(changes).toContain(
+      'git diff --name-only "$previous_sha" "$HEAD_SHA"'
     );
-    expect(workflow).toContain(
-      "${COLLABORATION_HOOK:?COOLIFY_COLLABORATION_WEBHOOK_URL is required}"
+    expect(changes).toContain("fetch-depth: 0");
+    expect(changes).toContain("docs/|openspec/");
+    // Unknown production history deploys rather than skips.
+    expect(changes).toContain('if [ "$previous_sha" = unknown ]');
+    expect(job("images")).toContain("needs: [changes, gates]");
+    expect(job("gates")).toContain("needs.changes.outputs.deploy == 'true'");
+  });
+
+  it("builds the three runtimes as amd64 images tagged with the release SHA", () => {
+    const images = job("images");
+    for (const target of ["production", "worker", "collaboration"]) {
+      expect(images).toContain(`target: ${target}`);
+    }
+    expect(images).toContain("file: Dockerfile");
+    expect(images).toContain("target: ${{ matrix.target }}");
+    expect(images).toContain(
+      "${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ env.RELEASE_SHA }}"
     );
+    expect(images).toContain("platforms: linux/amd64");
+    expect(workflow).not.toContain("linux/arm64");
+    expect(workflow).not.toContain("docker/setup-qemu-action");
+    // Separate cache scopes, or the three builds evict each other.
+    expect(images).toContain("cache-to: type=gha,scope=${{ matrix.target }}");
+  });
+
+  it("fails closed when build-time or deployment configuration is missing", () => {
+    const images = job("images");
+    for (const name of [
+      "NEXT_PUBLIC_APP_URL",
+      "NEXT_PUBLIC_COLLABORATION_URL",
+      "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+      "NEXT_PUBLIC_SENTRY_DSN",
+    ]) {
+      expect(images).toContain(`\${${name}:?vars.${name} is required}`);
+    }
+    expect(images).toContain(
+      "${SENTRY_AUTH_TOKEN:?SENTRY_AUTH_TOKEN is required}"
+    );
+    expect(images).toContain("${SENTRY_ORG:?SENTRY_ORG is required}");
+    expect(images).toContain("${SENTRY_PROJECT:?SENTRY_PROJECT is required}");
     expect(workflow).toContain(
       "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
+    );
+    expect(workflow).toContain("${WEB_UUID:?COOLIFY_WEB_UUID is required}");
+    expect(workflow).toContain(
+      "${COLLABORATION_UUID:?COOLIFY_COLLABORATION_UUID is required}"
     );
     expect(workflow).toContain(
       "${WEB_HEALTH_URL:?NEEDT_PRODUCTION_HEALTH_URL is required}"
@@ -65,120 +112,75 @@ describe("production deployment workflow", () => {
       "${COLLABORATION_HEALTH_URL:?NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL is required}"
     );
     expect(workflow).not.toContain("NEEDT_PRODUCTION_WORKER_HEALTH_URL");
-    expect(workflow).not.toContain("if: ${{ env.WEB_HOOK != '' }}");
   });
 
-  it("uses authenticated Coolify deploy webhooks and manual native rollback", () => {
-    // Every redeploy goes through the one script, which posts, falls back to
-    // GET only on 405, and fails the job on anything else.
+  it("deploys through one script that needs only deploy rights", () => {
     expect(
-      workflow.match(/\.\/scripts\/trigger-coolify-deploy\.sh/g)
+      workflow.match(/\.\/scripts\/coolify-deploy-image\.sh/g)
     ).toHaveLength(3);
-    expect(workflow).not.toContain("--request GET");
-    // Both deploy jobs run the script, so both must check the repo out.
-    expect(workflow.match(/actions\/checkout@/g)).toHaveLength(4);
-    expect(deployScript).toContain("request POST");
+    expect(workflow).not.toContain("trigger-coolify-deploy.sh");
     expect(deployScript).toContain("Authorization: Bearer $COOLIFY_TOKEN");
-    expect(deployScript).toContain('"405"');
+    expect(deployScript).toContain("/api/v1/deploy?uuid=");
+    // Coolify 4.3 answers only POST here; GET returned 405 on 2026-10-08.
+    expect(deployScript).toContain("request POST");
+    expect(deployScript.indexOf("request POST")).toBeLessThan(
+      deployScript.indexOf("request GET")
+    );
     expect(deployScript).toContain("exit 1");
-    expect(workflow).not.toContain("COOLIFY_ROLLBACK_WEBHOOK_URL");
-    expect(workflow).not.toContain("?sha=$DEPLOY_SHA");
-    expect(workflow).toContain("Record current healthy web SHA");
-    expect(workflow).toContain(
-      "Previous production health is unavailable; continuing with bootstrap deployment"
-    );
-    expect(workflow).toContain("previous_sha=unknown");
-    expect(workflow).toContain("Record manual rollback instructions");
-    expect(workflow).toContain(
-      "use Coolify Deployments to restore the previous successful local image"
-    );
-
-    const previousShaIndex = workflow.indexOf("Record current healthy web SHA");
-    const webDeployIndex = workflow.indexOf("Trigger web redeploy");
-    expect(previousShaIndex).toBeGreaterThan(-1);
-    expect(webDeployIndex).toBeGreaterThan(previousShaIndex);
+    // Changing a resource's configuration needs the token's `write`
+    // ability, which the release token does not have (HTTP 403 on
+    // 2026-10-08).
+    expect(deployScript).not.toContain("PATCH");
   });
 
   it("continues to a repair deploy when the previous web health is unavailable", () => {
-    const recordPreviousSha = workflow.slice(
-      workflow.indexOf("Record current healthy web SHA"),
-      workflow.indexOf("Trigger web redeploy")
+    const changes = job("changes");
+    expect(changes).toContain("previous_sha=unknown");
+    expect(changes).toContain(
+      'curl --silent --show-error --max-time 30 "${WEB_HEALTH_URL:-}" || true'
     );
-
-    expect(recordPreviousSha).toContain("previous_sha=unknown");
-    expect(recordPreviousSha).toContain(
-      'curl --silent --show-error --max-time 30 "$WEB_HEALTH_URL" || true'
-    );
-    expect(recordPreviousSha).toContain("jq -r");
-    expect(recordPreviousSha).toContain("2>/dev/null || true");
-    expect(recordPreviousSha).toContain(
-      '[[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]]'
-    );
-    expect(recordPreviousSha).not.toContain(
-      'curl --fail --silent --show-error --max-time 30 "$WEB_HEALTH_URL"'
-    );
-    expect(recordPreviousSha).not.toContain("jq -er");
+    expect(changes).toContain("2>/dev/null || true");
+    expect(changes).toContain('[[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]]');
+    expect(changes).not.toContain("jq -er");
   });
 
   it("waits for the exact deployed web SHA before dependent runtimes", () => {
-    const healthIndex = workflow.indexOf(
-      "Wait for the exact web SHA and database health"
-    );
-    const workerIndex = workflow.indexOf("Trigger worker redeploy");
-    const collaborationIndex = workflow.indexOf(
-      "Trigger collaboration redeploy"
-    );
-
-    expect(workflow).toContain('healthy_sha" = "$DEPLOY_SHA');
-    expect(healthIndex).toBeGreaterThan(-1);
-    expect(workerIndex).toBeGreaterThan(healthIndex);
-    expect(collaborationIndex).toBeGreaterThan(healthIndex);
+    const web = job("deploy-web");
+    const runtimes = job("deploy-runtimes");
+    expect(web).toContain('healthy_sha" = "$DEPLOY_SHA');
+    expect(runtimes).toContain("needs: [changes, images, deploy-web]");
   });
 
   it("checks runtime parity through public web and collaboration health", () => {
-    const workerIndex = workflow.indexOf("Trigger worker redeploy");
-    const collaborationIndex = workflow.indexOf(
-      "Trigger collaboration redeploy"
-    );
-    const parityIndex = workflow.indexOf("Wait for all runtime SHAs");
-
-    expect(workflow).toContain(
+    const runtimes = job("deploy-runtimes");
+    expect(runtimes).toContain(
       "COLLABORATION_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL }}"
     );
     expect(workflow).not.toContain("WORKER_HEALTH_URL");
-    expect(workflow).toContain("run: npm run check:runtime-shas");
-    expect(parityIndex).toBeGreaterThan(workerIndex);
-    expect(parityIndex).toBeGreaterThan(collaborationIndex);
+    expect(runtimes).toContain("run: npm run check:runtime-shas");
+    expect(runtimes.indexOf("Wait for all runtime SHAs")).toBeGreaterThan(
+      runtimes.indexOf("Deploy the collaboration image")
+    );
+  });
+
+  it("points each Coolify resource at the image CI pushed for its commit", () => {
+    for (const app of ["web", "worker", "collaboration"]) {
+      const dockerfile = readFileSync(
+        `docker/runtime/${app}.Dockerfile`,
+        "utf8"
+      );
+      // Pinned to the deployed commit, never a moving tag a cache could hold.
+      expect(dockerfile).toContain("ARG SOURCE_COMMIT\n");
+      expect(dockerfile).toContain(
+        `FROM ghcr.io/teenxgrails/needt-${app}:\${SOURCE_COMMIT}`
+      );
+      expect(dockerfile).not.toMatch(/^RUN /m);
+    }
   });
 
   it("bounds the executable collaboration smoke in the gates job", () => {
-    expect(workflow).toContain(
+    expect(job("gates")).toContain(
       "timeout 30s npm run check:collaboration-runtime"
     );
-  });
-
-  it("builds only the native AMD64 production image", () => {
-    expect(workflow).toContain("platforms: linux/amd64");
-    expect(workflow).not.toContain("linux/arm64");
-    expect(workflow).not.toContain("docker/setup-qemu-action@v3");
-  });
-
-  it("fails before publishing when Sentry source-map credentials are empty", () => {
-    expect(workflow).toContain(
-      "Validate Sentry source-map upload configuration"
-    );
-    expect(workflow).toContain(
-      "${SENTRY_AUTH_TOKEN:?SENTRY_AUTH_TOKEN is required}"
-    );
-    expect(workflow).toContain("${SENTRY_ORG:?SENTRY_ORG is required}");
-    expect(workflow).toContain("${SENTRY_PROJECT:?SENTRY_PROJECT is required}");
-  });
-
-  it("deploys web in parallel with an amd64-only image publish", () => {
-    expect(workflow).toContain("deploy-web:\n    needs: gates");
-    expect(workflow).toContain("platforms: linux/amd64");
-    expect(workflow).not.toContain("linux/arm64");
-    expect(workflow).not.toContain("docker/setup-qemu-action");
-    expect(workflow).toContain("deploy-runtimes:\n    needs: deploy-web");
   });
 });

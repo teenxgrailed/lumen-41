@@ -63,6 +63,7 @@ describe("Moodboard access resolver", () => {
     ).resolves.toEqual({
       moodboardId: "board",
       role: MoodboardAccessRole.EDITOR,
+      trashed: false,
     });
   });
 
@@ -100,6 +101,20 @@ describe("Moodboard access resolver", () => {
     ).resolves.toEqual({
       moodboardId: "board",
       role: MoodboardAccessRole.FULL_ACCESS,
+      trashed: false,
     });
+  });
+
+  it("says when the board is in Trash, so writes can be refused (restore stays allowed)", async () => {
+    findFirst.mockResolvedValue({
+      id: "board",
+      createdById: "creator",
+      workspaceId: "workspace",
+      trashedAt: new Date("2026-10-10T00:00:00Z"),
+      accessGrants: [],
+    });
+    await expect(
+      resolveMoodboardAccess(actor(WorkspaceRole.OWNER), "board")
+    ).resolves.toMatchObject({ trashed: true });
   });
 });

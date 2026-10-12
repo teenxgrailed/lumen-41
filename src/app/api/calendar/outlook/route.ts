@@ -118,6 +118,7 @@ export async function GET(req: NextRequest) {
       updatedAt: newDate(),
       caldavUrl: null,
       caldavUsername: null,
+      syncOptions: null,
       userId: userId ?? null,
     };
 

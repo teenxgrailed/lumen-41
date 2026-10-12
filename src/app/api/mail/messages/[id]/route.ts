@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { MailProvider, TaskReminderKind, WorkspaceRole } from "@prisma/client";
 
+import { toPublicMailMessage } from "@/lib/api/public-records";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
@@ -16,6 +17,11 @@ import {
   mutateOutlookMessage,
 } from "@/lib/mail/providers";
 import { sanitizeMailHtml } from "@/lib/mail/sanitize";
+import {
+  mailV3FieldsSchema,
+  parseV3Fields,
+  trashedAtFrom,
+} from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "MailMessageAPI";
@@ -50,7 +56,7 @@ export async function GET(
 
     const sanitized = sanitizeMailHtml(message.bodyHtml || "");
     return NextResponse.json({
-      ...message,
+      ...toPublicMailMessage(message),
       bodyHtml: sanitized.html,
       hasRemoteImages: sanitized.hasRemoteImages,
     });
@@ -85,6 +91,17 @@ export async function PATCH(
       snoozedUntil?: string | null;
       remindAt?: string;
     };
+    // Design v3: Trash and "needs a reply" change Needt's copy only; mail
+    // stays read-only at the provider (owner decision 2026-10-09).
+    const v3 = parseV3Fields(mailV3FieldsSchema, body);
+    if (!v3.ok) return NextResponse.json({ error: v3.error }, { status: 400 });
+    const trashedAt = trashedAtFrom(v3.data.trashed);
+    const localOnly = {
+      ...(trashedAt !== undefined && { trashedAt }),
+      ...(v3.data.needsReply !== undefined && {
+        needsReply: v3.data.needsReply,
+      }),
+    };
     const snoozedUntil =
       body.snoozedUntil === null
         ? null
@@ -109,7 +126,8 @@ export async function PATCH(
       body.isRead === undefined &&
       !body.archive &&
       snoozedUntil === undefined &&
-      !remindAt
+      !remindAt &&
+      Object.keys(localOnly).length === 0
     ) {
       return NextResponse.json(
         { error: "No mail action supplied." },
@@ -186,6 +204,7 @@ export async function PATCH(
       ...(body.isRead !== undefined && { isRead: body.isRead }),
       ...(body.archive && { isArchived: true }),
       ...(snoozedUntil !== undefined && { snoozedUntil }),
+      ...localOnly,
     });
     return NextResponse.json(updated);
   } catch (error) {

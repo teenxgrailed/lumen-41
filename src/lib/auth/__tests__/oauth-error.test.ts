@@ -12,4 +12,8 @@ describe("OAuth error messages", () => {
       "secret-provider-detail"
     );
   });
+
+  it("points a refused new account at the waitlist", () => {
+    expect(oauthErrorMessage("SignupsClosed")).toContain("needt.app");
+  });
 });
