@@ -13,6 +13,7 @@ import {
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
+import { cleanupOAuth } from "@/services/oauth/cleanup";
 import { collectOperationsHealth } from "@/services/operations/health";
 import { pruneAgentActionLog } from "@/services/ops/retention";
 import {
@@ -77,6 +78,7 @@ import {
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
+  getOAuthCleanupQueue,
   getReminderQueue,
   getTrialQueue,
   getWebhookRenewQueue,
@@ -89,6 +91,7 @@ import {
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
+  type OAuthCleanupJobData,
   QUEUE_NAMES,
   ReminderJobData,
   RescheduleJobData,
@@ -226,6 +229,10 @@ async function processLifetimeCheckoutReconciliation() {
   await reconcileLifetimeCheckoutReservations();
 }
 
+async function processOAuthCleanup() {
+  await cleanupOAuth();
+}
+
 async function processTrials() {
   try {
     await hashLegacyTrialEmailKeys();
@@ -309,6 +316,11 @@ const workers = [
     connection,
     concurrency: 1,
   }),
+  new Worker<OAuthCleanupJobData>(
+    QUEUE_NAMES.oauthCleanup,
+    processOAuthCleanup,
+    { connection, concurrency: 1 }
+  ),
   new Worker<AccountLifecycleJobData>(
     QUEUE_NAMES.accountLifecycle,
     processAccountLifecycle,
@@ -414,6 +426,11 @@ export async function start(): Promise<void> {
     "trial-lifecycle-sweep",
     { every: 60 * 60_000 },
     { name: "sweep-trials", data: { kind: "sweep" } }
+  );
+  await getOAuthCleanupQueue().upsertJobScheduler(
+    "oauth-cleanup-sweep",
+    { every: 60 * 60_000 },
+    { name: "sweep-oauth", data: { kind: "sweep" } }
   );
   await getAccountLifecycleQueue().upsertJobScheduler(
     "account-lifecycle-sweep",

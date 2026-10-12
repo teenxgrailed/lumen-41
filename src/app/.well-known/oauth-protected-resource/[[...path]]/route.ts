@@ -10,9 +10,9 @@ type RouteContext = { params: Promise<{ path?: string[] }> };
  * Served at `/.well-known/oauth-protected-resource` and at the path-suffixed
  * form for the canonical resource (`…/oauth-protected-resource/mcp`), on the
  * MCP host and on the app host. Only the canonical resource is described:
- * OAuth tokens are bound to it, so a client must connect to
- * `https://mcp.needt.app/mcp` to use OAuth. The app host's `/api/mcp` takes
- * personal tokens only and has no metadata of its own.
+ * OAuth tokens are minted for `https://mcp.needt.app/mcp`, so OAuth clients
+ * connect there. The app host's `/api/mcp` runs the same handler and accepts
+ * the same tokens (and personal ones); it simply has no metadata of its own.
  */
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   const { path = [] } = await params;

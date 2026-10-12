@@ -5,6 +5,7 @@ import { resolveAccessToken } from "@/services/oauth/grants";
 import {
   MCP_SCOPES,
   type McpScope,
+  challengeScope,
   insufficientScopeChallenge,
 } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
@@ -96,7 +97,7 @@ export function insufficientScopeResponse(required: readonly McpScope[]) {
     {
       error: "insufficient_scope",
       error_description: `This call needs the ${required.join(", ")} scope.`,
-      scope: [...new Set([...required, ...MCP_SCOPES])].join(" "),
+      scope: challengeScope(required),
     },
     {
       status: 403,

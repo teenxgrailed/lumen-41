@@ -13,7 +13,11 @@ import net from "node:net";
  *   answer (rebinding) cannot swap it;
  * - redirects are followed by hand, each hop checked the same way, at most
  *   two;
- * - a short timeout and a size cap.
+ * - one hard deadline (5 s) for everything — DNS, connect, TLS, every hop
+ *   and the body — so a slow-dripping server cannot hold a request; DNS
+ *   goes through a resolver with its own timeout, not the libuv thread
+ *   pool, so slow zones cannot exhaust it;
+ * - a size cap, and the answer must say it is JSON.
  */
 
 export class UnsafeFetchError extends Error {
@@ -110,6 +114,10 @@ export function isPrivateAddress(ip: string): boolean {
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) {
     return isPrivateAddress(embeddedV4()); // 64:ff9b::/96 NAT64
   }
+  if (g.slice(0, 6).every((x) => x === 0)) return true; // ::/96 IPv4-compatible
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true; // 64:ff9b:1::/48 local NAT64
+  if (g[0] === 0x2001 && g[1] === 0) return true; // 2001::/32 Teredo
+  if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local
   if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
   if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
@@ -147,14 +155,24 @@ async function publicAddress(
   return addresses[0];
 }
 
-const defaultDeps: SafeFetchDeps = {
-  async lookup(hostname) {
-    const answers = await dns.promises.lookup(hostname, {
-      all: true,
-      verbatim: true,
+const resolver = new dns.promises.Resolver({ timeout: 2_000, tries: 1 });
+
+async function resolveAll(hostname: string): Promise<string[]> {
+  const settle = (p: Promise<string[]>) =>
+    p.catch((error: NodeJS.ErrnoException) => {
+      // No record of this family is an empty answer, not a failure.
+      if (error.code === "ENODATA" || error.code === "ENOTFOUND") return [];
+      throw error;
     });
-    return answers.map((a) => a.address);
-  },
+  const [v4, v6] = await Promise.all([
+    settle(resolver.resolve4(hostname)),
+    settle(resolver.resolve6(hostname)),
+  ]);
+  return [...v4, ...v6];
+}
+
+const defaultDeps: SafeFetchDeps = {
+  lookup: resolveAll,
   get(url, address, { timeoutMs, maxBytes }) {
     return new Promise((resolve, reject) => {
       const request = https.request(
@@ -168,7 +186,6 @@ const defaultDeps: SafeFetchDeps = {
             accept: "application/json",
             "user-agent": "Needt-OAuth/1",
           },
-          timeout: timeoutMs,
           // Connect to the address that was checked, never a fresh answer.
           lookup: (_host, options, callback) => {
             const family = net.isIPv6(address) ? 6 : 4;
@@ -208,14 +225,37 @@ const defaultDeps: SafeFetchDeps = {
           response.on("error", reject);
         }
       );
-      request.on("timeout", () =>
-        request.destroy(new UnsafeFetchError("The fetch timed out."))
+      // A hard deadline, not a socket idle timeout: a server that sends one
+      // byte a second never goes idle.
+      const deadline = setTimeout(
+        () => request.destroy(new UnsafeFetchError("The fetch timed out.")),
+        timeoutMs
       );
+      request.on("close", () => clearTimeout(deadline));
       request.on("error", reject);
       request.end();
     });
   },
 };
+
+function withDeadline<T>(work: Promise<T>, deadline: number): Promise<T> {
+  const left = deadline - Date.now();
+  if (left <= 0) {
+    return Promise.reject(new UnsafeFetchError("The fetch timed out."));
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new UnsafeFetchError("The fetch timed out.")),
+        left
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+const JSON_TYPE = /^application\/(?:[\w.+-]+\+)?json(?:\s*;|$)/i;
 
 export async function safeFetchJson(
   input: string,
@@ -231,11 +271,21 @@ export async function safeFetchJson(
     timeoutMs: options.timeoutMs ?? 5_000,
     maxBytes: options.maxBytes ?? 64 * 1024,
   };
+  const deadline = Date.now() + limits.timeoutMs;
   let url = new URL(input);
   for (let hop = 0; hop <= (options.maxRedirects ?? 2); hop++) {
     checkUrl(url);
-    const address = await publicAddress(url.hostname, deps);
-    const response = await deps.get(url, address, limits);
+    const address = await withDeadline(
+      publicAddress(url.hostname, deps),
+      deadline
+    );
+    const response = await withDeadline(
+      deps.get(url, address, {
+        timeoutMs: Math.max(1, deadline - Date.now()),
+        maxBytes: limits.maxBytes,
+      }),
+      deadline
+    );
     if (response.body.length > limits.maxBytes) {
       throw new UnsafeFetchError("The document is too large.");
     }
@@ -245,6 +295,9 @@ export async function safeFetchJson(
     }
     if (response.status !== 200) {
       throw new UnsafeFetchError(`The fetch answered ${response.status}.`);
+    }
+    if (!JSON_TYPE.test(response.contentType ?? "")) {
+      throw new UnsafeFetchError("The document is not served as JSON.");
     }
     try {
       return JSON.parse(response.body.toString("utf8"));

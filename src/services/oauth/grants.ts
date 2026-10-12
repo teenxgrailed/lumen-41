@@ -1,4 +1,5 @@
 import type { BearerAuth } from "@/services/connectors/bearer";
+import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 
 import { newDate } from "@/lib/date-utils";
@@ -80,14 +81,19 @@ export async function createAuthorizationCode(input: {
   return code;
 }
 
-async function issueTokens(input: {
-  familyId: string;
-  clientDbId: string;
-  userId: string;
-  scope: string;
-  resource: string;
-  workspaceId: string | null;
-}): Promise<TokenResponse> {
+type Tx = Prisma.TransactionClient;
+
+async function issueTokens(
+  tx: Tx,
+  input: {
+    familyId: string;
+    clientDbId: string;
+    userId: string;
+    scope: string;
+    resource: string;
+    workspaceId: string | null;
+  }
+): Promise<TokenResponse> {
   const now = newDate().getTime();
   const access = randomToken(ACCESS_TOKEN_PREFIX);
   const refresh = randomToken(REFRESH_TOKEN_PREFIX);
@@ -99,28 +105,26 @@ async function issueTokens(input: {
     resource: input.resource,
     workspaceId: input.workspaceId,
   };
-  await prisma.$transaction([
-    prisma.oAuthToken.create({
-      data: {
+  await tx.oAuthToken.createMany({
+    data: [
+      {
         ...shared,
         tokenHash: sha256Hex(access),
         type: "access",
         expiresAt: new Date(now + ACCESS_TOKEN_TTL_MS),
       },
-    }),
-    prisma.oAuthToken.create({
-      data: {
+      {
         ...shared,
         tokenHash: sha256Hex(refresh),
         type: "refresh",
         expiresAt: new Date(now + REFRESH_TOKEN_TTL_MS),
       },
-    }),
-    prisma.oAuthClient.update({
-      where: { id: input.clientDbId },
-      data: { lastUsedAt: newDate() },
-    }),
-  ]);
+    ],
+  });
+  await tx.oAuthClient.update({
+    where: { id: input.clientDbId },
+    data: { lastUsedAt: newDate() },
+  });
   return {
     access_token: access,
     token_type: "Bearer",
@@ -130,15 +134,28 @@ async function issueTokens(input: {
   };
 }
 
-/** Revokes every token of one authorization (a "connected app" grant). */
-export function revokeFamily(familyId: string) {
-  return prisma.oAuthToken.updateMany({
+/**
+ * Revokes every token of one authorization (a "connected app" grant), and
+ * spends any code of it that was not exchanged yet.
+ */
+export async function revokeFamily(familyId: string, tx: Tx = prisma) {
+  const now = newDate();
+  await tx.oAuthAuthorizationCode.updateMany({
+    where: { familyId, usedAt: null },
+    data: { usedAt: now },
+  });
+  return tx.oAuthToken.updateMany({
     where: { familyId, revokedAt: null },
-    data: { revokedAt: newDate() },
+    data: { revokedAt: now },
   });
 }
 
-/** grant_type=authorization_code */
+/**
+ * grant_type=authorization_code. The claim of the code and the tokens it
+ * produces commit together: a second, concurrent exchange of the same code
+ * waits on the row the first one claimed, then finds it used and revokes
+ * whatever the first produced — no live token survives a replay.
+ */
 export async function exchangeAuthorizationCode(input: {
   code: string;
   clientDbId: string;
@@ -147,53 +164,68 @@ export async function exchangeAuthorizationCode(input: {
   resource: string | null;
 }): Promise<TokenResponse> {
   checkResource(input.resource);
-  const stored = await prisma.oAuthAuthorizationCode.findUnique({
-    where: { codeHash: sha256Hex(input.code) },
-  });
-  if (!stored || stored.clientId !== input.clientDbId) {
-    throw new OAuthError("invalid_grant", "Unknown authorization code.");
-  }
-  // Single use. A second presentation means the code leaked: whatever it
-  // already produced is revoked too (OAuth 2.1 §4.1.3).
-  const claimed = await prisma.oAuthAuthorizationCode.updateMany({
-    where: { id: stored.id, usedAt: null },
-    data: { usedAt: newDate() },
-  });
-  if (claimed.count === 0) {
-    await revokeFamily(stored.familyId);
+  const outcome = await prisma.$transaction(
+    async (tx): Promise<TokenResponse | OAuthError | { replay: string }> => {
+      const stored = await tx.oAuthAuthorizationCode.findUnique({
+        where: { codeHash: sha256Hex(input.code) },
+      });
+      if (!stored || stored.clientId !== input.clientDbId) {
+        return new OAuthError("invalid_grant", "Unknown authorization code.");
+      }
+      const claimed = await tx.oAuthAuthorizationCode.updateMany({
+        where: { id: stored.id, usedAt: null },
+        data: { usedAt: newDate() },
+      });
+      // Used before: the code leaked; whatever it produced is revoked
+      // (OAuth 2.1 §4.1.3), after this transaction.
+      if (claimed.count === 0) return { replay: stored.familyId };
+      if (stored.expiresAt.getTime() <= newDate().getTime()) {
+        return new OAuthError(
+          "invalid_grant",
+          "The authorization code expired."
+        );
+      }
+      // Exactly the redirect_uri of the authorization request (a loopback
+      // port is free only when matching the registered URIs, not here).
+      if (stored.redirectUri !== input.redirectUri) {
+        return new OAuthError("invalid_grant", "redirect_uri does not match.");
+      }
+      if (!verifyPkce(input.codeVerifier, stored.codeChallenge)) {
+        return new OAuthError("invalid_grant", "PKCE verification failed.");
+      }
+      if (stored.resource !== input.resource) {
+        return new OAuthError(
+          "invalid_target",
+          "resource differs from the authorization request."
+        );
+      }
+      return issueTokens(tx, {
+        familyId: stored.familyId,
+        clientDbId: stored.clientId,
+        userId: stored.userId,
+        scope: stored.scope,
+        resource: stored.resource,
+        workspaceId: stored.workspaceId,
+      });
+    }
+  );
+  if ("replay" in outcome) {
+    await revokeFamily(outcome.replay);
     throw new OAuthError(
       "invalid_grant",
       "The authorization code was already used."
     );
   }
-  if (stored.expiresAt.getTime() <= newDate().getTime()) {
-    throw new OAuthError("invalid_grant", "The authorization code expired.");
-  }
-  // Exactly the redirect_uri of the authorization request (a loopback port
-  // is free only when matching the registered URIs, not here).
-  if (stored.redirectUri !== input.redirectUri) {
-    throw new OAuthError("invalid_grant", "redirect_uri does not match.");
-  }
-  if (!verifyPkce(input.codeVerifier, stored.codeChallenge)) {
-    throw new OAuthError("invalid_grant", "PKCE verification failed.");
-  }
-  if (stored.resource !== input.resource) {
-    throw new OAuthError(
-      "invalid_target",
-      "resource differs from the authorization request."
-    );
-  }
-  return issueTokens({
-    familyId: stored.familyId,
-    clientDbId: stored.clientId,
-    userId: stored.userId,
-    scope: stored.scope,
-    resource: stored.resource,
-    workspaceId: stored.workspaceId,
-  });
+  if (outcome instanceof OAuthError) throw outcome;
+  return outcome;
 }
 
-/** grant_type=refresh_token, rotating the refresh token within its family. */
+/**
+ * grant_type=refresh_token, rotating the refresh token within its family.
+ * Claim, revocation of the previous access token and the new pair commit
+ * together; a concurrent second use of the same refresh token waits, finds
+ * it rotated and revokes the whole family.
+ */
 export async function refreshTokens(input: {
   refreshToken: string;
   clientDbId: string;
@@ -201,60 +233,70 @@ export async function refreshTokens(input: {
   scope: string | null;
 }): Promise<TokenResponse> {
   if (input.resource !== null) checkResource(input.resource);
-  const stored = await prisma.oAuthToken.findUnique({
-    where: { tokenHash: sha256Hex(input.refreshToken) },
-  });
-  if (
-    !stored ||
-    stored.type !== "refresh" ||
-    stored.clientId !== input.clientDbId
-  ) {
-    throw new OAuthError("invalid_grant", "Unknown refresh token.");
-  }
-  if (stored.revokedAt) {
-    throw new OAuthError("invalid_grant", "The refresh token was revoked.");
-  }
-  // Rotation: the first use wins. A rotated token presented again means two
-  // parties hold it; the whole family is revoked.
-  const claimed = await prisma.oAuthToken.updateMany({
-    where: { id: stored.id, rotatedAt: null, revokedAt: null },
-    data: { rotatedAt: newDate(), lastUsedAt: newDate() },
-  });
-  if (claimed.count === 0) {
-    await revokeFamily(stored.familyId);
+  const outcome = await prisma.$transaction(
+    async (tx): Promise<TokenResponse | OAuthError | { reuse: string }> => {
+      const stored = await tx.oAuthToken.findUnique({
+        where: { tokenHash: sha256Hex(input.refreshToken) },
+      });
+      if (
+        !stored ||
+        stored.type !== "refresh" ||
+        stored.clientId !== input.clientDbId
+      ) {
+        return new OAuthError("invalid_grant", "Unknown refresh token.");
+      }
+      if (stored.revokedAt) {
+        return new OAuthError(
+          "invalid_grant",
+          "The refresh token was revoked."
+        );
+      }
+      const claimed = await tx.oAuthToken.updateMany({
+        where: { id: stored.id, rotatedAt: null, revokedAt: null },
+        data: { rotatedAt: newDate(), lastUsedAt: newDate() },
+      });
+      // Rotation: the first use wins. A rotated token presented again means
+      // two parties hold it; the family is revoked after this transaction.
+      if (claimed.count === 0) return { reuse: stored.familyId };
+      if (stored.expiresAt.getTime() <= newDate().getTime()) {
+        return new OAuthError("invalid_grant", "The refresh token expired.");
+      }
+      let scope = stored.scope;
+      if (input.scope !== null) {
+        const asked = parseScopes(input.scope);
+        const granted = stored.scope.split(" ");
+        if (!asked || asked.some((s) => !granted.includes(s))) {
+          return new OAuthError(
+            "invalid_scope",
+            "A refresh can only narrow the granted scopes."
+          );
+        }
+        scope = formatScopes(asked);
+      }
+      // The access tokens of the previous step stop with the rotation.
+      await tx.oAuthToken.updateMany({
+        where: { familyId: stored.familyId, type: "access", revokedAt: null },
+        data: { revokedAt: newDate() },
+      });
+      return issueTokens(tx, {
+        familyId: stored.familyId,
+        clientDbId: stored.clientId,
+        userId: stored.userId,
+        scope,
+        resource: stored.resource,
+        workspaceId: stored.workspaceId,
+      });
+    }
+  );
+  if ("reuse" in outcome) {
+    await revokeFamily(outcome.reuse);
     throw new OAuthError(
       "invalid_grant",
       "The refresh token was already used; the connection was revoked."
     );
   }
-  if (stored.expiresAt.getTime() <= newDate().getTime()) {
-    throw new OAuthError("invalid_grant", "The refresh token expired.");
-  }
-  let scope = stored.scope;
-  if (input.scope !== null) {
-    const asked = parseScopes(input.scope);
-    const granted = stored.scope.split(" ");
-    if (!asked || asked.some((s) => !granted.includes(s))) {
-      throw new OAuthError(
-        "invalid_scope",
-        "A refresh can only narrow the granted scopes."
-      );
-    }
-    scope = formatScopes(asked);
-  }
-  // The access tokens of the old refresh step stop too.
-  await prisma.oAuthToken.updateMany({
-    where: { familyId: stored.familyId, type: "access", revokedAt: null },
-    data: { revokedAt: newDate() },
-  });
-  return issueTokens({
-    familyId: stored.familyId,
-    clientDbId: stored.clientId,
-    userId: stored.userId,
-    scope,
-    resource: stored.resource,
-    workspaceId: stored.workspaceId,
-  });
+  if (outcome instanceof OAuthError) throw outcome;
+  return outcome;
 }
 
 /**

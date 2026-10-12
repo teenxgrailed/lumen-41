@@ -131,9 +131,19 @@ async function fetchMetadataDocument(
   try {
     doc = await safeFetchJson(clientId, { deps });
   } catch (error) {
+    // The reason stays in the log: echoing it (DNS answers, refusals) on the
+    // consent page would turn it into a probe of internal names.
+    await logger.warn(
+      "Client metadata document could not be fetched",
+      {
+        host: new URL(clientId).host,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      LOG_SOURCE
+    );
     throw new ClientError(
       "invalid_client",
-      `The client metadata document could not be fetched: ${error instanceof Error ? error.message : "error"}`
+      "The client's metadata could not be loaded."
     );
   }
   const parsed = clientMetadata
@@ -167,24 +177,108 @@ async function fetchMetadataDocument(
   });
 }
 
+/** A client_id whose document failed is not fetched again for a while. */
+const NEGATIVE_CACHE_MS = 5 * 60 * 1000;
+const NEGATIVE_CACHE_MAX = 5_000;
+const failedFetches = new Map<string, number>();
+
+function rememberFailure(clientId: string) {
+  if (failedFetches.size >= NEGATIVE_CACHE_MAX) failedFetches.clear();
+  failedFetches.set(clientId, newDate().getTime() + NEGATIVE_CACHE_MS);
+}
+
+export function forgetFailedFetches() {
+  failedFetches.clear();
+}
+
+export interface ResolveClientOptions {
+  deps?: SafeFetchDeps;
+  /**
+   * Called before a CIMD document is fetched over the network (a cache
+   * miss); false refuses the fetch. Routes pass their IP and global limits.
+   */
+  allowFetch?: () => Promise<boolean>;
+}
+
 /**
  * The client behind a client_id: a registered one, or — for an https URL —
- * the client its metadata document describes (fetched safely, cached a day).
+ * the client its metadata document describes (fetched safely, cached a day,
+ * failures remembered for five minutes).
  */
 export async function resolveClient(
   clientId: string,
-  deps?: SafeFetchDeps
+  options: ResolveClientOptions | SafeFetchDeps = {}
 ): Promise<OAuthClient> {
+  const opts: ResolveClientOptions =
+    "lookup" in options ? { deps: options } : options;
   if (isMetadataDocumentUrl(clientId)) {
     const cached = await prisma.oAuthClient.findUnique({ where: { clientId } });
     const fresh =
       cached?.metadataFetchedAt &&
       newDate().getTime() - cached.metadataFetchedAt.getTime() < CIMD_CACHE_MS;
-    return fresh && cached ? cached : fetchMetadataDocument(clientId, deps);
+    if (fresh && cached) return cached;
+    if ((failedFetches.get(clientId) ?? 0) > newDate().getTime()) {
+      throw new ClientError(
+        "invalid_client",
+        "The client's metadata could not be loaded."
+      );
+    }
+    if (opts.allowFetch && !(await opts.allowFetch())) {
+      throw new ClientError(
+        "invalid_client",
+        "Too many new clients right now. Try again in a minute."
+      );
+    }
+    try {
+      return await fetchMetadataDocument(clientId, opts.deps);
+    } catch (error) {
+      rememberFailure(clientId);
+      throw error;
+    }
   }
   const client = await prisma.oAuthClient.findUnique({ where: { clientId } });
   if (!client || client.kind !== "dcr") {
     throw new ClientError("invalid_client", "Unknown client.");
   }
   return client;
+}
+
+/**
+ * Hosts whose client metadata documents Needt recognises: the consent page
+ * shows no "cannot confirm who made it" caution for them. Extend with
+ * OAUTH_TRUSTED_CLIENT_HOSTS (comma separated).
+ */
+const TRUSTED_CLIENT_HOSTS = [
+  "claude.ai",
+  "claude.com",
+  "anthropic.com",
+  "chatgpt.com",
+  "openai.com",
+];
+
+export function isTrustedClientHost(host: string): boolean {
+  const extra = (process.env.OAUTH_TRUSTED_CLIENT_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  const h = host.toLowerCase();
+  return [...TRUSTED_CLIENT_HOSTS, ...extra].some(
+    (trusted) => h === trusted || h.endsWith(`.${trusted}`)
+  );
+}
+
+/**
+ * Where a client says it comes from, for the consent page: the host of its
+ * CIMD URL (proved by serving the document) or, for a self-registered
+ * client, the host it sends the person back to (all it can prove).
+ */
+export function clientOrigin(
+  client: Pick<OAuthClient, "kind" | "clientId">,
+  redirectUri: string
+): { host: string; trusted: boolean } {
+  const host =
+    client.kind === "cimd"
+      ? new URL(client.clientId).host
+      : new URL(redirectUri).host;
+  return { host, trusted: client.kind === "cimd" && isTrustedClientHost(host) };
 }

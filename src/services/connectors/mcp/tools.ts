@@ -937,7 +937,13 @@ MCP_TOOLS.unshift(
                 role: access.workspace.role,
               }
             : null,
-        workspaces: memberships.map((m) => ({ ...m.workspace, role: m.role })),
+        // An OAuth grant sees only the workspace it was given.
+        workspaces: memberships
+          .filter(
+            (m) =>
+              !ctx.auth.workspaceId || m.workspace.id === ctx.auth.workspaceId
+          )
+          .map((m) => ({ ...m.workspace, role: m.role })),
       });
     },
   })

@@ -11,9 +11,15 @@ import {
   grantedScopes,
 } from "@/services/oauth/consent";
 import { createAuthorizationCode } from "@/services/oauth/grants";
+import {
+  DECISION_LIMIT_PER_MINUTE,
+  cimdFetchGuard,
+  limitAuthorize,
+} from "@/services/oauth/limits";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { publicAppUrl } from "@/lib/public-url";
+import { requestIp } from "@/lib/security/rate-limit";
 
 function page(status: number, message: string) {
   return new NextResponse(message, {
@@ -32,6 +38,13 @@ export async function POST(request: NextRequest) {
   if (origin !== publicAppUrl("/", request).origin) {
     return page(403, "This form can only be sent from Needt.");
   }
+  const ip = requestIp(request);
+  const limited = await limitAuthorize(
+    ip,
+    "/oauth/authorize/decision",
+    DECISION_LIMIT_PER_MINUTE
+  );
+  if (limited) return limited;
   const session = await getServerSession(await getAuthOptions());
   const userId = session?.user?.id;
   if (!userId) return page(401, "Sign in again and retry.");
@@ -42,7 +55,9 @@ export async function POST(request: NextRequest) {
     const value = form.get(key);
     if (typeof value === "string") params.set(key, value);
   }
-  const result = await validateAuthorizationRequest(params);
+  const result = await validateAuthorizationRequest(params, {
+    allowFetch: cimdFetchGuard(ip, "/oauth/authorize/decision"),
+  });
   if (!result.ok) {
     return result.kind === "page"
       ? page(400, result.description)

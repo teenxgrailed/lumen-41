@@ -1,3 +1,4 @@
+import { clientOrigin, isTrustedClientHost } from "@/services/oauth/clients";
 import { grantedScopes } from "@/services/oauth/consent";
 import { parseScopes } from "@/services/oauth/constants";
 import { isCodeChallenge, verifyPkce } from "@/services/oauth/crypto";
@@ -127,6 +128,34 @@ describe("scopes", () => {
   });
 });
 
+describe("who a client is, on the consent page", () => {
+  it("names the CIMD host, trusted only for known clients", () => {
+    expect(
+      clientOrigin(
+        { kind: "cimd", clientId: "https://claude.ai/oauth/mcp-client.json" },
+        "https://claude.ai/api/mcp/auth_callback"
+      )
+    ).toEqual({ host: "claude.ai", trusted: true });
+    expect(
+      clientOrigin(
+        { kind: "cimd", clientId: "https://claude.ai.evil.example/c.json" },
+        "https://claude.ai.evil.example/cb"
+      )
+    ).toEqual({ host: "claude.ai.evil.example", trusted: false });
+    expect(isTrustedClientHost("chatgpt.com")).toBe(true);
+    expect(isTrustedClientHost("evilchatgpt.com")).toBe(false);
+  });
+
+  it("names a self-registered client by where it returns, never trusted", () => {
+    expect(
+      clientOrigin(
+        { kind: "dcr", clientId: "ndt_client_x" },
+        "https://claude.ai/api/mcp/auth_callback"
+      )
+    ).toEqual({ host: "claude.ai", trusted: false });
+  });
+});
+
 describe("CIMD fetch SSRF protection", () => {
   it("knows private and reserved addresses", () => {
     for (const ip of [
@@ -146,6 +175,10 @@ describe("CIMD fetch SSRF protection", () => {
       "::ffff:127.0.0.1",
       "::ffff:10.0.0.1",
       "64:ff9b::a00:1",
+      "::a00:1",
+      "64:ff9b:1::1",
+      "2001:0:4136:e378::1",
+      "fec0::1",
       "2002:a00:1::",
     ]) {
       expect([ip, isPrivateAddress(ip)]).toEqual([ip, true]);
@@ -178,6 +211,7 @@ describe("CIMD fetch SSRF protection", () => {
   }
   const json = (value: unknown): SafeFetchResponse => ({
     status: 200,
+    contentType: "application/json; charset=utf-8",
     body: Buffer.from(JSON.stringify(value)),
   });
 
@@ -267,6 +301,76 @@ describe("CIMD fetch SSRF protection", () => {
     await expect(
       safeFetchJson("https://a.example/1", { deps: loop })
     ).rejects.toThrow("Too many redirects");
+  });
+
+  it("refuses a document that is not served as JSON", async () => {
+    const d = deps(
+      { "client.example": ["93.184.216.34"] },
+      {
+        "https://client.example/meta.json": {
+          status: 200,
+          contentType: "text/html",
+          body: Buffer.from("{}"),
+        },
+      }
+    );
+    await expect(
+      safeFetchJson("https://client.example/meta.json", { deps: d })
+    ).rejects.toThrow("not served as JSON");
+  });
+
+  it("gives up at the total deadline when the body drips slowly", async () => {
+    const started = Date.now();
+    const d: SafeFetchDeps = {
+      lookup: async () => ["93.184.216.34"],
+      // A server that never finishes the response.
+      get: () => new Promise(() => {}),
+    };
+    await expect(
+      safeFetchJson("https://slow.example/meta.json", {
+        deps: d,
+        timeoutMs: 80,
+      })
+    ).rejects.toThrow("timed out");
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it("gives up at the total deadline when DNS hangs", async () => {
+    const d: SafeFetchDeps = {
+      lookup: () => new Promise(() => {}),
+      get: jest.fn(),
+    };
+    await expect(
+      safeFetchJson("https://slow-dns.example/meta.json", {
+        deps: d,
+        timeoutMs: 80,
+      })
+    ).rejects.toThrow("timed out");
+    expect(d.get).not.toHaveBeenCalled();
+  });
+
+  it("counts every redirect hop against one deadline", async () => {
+    let calls = 0;
+    const d: SafeFetchDeps = {
+      lookup: async () => ["93.184.216.34"],
+      get: async () => {
+        calls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return {
+          status: 302,
+          location: `/hop-${calls}`,
+          body: Buffer.alloc(0),
+        };
+      },
+    };
+    await expect(
+      safeFetchJson("https://hops.example/meta.json", {
+        deps: d,
+        timeoutMs: 120,
+        maxRedirects: 5,
+      })
+    ).rejects.toThrow("timed out");
+    expect(calls).toBeLessThanOrEqual(3);
   });
 
   it("refuses an oversized document", async () => {

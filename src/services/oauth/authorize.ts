@@ -2,11 +2,14 @@ import type { OAuthClient } from "@prisma/client";
 
 import { type McpScope, mcpResource, oauthIssuer } from "@/lib/mcp-config";
 
-import { ClientError, resolveClient } from "./clients";
+import {
+  ClientError,
+  type ResolveClientOptions,
+  resolveClient,
+} from "./clients";
 import { DEFAULT_SCOPES, parseScopes } from "./constants";
 import { isCodeChallenge } from "./crypto";
 import { matchesRegisteredRedirect } from "./redirect-uri";
-import type { SafeFetchDeps } from "./safe-fetch";
 
 export interface AuthorizationRequest {
   client: OAuthClient;
@@ -37,7 +40,7 @@ export type AuthorizationResult =
 
 export async function validateAuthorizationRequest(
   params: URLSearchParams,
-  deps?: SafeFetchDeps
+  options: ResolveClientOptions = {}
 ): Promise<AuthorizationResult> {
   const clientId = params.get("client_id");
   const redirectUri = params.get("redirect_uri");
@@ -51,7 +54,7 @@ export async function validateAuthorizationRequest(
   }
   let client: OAuthClient;
   try {
-    client = await resolveClient(clientId, deps);
+    client = await resolveClient(clientId, options);
   } catch (error) {
     return {
       ok: false,
@@ -94,7 +97,9 @@ export async function validateAuthorizationRequest(
       "PKCE with code_challenge_method=S256 is required."
     );
   }
-  const resource = params.get("resource") ?? mcpResource();
+  // Required (MCP authorization): a token is only ever minted for the
+  // resource the client names, and it must be ours.
+  const resource = params.get("resource");
   if (resource !== mcpResource()) {
     return fail("invalid_target", `resource must be ${mcpResource()}.`);
   }
@@ -110,7 +115,7 @@ export async function validateAuthorizationRequest(
       state,
       codeChallenge,
       scopes: asked.length ? asked : [...DEFAULT_SCOPES],
-      resource,
+      resource: resource as string,
     },
   };
 }

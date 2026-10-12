@@ -12,9 +12,14 @@ import {
   formBody,
   oauthErrorResponse,
 } from "@/services/oauth/http";
+import { cimdFetchGuard } from "@/services/oauth/limits";
 
 import { logger } from "@/lib/logger";
-import { enforceRateLimits, ipRule } from "@/lib/security/rate-limit";
+import {
+  enforceRateLimits,
+  ipRule,
+  requestIp,
+} from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "OAuthToken";
 
@@ -43,7 +48,9 @@ export async function POST(request: NextRequest) {
     return oauthErrorResponse("invalid_client", "client_id is required.", 401);
   }
   try {
-    const client = await resolveClient(clientId);
+    const client = await resolveClient(clientId, {
+      allowFetch: cimdFetchGuard(requestIp(request), "/oauth/token"),
+    });
     const tokens =
       grantType === "authorization_code"
         ? await exchangeAuthorizationCode({

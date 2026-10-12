@@ -4,7 +4,7 @@
  * → revoke. Runs with OAUTH_INTEGRATION=1 (CI sets it next to Postgres).
  */
 import { getServerSession } from "next-auth";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { POST as mcpPost } from "@/app/api/mcp/route";
 import { GET as connectedAppsGet } from "@/app/api/oauth/connected-apps/route";
@@ -14,10 +14,12 @@ import { POST as revokePost } from "@/app/oauth/revoke/route";
 import { POST as tokenPost } from "@/app/oauth/token/route";
 import { authenticateBearer } from "@/services/connectors/bearer";
 import { validateAuthorizationRequest } from "@/services/oauth/authorize";
+import { cleanupOAuth } from "@/services/oauth/cleanup";
 import { WorkspaceKind } from "@prisma/client";
 import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimits } from "@/lib/security/rate-limit";
 
 const describeIntegration =
   process.env.OAUTH_INTEGRATION === "1" ? describe : describe.skip;
@@ -478,6 +480,7 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
         host === "client.example" ? ["93.184.216.34"] : ["10.0.0.1"],
       get: async () => ({
         status: 200,
+        contentType: "application/json",
         body: Buffer.from(
           JSON.stringify({
             client_id: url,
@@ -501,7 +504,7 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
       });
     const ok = await validateAuthorizationRequest(
       params("https://chatgpt.com/connector_platform_oauth_redirect"),
-      doc()
+      { deps: doc() }
     );
     expect(ok).toMatchObject({
       ok: true,
@@ -510,7 +513,7 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
 
     const otherRedirect = await validateAuthorizationRequest(
       params("https://evil.example/cb"),
-      doc()
+      { deps: doc() }
     );
     expect(otherRedirect).toMatchObject({ ok: false, kind: "page" });
 
@@ -520,7 +523,7 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
     });
     const forged = await validateAuthorizationRequest(
       params("https://chatgpt.com/connector_platform_oauth_redirect"),
-      doc({ client_id: "https://other.example/x" })
+      { deps: doc({ client_id: "https://other.example/x" }) }
     );
     expect(forged).toMatchObject({
       ok: false,
@@ -533,7 +536,7 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
         client_id: `https://internal.example/${run}/c.json`,
         redirect_uri: REDIRECT,
       }),
-      doc()
+      { deps: doc() }
     );
     expect(internal).toMatchObject({
       ok: false,
@@ -541,6 +544,147 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
       error: "invalid_client",
     });
     await prisma.oAuthClient.deleteMany({ where: { clientId: url } });
+  });
+
+  it("two concurrent exchanges of one code leave no live token", async () => {
+    const clientId = await register();
+    const { code } = codeOf(await consent(clientId));
+    const results = await Promise.all([
+      exchange(clientId, code),
+      exchange(clientId, code),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    const winner = results.find((r) => r.status === 200)!;
+    await expect(
+      authenticateBearer(
+        new Request("http://x", {
+          headers: { authorization: `Bearer ${winner.body.access_token}` },
+        })
+      )
+    ).resolves.toBeNull();
+  });
+
+  it("two concurrent uses of one refresh token leave no live token", async () => {
+    const clientId = await register();
+    const first = await exchange(
+      clientId,
+      codeOf(await consent(clientId)).code
+    );
+    const refresh = () =>
+      token({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        refresh_token: first.body.refresh_token,
+        resource: RESOURCE,
+      });
+    const results = await Promise.all([refresh(), refresh()]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+    for (const r of [first, ...results.filter((x) => x.status === 200)]) {
+      await expect(
+        authenticateBearer(
+          new Request("http://x", {
+            headers: { authorization: `Bearer ${r.body.access_token}` },
+          })
+        )
+      ).resolves.toBeNull();
+    }
+  });
+
+  it("limits the consent POST before looking at the request", async () => {
+    jest
+      .mocked(enforceRateLimits)
+      .mockResolvedValueOnce(
+        NextResponse.json({ error: "slow" }, { status: 429 })
+      );
+    const response = await decisionPost(
+      form(
+        `${APP}/oauth/authorize/decision`,
+        {
+          client_id: "https://cimd.example/never-fetched.json",
+          redirect_uri: REDIRECT,
+        },
+        { origin: new URL(APP).origin }
+      )
+    );
+    expect(response.status).toBe(429);
+    expect(
+      await prisma.oAuthClient.findUnique({
+        where: { clientId: "https://cimd.example/never-fetched.json" },
+      })
+    ).toBeNull();
+  });
+
+  it("requires resource at /oauth/authorize", async () => {
+    const clientId = await register();
+    const result = await validateAuthorizationRequest(
+      new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        redirect_uri: REDIRECT,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      })
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      kind: "redirect",
+      error: "invalid_target",
+    });
+  });
+
+  it("the worker cleanup removes ended codes and tokens, keeps live ones", async () => {
+    const clientId = await register();
+    const live = await exchange(clientId, codeOf(await consent(clientId)).code);
+    const client = await prisma.oAuthClient.findUniqueOrThrow({
+      where: { clientId },
+    });
+    const old = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    await prisma.oAuthAuthorizationCode.create({
+      data: {
+        codeHash: `${run}-old-code`,
+        clientId: client.id,
+        userId,
+        redirectUri: REDIRECT,
+        codeChallenge: challenge,
+        scope: "needt.read",
+        resource: RESOURCE,
+        familyId: `${run}-old`,
+        expiresAt: old,
+      },
+    });
+    await prisma.oAuthToken.create({
+      data: {
+        tokenHash: `${run}-old-token`,
+        type: "refresh",
+        familyId: `${run}-old`,
+        clientId: client.id,
+        userId,
+        scope: "needt.read",
+        resource: RESOURCE,
+        expiresAt: old,
+        revokedAt: old,
+      },
+    });
+    const counts = await cleanupOAuth();
+    expect(counts.codes).toBeGreaterThanOrEqual(1);
+    expect(counts.tokens).toBeGreaterThanOrEqual(1);
+    expect(
+      await prisma.oAuthAuthorizationCode.findUnique({
+        where: { codeHash: `${run}-old-code` },
+      })
+    ).toBeNull();
+    expect(
+      await prisma.oAuthToken.findUnique({
+        where: { tokenHash: `${run}-old-token` },
+      })
+    ).toBeNull();
+    await expect(
+      authenticateBearer(
+        new Request("http://x", {
+          headers: { authorization: `Bearer ${live.body.access_token}` },
+        })
+      )
+    ).resolves.toMatchObject({ kind: "oauth" });
   });
 
   it("sends a denial back to the client with iss", async () => {

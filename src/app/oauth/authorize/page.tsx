@@ -1,15 +1,23 @@
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
   clientRedirect,
   validateAuthorizationRequest,
 } from "@/services/oauth/authorize";
+import { clientOrigin } from "@/services/oauth/clients";
 import {
   AUTHORIZE_PARAMS,
   SCOPE_LABELS,
   consentWorkspaces,
 } from "@/services/oauth/consent";
+import {
+  AUTHORIZE_LIMIT_PER_MINUTE,
+  cimdFetchGuard,
+  ipFromHeaders,
+  limitAuthorize,
+} from "@/services/oauth/limits";
 
 import { Button } from "@/components/ui/button";
 
@@ -48,7 +56,24 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     if (typeof value === "string") params.set(key, value);
   }
 
-  const result = await validateAuthorizationRequest(params);
+  // Before anything that could fetch a client document: per-IP limit.
+  const ip = ipFromHeaders(await headers());
+  if (
+    await limitAuthorize(ip, "/oauth/authorize", AUTHORIZE_LIMIT_PER_MINUTE)
+  ) {
+    return (
+      <Shell>
+        <h1 className="text-[15px] font-semibold">Too many attempts</h1>
+        <p className="mt-2 text-muted-foreground">
+          Wait a minute and start the connection again.
+        </p>
+      </Shell>
+    );
+  }
+
+  const result = await validateAuthorizationRequest(params, {
+    allowFetch: cimdFetchGuard(ip, "/oauth/authorize"),
+  });
   if (!result.ok && result.kind === "page") {
     return (
       <Shell>
@@ -81,6 +106,7 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   const { request } = result;
   const workspaces = await consentWorkspaces(session.user.id);
   const redirectHost = new URL(request.redirectUri).host;
+  const origin = clientOrigin(request.client, request.redirectUri);
   const wantsWrite = request.scopes.includes("needt.write");
   const wantsMail = request.scopes.includes("mail.read");
 
@@ -89,17 +115,24 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
       <h1 className="text-[15px] font-semibold">
         Connect {request.client.name} to Needt?
       </h1>
+      <p className="mt-1 text-[12px] text-muted-foreground" data-client-host>
+        from <span className="font-medium text-foreground">{origin.host}</span>
+      </p>
       <p className="mt-2 text-muted-foreground">
         {request.client.name} will act as {session.user.email ?? "you"}. After
         you allow it, Needt sends you back to{" "}
         <span className="font-medium text-foreground">{redirectHost}</span>.
       </p>
-      {request.client.kind === "dcr" ? (
-        <p className="mt-2 text-[12px] text-muted-foreground">
-          This app registered itself; Needt cannot confirm who made it. Only
-          continue if you started this connection.
+      {origin.trusted ? null : (
+        <p
+          className="mt-2 text-[12px] text-muted-foreground"
+          data-client-caution
+        >
+          Needt cannot confirm who made this app; the name is what the app says
+          about itself. Only continue if you started this connection from{" "}
+          {origin.host}.
         </p>
-      ) : null}
+      )}
 
       <form method="post" action="/oauth/authorize/decision" className="mt-5">
         {AUTHORIZE_PARAMS.map((key) => {
