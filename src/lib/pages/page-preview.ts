@@ -88,7 +88,8 @@ const KIND_TEXT: Record<string, PagePreviewType> = {
   DATE_MENTION: "p",
 };
 
-const BIDI_AND_ZERO_WIDTH = /[​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
+const BIDI_AND_ZERO_WIDTH =
+  /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

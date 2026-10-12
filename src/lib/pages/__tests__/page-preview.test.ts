@@ -225,7 +225,9 @@ describe("buildPagePreview", () => {
   });
 
   it("strips control characters and direction overrides", () => {
-    const [row] = buildPagePreview([node(para("a\u0000b\u0007c‮d⁦e​f\tg\nh"))]);
+    const [row] = buildPagePreview([
+      node(para("a\u0000b\u0007c\u202Ed\u2066e\u200Bf\tg\nh")),
+    ]);
     expect(row.text).toBe("a b cdef g h");
     expect(cleanLine("\u001b[31mred\u009f")).toBe("[31mred");
   });
