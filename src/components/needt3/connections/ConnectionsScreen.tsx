@@ -17,6 +17,7 @@ import { CalDAVAccountForm } from "@/components/settings/CalDAVAccountForm";
 
 import { priceStrings } from "@/lib/needt3/pricing";
 
+import { BrandIcon, brandIdFor } from "../brand";
 import { Sheet } from "../ctx/Sheet";
 import { Art } from "../menu/Art";
 import { PlEmpty, StScreen } from "../states/StScreen";
@@ -32,15 +33,6 @@ import { mergeQueries } from "./query";
 import type { ConnectionsController } from "./useConnectionsController";
 
 const P = priceStrings();
-
-/** The brand tile is a letter on the quiet tile; brand-kit marks come later. */
-function Tile({ name }: { name: string }) {
-  return (
-    <span className="cn-tile" aria-hidden="true">
-      {name.charAt(0).toUpperCase()}
-    </span>
-  );
-}
 
 function Spinner({ size = 12 }: { size?: number }) {
   return (
@@ -163,7 +155,7 @@ function Card({
       style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
     >
       <div className="cn-c-head">
-        <Tile name={item.name} />
+        <BrandIcon id={brandIdFor(item.slug)} size={40} />
         <span className="base-stack" style={{ minWidth: 0, gap: 4 }}>
           <span className="cn-c-name">{item.name}</span>
           {on || down || busy ? (
@@ -276,9 +268,8 @@ function AiPromo({ onPlans }: { onPlans: () => void }) {
  * //todo: the AI tools tab (Claude, ChatGPT, Cursor… setup steps) and the MCP /
  * API links need the `AccessLink` routes (migration M2, no routes yet): Pro
  * sees a note, Free sees the lock panel the prototype shows.
- * //todo: brand-kit marks for the tiles (a letter tile for now), the consent
- * sheet's scope list, Sync now / Sync settings, the sticky glass toolbar, and
- * the "sidebar: 1 issue" link.
+ * //todo: the consent sheet's scope list, Sync now / Sync settings, the
+ * sticky glass toolbar, and the "sidebar: 1 issue" link.
  */
 export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
   const {

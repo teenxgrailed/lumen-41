@@ -17,9 +17,7 @@
    placement, so the last step shows what it returned, as on the desktop); the
    mini timeline of the placed task (it needs that planner's busy blocks);
    half-hour working hours (the schema stores whole hours); the in-flow
-   calendar OAuth mock (connecting leaves for the provider's consent screen);
-   the provider brand icons on the calendar rows (no brand icon set in the
-   port: the kit's calendar/mail illustrations stand in). */
+   calendar OAuth mock (connecting leaves for the provider's consent screen). */
 import * as React from "react";
 
 import {
@@ -48,6 +46,7 @@ import { CALS, USES } from "../../auth/onboarding-data";
 import { STEPS, STEP_SKY } from "../../auth/onboarding-steps";
 import { DEFAULT_PICK, MENU_N } from "../../auth/phone-menu-pick";
 import type { Onboarding } from "../../auth/useOnboarding";
+import { BrandIcon, brandIdForConnection } from "../../brand";
 import { PwMiniTask, PxDots } from "../../scenes";
 import { pkCx } from "../kit";
 import { MenuStep } from "./MenuStep";
@@ -329,7 +328,15 @@ export function PhoneSetup({ ob }: { ob: Onboarding }) {
                         key={c.id}
                         multi
                         on={on}
-                        glyph={<MaTile kind={c.art} size={40} />}
+                        glyph={
+                          <BrandIcon
+                            id={brandIdForConnection({
+                              kind: "calendar",
+                              provider: c.provider,
+                            })}
+                            size={40}
+                          />
+                        }
                         label={c.title}
                         sub={on ? "Connected" : c.sub}
                         disabled={on || !c.href || !online}

@@ -103,7 +103,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
     return (
       <PkHold key={item.key} onHold={() => setAcctKey(item.key)}>
         <PplRow
-          lead={<PplTile name={item.name} />}
+          lead={<PplTile slug={item.slug} />}
           tone={m.tone}
           title={item.name}
           meta={m.text}
@@ -312,7 +312,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         head={
           A ? (
             <span className="ppl-sheet-tile">
-              <PplTile name={A.name} size={44} />
+              <PplTile slug={A.slug} size={44} />
             </span>
           ) : null
         }
