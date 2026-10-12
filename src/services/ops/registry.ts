@@ -8,6 +8,7 @@ import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import { UNDO_WINDOW_DAYS } from "./constants";
 import { OpError } from "./errors";
 import { toJson } from "./helpers";
 import { zodToJsonSchema } from "./json-schema";
@@ -27,7 +28,7 @@ import type {
 const LOG_SOURCE = "ops-registry";
 
 /** How long an applied action stays undoable. */
-export const UNDO_WINDOW_DAYS = 7;
+export { UNDO_WINDOW_DAYS } from "./constants";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = {
   [WorkspaceRole.VIEWER]: 0,
