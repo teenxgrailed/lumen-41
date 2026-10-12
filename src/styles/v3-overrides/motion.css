@@ -859,3 +859,59 @@
 .needt-v3 .dc-bd-out {
   animation-duration: 280ms;
 }
+
+/* ───────── P5 · phone Home + Calendar (mobile-v2-plates.jsx) ─────────
+ * Self-contained: the vendored mobile-v2-plates.css is untouched. */
+
+/* Rule 11: an entry plays once and never holds its end state (fill is
+ * `backwards`, not `both`): the day swap, Next up, the now/next plate and the
+ * picked day's plate in the week strip and the month grid. */
+.needt-v3
+  :is(.v2p-swap, .v2p-next, .v2p-evplate, .v2p-wd-plate, .v2p-mc-plate) {
+  animation-fill-mode: backwards;
+}
+
+/* The state layer of a phone screen (loading / error / offline) sits in the
+ * screen's body, under its own header. */
+.needt-v3 .p5-state {
+  padding: 8px 0 0;
+}
+.needt-v3 .p5-state .st-error {
+  margin: 0 auto;
+}
+
+/* "Show all N" under a capped list. */
+.needt-v3 .p5-more {
+  align-self: flex-start;
+  margin: 10px 0 0;
+}
+
+/* Month view: the two month steps, one at each edge of the grid. */
+.needt-v3 .p5-month-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -14px;
+}
+
+/* ───────── P6 · phone Tasks + Projects (phone-tasks.jsx, styles/phone-tasks.css) ─────────
+   Self-contained: it only corrects the vendored file. Rule 2 (chrome type is
+   13 / 12 px, never 14): phone-tasks.css sets the segmented control and the
+   "Show N more" line in 14 px. Rule 12 (transform / opacity / clip-path
+   only): the project ring's fill eased stroke-dashoffset, an SVG repaint per
+   frame; it now snaps (the bar beside it still scales). */
+.needt-v3 .ptk-seg-btn,
+.needt-v3 .ptk-more {
+  font-size: 13px;
+}
+.needt-v3 .ptk-ring-fill {
+  transition: none;
+}
+/* V-B8: an entry holds no end state. The vendored `.ptk-swap` runs its rise
+   with fill-mode `both`, so the finished animation stays in
+   `document.getAnimations()` for the life of the screen (the phone acceptance
+   list wants it empty after 3 s idle). `backwards` keeps only the "from"
+   frame while it waits to start. */
+.needt-v3 .ptk-swap {
+  animation-fill-mode: backwards;
+}

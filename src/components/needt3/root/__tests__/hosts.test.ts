@@ -171,6 +171,15 @@ const count = (...names: string[]) =>
   );
 
 describe("hosts", () => {
+  it.each(["phone", "desktop"] as const)(
+    "%s: the frame starts below a fixed top banner",
+    (ui) => {
+      render(ui);
+      const frame = host.querySelector<HTMLElement>(".needt-v3");
+      expect(frame?.className).toContain("pt-[var(--needt-top-banner,0px)]");
+    }
+  );
+
   it("phone: Settings and paywall are mounted; exactly one composer and one Ask, the phone's", () => {
     useNeedt3Ui.setState({ composerOpen: true, askOpen: true });
     render("phone");

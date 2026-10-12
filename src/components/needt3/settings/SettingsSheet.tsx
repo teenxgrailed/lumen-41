@@ -4,6 +4,7 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -115,14 +116,32 @@ export function SettingsSheet() {
   const [list, setList] = useState(true);
   const [saved, setSaved] = useState(0);
   const navRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // How far the open section is scrolled, kept here so the other face opens
+  // the section where this one left it. Reset when the section changes.
+  const sectionY = useRef(0);
+  // The face the sheet was opened on, read once per opening (not a reason to
+  // re-run the opening effect when the window crosses 700 px).
+  const uiRef = useRef(ui);
+  uiRef.current = ui;
 
-  // Each opening starts on the section it was asked for.
+  // Each opening starts on the section it was asked for. Opened on the
+  // desktop, a section is on show from the start (the desktop has no list),
+  // so the phone continues on that section, not on the list.
   useEffect(() => {
     if (open) {
       setSection(sectionOf(want));
-      setList(!want);
+      setList(!want && uiRef.current === "phone");
+      sectionY.current = 0;
     }
   }, [open, want]);
+
+  // The desktop face opens the section at the height the phone left it.
+  useLayoutEffect(() => {
+    if (ui === "desktop" && open && panelRef.current) {
+      panelRef.current.scrollTop = sectionY.current;
+    }
+  }, [ui, open, section]);
 
   useEffect(() => {
     if (!saved) return undefined;
@@ -132,11 +151,24 @@ export function SettingsSheet() {
 
   const mark = useCallback(() => setSaved(Date.now()), []);
   const pick = useCallback((id: SectionId) => {
-    setSection(id);
+    setSection((was) => {
+      if (was !== id) sectionY.current = 0;
+      return id;
+    });
     setList(false);
   }, []);
+  // On the phone, opening a page from the list is a fresh visit: it starts
+  // at its top even when it is the section shown last. Only a 700 px
+  // crossing carries the section's scroll over.
   const phonePage = useCallback(
-    (id: SectionId | null) => (id ? pick(id) : setList(true)),
+    (id: SectionId | null) => {
+      if (!id) {
+        setList(true);
+        return;
+      }
+      sectionY.current = 0;
+      pick(id);
+    },
     [pick]
   );
 
@@ -167,6 +199,7 @@ export function SettingsSheet() {
           page={list ? null : section}
           onPage={phonePage}
           saved={saved}
+          pageY={sectionY}
         />
       </MarkProvider>
     );
@@ -310,7 +343,11 @@ export function SettingsSheet() {
           </header>
           <div
             id="settings-panel"
+            ref={panelRef}
             key={section}
+            onScroll={(e) => {
+              sectionY.current = e.currentTarget.scrollTop;
+            }}
             className="settings-enter scroll-inner settings-enter-2"
           >
             <Body section={section} />
