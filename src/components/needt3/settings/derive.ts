@@ -175,7 +175,70 @@ export function settingsNotices(search: string | URLSearchParams) {
     });
   if (q.get("emailVerification") === "verified")
     out.push({ tone: "success", title: "Email confirmed" });
+  const imp = IMPORT_NOTICES[q.get("import") ?? ""];
+  if (imp) out.push(imp);
   return out;
+}
+
+const IMPORT_NOTICES: Record<string, SettingsNotice> = {
+  "todoist-started": {
+    tone: "success",
+    title: "Todoist import started",
+    description: "Progress shows in Data & privacy.",
+  },
+  "todoist-running": {
+    tone: "success",
+    title: "A Todoist import is already running",
+  },
+  "todoist-denied": {
+    tone: "error",
+    title: "Todoist import cancelled",
+    description: "Todoist access was not granted.",
+  },
+  "todoist-failed": {
+    tone: "error",
+    title: "Todoist import could not start",
+    description: "Try again in a minute.",
+  },
+};
+
+/* ---------- import status ---------- */
+
+export interface ImportRunSummaryInput {
+  status: "queued" | "running" | "done" | "failed" | "cancelled";
+  counts: { total: number; done: number; skipped: number; failed: number };
+  warnings: { code: string; message: string }[];
+}
+
+/** One line for the Import row: what the last run did, or is doing. */
+export function importRunSummary(run: ImportRunSummaryInput): string {
+  const { total, done, skipped, failed } = run.counts;
+  switch (run.status) {
+    case "queued":
+      return "Waiting to start.";
+    case "running": {
+      const seen = done + skipped + failed;
+      return total > 0 ? `Importing: ${seen} of ${total}.` : "Importing.";
+    }
+    case "done":
+      return (
+        `Last import: ${done} imported, ${skipped} skipped` +
+        (failed ? `, ${failed} failed.` : ".")
+      );
+    case "cancelled":
+      return `Last import was cancelled after ${done} imported.`;
+    case "failed": {
+      const reason = [...run.warnings]
+        .reverse()
+        .find(
+          (w) =>
+            w.code.startsWith("todoist_") ||
+            w.code.endsWith("_unavailable") ||
+            w.code === "import_failed"
+        );
+      return `Last import failed. ${reason?.message ?? "Try again."}`;
+    }
+  }
 }
 
 /** The section a store value names, falling back to the default. */

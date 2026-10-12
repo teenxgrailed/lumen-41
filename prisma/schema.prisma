@@ -187,6 +187,8 @@ model User {
   shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
   notifications          Notification[]
   accessLinks            AccessLink[]
+  importRuns             ImportRun[]
+  importItemMaps         ImportItemMap[]
 }
 
 model Workspace {
@@ -217,6 +219,7 @@ model Workspace {
   aiConversations      AiConversation[]
   aiMessages           AiMessage[]
   agentMemories        AgentMemory[]
+  importRuns           ImportRun[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -3058,4 +3061,73 @@ model AccessLink {
   revokedAt    DateTime?
 
   @@index([userId, revokedAt])
+}
+
+enum ImportSource {
+  todoist
+  notion
+}
+
+enum ImportRunStatus {
+  queued
+  running
+  done
+  failed
+  cancelled
+}
+
+enum ImportEntityType {
+  project
+  stage
+  task
+  part
+  tag
+  page
+  database
+  record
+}
+
+/// One import from another tool. The source token lives here only while the
+/// run is queued or running (encrypted) and is set to null when it ends.
+model ImportRun {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source         ImportSource
+  status         ImportRunStatus @default(queued)
+  /// { total, done, skipped, failed }
+  counts         Json            @default("{\"total\":0,\"done\":0,\"skipped\":0,\"failed\":0}")
+  /// [{ code, message, externalId? }]
+  warnings       Json[]          @default([])
+  encryptedToken String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          ImportItemMap[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Which local row an external object became, so a second run updates it
+/// instead of creating a duplicate.
+model ImportItemMap {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source          ImportSource
+  externalId      String
+  entityType      ImportEntityType
+  localId         String
+  importRunId     String?
+  importRun       ImportRun?       @relation(fields: [importRunId], references: [id], onDelete: SetNull)
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([userId, source, externalId, entityType])
+  @@index([importRunId])
 }
