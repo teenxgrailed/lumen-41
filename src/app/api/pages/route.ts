@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
       favorites: request.nextUrl.searchParams.get("favorites") === "true",
       privateOnly: request.nextUrl.searchParams.get("privateOnly") === "true",
       trashed: request.nextUrl.searchParams.get("trashed") === "true",
+      // Additive `preview` on every page; `?preview=false` leaves it out.
+      preview: request.nextUrl.searchParams.get("preview") !== "false",
     });
     return NextResponse.json({ pages });
   } catch (error) {

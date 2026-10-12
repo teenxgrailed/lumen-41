@@ -6,6 +6,7 @@ import {
   pageActorWorkspaceId as actorWorkspaceId,
   pageDetailInclude,
 } from "@/services/pages/page-model";
+import { loadPagePreviews } from "@/services/pages/page-preview-service";
 import {
   type PageBlockInput,
   writePageBlocks,
@@ -35,6 +36,11 @@ export async function listPages(
     privateOnly?: boolean;
     /** List the trash instead of the live pages. */
     trashed?: boolean;
+    /**
+     * Add each live page's miniature `preview` (its first blocks as plain
+     * rows) with one extra query for the whole list. Never for the trash.
+     */
+    preview?: boolean;
   }
 ) {
   const tagIds = [...new Set(options?.tagIds ?? [])];
@@ -91,6 +97,12 @@ export async function listPages(
       { updatedAt: "desc" },
     ],
   });
+  // Only the ids the scoped query above returned: the preview does no access
+  // check of its own.
+  const previews =
+    options?.preview && !options.trashed
+      ? await loadPagePreviews(pages.map((page) => page.id))
+      : null;
   return pages.map(({ userId, accessGrants, ...page }) => ({
     ...page,
     accessRole: pageSummaryAccessRole(actor, {
@@ -99,6 +111,7 @@ export async function listPages(
       accessGrants,
     }),
     ...pageShareFlags(actor, { userId, accessGrants }),
+    ...(previews ? { preview: previews.get(page.id) ?? [] } : {}),
   }));
 }
 
