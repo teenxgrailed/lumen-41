@@ -893,3 +893,30 @@
   justify-content: space-between;
   margin: 0 -14px;
 }
+
+/* A row's title takes the width that is left and ellipsizes. The row wrap is a
+ * grid with one implicit `auto` column, whose track can be sized to the
+ * title's content instead of the row: every link in the chain gets an
+ * explicit, shrinkable width (a `minmax(0, 1fr)` column, then `min-width: 0`
+ * down to the title). Same symptom, same fix as the Tasks rows (P6). */
+.needt-v3 .pk-rw {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.needt-v3 .pk-rw-in,
+.needt-v3 .pk-row {
+  min-width: 0;
+  max-width: 100%;
+}
+.needt-v3 .pk-row-open {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.needt-v3 .pk-row-main {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.needt-v3 .pk-row-title {
+  min-width: 0;
+  max-width: 100%;
+}
