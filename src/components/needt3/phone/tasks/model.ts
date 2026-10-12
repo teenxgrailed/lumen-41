@@ -398,3 +398,8 @@ export function deletedLabel(name: string, openN: number) {
       : ""
   }`;
 }
+
+/** The snack after "Move to today": how many moved. */
+export function movedToTodayLabel(n: number) {
+  return `${n} ${n === 1 ? "task" : "tasks"} moved to today`;
+}

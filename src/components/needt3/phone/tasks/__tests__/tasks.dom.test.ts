@@ -15,8 +15,10 @@ import { type Root, createRoot } from "react-dom/client";
 import { newDate } from "@/lib/date-utils";
 import { addDays } from "@/lib/needt3/derive";
 import { browserTimeZone } from "@/lib/needt3/hooks/core";
+import { isoToDay } from "@/lib/needt3/map";
 import type { V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
 
 import { useWorkState } from "../../../work/useWorkState";
 import { usePhoneOverlays } from "../../overlays/store";
@@ -27,6 +29,16 @@ import { PhoneTasks } from "../TasksPhone";
 // design flag off it renders its children, which is all this test needs.
 jest.mock("../../../states/StScreen", () => ({
   StScreen: ({ children }: { children: unknown }) => children,
+}));
+
+// toasts: the facade is what product code calls; the test reads its calls
+jest.mock("@/lib/notifications", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warning: jest.fn(),
+  },
 }));
 
 const mockReplace = jest.fn();
@@ -82,6 +94,8 @@ const TASKS = [
 
 let host: HTMLDivElement;
 let root: Root;
+let failIds: Set<string>;
+let calls: { url: string; body: Record<string, unknown> }[];
 let puts: { url: string; body: Record<string, unknown> }[];
 
 function pointer(
@@ -103,12 +117,12 @@ const fire = (el: Element | Window, type: string, p = {}) =>
     el.dispatchEvent(pointer(type, p));
   });
 
-// the write is a few promise hops and a query cancel: let them all run
 // the screen takes the controller from above, as WorkScreen gives it
 function Harness() {
   return h(PhoneTasks, { state: useWorkState("today") });
 }
 
+// the write is a few promise hops and a query cancel: let them all run
 const settle = async () => {
   for (let i = 0; i < 4; i++)
     await act(async () => {
@@ -132,13 +146,24 @@ beforeEach(() => {
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => null);
   puts = [];
+  calls = [];
+  failIds = new Set();
+  jest.mocked(notify.success).mockClear();
   (globalThis as { fetch?: unknown }).fetch = jest.fn(
     async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       if (method === "PUT") {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        puts.push({ url, body });
+        calls.push({ url, body });
         const id = url.split("/").pop();
+        if (failIds.has(String(id)))
+          return {
+            ok: false,
+            status: 409,
+            statusText: "Conflict",
+            text: async () => JSON.stringify({ error: "Changed elsewhere" }),
+          };
+        puts.push({ url, body });
         return {
           ok: true,
           status: 200,
@@ -168,11 +193,11 @@ afterEach(() => {
   host.remove();
 });
 
-function mount() {
+function mount(tasks: V3Task[] = TASKS) {
   const qc = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
-  qc.setQueryData(qk.tasks({}), TASKS);
+  qc.setQueryData(qk.tasks({}), tasks);
   qc.setQueryData(qk.projects(), []);
   act(() => root.render(h(QueryClientProvider, { client: qc }, h(Harness))));
 }
@@ -249,8 +274,59 @@ describe("PhoneTasks", () => {
     fire(window, "pointerup", { x: -40, y: 12 });
     await settle();
     expect(puts).toHaveLength(1);
-    expect(String(puts[0].body.dueDate)).toContain(TOMORROW);
+    // the wire carries an instant; the person's day is what it must read as
+    expect(isoToDay(String(puts[0].body.dueDate), browserTimeZone())).toBe(
+      TOMORROW
+    );
     expect(puts[0].body).not.toHaveProperty("status");
+  });
+
+  it("Move to today: one 409 leaves that row alone, and Undo reverts only the moves that landed", async () => {
+    const LATE = addDays(TODAY, -2);
+    mount([
+      task("o1", { dueDate: LATE }),
+      task("o2", { dueDate: LATE }),
+      task("o3", { dueDate: LATE }),
+    ]);
+    failIds.add("o2");
+    act(() => q<HTMLElement>(".pk-sec-action .pk-btn").click());
+    await settle();
+    // all three were tried; two landed
+    expect(calls.map((c) => c.url).sort()).toEqual([
+      "/api/tasks/o1",
+      "/api/tasks/o2",
+      "/api/tasks/o3",
+    ]);
+    expect(puts.map((c) => c.url).sort()).toEqual([
+      "/api/tasks/o1",
+      "/api/tasks/o3",
+    ]);
+    // one snack, for the two that moved, with one Undo
+    expect(notify.success).toHaveBeenCalledTimes(1);
+    const [text, given] = jest.mocked(notify.success).mock.calls[0];
+    const opts = given as unknown as { action: { onClick: () => void } };
+    expect(text).toBe("2 tasks moved to today");
+
+    calls.length = 0;
+    act(() => opts.action.onClick());
+    await settle();
+    // Undo writes the old day back to o1 and o3, and never touches o2
+    expect(calls.map((c) => c.url).sort()).toEqual([
+      "/api/tasks/o1",
+      "/api/tasks/o3",
+    ]);
+    for (const c of calls)
+      expect(isoToDay(String(c.body.dueDate), browserTimeZone())).toBe(LATE);
+  });
+
+  it("Move to today: when every write fails there is no snack", async () => {
+    const LATE = addDays(TODAY, -2);
+    mount([task("o1", { dueDate: LATE }), task("o2", { dueDate: LATE })]);
+    failIds.add("o1").add("o2");
+    act(() => q<HTMLElement>(".pk-sec-action .pk-btn").click());
+    await settle();
+    expect(calls).toHaveLength(2);
+    expect(notify.success).not.toHaveBeenCalled();
   });
 
   it("a cancelled swipe writes nothing and the row goes home", async () => {

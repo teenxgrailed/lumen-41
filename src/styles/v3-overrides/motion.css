@@ -873,3 +873,11 @@
 .needt-v3 .ptk-ring-fill {
   transition: none;
 }
+/* V-B8: an entry holds no end state. The vendored `.ptk-swap` runs its rise
+   with fill-mode `both`, so the finished animation stays in
+   `document.getAnimations()` for the life of the screen (the phone acceptance
+   list wants it empty after 3 s idle). `backwards` keeps only the "from"
+   frame while it waits to start. */
+.needt-v3 .ptk-swap {
+  animation-fill-mode: backwards;
+}

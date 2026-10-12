@@ -86,10 +86,13 @@ const project = (id: string, name: string): V3Project => ({
 });
 
 const OPS = project("p-ops", "Operations");
+const LAB = project("p-lab", "Lab");
 const TASKS = [
   task("a", { projectId: OPS.id }),
   task("b", { projectId: OPS.id, done: true, status: "completed" }),
   task("soon", { dueDate: addDays(TODAY, 2) }),
+  task("l1", { projectId: LAB.id }),
+  task("l2", { projectId: LAB.id, done: true, status: "completed" }),
 ];
 
 let host: HTMLDivElement;
@@ -150,7 +153,7 @@ const qc = () => {
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
   c.setQueryData(qk.tasks({}), TASKS);
-  c.setQueryData(qk.projects(), [OPS]);
+  c.setQueryData(qk.projects(), [OPS, LAB]);
   return c;
 };
 
@@ -282,6 +285,36 @@ describe("A project's page across the swap", () => {
     expect(q<HTMLInputElement>("[data-ptk-edit-name]").value).toBe(
       "Operations 2"
     );
+  });
+});
+
+describe("Going from one project's page to another's", () => {
+  it("does not carry the typed line, the folds or the edit sheet over", () => {
+    const client = qc();
+    render(client, "phone", "p-ops");
+    type(q<HTMLInputElement>("[data-ptk-add]"), "Only for Operations");
+    act(() => q<HTMLElement>(".pk-sec-fold[aria-expanded=false]").click());
+    expect(q(`[data-pk-row="b"]`)).toBeTruthy();
+    act(() => q<HTMLElement>("[data-ptk-menu]").click());
+    act(() => q<HTMLElement>(`[data-ptk-act="edit"]`).click());
+    type(q<HTMLInputElement>("[data-ptk-edit-name]"), "Renamed");
+
+    // the same route component, a new param: nothing is remounted
+    render(client, "phone", "p-lab");
+    expect(q("h1").textContent).toBe("Lab");
+    expect(q<HTMLInputElement>("[data-ptk-add]").value).toBe("");
+    // Lab's Done fold is shut again (its done task is not drawn)
+    expect(host.querySelector(`[data-pk-row="l2"]`)).toBeNull();
+    // the edit sheet is shut (a shut sheet is inert) and holds nothing of A's
+    expect(q("[data-ptk-edit-name]").closest("[inert]")).toBeTruthy();
+    expect(q<HTMLInputElement>("[data-ptk-edit-name]").value).not.toBe(
+      "Renamed"
+    );
+
+    // and the same on the desktop face
+    render(client, "desktop", "p-lab");
+    expect(q<HTMLInputElement>(".wk-padd-input").value).toBe("");
+    expect(host.querySelector(".wk-sheet-input")).toBeNull();
   });
 });
 

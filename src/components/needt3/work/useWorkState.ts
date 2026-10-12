@@ -27,7 +27,10 @@ export interface ProjectEditDraft {
  * and its ⋯ action sheet, the desktop's menus and hover. Writes in flight are
  * not here either: a mutation outlives the component that started it.
  */
-export function useWorkState(initialTab: WorkTab) {
+export function useWorkState(
+  initialTab: WorkTab,
+  projectId: string | null = null
+) {
   const [tab, setTab] = useState<WorkTab>(initialTab);
   const [fold, setFold] = useState<Record<string, boolean>>({ __done: true });
   const [pageFold, setPageFold] = useState<Record<string, boolean>>({
@@ -37,6 +40,20 @@ export function useWorkState(initialTab: WorkTab) {
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [edit, setEdit] = useState<ProjectEditDraft | null>(null);
+
+  // A project's page state belongs to that project. Going from /projects/A to
+  // /projects/B keeps this component mounted (same route component, new param),
+  // so what A's page held — a typed line, folds, an open edit sheet — is put
+  // back to its start instead of showing up on B.
+  const [scope, setScope] = useState(projectId);
+  if (scope !== projectId) {
+    setScope(projectId);
+    setPageFold({ __done: true });
+    setMore({});
+    setDraft("");
+    setEditId(null);
+    setEdit(null);
+  }
 
   const flip = useCallback(
     (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] })),

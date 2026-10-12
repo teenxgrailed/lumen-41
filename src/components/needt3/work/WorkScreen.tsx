@@ -86,7 +86,8 @@ export function WorkScreen({
   // One controller above the face switch: crossing 700 px swaps the faces and
   // must keep the tab, the folds, a typed line and an open edit sheet.
   const state = useWorkState(
-    mode === "projects" ? "all" : phone ? phoneTab() : "today"
+    mode === "projects" ? "all" : phone ? phoneTab() : "today",
+    projectId
   );
   if (!v3) return null;
   // The phone draws its own face (phone/tasks); this route stays mounted.

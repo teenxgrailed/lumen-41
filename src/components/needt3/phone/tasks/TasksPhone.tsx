@@ -29,6 +29,7 @@ import {
   DONE_ZONE,
   PTK_TABS,
   type PtkTab,
+  movedToTodayLabel,
   ptkHeader,
   ptkModel,
   ptkSpecs,
@@ -184,16 +185,24 @@ function TasksBody({
     onAdd: addToday,
   };
 
-  /* Overdue → today, one write per task, one Undo for all. */
+  /* Overdue → today, one write per task; the snack and its one Undo cover the
+     moves that landed (a 409 on one row leaves that row, and only that row,
+     where it was). */
   const moveToToday = () => {
     const r = moveOverdue(m.live, today);
     if (!r) return;
-    Promise.all(
+    void Promise.allSettled(
       r.moves.map((mv) => update.mutateAsync({ id: mv.id, patch: mv.patch }))
-    ).then(
-      (done) => snack(r.label, () => Promise.all(done.map((d) => d.undo()))),
-      none
-    );
+    ).then((results) => {
+      const done = results.flatMap((x) =>
+        x.status === "fulfilled" ? [x.value] : []
+      );
+      // The hook has told the person about each failure and put its row back.
+      if (!done.length) return;
+      snack(movedToTodayLabel(done.length), () =>
+        Promise.allSettled(done.map((d) => d.undo()))
+      );
+    });
   };
 
   const empty = !m.live.length ? EMPTY.all : EMPTY[tab];
