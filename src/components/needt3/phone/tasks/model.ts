@@ -16,11 +16,13 @@ import {
   at as hourAt,
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import { isOnToday, taskDay } from "@/lib/needt3/task-day";
 
 import {
   UPCOMING_DAYS,
   byDay,
   byTime,
+  byTimeOn,
   isOverdue,
   projectGroups,
   upcomingTitle,
@@ -57,8 +59,10 @@ const pickable = (t: Pick<V3Task, "noSlot" | "trashedAt">) =>
   !t.noSlot && !t.trashedAt;
 
 /** After today and not late: a swipe to "tomorrow" has nothing to do. */
-export const isAhead = (t: Pick<V3Task, "done" | "dueDate">, today: string) =>
-  !isOverdue(t as V3Task, today) && !!t.dueDate && t.dueDate > today;
+export const isAhead = (
+  t: Pick<V3Task, "done" | "dueDate" | "scheduledStart">,
+  today: string
+) => !isOverdue(t as V3Task, today) && (taskDay(t, today) ?? "") > today;
 
 /** The live project a task is filed under, or null (none, or an archived one). */
 export function projectOf(
@@ -94,10 +98,12 @@ export function ptkModel(opts: {
   const { projects, today, tab } = opts;
   const live = opts.tasks.filter(pickable);
   const last = addDays(today, UPCOMING_DAYS);
-  const inbox = live.filter((t) => !t.dueDate && !t.isFixed);
-  const todayL = live.filter((t) => isOverdue(t, today) || t.dueDate === today);
+  const dayOf = (t: V3Task) => taskDay(t, today);
+  const inbox = live.filter((t) => !dayOf(t) && !t.isFixed);
+  // Today = overdue (due before today) + due or scheduled today
+  const todayL = live.filter((t) => isOverdue(t, today) || isOnToday(t, today));
   const upcoming = live.filter(
-    (t) => isAhead(t, today) && (t.dueDate as string) <= last
+    (t) => isAhead(t, today) && (dayOf(t) as string) <= last
   );
   const scope = { inbox, today: todayL, upcoming, all: live }[tab];
 
@@ -119,13 +125,13 @@ export function ptkModel(opts: {
       },
     ];
   else if (tab === "upcoming") {
-    const days = [...new Set(upcoming.map((t) => t.dueDate as string))].sort();
+    const days = [...new Set(upcoming.map((t) => dayOf(t) as string))].sort();
     sections = days.map((day) => ({
       // the desktop's key (day-1 = tomorrow): both faces fold the same section
       key: `day-${daysBetween(today, day)}`,
       title: upcomingTitle(day, today),
       day,
-      tasks: upcoming.filter((t) => t.dueDate === day),
+      tasks: upcoming.filter((t) => dayOf(t) === day),
     }));
   } else {
     const ids = new Set(projects.map((p) => p.id));
@@ -151,7 +157,7 @@ export function ptkModel(opts: {
       ...s,
       tasks: s.tasks
         .filter((t) => !t.done)
-        .sort(s.key === "today" ? byTime : byDay),
+        .sort(s.key === "today" ? byTimeOn(today) : byDay),
     }))
     .filter((s) => s.tasks.length);
 

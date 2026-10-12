@@ -5,25 +5,26 @@
  * "YYYY-MM-DDTHH:mm" so nothing here reads a clock.
  */
 import { minutesBetween } from "@/lib/needt3/derive";
+import { overdueCount as countOverdue, isOnToday } from "@/lib/needt3/task-day";
 
 interface TaskLike {
   done: boolean;
   noSlot: boolean;
   dueDate: string | null;
+  scheduledStart?: string | null;
 }
 
-/** Done / total of the tasks due today; null when nothing is due today. */
+/** Done / total of today's tasks (due or scheduled today); null when none. */
 export function dayProgress(tasks: readonly TaskLike[], today: string) {
-  const due = tasks.filter((t) => !t.noSlot && t.dueDate === today);
+  const due = tasks.filter((t) => !t.noSlot && isOnToday(t, today));
   return due.length
     ? { done: due.filter((t) => t.done).length, total: due.length }
     : null;
 }
 
+/** Open tasks due before today (`task-day`, the one rule). */
 export function overdueCount(tasks: readonly TaskLike[], today: string) {
-  return tasks.filter(
-    (t) => !t.done && !t.noSlot && !!t.dueDate && t.dueDate < today
-  ).length;
+  return countOverdue(tasks, today);
 }
 
 export function unreadCount(mail: readonly { isRead: boolean }[]) {

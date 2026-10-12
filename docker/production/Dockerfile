@@ -61,6 +61,8 @@ COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 COPY --chown=nextjs:nodejs --from=builder /app/public ./public
 COPY --chown=nextjs:nodejs --from=builder /app/dist ./dist
 COPY --chown=nextjs:nodejs --from=builder /app/prisma ./prisma
+# Operator scripts run by hand from the container terminal.
+COPY --chown=nextjs:nodejs --from=builder /app/scripts/admin ./scripts/admin
 COPY --chown=nextjs:nodejs --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --chown=nextjs:nodejs --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 RUN test -x /app/node_modules/@prisma/engines/schema-engine-*
