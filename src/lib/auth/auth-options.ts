@@ -9,6 +9,10 @@ import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
+import {
+  enforceSessionVersion,
+  issueSessionVersion,
+} from "@/lib/auth/session-version";
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-oauth-scopes";
@@ -27,6 +31,14 @@ interface UserWithRole {
 }
 
 const LOG_SOURCE = "AuthOptions";
+
+/* Owner decision: a session lasts 30 days and slides. With the JWT strategy
+   NextAuth re-issues the cookie with a fresh 30-day expiry on every session
+   read (each /api/auth/session call from the client), so an active person
+   stays signed in and a device left idle for 30 days is signed out.
+   `updateAge` only throttles database sessions; it is set for clarity. */
+export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+export const SESSION_UPDATE_AGE_SECONDS = 24 * 60 * 60;
 
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
@@ -129,7 +141,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
       },
       // This branch's jwt supersedes main's: it keeps token.sub and the role
       // instead of early-returning a fresh token object that dropped both.
-      async jwt({ token, account, user }) {
+      async jwt({ token: incoming, account, user }) {
+        let token = incoming;
         // Sessions issued before the provider tokens were dropped still carry
         // them; strip them so they stop riding along in the cookie.
         const legacy = token as Record<string, unknown>;
@@ -139,6 +152,10 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
         if (user) {
           token.sub = user.id;
           token.role = (user as UserWithRole).role;
+          token = await issueSessionVersion(token, user.id);
+        } else {
+          // Throws once the person signed out everywhere; see session-version.
+          token = await enforceSessionVersion(token);
         }
 
         // Initial sign in. The provider's OAuth tokens are deliberately not
@@ -194,9 +211,13 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     debug: process.env.NODE_ENV === "development",
     session: {
       strategy: "jwt",
-      // Set a very long maxAge to keep users logged in indefinitely
-      // They will only be logged out if they click the logout button
-      maxAge: 365 * 24 * 60 * 60, // 1 year
+      maxAge: SESSION_MAX_AGE_SECONDS,
+      updateAge: SESSION_UPDATE_AGE_SECONDS,
+    },
+    // The sign-in callback encodes with jwt.maxAge, the session route with
+    // session.maxAge; keep both on the same 30 days.
+    jwt: {
+      maxAge: SESSION_MAX_AGE_SECONDS,
     },
   };
 }

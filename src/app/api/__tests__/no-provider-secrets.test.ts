@@ -15,11 +15,16 @@ import { GET as getTaskProviders } from "@/app/api/task-sync/providers/route";
 
 import { SECRET_MASK } from "@/lib/api/public-records";
 import { authenticateRequest, requireAdmin } from "@/lib/auth/api-auth";
+import { clearResendInstance } from "@/lib/email/resend";
 import {
   listMailAccounts,
   getMailMessage as loadMailMessage,
 } from "@/lib/mail-db";
 import { prisma } from "@/lib/prisma";
+import {
+  decryptSecret,
+  isEncryptedSecret,
+} from "@/lib/security/secret-encryption";
 
 jest.mock("@/lib/auth/api-auth", () => ({
   authenticateRequest: jest.fn(),
@@ -57,6 +62,7 @@ jest.mock("imapflow", () => ({
     logout: jest.fn().mockResolvedValue(undefined),
   })),
 }));
+jest.mock("@/lib/email/resend", () => ({ clearResendInstance: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: {
     debug: jest.fn(),
@@ -435,6 +441,55 @@ describe("API responses never carry provider secrets", () => {
     expect(status).toBe(200);
     expectNoSecretValues(text);
     expect(written).toEqual({ disableHomepage: true });
+    // The key did not change, so the cached Resend client stays.
+    expect(clearResendInstance).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /api/system-settings drops the cached Resend client on a new key", async () => {
+    const { status } = await bodyOf(
+      await patchSystemSettings(
+        new NextRequest("http://localhost/api/system-settings", {
+          method: "PATCH",
+          body: JSON.stringify({ resendApiKey: "replacement-resend-key" }),
+        })
+      )
+    );
+
+    expect(status).toBe(200);
+    expect(clearResendInstance).toHaveBeenCalledTimes(1);
+  });
+
+  it("PATCH /api/system-settings stores a new secret encrypted", async () => {
+    let written: Record<string, unknown> = {};
+    db.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) =>
+        callback({
+          systemSettings: {
+            findFirst: jest.fn().mockResolvedValue(systemSettings),
+            update: jest.fn().mockImplementation(({ data }) => {
+              written = data;
+              return { ...systemSettings, ...data };
+            }),
+          },
+        })
+    );
+
+    const { status, text, json } = await bodyOf(
+      await patchSystemSettings(
+        new NextRequest("http://localhost/api/system-settings", {
+          method: "PATCH",
+          body: JSON.stringify({ resendApiKey: "replacement-resend-key" }),
+        })
+      )
+    );
+
+    expect(status).toBe(200);
+    expect(isEncryptedSecret(written.resendApiKey as string)).toBe(true);
+    expect(decryptSecret(written.resendApiKey as string)).toBe(
+      "replacement-resend-key"
+    );
+    expect(text).not.toContain("replacement-resend-key");
+    expect(json).toMatchObject({ resendApiKey: SECRET_MASK });
   });
 
   it("PUT /api/logs/settings returns only the log settings", async () => {

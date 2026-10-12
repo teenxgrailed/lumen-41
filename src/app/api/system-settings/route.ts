@@ -5,8 +5,10 @@ import {
   withoutMaskedSecrets,
 } from "@/lib/api/public-records";
 import { requireAdmin } from "@/lib/auth/api-auth";
+import { clearResendInstance } from "@/lib/email/resend";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 const LOG_SOURCE = "SystemSettingsAPI";
 
@@ -55,7 +57,11 @@ export async function PATCH(request: NextRequest) {
   if (authResponse) return authResponse;
 
   try {
-    const updates = withoutMaskedSecrets(await request.json());
+    // Fields still carrying the mask are dropped so a stored secret survives a
+    // form that echoes back what it loaded; real values are encrypted.
+    const updates = sealSystemSettingsSecrets(
+      withoutMaskedSecrets(await request.json())
+    );
 
     const settings = await prisma.$transaction(async (tx) => {
       // Check if any SystemSettings record exists
@@ -77,6 +83,12 @@ export async function PATCH(request: NextRequest) {
         });
       }
     });
+
+    // The cached Resend client holds the old key; drop it here, on the server
+    // that caches it, so the next email uses the new one.
+    if ("resendApiKey" in updates) {
+      clearResendInstance();
+    }
 
     // Log if the homepage setting was updated
     if ("disableHomepage" in updates) {

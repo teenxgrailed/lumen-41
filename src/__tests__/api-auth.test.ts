@@ -29,6 +29,7 @@ describe("shared API authentication", () => {
       emailVerified: null,
       isActive: true,
       role: "user",
+      sessionVersion: 0,
     });
     settingsModel.findFirst.mockResolvedValue({
       requireEmailVerificationBeforeAccess: false,
@@ -41,6 +42,27 @@ describe("shared API authentication", () => {
     const response = await requireAuth(request());
 
     expect(response?.status).toBe(401);
+  });
+
+  it("rejects a token issued before the user signed out everywhere", async () => {
+    jest
+      .mocked(getToken)
+      .mockResolvedValue({ sub: "user-1", sessionVersion: 1 });
+    userModel.findUnique.mockResolvedValue({
+      emailVerified: null,
+      isActive: true,
+      role: "admin",
+      sessionVersion: 2,
+    });
+
+    expect((await requireAuth(request()))?.status).toBe(401);
+    expect((await requireAdmin(request("/api/admin")))?.status).toBe(401);
+  });
+
+  it("accepts a pre-versioning token while the user is still on version 0", async () => {
+    jest.mocked(getToken).mockResolvedValue({ sub: "user-1" });
+
+    await expect(requireAuth(request())).resolves.toBeNull();
   });
 
   it("rejects a disabled user", async () => {
@@ -56,7 +78,11 @@ describe("shared API authentication", () => {
       sub: "user-1",
       role: "admin",
     });
-    userModel.findUnique.mockResolvedValue({ isActive: true, role: "user" });
+    userModel.findUnique.mockResolvedValue({
+      isActive: true,
+      role: "user",
+      sessionVersion: 0,
+    });
 
     const response = await requireAdmin(request("/api/admin"));
 
@@ -69,6 +95,7 @@ describe("shared API authentication", () => {
       emailVerified: null,
       isActive: true,
       role: "admin",
+      sessionVersion: 0,
     });
 
     await expect(requireAdmin(request("/api/admin"))).resolves.toBeNull();
@@ -79,6 +106,7 @@ describe("shared API authentication", () => {
       emailVerified: null,
       isActive: true,
       role: "admin",
+      sessionVersion: 0,
     });
     settingsModel.findFirst.mockResolvedValue({
       requireEmailVerificationBeforeAccess: true,

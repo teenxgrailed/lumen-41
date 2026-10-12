@@ -87,6 +87,9 @@ model User {
   hue                    String?
   initials               String?
   lastAuthenticatedAt    DateTime?
+  // Bumped to sign the person out everywhere: a session token carries the
+  // version it was issued under and stops working once the two differ.
+  sessionVersion         Int                       @default(0)
   dataExports            DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]

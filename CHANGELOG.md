@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Google and Outlook OAuth client secrets and the Resend API key saved in
+  admin system settings are encrypted at rest (`enc:v1:`), like provider
+  tokens. Existing values are encrypted by the same worker-start backfill;
+  the admin form still shows the mask and keeps a secret that is not retyped.
 - Connected-calendar, mail and task credentials are encrypted at rest:
   Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
   AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens
@@ -28,6 +32,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync.
 - Hosted AI requests are routed only to OpenRouter hosts based in the US or
   the EU, with known hosts elsewhere refused on every request.
+- Free keeps three active habits, enforced by the API: creating a fourth, or
+  restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
+  Pro, Lifetime and trials are unlimited. Habits above the limit after a
+  downgrade stay and stay editable. An archived habit is restored with
+  `PATCH /api/habits/:id` and `{ "archived": false }`.
+- Security: a session now lasts 30 days and slides — every visit renews it,
+  and a device left unused for 30 days is signed out (it was one year).
+  Settings › Account has "Sign out of all devices"
+  (`POST /api/account/sessions/revoke`), which signs out every device
+  including this one; other devices stop working within a minute. Resetting a
+  password does the same, and a deleted or disabled account is signed out
+  everywhere.
+- Privacy: the app no longer loads Inter, Instrument Serif and JetBrains Mono
+  from Google Fonts, so a visitor's IP address is no longer sent to Google on
+  page load. The same font files are now served from the app itself
+  (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
+  Google import so a re-sync cannot bring it back. Every subset Google
+  served is kept — Cyrillic, Greek and Vietnamese included — and a page
+  downloads only the subsets its text uses. The files have hashed names and
+  are cached by browsers for a year.
+- Fixed: typing a new Google or Outlook client secret or Resend API key in
+  admin system settings saved only its first character. Secret fields now
+  save once, when you leave the field or press Enter, and the field keeps
+  what you typed while it has focus. The server drops its cached Resend
+  client when the key changes.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.
