@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Free keeps three active habits, enforced by the API: creating a fourth, or
+  restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
+  Pro, Lifetime and trials are unlimited. Habits above the limit after a
+  downgrade stay and stay editable. An archived habit is restored with
+  `PATCH /api/habits/:id` and `{ "archived": false }`.
 - Security: a session now lasts 30 days and slides — every visit renews it,
   and a device left unused for 30 days is signed out (it was one year).
   Settings › Account has "Sign out of all devices"
