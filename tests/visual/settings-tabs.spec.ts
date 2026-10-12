@@ -3,17 +3,32 @@ import { expect, test } from "@playwright/test";
 import { VISUAL_TEST_NOW } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
+/*
+ * Design v3: `/settings#section` opens the Settings sheet over Today (the
+ * URL moves to /today), one section per hash. Calendars, integrations and AI
+ * left Settings for Connections, so they are not tabs here any more.
+ */
 const SETTINGS_TABS = [
-  ["theme", "Appearance"],
-  ["auto-scheduling", "Your day"],
-  ["calendars", "Calendars"],
-  ["task-defaults", "Tasks"],
+  ["account", "Account"],
+  ["plan", "Plan & billing"],
+  ["general", "General"],
+  ["appearance", "Appearance"],
+  ["day", "Your day"],
+  ["tasks", "Tasks"],
   ["focus", "Focus"],
-  ["notifications", "Alerts"],
-  ["desktop", "Shortcuts"],
-  ["billing", "Account"],
-  ["ai", "Data"],
+  ["alerts", "Notifications"],
+  ["keys", "Shortcuts"],
+  ["data", "Data & privacy"],
+  ["about", "About"],
 ] as const;
+
+/** The open section's title in the sheet's header (desktop h2, phone bar). */
+function settingsSection(page: import("@playwright/test").Page, title: string) {
+  return page
+    .getByRole("dialog", { name: "Settings" })
+    .getByRole("banner")
+    .getByText(title, { exact: true });
+}
 
 async function settleSettings(page: import("@playwright/test").Page) {
   await page.addStyleTag({
@@ -70,13 +85,10 @@ test("Billing stays visually consistent", async ({ page }) => {
   });
   await prepareSettings(page);
   await page.goto("/settings#billing", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/#billing$/);
-  // The ported screen names the open section instead of repeating "Settings";
-  // billing lives inside Account.
-  await expect(
-    page.getByRole("heading", { name: "Account", exact: true, level: 2 })
-  ).toBeVisible();
-  await expect(page.getByText("Choose a plan", { exact: true })).toBeVisible();
+  // v3: the old #billing anchor opens Plan & billing in the sheet over Today.
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(settingsSection(page, "Plan & billing")).toBeVisible();
+  await expect(page.getByText("Your plan · Free")).toBeVisible();
   await settleSettings(page);
   await expect(page).toHaveScreenshot("settings-billing.png");
 });
@@ -87,43 +99,46 @@ test("every Settings tab stays visually consistent", async ({ page }) => {
 
   for (const [tab, label] of SETTINGS_TABS) {
     await page.goto(`/settings#${tab}`, { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(new RegExp(`#${tab}$`));
-
-    await expect(
-      page.getByRole("heading", { name: "Settings", level: 1 })
-    ).toBeVisible();
-    await expect(
-      page.locator("#settings-panel > h2").filter({ hasText: label })
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/today$/);
+    await expect(settingsSection(page, label)).toBeVisible();
 
     await settleSettings(page);
     await expect(page).toHaveScreenshot(`settings-${tab}.png`);
   }
 });
 
-test("unavailable browser push stays honest in Settings", async ({ page }) => {
-  await prepareSettings(page);
-  await page.goto("/settings#notifications", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/#notifications$/);
-  await expect(
-    page.locator("#settings-panel > h2").filter({ hasText: "Alerts" })
-  ).toBeVisible();
+// //todo: v3 Notifications has no browser-push opt-in at all (its "Desktop
+// notification" switches are the worker's columns), so there is no switch to
+// disable and no "setup is incomplete" line. Bring this back when the v3
+// section gets the push subscription the old NotificationSettings had.
+test.fixme(
+  "unavailable browser push stays honest in Settings",
+  async ({ page }) => {
+    await prepareSettings(page);
+    await page.goto("/settings#notifications", {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page).toHaveURL(/#notifications$/);
+    await expect(
+      page.locator("#settings-panel > h2").filter({ hasText: "Alerts" })
+    ).toBeVisible();
 
-  const browserNotifications = page
-    .getByText("Browser notifications:", { exact: true })
-    .locator("..")
-    .getByRole("switch");
-  await expect(browserNotifications).toBeDisabled();
-  await expect(browserNotifications).toHaveAttribute("aria-checked", "false");
-  await expect(
-    page.getByText(
-      "Push delivery setup is incomplete on this Needt server. Browser notifications are unavailable. Email reminders still work."
-    )
-  ).toBeVisible();
+    const browserNotifications = page
+      .getByText("Browser notifications:", { exact: true })
+      .locator("..")
+      .getByRole("switch");
+    await expect(browserNotifications).toBeDisabled();
+    await expect(browserNotifications).toHaveAttribute("aria-checked", "false");
+    await expect(
+      page.getByText(
+        "Push delivery setup is incomplete on this Needt server. Browser notifications are unavailable. Email reminders still work."
+      )
+    ).toBeVisible();
 
-  await settleSettings(page);
-  await expect(page).toHaveScreenshot("settings-notifications.png");
-});
+    await settleSettings(page);
+    await expect(page).toHaveScreenshot("settings-notifications.png");
+  }
+);
 
 test("Billing renders the failed-payment recovery path", async ({ page }) => {
   await page.route("**/api/billing", async (route) => {
