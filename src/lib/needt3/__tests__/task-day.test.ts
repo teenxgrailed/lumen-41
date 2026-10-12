@@ -10,7 +10,7 @@ import { homeView, moveLate } from "@/components/needt3/phone/home/model";
 import { dayIn } from "@/components/needt3/phone/overlays/today";
 import { ptkModel } from "@/components/needt3/phone/tasks/model";
 import { overdueCount as sidebarOverdue } from "@/components/needt3/shell/live";
-import { workModel } from "@/components/needt3/work/model";
+import { projectGroups, workModel } from "@/components/needt3/work/model";
 
 import { moveOverdue } from "@/lib/needt3/day";
 import { type ApiTask, type V3Task, taskFromApi } from "@/lib/needt3/map";
@@ -258,5 +258,76 @@ describe("time zones west and east of UTC", () => {
     expect(t.scheduledStart).toBe("2026-10-11T21:00");
     expect(isOverdue(t, "2026-10-12")).toBe(false);
     expect(isOnToday(t, "2026-10-12")).toBe(true);
+  });
+});
+
+describe("every open task lands in exactly one group", () => {
+  const P = "proj-1";
+  const mix = (over: Partial<V3Task>[]) =>
+    over.map((o) => task({ projectId: P, ...o }));
+  const all = mix([
+    { dueDate: "2026-10-11" }, // overdue
+    { dueDate: "2026-10-11", noSlot: true }, // no slot, due yesterday
+    { dueDate: TODAY, noSlot: true }, // no slot, due today
+    { dueDate: "2026-10-20", noSlot: true }, // no slot, due later
+    { dueDate: TODAY }, // today
+    { scheduledStart: `${TODAY}T15:00` }, // scheduled today
+    { scheduledStart: "2026-10-11T19:00" }, // stale block, no due date
+    { dueDate: "2026-10-15", scheduledStart: "2026-10-10T09:00" }, // later
+    { dueDate: "2026-10-30" }, // beyond Upcoming's week
+    {}, // no date
+    { dueDate: "2026-10-11", done: true }, // done: Done list only
+  ]);
+  const ids = (l: readonly V3Task[]) => l.map((t) => t.id).sort();
+  const openIds = ids(all.filter((t) => !t.done));
+
+  it("project page: the groups cover every open task once (noSlot due yesterday included)", () => {
+    const { groups, done } = projectGroups(P, all, TODAY);
+    const seen = groups.flatMap((g) => g.tasks.map((t) => t.id));
+    expect(seen.sort()).toEqual(openIds);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(
+      groups.find((g) => g.key === "No date")?.tasks.map((t) => t.id)
+    ).toContain(all[1].id);
+    expect(done.map((t) => t.id)).toEqual([all[10].id]);
+  });
+
+  it("Tasks desktop + phone, Today tab: Overdue and Today are disjoint and cover the tab", () => {
+    const live = all.filter((t) => !t.done && !t.noSlot);
+    const want = ids(
+      live.filter((t) => isOverdue(t, TODAY) || isOnToday(t, TODAY))
+    );
+    for (const m of [
+      workModel({ tasks: all, projects: [], today: TODAY, tab: "today" }),
+      ptkModel({ tasks: all, projects: [], today: TODAY, tab: "today" }),
+    ]) {
+      const seen = m.sections.flatMap((s) => s.tasks.map((t) => t.id));
+      expect(new Set(seen).size).toBe(seen.length);
+      expect(seen.sort()).toEqual(want);
+      expect(m.counts.today).toBe(want.length);
+    }
+  });
+
+  it("Tasks desktop + phone: Inbox, Today and Upcoming never share a task", () => {
+    for (const make of [workModel, ptkModel] as const) {
+      const seen = (["inbox", "today", "upcoming"] as const).flatMap((tab) =>
+        make({ tasks: all, projects: [], today: TODAY, tab }).sections.flatMap(
+          (s) => s.tasks.map((t) => t.id)
+        )
+      );
+      expect(new Set(seen).size).toBe(seen.length);
+    }
+  });
+
+  it("Home: late, day and inbox are disjoint; the rest of the open work is ahead", () => {
+    const { late, day, inbox } = splitHome(all, TODAY);
+    const seen = [...late, ...day.filter((t) => !t.done), ...inbox].map(
+      (t) => t.id
+    );
+    expect(new Set(seen).size).toBe(seen.length);
+    const rest = all.filter(
+      (t) => !t.done && !t.noSlot && !seen.includes(t.id)
+    );
+    for (const t of rest) expect(taskDay(t, TODAY)! > TODAY).toBe(true);
   });
 });

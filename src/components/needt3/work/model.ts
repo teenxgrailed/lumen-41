@@ -276,6 +276,8 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
   ).slice(0, n);
 }
 
+type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
+
 /** The project page: open tasks grouped by when, and the Done list. */
 export function projectGroups(
   projectId: string,
@@ -284,34 +286,40 @@ export function projectGroups(
 ) {
   const mine = tasks.filter((t) => t.projectId === projectId);
   const open = mine.filter((t) => !t.done);
-  const late = (t: V3Task) => isOverdue(t, today);
+  // Every open task lands in exactly one group. A "no slot" task (it could
+  // not be placed) is never overdue by the one rule, so it sits under No
+  // date whatever its due day — before, one due yesterday fell out of every
+  // group and vanished from the page.
+  const groupOf = (t: V3Task): ProjectGroupKey => {
+    if (isOverdue(t, today)) return "Overdue";
+    if (t.noSlot) return "No date";
+    const d = taskDay(t, today);
+    if (d === today) return "Today";
+    if (d && d > today) return "Upcoming";
+    return "No date";
+  };
+  const of = (k: ProjectGroupKey) => open.filter((t) => groupOf(t) === k);
   const groups: Section[] = [
     {
       key: "Overdue",
       title: "Overdue",
       tone: "late" as const,
-      tasks: sorted(open.filter(late), byDay),
+      tasks: sorted(of("Overdue"), byDay),
     },
     {
       key: "Today",
       title: "Today",
-      tasks: sorted(
-        open.filter((t) => !late(t) && isOnToday(t, today)),
-        byTimeOn(today)
-      ),
+      tasks: sorted(of("Today"), byTimeOn(today)),
     },
     {
       key: "Upcoming",
       title: "Upcoming",
-      tasks: sorted(
-        open.filter((t) => !late(t) && (taskDay(t, today) ?? "") > today),
-        byDay
-      ),
+      tasks: sorted(of("Upcoming"), byDay),
     },
     {
       key: "No date",
       title: "No date",
-      tasks: open.filter((t) => !late(t) && !taskDay(t, today)),
+      tasks: of("No date"),
     },
   ].filter((g) => g.tasks.length);
   return {

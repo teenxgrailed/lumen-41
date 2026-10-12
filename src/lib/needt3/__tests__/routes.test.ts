@@ -1,5 +1,5 @@
 /**
- * /docs → /pages (permanent) and which 404 an unknown address gets.
+ * /docs → /pages (temporary, 307) and which 404 an unknown address gets.
  */
 import { missingRouteFace } from "@/lib/needt3/not-found";
 
@@ -19,12 +19,12 @@ describe("next.config redirects", () => {
     redirects: () => Promise<Redirect[]>;
   };
 
-  it("sends /docs and /docs/:id to /pages permanently", async () => {
+  it("sends /docs and /docs/:id to /pages, temporarily (307)", async () => {
     const list = await config.redirects();
     expect(list).toEqual(
       expect.arrayContaining([
-        { source: "/docs", destination: "/pages", permanent: true },
-        { source: "/docs/:id", destination: "/pages/:id", permanent: true },
+        { source: "/docs", destination: "/pages", permanent: false },
+        { source: "/docs/:id", destination: "/pages/:id", permanent: false },
       ])
     );
   });
