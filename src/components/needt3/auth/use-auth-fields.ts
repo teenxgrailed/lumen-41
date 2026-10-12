@@ -20,3 +20,47 @@ export function useAuthFields(
   const [pass, setPass] = React.useState("");
   return external ?? { mail, pass, setMail, setPass };
 }
+
+export type RecoverStep = null | "ask" | "sent";
+
+export interface AuthRefusal {
+  reason: "taken" | "wrong" | null;
+  message: string | null;
+}
+
+/**
+ * Where the person is in the sign-in flow, beyond the two fields: whether the
+ * first Continue has been pressed (`touched`), whether the password field has
+ * appeared (`withPass`, the desktop's two-step), which recovery step is open,
+ * and the server's last refusal. Owned by the route when it can swap faces, so
+ * crossing 700px neither closes "Forgot password?" nor forgets a refusal.
+ */
+export interface AuthSteps {
+  touched: boolean;
+  setTouched: (value: boolean) => void;
+  withPass: boolean;
+  setWithPass: (value: boolean) => void;
+  recover: RecoverStep;
+  setRecover: (value: RecoverStep) => void;
+  refused: AuthRefusal | null;
+  setRefused: (value: AuthRefusal | null) => void;
+}
+
+export function useAuthSteps(external: AuthSteps | undefined): AuthSteps {
+  const [touched, setTouched] = React.useState(false);
+  const [withPass, setWithPass] = React.useState(false);
+  const [recover, setRecover] = React.useState<RecoverStep>(null);
+  const [refused, setRefused] = React.useState<AuthRefusal | null>(null);
+  return (
+    external ?? {
+      touched,
+      setTouched,
+      withPass,
+      setWithPass,
+      recover,
+      setRecover,
+      refused,
+      setRefused,
+    }
+  );
+}
