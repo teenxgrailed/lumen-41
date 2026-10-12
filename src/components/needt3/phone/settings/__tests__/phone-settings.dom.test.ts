@@ -31,6 +31,7 @@ const mockPush = jest.fn();
 const mockSignOut = jest.fn();
 const mockClear = jest.fn();
 const mockNotify = jest.fn();
+const mockSignOutAll = jest.fn();
 
 jest.mock("next-auth/react", () => ({
   useSession: () => ({
@@ -40,6 +41,9 @@ jest.mock("next-auth/react", () => ({
 }));
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: (...a: unknown[]) => mockPush(...a) }),
+}));
+jest.mock("@/lib/auth/client-sign-out", () => ({
+  signOutOfNeedt: (...a: unknown[]) => mockSignOutAll(...a),
 }));
 jest.mock("@/lib/pwa/offline-client", () => ({
   clearNeedtOfflineData: () => mockClear(),
@@ -111,6 +115,8 @@ interface Write {
 let writes: Write[];
 /** While set, every write waits for it: a request that is still in flight. */
 let hold: Promise<unknown> | null;
+/** While set, writes answer 500. */
+let failWrites = false;
 
 const reply = (body: unknown) =>
   Promise.resolve({
@@ -127,6 +133,13 @@ const fakeFetch = (url: string, init?: RequestInit) => {
       method,
       body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
     });
+    if (failWrites)
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        statusText: "Error",
+        text: () => Promise.resolve("{}"),
+      });
     return hold ? hold.then(() => reply({})) : reply({});
   }
   // a route that is not set never answers: that source has not loaded
@@ -206,6 +219,9 @@ beforeEach(() => {
   routes = {};
   writes = [];
   hold = null;
+  failWrites = false;
+  mockSignOutAll.mockReset();
+  mockSignOutAll.mockResolvedValue(undefined);
   onClose.mockClear();
   onMark.mockClear();
   mockPush.mockClear();
@@ -588,6 +604,41 @@ describe("sign out and the account", () => {
     await flush();
     expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: "/auth/signin" });
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("Sign out of all devices asks first, then revokes every session and signs out", async () => {
+    await mount("account");
+    await tap(q("[data-ps-signout-all]"));
+    // asking: nothing sent yet
+    expect(writes).toEqual([]);
+    expect(q("[data-ps-signout-all-confirm]")).not.toBeNull();
+    // Cancel puts the row back
+    const cancel = Array.from(host.querySelectorAll("button")).find(
+      (b) => b.textContent === "Cancel"
+    );
+    await tap(cancel ?? null);
+    expect(q("[data-ps-signout-all-confirm]")).toBeNull();
+    expect(writes).toEqual([]);
+    // confirm: one POST to the revoke route, then the one sign-out path
+    await tap(q("[data-ps-signout-all]"));
+    await tap(q("[data-ps-signout-all-confirm]"));
+    expect(writes.map((w) => [w.method, w.url])).toEqual([
+      ["POST", "/api/account/sessions/revoke"],
+    ]);
+    expect(mockSignOutAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed revoke says so and keeps the person signed in", async () => {
+    failWrites = true;
+    await mount("account");
+    await tap(q("[data-ps-signout-all]"));
+    await tap(q("[data-ps-signout-all-confirm]"));
+    expect(mockSignOutAll).not.toHaveBeenCalled();
+    expect(mockNotify).toHaveBeenCalledWith(
+      "error",
+      "Could not sign out of all devices"
+    );
+    expect(q("[data-ps-signout-all]")).not.toBeNull();
   });
 
   it("Delete account opens the existing deletion flow under its row", async () => {
