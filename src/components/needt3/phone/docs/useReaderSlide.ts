@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
   useEffect,
@@ -71,7 +70,7 @@ export function useReaderSlide({
     width: 0,
     left: 0,
     leaving: false,
-    ended: 0,
+    ended: Number.NEGATIVE_INFINITY,
     drag: null,
     untrack: null,
   }).current;
@@ -182,7 +181,7 @@ export function useReaderSlide({
   }, [go, S]);
 
   const onPointerDown = useCallback(
-    (e: ReactPointerEvent) => {
+    (e: PointerEvent) => {
       if (e.button > 0 || S.leaving || S.drag || !on.current) return;
       if (!startsAtEdge(e.clientX, S.left)) return;
       const d: Drag = {
@@ -237,7 +236,7 @@ export function useReaderSlide({
 
   /** Capture-phase click guard: the click a swipe ends with is not a tap. */
   const onClickCapture = useCallback(
-    (e: { stopPropagation: () => void; preventDefault: () => void }) => {
+    (e: Event) => {
       if (performance.now() - S.ended < SWALLOW_MS) {
         e.stopPropagation();
         e.preventDefault();
@@ -246,5 +245,19 @@ export function useReaderSlide({
     [S]
   );
 
-  return { back, onPointerDown, onClickCapture };
+  // Native listeners on the root, not React props: the editor is moved into
+  // the page from a portal (DocumentFace), and a portal's events bubble to its
+  // React parent, not through this DOM ancestor.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("click", onClickCapture, true);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("click", onClickCapture, true);
+    };
+  }, [onPointerDown, onClickCapture, rootRef]);
+
+  return { back };
 }

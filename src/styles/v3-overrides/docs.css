@@ -90,3 +90,17 @@
 .needt-v3 .pd-srow.is-static:active {
   background: none;
 }
+
+/* The editor's own "Page editing actions" bar (undo, redo, blocks; fixed,
+ * sm:hidden) was placed for the old phone dock, 68 px up. Menu A's pill is 64
+ * px tall at 10 px, so it covered the bar. While the reader is open the bar
+ * sits above the pill (74 px + a 10 px gap, plus the safe area); with the
+ * keyboard up the pill steps away (usePhoneCover) and the bar rides on the
+ * keyboard (--pd-kb). Scoped to .pd-reader, so closing or unmounting the
+ * reader releases both. */
+.needt-v3 .pd-reader [aria-label="Page editing actions"] {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+.needt-v3 .pd-reader.is-editing [aria-label="Page editing actions"] {
+  bottom: var(--pd-kb, 0px);
+}

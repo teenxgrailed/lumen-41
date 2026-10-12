@@ -27,7 +27,13 @@ import { notify } from "@/lib/notifications";
 
 import { useDocTokens } from "../../docs/DocParts";
 import { ageLabel } from "../../docs/labels";
-import { DOC_SORTS, dirLabel, sortDocs } from "../../docs/sort";
+import {
+  DOC_SORTS,
+  type DocSortKey,
+  dirLabel,
+  sortDocs,
+} from "../../docs/sort";
+import type { DocsController } from "../../docs/useDocsController";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { StSkeleton } from "../../states/StSkeleton";
 import { screenState } from "../../states/status";
@@ -39,7 +45,6 @@ import { usePhoneCover } from "../shell/cover";
 import { DocCard } from "./DocCard";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { docsSub, matchDocs, pullHits } from "./logic";
-import type { DocSortKey, DocsPhoneCtl } from "./useDocsPhone";
 
 const docHref = (id: string) => `/pages/${encodeURIComponent(id)}`;
 
@@ -79,14 +84,14 @@ function useDocActions() {
  * The data and the rules are the desktop grid's: `useDocs`, the stored sort
  * (`needt.docsSort`), `useCreateDoc`, pin and Trash with Undo.
  */
-export function DocsPhone({ ctl }: { ctl: DocsPhoneCtl }) {
+export function DocsPhone({ ctl }: { ctl: DocsController }) {
   const router = useRouter();
   const query = useDocs();
   const projects = useProjects();
   const read = useDocTokens();
   const act = useDocActions();
   // The sort, Quick Open words and the create guard live above the face
-  // switch (useDocsPhone); the stored sort is read after mount and again
+  // switch (useDocsController); the stored sort is read after mount and again
   // whenever this face comes back.
   const { sort, q, setQ, newDoc, creating, refreshSort } = ctl;
   useEffect(() => refreshSort(), [refreshSort]);

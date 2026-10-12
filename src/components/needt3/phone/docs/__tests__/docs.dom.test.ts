@@ -6,7 +6,7 @@
  * From template, a card opening its page, a failed load (retry), no access,
  * and one create at a time.
  */
-import { act, createElement as h, createElement as mockH } from "react";
+import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
@@ -21,11 +21,6 @@ import { DocsFace } from "../Faces";
 
 // StScreen reads the flag from V3Root, which pulls in the whole frame and its CSS.
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
-
-// The desktop grid is not under test here: a stub marks that it is the one shown.
-jest.mock("../../../docs/DocsScreen", () => ({
-  DocsScreen: () => mockH("i", { "data-face": "docs-desktop" }),
-}));
 
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -149,13 +144,20 @@ const type = (input: HTMLInputElement, value: string) =>
   });
 
 const three = () => [
-  doc("a", "Alpha", { updatedAt: "2026-10-01T10:00:00.000Z" }),
+  doc("a", "Alpha", {
+    updatedAt: "2026-10-01T10:00:00.000Z",
+    createdAt: "2026-10-01T10:00:00.000Z",
+  }),
   doc("b", "Bravo", {
+    createdAt: "2026-10-02T10:00:00.000Z",
     updatedAt: "2026-10-09T10:00:00.000Z",
     isFavorite: true,
     projectId: "p1",
   }),
-  doc("c", "", { updatedAt: "2026-10-05T10:00:00.000Z" }),
+  doc("c", "", {
+    updatedAt: "2026-10-05T10:00:00.000Z",
+    createdAt: "2026-10-03T10:00:00.000Z",
+  }),
   doc("t", "In the bin", { trashedAt: "2026-10-09T10:00:00.000Z" }),
 ];
 
@@ -336,8 +338,18 @@ describe("states", () => {
   });
 });
 
-describe("crossing 700 px (two faces, one state)", () => {
-  it("keeps the sort and the Quick Open words, and takes the desktop's later sort", () => {
+describe("crossing 700 px (two faces, one controller)", () => {
+  // The real desktop grid is the other face. Its card order, by id.
+  const deskIds = () =>
+    Array.from(host.querySelectorAll("[data-ctx='doc-card']")).map((e) =>
+      e.getAttribute("data-ctx-id")
+    );
+
+  it("the sort and Quick Open words survive, and the desktop grid reads the same sort", () => {
+    // Storage is blocked: the controller, not localStorage, carries the sort.
+    jest.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
     query = ok(three());
     mount();
     click($("[data-pd-more='list']"));
@@ -345,23 +357,34 @@ describe("crossing 700 px (two faces, one state)", () => {
     type($<HTMLInputElement>("[data-pd-quickopen] input"), "r");
     expect(titles()).toEqual(["Bravo"]);
     swap("desktop");
-    expect($("[data-face='docs-desktop']")).not.toBeNull();
     expect(host.querySelector("[data-pd-card]")).toBeNull();
+    expect(deskIds()).toEqual(["a", "b", "c"]); // by name, untitled last
+    // the desktop's own ⋯ menu changes the shared sort
+    click($("[data-docs-more]"));
+    const created = Array.from(
+      host.querySelectorAll<HTMLElement>("[role='menuitem']")
+    ).find((e) => e.textContent?.includes("Date created"))!;
+    click(created);
+    expect(deskIds()).toEqual(["c", "b", "a"]); // newest created first
     swap("phone");
     expect($<HTMLInputElement>("[data-pd-quickopen] input").value).toBe("r");
-    expect(titles()).toEqual(["Bravo"]);
-    // the desktop grid wrote another sort while it was shown
-    swap("desktop");
-    window.localStorage.setItem(
-      "needt.docsSort",
-      JSON.stringify({ key: "name", dir: "desc" })
-    );
-    swap("phone");
     type($<HTMLInputElement>("[data-pd-quickopen] input"), "");
     expect(titles()).toEqual(["Untitled", "Bravo", "Alpha"]);
+    expect($(".pk-sub").textContent).toBe("3 documents · Recently created");
   });
 
-  it("never repeats a create across a swap, and still opens the new page", async () => {
+  it("the desktop layout switch survives a trip through the phone", () => {
+    query = ok(three());
+    swap("desktop");
+    click($("[aria-label='List']"));
+    expect($("[aria-label='List']").getAttribute("aria-pressed")).toBe("true");
+    swap("phone");
+    swap("desktop");
+    expect($("[aria-label='List']").getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector(".docs-list-head")).not.toBeNull();
+  });
+
+  it("never repeats a create across a swap, from either face, and still opens the new page", async () => {
     query = ok([]);
     let done!: (v: unknown) => void;
     mutateAsync.mockReturnValue(
@@ -372,16 +395,39 @@ describe("crossing 700 px (two faces, one state)", () => {
     mount();
     click($("[data-pd-new]"));
     swap("desktop");
+    click($("[data-docs-empty] button"));
     swap("phone");
     click($("[data-pd-new]"));
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    // the follow-up runs from the surviving hook, even with the desktop face up
     swap("desktop");
+    click($("[data-docs-empty] button"));
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
     await act(async () => {
       done({ result: { id: "new9" }, undo: jest.fn() });
     });
     expect(push).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/pages/new9");
+  });
+
+  it("a create started on the desktop grid is not repeated by the phone face", async () => {
+    query = ok([]);
+    let done!: (v: unknown) => void;
+    mutateAsync.mockReturnValue(
+      new Promise((r) => {
+        done = r;
+      })
+    );
+    swap("desktop");
+    click($("[data-docs-empty] button"));
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    swap("phone");
+    click($("[data-pd-new]"));
+    swap("desktop");
+    click($("[data-docs-empty] button"));
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      done({ result: { id: "d7" }, undo: jest.fn() });
+    });
+    expect(push).toHaveBeenCalledTimes(1);
   });
 
   it("a tap in the first 300 ms of the page's life is not swallowed", () => {

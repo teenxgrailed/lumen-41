@@ -23,14 +23,12 @@ const onTap = jest.fn();
 
 function Harness({ enabled = true }: { enabled?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const s = useReaderSlide({ rootRef: ref, onGone, enabled });
+  useReaderSlide({ rootRef: ref, onGone, enabled });
   return h(
     "div",
     {
       ref,
       "data-root": "",
-      onPointerDown: s.onPointerDown,
-      onClickCapture: s.onClickCapture,
     },
     h("button", { type: "button", "data-tap": "", onClick: onTap }, "tap")
   );
@@ -219,6 +217,15 @@ describe("edge swipe back", () => {
     fire(window, "pointerup", { x: 390, y: 300 });
     expect(onGone).not.toHaveBeenCalled();
     root = createRoot(host);
+  });
+
+  it("a tap in the first 300 ms of the page's life is not swallowed", () => {
+    jest.spyOn(performance, "now").mockReturnValue(5);
+    mount();
+    act(() => {
+      host.querySelector<HTMLElement>("[data-tap]")!.click();
+    });
+    expect(onTap).toHaveBeenCalledTimes(1);
   });
 
   it("swallows the click a swipe ends with, and only that one", async () => {

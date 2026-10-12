@@ -9,6 +9,9 @@
  */
 import { act, createElement as h, createElement as mockH } from "react";
 
+import { readFileSync } from "fs";
+import { join } from "path";
+import postcss from "postcss";
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3Doc } from "@/lib/needt3/map";
@@ -17,15 +20,18 @@ import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { usePhoneOverlays } from "../../overlays/store";
 import { phoneCover } from "../../shell/cover";
 import { DocumentFace } from "../Faces";
-import { ReaderPhone } from "../ReaderPhone";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock("../../../document/DocumentScreen", () => ({
-  DocumentScreen: (p: { children: import("react").ReactNode }) =>
-    mockH("i", { "data-face": "doc-desktop" }, p.children),
+  DocumentScreen: (p: { editorSlot: (el: HTMLElement | null) => void }) =>
+    mockH(
+      "i",
+      { "data-face": "doc-desktop" },
+      mockH("div", { ref: p.editorSlot })
+    ),
 }));
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
 jest.mock("@/lib/notifications", () => ({
@@ -73,13 +79,15 @@ jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => ({ data: plan }),
 }));
 
-let access: { myRole: string | null; ownerId: string; workspaceId: string };
+let access:
+  | { myRole: string | null; ownerId: string; workspaceId: string }
+  | undefined;
 let grants: unknown[];
 let published = false;
 const setGrant = jest.fn();
 const setLink = jest.fn();
 jest.mock("@/lib/needt3/hooks/doc-share", () => ({
-  useDocAccess: () => ({ data: access, isLoading: false }),
+  useDocAccess: () => ({ data: access, isLoading: !access }),
   useDocGrants: () => ({ data: grants }),
   useDocInvitees: () => ({
     data: [
@@ -169,18 +177,23 @@ afterEach(() => {
   delete (HTMLElement.prototype as { offsetWidth?: number }).offsetWidth;
 });
 
-const mount = () =>
-  act(() =>
-    root.render(
-      h(ReaderPhone, {
-        pageId: "d1",
-        children: h("input", {
-          "data-editor-field": "",
-          "aria-label": "Title",
-        }),
-      })
-    )
-  );
+const app = (ui: "phone" | "desktop") =>
+  h(PhoneUiProvider, {
+    value: ui,
+    children: h(DocumentFace, {
+      pageId: "d1",
+      children: h(
+        "div",
+        null,
+        h("input", { "data-editor-field": "", "aria-label": "Title" }),
+        h("div", {
+          "data-assistant-avoid": "",
+          "aria-label": "Page editing actions",
+        })
+      ),
+    }),
+  });
+const mount = () => act(() => root.render(app("phone")));
 const $ = <T extends Element>(sel: string) => host.querySelector<T>(sel)!;
 const click = (el: Element) =>
   act(() => {
@@ -209,8 +222,19 @@ describe("reader chrome", () => {
     ).toEqual(["style", "share", "pin", "link", "delete"]);
   });
 
+  it("until the role is known only Copy link is offered", () => {
+    access = undefined;
+    mount();
+    openMenu();
+    expect(
+      Array.from(host.querySelectorAll("[data-pd-item]")).map((e) =>
+        e.getAttribute("data-pd-item")
+      )
+    ).toEqual(["link"]);
+  });
+
   it("a viewer can only copy the link", () => {
-    access = { ...access, myRole: "VIEWER" };
+    access = { ownerId: "u1", workspaceId: "w1", myRole: "VIEWER" };
     mount();
     openMenu();
     expect(
@@ -243,7 +267,7 @@ describe("reader chrome", () => {
   it("the keyboard swaps ⋯ for Done and takes menu A's place", () => {
     mount();
     expect($("[data-pd-more='doc']")).not.toBeNull();
-    const input = $<HTMLInputElement>("[data-editor-field]");
+    const input = $<HTMLInputElement>("input[data-editor-field]");
     act(() => input.focus());
     expect($("[data-pd-acc='done']")).not.toBeNull();
     expect(host.querySelector("[data-pd-more='doc']")).toBeNull();
@@ -252,6 +276,13 @@ describe("reader chrome", () => {
     expect(document.activeElement).not.toBe(input);
     expect($("[data-pd-more='doc']")).not.toBeNull();
     expect(phoneCover.active()).toBe(false);
+  });
+
+  it("a tap in the first 300 ms of the page's life is not swallowed", () => {
+    jest.spyOn(performance, "now").mockReturnValue(5);
+    mount();
+    click($("[data-pd-back]"));
+    expect(push).toHaveBeenCalledWith("/pages");
   });
 
   it("no access shows the state instead of the page", () => {
@@ -430,7 +461,7 @@ describe("Share", () => {
     });
 
   it("only full access can change who sees the page", () => {
-    access = { ...access, myRole: "EDITOR" };
+    access = { ownerId: "u1", workspaceId: "w1", myRole: "EDITOR" };
     openShare();
     expect($("[data-share-locked]")).not.toBeNull();
     expect(host.querySelector("[data-pd-invite]")).toBeNull();
@@ -507,18 +538,7 @@ describe("Share", () => {
 });
 
 describe("two faces, one state", () => {
-  const face = (ui: "phone" | "desktop") =>
-    act(() =>
-      root.render(
-        h(PhoneUiProvider, {
-          value: ui,
-          children: h(DocumentFace, {
-            pageId: "d1",
-            children: h("input", { "data-editor-field": "" }),
-          }),
-        })
-      )
-    );
+  const face = (ui: "phone" | "desktop") => act(() => root.render(app(ui)));
 
   it("a Delete that lands after the width crossed 700 px still leaves the page", async () => {
     let done!: (v: unknown) => void;
@@ -544,14 +564,7 @@ describe("two faces, one state", () => {
     frame.setAttribute("data-v2p-host", "");
     document.body.appendChild(frame);
     const r2 = createRoot(frame);
-    act(() =>
-      r2.render(
-        h(ReaderPhone, {
-          pageId: "d1",
-          children: h("input", { "data-editor-field": "" }),
-        })
-      )
-    );
+    act(() => r2.render(app("phone")));
     click(frame.querySelector("[data-pd-more='doc']")!);
     expect(frame.hasAttribute("data-pk-moving")).toBe(true);
     act(() => r2.unmount());
@@ -582,5 +595,54 @@ describe("Share: the invite field's error", () => {
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("enterkeyhint")).toBe("send");
     expect(input.getAttribute("autocomplete")).toBe("off");
+  });
+});
+
+describe("the dock and the editor's action bar", () => {
+  // The rules come from the shipped stylesheet, so a renamed class fails here.
+  const css = readFileSync(
+    join(process.cwd(), "src/styles/v3-overrides/docs.css"),
+    "utf8"
+  );
+  const rules = () => {
+    const out: { sel: string; body: string }[] = [];
+    postcss.parse(css).walkRules((r) => {
+      if (r.selector.includes('[aria-label="Page editing actions"]')) {
+        out.push({
+          sel: r.selector.replace(/^\.needt-v3\s+/, ""),
+          body: r.toString(),
+        });
+      }
+    });
+    return out;
+  };
+
+  it("reserves the pill's height plus the safe area under the bar while the reader is open", () => {
+    mount();
+    const bar = $("[aria-label='Page editing actions']");
+    const [rest, typing] = rules();
+    expect(bar.matches(rest.sel)).toBe(true);
+    expect(rest.body).toMatch(
+      /bottom:\s*calc\(84px \+ env\(safe-area-inset-bottom/
+    );
+    // 84 clears the pill (64 tall at 10 px) with a gap
+    expect(84).toBeGreaterThan(10 + 64);
+    // not typing: the keyboard rule does not apply yet
+    expect(bar.matches(typing.sel)).toBe(false);
+  });
+
+  it("rides on the keyboard while typing, and the reserve goes with the reader", () => {
+    mount();
+    const bar = $("[aria-label='Page editing actions']");
+    const [, typing] = rules();
+    act(() => $<HTMLInputElement>("input[data-editor-field]").focus());
+    expect(bar.matches(typing.sel)).toBe(true);
+    expect(typing.body).toMatch(/bottom:\s*var\(--pd-kb/);
+    act(() => root.unmount());
+    expect(document.querySelector(".pd-reader")).toBeNull();
+    expect(
+      host.querySelector("[aria-label='Page editing actions']")
+    ).toBeNull();
+    root = createRoot(host);
   });
 });

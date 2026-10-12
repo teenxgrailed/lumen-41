@@ -2,9 +2,6 @@
 
 import {
   type CSSProperties,
-  type FocusEvent,
-  type ReactNode,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -59,8 +56,8 @@ type Sheet = "style" | "share" | null;
  * left edge (`useReaderSlide`). ⋯ holds Page Style, Share, Pin, Copy link and
  * Delete; Page Style and Share are sheets.
  *
- * The page itself is the existing editor (`PageWorkspace`, passed as
- * `children`: collaboration, revisions, its block model, title and the
+ * The page itself is the existing editor (`PageWorkspace`, kept mounted by
+ * `DocumentFace` and moved into `editorSlot`: collaboration, revisions, its block model, title and the
  * editor_v2 format). The prototype's own block editor (Aa / + Content /
  * selection bar) drives a block model the app does not have, so it is not
  * ported; the editor's own header is hidden here (motion.css P7) because the
@@ -68,10 +65,11 @@ type Sheet = "style" | "share" | null;
  */
 export function ReaderPhone({
   pageId,
-  children,
+  editorSlot,
 }: {
   pageId: string;
-  children: ReactNode;
+  /** Callback ref of the empty slot the editor's host element is moved into. */
+  editorSlot: (el: HTMLElement | null) => void;
 }) {
   const router = useRouter();
   const query = useDoc(pageId);
@@ -164,11 +162,23 @@ export function ReaderPhone({
     };
   }, [typing]);
 
-  const onFocus = useCallback((e: FocusEvent) => {
-    if (isTyping(e.target)) setTyping(true);
-  }, []);
-  const onBlur = useCallback((e: FocusEvent) => {
-    if (!isTyping(e.relatedTarget)) setTyping(false);
+  // Native focus events on the root: the editor is portalled in (DocumentFace),
+  // so React's synthetic focus events would not reach this component.
+  useEffect(() => {
+    const r = root.current;
+    if (!r) return undefined;
+    const on = (e: FocusEvent) => {
+      if (isTyping(e.target)) setTyping(true);
+    };
+    const off = (e: FocusEvent) => {
+      if (!isTyping(e.relatedTarget)) setTyping(false);
+    };
+    r.addEventListener("focusin", on);
+    r.addEventListener("focusout", off);
+    return () => {
+      r.removeEventListener("focusin", on);
+      r.removeEventListener("focusout", off);
+    };
   }, []);
 
   const done = () => {
@@ -178,7 +188,9 @@ export function ReaderPhone({
   };
 
   const closeMenu = () => setMenu(false);
-  const viewerOnly = access.data?.myRole === "VIEWER";
+  // Until the role is known (or when it cannot be read) only Copy link is
+  // offered: a viewer must never see the write actions flash.
+  const viewerOnly = !access.data || access.data.myRole === "VIEWER";
 
   const pin = () => {
     closeMenu();
@@ -285,10 +297,6 @@ export function ReaderPhone({
         data-pk-screen="doc"
         data-pk-band-on="0"
         data-pk-fog-on="0"
-        onPointerDown={slide.onPointerDown}
-        onClickCapture={slide.onClickCapture}
-        onFocus={onFocus}
-        onBlur={onBlur}
       >
         <div ref={scroller} className="pd-reader-scroll">
           {state === "no-access" ? (
@@ -338,9 +346,7 @@ export function ReaderPhone({
                 {/* The editor brings its own canvas, title and header; on the
                     phone the chrome replaces its header and cover (motion.css
                     P7 and v3-overrides/docs.css). */}
-                <div data-doc-editor="" className="pd-editor min-w-0">
-                  {children}
-                </div>
+                <div ref={editorSlot} className="contents" />
               </article>
             </div>
           )}
