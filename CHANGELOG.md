@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Moodboards (design v3) get the grid logic of the design on desktop and phone.
+  A board is a grid of pictures, links, colours and notes: Add (Upload images,
+  drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
+  opened on the side with a note that saves itself, drag to reorder (hold and
+  drag on the phone), "View as guest", Share with View / Edit by email,
+  "Anyone with the link" (a read-only page at `/b/<id>/<token>`; turning it off retires that address for good) and Leave
+  board. Pictures are shrunk to a JPEG of at most 900 px (1.5 MB at most) before
+  upload and stored with the board, with a 200 MB picture total per workspace on
+  every plan ("Your workspace's moodboard pictures are full" when it is reached); a pasted link is read server-side for its title and
+  picture (https only, nothing private is ever contacted; 30 reads per person per 10
+  minutes, then the link is saved as typed). The list sorts by
+  Name, Date created or Date updated on the server, a board's Date updated
+  moves with every change to it, Trash can Delete forever, and the Pinterest
+  row says "Coming soon". The old collaborative canvas stays on the flag-off
+  route; with the flag on, what it stored shows on the grid read-only. New API:
+  `PATCH /api/moodboards/:id/items` (reorder), `POST …/items/upload`,
+  `GET …/assets/:id`, `?sort=&dir=` on the list, `DELETE …?permanent=true`,
+  `PUT …/permissions` by email, and Leave through `DELETE …/permissions`.
 - Fixed (design_v3, opened document): the document screen now matches the
   prototype at desktop width, light and dark. The top bar shows
   "Documents / title" with the avatar, Insert and Share on the right, and the

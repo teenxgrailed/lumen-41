@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createMoodboard,
   listMoodboards,
+  parseMoodboardSort,
 } from "@/services/moodboards/moodboard-service";
 import { WorkspaceRole } from "@prisma/client";
 
@@ -19,7 +20,10 @@ export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   try {
-    return NextResponse.json({ moodboards: await listMoodboards(auth) });
+    // Sorted here, not in the browser: ?sort=updated|created|name&dir=asc|desc.
+    const params = request.nextUrl.searchParams;
+    const sort = parseMoodboardSort(params.get("sort"), params.get("dir"));
+    return NextResponse.json({ moodboards: await listMoodboards(auth, sort) });
   } catch (error) {
     return routeErrorResponse(
       error,

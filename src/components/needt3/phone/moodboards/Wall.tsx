@@ -6,6 +6,7 @@ import { LuLink, LuText } from "react-icons/lu";
 
 import { pkCx } from "../kit";
 import { type PhoneBoardItem, itemName, wallColumns } from "./model";
+import { useWallReorder } from "./useWallReorder";
 
 /* The prototype's MbmMedia, read-only: the picture, the swatch, the link
    card, the note. The classes are the vendored mobile.css / phone-habits.css. */
@@ -85,20 +86,49 @@ export function TileFace({ it, big }: { it: PhoneBoardItem; big?: boolean }) {
 
 /**
  * The wall (phone-habits.jsx PhbWall): a board's references in two columns,
- * each into the shorter one. The wall itself only shows; adding and removing
- * go through the board controller (the items routes). //todo: hold-to-lift
- * reorder (PATCH position). A tap calls `onOpen` when the screen gives one.
+ * each into the shorter one. With `canEdit`, hold a tile to lift it and drag
+ * it among the others (`useWallReorder`: transform-only, cancel never
+ * commits); a hold that does not move opens the tile's actions. Tiles from
+ * the old canvas never lift. A tap calls `onOpen` when the screen gives one.
  */
 export function Wall({
   items,
   onOpen,
+  canEdit = false,
+  onOrder,
+  onHold,
 }: {
   items: readonly PhoneBoardItem[];
   onOpen?: (it: PhoneBoardItem) => void;
+  canEdit?: boolean;
+  /** The new order of the board's own references (every id). */
+  onOrder?: (order: string[]) => Promise<unknown> | void;
+  onHold?: (it: PhoneBoardItem) => void;
 }) {
-  const cols = wallColumns(items);
+  const own = items.filter((i) => !i.fromCanvas);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const wall = useWallReorder({
+    ids: own.map((i) => i.id),
+    canLift: (id) => canEdit && !byId.get(id)?.fromCanvas,
+    onOrder: (order) => onOrder?.(order),
+    onHold: (id) => {
+      const it = byId.get(id);
+      if (it) onHold?.(it);
+    },
+  });
+  const shown = wall.order
+    ? [
+        ...wall.order.map((id) => byId.get(id)).filter(Boolean),
+        ...items.filter((i) => i.fromCanvas),
+      ]
+    : items;
+  const cols = wallColumns(shown as PhoneBoardItem[]);
   return (
-    <div className="phb-wall" data-phb-wall="">
+    <div
+      ref={wall.boxRef}
+      className={pkCx("phb-wall", wall.lift != null && "is-lifting")}
+      data-phb-wall=""
+    >
       {cols.map((col, ci) => (
         <div key={ci} className="phb-col">
           {col.map((it) => {
@@ -112,10 +142,13 @@ export function Wall({
               <button
                 key={it.id}
                 type="button"
-                className={pkCx("phb-tile")}
+                className={pkCx("phb-tile", wall.lift === it.id && "is-lifted")}
                 data-phb-item={it.id}
                 aria-label={`Open ${itemName(it)}`}
                 onClick={() => onOpen(it)}
+                onClickCapture={wall.onClickCapture}
+                onPointerDown={(e) => wall.onPointerDown(e, it.id)}
+                onContextMenu={(e) => wall.onContextMenu(e, it.id)}
               >
                 <TileFace it={it} />
                 {caption}
@@ -134,7 +167,14 @@ export function Wall({
 }
 
 /** A board card's cover: four cells of its first references (MbmCover). */
-export function BoardCover({ items }: { items: readonly PhoneBoardItem[] }) {
+export function BoardCover({
+  items,
+}: {
+  items: readonly Pick<
+    PhoneBoardItem,
+    "kind" | "url" | "thumbnailUrl" | "color" | "text"
+  >[];
+}) {
   const four = items.slice(0, 4);
   return (
     <span className="mbm-cover-1" aria-hidden="true">

@@ -19,6 +19,8 @@ import {
   useAddBoardItem,
   useBoardItems,
   useRemoveBoardItem,
+  useReorderBoardItems,
+  useUpdateBoardItem,
 } from "../boards";
 
 (
@@ -35,6 +37,7 @@ const reply = (status: number, body?: unknown) => ({
   status,
   statusText: "",
   text: async () => (body === undefined ? "" : JSON.stringify(body)),
+  json: async () => body,
 });
 
 const row = (id: string, extra = {}) => ({
@@ -96,13 +99,20 @@ beforeEach(() => {
     calls.push({
       url,
       method,
-      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      body:
+        init?.body instanceof FormData
+          ? Object.fromEntries(init.body.entries())
+          : init?.body
+            ? JSON.parse(String(init.body))
+            : undefined,
     });
     if (failNext && method !== "GET") return reply(403, { error: "no" });
     if (method === "GET")
       return reply(200, { items: [...serverItems, row("x", { kind: "pin" })] });
     if (method === "POST")
       return reply(201, { item: row("new", { position: 9 }) });
+    if (method === "PATCH")
+      return reply(200, { item: row("i1"), items: serverItems });
     return reply(204);
   }) as unknown as typeof fetch;
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -120,12 +130,16 @@ const api: {
   items?: V3BoardItem[];
   add?: ReturnType<typeof useAddBoardItem>;
   remove?: ReturnType<typeof useRemoveBoardItem>;
+  reorder?: ReturnType<typeof useReorderBoardItems>;
+  save?: ReturnType<typeof useUpdateBoardItem>;
 } = {};
 
 function Probe() {
   api.items = useBoardItems("b1").data;
   api.add = useAddBoardItem();
   api.remove = useRemoveBoardItem();
+  api.reorder = useReorderBoardItems();
+  api.save = useUpdateBoardItem();
   return null;
 }
 const flush = () =>
@@ -203,5 +217,213 @@ describe("add and undo", () => {
       url: "/api/moodboards/b1/items/new",
       method: "DELETE",
     });
+  });
+});
+
+describe("reorder", () => {
+  beforeEach(() => {
+    serverItems = [
+      row("i1", { position: 1 }),
+      row("i2", { position: 2 }),
+      row("i3", { position: 3 }),
+    ];
+  });
+  const order = () =>
+    client
+      .getQueryData<V3BoardItem[]>(boardItemsKey("b1"))
+      ?.map((i) => `${i.id}:${i.position}`);
+
+  it("sends the new order, shows it at once, and Undo sends the old one", async () => {
+    await mountProbe();
+    let undo: () => Promise<void> = async () => undefined;
+    await act(async () => {
+      undo = (
+        await api.reorder!.mutateAsync({
+          boardId: "b1",
+          order: ["i3", "i1", "i2"],
+        })
+      ).undo;
+    });
+    expect(writes()[0]).toMatchObject({
+      url: "/api/moodboards/b1/items",
+      method: "PATCH",
+      body: { order: ["i3", "i1", "i2"] },
+    });
+    await act(async () => {
+      await undo();
+    });
+    expect(writes()[1]).toMatchObject({
+      method: "PATCH",
+      body: { order: ["i1", "i2", "i3"] },
+    });
+  });
+
+  it("lists only what moved: the places of the rest are kept", async () => {
+    await mountProbe();
+    serverItems = serverItems; // the refetch after the write answers as before
+    await act(async () => {
+      await api.reorder!.mutateAsync({ boardId: "b1", order: ["i3", "i1"] });
+    });
+    expect(writes()[0].body).toEqual({ order: ["i3", "i1"] });
+  });
+
+  it("a refused reorder puts the wall back and says so", async () => {
+    await mountProbe();
+    failNext = true;
+    await act(async () => {
+      await api
+        .reorder!.mutateAsync({ boardId: "b1", order: ["i3", "i2", "i1"] })
+        .catch(() => undefined);
+    });
+    expect(order()).toEqual(["i1:1", "i2:2", "i3:3"]);
+  });
+
+  it("leaves the old canvas's tiles at the end whatever the order", async () => {
+    serverItems = [
+      ...serverItems,
+      row("canvas:z", { position: 1_000_000_000, fromCanvas: true } as never),
+    ];
+    await mountProbe();
+    await act(async () => {
+      await api.reorder!.mutateAsync({
+        boardId: "b1",
+        order: ["i3", "i2", "i1"],
+      });
+    });
+    expect(api.items?.map((i) => i.id).at(-1) ?? "canvas:z").toBe("canvas:z");
+  });
+});
+
+describe("edit a reference", () => {
+  it("patches only the fields given, and Undo puts the old ones back", async () => {
+    await mountProbe();
+    let undo: () => Promise<void> = async () => undefined;
+    await act(async () => {
+      undo = (
+        await api.save!.mutateAsync({
+          boardId: "b1",
+          id: "i1",
+          patch: { text: "Why this one" },
+        })
+      ).undo;
+    });
+    expect(writes()[0]).toMatchObject({
+      url: "/api/moodboards/b1/items/i1",
+      method: "PATCH",
+      body: { text: "Why this one" },
+    });
+    await act(async () => {
+      await undo();
+    });
+    expect(writes()[1].body).toEqual({ text: null });
+  });
+});
+
+describe("upload", () => {
+  it("posts the shrunk picture as multipart to the upload route, and Undo deletes the tile", async () => {
+    await mountProbe();
+    let res: Awaited<ReturnType<NonNullable<typeof api.add>["mutateAsync"]>>;
+    await act(async () => {
+      res = await api.add!.mutateAsync({
+        boardId: "b1",
+        upload: {
+          file: new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {
+            type: "image/jpeg",
+          }),
+          name: "chair.jpg",
+          title: "chair",
+          ratio: 0.75,
+          position: -1,
+        },
+      });
+    });
+    expect(writes()[0].url).toBe("/api/moodboards/b1/items/upload");
+    expect(writes()[0].body).toMatchObject({
+      title: "chair",
+      ratio: "0.75",
+      position: "-1",
+    });
+    expect((writes()[0].body as { file: File }).file).toBeInstanceOf(Blob);
+    await act(async () => {
+      await res.undo();
+    });
+    expect(writes()[1]).toMatchObject({
+      method: "DELETE",
+      url: "/api/moodboards/b1/items/new",
+    });
+  });
+
+  it("a refused upload throws the server's words and leaves the wall alone", async () => {
+    await mountProbe();
+    failNext = true;
+    let error: unknown;
+    await act(async () => {
+      await api
+        .add!.mutateAsync({
+          boardId: "b1",
+          upload: { file: new Blob(["x"]), name: "a.jpg" },
+        })
+        .catch((e) => (error = e));
+    });
+    expect(error).toMatchObject({ status: 403, message: "no" });
+  });
+});
+
+describe("the canvas's tiles", () => {
+  it("come through marked read-only", () => {
+    expect(
+      boardItemFromApi({
+        id: "canvas:e1",
+        kind: "note",
+        text: "x",
+        fromCanvas: true,
+      }).fromCanvas
+    ).toBe(true);
+    expect(
+      boardItemFromApi({ id: "r", kind: "note", text: "x" })
+    ).not.toHaveProperty("fromCanvas");
+  });
+});
+
+describe("a failed write does not undo other writes that succeeded", () => {
+  it("reads the wall again instead of restoring a stale snapshot", async () => {
+    await mountProbe();
+    // i2 is removed for real (the server forgets it); then a write on i1 is refused
+    const server = global.fetch as unknown as jest.Mock;
+    const base = server.getMockImplementation()!;
+    let failRemoveOf: string | null = null;
+    server.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE" && url.endsWith("/i2"))
+        serverItems = serverItems.filter((r) => r.id !== "i2");
+      if (
+        init?.method === "DELETE" &&
+        failRemoveOf &&
+        url.endsWith(failRemoveOf)
+      ) {
+        calls.push({ url, method: "DELETE" });
+        // refused late, after the other write has succeeded and the wall was re-read
+        await new Promise((r) => setTimeout(r, 60));
+        return reply(403, { error: "no" });
+      }
+      return base(url, init);
+    });
+    failRemoveOf = "/i1";
+    // i1's removal is slow; i2's goes through while it is in flight
+    let first: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      first = api
+        .remove!.mutateAsync({ boardId: "b1", id: "i1" })
+        .catch(() => undefined);
+      await api.remove!.mutateAsync({ boardId: "b1", id: "i2" });
+    });
+    await act(async () => void (await first));
+    // checked right away: a stale snapshot would bring i2 back until the next read
+    const ids = client
+      .getQueryData<V3BoardItem[]>(boardItemsKey("b1"))
+      ?.map((i) => i.id);
+    // i1 is back (its write failed); i2 stays gone (its write succeeded)
+    expect(ids).toEqual(["i1"]);
+    // and the wall was read again from the server
+    expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThan(1);
   });
 });

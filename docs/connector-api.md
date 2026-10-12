@@ -410,7 +410,8 @@ Fields (anything else in the body is a `400`):
 
 `data:` and `javascript:` addresses are refused: the item stores an address,
 not the file. A path on this site may not contain `\`, must stay on this site
-once normalised, and may not point under `/api/`. `PATCH` takes any of the
+once normalised, and may not point under `/api/`, except an `image`'s own
+uploaded picture (`/api/moodboards/:id/assets/:assetId`, of this board). `PATCH` takes any of the
 fields above except `kind`; `null` clears one, except the field the item's kind
 requires (`url` on `image`/`link`, `color` on `color`, `text` on `note`), which
 is a `400`.
@@ -420,6 +421,59 @@ board answers `409 {"error":"Moodboard is full","limit":500}`; the list
 returns at most 500. Responses carry `{ "item": {...} }` (list: `{ "items": [...] }`)
 with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
 `DELETE` answers `204`.
+
+### Reorder, pictures, sorting, sharing
+
+```http
+PATCH  /api/moodboards/:id/items          { "order": ["itemId", ...] }
+POST   /api/moodboards/:id/items/upload   multipart: file, title?, ratio?, position?
+GET    /api/moodboards/:id/assets/:assetId
+GET    /api/moodboards?sort=updated|created|name&dir=asc|desc
+DELETE /api/moodboards/:id?permanent=true
+PUT    /api/moodboards/:id/permissions    { "email": "...", "role": "VIEWER|EDITOR" }
+DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
+```
+
+- **Reorder** needs an editor. The listed references take, in that order, the
+  places the listed ones held (the rest stay put) and the wall is renumbered
+  1..n; the answer is the wall in its new order. An id that is not on the board
+  is `404` and nothing moves; a repeated id, an empty list or more than 500 ids
+  is `400`.
+- **Upload** takes a JPEG, PNG, WebP or GIF up to 1.5 MB (the type is read from
+  the bytes: `415` otherwise, `413` over the size). The picture and its `image`
+  item are written together (`201 { "item" }`). The item counts toward the
+  500; the board page shrinks pictures to a JPEG of at most 900 px first.
+  A workspace also holds at most 200 MB of pictures in all its boards, the same
+  on every plan: past that an upload is `413` with "Your workspace's moodboard
+  pictures are full (200 MB). Remove some pictures to add more." Pictures
+  nothing refers to any more are freed an hour after they were added (when a
+  tile is removed, the picture of that tile stays for that hour so Undo works).
+  A picture is served with `Cache-Control: private, max-age=300`, only while a
+  tile on its board refers to it.
+- **Links** are read server-side when created without `thumbnailUrl`: the
+  page's title, site name and picture address replace what was sent. Only
+  `https` pages on the default port, never a private, loopback or link-local
+  address (also after redirects), at most 1 MB and 4 seconds. Anything that
+  fails leaves the link as sent. Each person is read at most 30 times in 10
+  minutes; over that, the link is saved as sent, without an error.
+- **List** order is the server's; `name` ignores case. Any change to a board's
+  references, people or title moves its `updatedAt` ("Date updated").
+- **Delete forever** only works for a board already in Trash (`409` otherwise)
+  and only for the board's creator or a workspace owner; someone who was only
+  given full access on the board is refused (`403`).
+- **Permissions**: reading who is on a board is open to anyone who can see it;
+  giving, changing or removing a role needs full access, and an invite reaches
+  people already in the workspace (`403 WORKSPACE_MEMBER_REQUIRED` otherwise;
+  nobody is emailed). Anyone may remove their own access (Leave board).
+- **Old canvas**: `GET …/items` also returns, after the board's own items,
+  what the old canvas stored as read-only items (`fromCanvas: true`, ids that
+  start with `canvas:`) and `canvasSkipped`, the canvas elements with no grid
+  form.
+- **Anyone with the link**: `PATCH /api/moodboards/:id { "linkShare": true }`
+  (full access) opens a read-only page at `/b/:id/:token` (the token is
+  `shareToken` on `GET /api/moodboards/:id`, for full access) and
+  `GET /api/public/moodboards/:id/:token`. Turning it off, Trash or a wrong
+  token answer `404`.
 
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.

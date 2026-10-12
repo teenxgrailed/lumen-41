@@ -8,8 +8,11 @@ import {
   boardCountLine,
   boardMeta,
   boardQuota,
+  cardMeta,
   checkAdd,
+  formOf,
   itemName,
+  itemPatch,
   madeLine,
   nameOk,
   parseLink,
@@ -236,5 +239,115 @@ describe("searching a board", () => {
   it("counts references", () => {
     expect(referenceCount(1)).toBe("1 reference");
     expect(referenceCount(0)).toBe("0 references");
+  });
+});
+
+describe("editing a reference (itemPatch)", () => {
+  const base = {
+    id: "i",
+    kind: "image" as const,
+    url: "https://x.example.com/a.jpg",
+    color: null,
+    text: null,
+    title: "Chair",
+    ratio: 1,
+    colorName: null,
+    source: null,
+    thumbnailUrl: null,
+    position: 1,
+    createdAt: null,
+  };
+  const form = (it: typeof base, p = {}) => ({ ...formOf(it), ...p });
+
+  it("sends nothing when nothing changed", () => {
+    expect(itemPatch(base, form(base))).toBeNull();
+  });
+
+  it("sends only what changed, and a cleared caption as null", () => {
+    expect(itemPatch(base, form(base, { title: " Oak chair " }))).toEqual({
+      title: "Oak chair",
+    });
+    expect(itemPatch(base, form(base, { title: "  " }))).toEqual({
+      title: null,
+    });
+    expect(itemPatch(base, form(base, { text: "Why this one" }))).toEqual({
+      text: "Why this one",
+    });
+    expect(
+      itemPatch(
+        { ...base, text: "old" },
+        form({ ...base, text: "old" } as never, { text: "" })
+      )
+    ).toEqual({ text: null });
+  });
+
+  it("never sends an emptied note (the route refuses it)", () => {
+    const note = {
+      ...base,
+      kind: "note" as const,
+      text: "Heavier fabric",
+      title: null,
+    };
+    expect(itemPatch(note, form(note as never, { text: "   " }))).toBeNull();
+    expect(itemPatch(note, form(note as never, { text: "Lighter" }))).toEqual({
+      text: "Lighter",
+    });
+  });
+
+  it("takes a colour's name and a valid hex, upper-cased, and drops an invalid hex", () => {
+    const c = {
+      ...base,
+      kind: "color" as const,
+      color: "#8A8178",
+      colorName: "Concrete",
+      title: null,
+    };
+    expect(
+      itemPatch(c, form(c as never, { colorName: "Stone", color: "c2410c" }))
+    ).toEqual({
+      colorName: "Stone",
+      color: "#C2410C",
+    });
+    expect(itemPatch(c, form(c as never, { color: "#12" }))).toBeNull();
+    expect(itemPatch(c, form(c as never, { colorName: "" }))).toEqual({
+      colorName: "Colour",
+    });
+  });
+
+  it("does not send a title for a colour or a note", () => {
+    const c = {
+      ...base,
+      kind: "color" as const,
+      color: "#8A8178",
+      title: null,
+    };
+    expect(itemPatch(c, form(c as never, { title: "x" }))).toBeNull();
+  });
+});
+
+describe("a board card's line (cardMeta)", () => {
+  it("says whose a shared board is, else how many references it holds", () => {
+    expect(
+      cardMeta({
+        accessRole: "VIEWER",
+        owner: { name: "Lena", email: "l@x.io" },
+        itemCount: 4,
+      })
+    ).toBe("From Lena");
+    expect(
+      cardMeta({
+        accessRole: "EDITOR",
+        owner: { name: null, email: "tom@x.io" },
+      })
+    ).toBe("From tom");
+    expect(cardMeta({ accessRole: "FULL_ACCESS", itemCount: 1 })).toBe(
+      "1 reference"
+    );
+    expect(cardMeta({ itemCount: 0 })).toBe("0 references");
+  });
+
+  it("does not call a board with canvas content empty", () => {
+    expect(cardMeta({ itemCount: 0, hasCanvas: true })).toBe("Canvas board");
+    expect(cardMeta({ itemCount: 3, hasCanvas: true })).toBe("3 references");
   });
 });

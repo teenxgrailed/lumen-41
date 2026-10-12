@@ -215,6 +215,7 @@ function buildPlan(userId, workspaceId) {
 
     // Moodboards
     ["MoodboardItem", "moodboardItem", viaWs("moodboard")],
+    ["MoodboardAsset", "moodboardAsset", viaWs("moodboard")],
     ["MoodboardSnapshot", "moodboardSnapshot", viaWs("moodboard")],
     [
       "MoodboardCollaborationState",

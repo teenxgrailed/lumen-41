@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-import { LuArrowUpRight, LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
+import {
+  LuArrowUpRight,
+  LuLock,
+  LuPencil,
+  LuPlus,
+  LuTrash2,
+} from "react-icons/lu";
 
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
@@ -10,6 +16,7 @@ import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Board } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { isPrivateBoard } from "../../places/board/logic";
 import type { BoardsController } from "../../places/useBoardsController";
 import {
   PkActions,
@@ -18,6 +25,7 @@ import {
   PkEmpty,
   PkHold,
   PkScreen,
+  PkSection,
 } from "../kit";
 import { usePhoneOverlays } from "../overlays/store";
 import { PlaceState } from "../place-state/PlaceState";
@@ -29,6 +37,7 @@ import {
   boardCountLine,
   boardMeta,
   boardQuota,
+  cardMeta,
   searchBoards,
 } from "./model";
 
@@ -36,12 +45,10 @@ const t = strings["phone-habits.jsx"];
 
 function BoardCard({
   b,
-  tz,
   onOpen,
   onHold,
 }: {
   b: V3Board;
-  tz: string;
   onOpen: (id: string) => void;
   onHold: (b: V3Board) => void;
 }) {
@@ -59,13 +66,19 @@ function BoardCard({
         aria-label={`${t.PhbBoardCard.open} ${b.title || UNTITLED_BOARD}`}
       >
         <span className="phb-board-cover">
-          {/* //todo: the cover shows the first four references; the list route
-              sends none (no items route), so every cell is empty. */}
-          <BoardCover items={[]} />
+          <BoardCover items={b.preview ?? []} />
         </span>
         <span className="phb-board-title">{b.title || UNTITLED_BOARD}</span>
         <span className="phb-board-meta">
-          <span className="phb-board-count">{boardMeta(b, tz)}</span>
+          <span className="phb-board-count">{cardMeta(b)}</span>
+          {isPrivateBoard({
+            memberCount: b.memberCount,
+            linkShare: b.linkShare,
+          }) ? (
+            <span className="phb-board-lock" title="Private — only you">
+              <LuLock size={12} aria-hidden />
+            </span>
+          ) : null}
         </span>
       </button>
     </PkHold>
@@ -93,6 +106,13 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
   const [acts, setActs] = useState<PkActs | null>(null);
 
   const live = (boards.data ?? []).filter((b) => !b.trashedAt);
+  // Boards that are someone else's (shared with you) get their own section.
+  const mine = live.filter(
+    (b) => !b.accessRole || b.accessRole === "FULL_ACCESS"
+  );
+  const shared = live.filter(
+    (b) => b.accessRole && b.accessRole !== "FULL_ACCESS"
+  );
   const quota = boardQuota(plan.data?.kind, live.length);
 
   const holdActs = (b: V3Board) =>
@@ -200,17 +220,39 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
                 }
               />
             ) : (
-              <div className="phb-boards">
-                {live.map((b) => (
-                  <BoardCard
-                    key={b.id}
-                    b={b}
-                    tz={tz}
-                    onOpen={ctl.open}
-                    onHold={holdActs}
-                  />
-                ))}
-              </div>
+              <>
+                {mine.length ? (
+                  <div className="phb-boards">
+                    {mine.map((b) => (
+                      <BoardCard
+                        key={b.id}
+                        b={b}
+                        onOpen={ctl.open}
+                        onHold={holdActs}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {shared.length ? (
+                  <PkSection
+                    title="Shared with you"
+                    count={shared.length}
+                    glyph="shared"
+                    className="phb-shared"
+                  >
+                    <div className="phb-boards">
+                      {shared.map((b) => (
+                        <BoardCard
+                          key={b.id}
+                          b={b}
+                          onOpen={ctl.open}
+                          onHold={holdActs}
+                        />
+                      ))}
+                    </div>
+                  </PkSection>
+                ) : null}
+              </>
             )}
           </PlaceState>
         </PkScreen>
