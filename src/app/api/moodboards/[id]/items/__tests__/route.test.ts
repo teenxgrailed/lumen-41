@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { GET as ASSET } from "@/app/api/moodboards/[id]/assets/[assetId]/route";
 import { DELETE, PATCH } from "@/app/api/moodboards/[id]/items/[itemId]/route";
-import { GET, POST } from "@/app/api/moodboards/[id]/items/route";
+import {
+  GET,
+  POST,
+  PATCH as REORDER,
+} from "@/app/api/moodboards/[id]/items/route";
+import { POST as UPLOAD } from "@/app/api/moodboards/[id]/items/upload/route";
 import { MOODBOARD_ITEM_LIMIT } from "@/services/moodboards/moodboard-item-service";
+import {
+  allowUnfurl,
+  resetUnfurlLimiter,
+} from "@/services/moodboards/moodboard-item-service";
+import { unfurlLink } from "@/services/moodboards/unfurl";
 import {
   MoodboardAccessRole,
   WorkspaceKind,
@@ -23,6 +34,7 @@ type Board = {
   workspaceId: string;
   createdById: string;
   archivedAt: Date | null;
+  trashedAt?: Date | null;
   grants: { userId: string; role: MoodboardAccessRole }[];
 };
 type Item = {
@@ -43,9 +55,22 @@ type Item = {
   secretStorageKey?: string;
 };
 
-const db: { boards: Board[]; items: Item[]; seq: number } = {
+const db: {
+  boards: Board[];
+  items: Item[];
+  assets: {
+    id: string;
+    moodboardId: string;
+    bytes?: Buffer;
+    mimeType?: string;
+    createdAt?: Date;
+    size?: number;
+  }[];
+  seq: number;
+} = {
   boards: [],
   items: [],
+  assets: [],
   seq: 0,
 };
 
@@ -67,13 +92,91 @@ function sortItems(rows: Item[], order: Record<string, "asc" | "desc">[]) {
 }
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
+/* The old canvas's tiles and the page preview have their own tests. */
+const mockCanvas = jest.fn();
+jest.mock("@/services/moodboards/moodboard-canvas", () => ({
+  readCanvasProjection: (...a: unknown[]) => mockCanvas(...a),
+}));
+jest.mock("@/services/moodboards/unfurl", () => ({ unfurlLink: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => {
   const prisma: Record<string, unknown> = {
     // Filled in beforeEach: returns only the caller's own grant.
-    moodboard: { findFirst: jest.fn() },
+    moodboard: { findFirst: jest.fn(), update: jest.fn(async () => ({})) },
+    // FOR UPDATE and the one-statement reorder, as the database would run them
+    $queryRaw: jest.fn(async () => []),
+    $executeRaw: jest.fn(async (sql: { values: unknown[] }) => {
+      const v = sql.values;
+      const board = v[v.length - 1];
+      for (let i = 0; i + 1 < v.length - 1; i += 2) {
+        const row = db.items.find(
+          (r) => r.id === v[i] && r.moodboardId === board
+        );
+        if (row) row.position = v[i + 1] as number;
+      }
+      return (v.length - 1) / 2;
+    }),
+    moodboardAsset: {
+      aggregate: jest.fn(
+        async ({
+          where,
+        }: {
+          where: { moodboard: { workspaceId: string } };
+        }) => ({
+          _sum: {
+            size: db.assets
+              .filter(
+                (a) =>
+                  db.boards.find((b) => b.id === a.moodboardId)?.workspaceId ===
+                  where.moodboard.workspaceId
+              )
+              .reduce((n, a) => n + (a.size ?? 0), 0),
+          },
+        })
+      ),
+      deleteMany: jest.fn(
+        async ({
+          where,
+        }: {
+          where: {
+            moodboardId: string;
+            id: { notIn: string[] };
+            createdAt: { lt: Date };
+          };
+        }) => {
+          const before = db.assets.length;
+          db.assets = db.assets.filter(
+            (a) =>
+              !(
+                a.moodboardId === where.moodboardId &&
+                !where.id.notIn.includes(a.id) &&
+                // an asset seeded without a date is fresh (inside the grace)
+                (a.createdAt ?? new Date()) < where.createdAt.lt
+              )
+          );
+          return { count: before - db.assets.length };
+        }
+      ),
+      count: jest.fn(async () => db.assets.length),
+      create: jest.fn(async ({ data }: { data: { moodboardId: string } }) => {
+        db.seq += 1;
+        const row = {
+          id: `asset-${db.seq}`,
+          createdAt: new Date(Date.UTC(2026, 9, 12, 10, 0)),
+          ...data,
+        };
+        db.assets.push(row as never);
+        return row;
+      }),
+      findFirst: jest.fn(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          db.assets.find((a) =>
+            matches(a as unknown as Record<string, unknown>, where)
+          ) ?? null
+      ),
+    },
     moodboardItem: {
       findMany: jest.fn(
         async ({
@@ -87,7 +190,7 @@ jest.mock("@/lib/prisma", () => {
             db.items.filter((i) =>
               matches(i as unknown as Record<string, unknown>, where)
             ),
-            orderBy
+            orderBy ?? []
           )
       ),
       findFirst: jest.fn(
@@ -277,6 +380,9 @@ const remove = (itemId: string, board = "board-a") =>
 beforeEach(() => {
   jest.clearAllMocks();
   db.seq = 0;
+  db.assets = [];
+  mockCanvas.mockResolvedValue({ items: [], skipped: 0 });
+  (unfurlLink as jest.Mock).mockResolvedValue(null);
   db.boards = [
     {
       id: "board-a",
@@ -327,7 +433,7 @@ beforeEach(() => {
       select,
     }: {
       where: Record<string, unknown>;
-      select: { accessGrants: { where: { userId: string } } };
+      select: { accessGrants?: { where: { userId: string } } };
     }) => {
       const board = db.boards.find((b) =>
         matches(b as unknown as Record<string, unknown>, where)
@@ -337,8 +443,9 @@ beforeEach(() => {
         id: board.id,
         createdById: board.createdById,
         workspaceId: board.workspaceId,
+        trashedAt: board.trashedAt ?? null,
         accessGrants: board.grants
-          .filter((g) => g.userId === select.accessGrants.where.userId)
+          .filter((g) => g.userId === select.accessGrants?.where.userId)
           .map((g) => ({ role: g.role })),
       };
     }
@@ -685,5 +792,848 @@ describe("DELETE /api/moodboards/:id/items/:itemId", () => {
   it("returns 404 for an item that does not exist", async () => {
     as("editor");
     expect((await remove("nope")).status).toBe(404);
+  });
+});
+
+/* ---------- reorder ---------- */
+
+const reorder = (body: unknown, board = "board-a") =>
+  must(
+    REORDER(request(`/api/moodboards/${board}/items`, "PATCH", body), {
+      params: Promise.resolve({ id: board }),
+    })
+  );
+const wall = (board = "board-a") =>
+  db.items
+    .filter((i) => i.moodboardId === board)
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+    .map((i) => `${i.id}:${i.position}`);
+
+describe("PATCH /api/moodboards/:id/items (reorder)", () => {
+  it("puts the listed references in the new order and renumbers the wall 1..n", async () => {
+    as("editor");
+    // the wall reads a-tie-1, a-tie-2, a-late
+    const res = await reorder({ order: ["a-late", "a-tie-2", "a-tie-1"] });
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as { items: { id: string }[] }).items.map((i) => i.id)
+    ).toEqual(["a-late", "a-tie-2", "a-tie-1"]);
+    expect(wall()).toEqual(["a-late:1", "a-tie-2:2", "a-tie-1:3"]);
+  });
+
+  it("gives the listed ones the places the listed ones held and leaves the rest where they are", async () => {
+    as("editor");
+    await reorder({ order: ["a-late", "a-tie-1"] });
+    // a-tie-2 was in the middle and stays there
+    expect(wall()).toEqual(["a-late:1", "a-tie-2:2", "a-tie-1:3"]);
+  });
+
+  it("touches the board's Date updated", async () => {
+    as("editor");
+    await reorder({ order: ["a-late", "a-tie-1"] });
+    expect(prisma.moodboard.update).toHaveBeenCalled();
+  });
+
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "refuses %s with 403 and moves nothing",
+    async (actor) => {
+      as(actor);
+      const before = wall();
+      expect((await reorder({ order: ["a-late", "a-tie-1"] })).status).toBe(
+        403
+      );
+      expect(wall()).toEqual(before);
+      expect(prisma.moodboardItem.update).not.toHaveBeenCalled();
+    }
+  );
+
+  it("answers 404 for an id that is not on this board, and moves nothing", async () => {
+    as("editor");
+    const before = wall();
+    expect((await reorder({ order: ["a-late", "b-only"] })).status).toBe(404);
+    expect(wall()).toEqual(before);
+  });
+
+  it.each([
+    ["a duplicate id", { order: ["a-late", "a-late"] }],
+    ["an empty order", { order: [] }],
+    ["no order", {}],
+    ["a field it does not know", { order: ["a-late"], moodboardId: "x" }],
+    [
+      "more ids than a board can hold",
+      {
+        order: Array.from(
+          { length: MOODBOARD_ITEM_LIMIT + 1 },
+          (_, i) => `i${i}`
+        ),
+      },
+    ],
+  ])("rejects %s with 400", async (_name, body) => {
+    as("editor");
+    const before = wall();
+    expect((await reorder(body)).status).toBe(400);
+    expect(wall()).toEqual(before);
+  });
+});
+
+/* ---------- pictures ---------- */
+
+const JPEG = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46,
+]);
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+
+function uploadRequest(
+  bytes: Buffer | null,
+  fields: Record<string, string> = {},
+  board = "board-a"
+) {
+  const form = new FormData();
+  if (bytes)
+    form.append(
+      "file",
+      new File([new Uint8Array(bytes)], "chair.jpg", { type: "image/jpeg" })
+    );
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  return must(
+    UPLOAD(
+      new NextRequest(`http://localhost/api/moodboards/${board}/items/upload`, {
+        method: "POST",
+        body: form,
+      }),
+      { params: Promise.resolve({ id: board }) }
+    )
+  );
+}
+
+describe("POST /api/moodboards/:id/items/upload", () => {
+  it("stores the picture and adds its tile together", async () => {
+    as("editor");
+    const res = await uploadRequest(JPEG, {
+      title: "Chair",
+      ratio: "1.5",
+      position: "0",
+    });
+    expect(res.status).toBe(201);
+    const { item } = (await res.json()) as {
+      item: {
+        kind: string;
+        url: string;
+        title: string;
+        ratio: number;
+        position: number;
+      };
+    };
+    expect(item).toMatchObject({
+      kind: "image",
+      title: "Chair",
+      ratio: 1.5,
+      position: 0,
+    });
+    expect(item.url).toBe(`/api/moodboards/board-a/assets/${db.assets[0].id}`);
+    expect(db.assets).toHaveLength(1);
+    expect(prisma.moodboard.update).toHaveBeenCalled();
+  });
+
+  it("reads the type from the bytes, not from what the client said", async () => {
+    as("editor");
+    expect((await uploadRequest(PNG)).status).toBe(201);
+    expect((db.assets[0] as unknown as { mimeType: string }).mimeType).toBe(
+      "image/png"
+    );
+  });
+
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "refuses %s with 403 and stores nothing",
+    async (actor) => {
+      as(actor);
+      expect((await uploadRequest(JPEG)).status).toBe(403);
+      expect(db.assets).toHaveLength(0);
+    }
+  );
+
+  it("refuses a file that is not a picture (415), however it is named", async () => {
+    as("editor");
+    const res = await uploadRequest(Buffer.from("<svg onload=alert(1)></svg>"));
+    expect(res.status).toBe(415);
+    expect(db.assets).toHaveLength(0);
+  });
+
+  it("refuses a picture over 1.5 MB (413) with the limit in the words", async () => {
+    as("editor");
+    const big = Buffer.concat([JPEG, Buffer.alloc(1.5 * 1024 * 1024)]);
+    expect((await uploadRequest(big)).status).toBe(413);
+    expect(db.assets).toHaveLength(0);
+  });
+
+  it("answers 400 for an empty file or no file", async () => {
+    as("editor");
+    expect((await uploadRequest(Buffer.alloc(0))).status).toBe(400);
+    expect((await uploadRequest(null)).status).toBe(400);
+  });
+
+  it("answers 409 on a full board and writes nothing", async () => {
+    as("editor");
+    for (let i = 0; i < MOODBOARD_ITEM_LIMIT; i++)
+      db.items.push(
+        item({ id: `fill-${i}`, moodboardId: "board-a", position: 10 + i })
+      );
+    const before = db.items.length;
+    expect((await uploadRequest(JPEG)).status).toBe(409);
+    expect(db.items).toHaveLength(before);
+    expect(db.assets).toHaveLength(0);
+  });
+});
+
+describe("a picture's address in an item", () => {
+  const asset = () => {
+    db.assets.push({ id: "asset-x", moodboardId: "board-a" });
+    return "/api/moodboards/board-a/assets/asset-x";
+  };
+
+  it("accepts this board's own uploaded picture on an image", async () => {
+    as("editor");
+    const url = asset();
+    expect((await create({ kind: "image", url })).status).toBe(201);
+  });
+
+  it.each([
+    ["a picture that does not exist", "/api/moodboards/board-a/assets/nope"],
+    ["another board's picture", "/api/moodboards/board-b/assets/asset-x"],
+    ["another API path", "/api/moodboards/board-a/items"],
+  ])("refuses %s as an image address (400)", async (_name, url) => {
+    as("editor");
+    asset();
+    db.assets.push({ id: "asset-x", moodboardId: "board-b" });
+    expect((await create({ kind: "image", url })).status).toBe(400);
+  });
+
+  it("does not let a link or a preview picture point at an upload", async () => {
+    as("editor");
+    const url = asset();
+    expect((await create({ kind: "link", url })).status).toBe(400);
+    expect(
+      (
+        await create({
+          kind: "link",
+          url: "https://a.example.com",
+          thumbnailUrl: url,
+        })
+      ).status
+    ).toBe(400);
+  });
+
+  it("does not let a patch point an image at a picture of another board", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "https://i.example.com/a.jpg",
+        text: null,
+      })
+    );
+    db.assets.push({ id: "other", moodboardId: "board-b" });
+    expect(
+      (await patch("img", { url: "/api/moodboards/board-b/assets/other" }))
+        .status
+    ).toBe(400);
+  });
+});
+
+describe("GET /api/moodboards/:id/assets/:assetId", () => {
+  const get = (assetId: string, board = "board-a") =>
+    must(
+      ASSET(request(`/api/moodboards/${board}/assets/${assetId}`, "GET"), {
+        params: Promise.resolve({ id: board, assetId }),
+      })
+    );
+
+  beforeEach(() => {
+    db.assets.push({
+      id: "asset-1",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+    // a tile that shows it: only a shown picture is served
+    db.items.push(
+      item({
+        id: "shown",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/asset-1",
+        text: null,
+      })
+    );
+  });
+
+  it.each(["creator", "editor", "viewer", "grantedViewer"] as const)(
+    "serves the bytes to %s, as an image that cannot be sniffed into something else",
+    async (actor) => {
+      as(actor);
+      const res = await get("asset-1");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toBe("image/jpeg");
+      expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(res.headers.get("content-security-policy")).toContain(
+        "default-src 'none'"
+      );
+    }
+  );
+
+  it.each(["outsider", "removedFallback"] as const)(
+    "refuses %s (403)",
+    async (actor) => {
+      as(actor);
+      expect((await get("asset-1")).status).toBe(403);
+    }
+  );
+
+  it("answers 404 for a picture that is not on this board", async () => {
+    as("editor");
+    expect((await get("missing")).status).toBe(404);
+  });
+});
+
+/* ---------- the old canvas, read-side ---------- */
+
+describe("the wall carries what the old canvas stored", () => {
+  it("lists the board's own references first, then the canvas tiles, read-only", async () => {
+    as("viewer");
+    mockCanvas.mockResolvedValue({
+      items: [
+        {
+          id: "canvas:e1",
+          kind: "note",
+          url: null,
+          text: "Heavier fabric",
+          title: null,
+          ratio: 0.7,
+          position: 1_000_000_000,
+          createdAt: null,
+        },
+      ],
+      skipped: 3,
+    });
+    const body = (await (await list()).json()) as {
+      items: { id: string; fromCanvas?: boolean }[];
+      canvasSkipped: number;
+    };
+    expect(body.items.map((i) => i.id)).toEqual([
+      "a-tie-1",
+      "a-tie-2",
+      "a-late",
+      "canvas:e1",
+    ]);
+    expect(body.items.at(-1)?.fromCanvas).toBe(true);
+    expect(body.items[0]).not.toHaveProperty("fromCanvas");
+    expect(body.canvasSkipped).toBe(3);
+  });
+
+  it("cannot change a canvas tile: it is not a row (404)", async () => {
+    as("editor");
+    expect((await patch("canvas:e1", { text: "x" })).status).toBe(404);
+    expect((await remove("canvas:e1")).status).toBe(404);
+  });
+
+  it("reads no canvas for a caller who may not see the board", async () => {
+    as("outsider");
+    expect((await list()).status).toBe(403);
+    expect(mockCanvas).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- link previews ---------- */
+
+describe("a link's preview", () => {
+  it("is read from the page and replaces the typed title and picture", async () => {
+    as("editor");
+    (unfurlLink as jest.Mock).mockResolvedValue({
+      title: "Boxy wool overshirt",
+      siteName: "SSENSE",
+      thumbnailUrl: "https://img.example.com/a.jpg",
+    });
+    const res = await create({
+      kind: "link",
+      url: "https://www.ssense.com/en/p/overshirt",
+      title: "Overshirt",
+      source: { name: "Ssense", domain: "ssense.com" },
+    });
+    expect(res.status).toBe(201);
+    const { item: made } = (await res.json()) as {
+      item: {
+        title: string;
+        thumbnailUrl: string;
+        source: { name: string; domain: string };
+      };
+    };
+    expect(unfurlLink).toHaveBeenCalledWith(
+      "https://www.ssense.com/en/p/overshirt"
+    );
+    expect(made).toMatchObject({
+      title: "Boxy wool overshirt",
+      thumbnailUrl: "https://img.example.com/a.jpg",
+      source: { name: "SSENSE", domain: "ssense.com" },
+    });
+  });
+
+  it("falls back to what was sent when the page cannot be read", async () => {
+    as("editor");
+    (unfurlLink as jest.Mock).mockResolvedValue(null);
+    const { item: made } = (await (
+      await create({
+        kind: "link",
+        url: "https://a.example.com/x",
+        title: "Typed",
+      })
+    ).json()) as { item: { title: string; thumbnailUrl: string | null } };
+    expect(made.title).toBe("Typed");
+    expect(made.thumbnailUrl).toBeNull();
+  });
+
+  it("is not looked up for a picture, a colour or a note, nor when a preview picture came with it", async () => {
+    as("editor");
+    await create({ kind: "note", text: "x" });
+    await create({ kind: "color", color: "#112233" });
+    await create({
+      kind: "link",
+      url: "https://a.example.com/x",
+      thumbnailUrl: "https://a.example.com/p.jpg",
+    });
+    expect(unfurlLink).not.toHaveBeenCalled();
+  });
+
+  it("is not looked up for someone who may not write", async () => {
+    as("viewer");
+    await create({ kind: "link", url: "https://a.example.com/x" });
+    expect(unfurlLink).not.toHaveBeenCalled();
+  });
+});
+
+describe("Date updated", () => {
+  it.each([
+    ["adding", () => create({ kind: "note", text: "x" })],
+    ["changing", () => patch("a-late", { text: "y" })],
+    ["removing", () => remove("a-late")],
+  ])("moves when %s a reference", async (_n, act) => {
+    as("editor");
+    await act();
+    expect(prisma.moodboard.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "board-a" } })
+    );
+  });
+
+  it("does not move when a viewer's write is refused", async () => {
+    as("viewer");
+    await create({ kind: "note", text: "x" });
+    expect(prisma.moodboard.update).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- review fixes ---------- */
+
+/** A request whose body is a stream we can watch: how much of it was pulled, and whether it was cancelled. */
+function streamed(totalBytes: number, headers: Record<string, string> = {}) {
+  const state = { pulled: 0, cancelled: false };
+  const chunk = new Uint8Array(64 * 1024);
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        if (state.pulled >= totalBytes) return controller.close();
+        state.pulled += chunk.byteLength;
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        state.cancelled = true;
+      },
+    },
+    { highWaterMark: 0 }
+  );
+  const req = new NextRequest(
+    "http://localhost/api/moodboards/board-a/items/upload",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+        ...headers,
+      },
+      body,
+      duplex: "half",
+    } as never
+  );
+  return { req, state };
+}
+const upload = (req: NextRequest) =>
+  must(UPLOAD(req, { params: Promise.resolve({ id: "board-a" }) }));
+
+describe("an upload checks who you are before it reads anything", () => {
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "%s: 403, and not one byte of the body is pulled",
+    async (actor) => {
+      as(actor);
+      const { req, state } = streamed(8 * 1024 * 1024);
+      expect((await upload(req)).status).toBe(403);
+      expect(state.pulled).toBe(0);
+    }
+  );
+
+  it("an editor's oversize body with NO Content-Length is cut at the cap: 413, stream cancelled early", async () => {
+    as("editor");
+    const { req, state } = streamed(64 * 1024 * 1024);
+    expect(req.headers.get("content-length")).toBeNull();
+    expect((await upload(req)).status).toBe(413);
+    expect(state.cancelled).toBe(true);
+    expect(state.pulled).toBeLessThan(2.5 * 1024 * 1024);
+  });
+
+  it("a lying Content-Length does not help either", async () => {
+    as("editor");
+    const { req, state } = streamed(16 * 1024 * 1024, {
+      "content-length": "100",
+    });
+    expect((await upload(req)).status).toBe(413);
+    expect(state.pulled).toBeLessThan(2.5 * 1024 * 1024);
+  });
+});
+
+describe("a board in Trash is read-only", () => {
+  beforeEach(() => {
+    db.boards[0].trashedAt = new Date("2026-10-10T00:00:00Z");
+  });
+
+  it("still reads", async () => {
+    as("editor");
+    expect((await list()).status).toBe(200);
+  });
+
+  it.each([
+    ["add", () => create({ kind: "note", text: "x" })],
+    ["change", () => patch("a-late", { text: "y" })],
+    ["remove", () => remove("a-late")],
+    ["reorder", () => reorder({ order: ["a-late", "a-tie-1"] })],
+    ["upload", () => uploadRequest(JPEG)],
+  ])("refuses to %s (409) and writes nothing", async (_n, act) => {
+    as("owner");
+    const before = JSON.stringify(db.items);
+    expect((await act()).status).toBe(409);
+    expect(JSON.stringify(db.items)).toBe(before);
+    expect(db.assets).toHaveLength(0);
+  });
+});
+
+describe("writers on one board are serialised, and a reorder is one statement", () => {
+  it.each([
+    ["add", () => create({ kind: "note", text: "x" })],
+    ["upload", () => uploadRequest(JPEG)],
+    ["reorder", () => reorder({ order: ["a-late", "a-tie-1"] })],
+  ])(
+    "%s takes the board's row lock inside the transaction",
+    async (_n, act) => {
+      as("editor");
+      await act();
+      const raw = (prisma.$queryRaw as jest.Mock).mock.calls[0][0] as string[];
+      expect(raw.join("?")).toContain('FROM "Moodboard"');
+      expect(raw.join("?")).toContain("FOR UPDATE");
+    }
+  );
+
+  it("a reorder of a 500-item wall is one UPDATE, not 500", async () => {
+    as("editor");
+    db.items = Array.from({ length: 500 }, (_, i) =>
+      item({ id: `w${i}`, moodboardId: "board-a", position: i + 1 })
+    );
+    const order = db.items.map((i) => i.id).reverse();
+    expect((await reorder({ order })).status).toBe(200);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.moodboardItem.update).not.toHaveBeenCalled();
+    expect(wall().slice(0, 2)).toEqual(["w499:1", "w498:2"]);
+  });
+
+  it("an unchanged order writes nothing", async () => {
+    as("editor");
+    // a wall that is already numbered 1..n
+    db.items = db.items.filter((i) => i.moodboardId === "board-a");
+    db.items.forEach((i, n) => (i.position = n + 1));
+    const ids = [...db.items]
+      .sort((a, b) => a.position - b.position)
+      .map((i) => i.id);
+    await reorder({ order: ids });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+  });
+});
+
+describe("pictures: orphans, caps and who may still read one", () => {
+  const OLD = new Date("2026-10-12T08:00:00Z"); // older than the keep window
+  it("an emptied board takes uploads again: pictures no tile shows are swept", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    for (let i = 0; i < 1000; i++)
+      db.assets.push({
+        id: `old-${i}`,
+        moodboardId: "board-a",
+        createdAt: OLD,
+      });
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+    expect(db.assets.filter((a) => a.id.startsWith("old-"))).toHaveLength(0);
+    jest.useRealTimers();
+  });
+
+  it("keeps a picture a tile still shows, and one removed less than an hour ago (Undo)", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/shown",
+        text: null,
+      })
+    );
+    db.assets.push(
+      { id: "shown", moodboardId: "board-a", createdAt: OLD },
+      {
+        id: "recent",
+        moodboardId: "board-a",
+        createdAt: new Date("2026-10-12T11:30:00Z"),
+      },
+      { id: "stale", moodboardId: "board-a", createdAt: OLD }
+    );
+    await uploadRequest(JPEG);
+    const ids = db.assets.map((a) => a.id);
+    expect(ids).toContain("shown");
+    expect(ids).toContain("recent");
+    expect(ids).not.toContain("stale");
+    jest.useRealTimers();
+  });
+
+  it("when the cap is really reached the answer says so, and does not say the board is full", async () => {
+    as("editor");
+    for (let i = 0; i < 1000; i++)
+      db.assets.push({
+        id: `fresh-${i}`,
+        moodboardId: "board-a",
+        createdAt: new Date(),
+      });
+    const res = await uploadRequest(JPEG);
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("unused pictures");
+    expect(body.error).not.toMatch(/full/i);
+  });
+
+  it("a removed picture is no longer served, to anyone", async () => {
+    db.assets.push({
+      id: "gone",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+    as("creator");
+    const res = await must(
+      ASSET(request("/api/moodboards/board-a/assets/gone", "GET"), {
+        params: Promise.resolve({ id: "board-a", assetId: "gone" }),
+      })
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+/* ---------- storage, orphans on delete, unfurl limit, cache header ---------- */
+
+describe("a workspace's pictures are bounded in total, for every plan", () => {
+  const MB = 1024 * 1024;
+  it("refuses an upload that would pass the workspace total (413), under the board lock, and stores nothing", async () => {
+    as("editor");
+    db.assets.push({
+      id: "big",
+      moodboardId: "board-a",
+      size: 199 * MB + 800 * 1024,
+    });
+    const res = await uploadRequest(
+      Buffer.concat([JPEG, Buffer.alloc(300 * 1024)])
+    );
+    expect(res.status).toBe(413);
+    const { error } = (await res.json()) as { error: string };
+    expect(error).toContain("moodboard pictures are full (200 MB)");
+    expect(error).toContain("Remove some pictures");
+    expect(db.assets).toHaveLength(1);
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  it("counts every board of the workspace, and none of another workspace", async () => {
+    as("editor");
+    db.boards.push({
+      id: "board-c",
+      workspaceId: "ws-a",
+      createdById: "creator",
+      archivedAt: null,
+      grants: [],
+    });
+    db.assets.push(
+      {
+        id: "other-board",
+        moodboardId: "board-c",
+        size: 199 * MB + 900 * 1024,
+      },
+      { id: "elsewhere", moodboardId: "board-b", size: 500 * MB }
+    );
+    expect(
+      (await uploadRequest(Buffer.concat([JPEG, Buffer.alloc(300 * 1024)])))
+        .status
+    ).toBe(413);
+    db.assets = [{ id: "elsewhere", moodboardId: "board-b", size: 500 * MB }];
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+  });
+
+  it("frees room when pictures are removed (and swept)", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    db.assets.push({
+      id: "old",
+      moodboardId: "board-a",
+      size: 200 * MB,
+      createdAt: new Date("2026-10-12T08:00:00Z"),
+    });
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+    jest.useRealTimers();
+  });
+});
+
+describe("removing a tile purges orphaned pictures but keeps its own for Undo", () => {
+  const OLD = new Date("2026-10-12T08:00:00Z");
+  beforeEach(() =>
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"))
+  );
+  afterEach(() => jest.useRealTimers());
+
+  it("sweeps old orphans on delete; the tile just removed keeps its picture; Undo (the same address) works", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/mine",
+        text: null,
+      })
+    );
+    db.assets.push(
+      {
+        id: "mine",
+        moodboardId: "board-a",
+        createdAt: new Date("2026-10-12T11:55:00Z"),
+      },
+      { id: "orphan", moodboardId: "board-a", createdAt: OLD },
+      { id: "elsewhere", moodboardId: "board-b", createdAt: OLD }
+    );
+    expect((await remove("img")).status).toBe(204);
+    const ids = db.assets.map((a) => a.id);
+    expect(ids).toContain("mine"); // grace window: Undo needs it
+    expect(ids).not.toContain("orphan"); // purged on delete
+    expect(ids).toContain("elsewhere"); // another board is not touched
+    // Undo: the client makes the tile again from the same address
+    const undo = await create({
+      kind: "image",
+      url: "/api/moodboards/board-a/assets/mine",
+    });
+    expect(undo.status).toBe(201);
+  });
+
+  it("after the grace window the picture of a removed tile is gone too, and Undo is refused cleanly", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/mine",
+        text: null,
+      })
+    );
+    db.assets.push({ id: "mine", moodboardId: "board-a", createdAt: OLD });
+    await remove("img");
+    expect(db.assets.map((a) => a.id)).not.toContain("mine");
+    expect(
+      (
+        await create({
+          kind: "image",
+          url: "/api/moodboards/board-a/assets/mine",
+        })
+      ).status
+    ).toBe(400);
+  });
+});
+
+describe("link unfurls are rate limited per person", () => {
+  beforeEach(() => {
+    resetUnfurlLimiter();
+    (unfurlLink as jest.Mock).mockResolvedValue({
+      title: "Page",
+      siteName: null,
+      thumbnailUrl: null,
+    });
+  });
+  const link = (n: number) =>
+    create({ kind: "link", url: `https://a.example.com/${n}`, title: "Typed" });
+
+  it("after 30 in 10 minutes a link is saved as typed, with no error", async () => {
+    as("editor");
+    for (let i = 0; i < 30; i++) expect((await link(i)).status).toBe(201);
+    expect(unfurlLink).toHaveBeenCalledTimes(30);
+    const res = await link(31);
+    expect(res.status).toBe(201);
+    expect(unfurlLink).toHaveBeenCalledTimes(30);
+    expect(((await res.json()) as { item: { title: string } }).item.title).toBe(
+      "Typed"
+    );
+  });
+
+  it("is per person: another user still gets previews", async () => {
+    as("editor");
+    for (let i = 0; i < 31; i++) await link(i);
+    as("owner");
+    await link(99);
+    expect(unfurlLink).toHaveBeenCalledTimes(31);
+  });
+
+  it("slides: room comes back after ten minutes", () => {
+    const t0 = 1_000_000;
+    for (let i = 0; i < 30; i++) expect(allowUnfurl("u", t0 + i)).toBe(true);
+    expect(allowUnfurl("u", t0 + 100)).toBe(false);
+    expect(allowUnfurl("u", t0 + 10 * 60 * 1000 + 1)).toBe(true);
+  });
+});
+
+describe("a picture's cache header", () => {
+  it("is five minutes, private, with the sandbox headers kept", async () => {
+    db.assets.push({
+      id: "asset-1",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+    db.items.push(
+      item({
+        id: "shown",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/asset-1",
+        text: null,
+      })
+    );
+    as("viewer");
+    const res = await must(
+      ASSET(request("/api/moodboards/board-a/assets/asset-1", "GET"), {
+        params: Promise.resolve({ id: "board-a", assetId: "asset-1" }),
+      })
+    );
+    expect(res.headers.get("cache-control")).toBe("private, max-age=300");
+    expect(res.headers.get("content-security-policy")).toContain(
+      "default-src 'none'; sandbox"
+    );
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });
 });

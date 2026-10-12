@@ -5,14 +5,18 @@ import { isDesignV3 } from "@/lib/needt3/design-flag";
 
 export default async function MoodboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { id } = await params;
-  const workspace = <MoodboardWorkspace moodboardId={id} />;
-  /* Flag on: the phone gets its own board page, every other width keeps the
-     workspace. Flag off: exactly the workspace, as before. */
-  if (await isDesignV3())
-    return <MoodboardRoute id={id} workspace={workspace} />;
-  return workspace;
+  const { view } = await searchParams;
+  /* Flag off: exactly the collaborative canvas, as before. Flag on: the grid
+     (docs/port/01-data-map.md §7: the grid is the truth); what the canvas
+     stored shows on it read-only. `?view=canvas` still opens the canvas for
+     the shapes and strokes that have no grid form. */
+  if ((await isDesignV3()) && view !== "canvas")
+    return <MoodboardRoute id={id} />;
+  return <MoodboardWorkspace moodboardId={id} />;
 }

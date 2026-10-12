@@ -119,6 +119,7 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
   useTrashBoard: () => ({
     mutateAsync: (...a: unknown[]) => trashBoardAsync(...a),
   }),
+  useDeleteBoardForever: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({ data: [{ id: "p1", name: "Home" }] }),

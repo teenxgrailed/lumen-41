@@ -17,6 +17,8 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { CtxLayer } from "../ctx/CtxLayer";
 import { registerCtx } from "../ctx/registry";
+import { DocRail } from "../document/DocRail";
+import { useOpenDocId } from "../document/open-doc";
 import { CommandPalette } from "../palette/CommandPalette";
 import { PhoneShell } from "../phone/shell/PhoneShell";
 import { ShellFrame } from "../root/ShellFrame";
@@ -68,6 +70,8 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const narrow = useNarrow();
   const sidebarOpen = useNeedt3Ui((s) => s.sidebarOpen);
   const paletteOpen = useNeedt3Ui((s) => s.paletteOpen);
+  const docRail = useNeedt3Ui((s) => s.docRail);
+  const docId = useOpenDocId();
   const [float, setFloat] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [customize, setCustomize] = useState(false);
@@ -197,6 +201,14 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
     return () => document.removeEventListener("keydown", onKey);
   }, [router, toggleSidebar]);
 
+  // An open document trades the app's places for its own panel (the switcher
+  // at the foot hands the rail back); the swap replays when the rail changes.
+  const docPanel = docId !== null && docRail === "doc";
+  const railContent = (
+    <div key={docPanel ? "doc" : "app"} className="sb-swap shell-app-swap">
+      {docPanel ? <DocRail /> : <Sidebar />}
+    </div>
+  );
   const hidden = !sidebarOpen || focusMode;
   const floatOpen = float && !focusMode;
   const ease = "cubic-bezier(.2,.8,.2,1)";
@@ -227,9 +239,7 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
               : "transform 260ms cubic-bezier(0.2, 0.9, 0.24, 1), box-shadow 260ms ease, visibility 0s linear 260ms",
           }}
         >
-          <div className="sb-swap shell-app-swap">
-            <Sidebar />
-          </div>
+          {railContent}
         </div>
       ) : (
         /* Hide/show: the column's width runs 300 → 0 and the page
@@ -251,9 +261,7 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
                 : `opacity 220ms ease 40ms, transform 260ms ${ease}`,
             }}
           >
-            <div className="sb-swap shell-app-swap">
-              <Sidebar />
-            </div>
+            {railContent}
           </div>
         </div>
       )}

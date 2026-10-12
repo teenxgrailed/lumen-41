@@ -5,7 +5,11 @@ import {
   type MoodboardAccessActor,
   resolveMoodboardAccess,
 } from "@/lib/auth/moodboard-auth";
+import { newDate, subHours } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+
+import { type CanvasItem, readCanvasProjection } from "./moodboard-canvas";
+import { unfurlLink } from "./unfurl";
 
 /**
  * The references on a moodboard grid (`MoodboardItem`, docs/port/01-data-map.md
@@ -36,35 +40,59 @@ const SAME_SITE_BASE = "https://x.invalid";
  * `//host` addresses are refused, so the column never becomes an upload path.
  * A path may not hold a backslash (a browser reads `/\evil.com` as another
  * host), must stay on this origin once normalised, and may not point into
- * `/api/`, so a reference never becomes a call to our own API.
+ * `/api/`, so a reference never becomes a call to our own API. The one
+ * exception is a picture uploaded to this very board (`ASSET_PATH`).
  */
-const referenceUrl = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2048)
-  .refine(
-    (value) => {
-      if (value.includes("\\")) return false;
-      if (value.startsWith("/")) {
-        if (value.startsWith("//")) return false;
+/** `/api/moodboards/<board>/assets/<asset>`: a picture uploaded to a board. */
+const ASSET_PATH =
+  /^\/api\/moodboards\/([A-Za-z0-9_-]{1,64})\/assets\/([A-Za-z0-9_-]{1,64})$/;
+
+/** The address an uploaded picture is stored under on its tile. */
+export const assetPath = (moodboardId: string, assetId: string) =>
+  `/api/moodboards/${moodboardId}/assets/${assetId}`;
+
+/** The board and asset an uploaded picture's address names, or null. */
+export function parseAssetPath(value: string) {
+  const m = ASSET_PATH.exec(value);
+  return m ? { moodboardId: m[1], assetId: m[2] } : null;
+}
+
+const referenceUrlOf = (allowAssets: boolean) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine(
+      (value) => {
+        if (value.includes("\\")) return false;
+        if (value.startsWith("/")) {
+          if (value.startsWith("//")) return false;
+          try {
+            const url = new URL(value, SAME_SITE_BASE);
+            if (url.origin !== SAME_SITE_BASE) return false;
+            if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+              // Only an uploaded picture, and the service checks it is this
+              // board's own and exists (`assertAssetUrl`).
+              return allowAssets && ASSET_PATH.test(value);
+            }
+            return true;
+          } catch {
+            return false;
+          }
+        }
         try {
-          const url = new URL(value, SAME_SITE_BASE);
-          if (url.origin !== SAME_SITE_BASE) return false;
-          return url.pathname !== "/api" && !url.pathname.startsWith("/api/");
+          const url = new URL(value);
+          return url.protocol === "https:" || url.protocol === "http:";
         } catch {
           return false;
         }
-      }
-      try {
-        const url = new URL(value);
-        return url.protocol === "https:" || url.protocol === "http:";
-      } catch {
-        return false;
-      }
-    },
-    { message: "Use an http(s) URL or a path on this site" }
-  );
+      },
+      { message: "Use an http(s) URL or a path on this site" }
+    );
+
+const referenceUrl = referenceUrlOf(true);
+const thumbnailAddress = referenceUrlOf(false);
 
 const hexColor = z
   .string()
@@ -89,7 +117,7 @@ const writableFields = {
   ratio: z.number().finite().min(0.05).max(20).nullable(),
   colorName: z.string().trim().max(120).nullable(),
   source: sourceSchema.nullable(),
-  thumbnailUrl: referenceUrl.nullable(),
+  thumbnailUrl: thumbnailAddress.nullable(),
   position: z.number().finite(),
 };
 
@@ -168,7 +196,10 @@ const itemSelect = {
 
 type ItemRow = Prisma.MoodboardItemGetPayload<{ select: typeof itemSelect }>;
 
-export type PublicMoodboardItem = ReturnType<typeof toPublicMoodboardItem>;
+export type PublicMoodboardItem = ReturnType<typeof toPublicMoodboardItem> & {
+  /** Drawn on the old canvas: shown read-only, not a row you can change. */
+  fromCanvas?: true;
+};
 
 function publicSource(source: Prisma.JsonValue | null) {
   if (!source || typeof source !== "object" || Array.isArray(source)) {
@@ -259,6 +290,14 @@ export class MoodboardItemNotFoundError extends Error {
   }
 }
 
+/** A board in Trash is read-only (restoring it is the one write allowed). */
+export class MoodboardTrashedError extends Error {
+  constructor() {
+    super("This moodboard is in Trash");
+    this.name = "MoodboardTrashedError";
+  }
+}
+
 async function requireBoard(
   actor: MoodboardAccessActor,
   moodboardId: string,
@@ -266,7 +305,28 @@ async function requireBoard(
 ) {
   const access = await resolveMoodboardAccess(actor, moodboardId, role);
   if (!access) throw new MoodboardItemAccessError();
+  if (role !== MoodboardAccessRole.VIEWER && access.trashed)
+    throw new MoodboardTrashedError();
   return access;
+}
+
+/**
+ * May this caller add to the board? Asked before an upload's body is read, so
+ * nobody without the role makes the server buffer megabytes.
+ */
+export async function assertCanWriteMoodboard(
+  actor: MoodboardAccessActor,
+  moodboardId: string
+) {
+  await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
+}
+
+/**
+ * Serialise writers on one board (count-then-insert is otherwise a race: two
+ * requests both see 499 and both insert). Held until the transaction ends.
+ */
+async function lockBoard(tx: Pick<typeof prisma, "$queryRaw">, id: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Moodboard" WHERE "id" = ${id} FOR UPDATE`;
 }
 
 export async function listMoodboardItems(
@@ -283,6 +343,62 @@ export async function listMoodboardItems(
   return items.map(toPublicMoodboardItem);
 }
 
+/** The tile's `url` may only name an uploaded picture of this very board. */
+async function assertAssetUrl(
+  db: Pick<typeof prisma, "moodboardAsset">,
+  moodboardId: string,
+  url: string | null | undefined
+) {
+  if (!url || !url.startsWith("/api/")) return;
+  const asset = parseAssetPath(url);
+  const found =
+    asset && asset.moodboardId === moodboardId
+      ? await db.moodboardAsset.findFirst({
+          where: { id: asset.assetId, moodboardId },
+          select: { id: true },
+        })
+      : null;
+  if (!found) throw new MoodboardItemRequiredFieldError("image", "url");
+}
+
+/** Any change to a board's grid moves its "Date updated". */
+export async function touchMoodboard(
+  db: Pick<typeof prisma, "moodboard">,
+  moodboardId: string
+) {
+  await db.moodboard.update({
+    where: { id: moodboardId },
+    data: { updatedAt: newDate() },
+    select: { id: true },
+  });
+}
+
+/** Server-side page fetches per person: 30 per 10 minutes; beyond that a link is saved as typed. */
+const UNFURL_WINDOW_MS = 10 * 60 * 1000;
+const UNFURL_MAX = 30;
+const unfurls = new Map<string, number[]>();
+
+/** Sliding window, in this process only (a limit on abuse, not a quota). */
+export function allowUnfurl(userId: string, now = Date.now()) {
+  const recent = (unfurls.get(userId) ?? []).filter(
+    (t) => now - t < UNFURL_WINDOW_MS
+  );
+  if (recent.length >= UNFURL_MAX) {
+    unfurls.set(userId, recent);
+    return false;
+  }
+  recent.push(now);
+  unfurls.set(userId, recent);
+  // Keep the table small: forget people whose window has emptied.
+  if (unfurls.size > 5000) {
+    for (const [id, times] of unfurls)
+      if (!times.some((t) => now - t < UNFURL_WINDOW_MS)) unfurls.delete(id);
+  }
+  return true;
+}
+
+export const resetUnfurlLimiter = () => unfurls.clear();
+
 export async function createMoodboardItem(
   actor: MoodboardAccessActor,
   moodboardId: string,
@@ -290,7 +406,27 @@ export async function createMoodboardItem(
 ) {
   await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
   const { position, kind, ...fields } = input;
+  if (kind === "image") await assertAssetUrl(prisma, moodboardId, fields.url);
+  else if (fields.url && fields.url.startsWith("/api/"))
+    throw new MoodboardItemRequiredFieldError(kind, "url");
+  // A link's preview is read from the page itself, outside the transaction
+  // (it can take seconds). Whatever it cannot read, the link keeps as sent.
+  if (
+    kind === "link" &&
+    fields.url &&
+    !fields.thumbnailUrl &&
+    allowUnfurl(actor.userId)
+  ) {
+    const preview = await unfurlLink(fields.url);
+    if (preview) {
+      if (preview.title) fields.title = preview.title;
+      if (preview.thumbnailUrl) fields.thumbnailUrl = preview.thumbnailUrl;
+      if (preview.siteName)
+        fields.source = { ...(fields.source ?? {}), name: preview.siteName };
+    }
+  }
   const item = await prisma.$transaction(async (tx) => {
+    await lockBoard(tx, moodboardId);
     const count = await tx.moodboardItem.count({ where: { moodboardId } });
     if (count >= MOODBOARD_ITEM_LIMIT) throw new MoodboardItemLimitError();
     let at = position;
@@ -301,7 +437,7 @@ export async function createMoodboardItem(
       });
       at = (last._max.position ?? 0) + 1;
     }
-    return tx.moodboardItem.create({
+    const created = await tx.moodboardItem.create({
       data: {
         ...(toData(fields) as Prisma.MoodboardItemUncheckedCreateInput),
         moodboardId,
@@ -310,6 +446,8 @@ export async function createMoodboardItem(
       },
       select: itemSelect,
     });
+    await touchMoodboard(tx, moodboardId);
+    return created;
   });
   return toPublicMoodboardItem(item);
 }
@@ -334,13 +472,23 @@ export async function updateMoodboardItem(
     }
   }
   const { position, ...fields } = input;
-  const item = await prisma.moodboardItem.update({
-    where: { id: existing.id },
-    data: {
-      ...toData(fields),
-      ...(position !== undefined ? { position } : {}),
-    },
-    select: itemSelect,
+  if (fields.url !== undefined && fields.url !== null) {
+    if (existing.kind === "image")
+      await assertAssetUrl(prisma, moodboardId, fields.url);
+    else if (fields.url.startsWith("/api/"))
+      throw new MoodboardItemRequiredFieldError(existing.kind, "url");
+  }
+  const item = await prisma.$transaction(async (tx) => {
+    const updated = await tx.moodboardItem.update({
+      where: { id: existing.id },
+      data: {
+        ...toData(fields),
+        ...(position !== undefined ? { position } : {}),
+      },
+      select: itemSelect,
+    });
+    await touchMoodboard(tx, moodboardId);
+    return updated;
   });
   return toPublicMoodboardItem(item);
 }
@@ -351,8 +499,341 @@ export async function deleteMoodboardItem(
   itemId: string
 ) {
   await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
-  const { count } = await prisma.moodboardItem.deleteMany({
-    where: { id: itemId, moodboardId },
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.moodboardItem.deleteMany({
+      where: { id: itemId, moodboardId },
+    });
+    if (count === 0) throw new MoodboardItemNotFoundError();
+    await touchMoodboard(tx, moodboardId);
+    // Pictures that were orphaned longer ago than the grace window go now. The
+    // picture of the tile just removed stays for that window, so Undo (a new
+    // tile at the same address) still has it.
+    await sweepOrphanAssets(tx, moodboardId);
   });
-  if (count === 0) throw new MoodboardItemNotFoundError();
+}
+
+/* ---------- the whole grid: own rows, then what the canvas stored ---------- */
+
+function canvasToPublic(item: CanvasItem): PublicMoodboardItem {
+  return {
+    id: item.id,
+    moodboardId: "",
+    kind: item.kind,
+    url: item.url,
+    color: null,
+    text: item.text,
+    title: item.title,
+    ratio: item.ratio,
+    colorName: null,
+    source: null,
+    thumbnailUrl: null,
+    position: item.position,
+    createdAt: item.createdAt ?? "",
+    updatedAt: item.createdAt ?? "",
+    fromCanvas: true,
+  };
+}
+
+/**
+ * What the board page draws: the board's own references in wall order, then
+ * the tiles projected from the old canvas (read-only; see moodboard-canvas.ts)
+ * and how many canvas elements have no grid form.
+ */
+export async function listMoodboardGrid(
+  actor: MoodboardAccessActor,
+  moodboardId: string
+) {
+  const items: PublicMoodboardItem[] = await listMoodboardItems(
+    actor,
+    moodboardId
+  );
+  const canvas = await readCanvasProjection(moodboardId);
+  return {
+    items: [
+      ...items,
+      ...canvas.items.map((c) => ({ ...canvasToPublic(c), moodboardId })),
+    ],
+    canvasSkipped: canvas.skipped,
+  };
+}
+
+/* ---------- reorder ---------- */
+
+export const reorderMoodboardItemsSchema = z
+  .object({
+    order: z.array(z.string().min(1).max(64)).min(1).max(MOODBOARD_ITEM_LIMIT),
+  })
+  .strict();
+
+/** The order names a reference twice. */
+export class MoodboardOrderError extends Error {
+  constructor() {
+    super("The order names a reference twice");
+    this.name = "MoodboardOrderError";
+  }
+}
+
+/**
+ * Put the listed references in the given order. They take, in that order, the
+ * places the listed ones held, so a reference added meanwhile (or one the
+ * caller did not list) stays where it is; then the whole wall is renumbered
+ * 1..n, which also unties references that shared a position. An id that is
+ * not on this board is a 404 and nothing changes.
+ */
+export async function reorderMoodboardItems(
+  actor: MoodboardAccessActor,
+  moodboardId: string,
+  order: readonly string[]
+) {
+  await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
+  if (new Set(order).size !== order.length) throw new MoodboardOrderError();
+  await prisma.$transaction(async (tx) => {
+    await lockBoard(tx, moodboardId);
+    const rows = await tx.moodboardItem.findMany({
+      where: { moodboardId },
+      select: { id: true, position: true },
+      orderBy: MOODBOARD_ITEM_ORDER,
+      take: MOODBOARD_ITEM_LIMIT,
+    });
+    const known = new Set(rows.map((r) => r.id));
+    if (order.some((id) => !known.has(id)))
+      throw new MoodboardItemNotFoundError();
+    const listed = new Set(order);
+    const next = rows.map((r) => r.id);
+    let k = 0;
+    rows.forEach((r, i) => {
+      if (listed.has(r.id)) next[i] = order[k++];
+    });
+    const was = new Map(rows.map((r) => [r.id, r.position]));
+    const changes = next.flatMap((id, i) =>
+      was.get(id) === i + 1 ? [] : [{ id, position: i + 1 }]
+    );
+    if (changes.length) {
+      // One statement, not up to 500 round trips inside a 5 s transaction.
+      await tx.$executeRaw(
+        Prisma.sql`UPDATE "MoodboardItem" AS m
+          SET "position" = v."position", "updatedAt" = NOW()
+          FROM (VALUES ${Prisma.join(
+            changes.map(
+              (c) =>
+                Prisma.sql`(${c.id}::text, ${c.position}::double precision)`
+            )
+          )}) AS v("id", "position")
+          WHERE m."id" = v."id" AND m."moodboardId" = ${moodboardId}`
+      );
+    }
+    await touchMoodboard(tx, moodboardId);
+  });
+  return listMoodboardItems(actor, moodboardId);
+}
+
+/* ---------- pictures ---------- */
+
+/** The client downsizes to JPEG ≤ 900 px, so a real upload is far below this. */
+export const MOODBOARD_IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+/**
+ * All the pictures a workspace keeps on its moodboards, whatever the plan.
+ * //todo: move into PLAN_LIMITS (src/lib/plan-limits.ts) once pictures are a plan matter.
+ */
+export const MOODBOARD_WORKSPACE_STORAGE_BYTES = 200 * 1024 * 1024;
+export const MOODBOARD_ASSET_LIMIT = 1000;
+/** How long a picture no tile shows is kept (Undo of a removal) before it is swept. */
+const ORPHAN_ASSET_HOURS = 1;
+export const MOODBOARD_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+] as const;
+
+export class MoodboardUploadError extends Error {
+  constructor(
+    readonly code:
+      | "EMPTY"
+      | "TOO_LARGE"
+      | "BAD_TYPE"
+      | "TOO_MANY"
+      | "STORAGE_FULL"
+  ) {
+    super(
+      code === "STORAGE_FULL"
+        ? `Your workspace's moodboard pictures are full (${MOODBOARD_WORKSPACE_STORAGE_BYTES / 1024 / 1024} MB). Remove some pictures to add more.`
+        : code === "TOO_LARGE"
+          ? "Pictures must be 1.5 MB or smaller"
+          : code === "BAD_TYPE"
+            ? "Only JPEG, PNG, WebP and GIF pictures are accepted"
+            : code === "TOO_MANY"
+              ? "This board has too many unused pictures; try again in an hour"
+              : "Choose a picture"
+    );
+    this.name = "MoodboardUploadError";
+  }
+}
+
+/** The type the bytes really are (not what the client said), or null. */
+export function sniffImageType(bytes: Uint8Array): string | null {
+  const at = (i: number) => bytes[i];
+  if (bytes.length >= 3 && at(0) === 0xff && at(1) === 0xd8 && at(2) === 0xff)
+    return "image/jpeg";
+  if (
+    bytes.length >= 8 &&
+    at(0) === 0x89 &&
+    at(1) === 0x50 &&
+    at(2) === 0x4e &&
+    at(3) === 0x47
+  )
+    return "image/png";
+  if (bytes.length >= 6 && at(0) === 0x47 && at(1) === 0x49 && at(2) === 0x46)
+    return "image/gif";
+  if (
+    bytes.length >= 12 &&
+    at(0) === 0x52 &&
+    at(1) === 0x49 &&
+    at(2) === 0x46 &&
+    at(3) === 0x46 &&
+    at(8) === 0x57 &&
+    at(9) === 0x45 &&
+    at(10) === 0x42 &&
+    at(11) === 0x50
+  )
+    return "image/webp";
+  return null;
+}
+
+/**
+ * Delete the pictures no tile of the board shows, once they are older than the
+ * grace window. A tile that was just removed keeps its picture for that
+ * window, so Undo (which makes the tile again from the same address) still
+ * finds it; after it, the picture is gone for good.
+ */
+async function sweepOrphanAssets(
+  tx: Pick<typeof prisma, "moodboardItem" | "moodboardAsset">,
+  moodboardId: string
+) {
+  const shown = await tx.moodboardItem.findMany({
+    where: { moodboardId, kind: "image" },
+    select: { url: true },
+  });
+  const keep = shown.flatMap((i) => {
+    const a = i.url ? parseAssetPath(i.url) : null;
+    return a && a.moodboardId === moodboardId ? [a.assetId] : [];
+  });
+  await tx.moodboardAsset.deleteMany({
+    where: {
+      moodboardId,
+      id: { notIn: keep },
+      createdAt: { lt: subHours(newDate(), ORPHAN_ASSET_HOURS) },
+    },
+  });
+}
+
+/**
+ * Store a picture and add its tile in one step, so a failed upload leaves no
+ * stray row. The type is read from the bytes, the size is capped, and the
+ * board's item limit applies exactly as for any other reference.
+ */
+export async function createMoodboardImage(
+  actor: MoodboardAccessActor,
+  moodboardId: string,
+  input: {
+    bytes: Buffer;
+    name: string;
+    title?: string | null;
+    ratio?: number | null;
+    position?: number;
+  }
+) {
+  await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
+  if (input.bytes.length === 0) throw new MoodboardUploadError("EMPTY");
+  if (input.bytes.length > MOODBOARD_IMAGE_MAX_BYTES)
+    throw new MoodboardUploadError("TOO_LARGE");
+  const mimeType = sniffImageType(input.bytes);
+  if (!mimeType) throw new MoodboardUploadError("BAD_TYPE");
+  const ratio =
+    typeof input.ratio === "number" &&
+    Number.isFinite(input.ratio) &&
+    input.ratio >= 0.05 &&
+    input.ratio <= 20
+      ? input.ratio
+      : null;
+  const item = await prisma.$transaction(async (tx) => {
+    await lockBoard(tx, moodboardId);
+    const count = await tx.moodboardItem.count({ where: { moodboardId } });
+    if (count >= MOODBOARD_ITEM_LIMIT) throw new MoodboardItemLimitError();
+    await sweepOrphanAssets(tx, moodboardId);
+    const assets = await tx.moodboardAsset.count({ where: { moodboardId } });
+    if (assets >= MOODBOARD_ASSET_LIMIT)
+      throw new MoodboardUploadError("TOO_MANY");
+    // The workspace's total, checked under the board's row lock.
+    const board = await tx.moodboard.findFirst({
+      where: { id: moodboardId },
+      select: { workspaceId: true },
+    });
+    if (board) {
+      const used = await tx.moodboardAsset.aggregate({
+        where: { moodboard: { workspaceId: board.workspaceId } },
+        _sum: { size: true },
+      });
+      if (
+        (used._sum.size ?? 0) + input.bytes.length >
+        MOODBOARD_WORKSPACE_STORAGE_BYTES
+      )
+        throw new MoodboardUploadError("STORAGE_FULL");
+    }
+    let at = input.position;
+    if (at === undefined || !Number.isFinite(at)) {
+      const last = await tx.moodboardItem.aggregate({
+        where: { moodboardId },
+        _max: { position: true },
+      });
+      at = (last._max.position ?? 0) + 1;
+    }
+    const asset = await tx.moodboardAsset.create({
+      data: {
+        moodboardId,
+        userId: actor.userId,
+        originalName: input.name.slice(0, 240) || "picture",
+        mimeType,
+        size: input.bytes.length,
+        bytes: input.bytes,
+      },
+      select: { id: true },
+    });
+    const created = await tx.moodboardItem.create({
+      data: {
+        moodboardId,
+        kind: "image",
+        url: assetPath(moodboardId, asset.id),
+        title: input.title?.trim().slice(0, 240) || null,
+        ratio,
+        position: at,
+      },
+      select: itemSelect,
+    });
+    await touchMoodboard(tx, moodboardId);
+    return created;
+  });
+  return toPublicMoodboardItem(item);
+}
+
+/** An uploaded picture's bytes, for anyone who may see the board. */
+export async function readMoodboardAsset(
+  actor: MoodboardAccessActor,
+  moodboardId: string,
+  assetId: string
+) {
+  await requireBoard(actor, moodboardId, MoodboardAccessRole.VIEWER);
+  // A removed picture stops being served: only a tile that shows it keeps it
+  // reachable (Undo makes the tile again, and the picture with it).
+  const live = await prisma.moodboardItem.findFirst({
+    where: { moodboardId, kind: "image", url: assetPath(moodboardId, assetId) },
+    select: { id: true },
+  });
+  if (!live) throw new MoodboardItemNotFoundError();
+  const asset = await prisma.moodboardAsset.findFirst({
+    where: { id: assetId, moodboardId },
+    select: { bytes: true, mimeType: true },
+  });
+  if (!asset) throw new MoodboardItemNotFoundError();
+  return { bytes: Buffer.from(asset.bytes), mimeType: asset.mimeType };
 }

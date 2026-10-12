@@ -1,0 +1,578 @@
+/* Design v3 — the opened Document: the sheet, its title, rule and blocks, the
+ * rail and the inspector, on top of the vendored docs.css. Every colour is a
+ * token the page already carries (--dt-*, --text-*, --fill-*, --accent); no new
+ * value, shadow or token. Measures are the prototype's (DocsScreen.jsx
+ * `DocumentScreen`, `DocPageBlock`; docs.css), read off the running prototype:
+ * sheet 760 (wide 1080) with 56 / 64 / 96 padding, title 700 32 / 40, body
+ * 16 / 24, heading 600 20 / 26.
+ *
+ * The editor inside the sheet is the existing PageWorkspace. Its own header
+ * is drawn in the top bar (pages/doc-head-slot), its toolbar is not drawn at
+ * all (blocks come from "/" and the inspector's Insert tab; formatting from
+ * the selection bar), and its canvas, title, rule and blocks take the sheet's
+ * ink and the prototype's measures below. Everything is scoped to
+ * `[data-doc-sheet]`, so the old shell and the phone reader are untouched.
+ */
+
+/* ───────── the editor's frame becomes the page ───────── */
+.needt-v3 [data-doc-sheet] {
+  position: relative;
+}
+.needt-v3 [data-doc-sheet] [data-doc-editor] > div {
+  min-height: 0;
+  background: transparent;
+  color: inherit;
+}
+.needt-v3 [data-doc-sheet] [aria-label="Page editor toolbar"] {
+  display: none;
+}
+/* The editor's own header is the fallback for Focus Mode (no top bar to hold
+ * its controls): there it is a quiet line above the title, not a bar. */
+.needt-v3 [data-doc-sheet] [data-doc-editor] > div > header {
+  position: static;
+  height: 32px;
+  margin: -24px 0 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 [data-doc-sheet] [data-doc-editor] main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+/* "Add icon": the row above the title lives in the sheet's top padding, so
+ * the title starts where the prototype's does (56px down). */
+.needt-v3 [data-doc-sheet] [data-doc-editor] main > div:first-child {
+  height: 28px;
+  margin: -44px 0 16px;
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3
+  [data-doc-sheet][data-has-cover]
+  [data-doc-editor]
+  main
+  > div:first-child {
+  margin-top: 0;
+}
+
+/* ───────── title (h1 700 32 / 40) and the rule under it ───────── */
+.needt-v3 [data-doc-sheet] [data-page-title] {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  height: 40px;
+  /* the prototype's h1 box is 48 tall (40 line + 8 under its inline span) */
+  margin: 0 0 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 700 32px/40px var(--font-sans);
+  letter-spacing: -0.015em;
+  color: var(--dt-head, inherit);
+  overflow-wrap: anywhere;
+}
+.needt-v3 [data-doc-sheet][data-dc-font="serif"] [data-page-title] {
+  letter-spacing: -0.005em;
+}
+.needt-v3 [data-doc-sheet] [data-page-title]::placeholder {
+  color: var(--text-disabled);
+  opacity: 1;
+}
+/* "Edited …" is the rail's "Updated …"; the meta row keeps only "Written
+ * with AI", under the rule, and draws the rule (Separator Style). */
+.needt-v3 [data-doc-sheet] [data-page-edited] {
+  display: none;
+}
+.needt-v3 [data-doc-sheet] [data-page-meta] {
+  display: block;
+  margin: 0 0 24px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 [data-doc-sheet] [data-page-meta] > span:not([data-page-edited]) {
+  display: flex;
+  margin: 8px 0 0;
+}
+.needt-v3 [data-doc-sheet] [data-page-meta]::before {
+  content: "";
+  display: block;
+  height: 0;
+  border-top: 1px solid var(--border);
+}
+.needt-v3 [data-doc-sheet][data-dc-sep="dots"] [data-page-meta]::before,
+.needt-v3 [data-doc-sheet][data-dc-sep="dots"] .needt-page-editor hr {
+  width: 50px;
+  height: 12px;
+  margin: 0 auto;
+  border: 0;
+  background: radial-gradient(circle, var(--text-muted) 2px, transparent 2.5px)
+    0 50% / 18px 12px repeat-x;
+}
+.needt-v3 [data-doc-sheet][data-dc-sep="wave"] [data-page-meta]::before,
+.needt-v3 [data-doc-sheet][data-dc-sep="wave"] .needt-page-editor hr {
+  width: 120px;
+  height: 12px;
+  margin: 0 auto;
+  border: 0;
+  background: var(--text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12' viewBox='0 0 120 12' fill='none'%3E%3Cpath d='M2 7.5c6-5 10-5 15-.6 5 4.4 9.6 4.2 15-.4 5.6-4.7 10-4.5 15.4.2 5.2 4.6 9.6 4.2 15-.4 5.5-4.6 10-4.3 15.2.3 5.2 4.6 9.5 4.1 15-.6 4.4-3.8 8-4 12.4-.8' stroke='black' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / 120px 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12' viewBox='0 0 120 12' fill='none'%3E%3Cpath d='M2 7.5c6-5 10-5 15-.6 5 4.4 9.6 4.2 15-.4 5.6-4.7 10-4.5 15.4.2 5.2 4.6 9.6 4.2 15-.4 5.5-4.6 10-4.3 15.2.3 5.2 4.6 9.5 4.1 15-.6 4.4-3.8 8-4 12.4-.8' stroke='black' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / 120px 12px no-repeat;
+}
+.needt-v3 [data-doc-sheet][data-dc-sep="dots"] [data-page-meta]::before,
+.needt-v3 [data-doc-sheet][data-dc-sep="wave"] [data-page-meta]::before {
+  margin-top: -6px;
+}
+
+/* ───────── body: 16 / 24, blocks 8px apart ───────── */
+.needt-v3 [data-doc-sheet] .needt-page-editor {
+  min-height: 0;
+  /* the prototype's rows each carry 2px of padding above the text */
+  padding: 2px 0 0;
+  font: var(--type-doc-body, 400 16px/1.5 var(--font-sans));
+  line-height: 24px;
+  color: inherit;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor > * + * {
+  margin-top: 8px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor > [data-block-id] {
+  min-height: 24px;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  p.is-editor-empty:first-child::before {
+  content: "Type / for blocks";
+  color: var(--text-disabled);
+}
+
+/* headings: one level in the prototype (600 20 / 26); the editor has three */
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(h1, h2, h3) {
+  margin-top: 24px;
+  margin-bottom: 0;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--dt-head, inherit);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor > :is(h1, h2, h3):first-child {
+  margin-top: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(h1, h2, h3) + * {
+  margin-top: 14px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor h1 {
+  font-size: 24px;
+  line-height: 30px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor h2 {
+  font-size: 20px;
+  line-height: 26px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor h3 {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+/* lists: the text sits 27px in (8 + the bullet + 10); to-dos draw the prototype's 16px box (the
+ * tick is a mark: accent only when done) */
+.needt-v3 [data-doc-sheet] .needt-page-editor ul:not([data-type="taskList"]),
+.needt-v3 [data-doc-sheet] .needt-page-editor ol {
+  padding-left: 27px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor li > p {
+  margin: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor li + li {
+  margin-top: 8px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor ul[data-type="taskList"] li {
+  gap: 10px;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  ul[data-type="taskList"]
+  li
+  > label {
+  display: flex;
+  margin-top: 4px;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  ul[data-type="taskList"]
+  input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text-disabled);
+  transition: background-color var(--transition-hover);
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  ul[data-type="taskList"]
+  input[type="checkbox"]:checked {
+  background: var(--accent);
+  box-shadow: none;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  ul[data-type="taskList"]
+  input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--surface-raised);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / 11px 11px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / 11px 11px no-repeat;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-editor
+  ul[data-type="taskList"]
+  li[data-checked="true"]
+  > div {
+  color: var(--text-quaternary);
+}
+
+/* quote: a 3px bar in the ink, italic */
+.needt-v3 [data-doc-sheet] .needt-page-editor blockquote {
+  padding-left: 14px;
+  border-left: 0;
+  box-shadow: inset 3px 0 0 0 var(--text-primary);
+  font-style: italic;
+  color: inherit;
+}
+
+/* code */
+.needt-v3 [data-doc-sheet] .needt-page-editor pre {
+  margin-bottom: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--doc-block);
+  box-shadow: var(--shadow-inset-ring);
+  color: inherit;
+  font: 400 13px/20px var(--font-mono);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor :not(pre) > code {
+  background: var(--fill-3);
+  color: inherit;
+}
+
+/* divider: the Separator Style's line */
+.needt-v3 [data-doc-sheet] .needt-page-editor hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* table */
+.needt-v3 [data-doc-sheet] .needt-page-editor .tableWrapper {
+  margin: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ring);
+  overflow-x: auto;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor table {
+  font: var(--type-ui);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(th, td) {
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor tr:first-child > * {
+  border-top: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor tr > :first-child {
+  border-left: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor th {
+  background: var(--doc-block);
+  font: var(--type-ui-medium);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(th, td) p {
+  margin: 0;
+}
+
+/* image */
+.needt-v3 [data-doc-sheet] .needt-page-editor img {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* special blocks (callout, task, link, page, date …): the prototype's tiles */
+.needt-v3 [data-doc-sheet] .needt-page-special-block {
+  min-height: 44px;
+  gap: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--fill-2);
+  box-shadow: var(--shadow-inset-ring);
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block.ProseMirror-selectednode {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block-label {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block-detail {
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block-link {
+  font: var(--type-ui);
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block--callout {
+  align-items: flex-start;
+  min-height: 0;
+  padding: 12px 14px;
+  background: color-mix(
+    in oklab,
+    var(--dt-accent, var(--accent)) 14%,
+    transparent
+  );
+  box-shadow: none;
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block--callout::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  background: var(--dt-accent, var(--accent));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
+    center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
+    center / 16px 16px no-repeat;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-special-block--callout
+  .needt-page-special-block-label {
+  display: none;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-page-special-block--callout
+  .needt-page-special-block-detail {
+  overflow: visible;
+  white-space: normal;
+  font: inherit;
+}
+.needt-v3 [data-doc-sheet] .needt-page-special-block--image {
+  display: block;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* ───────── the rail (Contents, Find) ───────── */
+.needt-v3 .doc-rail-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .doc-rail-hint {
+  margin: 0;
+  padding: 4px 6px;
+}
+.needt-v3 ::highlight(doc-find) {
+  background: var(--fill-accent-strong);
+  color: inherit;
+}
+
+/* ───────── the inspector ───────── */
+.needt-v3 .doc-insert-btn {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.needt-v3 .doc-insert-btn:disabled {
+  opacity: 0.5;
+}
+.needt-v3 .doc-head-slot:empty {
+  display: none;
+}
+
+/* ───────── the page is not a text field: no focus ring on it ───────── */
+.needt-v3 [data-doc-sheet] .needt-page-editor:focus,
+.needt-v3 [data-doc-sheet] .needt-page-editor:focus-visible,
+.needt-v3 [data-doc-sheet] [data-page-title]:focus,
+.needt-v3 [data-doc-sheet] [data-page-title]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ───────── the selection bar (prototype `docs-selection-bar-1`) ───────── */
+.needt-v3 [data-doc-sheet] [aria-label="Text formatting"] {
+  gap: 1px;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3[data-theme="dark"] [data-doc-sheet] [aria-label="Text formatting"] {
+  background: var(--surface-floating);
+}
+.needt-v3 [data-doc-sheet] [aria-label="Text formatting"] > button {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-secondary);
+}
+.needt-v3 [data-doc-sheet] [aria-label="Text formatting"] > button:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3
+  [data-doc-sheet]
+  [aria-label="Text formatting"]
+  > button[aria-pressed="true"] {
+  background: var(--fill-3);
+  color: var(--accent);
+}
+
+/* ───────── the "/" menu (prototype `docs-doc-slash-menu-*`) ───────── */
+.needt-v3 .needt-page-command-menu[data-doc-menu] {
+  width: 300px;
+  max-height: 360px;
+  padding: 4px 6px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3[data-theme="dark"] .needt-page-command-menu[data-doc-menu] {
+  background: var(--surface-floating);
+}
+.needt-v3 .needt-page-command-menu[data-doc-menu] > div:nth-of-type(2) {
+  padding: 8px 8px 4px;
+  font: var(--type-meta);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+.needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"] {
+  height: 36px;
+  min-height: 0;
+  gap: 10px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+}
+.needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"]:hover,
+.needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"][data-active] {
+  background: var(--fill-3);
+}
+.needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"] > svg {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--fill-2);
+  box-shadow: var(--shadow-inset-ring);
+  color: var(--text-secondary);
+}
+.needt-v3
+  .needt-page-command-menu[data-doc-menu]
+  [role="menuitem"]
+  > span
+  > span:first-child {
+  font: 13px/18px var(--font-sans);
+  font-weight: 400;
+}
+.needt-v3
+  .needt-page-command-menu[data-doc-menu]
+  [role="menuitem"]
+  > span
+  > span:last-child:not(:first-child) {
+  display: none;
+}
+
+/* ───────── "Page options" (the ⋯ in the top bar) ───────── */
+.needt-v3 .doc-more-menu {
+  width: 252px;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  color: var(--text-primary);
+}
+.needt-v3[data-theme="dark"] .doc-more-menu {
+  background: var(--surface-floating);
+}
+.needt-v3 .doc-more-menu button {
+  border-radius: var(--radius-md);
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .doc-more-menu button:hover:not(:disabled) {
+  background: var(--fill-3);
+}
+.needt-v3 .doc-more-menu svg {
+  color: var(--text-muted);
+}
+.needt-v3 .doc-more-menu [role="switch"] {
+  color: inherit;
+}
+
+/* ───────── the editor's save state, in the top bar ───────── */
+.needt-v3 .doc-head-slot [aria-live] {
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3 .doc-head-slot [data-collab] {
+  background: var(--text-disabled);
+}
+.needt-v3 .doc-head-slot [data-collab="connected"] {
+  background: var(--success);
+}
+.needt-v3 .doc-head-slot [data-collab="connecting"] {
+  background: var(--info);
+}
+.needt-v3 .doc-more-menu [class*="border-"] {
+  border-color: var(--border);
+}
+.needt-v3 .doc-more-menu [role="switch"] {
+  background: var(--fill-5);
+}
+.needt-v3 .doc-more-menu [role="switch"][data-state="checked"] {
+  background: var(--fill-accent-strong);
+}
+.needt-v3 .doc-more-menu [role="switch"] > span {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+.needt-v3 .doc-more-menu [role="switch"][data-state="checked"] > span {
+  background: var(--accent);
+  box-shadow: none;
+}

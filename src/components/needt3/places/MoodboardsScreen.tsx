@@ -7,6 +7,7 @@ import {
   LuArrowUp,
   LuCheck,
   LuEllipsis,
+  LuLock,
   LuPlus,
 } from "react-icons/lu";
 
@@ -25,6 +26,8 @@ import { PlEmpty, StScreen } from "../states/StScreen";
 import { PlCollage } from "./PlCollage";
 import { DropMenu, MenuRow } from "./PlMenu";
 import { PlaceHeader } from "./PlaceHeader";
+import { isPrivateBoard, personName } from "./board/logic";
+import { Avatars } from "./board/parts";
 import {
   BOARD_SORTS,
   type BoardSort,
@@ -35,7 +38,6 @@ import {
   parseBoardSort,
   pickBoardSort,
   referencesLabel,
-  sortBoards,
 } from "./derive";
 import type { BoardsController } from "./useBoardsController";
 
@@ -68,28 +70,24 @@ export function notifyBoardsBlocked() {
 }
 
 /**
- * Moodboards (places.jsx `MoodboardsScreen`): a grid of boards, not a canvas.
- * Create, sort, open and delete (to Trash, with Undo).
- *
- * //todo: board items. The list route sends no items, so a card cannot show
- * its collage or "n references" yet; a board's own page is the old workspace
- * at `/moodboards/[id]` on the desktop (images, links, colours, notes,
- * Pinterest, guest view, Share) and the phone board page under 700 px.
- * //todo: members avatars / "Private" lock on the card need the members list.
+ * Moodboards (places.jsx `MoodboardsScreen`, the grid of boards): create,
+ * sort (⋯ → Sort by, ordered by the server), open and delete (to Trash, with
+ * Undo). A board opens at `/moodboards/[id]` (`board/BoardPage`).
  */
 export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
-  const boards = useBoards();
-  const plan = usePlan();
-  const pro = useIsPro();
   const [sort, setSortState] = useState<BoardSort>(DEFAULT_BOARD_SORT);
   useEffect(() => setSortState(readSort()), []);
+  // The server orders the list (Name, Date created, Date updated).
+  const boards = useBoards(sort);
+  const plan = usePlan();
+  const pro = useIsPro();
 
   const live = useMemo(
     () => (boards.data ?? []).filter((b) => !b.trashedAt),
     [boards.data]
   );
   const gate = boardGate(plan.data?.kind, live.length);
-  const shown = sortBoards(live, sort);
+  const shown = live;
 
   const setSort = (key: BoardSort["key"]) =>
     setSortState((cur) => {
@@ -255,11 +253,38 @@ export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
                       {b.title || mb.untitled_moodboard}
                     </span>
                     <span className="pl-link-sheet-row-2">
-                      {b.itemCount != null
+                      {b.itemCount
                         ? referencesLabel(b.itemCount)
-                        : "Moodboard"}
+                        : b.hasCanvas
+                          ? "Canvas board"
+                          : b.itemCount === 0
+                            ? referencesLabel(0)
+                            : "Moodboard"}
                       {b.pinterestBoardId ? " · Pinterest" : ""}
                     </span>
+                  </span>
+                  <span className="pl-mb-row-7">
+                    {isPrivateBoard({
+                      memberCount: b.memberCount,
+                      linkShare: b.linkShare,
+                    }) ? (
+                      <span
+                        className="mb-lock pl-mb-row-3"
+                        title="Private — only you"
+                      >
+                        <LuLock size={13} aria-label="Private" />
+                      </span>
+                    ) : (b.members?.length ?? 0) > 0 ? (
+                      <Avatars
+                        people={(b.members ?? []).map((m) => ({
+                          key: m.email ?? m.userId,
+                          name: personName(m),
+                        }))}
+                        size={20}
+                        max={3}
+                        total={b.memberCount ?? undefined}
+                      />
+                    ) : null}
                   </span>
                   <span
                     onClick={(e) => e.stopPropagation()}
