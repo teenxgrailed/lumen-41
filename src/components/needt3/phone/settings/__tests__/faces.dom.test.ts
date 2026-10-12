@@ -72,6 +72,10 @@ jest.mock("../PhoneSettings", () => {
           onClick: () => p.onPage("day"),
         }),
         React.createElement("button", {
+          "data-go": "tasks",
+          onClick: () => p.onPage("tasks"),
+        }),
+        React.createElement("button", {
           "data-back": "",
           onClick: () => p.onPage(null),
         })
@@ -247,6 +251,19 @@ describe("SettingsSheet faces", () => {
     click(q('[data-settings-nav="day"]'));
     render("phone");
     expect(page()).toBe("day");
+    expect(q("[data-phone-settings]")?.getAttribute("data-page-y")).toBe("0");
+  });
+
+  it("on the phone, a page opened again from the list starts at its top", () => {
+    render("phone");
+    act(() => useNeedt3Ui.getState().openSettings());
+    click(q('[data-go="tasks"]'));
+    expect(page()).toBe("tasks");
+    click(q("[data-scroll-page]"));
+    click(q("[data-back]"));
+    expect(page()).toBe("list");
+    click(q('[data-go="tasks"]'));
+    expect(page()).toBe("tasks");
     expect(q("[data-phone-settings]")?.getAttribute("data-page-y")).toBe("0");
   });
 

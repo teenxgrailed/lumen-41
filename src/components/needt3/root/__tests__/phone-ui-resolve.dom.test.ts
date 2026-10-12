@@ -45,16 +45,28 @@ function installMatchMedia(initial: boolean) {
 let host: HTMLDivElement;
 let root: Root;
 
+/** Every UI the hook hands out, in order: a flip shows up as an entry. */
+let seen: PhoneUi[] = [];
+
 function Probe({ initial, forced }: { initial: PhoneUi; forced: boolean }) {
   const ui = useResolvedPhoneUi(initial, forced);
+  if (seen[seen.length - 1] !== ui) seen.push(ui);
   return h("div", { "data-ui": ui });
 }
+
+/** Lets the animation frame the hook queued run. */
+const nextFrame = () =>
+  act(() => {
+    jest.advanceTimersByTime(20);
+  });
 
 const ui = () => host.querySelector("[data-ui]")?.getAttribute("data-ui");
 const render = (initial: PhoneUi, forced = false) =>
   act(() => root.render(h(Probe, { initial, forced })));
 
 beforeEach(() => {
+  jest.useFakeTimers();
+  seen = [];
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -62,6 +74,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  jest.useRealTimers();
 });
 
 describe("useResolvedPhoneUi", () => {
@@ -83,14 +96,54 @@ describe("useResolvedPhoneUi", () => {
     expect(ui()).toBe("phone");
   });
 
-  it("re-reads the width on resize when no media-query event arrived", () => {
+  it("T28: loaded as phone, widened to 1024 with no media-query event, becomes the desktop", () => {
+    // What the T28 browser showed: the query already answered false, but no
+    // `change` event reached the page; only the window resized.
+    const mm = installMatchMedia(true);
+    render("phone");
+    expect(ui()).toBe("phone");
+    mm.silently(false);
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    nextFrame();
+    expect(ui()).toBe("desktop");
+  });
+
+  it("several signals in one resize settle once", () => {
+    const mm = installMatchMedia(true);
+    render("phone");
+    mm.silently(false);
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+      window.dispatchEvent(new Event("orientationchange"));
+      window.dispatchEvent(new Event("pageshow"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(ui()).toBe("phone");
+    nextFrame();
+    expect(ui()).toBe("desktop");
+    expect(seen).toEqual(["phone", "desktop"]);
+  });
+
+  it("a width that crosses and comes back within one frame does not flip", () => {
     const mm = installMatchMedia(true);
     render("phone");
     mm.silently(false);
     act(() => {
       window.dispatchEvent(new Event("resize"));
     });
-    expect(ui()).toBe("desktop");
+    mm.silently(true);
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    nextFrame();
+    expect(seen).toEqual(["phone"]);
   });
 
   it("re-reads the width when a hidden tab comes back", () => {
@@ -104,6 +157,7 @@ describe("useResolvedPhoneUi", () => {
     act(() => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
+    nextFrame();
     expect(ui()).toBe("desktop");
   });
 
@@ -114,6 +168,7 @@ describe("useResolvedPhoneUi", () => {
     act(() => {
       window.dispatchEvent(new Event("resize"));
     });
+    nextFrame();
     expect(ui()).toBe("desktop");
   });
 });

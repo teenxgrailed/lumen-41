@@ -157,8 +157,18 @@ export function SettingsSheet() {
     });
     setList(false);
   }, []);
+  // On the phone, opening a page from the list is a fresh visit: it starts
+  // at its top even when it is the section shown last. Only a 700 px
+  // crossing carries the section's scroll over.
   const phonePage = useCallback(
-    (id: SectionId | null) => (id ? pick(id) : setList(true)),
+    (id: SectionId | null) => {
+      if (!id) {
+        setList(true);
+        return;
+      }
+      sectionY.current = 0;
+      pick(id);
+    },
     [pick]
   );
 
