@@ -11,7 +11,7 @@ import {
   openBillingPortal,
   startCheckout,
 } from "@/lib/needt3/hooks/account";
-import { usePlan } from "@/lib/needt3/hooks/plan";
+import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
@@ -31,6 +31,19 @@ export const PRO_FEATURES: readonly (readonly [string, string])[] = [
   ],
   ["Unlimited moodboards", "As many boards as you like, and Pinterest"],
 ];
+
+/**
+ * What to say while Creem could not collect a payment (the old billing
+ * screen's alert, word for word). Shared with the phone's Plan page.
+ */
+export function failedPaymentLine(
+  b: Pick<V3Plan, "plan" | "currentPeriodEnd">
+) {
+  return failedPaymentMessage({
+    effectivePlan: b.plan === "PRO" || b.plan === "LIFETIME" ? b.plan : "FREE",
+    currentPeriodEnd: b.currentPeriodEnd,
+  });
+}
 
 /**
  * Plan & billing. Prices, the trial length and the lifetime cap come from
@@ -210,11 +223,7 @@ export function PlanSection() {
               data-settings-payment-failed
               style={{ color: "var(--destructive)" }}
             >
-              {failedPaymentMessage({
-                effectivePlan:
-                  b.plan === "PRO" || b.plan === "LIFETIME" ? b.plan : "FREE",
-                currentPeriodEnd: b.currentPeriodEnd,
-              })}
+              {failedPaymentLine(b)}
             </span>
           ) : null}
           {error ? (

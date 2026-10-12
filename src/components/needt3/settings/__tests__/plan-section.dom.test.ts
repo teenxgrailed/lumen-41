@@ -11,6 +11,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { failedPaymentMessage } from "@/lib/creem/failed-payment";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 
+import { PlanPage } from "../../phone/settings/PlanPage";
 import { PlanSection } from "../PlanSection";
 
 (
@@ -29,6 +30,10 @@ jest.mock("@/lib/needt3/hooks/account", () => ({
 jest.mock("@/lib/notifications", () => ({ notify: { error: jest.fn() } }));
 jest.mock("../../ctx/PortalScope", () => ({
   useV3PortalContainer: () => null,
+}));
+jest.mock("../../phone/settings/parts", () => ({
+  ...jest.requireActual("../../phone/settings/parts"),
+  usePs: () => ({ upgrade: jest.fn() }),
 }));
 jest.mock("../../ctx/useExit", () => ({ useExit: () => ({}) }));
 
@@ -67,8 +72,8 @@ afterEach(() => {
   host.remove();
 });
 
-function render() {
-  act(() => root.render(h(PlanSection)));
+function render(face: typeof PlanSection | typeof PlanPage = PlanSection) {
+  act(() => root.render(h(face)));
 }
 
 function buttonLabels() {
@@ -114,4 +119,23 @@ it("keeps Invoices and payment and no alert while payment is fine", () => {
   expect(host.querySelector('[role="alert"]')).toBeNull();
   expect(buttonLabels()).toContain("Invoices and payment");
   expect(buttonLabels()).not.toContain("Manage billing");
+});
+
+it("the phone's Plan page shows the same alert and Manage billing", () => {
+  planData = plan({ status: "PAYMENT_FAILED", paymentFailed: true });
+  render(PlanPage);
+
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+    failedPaymentMessage({ effectivePlan: "PRO", currentPeriodEnd: PERIOD_END })
+  );
+  expect(host.textContent).toContain("Manage billing");
+  expect(host.textContent).not.toContain("Invoices and payment");
+});
+
+it("the phone's Plan page keeps Invoices and payment while payment is fine", () => {
+  planData = plan({});
+  render(PlanPage);
+
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.textContent).toContain("Invoices and payment");
 });
