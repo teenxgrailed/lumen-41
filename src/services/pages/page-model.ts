@@ -31,15 +31,20 @@ export function pageActorScope(actor: PageActor) {
 export async function pageActorCanAccess(
   actor: PageActor,
   pageId: string,
-  role: PageAccessRole
+  role: PageAccessRole,
+  options: { includeTrashed?: boolean } = {}
 ) {
   if (typeof actor === "string") {
     return prisma.page.findFirst({
-      where: { id: pageId, userId: actor, trashedAt: null },
+      where: {
+        id: pageId,
+        userId: actor,
+        ...(options.includeTrashed ? {} : { trashedAt: null }),
+      },
       select: { id: true },
     });
   }
-  return resolvePageAccess(actor, pageId, role);
+  return resolvePageAccess(actor, pageId, role, options);
 }
 
 export async function pageActorCanAccessInTransaction(

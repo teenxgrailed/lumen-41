@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed: a page in the trash could not be restored. `PATCH /api/pages/:id`
+  with `{ "trashed": false }` now brings it back, with its children, blocks
+  and files, for anyone who could have trashed it; restoring twice changes
+  nothing, and a page whose parent is still in the trash comes back at the
+  top level. `GET /api/pages?trashed=true` lists the trash.
 - Release: when two merges land close together, the older release run no
   longer asks Coolify for an image the newer run has not pushed yet. It
   stands down and the newer run deploys, so production stops showing failed
