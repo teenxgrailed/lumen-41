@@ -37,6 +37,74 @@ export const CATEGORY_LABEL: Record<string, string> = {
   ai: "AI",
 };
 
+/**
+ * The prototype's category chips (connections-data.js `CN_CHIPS`): All
+ * categories · Mail & chat · Calendars · Work · Files · Creative. Our catalogue
+ * has seven real categories (`CatalogCategory`), so each card is mapped onto
+ * one chip, `chipOf`:
+ *
+ *   communication (Gmail, Outlook, Slack, Teams, Discord)  -> Mail & chat
+ *   calendar (Google, Outlook, Apple / iCloud)             -> Calendars
+ *   tasks, notes, developer, ai (Todoist, Notion, Linear)  -> Work
+ *   files (Drive, Dropbox, Sheets)                         -> Files
+ *   GitHub, GitLab (developer, but the prototype files
+ *   GitHub under Files)                                    -> Files
+ *   Figma, Pinterest, Canva, Miro, Spotify                 -> Creative
+ *
+ * Nothing in today's catalogue is Creative, so that chip is only drawn once an
+ * entry maps to it (`chipsOf`); a chip that always opens an empty list is a
+ * dead control. A category the server adds later lands under Work, the
+ * nearest general one.
+ */
+export type ChipId = "mail" | "cal" | "work" | "files" | "creative";
+
+export const CHIP_LABEL: Record<ChipId, string> = {
+  mail: "Mail & chat",
+  cal: "Calendars",
+  work: "Work",
+  files: "Files",
+  creative: "Creative",
+};
+
+/** Prototype order. */
+export const CHIP_ORDER: readonly ChipId[] = [
+  "mail",
+  "cal",
+  "work",
+  "files",
+  "creative",
+];
+
+const CHIP_OF_CATEGORY: Record<CatalogCategory, ChipId> = {
+  communication: "mail",
+  calendar: "cal",
+  tasks: "work",
+  notes: "work",
+  developer: "work",
+  ai: "work",
+  files: "files",
+};
+
+const CHIP_OF_SLUG: Record<string, ChipId> = {
+  github: "files",
+  gitlab: "files",
+  figma: "creative",
+  pinterest: "creative",
+  canva: "creative",
+  miro: "creative",
+  spotify: "creative",
+};
+
+export function chipOf(item: Pick<CatalogEntry, "slug" | "category">): ChipId {
+  return CHIP_OF_SLUG[item.slug] ?? CHIP_OF_CATEGORY[item.category] ?? "work";
+}
+
+/** The chips to draw: each of the prototype's that has at least one card. */
+export function chipsOf(items: readonly CnItem[]): ChipId[] {
+  const have = new Set(items.map(chipOf));
+  return CHIP_ORDER.filter((id) => have.has(id));
+}
+
 /** Mailboxes the Mailbox connects, listed beside the catalog. */
 export const MAIL_ENTRIES: readonly CatalogEntry[] = [
   {
@@ -151,7 +219,7 @@ export type Show = "all" | "connected";
 
 export interface Filter {
   q: string;
-  /** A category id, or "all". */
+  /** A chip id (`ChipId`), or "all". */
   chip: string;
   show: Show;
 }
@@ -160,15 +228,16 @@ export function filterItems(items: readonly CnItem[], f: Filter): CnItem[] {
   const needle = f.q.trim().toLowerCase();
   return items.filter((i) => {
     if (f.show === "connected" && i.state === "none") return false;
-    if (f.chip !== "all" && i.category !== f.chip) return false;
+    if (f.chip !== "all" && chipOf(i) !== f.chip) return false;
     if (!needle) return true;
-    return `${i.name} ${i.description} ${i.slug}`
+    // The prototype's haystack: name, one-liner, search words, chip name.
+    return `${i.name} ${i.description} ${i.slug} ${CHIP_LABEL[chipOf(i)]}`
       .toLowerCase()
       .includes(needle);
   });
 }
 
-/** Category chips in catalog order, each once. */
+/** Real categories in catalog order, each once (the card's kind line). */
 export function categoriesOf(items: readonly CnItem[]): CatalogCategory[] {
   return [...new Set(items.map((i) => i.category))];
 }
@@ -237,12 +306,43 @@ export function pillOf(state: CardState, busy: boolean) {
   return { label: "Not connected", tone: "quiet" as const };
 }
 
-/** The sidebar-style status line: "3 connected · 1 needs attention". */
-export function statusLine(c: { connected: number; issues: number }) {
-  const parts = [`${c.connected} connected`];
-  if (c.issues)
-    parts.push(`${c.issues} ${c.issues === 1 ? "needs" : "need"} attention`);
-  return parts.join(" · ");
+export type StatusTone = "ok" | "bad" | "none";
+
+/**
+ * The pill under the hero (connections.jsx `status` / `statusTone`), counting
+ * only the tab in front of you: something lost access -> "Outlook needs
+ * reconnecting" (red); N connected -> "N connected"; nothing -> "Nothing
+ * connected yet" (grey). The prototype adds "· all syncing", but the server
+ * reports no sync state, so it is left out.
+ */
+export function heroStatus(
+  items: readonly Pick<CnItem, "name" | "state">[],
+  tab: "apps" | "ai"
+): { text: string; tone: StatusTone; names: string[] } {
+  const names = [
+    ...new Set(
+      items.filter((i) => i.state === "disconnected").map((i) => i.name)
+    ),
+  ];
+  if (names.length)
+    return {
+      text: `${names.join(", ")} ${names.length === 1 ? "needs" : "need"} reconnecting`,
+      tone: "bad",
+      names,
+    };
+  const live = items.filter((i) => i.state === "connected").length;
+  if (!live)
+    return {
+      text:
+        tab === "ai" ? "No AI tools connected yet" : "Nothing connected yet",
+      tone: "none",
+      names,
+    };
+  return {
+    text: `${live} connected`,
+    tone: "ok",
+    names,
+  };
 }
 
 /**
