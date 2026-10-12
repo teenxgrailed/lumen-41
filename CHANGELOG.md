@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Release: when two merges land close together, the older release run no
+  longer asks Coolify for an image the newer run has not pushed yet. It
+  stands down and the newer run deploys, so production stops showing failed
+  deployments for commits that were already superseded.
 - The Google and Outlook OAuth client secrets and the Resend API key saved in
   admin system settings are encrypted at rest (`enc:v1:`), like provider
   tokens. Existing values are encrypted by the same worker-start backfill;
