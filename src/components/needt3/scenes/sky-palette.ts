@@ -134,6 +134,16 @@ export function readMoodTable(el: Element): Record<string, Mood> {
   return out;
 }
 
+/**
+ * Is the sky's own theme scope dark? The NEAREST `[data-theme]` decides:
+ * `closest('[data-theme="dark"]')` would walk past a light `.needt-v3` to a
+ * dark `<html data-theme>` that the old settings store sets, and paint a night
+ * sky on a light page.
+ */
+export function sceneIsDark(el: Pick<Element, "closest">): boolean {
+  return el.closest("[data-theme]")?.getAttribute("data-theme") === "dark";
+}
+
 /** YYYYMMDD of the local date. */
 export function dayKey(date: Date): number {
   return (

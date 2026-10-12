@@ -29,6 +29,7 @@ import { useTimeZone } from "./settings";
 
 const HABITS = qk.habits();
 const CHECKINS = qk.checkins();
+const HISTORY = qk.checkinHistory();
 
 export function useHabits() {
   return useQuery({
@@ -57,6 +58,26 @@ export function useCheckins() {
       const end = formatInTimeZone(today.now, tz, "yyyy-MM-dd");
       //todo: streaks past fourteen days need a longer history route.
       return today.habits.flatMap((h) => checkinsFromStrip(h.id, h.done, end));
+    },
+  });
+}
+
+/**
+ * Checkins over the last 124 days (`GET /api/habits/history`), for the
+ * Habits screen's "Last four months" dots. `useCheckins` keeps the
+ * fourteen-day strip that the cards and streaks read.
+ */
+export function useCheckinHistory() {
+  const tz = useTimeZone();
+  return useQuery({
+    queryKey: HISTORY,
+    queryFn: async () => {
+      const h = await fetchJson<{
+        now: string;
+        habits: { id: string; done: (0 | 1)[] }[];
+      }>("/api/habits/history");
+      const end = formatInTimeZone(h.now, tz, "yyyy-MM-dd");
+      return h.habits.flatMap((x) => checkinsFromStrip(x.id, x.done, end));
     },
   });
 }
@@ -98,9 +119,10 @@ export function useToggleHabitToday() {
     inverse: (_qc, { id, done }) => ({ id, done: !done }),
     optimistic: (qc, { id, done }) => {
       const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-      qc.setQueryData<Checkin[]>(CHECKINS, (list) =>
-        list ? setCheckin(list, id, today, done) : list
-      );
+      for (const key of [CHECKINS, HISTORY])
+        qc.setQueryData<Checkin[]>(key, (list) =>
+          list ? setCheckin(list, id, today, done) : list
+        );
     },
     request: ({ id, done }) =>
       sendJson(`/api/habits/${id}/completions/today`, done ? "PUT" : "DELETE"),

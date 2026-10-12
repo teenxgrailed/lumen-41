@@ -30,6 +30,9 @@ const BOARDS = qk.boards();
 export function useBoards() {
   return useQuery({
     queryKey: BOARDS,
+    // The grid's covers come from the list; items change on the board's own
+    // page, so a return to the grid reads the list again.
+    staleTime: 0,
     queryFn: async () =>
       (
         await fetchJson<{ moodboards: ApiMoodboard[] }>("/api/moodboards")
