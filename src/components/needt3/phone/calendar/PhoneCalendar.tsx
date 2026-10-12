@@ -306,7 +306,8 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       sub={sub}
       onPull={ready ? pull : undefined}
     >
-      <PhoneState query={query} screen="calendar" kind="calendar" />
+      {/* a list skeleton: the "calendar" one is the desktop's seven-column week grid */}
+      <PhoneState query={query} screen="calendar" />
       {ready ? (
         <div data-v2p-view={view} className="v2p-cal-body">
           {view === "schedule" ? (
