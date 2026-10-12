@@ -41,6 +41,8 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { registerCtx } from "../ctx/registry";
+import { DocSwitch } from "../document/DocRail";
+import { useOpenDocId } from "../document/open-doc";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { AccountMenu } from "./AccountMenu";
@@ -547,6 +549,7 @@ export function Sidebar() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const shell = useShellApi();
+  const docOpen = useOpenDocId() !== null;
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
   const [prefs, setPrefs] = useSidebarPrefs();
   const { tiles, rest } = splitPlaces(prefs);
@@ -1006,6 +1009,9 @@ export function Sidebar() {
             />
           </span>
         </div>
+        {/* A document is open but the rail shows places: the switcher stays at
+            the bottom-left, so the document's panel is one click away. */}
+        {docOpen ? <DocSwitch value="app" /> : null}
       </div>
     </aside>
   );

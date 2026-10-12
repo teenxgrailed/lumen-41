@@ -8,6 +8,7 @@ import {
   type ApiTask,
   type V3TaskPatch,
   boardFromApi,
+  docFromApi,
   eventFromApi,
   eventPatchToApi,
   eventSourceFromFeedType,
@@ -370,5 +371,16 @@ describe("api fields", () => {
     expect(trashedAtFrom(undefined)).toBeUndefined();
     expect(trashedAtFrom(false)).toBeNull();
     expect(trashedAtFrom(true)).toBeInstanceOf(Date);
+  });
+});
+
+describe("docFromApi: database pages", () => {
+  it("marks a page that is a database and no other", () => {
+    const base = { id: "p", title: "T" };
+    expect(docFromApi({ ...base, database: { id: "d" } }).isDatabase).toBe(
+      true
+    );
+    expect(docFromApi({ ...base, database: null }).isDatabase).toBeUndefined();
+    expect(docFromApi(base).isDatabase).toBeUndefined();
   });
 });

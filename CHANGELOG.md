@@ -23,6 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PATCH /api/moodboards/:id/items` (reorder), `POST …/items/upload`,
   `GET …/assets/:id`, `?sort=&dir=` on the list, `DELETE …?permanent=true`,
   `PUT …/permissions` by email, and Leave through `DELETE …/permissions`.
+- Fixed (design_v3, opened document): the document screen now matches the
+  prototype at desktop width, light and dark. The top bar shows
+  "Documents / title" with the avatar, Insert and Share on the right, and the
+  editor's save state and Page options menu (now drawn as a v3 menu); the left
+  rail becomes the document's own panel (Contents, Find, a switcher back to the
+  places); the page keeps the sheet's measures (760 or 1080 wide, 32px bold
+  title that wraps, rule under it in the chosen separator, 16px body, to-do,
+  quote, code, table, image and callout blocks); the inspector has Insert (adds
+  a block at the cursor), Style (now with Separator Style and the PRO badge)
+  and Info (Versions, Numbers); the selection bar and the "/" menu are v3
+  surfaces; the editor's own toolbar is not drawn. The title follows the
+  breadcrumb and the rail as you type. Free users who tap a Pro style now get
+  the paywall sheet.
 - Docs: each document card in the grid now shows its page in miniature, as
   the design does: the first blocks (headings, paragraphs, lists, to-dos,
   quotes, callouts, code, dividers, a picture) drawn small on the page's own

@@ -72,6 +72,7 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   useDoc: () => query,
   useUpdateDoc: () => ({ mutateAsync: (...a: unknown[]) => update(...a) }),
   useTrashDoc: () => ({ mutateAsync: (...a: unknown[]) => trash(...a) }),
+  usePageEditSync: () => undefined,
 }));
 
 let plan: { kind: string } | undefined;
