@@ -1,0 +1,101 @@
+import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+
+import {
+  clientRedirect,
+  validateAuthorizationRequest,
+} from "@/services/oauth/authorize";
+import { AUTHORIZE_PARAMS, grantedScopes } from "@/services/oauth/consent";
+import { createAuthorizationCode } from "@/services/oauth/grants";
+import { listUserWorkspaces } from "@/services/workspaces/workspace-service";
+
+import { getAuthOptions } from "@/lib/auth/auth-options";
+import { publicAppUrl } from "@/lib/public-url";
+
+function page(status: number, message: string) {
+  return new NextResponse(message, {
+    status,
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
+}
+
+/**
+ * The consent form's answer. Same-origin only (the form is a plain POST,
+ * so the Origin check is the CSRF defence, next to SameSite cookies); the
+ * whole request is validated again, never trusted from the first render.
+ */
+export async function POST(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (origin !== publicAppUrl("/", request).origin) {
+    return page(403, "This form can only be sent from Needt.");
+  }
+  const session = await getServerSession(await getAuthOptions());
+  const userId = session?.user?.id;
+  if (!userId) return page(401, "Sign in again and retry.");
+
+  const form = await request.formData();
+  const params = new URLSearchParams();
+  for (const key of AUTHORIZE_PARAMS) {
+    const value = form.get(key);
+    if (typeof value === "string") params.set(key, value);
+  }
+  const result = await validateAuthorizationRequest(params);
+  if (!result.ok) {
+    return result.kind === "page"
+      ? page(400, result.description)
+      : NextResponse.redirect(
+          clientRedirect(result.redirectUri, {
+            error: result.error,
+            error_description: result.description,
+            state: result.state,
+          }),
+          303
+        );
+  }
+  const { request: authz } = result;
+
+  if (form.get("decision") !== "allow") {
+    return NextResponse.redirect(
+      clientRedirect(authz.redirectUri, {
+        error: "access_denied",
+        error_description: "The person declined.",
+        state: authz.state,
+      }),
+      303
+    );
+  }
+
+  const scopes = grantedScopes(authz.scopes, {
+    write: form.get("write") === "on",
+    mail: form.get("mail") === "on",
+  });
+  if (!scopes.length) {
+    return NextResponse.redirect(
+      clientRedirect(authz.redirectUri, {
+        error: "access_denied",
+        error_description: "No access was granted.",
+        state: authz.state,
+      }),
+      303
+    );
+  }
+
+  const workspaceId = form.get("workspaceId");
+  const workspaces = await listUserWorkspaces(userId);
+  const chosen = workspaces.find((w) => w.workspace.id === workspaceId);
+  if (!chosen) return page(400, "Pick one of your workspaces.");
+
+  const code = await createAuthorizationCode({
+    clientDbId: authz.client.id,
+    userId,
+    redirectUri: authz.redirectUri,
+    codeChallenge: authz.codeChallenge,
+    scopes,
+    resource: authz.resource,
+    workspaceId: chosen.workspace.id,
+  });
+  return NextResponse.redirect(
+    clientRedirect(authz.redirectUri, { code, state: authz.state }),
+    303
+  );
+}

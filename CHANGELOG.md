@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `needt_log_habit`, and `moodboard` in `needt_list`/`needt_get`. They use the
   same task, page, habit and calendar services as the app, inside the
   workspace the connection may act in.
+- Connect Needt to claude.ai, ChatGPT or Claude Code without pasting a token:
+  `https://mcp.needt.app/mcp` signs you in through Needt (OAuth 2.1 with
+  PKCE). You choose what the app may do — read, write, and mail as a
+  separate tick — and which workspace it is limited to; Settings ›
+  Connected apps lists every app and disconnects it at once.
 - Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
   host serves only `/mcp` and its OAuth protected-resource metadata, which
   the `401` challenge now points at. Tokens carry scopes (`needt.read`,

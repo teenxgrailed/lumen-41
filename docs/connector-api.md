@@ -62,6 +62,35 @@ scope; search without `mail.read` simply leaves mail out.
 The same token rules apply to the `/api/connect/*` routes below: reads need
 `needt.read`, writes `needt.write`.
 
+### OAuth (claude.ai, ChatGPT, Claude Code)
+
+Add `https://mcp.needt.app/mcp` as a custom connector; the client finds
+everything else itself. The authorization server is the app,
+`https://use.needt.app` (RFC 8414 metadata at
+`/.well-known/oauth-authorization-server`):
+
+| Endpoint               | Notes                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /oauth/authorize` | Signs the person in if needed, then asks: client name, where it returns, scopes (mail is its own tick box), one workspace       |
+| `POST /oauth/token`    | `authorization_code` (PKCE S256 only) and `refresh_token`; form-encoded; `resource` must be `https://mcp.needt.app/mcp` exactly |
+| `POST /oauth/register` | RFC 7591 dynamic registration, public clients (`token_endpoint_auth_method: none`)                                              |
+| `POST /oauth/revoke`   | RFC 7009; revoking either token ends the whole grant                                                                            |
+
+- Clients are public (no secret). A client may also be identified by the
+  https URL of its client metadata document (CIMD): Needt fetches it over
+  https only, refusing private and loopback addresses (also after
+  redirects), with a timeout and a 64 KB cap, caches it for a day, and
+  checks `redirect_uri` against it.
+- Redirect URIs are https, or http on a loopback address; a loopback
+  redirect matches any port (native clients such as Claude Code).
+- Every authorization response carries `iss` (RFC 9207).
+- Codes live 60 seconds and work once; a replayed code revokes what it
+  produced. Access tokens live 1 hour, refresh tokens 30 days. Refresh
+  tokens rotate; presenting a rotated one revokes the whole grant.
+- Tokens are opaque and stored only as hashes. The person sees and
+  disconnects apps in Settings › Connected apps (`GET /api/oauth/connected-apps`,
+  `DELETE /api/oauth/connected-apps/:id`).
+
 ### Workspaces
 
 Every tool takes an optional `workspaceId` argument (OAuth clients cannot

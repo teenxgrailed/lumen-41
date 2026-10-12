@@ -183,6 +183,8 @@ model User {
   weeklyFocusTargets     WeeklyFocusTarget[]
   meetingNoteProposals   MeetingNoteProposal[]     @relation("MeetingNoteProposalCreator")
   closedDays             ClosedDay[]
+  oauthCodes             OAuthAuthorizationCode[]
+  oauthTokens            OAuthToken[]
   taskWaitsOnMe          TaskWait[]                @relation("TaskWaitWaitingOnUser")
   // Design v3 onboarding: what the person uses Needt for, and when they finished.
   onboardingUses         String[]                  @default([])
@@ -3209,4 +3211,70 @@ model ImportItemMap {
 
   @@unique([userId, source, externalId, entityType])
   @@index([importRunId])
+// OAuth 2.1 authorization server for the remote MCP server. Opaque tokens:
+// only their sha256 is stored. A client is either registered dynamically
+// (RFC 7591, `kind = "dcr"`) or identified by the https URL of its client
+// metadata document (`kind = "cimd"`, the URL is the client_id).
+model OAuthClient {
+  id                String                   @id @default(cuid())
+  clientId          String                   @unique
+  kind              String
+  name              String
+  redirectUris      String[]
+  clientUri         String?
+  logoUri           String?
+  metadataFetchedAt DateTime?
+  lastUsedAt        DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  codes             OAuthAuthorizationCode[]
+  tokens            OAuthToken[]
+
+  @@index([kind, lastUsedAt])
+}
+
+/// Single use, 60 seconds, bound to the PKCE challenge, redirect and resource.
+model OAuthAuthorizationCode {
+  id            String      @id @default(cuid())
+  codeHash      String      @unique
+  clientId      String
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redirectUri   String
+  codeChallenge String
+  scope         String
+  resource      String
+  workspaceId   String?
+  familyId      String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([userId])
+}
+
+/// Access (1 h) and refresh (30 d) tokens. Every token issued from one
+/// authorization shares a familyId; a refresh token used twice revokes it.
+model OAuthToken {
+  id          String      @id @default(cuid())
+  tokenHash   String      @unique
+  type        String
+  familyId    String
+  clientId    String
+  client      OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope       String
+  resource    String
+  workspaceId String?
+  expiresAt   DateTime
+  rotatedAt   DateTime?
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([familyId])
+  @@index([userId, revokedAt])
+  @@index([clientId])
 }

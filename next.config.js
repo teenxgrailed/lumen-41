@@ -78,6 +78,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // The OAuth consent page must never be framed (clickjacking).
+        source: "/oauth/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+      {
         source: "/fonts/ds/:file*",
         headers: [
           {
