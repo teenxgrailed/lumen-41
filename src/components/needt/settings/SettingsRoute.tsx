@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 
 import { LuSettings, LuX } from "react-icons/lu";
@@ -32,11 +31,11 @@ import { TaskDefaultsSettings } from "@/components/settings/TaskDefaultsSettings
 import { UserSettings } from "@/components/settings/UserSettings";
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import {
   type CalendarConnectionNotice,
   calendarConnectionNotice,
 } from "@/lib/calendar-connection-status";
-import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 import { resolveThemeMode } from "@/lib/theme";
 
 import { useSettingsStore } from "@/store/settings";
@@ -226,8 +225,7 @@ export function SettingsRoute() {
   }, []);
 
   const handleSignOut = React.useCallback(async () => {
-    await clearNeedtOfflineData();
-    await signOut({ callbackUrl: "/auth/signin" });
+    await signOutOfNeedt();
   }, []);
 
   const sectionContent = React.useMemo(

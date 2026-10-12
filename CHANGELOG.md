@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and files, for anyone who could have trashed it; restoring twice changes
   nothing, and a page whose parent is still in the trash comes back at the
   top level. `GET /api/pages?trashed=true` lists the trash.
+- Release: when two merges land close together, the older release run no
+  longer asks Coolify for an image the newer run has not pushed yet. It
+  stands down and the newer run deploys, so production stops showing failed
+  deployments for commits that were already superseded.
 - The Google and Outlook OAuth client secrets and the Resend API key saved in
   admin system settings are encrypted at rest (`enc:v1:`), like provider
   tokens. Existing values are encrypted by the same worker-start backfill;
@@ -23,6 +27,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accept both forms meanwhile. The session no longer carries the sign-in
   provider's OAuth tokens to the browser, and the worker refuses to start in
   production without `AI_ENCRYPTION_KEY` or `NEXTAUTH_SECRET`.
+- Deleting an account now cuts third-party access before the data goes:
+  Google and Outlook calendar push channels are stopped, the Google grant is
+  revoked at Google, Composio connections are deleted and revoked upstream,
+  and Web Push endpoints are dropped. Microsoft and CalDAV credentials, which
+  have no revoke call, are deleted with the account. Each step is
+  best-effort and never holds the deletion up.
+- The one-trial-per-email record no longer keeps the email: it stores a keyed
+  hash of the normalized address, and the worker rewrites existing records.
+- Signing out from any menu now clears the account's data from the browser —
+  every localStorage key except the theme and other device preferences, plus
+  the offline cache — after giving changes saved offline a few seconds to
+  sync.
+- Hosted AI requests are routed only to OpenRouter hosts based in the US or
+  the EU, with known hosts elsewhere refused on every request.
 - Free keeps three active habits, enforced by the API: creating a fourth, or
   restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
   Pro, Lifetime and trials are unlimited. Habits above the limit after a
