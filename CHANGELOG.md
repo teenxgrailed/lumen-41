@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Operations and undo: task, project, schedule, mail-to-task and habit
+  changes now have one registry (`src/services/ops`) with strict inputs and
+  workspace roles. Every write is logged with its inverse, so it can be undone
+  for seven days from `POST /api/agent/actions/:id/undo` (or a whole agent run
+  from `/api/agent/runs/:id/undo`). Undo refuses, and says which rows, when
+  something changed after the action. External tools list and run the same
+  operations through `GET /api/connect/ops` and `POST /api/connect/ops/:name`
+  with their connector token. The chat agent and MCP server move onto it in
+  follow-up changes.
+
 - Release: when two merges land close together, the older release run no
   longer asks Coolify for an image the newer run has not pushed yet. It
   stands down and the newer run deploys, so production stops showing failed

@@ -116,6 +116,8 @@ model User {
   aiConversations        AiConversation[]
   aiMessages             AiMessage[]
   agentMemories          AgentMemory[]
+  agentRuns              AgentRun[]
+  agentActions           AgentAction[]
   aiUsage                AiUsage[]
   connectorSettings      ConnectorSettings?
   timeEntries            TimeEntry[]
@@ -209,6 +211,8 @@ model Workspace {
   aiConversations      AiConversation[]
   aiMessages           AiMessage[]
   agentMemories        AgentMemory[]
+  agentRuns            AgentRun[]
+  agentActions         AgentAction[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -2009,6 +2013,54 @@ model AgentMemory {
   @@index([workspaceId, userId, weight])
   @@index([userId, lastUsedAt])
   @@index([userId, weight])
+}
+
+/// One agent session that changed data: a chat turn, a background job, or an
+/// MCP/connector call batch. Groups AgentAction rows so they undo together.
+model AgentRun {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       String // user | agent | mcp
+  source      String // chat | background | mcp
+  status      String        @default("running") // running | finished | failed | undone
+  createdAt   DateTime      @default(now())
+  finishedAt  DateTime?
+  actions     AgentAction[]
+
+  @@index([userId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+/// One applied operation from src/services/ops. The inverse is computed and
+/// stored when the operation is applied; targetVersions holds the updatedAt
+/// of every row it touched, so undo can refuse to overwrite later changes.
+model AgentAction {
+  id             String    @id @default(cuid())
+  runId          String?
+  run            AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor          String // user | agent | mcp
+  op             String
+  input          Json
+  before         Json?
+  inverse        Json?
+  targetVersions Json      @default("[]")
+  status         String    @default("applied") // applied | undone | undo_conflict | failed
+  undoableUntil  DateTime?
+  undoneAt       DateTime?
+  undoneVersions Json?
+  error          String?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([runId, createdAt])
+  @@index([workspaceId, createdAt])
 }
 
 model AiUsage {

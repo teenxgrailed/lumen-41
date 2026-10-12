@@ -1,4 +1,5 @@
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
+import type { Prisma } from "@prisma/client";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -93,6 +94,71 @@ export async function materializeHabitWeek(
   };
 }
 
+/**
+ * Marks or clears one habit day inside the caller's transaction. Returns
+ * null when the habit is not the user's active habit in this workspace, and
+ * `changed: false` when the day was already in the requested state.
+ */
+export async function setHabitCompletion(
+  transaction: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    workspace: WorkspaceAccess;
+    habitId: string;
+    dateKey: string;
+    completed: boolean;
+  }
+) {
+  const date = habitDateFromKey(input.dateKey);
+  const habit = await transaction.habit.findFirst({
+    where: {
+      id: input.habitId,
+      ...workspaceDataScopeWhere(input.workspace, input.userId),
+      userId: input.userId,
+      archivedAt: null,
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  if (!habit) return null;
+
+  let changed: boolean;
+  if (input.completed) {
+    const existing = await transaction.habitCompletion.findUnique({
+      where: { habitId_date: { habitId: habit.id, date } },
+      select: { id: true },
+    });
+    changed = !existing;
+    await transaction.habitCompletion.upsert({
+      where: { habitId_date: { habitId: habit.id, date } },
+      update: {},
+      create: { habitId: habit.id, date },
+    });
+  } else {
+    const removed = await transaction.habitCompletion.deleteMany({
+      where: { habitId: habit.id, date },
+    });
+    changed = removed.count > 0;
+  }
+  return {
+    habitId: habit.id,
+    date: input.dateKey,
+    completed: input.completed,
+    changed,
+  };
+}
+
+export async function habitTodayKey(userId: string, now?: Date) {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  return habitDayKey(
+    now ?? newDate(),
+    normalizeUserTimeZone(settings?.timeZone)
+  );
+}
+
 export async function setHabitCompletionToday(input: {
   userId: string;
   workspace: WorkspaceAccess;
@@ -100,38 +166,14 @@ export async function setHabitCompletionToday(input: {
   completed: boolean;
   now?: Date;
 }) {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: input.userId },
-    select: { timeZone: true },
-  });
-  const timeZone = normalizeUserTimeZone(settings?.timeZone);
-  const dateKey = habitDayKey(input.now ?? newDate(), timeZone);
-  const date = habitDateFromKey(dateKey);
-
-  return prisma.$transaction(async (transaction) => {
-    const habit = await transaction.habit.findFirst({
-      where: {
-        id: input.habitId,
-        ...workspaceDataScopeWhere(input.workspace, input.userId),
-        userId: input.userId,
-        archivedAt: null,
-        isActive: true,
-      },
-      select: { id: true },
-    });
-    if (!habit) return null;
-
-    if (input.completed) {
-      await transaction.habitCompletion.upsert({
-        where: { habitId_date: { habitId: habit.id, date } },
-        update: {},
-        create: { habitId: habit.id, date },
-      });
-    } else {
-      await transaction.habitCompletion.deleteMany({
-        where: { habitId: habit.id, date },
-      });
-    }
-    return { habitId: habit.id, date: dateKey, completed: input.completed };
-  });
+  const dateKey = await habitTodayKey(input.userId, input.now);
+  const result = await prisma.$transaction((transaction) =>
+    setHabitCompletion(transaction, { ...input, dateKey })
+  );
+  if (!result) return null;
+  return {
+    habitId: result.habitId,
+    date: result.date,
+    completed: result.completed,
+  };
 }
