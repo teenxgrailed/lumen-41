@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 
 import {
@@ -35,8 +34,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { notify } from "@/lib/notifications";
-import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
 export function UserMenu() {
   const { data: session, status } = useAppSession();
@@ -73,8 +72,7 @@ export function UserMenu() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await clearNeedtOfflineData();
-    await signOut({ callbackUrl: "/auth/signin" });
+    await signOutOfNeedt();
   };
 
   const handleWorkspaceSwitch = async (workspaceId: string) => {

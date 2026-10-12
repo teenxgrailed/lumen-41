@@ -94,6 +94,7 @@ import {
   scrubSentryEvent,
   scrubSentrySpan,
 } from "@/lib/sentry/privacy";
+import { hashLegacyTrialEmailKeys } from "@/lib/trials/trial-service";
 
 const LOG_SOURCE = "NeedtWorker";
 const WEBHOOK_RENEW_INTERVAL_MS = 6 * 60 * 60 * 1_000;
@@ -218,6 +219,15 @@ async function processLifetimeCheckoutReconciliation() {
 }
 
 async function processTrials() {
+  try {
+    await hashLegacyTrialEmailKeys();
+  } catch (error) {
+    await logger.error(
+      "Could not hash legacy trial email keys",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
   await processTrialLifecycle();
 }
 

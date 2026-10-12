@@ -82,11 +82,22 @@ export async function registerGoogleWatch(feedId: string) {
   return webhook;
 }
 
-export async function disableGoogleWatch(feedId: string): Promise<void> {
+export interface DisableWebhookOptions {
+  /** Abort the provider call after this many milliseconds. */
+  timeoutMs?: number;
+  /** False drops only our row and leaves the provider's channel alone. */
+  stopRemote?: boolean;
+}
+
+export async function disableGoogleWatch(
+  feedId: string,
+  options: DisableWebhookOptions = {}
+): Promise<void> {
   const webhook = await getCalendarWebhookForFeed("GOOGLE", feedId);
   if (!webhook) return;
 
   if (
+    options.stopRemote !== false &&
     webhook.channelId &&
     webhook.resourceId &&
     webhook.feed.accountId &&
@@ -97,12 +108,15 @@ export async function disableGoogleWatch(feedId: string): Promise<void> {
         webhook.feed.accountId,
         webhook.feed.userId
       );
-      await calendar.channels.stop({
-        requestBody: {
-          id: webhook.channelId,
-          resourceId: webhook.resourceId,
+      await calendar.channels.stop(
+        {
+          requestBody: {
+            id: webhook.channelId,
+            resourceId: webhook.resourceId,
+          },
         },
-      });
+        options.timeoutMs ? { timeout: options.timeoutMs } : {}
+      );
     } catch (error) {
       await logger.warn(
         "Could not stop Google watch while disabling feed",
