@@ -65,6 +65,8 @@ export function useMailbox() {
   const [readOpen, setReadOpen] = useState(false);
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const busy = useRef(new Set<string>());
+  const openRef = useRef<string | null>(null);
+  openRef.current = openId;
 
   const live = useMemo(() => mail.data ?? [], [mail.data]);
   const madeServer = useMemo(() => madeTasks(tasks.data ?? []), [tasks.data]);
@@ -103,7 +105,16 @@ export function useMailbox() {
       action: { label: "Undo", onClick: () => void undo() },
     });
 
-  const close = useCallback(() => setOpenId(null), []);
+  const close = useCallback(() => {
+    setOpenId(null);
+    setReading(false);
+  }, []);
+  /** Nothing open any more: the narrow layout goes back to the list. */
+  const closeIf = useCallback((id: string) => {
+    if (openRef.current !== id) return;
+    setOpenId(null);
+    setReading(false);
+  }, []);
 
   const open = useCallback(
     (m: V3MailThread) => {
@@ -121,13 +132,13 @@ export function useMailbox() {
   const archive = useCallback(
     (m: V3MailThread) =>
       once(`archive:${m.id}`, async () => {
-        setOpenId((id) => (id === m.id ? null : id));
+        closeIf(m.id);
         // archiving reads it too, in the same request
         await archiveMail.mutateAsync({ id: m.id, read: !m.isRead });
         //todo: Undo needs an un-archive action on /api/mail/messages/[id].
         notify.success(notices.archived);
       }),
-    [archiveMail, once]
+    [archiveMail, closeIf, once]
   );
 
   const makeTask = useCallback(
@@ -194,14 +205,14 @@ export function useMailbox() {
   const trash = useCallback(
     (m: V3MailThread) =>
       once(`trash:${m.id}`, async () => {
-        setOpenId((id) => (id === m.id ? null : id));
+        closeIf(m.id);
         const { undo } = await trashMail.mutateAsync({
           id: m.id,
           trashed: true,
         });
         undoable(notices.movedToTrash, undo);
       }),
-    [once, trashMail]
+    [closeIf, once, trashMail]
   );
 
   const syncNow = useCallback(

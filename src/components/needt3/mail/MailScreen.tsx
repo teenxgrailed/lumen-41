@@ -249,7 +249,7 @@ export function MailScreen({ box }: { box: Mailbox }) {
   const link = providerLink(ref.data);
   const via = providerLabel(ref.data?.provider);
 
-  const showList = !narrow || !reading;
+  const showList = !narrow || !reading || !open;
   const showMsg = !narrow || reading;
 
   const pick = (m: V3MailThread) => box.open(m);
@@ -313,7 +313,7 @@ export function MailScreen({ box }: { box: Mailbox }) {
       <StScreen query={mail} screen="mail">
         <div
           className="ml-layout"
-          data-ml-layout={narrow ? (reading ? "reading" : "list") : "split"}
+          data-ml-layout={narrow ? (showList ? "list" : "reading") : "split"}
         >
           {showList ? (
             <div

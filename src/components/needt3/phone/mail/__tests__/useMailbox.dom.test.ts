@@ -196,6 +196,34 @@ describe("the desktop's writes", () => {
     expect(box.openId).toBeNull();
   });
 
+  it("closing clears reading with the open message", async () => {
+    mocks.markRead.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => box.open(m1));
+    expect(box.reading).toBe(true);
+    act(() => box.close());
+    expect(box.openId).toBeNull();
+    expect(box.reading).toBe(false);
+  });
+
+  it("archiving or trashing the open message clears reading too", async () => {
+    mocks.markRead.mockResolvedValue({ undo: async () => undefined });
+    mocks.archive.mockResolvedValue({ undo: async () => undefined });
+    mocks.trash.mockResolvedValue({ undo: async () => undefined });
+    await act(async () => box.open(m1));
+    await act(async () => {
+      await box.archive(m1);
+    });
+    expect(box.openId).toBeNull();
+    expect(box.reading).toBe(false);
+    await act(async () => box.open(m1));
+    expect(box.reading).toBe(true);
+    await act(async () => {
+      await box.trash(m1);
+    });
+    expect(box.openId).toBeNull();
+    expect(box.reading).toBe(false);
+  });
+
   it("opening sets reading for the narrow desktop layout", async () => {
     mocks.markRead.mockResolvedValue({ undo: async () => undefined });
     await act(async () => box.open(m1));
