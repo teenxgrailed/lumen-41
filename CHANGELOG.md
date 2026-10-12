@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed: a page in the trash could not be restored. `PATCH /api/pages/:id`
+  with `{ "trashed": false }` now brings it back, with its children, blocks
+  and files, for anyone who could have trashed it; restoring twice changes
+  nothing, and a page whose parent is still in the trash comes back at the
+  top level. `GET /api/pages?trashed=true` lists the trash.
 - The Google and Outlook OAuth client secrets and the Resend API key saved in
   admin system settings are encrypted at rest (`enc:v1:`), like provider
   tokens. Existing values are encrypted by the same worker-start backfill;
