@@ -860,6 +860,97 @@
   animation-duration: 280ms;
 }
 
+/* P8 phone Mailbox (S8). The row keeps PkRow's string title and time, so the
+   unread state is a data attribute on the hold box: a heavier sender and the
+   lavender dot before the time (vendored phone-mail.css draws the same dot as
+   .pml-dot). Colours are the vendored v2p tokens only. */
+.needt-v3 [data-pml-unread="1"] .pk-row-title {
+  font-weight: 650;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--v2p-lav);
+}
+.needt-v3 .pml-state {
+  padding: 14px 0 0;
+}
+.needt-v3 .pml-html {
+  display: block;
+  font: 400 16px/24px var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--v2p-ink);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .pml-html img,
+.needt-v3 .pml-html table,
+.needt-v3 .pml-html video {
+  max-width: 100%;
+  height: auto;
+}
+.needt-v3 .pml-html p,
+.needt-v3 .pml-html div {
+  margin: 0 0 10px;
+}
+.needt-v3 .pml-html a {
+  color: inherit;
+  text-decoration: underline;
+}
+.needt-v3 .pml-html blockquote {
+  margin: 0 0 10px;
+  padding-left: 12px;
+  box-shadow: inset 2px 0 0 var(--v2p-line);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 a.pk-btn {
+  text-decoration: none;
+}
+.needt-v3 a.pk-btn.is-chip {
+  color: var(--v2p-ink);
+}
+
+/* ───────── P5 · phone Home + Calendar (mobile-v2-plates.jsx) ─────────
+ * Self-contained: the vendored mobile-v2-plates.css is untouched. */
+
+/* Rule 11: an entry plays once and never holds its end state (fill is
+ * `backwards`, not `both`): the day swap, Next up, the now/next plate and the
+ * picked day's plate in the week strip and the month grid. */
+.needt-v3
+  :is(.v2p-swap, .v2p-next, .v2p-evplate, .v2p-wd-plate, .v2p-mc-plate) {
+  animation-fill-mode: backwards;
+}
+
+/* The state layer of a phone screen (loading / error / offline) sits in the
+ * screen's body, under its own header. */
+.needt-v3 .p5-state {
+  padding: 8px 0 0;
+}
+.needt-v3 .p5-state .st-error {
+  margin: 0 auto;
+}
+
+/* "Show all N" under a capped list. */
+.needt-v3 .p5-more {
+  align-self: flex-start;
+  margin: 10px 0 0;
+}
+
+/* Month view: the two month steps, one at each edge of the grid. */
+.needt-v3 .p5-month-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -14px;
+}
+
 /* ───────── P6 · phone Tasks + Projects (phone-tasks.jsx, styles/phone-tasks.css) ─────────
    Self-contained: it only corrects the vendored file. Rule 2 (chrome type is
    13 / 12 px, never 14): phone-tasks.css sets the segmented control and the

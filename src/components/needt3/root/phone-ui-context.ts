@@ -32,10 +32,51 @@ export function useResolvedPhoneUi(initial: PhoneUi, forced: boolean): PhoneUi {
   useLayoutEffect(() => {
     if (forced || typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia(PHONE_MEDIA_QUERY);
+    // Not only the change event: a crossing that lands while the tab is
+    // hidden, or a resize the browser reports without a media-query event,
+    // must not leave the frame on the wrong UI until a reload. A media-query
+    // event carries its answer and is applied at once; resize, orientation,
+    // pageshow and a tab coming back ask the query again, coalesced into one
+    // read per animation frame so several of them in one resize settle once.
+    let frame = 0;
+    const cancel = () => {
+      if (frame && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = 0;
+    };
+    const onChange = (e: MediaQueryListEvent) => {
+      cancel();
+      setNarrow(e.matches);
+    };
+    const reread = () => {
+      if (typeof window.requestAnimationFrame !== "function") {
+        setNarrow(mq.matches);
+        return;
+      }
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setNarrow(mq.matches);
+      });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reread();
+    };
     setNarrow(mq.matches);
-    const read = (e: MediaQueryListEvent) => setNarrow(e.matches);
-    mq.addEventListener("change", read);
-    return () => mq.removeEventListener("change", read);
+    mq.addEventListener("change", onChange);
+    window.addEventListener("resize", reread);
+    window.addEventListener("orientationchange", reread);
+    window.addEventListener("pageshow", reread);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancel();
+      mq.removeEventListener("change", onChange);
+      window.removeEventListener("resize", reread);
+      window.removeEventListener("orientationchange", reread);
+      window.removeEventListener("pageshow", reread);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [forced]);
   return resolvePhoneUi({ initial, forced, narrow });
 }

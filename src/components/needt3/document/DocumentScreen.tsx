@@ -163,15 +163,21 @@ function Backdrop({
  * `DocTopRight` 981): the backdrop edge to edge, the page as a card on it in
  * its own colour, ink and font, the Share sheet and the right inspector
  * (Style, Info). The editor inside is the existing `PageWorkspace`
- * (collaboration, revisions, editor_v2), passed in as `children`: its block
- * model, title and cover stay its own.
+ * (collaboration, revisions, editor_v2), lives in the `editorSlot` (see
+ * `phone/docs/Faces`): its block model, title and cover stay its own.
  */
 export function DocumentScreen({
   pageId,
-  children,
+  editorSlot,
 }: {
   pageId: string;
-  children: ReactNode;
+  /**
+   * Callback ref of the empty slot the editor lives in. The editor is not
+   * rendered here: `DocumentFace` keeps it mounted in one place and moves its
+   * host element into whichever face is showing (so a resize across 700 px
+   * never remounts it).
+   */
+  editorSlot: (el: HTMLElement | null) => void;
 }) {
   const query = useDoc(pageId);
   const doc = query.data;
@@ -316,12 +322,7 @@ export function DocumentScreen({
                     on the page it takes the page's colour instead. The cover
                     is the chrome's (above), so the editor's cover controls are
                     hidden (v3-overrides/docs.css). */}
-                <div
-                  data-doc-editor=""
-                  className="min-w-0 [&>div]:!min-h-0 [&>div]:!bg-transparent [&>div>header]:!bg-[var(--dt-page)] [&>div>div.sticky]:!bg-[var(--dt-page)]"
-                >
-                  {children}
-                </div>
+                <div ref={editorSlot} className="contents" />
               </article>
             </div>
           </div>

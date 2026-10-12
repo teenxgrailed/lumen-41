@@ -26,12 +26,7 @@ import {
 } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
-import {
-  useCreateDoc,
-  useDocs,
-  useTrashDoc,
-  useUpdateDoc,
-} from "@/lib/needt3/hooks/docs";
+import { useDocs, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -51,18 +46,14 @@ import {
   type DocSort,
   type DocSortKey,
   dirLabel,
-  nextSort,
-  readSort,
   sortDocs,
-  writeSort,
 } from "./sort";
 import { type TokenReader, fontOf, pageVars, styleOf } from "./style";
+import type { DocsController, DocsView } from "./useDocsController";
 
 const copy = docsCopy;
 
-type View = "grid" | "masonry" | "list";
-
-const VIEWS: [View, ReactNode, string][] = [
+const VIEWS: [DocsView, ReactNode, string][] = [
   ["grid", <LuLayoutTemplate key="g" size={16} />, "Grid"],
   ["masonry", <LuLayers key="m" size={16} />, "Cards by length"],
   ["list", <LuList key="l" size={16} />, "List"],
@@ -433,28 +424,18 @@ function PageAddButton({ onNewDoc }: { onNewDoc: () => void }) {
 }
 
 /** The docs grid (prototype DocsScreen.jsx `DocsScreen` 476). */
-export function DocsScreen() {
+export function DocsScreen({ ctl }: { ctl: DocsController }) {
   const router = useRouter();
   const query = useDocs();
   const projects = useProjects();
   const read = useDocTokens();
-  const create = useCreateDoc();
   const pin = usePin();
   const trash = useTrash();
   const openSettings = useNeedt3Ui((s) => s.openSettings);
-  const [view, setView] = useState<View>("grid");
-  const [sort, setSortState] = useState<DocSort>({
-    key: "updated",
-    dir: "desc",
-  });
-  // The stored sort is per browser; read it after mount (no SSR mismatch).
-  useEffect(() => setSortState(readSort()), []);
-  const setSort = (key: DocSortKey) =>
-    setSortState((cur) => {
-      const next = nextSort(cur, key);
-      writeSort(next);
-      return next;
-    });
+  // The sort and the create guard live above the face switch (DocsFace);
+  // the stored sort is read after mount (no SSR mismatch).
+  const { sort, setSort, refreshSort, view, setView } = ctl;
+  useEffect(() => refreshSort(), [refreshSort]);
   const now = newDate().getTime();
 
   const mine = useMemo(
@@ -471,13 +452,7 @@ export function DocsScreen() {
   }, [projects.data]);
 
   const open = (id: string) => router.push(docHref(id));
-  const newDoc = () =>
-    void create
-      .mutateAsync({ draft: { title: "" } })
-      .then(({ result }) => {
-        if (result) router.push(docHref(result.id));
-      })
-      .catch(() => undefined);
+  const newDoc = () => ctl.newDoc("");
 
   // Right-click on a card or a list row.
   const live = useRef({ docs: mine, pin, trash, open });
