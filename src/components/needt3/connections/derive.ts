@@ -311,10 +311,9 @@ export type StatusTone = "ok" | "bad" | "none";
 /**
  * The pill under the hero (connections.jsx `status` / `statusTone`), counting
  * only the tab in front of you: something lost access -> "Outlook needs
- * reconnecting" (red); N connected -> "N connected · all syncing" (the AI tab
- * says only "N connected"); nothing -> "Nothing connected yet" (grey).
- * "All syncing" is said only when no card needs reconnecting, which is all the
- * server reports; it carries no per-account sync state.
+ * reconnecting" (red); N connected -> "N connected"; nothing -> "Nothing
+ * connected yet" (grey). The prototype adds "· all syncing", but the server
+ * reports no sync state, so it is left out.
  */
 export function heroStatus(
   items: readonly Pick<CnItem, "name" | "state">[],
@@ -340,7 +339,7 @@ export function heroStatus(
       names,
     };
   return {
-    text: `${live} connected${tab === "apps" ? " · all syncing" : ""}`,
+    text: `${live} connected`,
     tone: "ok",
     names,
   };

@@ -222,7 +222,7 @@ describe("the attention pill", () => {
   it("counts what is connected when nothing needs you", () => {
     accountsData = [acct({})];
     render();
-    expect(text("[data-cn-status]")).toBe("1 connected · all syncing");
+    expect(text("[data-cn-status]")).toBe("1 connected");
     expect($("[data-cn-status]").dataset.cnStatus).toBe("ok");
   });
   it("says nothing is connected when nothing is", () => {

@@ -33,8 +33,7 @@ export function connectionsSub(
       (issues.length === 1 ? " needs reconnecting" : " need reconnecting")
     );
   const live = items.filter((i) => i.state === "connected").length;
-  // Nothing needs reconnecting, so "all syncing" (the desktop pill says the same).
-  return live ? `${live} connected · all syncing` : "Nothing connected yet";
+  return live ? `${live} connected` : "Nothing connected yet";
 }
 
 export interface ConnectionGroup {

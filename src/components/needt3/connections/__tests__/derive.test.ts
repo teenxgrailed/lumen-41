@@ -265,7 +265,7 @@ describe("heroStatus", () => {
   it("counts what is live, and says nothing is when nothing is", () => {
     expect(
       heroStatus([s("connected"), s("connected", "Notion")], "apps")
-    ).toMatchObject({ text: "2 connected · all syncing", tone: "ok" });
+    ).toMatchObject({ text: "2 connected", tone: "ok" });
     expect(heroStatus([s("connected")], "ai").text).toBe("1 connected");
     expect(heroStatus([s("none")], "apps")).toMatchObject({
       text: "Nothing connected yet",

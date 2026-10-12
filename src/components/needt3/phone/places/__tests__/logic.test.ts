@@ -65,7 +65,7 @@ describe("connectionsSub", () => {
       )
     ).toBe("Outlook Mail, Gmail need reconnecting");
     expect(connectionsSub([gcal, notion], "apps", true)).toBe(
-      "1 connected · all syncing"
+      "1 connected"
     );
     expect(connectionsSub([notion], "apps", true)).toBe(
       "Nothing connected yet"
