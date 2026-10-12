@@ -129,7 +129,11 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(settings);
+    return NextResponse.json({
+      logLevel: settings.logLevel,
+      logDestination: settings.logDestination,
+      logRetention: settings.logRetention,
+    });
   } catch (error) {
     logger.error(
       "Failed to update log settings:",

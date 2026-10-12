@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { MailProvider, TaskReminderKind, WorkspaceRole } from "@prisma/client";
 
+import { toPublicMailMessage } from "@/lib/api/public-records";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
@@ -55,7 +56,7 @@ export async function GET(
 
     const sanitized = sanitizeMailHtml(message.bodyHtml || "");
     return NextResponse.json({
-      ...message,
+      ...toPublicMailMessage(message),
       bodyHtml: sanitized.html,
       hasRemoteImages: sanitized.hasRemoteImages,
     });

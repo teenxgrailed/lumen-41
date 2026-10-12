@@ -27,7 +27,7 @@ import { ProPill, SGroup } from "./kit";
  * (the prototype's Miniature renders the live screen in each theme's class).
  * System is cut down the middle, Time runs the day left to right.
  */
-function ThemePicture({
+export function ThemePicture({
   id,
   palettes,
 }: {
@@ -144,7 +144,7 @@ function ThemePicture({
   );
 }
 
-function usePalettes() {
+export function usePalettes() {
   const [p, setP] = useState<TimePalettes | null>(null);
   useEffect(() => {
     const el = document.querySelector(".needt-v3");
