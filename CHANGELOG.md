@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mailbox (desktop, design v3): the header now matches the design. It always
+  shows your accounts as chips (Gmail / Outlook, with a red dot when one needs
+  reconnecting), the tabs Needs you / All / Made into tasks plus Sent and
+  Drafts, and a New message button. Sent and Drafts are drawn but off ("Sent
+  folder isn't synced yet"): Needt does not store those folders, and mail stays
+  read-only at the provider. New message opens Gmail's or Outlook's own compose
+  window in a new tab (a menu when you have two accounts). With no account
+  connected the header no longer goes empty: Gmail and Outlook show as not
+  connected, the list says "No mail account connected" with Open Connections,
+  and New message waits for an account.
 - Templates and Shared now open on the painted-sky banner from the design
   (kicker, big serif title, meta line and up to three of the place's own pages
   on frosted glass) instead of a plain header. Moodboards cards show the first
