@@ -1,0 +1,307 @@
+/* ========================================================================
+   Needt design v3 — styles/nav-a.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* PHONE MENU · A — "Card" (nav-a.jsx). The pill and the card are one shape
+   cut by clip-path; nav-a.jsx writes the moving values (clip, transforms,
+   opacities) each frame — never a size, and no filter on anything that
+   moves (the shadow is .nva-shadow's pre-drawn pieces). Sizes switch once per
+   stop: .nva[data-moving] while it moves, [data-at-full] at full. Colours from
+   themes.css --nva-* (the card wears the opposite theme class, so its tokens
+   are the other theme's). */
+.needt-v3 .nva { position: absolute; inset: 0; z-index: 45; pointer-events: none; font-family: var(--font-sans); }
+
+.needt-v3 .nva-scrim { position: absolute; inset: 0; background: var(--nva-scrim); opacity: 0; -webkit-tap-highlight-color: transparent; }
+
+.needt-v3 .nva-body { position: absolute; left: 10px; right: 10px; bottom: 10px; height: var(--nva-full, 806px); pointer-events: none;
+  transform-origin: 50% calc(100% - 50px); transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.25, 1); }
+/* The shadow (--nva-shadow, drawn by nav-a.jsx nvaBoxShadow / nvaShadowEdges):
+   nine-slice pieces of a rounded rect per resting radius, drawn once, only
+   moved and stretched (nvaPaintShadow). Box-shadow paints outside the box only. */
+.needt-v3 .nva-shadow { position: absolute; inset: 0; pointer-events: none; }
+.needt-v3 .nva-sh-set { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.needt-v3 .nva-sh { position: absolute; left: 0; top: 0; overflow: hidden; transform-origin: 0 0; }
+.needt-v3 .nva-sh > i { position: absolute; display: block; box-shadow: var(--nva-shadow-box, none); }
+/* the edges: the same shadow's straight-edge profile as gradients (nav-a.jsx
+   nvaShadowEdges), so stretching them along their length stays exact */
+.needt-v3 .nva-sh.is-t { background: var(--nva-shadow-t, none); }
+.needt-v3 .nva-sh.is-b { background: var(--nva-shadow-b, none); }
+.needt-v3 .nva-sh.is-l { background: var(--nva-shadow-l, none); }
+.needt-v3 .nva-sh.is-r { background: var(--nva-shadow-r, none); }
+/* Holding the pill: it sinks a little while the hold counts down. */
+.needt-v3 .nva-body.is-holding { transform: scale(0.955); transition-duration: 0.48s; }
+/* A full-screen layer of the app is up (board item, walkthrough): the pill
+   slides down under the bottom edge and takes no taps until it is gone. */
+.needt-v3 .nva.is-away .nva-body { transform: translateY(140px); transition-duration: 0.36s; }
+.needt-v3 .nva.is-away .nva-shape,
+.needt-v3 .nva.is-away .nva-scrim { pointer-events: none !important; }
+
+.needt-v3 .nva-shape { position: absolute; inset: 0; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent; color: var(--nva-ink); }
+.needt-v3 .nva-shape button { font-family: inherit; -webkit-tap-highlight-color: transparent; cursor: default; }
+.needt-v3 .nva-shape button:focus-visible { outline: 2px solid var(--nva-lav); outline-offset: 2px; }
+/* The ground reaches above the box: past full the card stretches up under
+   the status bar (rubber band), and the clip may go there. */
+.needt-v3 .nva-ground { position: absolute; inset: -64px 0 0 0; background: var(--nva-bg); }
+
+/* ── content, positioned from the shape's top edge ── */
+.needt-v3 .nva-content { position: absolute; left: 0; top: 0; width: 100%; height: var(--nva-full, 806px); }
+.needt-v3 .nva-grab { position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--nva-ink-3); opacity: 0; }
+
+.needt-v3 .nva-tiles { position: absolute; top: 22px; left: 14px; right: 14px; display: flex; gap: 8px; transform-origin: 50% 0; opacity: 0; }
+.needt-v3 .nva-tile { position: relative; flex: 1; min-width: 0; height: 88px; border: 0; border-radius: 26px; background: var(--nva-raise);
+  display: flex; align-items: flex-end; justify-content: center; padding: 0 0 12px; color: var(--nva-ink);
+  transition: background-color 0.2s ease, transform 0.18s ease; }
+.needt-v3 .nva-tile:active { transform: scale(0.97); }
+.needt-v3 .nva-tile.is-on { background: var(--nva-lav-soft); box-shadow: inset 0 0 0 1.5px var(--nva-lav-ring); }
+.needt-v3 .nva-tile-label { font: 600 14px/16px var(--font-sans); letter-spacing: -0.01em; }
+.needt-v3 .nva-tile.is-on .nva-tile-label { color: var(--nva-lav); }
+.needt-v3 .nva-tile-badge { position: absolute; top: 9px; right: 9px; min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px;
+  background: var(--nva-lav); color: var(--nva-bg); font: 650 11px/20px var(--font-sans); font-variant-numeric: tabular-nums; text-align: center; }
+.needt-v3 .nva-tile-badge.is-alert { background: color-mix(in oklch, var(--nva-alert) 20%, transparent); color: var(--nva-alert); }
+/* the sky band behind the three (nav-a.jsx; parked unless the card is open
+   and still): the tiles become frosted glass on it, labels in the sky's ink */
+.needt-v3 .nva-sky { position: absolute; inset: -6px; border-radius: 32px; overflow: hidden; isolation: isolate; background: var(--px-ground); pointer-events: auto; }
+.needt-v3 .nva-tiles[data-px-scope] .nva-tile { background: var(--nva-sky-glass); color: var(--px-ink); box-shadow: var(--nva-sky-glass-edge);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.needt-v3 .nva-tiles[data-px-night="1"] .nva-tile { background: var(--nva-sky-glass-night); box-shadow: var(--nva-sky-glass-edge-night); }
+.needt-v3 .nva-tiles[data-px-scope] .nva-tile.is-on { background: var(--nva-sky-glass-on); box-shadow: inset 0 0 0 1.5px var(--nva-lav-ring); }
+.needt-v3 .nva-tiles[data-px-night="1"] .nva-tile.is-on { background: var(--nva-sky-glass-on-night); }
+.needt-v3 .nva-tiles[data-px-scope] .nva-tile.is-on .nva-tile-label { color: var(--px-ink); }
+
+/* ── the rows: one big word per place ──
+   The list starts at the card's top (its first row 118px down) and scrolls
+   under the pinned tiles; .nva-head is the soft blur it melts into there.
+   Stacking: list 0 · head 1 · tiles and grab 2 · settings 3. */
+.needt-v3 .nva-rows-box { position: absolute; top: 0; left: 0; right: 0; height: var(--nva-card, 478px); z-index: 0; }
+/* While it moves, and at full, the list box is the full height (the clip
+   hides what the card does not show); the spacer keeps the card's scroll
+   range while moving, so the list never jumps. */
+.needt-v3 .nva[data-moving] .nva-rows-box,
+.needt-v3 .nva[data-at-full] .nva-rows-box { height: var(--nva-full, 806px); }
+.needt-v3 .nva-rows-pad { display: none; height: calc(var(--nva-full, 806px) - var(--nva-card, 478px)); }
+.needt-v3 .nva[data-moving] .nva-rows-pad { display: block; }
+.needt-v3 .nva-tiles,
+.needt-v3 .nva-grab { z-index: 2; }
+.needt-v3 .nva-set-box { z-index: 3; }
+.needt-v3 .nva-head { position: absolute; left: 0; right: 0; top: 0; height: 150px; z-index: 1; pointer-events: none; border-radius: 38px 38px 0 0; overflow: hidden; }
+.needt-v3 .nva-head > * { position: absolute; inset: 0; opacity: var(--nva-head-k, 0); }
+.needt-v3 .nva-head-blur.is-1 { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, var(--nva-ink) 30%); mask-image: linear-gradient(to top, transparent 0%, var(--nva-ink) 30%); }
+.needt-v3 .nva-head-blur.is-2 { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to top, transparent 25%, var(--nva-ink) 58%); mask-image: linear-gradient(to top, transparent 25%, var(--nva-ink) 58%); }
+.needt-v3 .nva-head-blur.is-3 { -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  -webkit-mask-image: linear-gradient(to top, transparent 55%, var(--nva-ink) 85%); mask-image: linear-gradient(to top, transparent 55%, var(--nva-ink) 85%); }
+.needt-v3 .nva-head-wash { background: linear-gradient(to bottom, var(--nva-fog) 0%, var(--nva-fog) 70%, var(--nva-fog-0) 100%); }
+/* touch-action stops at a scroll container, so the lists say it again:
+   nav-a.jsx scrolls them by hand (with momentum) and hands the pull to the
+   card at the top. */
+.needt-v3 .nva-scroll { touch-action: none; height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; }
+.needt-v3 .nva-scroll::-webkit-scrollbar { display: none; }
+.needt-v3 .nva-rows { display: flex; flex-direction: column; padding: 118px 8px 64px; }
+.needt-v3 .nva-row { position: relative; display: flex; align-items: center; gap: 14px; width: 100%; padding: 9px 10px; border: 0; border-radius: 22px;
+  background: transparent; color: var(--nva-ink); text-align: left; transition: background-color 0.18s ease; }
+.needt-v3 .nva-row:active { background: var(--nva-raise); }
+.needt-v3 .nva-row-icon { flex: none; width: 50px; height: 50px; border-radius: 16px; background: var(--nva-raise); display: grid; place-items: center; }
+.needt-v3 .nva-glyph { display: block; width: 24px; height: 24px; }
+.needt-v3 .nva-glyph svg { display: block; width: 100%; height: 100%; }
+.needt-v3 .nva-row-icon .nva-glyph { width: 27px; height: 27px; }
+.needt-v3 .nva-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.needt-v3 .nva-row-word { font: 600 34px/38px var(--font-sans); letter-spacing: -0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .nva-row.is-on .nva-row-word { color: var(--nva-lav); }
+.needt-v3 .nva-row-cap { display: flex; align-items: center; gap: 6px; font: 400 13px/18px var(--font-sans); color: var(--nva-ink-2); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .nva-alert-dot { flex: none; width: 6px; height: 6px; border-radius: 3px; background: var(--nva-alert); }
+.needt-v3 .nva-here { flex: none; width: 8px; height: 8px; margin-right: 6px; border-radius: 4px; background: var(--nva-lav); box-shadow: 0 0 0 4px var(--nva-lav-soft); }
+
+.needt-v3 .nva-row-me { margin-top: 10px; box-shadow: inset 0 1px 0 var(--nva-line); border-radius: 0 0 22px 22px; padding-top: 18px; }
+.needt-v3 .nva-avatar { flex: none; width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(150deg, var(--sky-lavender-top), var(--sky-lavender-mid) 52%, var(--sky-lavender-low));
+  color: var(--sky-on-light-ink); font: 650 19px/1 var(--font-sans); letter-spacing: -0.02em; }
+.needt-v3 .nva-avatar.is-big { width: 58px; height: 58px; font-size: 23px; }
+.needt-v3 .nva-me-row-name { font: 600 24px/30px var(--font-sans); letter-spacing: -0.03em; }
+.needt-v3 .nva-plan { flex: none; height: 26px; padding: 0 11px; border-radius: 13px; background: var(--nva-raise-2); color: var(--nva-ink-2); font: 600 12px/26px var(--font-sans); letter-spacing: 0.01em; }
+.needt-v3 .nva-plan.is-pro { background: linear-gradient(120deg, var(--sky-lavender-top), var(--sky-lavender-low)); color: var(--sky-on-light-ink); }
+
+/* ── the fog: gradient + blur + the sky's halftone, growing toward the edge ── */
+.needt-v3 .nva-fog { position: absolute; left: 0; top: 0; width: 100%; height: 104px; pointer-events: none; opacity: 0; overflow: hidden; border-radius: 0 0 38px 38px;
+  will-change: transform, opacity; } /* kept at rest: a small layer, and its own backdrop root — the fog's look is tuned to it */
+/* Progressive blur (08.10.26): three stacked layers, each stronger and masked
+   lower, so the list melts into frosted glass instead of a flat 6px band. */
+.needt-v3 .nva-fog { height: 132px; }
+.needt-v3 .nva-fog-blur { position: absolute; inset: 0; }
+.needt-v3 .nva-fog-blur.is-1 { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, var(--nva-ink) 30%); mask-image: linear-gradient(to bottom, transparent 0%, var(--nva-ink) 30%); }
+.needt-v3 .nva-fog-blur.is-2 { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 25%, var(--nva-ink) 58%); mask-image: linear-gradient(to bottom, transparent 25%, var(--nva-ink) 58%); }
+.needt-v3 .nva-fog-blur.is-3 { -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 55%, var(--nva-ink) 85%); mask-image: linear-gradient(to bottom, transparent 55%, var(--nva-ink) 85%); }
+.needt-v3 .nva-fog-wash { position: absolute; inset: 0; background: linear-gradient(to bottom, var(--nva-fog-0) 0%, var(--nva-fog-0) 30%, var(--nva-fog) 92%); }
+.needt-v3 .nva-fog-dots { position: absolute; left: 0; right: 0; background-size: 6px 6px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--nva-ink) 40%, var(--nva-ink) 62%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, var(--nva-ink) 40%, var(--nva-ink) 62%, transparent); }
+.needt-v3 .nva-fog-dots.is-1 { top: 40px; height: 36px; background-image: radial-gradient(circle, var(--nva-dot) 0.55px, transparent 1.1px); }
+.needt-v3 .nva-fog-dots.is-2 { top: 60px; height: 38px; background-image: radial-gradient(circle, var(--nva-dot) 0.95px, transparent 1.5px); background-position: 3px 3px; }
+.needt-v3 .nva-fog-dots.is-3 { top: 82px; height: 42px; background-image: radial-gradient(circle, var(--nva-dot) 1.35px, transparent 1.9px); }
+/* The dots drift like the sky while the fog shows (owner's exception to
+   "nothing loops at rest", MOTION.md): right → left by 8 cells (48px) per
+   cycle on a layer 48px wider than the band (seamless), a hair of bob;
+   compositor-only. nav-a.jsx sets data-live while the fog shows and the tab
+   is visible; the scroll does not move them. */
+.needt-v3 .nva-fog-dots { right: -48px; will-change: transform, translate;
+  animation: v3-nva-fog-drift 40s linear infinite paused, v3-nva-fog-bob 9s ease-in-out -3s infinite paused; }
+.needt-v3 .nva-fog-dots.is-2 { animation-duration: 31s, 11s; animation-delay: 0s, -7s; }
+.needt-v3 .nva-fog-dots.is-3 { animation-duration: 23s, 7.5s; animation-delay: 0s, -1s; }
+.needt-v3 .nva-fog[data-live="1"] .nva-fog-dots { animation-play-state: running; }
+@keyframes v3-nva-fog-drift { from { translate: 0 0; } to { translate: -48px 0; } }
+@keyframes v3-nva-fog-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+
+/* ── the three: they travel from the pill to the tile row ── */
+.needt-v3 .nva-icon { position: absolute; left: 0; top: 0; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 26px; background: transparent;
+  display: grid; place-items: center; color: var(--nva-ink); transform-origin: 50% 50%; }
+.needt-v3 .nva-icon .nva-glyph { width: 26px; height: 26px; transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1); }
+.needt-v3 .nva-icon:active .nva-glyph { transform: scale(0.86); }
+.needt-v3 .nva-icon-dot { position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: var(--nva-lav); opacity: 0; }
+.needt-v3 .nva-icon.is-on .nva-icon-dot { opacity: calc(1 - var(--nva-k, 0) * 5); }
+
+/* ── the pill's end: hairline + the dot grid that opens everything ── */
+.needt-v3 .nva-pillbits { position: absolute; left: 0; top: 0; width: 60px; height: 44px; display: flex; align-items: center; }
+.needt-v3 .nva-hair { flex: none; width: 1px; height: 26px; margin-right: 7px; background: var(--nva-line); }
+.needt-v3 .nva-dots { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 22px; background: var(--nva-raise);
+  display: grid; grid-template-columns: repeat(3, 5px); grid-auto-rows: 5px; gap: 4px; place-content: center;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1), background-color 0.2s ease; }
+.needt-v3 .nva-dots:active { transform: scale(0.9); }
+.needt-v3 .nva-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--nva-ink-3); }
+.needt-v3 .nva-dot:nth-child(1),
+.needt-v3 .nva-dot:nth-child(5) { background: var(--nva-ink-2); }
+.needt-v3 .nva-dot:nth-child(3) { background: var(--nva-lav); }
+/* You are somewhere that is not one of the three: the grid says so. */
+.needt-v3 .nva-dots.is-here { background: var(--nva-lav-soft); box-shadow: inset 0 0 0 1.5px var(--nva-lav-ring); }
+.needt-v3 .nva-dots.is-here .nva-dot { background: var(--nva-lav); }
+
+/* ── tucked away ── */
+.needt-v3 .nva-handle { position: absolute; left: 0; top: 0; width: 28px; height: 3px; border-radius: 2px; background: var(--nva-lav); opacity: 0; }
+.needt-v3 .nva-handle-hit { position: absolute; left: 50%; bottom: 0; width: 80px; height: 40px; margin-left: -40px; padding: 0; border: 0; background: transparent; }
+
+/* The hint above the pill while you pull it down. */
+.needt-v3 .nva-hint { position: absolute; left: 50%; top: calc(100% - 10px - var(--nva-full, 806px)); padding: 9px 15px; border-radius: 999px;
+  background: var(--nva-bg); color: var(--nva-ink); font: 500 13px/16px var(--font-sans); white-space: nowrap; opacity: 0; pointer-events: none;
+  box-shadow: 0 0 0 1px var(--nva-line); }
+
+/* ── settings, inside the card ── */
+.needt-v3 .nva-set-box { position: absolute; left: 0; right: 0; top: 0; height: var(--nva-full, 806px); visibility: hidden; }
+.needt-v3 .nva-set { height: 100%; display: flex; flex-direction: column; }
+.needt-v3 .nva-set-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 22px 18px 8px; }
+.needt-v3 .nva-round { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 22px; background: var(--nva-raise); color: var(--nva-ink); display: grid; place-items: center; }
+.needt-v3 .nva-set-title { font: 600 34px/38px var(--font-sans); letter-spacing: -0.04em; }
+.needt-v3 .nva-set-scroll { flex: 1; min-height: 0; padding: 6px 18px 0; box-sizing: border-box; }
+.needt-v3 .nva-me { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 26px; background: var(--nva-raise); }
+.needt-v3 .nva-me-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .nva-me-name { font: 600 22px/26px var(--font-sans); letter-spacing: -0.03em; }
+.needt-v3 .nva-me-mail { font: 400 13px/17px var(--font-sans); color: var(--nva-ink-2); }
+.needt-v3 .nva-set-label { padding: 24px 4px 6px; font: 600 12px/16px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--nva-ink-2); }
+.needt-v3 .nva-set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; padding: 8px 4px; box-sizing: border-box; box-shadow: inset 0 -1px 0 var(--nva-line); }
+.needt-v3 .nva-set-row.is-plan { box-shadow: none; }
+.needt-v3 .nva-set-stack { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .nva-set-word { font: 600 20px/24px var(--font-sans); letter-spacing: -0.025em; }
+.needt-v3 .nva-set-cap { font: 400 13px/17px var(--font-sans); color: var(--nva-ink-2); text-wrap: pretty; }
+.needt-v3 .nva-set-val { flex: none; font: 500 15px/20px var(--font-sans); color: var(--nva-ink-2); font-variant-numeric: tabular-nums; }
+.needt-v3 .nva-seg { flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--nva-raise); }
+.needt-v3 .nva-seg-btn { height: 34px; padding: 0 15px; border: 0; border-radius: 999px; background: transparent; color: var(--nva-ink-2); font: 500 14px/1 var(--font-sans); transition: background-color 0.2s ease, color 0.2s ease; }
+.needt-v3 .nva-seg-btn.is-on { background: var(--nva-ink); color: var(--nva-bg); }
+.needt-v3 .nva-switch { flex: none; position: relative; width: 52px; height: 32px; padding: 0; border: 0; border-radius: 16px; background: var(--nva-raise-2); transition: background-color 0.22s ease; }
+.needt-v3 .nva-switch.is-on { background: var(--nva-lav); }
+.needt-v3 .nva-switch-knob { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 13px; background: var(--nva-pearl);
+  box-shadow: 0 1px 3px var(--nva-line), 0 0 0 0.5px var(--nva-line); transition: transform 0.3s cubic-bezier(0.3, 1.35, 0.5, 1); }
+.needt-v3 .nva-switch.is-on .nva-switch-knob { transform: translateX(20px); }
+.needt-v3 .nva-pro { width: 100%; height: 62px; margin-top: 6px; padding: 0 20px; border: 0; border-radius: 22px; display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(120deg, var(--sky-lavender-top), var(--sky-lavender-mid) 55%, var(--sky-lavender-low)); color: var(--sky-on-light-ink);
+  font: 600 18px/22px var(--font-sans); letter-spacing: -0.02em; transition: transform 0.18s ease; }
+.needt-v3 .nva-pro:active,
+.needt-v3 .nva-signout:active { transform: scale(0.98); }
+.needt-v3 .nva-pro-cap { font: 500 13px/16px var(--font-sans); opacity: 0.7; letter-spacing: 0; }
+.needt-v3 .nva-signout { width: 100%; height: 54px; margin-top: 10px; border: 0; border-radius: 20px; background: var(--nva-raise); color: var(--nva-alert); font: 500 16px/1 var(--font-sans); transition: transform 0.18s ease; }
+.needt-v3 .nva-tail { height: 96px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .nva-body,
+.needt-v3 .nva-tile,
+.needt-v3 .nva-icon .nva-glyph,
+.needt-v3 .nva-dots,
+.needt-v3 .nva-switch-knob,
+.needt-v3 .nva-pro,
+.needt-v3 .nva-signout,
+.needt-v3 .nva-add,
+.needt-v3 .nva-add::before { transition: none; }
+  .needt-v3 .nva-fog-dots { animation: none; }
+  .needt-v3 .nva-body.is-holding { transform: none; }
+  .needt-v3 .nva.is-away .nva-body { transform: translateY(140px); }
+}
+
+/* ── wave 3 (09.10.26): a frosted pill, a create button, the composer's morph ──
+   The pill's ground is see-through (--nva-pill-alpha) over a backdrop blur cut
+   to the same shape (.nva-glass, outside .nva-body; its box is the resting
+   pill's — or the handle's — set once per stop, and a transform stretches it
+   to the shape in between); as the card opens the ground turns solid. */
+.needt-v3 .nva-glass { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; transform-origin: 0 0;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); }
+.needt-v3 .nva-ground { opacity: calc(var(--nva-pill-alpha) + (1 - var(--nva-pill-alpha)) * var(--nva-k, 0)); }
+.needt-v3 .nva.is-away .nva-glass { visibility: hidden !important; }
+/* the create button beside the pill (wave 4): the pill's own glass — it
+   wears the pill's (inverse) theme class, so the same see-through ground
+   (--nva-bg at --nva-pill-alpha) over a backdrop blur, a hairline rim and a
+   soft shadow (--nva-add-rim); a little smaller than the pill; the icon in
+   the pill's quiet ink; lavender only while pressed. */
+.needt-v3 .nva-add { position: absolute; left: 0; top: 0; width: 54px; height: 54px; padding: 0; border: 0; border-radius: 27px; pointer-events: auto; isolation: isolate;
+  display: grid; place-items: center; color: var(--nva-add-quiet); background: transparent; box-shadow: var(--nva-add-rim);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); -webkit-tap-highlight-color: transparent; cursor: default;
+  transition: color 0.18s ease, box-shadow 0.18s ease; }
+.needt-v3 .nva-add::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--nva-bg); opacity: var(--nva-pill-alpha); transition: background-color 0.18s ease; }
+.needt-v3 .nva-add svg { transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1); }
+.needt-v3 .nva-add:active { color: var(--nva-lav); box-shadow: var(--nva-add-rim), inset 0 0 0 1.5px var(--nva-lav-ring); }
+.needt-v3 .nva-add:active::before { background: color-mix(in oklch, var(--nva-bg) 82%, var(--nva-lav)); }
+.needt-v3 .nva-add:active svg { transform: scale(0.88); }
+.needt-v3 .nva-add:focus-visible { outline: 2px solid var(--nva-lav); outline-offset: 2px; }
+.needt-v3 .nva.is-away .nva-add { visibility: hidden !important; }
+/* the composer grows out of the pill (phone-kit.jsx PkSheet from=pkPillRect):
+   while it is up, the pill itself is the sheet — the menu steps out at once
+   and comes back when the sheet has gone back into it */
+.needt-v3 .nva.is-morph .nva-body,
+.needt-v3 .nva.is-morph .nva-glass,
+.needt-v3 .nva.is-morph .nva-add { visibility: hidden !important; }
+.needt-v3 .nva.is-morph .nva-shape,
+.needt-v3 .nva.is-morph .nva-add { pointer-events: none !important; }
+
+/* ── motion (09.10.26, iPhone lag fix) — nav-a.jsx sets data-moving from the
+   first frame a finger or a spring moves the shape to the frame it settles:
+   · its moving parts get their own layers (only then — at rest the text is
+     drawn flat and crisp);
+   · the fog's and the head's backdrop blurs step out (the fog keeps its wash
+     and dots), so at most the pill's glass blurs while it moves; on settle
+     (data-fade, ~0.3s) they fade back in. */
+.needt-v3 .nva[data-moving] .nva-shape,
+.needt-v3 .nva[data-moving] .nva-ground,
+.needt-v3 .nva[data-moving] .nva-content,
+.needt-v3 .nva[data-moving] .nva-tiles,
+.needt-v3 .nva[data-moving] .nva-grab,
+.needt-v3 .nva[data-moving] .nva-row,
+.needt-v3 .nva[data-moving] .nva-set-box,
+.needt-v3 .nva[data-moving] .nva-fog,
+.needt-v3 .nva[data-moving] .nva-icon,
+.needt-v3 .nva[data-moving] .nva-pillbits,
+.needt-v3 .nva[data-moving] .nva-handle,
+.needt-v3 .nva[data-moving] .nva-scrim,
+.needt-v3 .nva[data-moving] .nva-glass,
+.needt-v3 .nva[data-moving] .nva-add,
+.needt-v3 .nva[data-moving] .nva-hint,
+.needt-v3 .nva[data-moving] .nva-sh-set,
+.needt-v3 .nva[data-moving] .nva-sh { will-change: transform, opacity; }
+.needt-v3 .nva[data-moving] .nva-fog-blur,
+.needt-v3 .nva[data-moving] .nva-head-blur { opacity: 0; visibility: hidden; }
+.needt-v3 .nva[data-fade] .nva-fog-blur,
+.needt-v3 .nva[data-fade] .nva-head-blur { transition: opacity 0.26s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .nva[data-fade] .nva-fog-blur,
+.needt-v3 .nva[data-fade] .nva-head-blur { transition: none; }
+}

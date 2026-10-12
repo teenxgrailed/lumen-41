@@ -1,0 +1,59 @@
+{
+  "places": [
+    {
+      "id": "today",
+      "on": true
+    },
+    {
+      "id": "calendar",
+      "on": true
+    },
+    {
+      "id": "tasks",
+      "on": true
+    },
+    {
+      "id": "docs",
+      "on": true
+    },
+    {
+      "id": "mail",
+      "on": true
+    },
+    {
+      "id": "projects",
+      "on": false
+    },
+    {
+      "id": "moodboards",
+      "on": false
+    },
+    {
+      "id": "habits",
+      "on": false
+    },
+    {
+      "id": "templates",
+      "on": false
+    },
+    {
+      "id": "shared",
+      "on": false
+    },
+    {
+      "id": "trash",
+      "on": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "starred",
+      "on": true
+    },
+    {
+      "id": "projects",
+      "on": true
+    }
+  ],
+  "collapsed": {}
+}

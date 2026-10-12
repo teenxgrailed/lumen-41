@@ -1,0 +1,590 @@
+[
+  {
+    "id": 1,
+    "title": "Draft the launch brief",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "in_progress",
+    "dueDate": "2026-09-04",
+    "estimatedMinutes": 90,
+    "scheduledStart": "2026-09-04T09:00",
+    "scheduledEnd": "2026-09-04T10:30",
+    "isFixed": true,
+    "done": false,
+    "holder": "you",
+    "TaskWait": {
+      "personId": "anna",
+      "reason": "the legal sign-off"
+    },
+    "Stage": "doing",
+    "blockedBy": 6,
+    "heat": 0.7,
+    "TaskPart": [
+      {
+        "id": "1.1",
+        "title": "Pull last month's numbers",
+        "done": true
+      },
+      {
+        "id": "1.2",
+        "title": "Write the draft",
+        "done": false
+      },
+      {
+        "id": "1.3",
+        "title": "Send it for review",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Send invoices for August",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-08-31",
+    "estimatedMinutes": 30,
+    "scheduledStart": "2026-08-31T09:00",
+    "scheduledEnd": "2026-08-31T09:30",
+    "done": false,
+    "overdue": true,
+    "holder": "anna",
+    "Stage": "doing",
+    "movedFrom": "09:30"
+  },
+  {
+    "id": 3,
+    "title": "Review the form-row spec",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "in_progress",
+    "dueDate": "2026-09-02",
+    "estimatedMinutes": 60,
+    "scheduledStart": "2026-09-02T11:00",
+    "scheduledEnd": "2026-09-02T12:00",
+    "isFixed": true,
+    "done": false,
+    "holder": "you",
+    "Stage": "review"
+  },
+  {
+    "id": 4,
+    "title": "German — B2 unit 4",
+    "projectId": "german",
+    "tone": "success",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 60,
+    "scheduledStart": "2026-09-01T18:00",
+    "scheduledEnd": "2026-09-01T19:00",
+    "isFixed": true,
+    "done": false,
+    "holder": "you",
+    "Stage": "todo"
+  },
+  {
+    "id": 5,
+    "title": "Call the accountant back",
+    "projectId": null,
+    "status": "todo",
+    "estimatedMinutes": 20,
+    "done": false,
+    "age": 34
+  },
+  {
+    "id": 14,
+    "title": "Finish the tank graphic",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 240,
+    "scheduledStart": "2026-09-01T14:00",
+    "scheduledEnd": "2026-09-01T18:00",
+    "done": false,
+    "holder": "you",
+    "TaskWait": {
+      "personId": "tom",
+      "reason": "the print files"
+    },
+    "Stage": "doing",
+    "entry": "Open the artwork and pick the print side"
+  },
+  {
+    "id": 15,
+    "title": "Reply to the Berlin buyer",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 15,
+    "scheduledStart": "2026-09-01T09:00",
+    "scheduledEnd": "2026-09-01T09:15",
+    "done": false
+  },
+  {
+    "id": 27,
+    "title": "Answer the supplier email",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 15,
+    "scheduledStart": "2026-09-01T08:00",
+    "scheduledEnd": "2026-09-01T08:15",
+    "done": false,
+    "Stage": "todo"
+  },
+  {
+    "id": 28,
+    "title": "Reply to Lena about the type scale",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 20,
+    "scheduledStart": "2026-09-01T09:00",
+    "scheduledEnd": "2026-09-01T09:20",
+    "done": false,
+    "holder": "lena",
+    "Stage": "review"
+  },
+  {
+    "id": 29,
+    "title": "Pack the boots for pickup",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 25,
+    "scheduledStart": "2026-09-01T10:00",
+    "scheduledEnd": "2026-09-01T10:25",
+    "done": false,
+    "TaskPart": [
+      {
+        "id": "29.1",
+        "title": "Wrap them",
+        "done": true
+      },
+      {
+        "id": "29.2",
+        "title": "Print the label",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "title": "Check the print proof",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "in_progress",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 30,
+    "scheduledStart": "2026-09-01T11:00",
+    "scheduledEnd": "2026-09-01T11:30",
+    "done": false,
+    "holder": "you",
+    "Stage": "doing"
+  },
+  {
+    "id": 31,
+    "title": "Call the tax office",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 20,
+    "scheduledStart": "2026-09-01T12:00",
+    "scheduledEnd": "2026-09-01T12:20",
+    "done": false,
+    "age": 9
+  },
+  {
+    "id": 32,
+    "title": "Fix the form-row spacing",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "in_progress",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-01T13:00",
+    "scheduledEnd": "2026-09-01T13:45",
+    "done": false,
+    "holder": "you",
+    "Stage": "doing"
+  },
+  {
+    "id": 33,
+    "title": "Photograph the two jackets",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 40,
+    "scheduledStart": "2026-09-01T15:00",
+    "scheduledEnd": "2026-09-01T15:40",
+    "done": false,
+    "TaskPart": [
+      {
+        "id": "33.1",
+        "title": "Set up the light",
+        "done": false
+      },
+      {
+        "id": "33.2",
+        "title": "Shoot both",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "title": "Update the shipping sheet",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 20,
+    "scheduledStart": "2026-09-01T16:00",
+    "scheduledEnd": "2026-09-01T16:20",
+    "done": false,
+    "Stage": "todo"
+  },
+  {
+    "id": 35,
+    "title": "German — listening drill",
+    "projectId": "german",
+    "tone": "success",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 25,
+    "scheduledStart": "2026-09-01T19:00",
+    "scheduledEnd": "2026-09-01T19:25",
+    "done": false
+  },
+  {
+    "id": 36,
+    "title": "Read the supplier brief",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-09-01",
+    "estimatedMinutes": 30,
+    "scheduledStart": "2026-09-01T20:00",
+    "scheduledEnd": "2026-09-01T20:30",
+    "done": false
+  },
+  {
+    "id": 37,
+    "title": "Renew the domain",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-08-29",
+    "estimatedMinutes": 10,
+    "scheduledStart": "2026-08-29T09:00",
+    "scheduledEnd": "2026-08-29T09:10",
+    "done": false,
+    "overdue": true,
+    "Stage": "todo"
+  },
+  {
+    "id": 38,
+    "title": "Send the August report",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-08-30",
+    "estimatedMinutes": 35,
+    "scheduledStart": "2026-08-30T10:00",
+    "scheduledEnd": "2026-08-30T10:35",
+    "done": false,
+    "overdue": true,
+    "holder": "you",
+    "Stage": "doing"
+  },
+  {
+    "id": 16,
+    "title": "Photograph the shell",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-02",
+    "estimatedMinutes": 40,
+    "scheduledStart": "2026-09-02T10:00",
+    "scheduledEnd": "2026-09-02T10:40",
+    "done": false,
+    "TaskPart": [
+      {
+        "id": "16.1",
+        "title": "Set up the light",
+        "done": true
+      },
+      {
+        "id": "16.2",
+        "title": "Shoot the front",
+        "done": false
+      },
+      {
+        "id": "16.3",
+        "title": "Shoot the label",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "title": "Sign the factory quote",
+    "projectId": "ops",
+    "status": "todo",
+    "dueDate": "2026-09-02",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-02T12:00",
+    "scheduledEnd": "2026-09-02T12:45",
+    "done": false,
+    "holder": "tom",
+    "Stage": "review",
+    "blockedBy": 26,
+    "entry": "Open the quote PDF"
+  },
+  {
+    "id": 18,
+    "title": "Pick the courier for the batch",
+    "projectId": "ops",
+    "status": "todo",
+    "dueDate": "2026-09-02",
+    "estimatedMinutes": 30,
+    "scheduledStart": "2026-09-02T16:00",
+    "scheduledEnd": "2026-09-02T16:30",
+    "done": false,
+    "Stage": "todo",
+    "blockedBy": 17
+  },
+  {
+    "id": 19,
+    "title": "Read the VAT note",
+    "status": "todo",
+    "dueDate": "2026-09-03",
+    "estimatedMinutes": 20,
+    "scheduledStart": "2026-09-03T18:00",
+    "scheduledEnd": "2026-09-03T18:20",
+    "done": false
+  },
+  {
+    "id": 20,
+    "title": "Landing page copy",
+    "projectId": "ds",
+    "status": "todo",
+    "dueDate": "2026-09-03",
+    "estimatedMinutes": 120,
+    "scheduledStart": "2026-09-03T10:00",
+    "scheduledEnd": "2026-09-03T12:00",
+    "done": false,
+    "holder": "lena",
+    "Stage": "doing",
+    "entry": "Write the first sentence"
+  },
+  {
+    "id": 21,
+    "title": "Ship the camera body",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-04",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-04T11:00",
+    "scheduledEnd": "2026-09-04T11:45",
+    "done": false,
+    "value": 1600
+  },
+  {
+    "id": 22,
+    "title": "Write the September brief",
+    "projectId": "ops",
+    "status": "todo",
+    "dueDate": "2026-09-04",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-04T15:00",
+    "scheduledEnd": "2026-09-04T15:45",
+    "done": false,
+    "holder": "anna",
+    "Stage": "todo",
+    "blockedBy": 1
+  },
+  {
+    "id": 23,
+    "title": "German — B2 unit 5",
+    "projectId": "german",
+    "status": "todo",
+    "dueDate": "2026-09-04",
+    "estimatedMinutes": 60,
+    "scheduledStart": "2026-09-04T18:00",
+    "scheduledEnd": "2026-09-04T19:00",
+    "done": false
+  },
+  {
+    "id": 24,
+    "title": "Archive August",
+    "status": "todo",
+    "dueDate": "2026-09-05",
+    "estimatedMinutes": 20,
+    "done": false
+  },
+  {
+    "id": 25,
+    "title": "Two pairs of boots — list them",
+    "projectId": "resale",
+    "status": "todo",
+    "dueDate": "2026-09-06",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-06T11:00",
+    "scheduledEnd": "2026-09-06T11:45",
+    "done": false,
+    "value": 5600
+  },
+  {
+    "id": 26,
+    "title": "Read the two supplier contracts",
+    "projectId": "ops",
+    "status": "todo",
+    "dueDate": "2026-09-07",
+    "estimatedMinutes": 60,
+    "scheduledStart": "2026-09-07T14:00",
+    "scheduledEnd": "2026-09-07T15:00",
+    "done": false,
+    "holder": "tom",
+    "Stage": "doing"
+  },
+  {
+    "id": 6,
+    "title": "Collect last quarter's numbers",
+    "projectId": "ops",
+    "tone": "info",
+    "status": "todo",
+    "dueDate": "2026-09-03",
+    "estimatedMinutes": 45,
+    "scheduledStart": "2026-09-03T09:00",
+    "scheduledEnd": "2026-09-03T09:45",
+    "done": false,
+    "Stage": "doing",
+    "entry": "Export the card statement",
+    "TaskPart": [
+      {
+        "id": "6.1",
+        "title": "Export the card statement",
+        "done": false
+      },
+      {
+        "id": "6.2",
+        "title": "Export the invoices",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "Pick a courier for the September batch",
+    "projectId": null,
+    "status": "todo",
+    "estimatedMinutes": 45,
+    "done": false
+  },
+  {
+    "id": 8,
+    "title": "Write the weekly review",
+    "projectId": "ds",
+    "tone": "accent",
+    "status": "todo",
+    "dueDate": "2026-09-04",
+    "estimatedMinutes": 60,
+    "isFixed": true,
+    "done": false
+  },
+  {
+    "id": 9,
+    "title": "Reconcile the card statement",
+    "projectId": "ops",
+    "tone": "info",
+    "estimatedMinutes": 30,
+    "done": true,
+    "Stage": "done"
+  },
+  {
+    "id": 10,
+    "title": "Book the dentist",
+    "projectId": null,
+    "estimatedMinutes": 15,
+    "done": true
+  },
+  {
+    "id": 11,
+    "title": "Arc'teryx shell — L",
+    "projectId": "resale",
+    "status": "in_progress",
+    "done": false,
+    "heat": 1,
+    "value": 4200,
+    "earned": 3800,
+    "noSlot": true,
+    "TaskPart": [
+      {
+        "id": "11.1",
+        "title": "Photograph it",
+        "done": true
+      },
+      {
+        "id": "11.2",
+        "title": "List it",
+        "done": true
+      },
+      {
+        "id": "11.3",
+        "title": "Ship it",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "title": "Two pairs of boots",
+    "projectId": "resale",
+    "status": "todo",
+    "done": false,
+    "heat": 0.5,
+    "value": 5600,
+    "noSlot": true,
+    "TaskPart": [
+      {
+        "id": "12.1",
+        "title": "Photograph them",
+        "done": false
+      },
+      {
+        "id": "12.2",
+        "title": "List them",
+        "done": false
+      },
+      {
+        "id": "12.3",
+        "title": "Ship them",
+        "done": false
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "title": "Camera body",
+    "projectId": "resale",
+    "status": "todo",
+    "done": false,
+    "value": 1600,
+    "noSlot": true,
+    "TaskPart": [
+      {
+        "id": "13.1",
+        "title": "Photograph it",
+        "done": false
+      },
+      {
+        "id": "13.2",
+        "title": "List it",
+        "done": false
+      }
+    ]
+  }
+]

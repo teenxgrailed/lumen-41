@@ -1,0 +1,88 @@
+/* Design v3 — typography corrections on top of the vendored prototype CSS.
+ * Rule: chrome type is 13 px and 12 px, never 14 (CLAUDE.md, four rules). */
+
+/* tasks.css:99 sets the preview title in 14 px. */
+.needt-v3 .tk-prev-title {
+  font-size: 13px;
+}
+
+/* home.css sets the day-closed line, the rail panel titles and the notes line
+ * in 14 px. */
+.needt-v3 .hd-closed-line,
+.needt-v3 .hd-panel-title,
+.needt-v3 .hd-notes {
+  font-size: 13px;
+}
+
+/* T22 Connections. connections.jsx keeps most of its card CSS in an inline
+ * <style> (CN_CSS), so it is not in the vendored connections.css. The page,
+ * tabs, filters, cards and status pills now live in
+ * v3-overrides/connections-desktop.css; what is left here is shared with the
+ * phone and the sheets: the spinner, the ghost icon button, the menu row. */
+.needt-v3 .cn-spin {
+  animation: cn-spin 0.8s linear infinite;
+}
+@keyframes cn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .cn-spin {
+    animation-duration: 2s;
+  }
+}
+.needt-v3 .cn-iconbtn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: default;
+  transition: background-color 120ms ease;
+}
+.needt-v3 .cn-iconbtn:hover,
+.needt-v3 .cn-iconbtn[aria-expanded="true"] {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3 .cn-mi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: default;
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .cn-mi:hover {
+  background: var(--fill-3);
+}
+.needt-v3 .cn-mi.is-danger {
+  color: var(--destructive);
+}
+.needt-v3 .cn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 24px;
+  text-align: center;
+}
+
+/* ── Brand marks: the phone's sign-in provider buttons ─────────────────────
+ * "Continue with Google" / "Sign in with Microsoft" do not fit side by side
+ * in a 390px phone, so the pair stacks (mobile-onboarding.css lays it out in a
+ * row; this corrects it, that sheet is generated). */
+.needt-v3 .mau-pair {
+  flex-direction: column;
+}

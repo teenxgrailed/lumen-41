@@ -17,7 +17,7 @@ import { CommandPalette } from "@/components/ui/command-palette";
 import { CommandPaletteFab } from "@/components/ui/command-palette-fab";
 import { CommandPaletteHint } from "@/components/ui/command-palette-hint";
 import { ShortcutsModal } from "@/components/ui/shortcuts-modal";
-import { Toaster } from "@/components/ui/sonner";
+import { NeedtNotices } from "@/components/needt/corner/NeedtNotices";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { cn } from "@/lib/utils";
@@ -140,7 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onOpenChat={() => setChatOverlayOpen(true)}
             />
             <AIActionCursor />
-            <Toaster />
+            <NeedtNotices />
           </TooltipProvider>
         </DndProvider>
       </PrivacyProvider>

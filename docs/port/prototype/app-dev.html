@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="app-icon/favicon.ico" sizes="32x32"><link rel="icon" href="app-icon/needt-icon-small.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="app-icon/apple-touch-icon.png"><title>Needt</title>
+<!-- SOURCE PAGE. app.html is generated from this file by `node build.js`.
+     THE ONE PROGRAM (09.10.26): one entry for every platform. app-boot.js picks
+     the phone UI (V2pLivePhone, bare) on iOS / Android or below 700 px, the
+     desktop UI (App) otherwise — ?ui=phone|desktop overrides — and loads only
+     that UI's styles and scripts, read from index-dev.html / mobile-dev.html
+     (their order is the dependency graph; nothing is listed twice). Shared:
+     sync.js (window.needtSync), platform.js (window.needtPlatform), Data.js and
+     the stores. index.html / mobile.html stay as previews. -->
+<style>
+/* Per UI, the frame rules of the page each UI comes from (index-dev.html,
+   mobile-dev.html), scoped by html[data-ui]; the app mounts into #needt-app. */
+html, body { height: 100%; margin: 0; }
+body { background: var(--background); }
+html[data-ui="desktop"] body { overflow: auto; display: flex; align-items: stretch; justify-content: flex-start; }
+html[data-ui="desktop"] #needt-app { width: 100%; min-width: 960px; height: 100%; min-height: 720px; flex: none; overflow: hidden; }
+html[data-ui="phone"] body { overflow: auto; }
+html[data-ui="phone"] #needt-app { width: 100%; height: 100%; }
+html[data-ui="phone"] .mb-strip { scrollbar-width: none; -ms-overflow-style: none; }
+html[data-ui="phone"] .mb-strip::-webkit-scrollbar { display: none; }
+@keyframes mb-step-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+html[data-ui="phone"] .mb-step { animation: mb-step-in 0.26s cubic-bezier(0.2, 0.9, 0.24, 1); }
+@media (prefers-reduced-motion: reduce) { html[data-ui="phone"] .mb-step { animation: none; } }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="vendor/lucide-local.js?v=1009b"></script>
+<script>/* The DS bundle still fires its own esm.sh icon import; with the local
+   snapshot installed that import is redundant, so an offline failure of it is
+   not an error worth surfacing. */
+window.addEventListener("unhandledrejection",function(e){var m=String(e.reason&&e.reason.message||e.reason);if(window.__LU_LOCAL&&m.indexOf("esm.sh/react-icons")>=0)e.preventDefault();});</script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="../_ds/needt-design-system-main-25d3c8e5-a812-464d-881f-e887b9adef4b/_ds_bundle.js?v=1009b"></script>
+<script type="module" src="needt-icons.js?v=1009b"></script>
+</head><body>
+<script src="cssvar.js?v=1009b"></script>
+<script src="sync.js?v=1009b"></script>
+<script src="platform.js?v=1009b"></script>
+<script src="Data.js?v=1009b"></script>
+<script src="brand-icons.js?v=1009b"></script>
+<script src="app-boot.js?v=1009b"></script>
+</body></html>

@@ -65,10 +65,42 @@ export function NeedtNoticeProvider({
     leaving.current.add(timer);
   }, []);
 
+  const dismissAll = React.useCallback(() => {
+    setNotices((list) => {
+      list.forEach((n) => {
+        const clock = clocks.current.get(n.id);
+        if (clock) {
+          clock.cancel();
+          clocks.current.delete(n.id);
+        }
+      });
+      return [];
+    });
+  }, []);
+
   const notify = React.useCallback(
     (payload: NoticePayload) => {
       const id = nextId();
-      setNotices((list) => keep(list, { ...payload, id }));
+      setNotices((list) => {
+        /* A keyed notice takes the place of the last one of its name rather
+           than stacking beside it — and keeps that place, so a status that
+           updates does not jump to the bottom on every change. */
+        if (payload.key) {
+          const at = list.findIndex((n) => n.key === payload.key && !n.leaving);
+          if (at >= 0) {
+            const previous = list[at];
+            const clock = clocks.current.get(previous.id);
+            if (clock) {
+              clock.cancel();
+              clocks.current.delete(previous.id);
+            }
+            const next = list.slice();
+            next[at] = { ...payload, id };
+            return next;
+          }
+        }
+        return keep(list, { ...payload, id });
+      });
 
       if (!payload.sticky) {
         clocks.current.set(
@@ -98,8 +130,8 @@ export function NeedtNoticeProvider({
   }, []);
 
   const api = React.useMemo<NoticeApi>(
-    () => ({ notify, dismiss }),
-    [notify, dismiss]
+    () => ({ notify, dismiss, dismissAll }),
+    [notify, dismiss, dismissAll]
   );
 
   const stack = React.useMemo<NoticeStack>(

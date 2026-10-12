@@ -1,0 +1,151 @@
+/* ========================================================================
+   Needt design v3 — styles/mail.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* mail.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── MailScreen.jsx · Mail ───────────────────────────────────────────── */
+.needt-v3 .ml-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.needt-v3 .ml-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
+.needt-v3 .ml-title { margin: 0; font: var(--type-page-title); color: var(--text-primary); }
+.needt-v3 .ml-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .ml-meta { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .ml-push { margin-left: auto; }
+
+/* Account chips + tab pill. */
+.needt-v3 .ml-accts { display: flex; gap: 6px; }
+.needt-v3 .ml-acct { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px 0 7px; border-radius: 8px; background: var(--fill-3); font: var(--type-meta-medium); color: var(--text-secondary); }
+.needt-v3 .ml-acct-dot { width: 7px; height: 7px; border-radius: 4px; }
+.needt-v3 .ml-acct-down { width: 6px; height: 6px; border-radius: 3px; background: var(--destructive); margin-left: 2px; }
+.needt-v3 .ml-tabs { margin-left: auto; display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.needt-v3 .ml-tab { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: var(--radius-md); cursor: default; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .ml-tab.is-on { background: var(--fill-4); font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .ml-tab-n { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Outlook banner. */
+.needt-v3 .ml-banner { flex: none; display: flex; gap: 10px; align-items: flex-start; margin: 2px 0 6px; padding: 10px 10px 10px 12px; border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--destructive) 7%, var(--surface-raised)); box-shadow: color-mix(in oklab, var(--destructive) 22%, transparent) 0 0 0 1px inset;
+  opacity: 1; transform: none; transition: opacity 180ms ease, transform 200ms var(--nx-ease); }
+.needt-v3 .ml-banner.is-leaving { opacity: 0; transform: translateY(-4px); }
+.needt-v3 .ml-banner-ico { flex: none; display: flex; padding-top: 1px; color: var(--destructive); }
+.needt-v3 .ml-banner-title { font: 600 13px/17px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .ml-banner-line { font: var(--type-meta); color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .nx-btn.ml-banner-btn { flex: none; gap: 6px; }
+.needt-v3 .ml-spinner { display: inline-block; box-sizing: border-box; border-radius: 999px; border: 1.5px solid var(--fill-5); border-top-color: currentColor; }
+
+/* List. */
+.needt-v3 .ml-layout { flex: 1; min-height: 0; display: flex; gap: 16px; }
+.needt-v3 .ml-list { flex: none; width: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; }
+.needt-v3 .ml-list.is-narrow { flex: 1 1 auto; width: auto; max-width: 720px; }
+.needt-v3 .ml-day { padding: 12px 14px 6px; font: 600 13px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .ml-avatar { flex: none; border-radius: 999px; display: grid; place-items: center; background: var(--fill-4); font: 600 13px/1 var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .ml-row { position: relative; display: flex; gap: 10px; padding: 10px 12px 10px 14px; border-radius: var(--radius-lg); cursor: default;
+  background: transparent; box-shadow: none; transition: background-color var(--transition-hover); }
+.needt-v3 .ml-row.is-hot { background: var(--fill-3); }
+.needt-v3 .ml-row.is-active { background: var(--surface-raised); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.needt-v3 .ml-row-dot { position: absolute; left: 4px; top: 22px; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); }
+.needt-v3 .ml-row-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .ml-row-top { display: flex; align-items: baseline; gap: 8px; }
+.needt-v3 .ml-row-from { flex: 1 1 auto; min-width: 0; font: 500 13px/16px var(--font-sans); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ml-row.is-unread .ml-row-from { font: 600 13px/16px var(--font-sans); }
+.needt-v3 .ml-row-time { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .ml-row-subject { font: var(--type-ui); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ml-row.is-unread .ml-row-subject { font: 500 13px/16px var(--font-sans); }
+.needt-v3 .ml-row-preview { font: var(--type-meta); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ml-row-tags { display: flex; gap: 6px; padding-top: 4px; }
+.needt-v3 .ml-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--fill-3); font: var(--type-meta-medium); color: var(--text-secondary); }
+
+/* Empty tab. */
+.needt-v3 .ml-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
+.needt-v3 .ml-empty-title { margin-top: 4px; font: 500 15px/20px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .ml-empty-line { font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .nx-btn.ml-empty-cta { margin-top: 8px; }
+
+/* Reading pane. */
+.needt-v3 .ml-msg { flex: 1 1 auto; min-width: 0; overflow-y: auto; margin-bottom: 16px; padding: 28px 44px 40px; border-radius: var(--radius-3xl); background: var(--surface-raised); box-shadow: var(--shadow-ring);
+  display: flex; flex-direction: column; gap: 20px; }
+.needt-v3 .ml-msg-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.needt-v3 .nx-btn.ml-back { margin-left: -8px; padding-left: 6px; }
+.needt-v3 .nx-btn.ml-make { padding-right: 10px; }
+.needt-v3 .ml-subject { margin: 0; font: 700 26px/32px var(--font-sans); letter-spacing: -0.01em; color: var(--text-primary); }
+.needt-v3 .ml-from { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.needt-v3 .ml-from-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.needt-v3 .ml-from-name { font: 600 13px/16px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .ml-body { display: flex; flex-direction: column; gap: 12px; max-width: 620px; }
+.needt-v3 .ml-p { margin: 0; font: 400 15px/23px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .ml-attach { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 10px; border-radius: var(--radius-lg); background: var(--fill-3); font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .ml-attach-ico { width: 24px; height: 28px; border-radius: 4px; background: var(--surface-raised); box-shadow: var(--shadow-ring); display: grid; place-items: center; color: var(--destructive); font: 700 7px/1 var(--font-sans); }
+.needt-v3 .ml-reply { margin-top: auto; max-width: 720px; width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--radius-lg); background: transparent; box-shadow: var(--fill-5) 0 0 0 1px inset;
+  font: var(--type-ui); color: var(--text-tertiary); text-align: left; cursor: text; transition: background-color var(--transition-hover); }
+.needt-v3 .ml-reply:hover { background: var(--fill-2); }
+.needt-v3 .ml-reply:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Writing (09.10.26): New message, Sent / Drafts tabs, the composer ── */
+.needt-v3 .ml-tabs-sep { align-self: center; width: 1px; height: 16px; margin: 0 4px; background: var(--border); }
+.needt-v3 .nx-btn.ml-new { flex: none; gap: 6px; }
+.needt-v3 .ml-row-draft { margin-right: 6px; color: var(--destructive); font-weight: 500; }
+
+/* The floating composer: a window at the bottom right (Craft / Superhuman). */
+.needt-v3 .ml-co { position: fixed; right: 24px; bottom: 20px; z-index: 950; width: 560px; max-width: calc(100vw - 48px); max-height: calc(100vh - 96px); box-sizing: border-box;
+  display: flex; flex-direction: column; border-radius: 18px; background: var(--surface-raised); box-shadow: var(--shadow-floating); transform-origin: bottom right; }
+.needt-v3 .ml-co-head { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 18px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.needt-v3 .ml-co-title { flex: 1; min-width: 0; font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .ml-co-row { position: relative; flex: none; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 14px 4px 18px; box-sizing: border-box; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.needt-v3 .ml-co-label { flex: none; width: 36px; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .ml-co-from { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 28px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: var(--radius-md); background: transparent;
+  font: var(--type-ui); color: var(--text-primary); cursor: default; transition: background-color var(--transition-hover); }
+.needt-v3 .ml-co-from:hover { background: var(--fill-3); }
+.needt-v3 .ml-co-from.is-static { margin-left: 0; padding: 0; }
+.needt-v3 .ml-co-from-name { font: var(--type-ui-medium); }
+.needt-v3 .ml-co-from-mail { color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .ml-co-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.needt-v3 .ml-co-chip { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 2px 0 8px; border-radius: 7px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); max-width: 100%; }
+.needt-v3 .ml-co-chip.is-bad { background: color-mix(in oklab, var(--destructive) 12%, transparent); color: var(--destructive); }
+.needt-v3 .ml-co-chip-x { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); cursor: default; }
+.needt-v3 .ml-co-chip-x:hover { background: var(--fill-4); color: var(--text-primary); }
+.needt-v3 .ml-co-input { flex: 1 1 120px; min-width: 80px; height: 28px; border: 0; outline: none; background: transparent; font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .ml-co-input::placeholder,
+.needt-v3 .ml-co-subject::placeholder,
+.needt-v3 .ml-co-body::placeholder { color: var(--text-muted); }
+.needt-v3 .ml-co-ccbtn { flex: none; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-meta-medium); color: var(--text-tertiary); cursor: default; }
+.needt-v3 .ml-co-ccbtn:hover { background: var(--fill-3); color: var(--text-primary); }
+.needt-v3 .ml-co-sug { position: absolute; left: 56px; top: calc(100% + 4px); z-index: 2; width: 360px; max-width: calc(100% - 70px); padding: 6px; box-sizing: border-box; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating);
+  display: flex; flex-direction: column; }
+.needt-v3 .ml-co-sug-row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: default; min-width: 0; }
+.needt-v3 .ml-co-sug-row.is-on { background: var(--fill-3); }
+.needt-v3 .ml-co-sug-row .ml-avatar { font-size: 10px !important; }
+.needt-v3 .ml-co-sug-name { flex: none; max-width: 45%; font: var(--type-ui-medium); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .ml-co-sug-mail { flex: 1; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .ml-co-subject { flex: 1; min-width: 0; height: 32px; border: 0; outline: none; background: transparent; font: 600 15px/20px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .ml-co-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px 18px 14px; }
+.needt-v3 .ml-co-body { flex: 1 0 auto; min-height: 200px; padding: 0; border: 0; outline: none; resize: none; background: transparent; font: 400 15px/23px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .ml-co-quote { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 2px 12px; box-shadow: var(--fill-5) 2px 0 0 0 inset; }
+.needt-v3 .ml-co-quote.is-read { max-width: 620px; }
+.needt-v3 .ml-co-quote-head { font: var(--type-meta-medium); color: var(--text-tertiary); }
+.needt-v3 .ml-co-quote-text { font: var(--type-ui); color: var(--text-tertiary); white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.needt-v3 .ml-co-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.needt-v3 .ml-co-file { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px 0 10px; border-radius: 9px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); max-width: 100%; }
+.needt-v3 .ml-co-file-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.needt-v3 .ml-co-file-size { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .ml-co-err { flex: none; margin: 0 18px 8px; font: var(--type-meta); color: var(--destructive); }
+.needt-v3 .ml-co-foot { flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 10px 10px 14px; box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .nx-btn.ml-co-send { gap: 8px; }
+.needt-v3 .ml-co-kbd { font: var(--type-meta); opacity: 0.6; }
+@media (max-width: 640px) { .needt-v3 .ml-co { right: 12px; left: 12px; bottom: 12px; width: auto; } }
+.needt-v3 .ml-co-input:focus,
+.needt-v3 .ml-co-input:focus-visible,
+.needt-v3 .ml-co-subject:focus,
+.needt-v3 .ml-co-subject:focus-visible,
+.needt-v3 .ml-co-body:focus,
+.needt-v3 .ml-co-body:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .ml-attach-ico.is-file { color: var(--text-tertiary); }
+.needt-v3 .ml-msg.is-quiet { align-items: center; justify-content: center; }
+/* The header holds five tabs and New message: it gives way on narrow windows. */
+.needt-v3 .ml-title,
+.needt-v3 .ml-tab { white-space: nowrap; }
+.needt-v3 .ml-tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.needt-v3 .ml-tabs::-webkit-scrollbar { display: none; }
+.needt-v3 .ml-tab { flex: none; }
+@media (max-width: 1180px) { .needt-v3 .ml-accts { display: none; } }
+@media (max-width: 980px) { .needt-v3 .ml-new-label { display: none; } .needt-v3 .nx-btn.ml-new { padding: 0 10px; } }

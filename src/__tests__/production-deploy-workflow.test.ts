@@ -131,6 +131,11 @@ describe("production deployment workflow", () => {
     expect(workflow).not.toContain("trigger-coolify-deploy.sh");
     expect(deployScript).toContain("Authorization: Bearer $COOLIFY_TOKEN");
     expect(deployScript).toContain("/api/v1/deploy?uuid=");
+    // Coolify 4.3 answers only POST here; GET returned 405 on 2026-10-08.
+    expect(deployScript).toContain("request POST");
+    expect(deployScript.indexOf("request POST")).toBeLessThan(
+      deployScript.indexOf("request GET")
+    );
     expect(deployScript).toContain("exit 1");
     // Changing a resource's configuration needs the token's `write`
     // ability, which the release token does not have (HTTP 403 on

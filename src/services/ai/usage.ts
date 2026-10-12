@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 import { AIProviderUsage } from "./types";
 
+export const DEFAULT_HOSTED_AI_MODEL = "z-ai/glm-5.3-flash";
+
 export const HOSTED_AI_CONFIG = {
   monthlyActionCaps: {
     /**
@@ -20,24 +22,94 @@ export const HOSTED_AI_CONFIG = {
   ceilingMultiplier: Number(process.env.NEEDT_AI_CEILING_MULTIPLIER || 2),
   baseUrl:
     process.env.NEEDT_AI_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
-  model: process.env.NEEDT_AI_MODEL?.trim() || "z-ai/glm-5.3-flash",
+  model: process.env.NEEDT_AI_MODEL?.trim() || DEFAULT_HOSTED_AI_MODEL,
 } as const;
+
+/**
+ * OpenRouter hosts that serve the default model and that OpenRouter's own
+ * provider registry (`GET /api/v1/providers`) lists with headquarters in the
+ * US or the EU and no datacenter outside them. Checked 2026-10-11 against
+ * `GET /api/v1/models/z-ai/glm-5.3-flash/endpoints`.
+ *
+ * The owner's rule is that hosted AI requests are served only from the US or
+ * the EU. OpenRouter has no per-request region filter (in-region routing is
+ * the Business/Enterprise `eu.openrouter.ai` endpoint), so the rule is an
+ * allow-list of named hosts. It only applies to the default model: another
+ * model is served by other hosts, and a list that names none of them would
+ * refuse every request, so a changed `NEEDT_AI_MODEL` needs its own
+ * `NEEDT_AI_GATEWAY_PROVIDERS`.
+ */
+export const DEFAULT_MODEL_US_EU_PROVIDERS = [
+  "atlas-cloud",
+  "baseten",
+  "coreweave",
+  "crusoe",
+  "decart",
+  "deepinfra",
+  "digitalocean",
+  "fireworks",
+  "friendli",
+  "gmicloud",
+  "inceptron",
+  "inference-net",
+  "modal",
+  "morph",
+  "novita",
+  "open-inference",
+  "parasail",
+  "phala",
+  "sail-research",
+  "together",
+  "venice",
+  "wafer",
+] as const;
+
+/**
+ * Hosts that serve the default model from outside the US and the EU, or whose
+ * location OpenRouter does not publish: Z.AI (SG), StreamLake (CN),
+ * SiliconFlow (SG), DekaLLM (ID), Relace, Reka and Near AI (none listed).
+ * They are refused on every request, whatever the allow-list says, so an
+ * allow-list typed by hand cannot reopen them.
+ */
+export const NON_US_EU_PROVIDERS = [
+  "z-ai",
+  "streamlake",
+  "siliconflow",
+  "dekallm",
+  "relace",
+  "reka",
+  "near-ai",
+] as const;
 
 /**
  * Gateway routing for the hosted key.
  *
- * `data_collection: "deny"` is the load-bearing part: it keeps the request
- * away from hosts that may retain or train on it, and it holds whatever the
- * provider slugs happen to be called. The allow-list narrows it further to
- * named hosts and is left to configuration, because a slug this code guessed
- * wrong would refuse every request instead of routing it.
+ * `data_collection: "deny"` keeps the request away from hosts that may retain
+ * or train on it. `only` narrows routing to hosts in the US or the EU, and
+ * `ignore` refuses the hosts known to be elsewhere even when `only` comes from
+ * configuration.
  */
-export function hostedAiRoutingBody(): Record<string, unknown> {
-  const allowList = (process.env.NEEDT_AI_GATEWAY_PROVIDERS ?? "")
+export function hostedAiRoutingBody(
+  model: string = HOSTED_AI_CONFIG.model
+): Record<string, unknown> {
+  const configured = (process.env.NEEDT_AI_GATEWAY_PROVIDERS ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-  const provider: Record<string, unknown> = { data_collection: "deny" };
+  const ignore: string[] = [...NON_US_EU_PROVIDERS];
+  const allowed = configured.filter(
+    (slug) => !ignore.includes(slug.split("/", 1)[0] ?? slug)
+  );
+  const allowList =
+    allowed.length > 0
+      ? allowed
+      : model === DEFAULT_HOSTED_AI_MODEL
+        ? [...DEFAULT_MODEL_US_EU_PROVIDERS]
+        : [];
+  const provider: Record<string, unknown> = {
+    data_collection: "deny",
+    ignore,
+  };
   if (allowList.length > 0) provider.only = allowList;
   return { provider };
 }

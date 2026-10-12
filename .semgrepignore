@@ -1,0 +1,5 @@
+:include .gitignore
+
+# Frozen design prototype for the port: reference only, never built or served.
+docs/port/prototype/
+docs/port/_ds/

@@ -9,6 +9,7 @@
 @import "../styles/needt-ds-tokens.css";
 @import "../styles/needt-themes.css";
 @import "../styles/needt-motion.css";
+@import "../styles/needt-fonts.css";
 
 @font-face {
   /* 205TF Exposure — the display face and the wordmark's own. One axis, EXPO,

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getPage, updatePage } from "@/services/pages/page-service";
-import { PageAccessRole } from "@prisma/client";
+import { PageAccessRole, Prisma } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
+import { pageV3FieldsSchema, parseV3Fields } from "@/lib/needt3/api-fields";
+import { proStyleRefusal } from "@/lib/pages/pro-style-gate";
 
 const LOG_SOURCE = "PageDetailAPI";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -41,15 +43,34 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const { id } = await params;
   try {
     const body = await request.json().catch(() => ({}));
+    const v3 = parseV3Fields(pageV3FieldsSchema, body);
+    if (!v3.ok) return NextResponse.json({ error: v3.error }, { status: 400 });
     const requiredRole =
       typeof body.isPrivate === "boolean" || typeof body.trashed === "boolean"
         ? PageAccessRole.FULL_ACCESS
         : PageAccessRole.EDITOR;
-    if (!(await resolvePageAccess(auth, id, requiredRole))) {
+    // `{ trashed: false }` restores, so it must see the trashed row.
+    const restoring = body.trashed === false;
+    if (
+      !(await resolvePageAccess(auth, id, requiredRole, {
+        includeTrashed: restoring,
+      }))
+    ) {
       return NextResponse.json(
         { error: "Page access denied" },
         { status: 403 }
       );
+    }
+    if (v3.data.style !== undefined) {
+      const current = await getPage(auth, id);
+      if (!current)
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+      const refusal = await proStyleRefusal(
+        auth.userId,
+        current.style as Record<string, unknown> | null,
+        v3.data.style
+      );
+      if (refusal) return refusal;
     }
     const page = await updatePage(auth, id, {
       title: typeof body.title === "string" ? body.title : undefined,
@@ -71,6 +92,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         typeof body.isFavorite === "boolean" ? body.isFavorite : undefined,
       position: typeof body.position === "number" ? body.position : undefined,
       trashed: typeof body.trashed === "boolean" ? body.trashed : undefined,
+      style: v3.data.style as Prisma.InputJsonObject | null | undefined,
+      projectId: v3.data.projectId,
     });
     if (!page)
       return NextResponse.json({ error: "Page not found" }, { status: 404 });

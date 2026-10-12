@@ -1,0 +1,11 @@
+/* Fonts — Needt.
+   DESIGN.md names three families: Inter (sans, first in the system stack),
+   Instrument Serif (display, 28px and up only), JetBrains Mono (mono).
+   No font binaries were supplied with the source material, so all three are
+   delivered from the Google Fonts CDN — each is the real named family, not a
+   substitute. Sans deliberately falls through to system-ui: Apple's licence
+   forbids shipping SF as a webfont, but system-ui resolves to real SF on macOS
+   at zero bytes, so Inter is the fallback for everyone else.
+   To self-host, drop the .woff2 files in assets/fonts/ and replace the import
+   below with local @font-face rules. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap");

@@ -22,7 +22,11 @@ const workspace = {
 describe("setHabitCompletionToday", () => {
   const transaction = {
     habit: { findFirst: jest.fn() },
-    habitCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
+    habitCompletion: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
   };
 
   beforeEach(() => {
@@ -34,6 +38,7 @@ describe("setHabitCompletionToday", () => {
       .mocked(prisma.$transaction)
       .mockImplementation(async (callback) => callback(transaction as never));
     transaction.habit.findFirst.mockResolvedValue({ id: "habit-1" });
+    transaction.habitCompletion.findUnique.mockResolvedValue(null);
     transaction.habitCompletion.upsert.mockResolvedValue({});
     transaction.habitCompletion.deleteMany.mockResolvedValue({ count: 1 });
   });

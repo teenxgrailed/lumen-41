@@ -7,6 +7,7 @@ import {
   upsertCalendarWebhook,
 } from "@/lib/calendar-db";
 import { getWebhookBaseUrl } from "@/lib/calendar-webhooks/config";
+import type { DisableWebhookOptions } from "@/lib/calendar-webhooks/google";
 import { addMinutes, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { getOutlookClient } from "@/lib/outlook-calendar";
@@ -122,18 +123,28 @@ export async function renewOutlookSubscription(feedId: string) {
 }
 
 export async function disableOutlookSubscription(
-  feedId: string
+  feedId: string,
+  options: DisableWebhookOptions = {}
 ): Promise<void> {
   const webhook = await getCalendarWebhookForFeed("OUTLOOK", feedId);
   if (!webhook) return;
 
-  if (webhook.subscriptionId && webhook.feed.accountId && webhook.feed.userId) {
+  if (
+    options.stopRemote !== false &&
+    webhook.subscriptionId &&
+    webhook.feed.accountId &&
+    webhook.feed.userId
+  ) {
     try {
       const client = await getOutlookClient(
         webhook.feed.accountId,
         webhook.feed.userId
       );
-      await client.api(`/subscriptions/${webhook.subscriptionId}`).delete();
+      const request = client.api(`/subscriptions/${webhook.subscriptionId}`);
+      if (options.timeoutMs) {
+        request.options({ signal: AbortSignal.timeout(options.timeoutMs) });
+      }
+      await request.delete();
     } catch (error) {
       await logger.warn(
         "Could not remove Outlook subscription while disabling feed",

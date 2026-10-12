@@ -11,8 +11,11 @@
  * every other surface in this app calls — nothing in this directory forks
  * the task object.
  *
- * Exported, not mounted: nothing here reaches into a route — a caller drops
+ * Takes no route of its own: nothing here reaches into a route — a caller drops
  * this in as a screen, the same convention every other `*Screen` follows.
+ * That is a property of this file, not a licence to stop: a surface is
+ * not ported until the thing that reaches it lands with it — see
+ * `docs/handoff/design-workflow.md`.
  */
 import * as React from "react";
 

@@ -1,0 +1,1031 @@
+/* Design v3 — motion corrections from docs/port/prototype/MOTION.md.
+ *
+ * HAND-WRITTEN, not vendored: src/styles/v3/ is regenerated from the frozen
+ * prototype and must stay byte-for-byte reproducible, so the corrections the
+ * port applies on top of it live here and load after it (V3Root imports this
+ * file after src/styles/v3/index.css). Same `.needt-v3` scope, same or higher
+ * specificity, later in the cascade — each rule wins over the vendored one.
+ *
+ * V-B8: entry animations must not hold their end state. With fill `both` the
+ * last keyframe keeps applying after the animation ends, so a later
+ * transform/opacity change on the same element is ignored. `backwards` still
+ * hides the element during its delay, which is what the stagger needs.
+ */
+.needt-v3
+  :is(
+    .screen-enter,
+    .nx-swap,
+    .sb-tile,
+    .tk-block,
+    .settings-enter,
+    .auth-enter,
+    .sb-swap,
+    .mbm-tile
+  ) {
+  animation-fill-mode: backwards;
+}
+
+/* Inline `animation: nx-swap …` styles (V-C9) bypass the class rule above;
+   components must use the `.nx-swap` class instead of inline animation. */
+
+/* V-C11: a shimmer under reduced motion stops instead of cycling at 1 ms. */
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 :is(.mb-skel, .st-sk, .chat-think-now) {
+    animation: none !important;
+  }
+}
+
+/* Lane B · T06 <Task> (task.jsx, styles/tasks.css).
+   Rule 12: never animate `left` / `width` — a calendar block moves by
+   placement, not by a transition on its box. */
+.needt-v3 .tk-block {
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+/* V-D17: off-scale durations snap to the scale (400 → 280, 200 → 220). */
+.needt-v3 .tk-ring-fill {
+  transition: stroke-dashoffset 280ms var(--nx-ease);
+}
+.needt-v3 .tk-touch {
+  transition: opacity 220ms ease;
+}
+
+/* Lane B · T07 Composer (Composer.jsx, composer.css, shell.css .cmp-*).
+   Rule 12: the shelf's rows and margin snap; only opacity and a short lift
+   move (the prototype animated grid-template-rows and margin-bottom). */
+.needt-v3 .co-shelf {
+  transform: translateY(4px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms var(--nx-ease);
+}
+.needt-v3 .co-shelf.is-open {
+  transform: none;
+}
+/* V-B8 / V-D17: entries hold no end state; 200 → 220, flight 460 → 280
+   (Composer.tsx FLIGHT_MS matches). */
+.needt-v3 .cmp-chip {
+  animation-duration: 220ms;
+  animation-fill-mode: backwards;
+}
+.needt-v3 .co-note {
+  animation-duration: 220ms;
+  animation-fill-mode: backwards;
+}
+.needt-v3 .co-flight {
+  animation-duration: 280ms;
+}
+/* Rules 2 and 7: chrome type is 13/12 (the description line was 14), and
+   info text is at least tertiary. */
+.needt-v3 .shell-composer-textarea {
+  font-size: var(--text-ui);
+}
+.needt-v3 :is(.shell-composer-text, .shell-composer-text-2) {
+  color: var(--text-tertiary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 :is(.cmp-chip, .co-note, .co-flight) {
+    animation: none;
+  }
+  .needt-v3 .co-shelf {
+    transition: none;
+    transform: none;
+  }
+}
+/* Lane A · T10/T11 Tasks, Projects and the task dialog (work.jsx,
+   Dialogs.jsx; styles/tasks.css). V-B8: the card, its scrim, popovers and
+   the Scheduling section enter with fill `backwards`, never `both`. */
+.needt-v3 :is(.tdc-scrim, .tdc-card, .tdc-pop, .tdc-sched) {
+  animation-fill-mode: backwards;
+}
+/* V-D17: off-scale duration snaps to the scale (400 → 280). */
+.needt-v3 .wk-ring-fill {
+  transition: stroke-dashoffset 280ms var(--nx-ease);
+}
+/* Rule 2: chrome type is 13 / 12 px — the mini card name and the project
+   page's add line were 14 px. */
+.needt-v3 .wk-mcard-name {
+  font: 600 13px/18px var(--font-sans);
+}
+.needt-v3 .wk-padd-input {
+  font: 500 13px/18px var(--font-sans);
+}
+/* Lane B · T12 Calendar + drag (calendar2.jsx, Drag.jsx).
+   V-D17: off-scale durations snap to the scale — drop settle 320 → 280
+   (its 1.25 overshoot is the one kept), source flip 300 → 280, rows making
+   room 200 → 220, settle fade 200 → 220, gap line 160 → 170. The lift itself
+   loses its 1.2 overshoot (only the settle keeps one). useDrag's settle
+   fallback timer (380 ms) is matched to the 280 ms here. */
+.needt-v3 .shell-drag-lift-card {
+  transition:
+    transform 180ms var(--nx-ease),
+    box-shadow 180ms ease;
+}
+.needt-v3 .shell-drag-lift.is-settling {
+  transition:
+    transform 280ms cubic-bezier(0.3, 1.25, 0.45, 1),
+    opacity 220ms ease;
+}
+.needt-v3 [data-drag-shift] {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 [data-drag-flip] {
+  transition: transform 280ms cubic-bezier(0.3, 1.25, 0.45, 1);
+}
+.needt-v3 .c2-gap::before {
+  transition:
+    opacity 120ms ease,
+    transform 170ms var(--nx-ease, ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 :is(.shell-drag-lift-card, .shell-drag-lift.is-settling),
+  .needt-v3 :is([data-drag-shift], [data-drag-flip]),
+  .needt-v3 .c2-gap::before {
+    transition: none;
+  }
+}
+
+/* Rule 2: chrome type is 13 / 12 px, never 14 — the calendar's day number,
+   peek title and slot-list heading were vendored at 14. */
+.needt-v3 .c2-dayhead-n {
+  font-size: 13px;
+}
+.needt-v3 :is(.c2-peek-title, .c2-peek-input, .c2-slot-when) {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* Lane C · T15 Mailbox + T16 Habits (MailScreen.jsx, Habits.jsx, places.jsx).
+   V-D17: the banner's 200 ms transform snaps to the scale (220). */
+.needt-v3 .ml-banner {
+  transition:
+    opacity 180ms ease,
+    transform 220ms var(--nx-ease);
+}
+/* The prototype's inline <style> hovers (ML_CSS, PL_CSS), one fill step. */
+.needt-v3 .ml-tab {
+  background: transparent;
+}
+.needt-v3 .ml-tab[aria-pressed="false"]:hover {
+  background: var(--fill-3);
+  color: var(--text-secondary);
+}
+.needt-v3 .pl-habit-more:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+
+/* ───────── P1 · phone kit (phone-kit.jsx, styles/phone-kit.css) ─────────
+ * Rule 12 (phone perf): the progressive blur bands keep their backdrop-filter
+ * only while they are seen. PkScreen sets data-pk-band-on / data-pk-fog-on from
+ * the scroll position, so a screen at rest does not carry six live blurs. */
+.needt-v3 .pk-screen[data-pk-band-on="0"] .pk-topband .pk-blur,
+.needt-v3 .pk-screen[data-pk-fog-on="0"] .pk-fog .pk-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* A theme class on a nested element (the prototype's `.dark` / `.paper` on
+ * an inverse plate, a sheet's morph wash, a swipe reveal) re-declares the
+ * theme-following --v2p-* / --pk-* tokens for that subtree. The vendored sheets
+ * scope those by the frame's data-theme only, so the class reached nothing and a
+ * black plate on the light theme kept dark ink on a dark ground. Same names, same
+ * values as themes.css; src/lib/needt3/__tests__/theme-classes.test.ts fails if
+ * the two drift apart. */
+.needt-v3 .dark {
+  --v2p-ground: #141416;
+  --v2p-raise: #1e1e22;
+  --v2p-raise-2: #26262b;
+  --v2p-ink: #f6f5fa;
+  --v2p-ink-2: rgba(246, 245, 250, 0.52);
+  --v2p-ink-3: rgba(246, 245, 250, 0.28);
+  --v2p-line: rgba(246, 245, 250, 0.09);
+  --v2p-plate: #0b0b0d;
+  --v2p-plate-raise: #1d1d22;
+  --v2p-plate-shadow:
+    0 22px 40px -20px rgba(18, 16, 40, 0.55),
+    0 2px 6px -2px rgba(18, 16, 40, 0.2);
+  --v2p-lav: #bdb6ff;
+  --v2p-lav-soft: rgba(189, 182, 255, 0.16);
+  --v2p-lav-ring: rgba(189, 182, 255, 0.6);
+  --v2p-alert: #ff6b6f;
+  --v2p-scrim: rgba(0, 0, 0, 0.5);
+  --v2p-card: #1f1f23;
+  --v2p-card-raise: #2b2b31;
+  --v2p-card-edge: inset 0 0 0 1px rgba(246, 245, 250, 0.06);
+  --v2p-pick: #2b2b31;
+  --v2p-pick-ink: #f6f5fa;
+  --pk-glass: rgba(20, 20, 22, 0.74);
+  --pk-glass-edge: inset 0 1px 0 rgba(246, 245, 250, 0.1);
+  --pk-sheet-shadow: 0 -18px 44px -20px rgba(0, 0, 0, 0.7);
+  --pk-mist: rgba(20, 20, 22, 0.7);
+  --pk-fog: rgba(20, 20, 22, 0.97);
+  --pk-fog-0: rgba(20, 20, 22, 0);
+  --pk-dot: rgba(189, 182, 255, 0.34);
+  --pk-sky-shadow:
+    0 22px 40px -20px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(246, 245, 250, 0.06);
+  --pk-glass-chip: rgba(255, 255, 255, 0.08);
+  --pk-glass-chip-edge:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 8px 22px -14px rgba(0, 0, 0, 0.7);
+  --pk-violet: oklch(0.72 0.15 295);
+}
+.needt-v3 .paper {
+  --v2p-ground: #f6f6f3;
+  --v2p-raise: #ecebe7;
+  --v2p-raise-2: #e3e2dd;
+  --v2p-ink: #121214;
+  --v2p-ink-2: rgba(18, 18, 20, 0.52);
+  --v2p-ink-3: rgba(18, 18, 20, 0.28);
+  --v2p-line: rgba(18, 18, 20, 0.08);
+  --v2p-plate: #ffffff;
+  --v2p-plate-raise: #f1f0f5;
+  --v2p-plate-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 14px 30px -18px rgba(18, 16, 40, 0.28);
+  --v2p-lav: #7c74d8;
+  --v2p-lav-soft: rgba(124, 116, 216, 0.16);
+  --v2p-lav-ring: rgba(124, 116, 216, 0.55);
+  --v2p-alert: #e5484d;
+  --v2p-scrim: rgba(18, 18, 24, 0.24);
+  --v2p-card: #ffffff;
+  --v2p-card-raise: #f1f0f5;
+  --v2p-card-edge: none;
+  --v2p-pick: #121214;
+  --v2p-pick-ink: #f6f6f3;
+  --pk-glass: rgba(246, 246, 243, 0.78);
+  --pk-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --pk-sheet-shadow: 0 -18px 40px -24px rgba(18, 16, 40, 0.3);
+  --pk-mist: rgba(246, 246, 243, 0.72);
+  --pk-fog: rgba(246, 246, 243, 0.96);
+  --pk-fog-0: rgba(246, 246, 243, 0);
+  --pk-dot: rgba(124, 116, 216, 0.38);
+  --pk-sky-shadow: 0 14px 30px -18px rgba(60, 50, 120, 0.4);
+  --pk-glass-chip: rgba(255, 255, 255, 0.56);
+  --pk-glass-chip-edge:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 6px 18px -12px rgba(40, 34, 90, 0.28);
+  --pk-violet: oklch(0.62 0.17 295);
+}
+
+/* ───────── P1 · review fixes (rule 12) ─────────
+ * One live blur per moving thing. */
+/* The bands carry one blur layer now (was three stacked); its mask runs the
+ * whole way so the single layer still melts into the edge. */
+.needt-v3 .pk-blur.is-2 {
+  -webkit-mask-image: linear-gradient(
+    var(--pk-dir),
+    transparent 0%,
+    var(--v2p-ink) 70%
+  );
+  mask-image: linear-gradient(
+    var(--pk-dir),
+    transparent 0%,
+    var(--v2p-ink) 70%
+  );
+}
+/* While a sheet or the pull-down moves (PkSheet / PkPullDown mark the host
+ * with data-pk-moving) the screen's own band and fog blurs rest: the mover's
+ * scrim is the one blur. */
+.needt-v3 [data-pk-moving] :is(.pk-topband, .pk-fog) .pk-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* A footer riding up over the body at a lower detent gets an opaque backing,
+ * not glass: it moves, so it must not carry a blur of its own. */
+.needt-v3 .pk-sheet-foot.is-pinned {
+  background: var(--v2p-ground);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Room for the riding footer: a class that flips once (PkSheet), not a
+ * padding written every frame. --pk-pin-max is set on the layer in measure(). */
+.needt-v3 .pk-sheet-body.has-pin {
+  padding-bottom: calc(30px + var(--pk-pin-max, 0px));
+}
+/* A removed row fades and clips away where it stands; the list then closes
+ * the gap at once and the rows below slide up (FLIP, useFlipRows). Nothing
+ * animates the row's height or grid tracks. */
+.needt-v3 .pk-rw {
+  transition: none;
+}
+.needt-v3 .pk-rw.is-out {
+  grid-template-rows: 1fr;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transition:
+    opacity 180ms ease,
+    clip-path 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* The fog dots drift only while the band is live (on screen, tab visible, fog
+ * faded in). Otherwise the animation is removed, not paused, so a parked
+ * screen holds no running animation. */
+.needt-v3 .pk-fog:not([data-pk-live="1"]) > .pk-fog-dots,
+.needt-v3 .pk-screen[data-pk-fog-on="0"] .pk-fog > .pk-fog-dots {
+  animation: none;
+}
+
+/* ───────── P2 · phone shell and menu A (nav-a.jsx, mobile-v2-plates.jsx) ─────────
+ * Everything below is the port's own: the vendored nav-a.css / mobile-nav.css /
+ * mobile-v2-plates.css are untouched. */
+
+/* The screen host: the one <main> of the frame on the phone (ShellFrame). It
+ * is V2pScreens' root (.v2p-root) on the Plates ground. No entry animation sits
+ * above it or the stage, so no blur band ever has an ancestor with opacity. */
+.needt-v3 .v3-phone-host {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  background: var(--v2p-ground);
+  color: var(--v2p-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Menu A wears the opposite theme (black on light, white on dark). The
+ * prototype put .dark / .paper on the card; the vendored sheets scope themes by
+ * the scope element's data-theme, so a theme class on a nested element reaches
+ * nothing. These are the existing --nva-* values (themes.css, same names, same
+ * numbers), declared for the three elements that wear the inverse. The glyph
+ * drawings read --surface-raised / --border, which the card maps to its own. */
+.needt-v3 :is(.nva-shape, .nva-add, .nva-hint).dark {
+  --nva-bg: #0b0b0d;
+  --nva-raise: #1a1a1f;
+  --nva-raise-2: #24242b;
+  --nva-ink: #f6f5fa;
+  --nva-ink-2: rgba(246, 245, 250, 0.5);
+  --nva-ink-3: rgba(246, 245, 250, 0.28);
+  --nva-line: rgba(246, 245, 250, 0.09);
+  --nva-lav: #bdb6ff;
+  --nva-lav-soft: rgba(189, 182, 255, 0.16);
+  --nva-lav-ring: rgba(189, 182, 255, 0.6);
+  --nva-pearl: #efe9f4;
+  --nva-dot: rgba(189, 182, 255, 0.36);
+  --nva-fog: rgba(11, 11, 13, 0.97);
+  --nva-fog-0: rgba(11, 11, 13, 0);
+  --nva-alert: #ff6b6f;
+  --nva-pill-alpha: 0.84;
+  --nva-add-rim:
+    inset 0 0 0 1px rgba(246, 245, 250, 0.1),
+    0 10px 22px -12px rgba(18, 16, 40, 0.45);
+  --nva-add-quiet: rgba(246, 245, 250, 0.72);
+  --surface-raised: var(--nva-raise-2);
+  --border: var(--nva-line);
+}
+.needt-v3 :is(.nva-shape, .nva-add, .nva-hint).paper {
+  --nva-bg: #ffffff;
+  --nva-raise: #f3f2f8;
+  --nva-raise-2: #ebe9f3;
+  --nva-ink: #121214;
+  --nva-ink-2: rgba(18, 18, 20, 0.52);
+  --nva-ink-3: rgba(18, 18, 20, 0.3);
+  --nva-line: rgba(18, 18, 20, 0.08);
+  --nva-lav: #7c74d8;
+  --nva-lav-soft: rgba(124, 116, 216, 0.14);
+  --nva-lav-ring: rgba(124, 116, 216, 0.55);
+  --nva-pearl: #f4eff6;
+  --nva-dot: rgba(124, 116, 216, 0.4);
+  --nva-fog: rgba(255, 255, 255, 0.96);
+  --nva-fog-0: rgba(255, 255, 255, 0);
+  --nva-alert: #e5484d;
+  --nva-pill-alpha: 0.8;
+  --nva-add-rim:
+    inset 0 0 0 1px rgba(18, 18, 20, 0.07), 0 8px 20px -12px rgba(0, 0, 0, 0.55);
+  --nva-add-quiet: rgba(18, 18, 20, 0.62);
+  --surface-raised: var(--nva-raise-2);
+  --border: var(--nva-line);
+}
+
+/* SSR draws the menu unplaced; it shows once it has measured its frame. */
+.needt-v3 .nva:not([data-nva-ready]) {
+  visibility: hidden;
+}
+
+/* Rule 12 · nothing loops at rest. The fog's halftone drift is the owner's one
+ * exception, and only while the fog shows: with the fog hidden the animations
+ * do not exist at all (not merely paused), so document.getAnimations() is empty
+ * after the menu settles at the pill. */
+.needt-v3 .nva-fog[data-live="0"] .nva-fog-dots {
+  animation: none;
+}
+
+/* Rule 12 · exactly one backdrop-filter while the menu moves: the pill's glass.
+ * The fog's and the head's blurs (already stepped out by nav-a.css) lose the
+ * filter itself, not just their opacity; the three tiles and the create button
+ * give theirs up for the moving frames (they blur a flat sky / a nearly opaque
+ * ground, so nothing visible changes). */
+.needt-v3
+  .nva[data-moving]
+  :is(.nva-fog-blur, .nva-head-blur, .nva-add, .nva-tiles .nva-tile) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* ... and so does the screen under the menu: PhoneShell sets data-nva-moving on
+ * the host for the same span. !important because the kit's glass chips and
+ * bands carry their own, more specific rules. An explicit list, not `*`: a
+ * universal selector under the host is matched against every node of every
+ * screen on each style recalc. The list is every class that carries a
+ * backdrop-filter in the phone sheets (phone-kit.css, mobile-v2-plates.css,
+ * mobile.css, and the screen sheets in v3/index.css: phone-docs, phone-habits,
+ * phone-settings, mobile-onboarding). A new glass class in a vendored sheet is
+ * added here; `npm run check:ui-contracts` does not see it. */
+.needt-v3
+  [data-v2p-host][data-nva-moving]
+  :is(
+    .pk-blur,
+    .pk-edge-blur,
+    .pk-scrim-blur,
+    .pk-sheet,
+    .pk-sheet-foot,
+    .pk-glass,
+    .pk-glyph,
+    .pk-btn,
+    .v2p-seg,
+    .iosf-glass-pill-2,
+    .iosf-keyboard-2,
+    .pd-glass,
+    .pd-qo,
+    .pd-acc,
+    .pd-kb-area,
+    .pd-pop,
+    .pd-actbar,
+    .pd-menu,
+    .pd-bubble,
+    .phb-sort-row,
+    .ps-card,
+    .ps-profile,
+    .ps-pro-mark,
+    .ps-plan-card,
+    .mau-band-blur,
+    .mau-glass-blur,
+    .mau-chip,
+    .mau-theme,
+    .mau-skip,
+    .pov-snack
+  ) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* ───────── P3 · phone overlays + drag (phone-overlays.jsx, phone-drag.jsx) ─────────
+ * Rule 12: a PkSheet is already the one backdrop blur of its stack. A glass
+ * chip, card or button inside it is blur on blur (it blurs what the sheet has
+ * already blurred, for nothing), so inside the overlay sheets they keep their
+ * tint and edge and lose the filter. */
+.needt-v3
+  :is(.pov-task, .pov-pick, .pov-composer, .pov-ask, .pov-event, .pov-paywall)
+  :is(.pk-glass, .pk-btn) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Ask: the AI orb, still. The animated AiOrb is not ported; nothing loops at rest. */
+.needt-v3 .pov-orb-still {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    var(--orb-spec),
+    var(--orb-hi) 16%,
+    var(--orb-blue) 52%,
+    var(--orb-deep) 100%
+  );
+}
+
+/* The paywall sheet. paywall.jsx keeps most of its CSS in an inline <style>
+ * (PW_CSS) that the vendor script does not extract; this is the phone half of
+ * it, with the prototype's names and geometry. Type is snapped to 13 / 12 px,
+ * the price and headline are display sizes. The sky is PxSky (variant b),
+ * mounted by the sheet. */
+.needt-v3 .pw-phone {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--px-ground, var(--pov-paywall-ground));
+}
+.needt-v3 .pw-phone .pw-top {
+  flex: none;
+  position: relative;
+  z-index: 1;
+}
+.needt-v3 .pw-phone .pw-x {
+  position: absolute;
+  z-index: 8;
+  left: 14px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.needt-v3 .pw-kicker {
+  font:
+    600 11px/14px ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--px-ink-2);
+}
+.needt-v3 .pw-h {
+  margin: 0;
+  font-family: var(--font-v3-exposure), Georgia, serif;
+  font-weight: 400;
+  font-variation-settings: "EXPO" -14;
+  letter-spacing: -0.01em;
+  line-height: 0.96;
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 18px var(--px-halo);
+}
+.needt-v3 .pw-h em {
+  font-style: italic;
+  font-variation-settings: "EXPO" 8;
+  padding-right: 0.04em;
+}
+.needt-v3 .pw-phone .pw-body {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+.needt-v3 .pw-phone .pw-body::-webkit-scrollbar {
+  display: none;
+}
+.needt-v3 .pw-freeline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 16px 16px 0;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+}
+.needt-v3 .pw-freeline b {
+  font-weight: 650;
+}
+.needt-v3 .pw-freeline-tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--white-a22);
+  box-shadow: var(--white-a45) 0 0 0 1px inset;
+  font: 600 10px/12px var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+.needt-v3 .pw-phone .pw-plans {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 22px 16px 6px;
+  box-sizing: border-box;
+}
+.needt-v3 .pw-phone .pw-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  text-align: left;
+  box-sizing: border-box;
+}
+.needt-v3 .pw-phone .pw-plan.is-picked {
+  box-shadow:
+    var(--pk-glass-chip-edge),
+    inset 0 0 0 1.5px var(--v2p-ink);
+}
+.needt-v3 .pw-phone .pw-plan:disabled {
+  opacity: 0.55;
+}
+.needt-v3 .pw-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 15px/20px var(--font-sans);
+  color: var(--v2p-ink);
+}
+.needt-v3 .pw-radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9px;
+  box-shadow: var(--v2p-ink-3) 0 0 0 1.5px inset;
+  transition: box-shadow 140ms ease;
+}
+.needt-v3 .pw-radio.is-on {
+  box-shadow: var(--v2p-ink) 0 0 0 5px inset;
+}
+.needt-v3 .pw-seg {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--pov-fill);
+}
+.needt-v3 .pw-seg-b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--v2p-ink-2);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.needt-v3 .pw-seg-b.is-on {
+  background: var(--v2p-card, var(--surface-raised));
+  color: var(--v2p-ink);
+}
+.needt-v3 .pw-seg-save {
+  font: 600 11px/1 var(--font-sans);
+  color: var(--success);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-limited {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: var(--pov-fill-2);
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.04em;
+}
+.needt-v3 .pw-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.needt-v3 .pw-amount {
+  font-family: var(--font-v3-exposure), Georgia, serif;
+  font-variation-settings: "EXPO" -14;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--v2p-ink);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-per {
+  font: 400 13px/1 var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pw-sub {
+  min-height: 16px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pw-save {
+  font-weight: 600;
+  color: var(--success);
+}
+.needt-v3 .pw-meter-t {
+  font: 600 12px/14px var(--font-sans);
+  color: var(--v2p-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-paywall-text {
+  padding: 6px 16px 0;
+}
+.needt-v3 .pw-feats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+}
+.needt-v3 .pw-kick {
+  font:
+    600 11px/14px ui-monospace,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.needt-v3 .pw-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink);
+}
+.needt-v3 .pw-list .pw-ck {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .pw-list .pw-note {
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pw-foot {
+  padding: 10px 24px 16px;
+  font: 500 12px/15px var(--font-sans);
+  color: var(--px-ink-2);
+  text-align: center;
+}
+.needt-v3 .pw-phone .pw-bar {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px 16px 26px;
+  background: var(--pov-paywall-ground);
+  box-shadow: inset 0 1px 0 var(--v2p-line);
+}
+.needt-v3 .pw-phone .pw-bar .pw-go-sub {
+  display: block;
+  color: var(--v2p-ink-2);
+  text-shadow: none;
+  text-align: center;
+}
+.needt-v3 .pw-phone .pw-bar .pk-btn {
+  height: 48px;
+}
+.needt-v3 .pw-state .pk-btn.pw-state-btn {
+  flex: none;
+}
+
+/* The lifted row (phone-drag.jsx): its shadow is its own layer, faded in by
+ * opacity, so the card that tilts and scales never animates a box-shadow
+ * (rule 12: transform / opacity / clip-path only). The vendored card clips
+ * its content to 18px; the clip moves to .pd-lift-clip so the shadow outside
+ * it is not cut. Shift and flip move rows by transform alone. */
+.needt-v3 .pd-lift-card {
+  position: relative;
+  overflow: visible;
+  background: none;
+  transition: transform 0.2s var(--pk-spring, ease);
+}
+.needt-v3 .pd-lift-card.is-up {
+  box-shadow: none;
+}
+.needt-v3 .pd-lift-clip {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--v2p-card);
+}
+.needt-v3 .pd-lift-shadow {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: var(--v2p-plate-shadow);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.needt-v3 .pd-lift-card.is-up .pd-lift-shadow {
+  opacity: 1;
+}
+.needt-v3 [data-pd-shift] {
+  transition: transform 0.22s var(--pk-ease, ease);
+}
+.needt-v3 [data-pd-flip] {
+  transition: transform 0.32s var(--pk-spring, ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pd-lift-card,
+  .needt-v3 .pd-lift-shadow,
+  .needt-v3 .pw-radio,
+  .needt-v3 .pw-seg-b,
+  .needt-v3 [data-pd-shift],
+  .needt-v3 [data-pd-flip] {
+    transition: none;
+  }
+}
+
+/* T13/T14 docs and document (S4). §3 items 11–12: the inspector opens by
+   opacity alone (its width snaps; animating width relayouts the page every
+   frame), the page's padding change does not animate, and the backdrop
+   cross-fade runs on the scale (320 → 280) without holding its end state. */
+.needt-v3 .docs-inspector {
+  transition: opacity 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 .docs-document-screen-3 {
+  transition: none;
+}
+.needt-v3 .dc-bd-in {
+  animation-duration: 280ms;
+  animation-fill-mode: backwards;
+}
+.needt-v3 .dc-bd-out {
+  animation-duration: 280ms;
+}
+
+/* P8 phone Mailbox (S8). The row keeps PkRow's string title and time, so the
+   unread state is a data attribute on the hold box: a heavier sender and the
+   lavender dot before the time (vendored phone-mail.css draws the same dot as
+   .pml-dot). Colours are the vendored v2p tokens only. */
+.needt-v3 [data-pml-unread="1"] .pk-row-title {
+  font-weight: 650;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--v2p-lav);
+}
+.needt-v3 .pml-state {
+  padding: 14px 0 0;
+}
+.needt-v3 .pml-html {
+  display: block;
+  font: 400 16px/24px var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--v2p-ink);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .pml-html img,
+.needt-v3 .pml-html table,
+.needt-v3 .pml-html video {
+  max-width: 100%;
+  height: auto;
+}
+.needt-v3 .pml-html p,
+.needt-v3 .pml-html div {
+  margin: 0 0 10px;
+}
+.needt-v3 .pml-html a {
+  color: inherit;
+  text-decoration: underline;
+}
+.needt-v3 .pml-html blockquote {
+  margin: 0 0 10px;
+  padding-left: 12px;
+  box-shadow: inset 2px 0 0 var(--v2p-line);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 a.pk-btn {
+  text-decoration: none;
+}
+.needt-v3 a.pk-btn.is-chip {
+  color: var(--v2p-ink);
+}
+
+/* ───────── P5 · phone Home + Calendar (mobile-v2-plates.jsx) ─────────
+ * Self-contained: the vendored mobile-v2-plates.css is untouched. */
+
+/* Rule 11: an entry plays once and never holds its end state (fill is
+ * `backwards`, not `both`): the day swap, Next up, the now/next plate and the
+ * picked day's plate in the week strip and the month grid. */
+.needt-v3
+  :is(.v2p-swap, .v2p-next, .v2p-evplate, .v2p-wd-plate, .v2p-mc-plate) {
+  animation-fill-mode: backwards;
+}
+
+/* The state layer of a phone screen (loading / error / offline) sits in the
+ * screen's body, under its own header. */
+.needt-v3 .p5-state {
+  padding: 8px 0 0;
+}
+.needt-v3 .p5-state .st-error {
+  margin: 0 auto;
+}
+
+/* "Show all N" under a capped list. */
+.needt-v3 .p5-more {
+  align-self: flex-start;
+  margin: 10px 0 0;
+}
+
+/* Month view: the two month steps, one at each edge of the grid. */
+.needt-v3 .p5-month-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -14px;
+}
+
+/* A row's title takes the width that is left and ellipsizes. The row wrap is a
+ * grid with one implicit `auto` column, whose track can be sized to the
+ * title's content instead of the row: every link in the chain gets an
+ * explicit, shrinkable width (a `minmax(0, 1fr)` column, then `min-width: 0`
+ * down to the title). Same symptom, same fix as the Tasks rows (P6). */
+.needt-v3 .pk-rw {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.needt-v3 .pk-rw-in,
+.needt-v3 .pk-row {
+  min-width: 0;
+  max-width: 100%;
+}
+.needt-v3 .pk-row-open {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.needt-v3 .pk-row-main {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.needt-v3 .pk-row-title {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ───────── P6 · phone Tasks + Projects (phone-tasks.jsx, styles/phone-tasks.css) ─────────
+   Self-contained: it only corrects the vendored file. Rule 2 (chrome type is
+   13 / 12 px, never 14): phone-tasks.css sets the segmented control and the
+   "Show N more" line in 14 px. Rule 12 (transform / opacity / clip-path
+   only): the project ring's fill eased stroke-dashoffset, an SVG repaint per
+   frame; it now snaps (the bar beside it still scales). */
+.needt-v3 .ptk-seg-btn,
+.needt-v3 .ptk-more {
+  font-size: 13px;
+}
+.needt-v3 .ptk-ring-fill {
+  transition: none;
+}
+/* V-B8: an entry holds no end state. The vendored `.ptk-swap` runs its rise
+   with fill-mode `both`, so the finished animation stays in
+   `document.getAnimations()` for the life of the screen (the phone acceptance
+   list wants it empty after 3 s idle). `backwards` keeps only the "from"
+   frame while it waits to start. */
+.needt-v3 .ptk-swap {
+  animation-fill-mode: backwards;
+}
+
+/* ───────── P9 · phone Habits + Moodboards (phone-habits.jsx, styles/phone-habits.css) ─────────
+   Self-contained: it only corrects the vendored file. A habit's name sits in a
+   flex row (hue dot + name), where `text-overflow` does not apply to the bare
+   text, so the title takes the remaining width in its own box and ellipsizes.
+   Rule 2 (chrome type is 13 / 12 px, never 14): the days-per-week segmented
+   control is 14 px in the vendored file. A link card's address and a note can
+   be one very long word; they wrap or clip inside the card. */
+.needt-v3 .phb-habit-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .phb-seg-btn {
+  font-size: 13px;
+}
+.needt-v3 .mbm-media-10,
+.needt-v3 .mbm-media-13 {
+  overflow-wrap: anywhere;
+}
+.needt-v3 .mbm-media-9 {
+  min-width: 0;
+}
+.needt-v3 .mbm-media-11 {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}

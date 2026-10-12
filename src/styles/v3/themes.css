@@ -1,0 +1,1529 @@
+/* ========================================================================
+   Needt design v3 — themes.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* THEMES — Light, Dark, System and Time, plus the accent layer.
+ *
+ * Light is the design system's own default, worn here as .paper so a nested
+ * preview can ask for it inside a dark shell. Dark is the system's .dark,
+ * untouched. System picks one of the two from the OS. Time follows the sun.
+ * (.warm and .dim remain defined for older previews; Settings no longer
+ * offers them.)
+ *
+ * Every theme scope repeats the whole text and fill ladder: a custom property
+ * whose value contains var() is substituted where it is DECLARED, so a scope
+ * that sets only its base colours keeps a ladder derived from the parent's
+ * foreground.
+ */
+
+/* === PAPER — the light default, named so a nested preview can ask for the
+   undrifted original: drift writes its three declarations inline on the shell,
+   and a bare `.app` descendant would inherit them.
+   It repeats the full ladder for the same reason .warm does, and for one more:
+   a paper thumbnail sitting inside a DARK shell inherits
+   --foreground-rgb: 249, 249, 249, so three declarations would leave it
+   drawing white bars on white paper. === */
+.needt-v3:is([data-theme="light"], [data-theme="paper"]) {
+  --background: #fcfdfe;
+  --surface-raised: #ffffff;
+  --foreground: #1a1c1e;
+  --foreground-rgb: 26, 28, 30;
+
+  --text-primary: rgba(var(--foreground-rgb), 1);
+  --text-secondary: rgba(var(--foreground-rgb), 0.85);
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);
+  --text-muted: rgba(var(--foreground-rgb), 0.4);
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);
+
+  --fill-1: rgba(var(--foreground-rgb), 0.02);
+  --fill-2: rgba(var(--foreground-rgb), 0.03);
+  --fill-3: rgba(var(--foreground-rgb), 0.04);
+  --fill-4: rgba(var(--foreground-rgb), 0.06);
+  --fill-5: rgba(var(--foreground-rgb), 0.08);
+  --fill-6: rgba(var(--foreground-rgb), 0.12);
+
+  --border: rgba(var(--foreground-rgb), 0.08);
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.12) 0 0 0 1px;
+  --canvas-veil: linear-gradient(180deg, rgba(var(--foreground-rgb), 0) 0%, rgba(var(--foreground-rgb), 0.02) 45%, rgba(var(--foreground-rgb), 0.05) 100%);
+
+  --toolbar-fill: rgba(250, 250, 250, 0.85);
+  --floating-fill: rgba(255, 255, 255, 0.72);
+}
+
+/* === WARM — cream paper. The same geometry, a warmer ground and a warmer
+   near-black, so the greys derived from it are warm too rather than cold greys
+   sitting on cream. === */
+.needt-v3[data-theme="warm"] {
+  --background: #f7f1e4;                 /* canvas, sidebar */
+  --surface-raised: #fffdf7;             /* card, sheet, popover */
+  --foreground: #221d16;                 /* all text and icons */
+  --foreground-rgb: 34, 29, 22;
+
+  --text-primary: rgba(var(--foreground-rgb), 1);
+  --text-secondary: rgba(var(--foreground-rgb), 0.85);
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);
+  --text-muted: rgba(var(--foreground-rgb), 0.4);
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);
+
+  --fill-1: rgba(var(--foreground-rgb), 0.02);
+  --fill-2: rgba(var(--foreground-rgb), 0.03);
+  --fill-3: rgba(var(--foreground-rgb), 0.04);
+  --fill-4: rgba(var(--foreground-rgb), 0.06);
+  --fill-5: rgba(var(--foreground-rgb), 0.08);
+  --fill-6: rgba(var(--foreground-rgb), 0.12);
+
+  --border: rgba(var(--foreground-rgb), 0.08);
+  --ring-accent: rgba(var(--accent-rgb), 0.4);
+  --fill-accent: rgba(var(--accent-rgb), 0.12);
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --fill-info: rgba(var(--info-rgb), 0.12);
+  --fill-success: rgba(var(--success-rgb), 0.12);
+  --fill-destructive: rgba(var(--destructive-rgb), 0.12);
+  --fill-destructive-strong: rgba(var(--destructive-rgb), 0.24);
+  --ring-destructive: rgba(var(--destructive-rgb), 0.4);
+
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.12) 0 0 0 1px;
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
+  --canvas-veil: linear-gradient(180deg, rgba(var(--foreground-rgb), 0) 0%, rgba(var(--foreground-rgb), 0.02) 45%, rgba(var(--foreground-rgb), 0.05) 100%);
+
+  --toolbar-fill: rgba(255, 253, 247, 0.85);
+  --floating-fill: rgba(255, 253, 247, 0.74);
+}
+
+/* === TIME — the fourth theme ===
+ *
+ * Time is not a palette of its own: it wears .paper by day and .dark by night,
+ * and between them the engine (Drift.jsx) writes --background,
+ * --surface-raised, --foreground-rgb and the two translucent fills inline,
+ * interpolated between dawn, day, golden hour, dusk and night. At full day and
+ * full night it writes nothing, so it is Light and Dark exactly.
+ * The one-minute steps are tiny; the 1.5s transition hides them. The flip from
+ * the light side to the dark side is a view-transition crossfade. */
+.needt-v3[data-drift="on"],
+.needt-v3[data-drift="on"] .app {
+  transition: background-color 1.5s ease, color 1.5s ease;
+}
+:root:has(.needt-v3[data-drift="on"])::view-transition-old(root),
+:root:has(.needt-v3[data-drift="on"])::view-transition-new(root) {
+  animation-duration: 1.2s;
+  animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3[data-drift="on"],
+.needt-v3[data-drift="on"] .app { transition: none; }
+}
+
+/* === ACCENT ===
+ *
+ * --accent is the representative solid (text, rings, marks). --accent-gradient
+ * is the same accent as a fill for large accent areas; a solid accent is a
+ * gradient from itself to itself, so a consumer never has to ask which kind it
+ * got. --accent-fill is what large fills read (the Home progress bar).
+ * --accent-contrast is the ink on a solid accent fill: white on the light-side
+ * accents (all >= 4.5:1), near-black on the dark side, where the accents are
+ * light (white would sit near 2:1).
+ * Declared per theme scope for the reason given at the top of this file. */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent) 100%);
+  --accent-fill: var(--accent-gradient);
+  --accent-contrast: #ffffff;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent) 100%);
+  --accent-fill: var(--accent-gradient);
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="blue"],
+.needt-v3[data-accent="blue"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #2E6DE9; --accent-rgb: 46, 109, 233;
+  --accent-gradient: linear-gradient(135deg, #2E6DE9 0%, #2E6DE9 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="blue"],
+.needt-v3[data-accent="blue"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="blue"] {
+  --accent: #71B2FF; --accent-rgb: 113, 178, 255;
+  --accent-gradient: linear-gradient(135deg, #71B2FF 0%, #71B2FF 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="pink"],
+.needt-v3[data-accent="pink"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #D23369; --accent-rgb: 210, 51, 105;
+  --accent-gradient: linear-gradient(135deg, #D23369 0%, #D23369 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="pink"],
+.needt-v3[data-accent="pink"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="pink"] {
+  --accent: #FF7EB0; --accent-rgb: 255, 126, 176;
+  --accent-gradient: linear-gradient(135deg, #FF7EB0 0%, #FF7EB0 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="mint"],
+.needt-v3[data-accent="mint"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #0B7F62; --accent-rgb: 11, 127, 98;
+  --accent-gradient: linear-gradient(135deg, #0B7F62 0%, #0B7F62 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="mint"],
+.needt-v3[data-accent="mint"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="mint"] {
+  --accent: #4FD1A5; --accent-rgb: 79, 209, 165;
+  --accent-gradient: linear-gradient(135deg, #4FD1A5 0%, #4FD1A5 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="violet"],
+.needt-v3[data-accent="violet"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #7347D6; --accent-rgb: 115, 71, 214;
+  --accent-gradient: linear-gradient(135deg, #7347D6 0%, #7347D6 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="violet"],
+.needt-v3[data-accent="violet"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="violet"] {
+  --accent: #B39CFF; --accent-rgb: 179, 156, 255;
+  --accent-gradient: linear-gradient(135deg, #B39CFF 0%, #B39CFF 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="amber"],
+.needt-v3[data-accent="amber"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #A85F00; --accent-rgb: 168, 95, 0;
+  --accent-gradient: linear-gradient(135deg, #A85F00 0%, #A85F00 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="amber"],
+.needt-v3[data-accent="amber"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="amber"] {
+  --accent: #FFB547; --accent-rgb: 255, 181, 71;
+  --accent-gradient: linear-gradient(135deg, #FFB547 0%, #FFB547 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="graphite"],
+.needt-v3[data-accent="graphite"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #4A5059; --accent-rgb: 74, 80, 89;
+  --accent-gradient: linear-gradient(135deg, #4A5059 0%, #4A5059 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="graphite"],
+.needt-v3[data-accent="graphite"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="graphite"] {
+  --accent: #B8BEC6; --accent-rgb: 184, 190, 198;
+  --accent-gradient: linear-gradient(135deg, #B8BEC6 0%, #B8BEC6 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="aurora"],
+.needt-v3[data-accent="aurora"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #5A5BE0; --accent-rgb: 90, 91, 224;
+  --accent-gradient: linear-gradient(135deg, #2E6DE9 0%, #8247D9 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="aurora"],
+.needt-v3[data-accent="aurora"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="aurora"] {
+  --accent: #949FFF; --accent-rgb: 148, 159, 255;
+  --accent-gradient: linear-gradient(135deg, #71B2FF 0%, #B89CFF 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="sunset"],
+.needt-v3[data-accent="sunset"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #C93A3F; --accent-rgb: 201, 58, 63;
+  --accent-gradient: linear-gradient(135deg, #C93F0A 0%, #D23369 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="sunset"],
+.needt-v3[data-accent="sunset"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="sunset"] {
+  --accent: #FF8C86; --accent-rgb: 255, 140, 134;
+  --accent-gradient: linear-gradient(135deg, #FF9B5E 0%, #FF7EB0 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+.needt-v3[data-accent="lagoon"],
+.needt-v3[data-accent="lagoon"]:is(:is([data-theme="light"], [data-theme="paper"]), [data-theme="warm"]) {
+  --accent: #1572B0; --accent-rgb: 21, 114, 176;
+  --accent-gradient: linear-gradient(135deg, #0B7F75 0%, #2E6DE9 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #ffffff;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])[data-accent="lagoon"],
+.needt-v3[data-accent="lagoon"]:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) [data-accent="lagoon"] {
+  --accent: #5EC2E6; --accent-rgb: 94, 194, 230;
+  --accent-gradient: linear-gradient(135deg, #4FD1C5 0%, #71B2FF 100%);
+  --accent-fill: var(--accent-gradient);
+  --ring-accent: rgba(var(--accent-rgb), 0.4); --fill-accent: rgba(var(--accent-rgb), 0.12); --fill-accent-strong: rgba(var(--accent-rgb), 0.24);
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --accent-contrast: #121314;
+}
+
+/* === RAISED OBJECTS ON A DARK GROUND ===
+ *
+ * On paper an object reads as raised because a light surface sits above the
+ * shadow it casts. On a dark ground that mechanism is gone: a black shadow
+ * under a dark-grey surface separates nothing, and the stock dark stack rings
+ * the object in white at one even brightness — which is precisely what a flat
+ * sticker looks like.
+ *
+ * Real objects on dark grounds are read by their own EDGES: the top bevel
+ * catches the light, the underside falls into shadow. So the dark stack is
+ * rebuilt as a directional bevel — bright top, dark bottom, faint containing
+ * ring — over deepened cast layers. One override in the theme layer, so every
+ * raised control on every screen changes together, on both shells.
+ */
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  /* Craft-style (07.10.26): a raised object reads by being a LIGHTER surface,
+     a crisp hairline, and a faint top highlight — not by a black halo. */
+  --shadow-raised:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-raised-hover:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.11),
+    0 2px 4px 0 rgba(0, 0, 0, 0.42);
+  /* Pressed: the highlight goes and the object sits down into the page. */
+  --shadow-raised-pressed:
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-raised-press: var(--shadow-raised-pressed);
+  /* Floating layers (menus, popovers, dialogs): hairline + top highlight +
+     a deep, soft, diffuse black drop underneath. */
+  --shadow-floating:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    0 24px 48px -12px rgba(0, 0, 0, 0.55),
+    0 8px 16px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* An outline glyph inside a filled tile runs heavier than it does in a nav
+   row, so project marks and source marks read at the same weight. */
+
+/* Floating layers sit one step above raised on dark; on light they ARE raised. */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] { --surface-floating: var(--surface-raised); }
+
+/* A block's own ground inside a document (lead, code, table head). */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] { --doc-block: rgba(var(--foreground-rgb), 0.045); }
+
+/* === DARK, ONE STEP LIGHTER (07.10.26) ===
+ *
+ * Craft's dark is a charcoal, not a black: ground ~#202022, raised surfaces
+ * ~#2c2c2e, ink ~#ececec. Overrides the design system's .dark (#121314 /
+ * #1e1e1e / #f9f9f9). The ladder is repeated for the reason at the top of
+ * this file; the fills step up a little so a block on a page still reads as a
+ * block on the lighter ground. Contrast on --background: primary 13.8:1,
+ * secondary 10.3:1, tertiary 7.4:1, quaternary 5.1:1 (before the 08.10.26
+ * contrast pass below). Drift's night reading
+ * carries the same three values. */
+.needt-v3[data-theme="dark"] {
+  --hb-dot-miss: color-mix(in oklab, var(--text-tertiary) 48%, transparent);
+  --hb-dot-ring: color-mix(in oklab, var(--text-tertiary) 75%, transparent);
+  --background: #202022;
+  --surface-raised: #2c2c2e;
+  --foreground: #ececec;
+  --foreground-rgb: 236, 236, 236;
+
+  /* Contrast pass (08.10.26): secondary / tertiary / quaternary lifted one
+     notch so grey text clears 4.5:1 on every dark ground, fills included. */
+  --text-primary: rgba(var(--foreground-rgb), 1);
+  --text-secondary: rgba(var(--foreground-rgb), 0.88);
+  --text-tertiary: rgba(var(--foreground-rgb), 0.75);
+  --text-quaternary: rgba(var(--foreground-rgb), 0.6);
+  --text-muted: rgba(var(--foreground-rgb), 0.4);
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);
+
+  --fill-1: rgba(var(--foreground-rgb), 0.03);
+  --fill-2: rgba(var(--foreground-rgb), 0.045);
+  --fill-3: rgba(var(--foreground-rgb), 0.06);
+  --fill-4: rgba(var(--foreground-rgb), 0.08);
+  --fill-5: rgba(var(--foreground-rgb), 0.1);
+  --fill-6: rgba(var(--foreground-rgb), 0.14);
+
+  --border: rgba(var(--foreground-rgb), 0.1);
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px inset;
+  --shadow-ring: rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.14) 0 0 0 1px;
+
+  /* The surface ladder: ground #202022 < raised #2c2c2e < floating #323235.
+     Floating is derived from raised, so Time's in-between night readings
+     (which write --surface-raised inline on the same element) keep the step. */
+  --surface-floating: color-mix(in srgb, var(--surface-raised) 97%, #ffffff);
+
+  --toolbar-fill: rgba(44, 44, 46, 0.88);
+  --floating-fill: rgba(44, 44, 46, 0.78);
+  --doc-block: rgba(var(--foreground-rgb), 0.075);
+
+  /* Selected states on dark (08.10.26). On light a white thumb on a grey
+     track reads by itself; on dark the raised surface and the track are the
+     same grey, so the selected thumb / tab / chip gets a lighter ground and
+     the house selection ring (UI-RULES: inset ring) at >= 3:1 against the
+     ground around it. Applied in styles/base.css, dark only. */
+  --selected-fill: rgba(var(--foreground-rgb), 0.12);
+  --selected-ring: rgba(var(--foreground-rgb), 0.46) 0 0 0 1px inset;
+  --switch-off-knob: rgba(var(--foreground-rgb), 0.62);
+}
+
+/* === DOCUMENT THEMES — ambient (DocsScreen.jsx) ===
+ *
+ * While a themed document is open, DocumentScreen writes --dt-amb (its tint,
+ * light and dark) into a <style id="dt-ambient"> and sets
+ * data-dt-ambient on <html>. The app's ground mixes that tint in at 10% (14%
+ * on dark); everything raised (buttons, menus, cards) keeps --surface-raised,
+ * status colours keep theirs. The percentage is a registered property, so
+ * the ground fades in and out over 400ms when the page opens or closes. Time's
+ * in-between readings write --background inline and win, as they should. */
+@property --dt-amb-pct { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+@property --dt-amb { syntax: '<color>'; inherits: true; initial-value: #808080; }
+.needt-v3[data-dt-ambient] { --dt-amb-pct: 10%; }
+.needt-v3[data-theme="dark"][data-dt-ambient] { --dt-amb-pct: 14%; }
+.needt-v3:is([data-theme="light"], [data-theme="paper"]) .app { --background: color-mix(in srgb, var(--dt-amb) var(--dt-amb-pct), #fcfdfe); }
+.needt-v3[data-theme="dark"] .app { --background: color-mix(in srgb, var(--dt-amb) var(--dt-amb-pct), #202022); }
+.needt-v3 .app.theme-surface {
+  transition: background-color var(--transition-theme), border-color var(--transition-theme), color var(--transition-theme),
+    --dt-amb-pct 400ms ease, --dt-amb 400ms ease;
+}
+.needt-v3[data-drift="on"] .app.theme-surface {
+  transition: background-color 1.5s ease, color 1.5s ease, --dt-amb-pct 400ms ease, --dt-amb 400ms ease;
+}
+
+/* === DOCUMENT THEMES — the page ===
+ * A themed page (and its card) carries its colours as -l / -d pairs inline;
+ * this picks the pair for the app's side and rebuilds the grey ladder from the
+ * page's own ink, so meta, rules and fills inside stay legible on any page. */
+.needt-v3 .dt-themed { --dt-page: var(--dt-page-l); --dt-head: var(--dt-head-l); --foreground-rgb: var(--dt-ink-l); }
+.needt-v3[data-theme="dark"] .dt-themed { --dt-page: var(--dt-page-d); --dt-head: var(--dt-head-d); --foreground-rgb: var(--dt-ink-d); }
+.needt-v3 .dt-themed {
+  --text-primary: rgba(var(--foreground-rgb), 1);
+  --text-secondary: rgba(var(--foreground-rgb), 0.85);
+  --text-tertiary: rgba(var(--foreground-rgb), 0.72);
+  --text-quaternary: rgba(var(--foreground-rgb), 0.58);
+  --text-muted: rgba(var(--foreground-rgb), 0.42);
+  --text-disabled: rgba(var(--foreground-rgb), 0.28);
+  --fill-1: rgba(var(--foreground-rgb), 0.025);
+  --fill-2: rgba(var(--foreground-rgb), 0.04);
+  --fill-3: rgba(var(--foreground-rgb), 0.055);
+  --fill-4: rgba(var(--foreground-rgb), 0.075);
+  --fill-5: rgba(var(--foreground-rgb), 0.1);
+  --fill-6: rgba(var(--foreground-rgb), 0.14);
+  --border: rgba(var(--foreground-rgb), 0.1);
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px;
+  --doc-block: rgba(var(--foreground-rgb), 0.06);
+  --surface-raised: color-mix(in srgb, var(--dt-page) 93%, rgb(var(--foreground-rgb)));
+  --dt-accent: var(--dt-head);
+  color: rgba(var(--foreground-rgb), 1);
+}
+.needt-v3[data-theme="dark"] .dt-cover svg { filter: brightness(0.86) saturate(0.95); }
+
+/* =====================================================================
+ * COLOUR TOKENS (code-review item 9: "colours only via tokens")
+ *
+ * Every colour literal in the live JSX gets a name here; JSX writes
+ * var(--token), or cssVar('--token') where JS needs the resolved value
+ * (canvas, data: URI SVG, hex parsing). Map: _hex-map.json; list: _tokens.md.
+ * Values are copied 1:1 from the JSX, so swapping a literal for its token
+ * changes nothing on screen. Fixed tokens live on :root only; the few that
+ * follow the theme are declared again for .paper/.warm and .dark/.dim.
+ * Values stay plain hex/rgba (no var() inside) so cssVar() returns a
+ * parseable colour and nested scopes cannot freeze a stale value.
+ * ===================================================================== */
+.needt-v3 {
+
+  /* --- BASE - the two absolutes. Only where something must stay pure white/black in both themes (switch knob, canvas ground, mask stop). --- */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* --- SEMANTIC - roles. Inverse controls and the strong badge follow the theme (.dark block below); the rest are deliberately fixed. --- */
+  --badge-strong-bg: #1a1c1e;
+  --badge-strong-fg: #ffffff;
+  --button-inverse-bg: #1a1c1e;
+  --button-inverse-bg-hover: #34373b;
+  --button-inverse-fg: #ffffff;
+  --text-on-fill: #ffffff;
+  --ink-fixed: #1a1c1e;
+  --kbd-fill: rgba(127, 127, 127, 0.28);
+  --swatch-label-dark: rgba(0, 0, 0, 0.78);
+  --swatch-label-dark-2: rgba(0, 0, 0, 0.82);
+  --swatch-label-light: rgba(255, 255, 255, 0.92);
+  --swatch-fallback: #cccccc;
+  --badge-dark-bg: #111111;
+
+  /* --- STATUS - follow the theme (.dark block below). Text pairs checked >= 4.5:1 (light 4.61, dark 7.87). --- */
+  --status-success-fg: #1c7a3e;
+  --status-success-bg: #dcf3e3;
+
+  /* --- OVERLAYS - scrims. --- */
+  --overlay-scrim-sheet: rgba(0, 0, 0, 0.4);
+  --paywall-scrim: rgba(8, 8, 8, 0.46);
+
+  /* --- ALPHA LADDERS - white / black / fixed ink / dark-glass graphite at an alpha. For shadows, glass and highlights inside code that already branches on the theme (a .dark rule or a `dark ?` ternary). Name = colour + alpha percent (a7_5 = 7.5%). --- */
+  --black-a45: rgba(0, 0, 0, 0.45);
+  --black-a30: rgba(0, 0, 0, 0.3);
+  --white-a55: rgba(255, 255, 255, 0.55);
+  --white-a0: rgba(255, 255, 255, 0);
+  --white-a40: rgba(255, 255, 255, 0.4);
+  --white-a70: rgba(255, 255, 255, 0.7);
+  --black-a6: rgba(0, 0, 0, 0.06);
+  --smoke-a55: rgba(30, 32, 36, 0.55);
+  --white-a8: rgba(255, 255, 255, 0.08);
+  --white-a10: rgba(255, 255, 255, 0.1);
+  --white-a95: rgba(255, 255, 255, 0.95);
+  --black-a14: rgba(0, 0, 0, 0.14);
+  --black-a8: rgba(0, 0, 0, 0.08);
+  --white-a18: rgba(255, 255, 255, 0.18);
+  --white-a60: rgba(255, 255, 255, 0.6);
+  --black-a35: rgba(0, 0, 0, 0.35);
+  --white-a6: rgba(255, 255, 255, 0.06);
+  --black-a4: rgba(0, 0, 0, 0.04);
+  --black-a10: rgba(0, 0, 0, 0.1);
+  --white-a14: rgba(255, 255, 255, 0.14);
+  --black-a20: rgba(0, 0, 0, 0.2);
+  --black-a7: rgba(0, 0, 0, 0.07);
+  --white-a50: rgba(255, 255, 255, 0.5);
+  --white-a15: rgba(255, 255, 255, 0.15);
+  --black-a18: rgba(0, 0, 0, 0.18);
+  --black-a12: rgba(0, 0, 0, 0.12);
+  --black-a25: rgba(0, 0, 0, 0.25);
+  --white-a22: rgba(255, 255, 255, 0.22);
+  --white-a85: rgba(255, 255, 255, 0.85);
+  --black-a7_5: rgba(0, 0, 0, 0.075);
+  --black-a9: rgba(0, 0, 0, 0.09);
+  --black-a1_8: rgba(0, 0, 0, 0.018);
+  --black-a1_2: rgba(0, 0, 0, 0.012);
+  --white-a25: rgba(255, 255, 255, 0.25);
+  --white-a45: rgba(255, 255, 255, 0.45);
+  --white-a80: rgba(255, 255, 255, 0.8);
+  --smoke-a0: rgba(30, 32, 36, 0);
+  --smoke-a85: rgba(30, 32, 36, 0.85);
+  --black-a19: rgba(0, 0, 0, 0.19);
+  --white-a72: rgba(255, 255, 255, 0.72);
+  --smoke-a70: rgba(30, 32, 36, 0.7);
+  --black-a50: rgba(0, 0, 0, 0.5);
+  --white-a30: rgba(255, 255, 255, 0.3);
+  --smoke-a40: rgba(30, 32, 36, 0.4);
+  --smoke-a60: rgba(30, 32, 36, 0.6);
+  --white-a16: rgba(255, 255, 255, 0.16);
+  --white-a35: rgba(255, 255, 255, 0.35);
+  --white-a78: rgba(255, 255, 255, 0.78);
+  --smoke-hi-a75: rgba(46, 48, 54, 0.75);
+  --smoke-a45: rgba(30, 32, 36, 0.45);
+
+  /* --- BRAND - third-party marks and monogram tiles (connections, source chips, iOS demo icons). Never theme-shifted: a logo is a logo. --- */
+  --brand-figma-blue: #1abcfe;
+  --brand-figma-green: #0acf83;
+  --brand-figma-coral: #ff7262;
+  --brand-figma-red: #f24e1e;
+  --brand-figma-purple: #a259ff;
+  --brand-pinterest: #e60023;
+  --brand-slack: #611f69;
+  --brand-google: #4285f4;
+  --brand-apple: #8e8e93;
+  --brand-linear: #5e6ad2;
+  --brand-ios-messages: #34c759;
+  --brand-ios-mail: #1e88ff;
+  --brand-needt-tile: #16161a;
+  --brand-ios-notes: #ffcc00;
+  --brand-gmail-bg: #ffffff;
+  --brand-gmail-fg: #d6402f;
+  --brand-outlook-bg: #1b6ec2;
+  --brand-outlook-fg: #ffffff;
+  --brand-gcal-bg: #ffffff;
+  --brand-gcal-fg: #2f62c9;
+  --brand-gcal-band: #4a80e8;
+  --brand-ical-bg: #ffffff;
+  --brand-ical-fg: #1a1c1e;
+  --brand-ical-band: #f0473c;
+  --brand-gdrive-1: #22a565;
+  --brand-gdrive-2: #f2c230;
+  --brand-gdrive-3: #3b7de9;
+  --brand-gdrive-fg: #ffffff;
+  --brand-figma-bg: #1e1e1e;
+  --brand-figma-fg: #ffffff;
+  --brand-pinterest-bg: #e60023;
+  --brand-pinterest-fg: #ffffff;
+  --brand-claude-bg: #c96f4a;
+  --brand-claude-fg: #ffffff;
+  --brand-chatgpt-bg: #111214;
+  --brand-chatgpt-fg: #ffffff;
+  --brand-cursor-bg: #17181b;
+  --brand-cursor-fg: #ffffff;
+  --brand-gemini-1: #3d7bf0;
+  --brand-gemini-2: #8a63e6;
+  --brand-gemini-3: #d36ad0;
+  --brand-gemini-fg: #ffffff;
+  --brand-perplexity-bg: #1d5f5c;
+  --brand-perplexity-fg: #e6fbf8;
+
+  /* --- PALETTE / HUE - project, person and moodboard hues; calendar-event hues in demos. --- */
+  --hue-orange: #ff7a45;
+  --hue-blue: #4c8dff;
+  --hue-violet: #b072ff;
+  --hue-green: #2fd08a;
+  --hue-yellow: #ffc53d;
+  --hue-pink: #ff5c8a;
+  --demo-hue-orange: #ff8a3d;
+  --demo-hue-green: #2f9e62;
+  --demo-hue-gray: #8a8d93;
+
+  /* --- PALETTE / DOC - document themes (DT_THEMES: cv1-5 swatch, amb-l/-d tint, page/ink/head per side), page colours (DC_PAGES), text hues (DC_TEXTS), marble ramps, backdrop veils. JS parses these as hex: read them with cssVar(), never var(). --- */
+  --doc-theme-default-cv1: #e3e9f0;
+  --doc-theme-default-cv2: #cdd7e4;
+  --doc-theme-default-cv3: #9fb3cc;
+  --doc-theme-default-cv4: #ffffff;
+  --doc-theme-default-cv5: #7d93b2;
+  --doc-theme-paper-cv1: #f1eadb;
+  --doc-theme-paper-cv2: #e4d8c0;
+  --doc-theme-paper-cv3: #c8b48e;
+  --doc-theme-paper-cv4: #faf6ee;
+  --doc-theme-paper-cv5: #a8916a;
+  --doc-theme-paper-amb-l: #a08a64;
+  --doc-theme-paper-amb-d: #8a7655;
+  --doc-theme-paper-page-l: #faf7f0;
+  --doc-theme-paper-ink-l: #2a2620;
+  --doc-theme-paper-head-l: #6b4a22;
+  --doc-theme-paper-page-d: #2a2722;
+  --doc-theme-paper-ink-d: #ece6da;
+  --doc-theme-paper-head-d: #dcc198;
+  --doc-theme-ink-cv1: #1d2733;
+  --doc-theme-ink-cv2: #2c3e55;
+  --doc-theme-ink-cv3: #5b86b8;
+  --doc-theme-ink-cv4: #9cc3ff;
+  --doc-theme-ink-cv5: #e8eef6;
+  --doc-theme-ink-amb-l: #2c3a4a;
+  --doc-theme-ink-amb-d: #3a4d66;
+  --doc-theme-ink-page-l: #1e2126;
+  --doc-theme-ink-ink-l: #e8eaed;
+  --doc-theme-ink-head-l: #9cc3ff;
+  --doc-theme-ink-page-d: #1a1c20;
+  --doc-theme-ink-ink-d: #e8eaed;
+  --doc-theme-ink-head-d: #9cc3ff;
+  --doc-theme-rose-cv1: #c8352b;
+  --doc-theme-rose-cv2: #e0574a;
+  --doc-theme-rose-cv3: #f6b49a;
+  --doc-theme-rose-cv4: #7a2a22;
+  --doc-theme-rose-cv5: #ffe0cf;
+  --doc-theme-rose-amb-l: #7a4030;
+  --doc-theme-rose-amb-d: #8a4535;
+  --doc-theme-rose-page-l: #fffaf7;
+  --doc-theme-rose-ink-l: #33211d;
+  --doc-theme-rose-head-l: #b02a20;
+  --doc-theme-rose-page-d: #2d2321;
+  --doc-theme-rose-ink-d: #f2e4df;
+  --doc-theme-rose-head-d: #ff998c;
+  --doc-theme-sage-cv1: #dbe6d2;
+  --doc-theme-sage-cv2: #a8c19a;
+  --doc-theme-sage-cv3: #6f9563;
+  --doc-theme-sage-cv4: #f1f5ec;
+  --doc-theme-sage-cv5: #4d7344;
+  --doc-theme-sage-amb-l: #5f7f52;
+  --doc-theme-sage-amb-d: #5f7f52;
+  --doc-theme-sage-page-l: #f7f9f3;
+  --doc-theme-sage-ink-l: #20291e;
+  --doc-theme-sage-head-l: #3b6634;
+  --doc-theme-sage-page-d: #232a22;
+  --doc-theme-sage-ink-d: #e3eadf;
+  --doc-theme-sage-head-d: #a9d49c;
+  --doc-theme-ocean-cv1: #d6eaf5;
+  --doc-theme-ocean-cv2: #8cc1e0;
+  --doc-theme-ocean-cv3: #3b86b8;
+  --doc-theme-ocean-cv4: #f2f8fc;
+  --doc-theme-ocean-cv5: #1d5f8f;
+  --doc-theme-ocean-amb-l: #2f78a6;
+  --doc-theme-ocean-amb-d: #2f6f9a;
+  --doc-theme-ocean-page-l: #f5f9fc;
+  --doc-theme-ocean-ink-l: #18242f;
+  --doc-theme-ocean-head-l: #1a5d8c;
+  --doc-theme-ocean-page-d: #1e252c;
+  --doc-theme-ocean-ink-d: #e2ecf3;
+  --doc-theme-ocean-head-d: #8dc7ef;
+  --doc-theme-sand-cv1: #f6e6c3;
+  --doc-theme-sand-cv2: #e8c27e;
+  --doc-theme-sand-cv3: #c98f3a;
+  --doc-theme-sand-cv4: #fdf5e4;
+  --doc-theme-sand-cv5: #9c6420;
+  --doc-theme-sand-amb-l: #c08a3c;
+  --doc-theme-sand-amb-d: #a87a35;
+  --doc-theme-sand-page-l: #fdf8ee;
+  --doc-theme-sand-ink-l: #2e2516;
+  --doc-theme-sand-head-l: #8a560f;
+  --doc-theme-sand-page-d: #2c261c;
+  --doc-theme-sand-ink-d: #f1e7d4;
+  --doc-theme-sand-head-d: #efc47c;
+  --doc-theme-night-cv1: #151832;
+  --doc-theme-night-cv2: #2a2560;
+  --doc-theme-night-cv3: #7a6ad8;
+  --doc-theme-night-cv4: #e9e4ff;
+  --doc-theme-night-cv5: #c7b8ff;
+  --doc-theme-night-amb-l: #2a2550;
+  --doc-theme-night-amb-d: #3a3270;
+  --doc-theme-night-page-l: #17171f;
+  --doc-theme-night-ink-l: #e9e7f2;
+  --doc-theme-night-head-l: #c3b5ff;
+  --doc-theme-night-page-d: #15151c;
+  --doc-theme-night-ink-d: #e9e7f2;
+  --doc-theme-night-head-d: #c3b5ff;
+  --doc-page-white-l: #ffffff;
+  --doc-page-white-d: #2c2c2e;
+  --doc-page-paper-l: #faf6ee;
+  --doc-page-paper-d: #2d2a25;
+  --doc-page-paper-amb-l: #a08a64;
+  --doc-page-paper-amb-d: #8a7655;
+  --doc-page-rose-l: #fdf1ef;
+  --doc-page-rose-d: #352a2b;
+  --doc-page-rose-amb-l: #c0605a;
+  --doc-page-rose-amb-d: #8a4535;
+  --doc-page-lilac-l: #f5f1fd;
+  --doc-page-lilac-d: #2b283a;
+  --doc-page-lilac-amb-l: #7a64c8;
+  --doc-page-lilac-amb-d: #5a4a9a;
+  --doc-page-sage-l: #f1f6ec;
+  --doc-page-sage-d: #262d25;
+  --doc-page-sage-amb-l: #5f7f52;
+  --doc-page-sage-amb-d: #5f7f52;
+  --doc-page-sky-l: #eef5fb;
+  --doc-page-sky-d: #222b34;
+  --doc-page-sky-amb-l: #2f78a6;
+  --doc-page-sky-amb-d: #2f6f9a;
+  --doc-page-sand-l: #fbf3e3;
+  --doc-page-sand-d: #302a1f;
+  --doc-page-sand-amb-l: #c08a3c;
+  --doc-page-sand-amb-d: #a87a35;
+  --doc-page-graphite-l: #2f3135;
+  --doc-page-graphite-d: #38393d;
+  --doc-page-black-l: #161618;
+  --doc-page-black-d: #131315;
+  --doc-ink-dark: #1c1d20;
+  --doc-ink-light: #f2f1ee;
+  --doc-text-umber-dk: #4a321c;
+  --doc-text-umber-lt: #efd6b4;
+  --doc-text-wine-dk: #7a1f2e;
+  --doc-text-wine-lt: #f6c1c8;
+  --doc-text-plum-dk: #4d2a6e;
+  --doc-text-plum-lt: #dcc8f6;
+  --doc-text-navy-dk: #173a63;
+  --doc-text-navy-lt: #b9d6f5;
+  --doc-text-forest-dk: #21492b;
+  --doc-text-forest-lt: #bfe2c0;
+  --doc-marble-ink-1: #06080e;
+  --doc-marble-ink-2: #101a2c;
+  --doc-marble-ink-3: #22385a;
+  --doc-marble-ink-4: #0c1322;
+  --doc-marble-ink-5: #1d3150;
+  --doc-marble-ink-6: #3a5f86;
+  --doc-marble-sparkle-1: #e9dff6;
+  --doc-marble-sparkle-2: #f8dbe8;
+  --doc-marble-sparkle-3: #e0e6f9;
+  --doc-marble-sparkle-4: #fbeadf;
+  --doc-marble-sparkle-5: #eadcf5;
+  --doc-marble-sparkle-6: #d7e6f6;
+  --doc-marble-ink-vein: #d8c08c;
+  --doc-marble-sparkle-vein: #ffffff;
+  --doc-glint-warm: #fff0d2;
+  --hb-dot-miss: color-mix(in oklab, var(--text-tertiary) 32%, transparent);
+  --hb-dot-ring: color-mix(in oklab, var(--text-tertiary) 55%, transparent);
+  --doc-glint-white: #ffffff;
+  --doc-glint-pink: #ffbedc;
+  --doc-glint-blue: #bed2ff;
+  --doc-marble-fallback: #d9d6e8;
+  --doc-backdrop-dim: rgba(14, 14, 16, 0.44);
+  --doc-backdrop-dim-sparkle: rgba(16, 14, 22, 0.36);
+  --doc-backdrop-dim-ink: rgba(0, 0, 0, 0.18);
+
+  /* --- PALETTE / SKY - sky moods (PX_MOOD_HEX: top/mid/low/sun/lit/shade/dot/ridge), the default .px-sky scope (follows the theme), ink sets for light/dark skies, the brand sky (lavender). Canvas code reads them with cssVar(). --- */
+  --sky-ground: #c4c5e4;
+  --sky-ink: #1a1c1e;
+  --sky-ink-2: rgba(26, 28, 30, 0.82);
+  --sky-ink-3: rgba(26, 28, 30, 0.76);
+  --sky-halo: rgba(255, 255, 255, 0.3);
+  --sky-shadow: rgba(255, 255, 255, 0);
+  --sky-chip: rgba(255, 255, 255, 0.3);
+  --sky-chip-hover: rgba(255, 255, 255, 0.5);
+  --sky-chip-ink: #1a1c1e;
+  --sky-line: rgba(26, 28, 30, 0.16);
+  --sky-tint: #b2b6dc;
+  --sky-hue: #c4c5e4;
+  --sky-on-dark-ink: #ffffff;
+  --sky-on-dark-ink-2: rgba(255, 255, 255, 0.92);
+  --sky-on-dark-ink-3: rgba(255, 255, 255, 0.84);
+  --sky-on-dark-halo: rgba(0, 0, 0, 0.4);
+  --sky-on-dark-shadow: rgba(0, 0, 0, 0.45);
+  --sky-on-dark-line: rgba(255, 255, 255, 0.3);
+  --sky-on-light-ink: #1a1c1e;
+  --sky-on-light-ink-2: rgba(26, 28, 30, 0.82);
+  --sky-on-light-ink-3: rgba(26, 28, 30, 0.76);
+  --sky-on-light-halo: rgba(255, 255, 255, 0.3);
+  --sky-on-light-shadow: rgba(255, 255, 255, 0);
+  --sky-on-light-line: rgba(26, 28, 30, 0.16);
+  --sky-brand-top: #8f95cf;
+  --sky-brand-mid: #b3b6e0;
+  --sky-brand-low: #e6e0ec;
+  --paywall-tint: #a38ae8;
+  /* Sky moods v7 (08.10.26, owner: "bring back the old sky, just not blue"): the
+     lavender family. Light picks one of lavender (the Oct 7 look) / rose (a
+     touch pinker) / periwinkle (a touch bluer) per day, all warming to pearl
+     at the horizon and the cloud sea; dark: night (deep muted indigo-lavender,
+     faint stars) and dusk (its violet-horizon variant). No hills. */
+  --sky-lavender-top: #a7b0d8;
+  --sky-lavender-mid: #c4c5e4;
+  --sky-lavender-low: #ebe4ea;
+  --sky-lavender-sun: #fff8f6;
+  --sky-lavender-lit: #fefcfd;
+  --sky-lavender-shade: #c0bbd4;
+  --sky-lavender-dot: #fdfaff;
+  --sky-lavender-ridge: #aeabc6;
+  --sky-rose-top: #b0add5;
+  --sky-rose-mid: #ccc3e1;
+  --sky-rose-low: #efe3e5;
+  --sky-rose-sun: #fff5f0;
+  --sky-rose-lit: #fffcfb;
+  --sky-rose-shade: #c6bbd1;
+  --sky-rose-dot: #fffafb;
+  --sky-rose-ridge: #b5aac3;
+  --sky-periwinkle-top: #9fb1db;
+  --sky-periwinkle-mid: #bec7e6;
+  --sky-periwinkle-low: #e7e5ee;
+  --sky-periwinkle-sun: #fbf9ff;
+  --sky-periwinkle-lit: #fdfdff;
+  --sky-periwinkle-shade: #b9bdd6;
+  --sky-periwinkle-dot: #fbfbff;
+  --sky-periwinkle-ridge: #a8afc9;
+  --sky-night-top: #121126;
+  --sky-night-mid: #1d1b36;
+  --sky-night-low: #2f2c47;
+  --sky-night-sun: #9d97c4;
+  --sky-night-lit: #5f5a82;
+  --sky-night-shade: #24223d;
+  --sky-night-dot: #807aa4;
+  --sky-night-ridge: #1b1930;
+  --sky-dusk-top: #141227;
+  --sky-dusk-mid: #211b38;
+  --sky-dusk-low: #382e4e;
+  --sky-dusk-sun: #a697c1;
+  --sky-dusk-lit: #665a86;
+  --sky-dusk-shade: #2a2341;
+  --sky-dusk-dot: #887ba6;
+  --sky-dusk-ridge: #1f1a33;
+  /* Old mood names (auth.css / mobile.css fallbacks, pins) → the v7 set. */
+  --sky-day-top: var(--sky-lavender-top);
+  --sky-day-mid: var(--sky-lavender-mid);
+  --sky-day-low: var(--sky-lavender-low);
+  --sky-day-sun: var(--sky-lavender-sun);
+  --sky-day-lit: var(--sky-lavender-lit);
+  --sky-day-shade: var(--sky-lavender-shade);
+  --sky-day-dot: var(--sky-lavender-dot);
+  --sky-day-ridge: var(--sky-lavender-ridge);
+  --sky-aqua-top: var(--sky-periwinkle-top);
+  --sky-aqua-mid: var(--sky-periwinkle-mid);
+  --sky-aqua-low: var(--sky-periwinkle-low);
+  --sky-aqua-sun: var(--sky-periwinkle-sun);
+  --sky-aqua-lit: var(--sky-periwinkle-lit);
+  --sky-aqua-shade: var(--sky-periwinkle-shade);
+  --sky-aqua-dot: var(--sky-periwinkle-dot);
+  --sky-aqua-ridge: var(--sky-periwinkle-ridge);
+  --sky-mist-top: var(--sky-rose-top);
+  --sky-mist-mid: var(--sky-rose-mid);
+  --sky-mist-low: var(--sky-rose-low);
+  --sky-mist-sun: var(--sky-rose-sun);
+  --sky-mist-lit: var(--sky-rose-lit);
+  --sky-mist-shade: var(--sky-rose-shade);
+  --sky-mist-dot: var(--sky-rose-dot);
+  --sky-mist-ridge: var(--sky-rose-ridge);
+  --sky-evening-top: var(--sky-night-top);
+  --sky-evening-mid: var(--sky-night-mid);
+  --sky-evening-low: var(--sky-night-low);
+  --sky-evening-sun: var(--sky-night-sun);
+  --sky-evening-lit: var(--sky-night-lit);
+  --sky-evening-shade: var(--sky-night-shade);
+  --sky-evening-dot: var(--sky-night-dot);
+  --sky-evening-ridge: var(--sky-night-ridge);
+
+  /* --- PALETTE / TIME - Drift readings (bg/raised/ink per phase; JS interpolates them, so cssVar()) and the Settings > Time strip. --- */
+  --time-strip-1: #cddbff;
+  --time-strip-2: #f4f7ff;
+  --time-strip-4: #ffd49a;
+  --time-strip-5: #f3b9c8;
+  --drift-day-bg: #fcfdfe;
+  --drift-day-raised: #ffffff;
+  --drift-day-ink: #1a1c1e;
+  --drift-dawn-bg: #edf2f9;
+  --drift-dawn-raised: #f8fafd;
+  --drift-dawn-ink: #181e28;
+  --drift-golden-bg: #fbf1e2;
+  --drift-golden-raised: #fffaf1;
+  --drift-golden-ink: #281f16;
+  --drift-dusk-bg: #efe5ec;
+  --drift-dusk-raised: #f9f2f6;
+  --drift-dusk-ink: #241c2a;
+  --drift-dusk-dark-bg: #25222b;
+  --drift-dusk-dark-raised: #312d38;
+  --drift-dusk-dark-ink: #eeebf2;
+  --drift-dawn-dark-bg: #1f242b;
+  --drift-dawn-dark-raised: #2a3038;
+  --drift-dawn-dark-ink: #ebeef3;
+  --drift-night-bg: #202022;
+  --drift-night-raised: #2c2c2e;
+  --drift-night-ink: #ececec;
+
+  /* --- ILLUSTRATION - drawn art: doc backdrop SVGs (inside data: URIs, so cssVar()), mist/grid gradients, paywall mock cards and art, extension mock, agent cursor. --- */
+  --cursor-ink: #111111;
+  --doc-art-dunes-1: #f8dcc0;
+  --doc-art-dunes-2: #f4ae8a;
+  --doc-art-dunes-3: #e5826c;
+  --doc-art-dunes-4: #fff2dc;
+  --doc-art-dunes-5: #ffe7cb;
+  --doc-art-dunes-6: #e9937a;
+  --doc-art-dunes-7: #cf6a54;
+  --doc-art-dunes-8: #a94d40;
+  --doc-art-dunes-9: #7e3934;
+  --doc-art-sage-1: #eef3e6;
+  --doc-art-sage-2: #d3e2c6;
+  --doc-art-sage-3: #f7f5df;
+  --doc-art-sage-4: #bed3ad;
+  --doc-art-sage-5: #9dbb8b;
+  --doc-art-sage-6: #79a06b;
+  --doc-art-sage-7: #5a8250;
+  --doc-art-ocean-1: #e4f1f8;
+  --doc-art-ocean-2: #b6d7ec;
+  --doc-art-ocean-3: #f6fbff;
+  --doc-art-ocean-4: #9fcbe6;
+  --doc-art-ocean-5: #6eaad3;
+  --doc-art-ocean-6: #3f88bb;
+  --doc-art-ocean-7: #1f5f8e;
+  --doc-art-mist-l-1: #f7d6e6;
+  --doc-art-mist-l-2: #d3e1fb;
+  --doc-art-mist-l-3: #e4d8f8;
+  --doc-art-mist-l-4: #f4f0f7;
+  --doc-art-mist-d-1: #4a2f40;
+  --doc-art-mist-d-2: #2a3a5c;
+  --doc-art-mist-d-3: #3b2f57;
+  --doc-art-mist-d-4: #1d1c24;
+  --doc-art-grid-dot-l: rgba(90, 72, 40, 0.26);
+  --doc-art-grid-ground-l: #f3eee3;
+  --doc-art-grid-dot-d: rgba(255, 255, 255, 0.13);
+  --doc-art-grid-ground-d: #1d1c1a;
+  --mock-shadow-a12: rgba(40, 28, 90, 0.12);
+  --mock-shadow-a10: rgba(40, 28, 90, 0.1);
+  --mock-chip-bg: #f0eee9;
+  --mock-chip-fg: #55524c;
+  --mock-done-ink: #8a877f;
+  --mock-habit-off: #e6e3dc;
+  --mock-streak-bg: #e6f4ec;
+  --mock-streak-fg: #1f6b42;
+  --mock-event-bg: #ffe9d6;
+  --mock-event-fg: #7a3a12;
+  --paywall-art-1: #ffc79e;
+  --paywall-art-2: #e0785a;
+  --paywall-art-3: #6a3a5e;
+  --paywall-art-4: #b8b3d8;
+  --paywall-art-5: #6c6896;
+  --paywall-art-6: #f6eee0;
+  --paywall-art-7: #d6c2a4;
+  --mock-shadow-a30: rgba(40, 28, 90, 0.3);
+  --mock-ext-art-1: #3a3833;
+  --mock-ext-art-2: #1b1b1d;
+  --mock-ext-art-3: #cfc6b8;
+  --mock-ext-art-4: #8f877a;
+
+  /* --- ILLUSTRATION / iOS - the iPhone frame, keyboard and share-sheet demo (Apple system colours; the frame branches on its own `dark` prop, so these are fixed). --- */
+  --mock-web-page: #f4f2ee;
+  --mock-web-ink: #1a1a1a;
+  --mock-web-muted: #777777;
+  --mock-ios-control: rgba(30, 30, 32, 0.82);
+  --ios-fill-dark: rgba(120, 120, 128, 0.28);
+  --ios-muted: #404040;
+  --ios-secondary-label-dark: rgba(235, 235, 245, 0.6);
+  --ios-secondary-label: rgba(60, 60, 67, 0.6);
+  --ios-tertiary-label-dark: rgba(235, 235, 245, 0.3);
+  --ios-tertiary-label: rgba(60, 60, 67, 0.3);
+  --ios-separator-dark: rgba(84, 84, 88, 0.65);
+  --ios-separator: rgba(60, 60, 67, 0.12);
+  --ios-cell-dark: #1c1c1e;
+  --ios-grouped-bg: #f2f2f7;
+  --ios-key-glyph: #595959;
+  --ios-key-suggestion: #333333;
+  --ios-blue: #0088ff;
+  --ios-fill-dark-2: rgba(120, 120, 128, 0.14);
+  --ios-key-divider: #cccccc;
+}
+/* Theme-following tokens: light reading (re-declared so a .paper preview inside a dark shell gets it). */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --badge-strong-bg: #1a1c1e;
+  --badge-strong-fg: #ffffff;
+  --button-inverse-bg: #1a1c1e;
+  --button-inverse-bg-hover: #34373b;
+  --button-inverse-fg: #ffffff;
+  --status-success-fg: #1c7a3e;
+  --status-success-bg: #dcf3e3;
+  --sky-ground: #c4c5e4;
+  --sky-ink: #1a1c1e;
+  --sky-ink-2: rgba(26, 28, 30, 0.82);
+  --sky-ink-3: rgba(26, 28, 30, 0.76);
+  --sky-halo: rgba(255, 255, 255, 0.3);
+  --sky-shadow: rgba(255, 255, 255, 0);
+  --sky-chip: rgba(255, 255, 255, 0.3);
+  --sky-chip-hover: rgba(255, 255, 255, 0.5);
+  --sky-chip-ink: #1a1c1e;
+  --promo-glow: rgba(255, 255, 255, 0.55);
+  --promo-glow-0: rgba(255, 255, 255, 0);
+}
+/* .dim gets only what the old rules gave it (paywall .dim .pw-btn.is-primary). */
+.needt-v3[data-theme="dark"] {
+  --badge-strong-bg: #f2f2f5;
+  --badge-strong-fg: #141418;
+  --button-inverse-bg: #ffffff;
+  --button-inverse-bg-hover: #e4e4e6;
+  --button-inverse-fg: #111214;
+  --status-success-fg: #8fe0aa;
+  --status-success-bg: rgba(60, 170, 100, 0.18);
+  --sky-ground: #1d1b36; /* deep indigo-lavender night */
+  --sky-ink: #ffffff;
+  --sky-ink-2: rgba(255, 255, 255, 0.92);
+  --sky-ink-3: rgba(255, 255, 255, 0.84);
+  --sky-halo: rgba(0, 0, 0, 0.4);
+  --sky-shadow: rgba(0, 0, 0, 0.45);
+  --sky-chip: rgba(30, 32, 36, 0.45);
+  --sky-chip-hover: rgba(46, 48, 54, 0.6);
+  --sky-chip-ink: #f2f2f5;
+  --promo-glow: rgba(200, 190, 255, 0.3);
+  --promo-glow-0: rgba(200, 190, 255, 0);
+}
+.needt-v3[data-theme="dim"] {
+  --button-inverse-bg: #ffffff;
+  --button-inverse-bg-hover: #e4e4e6;
+  --button-inverse-fg: #111214;
+}
+
+/* --- AI ORB (AiOrb.jsx, 08.10.26) — the AI's mark keeps the sky's colours (blue → lilac → pink from the sky moods), never the accent. Light: day-sky blue with a sunset film; dark: evening blue, a touch brighter so it glows on the dark ground. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --orb-hi: #f2f7ff;
+  --orb-blue: #5a93df;
+  --orb-deep: #3559bd;
+  --orb-pale: #c4e2f8;
+  --orb-lilac: #b39be4;
+  --orb-pink: #f5a8c6;
+  --orb-spec: #ffffff;
+  --orb-rim: #e4ecff;
+  --orb-glow: rgba(140, 160, 236, 0.32);
+  --orb-tile: rgba(128, 150, 226, 0.15);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --orb-hi: #dce7ff;
+  --orb-blue: #4d85e6;
+  --orb-deep: #213f9e;
+  --orb-pale: #9fc6ff;
+  --orb-lilac: #a68ef0;
+  --orb-pink: #f29bc6;
+  --orb-spec: #ffffff;
+  --orb-rim: #c8d6ff;
+  --orb-glow: rgba(118, 148, 255, 0.36);
+  --orb-tile: rgba(126, 148, 255, 0.16);
+}
+
+/* --- PHONE MENU A · "Card" (nav-a.jsx, 08.10.26) — the menu wears the OPPOSITE theme: on light it is a black object, on dark a white one. nav-a.jsx puts .dark / .paper on the card itself, so the card reads the scope it wears; --nva-shadow is read outside it (the ground it floats on). Lavender = the app icon's sky lavender, for where you are and small details only. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --nva-bg: #ffffff;
+  --nva-raise: #f3f2f8;
+  --nva-raise-2: #ebe9f3;
+  --nva-ink: #121214;
+  --nva-ink-2: rgba(18, 18, 20, 0.52);
+  --nva-ink-3: rgba(18, 18, 20, 0.3);
+  --nva-line: rgba(18, 18, 20, 0.08);
+  --nva-lav: #7c74d8;
+  --nva-lav-soft: rgba(124, 116, 216, 0.14);
+  --nva-lav-ring: rgba(124, 116, 216, 0.55);
+  --nva-pearl: #f4eff6;
+  --nva-dot: rgba(124, 116, 216, 0.4);
+  --nva-fog: rgba(255, 255, 255, 0.96);
+  --nva-fog-0: rgba(255, 255, 255, 0);
+  --nva-alert: #e5484d;
+  --nva-scrim: rgba(18, 18, 24, 0.22);
+  --nva-shadow: drop-shadow(0 18px 28px rgba(18, 16, 40, 0.28)) drop-shadow(0 3px 6px rgba(18, 16, 40, 0.16));
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --nva-bg: #0b0b0d;
+  --nva-raise: #1a1a1f;
+  --nva-raise-2: #24242b;
+  --nva-ink: #f6f5fa;
+  --nva-ink-2: rgba(246, 245, 250, 0.5);
+  --nva-ink-3: rgba(246, 245, 250, 0.28);
+  --nva-line: rgba(246, 245, 250, 0.09);
+  --nva-lav: #bdb6ff;
+  --nva-lav-soft: rgba(189, 182, 255, 0.16);
+  --nva-lav-ring: rgba(189, 182, 255, 0.6);
+  --nva-pearl: #efe9f4;
+  --nva-dot: rgba(189, 182, 255, 0.36);
+  --nva-fog: rgba(11, 11, 13, 0.97);
+  --nva-fog-0: rgba(11, 11, 13, 0);
+  --nva-alert: #ff6b6f;
+  --nva-scrim: rgba(0, 0, 0, 0.5);
+  --nva-shadow: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.35));
+}
+
+/* --- PHONE v2 · DIRECTION 1 "Plates" (mobile-v2-plates.jsx, 08.10.26) — a calm ground, and plates in menu A's material. In the light theme a plate wears the OPPOSITE theme class, so --v2p-plate / --v2p-ink / --v2p-plate-raise read the other theme inside it (a black plate); in the dark theme a plate is muted (.pk-muted: --v2p-card / --v2p-card-raise / --v2p-card-edge — a raised dark surface, no white cards), and only the primary button keeps full contrast. Lavender = now / active only. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --v2p-ground: #f6f6f3;
+  --v2p-raise: #ecebe7;
+  --v2p-raise-2: #e3e2dd;
+  --v2p-ink: #121214;
+  --v2p-ink-2: rgba(18, 18, 20, 0.52);
+  --v2p-ink-3: rgba(18, 18, 20, 0.28);
+  --v2p-line: rgba(18, 18, 20, 0.08);
+  --v2p-plate: #ffffff;
+  --v2p-plate-raise: #f1f0f5;
+  --v2p-plate-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 14px 30px -18px rgba(18, 16, 40, 0.28);
+  --v2p-lav: #7c74d8;
+  --v2p-lav-soft: rgba(124, 116, 216, 0.16);
+  --v2p-lav-ring: rgba(124, 116, 216, 0.55);
+  --v2p-alert: #e5484d;
+  --v2p-scrim: rgba(18, 18, 24, 0.24);
+  --v2p-card: #ffffff;
+  --v2p-card-raise: #f1f0f5;
+  --v2p-card-edge: none;
+  --v2p-pick: #121214;
+  --v2p-pick-ink: #f6f6f3;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --v2p-ground: #141416;
+  --v2p-raise: #1e1e22;
+  --v2p-raise-2: #26262b;
+  --v2p-ink: #f6f5fa;
+  --v2p-ink-2: rgba(246, 245, 250, 0.52);
+  --v2p-ink-3: rgba(246, 245, 250, 0.28);
+  --v2p-line: rgba(246, 245, 250, 0.09);
+  --v2p-plate: #0b0b0d;
+  --v2p-plate-raise: #1d1d22;
+  --v2p-plate-shadow: 0 22px 40px -20px rgba(18, 16, 40, 0.55), 0 2px 6px -2px rgba(18, 16, 40, 0.2);
+  --v2p-lav: #bdb6ff;
+  --v2p-lav-soft: rgba(189, 182, 255, 0.16);
+  --v2p-lav-ring: rgba(189, 182, 255, 0.6);
+  --v2p-alert: #ff6b6f;
+  --v2p-scrim: rgba(0, 0, 0, 0.5);
+  --v2p-card: #1f1f23;
+  --v2p-card-raise: #2b2b31;
+  --v2p-card-edge: inset 0 0 0 1px rgba(246, 245, 250, 0.06);
+  --v2p-pick: #2b2b31;
+  --v2p-pick-ink: #f6f5fa;
+}
+
+/* --- PHONE KIT (phone-kit.jsx, 08.10.26) — the glass and fog of the Plates phone, over the --v2p-* ground: --pk-glass is the frosted sheet (ground, see-through, over a backdrop blur), --pk-mist the top band's / strip edges' wash, --pk-fog the bottom band behind the pill (menu A's fog), --pk-dot its halftone. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pk-glass: rgba(246, 246, 243, 0.78);
+  --pk-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --pk-sheet-shadow: 0 -18px 40px -24px rgba(18, 16, 40, 0.3);
+  --pk-mist: rgba(246, 246, 243, 0.72);
+  --pk-fog: rgba(246, 246, 243, 0.96);
+  --pk-fog-0: rgba(246, 246, 243, 0);
+  --pk-dot: rgba(124, 116, 216, 0.38);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pk-glass: rgba(20, 20, 22, 0.74);
+  --pk-glass-edge: inset 0 1px 0 rgba(246, 245, 250, 0.1);
+  --pk-sheet-shadow: 0 -18px 44px -20px rgba(0, 0, 0, 0.7);
+  --pk-mist: rgba(20, 20, 22, 0.7);
+  --pk-fog: rgba(20, 20, 22, 0.97);
+  --pk-fog-0: rgba(20, 20, 22, 0);
+  --pk-dot: rgba(189, 182, 255, 0.34);
+}
+
+/* --- PHONE MAIL (phone-mail.jsx, 08.10.26) — Mailbox on Plates: the quiet Outlook banner and its chip, the sender avatar. Raised surfaces only (dark: no white plates). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pml-banner: var(--v2p-raise);
+  --pml-banner-btn: var(--v2p-plate);
+  --pml-avatar: var(--v2p-raise);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pml-banner: var(--v2p-raise);
+  --pml-banner-btn: var(--v2p-raise-2);
+  --pml-avatar: var(--v2p-raise-2);
+}
+
+/* --- PHONE TASKS (phone-tasks.jsx, 08.10.26) — Tasks / Projects in Plates: --ptk-track is the empty part of the progress bar and ring, --ptk-seg-on the chosen segment (ink on light; a raised dark grey on dark — no white chips in dark), --ptk-tile-mix how much of the project hue tints its tile. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --ptk-track: rgba(18, 18, 20, 0.1);
+  --ptk-seg-on: #121214;
+  --ptk-seg-on-ink: #f6f6f3;
+  --ptk-seg-on-n: rgba(246, 246, 243, 0.6);
+  --ptk-tile-mix: 22%;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --ptk-track: rgba(246, 245, 250, 0.12);
+  --ptk-seg-on: #34343b;
+  --ptk-seg-on-ink: #f6f5fa;
+  --ptk-seg-on-n: rgba(246, 245, 250, 0.55);
+  --ptk-tile-mix: 26%;
+}
+
+/* --- PHONE OVERLAYS (phone-overlays.jsx, 08.10.26) — the snack's frosted glass (a touch denser than a sheet, it floats over moving content) and the paywall sheet's ground under its sky. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pov-snack-glass: rgba(236, 235, 231, 0.9);
+  --pov-snack-shadow: 0 16px 34px -14px rgba(18, 16, 40, 0.32), 0 0 0 0.5px rgba(18, 18, 20, 0.06);
+  --pov-paywall-ground: #cfd9ec;
+  --pov-paywall-grab: rgba(255, 255, 255, 0.7);
+  --pov-fill: rgba(18, 18, 20, 0.06);
+  --pov-fill-2: rgba(18, 18, 20, 0.1);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pov-snack-glass: rgba(38, 38, 43, 0.9);
+  --pov-snack-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.7), 0 0 0 0.5px rgba(246, 245, 250, 0.08);
+  --pov-paywall-ground: #1b1d2a;
+  --pov-paywall-grab: rgba(255, 255, 255, 0.55);
+  --pov-fill: rgba(246, 245, 250, 0.07);
+  --pov-fill-2: rgba(246, 245, 250, 0.12);
+}
+
+/* --- PHONE HABITS & BOARDS (phone-habits.jsx, 08.10.26) — Plates. --phb-none: a habit with no colour of its own or its project's; --phb-miss: a missed day's dot; --phb-ahead: the ring of a day still ahead; --phb-spent: an hour / day already gone (Time left); --phb-cover: a board cover's empty cell. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --phb-none: rgba(18, 18, 20, 0.42);
+  --phb-miss: rgba(18, 18, 20, 0.1);
+  --phb-ahead: rgba(18, 18, 20, 0.16);
+  --phb-spent: rgba(18, 18, 20, 0.12);
+  --phb-cover: #ecebe7;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --phb-none: rgba(246, 245, 250, 0.5);
+  --phb-miss: rgba(246, 245, 250, 0.1);
+  --phb-ahead: rgba(246, 245, 250, 0.16);
+  --phb-spent: rgba(246, 245, 250, 0.12);
+  --phb-cover: #1e1e22;
+}
+
+/* --- PHONE DOCS (phone-docs.jsx, 08.10.26) — the Docs list and reader on the Plates phone: --pdc-glass the chips floating over a page (‹ Docs, ⋯), a touch more opaque than a sheet so they read on any page colour; --pdc-shade the list dimming under the reader while it slides; the shadows of the chips, the ⋯ menu, the page's left edge and the list thumbs. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pdc-glass: rgba(246, 246, 243, 0.84);
+  --pdc-chip-shadow: 0 6px 16px -8px rgba(18, 16, 40, 0.28);
+  --pdc-menu-shadow: 0 24px 48px -18px rgba(18, 16, 40, 0.34), 0 2px 8px -4px rgba(18, 16, 40, 0.14);
+  --pdc-edge-shadow: -18px 0 40px -24px rgba(18, 16, 40, 0.4);
+  --pdc-shade: rgba(18, 18, 24, 0.14);
+  --pdc-thumb-shadow: 0 4px 10px -6px rgba(18, 16, 40, 0.3);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pdc-glass: rgba(30, 30, 34, 0.8);
+  --pdc-chip-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.6);
+  --pdc-menu-shadow: 0 26px 52px -16px rgba(0, 0, 0, 0.75), 0 2px 8px -4px rgba(0, 0, 0, 0.4);
+  --pdc-edge-shadow: -18px 0 44px -20px rgba(0, 0, 0, 0.75);
+  --pdc-shade: rgba(0, 0, 0, 0.42);
+  --pdc-thumb-shadow: 0 4px 10px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* --- PHONE PLACES (phone-places.jsx + MobileAuth.jsx, 08.10.26) — Connections, Templates, Shared, Trash on Plates (raised groups, the switch, template covers, avatars), and sign-in / setup over the sky (glass plates, fields, picks). Dark: muted raised surfaces, no white plates. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --ppl-group: rgba(18, 18, 20, 0.05);
+  --ppl-switch-off: rgba(18, 18, 20, 0.16);
+  --ppl-knob: #ffffff;
+  --ppl-knob-shadow: 0 1px 3px rgba(18, 16, 40, 0.22);
+  --ppl-tile-ink: #ffffff;
+  --ppl-avatar-ink: #ffffff;
+  --ppl-danger-ink: #ffffff;
+  --ppl-cover-ground: var(--v2p-raise-2);
+  --ppl-page: var(--v2p-plate);
+  --ppl-page-shadow: 0 6px 14px -8px rgba(18, 16, 40, 0.3);
+  --ppl-auth-glass: rgba(250, 250, 248, 0.58);
+  --ppl-auth-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+  --ppl-auth-shadow: 0 24px 50px -28px rgba(30, 24, 80, 0.45);
+  --ppl-auth-field: rgba(18, 18, 20, 0.06);
+  --ppl-auth-field-on: rgba(255, 255, 255, 0.86);
+  --ppl-auth-quiet: rgba(255, 255, 255, 0.72);
+  --ppl-auth-ink: #121214;
+  --ppl-auth-ink-2: rgba(18, 18, 20, 0.6);
+  --ppl-auth-chip: rgba(250, 250, 248, 0.5);
+  --ppl-auth-hole: rgba(255, 255, 255, 0.45);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --ppl-group: rgba(246, 245, 250, 0.06);
+  --ppl-switch-off: var(--v2p-raise-2);
+  --ppl-knob: #f6f5fa;
+  --ppl-knob-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --ppl-tile-ink: #ffffff;
+  --ppl-avatar-ink: #ffffff;
+  --ppl-danger-ink: #141416;
+  --ppl-cover-ground: var(--v2p-raise-2);
+  --ppl-page: #2c2c32;
+  --ppl-page-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.6);
+  --ppl-auth-glass: rgba(22, 22, 26, 0.6);
+  --ppl-auth-glass-edge: inset 0 1px 0 rgba(246, 245, 250, 0.1), inset 0 0 0 1px rgba(246, 245, 250, 0.05);
+  --ppl-auth-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.75);
+  --ppl-auth-field: rgba(246, 245, 250, 0.07);
+  --ppl-auth-field-on: rgba(246, 245, 250, 0.11);
+  --ppl-auth-quiet: rgba(246, 245, 250, 0.09);
+  --ppl-auth-ink: #f6f5fa;
+  --ppl-auth-ink-2: rgba(246, 245, 250, 0.6);
+  --ppl-auth-chip: rgba(22, 22, 26, 0.5);
+  --ppl-auth-hole: rgba(18, 18, 20, 0.4);
+}
+
+/* --- PHONE SKY (phone-kit.jsx PkSkyPlate / PkSkyBadge / PkSweep, 08.10.26) — the brand sky as a small accent on the Plates phone. These sit ON a sky, so they follow the sky's mood (day / night), not the page theme: --pk-sky-on-ink is the primary button's text over the sky's ink pill, --pk-sky-glass the quiet buttons' frosted fill; the *-night twins apply when the sky is a night mood ([data-px-night="1"]). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"],
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pk-sky-on-ink: #ffffff;
+  --pk-sky-on-ink-night: #17162b;
+  --pk-sky-glass: rgba(255, 255, 255, 0.46);
+  --pk-sky-glass-night: rgba(255, 255, 255, 0.14);
+  --pk-sky-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  --pk-sky-alert: #c8282e;
+  --pk-sky-alert-night: #ff8a8d;
+  --pk-sky-badge-edge: inset 0 0 0 1px rgba(18, 18, 20, 0.06);
+}
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] { --pk-sky-shadow: 0 14px 30px -18px rgba(60, 50, 120, 0.4); }
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] { --pk-sky-shadow: 0 22px 40px -20px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(246, 245, 250, 0.06); --pk-sky-badge-edge: inset 0 0 0 1px rgba(246, 245, 250, 0.08); }
+/* --- MENU A SKY (nav-a.jsx .nva-sky) — the three tiles as frosted glass on the sky band; they follow the sky's mood (day / night), not the card. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"],
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --nva-sky-glass: rgba(255, 255, 255, 0.42);
+  --nva-sky-glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --nva-sky-glass-on: rgba(255, 255, 255, 0.72);
+  --nva-sky-glass-night: rgba(255, 255, 255, 0.1);
+  --nva-sky-glass-edge-night: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  --nva-sky-glass-on-night: rgba(255, 255, 255, 0.22);
+}
+
+/* --- PHONE KIT · wave 3 (phone-kit.jsx PkGlyph / PkGlass, 09.10.26) — more glass, more colour: --pk-glass-chip is the frosted fill of glass chips / buttons / headers (see-through, over a backdrop blur), --pk-glass-chip-edge its light rim; --pk-violet the projects / templates hue for section glyph tiles. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pk-glass-chip: rgba(255, 255, 255, 0.56);
+  --pk-glass-chip-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 6px 18px -12px rgba(40, 34, 90, 0.28);
+  --pk-violet: oklch(0.62 0.17 295);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pk-glass-chip: rgba(255, 255, 255, 0.08);
+  --pk-glass-chip-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 22px -14px rgba(0, 0, 0, 0.7);
+  --pk-violet: oklch(0.72 0.15 295);
+}
+
+/* --- MOBILE ONBOARDING · wave 3 (MobileAuth.jsx MaTile, 09.10.26) — the ground under a coloured glyph tile on the setup glass (mixed with the tile's hue). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] { --mob2-tile-ground: rgba(255, 255, 255, 0.82); }
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] { --mob2-tile-ground: rgba(246, 245, 250, 0.08); }
+
+/* --- PHONE MENU A · wave 3 (nav-a.jsx, 09.10.26) — the frosted pill and the create button. --nva-pill-alpha: how solid the pill's ground is over its backdrop blur (the card turns fully solid); --nva-add-*: the glass create button beside the pill (see-through fill, rim, the pill's ink). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --nva-pill-alpha: 0.8;
+  --nva-add-glass: rgba(255, 255, 255, 0.62);
+  --nva-add-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.8), 0 10px 24px -12px rgba(40, 34, 90, 0.4);
+  --nva-add-ink: #121214;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --nva-pill-alpha: 0.84;
+  --nva-add-glass: rgba(255, 255, 255, 0.12);
+  --nva-add-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 10px 26px -12px rgba(0, 0, 0, 0.8);
+  --nva-add-ink: #f6f5fa;
+}
+
+/* --- PHONE DOCS · wave 3 (phone-docs.jsx, 09.10.26) — the Craft-style editor and the Docs home grid. --pdc2-c-* the 18 block colours (Choose a Color; deep on the light side, pale on the dark so the ink stays legible on the page) — also the coloured tiles of + Content and the block action bar, whose glyph is --pdc2-tile-ink; --pdc2-sel / -sel-ring a selected block; --pdc2-handle the right-edge grip; --pdc2-acc the frosted keyboard accessory bar (+ -edge, -on); --pdc2-kb / -key / -key-fn / -key-ink / -key-shadow the simulated keyboard; --pdc2-panel-tile / -edge the tiles of the Aa and Page Style panels; --pdc2-card-* the home's doc cards; --pdc2-tab-shadow the on segment; --pdc2-date / -remind the date chip and the reminder badge; --pdc2-knob the switch. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --pdc2-c-gray: #6b6b73; --pdc2-c-brown: #8a5a3c; --pdc2-c-red: #d1343b; --pdc2-c-orange: #d9661f; --pdc2-c-amber: #b47a00; --pdc2-c-yellow: #9c8100;
+  --pdc2-c-lime: #5a8a10; --pdc2-c-green: #2c9447; --pdc2-c-teal: #13857b; --pdc2-c-cyan: #0b84a0; --pdc2-c-sky: #2a80d2; --pdc2-c-blue: #2f5fe0;
+  --pdc2-c-indigo: #4b4fd1; --pdc2-c-violet: #7652d9; --pdc2-c-purple: #9a44c4; --pdc2-c-pink: #cc3d8b; --pdc2-c-rose: #d43860;
+  --pdc2-tile-ink: #ffffff;
+  --pdc2-tile-hi: rgba(255, 255, 255, 0.28);
+  --pdc2-tile-shadow: 0 6px 14px -8px rgba(18, 16, 40, 0.45);
+  --pdc2-sel: rgba(124, 116, 216, 0.12);
+  --pdc2-sel-ring: rgba(124, 116, 216, 0.5);
+  --pdc2-handle: rgba(18, 18, 20, 0.55);
+  --pdc2-acc: rgba(246, 246, 243, 0.72);
+  --pdc2-acc-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 -1px 0 rgba(18, 18, 20, 0.06);
+  --pdc2-acc-on: rgba(18, 18, 20, 0.08);
+  --pdc2-kb: rgba(209, 211, 217, 0.92);
+  --pdc2-key: #ffffff;
+  --pdc2-key-fn: #abb0ba;
+  --pdc2-key-ink: #0b0b0d;
+  --pdc2-key-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  --pdc2-panel-tile: rgba(255, 255, 255, 0.7);
+  --pdc2-panel-edge: inset 0 0 0 1px rgba(18, 18, 20, 0.06);
+  --pdc2-card-edge: inset 0 0 0 1px rgba(18, 18, 20, 0.07);
+  --pdc2-card-shadow: 0 12px 26px -18px rgba(18, 16, 40, 0.42);
+  --pdc2-tab-shadow: 0 1px 2px rgba(18, 16, 40, 0.12), 0 3px 10px -4px rgba(18, 16, 40, 0.14);
+  --pdc2-date: rgba(209, 52, 59, 0.1);
+  --pdc2-date-ink: #b62a31;
+  --pdc2-remind: rgba(180, 122, 0, 0.14);
+  --pdc2-remind-ink: #8a5d00;
+  --pdc2-knob: #ffffff;
+  --pdc2-knob-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --pdc2-c-gray: #a4a4ad; --pdc2-c-brown: #c99474; --pdc2-c-red: #ff6b6f; --pdc2-c-orange: #ff9a57; --pdc2-c-amber: #f2b84b; --pdc2-c-yellow: #e8d04a;
+  --pdc2-c-lime: #a6d64a; --pdc2-c-green: #5fd17d; --pdc2-c-teal: #4fd1c2; --pdc2-c-cyan: #5bc8e6; --pdc2-c-sky: #6fb4ff; --pdc2-c-blue: #7d9bff;
+  --pdc2-c-indigo: #9497ff; --pdc2-c-violet: #b49bff; --pdc2-c-purple: #d38cf2; --pdc2-c-pink: #ff7fbf; --pdc2-c-rose: #ff7f9b;
+  --pdc2-tile-ink: #121214;
+  --pdc2-tile-hi: rgba(255, 255, 255, 0.35);
+  --pdc2-tile-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7);
+  --pdc2-sel: rgba(189, 182, 255, 0.12);
+  --pdc2-sel-ring: rgba(189, 182, 255, 0.5);
+  --pdc2-handle: rgba(246, 245, 250, 0.6);
+  --pdc2-acc: rgba(30, 30, 34, 0.74);
+  --pdc2-acc-edge: inset 0 1px 0 rgba(246, 245, 250, 0.08), 0 -1px 0 rgba(0, 0, 0, 0.4);
+  --pdc2-acc-on: rgba(246, 245, 250, 0.12);
+  --pdc2-kb: rgba(43, 43, 47, 0.94);
+  --pdc2-key: #6b6b70;
+  --pdc2-key-fn: #46464b;
+  --pdc2-key-ink: #f6f5fa;
+  --pdc2-key-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  --pdc2-panel-tile: rgba(255, 255, 255, 0.07);
+  --pdc2-panel-edge: inset 0 0 0 1px rgba(246, 245, 250, 0.08);
+  --pdc2-card-edge: inset 0 0 0 1px rgba(246, 245, 250, 0.08);
+  --pdc2-card-shadow: 0 14px 28px -18px rgba(0, 0, 0, 0.8);
+  --pdc2-tab-shadow: inset 0 0 0 1px rgba(246, 245, 250, 0.06), 0 3px 10px -4px rgba(0, 0, 0, 0.5);
+  --pdc2-date: rgba(255, 107, 111, 0.16);
+  --pdc2-date-ink: #ff9a9d;
+  --pdc2-remind: rgba(242, 184, 75, 0.16);
+  --pdc2-remind-ink: #f5c96e;
+  --pdc2-knob: #f6f5fa;
+  --pdc2-knob-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* --- DOC RICH TEXT SPANS (doc-style.jsx, 09.10.26) — --dsp-hl-* the highlight washes behind marked words (soft enough that the page's ink keeps its contrast on every page colour); --dsp-code-bg the inline code chip (both mixed from the words' own ink, so they read on light and dark pages alike). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --dsp-hl-yellow: rgba(250, 204, 21, 0.34); --dsp-hl-orange: rgba(249, 115, 22, 0.24); --dsp-hl-red: rgba(239, 68, 68, 0.2); --dsp-hl-pink: rgba(236, 72, 153, 0.2);
+  --dsp-hl-purple: rgba(147, 51, 234, 0.18); --dsp-hl-blue: rgba(59, 130, 246, 0.2); --dsp-hl-green: rgba(34, 197, 94, 0.22); --dsp-hl-gray: color-mix(in srgb, currentColor 14%, transparent);
+  --dsp-code-bg: color-mix(in srgb, currentColor 10%, transparent);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --dsp-hl-yellow: rgba(250, 204, 21, 0.3); --dsp-hl-orange: rgba(251, 146, 60, 0.28); --dsp-hl-red: rgba(248, 113, 113, 0.26); --dsp-hl-pink: rgba(244, 114, 182, 0.26);
+  --dsp-hl-purple: rgba(192, 132, 252, 0.26); --dsp-hl-blue: rgba(96, 165, 250, 0.26); --dsp-hl-green: rgba(74, 222, 128, 0.24); --dsp-hl-gray: color-mix(in srgb, currentColor 18%, transparent);
+  --dsp-code-bg: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* --- PHONE PLACES · CONNECTIONS (phone-places.jsx, 09.10.26) — --ppl-on / --ppl-on-ink / --ppl-on-edge: the chosen tab or category chip. Light: the inverse ink pill; dark: a lavender wash with a lavender rim (no white chips in dark — white stays for the primary action). --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --ppl-on: var(--v2p-ink);
+  --ppl-on-ink: var(--v2p-ground);
+  --ppl-on-edge: none;
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --ppl-on: var(--v2p-lav-soft);
+  --ppl-on-ink: var(--v2p-ink);
+  --ppl-on-edge: inset 0 0 0 1px var(--v2p-lav-ring);
+}
+
+/* --- PHONE MENU A · wave 4 (nav-a.jsx, 09.10.26) — the create button wears the pill's glass (it carries the pill's inverse theme class, so these read the pill's side): --nva-add-rim its hairline rim + soft shadow (the pill's edge), --nva-add-quiet its icon (the pill's quiet ink; lavender only while pressed). Replaces the wave-3 --nva-add-glass / -edge / -ink, which nothing reads any more. --- */
+.needt-v3,
+.needt-v3:is([data-theme="light"], [data-theme="paper"]),
+.needt-v3[data-theme="warm"] {
+  --nva-add-rim: inset 0 0 0 1px rgba(18, 18, 20, 0.07), 0 8px 20px -12px rgba(0, 0, 0, 0.55);
+  --nva-add-quiet: rgba(18, 18, 20, 0.62);
+}
+.needt-v3[data-theme="dark"],
+.needt-v3[data-theme="dim"] {
+  --nva-add-rim: inset 0 0 0 1px rgba(246, 245, 250, 0.1), 0 10px 22px -12px rgba(18, 16, 40, 0.45);
+  --nva-add-quiet: rgba(246, 245, 250, 0.72);
+}

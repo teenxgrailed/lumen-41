@@ -1,0 +1,134 @@
+/* Design v3 — the corner (Ask Needt pill / island / panel) and the agent
+ * cursor. HAND-WRITTEN corrections; src/styles/v3/ is generated.
+ *
+ * The corner is one element laid out at its largest size; its visible shape
+ * is a clip-path (set inline from src/lib/assistant-position.ts), so the
+ * pill → island → panel change animates clip-path, never width/height/radius
+ * (port rule 12). Elevation is a static shadow layer per shape, crossfaded by
+ * opacity, because a clipped element cannot cast its own shadow.
+ */
+.needt-v3 .v3c-anchor {
+  pointer-events: none;
+}
+.needt-v3 .v3c-shell {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+  transition: clip-path 420ms var(--ease-pop);
+}
+/* No blur under a clipped ancestor (PORT §3a): the header is solid here. */
+.needt-v3 .v3c-shell .chat-head {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-color: var(--surface-raised);
+}
+.needt-v3 .v3c-shade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.needt-v3 .v3c-shade.is-on {
+  opacity: 1;
+  transition: opacity 180ms ease 240ms;
+}
+.needt-v3 .v3c-shade.is-pill {
+  box-shadow: var(--shadow-raised);
+}
+.needt-v3 .v3c-shade.is-island,
+.needt-v3 .v3c-shade.is-panel {
+  box-shadow: var(--shadow-floating);
+}
+
+.needt-v3 .v3c-layer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.needt-v3 .v3c-layer.is-on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 150ms ease 120ms;
+}
+.needt-v3 .v3c-panel {
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .v3c-island {
+  display: flex;
+  flex-direction: column;
+}
+
+/* One island row: 54px, plate · two lines · act · dismiss. */
+.needt-v3 .v3c-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 54px;
+  box-sizing: border-box;
+  padding: 0 8px 0 12px;
+  transition: opacity 220ms ease;
+}
+.needt-v3 .v3c-row + .v3c-row {
+  box-shadow: inset 0 1px 0 var(--border);
+}
+.needt-v3 .v3c-row[data-leaving] {
+  opacity: 0;
+}
+.needt-v3 .v3c-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.needt-v3 .v3c-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .v3c-count {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .v3c-x {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.needt-v3 .v3c-row:hover .v3c-x,
+.needt-v3 .v3c-x:focus-visible {
+  opacity: 1;
+}
+
+/* The cursor emerges with fill `both` in the vendored rule, which would hold
+   `scale(1)` on the arrow and swallow the press (`is-press` scales it). */
+.needt-v3 .ac-arrow.ac-in > svg {
+  animation-fill-mode: backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .v3c-shell,
+  .needt-v3 .v3c-shade,
+  .needt-v3 .v3c-shade.is-on,
+  .needt-v3 .v3c-layer,
+  .needt-v3 .v3c-layer.is-on,
+  .needt-v3 .v3c-row {
+    transition: none;
+  }
+  .needt-v3 .v3c-row.chat-msg-in {
+    animation: none;
+  }
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "lnk_apidaily01",
+    "name": "API for Daily notes & tasks",
+    "url": "https://api.needt.app/links/f3wq8nzk2ycv6trh9mpd4a",
+    "scope": "daily",
+    "permission": "write",
+    "access": "private",
+    "projectIds": [],
+    "createdAt": "2026-10-03T16:40:00.000Z"
+  }
+]

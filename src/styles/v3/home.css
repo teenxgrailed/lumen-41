@@ -1,0 +1,217 @@
+/* ========================================================================
+   Needt design v3 — styles/home.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* home.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── HomeToday.jsx · Home ────────────────────────────────────────────── */
+.needt-v3 .hd-screen { flex: 1; min-height: 0; width: 100%; max-width: 1240px; align-self: center; display: flex; flex-direction: column; }
+.needt-v3 .hd-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
+.needt-v3 .hd-titlebox { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.needt-v3 .hd-title-h1 { margin: 0; font: var(--type-page-title); color: var(--text-primary); white-space: nowrap; }
+.needt-v3 .hd-head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.needt-v3 .hd-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.needt-v3 .hd-meta-t { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .hd-num { font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-push { margin-left: auto; }
+.needt-v3 .hd-meta-line { white-space: nowrap; }
+
+/* Fold (Craft's section). */
+.needt-v3 .hd-fold { display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .hd-fold-head { display: flex; align-items: center; gap: 6px; height: 32px; margin: 0 0 2px -22px; }
+.needt-v3 .hd-fold-chev { width: 16px; height: 16px; padding: 0; border: 0; background: transparent; color: var(--text-muted); cursor: default; display: grid; place-items: center;
+  transform: none; transition: transform 140ms ease; }
+.needt-v3 .hd-chev.hd-fold-chev:hover { background: transparent; color: var(--text-muted); }
+.needt-v3 .hd-fold-chev.is-shut { transform: rotate(-90deg); }
+.needt-v3 .hd-fold-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 17px/22px var(--font-sans); color: var(--text-primary); cursor: default; }
+.needt-v3 .hd-fold-title.is-late { color: var(--destructive); }
+.needt-v3 .hd-fold-count { flex: none; font: var(--type-ui); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-fold-action { margin-left: auto; flex: none; }
+.needt-v3 .hd-fold-note { margin: -4px 0 4px; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hd-fold-body { display: flex; flex-direction: column; gap: 2px; }
+
+/* Habit chips (summary card) and the larger chip row. */
+.needt-v3 .hd-habit.is-on .hd-chip-name { color: var(--text-primary); }
+.needt-v3 .hd-chips { display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start; }
+.needt-v3 .hd-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 4px; border: 0; border-radius: 7px; cursor: default; transition: background-color var(--transition-hover); }
+.needt-v3 .hd-chip-name { font: 500 13px/16px var(--font-sans); color: var(--text-secondary); white-space: nowrap; }
+
+/* Summary cards (frame + plate from tasks.css .tk-card*). */
+.needt-v3 .hd-card-ring { display: flex; margin: -2px -2px -4px 0; }
+.needt-v3 .hd-card-art { display: flex; margin: -4px -2px -4px 0; }
+.needt-v3 .hd-card-foot { flex: 1; display: flex; align-items: flex-end; }
+.needt-v3 .hd-card-stack { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.needt-v3 .hd-card-big { font: 600 20px/26px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .hd-card-sub { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .hd-card-sub.hd-card-clip { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: normal; }
+.needt-v3 .hd-next-none { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.needt-v3 .hd-next-none-title { font: 600 15px/20px var(--font-sans); color: var(--text-primary); }
+
+/* Empty day. */
+.needt-v3 .hd-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 40px 24px 36px; border-radius: 16px; background: var(--fill-2); }
+.needt-v3 .hd-empty-title { margin: 4px 0 0; font: 600 17px/22px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .hd-empty-line { margin: 0; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hd-empty-acts { display: flex; gap: 6px; margin-top: 6px; }
+
+/* Day closed. */
+.needt-v3 .hd-closed { display: flex; align-items: center; gap: 20px; padding: 22px 24px; margin: 6px 4px 6px 26px; border-radius: 16px;
+  background: color-mix(in oklab, var(--success) 9%, var(--surface-raised)); box-shadow: var(--shadow-ring); }
+.needt-v3 .hd-closed-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.needt-v3 .hd-closed-title { margin: 0; font: 700 20px/26px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .hd-closed-line { margin: 0; font: 400 14px/20px var(--font-sans); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-closed-acts { display: flex; gap: 6px; flex: none; }
+
+/* Rail panels: schedule + inbox. */
+.needt-v3 .hd-panel { border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.needt-v3 .hd-panel-title { font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .hd-sched { padding: 14px 12px 12px 10px; }
+.needt-v3 .hd-sched-head { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px 6px; }
+.needt-v3 .hd-sched-heading { display: flex; flex-direction: column; gap: 1px; }
+.needt-v3 .hd-sched-list { display: flex; flex-direction: column; gap: 1px; }
+.needt-v3 .hd-sched-none { padding: 6px 6px 4px; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hd-link.hd-sched-more { margin: 6px 0 0 50px; }
+.needt-v3 .hd-now { display: flex; align-items: center; gap: 8px; height: 18px; margin: 2px 0; }
+.needt-v3 .hd-now-time { width: 40px; text-align: right; font: var(--type-meta-medium); color: var(--destructive); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-now-dot { width: 7px; height: 7px; border-radius: 4px; background: var(--destructive); flex: none; margin-left: -1px; }
+.needt-v3 .hd-now-line { flex: 1; height: 1.5px; border-radius: 1px; background: var(--destructive); margin-left: -5px; }
+.needt-v3 .hd-sched-item { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 3px 6px 3px 0; cursor: default; }
+.needt-v3 .hd-sched-time { width: 40px; flex: none; text-align: right; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-sched-time.is-past { color: var(--text-muted); }
+.needt-v3 .hd-sched-rail { flex: none; width: 3px; align-self: stretch; min-height: 18px; border-radius: 2px; opacity: 1; }
+.needt-v3 .hd-sched-rail.is-dim { opacity: 0.45; }
+.needt-v3 .hd-sched-title { flex: 1; min-width: 0; font: var(--type-ui-medium); color: var(--text-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .hd-sched-title.is-event { font: var(--type-ui); }
+.needt-v3 .hd-sched-title.is-past { color: var(--text-tertiary); }
+.needt-v3 .hd-sched-title.is-done { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .hd-sched-ico { display: inline-flex; vertical-align: -2px; margin-right: 5px; color: var(--text-tertiary); }
+.needt-v3 .hd-sched-dur { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-inbox { padding: 14px 12px 10px; }
+.needt-v3 .hd-inbox-head { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 6px; }
+.needt-v3 .hd-inbox-item { min-height: 30px; padding: 3px 4px; }
+.needt-v3 .hd-inbox-row.hd-inbox-item { transition: opacity 200ms ease; }
+.needt-v3 .hd-inbox-none { margin: 0; padding: 2px 4px 6px; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hd-inbox-more { margin: 4px 0 0; padding: 0 4px; font: var(--type-meta); color: var(--text-tertiary); }
+
+/* Week ahead + list footer. */
+.needt-v3 .hd-week-ev { display: flex; align-items: center; gap: 10px; min-height: 28px; font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .hd-week-ev-ico { width: 16px; display: grid; place-items: center; color: var(--text-tertiary); }
+.needt-v3 .hd-week-ev-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .hd-week-none { min-height: 28px; display: flex; align-items: center; font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hd-add-row { align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 8px; margin: -12px -8px 0; border: 0; border-radius: var(--radius-md);
+  font: 400 15px/20px var(--font-sans); cursor: default; transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v3 .hd-add-box { width: 16px; height: 16px; border-radius: 5.7px; box-shadow: color-mix(in oklab, var(--text-primary) 14%, transparent) 0 0 0 1.5px inset; }
+.needt-v3 .hd-notes { margin: 0; padding: 10px 0 0; font: 400 14px/20px var(--font-sans); font-style: italic; color: var(--text-disabled); box-shadow: var(--border) 0 1px 0 0 inset; }
+
+/* ── TodayScreen.jsx · wrapper (Brief form) ──────────────────────────── */
+.needt-v3 .home-top { display: flex; gap: 20px; align-items: center; flex: none; padding: 8px 0 16px; }
+.needt-v3 .home-top.is-hidden { display: none; }
+.needt-v3 .home-date { flex: none; display: flex; align-items: flex-end; gap: 11px; padding-right: 4px; padding-bottom: 2px; }
+.needt-v3 .home-date-n { font-size: 76px; line-height: 0.82; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .home-date-col { display: flex; flex-direction: column; gap: 1px; padding-bottom: 4px; }
+.needt-v3 .home-date-month { font-size: 27px; line-height: 1; color: var(--text-tertiary); }
+.needt-v3 .home-date-row { display: flex; align-items: baseline; gap: 8px; }
+.needt-v3 .home-date-wd { font-size: 15px; line-height: 1.2; color: var(--text-muted); }
+.needt-v3 .home-date-week { font: var(--type-meta); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.needt-v3 .home-strip { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .home-brief { flex: 1; min-height: 0; overflow: auto; padding-bottom: 20px; }
+
+/* ── Moved from HomeToday.jsx's injected <style> blocks (08.10.26) ─────── */
+.needt-v3 .hd-habit { background: var(--fill-2); box-shadow: var(--fill-5) 0 0 0 1px inset; }
+.needt-v3 .hd-habit:hover { background: var(--fill-3); }
+.needt-v3 .hd-habit.is-on { background: var(--fill-4); box-shadow: none; }
+.needt-v3 .hd-habit.is-on:hover { background: var(--fill-5); }
+.needt-v3 .hd-add { color: var(--text-tertiary); }
+.needt-v3 .hd-add:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .hd-chev { border-radius: 5px; }
+.needt-v3 .hd-chev:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .hd-home { container-type: inline-size; container-name: hdhome; }
+.needt-v3 .hd-more { align-self: flex-start; margin: 4px 0 0 -8px; }
+.needt-v3 .hd-home .wk-tab { white-space: nowrap; }
+.needt-v3 .hd-card { transition: box-shadow var(--transition-hover), transform var(--transition-hover); }
+.needt-v3 .hd-card:hover { box-shadow: var(--shadow-raised-hover); }
+.needt-v3 .hd-sched-row { border-radius: 8px; transition: background-color var(--transition-hover); }
+.needt-v3 .hd-sched-row:hover { background: var(--fill-3); }
+.needt-v3 .hd-inbox-row { border-radius: 8px; transition: background-color var(--transition-hover); }
+.needt-v3 .hd-inbox-row:hover { background: var(--fill-3); }
+.needt-v3 .hd-link { border: 0; background: transparent; padding: 0 6px; height: 22px; border-radius: 6px; font: var(--type-meta-medium); color: var(--text-tertiary); cursor: default; }
+.needt-v3 .hd-link:hover { background: var(--fill-3); color: var(--text-secondary); }
+@container hdhome (max-width: 759px) { .needt-v3 .hd-meta-line { display: none; } }
+
+/* Main: list left, rail right from ~940 content width. */
+.needt-v3 .hd-main { display: flex; flex-direction: column; gap: 32px; padding: 8px 4px 48px 26px; }
+.needt-v3 .hd-list { min-width: 0; max-width: 820px; display: flex; flex-direction: column; gap: 22px; }
+.needt-v3 .hd-rail { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* Week ahead under 940: the week load is the point of the tab, so it leads. */
+@container hdhome (max-width: 939px) { .needt-v3 .hd-main[data-hd-mode="week"] > .hd-rail { order: -1; } }
+@container hdhome (max-width: 939px) { .needt-v3 .hd-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; max-width: 820px; } }
+@container hdhome (min-width: 940px) { .needt-v3 .hd-main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 40px; align-items: start; } }
+
+/* ── Summary row (08.10.26): Next up is the main accent ───────────────────
+   Half the row, taller, a large title and a full-size Start focus. Beside it
+   a compact secondary block: Progress + Streak over Habits (Week ahead:
+   This week + Hours planned over Overdue). Under 900 the block drops under
+   Next up; under 480 everything is one column. */
+.needt-v3 .hd-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 6px 4px 18px 26px; margin: 0 0 2px; align-items: stretch; }
+.needt-v3 .hd-cards > .hd-card-next { min-width: 0; }
+.needt-v3 .hd-card-next > .tk-card-plate { min-height: 204px; padding: 16px 20px 16px; gap: 10px; }
+.needt-v3 .hd-card-next .tk-card-label { font: var(--type-ui-medium); }
+.needt-v3 .hd-card-next .tk-card-text { gap: 6px; margin-top: 4px; }
+.needt-v3 .hd-card-next .tk-card-title { font: 600 24px/30px var(--font-sans); letter-spacing: -0.01em; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.needt-v3 .hd-card-next .tk-card-note { font: var(--type-ui); white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-wrap: pretty; }
+.needt-v3 .hd-card-next .tk-card-acts { gap: 8px; padding-top: 6px; align-items: center; }
+.needt-v3 .hd-next-focus { padding: 0 18px; }
+.needt-v3 .hd-card-next .hd-next-none { gap: 6px; }
+.needt-v3 .hd-card-next .hd-next-none-title { font: 600 22px/28px var(--font-sans); }
+
+.needt-v3 .hd-side { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr; gap: 12px; }
+.needt-v3 .hd-side > .hd-card { min-width: 0; }
+.needt-v3 .hd-side > .hd-card-habits { grid-column: 1 / -1; }
+.needt-v3 .hd-card-sm > .tk-card-plate { min-height: 0; padding: 10px 12px 11px; gap: 6px; }
+.needt-v3 .hd-card-sm .hd-card-big { font: 600 17px/22px var(--font-sans); overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .hd-card-sm .hd-card-big.is-late,
+.needt-v3 .hd-card-sm .hd-card-sub.is-late { color: var(--destructive); }
+.needt-v3 .hd-card-sm .hd-card-sub { overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .hd-card-sm .hd-card-ring { margin: -2px -2px -3px 0; }
+.needt-v3 .hd-card-sm .hd-card-art { margin: -4px -2px -4px 0; }
+.needt-v3 .hd-card-sm .hd-card-stack { gap: 1px; }
+.needt-v3 .hd-card-sm .hd-chips { gap: 5px; margin-top: auto; }
+
+@container hdhome (max-width: 899px) {
+  .needt-v3 .hd-cards { grid-template-columns: minmax(0, 1fr); padding-right: 4px; }
+  .needt-v3 .hd-card-next > .tk-card-plate { min-height: 176px; }
+}
+@container hdhome (max-width: 479px) {
+  .needt-v3 .hd-side { grid-template-columns: minmax(0, 1fr); }
+  .needt-v3 .hd-card-next .tk-card-title { font-size: 20px; line-height: 26px; }
+}
+
+/* ── Week load (rail, Week ahead · 08.10.26) ─────────────────────────────── */
+.needt-v3 .hd-load { padding: 14px 12px 12px 10px; }
+.needt-v3 .hd-load-list { display: flex; flex-direction: column; gap: 2px; padding: 0 4px 0 6px; }
+.needt-v3 .hd-load-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) 76px; align-items: center; gap: 10px; min-height: 38px; padding: 2px 0; border-radius: 8px; }
+.needt-v3 .hd-load-day { display: flex; align-items: baseline; gap: 5px; }
+.needt-v3 .hd-load-name { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .hd-load-date { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .hd-load-row.is-off .hd-load-name { color: var(--text-tertiary); }
+.needt-v3 .hd-load-bar { position: relative; height: 8px; }
+.needt-v3 .hd-load-track { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--fill-4); }
+.needt-v3 .hd-load-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: color-mix(in oklab, var(--text-primary) 42%, transparent); transition: width 520ms var(--nx-ease, ease); }
+.needt-v3 .hd-load-fill.is-off { background: var(--fill-6); }
+.needt-v3 .hd-load-over { position: absolute; top: 0; bottom: 0; border-radius: 0 4px 4px 0; background: var(--destructive); }
+.needt-v3 .hd-load-cap { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text-primary); }
+.needt-v3 .hd-load-nums { display: flex; flex-direction: column; align-items: flex-end; gap: 0; min-width: 0; }
+.needt-v3 .hd-load-planned { font: var(--type-ui-medium); color: var(--text-primary); white-space: nowrap; }
+.needt-v3 .hd-load-row.is-off .hd-load-planned { color: var(--text-tertiary); font: var(--type-ui); }
+.needt-v3 .hd-load-free { font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; }
+.needt-v3 .hd-load-free.is-over { color: var(--destructive); }
+.needt-v3 .hd-load-note { margin: 10px 0 0; padding: 10px 6px 0; font: var(--type-meta); color: var(--text-tertiary); box-shadow: var(--border) 0 1px 0 0 inset; text-wrap: pretty; }
+.needt-v3 .hd-load-note-over { color: var(--destructive); }
+
+/* Pro (08.10.26): Week load is Pro. On Free the real rows show faded and
+   blurred behind one line and Upgrade; the title carries the PRO pill. */
+.needt-v3 .hd-pro-title { display: inline-flex; align-items: center; gap: 6px; }
+.needt-v3 .hd-load-list.is-locked { opacity: .45; filter: blur(1.5px) saturate(.4); pointer-events: none; user-select: none; }
+.needt-v3 .hd-load-lock { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; padding: 10px 6px 0; box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .hd-load-lock-line { flex: 1 1 auto; min-width: 0; font: var(--type-meta); color: var(--text-secondary); text-wrap: pretty; }
+.needt-v3 .hd-upsell { margin: 0 0 14px; }

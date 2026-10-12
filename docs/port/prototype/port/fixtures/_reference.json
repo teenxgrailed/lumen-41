@@ -1,0 +1,414 @@
+{
+  "templatesBuiltin": [
+    {
+      "id": "t-daily",
+      "title": "Daily note",
+      "style": {
+        "ground": "mist"
+      },
+      "label": "Template",
+      "meta": "5 blocks",
+      "body": [
+        [
+          "lead",
+          "What would make today a good day?"
+        ],
+        [
+          "h",
+          "Plan"
+        ],
+        [
+          "todo",
+          "First task"
+        ],
+        [
+          "todo",
+          "Second task"
+        ],
+        [
+          "h",
+          "Notes"
+        ],
+        [
+          "p",
+          "Write as you go."
+        ]
+      ]
+    },
+    {
+      "id": "t-review",
+      "title": "Weekly review",
+      "style": {
+        "ground": "sage"
+      },
+      "label": "Template",
+      "meta": "6 blocks",
+      "body": [
+        [
+          "h",
+          "Went well"
+        ],
+        [
+          "li",
+          "…"
+        ],
+        [
+          "h",
+          "Didn't"
+        ],
+        [
+          "li",
+          "…"
+        ],
+        [
+          "h",
+          "Next week"
+        ],
+        [
+          "todo",
+          "One thing that matters"
+        ]
+      ]
+    },
+    {
+      "id": "t-drop",
+      "title": "Product drop",
+      "style": {
+        "ground": "sand"
+      },
+      "label": "Template",
+      "meta": "8 blocks",
+      "body": [
+        [
+          "callout",
+          "Drop date, price, quantity — decide these first."
+        ],
+        [
+          "h",
+          "Checklist"
+        ],
+        [
+          "todo",
+          "Samples approved"
+        ],
+        [
+          "todo",
+          "Photos shot"
+        ],
+        [
+          "todo",
+          "Listing written"
+        ],
+        [
+          "shot"
+        ]
+      ]
+    },
+    {
+      "id": "t-meeting",
+      "title": "Meeting notes",
+      "style": null,
+      "label": "Template",
+      "meta": "4 blocks",
+      "body": [
+        [
+          "p",
+          "Who, when, why."
+        ],
+        [
+          "h",
+          "Decisions"
+        ],
+        [
+          "li",
+          "…"
+        ],
+        [
+          "h",
+          "Actions"
+        ],
+        [
+          "todo",
+          "Owner — task — date"
+        ]
+      ]
+    },
+    {
+      "id": "t-listing",
+      "title": "Resale listing",
+      "style": {
+        "ground": "stone"
+      },
+      "label": "Template",
+      "meta": "6 blocks",
+      "body": [
+        [
+          "table",
+          [
+            [
+              "Brand",
+              "—"
+            ],
+            [
+              "Size",
+              "—"
+            ],
+            [
+              "Condition",
+              "—"
+            ],
+            [
+              "Price",
+              "CHF —"
+            ]
+          ]
+        ],
+        [
+          "p",
+          "Measurements and flaws, in that order."
+        ]
+      ]
+    },
+    {
+      "id": "t-brief",
+      "title": "Project brief",
+      "style": {
+        "ground": "mist"
+      },
+      "label": "Template",
+      "meta": "7 blocks",
+      "body": [
+        [
+          "lead",
+          "One sentence: what changes when this ships."
+        ],
+        [
+          "h",
+          "Scope"
+        ],
+        [
+          "li",
+          "In"
+        ],
+        [
+          "li",
+          "Out"
+        ],
+        [
+          "h",
+          "Open questions"
+        ],
+        [
+          "todo",
+          "…"
+        ]
+      ]
+    }
+  ],
+  "people": [
+    {
+      "id": "you",
+      "name": "You",
+      "initials": "MK",
+      "hue": "var(--hue-orange)"
+    },
+    {
+      "id": "anna",
+      "name": "Anna",
+      "initials": "AN",
+      "hue": "var(--hue-blue)"
+    },
+    {
+      "id": "tom",
+      "name": "Tom",
+      "initials": "TM",
+      "hue": "var(--hue-green)"
+    },
+    {
+      "id": "lena",
+      "name": "Lena",
+      "initials": "LN",
+      "hue": "var(--hue-violet)"
+    }
+  ],
+  "stages": [
+    {
+      "id": "todo",
+      "name": "To do"
+    },
+    {
+      "id": "doing",
+      "name": "In progress"
+    },
+    {
+      "id": "review",
+      "name": "In review"
+    },
+    {
+      "id": "done",
+      "name": "Done"
+    }
+  ],
+  "calendars": {
+    "work": {
+      "name": "Work",
+      "color": "var(--accent)"
+    },
+    "personal": {
+      "name": "Personal",
+      "color": "var(--success)"
+    },
+    "family": {
+      "name": "Family",
+      "color": "var(--info)"
+    }
+  },
+  "settingsDefaults": {
+    "theme": "light",
+    "accent": "blue",
+    "aura": true,
+    "start": "09:00",
+    "end": "18:00",
+    "week": "mon",
+    "tz": "cet",
+    "order": "deadline",
+    "chunk": "30",
+    "buffer": "10",
+    "auto": true,
+    "protect": true,
+    "weekends": false,
+    "connected": [
+      "apple",
+      "google"
+    ],
+    "apple": true,
+    "google": true,
+    "outlookCal": true,
+    "declined": false,
+    "allDay": true,
+    "writeBack": true,
+    "view": "week",
+    "est": "45",
+    "project": "none",
+    "parts": true,
+    "money": true,
+    "len": "50",
+    "brk": "10",
+    "sound": "none",
+    "hideAlerts": true,
+    "snapSound": false,
+    "stopMark": true,
+    "plan": true,
+    "mailPlan": false,
+    "planTime": "08:30",
+    "nudge": false,
+    "review": true,
+    "links": "ask",
+    "offline": true
+  },
+  "calSyncDefaults": {
+    "gcal": {
+      "key": "google",
+      "cals": [
+        [
+          "Maksym",
+          "blue"
+        ],
+        [
+          "Demesures",
+          "violet"
+        ],
+        [
+          "Holidays in Switzerland",
+          "green"
+        ]
+      ]
+    },
+    "ical": {
+      "key": "apple",
+      "cals": [
+        [
+          "Personal",
+          "orange"
+        ],
+        [
+          "Family",
+          "pink"
+        ]
+      ]
+    },
+    "ocal": {
+      "key": "outlookCal",
+      "cals": [
+        [
+          "Calendar",
+          "blue"
+        ],
+        [
+          "Birthdays",
+          "yellow"
+        ]
+      ]
+    }
+  },
+  "accents": [
+    [
+      "blue",
+      "Blue"
+    ],
+    [
+      "pink",
+      "Pink"
+    ],
+    [
+      "mint",
+      "Mint"
+    ],
+    [
+      "violet",
+      "Violet"
+    ],
+    [
+      "amber",
+      "Amber"
+    ],
+    [
+      "graphite",
+      "Graphite"
+    ],
+    [
+      "aurora",
+      "Aurora",
+      true
+    ],
+    [
+      "sunset",
+      "Sunset",
+      true
+    ],
+    [
+      "lagoon",
+      "Lagoon",
+      true
+    ]
+  ],
+  "themes": [
+    [
+      "system",
+      "System"
+    ],
+    [
+      "light",
+      "Light"
+    ],
+    [
+      "dark",
+      "Dark"
+    ],
+    [
+      "time",
+      "Time"
+    ]
+  ],
+  "today": "2026-09-01"
+}

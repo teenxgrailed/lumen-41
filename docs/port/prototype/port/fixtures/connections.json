@@ -1,0 +1,8 @@
+{
+  "gmail": "connected",
+  "outlook": "disconnected",
+  "gcal": "connected",
+  "ical": "connected",
+  "notion": "connected",
+  "github": "connected"
+}

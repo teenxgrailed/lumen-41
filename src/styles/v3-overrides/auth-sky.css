@@ -1,0 +1,222 @@
+/* Design v3 - AuthScreen.jsx AX_CSS + PW_AX_CSS.
+ * HAND-WRITTEN, not vendored: the prototype keeps these rules in a JS string
+ * (injected at run time), so the sync script never sees them. Rescoped under
+ * .needt-v3 (.dark -> [data-theme=dark]); corrections are marked V-*. */
+
+@keyframes ax-step-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ax-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.needt-v3 .ax-step.nx-swap.is-fwd {
+  animation-name: ax-step-fwd;
+}
+.needt-v3 .ax-step.nx-swap.is-back {
+  animation-name: ax-step-back;
+}
+.needt-v3 .ax-btn {
+  transition:
+    box-shadow var(--transition-hover),
+    background-color var(--transition-hover),
+    opacity var(--transition-hover);
+}
+.needt-v3 .ax-btn:active {
+  transform: translateY(0.5px);
+}
+.needt-v3 .ax-raised:hover {
+  box-shadow: var(--shadow-floating) !important;
+}
+.needt-v3 .ax-dark:hover {
+  opacity: 0.88;
+}
+.needt-v3 .ax-row:hover {
+  background: var(--fill-1) !important;
+}
+.needt-v3 .ax-row.is-on:hover {
+  background: var(--fill-accent) !important;
+}
+.needt-v3 .ax-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: default;
+  font: inherit;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--text-quaternary);
+  text-underline-offset: 2px;
+}
+.needt-v3 .ax-link:hover {
+  text-decoration-color: var(--text-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ax-step {
+    animation-duration: 1ms !important;
+  }
+}
+
+.needt-v3 .axs-collage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+@media (max-width: 1099px) {
+  .needt-v3 .axs-collage {
+    display: none;
+  }
+}
+.needt-v3 .axs-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+.needt-v3 .axs-card h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 44px;
+  color: var(--text-primary);
+}
+.needt-v3 .axs-card h1 em,
+.needt-v3 .axs-h em {
+  font-style: italic;
+  font-variation-settings: "EXPO" 8;
+  padding-right: 0.04em;
+}
+/* Text under the card sits on a small Craft glass chip, so it reads on any cloud. */
+.needt-v3 .axs-note,
+.needt-v3 .axs-switch {
+  margin: 0;
+  text-align: center;
+  text-wrap: pretty;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  background-color: var(--white-a55);
+  background-image: linear-gradient(var(--white-a0), var(--white-a40));
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow:
+    var(--white-a70) 0 0 0 1px inset,
+    var(--black-a6) 0 0 0 1px;
+}
+.needt-v3[data-theme="dark"] .axs-note,
+.needt-v3[data-theme="dark"] .axs-switch {
+  background-color: var(--smoke-a55);
+  background-image: none;
+  box-shadow:
+    var(--white-a8) 0 0 0 1px inset,
+    var(--white-a10) 0 0 0 1px;
+}
+.needt-v3 .axs-note {
+  max-width: 380px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 14px;
+}
+.needt-v3 .axs-note .ax-link,
+.needt-v3 .axs-switch .ax-link {
+  color: var(--text-primary);
+}
+.needt-v3 .axs-switch {
+  font-size: 13px;
+}
+.needt-v3 .axs-skip {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font: 500 13px/1 var(--font-sans);
+}
+.needt-v3 .axs-h {
+  margin: 0;
+}
+.needt-v3 .axs-art {
+  position: relative;
+  width: 100%;
+  height: 300px;
+}
+@media (max-width: 1099px) {
+  .needt-v3 .axs-art {
+    display: none;
+  }
+  .needt-v3 .axs-left {
+    flex-basis: auto !important;
+  }
+}
+.needt-v3 .axs-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  cursor: default;
+  background: transparent;
+  font: 500 13px/1 var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .axs-back:hover {
+  background: var(--fill-3);
+  color: var(--text-secondary);
+}
+.needt-v3 .axs-go {
+  min-width: 140px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+/* V-type: chrome type is 13 / 12 px, never 14 or 15 (CLAUDE.md, four rules).
+   The vendored auth.css sets fields, the OAuth buttons and the row titles in
+   14-15 px; the onboarding lede stays a body size (it is prose on the sky). */
+.needt-v3 .auth-field-input,
+.needt-v3 .auth-oauth,
+.needt-v3 .auth-row-text,
+.needt-v3 .auth-row-row.is-compact .auth-row-text {
+  font-size: 13px;
+}
+.needt-v3 .px-on-sky.auth-onboarding-text-3 {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* The show / hide eye in the password field: a ghost icon button (the
+   prototype used the design system's IconButton). */
+.needt-v3 .auth-eye {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: default;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.needt-v3 .auth-eye:hover {
+  background: var(--fill-3);
+  color: var(--text-secondary);
+}
+.needt-v3 .auth-eye:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

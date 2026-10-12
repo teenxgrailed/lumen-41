@@ -10,6 +10,8 @@ const baseUrl = (process.env.NEEDT_BASE_URL || "http://localhost:3000").replace(
 );
 const connectToken = process.env.NEEDT_CONNECT_TOKEN;
 
+//todo: switch these tools to the shared ops registry (GET /api/connect/ops,
+// POST /api/connect/ops/:name) so MCP calls are logged and undoable.
 const tools = [
   {
     name: "needt_create_task",
@@ -57,8 +59,7 @@ const tools = [
   },
   {
     name: "needt_reschedule",
-    description:
-      "Run Needt rescheduling through POST /api/connect/reschedule.",
+    description: "Run Needt rescheduling through POST /api/connect/reschedule.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -72,7 +73,23 @@ const tools = [
       type: "object",
       required: ["action"],
       properties: {
-        action: { type: "string", enum: ["overview", "create_project", "update_project", "update_task", "complete_task", "create_calendar", "create_event", "update_event", "delete_task", "delete_project", "delete_event", "delete_calendar"] },
+        action: {
+          type: "string",
+          enum: [
+            "overview",
+            "create_project",
+            "update_project",
+            "update_task",
+            "complete_task",
+            "create_calendar",
+            "create_event",
+            "update_event",
+            "delete_task",
+            "delete_project",
+            "delete_event",
+            "delete_calendar",
+          ],
+        },
         id: { type: "string" },
         title: { type: "string" },
         name: { type: "string" },

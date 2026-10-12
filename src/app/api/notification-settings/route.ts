@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import {
+  notificationSettingsV3FieldsSchema,
+  parseV3Fields,
+} from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { getVapidConfiguration } from "@/lib/push-config";
 
@@ -48,6 +52,11 @@ export async function GET(request: NextRequest) {
       webPushConfigured,
       webPushEnabled: settings.webPushEnabled,
       webPushSubscription: settings.webPushSubscription,
+      dailyPlan: settings.dailyPlan,
+      dailyPlanTime: settings.dailyPlanTime,
+      mailPlan: settings.mailPlan,
+      nudges: settings.nudges,
+      weeklyReview: settings.weeklyReview,
     });
   } catch (error) {
     logger.error(
@@ -71,6 +80,10 @@ export async function PATCH(request: NextRequest) {
 
     const userId = auth.userId;
     const updates = await request.json();
+    const v3 = parseV3Fields(notificationSettingsV3FieldsSchema, updates);
+    if (!v3.ok) {
+      return NextResponse.json({ error: v3.error }, { status: 400 });
+    }
     const webPushConfigured = getVapidConfiguration().configured;
 
     // Transform the updates to match the database schema
@@ -86,6 +99,7 @@ export async function PATCH(request: NextRequest) {
         : undefined,
       webPushEnabled: updates.webPushEnabled,
       webPushSubscription: updates.webPushSubscription,
+      ...v3.data,
     };
 
     const settings = await prisma.notificationSettings.upsert({
@@ -111,6 +125,11 @@ export async function PATCH(request: NextRequest) {
       webPushConfigured,
       webPushEnabled: settings.webPushEnabled,
       webPushSubscription: settings.webPushSubscription,
+      dailyPlan: settings.dailyPlan,
+      dailyPlanTime: settings.dailyPlanTime,
+      mailPlan: settings.mailPlan,
+      nudges: settings.nudges,
+      weeklyReview: settings.weeklyReview,
     });
   } catch (error) {
     logger.error(

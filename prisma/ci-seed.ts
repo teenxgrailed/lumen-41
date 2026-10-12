@@ -1,10 +1,9 @@
-import { hash } from "bcryptjs";
-
 import {
   PrismaClient,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 import { newDate } from "../src/lib/date-utils";
 
@@ -20,6 +19,19 @@ async function main() {
       enabled: false,
       rolloutPercentage: 0,
       description: "Workspace tenancy boundary rollout",
+    },
+  });
+
+  // Registration is closed in production until launch; the e2e suites sign
+  // new accounts up, so CI opens it the way the owner will at launch.
+  await prisma.featureFlag.upsert({
+    where: { key: "signups_open" },
+    update: { enabled: true, rolloutPercentage: 100 },
+    create: {
+      key: "signups_open",
+      enabled: true,
+      rolloutPercentage: 100,
+      description: "New account registration (closed until launch)",
     },
   });
 

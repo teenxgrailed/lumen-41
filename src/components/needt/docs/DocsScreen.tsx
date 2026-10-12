@@ -16,10 +16,13 @@
  * The project hue lives on the tile only — the sheet inside the card stays
  * the same raised white every project's card gets.
  *
- * Exported, not mounted: this drops into `screenSlots.docs` inside
+ * Takes no route of its own: this drops into `screenSlots.docs` inside
  * `ScreenFrame`, which already draws the "Documents" title and blurb — so
  * this file owns the toolbar and the two sections beneath it, not a second
  * page title.
+ * That is a property of this file, not a licence to stop: a surface is
+ * not ported until the thing that reaches it lands with it — see
+ * `docs/handoff/design-workflow.md`.
  */
 import * as React from "react";
 

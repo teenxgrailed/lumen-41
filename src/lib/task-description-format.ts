@@ -1,6 +1,8 @@
 import DOMPurify from "isomorphic-dompurify";
 
-export const RICH_TEXT_DESCRIPTION_PREFIX = "<!--needt-rich-text:v1-->";
+import { RICH_TEXT_DESCRIPTION_PREFIX } from "./task-description-prefix";
+
+export { RICH_TEXT_DESCRIPTION_PREFIX };
 
 const ALLOWED_TAGS = [
   "a",

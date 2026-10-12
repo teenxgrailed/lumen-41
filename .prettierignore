@@ -32,3 +32,6 @@ prisma/generated/
 
 # Coverage directory
 coverage/ 
+# Frozen design prototype for the port (reference only)
+docs/port/prototype
+docs/port/_ds

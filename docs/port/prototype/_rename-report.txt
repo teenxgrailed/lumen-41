@@ -1,0 +1,211 @@
+NEEDT PROTOTYPE — FIELD RENAME TO DATABASE NAMES (07.10.26)
+=============================================================
+
+1. FIELDS RENAMED
+-----------------
+Task
+  est                 -> estimatedMinutes   (number, minutes)
+  due ("4 Sep")       -> dueDate            ("YYYY-MM-DD"; free text like "Today"/"Fri"/"Tomorrow" is normalized by NEEDT.toDate)
+  at (decimal hour)   -> scheduledStart     ("YYYY-MM-DDTHH:mm", local time; day = the task's day, hour = old `at`)
+  (new, derived)      -> scheduledEnd       (= scheduledStart + estimatedMinutes, default 30; recomputed by NEEDT.sync on every write)
+  time ("09:00"/"Fri")-> isFixed            (boolean: the person set the time by hand; the hour itself now lives in scheduledStart)
+  project (name)      -> projectId          (references Project.id: "ops", "ds", "german", "resale", "life", or "p-…" for user projects)
+  parts [{title,done}]-> TaskPart           ([{id, title, done}]; ids "<taskId>.<n>")
+  waitsOn {on, for}   -> TaskWait           ({personId, reason})
+  stage               -> Stage              (stage id referencing NEEDT.stages: todo | doing | review | done)
+
+Project
+  hue                 -> color
+  glyph               -> icon               (string icon name; seeds keep their icon, user projects default "folder")
+  (new)               -> id on every project, including user-created ones (work.jsx store)
+
+Doc
+  starred             -> isFavorite         (still shown as "Pinned")
+  trashed + trashedAt -> trashedAt          (null, or ISO timestamp; trashed = trashedAt != null)
+  cover / style.cover -> coverUrl           (top-level; data URL, "art:<id>", or null)
+  theme, ground, style-> style              (one JSON object: page style fields + legacy `theme` / `ground` preset ids)
+  project (name)      -> projectId
+
+Habit, Event, MailThread and Board / BoardItem / BoardMember: renamed in the second pass — see §6.
+Unchanged on purpose: people (person.hue).
+View-model objects (calendar blocks, RichBlock shapes, chat proposals) keep their own drawing names.
+
+2. HELPERS (Data.js, window.NEEDT)
+----------------------------------
+project(ref) -> {id, name, color, icon} by id, name or alias (seeds + user projects)
+projectName(taskOrDoc), projectIdOf(name)
+at(task) -> decimal hour | null      timeLabel(task) -> "HH:mm" | null
+dueLabel(task) -> "4 Sep" | null     dueDay(task) -> day of month | null
+toDate(any) -> "YYYY-MM-DD" | null   dayLabel(iso), iso(Date), hhmm(hour), stamp(isoDay, hour)
+sync(task)  -> keeps scheduledEnd = scheduledStart + estimatedMinutes
+moveDay(task, day) -> patch moving dueDate and scheduledStart/End together
+placeAt(task, day, hour) -> patch {dueDate, scheduledStart, scheduledEnd, isFixed: true}
+migrateTask / migrateProject / migrateDoc
+
+3. MIGRATION OF STORED DATA
+---------------------------
+Data.js runs once on every load (desktop and phone), before any screen reads storage:
+needt.projects.all, needt.projects -> migrateProject (ids, color, icon)
+needt.tasks -> migrateTask   (project names resolve to ids; unknown names get a stable slug id "p-<name>")
+needt.docs  -> migrateDoc
+Already-migrated records pass through unchanged. No other keys are touched.
+
+4. FILES TOUCHED
+----------------
+Data.js, App.jsx, HomeToday.jsx, TodayScreen.jsx, work.jsx, calendar2.jsx, Sidebar.jsx, ctx.jsx,
+Dialogs.jsx, Chat.jsx, search.jsx, stores.jsx, places.jsx, DocsScreen.jsx, MailScreen.jsx,
+import.jsx, Habits.jsx, Composer.jsx, ColumnsView.jsx, RichBlock.jsx, BlockDesigns.jsx,
+Miniature.jsx, Drag.jsx, CalendarScreen.jsx, Mobile.jsx
+Not touched: scenes.jsx (no task/project/doc fields), all .md files.
+
+5. FIELDS IN THE DATA BUT NOT IN THE DB SCHEMA
+----------------------------------------------
+Task
+  isFixed    — why: the planner must not move a time the person set by hand ("Fixed hours"); replaces old `time`. source: user
+  noSlot     — why: the task belongs to no day (e.g. a resale item that sells when it sells); no rail, not in the unplaced queue. source: user
+  entry      — why: the two-minute first step shown as "First step"; lowers the cost of starting. source: user
+  heat       — why: 0–1 intensity that drives the category flame. source: computed
+  holder     — why: which team member holds the task (face on cards, "Who"). source: user (assignee)
+  tone       — why: legacy accent tone for old block designs (info/accent/success). source: computed from project
+  value      — why: money a resale task is worth (sum on a money group). source: user
+  earned     — why: money already received for a resale task. source: user
+  movedFrom  — why: the hour the scheduler moved the task from, shown as a mark. source: computed
+  age        — why: days untouched; the title fades past 21 days. source: computed
+  overdue    — why: past its date and still open (drives the Overdue sections). source: computed
+  blockedBy  — why: id of the task that must close first (dependency chain, "unblocks" ranking). source: user
+  status     — why: To do / In progress / In review / Done label (overlaps Stage + done). source: user
+  done       — why: closed or not. source: user
+  source     — why: where the task came from (mail, chat) for the "From …" line. source: computed
+  auto, hardDeadline, kind, chunk, priority, note — why: Task-dialog settings (auto-schedule, hard deadline, task/event/doc, minimum work block, priority, notes). source: user
+Doc
+  hue        — why: cached colour of the doc's project for cards; updated on recolour. source: computed
+  updated, viewed, created — why: human labels ("20 min ago") on cards. source: computed (should come from timestamps)
+  body       — why: the page content as [kind, text, …] blocks. source: user
+  label      — why: display-only folder line for Template / Shared cards that have no project. source: computed
+  style.theme, style.ground — why: legacy preset ids an old page still wears. source: user
+Project
+  ground     — why: frame tint of the project card. source: user
+  seed       — why: marks the built-in projects (not written to "needt.projects"). source: computed
+
+
+6. SECOND PASS — HABITS, EVENTS, MAIL, MOODBOARDS (08.10.26)
+============================================================
+
+6.1 FIELDS RENAMED (old -> new)
+-------------------------------
+Habit                                   (localStorage "needt.habits")
+  id, title                 -> id, title             (unchanged)
+  project (name)            -> projectId             (Project.id via NEEDT.projectIdOf; unknown names get "p-<slug>")
+  at ("HH:mm" | null)       -> schedule.time         (schedule = {time, perWeek})
+  quota (n | null)          -> schedule.perWeek      (null = every day)
+  done [14] (1/0 strip)     -> HabitCheckin rows     ({habitId, date "YYYY-MM-DD", done}; "needt.habitCheckins")
+  (new)                     -> color                 (null = the project's colour, via NEEDT.habitColor)
+  (new)                     -> icon                  (null)
+  removed from the list     -> archivedAt            (ISO; Archive sets it, lists show archivedAt == null)
+  Strip, "n of 14", "n/3 this week", streak -> computed from checkins (habitDays / habitKept / habitWeek / habitStreak)
+
+Event                                   (localStorage "needt.events"; synced seed C2_EVENTS in calendar2.jsx)
+  day (day of month)        -> startAt               ("YYYY-MM-DDTHH:mm" local; day 21–31 = August, else September)
+  at (decimal hour)         -> startAt (time part)
+  len (minutes)             -> endAt                 (= startAt + len)
+  (new)                     -> isAllDay              (false; all-day = "…T00:00" to the next day, end exclusive)
+  (new)                     -> calendarId            ("work" | "personal" | "family"; own events "personal")
+  (new)                     -> source                ("needt" own events; seed: "google" (work), "apple" (personal))
+  (new)                     -> externalId            (provider id; null for source "needt")
+  The calendar still draws {day, at, len} blocks: NEEDT.eventBlock(event) makes them (view-model, not stored).
+
+MailThread                              (localStorage "needt.mail.threads"; seed NEEDT.mail in Data.js)
+  read {id: bool} map       -> isRead
+  made {id: taskId} map     -> taskId
+  gone {id: "archive"}      -> isArchived = true
+  gone {id: "delete"}       -> trashedAt (ISO)
+  unread (fixture)          -> isRead = !unread
+  day ("Today"…) + time     -> receivedAt            ("YYYY-MM-DDTHH:mm"; heading/time computed: NEEDT.mailDayLabel / mailTime)
+  acct                      -> accountId             ("gmail" | "outlook")
+  mail                      -> fromEmail
+  needs                     -> needsReply
+  task                      -> suggestedTask
+  attach                    -> attachment
+  subject, from, preview, body -> unchanged
+  "needt.mail.edge" (which fixture) -> gone: the edge set is written as threads (NEEDT.mailFixture("mail" | "empty" | "seed"))
+  Phone mail (MB_MAIL fixture, read state in memory) -> the same threads and store as the desktop.
+
+Board / BoardItem / BoardMember         (localStorage "needt.boards", "needt.boardItems", "needt.boardMembers";
+                                          was one nested list in "needt.moodboards")
+  Board  created (ms)       -> createdAt (ISO)
+  Board  pinterest {board, status, synced} -> pinterestBoardId (the linked board), pinterestStatus, pinterestSyncedAt (ISO)
+  Board  hard delete        -> trashedAt (ISO; Trash lists boards, Restore / Delete forever / Empty Trash)
+  Board  (new)              -> projectId (null)
+  Board  items[]            -> BoardItem rows, boardId + position (array order = position)
+  Board  members[]          -> BoardMember rows {boardId, email, role} (+ name)
+  Item   src (image)        -> url
+  Item   src (link preview) -> thumbnailUrl
+  Item   url (link)         -> url
+  Item   note (note text, or caption on any item) -> text
+  Item   added (ms)         -> createdAt (ISO)
+  Item   color              -> color (unchanged)
+  Old tiles [colour, ratio, caption, dataURL] -> colour / image items (as before, now in Data.js)
+  Pins: never stored — only pinterestBoardId (Pinterest developer rules). Screens read pins live (mock MB_PINS).
+
+6.2 HELPERS ADDED (Data.js, window.NEEDT)
+-----------------------------------------
+habitCheckins (seed rows), habitDoneOn(habitId, date?, checkins?), habitDays(habitId, checkins?, n=14, end?) -> [1/0…],
+habitKept(habitId, checkins?, n), habitStreak(habitId, checkins?), habitWeek(habitId, checkins?), habitTime(h),
+habitPerWeek(h), habitColor(h), liveHabits(list), setCheckin(checkins, habitId, date, done), migrateHabit(o),
+habitPatch(p) (old words at / quota / project -> database words)
+dayIso(dayOfMonth), makeEvent(p), eventAt(day, hour, minutes, extra), migrateEvent(o), eventMinutes(e),
+eventBlock(e) -> {day, date, at, len, …}, eventsInRange(list, from, to), moveEvent(e, startAt) -> patch
+mail (seed), mailThread(m) (defaults), mailDayLabel(receivedAt), mailTime(receivedAt), liveMail(list),
+mailFixture("seed" | "mail" | "empty"), migrateMail(oldMaps, edgeKind)
+splitBoards(list) / migrateBoards (nested or joined -> tables), joinBoards(tables) -> boards with items + members,
+liveBoards(list)
+(`checkins` defaults to the live window.habitApi list.)
+
+Stores (stores.jsx, both pages): window.habitApi {list, all, checkins, find, add, patch, toggle(id, on, date),
+rename, archive, remove, replace}, habitStore, habitCheckinStore, useHabits; window.mailApi {list, live, get, patch,
+reset}, mailThreadStore, useMail, mailUnread; window.boardStore (tables) + window.boardsView {get, set, sub, seed}
+(joined). calendar2.jsx: window.calEvents {list, inRange, add, patch, move, remove}. places.jsx mbApi gained
+restore / destroy; remove now trashes.
+
+6.3 MIGRATION OF STORED DATA
+----------------------------
+Data.js migrateStorage (runs on every load, desktop and phone, before any store reads):
+needt.habits with any old record (done / project / at / quota) -> Habit rows; done[14] -> HabitCheckin rows
+  (done[13] = today 2026-09-01), merged into needt.habitCheckins without duplicates.
+needt.events {day, at, len} -> Event rows (already-migrated rows pass through).
+needt.mail {made, read, gone} (+ needt.mail.edge) -> needt.mail.threads, only when no threads are stored yet;
+  the two old keys are removed.
+needt.moodboards (list, or {boards}) -> needt.boards / needt.boardItems / needt.boardMembers, only when
+  needt.boards is absent; the old key is removed.
+Callers that still speak the old shapes keep working: habitApi.add/patch translate at / quota / project;
+calEvents.add migrates {day, at, len}; habitApi.find(id) carries a read-only, non-stored `done` strip for ctx.jsx.
+
+6.4 FILES TOUCHED
+-----------------
+Data.js, stores.jsx, Habits.jsx, HomeToday.jsx, calendar2.jsx (data layer only), MailScreen.jsx, places.jsx,
+Mobile.jsx, search.jsx, work.jsx (edge data), SCREENS.md, PORT.md, this report.
+Not touched: App.jsx, ctx.jsx, import.jsx, states.jsx (they work through the compatibility paths above), scenes.jsx,
+paywall.jsx, MobileAuth.jsx (reads none of these shapes), Sidebar.jsx (reads only mailUnread / calNext, unchanged),
+connections.jsx (no board data).
+
+6.5 FIELDS IN THE DATA BUT NOT IN THE DB SCHEMA
+-----------------------------------------------
+MailThread
+  accountId, fromEmail, preview, body, attachment — why: what the reader shows; comes from the provider. source: provider (synced)
+  needsReply — why: the "Needs you" tab and tag. source: computed (provider labels / a classifier)
+  suggestedTask — why: the title "Make a task" uses. source: computed (AI)
+Board
+  createdAt — why: sort / "created" line. source: computed (timestamp)
+  pinterestStatus ("ok" | "lost") — why: the lost-access bar on a linked board. source: computed (Pinterest API answer)
+  pinterestSyncedAt — why: "Synced 4 min ago". source: computed
+BoardItem
+  title — why: card caption / link title. source: user (upload name) or unfurl
+  ratio — why: masonry tile height before the image loads. source: computed
+  colorName — why: a swatch's name ("Signal red"). source: user
+  source {name, domain} — why: favicon badge and "are.na" line on link cards. source: computed (from url)
+  thumbnailUrl — why: a link's preview picture. source: computed (unfurl)
+  createdAt — why: "Added 4 Sep" in the detail. source: computed (timestamp)
+BoardMember
+  name — why: avatar initials and names in Share. source: computed (from the user record / email)
+Event
+  projectId — only on events made by the composer (App.jsx passes it). source: user

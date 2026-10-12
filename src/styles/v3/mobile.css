@@ -1,0 +1,181 @@
+/* ========================================================================
+   Needt design v3 — styles/mobile.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* mobile.css — the phone's shared pieces that are not the kit (09.10.26):
+   Mobile.jsx's doc reader page (.mb-doc-*), (the long-press / action-sheet
+   layer, .pk-hold / .pk-acts / .pk-hue-tile, is in phone-kit.css), the
+   moodboard media Mobile.jsx draws (MbmMedia / MbmCover / MbmAvatar /
+   MbmFaces / MbmPinMark, in Plates tokens), the states glyphs,
+   MobileAuth.jsx's sign-in / setup pieces and the presentation frame
+   (.iosf-*). Colours only via var(--…) tokens from themes.css. The old
+   phone's styles (tab bar, More, top chrome, the old screens, sheets and
+   the old Moodboards chrome) are in _archive/. *//* ── generated from the components, in file order (what is still drawn) ── */
+
+.needt-v3 .mb-u-flex-none { flex: none; }
+.needt-v3 .mb-doc-5 { margin: 0; font: 400 16px/25px var(--font-sans); font-style: italic; color: var(--text-disabled); }
+
+.needt-v3 .mb-composer-7 { position: static; width: 100%; height: 38px; color: var(--text-primary); }
+
+.needt-v3 .mb-composer-9 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+.needt-v3 .mb-composer-11 { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; overflow-x: auto; }
+.needt-v3 .mb-composer-12 { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: var(--radius-pill); }
+.needt-v3 .mb-composer-13 { font: var(--type-meta-medium); white-space: nowrap; }
+.needt-v3 .mb-composer-14 { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 9px; border-radius: var(--radius-pill); background: var(--fill-accent); color: var(--accent); font: var(--type-meta-medium); }
+
+.needt-v3 .mb-u-flex-none-height-52px { flex: none; height: 52px; }
+
+.needt-v3 .iosf-status-bar-1 { display: flex; gap: 154px; align-items: center; justify-content: center; padding: 21px 24px 19px; box-sizing: border-box; position: relative; z-index: 20; width: 100%; }
+.needt-v3 .iosf-status-bar-2 { flex: 1; height: 22px; display: flex; align-items: center; justify-content: center; padding-top: 1.5px; }
+.needt-v3 .iosf-status-bar-3 { font-family: -apple-system, "SF Pro", system-ui; font-weight: 590; font-size: 17px; line-height: 22px; }
+.needt-v3 .iosf-status-bar-4 { flex: 1; height: 22px; display: flex; align-items: center; justify-content: center; gap: 7px; padding-top: 1px; padding-right: 1px; }
+.needt-v3 .iosf-glass-pill-1 { height: 44px; min-width: 44px; border-radius: 9999px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.needt-v3 .iosf-glass-pill-2 { position: absolute; inset: 0; border-radius: 9999px; backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%); }
+.needt-v3 .iosf-glass-pill-3 { position: absolute; inset: 0; border-radius: 9999px; }
+.needt-v3 .iosf-glass-pill-4 { position: relative; z-index: 1; display: flex; align-items: center; padding: 0 4px; }
+.needt-v3 .iosf-pill-icon-1 { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+.needt-v3 .iosf-nav-bar-1 { display: flex; flex-direction: column; gap: 10px; padding-top: 62px; padding-bottom: 10px; position: relative; z-index: 5; }
+.needt-v3 .iosf-nav-bar-2 { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.needt-v3 .iosf-nav-bar-3 { margin-left: -1px; }
+.needt-v3 .iosf-nav-bar-4 { padding: 0 16px; font-family: -apple-system, system-ui; font-size: 34px; font-weight: 700; line-height: 41px; letter-spacing: 0.4px; }
+.needt-v3 .iosf-device-1 { border-radius: 48px; overflow: hidden; position: relative; box-shadow: 0 40px 80px var(--black-a18), 0 0 0 1px var(--black-a12); font-family: -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.needt-v3 .iosf-device-2 { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 126px; height: 37px; border-radius: 24px; background: var(--color-black); z-index: 50; }
+.needt-v3 .iosf-device-3 { position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+.needt-v3 .iosf-device-4 { height: 100%; display: flex; flex-direction: column; }
+.needt-v3 .iosf-device-5 { flex: 1; overflow: auto; }
+.needt-v3 .iosf-device-6 { position: absolute; bottom: 0; left: 0; right: 0; z-index: 60; height: 34px; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 8px; pointer-events: none; }
+.needt-v3 .iosf-device-7 { width: 139px; height: 5px; border-radius: 100px; }
+.needt-v3 .iosf-key-1 { height: 42px; border-radius: 8.5px; min-width: 0; box-shadow: 0 1px 0 var(--black-a7_5); display: flex; align-items: center; justify-content: center; }
+.needt-v3 .iosf-row-1 { display: flex; gap: 6.5px; justify-content: center; }
+.needt-v3 .iosf-keyboard-1 { position: relative; z-index: 15; border-radius: 27px; overflow: hidden; padding: 11px 0 2px; display: flex; flex-direction: column; align-items: center; }
+.needt-v3 .iosf-keyboard-2 { position: absolute; inset: 0; border-radius: 27px; backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%); }
+.needt-v3 .iosf-keyboard-3 { position: absolute; inset: 0; border-radius: 27px; pointer-events: none; }
+.needt-v3 .iosf-keyboard-4 { display: flex; gap: 20px; align-items: center; padding: 8px 22px 13px; width: 100%; box-sizing: border-box; position: relative; }
+.needt-v3 .iosf-keyboard-5 { width: 1px; height: 25px; background: var(--ios-key-divider); opacity: 0.3; }
+.needt-v3 .iosf-keyboard-6 { flex: 1; text-align: center; font-family: -apple-system, system-ui; font-size: 17px; letter-spacing: -0.43px; line-height: 22px; }
+.needt-v3 .iosf-keyboard-7 { display: flex; flex-direction: column; gap: 13px; padding: 0 6.5px; width: 100%; box-sizing: border-box; position: relative; }
+.needt-v3 .iosf-keyboard-8 { display: flex; gap: 14.25px; align-items: center; }
+.needt-v3 .iosf-keyboard-9 { display: flex; gap: 6.5px; flex: 1; }
+.needt-v3 .iosf-keyboard-10 { display: flex; gap: 6px; align-items: center; }
+.needt-v3 .iosf-keyboard-11 { height: 56px; width: 100%; position: relative; }
+
+/* Document — the desktop's page style, read from the same Doc.style through
+   doc-style.jsx (backdrop, page, text, cover, separator, font). As on the
+   desktop the backdrop fills the screen behind the page and the page is a
+   card floating on it; without one the page is the screen. --dc-bd-l /
+   --dc-bd-d and the .dt-themed pair are computed per doc and set inline.
+   Sizes are the desktop sheet's (DocsScreen.jsx, docs.css) at phone scale. */
+.needt-v3 .mb-doc { position: relative; min-height: 100%; display: flex; flex-direction: column; }
+.needt-v3 .mb-doc.has-bd::before { content: ""; position: absolute; inset: 0; background: var(--dc-bd-l); }
+.needt-v3[data-theme="dark"] .mb-doc.has-bd::before { background: var(--dc-bd-d); }
+.needt-v3 .mb-doc-card { position: relative; flex: 1 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 8px 20px 140px; background: var(--dt-page); font: 400 16px/1.5 var(--font-sans); color: rgba(var(--foreground-rgb), 1); }
+.needt-v3 .mb-doc-card.on-backdrop { margin: 28px 12px 0; padding: 24px 20px 140px; border-radius: 20px 20px 0 0; box-shadow: var(--shadow-ring); }
+.needt-v3 .mb-doc-card.has-cover { padding-top: 0; }
+.needt-v3 .mb-doc-cover { position: relative; flex: none; height: 150px; margin: 0 -20px 12px; overflow: hidden; }
+.needt-v3 .mb-doc-card.on-backdrop .mb-doc-cover { border-radius: 20px 20px 0 0; }
+.needt-v3 .mb-doc-meta { font: var(--type-meta); color: var(--text-tertiary); overflow-wrap: anywhere; }
+.needt-v3 .mb-doc-title { margin: 0; font: 700 28px/34px var(--font-sans); letter-spacing: -0.015em; color: var(--dt-head); overflow-wrap: anywhere; hyphens: auto; }
+.needt-v3 .mb-doc-card[data-dc-font="serif"] .mb-doc-title { letter-spacing: -0.005em; }
+.needt-v3 .mb-doc-title.is-empty { color: var(--text-disabled); }
+.needt-v3 .mb-doc-sep.is-line { margin: 2px 0 10px; }
+.needt-v3 .mb-doc-title + .mb-doc-sep.is-dots,
+.needt-v3 .mb-doc-title + .mb-doc-sep.is-wave { margin: -6px 0 8px; }
+.needt-v3 .mb-doc-sep.is-block { margin: 6px 0; }
+.needt-v3 .mb-doc-h { margin: 4px 0 0; font: 600 20px/26px var(--font-sans); color: var(--dt-head, inherit); }
+.needt-v3 .mb-doc-p { margin: 0; font: inherit; color: inherit; text-wrap: pretty; overflow-wrap: anywhere; }
+.needt-v3 .mb-doc-p.is-lead { margin-bottom: 14px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--doc-block); }
+.needt-v3 .mb-doc-p.is-row { display: flex; gap: 10px; }
+.needt-v3 .mb-doc-p.is-li { padding-left: 8px; }
+.needt-v3 .mb-doc-p.is-center { align-items: center; }
+.needt-v3 .mb-doc-p.is-quote { padding-left: 14px; box-shadow: var(--text-primary) 3px 0 0 0 inset; font-style: italic; }
+.needt-v3 .mb-doc-p.is-callout { padding: 12px 14px; border-radius: var(--radius-lg); background: color-mix(in oklab, var(--dt-accent, var(--accent)) 14%, transparent); }
+.needt-v3 .mb-doc-callout-icon { flex: none; display: flex; margin-top: 3px; color: var(--dt-accent, var(--accent)); }
+.needt-v3 .mb-doc-p.is-muted { color: var(--text-secondary); }
+.needt-v3 .mb-doc-check { flex: none; width: 16px; height: 16px; margin-top: 4px; border-radius: 5px; display: grid; place-items: center; color: var(--surface-raised); box-shadow: var(--text-disabled) 0 0 0 1.5px inset; }
+.needt-v3 .mb-doc-check.is-on { background: var(--accent); box-shadow: none; }
+.needt-v3 .mb-doc-todo { flex: 1; min-width: 0; }
+.needt-v3 .mb-doc-todo.is-done { color: var(--text-quaternary); text-decoration: line-through; }
+.needt-v3 .mb-doc-task { min-height: 40px; padding: 0 12px; border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.needt-v3 .mb-doc-task-ring { flex: none; width: 16px; height: 16px; border-radius: 6px; box-shadow: color-mix(in oklab, var(--text-primary) 26%, transparent) 0 0 0 1.5px inset; }
+.needt-v3 .mb-doc-task-title { flex: 1; min-width: 0; font: var(--type-ui-medium); }
+.needt-v3 .mb-doc-task-meta { flex: none; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .mb-doc-code { margin: 0; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--doc-block); box-shadow: var(--shadow-inset-ring); font: 400 13px/20px var(--font-mono); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.needt-v3 .mb-doc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.needt-v3 .mb-doc-card-tile { height: 84px; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; border-radius: var(--radius-lg); background: var(--fill-2); box-shadow: var(--shadow-inset-ring); font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .mb-doc-card-tile > svg { color: var(--text-tertiary); }
+.needt-v3 .mb-doc-table { display: flex; flex-direction: column; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-ring); font: var(--type-ui); }
+.needt-v3 .mb-doc-table-row { display: flex; }
+.needt-v3 .mb-doc-table-row + .mb-doc-table-row { box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .mb-doc-table-cell { flex: 1; min-width: 0; padding: 7px 10px; overflow-wrap: anywhere; }
+.needt-v3 .mb-doc-table-cell + .mb-doc-table-cell { box-shadow: var(--border) 1px 0 0 0 inset; }
+.needt-v3 .mb-doc-table-cell.is-first { font: var(--type-ui-medium); }/* The list thumb: the backdrop around a little page. */
+.needt-v3 .mb-doc-thumb { flex: none; box-sizing: border-box; width: 40px; height: 50px; border-radius: 9px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-ring); }
+.needt-v3 .mb-doc-thumb.has-bd { padding: 6px 5px 0; background: var(--dc-bd-l); }
+.needt-v3[data-theme="dark"] .mb-doc-thumb.has-bd { background: var(--dc-bd-d); }
+.needt-v3 .mb-doc-thumb-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--dt-page); }
+.needt-v3 .mb-doc-thumb.has-bd .mb-doc-thumb-page { border-radius: 4px 4px 0 0; }
+.needt-v3 .mb-doc-thumb-cover { position: relative; flex: none; display: block; height: 14px; overflow: hidden; }
+.needt-v3 .mb-doc-thumb.has-bd .mb-doc-thumb-cover { height: 9px; }
+.needt-v3 .mb-doc-thumb-lines { display: flex; flex-direction: column; gap: 3px; padding: 6px; }
+.needt-v3 .mb-doc-thumb.has-bd .mb-doc-thumb-lines { gap: 2px; padding: 4px; }
+.needt-v3 .mb-doc-thumb-head { height: 3px; width: 70%; border-radius: 2px; background: var(--dt-head); }
+.needt-v3 .mb-doc-thumb-line { height: 2px; border-radius: 2px; background: var(--fill-6); }
+.needt-v3 .mb-doc-thumb-line.is-short { width: 80%; }/* Sign-in and setup states: a note on the glass, a field in error, a button
+   that cannot be pressed while offline. */
+.needt-v3 .ma-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--fill-2); font: var(--type-meta); color: var(--text-secondary); text-wrap: pretty; }
+.needt-v3 .ma-note > svg { flex: none; margin-top: 1px; }
+.needt-v3 .ma-note.is-attention { background: color-mix(in oklch, var(--destructive) 8%, transparent); color: var(--text-primary); }
+.needt-v3 .ma-note.is-attention > svg { color: var(--destructive); }/* ── behaviour: press, focus, motion (was injected from Mobile.jsx; kept last so it wins ties) ── */
+.needt-v3 .mb-press { transition: transform 90ms ease, background-color 120ms ease; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .mb-press:active { transform: scale(0.97); }
+.needt-v3 .mb-press:focus-visible,
+.needt-v3 .mb-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .mb-press[disabled] { opacity: .4; }
+.needt-v3 .mb-row { -webkit-tap-highlight-color: transparent; transition: background-color 120ms ease; }
+.needt-v3 .mb-row:active { background: var(--fill-3); }
+@keyframes v3-mb-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } } .needt-v3 .mb-push { animation: v3-mb-in .28s cubic-bezier(0.2, 0.9, 0.24, 1); }
+
+.needt-v3 [data-mb-screen] > * { flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .mb-push { animation: none; }   }
+
+.needt-v3 .mb-composer-12 { background: color-mix(in oklab, var(--tone) 13%, var(--surface-raised)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone) 30%, transparent); color: var(--tone); }/* the app root */
+.needt-v3 .mb-root { position: relative; display: flex; flex-direction: column; height: 100%; overflow: hidden; color: var(--text-primary); background: var(--background); transition: background-color 0.3s ease, color 0.3s ease; }
+/* ── moodboard media (Mobile.jsx MbmMedia, MbmCover, faces) on the Plates ground ── */
+.needt-v3 .mbm-pin-mark-1 { flex: none; display: grid; place-items: center; background: var(--brand-pinterest); color: var(--brand-pinterest-fg); }
+.needt-v3 .mbm-avatar-1 { flex: none; display: grid; place-items: center; background: color-mix(in oklab, var(--hue) 26%, var(--v2p-raise)); color: color-mix(in oklab, var(--hue) 60%, var(--v2p-ink)); font: 500 10px/1 var(--font-sans); }
+.needt-v3 .mbm-avatar-1.is-ring { box-shadow: 0 0 0 2px var(--v2p-ground); }
+.needt-v3 .mbm-faces-1 { display: flex; align-items: center; }
+.needt-v3 .mbm-faces-2 { margin-left: 4px; font: 400 12px/16px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .mbm-face { display: flex; }
+.needt-v3 .mbm-face + .mbm-face { margin-left: -6px; }
+.needt-v3 .mbm-media-1 { display: block; width: 100%; object-fit: cover; background: var(--v2p-raise); }
+.needt-v3 .mbm-media-2 { position: relative; display: block; width: 100%; background: var(--swatch, var(--v2p-raise)); box-shadow: inset 0 0 0 1px var(--v2p-line); }
+.needt-v3 .mbm-media-3 { position: absolute; left: 12px; bottom: 10px; display: flex; flex-direction: column; gap: 1px; color: var(--ink); }
+.needt-v3 .mbm-media-name { font: 500 13px/17px var(--font-sans); }
+.needt-v3 .mbm-media-4 { opacity: 0.8; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.02em; }
+.needt-v3 .mbm-media-2.is-big .mbm-media-3 { left: 18px; bottom: 16px; }
+.needt-v3 .mbm-media-2.is-big .mbm-media-name { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.02em; }
+.needt-v3 .mbm-media-2.is-big .mbm-media-4 { font-size: 13px; }
+.needt-v3 .mbm-media-5 { display: flex; flex-direction: column; overflow: hidden; background: var(--v2p-raise); }
+.needt-v3 .mbm-media-6 { display: block; width: 100%; object-fit: cover; }
+.needt-v3 .mbm-media-7 { display: grid; place-items: center; width: 100%; color: color-mix(in oklab, var(--hue) 70%, var(--v2p-ink));
+  background: linear-gradient(160deg, color-mix(in oklab, var(--hue) 22%, var(--v2p-raise)), color-mix(in oklab, var(--hue) 6%, var(--v2p-raise))); }
+.needt-v3 .mbm-media-8 { opacity: 0.85; font: 600 36px/1 var(--font-sans); letter-spacing: -0.04em; }
+.needt-v3 .mbm-media-9 { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; }
+.needt-v3 .mbm-media-10 { color: var(--v2p-ink); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font: 500 13px/17px var(--font-sans); }
+.needt-v3 .mbm-media-11 { display: flex; align-items: center; gap: 5px; font: 400 12px/16px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .mbm-media-5.is-big .mbm-media-8 { font-size: 64px; }
+.needt-v3 .mbm-media-5.is-big .mbm-media-9 { padding: 14px 16px 16px; }
+.needt-v3 .mbm-media-5.is-big .mbm-media-10 { font: 500 17px/1.3 var(--font-sans); -webkit-line-clamp: 4; }
+.needt-v3 .mbm-media-12 { display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 12px; background: color-mix(in oklab, var(--hue-yellow) 14%, var(--v2p-raise)); }
+.needt-v3 .mbm-media-13 { color: var(--v2p-ink); display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; text-wrap: pretty; font: 400 14px/1.4 var(--font-sans); }
+.needt-v3 .mbm-media-12.is-big { padding: 20px 18px; }
+.needt-v3 .mbm-media-12.is-big .mbm-media-13 { font: 400 19px/1.45 var(--font-sans); display: block; }
+.needt-v3 .mbm-cover-1 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: var(--v2p-raise); }
+.needt-v3 .mb-cell-1 { background: var(--v2p-raise); }
+.needt-v3 .mb-cell-2 { width: 100%; height: 100%; object-fit: cover; display: block; }
+.needt-v3 .mb-cell-3 { display: grid; place-items: center; background: color-mix(in oklab, var(--hue) 16%, var(--v2p-raise)); color: color-mix(in oklab, var(--hue) 70%, var(--v2p-ink)); }
+.needt-v3 .mb-cell-4 { padding: 7px; background: color-mix(in oklab, var(--hue-yellow) 14%, var(--v2p-raise)); font: 500 8.5px/1.3 var(--font-sans); color: var(--v2p-ink-2); overflow: hidden; }
+.needt-v3 .mb-cell-5 { background: var(--swatch, var(--v2p-raise)); }

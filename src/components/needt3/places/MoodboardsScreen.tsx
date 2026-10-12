@@ -1,0 +1,340 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  LuArrowDown,
+  LuArrowUp,
+  LuCheck,
+  LuEllipsis,
+  LuLock,
+  LuPlus,
+} from "react-icons/lu";
+
+import { ProLimit, ProUpsell, useIsPro } from "@/components/needt3/paywall/Pro";
+
+import { useBoards } from "@/lib/needt3/hooks/boards";
+import { usePlan } from "@/lib/needt3/hooks/plan";
+import type { V3Board } from "@/lib/needt3/map";
+import { notify } from "@/lib/notifications";
+
+import strings from "../../../../docs/port/prototype/port/strings/en.json";
+import { registerCtx } from "../ctx/registry";
+import { Art } from "../menu/Art";
+import { RichMenu } from "../menu/RichMenu";
+import { PlEmpty, StScreen } from "../states/StScreen";
+import { PlCollage } from "./PlCollage";
+import { DropMenu, MenuRow } from "./PlMenu";
+import { PlaceHeader } from "./PlaceHeader";
+import { isPrivateBoard, personName } from "./board/logic";
+import { Avatars } from "./board/parts";
+import {
+  BOARD_SORTS,
+  type BoardSort,
+  DEFAULT_BOARD_SORT,
+  FREE_BOARDS,
+  boardCount,
+  boardGate,
+  parseBoardSort,
+  pickBoardSort,
+  referencesLabel,
+} from "./derive";
+import type { BoardsController } from "./useBoardsController";
+
+const mb = strings["places.jsx"].MoodboardsScreen;
+const SORT_KEY = "needt.mbSort";
+
+const readSort = (): BoardSort => {
+  try {
+    return parseBoardSort(window.localStorage.getItem(SORT_KEY));
+  } catch {
+    return DEFAULT_BOARD_SORT;
+  }
+};
+const writeSort = (sort: BoardSort) => {
+  try {
+    window.localStorage.setItem(SORT_KEY, JSON.stringify(sort));
+  } catch {
+    /* private mode: the sort lasts until reload */
+  }
+};
+
+const upgrade = () => window.location.assign("/settings#billing");
+
+/** The desktop's notice when a new board is refused by the Free allowance. */
+export function notifyBoardsBlocked() {
+  notify.info(
+    `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}. Upgrade to Pro for more.`,
+    { action: { label: "See plans", onClick: upgrade } }
+  );
+}
+
+/**
+ * Moodboards (places.jsx `MoodboardsScreen`, the grid of boards): create,
+ * sort (⋯ → Sort by, ordered by the server), open and delete (to Trash, with
+ * Undo). A board opens at `/moodboards/[id]` (`board/BoardPage`).
+ */
+export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
+  const [sort, setSortState] = useState<BoardSort>(DEFAULT_BOARD_SORT);
+  useEffect(() => setSortState(readSort()), []);
+  // The server orders the list (Name, Date created, Date updated).
+  const boards = useBoards(sort);
+  const plan = usePlan();
+  const pro = useIsPro();
+
+  const live = useMemo(
+    () => (boards.data ?? []).filter((b) => !b.trashedAt),
+    [boards.data]
+  );
+  const gate = boardGate(plan.data?.kind, live.length);
+  const shown = live;
+
+  const setSort = (key: BoardSort["key"]) =>
+    setSortState((cur) => {
+      const next = pickBoardSort(cur, key);
+      writeSort(next);
+      return next;
+    });
+
+  const open = ctl.open;
+
+  // Create, the notice with Undo and opening the board are the controller's:
+  // they are not left to a screen that may unmount mid-write.
+  const newBoard = () =>
+    ctl.make(mb.untitled_moodboard, () => mb.moodboard_created);
+
+  const remove = (b: V3Board) =>
+    ctl.remove({ id: b.id, title: b.title || mb.untitled_moodboard });
+
+  // Right-click on a card: Open, Delete board.
+  useEffect(
+    () =>
+      registerCtx("moodboard", ({ id }) => {
+        const b = live.find((x) => x.id === id);
+        return b
+          ? [
+              [
+                { label: "Open", run: () => open(b.id) },
+                {
+                  label: "Delete board",
+                  tone: "danger",
+                  run: () => void remove(b),
+                },
+              ],
+            ]
+          : null;
+      }),
+    // open / remove only read stable router and mutation handles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [live]
+  );
+
+  return (
+    <div className="scroll-inner pl-page" data-v3-screen="moodboards">
+      <PlaceHeader
+        art="stack"
+        title={mb.moodboards}
+        meta={
+          // Free: "3 boards · Free includes 1  Upgrade for more" (ProLimit).
+          pro ? (
+            boardCount(live.length)
+          ) : (
+            <ProLimit
+              used={live.length}
+              max={FREE_BOARDS}
+              noun="boards"
+              feature={mb.unlimited_moodboards}
+            />
+          )
+        }
+        add={
+          <button
+            type="button"
+            aria-label={mb.new_moodboard}
+            title={mb.new_moodboard}
+            data-page-add=""
+            className="nx-btn nx-btn-secondary page-add"
+            onClick={() => void newBoard()}
+          >
+            <LuPlus size={18} aria-hidden />
+          </button>
+        }
+        actions={
+          live.length ? (
+            <DropMenu
+              width={220}
+              trigger={() => (
+                <button
+                  type="button"
+                  aria-label={mb.more}
+                  data-mb-more=""
+                  className="nx-btn nx-btn-secondary pl-mb-round"
+                >
+                  <LuEllipsis size={18} aria-hidden />
+                </button>
+              )}
+            >
+              <span
+                className="base-meta"
+                style={{ display: "block", padding: "6px 8px 2px" }}
+              >
+                Sort by
+              </span>
+              {BOARD_SORTS.map(({ key, label }) => {
+                const on = sort.key === key;
+                return (
+                  <MenuRow
+                    key={key}
+                    keepOpen
+                    icon={on ? <LuCheck size={14} aria-hidden /> : null}
+                    hint={
+                      on ? (
+                        <span className="docs-sort-arrow">
+                          {sort.dir === "asc" ? (
+                            <LuArrowUp size={13} aria-hidden />
+                          ) : (
+                            <LuArrowDown size={13} aria-hidden />
+                          )}
+                        </span>
+                      ) : undefined
+                    }
+                    onClick={() => setSort(key)}
+                  >
+                    {label}
+                  </MenuRow>
+                );
+              })}
+            </DropMenu>
+          ) : null
+        }
+      />
+      <StScreen query={boards} kind="grid" screen="moodboards">
+        {!live.length ? (
+          <PlEmpty
+            art={<Art name="stack" size={56} />}
+            title={mb.no_moodboards_yet}
+            line={`${mb.collect_pictures_links_and_colours_for_w}${
+              gate.max !== null
+                ? " Free keeps one board — Pro adds as many as you like."
+                : ""
+            }`}
+            action={
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                onClick={() => void newBoard()}
+              >
+                <LuPlus size={14} aria-hidden />
+                {mb.new_moodboard}
+              </button>
+            }
+          />
+        ) : (
+          <div className="pl-mb-grid-3">
+            {shown.map((b, i) => (
+              <div
+                key={b.id}
+                role="button"
+                tabIndex={0}
+                data-ctx="moodboard"
+                data-ctx-id={b.id}
+                className="nx-swap nx-press nx-focus pl-mb-card pl-mb-col-3"
+                style={{ animationDelay: `${Math.min(i, 12) * 35}ms` }}
+                onClick={() => open(b.id)}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && e.key === "Enter")
+                    open(b.id);
+                }}
+              >
+                <PlCollage items={b.preview ?? []} height={150} />
+                <span className="pl-mb-row-5">
+                  <span className="pl-mb-col-4">
+                    <span className="pl-link-sheet-text-2">
+                      {b.title || mb.untitled_moodboard}
+                    </span>
+                    <span className="pl-link-sheet-row-2">
+                      {b.itemCount
+                        ? referencesLabel(b.itemCount)
+                        : b.hasCanvas
+                          ? "Canvas board"
+                          : b.itemCount === 0
+                            ? referencesLabel(0)
+                            : "Moodboard"}
+                      {b.pinterestBoardId ? " · Pinterest" : ""}
+                    </span>
+                  </span>
+                  <span className="pl-mb-row-7">
+                    {isPrivateBoard({
+                      memberCount: b.memberCount,
+                      linkShare: b.linkShare,
+                    }) ? (
+                      <span
+                        className="mb-lock pl-mb-row-3"
+                        title="Private — only you"
+                      >
+                        <LuLock size={13} aria-label="Private" />
+                      </span>
+                    ) : (b.members?.length ?? 0) > 0 ? (
+                      <Avatars
+                        people={(b.members ?? []).map((m) => ({
+                          key: m.email ?? m.userId,
+                          name: personName(m),
+                        }))}
+                        size={20}
+                        max={3}
+                        total={b.memberCount ?? undefined}
+                      />
+                    ) : null}
+                  </span>
+                  <span
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="pl-habit-menu-row"
+                  >
+                    <RichMenu
+                      small
+                      align="right"
+                      width={200}
+                      items={[
+                        {
+                          art: "page",
+                          title: "Open",
+                          onClick: () => open(b.id),
+                        },
+                        {
+                          art: "trash",
+                          title: "Delete board",
+                          onClick: () => void remove(b),
+                        },
+                      ]}
+                      trigger={
+                        <button
+                          type="button"
+                          aria-label={`${mb.more} for ${b.title}`}
+                          className="nx-press pl-mb-more pl-mb-grid-4"
+                        >
+                          <LuEllipsis size={15} aria-hidden />
+                        </button>
+                      }
+                    />
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </StScreen>
+      {/* The one soft upsell here (Free only, dismissible for good). */}
+      {live.length ? (
+        <ProUpsell
+          id="moodboards"
+          feature={mb.unlimited_moodboards}
+          title={mb.unlimited_moodboards}
+          line={mb.free_keeps_one_board_pro_adds_as_many_as_2}
+          cta={mb.try_pro_free}
+          className="pl-upsell"
+        />
+      ) : null}
+    </div>
+  );
+}

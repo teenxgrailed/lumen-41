@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { feedUpdateSchema } from "@/lib/calendar-feed-input";
 import { disableOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
 import { registerCalendarWebhookBestEffort } from "@/lib/calendar-webhooks/register";
 import { logger } from "@/lib/logger";
@@ -65,7 +66,14 @@ export async function PATCH(
     const userId = auth.userId;
 
     const { id } = await params;
-    const updates = await request.json();
+    const parsed = feedUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid calendar", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const updates = parsed.data;
     const updated = await prisma.calendarFeed.update({
       where: {
         id,

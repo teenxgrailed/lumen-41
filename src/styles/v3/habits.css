@@ -1,0 +1,93 @@
+/* ========================================================================
+   Needt design v3 — styles/habits.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* habits.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── Habits.jsx · shelf, rail, field ─────────────────────────────────── */
+.needt-v3 .hb-strip { display: flex; align-items: center; gap: 2px; }
+.needt-v3 .hb-cell { width: 6px; height: 6px; border-radius: 3px; flex: none; background: transparent; box-shadow: inset 0 0 0 1px var(--border); transition: background-color var(--transition-hover); }
+.needt-v3 .hb-cell.is-today { width: 9px; height: 9px; }
+.needt-v3 .hb-cell.is-on { box-shadow: none; }
+.needt-v3 .hb-row-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+
+.needt-v3 .hb-streak { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--radius-sm); background: var(--fill-2); box-shadow: var(--shadow-inset-ring); }
+.needt-v3 .hb-streak.is-compact { height: 18px; padding: 0 6px; }
+.needt-v3 .hb-streak-ico { flex: none; display: flex; color: var(--accent); }
+.needt-v3 .hb-streak-n { font: var(--type-meta-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .hb-field-day { width: 7px; height: 7px; border-radius: 2px; flex: none; background: var(--fill-3); box-shadow: none; }
+.needt-v3 .hb-field-day.is-today { box-shadow: 0 0 0 1.5px var(--accent); }
+
+.needt-v3 .hb-rail { display: flex; flex-direction: column; align-items: stretch; gap: 20px; min-width: 0; }
+
+/* ── Months as dots (08.10.26) ─────────────────────────────────────────── */
+.needt-v3 .hb-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.needt-v3 .hb-pick { display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: 180px; padding: 0 10px; border: 0; border-radius: var(--radius-pill); cursor: default;
+  background: transparent; box-shadow: var(--shadow-inset-ring); font: var(--type-meta-medium); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v3 .hb-pick:hover { color: var(--text-secondary); background: var(--fill-2); }
+.needt-v3 .hb-pick.is-on { background: var(--text-primary); color: var(--surface-raised); box-shadow: none; }
+.needt-v3 .hb-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .hb-pick-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+
+.needt-v3 .hb-months { display: flex; flex-direction: column; gap: 22px; }
+.needt-v3 .hb-month { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: start; column-gap: 14px; }
+.needt-v3 .hb-month-name { font: var(--type-ui-medium, var(--type-ui)); letter-spacing: 0.04em; color: var(--text-tertiary); line-height: 14px; }
+.needt-v3 .hb-month.is-current .hb-month-name { color: var(--text-primary); }
+.needt-v3 .hb-month-dots { display: grid; grid-template-columns: repeat(14, 16px); gap: 11px 14px; }
+.needt-v3 .hb-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--hb-dot-miss); transition: transform 160ms var(--ease-out, ease-out), background-color var(--transition-hover); }
+.needt-v3 .hb-dot.is-ahead { background: transparent; box-shadow: inset 0 0 0 1.5px var(--hb-dot-ring); }
+.needt-v3 .hb-dot.is-today { cursor: pointer; box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary); }
+.needt-v3 .hb-dot.is-today:hover { transform: scale(1.15); }
+.needt-v3 .hb-months-sum { font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .hb-months-sum b { font-size: 22px; line-height: 1; font-weight: 600; color: var(--text-primary); margin-right: 3px; }
+@container (max-width: 520px) { .needt-v3 .hb-month-dots { grid-template-columns: repeat(10, 12px); gap: 8px 9px; } .needt-v3 .hb-dot { width: 12px; height: 12px; } .needt-v3 .hb-month { grid-template-columns: 40px minmax(0, 1fr); } }
+
+/* ── Time left ─────────────────────────────────────────────────────────── */
+.needt-v3 .hb-left-wrap { container-type: inline-size; }
+.needt-v3 .hb-left { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 12px; }
+.needt-v3 .hb-left-card { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; padding: 18px; border-radius: var(--radius-3xl); background: var(--surface-raised); box-shadow: var(--shadow-ring); min-width: 0; }
+.needt-v3 .hb-left-dots { display: grid; gap: 5px; justify-content: start; }
+.needt-v3 .hb-left-dots.is-hours { grid-template-columns: repeat(6, 11px); gap: 7px; }
+.needt-v3 .hb-left-dots.is-year { grid-template-columns: repeat(auto-fill, 5px); gap: 3px; }
+.needt-v3 .hb-ldot { width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--text-primary); }
+.needt-v3 .hb-ldot.is-spent { background: var(--hb-dot-miss); }
+.needt-v3 .hb-ldot.is-now { background: var(--accent); }
+.needt-v3 .hb-left-cap { display: flex; justify-content: space-between; gap: 8px; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .hb-left-cap b { font-size: 17px; font-weight: 600; color: var(--text-primary); margin-right: 2px; }
+@container (max-width: 340px) { .needt-v3 .hb-left { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Today check-in (08.10.26) — the main block of the Habits screen ───────
+   --hb-hue is the habit's colour (runtime, set on the card). */
+.needt-v3 .hb-today { display: flex; flex-direction: column; gap: 14px; }
+.needt-v3 .hb-today-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.needt-v3 .hb-today-heading { font: 600 22px/28px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .hb-today-count { font: var(--type-ui); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hb-today-streak { margin-left: auto; display: flex; align-self: center; }
+.needt-v3 .hb-today-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.needt-v3 .hb-today-card { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 132px; box-sizing: border-box; padding: 16px 16px 14px; border-radius: 16px; cursor: default; outline: none;
+  background: var(--surface-raised); box-shadow: var(--shadow-ring), inset 0 0 0 1.5px color-mix(in oklab, var(--hb-hue) 34%, transparent);
+  transition: background-color var(--transition-hover), box-shadow var(--transition-hover), transform 90ms ease; }
+.needt-v3 .hb-today-card:hover { background: color-mix(in oklab, var(--hb-hue) 6%, var(--surface-raised)); }
+.needt-v3 .hb-today-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .hb-today-card.is-on { background: color-mix(in oklab, var(--hb-hue) 15%, var(--surface-raised)); box-shadow: var(--shadow-ring); }
+.needt-v3 .hb-today-card.is-on:hover { background: color-mix(in oklab, var(--hb-hue) 20%, var(--surface-raised)); }
+.needt-v3 .hb-today-card.is-rest { box-shadow: var(--shadow-ring); }
+.needt-v3 .hb-today-card.is-rest .hb-today-title { color: var(--text-secondary); }
+.needt-v3 .hb-today-top { display: flex; align-items: center; gap: 8px; min-height: 30px; margin-bottom: 4px; }
+.needt-v3 .hb-today-check { flex: none; width: 30px; height: 30px; border-radius: 15px; display: grid; place-items: center; box-shadow: inset 0 0 0 2px var(--hb-hue); color: var(--surface-raised);
+  transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v3 .hb-today-card.is-on .hb-today-check { background: var(--hb-hue); box-shadow: none; }
+.needt-v3 .hb-today-card.is-rest .hb-today-check { box-shadow: inset 0 0 0 2px var(--fill-5); }
+.needt-v3 .hb-today-time { font: var(--type-ui-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hb-today-menu { margin-left: auto; display: flex; }
+.needt-v3 .hb-today-title { font: 600 17px/22px var(--font-sans); color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.needt-v3 .hb-today-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .hb-today-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.needt-v3 .hb-today-label:first-child { flex: none; }
+.needt-v3 .hb-today-card.is-on .hb-today-label:first-child { color: var(--text-secondary); }
+.needt-v3 .hb-today-sep { color: var(--text-muted); flex: none; }
+.needt-v3 .hb-today-card .hb-strip { margin-top: auto; padding-top: 4px; }
+.needt-v3 .hb-today-foot { margin: 0; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .hb-today-more { align-self: flex-start; margin: -4px 0 0 -8px; }

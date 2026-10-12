@@ -2,25 +2,33 @@
 
 import { useEffect, useState } from "react";
 
-import { signIn, signOut } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import Image from "next/image";
 
-import { Loader2, LogOut, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  Loader2,
+  LogOut,
+  MonitorSmartphone,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 
 import { useAppSession } from "@/components/providers/app-session-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { newDate } from "@/lib/date-utils";
 import { notify } from "@/lib/notifications";
-import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
 import { SettingRow, SettingsCard, SettingsSection } from "./SettingsSection";
 
 export function AccountSettings() {
   const { data: session, status } = useAppSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [providers, setProviders] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -46,8 +54,21 @@ export function AccountSettings() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await clearNeedtOfflineData();
-    await signOut({ callbackUrl: "/auth/signin" });
+    await signOutOfNeedt();
+  };
+
+  const signOutEverywhere = async () => {
+    setIsRevoking(true);
+    try {
+      const response = await fetch("/api/account/sessions/revoke", {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("REVOKE_FAILED");
+      await signOutOfNeedt();
+    } catch {
+      notify.error("Could not sign out of all devices");
+      setIsRevoking(false);
+    }
   };
 
   const scheduleDeletion = async () => {
@@ -190,6 +211,26 @@ export function AccountSettings() {
           >
             <LogOut className="h-4 w-4" />
             {isLoggingOut ? "Logging out..." : "Log out"}
+          </Button>
+        </SettingRow>
+        <SettingRow
+          label="All devices"
+          description="Sign out everywhere, including this device. Other devices are signed out within a minute. The connector token stops working, so external tools must be reconnected with a new one."
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={signOutEverywhere}
+            disabled={isRevoking || isLoggingOut}
+            className="min-h-11 w-full justify-center sm:w-auto"
+          >
+            {isRevoking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MonitorSmartphone className="h-4 w-4" />
+            )}
+            Sign out of all devices
           </Button>
         </SettingRow>
       </SettingsSection>

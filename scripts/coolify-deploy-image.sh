@@ -20,10 +20,20 @@ uuid="${1:?application uuid is required}"
 : "${COOLIFY_API_URL:?COOLIFY_API_URL is required}"
 : "${COOLIFY_TOKEN:?COOLIFY_TOKEN is required}"
 
-status=$(curl --silent --show-error --retry 3 --max-time 60 \
-  --output /dev/stderr --write-out '%{http_code}' \
-  --header "Authorization: Bearer $COOLIFY_TOKEN" \
-  "${COOLIFY_API_URL%/}/api/v1/deploy?uuid=$uuid&force=false")
+request() {
+  curl --silent --show-error --retry 3 --max-time 60 \
+    --output /dev/stderr --write-out '%{http_code}' \
+    --request "$1" --header "Authorization: Bearer $COOLIFY_TOKEN" \
+    "${COOLIFY_API_URL%/}/api/v1/deploy?uuid=$uuid&force=false"
+}
+
+# Coolify answers POST here ("This endpoint has changed to a POST request");
+# older installations answered GET, so a 405 falls back once.
+status=$(request POST)
+if [ "$status" = "405" ]; then
+  echo "Coolify rejected POST; retrying with GET for an older install." >&2
+  status=$(request GET)
+fi
 
 case "$status" in
   2??) echo "Coolify accepted the deploy of $uuid ($status)." ;;

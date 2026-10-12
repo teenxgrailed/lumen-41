@@ -1,0 +1,196 @@
+{
+  "generated": "2026-10-09T19:02:41.841Z",
+  "source": "http://localhost:8766/needt-app/app-dev.html?ui=desktop after needtSync.resetAll()",
+  "today": "2026-09-01",
+  "collections": {
+    "needt.tasks": {
+      "file": "tasks.json",
+      "table": "Task",
+      "kind": "collection",
+      "rows": 38,
+      "from": "needtSync"
+    },
+    "needt.projects.all": {
+      "file": "projects-all.json",
+      "table": "Project",
+      "kind": "collection",
+      "rows": 5,
+      "from": "projectStore"
+    },
+    "needt.projects.sort": {
+      "file": "projects-sort.json",
+      "table": "UserPref.projectSort",
+      "kind": "value",
+      "rows": 1,
+      "from": "projectStore"
+    },
+    "needt.docs": {
+      "file": "docs.json",
+      "table": "Doc",
+      "kind": "collection",
+      "rows": 6,
+      "from": "needtSync"
+    },
+    "needt.templates": {
+      "file": "templates.json",
+      "table": "Template",
+      "kind": "collection",
+      "rows": 0,
+      "from": "plTplStore.mine"
+    },
+    "needt.habits": {
+      "file": "habits.json",
+      "table": "Habit",
+      "kind": "collection",
+      "rows": 4,
+      "from": "habitApi"
+    },
+    "needt.habitCheckins": {
+      "file": "habitCheckins.json",
+      "table": "HabitCheckin",
+      "kind": "collection",
+      "rows": 40,
+      "from": "habitApi"
+    },
+    "needt.events": {
+      "file": "events.json",
+      "table": "Event",
+      "kind": "collection",
+      "rows": 7,
+      "from": "c2Store + C2_EVENTS (synced seed)"
+    },
+    "needt.events.titles": {
+      "file": "events-titles.json",
+      "table": "EventOverride",
+      "kind": "map",
+      "rows": 0,
+      "from": "empty"
+    },
+    "needt.mail.threads": {
+      "file": "mail-threads.json",
+      "table": "MailThread",
+      "kind": "collection",
+      "rows": 6,
+      "from": "mailThreadStore"
+    },
+    "needt.boards": {
+      "file": "boards.json",
+      "table": "Board",
+      "kind": "collection",
+      "rows": 3,
+      "from": "needtSync"
+    },
+    "needt.boardItems": {
+      "file": "boardItems.json",
+      "table": "BoardItem",
+      "kind": "collection",
+      "rows": 17,
+      "from": "needtSync"
+    },
+    "needt.boardMembers": {
+      "file": "boardMembers.json",
+      "table": "BoardMember",
+      "kind": "collection",
+      "rows": 4,
+      "from": "needtSync"
+    },
+    "needt.chats": {
+      "file": "chats.json",
+      "table": "Chat",
+      "kind": "collection",
+      "rows": 3,
+      "from": "needtSync"
+    },
+    "needt.settings": {
+      "file": "settings.json",
+      "table": "UserSettings",
+      "kind": "map",
+      "rows": 38,
+      "from": "needtSettings.get() (defaults + stored)"
+    },
+    "needt.theme": {
+      "file": "theme.json",
+      "table": "UserSettings.theme",
+      "kind": "value",
+      "rows": 1,
+      "from": "needtSync"
+    },
+    "needt.accent": {
+      "file": "accent.json",
+      "table": "UserSettings.accent",
+      "kind": "value",
+      "rows": 1,
+      "from": "needtSync"
+    },
+    "needt.connections": {
+      "file": "connections.json",
+      "table": "Connection",
+      "kind": "map",
+      "rows": 6,
+      "from": "connections"
+    },
+    "needt.connections.sync": {
+      "file": "connections-sync.json",
+      "table": "Connection.sync",
+      "kind": "map",
+      "rows": 0,
+      "from": "empty"
+    },
+    "needt.mcpLinks": {
+      "file": "mcpLinks.json",
+      "table": "AccessLink (kind mcp)",
+      "kind": "collection",
+      "rows": 1,
+      "from": "mcpLinks"
+    },
+    "needt.apiLinks": {
+      "file": "apiLinks.json",
+      "table": "AccessLink (kind api)",
+      "kind": "collection",
+      "rows": 1,
+      "from": "apiLinks"
+    },
+    "needt.plan.state": {
+      "file": "plan-state.json",
+      "table": "Subscription.plan",
+      "kind": "value",
+      "rows": 1,
+      "from": "needtPlan"
+    },
+    "needt.sidebar.v2": {
+      "file": "sidebar-v2.json",
+      "table": "UserSettings.sidebar",
+      "kind": "value",
+      "rows": 3,
+      "from": "skStore"
+    },
+    "needt.docsSort": {
+      "file": "docsSort.json",
+      "table": "UserSettings.docsSort",
+      "kind": "value",
+      "rows": 0,
+      "from": "unset"
+    },
+    "needt.mbSort": {
+      "file": "mbSort.json",
+      "table": "UserSettings.boardsSort",
+      "kind": "value",
+      "rows": 0,
+      "from": "unset"
+    },
+    "needt.docShare": {
+      "file": "docShare.json",
+      "table": "DocShare",
+      "kind": "value",
+      "rows": 0,
+      "from": "unset"
+    },
+    "needt.focus.log": {
+      "file": "focus-log.json",
+      "table": "FocusSession",
+      "kind": "value",
+      "rows": 0,
+      "from": "empty"
+    }
+  }
+}

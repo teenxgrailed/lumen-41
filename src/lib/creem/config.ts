@@ -1,4 +1,11 @@
+/**
+ * The one place prices, the lifetime seat cap and the trial length live.
+ * Server code (checkout, lifetime cap, trial grants) and every screen read
+ * from here; nothing else spells "$59", "300" or "14 days".
+ */
 export const NEEDT_PRICING = {
+  currency: "USD",
+  trialDays: 14,
   free: {
     name: "Free",
     amountCents: 0,
@@ -17,6 +24,8 @@ export const NEEDT_PRICING = {
   lifetime: {
     name: "Lifetime",
     amountCents: 14_900,
+    /** First N buyers only. How many are left comes from the server. */
+    cap: 300,
     productEnv: "CREEM_PRODUCT_LIFETIME",
   },
 } as const;

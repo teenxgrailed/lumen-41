@@ -1,0 +1,206 @@
+/* Design v3 — P12: the phone performance and motion audit.
+ *
+ * Loaded last (v3-entry.css), HAND-WRITTEN; src/styles/v3/ is generated and
+ * untouched. Everything here corrects something the audit measured in the
+ * merged phone cards (the numbers are in .agents/handoffs/20261011-claude-s12-p12.md),
+ * and every rule says which sheet it corrects. src/styles/__tests__/phone-motion.test.ts
+ * pins the rules a stylesheet scan can see.
+ */
+
+/* ── Entry fills (rule 11 / V-B8) ─────────────────────────────────────────
+ * An entry plays once and never holds its end state: a `both` fill keeps a
+ * finished animation in document.getAnimations() for as long as the element
+ * lives, so the screen is never "idle". The end keyframe is the rest state in
+ * all of these, so `backwards` looks identical and leaves nothing behind.
+ * P5 fixed .v2p-swap / .v2p-next / .v2p-evplate (motion.css) and missed the two
+ * plates in the same sheet; P6 missed .ptk-swap; the settings page push is
+ * P11's (phone-settings.css). */
+.needt-v3 :is(.v2p-wd-plate, .v2p-mc-plate, .ptk-swap, .ps-page.is-coming) {
+  animation-fill-mode: backwards;
+}
+
+/* ── Sign-in and first-run setup: one blur layer each (rule 12) ───────────
+ * mobile-onboarding.css stacks three backdrop-filters for the status-bar band
+ * (4 / 10 / 22 px, each masked further up) and three for the glass plate
+ * (10 / 18 / 30 px) over PxSky, plus the chips: blur on blur. One layer
+ * remains of each, the way P1 reduced .pk-blur: the band keeps its 10 px
+ * layer with the mask run the whole way so it still melts into the edge, the
+ * plate keeps its uniform 10 px / saturate layer. The sky behind both is a
+ * smooth gradient with halftone dots, so the lost edge blur is not visible. */
+.needt-v3 .mau-band-blur:is(.is-1, .is-3),
+.needt-v3 .mau-glass-blur:is(.is-2, .is-3) {
+  display: none;
+}
+.needt-v3 .mau-band-blur.is-2 {
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 70%);
+  mask-image: linear-gradient(to top, transparent 0%, #000 70%);
+}
+
+/* The setup progress dots: the active dot grew 8 → 26 px by transitioning
+ * width (a layout pass per frame for the row). It snaps to its width now and
+ * only its opacity eases. Owner question: is the grow worth a clip-path
+ * version? */
+.needt-v3 .mau-dots .px-dot {
+  transition: opacity 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .mau-dots .px-dot {
+    transition: none;
+  }
+}
+
+/* ── Paywall sheet ────────────────────────────────────────────────────────
+ * The sticky action bar blurred 4 px under its 60-80 % white wash, inside a
+ * sheet that is itself a 30 px backdrop-filter: a backdrop-filter on a
+ * descendant of another. The wash carries it; the nested blur goes. */
+.needt-v3 .pw-phone .pw-bar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Rule 2: chrome type is 13 / 12 px, never 14 ──────────────────────────
+ * The vendored phone sheets set these in 14 px (the prototype predates the
+ * rule; P6 already corrected its own two). Only the size moves, each rule keeps
+ * its own line height. A plain list, no :is(): every entry has the specificity
+ * of the vendored 14 px rule it corrects, so a more specific vendored size
+ * still wins (.pml-avatar.is-big 15, .ps-plan-terms 12, .mbm-media-12.is-big
+ * .mbm-media-13 19: the test pins them). The mail quote and time are chrome of
+ * a list row, not document body (16 px, .pml-html). */
+.needt-v3 .pk-sub,
+.needt-v3 .pk-pull-none,
+.needt-v3 .pk-sheet-meta,
+.needt-v3 .pov-opt,
+.needt-v3 .pov-late,
+.needt-v3 .pov-cchip,
+.needt-v3 .pov-ask-sub,
+.needt-v3 .pov-ask-note-text,
+.needt-v3 .pd-tab,
+.needt-v3 .pd-empty-line,
+.needt-v3 .pd-date,
+.needt-v3 .pml-banner-title,
+.needt-v3 .pml-avatar,
+.needt-v3 .pml-time,
+.needt-v3 .pml-view,
+.needt-v3 .pml-quote-text,
+.needt-v3 .pml-co-ccbtn,
+.needt-v3 .phb-seg-btn,
+.needt-v3 .phb-proj,
+.needt-v3 .phb-open,
+.needt-v3 .ppl-act.pk-btn.is-small,
+.needt-v3 .ppl-card-use.pk-btn.is-small,
+.needt-v3 .ppl-avatar,
+.needt-v3 .ppl-chip,
+.needt-v3 .ppl-explain,
+.needt-v3 .ppl-check,
+.needt-v3 .ps-pro-line,
+.needt-v3 .ps-plan-line,
+.needt-v3 .ps-trial,
+.needt-v3 .v2p-seg-btn,
+.needt-v3 .v2p-ev-line,
+.needt-v3 .ma-menu-label,
+.needt-v3 .ma-menu-tile.is-in .ma-menu-label,
+.needt-v3 .mau-link,
+.needt-v3 .mau-resend,
+.needt-v3 .mau-chip,
+.needt-v3 .nva-tile-label,
+.needt-v3 .nva-seg-btn,
+.needt-v3 .mbm-media-13 {
+  font-size: 13px;
+}
+
+/* ── One live blur while something moves (rule 12) ────────────────────────
+ * Measured with getComputedStyle on every element, mid-motion (390x844,
+ * production build): the menu was already at one (P2's lists); a sheet left 4
+ * to 7 live (the screen's glass chips and the pill, plus the sheet's own
+ * scrim and glass), the pull-down 5, the reader's slide 2 (the pill). While
+ * the sheet, the pull-down or the reader's slide moves, the screen's glass
+ * rests, exactly as P2 does for the menu: the chips sit on flat ground and the
+ * pill is 80 % opaque, so nothing visible changes. The mover keeps its own:
+ * the scrim blur (pull-down, sheet) and the sheet's glass. `.pk-scrim-blur` and
+ * `.pk-sheet` are not in the list below for that reason. An explicit list, not
+ * `*` (see motion.css P2); a new glass class is added here and to the test.
+ * The host is also inert while the menu card is open: its glass is under a
+ * dimming scrim, so it rests too. */
+.needt-v3
+  :is([data-pk-moving], [data-pd-sliding], [data-v2p-host][inert])
+  :is(
+    .pk-blur,
+    .pk-edge-blur,
+    .pk-sheet-foot,
+    .pk-glass,
+    .pk-glyph,
+    .pk-btn,
+    .v2p-seg,
+    .iosf-glass-pill-2,
+    .iosf-keyboard-2,
+    .pd-glass,
+    .pd-qo,
+    .pd-acc,
+    .pd-kb-area,
+    .pd-pop,
+    .pd-actbar,
+    .pd-menu,
+    .pd-bubble,
+    .phb-sort-row,
+    .ps-card,
+    .ps-profile,
+    .ps-pro-mark,
+    .ps-plan-card,
+    .pov-snack
+  ) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* The menu pill sits outside the host (a sibling in the frame), so the host's
+ * flag does not reach it: `:has` does. */
+.needt-v3:has([data-pk-moving], [data-pd-sliding]) :is(.nva-glass, .nva-add) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* ── Glass chips on flat ground, in rows and strips ───────────────────────
+ * Connections draws one 12 px backdrop-filter per catalog row ("Connect"),
+ * the chip strips one per chip: a list of N rows is N live blurs under a
+ * scroll, over a flat ground, where a blur is invisible. The translucent fill
+ * and edge stay; only the filter goes. */
+.needt-v3 :is(.ppl-row-act, .pk-row, .pk-rw, .ppl-card) .pk-btn.is-chip,
+.needt-v3 .pk-chips-scroll .pk-glass,
+.needt-v3 .ppl-tabs .pk-glass,
+.needt-v3 .ppl-search.pk-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── The menu card at rest: one layer per band ────────────────────────────
+ * The head's soft edge and the fog under the rows each stacked three blurs
+ * (4 / 10 / 22 px). The 10 px layer stays with the mask run the whole way,
+ * as P1 did for .pk-blur; P2's moving rule already removes it while the card
+ * moves. */
+.needt-v3 :is(.nva-head-blur, .nva-fog-blur):is(.is-1, .is-3) {
+  display: none;
+}
+.needt-v3 .nva-head-blur.is-2 {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    transparent 0%,
+    var(--nva-ink) 70%
+  );
+  mask-image: linear-gradient(to top, transparent 0%, var(--nva-ink) 70%);
+}
+.needt-v3 .nva-fog-blur.is-2 {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--nva-ink) 70%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0%, var(--nva-ink) 70%);
+}
+
+/* ── Docs grid: the card is a <button> in PkHold's wrapper (P7) ───────────
+ * phone-docs.css sizes .pd-card as a grid item, but the screen wraps each card
+ * in PkHold (the long-press box, a block div): a button is shrink-to-fit, so
+ * the card was as wide as its page preview (326 px in a 169 px column) and the
+ * cards overlapped and ran off the right edge. It fills the box instead. */
+.needt-v3 .pk-hold > .pd-card {
+  width: 100%;
+}
