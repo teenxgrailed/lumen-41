@@ -6,6 +6,16 @@ import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 
 import { addWarning, applyImportPlan } from "./apply";
+import { createImportHeartbeat } from "./heartbeat";
+import {
+  NotionApiError,
+  NotionClient,
+  decodeNotionTokens,
+  getNotionOAuthConfig,
+} from "./notion/client";
+import { runNotionImport } from "./notion/importer";
+import { createPrismaNotionStore } from "./notion/prisma-store";
+import type { NotionTokens } from "./notion/types";
 import { createPlanLimitGuard, createPrismaImportStore } from "./prisma-store";
 import { TodoistApiError, fetchTodoistSnapshot } from "./todoist/client";
 import { planTodoistImport } from "./todoist/mapper";
@@ -15,6 +25,7 @@ import {
   ImportCancelledError,
   type ImportCounts,
   type ImportLimitGuard,
+  type ImportProgressHooks,
   type ImportStore,
   type ImportWarning,
 } from "./types";
@@ -31,6 +42,14 @@ export interface ImportRunnerDeps {
   createGuard: (userId: string) => ImportLimitGuard;
   /** IANA zone floating due times are read in when Todoist names none. */
   loadUserTimeZone: (userId: string) => Promise<string>;
+  /** One Notion import; the default talks to Notion and the database. */
+  runNotionImport?: (input: {
+    tokens: NotionTokens;
+    userId: string;
+    workspaceId: string;
+    importRunId: string;
+    hooks: ImportProgressHooks;
+  }) => Promise<{ counts: ImportCounts; warnings: ImportWarning[] }>;
 }
 
 async function loadUserTimeZone(userId: string): Promise<string> {
@@ -46,6 +65,20 @@ const defaultDeps: ImportRunnerDeps = {
   createStore: createPrismaImportStore,
   createGuard: () => createPlanLimitGuard(),
   loadUserTimeZone,
+  runNotionImport: (input) =>
+    runNotionImport({
+      source: new NotionClient({
+        tokens: input.tokens,
+        oauth: getNotionOAuthConfig(),
+      }),
+      store: createPrismaNotionStore({
+        userId: input.userId,
+        workspaceId: input.workspaceId,
+        importRunId: input.importRunId,
+      }),
+      guard: createPlanLimitGuard(),
+      hooks: input.hooks,
+    }),
 };
 
 /** What a run says when its worker went away mid-run. */
@@ -135,54 +168,74 @@ export async function processImportRun(
   let warnings: ImportWarning[] = [];
   try {
     const token = openImportToken(run.encryptedToken);
-    if (!token) {
-      throw new TodoistApiError(
-        "unauthorized",
-        "The import lost its access to Todoist. Connect again and retry."
-      );
-    }
-    if (run.source !== "todoist") {
+    if (run.source !== "todoist" && run.source !== "notion") {
       throw new Error(`Import source ${run.source} is not supported yet`);
     }
+    if (!token) {
+      throw run.source === "notion"
+        ? new NotionApiError(
+            "unauthorized",
+            "The import lost its access to Notion. Connect again and retry."
+          )
+        : new TodoistApiError(
+            "unauthorized",
+            "The import lost its access to Todoist. Connect again and retry."
+          );
+    }
 
-    const snapshot = await deps.fetchTodoistSnapshot(token);
-    const plan = planTodoistImport(snapshot, {
-      timeZone: await deps.loadUserTimeZone(run.userId),
-    });
-    const store: ImportStore = deps.createStore({
-      userId: run.userId,
-      workspaceId: run.workspaceId,
-      source: run.source,
-      importRunId: run.id,
-    });
+    const hooks: ImportProgressHooks = {
+      onProgress: async (progress, current) => {
+        counts = progress;
+        warnings = current;
+        await prisma.importRun.updateMany({
+          where: { id: run.id, status: "running" },
+          data: {
+            counts: json(progress),
+            warnings: { set: current.map(json) },
+            // The sweep reads a stale updatedAt as a lost worker.
+            updatedAt: newDate(),
+          },
+        });
+      },
+      onHeartbeat: createImportHeartbeat(run.id),
+      isCancelled: async () => {
+        const row = await prisma.importRun.findUnique({
+          where: { id: run.id },
+          select: { status: true },
+        });
+        return row?.status === "cancelled";
+      },
+    };
 
-    const result = await applyImportPlan(
-      plan,
-      store,
-      deps.createGuard(run.userId),
-      {
-        onProgress: async (progress, current) => {
-          counts = progress;
-          warnings = current;
-          await prisma.importRun.updateMany({
-            where: { id: run.id, status: "running" },
-            data: {
-              counts: json(progress),
-              warnings: { set: current.map(json) },
-              // The sweep reads a stale updatedAt as a lost worker.
-              updatedAt: newDate(),
-            },
-          });
-        },
-        isCancelled: async () => {
-          const row = await prisma.importRun.findUnique({
-            where: { id: run.id },
-            select: { status: true },
-          });
-          return row?.status === "cancelled";
-        },
-      }
-    );
+    let result: { counts: ImportCounts; warnings: ImportWarning[] };
+    if (run.source === "notion") {
+      const runNotion = deps.runNotionImport ?? defaultDeps.runNotionImport;
+      if (!runNotion) throw new Error("Notion import is not available");
+      result = await runNotion({
+        tokens: decodeNotionTokens(token),
+        userId: run.userId,
+        workspaceId: run.workspaceId,
+        importRunId: run.id,
+        hooks,
+      });
+    } else {
+      const snapshot = await deps.fetchTodoistSnapshot(token);
+      const plan = planTodoistImport(snapshot, {
+        timeZone: await deps.loadUserTimeZone(run.userId),
+      });
+      const store: ImportStore = deps.createStore({
+        userId: run.userId,
+        workspaceId: run.workspaceId,
+        source: run.source,
+        importRunId: run.id,
+      });
+      result = await applyImportPlan(
+        plan,
+        store,
+        deps.createGuard(run.userId),
+        hooks
+      );
+    }
 
     await prisma.importRun.updateMany({
       where: { id: run.id, status: "running" },
@@ -214,10 +267,12 @@ export async function processImportRun(
     const failure: ImportWarning =
       error instanceof TodoistApiError
         ? { code: `todoist_${error.code}`, message: error.message }
-        : {
-            code: "import_failed",
-            message: "The import stopped because of an unexpected error.",
-          };
+        : error instanceof NotionApiError
+          ? { code: `notion_${error.code}`, message: error.message }
+          : {
+              code: "import_failed",
+              message: "The import stopped because of an unexpected error.",
+            };
     addWarning(warnings, failure);
     await prisma.importRun.updateMany({
       where: { id: run.id, status: "running" },
