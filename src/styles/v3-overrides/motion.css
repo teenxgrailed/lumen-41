@@ -860,6 +860,63 @@
   animation-duration: 280ms;
 }
 
+/* P8 phone Mailbox (S8). The row keeps PkRow's string title and time, so the
+   unread state is a data attribute on the hold box: a heavier sender and the
+   lavender dot before the time (vendored phone-mail.css draws the same dot as
+   .pml-dot). Colours are the vendored v2p tokens only. */
+.needt-v3 [data-pml-unread="1"] .pk-row-title {
+  font-weight: 650;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 [data-pml-unread="1"] .pk-row-time::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--v2p-lav);
+}
+.needt-v3 .pml-state {
+  padding: 14px 0 0;
+}
+.needt-v3 .pml-html {
+  display: block;
+  font: 400 16px/24px var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--v2p-ink);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .pml-html img,
+.needt-v3 .pml-html table,
+.needt-v3 .pml-html video {
+  max-width: 100%;
+  height: auto;
+}
+.needt-v3 .pml-html p,
+.needt-v3 .pml-html div {
+  margin: 0 0 10px;
+}
+.needt-v3 .pml-html a {
+  color: inherit;
+  text-decoration: underline;
+}
+.needt-v3 .pml-html blockquote {
+  margin: 0 0 10px;
+  padding-left: 12px;
+  box-shadow: inset 2px 0 0 var(--v2p-line);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 a.pk-btn {
+  text-decoration: none;
+}
+.needt-v3 a.pk-btn.is-chip {
+  color: var(--v2p-ink);
+}
+
 /* ───────── P5 · phone Home + Calendar (mobile-v2-plates.jsx) ─────────
  * Self-contained: the vendored mobile-v2-plates.css is untouched. */
 
