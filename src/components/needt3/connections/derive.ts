@@ -81,7 +81,15 @@ export function buildItems(
   integrations: readonly IntegrationRow[],
   accounts: readonly V3Connection[]
 ): CnItem[] {
-  return [...catalog, ...MAIL_ENTRIES].flatMap((entry): CnItem[] => {
+  // The server catalog may list a mailbox too (Gmail is also a Composio
+  // toolkit). Here it would read the same mailbox account and draw the same
+  // card twice under one key, so the native mailbox entry stands for it.
+  const mailSlugs = new Set(MAIL_ENTRIES.map((entry) => entry.slug));
+  const entries = [
+    ...catalog.filter((entry) => !mailSlugs.has(entry.slug)),
+    ...MAIL_ENTRIES,
+  ];
+  return entries.flatMap((entry): CnItem[] => {
     const calProvider = CAL_PROVIDER[entry.slug];
     const mailProvider = MAIL_PROVIDER[entry.slug];
     const base: CnItem = {
