@@ -111,3 +111,86 @@ export function providerLabel(provider: string | null | undefined) {
   if (provider === "OUTLOOK") return "Outlook";
   return "your mail app";
 }
+
+/**
+ * Where "New message" goes. Mail is read-only at the provider (owner,
+ * 2026-10-09: no send, no drafts), so Needt writes nothing itself: it opens the
+ * provider's own compose window in a new tab. Gmail picks the signed-in
+ * account by address; Outlook's web deep link is the same host the read
+ * link uses and sends personal and work accounts to their own mailbox; IMAP
+ * has no web app, so it opens the default mail app (`mailto:`).
+ */
+export function composeLink(account: {
+  provider: string;
+  address: string;
+}): string {
+  if (account.provider === "GMAIL") {
+    return `https://mail.google.com/mail/u/${encodeURIComponent(account.address)}/?view=cm&fs=1`;
+  }
+  if (account.provider === "OUTLOOK") {
+    return "https://outlook.office.com/mail/deeplink/compose";
+  }
+  /* No recipient: the new message is not addressed to the person themselves. */
+  return "mailto:";
+}
+
+export interface HeaderAccount {
+  key: string;
+  provider: string;
+  address: string;
+  /** What the chip says: the provider, or the address when two share one. */
+  label: string;
+  /** Needs attention: the account stopped syncing. */
+  down: boolean;
+  /** Not connected at all (the no-account chips); a link to Connections. */
+  missing: boolean;
+}
+
+/** The two providers the Mailbox can connect; the no-account chips. */
+const CONNECTABLE = ["GMAIL", "OUTLOOK"] as const;
+
+/**
+ * The header's account chips (MailScreen.jsx `ACCTS`). The prototype always
+ * draws Gmail and Outlook; here a chip is a real account, and only when
+ * nothing is connected at all are Gmail and Outlook drawn as "not connected"
+ * chips, so the header is never empty. `accounts` is null until loaded:
+ * no chips rather than a flash of the no-account state.
+ */
+export function headerAccounts(
+  accounts:
+    | readonly {
+        id: string;
+        provider: string;
+        address: string;
+        status: string;
+      }[]
+    | null
+    | undefined
+): HeaderAccount[] {
+  if (!accounts) return [];
+  if (!accounts.length) {
+    return CONNECTABLE.map((provider) => ({
+      key: provider,
+      provider,
+      address: "",
+      label: providerLabel(provider),
+      down: true,
+      missing: true,
+    }));
+  }
+  const perProvider = new Map<string, number>();
+  for (const a of accounts)
+    perProvider.set(a.provider, (perProvider.get(a.provider) ?? 0) + 1);
+  return accounts.map((a) => {
+    const plain = providerLabel(a.provider);
+    const shared = (perProvider.get(a.provider) ?? 0) > 1;
+    return {
+      key: a.id,
+      provider: a.provider,
+      address: a.address,
+      label: plain === "your mail app" || shared ? a.address : plain,
+      down: a.status === "ERROR",
+      missing: false,
+    };
+  });
+}
