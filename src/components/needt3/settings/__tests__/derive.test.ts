@@ -1,3 +1,5 @@
+import { newDate } from "@/lib/date-utils";
+
 import {
   FREE_ACCENT,
   HOUR_OPTIONS,
@@ -5,6 +7,7 @@ import {
   SECTION_TITLES,
   SETTINGS_NAV,
   accentLocked,
+  fmtHour,
   hourOf,
   hourOptions,
   isPro,
@@ -12,11 +15,13 @@ import {
   planInfo,
   planningSummary,
   plansWeekends,
+  renewsText,
   sectionFromHash,
   sectionOf,
   settingsNotices,
   settingsRedirectTarget,
   themeLocked,
+  timeNow,
   trialBarPct,
   withWeekends,
   workHourChoices,
@@ -233,5 +238,73 @@ describe("import notices and summary", () => {
         ],
       })
     ).toBe("Last import failed. Try again later.");
+  });
+});
+
+describe("the Time card's reading (Drift.jsx `line`)", () => {
+  const place = {
+    tz: "Europe/Zurich",
+    name: "Zürich",
+    lat: 47,
+    lon: 8,
+    exact: true,
+  };
+  const times = {
+    noon: 13,
+    sunrise: 7.5,
+    sunset: 19.7,
+    dawn: 7,
+    dusk: 20.2,
+    polar: null,
+  } as const;
+
+  it("formats local hours as HH:MM", () => {
+    expect(fmtHour(7.5)).toBe("07:30");
+    expect(fmtHour(19.7)).toBe("19:42");
+    expect(fmtHour(null)).toBe("—");
+  });
+
+  it("by day it names the sunset, with the sun glyph", () => {
+    expect(timeNow({ phase: "Day", times, place })).toEqual({
+      line: "Now: Day · sunset 19:42 · Zürich",
+      icon: "sun",
+    });
+  });
+
+  it("at night and dawn it names the sunrise", () => {
+    expect(timeNow({ phase: "Night", times, place })).toEqual({
+      line: "Now: Night · sunrise 07:30 · Zürich",
+      icon: "sunset",
+    });
+    expect(timeNow({ phase: "Dawn", times, place }).icon).toBe("sunrise");
+  });
+
+  it("says so when the sun does not rise or set", () => {
+    const polar = {
+      ...times,
+      sunrise: null,
+      sunset: null,
+      polar: "set",
+    } as const;
+    expect(timeNow({ phase: "Day", times: polar, place }).line).toContain(
+      "no sunset today"
+    );
+    expect(timeNow({ phase: "Night", times: polar, place }).line).toContain(
+      "no sunrise today"
+    );
+  });
+});
+
+describe("renewsText", () => {
+  const now = newDate("2026-10-12T12:00:00Z");
+  it("is empty without a date", () => {
+    expect(renewsText(null, now)).toBe("");
+    expect(renewsText("not a date", now)).toBe("");
+  });
+  it("drops the year when the renewal is within the next 11 months", () => {
+    expect(renewsText("2026-11-07T12:00:00Z", now)).toBe("renews 7 Nov");
+  });
+  it("keeps the year further out", () => {
+    expect(renewsText("2027-10-07T12:00:00Z", now)).toBe("renews 7 Oct 2027");
   });
 });

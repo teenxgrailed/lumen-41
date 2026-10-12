@@ -10,8 +10,8 @@ import { AccountSettings } from "@/components/settings/AccountSettings";
 
 import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
-import { Avatar, initialsOf } from "../shell/Avatar";
-import { SGroup, SRow } from "./kit";
+import { initialsOf } from "../shell/Avatar";
+import { MeDisc, SGroup, SRow } from "./kit";
 
 /**
  * Account. Name and email come from the session; sign-out clears the offline
@@ -37,12 +37,14 @@ export function AccountSection() {
     <>
       <SGroup title="Profile">
         <div className="settings-row-10">
-          <Avatar
-            initials={initialsOf(name)}
-            name={name}
-            size={56}
-            src={user?.image}
-          />
+          <span className="settings-span-6">
+            <MeDisc
+              initials={initialsOf(name)}
+              name={name}
+              size="xl"
+              src={user?.image}
+            />
+          </span>
           <div className="settings-stack-4">
             {(
               [

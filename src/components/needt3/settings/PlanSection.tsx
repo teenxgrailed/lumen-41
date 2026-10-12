@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { FiCheck, FiChevronRight } from "react-icons/fi";
 
+import { newDate } from "@/lib/date-utils";
 import {
   type CheckoutChoice,
   openBillingPortal,
@@ -13,7 +14,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
-import { isPro, planInfo, trialBarPct } from "./derive";
+import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
 
 const P = priceStrings();
@@ -115,9 +116,14 @@ export function PlanSection() {
                     ? `${b?.trialDaysLeft ?? 0} days left of your trial`
                     : kind === "lifetime"
                       ? "Pro for good."
-                      : kind === "yearly"
-                        ? `${P.yearly} / year`
-                        : P.monthly + " / month"}
+                      : [
+                          kind === "yearly"
+                            ? `${P.yearly} / year (${P.yearlyPerMonth}/mo)`
+                            : `${P.monthly} / month`,
+                          renewsText(b?.currentPeriodEnd, newDate()),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
               </span>
             </span>
             {kind === "lifetime" ? (

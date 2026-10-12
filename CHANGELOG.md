@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Settings (design_v3, desktop sheet): the rail rows have their icons, the
+  person is a disc of initials, and the plan card is the printed sky with the
+  PRO badge. Appearance shows each theme as the Home screen drawn small
+  (System cut down the middle, Time on the diagonal), the nine accent
+  swatches show their own colours in the light theme again, the accent card
+  has its progress bar, and the Time card says where the sun is. Select
+  controls use the up-down chevron. About has What's new, and a paid plan's
+  line says when it renews.
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and
   workspace roles. Every write is logged with its inverse, so it can be undone
