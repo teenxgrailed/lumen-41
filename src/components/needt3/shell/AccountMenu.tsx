@@ -28,6 +28,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { planInfo } from "../settings/derive";
 import { Avatar, initialsOf } from "./Avatar";
 
 /** The full plan line (the pill's title). */
@@ -40,12 +41,17 @@ export function planLine(kind: V3PlanKind, daysLeft: number | null) {
   return "Free";
 }
 
-/** The pill beside the name: the plan in two or three words, one line. */
+/**
+ * The pill beside the name: the plan in two or three words, one line. The
+ * word is Settings → Plan's badge (`planInfo`), so the two never disagree:
+ * Lifetime reads "Lifetime", Monthly / Yearly "Pro", Free "Free"; a trial
+ * also says how many days are left.
+ */
 export function planPill(kind: V3PlanKind, daysLeft: number | null) {
   if (kind === "trial")
     return { text: `Trial · ${daysLeft ?? 0}d`, tone: "trial" };
-  if (kind === "free") return { text: "Free", tone: "free" };
-  return { text: "Pro", tone: "pro" };
+  if (kind === "free") return { text: planInfo(kind).badge, tone: "free" };
+  return { text: planInfo(kind).badge, tone: "pro" };
 }
 
 const PLAN_NAME: Record<V3PlanKind, string> = {

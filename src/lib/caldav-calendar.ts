@@ -26,6 +26,22 @@ import {
 
 const LOG_SOURCE = "CalDAVCalendar";
 
+/**
+ * `syncStatus` of an event the sync archived because the server no longer
+ * returned it. Unlike an event the person deleted (archived with any other
+ * status), it is restored when a later sync finds it again.
+ */
+export const CALDAV_REMOVED_UPSTREAM = "REMOVED_UPSTREAM";
+
+/** A local deletion the sync must not undo. */
+export function isTombstone(
+  existing: { archivedAt: Date | null; syncStatus?: string | null } | null
+): boolean {
+  return (
+    !!existing?.archivedAt && existing.syncStatus !== CALDAV_REMOVED_UPSTREAM
+  );
+}
+
 type CalDAVEvent = CalendarEvent & {
   excludedInstanceStarts?: Date[];
 };
@@ -306,7 +322,10 @@ export class CalDAVCalendarService {
         },
         LOG_SOURCE
       );
-      return [];
+      // Rethrown, never an empty list: the sync archives every event missing
+      // from the result, so a failed fetch read as "no events" emptied the
+      // whole calendar.
+      throw error;
     }
   }
 
@@ -623,7 +642,9 @@ export class CalDAVCalendarService {
               ? { notIn: externalEventIds }
               : { not: null },
         },
-        data: { archivedAt: newDate() },
+        // Marked as gone upstream (not deleted by the person), so it comes
+        // back if a later sync finds it again.
+        data: { archivedAt: newDate(), syncStatus: CALDAV_REMOVED_UPSTREAM },
       });
 
       // Process events and update database
@@ -1586,7 +1607,7 @@ export class CalDAVCalendarService {
               },
             })
           : null;
-        if (existing?.archivedAt) continue;
+        if (isTombstone(existing)) continue;
 
         // Prepare event data for database
         const eventData = {
@@ -1609,11 +1630,13 @@ export class CalDAVCalendarService {
           attendees: Prisma.JsonNull,
         };
 
-        // Create the event
+        // Create the event (an event that was gone upstream comes back)
         const createdEvent = existing
           ? await prisma.calendarEvent.update({
               where: { id: existing.id },
-              data: eventData,
+              data: existing.archivedAt
+                ? { ...eventData, archivedAt: null, syncStatus: null }
+                : eventData,
             })
           : await prisma.calendarEvent.create({ data: eventData });
 
@@ -1652,7 +1675,7 @@ export class CalDAVCalendarService {
               },
             })
           : null;
-        if (existing?.archivedAt) continue;
+        if (isTombstone(existing)) continue;
 
         // Find the master event ID for this instance
         let masterEventId = null;
@@ -1684,11 +1707,13 @@ export class CalDAVCalendarService {
           attendees: Prisma.JsonNull,
         };
 
-        // Create the event
+        // Create the event (an event that was gone upstream comes back)
         const createdEvent = existing
           ? await prisma.calendarEvent.update({
               where: { id: existing.id },
-              data: eventData,
+              data: existing.archivedAt
+                ? { ...eventData, archivedAt: null, syncStatus: null }
+                : eventData,
             })
           : await prisma.calendarEvent.create({ data: eventData });
 

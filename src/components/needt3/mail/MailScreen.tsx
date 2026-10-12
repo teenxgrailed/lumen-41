@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -359,12 +360,12 @@ export function MailScreen({ box }: { box: Mailbox }) {
                       {EMPTY[tab][2]}
                     </button>
                   ) : (
-                    <a
+                    <Link
                       href="/connections"
                       className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
                     >
                       {EMPTY[tab][2]}
-                    </a>
+                    </Link>
                   )}
                 </div>
               ) : null}
