@@ -101,6 +101,15 @@ describe("middleware on the MCP host", () => {
     );
   });
 
+  it("cannot be escaped with a client-supplied X-Forwarded-Host", async () => {
+    const response = await at("https://mcp.needt.app/auth/signin", {
+      host: "mcp.needt.app",
+      "x-forwarded-host": "use.needt.app",
+    });
+    expect(response.status).toBe(404);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
   it("lets the metadata through", async () => {
     for (const path of [
       "/.well-known/oauth-protected-resource",

@@ -364,7 +364,8 @@ async function getRow(
     case "mail":
       return prisma.mailMessage.findFirst({
         where: { id, account: { userId } },
-        select: { ...mailSelect, bodyHtml: true },
+        // Metadata only: mail.read never includes message bodies.
+        select: mailSelect,
       });
   }
 }
@@ -449,7 +450,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, or mail (with body).",
+      "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -510,6 +511,9 @@ export const MCP_TOOLS: McpTool[] = [
     description:
       "Change Needt projects, tasks, local calendars and events. Use action: overview to inspect the workspace. delete_* actions archive the object and require confirm: true; restore_* brings it back.",
     annotations: { readOnlyHint: false, destructiveHint: true },
+    // The overview only reads; every other action writes.
+    scopes: (args) =>
+      args.action === "overview" ? ["needt.read"] : ["needt.write"],
     input: z.object({
       action: z.enum(CONNECTOR_CONTROL_ACTIONS),
       id: z.string().optional(),
@@ -601,6 +605,15 @@ export function findMcpTool(name: unknown): McpTool | undefined {
 export function requiredScopes(tool: McpTool, args: unknown): McpScope[] {
   if (tool.scopes) return tool.scopes(args as never);
   return tool.annotations.readOnlyHint ? ["needt.read"] : ["needt.write"];
+}
+
+/**
+ * Whether this call changes something: decided per call, not per tool, so
+ * needt_control's overview or needt_schedule with run: false are reads and
+ * stay outside the write limit.
+ */
+export function isWriteCall(tool: McpTool, args: unknown): boolean {
+  return requiredScopes(tool, args).includes("needt.write");
 }
 
 export function listMcpTools(): {

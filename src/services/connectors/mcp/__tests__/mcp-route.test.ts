@@ -352,6 +352,77 @@ describe("remote MCP endpoint", () => {
     );
   });
 
+  it("needt_get type=mail returns metadata only, never the body", async () => {
+    (prisma.mailMessage.findFirst as jest.Mock).mockImplementation(
+      async ({ select }) =>
+        Object.fromEntries(
+          Object.keys(select).map((key) => [key, `value-of-${key}`])
+        )
+    );
+    const response = await call("needt_get", { type: "mail", id: "m1" });
+    const text = (await response.json()).result.content[0].text as string;
+    const { select } = (prisma.mailMessage.findFirst as jest.Mock).mock
+      .calls[0][0];
+    expect(select).not.toHaveProperty("bodyHtml");
+    expect(text).not.toContain("bodyHtml");
+    expect(JSON.parse(text)).toHaveProperty("subject");
+  });
+
+  it("needt_control overview is a read: read scope, outside the write limit", async () => {
+    jest.mocked(authenticateBearer).mockResolvedValue({
+      userId: "user-1",
+      kind: "oauth",
+      scopes: ["needt.read"],
+    });
+    (prisma.task.findMany as jest.Mock).mockResolvedValue([]);
+    const overview = await call("needt_control", { action: "overview" });
+    expect(overview.status).toBe(200);
+    expect(namespaces()).not.toContain("mcp:write");
+
+    const write = await call("needt_control", {
+      action: "complete_task",
+      id: "t1",
+    });
+    expect(write.status).toBe(403);
+  });
+
+  it("answers 413 for a body over 256 KB, declared or not", async () => {
+    const declared = await POST(
+      new NextRequest("http://localhost/api/mcp", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer good-token",
+          "content-type": "application/json",
+          "content-length": String(300 * 1024),
+        },
+        body: "{}",
+      })
+    );
+    expect(declared.status).toBe(413);
+
+    // Multi-byte characters: 100k of them is ~300 KB on the wire.
+    const big = await POST(
+      rpc({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "ping",
+        params: { x: "é".repeat(140_000) },
+      })
+    );
+    expect(big.status).toBe(413);
+  });
+
+  it("refuses a browser call from a foreign origin", async () => {
+    const response = await POST(
+      rpc(
+        { jsonrpc: "2.0", id: 1, method: "ping" },
+        { authorization: "Bearer good-token", origin: "https://evil.example" }
+      )
+    );
+    expect(response.status).toBe(403);
+    expect(authenticateBearer).not.toHaveBeenCalled();
+  });
+
   it("needt_whoami reports the token, its scopes and the workspaces", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: "user-1",

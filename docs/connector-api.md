@@ -48,11 +48,11 @@ The metadata (RFC 9728) is served at
 resource `https://mcp.needt.app/mcp` and the authorization server
 `https://use.needt.app`.
 
-| Scope         | Allows                                                       |
-| ------------- | ------------------------------------------------------------ |
-| `needt.read`  | Search, list and read tasks, projects, events, pages, habits |
-| `needt.write` | Create and change them, run the scheduler                    |
-| `mail.read`   | Mail in search, `needt_list`/`needt_get` with `type: mail`   |
+| Scope         | Allows                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `needt.read`  | Search, list and read tasks, projects, events, pages, habits                                                           |
+| `needt.write` | Create and change them, run the scheduler                                                                              |
+| `mail.read`   | Mail metadata (sender, subject, snippet, labels; never the body) in search, `needt_list`/`needt_get` with `type: mail` |
 
 A personal token carries all three and is not tied to a workspace. A call
 that needs a scope the token lacks gets `403` with
@@ -79,11 +79,11 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_whoami`      | —                                              | The person, token kind, scopes, current workspace and all workspaces                                 |
 | `needt_search`      | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                      |
 | `needt_list`        | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
-| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`                                                                |
+| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                         |
 | `needt_create_task` | `needt.write`                                  | `POST /api/connect/tasks`                                                                            |
 | `needt_schedule`    | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
 | `needt_reschedule`  | `needt.write`                                  | `POST /api/connect/reschedule`                                                                       |
-| `needt_control`     | `needt.write`                                  | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+| `needt_control`     | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
 
 Write tools run the connector routes in-process with the caller's own token,
 so auth, workspace scoping and confirmation rules are the routes' own.

@@ -58,13 +58,21 @@ function isPublicRoute(pathname: string): boolean {
 /**
  * Middleware for handling authentication and authorization
  */
-/** The host the request was addressed to, as the reverse proxy saw it. */
-function requestHost(request: NextRequest): string {
-  const raw =
-    request.headers.get("x-forwarded-host") ??
-    request.headers.get("host") ??
-    request.nextUrl.host;
-  return raw.split(",")[0].trim().toLowerCase();
+function firstHost(value: string | null): string | null {
+  return value?.split(",")[0].trim().toLowerCase() || null;
+}
+
+/**
+ * Whether a request is addressed to the MCP host. Either header naming it is
+ * enough: a client-supplied X-Forwarded-Host must never pull app pages or
+ * cookies onto mcp.needt.app (it can only make a request *more* restricted).
+ */
+function isMcpHostRequest(request: NextRequest): boolean {
+  const host = mcpHost();
+  return (
+    firstHost(request.headers.get("host") ?? request.nextUrl.host) === host ||
+    firstHost(request.headers.get("x-forwarded-host")) === host
+  );
 }
 
 const MCP_METADATA_PATHS = new Set([
@@ -88,7 +96,7 @@ function mcpHostResponse(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (requestHost(request) === mcpHost()) {
+  if (isMcpHostRequest(request)) {
     return mcpHostResponse(request);
   }
 

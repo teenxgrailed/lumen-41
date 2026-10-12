@@ -11,7 +11,7 @@ import {
   parseErrorResponse,
   toolCallOf,
 } from "@/services/connectors/mcp/server";
-import { requiredScopes } from "@/services/connectors/mcp/tools";
+import { isWriteCall, requiredScopes } from "@/services/connectors/mcp/tools";
 
 import { bearerChallenge, mcpResource } from "@/lib/mcp-config";
 import { publicAppUrl } from "@/lib/public-url";
@@ -105,8 +105,14 @@ export async function POST(request: NextRequest) {
   );
   if (userLimited) return userLimited;
 
+  // Refuse an oversized body before reading it, then measure what came in
+  // bytes (a declared length can be absent or wrong).
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return jsonRpcError(413, "Request too large");
+  }
   const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
     return jsonRpcError(413, "Request too large");
   }
   let body: unknown;
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest) {
   if (call) {
     const needed = requiredScopes(call.tool, call.args);
     if (!hasScopes(auth, needed)) return insufficientScopeResponse(needed);
-    if (!call.tool.annotations.readOnlyHint) {
+    if (isWriteCall(call.tool, call.args)) {
       const writeLimited = await enforceRateLimits(
         [accountRule(auth.userId, "mcp:write", MCP_WRITE_LIMIT_PER_MINUTE, 60)],
         { route: ROUTE, userId: auth.userId }
