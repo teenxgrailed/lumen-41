@@ -28,6 +28,7 @@ import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { BrandIcon, type BrandId, brandIdForConnection } from "../brand";
 import { Art, type ArtName } from "../menu/Art";
 import { PhoneSetup } from "../phone/auth";
 import { usePhoneUi } from "../root/phone-ui-context";
@@ -95,6 +96,7 @@ const USE_ROWS: Record<
 
 function Row({
   art,
+  brand,
   title,
   sub,
   on,
@@ -104,7 +106,9 @@ function Row({
   compact,
   disabled,
 }: {
-  art: ArtName;
+  art?: ArtName;
+  /** A brand's mark in place of the illustration. */
+  brand?: BrandId | null;
   title: string;
   sub: string;
   on: boolean;
@@ -135,7 +139,11 @@ function Row({
       }}
     >
       <span className="auth-row-row-2">
-        <Art name={art} size={compact ? 30 : 38} />
+        {brand ? (
+          <BrandIcon id={brand} size={compact ? 32 : 38} />
+        ) : art ? (
+          <Art name={art} size={compact ? 30 : 38} />
+        ) : null}
       </span>
       <span className="auth-row-col">
         <span className="auth-row-text">{title}</span>
@@ -509,6 +517,10 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                               compact
                               multi
                               art={c.art}
+                              brand={brandIdForConnection({
+                                kind: "calendar",
+                                provider: c.provider,
+                              })}
                               title={c.title}
                               sub={on ? "Connected" : c.sub}
                               on={on}

@@ -263,15 +263,11 @@
   padding: 36px 24px;
   text-align: center;
 }
-.needt-v3 .cn-tile {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 9px;
-  background: var(--fill-3);
-  box-shadow: var(--shadow-inset-ring);
-  font: var(--type-ui-medium);
-  color: var(--text-secondary);
+
+/* ── Brand marks: the phone's sign-in provider buttons ─────────────────────
+ * "Continue with Google" / "Sign in with Microsoft" do not fit side by side
+ * in a 390px phone, so the pair stacks (mobile-onboarding.css lays it out in a
+ * row; this corrects it, that sheet is generated). */
+.needt-v3 .mau-pair {
+  flex-direction: column;
 }

@@ -41,6 +41,7 @@ import {
   mailProblem,
   mailProblemText,
   netFailureText,
+  oauthButtonLabel,
   passwordShort,
   phoneSubmitLabel,
   refusalText,
@@ -394,10 +395,9 @@ export function PhoneAuth({
                       key={p.id}
                       onClick={() => onProvider?.(p.id)}
                       disabled={offline || providerBusy !== null}
-                      aria-label={`Continue with ${p.label}`}
                     >
                       <p.icon size={17} aria-hidden />
-                      {providerBusy === p.id ? "Opening…" : p.label}
+                      {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
                     </MaButton>
                   ))}
                 </div>

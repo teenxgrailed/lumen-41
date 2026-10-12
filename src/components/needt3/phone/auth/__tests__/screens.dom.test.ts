@@ -235,7 +235,19 @@ describe("phone sign-in: the form", () => {
       providers: [{ id: "google", label: "Google", icon: () => null }],
     });
     expect(qa(".mau-pair button")).toHaveLength(1);
+    expect(q(".mau-pair button")?.textContent).toContain(
+      "Continue with Google"
+    );
     expect(host.textContent).toContain("or with email");
+  });
+
+  it("the Microsoft button says what Microsoft's guidelines say", () => {
+    mountAuth({
+      providers: [{ id: "azure-ad", label: "Microsoft", icon: () => null }],
+    });
+    expect(q(".mau-pair button")?.textContent).toContain(
+      "Sign in with Microsoft"
+    );
   });
 
   it("recovery: the address, then the link sent; the server's 429 is shown", async () => {

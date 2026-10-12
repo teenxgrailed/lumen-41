@@ -12,6 +12,7 @@ import {
   PS_LIST,
   PS_TITLES,
   alertsSummary,
+  connectionMarks,
   connectionsLine,
   daySummary,
   escAction,
@@ -144,5 +145,31 @@ describe("summaries", () => {
         c("connected", "c"),
       ])
     ).toEqual({ connected: 2, attention: "b" });
+  });
+  it("connections: up to three different connected apps, no IMAP, none that need attention", () => {
+    const c = (
+      kind: V3Connection["kind"],
+      provider: string,
+      state: V3Connection["state"] = "connected"
+    ): V3Connection => ({
+      provider,
+      kind,
+      state,
+      label: provider,
+      detail: null,
+      accountId: null,
+    });
+    expect(connectionMarks(undefined)).toEqual([]);
+    expect(
+      connectionMarks([
+        c("calendar", "google"),
+        c("calendar", "google"),
+        c("mail", "IMAP"),
+        c("mail", "outlook", "error"),
+        c("mail", "google"),
+        c("integration", "notion"),
+        c("integration", "slack"),
+      ])
+    ).toEqual(["gcal", "gmail", "notion"]);
   });
 });

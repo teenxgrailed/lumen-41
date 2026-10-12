@@ -39,6 +39,7 @@ import { ACCENTS } from "@/lib/needt3/theme";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { BrandIcon } from "../../brand";
 import {
   type SectionId,
   isPro,
@@ -60,6 +61,7 @@ import {
   type PsPageId,
   type PsRowId,
   alertsSummary,
+  connectionMarks,
   connectionsLine,
   daySummary,
   escAction,
@@ -165,6 +167,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
   const pro = isPro(kind);
   const prefs = settings.data?.prefs;
   const conn = connectionsLine(connections.data);
+  const marks = connectionMarks(connections.data);
 
   const sub = (id: PsPageId): string => {
     switch (id) {
@@ -203,6 +206,23 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
           glyph={<PkGlyph place="connections" size="s" />}
           title="Connections"
           out
+          value={
+            marks.length ? (
+              <span className="ps-marks" data-ps-marks="">
+                {marks.map((id, i) => (
+                  <span
+                    key={id}
+                    style={{
+                      display: "inline-flex",
+                      marginLeft: i ? -7 : 0,
+                    }}
+                  >
+                    <BrandIcon id={id} size={24} />
+                  </span>
+                ))}
+              </span>
+            ) : null
+          }
           desc={
             conn.attention ? (
               <span className="ps-alert">
