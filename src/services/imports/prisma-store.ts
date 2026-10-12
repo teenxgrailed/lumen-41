@@ -10,9 +10,10 @@ import type { ImportLimitGuard, ImportStore } from "./types";
 
 /**
  * The Prisma side of an import. Every read and write is scoped to the run's
- * user (and its workspace for new rows), so a stale or forged mapping can
- * never touch somebody else's data: a mapped id that is not this user's
- * counts as missing and a fresh row is created.
+ * user and workspace, so a stale or forged mapping can never touch somebody
+ * else's data or another workspace: a mapped id outside them counts as
+ * missing, a fresh row is created in the run's workspace and the mapping is
+ * pointed at it.
  */
 export function createPrismaImportStore(input: {
   userId: string;
@@ -22,6 +23,17 @@ export function createPrismaImportStore(input: {
 }): ImportStore {
   const { userId, workspaceId, source, importRunId } = input;
   const syncedAt = () => newDate();
+  const projectChecks = new Map<string, boolean>();
+  async function projectInWorkspace(projectId: string) {
+    const known = projectChecks.get(projectId);
+    if (known !== undefined) return known;
+    const found = await prisma.project.findFirst({
+      where: { id: projectId, userId, workspaceId },
+      select: { id: true },
+    });
+    projectChecks.set(projectId, Boolean(found));
+    return Boolean(found);
+  }
 
   return {
     async findMappedId(entityType, externalId) {
@@ -72,7 +84,7 @@ export function createPrismaImportStore(input: {
       };
       if (existingId) {
         const updated = await prisma.project.updateMany({
-          where: { id: existingId, userId },
+          where: { id: existingId, userId, workspaceId },
           data,
         });
         if (updated.count === 1) return { id: existingId };
@@ -93,7 +105,11 @@ export function createPrismaImportStore(input: {
     async writeStage(existingId, stage, projectId) {
       if (existingId) {
         const updated = await prisma.projectStage.updateMany({
-          where: { id: existingId, projectId, project: { userId } },
+          where: {
+            id: existingId,
+            projectId,
+            project: { userId, workspaceId },
+          },
           data: { name: stage.name, position: stage.position },
         });
         if (updated.count === 1) return { id: existingId };
@@ -114,6 +130,12 @@ export function createPrismaImportStore(input: {
     },
 
     async writeTask(existingId, task, refs) {
+      // Never link a task to a project (or its stage) outside this run's
+      // workspace, whatever a mapping says.
+      const projectId =
+        refs.projectId && (await projectInWorkspace(refs.projectId))
+          ? refs.projectId
+          : null;
       const data = {
         title: task.title,
         description:
@@ -125,8 +147,8 @@ export function createPrismaImportStore(input: {
         priorityLevel: task.priorityLevel,
         isRecurring: Boolean(task.recurrenceRule),
         recurrenceRule: task.recurrenceRule,
-        projectId: refs.projectId,
-        stageId: refs.stageId,
+        projectId,
+        stageId: projectId ? refs.stageId : null,
         source,
         externalTaskId: task.externalId,
         externalListId: task.projectExternalId,
@@ -139,7 +161,7 @@ export function createPrismaImportStore(input: {
 
       if (existingId) {
         const owned = await prisma.task.findFirst({
-          where: { id: existingId, userId },
+          where: { id: existingId, userId, workspaceId },
           select: { id: true },
         });
         if (owned) {
@@ -175,7 +197,7 @@ export function createPrismaImportStore(input: {
     async writePart(existingId, part, taskId) {
       if (existingId) {
         const updated = await prisma.taskPart.updateMany({
-          where: { id: existingId, taskId, task: { userId } },
+          where: { id: existingId, taskId, task: { userId, workspaceId } },
           data: { title: part.title, position: part.position },
         });
         if (updated.count === 1) return { id: existingId };

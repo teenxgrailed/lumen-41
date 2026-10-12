@@ -8,7 +8,10 @@ import {
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
-import { processImportRun } from "@/services/imports/runner";
+import {
+  processImportRun,
+  sweepStuckImportRuns,
+} from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
 import {
@@ -69,6 +72,7 @@ import {
   closeQueues,
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
+  getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
   getReminderQueue,
@@ -237,7 +241,11 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
 }
 
 async function processImport(job: Job<ImportJobData>) {
-  await processImportRun(job.data.importRunId);
+  if ("importRunId" in job.data) {
+    await processImportRun(job.data.importRunId);
+    return;
+  }
+  await sweepStuckImportRuns();
 }
 
 // BullMQ and the app can resolve distinct compatible ioredis patch versions,
@@ -394,6 +402,11 @@ export async function start(): Promise<void> {
     "account-lifecycle-sweep",
     { every: 60 * 60_000 },
     { name: "sweep-account-lifecycle", data: { kind: "sweep" } }
+  );
+  await getImportQueue().upsertJobScheduler(
+    "import-stuck-run-sweep",
+    { every: 10 * 60_000 },
+    { name: "sweep-imports", data: { kind: "sweep" } }
   );
   const mailAccountIds = await listActiveMailAccountIds();
   await Promise.all(

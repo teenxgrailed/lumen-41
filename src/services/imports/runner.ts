@@ -19,22 +19,89 @@ import {
   type ImportWarning,
 } from "./types";
 
+//todo: switch encryptSecret/decryptSecret to the enc:v1 helper
+// (src/lib/security/secret-encryption.ts on main, #115) once main and
+// port/integration meet.
+
 const LOG_SOURCE = "ImportRunner";
+
+function json<T>(value: T) {
+  return value as unknown as Prisma.InputJsonValue;
+}
 
 export interface ImportRunnerDeps {
   fetchTodoistSnapshot: (token: string) => Promise<TodoistSnapshot>;
   createStore: typeof createPrismaImportStore;
   createGuard: (userId: string) => ImportLimitGuard;
+  /** IANA zone floating due times are read in when Todoist names none. */
+  loadUserTimeZone: (userId: string) => Promise<string>;
+}
+
+async function loadUserTimeZone(userId: string): Promise<string> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  return settings?.timeZone || "UTC";
 }
 
 const defaultDeps: ImportRunnerDeps = {
   fetchTodoistSnapshot: (token) => fetchTodoistSnapshot(token),
   createStore: createPrismaImportStore,
   createGuard: () => createPlanLimitGuard(),
+  loadUserTimeZone,
 };
 
-function json<T>(value: T) {
-  return value as unknown as Prisma.InputJsonValue;
+/** What a run says when its worker went away mid-run. */
+export const WORKER_LOST_WARNING: ImportWarning = {
+  code: "worker_lost",
+  message: "The import stopped unexpectedly. Start it again.",
+};
+
+/** A queued run nobody picked up for this long is given up on. */
+export const STUCK_QUEUED_MS = 2 * 60 * 60 * 1_000;
+/** A running run that has not ticked for this long lost its worker. */
+export const STUCK_RUNNING_MS = 30 * 60 * 1_000;
+
+function failAsLost(where: Prisma.ImportRunWhereInput) {
+  return prisma.importRun.updateMany({
+    where,
+    data: {
+      status: "failed",
+      finishedAt: newDate(),
+      encryptedToken: null,
+      warnings: { push: json(WORKER_LOST_WARNING) },
+    },
+  });
+}
+
+/**
+ * Repeatable sweep (every 10 minutes on the imports queue): a run left
+ * queued or running by a worker that died is failed, and its token erased,
+ * instead of holding the token and blocking new runs. A live run bumps
+ * updatedAt on every progress tick, so it is never swept.
+ */
+export async function sweepStuckImportRuns(now: Date = newDate()) {
+  const result = await failAsLost({
+    OR: [
+      {
+        status: "queued",
+        createdAt: { lt: newDate(now.getTime() - STUCK_QUEUED_MS) },
+      },
+      {
+        status: "running",
+        updatedAt: { lt: newDate(now.getTime() - STUCK_RUNNING_MS) },
+      },
+    ],
+  });
+  if (result.count > 0) {
+    await logger.warn(
+      "Failed import runs a lost worker left behind",
+      { count: result.count },
+      LOG_SOURCE
+    );
+  }
+  return result.count;
 }
 
 /**
@@ -51,9 +118,15 @@ export async function processImportRun(
 
   const claimed = await prisma.importRun.updateMany({
     where: { id: run.id, status: "queued" },
-    data: { status: "running", startedAt: newDate() },
+    data: { status: "running", startedAt: newDate(), updatedAt: newDate() },
   });
   if (claimed.count !== 1) {
+    if (run.status === "running") {
+      // BullMQ re-delivered a stalled job: the worker that claimed it is
+      // gone and its progress cannot be resumed.
+      await failAsLost({ id: run.id, status: "running" });
+      return;
+    }
     // Cancelled (or already handled) before the worker got to it.
     await prisma.importRun.updateMany({
       where: { id: run.id, encryptedToken: { not: null } },
@@ -77,7 +150,9 @@ export async function processImportRun(
     }
 
     const snapshot = await deps.fetchTodoistSnapshot(token);
-    const plan = planTodoistImport(snapshot);
+    const plan = planTodoistImport(snapshot, {
+      timeZone: await deps.loadUserTimeZone(run.userId),
+    });
     const store: ImportStore = deps.createStore({
       userId: run.userId,
       workspaceId: run.workspaceId,
@@ -98,6 +173,8 @@ export async function processImportRun(
             data: {
               counts: json(progress),
               warnings: { set: current.map(json) },
+              // The sweep reads a stale updatedAt as a lost worker.
+              updatedAt: newDate(),
             },
           });
         },

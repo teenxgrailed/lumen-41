@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
-import { processImportRun } from "../runner";
+import {
+  STUCK_QUEUED_MS,
+  STUCK_RUNNING_MS,
+  WORKER_LOST_WARNING,
+  processImportRun,
+  sweepStuckImportRuns,
+} from "../runner";
 import { TodoistApiError } from "../todoist/client";
 import { todoistSnapshotSchema } from "../todoist/types";
 import fixture from "./fixtures/todoist-sync.json";
@@ -50,8 +56,10 @@ function fakeRunTable(initial: RunRow) {
     });
   const apply = (data: Record<string, unknown>) => {
     for (const [k, v] of Object.entries(data)) {
-      if (k === "warnings") row.warnings = (v as { set: unknown[] }).set;
-      else (row as unknown as Record<string, unknown>)[k] = v;
+      if (k === "warnings") {
+        const op = v as { set?: unknown[]; push?: unknown };
+        row.warnings = op.set ?? [...(row.warnings ?? []), op.push];
+      } else (row as unknown as Record<string, unknown>)[k] = v;
     }
   };
   jest.mocked(prisma.importRun.findUnique).mockImplementation((async () => ({
@@ -101,13 +109,14 @@ describe("processImportRun", () => {
       fetchTodoistSnapshot: fetchSnapshot,
       createStore: () => mem.store,
       createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
     });
 
     expect(fetchSnapshot).toHaveBeenCalledWith("todoist-token");
     expect(row.status).toBe("done");
     expect(row.encryptedToken).toBeNull();
-    expect(row.counts).toMatchObject({ done: 14, failed: 0 });
-    expect(mem.tasks.size).toBe(5);
+    expect(row.counts).toMatchObject({ done: 16, failed: 0 });
+    expect(mem.tasks.size).toBe(7);
   });
 
   it("fails clearly on a Todoist 401 and still wipes the token", async () => {
@@ -120,6 +129,7 @@ describe("processImportRun", () => {
         ),
       createStore: () => createMemoryStore().store,
       createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
     });
     expect(row.status).toBe("failed");
     expect(row.encryptedToken).toBeNull();
@@ -138,6 +148,7 @@ describe("processImportRun", () => {
         ),
       createStore: () => createMemoryStore().store,
       createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
     });
     expect(row.status).toBe("failed");
     expect(row.encryptedToken).toBeNull();
@@ -153,6 +164,7 @@ describe("processImportRun", () => {
       fetchTodoistSnapshot: fetchSnapshot,
       createStore: () => createMemoryStore().store,
       createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
     });
     expect(fetchSnapshot).not.toHaveBeenCalled();
     expect(row.status).toBe("cancelled");
@@ -166,9 +178,87 @@ describe("processImportRun", () => {
       fetchTodoistSnapshot: fetchSnapshot,
       createStore: () => createMemoryStore().store,
       createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
     });
     expect(fetchSnapshot).not.toHaveBeenCalled();
     expect(row.status).toBe("failed");
     expect(row.encryptedToken).toBeNull();
+  });
+
+  it("fails a stalled re-delivery of a run that is already running", async () => {
+    const row = fakeRunTable({ ...baseRun, status: "running" });
+    const fetchSnapshot = jest.fn();
+    await processImportRun("run-1", {
+      fetchTodoistSnapshot: fetchSnapshot,
+      createStore: () => createMemoryStore().store,
+      createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
+    });
+    expect(fetchSnapshot).not.toHaveBeenCalled();
+    expect(row.status).toBe("failed");
+    expect(row.encryptedToken).toBeNull();
+    expect(row.warnings).toEqual([WORKER_LOST_WARNING]);
+  });
+
+  it("bumps updatedAt on every progress tick", async () => {
+    fakeRunTable(baseRun);
+    const big = todoistSnapshotSchema.parse({
+      ...fixture,
+      items: Array.from({ length: 60 }, (_, n) => ({
+        id: `bulk-${n}`,
+        project_id: "6Jf8VQXxpwv56VQ8",
+        content: `Bulk ${n}`,
+        priority: 1,
+        labels: [],
+      })),
+    });
+    await processImportRun("run-1", {
+      fetchTodoistSnapshot: jest.fn().mockResolvedValue(big),
+      createStore: () => createMemoryStore().store,
+      createGuard: allowAll,
+      loadUserTimeZone: async () => "UTC",
+    });
+    const progressWrites = jest
+      .mocked(prisma.importRun.updateMany)
+      .mock.calls.map(([args]) => args as { data: Record<string, unknown> })
+      .filter((args) => "counts" in args.data && !("status" in args.data));
+    expect(progressWrites.length).toBeGreaterThan(1);
+    for (const write of progressWrites) {
+      expect(write.data.updatedAt).toBeInstanceOf(Date);
+    }
+  });
+});
+
+describe("sweepStuckImportRuns", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("fails queued runs older than 2 h and running runs idle for 30 min, wiping tokens", async () => {
+    jest.mocked(prisma.importRun.updateMany).mockResolvedValue({ count: 2 });
+    const now = new Date("2026-10-12T12:00:00Z");
+    await expect(sweepStuckImportRuns(now)).resolves.toBe(2);
+    const [args] = jest.mocked(prisma.importRun.updateMany).mock.calls[0] as [
+      {
+        where: { OR: Array<Record<string, { lt: Date } | string>> };
+        data: Record<string, unknown>;
+      },
+    ];
+    expect(args.where.OR).toEqual([
+      {
+        status: "queued",
+        createdAt: { lt: new Date(now.getTime() - STUCK_QUEUED_MS) },
+      },
+      {
+        status: "running",
+        updatedAt: { lt: new Date(now.getTime() - STUCK_RUNNING_MS) },
+      },
+    ]);
+    expect(STUCK_QUEUED_MS).toBe(2 * 60 * 60 * 1_000);
+    expect(STUCK_RUNNING_MS).toBe(30 * 60 * 1_000);
+    expect(args.data).toMatchObject({
+      status: "failed",
+      encryptedToken: null,
+      finishedAt: expect.any(Date),
+      warnings: { push: WORKER_LOST_WARNING },
+    });
   });
 });

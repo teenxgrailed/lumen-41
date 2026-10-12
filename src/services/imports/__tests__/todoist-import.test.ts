@@ -1,9 +1,13 @@
 import { applyImportPlan } from "../apply";
-import { mapTodoistPriority, planTodoistImport } from "../todoist/mapper";
+import {
+  mapTodoistPriority,
+  parseTodoistDue,
+  planTodoistImport,
+} from "../todoist/mapper";
 import { todoistSnapshotSchema } from "../todoist/types";
 import { ImportCancelledError, type ImportLimitGuard } from "../types";
 import fixture from "./fixtures/todoist-sync.json";
-import { createMemoryStore } from "./memory-store";
+import { createMemoryDb, createMemoryStore } from "./memory-store";
 
 const snapshot = todoistSnapshotSchema.parse(fixture);
 const allowAll: ImportLimitGuard = {
@@ -134,12 +138,12 @@ describe("applyImportPlan", () => {
       projects: 2,
       stages: 2,
       tags: 3,
-      tasks: 5,
+      tasks: 7,
       parts: 2,
     });
     expect(first.counts).toEqual({
-      total: 14 + plan.skipped,
-      done: 14,
+      total: 16 + plan.skipped,
+      done: 16,
       skipped: plan.skipped,
       failed: 0,
     });
@@ -157,7 +161,7 @@ describe("applyImportPlan", () => {
       allowAll
     );
     expect(sizes()).toEqual(afterFirst);
-    expect(second.counts.done).toBe(14);
+    expect(second.counts.done).toBe(16);
     const titles = [...mem.tasks.values()].map((t) => t.title);
     expect(titles).toContain("Ship the roadmap");
     expect(titles).not.toContain("Ship the Q4 roadmap");
@@ -188,7 +192,7 @@ describe("applyImportPlan", () => {
     expect(mem.projects.size).toBe(0);
     // Stages need a project, so they are skipped too; tasks land in Inbox.
     expect(mem.stages.size).toBe(0);
-    expect(mem.tasks.size).toBe(5);
+    expect(mem.tasks.size).toBe(7);
     expect([...mem.tasks.values()].every((t) => t.projectId === null)).toBe(
       true
     );
@@ -217,7 +221,7 @@ describe("applyImportPlan", () => {
       allowAll
     );
     expect(result.counts.failed).toBe(1);
-    expect(mem.tasks.size).toBe(4);
+    expect(mem.tasks.size).toBe(6);
     expect(result.warnings.some((w) => w.code === "write_failed")).toBe(true);
   });
 
@@ -239,5 +243,89 @@ describe("applyImportPlan", () => {
       })
     ).rejects.toBeInstanceOf(ImportCancelledError);
     expect(mem.tasks.size).toBeLessThan(60);
+  });
+});
+
+describe("due dates", () => {
+  const west = planTodoistImport(snapshot, {
+    timeZone: "America/Los_Angeles",
+  });
+  const due = (id: string) =>
+    west.tasks.find((t) => t.externalId === id)!.dueDate?.toISOString();
+
+  it("keeps an all-day due on its calendar day for a user west of UTC", () => {
+    // Stored as UTC midnight, like Google Tasks / CalDAV all-day dues.
+    expect(due("6X7rM8997g3RQmvh")).toBe("2026-10-20T00:00:00.000Z");
+  });
+
+  it("reads a floating time in the user's zone when Todoist names none", () => {
+    // 09:00 in Los Angeles (PDT, UTC-7).
+    expect(due("6X7rM8997g3RQmw1")).toBe("2026-10-21T16:00:00.000Z");
+    // Same item for a UTC user.
+    expect(
+      planTodoistImport(snapshot)
+        .tasks.find((t) => t.externalId === "6X7rM8997g3RQmw1")!
+        .dueDate?.toISOString()
+    ).toBe("2026-10-21T09:00:00.000Z");
+  });
+
+  it("reads a floating time in due.timezone when present", () => {
+    // 09:00 in Tokyo (UTC+9), regardless of the user's zone.
+    expect(due("6X7rM8997g3RQmw2")).toBe("2026-10-22T00:00:00.000Z");
+  });
+
+  it("keeps a fixed (offset) time as that instant", () => {
+    expect(due("6X7rM8997g3RQmv5")).toBe("2026-10-17T16:00:00.000Z");
+  });
+
+  it("falls back to the user's zone on an unknown due.timezone", () => {
+    expect(
+      parseTodoistDue(
+        "2026-10-21T09:00:00",
+        "Mars/Olympus",
+        "Europe/Kyiv"
+      )?.toISOString()
+    ).toBe("2026-10-21T06:00:00.000Z");
+  });
+});
+
+describe("workspace scoping", () => {
+  it("a run into another workspace makes new rows and leaves the first untouched", async () => {
+    const db = createMemoryDb();
+    const plan = planTodoistImport(snapshot);
+    await applyImportPlan(plan, db.storeFor("ws-A"), allowAll);
+    const before = {
+      projects: new Map(db.projects),
+      tasks: new Map(db.tasks),
+      stages: new Map(db.stages),
+    };
+
+    const edited = todoistSnapshotSchema.parse({
+      ...fixture,
+      items: fixture.items.map((i) =>
+        i.id === "6X7rM8997g3RQmvh" ? { ...i, content: "Renamed in B" } : i
+      ),
+    });
+    await applyImportPlan(
+      planTodoistImport(edited),
+      db.storeFor("ws-B"),
+      allowAll
+    );
+
+    expect(db.projects.size).toBe(before.projects.size * 2);
+    expect(db.tasks.size).toBe(before.tasks.size * 2);
+    expect(db.stages.size).toBe(before.stages.size * 2);
+    // Every row of the first run is exactly as it was.
+    for (const [id, row] of before.tasks) expect(db.tasks.get(id)).toEqual(row);
+    for (const [id, row] of before.projects)
+      expect(db.projects.get(id)).toEqual(row);
+    // The mappings now point at workspace B, and B's tasks link only to B.
+    const roadmapB = db.tasks.get(db.maps.get("task:6X7rM8997g3RQmvh")!)!;
+    expect(roadmapB.workspaceId).toBe("ws-B");
+    expect(roadmapB.title).toBe("Renamed in B");
+    for (const task of db.tasks.values()) {
+      if (task.workspaceId !== "ws-B" || !task.projectId) continue;
+      expect(db.projects.get(task.projectId)!.workspaceId).toBe("ws-B");
+    }
   });
 });

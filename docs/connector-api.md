@@ -148,9 +148,17 @@ A run:
 `status` is `queued`, `running`, `done`, `failed` or `cancelled`. A failed
 run says why in its last warning (`todoist_unauthorized`,
 `todoist_rate_limited`, `todoist_unavailable`, `worker_unavailable`,
-`import_failed`). A run of another user is `404`. The Todoist token is kept
-encrypted on the run only while it is queued or running and is erased when
-it ends; it is never returned.
+`worker_lost`, `import_failed`). `worker_lost` means the background worker
+went away mid-run: a run still queued after 2 hours, or running with no
+progress for 30 minutes, is failed by a sweep every 10 minutes. A run of
+another user is `404`. The Todoist token is kept encrypted on the run only
+while it is queued or running and is erased when it ends; it is never
+returned.
+
+Dates: an all-day due (`2026-10-20`) is stored as UTC midnight of that day,
+like the other task providers. A due time with an offset is kept as that
+instant; one without (a floating time) is read in Todoist's `due.timezone`
+when set, else in your time zone from Settings.
 
 What lands where:
 
@@ -172,6 +180,9 @@ Skipped and counted: completed and deleted tasks, archived projects and
 sections, file attachments, reminders, Inbox sections. Running an import
 again updates the rows the last one made (title, description, dates,
 priority, project, stage; tags are only added) and never duplicates them.
+Rows are matched within the workspace the run imports into: importing into
+another workspace makes fresh rows there and leaves the first ones as they
+were.
 
 ## Webhooks
 

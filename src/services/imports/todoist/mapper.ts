@@ -1,6 +1,6 @@
 import type { SchedulingTaskPriority } from "@prisma/client";
 
-import { newDate } from "@/lib/date-utils";
+import { fromZonedTime, newDate } from "@/lib/date-utils";
 import { parseTodoistRecurrence } from "@/lib/task-sync/recurrence/todoist-recurrence-converter";
 
 import { addWarning } from "../apply";
@@ -56,6 +56,39 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const HAS_OFFSET = /(Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * A Todoist due or deadline as a Date.
+ * - "2026-10-20" (all day) -> UTC midnight of that calendar day, the way the
+ *   task-sync providers store all-day due dates (Google Tasks sends
+ *   "...T00:00:00.000Z"; a CalDAV DATE becomes midnight on the UTC server),
+ *   so the day never shifts with the reader's zone.
+ * - "2026-10-20T09:00:00Z" (fixed) -> that instant.
+ * - "2026-10-20T09:00:00" (floating) -> that wall time in `due.timezone` when
+ *   Todoist names one, else in the person's own time zone.
+ */
+export function parseTodoistDue(
+  value: string | null | undefined,
+  zone: string | null | undefined,
+  userTimeZone: string
+): Date | null {
+  if (!value) return null;
+  if (DATE_ONLY.test(value)) return parseDate(`${value}T00:00:00.000Z`);
+  if (HAS_OFFSET.test(value)) return parseDate(value);
+  for (const tz of [zone, userTimeZone, "UTC"]) {
+    if (!tz) continue;
+    try {
+      const date = fromZonedTime(value, tz);
+      if (!Number.isNaN(date.getTime())) return date;
+    } catch {
+      // An unknown zone name: try the next one.
+    }
+  }
+  return null;
+}
+
 function byOrder<T extends { child_order?: number | null }>(a: T, b: T) {
   return (a.child_order ?? 0) - (b.child_order ?? 0);
 }
@@ -76,7 +109,16 @@ function joinBlocks(blocks: Array<string | null | undefined>): string | null {
   return kept.length ? kept.join("\n\n") : null;
 }
 
-export function planTodoistImport(snapshot: TodoistSnapshot): ImportPlan {
+export interface TodoistPlanOptions {
+  /** The person's IANA time zone (UserSettings.timeZone). */
+  timeZone?: string;
+}
+
+export function planTodoistImport(
+  snapshot: TodoistSnapshot,
+  options: TodoistPlanOptions = {}
+): ImportPlan {
+  const userTimeZone = options.timeZone || "UTC";
   const warnings: ImportWarning[] = [];
   let skipped = 0;
 
@@ -336,8 +378,12 @@ export function planTodoistImport(snapshot: TodoistSnapshot): ImportPlan {
         projectExternalId && sectionId && importedSectionIds.has(sectionId)
           ? sectionId
           : null,
-      dueDate: parseDate(item.due?.date),
-      deadline: parseDate(item.deadline?.date),
+      dueDate: parseTodoistDue(
+        item.due?.date,
+        item.due?.timezone,
+        userTimeZone
+      ),
+      deadline: parseTodoistDue(item.deadline?.date, null, userTimeZone),
       estimatedMinutes,
       priorityLevel: mapTodoistPriority(item.priority),
       recurrenceRule,

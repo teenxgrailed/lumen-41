@@ -30,6 +30,7 @@ describe("parseTodoistRecurrence", () => {
     ["every fri at 6pm", "FREQ=WEEKLY;BYDAY=FR"],
     ["every other tuesday", "FREQ=WEEKLY;INTERVAL=2;BYDAY=TU"],
     ["every month on the 15th", "FREQ=MONTHLY;BYMONTHDAY=15"],
+    ["every 3 months on the 1st", "FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=1"],
     ["every month on the last day", "FREQ=MONTHLY;BYMONTHDAY=-1"],
     ["every 15th", "FREQ=MONTHLY;BYMONTHDAY=15"],
     ["every 1st", "FREQ=MONTHLY;BYMONTHDAY=1"],
@@ -50,6 +51,9 @@ describe("parseTodoistRecurrence", () => {
     "cada día",
     "",
     "every 32nd",
+    "every 0 months on the 15th",
+    "every 1000 months on the 15th",
+    "every 0 days",
   ])("returns null for %j", (text) => {
     expect(parseTodoistRecurrence(text)).toBeNull();
   });

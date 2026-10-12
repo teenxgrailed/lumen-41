@@ -12,6 +12,10 @@ import { enqueueImportRun } from "@/lib/queue/enqueue";
 import { getTodoistOAuthConfig } from "./todoist/client";
 import { type ImportCounts, type ImportWarning, emptyCounts } from "./types";
 
+//todo: switch encryptSecret/decryptSecret to the enc:v1 helper
+// (src/lib/security/secret-encryption.ts on main, #115) once main and
+// port/integration meet.
+
 const LOG_SOURCE = "ImportService";
 
 export const IMPORTS_FEATURE_FLAG = "imports";

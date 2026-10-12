@@ -57,7 +57,8 @@ export type AccountLifecycleJobData =
   | { kind: "delete"; requestId: string }
   | { kind: "sweep" };
 
-/** Only the run id: the source token is read from the run row, never queued. */
-export interface ImportJobData {
-  importRunId: string;
-}
+/**
+ * A run carries only its id: the source token is read from the run row,
+ * never queued. The sweep fails runs a lost worker left behind.
+ */
+export type ImportJobData = { importRunId: string } | { kind: "sweep" };

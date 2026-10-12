@@ -126,8 +126,14 @@
         "lang": "en",
         "timezone": null
       },
-      "deadline": { "date": "2026-10-24", "lang": "en" },
-      "duration": { "amount": 90, "unit": "minute" },
+      "deadline": {
+        "date": "2026-10-24",
+        "lang": "en"
+      },
+      "duration": {
+        "amount": 90,
+        "unit": "minute"
+      },
       "checked": false,
       "is_deleted": false,
       "added_at": "2026-09-20T10:15:00.000000Z",
@@ -220,7 +226,10 @@
         "timezone": "Europe/Kyiv"
       },
       "deadline": null,
-      "duration": { "amount": 30, "unit": "minute" },
+      "duration": {
+        "amount": 30,
+        "unit": "minute"
+      },
       "checked": false,
       "is_deleted": false,
       "updated_at": "2026-10-03T09:00:00.000000Z"
@@ -243,7 +252,10 @@
         "timezone": null
       },
       "deadline": null,
-      "duration": { "amount": 2, "unit": "day" },
+      "duration": {
+        "amount": 2,
+        "unit": "day"
+      },
       "checked": false,
       "is_deleted": false,
       "updated_at": "2026-10-03T09:00:00.000000Z"
@@ -304,6 +316,52 @@
       "checked": false,
       "is_deleted": false,
       "updated_at": "2025-01-01T09:00:00.000000Z"
+    },
+    {
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": null,
+      "parent_id": null,
+      "description": "",
+      "priority": 1,
+      "labels": [],
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-05T09:00:00.000000Z",
+      "id": "6X7rM8997g3RQmw1",
+      "content": "Call the bank",
+      "child_order": 10,
+      "due": {
+        "date": "2026-10-21T09:00:00",
+        "is_recurring": false,
+        "string": "Oct 21 9am",
+        "lang": "en",
+        "timezone": null
+      }
+    },
+    {
+      "project_id": "6Jf8VQXxpwv56VQ8",
+      "section_id": null,
+      "parent_id": null,
+      "description": "",
+      "priority": 1,
+      "labels": [],
+      "deadline": null,
+      "duration": null,
+      "checked": false,
+      "is_deleted": false,
+      "updated_at": "2026-10-05T09:00:00.000000Z",
+      "id": "6X7rM8997g3RQmw2",
+      "content": "Standup with Tokyo",
+      "child_order": 11,
+      "due": {
+        "date": "2026-10-22T09:00:00",
+        "is_recurring": false,
+        "string": "Oct 22 9am",
+        "lang": "en",
+        "timezone": "Asia/Tokyo"
+      }
     }
   ],
   "notes": [

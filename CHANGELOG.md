@@ -19,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from outside: `POST /api/imports`, `GET /api/imports/:id`,
   `POST /api/imports/:id/cancel`, and the same under `/api/connect/imports`
   with a connector token (which also accepts a Todoist personal API token).
-  Needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`; additive migration
-  `20261012090000_imports`.
+  Floating due times are read in Todoist's zone or yours; a run whose worker
+  died is failed by a 10-minute sweep and its token erased; rows are matched
+  per workspace. Needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`;
+  additive migration `20261012090000_imports`.
 - Moodboards: a board's references can be read and written through the API.
   `GET`/`POST /api/moodboards/:id/items` and `PATCH`/`DELETE
 /api/moodboards/:id/items/:itemId` list the wall in order and add, change,

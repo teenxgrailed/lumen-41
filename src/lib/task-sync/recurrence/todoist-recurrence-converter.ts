@@ -99,6 +99,11 @@ function parseDays(list: string): string[] | null {
   return DAY_ORDER.filter((d) => codes.has(d));
 }
 
+/** "every 0 days" or "every 5000 weeks" is not a schedule anyone set. */
+function validInterval(n: number): boolean {
+  return Number.isInteger(n) && n >= 1 && n <= 999;
+}
+
 function ordinalDay(text: string): number | null {
   if (text === "last day" || text === "last") return -1;
   const match = /^(\d{1,2})(st|nd|rd|th)?( day)?$/.exec(text);
@@ -128,7 +133,7 @@ export function parseTodoistRecurrence(
   if (interval && UNIT_FREQ[interval[2]]) {
     const raw = interval[1];
     const n = raw ? (WORD_NUMBERS[raw] ?? Number(raw)) : 1;
-    if (!Number.isInteger(n) || n < 1) return null;
+    if (!validInterval(n)) return null;
     const freq = `FREQ=${UNIT_FREQ[interval[2]]}`;
     return n === 1 ? freq : `${freq};INTERVAL=${n}`;
   }
@@ -140,6 +145,7 @@ export function parseTodoistRecurrence(
     if (day === null) return null;
     const raw = monthOn[1];
     const n = raw ? (WORD_NUMBERS[raw] ?? Number(raw)) : 1;
+    if (!validInterval(n)) return null;
     return n === 1
       ? `FREQ=MONTHLY;BYMONTHDAY=${day}`
       : `FREQ=MONTHLY;INTERVAL=${n};BYMONTHDAY=${day}`;
