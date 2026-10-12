@@ -14,12 +14,12 @@ Each document is Markdown in a template string, rendered by
 `src/lib/legal/markdown.ts`. Edit the text there; do not reintroduce copies
 here.
 
-`src/lib/legal/operator.ts` holds the effective date and the two values the
-owner still has to supply: `OPERATOR_FULL_NAME` and `DATAREP_CONTACT`. Until
-they are filled, the pages print interim wording ("Maksym A."; DataRep being
-appointed, write to privacy@needt.app). The skipped block at the end of
-`src/lib/legal/__tests__/documents.test.ts` fails while either is a
-placeholder; un-skip it once both are filled.
+`src/lib/legal/operator.ts` holds the effective date, the operator's name
+(`OPERATOR_FULL_NAME`) and the one value still pending: `DATAREP_CONTACT`.
+Until DataRep assigns a contact, the pages print interim wording (DataRep
+being appointed, write to privacy@needt.app). The skipped block at the end of
+`src/lib/legal/__tests__/documents.test.ts` fails while it is a placeholder;
+un-skip it once it is filled.
 
 ## When something changes
 

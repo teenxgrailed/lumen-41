@@ -3,14 +3,14 @@
  * subprocessor list print. Every value that changes when the owner signs
  * something lives here, so a change is one line.
  *
- * Two values are still placeholders. Until they are filled, the pages print
- * the interim wording below instead of the raw placeholder, and the skipped
- * test `src/lib/legal/__tests__/documents.test.ts` names them. Fill both,
- * then un-skip that test.
+ * DATAREP_CONTACT is still a placeholder. Until it is filled, the pages print
+ * interim wording instead of the raw placeholder, and a skipped test in
+ * `src/lib/legal/__tests__/documents.test.ts` names it. Fill it, then un-skip
+ * that test.
  */
 
-/** The operator's full legal name. Replace with the name from the owner. */
-export const OPERATOR_FULL_NAME = "{{OPERATOR_FULL_NAME}}";
+/** The operator's full legal name (owner, 2026-10-12): a private individual. */
+export const OPERATOR_FULL_NAME = "Maksym Antoniuk";
 
 /**
  * The EU representative's contact (GDPR Art. 27): entity name, postal address
