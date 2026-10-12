@@ -157,10 +157,9 @@ export function PkSheet({
     const k = S.H ? pkClamp(1 - y / (S.H + 24), 0, 1) : 0;
     scrim.current?.style.setProperty("--pk-scrim-k", k.toFixed(3));
     const hidden = y >= S.H + 23 && !S.open && !S.drag && !S.m.raf;
-    if (layer.current) {
+    // (a `data-pk-y` mirror of `y` was written here every frame; nothing read it)
+    if (layer.current)
       layer.current.style.visibility = hidden ? "hidden" : "visible";
-      layer.current.setAttribute("data-pk-y", String(Math.round(y)));
-    }
     if (hidden !== S.wasHidden) {
       S.wasHidden = hidden;
       if (hidden) shutRef.current?.();
@@ -481,6 +480,13 @@ export function PkSheet({
     return () => {
       cancelAnimationFrame(S.raf);
       cancelAnimationFrame(m.raf);
+      // Forget the frames and that the sheet was open: React's StrictMode (dev)
+      // unmounts and remounts a sheet that mounts already open (the composer,
+      // opened from the pill), and the layout effect must then start the
+      // morph again instead of finding a cancelled frame and a sheet "open".
+      S.raf = 0;
+      m.raf = 0;
+      S.open = false;
     };
   }, [S]);
 
