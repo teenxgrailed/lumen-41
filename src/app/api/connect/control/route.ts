@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  authenticateConnectorRequest,
   authenticateConnectorToken,
-  authorizeConnectorWorkspace,
 } from "@/services/connectors/auth";
 import { isConnectorControlAction } from "@/services/connectors/control-actions";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
@@ -44,12 +44,13 @@ export async function POST(request: NextRequest) {
   if (!isConnectorControlAction(action)) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
-  const auth = await authorizeConnectorWorkspace(
+  // The shared check: scope for the role (a read-only grant cannot write)
+  // and an OAuth grant's bound workspace.
+  const auth = await authenticateConnectorRequest(
     request,
-    userId,
     action === "overview" ? WorkspaceRole.VIEWER : WorkspaceRole.EDITOR
   );
-  if ("response" in auth) return auth.response;
+  if (auth.response) return auth.response;
   const { workspace } = auth;
   const scope = workspaceDataScopeWhere(workspace, userId);
 
