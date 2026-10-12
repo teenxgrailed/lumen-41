@@ -51,7 +51,7 @@ function harness() {
     pageFor: lookup,
     resolveFile: async ({ url, caption }) => ({
       url: url.startsWith("https://prod-files")
-        ? `/api/pages/p/assets/${caption || "a"}`
+        ? `/api/pages/p/assets/${encodeURIComponent(caption || "a")}`
         : url,
       name: caption || "file",
       ...(url.startsWith("https://prod-files") ? { assetId: "asset-1" } : {}),
@@ -266,7 +266,7 @@ describe("Notion markdown to page blocks", () => {
     const nodes = blocks.map(json);
     expect(nodes.map(kindOf)).toEqual(["IMAGE", "FILE", "FILE", "IMAGE"]);
     expect(data(nodes[0])).toMatchObject({
-      url: "/api/pages/p/assets/A diagram",
+      url: "/api/pages/p/assets/A%20diagram",
       assetId: "asset-1",
       name: "A diagram",
     });

@@ -8,6 +8,7 @@ import {
   pageEditorExtensions,
   pageEditorSchema,
 } from "@/lib/pages/page-editor-schema";
+import { safeUrl } from "@/lib/pages/safe-url";
 
 /**
  * Notion's page markdown ("enhanced markdown", see
@@ -32,7 +33,8 @@ export type NoteCode =
   | "equation"
   | "synced_block"
   | "unsupported_block"
-  | "link_unresolved";
+  | "link_unresolved"
+  | "link_unsafe";
 
 export type MediaKind = "image" | "file" | "audio" | "video" | "pdf";
 
@@ -422,6 +424,8 @@ export type FileRef = {
 
 export type UnknownRef =
   | { kind: "bookmark" | "link"; url: string; title: string }
+  /** An address that failed the URL allowlist: shown as plain text. */
+  | { kind: "text"; text: string }
   | { kind: "skip" };
 
 export interface BuildDeps extends SplitContext {
@@ -471,6 +475,54 @@ function validated(node: JSONContent): JSONContent {
   }
 }
 
+/**
+ * Imported addresses are untrusted: a link, bookmark, file, image or page
+ * mention whose address fails the shared allowlist (`@/lib/pages/safe-url`)
+ * becomes plain text and a `link_unsafe` note, never a clickable block.
+ */
+function unsafeAsText(deps: BuildDeps, ...labels: string[]): JSONContent[] {
+  deps.note("link_unsafe");
+  return [paragraph(labels.find((label) => label.trim()) ?? "")];
+}
+
+/**
+ * Walks parsed markdown and drops what the allowlist refuses: a link mark
+ * with an unsafe href is removed (its text stays), an image with an unsafe
+ * src turns into its alt text.
+ */
+function sanitizeNode(
+  node: JSONContent,
+  parent: string | undefined,
+  onUnsafe: () => void
+): JSONContent | null {
+  if (node.type === "image") {
+    if (safeUrl(node.attrs?.src, { allowMailto: false })) return node;
+    onUnsafe();
+    const alt = String(node.attrs?.alt ?? node.attrs?.src ?? "").trim();
+    if (parent === "paragraph" || parent === "heading") {
+      return alt ? { type: "text", text: alt } : null;
+    }
+    return paragraph(alt);
+  }
+  const out: JSONContent = { ...node };
+  if (node.marks) {
+    const marks = node.marks.filter((mark) => {
+      if (mark.type !== "link") return true;
+      if (safeUrl(mark.attrs?.href)) return true;
+      onUnsafe();
+      return false;
+    });
+    if (marks.length > 0) out.marks = marks;
+    else delete out.marks;
+  }
+  if (node.content) {
+    out.content = node.content
+      .map((child) => sanitizeNode(child, node.type, onUnsafe))
+      .filter((child): child is JSONContent => child !== null);
+  }
+  return out;
+}
+
 async function atomNodes(
   atom: AtomSpec,
   deps: BuildDeps
@@ -483,27 +535,37 @@ async function atomNodes(
     case "page": {
       const target = deps.pageFor(atom.url);
       if (target) {
+        const href = safeUrl(`/pages/${target.localId}`);
+        if (!href) return unsafeAsText(deps, atom.title, target.title);
         return [
           special("PAGE_MENTION", {
             pageId: target.localId,
             title: atom.title || target.title,
-            url: `/pages/${target.localId}`,
+            url: href,
           }),
         ];
       }
       deps.note("link_unresolved", atom.title);
-      return atom.url
-        ? [special("LINK", { url: atom.url, title: atom.title })]
-        : [paragraph(atom.title)];
+      if (!atom.url) return [paragraph(atom.title)];
+      const link = safeUrl(atom.url);
+      if (!link) return unsafeAsText(deps, atom.title, atom.url);
+      return [special("LINK", { url: link, title: atom.title })];
     }
     case "media": {
+      if (atom.url && !safeUrl(atom.url, { allowMailto: false })) {
+        return unsafeAsText(deps, atom.caption, atom.url);
+      }
       const file = await deps.resolveFile({
         media: atom.media,
         url: atom.url,
         caption: atom.caption,
       });
+      const fileUrl = file.url ? safeUrl(file.url, { allowMailto: false }) : "";
+      if (fileUrl === null) {
+        return unsafeAsText(deps, atom.caption, file.name);
+      }
       const data = {
-        url: file.url,
+        url: fileUrl,
         name: atom.caption || file.name,
         ...(file.assetId ? { assetId: file.assetId } : {}),
         ...(file.mimeType ? { mimeType: file.mimeType } : {}),
@@ -516,9 +578,12 @@ async function atomNodes(
         alt: atom.alt,
       });
       if (resolved.kind === "skip") return [];
+      if (resolved.kind === "text") return unsafeAsText(deps, resolved.text);
+      const href = safeUrl(resolved.url);
+      if (!href) return unsafeAsText(deps, resolved.title, resolved.url);
       return [
         special(resolved.kind === "bookmark" ? "BOOKMARK" : "LINK", {
-          url: resolved.url,
+          url: href,
           title: resolved.title,
         }),
       ];
@@ -533,7 +598,12 @@ export async function buildPageBlocks(
   const nodes: JSONContent[] = [];
   for (const segment of segments) {
     if (segment.type === "markdown") {
-      nodes.push(...parseMarkdown(segment.text).map(validated));
+      for (const parsed of parseMarkdown(segment.text)) {
+        const clean = sanitizeNode(parsed, undefined, () =>
+          deps.note("link_unsafe")
+        );
+        if (clean) nodes.push(validated(clean));
+      }
     } else {
       nodes.push(...(await atomNodes(segment.atom, deps)));
     }

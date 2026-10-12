@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 
 import { addWarning, applyImportPlan } from "./apply";
+import { createImportHeartbeat } from "./heartbeat";
 import {
   NotionApiError,
   NotionClient,
@@ -196,6 +197,7 @@ export async function processImportRun(
           },
         });
       },
+      onHeartbeat: createImportHeartbeat(run.id),
       isCancelled: async () => {
         const row = await prisma.importRun.findUnique({
           where: { id: run.id },

@@ -215,12 +215,21 @@ a shared workspace shares nothing until you choose to.
 | Title, text, number, select, status, multi-select, date, checkbox, URL, email, phone, files, created / edited time | Title, text, number, select, select, multi-select, date, checkbox, URL, email, phone, files, date                                                                                                                        |
 | People, relation, rollup, formula, created by, edited by, unique ID                                                | Text: a snapshot of what Notion showed (names, titles of related pages, the computed value); one note per database names the kinds kept as text                                                                          |
 
+Only addresses Needt opens are kept: `http`, `https`, `mailto` and Needt page
+paths. A link, bookmark, file, image or cover with any other address
+(`javascript:`, `data:` and the like) comes in as plain text and is counted as
+`link_unsafe`. Files are downloaded only from Notion's own hosts, a redirect
+to any other host stops the download, and a file keeps its type only when it
+is a common image, PDF, audio, video, text or CSV type; anything else
+(including SVG and HTML) is stored as an opaque download.
+
 Skipped: comments, views, live formulas, buttons, verification, templates,
 page permissions, the source of a synced block, and turning databases into
 tasks. A second run updates the pages whose last edit in Notion moved and skips
 the rest; a page deleted in Notion is left alone in Needt. Notes (`warnings`)
 include `truncated` (Notion returned part of a very large page),
-`unknown_blocks`, `unsupported_block`, `link_unresolved`, `equation`,
+`unknown_blocks`, `unsupported_block`, `link_unresolved`, `link_unsafe`,
+`equation`,
 `synced_block`, `asset_oversize`, `asset_budget`, `asset_failed`,
 `properties_flattened`, `database_truncated` and `database_rows_failed`.
 

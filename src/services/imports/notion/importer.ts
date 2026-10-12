@@ -3,6 +3,7 @@ import { PageBlockType } from "@prisma/client";
 import { createHash } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
+import { safeUrl } from "@/lib/pages/safe-url";
 
 import { addWarning } from "../apply";
 import { type Downloaded, SafeFetchError, safeDownload } from "../safe-fetch";
@@ -14,6 +15,7 @@ import {
   type ImportWarning,
 } from "../types";
 import { NotionApiError } from "./client";
+import { isNotionHost, isNotionHostedUrl } from "./hosts";
 import {
   blockIdFromNotionUrl,
   normalizeNotionId,
@@ -91,7 +93,7 @@ export interface NotionImportDeps {
   store: NotionImportStore;
   guard: ImportLimitGuard;
   hooks?: ImportProgressHooks;
-  /** Overridable for tests; the real one refuses private addresses. */
+  /** Overridable for tests; the real one refuses private and non-Notion hosts. */
   download?: (url: string, maxBytes: number) => Promise<Downloaded>;
   limits?: { fileBytes: number; runBytes: number };
 }
@@ -153,6 +155,7 @@ class PageNotes {
         asset_failed: `${quoted}: ${n} file${plural} could not be downloaded and still point${n === 1 ? "s" : ""} at Notion (${list}); those links expire.`,
         asset_oversize: `${quoted}: ${n} file${plural} over the size limit stay${n === 1 ? "s" : ""} as links to Notion (${list}); those links expire.`,
         asset_budget: `${quoted}: the run reached its download limit; ${n} file${plural} stay${n === 1 ? "s" : ""} as links to Notion; those links expire.`,
+        link_unsafe: `${quoted}: ${n} link${plural} or file${plural} with an address Needt does not open (only http, https, mailto and Needt pages are kept) ${n === 1 ? "was" : "were"} left as plain text.`,
       };
       addWarning(warnings, {
         code,
@@ -187,26 +190,6 @@ function emojiOf(icon: { type?: string; emoji?: string } | null | undefined) {
   return icon?.type === "emoji" && icon.emoji ? icon.emoji : null;
 }
 
-function isNotionHosted(raw: string): boolean {
-  try {
-    const url = new URL(raw);
-    const host = url.hostname.toLowerCase();
-    if (
-      host === "notion.so" ||
-      host.endsWith(".notion.so") ||
-      host.endsWith("notion-static.com") ||
-      host.endsWith("notionusercontent.com")
-    ) {
-      return true;
-    }
-    return (
-      host.endsWith(".amazonaws.com") && url.searchParams.has("X-Amz-Signature")
-    );
-  } catch {
-    return false;
-  }
-}
-
 /** The part of a signed URL that does not change when it is signed again. */
 function stableFileKey(raw: string): string {
   try {
@@ -228,17 +211,36 @@ function fileNameOf(raw: string, fallback = "file"): string {
   }
 }
 
-function mimeOf(name: string, header: string | null): string {
+/**
+ * What a downloaded file is stored as. Only this short list keeps its type;
+ * everything else (image/svg+xml and text/html included, both of which run
+ * script when served inline) is stored as application/octet-stream.
+ */
+const STORED_MIME_TYPES: ReadonlySet<string> = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "audio/mpeg",
+  "audio/mp4",
+  "video/mp4",
+  "video/quicktime",
+  "text/plain",
+  "text/csv",
+]);
+
+export function mimeOf(name: string, header: string | null): string {
   const declared = header?.split(";")[0].trim().toLowerCase();
-  if (
-    declared &&
-    declared !== "application/octet-stream" &&
-    declared !== "binary/octet-stream"
-  ) {
-    return declared;
-  }
+  const opaque =
+    !declared ||
+    declared === "application/octet-stream" ||
+    declared === "binary/octet-stream";
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  return EXTENSION_TYPES[ext] ?? "application/octet-stream";
+  const type = opaque ? EXTENSION_TYPES[ext] : declared;
+  return type && STORED_MIME_TYPES.has(type)
+    ? type
+    : "application/octet-stream";
 }
 
 class FileBudget {
@@ -265,7 +267,8 @@ export async function runNotionImport(
   const hooks = deps.hooks ?? {};
   const download =
     deps.download ??
-    ((url: string, maxBytes: number) => safeDownload(url, { maxBytes }));
+    ((url: string, maxBytes: number) =>
+      safeDownload(url, { maxBytes, allowHost: isNotionHost }));
   const budget = new FileBudget(
     deps.limits?.fileBytes ?? NOTION_FILE_MAX_BYTES,
     deps.limits?.runBytes ?? NOTION_RUN_FILES_MAX_BYTES
@@ -274,6 +277,11 @@ export async function runNotionImport(
   const counts: ImportCounts = { total: 0, done: 0, skipped: 0, failed: 0 };
   let systemicFailures = 0;
   let iconsSkipped = 0;
+
+  /** Throttled by the runner: a live run never looks lost to the sweeper. */
+  async function heartbeat() {
+    await hooks.onHeartbeat?.();
+  }
 
   async function progress() {
     if (hooks.isCancelled && (await hooks.isCancelled())) {
@@ -326,6 +334,7 @@ export async function runNotionImport(
       if (hooks.isCancelled && (await hooks.isCancelled())) {
         throw new ImportCancelledError();
       }
+      await heartbeat();
       const list = await fetchPage(cursor);
       for (const item of nodeEntries(list)) onResult(item);
       if (list.request_status?.type === "incomplete") incomplete = true;
@@ -528,6 +537,7 @@ export async function runNotionImport(
 
   const children = new Map<string | null, Node[]>();
   for (const node of order) {
+    await heartbeat();
     const parentId = await parentOf(node);
     const list = children.get(parentId) ?? [];
     list.push(node);
@@ -575,8 +585,9 @@ export async function runNotionImport(
     url: string,
     nameHint: string
   ): Promise<FileRef> {
+    await heartbeat();
     const name = nameHint || fileNameOf(url);
-    if (!url || !isNotionHosted(url)) return { url, name };
+    if (!url || !isNotionHostedUrl(url)) return { url, name };
     const key = `${pageNotionId}:${stableFileKey(url)}`;
     const mapped = await store.findMapped("asset", key);
     if (mapped) {
@@ -727,10 +738,21 @@ export async function runNotionImport(
 
       const notes = new PageNotes();
       if (node.cover) {
-        const file = node.cover.hosted
-          ? await fileFor(pageId, node.id, notes, node.cover.url, "cover")
-          : { url: node.cover.url };
-        await store.setCover(pageId, file.url || null);
+        // The address is untrusted: a cover that fails the URL allowlist is
+        // dropped (and an older one cleared), not stored.
+        if (!safeUrl(node.cover.url, { allowMailto: false })) {
+          notes.note("link_unsafe");
+          await store.setCover(pageId, null);
+        } else {
+          const file = node.cover.hosted
+            ? await fileFor(pageId, node.id, notes, node.cover.url, "cover")
+            : { url: node.cover.url };
+          const cover = file.url
+            ? safeUrl(file.url, { allowMailto: false })
+            : null;
+          if (file.url && !cover) notes.note("link_unsafe");
+          await store.setCover(pageId, cover);
+        }
       }
 
       if (node.kind === "record" && node.dataSourceId) {
@@ -850,10 +872,13 @@ export async function runNotionImport(
               ? (block[block.type] as { url?: string } | undefined)
               : undefined;
             if (typeof body?.url === "string" && body.url) {
+              // Notion hands back whatever address the author typed.
+              const href = safeUrl(body.url);
+              if (!href) return { kind: "text", text: body.url };
               return {
                 kind: alt === "bookmark" ? "bookmark" : "link",
-                url: body.url,
-                title: body.url,
+                url: href,
+                title: href,
               };
             }
           } catch (error) {

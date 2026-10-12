@@ -263,6 +263,13 @@ export interface SafeDownloadOptions {
   timeoutMs?: number;
   resolve?: ResolveHost;
   transport?: Transport;
+  /**
+   * Hosts the caller accepts. Checked on the first address and again on
+   * every redirect hop, before anything is resolved or connected to: a
+   * redirect to a host this refuses stops the download even when the host
+   * is public.
+   */
+  allowHost?: (hostname: string) => boolean;
 }
 
 export interface Downloaded {
@@ -279,6 +286,17 @@ export async function safeDownload(
   const signal = AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   let current = raw;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    if (options.allowHost) {
+      let host: string | null = null;
+      try {
+        host = new URL(current).hostname.toLowerCase();
+      } catch {
+        // assertPublicHttpsUrl below reports the unparseable address.
+      }
+      if (host !== null && !options.allowHost(host)) {
+        throw new SafeFetchError("blocked_url", "That host is not allowed.");
+      }
+    }
     const url = await assertPublicHttpsUrl(current, options.resolve);
     let response: TransportResponse;
     try {

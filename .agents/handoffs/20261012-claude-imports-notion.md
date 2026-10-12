@@ -3,7 +3,7 @@ id: 20261012-claude-imports-notion
 owner: claude-lane-imports-notion
 branch: port/imports-notion
 status: active
-updated: 2026-10-12T00:00:00Z
+updated: 2026-10-12T18:00:00Z
 objective: Import pages and databases from Notion through the import framework Todoist (#136) introduced
 ---
 
@@ -51,3 +51,14 @@ objective: Import pages and databases from Notion through the import framework T
 ## CHANGELOG line
 
 - Import from Notion (behind the same `imports` flag): pick pages in Notion's own picker; pages, tables, images, files and databases with their rows come in, links keep working, and a second run only updates what changed.
+
+## Review fixes 2026-10-12
+
+Integrator review of the importer; PR is retargeted to main by the lead.
+
+- Merged `origin/main` (CHANGELOG and docs/connector-api.md keep both sides). `runner.ts` now opens the token with `openImportToken` from `./token-secret` (the `decryptSecret` import and the enc:v1 //todo are gone); `notion-oauth.test.ts` and `notion-runner.test.ts` mock `token-secret` like main's Todoist tests, and the OAuth fixture user carries `sessionVersion`. `node scripts/check-worker-bundle.mjs` passes with the importer in the worker bundle unchanged (no jsdom, every module resolves).
+- URL allowlist: `src/lib/pages/safe-url.ts` (`safeUrl`, parse with `new URL`, protocol compare; http, https, mailto, `/pages`, `/api/pages`; rejects `//`, backslashes, whitespace/control/invisible characters, credentials). Applied in `notion/markdown.ts` (`atomNodes` for LINK, BOOKMARK, IMAGE, FILE, PAGE_MENTION, and a `sanitizeNode` pass over parsed markdown that drops unsafe link marks and image nodes), in `importer.ts` (`resolveUnknown`, covers) and in `PageBlockNode.renderHTML` (task/project references also keep `/tasks` and `/projects`). A refused address becomes plain text and a `link_unsafe` note.
+- Assets: `mimeOf` keeps only the eleven listed types, everything else is `application/octet-stream`; the asset route sends `Content-Security-Policy: default-src 'none'; sandbox` and `X-Content-Type-Options: nosniff` on every GET answer (including 401/403/404) and serves SVG as an attachment.
+- Hosts: `notion/hosts.ts` (`isNotionHost` exact or dot-suffix match for notion.so, notion-static.com, notionusercontent.com plus the two named Notion S3 bucket hosts in `NOTION_S3_BUCKET_HOSTS`; `isNotionHostedUrl` needs https and, for a bucket, a signature). `safeDownload` takes `allowHost`, checked on the first address and every redirect hop before DNS or connect; the importer passes `isNotionHost`.
+- Heartbeat: `heartbeat.ts` `createImportHeartbeat(runId, { now, intervalMs })` bumps `updatedAt` where `status = running`, at most once per 60 s, injected clock; `ImportProgressHooks.onHeartbeat` is called from `paginate()`, the tree loop and `fileFor()`.
+- Not changed, for the lead: the cover renderers (`PageWorkspace`, `PublicPageView`) draw `coverUrl` through CSS `url(...)`; the Needt designer legitimately stores `data:` backdrops there, so they were not put behind the allowlist (the importer no longer stores an unsafe cover). `PATCH /api/pages/[id]` still accepts any `coverUrl` string.

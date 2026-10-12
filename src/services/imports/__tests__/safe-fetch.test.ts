@@ -247,4 +247,81 @@ describe("safeDownload", () => {
     expect(error.code).toBe("blocked_url");
     expect(transport).not.toHaveBeenCalled();
   });
+
+  describe("allowHost", () => {
+    const notionOnly = (host: string) => host.endsWith(".notion.so");
+
+    it("refuses a first address on a host the caller does not allow, before connecting", async () => {
+      const transport = jest.fn();
+      const resolve = jest.fn(PUBLIC);
+      const error = await safeDownload("https://files.example.com/a", {
+        ...options,
+        resolve,
+        transport,
+        allowHost: notionOnly,
+      }).catch((e) => e);
+      expect(error.code).toBe("blocked_url");
+      expect(transport).not.toHaveBeenCalled();
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it("follows a redirect that stays on allowed hosts", async () => {
+      const transport = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response(302, [], { location: "https://cdn.notion.so/real.png" })
+        )
+        .mockResolvedValueOnce(response(200, ["ok"]));
+      const file = await safeDownload("https://file.notion.so/a", {
+        ...options,
+        transport,
+        allowHost: notionOnly,
+      });
+      expect(file.finalUrl).toBe("https://cdn.notion.so/real.png");
+      expect(transport).toHaveBeenCalledTimes(2);
+    });
+
+    it("refuses a redirect to a public host that is not allowed, on any hop", async () => {
+      const first = jest
+        .fn()
+        .mockResolvedValue(
+          response(302, [], { location: "https://evil.example.com/a" })
+        );
+      const error = await safeDownload("https://file.notion.so/a", {
+        ...options,
+        transport: first,
+        allowHost: notionOnly,
+      }).catch((e) => e);
+      expect(error.code).toBe("blocked_url");
+      expect(first).toHaveBeenCalledTimes(1);
+
+      // Allowed, then allowed, then off-site: refused on the third hop.
+      const chain = jest
+        .fn()
+        .mockResolvedValueOnce(
+          response(302, [], { location: "https://a.notion.so/1" })
+        )
+        .mockResolvedValueOnce(
+          response(302, [], { location: "https://evil.example.com/2" })
+        )
+        .mockResolvedValue(response(200, ["never"]));
+      const later = await safeDownload("https://file.notion.so/a", {
+        ...options,
+        transport: chain,
+        allowHost: notionOnly,
+      }).catch((e) => e);
+      expect(later.code).toBe("blocked_url");
+      expect(chain).toHaveBeenCalledTimes(2);
+    });
+
+    it("checks the host in lower case", async () => {
+      const transport = jest.fn().mockResolvedValue(response(200, ["ok"]));
+      await safeDownload("https://FILE.Notion.SO/a", {
+        ...options,
+        transport,
+        allowHost: notionOnly,
+      });
+      expect(transport).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed (Notion import review): links, bookmarks, files, images and covers
+  keep only `http`, `https`, `mailto` and Needt page addresses (anything else,
+  such as `javascript:`, comes in as plain text with a note), and page blocks
+  draw a link or image only for such an address. Page files are served with a
+  sandbox policy and no content sniffing, and SVG is always a download. The
+  importer stores only common file types (anything else is an opaque
+  download), downloads only from Notion's own hosts including every redirect,
+  and keeps a long run alive for the sweeper.
 - Import from Notion (behind the same `imports` feature flag). Settings ->
   Data -> Import sends you to Notion, where you pick the pages and databases
   to share in Notion's own page picker; only those are imported, with their

@@ -131,6 +131,38 @@ describe("processImportRun for Notion", () => {
     expect(unusedTodoist.fetchTodoistSnapshot).not.toHaveBeenCalled();
   });
 
+  it("gives the import a heartbeat that bumps updatedAt only while running, once a minute at most", async () => {
+    const row = fakeRunTable(baseRun);
+    const stamps: unknown[] = [];
+    await processImportRun("run-n", {
+      ...unusedTodoist,
+      runNotionImport: async (input) => {
+        const before = jest.mocked(prisma.importRun.updateMany).mock.calls
+          .length;
+        await input.hooks?.onHeartbeat?.();
+        await input.hooks?.onHeartbeat?.();
+        const writes = jest
+          .mocked(prisma.importRun.updateMany)
+          .mock.calls.slice(before);
+        stamps.push(
+          ...writes.map(([args]) => [
+            (args as { where: unknown }).where,
+            Object.keys((args as { data: object }).data),
+          ])
+        );
+        return {
+          counts: { total: 0, done: 0, skipped: 0, failed: 0 },
+          warnings: [],
+        };
+      },
+    });
+    expect(row.status).toBe("done");
+    // Two calls in a row: one write, on the running run, touching updatedAt.
+    expect(stamps).toEqual([
+      [{ id: "run-n", status: "running" }, ["updatedAt"]],
+    ]);
+  });
+
   it("hands a stored refresh token to the import", async () => {
     fakeRunTable({ ...baseRun, encryptedToken: "enc:envelope" });
     const seen: unknown[] = [];
