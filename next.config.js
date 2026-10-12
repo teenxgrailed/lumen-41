@@ -56,6 +56,15 @@ const nextConfig = {
   // font ships under a new URL. That makes a year-long immutable cache safe.
   // Scoped to /fonts/ds/ because the other files under /fonts/ are not
   // content-addressed and would be served stale after a change.
+  // Documents live at /pages; /docs (the name people and old links use) was a
+  // 404. Permanent, so bookmarks and search engines move over.
+  async redirects() {
+    return [
+      { source: "/docs", destination: "/pages", permanent: true },
+      { source: "/docs/:id", destination: "/pages/:id", permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {
