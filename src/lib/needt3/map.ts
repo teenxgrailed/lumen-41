@@ -70,9 +70,21 @@ export const fromCents = (c: number | null | undefined) =>
 
 /* ---------- dates ---------- */
 
-/** UTC ISO → local "YYYY-MM-DD" in `tz`. */
+/** An instant at exactly UTC midnight: how a date-only value is stored. */
+const UTC_MIDNIGHT = /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?(?:Z|\+00:00)$/;
+
+/**
+ * UTC ISO → local "YYYY-MM-DD" in `tz`. A value at exactly UTC midnight is a
+ * date-only day (the API, task sync and the old screens store "2026-10-12" as
+ * `2026-10-12T00:00:00Z`), so it keeps its day: read in a zone west of UTC it
+ * would otherwise land on the day before and turn overdue a day early. v3
+ * itself writes local midnight (`localToIso`), which is UTC midnight only in
+ * a zero-offset zone, where both readings agree.
+ */
 export function isoToDay(iso: string | null | undefined, tz: string) {
-  return iso ? formatInTimeZone(iso, tz, "yyyy-MM-dd") : null;
+  if (!iso) return null;
+  const m = UTC_MIDNIGHT.exec(iso);
+  return m ? m[1] : formatInTimeZone(iso, tz, "yyyy-MM-dd");
 }
 /** UTC ISO → local "YYYY-MM-DDTHH:mm" in `tz`. */
 export function isoToStamp(iso: string | null | undefined, tz: string) {

@@ -14,6 +14,7 @@ import {
   project,
 } from "@/lib/needt3/derive";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
+import { isOverdue } from "@/lib/needt3/task-day";
 
 import type { TaskEntry } from "../task/view";
 import type { CalBlock } from "./layout";
@@ -43,9 +44,6 @@ export interface CalendarInput {
   today: string;
   hideDone: boolean;
 }
-
-const isOverdue = (t: V3Task, today: string) =>
-  !t.done && !!t.dueDate && t.dueDate < today;
 
 function taskItem(
   t: V3Task,

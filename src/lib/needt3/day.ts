@@ -18,6 +18,7 @@ import {
   toDate,
 } from "./derive";
 import type { V3Priority, V3Task, V3TaskPatch } from "./map";
+import { hourOn, isOverdue, taskDay } from "./task-day";
 
 export type DayPart = "Morning" | "Afternoon" | "Evening" | "Anytime";
 const PARTS: readonly DayPart[] = [
@@ -43,9 +44,9 @@ type DayTask = Pick<
   "id" | "done" | "noSlot" | "dueDate" | "scheduledStart" | "isFixed"
 >;
 
-/** Open, placed work whose day has passed. Done tasks leave the list. */
+/** Open, placed work due before today (`task-day` `isOverdue`, the one rule). */
 export function isLate(t: DayTask, today: string) {
-  return !t.done && !t.noSlot && !!t.dueDate && t.dueDate < today;
+  return isOverdue(t, today);
 }
 
 const atKey = (t: DayTask) => hourAt(t) ?? 99;
@@ -75,17 +76,22 @@ export function sections<T extends DayTask>(
         (a, b) => dayKey(a).localeCompare(dayKey(b)) || atKey(a) - atKey(b)
       ),
     day: open
-      .filter((t) => t.dueDate === today)
-      .sort((a, b) => atKey(a) - atKey(b)),
-    inbox: open.filter((t) => !t.dueDate && !t.isFixed),
-    next: open.filter((t) => t.dueDate === tomorrow),
+      .filter((t) => taskDay(t, today) === today)
+      .sort((a, b) => (hourOn(a, today) ?? 99) - (hourOn(b, today) ?? 99)),
+    inbox: open.filter((t) => !taskDay(t, today) && !t.isFixed),
+    next: open.filter((t) => taskDay(t, today) === tomorrow),
   };
 }
 
-/** Tasks grouped by part of the day, in day order, empty parts dropped. */
-export function parts<T extends DayTask>(list: readonly T[]) {
+/**
+ * Tasks grouped by part of the day, in day order, empty parts dropped. With
+ * `day`, only a block on that day gives an hour (a task due today whose block
+ * was yesterday is "Anytime").
+ */
+export function parts<T extends DayTask>(list: readonly T[], day?: string) {
+  const h = (t: T) => (day != null ? hourOn(t, day) : hourAt(t));
   return PARTS.map(
-    (p) => [p, list.filter((t) => part(hourAt(t)) === p)] as [DayPart, T[]]
+    (p) => [p, list.filter((t) => part(h(t)) === p)] as [DayPart, T[]]
   ).filter(([, l]) => l.length);
 }
 
