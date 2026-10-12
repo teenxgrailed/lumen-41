@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
 - Design v3 for everyone: a migration turns the `design_v3` flag on at a
   100 % rollout, so sign-in, sign-up and password recovery wear the v3
   screens for every visitor and every signed-in person lands in the v3 app.
@@ -20,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continue to the app; an expired or used link sends a new one).
   `/auth/reset-password` without a token opens sign-in on "Forgot your
   password?".
-=======
 - Moodboards (design v3) get the grid logic of the design on desktop and phone.
   A board is a grid of pictures, links, colours and notes: Add (Upload images,
   drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
@@ -52,7 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces; the editor's own toolbar is not drawn. The title follows the
   breadcrumb and the rail as you type. Free users who tap a Pro style now get
   the paywall sheet.
->>>>>>> origin/main
 - Docs: each document card in the grid now shows its page in miniature, as
   the design does: the first blocks (headings, paragraphs, lists, to-dos,
   quotes, callouts, code, dividers, a picture) drawn small on the page's own
