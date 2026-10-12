@@ -1,0 +1,69 @@
+/* Spacing, control and layout metrics — Needt.
+   Steps: 1 2 4 5 8 16 20. The odd steps are deliberate — do not round 5 to 4
+   or 11 to 12. Two control heights exist and nothing else: 32 and 28. */
+
+:root {
+  --space-hair: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-5: 5px;
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-20: 20px;
+  /* rhythm values used inside dialogs and forms */
+  --space-6: 6px;    /* inside a group */
+  --space-11: 11px;  /* under a sub-line */
+  --space-21: 21px;  /* between groups */
+
+  /* === CONTROL METRICS (measured) === */
+  --control-h: 32px;         /* nav row, button, command bar, select, input */
+  --control-h-sm: 28px;      /* icon button, chip */
+  --control-w-icon: 34px;    /* icon button is 34×28, not square */
+  --pad-nav-row: 7px 11px 7px 6px;
+  --pad-button: 4px 13px 4px 7px;
+  --pad-icon-button: 3px;
+  --pad-search: 0 6px;
+  --pad-chip: 3px 8px 3px 5px;
+  --pad-menu-row: 0 8px;
+  --menu-row-h: 36px;
+
+  /* === FORM ROWS — one label width, one row height, everywhere ===
+     This is the system's single hardest rule. Every field row in every dialog
+     uses these two values; a form that mixes label widths is a defect.
+
+     --form-label-w is MEASURED, not chosen. The product's longest field label
+     is "Auto-scheduled": 99.97px at 13/500 Inter, measured with the webfont
+     loaded rather than the fallback. Ceiling 100px, plus one 5px spacing step
+     of clearance so the glyph edge never touches the column edge = 105px.
+     Same size, for reference: "Document width" 101.99 · "Week starts on" 92.95
+     · "Hard deadline" 86.57 · "Min chunk" 64.67. The 16px column gap sits on
+     top of this and is not part of the column.
+
+     TRUNCATION POLICY: a label that does not fit truncates on ONE line with an
+     ellipsis and carries its full text in the title attribute. A label never
+     wraps to two lines — that two-line label is the defect this system exists
+     to remove. If a label needs more than 105px, shorten the label; do not
+     widen the column. Re-derive only when the product's longest label really
+     changes, and record the new measurement here. */
+  --form-label-w: 105px;
+  --form-row-h: 32px;
+  --form-row-gap: 11px;      /* between rows inside a group */
+  --form-group-gap: 21px;    /* between groups */
+
+  /* === DIALOG (measured) === */
+  --dialog-w: 840px;
+  --dialog-h: 620px;
+  --dialog-header-h: 84px;
+  --dialog-footer-h: 54px;
+  --dialog-aside-min: 320px;
+  --dialog-aside-max: 356px;
+
+  /* === LAYOUT SHELL === */
+  --hour-h: 46px;   /* one hour on the day timeline; a block's height is its duration */
+  --sidebar-w: 268px;
+  --page-pad: 20px;
+  --page-pad-lg: 32px;
+  --doc-max-w: 844px;
+  --scrollbar-w: 8px;
+  --scrollbar-w-inner: 4px;
+}

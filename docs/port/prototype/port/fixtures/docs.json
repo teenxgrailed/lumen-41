@@ -1,0 +1,216 @@
+[
+  {
+    "isFavorite": true,
+    "trashedAt": null,
+    "projectId": "ops",
+    "coverUrl": null,
+    "id": "launch",
+    "title": "Launch brief — September",
+    "hue": "var(--info)",
+    "style": {
+      "ground": "sand"
+    },
+    "updated": "20 min ago",
+    "viewed": "Just now",
+    "created": "2 Sep",
+    "body": [
+      [
+        "lead",
+        "The scheduler places work into real free hours, so the calendar is the plan rather than a record of it."
+      ],
+      [
+        "h",
+        "Scope"
+      ],
+      [
+        "li",
+        "Tasks and events share one grid."
+      ],
+      [
+        "li",
+        "The rail on a block means movability, and nothing else."
+      ],
+      [
+        "shot"
+      ],
+      [
+        "h",
+        "Open questions"
+      ],
+      [
+        "todo",
+        "Decide the Mail tab badge",
+        true
+      ],
+      [
+        "todo",
+        "Friday review owns the rest"
+      ]
+    ]
+  },
+  {
+    "isFavorite": true,
+    "trashedAt": null,
+    "projectId": "ds",
+    "coverUrl": null,
+    "id": "rules",
+    "title": "Needt design rules",
+    "hue": "var(--success)",
+    "style": {
+      "ground": "mist",
+      "theme": "sage"
+    },
+    "updated": "Yesterday",
+    "viewed": "Yesterday",
+    "created": "11 Sep",
+    "body": [
+      [
+        "callout",
+        "Four rules hold every screen together. Break one only on purpose and write down why."
+      ],
+      [
+        "rule"
+      ],
+      [
+        "h",
+        "Get to know the rules"
+      ],
+      [
+        "cards",
+        [
+          "Greys",
+          "Type",
+          "Accent",
+          "Rows"
+        ]
+      ]
+    ]
+  },
+  {
+    "isFavorite": false,
+    "trashedAt": null,
+    "projectId": "ds",
+    "coverUrl": null,
+    "id": "placement",
+    "title": "Scheduler — placement notes",
+    "hue": "var(--success)",
+    "style": {
+      "theme": "rose"
+    },
+    "updated": "3 days ago",
+    "viewed": "3 days ago",
+    "created": "20 Aug",
+    "body": [
+      [
+        "p",
+        "Every auto-placed block has a reason and no planner shows one, which is why people redo the scheduler's work by hand."
+      ],
+      [
+        "quote",
+        "Show the reason on hover, never as a badge."
+      ],
+      [
+        "p",
+        "Next step: a reason line under the block title, 12px, quaternary."
+      ]
+    ]
+  },
+  {
+    "isFavorite": false,
+    "trashedAt": null,
+    "projectId": null,
+    "coverUrl": null,
+    "id": "review",
+    "title": "Weekly review, week 35",
+    "style": {
+      "ground": "sage"
+    },
+    "updated": "5 days ago",
+    "viewed": "5 days ago",
+    "created": "29 Aug",
+    "body": [
+      [
+        "h",
+        "Went well"
+      ],
+      [
+        "todo",
+        "Shipped the shell",
+        true
+      ],
+      [
+        "todo",
+        "Four sales on Vinted",
+        true
+      ],
+      [
+        "h",
+        "Next"
+      ],
+      [
+        "todo",
+        "Mailbox as a place, not a link"
+      ],
+      [
+        "todo",
+        "Book the B1 exam date"
+      ]
+    ]
+  },
+  {
+    "isFavorite": false,
+    "trashedAt": null,
+    "projectId": "german",
+    "coverUrl": null,
+    "id": "german",
+    "title": "German B2 — verbs to drill",
+    "hue": "var(--text-muted)",
+    "style": {
+      "ground": "stone",
+      "theme": "ocean"
+    },
+    "updated": "1 week ago",
+    "viewed": "4 days ago",
+    "created": "1 Aug",
+    "body": [
+      [
+        "table",
+        [
+          [
+            "sich verlassen",
+            "auf + Akk"
+          ],
+          [
+            "sich beschweren",
+            "über + Akk"
+          ],
+          [
+            "abhängen",
+            "von + Dat"
+          ],
+          [
+            "teilnehmen",
+            "an + Dat"
+          ]
+        ]
+      ],
+      [
+        "p",
+        "Drill two a day, out loud, in a full sentence."
+      ]
+    ]
+  },
+  {
+    "isFavorite": false,
+    "trashedAt": null,
+    "projectId": null,
+    "coverUrl": null,
+    "id": "untitled",
+    "title": "",
+    "style": null,
+    "updated": "1 hour ago",
+    "viewed": "27 min ago",
+    "created": "Today",
+    "body": []
+  }
+]

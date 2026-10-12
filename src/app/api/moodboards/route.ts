@@ -8,6 +8,10 @@ import { WorkspaceRole } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import {
+  moodboardV3FieldsSchema,
+  parseV3Fields,
+} from "@/lib/needt3/api-fields";
 
 const LOG_SOURCE = "MoodboardsAPI";
 
@@ -33,8 +37,11 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   try {
     const body = await request.json().catch(() => ({}));
+    const v3 = parseV3Fields(moodboardV3FieldsSchema, body);
+    if (!v3.ok) return NextResponse.json({ error: v3.error }, { status: 400 });
     const moodboard = await createMoodboard(auth, {
       title: typeof body.title === "string" ? body.title : undefined,
+      projectId: v3.data.projectId,
     });
     if (!moodboard) {
       return NextResponse.json(

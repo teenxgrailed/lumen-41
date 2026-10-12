@@ -1,0 +1,118 @@
+/* calendar.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── calendar2.jsx · Calendar ────────────────────────────────────────── */
+.c2-stack { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.c2-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
+.c2-title { margin: 0; font: var(--type-page-title); color: var(--text-primary); }
+.c2-span { font: var(--type-ui); color: var(--text-tertiary); padding-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.c2-head-right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.c2-pager { display: inline-flex; gap: 2px; }
+.nx-btn.c2-page, .nx-btn.c2-page:hover { width: 32px; padding: 0; color: var(--text-secondary); }
+.c2-seg { width: 170px; }
+.c2-seg.is-narrow { width: 150px; }
+.c2-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 16px; }
+.c2-rel { position: relative; }
+.c2-meta { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Week grid. */
+.c2-week { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: var(--radius-3xl); background: var(--surface-raised); box-shadow: var(--shadow-ring); overflow: hidden; }
+.c2-week-head { flex: none; display: grid; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.c2-dayhead { display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; }
+.c2-dayhead-wd { font: var(--type-meta-medium); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+.c2-dayhead-n { min-width: 26px; height: 26px; display: grid; place-items: center; border-radius: 13px; font: 600 14px/1 var(--font-sans); background: transparent; color: var(--text-primary); }
+.c2-dayhead.is-today .c2-dayhead-wd { color: var(--accent); }
+.c2-dayhead.is-today .c2-dayhead-n { background: var(--fill-accent); color: var(--accent); }
+.c2-week-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 72px; }
+.c2-week-grid { position: relative; display: grid; }
+.c2-hour { position: absolute; right: 10px; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.c2-daycol { position: relative; cursor: default; box-shadow: var(--border) 1px 0 0 0 inset; background: transparent; }
+.c2-daycol.is-today { background: color-mix(in oklch, var(--accent) 3%, transparent); }
+.c2-daycol.is-weekend { background: var(--fill-1); }
+.c2-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); opacity: 0.7; }
+.c2-now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--destructive); border-radius: 1px; z-index: 1; pointer-events: none; }
+.c2-now-dot { position: absolute; left: -1px; top: -3px; z-index: 3; width: 8px; height: 8px; border-radius: 4px; background: var(--destructive); }
+.c2-block { position: absolute; }
+
+/* Draft block (click an empty slot). */
+.c2-draft { position: absolute; z-index: 30; box-sizing: border-box; padding: 5px 8px 5px 10px; border-radius: 8px; overflow: hidden;
+  background: var(--fill-4); box-shadow: var(--shadow-raised), var(--text-tertiary) 0 0 0 1px inset; }
+.c2-draft-rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--text-tertiary); }
+.c2-draft-input { display: block; width: 100%; padding: 0; border: 0; outline: none; background: transparent; font: 500 12px/15px var(--font-sans); color: var(--text-primary); }
+
+/* Peek card. */
+.c2-peek { position: fixed; z-index: 1200; box-sizing: border-box; padding: 12px 12px 10px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating);
+  display: flex; flex-direction: column; gap: 8px; }
+.c2-peek-input { width: 100%; box-sizing: border-box; margin: -3px 0; padding: 3px 6px; border: 0; border-radius: 6px; outline: none; background: var(--fill-3); font: 600 14px/19px var(--font-sans); color: var(--text-primary); }
+.c2-peek-title { font: 600 14px/19px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; text-decoration: none; }
+.c2-peek-title.is-done { text-decoration: line-through; }
+.c2-peek-time { font: var(--type-meta); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.c2-peek-where { display: flex; align-items: center; gap: 7px; font: var(--type-meta); color: var(--text-secondary); }
+.c2-peek-dot { width: 8px; height: 8px; border-radius: 4px; flex: none; }
+.c2-peek-acts { display: flex; gap: 6px; padding-top: 4px; }
+
+/* Days view. */
+.c2-days-bar { flex: none; display: flex; align-items: center; gap: 8px; }
+.nx-btn.c2-days-page { width: 28px; padding: 0; }
+.c2-days-range { font: var(--type-ui-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.c2-days-seg { margin-left: auto; width: 210px; }
+.c2-days-grid { flex: 1; min-height: 0; display: grid; gap: 10px; }
+.c2-col { min-height: 0; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-ring); overflow: hidden; }
+.c2-col.is-today { box-shadow: var(--accent) 0 0 0 1.5px inset, var(--shadow-ring); }
+.c2-col-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 12px 14px 10px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.c2-col-wd { font: 600 15px/20px var(--font-sans); color: var(--text-primary); }
+.c2-col.is-today .c2-col-wd { color: var(--accent); }
+.c2-col-date { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c2-col-today { margin-left: auto; height: 20px; padding: 0 7px; display: inline-flex; align-items: center; border-radius: 6px; background: var(--fill-accent); color: var(--accent); font: var(--type-meta-medium); }
+.c2-col-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 4px 12px; }
+.c2-col-empty { padding: 18px 10px; font: var(--type-ui); color: var(--text-tertiary); }
+
+/* Density (08.10.26): "+N" for what does not fit in a half hour. Chip in the
+   cluster's gutter on the grid, a row in the Days agenda, and the slot list. */
+.c2-more { position: absolute; z-index: 20; height: 22px; padding: 0; border: 0; cursor: default; border-radius: 7px;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); color: var(--text-secondary);
+  font: 600 11px/22px var(--font-sans); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.c2-more::before { content: ""; position: absolute; inset: -4px -2px; } /* a bigger hit area than the chip */
+.c2-more:hover { background: color-mix(in oklab, var(--text-primary) 4%, var(--surface-raised)); color: var(--text-primary); }
+.c2-more[aria-expanded="true"] { box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.c2-more-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; margin: 2px 0; padding: 0 10px; border: 0; cursor: default;
+  border-radius: 9px; background: transparent; text-align: left; font: var(--type-meta); color: var(--text-tertiary); }
+.c2-more-row:hover { background: var(--fill-3); color: var(--text-secondary); }
+.c2-more-row-n { flex: none; min-width: 28px; height: 20px; padding: 0 6px; box-sizing: border-box; display: inline-grid; place-items: center; border-radius: 6px;
+  background: var(--fill-4); color: var(--text-secondary); font: 600 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.c2-slot-pop { position: fixed; z-index: 1200; box-sizing: border-box; max-height: min(420px, calc(100vh - 16px)); display: flex; flex-direction: column;
+  padding: 10px 6px 6px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.c2-slot-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 0 8px 8px; }
+.c2-slot-when { font: 600 14px/19px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.c2-slot-count { margin-left: auto; font: var(--type-meta); color: var(--text-tertiary); }
+.c2-slot-list { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.c2-slot-row { position: relative; display: flex; align-items: flex-start; gap: 9px; width: 100%; min-height: 40px; padding: 6px 8px; border: 0; cursor: default;
+  border-radius: 9px; background: transparent; text-align: left; }
+.c2-slot-row:hover { background: var(--fill-3); }
+.c2-slot-rail { flex: none; align-self: stretch; width: 3px; border-radius: 2px; }
+.c2-slot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.c2-slot-title { font: 500 13px/17px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.c2-slot-row.is-done .c2-slot-title { color: var(--text-muted); text-decoration: line-through; }
+.c2-slot-meta { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Hide done (08.10.26): a text toggle in the header; on = the selected ring
+   (inside the object), icon only under 900 px. */
+.nx-btn.c2-hide { color: var(--text-tertiary); }
+.nx-btn.c2-hide:hover { color: var(--text-secondary); }
+.nx-btn.c2-hide[aria-pressed="true"] { color: var(--text-primary); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.nx-btn.c2-hide.is-icon { width: 32px; padding: 0; }
+
+/* Agenda drop (09.10.26, calendar2.jsx AGENDA DROP): a day column is a
+   Drag.jsx "day" target (highlighted while a task is over it), the gap
+   between two timed rows a "timeline" strip that only takes the pointer while
+   something is in the hand (Drag.jsx's html.is-drag-active — App.jsx no longer
+   wipes it mid-drag); under the hand it draws an insertion line with its time. */
+.c2-days-grid .c2-col[data-drag-over] { border-radius: 16px; background: color-mix(in oklab, var(--accent) 7%, var(--surface-raised)); box-shadow: var(--ring-accent) 0 0 0 1.5px inset, var(--shadow-ring); }
+.c2-row-drag { min-width: 0; }
+.c2-gap { position: relative; z-index: 3; height: 14px; margin: -7px 0; pointer-events: none; }
+html.is-drag-active .c2-days-grid .c2-gap { pointer-events: auto; }
+.c2-gap::before { content: ""; position: absolute; left: 8px; right: 8px; top: 6px; height: 2px; border-radius: 1px; background: var(--accent); opacity: 0; transform: scaleX(0.6); transition: opacity 120ms ease, transform 160ms var(--nx-ease, ease); }
+.c2-gap::after { content: attr(data-c2-gap); position: absolute; right: 10px; top: -4px; padding: 2px 6px; border-radius: 6px; background: var(--surface-raised); box-shadow: var(--shadow-ring); color: var(--accent);
+  font: var(--type-meta-medium); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; }
+html.is-drag-active .c2-days-grid .c2-gap:hover::before { opacity: 1; transform: none; }
+html.is-drag-active .c2-days-grid .c2-gap:hover::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .c2-gap::before, .c2-gap::after { transition: none; } }

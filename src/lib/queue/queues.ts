@@ -7,6 +7,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
@@ -28,6 +29,7 @@ let lifetimeCheckoutReconciliationQueue: Queue<LifetimeCheckoutReconciliationJob
   null;
 let trialQueue: Queue<TrialJobData> | null = null;
 let accountLifecycleQueue: Queue<AccountLifecycleJobData> | null = null;
+let importQueue: Queue<ImportJobData> | null = null;
 
 const defaultJobOptions = {
   attempts: 4,
@@ -125,6 +127,16 @@ export function getAccountLifecycleQueue(): Queue<AccountLifecycleJobData> {
   return accountLifecycleQueue;
 }
 
+export function getImportQueue(): Queue<ImportJobData> {
+  // One attempt: a run records its own failure, and its token is wiped when
+  // it ends, so a blind retry would have nothing to authenticate with.
+  importQueue ??= new Queue(QUEUE_NAMES.imports, {
+    connection: getBullConnection(),
+    defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
+  });
+  return importQueue;
+}
+
 export async function closeQueues(): Promise<void> {
   const queues = [
     calendarSyncQueue,
@@ -137,6 +149,7 @@ export async function closeQueues(): Promise<void> {
     lifetimeCheckoutReconciliationQueue,
     trialQueue,
     accountLifecycleQueue,
+    importQueue,
   ].filter((queue): queue is Queue => queue !== null);
   await Promise.all(queues.map((queue) => queue.close()));
   calendarSyncQueue = null;
@@ -149,4 +162,5 @@ export async function closeQueues(): Promise<void> {
   lifetimeCheckoutReconciliationQueue = null;
   trialQueue = null;
   accountLifecycleQueue = null;
+  importQueue = null;
 }

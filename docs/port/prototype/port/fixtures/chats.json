@@ -1,0 +1,104 @@
+[
+  {
+    "id": "c-seed-1",
+    "title": "Plan Thursday around the factory call",
+    "at": 1791477559331,
+    "messages": [
+      {
+        "id": "s1a",
+        "from": "you",
+        "text": "Plan Thursday around the factory call",
+        "at": 1791477519331,
+        "scope": "This day"
+      },
+      {
+        "id": "s1b",
+        "from": "needt",
+        "at": 1791477559331,
+        "scope": "This day",
+        "scopeLine": "Looked at Thu 3 Sep",
+        "text": "The call holds 10:00–11:00. I'd keep the quiet morning for the tank graphic and push admin after lunch:",
+        "cards": [
+          {
+            "kind": "timeline",
+            "title": "Thu 3 Sep",
+            "rows": [
+              {
+                "time": "08:30–10:00",
+                "title": "Tank graphic — first pass",
+                "fresh": true
+              },
+              {
+                "time": "10:00–11:00",
+                "title": "Factory call",
+                "busy": true
+              },
+              {
+                "time": "13:30–14:00",
+                "title": "Reply to the factory about lead times",
+                "fresh": true
+              },
+              {
+                "time": "16:00–16:45",
+                "title": "List the boots on Ricardo"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "c-seed-2",
+    "title": "Draft a reply to Jonas",
+    "at": 1791295389331,
+    "messages": [
+      {
+        "id": "s2a",
+        "from": "you",
+        "text": "Draft a reply to Jonas",
+        "at": 1791295359331,
+        "scope": "Everything"
+      },
+      {
+        "id": "s2b",
+        "from": "needt",
+        "at": 1791295389331,
+        "scope": "Everything",
+        "scopeLine": "Read the thread “Berlin pickup — Thursday or Friday?”",
+        "text": "Short, and it pins the evening down:",
+        "cards": [
+          {
+            "kind": "draft",
+            "to": "Jonas",
+            "subject": "Re: Berlin pickup — Thursday or Friday?",
+            "text": "Hi Jonas, yes — both pairs are still on hold for you. Thursday after six works; I'm home from 18:30. Cash on pickup is fine. Best, Maksym"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "c-seed-3",
+    "title": "What's overdue?",
+    "at": 1791050589331,
+    "messages": [
+      {
+        "id": "s3a",
+        "from": "you",
+        "text": "What's overdue?",
+        "at": 1791050559331,
+        "scope": "Everything"
+      },
+      {
+        "id": "s3b",
+        "from": "needt",
+        "at": 1791050589331,
+        "scope": "Everything",
+        "scopeLine": "Looked across all your tasks and docs",
+        "feedback": "up",
+        "text": "Two things were past their date — the August invoices and the domain renewal. Both fit into Tuesday morning before the call."
+      }
+    ]
+  }
+]

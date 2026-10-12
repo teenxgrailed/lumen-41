@@ -78,6 +78,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   save once, when you leave the field or press Enter, and the field keeps
   what you typed while it has focus. The server drops its cached Resend
   client when the key changes.
+- Import from Todoist (behind the new `imports` feature flag, off unless a
+  flag row turns it on). Settings -> Data -> Import sends you through
+  Todoist's read-only consent screen, then a background job brings in
+  projects (nesting flattened, the path kept in the description), sections
+  as project stages, open tasks with due date, deadline, estimate, priority,
+  labels, comments and common repeats, and first-level sub-tasks as task
+  parts. Running it again updates what it brought in and never duplicates.
+  Completed and archived items, attachments and reminders are skipped and
+  counted; progress and warnings show while it runs. The same is reachable
+  from outside: `POST /api/imports`, `GET /api/imports/:id`,
+  `POST /api/imports/:id/cancel`, and the same under `/api/connect/imports`
+  with a connector token (which also accepts a Todoist personal API token).
+  Floating due times are read in Todoist's zone or yours; a run whose worker
+  died is failed by a 10-minute sweep and its token erased; rows are matched
+  per workspace. Needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`;
+  additive migration `20261012090000_imports`.
+- Moodboards: a board's references can be read and written through the API.
+  `GET`/`POST /api/moodboards/:id/items` and `PATCH`/`DELETE
+/api/moodboards/:id/items/:itemId` list the wall in order and add, change,
+  move or remove an image, link, colour or note. The board's creator, owners
+  and editors write; viewers read; anyone else gets the same answer as for a
+  board that does not exist. A board holds at most 500 references on every
+  plan; adding one more answers 409. Documented in `docs/connector-api.md`.
+- Documents: a backdrop (document themes, and every "All Styles" preset but
+  Default) is now Pro on the server too. `PATCH /api/pages/:id` and
+  `POST /api/pages` answer a Free plan that sets one with 403
+  `UPGRADE_REQUIRED`; a backdrop already on a page after a downgrade stays and
+  other edits still save, and going back to no backdrop is always allowed.
+  The v3 Style panel opens the plan page when the server refuses.
+- Billing: `GET /api/billing` reports `checkoutEnabled`, read from the new
+  server-controlled `billing_checkout` feature flag (off unless a flag row
+  turns it on). The v3 paywall keeps its checkout button off and says
+  checkout opens soon until it is on; its Free and Pro lists now print the
+  limits the server enforces (`PLAN_LIMITS`).
+- Design v3 port, foundations (behind the `design_v3` flag, off for
+  everyone): the new design's tokens, themes and stylesheets are vendored
+  under a `.needt-v3` scope (`npm run tokens:sync:v3`, guarded by
+  `npm run tokens:check`), with the licensed Exposure face and Newsreader /
+  Nunito. A person with the flag sees the app inside the new frame, themed
+  System / Light / Dark / Time with nine accents; nobody else sees a change.
+- The API takes the fields the new design writes: Trash and the "from
+  mail / doc / chat" origin on tasks, "don't split", a project's tint and
+  manual order, a habit's own colour, glyph, time, weekly quota and
+  project, a document's style and project, Trash and "needs a reply" on
+  mail (Needt's copy only — mail stays read-only at the provider), and a
+  moodboard's project, link share, Pinterest board and Trash. Each is
+  validated, so a bad value is a 400 rather than a stored surprise. The
+  database gained them additively, plus tables for task attachments,
+  per-person page views, invites by email, per-tool AI access on a page,
+  moodboard tiles, notifications and MCP/API access links.
+
+- Brief and Canvas: a connected tool's writing is no longer shown as your
+  own. Authorship is carried by the ink and a mark in the margin, and the
+  list of authors was closed to four — anything else fell back to "you",
+  silently, mark and all. The list is open now, and an author we do not
+  recognise writes in the neutral agent ink under whatever name it gave
+  when it connected.
+
+- Notifications now appear in the corner the rest of the product speaks
+  from, as the design's own cards, instead of as toasts in the opposite
+  one. Everything in the app raises a message through one facade, so
+  nothing else changed to move them. A repeated status replaces the last
+  one of its name rather than stacking beside it, a failure interrupts a
+  screen reader instead of waiting politely, and a message that carries a
+  button still carries it.
 - Security: mail, task-sync and system-settings API responses no longer
   include stored provider credentials. Admin system settings show a mask in
   place of saved secrets, and saving the form without retyping one keeps it.

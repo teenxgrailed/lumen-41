@@ -97,3 +97,14 @@ Needt Design System/**/*.woff2
 !.claude/skills/openspec-explore/
 !.claude/skills/openspec-propose/
 !.claude/skills/review-merge-port-pr/
+
+# A Claude Design export carries its own working material: the images the
+# board was assembled from, and its screenshots. Measured 6 Oct 2026, that is
+# 193 MB of a 197 MB bundle — the design itself is about 4 MB. Track the
+# design, never the working material.
+Content height and label fixes/uploads/
+Content height and label fixes/screenshots/
+Content height and label fixes/**/*.woff2
+Needt - Design : App, Landing/uploads/
+Needt - Design : App, Landing/screenshots/
+Needt - Design : App, Landing/**/*.woff2

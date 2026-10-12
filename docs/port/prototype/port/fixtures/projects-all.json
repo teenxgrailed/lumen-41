@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ops",
+    "name": "Operations",
+    "ground": "sand",
+    "color": "var(--hue-orange)",
+    "icon": "briefcase",
+    "seed": true
+  },
+  {
+    "id": "ds",
+    "name": "Design system",
+    "ground": "sage",
+    "color": "var(--hue-blue)",
+    "icon": "component",
+    "seed": true
+  },
+  {
+    "id": "german",
+    "name": "German",
+    "ground": "stone",
+    "color": "var(--hue-violet)",
+    "icon": "graduation-cap",
+    "seed": true
+  },
+  {
+    "id": "resale",
+    "name": "Resale",
+    "ground": "mist",
+    "color": "var(--hue-green)",
+    "icon": "package",
+    "seed": true
+  },
+  {
+    "id": "life",
+    "name": "Life",
+    "ground": "sand",
+    "color": "var(--hue-yellow)",
+    "icon": "heart",
+    "seed": true
+  }
+]

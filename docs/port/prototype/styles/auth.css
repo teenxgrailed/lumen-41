@@ -1,0 +1,229 @@
+/* auth.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* AuthScreen.jsx — static inline styles moved here */
+.auth-raised-row { display: flex; color: var(--text-primary); }
+.auth-field-row { position: relative; display: flex; }
+.auth-field-input { flex: 1; min-width: 0; height: 44px; border: 0; outline: none; border-radius: 12px; background: var(--surface-raised); font-size: 14px; color: var(--text-primary); font-family: inherit; transition: box-shadow var(--transition-hover); }
+.auth-field-abs { position: absolute; right: 6px; top: 6px; }
+.auth-error-text { font-size: 12px; color: var(--destructive); padding-left: 2px; }
+.auth-ax-fallback-scene-abs { position: absolute; inset: 0; background: linear-gradient(var(--sky-day-top), var(--sky-day-mid) 55%, var(--sky-day-low)); color: var(--sky-on-light-ink); --px-ink: var(--sky-on-light-ink); --px-ink-2: var(--sky-on-light-ink-2); --px-ink-3: var(--sky-on-light-ink-3); }
+.auth-ax-fallback-scene-box { position: relative; height: 100%; }
+.auth-stack-6 { display: flex; flex-direction: column; gap: 6px; }
+.auth-ax-collage-abs { position: absolute; left: calc(50% + 316px); top: 13%; }
+.auth-ax-collage-abs-2 { position: absolute; left: calc(50% + 352px); top: 71%; }
+.auth-signin-abs { position: absolute; inset: 0; z-index: 2; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 28px 16px; }
+.auth-signin-col { margin: auto 0; width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.auth-flex { display: flex; }
+.auth-signin-col-2 { padding: 30px 30px 24px; display: flex; flex-direction: column; }
+.auth-signin-el { text-align: center; padding-bottom: 10px; }
+.auth-signin-text { margin: 10px 0 22px; font-size: 13px; line-height: 1.45; color: var(--text-tertiary); text-align: center; text-wrap: pretty; }
+.auth-stack-8 { display: flex; flex-direction: column; gap: 8px; }
+.auth-signin-row-2 { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+.auth-signin-el-2 { flex: 1; height: 1px; background: var(--border); }
+.auth-signin-text-2 { font-size: 12px; color: var(--text-tertiary); }
+.auth-signin-col-4 { display: flex; flex-direction: column; gap: 10px; }
+.auth-signin-text-3 { font-size: 12px; padding-left: 2px; }
+.auth-signin-row-3 { display: flex; align-items: flex-start; gap: 6px; padding: 9px 12px; border-radius: 12px; background: var(--fill-destructive); font-size: 12px; color: var(--destructive); text-wrap: pretty; }
+.nx-btn.auth-signin-btn { width: 100%; margin-top: 4px; }
+.ax-link.auth-signin-text-4 { font-weight: 500; }
+.auth-row-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 10px 14px 10px 12px; border: 0; cursor: default; text-align: left; border-radius: 14px; transition: box-shadow var(--transition-hover), background-color var(--transition-hover); }
+.auth-row-row-2 { flex: 0 0 auto; display: flex; }
+.auth-row-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.auth-row-text { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.auth-row-text-2 { font-size: 13px; color: var(--text-tertiary); text-wrap: pretty; }
+.auth-row-grid { flex: 0 0 auto; width: 20px; height: 20px; display: grid; place-items: center; color: white; transition: background-color var(--transition-hover); }
+.auth-ax-step-art-el { transition: opacity 200ms ease; }
+.auth-ax-step-art-text-2 { padding: 5px 11px; font-size: 12px; }
+.auth-onboarding-abs { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 18px 32px 24px 48px; box-sizing: border-box; }
+.auth-onboarding-row { flex: none; display: flex; align-items: center; gap: 16px; }
+.auth-onboarding-text { margin: 0 auto; }
+.auth-onboarding-row-2 { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 56px; padding-top: 16px; }
+.auth-onboarding-col { flex: 0 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.auth-onboarding-el { align-self: flex-start; }
+.auth-onboarding-text-2 { font-size: 58px; }
+.px-on-sky.auth-onboarding-text-3 { margin: 0; max-width: 360px; font: 400 15px/22px var(--font-sans); color: var(--px-ink-2); text-wrap: pretty; }
+.auth-onboarding-col-2 { flex: 0 1 auto; min-height: 0; max-height: calc(100vh - 210px); display: flex; flex-direction: column; }
+.auth-onboarding-col-3 { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 24px 22px 16px; }
+.auth-onboarding-el-2 { padding-bottom: 14px; }
+.auth-onboarding-row-6 { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--border); }
+.auth-onboarding-text-10 { margin-left: auto; }
+
+/* The Apple / Google buttons. */
+.auth-oauth { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 44px; border: 0; cursor: default; border-radius: 12px;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+/* States: the error row in the card, the quiet offline line under it. */
+.auth-net { margin-top: 2px; }
+.auth-net .st-error-text { font-size: 13px; line-height: 18px; }
+.auth-offline { display: flex; align-items: center; gap: 8px; text-align: left; }
+.auth-offline > svg { flex: none; color: var(--text-tertiary); }
+.auth-oauth[disabled] { opacity: .4; cursor: not-allowed; box-shadow: var(--shadow-raised) !important; }
+.auth-cal-offline { display: flex; align-items: center; gap: 8px; margin: 6px 2px 0; font: var(--type-meta); color: var(--text-tertiary); }
+.auth-cal-offline > svg { flex: none; }
+.auth-onboarding-card { flex: none; max-height: 100%; display: flex; flex-direction: column; }
+/* Onboarding calendar connect (08.10.26): spinner while the OAuth runs, the error line. */
+.auth-row-text-2.is-error { color: var(--destructive); }
+.auth-row-spin { flex: 0 0 auto; width: 18px; height: 18px; margin: 1px; box-sizing: border-box; border-radius: 999px; border: 2px solid var(--fill-5); border-top-color: var(--text-secondary); animation: auth-row-spin 0.8s linear infinite; }
+@keyframes auth-row-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .auth-row-spin { animation-duration: 2.4s; } }
+
+/* ── 08.10.26: password recovery, onboarding redesign ─────────────────────── */
+/* Sign in: the hint under the password and "Forgot password?" share a line. */
+.auth-pass-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ax-link.auth-forgot { font-size: 12px; color: var(--text-secondary); }
+.auth-recover-mail { font-weight: 600; color: var(--text-primary); word-break: break-all; }
+.auth-recover-demo { margin-left: 8px; padding: 2px 6px; border-radius: 6px; background: var(--fill-3); font: 500 10.5px/13px var(--font-sans); color: var(--text-tertiary); letter-spacing: .02em; }
+.auth-recover-resend { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-tertiary); text-align: center; text-wrap: pretty; }
+.auth-recover-resend .ax-link { color: var(--text-primary); }
+.auth-recover-resend .ax-link[disabled] { opacity: .4; cursor: not-allowed; }
+.auth-recover-wait { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* The theme switch in the onboarding corner: a small glass segmented chip. */
+.auth-theme { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9999px;
+  background-color: var(--white-a55); background-image: linear-gradient(var(--white-a0), var(--white-a40));
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); box-shadow: var(--white-a70) 0 0 0 1px inset, var(--black-a6) 0 0 0 1px; }
+.dark .auth-theme { background-color: var(--smoke-a55); background-image: none; box-shadow: var(--white-a8) 0 0 0 1px inset, var(--white-a10) 0 0 0 1px; }
+.auth-theme-b { height: 24px; padding: 0 10px; border: 0; border-radius: 9999px; background: transparent; cursor: default; font: 500 12px/1 var(--font-sans); color: var(--text-secondary); transition: background-color var(--transition-hover), color var(--transition-hover); }
+.auth-theme-b:hover { background: var(--fill-3); color: var(--text-primary); }
+.auth-theme-b.is-on { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
+.auth-theme-b:active { transform: scale(.97); }
+
+/* Calendar rows on the setup step are a size down, so hours fit under them. */
+.auth-row-row.is-compact { padding: 7px 12px 7px 10px; gap: 12px; border-radius: 12px; }
+.auth-row-row.is-compact .auth-row-text { font-size: 14px; }
+.auth-row-row.is-compact .auth-row-text-2 { font-size: 12px; }
+
+/* Working hours + time zone: one form row each (label column 105px). */
+.auth-ob-gap { padding-top: 18px; }
+.auth-ob-hours { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.auth-ob-line { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.auth-ob-label { flex: 0 0 var(--form-label-w, 105px); font-size: 13px; color: var(--text-secondary); }
+.auth-ob-to { font-size: 13px; color: var(--text-tertiary); }
+.auth-ob-hint { display: block; margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--text-tertiary); text-wrap: pretty; }
+.auth-onboarding-col-3 > .auth-ob-hint { margin-top: 12px; }
+.auth-select { position: relative; display: inline-flex; align-items: center; width: 96px; height: 32px; }
+.auth-select.is-wide { flex: 1; min-width: 0; width: auto; }
+.auth-select select { appearance: none; -webkit-appearance: none; width: 100%; height: 100%; padding: 0 28px 0 10px; border: 0; border-radius: var(--radius-lg); background: var(--fill-3);
+  box-shadow: var(--fill-5) 0 0 0 1px inset; font: var(--type-ui); font-variant-numeric: tabular-nums; color: var(--text-primary); cursor: default; outline: none; }
+.auth-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.auth-select.is-invalid select { box-shadow: var(--destructive) 0 0 0 1px inset; }
+.auth-select-chev { position: absolute; right: 8px; pointer-events: none; display: flex; color: var(--text-tertiary); }
+
+/* The real Composer, embedded: no scrim, no lift, no Cancel, no kind switch. */
+.auth-composer .cmp-scrim { position: static; inset: auto; z-index: auto; display: block; padding: 0; background: none; animation: none; }
+.auth-composer .cmp-sheet { width: 100%; box-shadow: var(--shadow-ring); animation: none; }
+.auth-composer .cmp-seg, .auth-composer .shell-composer-text-2, .auth-composer .shell-composer-row-2 .nx-btn-text { display: none; }
+/* Phone: the compact line (Mobile.jsx's composer look) inside the glass card. */
+.auth-ma-composer { width: auto; }
+.auth-ma-composer .co-go[disabled] { opacity: .4; cursor: not-allowed; }
+
+/* "Here's where Needt put it": the mini day. */
+.auth-tl { position: relative; margin: 4px 0 0 46px; }
+.auth-tl-hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--border); }
+.auth-tl-label { position: absolute; left: -46px; top: -7px; width: 38px; text-align: right; font: 500 11px/14px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
+.auth-tl-hours { position: absolute; left: 0; right: 0; background: var(--fill-1); border-radius: 4px; }
+.auth-tl-block { position: absolute; left: 4px; right: 4px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px; overflow: hidden; border-radius: 7px;
+  font: 500 12px/14px var(--font-sans); color: var(--text-secondary); white-space: nowrap; }
+.auth-tl-block.is-event { background: var(--fill-4); padding-left: 12px; }
+.auth-tl-block.is-event::before { content: ""; position: absolute; left: 4px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--text-quaternary); }
+.auth-tl-block.is-task { background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.auth-tl-block.is-new { z-index: 2; background: var(--fill-accent); box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--text-primary); font-weight: 600; }
+.auth-tl-block.is-new > svg { flex: none; color: var(--accent); }
+.auth-tl-time { flex: none; font-variant-numeric: tabular-nums; color: var(--text-tertiary); font-weight: 500; }
+.auth-tl-block.is-new .auth-tl-time { color: var(--text-secondary); }
+.auth-tl-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.auth-tl-len { margin-left: auto; flex: none; font-weight: 500; color: var(--text-tertiary); }
+.auth-tl-now { position: absolute; left: -4px; right: 0; z-index: 3; height: 0; border-top: 1.5px solid var(--accent); pointer-events: none; }
+.auth-tl-now::before { content: ""; position: absolute; left: -3px; top: -4.5px; width: 7px; height: 7px; border-radius: 9px; background: var(--accent); }
+.auth-tl-now > span { position: absolute; right: 0; top: -16px; font: 600 10.5px/13px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--accent); }
+.auth-ob-why { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow-ring);
+  font-size: 13px; line-height: 1.45; color: var(--text-primary); text-wrap: pretty; }
+.auth-ob-why > svg { flex: none; margin-top: 2px; color: var(--text-tertiary); }
+/* The dots stay centred with the theme switch and Skip on the right. */
+.auth-onboarding-row { position: relative; }
+.auth-onboarding-row > .auth-onboarding-text { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; }
+.auth-onboarding-row > .auth-theme { margin-left: auto; }
+/* Tablet and narrow windows (< 1100): the headline over the card, one column. */
+@media (max-width: 1099px) {
+  .auth-onboarding-abs { padding: 18px 24px 24px; }
+  .auth-onboarding-row > .auth-onboarding-text { position: static; transform: none; margin: 0 auto; }
+  .auth-onboarding-row > .auth-theme { margin-left: 0; }
+  .auth-onboarding-row-2 { flex-direction: column; align-items: center; justify-content: flex-start; gap: 20px; padding-top: 28px; overflow-y: auto; }
+  .auth-onboarding-col { flex: none; width: min(600px, 100%); gap: 10px; }
+  .auth-onboarding-text-2 { font-size: 46px; }
+  .px-on-sky.auth-onboarding-text-3 { max-width: none; }
+  .auth-onboarding-card { width: min(600px, 100%) !important; }
+  .auth-onboarding-col-2 { max-height: none; }
+}
+
+/* Phone setup (MobileAuth.jsx): the top row, hours, the forgot link. */
+.ma-setup-top { flex: none; display: flex; align-items: center; gap: 8px; }
+.ma-setup-top > .auth-theme { margin-left: auto; }
+.ma-setup-top .auth-theme-b { padding: 0 8px; }
+.ma-hours { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.ma-hours-line { display: flex; align-items: center; gap: 8px; }
+.ma-hours .auth-select { height: 44px; }
+.ma-hours-line .auth-select { flex: 1; width: auto; }
+.ma-hours .auth-select.is-wide { flex: none; width: 100%; }
+.ma-hours .auth-select select { font-size: 15px; }
+
+/* ── "Make your sidebar" (onboarding step 3, 08.10.26) ────────────────────── */
+/* The grid: a slice of the real sidebar — its ground, three columns, 64px tiles. */
+.ob-sb-panel { align-self: center; width: 100%; max-width: 330px; box-sizing: border-box; padding: 10px; border-radius: var(--radius-xl); background: var(--background); box-shadow: var(--shadow-ring); }
+.ob-sb-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ob-sb-cell { min-width: 0; }
+.ob-sb-tile { position: relative; width: 100%; height: 64px; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: 10px 10px 9px; border: 0; border-radius: var(--radius-xl); cursor: grab; color: var(--text-secondary); font: inherit; text-align: left;
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+.ob-sb-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob-sb-tile .sb-place-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ob-sb-tile.is-fixed { cursor: default; }
+.ob-sb-tile.is-fixed:hover { background: var(--fill-3); transform: none; box-shadow: none; }
+.ob-sb-tile.is-picked, .ob-sb-tile.is-picked:hover { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--fill-accent); }
+.ob-sb-tile.is-over, .ob-sb-tile.is-over:hover { box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-raised); background: var(--fill-accent); transform: scale(1.04); }
+.ob-sb-tile.is-lifted { opacity: .3; }
+/* While something is picked or lifted, the tiles it can land on say so. */
+.ob-sb.is-picking .ob-sb-grid .ob-sb-tile:not(.is-fixed):not(.is-picked),
+.ob-sb.is-dragging .ob-sb-grid .ob-sb-tile:not(.is-fixed):not(.is-over):not(.is-lifted) { box-shadow: inset 0 0 0 1px var(--fill-5); }
+/* More's own glyph when Sidebar.jsx does not export PlaceGlyph: six dots. */
+.ob-sb-more { display: grid; grid-template-columns: repeat(3, 6px); gap: 3px 2px; padding: 3px 0; }
+.ob-sb-more > i { width: 6px; height: 6px; border-radius: 9px; background: var(--accent); }
+.ob-sb-more > i:nth-child(2) { background: var(--destructive); }
+.ob-sb-more > i:nth-child(3) { background: var(--info); }
+.ob-sb-more > i:nth-child(4) { background: var(--success); }
+.ob-sb-more > i:nth-child(5) { background: var(--text-tertiary); }
+.ob-sb-more > i:nth-child(6) { background: var(--fill-accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* The sea: a small sky with its cloud sea; the other places float on it. */
+.ob-sb-sea { position: relative; height: 200px; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-ring); }
+.ob-sb-sky.px-sky { position: absolute; inset: 0; }
+.ob-sb-float { position: absolute; inset: 0; z-index: 1; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 12px 10px; padding: 14px; box-sizing: border-box; }
+/* The tiles settle onto the sea once when the step appears, then hold still. */
+.ob-sb-bob { display: block; width: 104px; animation: ob-sb-bob 4.2s ease-in-out 1 backwards; }
+.ob-sb-bob.is-b1 { margin-top: 10px; animation-duration: 4.8s; animation-delay: -1.3s; }
+.ob-sb-bob.is-b2 { margin-top: -4px; animation-duration: 3.9s; animation-delay: -2.4s; }
+.ob-sb-bob.is-b3 { margin-top: 6px; animation-duration: 5.2s; animation-delay: -.7s; }
+.ob-sb-float .ob-sb-tile { background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.ob-sb-float .ob-sb-tile:hover { background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.ob-sb-float .ob-sb-tile.is-picked, .ob-sb-float .ob-sb-tile.is-over { box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-raised); }
+@keyframes ob-sb-bob { from { transform: translateY(-6px) rotate(.6deg); } to { transform: none; } }
+
+/* Swaps: the new tile settles, the one it replaced springs back into the sea. */
+.ob-sb-tile.is-land { animation: ob-sb-land 320ms var(--nx-ease, ease-out); }
+.ob-sb-tile.is-back { animation: ob-sb-back 560ms cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes ob-sb-land { from { transform: scale(.9); } to { transform: none; } }
+@keyframes ob-sb-back { from { transform: translateY(-46px) scale(.8); opacity: .3; } to { transform: none; opacity: 1; } }
+
+/* The lifted tile follows the pointer (a portal on <body>, over the onboarding). */
+.ob-sb-ghost { position: fixed; left: 0; top: 0; z-index: 1000; width: var(--ob-w); height: var(--ob-h); pointer-events: none;
+  transform: translate(var(--ob-x), var(--ob-y)); }
+.ob-sb-ghost.is-returning { transition: transform 240ms var(--nx-ease, ease-out); }
+.ob-sb-ghost .ob-sb-tile { background: var(--surface-raised); box-shadow: var(--shadow-floating); transform: rotate(2deg) scale(1.05); cursor: grabbing; }
+.ob-sb-ghost.is-returning .ob-sb-tile { transform: none; transition: transform 240ms var(--nx-ease, ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-sb-bob, .ob-sb-tile.is-land, .ob-sb-tile.is-back { animation: none; }
+  .ob-sb-ghost.is-returning, .ob-sb-ghost.is-returning .ob-sb-tile { transition: none; }
+  .ob-sb-ghost .ob-sb-tile, .ob-sb-tile.is-over { transform: none; }
+}
+.ob-sb { display: flex; flex-direction: column; }
+.ob-sb > .auth-ob-hint { margin-top: 8px; }

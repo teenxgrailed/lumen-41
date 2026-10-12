@@ -1,0 +1,260 @@
+/* Colors — Needt.
+   Six base colours per theme. Every grey in the product is --foreground at an
+   alpha from the ladder below; there are no separately authored greys.
+   Text: 100 / 85 / 70 / 55 / 40 / 25.  Fills: 2 / 3 / 4 / 6 / 8 / 12.
+   Accent appears only as a translucent fill (12% / 24%) with the accent itself
+   as the text colour on any BUTTON OR SURFACE. Solid --accent is correct on a
+   mark — the switch knob, the radio centre, a status dot, the now-line.
+
+   NOTE ON STRUCTURE: the derived ladder is repeated verbatim inside every theme
+   scope. It has to be — a custom property containing var() is substituted where
+   it is DECLARED, so a ladder declared once on :root keeps the light foreground
+   even inside .dark. The source token file had this defect; themes only
+   recoloured their base values. Change an alpha in one block, change it in all
+   three. RGB triplets are derived from the stated hexes so every rgba()
+   derivation lands on the documented colour. */
+
+:root {
+  /* === BASE — light, the default. Two grounds: off-white canvas, white card.
+     Surfaces do not collapse; the card is visible because the ground is a step
+     darker. === */
+  --background: #fcfdfe;                 /* canvas, sidebar */
+  --surface-raised: #ffffff;             /* card, sheet, popover */
+  /* oklch(0.245 0.008 250) from the source renders #1E2124, not the #1A1C1E it
+     is annotated with — and --foreground-rgb (26, 28, 30), which generates the
+     entire grey ladder, is the documented hex. Two different greys were
+     shipping: solid --foreground and every derived step. Pinned to the
+     documented value; the equivalent OKLCH is oklch(0.2295 0.0053 247). */
+  --foreground: #1a1c1e;                 /* all text and icons */
+  --foreground-rgb: 26, 28, 30; /* @kind color */
+
+  --accent: oklch(0.567 0.199 262);      /* Craft blue #2E6DE9 */
+  --accent-rgb: 46, 109, 233; /* @kind color */
+  --info: oklch(0.75 0.16 70);           /* #ED990E */
+  --info-rgb: 237, 153, 14; /* @kind color */
+  --success: oklch(0.55 0.17 145);       /* #098926 */
+  --success-rgb: 9, 137, 38; /* @kind color */
+  --destructive: oklch(0.58 0.24 28);    /* #E6000C */
+  --destructive-rgb: 230, 0, 12; /* @kind color */
+
+  --border-width: 1.5px; /* @kind spacing */     /* chrome hairline */
+  --border-width-doc: 1px; /* @kind spacing */   /* inside a document */
+
+  /* === TEXT — one colour, six levels === */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
+
+  /* === FILLS — the same colour, six steps === */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
+
+  /* === BORDER === */
+  --border: rgba(var(--foreground-rgb), 0.08);
+  --ring-accent: rgba(var(--accent-rgb), 0.4);
+
+  /* === ACCENT FILLS — translucent only === */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
+
+  /* === STATE FILLS === */
+  --fill-info: rgba(var(--info-rgb), 0.12);
+  --fill-success: rgba(var(--success-rgb), 0.12);
+  --fill-destructive: rgba(var(--destructive-rgb), 0.12);
+  --fill-destructive-strong: rgba(var(--destructive-rgb), 0.24);
+  --ring-destructive: rgba(var(--destructive-rgb), 0.4);
+
+  /* === RINGS AND FOCUS — derived from the same two colours === */
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.12) 0 0 0 1px;
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-raised-hover:
+    rgba(0, 0, 0, 0.06) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.05) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.03) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.02) 0 10px 4px 0,
+    rgba(0, 0, 0, 0.07) 0 0 0 1px;
+  --shadow-raised-press:
+    rgba(0, 0, 0, 0.05) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.03) 0 2px 1px 0,
+    rgba(0, 0, 0, 0.08) 0 0 0 1px;
+  /* A very slight vertical veil on the working surface: top a touch lighter,
+     bottom a touch darker, so a tall column has a direction. Not a decorative
+     gradient — the range is one step of the fill ladder end to end, and it is
+     the only gradient in the product. */
+  --canvas-veil: linear-gradient(180deg, rgba(var(--foreground-rgb), 0) 0%, rgba(var(--foreground-rgb), 0.02) 45%, rgba(var(--foreground-rgb), 0.05) 100%); /* @kind color */
+
+  /* === SEMANTIC ALIASES === */
+  --surface-canvas: var(--background);
+  --surface-card: var(--surface-raised);
+  --surface-popover: var(--surface-raised);
+  --surface-sheet: var(--surface-raised);
+  --text-body: var(--text-primary);
+  --text-label: var(--text-secondary);
+  --text-meta-color: var(--text-quaternary);
+  --text-placeholder: var(--text-disabled);
+  --control-fill: var(--fill-3);
+  --control-fill-hover: var(--fill-4);
+  --control-fill-active: var(--fill-5);
+  --control-fill-pressed: var(--fill-6);
+  --row-fill-hover: var(--fill-2);
+  --row-fill-active: var(--fill-4);
+  --scrollbar-thumb: var(--border);
+  /* the two translucent surfaces in the product — the editor toolbar and the
+     floating action. Opaque enough to read; the blur belongs to the action. */
+  --toolbar-fill: rgba(250, 250, 250, 0.85);
+  --floating-fill: rgba(255, 255, 255, 0.72);
+}
+
+/* === DARK === */
+.dark {
+  --background: #121314;
+  --surface-raised: #1e1e1e;
+  --foreground: oklch(0.975 0 0);   /* #F9F9F9 */
+  --foreground-rgb: 249, 249, 249; /* @kind color */
+
+  --accent: oklch(0.752 0.13 253.6); /* #71B2FF */
+  --accent-rgb: 113, 178, 255; /* @kind color */
+  --info: oklch(0.70 0.16 70);      /* #DC8900 */
+  --info-rgb: 220, 137, 0; /* @kind color */
+  --success: oklch(0.60 0.17 145);  /* #279936 */
+  --success-rgb: 39, 153, 54; /* @kind color */
+  --destructive: oklch(0.70 0.19 22); /* #FF6367 */
+  --destructive-rgb: 255, 99, 103; /* @kind color */
+
+  /* === TEXT — one colour, six levels === */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
+
+  /* === FILLS — the same colour, six steps === */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
+
+  /* === BORDER === */
+  --border: rgba(var(--foreground-rgb), 0.08);
+  --ring-accent: rgba(var(--accent-rgb), 0.4);
+
+  /* === ACCENT FILLS — translucent only === */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
+
+  /* === STATE FILLS === */
+  --fill-info: rgba(var(--info-rgb), 0.12);
+  --fill-success: rgba(var(--success-rgb), 0.12);
+  --fill-destructive: rgba(var(--destructive-rgb), 0.12);
+  --fill-destructive-strong: rgba(var(--destructive-rgb), 0.24);
+  --ring-destructive: rgba(var(--destructive-rgb), 0.4);
+
+  /* === RINGS AND FOCUS — derived from the same two colours === */
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.12) 0 0 0 1px;
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-raised-hover:
+    rgba(0, 0, 0, 0.3) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.26) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.2) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.14) 0 10px 4px 0,
+    rgba(255, 255, 255, 0.1) 0 0 0 1px;
+  --shadow-raised-press:
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.2) 0 2px 1px 0,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  /* A very slight vertical veil on the working surface: top a touch lighter,
+     bottom a touch darker, so a tall column has a direction. Not a decorative
+     gradient — the range is one step of the fill ladder end to end, and it is
+     the only gradient in the product. */
+  --canvas-veil: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.02) 45%, rgba(0, 0, 0, 0.05) 100%); /* @kind color */
+  --toolbar-fill: rgba(30, 30, 30, 0.88);
+  --floating-fill: rgba(30, 30, 30, 0.78);
+}
+
+/* === DIM — not a third palette; only the ground moves. === */
+.dim {
+  --background: #1e2021;
+  --surface-raised: #292b2c;
+  --foreground: oklch(0.975 0 0);
+  --foreground-rgb: 249, 249, 249; /* @kind color */
+
+  --accent: oklch(0.752 0.13 253.6);
+  --accent-rgb: 113, 178, 255; /* @kind color */
+  --info: oklch(0.70 0.16 70);
+  --info-rgb: 220, 137, 0; /* @kind color */
+  --success: oklch(0.60 0.17 145);
+  --success-rgb: 39, 153, 54; /* @kind color */
+  --destructive: oklch(0.70 0.19 22);
+  --destructive-rgb: 255, 99, 103; /* @kind color */
+
+  /* === TEXT — one colour, six levels === */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
+
+  /* === FILLS — the same colour, six steps === */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
+
+  /* === BORDER === */
+  --border: rgba(var(--foreground-rgb), 0.08);
+  --ring-accent: rgba(var(--accent-rgb), 0.4);
+
+  /* === ACCENT FILLS — translucent only === */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
+
+  /* === STATE FILLS === */
+  --fill-info: rgba(var(--info-rgb), 0.12);
+  --fill-success: rgba(var(--success-rgb), 0.12);
+  --fill-destructive: rgba(var(--destructive-rgb), 0.12);
+  --fill-destructive-strong: rgba(var(--destructive-rgb), 0.24);
+  --ring-destructive: rgba(var(--destructive-rgb), 0.4);
+
+  /* === RINGS AND FOCUS — derived from the same two colours === */
+  --shadow-inset-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  --shadow-ring: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px;
+  --shadow-ring-strong: rgba(var(--foreground-rgb), 0.12) 0 0 0 1px;
+  --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
+  --shadow-raised-hover:
+    rgba(0, 0, 0, 0.3) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.26) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.2) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.14) 0 10px 4px 0,
+    rgba(255, 255, 255, 0.1) 0 0 0 1px;
+  --shadow-raised-press:
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.2) 0 2px 1px 0,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  /* A very slight vertical veil on the working surface: top a touch lighter,
+     bottom a touch darker, so a tall column has a direction. Not a decorative
+     gradient — the range is one step of the fill ladder end to end, and it is
+     the only gradient in the product. */
+  --canvas-veil: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.02) 45%, rgba(0, 0, 0, 0.05) 100%); /* @kind color */
+  --toolbar-fill: rgba(41, 43, 44, 0.88);
+  --floating-fill: rgba(41, 43, 44, 0.78);
+}

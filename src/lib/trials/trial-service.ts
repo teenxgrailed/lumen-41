@@ -1,13 +1,14 @@
 import { Prisma, SubscriptionPlan } from "@prisma/client";
 import { createHmac } from "node:crypto";
 
+import { NEEDT_PRICING } from "@/lib/creem/config";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "TrialService";
 
-export const TRIAL_DURATION_DAYS = 14;
+export const TRIAL_DURATION_DAYS = NEEDT_PRICING.trialDays;
 
 type TrialTransaction = Prisma.TransactionClient;
 

@@ -9,6 +9,33 @@ import { prisma } from "@/lib/prisma";
 
 export type MoodboardActor = MoodboardAccessActor;
 
+/** One shape for every moodboard response, including the design v3 fields. */
+const moodboardSelect = {
+  id: true,
+  title: true,
+  createdById: true,
+  createdAt: true,
+  updatedAt: true,
+  projectId: true,
+  linkShare: true,
+  pinterestBoardId: true,
+  pinterestStatus: true,
+  pinterestSyncedAt: true,
+  trashedAt: true,
+} satisfies Prisma.MoodboardSelect;
+
+async function assertWorkspaceProject(
+  workspace: { workspaceId: string },
+  projectId: string | null | undefined
+) {
+  if (!projectId) return;
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, ...workspace },
+    select: { id: true },
+  });
+  if (!project) throw new Error("Project not found");
+}
+
 function scope(actor: MoodboardActor) {
   return actor.workspace ? { workspaceId: actor.workspace.workspaceId } : null;
 }
@@ -18,24 +45,26 @@ export async function listMoodboards(actor: MoodboardActor) {
   if (!workspace) return [];
   return prisma.moodboard.findMany({
     where: { ...workspace, archivedAt: null },
-    select: { id: true, title: true, createdById: true, updatedAt: true },
+    select: moodboardSelect,
     orderBy: { updatedAt: "desc" },
   });
 }
 
 export async function createMoodboard(
   actor: MoodboardActor,
-  input: { title?: string }
+  input: { title?: string; projectId?: string | null }
 ) {
   const workspace = scope(actor);
   if (!workspace) return null;
+  await assertWorkspaceProject(workspace, input.projectId);
   return prisma.moodboard.create({
     data: {
       ...workspace,
       createdById: actor.userId,
       title: input.title?.trim().slice(0, 240) || "Untitled Moodboard",
+      ...(input.projectId ? { projectId: input.projectId } : {}),
     },
-    select: { id: true, title: true, createdById: true, updatedAt: true },
+    select: moodboardSelect,
   });
 }
 
@@ -44,7 +73,7 @@ export async function getMoodboard(actor: MoodboardActor, moodboardId: string) {
   if (!access) return null;
   const moodboard = await prisma.moodboard.findFirst({
     where: { id: moodboardId, ...scope(actor), archivedAt: null },
-    select: { id: true, title: true, createdById: true, updatedAt: true },
+    select: moodboardSelect,
   });
   return moodboard ? { ...moodboard, accessRole: access.role } : null;
 }
@@ -52,22 +81,45 @@ export async function getMoodboard(actor: MoodboardActor, moodboardId: string) {
 export async function updateMoodboard(
   actor: MoodboardActor,
   moodboardId: string,
-  input: { title?: string; archived?: boolean }
+  input: {
+    title?: string;
+    archived?: boolean;
+    projectId?: string | null;
+    linkShare?: boolean;
+    pinterestBoardId?: string | null;
+    trashed?: boolean;
+  }
 ) {
-  const requiredRole = input.archived
-    ? MoodboardAccessRole.FULL_ACCESS
-    : MoodboardAccessRole.EDITOR;
+  const requiredRole =
+    input.archived ||
+    input.trashed !== undefined ||
+    input.linkShare !== undefined
+      ? MoodboardAccessRole.FULL_ACCESS
+      : MoodboardAccessRole.EDITOR;
   if (!(await resolveMoodboardAccess(actor, moodboardId, requiredRole))) {
     return null;
   }
   const workspace = scope(actor);
   if (!workspace) return null;
-  const data: Prisma.MoodboardUpdateManyMutationInput = {
+  if (input.projectId !== undefined) {
+    await assertWorkspaceProject(workspace, input.projectId);
+  }
+  const data: Prisma.MoodboardUncheckedUpdateManyInput = {
     ...(typeof input.title === "string" && {
       title: input.title.trim().slice(0, 240) || "Untitled Moodboard",
     }),
     ...(typeof input.archived === "boolean" && {
       archivedAt: input.archived ? newDate() : null,
+    }),
+    ...(input.projectId !== undefined && { projectId: input.projectId }),
+    ...(typeof input.linkShare === "boolean" && {
+      linkShare: input.linkShare,
+    }),
+    ...(input.pinterestBoardId !== undefined && {
+      pinterestBoardId: input.pinterestBoardId,
+    }),
+    ...(typeof input.trashed === "boolean" && {
+      trashedAt: input.trashed ? newDate() : null,
     }),
   };
   const updated = await prisma.moodboard.updateMany({
@@ -77,7 +129,7 @@ export async function updateMoodboard(
   if (updated.count === 0) return null;
   return prisma.moodboard.findFirst({
     where: { id: moodboardId, ...workspace },
-    select: { id: true, title: true, createdById: true, updatedAt: true },
+    select: moodboardSelect,
   });
 }
 

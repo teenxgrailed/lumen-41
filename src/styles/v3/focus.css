@@ -1,0 +1,156 @@
+/* ========================================================================
+   Needt design v3 — styles/focus.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* focus.css — the Focus window (focus.jsx, 08.10.26). Colours only via
+   var(--…) tokens; the sky and glass recipes come from scenes.jsx (PxSky,
+   GlassCard, .px-track, .px-chip-btn). Animations run on open / close / view
+   change only; reduced motion = fades. */
+
+/* Over the app: dimmed and softly blurred, the window centred. */
+.needt-v3 .fc-scrim { position: fixed; inset: 0; z-index: 1080; display: grid; place-items: center; padding: 24px 16px;
+  background: var(--nx-scrim); -webkit-backdrop-filter: blur(6px) saturate(1.1); backdrop-filter: blur(6px) saturate(1.1);
+  animation: v3-fc-fade-in 200ms ease backwards; }
+.needt-v3 .fc-scrim.is-leaving { animation: v3-fc-fade-out 180ms ease-in both; pointer-events: none; }
+.needt-v3 .fc-window { position: relative; width: min(720px, calc(100vw - 32px)); height: min(760px, calc(100vh - 48px)); border-radius: 22px; overflow: hidden; isolation: isolate;
+  box-shadow: var(--shadow-floating); animation: v3-fc-win-in 300ms var(--nx-ease) backwards; }
+.needt-v3 .fc-window::after { content: ""; position: absolute; inset: 0; z-index: 30; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px var(--border); }
+.needt-v3 .fc-window.is-leaving { animation: v3-fc-win-out 180ms ease-in both; }
+.needt-v3 .fc-plain { position: absolute; inset: 0; background: var(--surface-raised); }
+@keyframes v3-fc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v3-fc-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes v3-fc-win-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes v3-fc-win-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(0.98); } }
+
+.needt-v3 .fc-scroll { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; }
+/* View change: the new view rises 8px and fades in (backwards fill — a held
+   animation would make a backdrop root and the glass would blur nothing). */
+.needt-v3 .fc-view { min-height: 100%; box-sizing: border-box; padding: 28px 32px 28px; animation: v3-fc-view-in 260ms var(--nx-ease) backwards; }
+@keyframes v3-fc-view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .fc-window { animation-name: v3-fc-fade-in; }
+  .needt-v3 .fc-window.is-leaving { animation-name: v3-fc-fade-out; }
+  .needt-v3 .fc-view { animation-name: v3-fc-fade-in; }
+  .needt-v3 .fc-task,
+.needt-v3 .fc-seg-btn,
+.needt-v3 .fc-switch,
+.needt-v3 .fc-switch-knob,
+.needt-v3 .fc-part,
+.needt-v3 .fc-bar-fill { transition: none; }
+}
+
+.needt-v3 .fc-stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* Header: kicker, Exposure title, a line; one round glass button. */
+.needt-v3 .fc-head { display: flex; align-items: flex-start; gap: 16px; }
+.needt-v3 .fc-head-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .fc-title { margin: 0; font-size: 56px; overflow-wrap: anywhere; }
+.needt-v3 .fc-run .fc-title { font-size: 34px; line-height: 1.04; }
+.needt-v3 .fc-sub { font: var(--weight-regular) 15px/20px var(--font-sans); text-wrap: pretty; }
+.needt-v3 .fc-round { flex: none; width: 32px; height: 32px; padding: 0; border-radius: 999px; }
+
+/* Glass cards: groups 6 inside, 16 between. */
+.needt-v3 .fc-card { display: flex; flex-direction: column; gap: 16px; } /* padding: GlassCard pad */
+.needt-v3 .fc-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.needt-v3 .fc-label { font: var(--type-meta-medium); color: var(--text-tertiary); }
+.needt-v3 .fc-label-sky { color: var(--px-ink-2); padding-left: 2px; }
+.needt-v3 .fc-count { margin-left: 4px; font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
+
+.needt-v3 .fc-field { box-sizing: border-box; width: 100%; height: 36px; margin: 0; padding: 0 12px; border: 0; outline: none; border-radius: 11px;
+  background: var(--surface-raised); box-shadow: var(--shadow-inset-ring); font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .fc-field::placeholder { color: var(--text-muted); }
+.needt-v3 .fc-field:focus-visible { box-shadow: var(--shadow-inset-ring), 0 0 0 2px var(--accent); }
+.needt-v3 .fc-notes { height: auto; min-height: 76px; padding: 9px 12px; resize: vertical; line-height: 20px; }
+.needt-v3 .fc-len-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.needt-v3 .fc-custom { display: inline-flex; align-items: center; gap: 6px; }
+.needt-v3 .fc-field-num { width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+.needt-v3 .fc-custom.is-bad .fc-field-num { box-shadow: inset 0 0 0 1px var(--destructive); }
+.needt-v3 .fc-unit { font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .fc-error { font: var(--type-meta); color: var(--destructive); }
+
+/* Segmented control on a glass track. */
+.needt-v3 .fc-seg { display: inline-flex; gap: 2px; padding: 3px; flex-wrap: wrap; }
+.needt-v3 .fc-seg-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; cursor: default;
+  font: var(--type-ui-medium); color: var(--text-secondary); white-space: nowrap; -webkit-appearance: none; appearance: none;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease; }
+.needt-v3 .fc-seg-btn:hover { color: var(--text-primary); background: var(--fill-2); }
+.needt-v3 .fc-seg-btn.is-on { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
+.needt-v3 .fc-seg-btn:active { transform: scale(0.97); }
+
+/* Task cards: a ring in the project's colour, the title, project · length. */
+.needt-v3 .fc-tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.needt-v3 .fc-task { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+.needt-v3 .fc-ring { flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 999px; border: 2.5px solid var(--fc-hue, var(--text-tertiary)); }
+.needt-v3 .fc-task-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .fc-task-title { font: var(--type-ui-medium); color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.needt-v3 .fc-task-meta { font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .fc-task-check { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--text-primary); color: var(--background); }
+.needt-v3 .fc-empty { font: var(--type-ui); padding: 4px 2px; }
+
+/* Options: ambient sound + Hide other tasks. */
+.needt-v3 .fc-card-opts { flex-direction: row; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; }
+.needt-v3 .fc-opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.needt-v3 .fc-switch-row { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px; border: 0; border-radius: 11px; background: transparent; cursor: default;
+  font: var(--type-ui-medium); color: var(--text-secondary); -webkit-appearance: none; appearance: none; transition: background-color 120ms ease; }
+.needt-v3 .fc-switch-row:hover { background: var(--fill-2); color: var(--text-primary); }
+.needt-v3 .fc-switch-label { white-space: nowrap; }
+.needt-v3 .fc-switch { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--fill-5); transition: background-color 160ms ease; }
+.needt-v3 .fc-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 999px; background: var(--surface-raised); box-shadow: var(--shadow-raised); transition: transform 160ms var(--nx-ease); }
+.needt-v3 .fc-switch-row.is-on .fc-switch { background: var(--text-primary); }
+.needt-v3 .fc-switch-row.is-on .fc-switch-knob { transform: translateX(12px); }
+
+.needt-v3 .fc-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding-top: 4px; }
+.needt-v3 .fc-start { height: 40px; padding: 0 20px; border-radius: 12px; }
+.needt-v3 .fc-info { display: inline-flex; align-items: flex-start; gap: 6px; font: var(--type-meta); color: var(--px-ink-2); text-wrap: pretty; max-width: 560px; }
+.needt-v3 .fc-info svg { flex: none; margin-top: 2px; }
+
+.needt-v3 .fc-glyph { display: block; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.needt-v3 .fc-glyph.is-solid { fill: currentColor; stroke: none; }
+
+/* Running: the clock is the page. */
+.needt-v3 .fc-clock-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0 4px; }
+.needt-v3 .fc-clock { font-size: 128px; line-height: 0.9; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.needt-v3 .fc-clock.is-paused { opacity: 0.55; }
+.needt-v3 .fc-bar { position: relative; width: min(360px, 70%); height: 4px; border-radius: 999px; overflow: hidden; background: var(--px-line, var(--fill-4)); }
+.needt-v3 .fc-bar-fill { position: absolute; inset: 0; transform-origin: left center; transform: scaleX(var(--fc-pct, 0)); background: var(--accent-fill, var(--accent)); border-radius: inherit; transition: transform 200ms linear; }
+.needt-v3 .fc-clock-meta { font: var(--type-meta-medium); color: var(--px-ink-2); font-variant-numeric: tabular-nums; }
+.needt-v3 .fc-controls { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.needt-v3 .fc-ctl { min-width: 0; }
+.needt-v3 .fc-chip { height: 32px; padding: 0 12px; border-radius: 999px; font: var(--type-ui-medium); }
+.needt-v3 .fc-parts { display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .fc-part { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 10px; background: transparent; cursor: default; text-align: left;
+  font: var(--type-ui); color: var(--text-primary); -webkit-appearance: none; appearance: none; transition: background-color 120ms ease; }
+.needt-v3 .fc-part:hover { background: var(--fill-2); }
+.needt-v3 .fc-box { flex: none; display: grid; place-items: center; width: 16px; height: 16px; box-sizing: border-box; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--text-quaternary); color: var(--background); }
+.needt-v3 .fc-part.is-done .fc-box { background: var(--success); box-shadow: none; }
+.needt-v3 .fc-part.is-done .fc-part-title { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .fc-break-line { display: flex; align-items: center; gap: 10px; font: var(--type-ui); color: var(--text-secondary); }
+
+/* End: stats in one glass strip, three next steps. */
+.needt-v3 .fc-end .fc-title { font-size: 64px; }
+.needt-v3 .fc-stats { flex-direction: row; gap: 0; }
+.needt-v3 .fc-stat { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; }
+.needt-v3 .fc-stat + .fc-stat { box-shadow: inset 1px 0 0 0 var(--border); }
+.needt-v3 .fc-stat-num { font: var(--weight-semibold) 22px/28px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .fc-stat-label { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .fc-pips { display: flex; gap: 4px; padding-top: 6px; min-height: 6px; }
+.needt-v3 .fc-pip { width: 6px; height: 6px; border-radius: 999px; background: var(--success); }
+.needt-v3 .fc-next { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.needt-v3 .fc-next-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 104px; }
+.needt-v3 .fc-next-card.is-off { opacity: 0.4; }
+.needt-v3 .fc-next-glyph { display: grid; place-items: center; width: 30px; height: 30px; margin-bottom: 6px; border-radius: 10px; background: var(--fill-3); color: var(--text-primary); }
+.needt-v3 .fc-next-title { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .fc-next-sub { font: var(--type-meta); color: var(--text-tertiary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Narrow windows. */
+@media (max-width: 640px) {
+  .needt-v3 .fc-view { padding: 22px 18px; }
+  .needt-v3 .fc-title { font-size: 44px; }
+  .needt-v3 .fc-clock { font-size: 88px; }
+  .needt-v3 .fc-tasks,
+.needt-v3 .fc-next { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Sidebar pill while paused: the clock stays out, quiet (no breathing). */
+.needt-v3 .shell-sidebar-stack .sb-foot .focus-icon button.sb-focus.sb-reveal.is-paused { background: var(--fill-3); color: var(--text-secondary); }

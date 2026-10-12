@@ -50,6 +50,13 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
   }
+  if (parsed.data.projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: parsed.data.projectId, ...workspaceDataScopeWhere(auth.workspace, auth.userId) },
+      select: { id: true },
+    });
+    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
   const habit = await prisma.habit.create({
     data: {
       ...parsed.data,

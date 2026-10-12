@@ -4,6 +4,7 @@ import {
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
   getCalendarSyncQueue,
+  getImportQueue,
   getMailSyncQueue,
   getReminderQueue,
   getRescheduleQueue,
@@ -138,5 +139,14 @@ export async function enqueueAccountDeletion(
       jobId: `account-deletion-${requestId}-${scheduledFor.getTime()}`,
       delay,
     }
+  );
+}
+
+export async function enqueueImportRun(importRunId: string) {
+  if (await skipWhenUnconfigured("imports")) return null;
+  return getImportQueue().add(
+    "run-import",
+    { importRunId },
+    { jobId: `import-${importRunId}` }
   );
 }

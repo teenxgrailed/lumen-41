@@ -72,7 +72,11 @@ export async function listPages(
       tags: { select: { id: true, name: true, color: true } },
       createdBy: true,
       position: true,
+      createdAt: true,
       updatedAt: true,
+      coverUrl: true,
+      projectId: true,
+      style: true,
       trashedAt: true,
       database: { select: { id: true } },
       accessGrants: {
@@ -94,7 +98,22 @@ export async function listPages(
       isPrivate: page.isPrivate,
       accessGrants,
     }),
+    ...pageShareFlags(actor, { userId, accessGrants }),
   }));
+}
+
+/**
+ * Additive list fields: `isOwner` is true when the actor owns the page, and
+ * `sharedWithMe` only when someone else owns it and gave the actor an explicit
+ * grant. A role inherited from workspace membership is not a share.
+ */
+export function pageShareFlags(
+  actor: PageActor,
+  page: { userId: string | null; accessGrants: readonly unknown[] }
+) {
+  const isOwner =
+    typeof actor === "string" || page.userId === actorUserId(actor);
+  return { isOwner, sharedWithMe: !isOwner && page.accessGrants.length > 0 };
 }
 
 export async function getPage(actor: PageActor, pageId: string) {
@@ -147,6 +166,23 @@ async function assertOwnedParent(actor: PageActor, parentId?: string | null) {
   if (!parent) throw new Error("Parent page not found");
 }
 
+/** A page may only be filed under a project the actor's workspace owns. */
+async function assertScopedProject(
+  actor: PageActor,
+  projectId?: string | null
+) {
+  if (!projectId) return;
+  const workspaceId = actorWorkspaceId(actor);
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      ...(workspaceId ? { workspaceId } : { userId: actorUserId(actor) }),
+    },
+    select: { id: true },
+  });
+  if (!project) throw new Error("Project not found");
+}
+
 export async function createPage(
   actor: PageActor,
   input: {
@@ -155,10 +191,13 @@ export async function createPage(
     icon?: string | null;
     isPrivate?: boolean;
     createdBy?: PageAuthor;
+    style?: Prisma.InputJsonObject | null;
+    projectId?: string | null;
   }
 ) {
   const userId = actorUserId(actor);
   await assertOwnedParent(actor, input.parentId);
+  await assertScopedProject(actor, input.projectId);
   const last = await prisma.page.findFirst({
     where: {
       ...actorPageScope(actor),
@@ -178,6 +217,8 @@ export async function createPage(
       isPrivate: input.isPrivate === true,
       createdBy: input.createdBy ?? PageAuthor.HUMAN,
       position: (last?.position ?? 0) + 1024,
+      ...(input.style ? { style: input.style } : {}),
+      ...(input.projectId ? { projectId: input.projectId } : {}),
       blocks: {
         create: {
           type: PageBlockType.PARAGRAPH,
@@ -203,6 +244,8 @@ export async function updatePage(
     isFavorite?: boolean;
     position?: number;
     trashed?: boolean;
+    style?: Prisma.InputJsonObject | null;
+    projectId?: string | null;
   }
 ): Promise<Awaited<ReturnType<typeof getPage>>> {
   if (input.trashed === false) {
@@ -229,6 +272,9 @@ export async function updatePage(
   if (input.parentId !== undefined) {
     await assertOwnedParent(actor, input.parentId);
   }
+  if (input.projectId !== undefined) {
+    await assertScopedProject(actor, input.projectId);
+  }
   return prisma.page.update({
     where: { id: pageId },
     data: {
@@ -250,6 +296,10 @@ export async function updatePage(
       ...(input.trashed !== undefined
         ? { trashedAt: input.trashed ? new Date() : null }
         : {}),
+      ...(input.style !== undefined
+        ? { style: input.style ?? Prisma.DbNull }
+        : {}),
+      ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
     },
     include: pageDetailInclude,
   });

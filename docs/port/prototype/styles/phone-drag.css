@@ -1,0 +1,39 @@
+/* phone-drag — the lifted row on the phone (phone-drag.jsx, 09.10.26).
+   The row itself goes up: its node stays in the list, hidden ([data-pd-slot])
+   — that is the gap; a clone of it rides in .pd-lift (inside the .pk-screen,
+   above the blur bands and the menu pill, under the pull-down and sheets). Runtime values (the finger's
+   offset, the lean) come in as inline transform / --pd-lean. Transitions run
+   on events only; reduced motion = instant. */
+
+.pd-lift { position: absolute; z-index: 48; pointer-events: none; will-change: transform; }
+.pd-lift-card { --pd-lean: 0deg; border-radius: 18px; overflow: hidden; background: var(--v2p-card); box-shadow: none;
+  transform: rotate(var(--pd-lean)) scale(1); transform-origin: 50% 50%;
+  transition: transform 0.2s var(--pk-spring, ease), box-shadow 0.2s ease; }
+.pd-lift-card.is-up { transform: rotate(var(--pd-lean)) scale(1.02); box-shadow: var(--v2p-plate-shadow); }
+.pd-lift-card .pk-rw { display: block; }
+.pd-lift-card .pk-row { box-shadow: none; padding-left: 12px; padding-right: 12px; background: var(--v2p-card); }
+.pd-lift.is-out .pd-lift-card { opacity: 0.86; }
+.pd-lift.is-settling { transition: transform 0.34s var(--pk-spring, ease), opacity 0.2s ease; }
+.pd-lift.is-fading { opacity: 0; }
+.pd-lift.is-fading .pd-lift-card { transform: scale(0.94); }
+
+/* the hold: the row sinks a touch while the long-press is counting */
+[data-pk-row][data-pd-press] > .pk-rw-in { transform: scale(0.985); transition: transform 0.35s ease; }
+
+[data-pd-slot] { visibility: hidden; }
+[data-pd-shift] { transition: transform 0.22s var(--pk-ease, ease), grid-template-rows 0.26s ease, opacity 0.26s ease; }
+[data-pd-flip] { transition: transform 0.32s var(--pk-spring, ease), grid-template-rows 0.26s ease, opacity 0.26s ease; }
+
+/* the section that will take the row */
+.pk-sec-head[data-pd-over] { border-radius: 12px; background: var(--v2p-lav-soft); box-shadow: inset 0 0 0 1.5px var(--v2p-lav-ring); }
+.pk-sec-head[data-pd-over] .pk-label, .pk-sec-head[data-pd-over] .pk-sec-word { color: var(--v2p-ink); }
+.pk-sec-head { transition: background-color 0.16s ease, box-shadow 0.16s ease; }
+
+html.is-pd-drag, html.is-pd-drag * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+[data-pd-zone] [data-pk-row] { -webkit-touch-callout: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-lift-card, .pd-lift-card.is-up { transition: none; transform: none; }
+  .pd-lift.is-settling, [data-pd-shift], [data-pd-flip], .pk-sec-head { transition: none; }
+  [data-pk-row][data-pd-press] > .pk-rw-in { transform: none; transition: none; }
+}

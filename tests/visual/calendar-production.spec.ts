@@ -39,7 +39,7 @@ test("calendar shows and edits a local event through the production route", asyn
   const event = (await eventResponse.json()) as { id: string };
 
   await page.goto("/calendar", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toBeVisible();
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toBeVisible();
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
   await page.getByText(title, { exact: true }).first().click();
 

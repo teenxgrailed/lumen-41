@@ -23,6 +23,9 @@ const eslintConfig = [
       "playwright-report/**",
       "test-results/**",
       "public/sw.js",
+      // Frozen design prototype for the port: reference only, never built.
+      "docs/port/prototype/**",
+      "docs/port/_ds/**",
       // Self-contained sub-projects: each carries its own tsconfig, its own
       // dependency set and its own build (Vite, not Next). Linting them from
       // the root resolves their imports against the root's node_modules, which

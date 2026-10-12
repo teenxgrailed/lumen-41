@@ -1,0 +1,97 @@
+/* THE EXPOSURE WORDMARK'S STYLE LAYER
+ *
+ * One axis: EXPO, −100 to +100, resting 0. Underexposed at −100 the counters
+ * fill and the letters fuse into a black mass; 0 is a crisp Didone; past +55
+ * the strokes burn away and it reads as broken rather than lit, which is why
+ * every positive target in the component is capped there.
+ *
+ * The font is DUPLEXED — advance width is identical at all eleven axis
+ * positions (319.3px at 112px type, 0.0% deviation) — so the layout cannot
+ * move and there is no width lock. The previous build's invisible ghost copy
+ * is deleted. */
+@font-face {
+  font-family: "Exposure VAR";
+  src: url("./ExposureTrialVAR.woff2") format("woff2-variations");
+  font-display: block;
+}
+
+.font-display { font-family: "Exposure VAR", Georgia, serif; }
+
+/* Letters are written to directly by the component's animation engine, so they
+   carry no transition of their own — a transition would fight the spring. */
+.ew-letter {
+  display: inline-block;
+  white-space: pre;
+  font-variation-settings: "EXPO" 0;
+}
+
+/* SCULPTED — the letter stands off the page and casts onto it.
+ *
+ * The light is FIXED, above and slightly left, the way a light in a room is
+ * fixed: it does not follow the pointer and it does not drift, so the mark
+ * reads as a solid object rather than an effect. What changes is the letter:
+ * the engine writes --ew-lift from the live EXPO value, so an inked stroke
+ * sits further off the page and a burned one barely leaves it.
+ *
+ * Three offsets, not one: a tight contact shade that keeps the letter attached
+ * to the surface, a mid cast that gives it height, and a wide low-alpha
+ * spread that stops the first two reading as a stuck-on drop shadow. All in em
+ * so the geometry is the same at 46px and at 112px, and all amplitude
+ * deliberately at the edge of noticing — the difference between expensive and
+ * cheap here is amplitude, not mechanism.
+ *
+ * Ink is untouched: text-shadow paints behind the glyph, so the letter is the
+ * same 100% foreground it was and contrast is unchanged. */
+.ew-sculpt .ew-letter {
+  --ew-lift: 1;
+  text-shadow:
+    calc(0.008em * var(--ew-lift)) calc(0.014em * var(--ew-lift)) 0 var(--ew-shade-contact, rgba(0, 0, 0, 0.16)),
+    calc(0.014em * var(--ew-lift)) calc(0.026em * var(--ew-lift)) calc(0.03em * var(--ew-lift)) var(--ew-shade-cast, rgba(0, 0, 0, 0.1)),
+    calc(0.02em * var(--ew-lift)) calc(0.042em * var(--ew-lift)) calc(0.08em * var(--ew-lift)) var(--ew-shade-spread, rgba(0, 0, 0, 0.055));
+}
+/* On a dark ground a black shade disappears into the page, so the cast goes
+   further out and the top edge takes a hairline of light instead — the same
+   object under the same fixed lamp, read against a different surface. */
+.dim .ew-sculpt .ew-letter,
+.dark .ew-sculpt .ew-letter {
+  --ew-shade-contact: rgba(0, 0, 0, 0.5);
+  --ew-shade-cast: rgba(0, 0, 0, 0.34);
+  --ew-shade-spread: rgba(0, 0, 0, 0.2);
+}
+
+/* DEVELOP-IN — once, on mount: a print coming up in the tray. easeOutCubic,
+   not expo: expo front-loads the move and the last 300ms goes dead. */
+@keyframes ew-develop {
+  from { font-variation-settings: "EXPO" var(--ew-from, -100); }
+  to   { font-variation-settings: "EXPO" 0; }
+}
+.ew-letter.is-developing {
+  animation: ew-develop 620ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
+}
+
+@keyframes ew-lean {
+  0%, 62%, 100% { transform: skewX(0deg); }
+  74%           { transform: skewX(-1.5deg); }
+  86%           { transform: skewX(0.4deg); }
+}
+.ew-leans { display: inline-block; animation: ew-lean 19s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+
+/* The name is read once, from the copy that is not split into letters. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced motion is a finished wordmark, not a stopped animation. The sculpt
+   stays: it is a property of the object, not a motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ew-letter, .ew-letter.is-developing, .ew-leans {
+    animation: none;
+    font-variation-settings: "EXPO" 0;
+  }
+}

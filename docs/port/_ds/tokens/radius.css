@@ -1,0 +1,25 @@
+/* Radius — assigned by object size, not globally. Take the value from the
+   object, never from taste. */
+
+:root {
+  --radius-xs: 4px;     /* inline chips, tiny controls */
+  --radius-sm: 6px;     /* inner highlights, selection */
+  --radius-md: 8px;     /* nav rows, icon buttons, tabs, chips — the workhorse */
+  --radius-lg: 10px;    /* buttons, menu rows */
+  --radius-xl: 12px;    /* command bar, panels */
+  --radius-2xl: 14px;   /* avatar, space switcher */
+  --radius-3xl: 16px;   /* cards, calendar day */
+  --radius-4xl: 20px;   /* calendar strip container */
+  --radius-floating: 18px; /* the floating action, and only that */
+  --radius-sheet: 26px; /* the document sheet — largest in the product */
+  --radius-pill: 9999px;/* toggle groups, floating toolbar */
+
+  /* semantic aliases */
+  --radius-chip: var(--radius-xs);
+  --radius-control: var(--radius-md);
+  --radius-button: var(--radius-lg);
+  --radius-input: var(--radius-xl);
+  --radius-card: var(--radius-3xl);
+  --radius-container: var(--radius-4xl);
+  --radius-dialog: var(--radius-4xl);
+}

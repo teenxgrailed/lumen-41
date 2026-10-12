@@ -13,9 +13,12 @@
  * List's own table. Kanban's board is small enough to stay here; Flow gets
  * its own file because the link routing and the ranking earn one.
  *
- * Exported, not mounted: nothing here reaches into `shell/**` or renders
+ * Takes no route of its own: nothing here reaches into `shell/**` or renders
  * itself inside `AppShell`/`ScreenFrame` — the caller drops this in as
  * content.
+ * That is a property of this file, not a licence to stop: a surface is
+ * not ported until the thing that reaches it lands with it — see
+ * `docs/handoff/design-workflow.md`.
  */
 import * as React from "react";
 

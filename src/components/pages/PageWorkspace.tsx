@@ -13,13 +13,16 @@ import {
 import { useRouter } from "next/navigation";
 
 import {
+  legacyPageCollaborationDraftKey,
+  pageCollaborationDocumentName,
+  pageCollaborationDraftKey,
+} from "@/services/pages/page-collaboration-protocol";
+import {
   HocuspocusProvider,
   HocuspocusProviderWebsocket,
 } from "@hocuspocus/provider";
 import { type JSONContent } from "@tiptap/core";
-import Collaboration, {
-  isChangeOrigin,
-} from "@tiptap/extension-collaboration";
+import Collaboration, { isChangeOrigin } from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
@@ -83,19 +86,14 @@ import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import {
   PageAutosave,
-  selectLatestPageRevision,
   type PageSaveState,
+  selectLatestPageRevision,
 } from "@/components/pages/page-autosave";
 import {
   documentFromPageBlocks,
   legacyPageHtml,
   pageBlocksFromDocument,
 } from "@/components/pages/page-document";
-import {
-  legacyPageCollaborationDraftKey,
-  pageCollaborationDocumentName,
-  pageCollaborationDraftKey,
-} from "@/services/pages/page-collaboration-protocol";
 import type { PageDetail } from "@/components/pages/page-types";
 import {
   BottomSheet,
@@ -543,9 +541,7 @@ export function PageWorkspace({
   const acknowledgeCollaborationSync = useCallback(
     (unsyncedChanges: number) => {
       if (!collaborationDraftPendingRef.current) return;
-      if (
-        autosave.current?.acknowledgeCollaborationSync(unsyncedChanges)
-      ) {
+      if (autosave.current?.acknowledgeCollaborationSync(unsyncedChanges)) {
         collaborationDraftPendingRef.current = false;
       }
     },
@@ -581,8 +577,7 @@ export function PageWorkspace({
                 ? "disconnected"
                 : "connecting"
           ),
-        onUnsyncedChanges: ({ number }) =>
-          acknowledgeCollaborationSync(number),
+        onUnsyncedChanges: ({ number }) => acknowledgeCollaborationSync(number),
         onAwarenessChange: ({ states }) =>
           setCollaborators(
             states.flatMap((state) => {
@@ -809,10 +804,7 @@ export function PageWorkspace({
     onUpdate: ({ editor: current, transaction }) => {
       if (!hydrated.current) return;
       ensureBlockIds(current);
-      if (
-        !collaborationConfiguredRef.current ||
-        !isChangeOrigin(transaction)
-      ) {
+      if (!collaborationConfiguredRef.current || !isChangeOrigin(transaction)) {
         const document = current.getJSON();
         autosave.current?.schedule(document);
         if (collaborationConfiguredRef.current) {
@@ -2161,6 +2153,7 @@ export function PageWorkspace({
           {!page.coverUrl && (
             <button
               type="button"
+              data-page-cover-add=""
               disabled={!canEdit}
               onClick={() => {
                 setCoverUrl("");

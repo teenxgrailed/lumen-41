@@ -412,7 +412,13 @@ async function clearOfflineData() {
   await clearStore(db, STORE_QUEUE);
   await clearStore(db, STORE_SNAPSHOTS);
   await clearStore(db, STORE_META);
-  await broadcast({ type: "NEEDT_OFFLINE_STATE", state: "idle", count: 0 });
+  // Sign-out clears every scope, so this reset applies to all tabs.
+  await broadcast({
+    type: "NEEDT_OFFLINE_STATE",
+    scopeKey: null,
+    state: "idle",
+    count: 0,
+  });
 }
 
 async function broadcastQueueState() {
@@ -433,8 +439,12 @@ async function broadcastQueueState() {
   const state = priority.find((value) =>
     items.some((item) => item.status === value)
   );
+  // The count belongs to one workspace scope. Every tab receives the
+  // broadcast, so it names the scope: a tab open on another workspace must
+  // ignore it instead of showing this workspace's queue as its own.
   await broadcast({
     type: "NEEDT_OFFLINE_STATE",
+    scopeKey: activeScope.key,
     state: state || "idle",
     count: items.length,
   });

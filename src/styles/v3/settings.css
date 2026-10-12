@@ -1,0 +1,145 @@
+/* ========================================================================
+   Needt design v3 — styles/settings.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* settings.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* SettingsScreen.jsx — static styles moved out of style={{…}} */
+.needt-v3 .settings-theme-thumb-thumb { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; cursor: default; text-align: left; }
+.needt-v3 .settings-theme-thumb-span { display: block; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-ring); transition: box-shadow var(--transition-hover); }
+.needt-v3 .settings-theme-thumb-row { display: flex; align-items: center; gap: 5px; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .settings-account-row-span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .settings-sgroup-text { font: 600 14px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-sgroup-text-2 { text-wrap: pretty; }
+.needt-v3 .settings-sgroup { display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .settings-sgroup-stack { display: flex; flex-direction: column; gap: 2px; border-radius: var(--radius-lg); overflow: hidden; }
+.needt-v3 .settings-srow-row { display: flex; align-items: center; gap: 12px; box-sizing: border-box; min-height: 44px; padding: 10px 12px; background: var(--fill-3); cursor: default; transition: background-color var(--transition-hover); }
+.needt-v3 .settings-srow-row.has-desc { min-height: 58px; }
+.needt-v3 .settings-srow-row.is-click:hover { background: var(--fill-4); }
+.needt-v3 .settings-srow-title { color: var(--text-primary); }
+.needt-v3 .settings-srow-title.is-danger { color: var(--destructive); }
+.needt-v3 .settings-srow-stack { flex: 1 1 auto; min-width: 0; padding: 2px 0; }
+.needt-v3 .settings-srow-text { font: 600 13px/16px var(--font-sans); }
+.needt-v3 .settings-srow-text-2 { font: 500 12px/14.4px var(--font-sans); color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .settings-srow-row-2 { flex: none; }
+.needt-v3 .settings-sselect-row { position: relative; display: inline-flex; align-items: center; height: 32px; }
+.needt-v3 .settings-sselect-select { appearance: none; -webkit-appearance: none; width: 100%; height: 100%; padding: 0 28px 0 10px; border: 0; border-radius: var(--radius-lg); background: var(--fill-3); box-shadow: var(--fill-5) 0 0 0 1px inset; font: var(--type-ui); color: var(--text-primary); cursor: default; outline: none; }
+.needt-v3 .settings-sselect-layer { position: absolute; right: 8px; pointer-events: none; color: var(--text-quaternary); display: flex; }
+.needt-v3 .settings-kbd-grid { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 6px; background: var(--surface-raised); box-shadow: var(--shadow-ring); font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+.needt-v3 .settings-theme-tile-theme-tile { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 0; border: 0; background: none; cursor: default; }
+.needt-v3 .settings-theme-tile-span { display: block; border-radius: 13px; padding: 3px; box-sizing: border-box; box-shadow: transparent 0 0 0 2px; transition: box-shadow 0.2s ease; }
+.needt-v3 .settings-theme-tile-span-2 { display: block; border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-ring); }
+.needt-v3 .settings-theme-tile-span-3 { display: inline-flex; align-items: center; gap: 6px; font: var(--type-ui); color: var(--text-tertiary); transition: color 0.2s ease; }
+.needt-v3 .settings-accent-swatch-accent { position: relative; width: 26px; height: 26px; flex: none; padding: 0; border: 0; border-radius: 999px; cursor: default; background: var(--accent-gradient); box-shadow: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px inset; transition: box-shadow 0.2s ease; }
+.needt-v3 .settings-accent-swatch-layer { position: absolute; inset: 0; display: grid; place-items: center; color: var(--accent-contrast); }
+.needt-v3 .settings-accent-card-stack { display: flex; flex-direction: column; gap: 14px; padding: 16px 16px 14px; background: var(--fill-3); }
+.needt-v3 .settings-accent-card-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.needt-v3 .settings-accent-card-row-2 { display: flex; gap: 12px; }
+.needt-v3 .settings-accent-card-bar { width: 1px; height: 20px; background: var(--border); }
+.needt-v3 .settings-accent-card-row-3 { display: flex; align-items: center; gap: 10px; }
+.needt-v3 .settings-accent-card-span { margin-left: auto; flex: none; width: 96px; height: 6px; border-radius: 3px; background: var(--fill-5); overflow: hidden; }
+.needt-v3 .settings-accent-card-span-2 { display: block; width: 64%; height: 100%; border-radius: 3px; background: var(--accent-fill); }
+.needt-v3 .settings-time-now-time-now { padding: 10px 14px; background: var(--fill-3); font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .settings-time-now-row { display: flex; color: var(--accent); }
+.needt-v3 .settings-presentation { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--nx-scrim); }
+.needt-v3 .settings-settings { width: min(960px, calc(100vw - 64px)); height: min(696px, calc(100vh - 64px)); display: flex; overflow: hidden; border-radius: var(--radius-3xl); background: var(--background); box-shadow: var(--shadow-floating); }
+.needt-v3 .settings-sections { flex: none; width: 280px; box-sizing: border-box; overflow-y: auto; padding: 0 12px 20px; box-shadow: var(--border) -1px 0 0 0 inset; outline: none; }
+.needt-v3 .settings-stack { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 36px 0 20px; }
+/* 08.10.26 — one Needt per person: the rail opens on you (avatar, name, email), not a space switcher. Click → Account. */
+.needt-v3 .settings-me { width: 100%; border: 0; background: none; cursor: default; border-radius: var(--radius-xl); color: inherit; }
+.needt-v3 .settings-me:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.needt-v3 .settings-me-avatar { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px; background: var(--fill-5); box-shadow: var(--shadow-ring); font: 600 14px/1 var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-me-avatar.is-lg { width: 80px; height: 80px; font: 600 26px/1 var(--font-sans); }
+.needt-v3 .settings-me-text { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; max-width: 100%; }
+.needt-v3 .settings-me-name { font: 600 18px/22px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .settings-span { position: relative; }
+.needt-v3 .settings-tier { position: absolute; right: -10px; bottom: -6px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--surface-raised); color: var(--text-secondary); font: 600 11px/18px var(--font-sans); box-shadow: var(--background) 0 0 0 2px, var(--shadow-ring); }
+.needt-v3 .settings-plan { position: relative; display: block; width: 100%; height: 104px; padding: 0; margin-bottom: 24px; border: 0; text-align: left; cursor: default; overflow: hidden; isolation: isolate; border-radius: var(--radius-xl); background: linear-gradient(var(--sky-brand-top), var(--sky-brand-mid) 60%, var(--sky-brand-low)); box-shadow: var(--black-a8) 0 0 0 1px, var(--black-a8) 0 6px 16px -6px; }
+.needt-v3 .settings-layer { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 14px 16px 14px; }
+.needt-v3 .settings-px-calm { font-size: 24px; line-height: 1; }
+.needt-v3 .settings-row-2 { display: flex; align-items: flex-end; gap: 8px; }
+.needt-v3 .settings-px-calm-2 { min-width: 0; }
+.needt-v3 .settings-text { font: 500 12px/16px var(--font-sans); color: var(--px-ink-2); }
+.needt-v3 .settings-btn { margin-left: auto; flex: none; }
+.needt-v3 .settings-stack-2 { margin-bottom: 20px; }
+.needt-v3 .settings-text-3 { padding: 0 8px 6px; font: 600 13px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-row-4 { display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 8px; border: 0; border-radius: var(--radius-md); cursor: default; text-align: left; transition: background-color var(--transition-hover); }
+.needt-v3 .settings-row-5 { color: var(--text-tertiary); display: flex; }
+.needt-v3 .settings-stack-3 { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--surface-raised); }
+.needt-v3 .settings-row-6 { flex: none; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px 0 24px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.needt-v3 .settings-text-4 { margin: 0; font: 600 14px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-saved-pop { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--fill-accent); color: var(--accent); font: var(--type-meta-medium); }
+.needt-v3 .settings-close-settings { margin-left: auto; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-pill); background: var(--fill-5); color: var(--text-tertiary); cursor: default; }
+.needt-v3 .settings-enter-2 { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 24px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
+.needt-v3 .settings-row-7 { display: flex; gap: 12px; padding: 16px 16px 14px; background: var(--fill-3); }
+.needt-v3 .settings-flame { height: 16px; }
+.needt-v3 .settings-row-9 { display: flex; gap: 3px; }
+.needt-v3 .settings-row-10 { display: flex; gap: 16px; padding: 12px; background: var(--fill-3); }
+.needt-v3 .settings-span-6 { position: relative; flex: none; align-self: flex-start; }
+.needt-v3 .settings-grid { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 999px; background: var(--fill-5); font: 600 28px/1 var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-layer-2 { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; background: var(--surface-raised); box-shadow: var(--shadow-raised); color: var(--text-primary); }
+.needt-v3 .settings-stack-4 { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.needt-v3 .settings-row-11 { display: flex; align-items: flex-start; gap: 8px; padding: 10px 0; }
+.needt-v3 .settings-row-11 + .settings-row-11 { box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .settings-stack-5 { flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
+.needt-v3 .settings-text-5 { font: 500 11px/13px var(--font-sans); color: var(--text-tertiary); }
+.needt-v3 .settings-text-6 { font: 500 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .settings-plan-card { display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--fill-3); }
+.needt-v3 .settings-row-12 { display: flex; align-items: center; gap: 12px; }
+.needt-v3 .settings-stack-6 { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.needt-v3 .settings-text-7 { font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .settings-text-8 { font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .settings-text-9 { margin-left: auto; flex: none; font: 600 12px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-grid-2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.needt-v3 .settings-price { padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--fill-3); text-align: left; cursor: default; }
+.needt-v3 .settings-text-10 { font: 500 12px/16px var(--font-sans); color: var(--text-tertiary); }
+.needt-v3 .settings-text-11 { font: 600 14px/18px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .settings-text-12 { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .settings-text-12.is-save { color: var(--success); }
+.needt-v3 .settings-row-13 { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--fill-3); font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .settings-b { font-weight: 600; }
+.needt-v3 .settings-span-7 { margin-left: auto; width: 120px; height: 4px; border-radius: 2px; background: var(--fill-5); overflow: hidden; }
+.needt-v3 .settings-bar { display: block; height: 100%; background: var(--accent); }
+.needt-v3 .settings-span-8 { padding: 10px 12px; border-radius: var(--radius-md); background: var(--fill-3); font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .settings-grid-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.needt-v3 .settings-grid-3.is-one { grid-template-columns: 1fr; }
+.needt-v3 .settings-plan-preview { display: contents; }
+/* Promo lift (08.10.26): the same hover / keyboard-focus lift as the sidebar promo (.pw-promo, paywall.jsx PW_CSS). */
+.needt-v3 .settings-plan { transition: box-shadow 260ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.needt-v3 .settings-plan:hover,
+.needt-v3 .settings-plan:focus-visible { transform: translateY(-2px); box-shadow: var(--black-a8) 0 0 0 1px, var(--black-a6) 0 4px 10px -4px, var(--black-a12) 0 14px 28px -10px; }
+.needt-v3 .settings-plan:active { transform: translateY(-1px) scale(.985); transition-duration: 90ms; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .settings-plan { transition: none; } .needt-v3 .settings-plan:hover,
+.needt-v3 .settings-plan:focus-visible { transform: none; } }
+/* 08.10.26 — nav rows as classes (were inline), the "opens elsewhere" arrow,
+   the Planning options disclosure, the trial terms line. */
+.needt-v3 .settings-nav-row { background: transparent; color: var(--text-secondary); font: var(--type-ui); }
+.needt-v3 .settings-nav-row:hover { background: var(--fill-3); }
+.needt-v3 .settings-nav-row[aria-current] { background: var(--fill-4); color: var(--text-primary); font: var(--type-ui-medium); }
+.needt-v3 .settings-nav-out { margin-left: auto; display: flex; color: var(--text-tertiary); }
+.needt-v3 .settings-adv-chev { display: flex; color: var(--text-tertiary); transition: transform var(--transition-hover); }
+.needt-v3 .settings-adv-chev.is-open { transform: rotate(90deg); }
+.needt-v3 .settings-trial-terms { font: var(--type-meta); color: var(--text-secondary); text-wrap: pretty; }
+
+/* Pro (08.10.26): PRO pill after a title; on the Time tile it sits in the
+   picture's top-right corner; locked accents read a step quieter. */
+.needt-v3 .settings-pro-title { display: inline-flex; align-items: center; gap: 6px; }
+.needt-v3 .settings-accent-swatch-accent.is-locked { opacity: .55; }
+.needt-v3 .settings-accent-swatch-accent.is-locked:hover { opacity: .85; }
+.needt-v3 .settings-accent-lock { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .settings-accent-lock > svg { flex: none; }
+.needt-v3 .settings-pro-on { display: inline-flex; align-items: center; gap: 5px; font: var(--type-meta); color: var(--success); }
+
+/* Account (08.10.26): sign-in method / Teams lead icon, and the calm "Coming soon" tag. */
+.needt-v3 .settings-signin-ico { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-ring); color: var(--text-secondary); }
+.needt-v3 .settings-soon { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--fill-5); color: var(--text-tertiary); font: var(--type-meta-medium); }
+/* A group whose row opens a menu (Data & privacy → Import…) must not clip it; its one row keeps the radius itself. */
+.needt-v3 .settings-sgroup-stack.has-menu { overflow: visible; }
+.needt-v3 .settings-sgroup-stack.has-menu > * { border-radius: var(--radius-lg); }
+/* Active states (08.10.26) — were inline styles. */
+.needt-v3 .settings-theme-thumb-thumb.is-active .settings-theme-thumb-span { box-shadow: var(--accent) 0 0 0 2px; }
+.needt-v3 .settings-theme-thumb-thumb.is-active .settings-theme-thumb-row { color: var(--accent); }
+.needt-v3 .settings-theme-tile-theme-tile.is-active .settings-theme-tile-span { box-shadow: var(--accent) 0 0 0 2px; }
+.needt-v3 .settings-theme-tile-theme-tile.is-active .settings-theme-tile-span-3 { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .settings-accent-swatch-accent.is-active { box-shadow: var(--surface-raised) 0 0 0 2.5px, var(--accent) 0 0 0 4.5px; }

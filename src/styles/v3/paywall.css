@@ -1,0 +1,101 @@
+/* ========================================================================
+   Needt design v3 — styles/paywall.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* paywall.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* paywall.jsx — static inline styles moved here */
+.needt-v3 .pw-mini-event-el { width: 3px; align-self: stretch; border-radius: 2px; }
+.needt-v3 .pw-mini-event-text { font-variant-numeric: tabular-nums; color: var(--mock-chip-fg); }
+.needt-v3 .pw-mini-habit-row { display: inline-flex; gap: 3px; }
+.needt-v3 .pw-mini-habit-el { width: 8px; height: 8px; border-radius: 3px; }
+.needt-v3 .pw-mini .pw-chip.pw-mini-habit-el-2 { background: var(--mock-streak-bg); color: var(--mock-streak-fg); }
+.needt-v3 .pw-note-card-col { display: flex; flex-direction: column; gap: 7px; }
+.needt-v3 .pw-note-card-text { font: 600 10px/12px ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: .12em; color: var(--text-tertiary); }
+.needt-v3 .pw-note-card-text-2 { font: 600 14px/17px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .pw-note-card-row { display: flex; align-items: center; gap: 7px; font: 400 11.5px/14px var(--font-sans); }
+.needt-v3 .px-glass .pw-check.pw-note-card-el { width: 11px; height: 11px; color: var(--background); }
+.needt-v3 .pw-note-card-el-2 { height: 3px; width: 70%; border-radius: 2px; background: var(--fill-4); }
+.needt-v3 .pw-note-card-el-3 { height: 3px; width: 48%; border-radius: 2px; background: var(--fill-4); }
+.needt-v3 .pw-date-card-col { display: flex; flex-direction: column; align-items: center; overflow: hidden; border-radius: 18px; }
+.needt-v3 .pw-date-card-grid { align-self: stretch; height: 24px; display: grid; place-items: center; background: var(--px-tint, var(--paywall-tint)); color: var(--text-on-fill); font: 650 10.5px/1 var(--font-sans); letter-spacing: .16em; }
+.needt-v3 .px-display.pw-date-card-text { font-size: 58px; line-height: 1; padding: 8px 0 0; color: var(--text-primary); }
+.needt-v3 .pw-date-card-el { font: 500 11.5px/14px var(--font-sans); color: var(--text-tertiary); padding-bottom: 9px; }
+.needt-v3 .pw-date-card-el-2 { align-self: stretch; margin: 0 8px 9px; padding: 4px 6px; border-radius: 8px; background: var(--mock-event-bg); font: 500 10.5px/13px var(--font-sans); color: var(--mock-event-fg); text-align: center; }
+.needt-v3 .pw-mood-print-grid { display: grid; grid-template-columns: 1.3fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px; border-radius: 13px; overflow: hidden; }
+.needt-v3 .pw-mood-print-el { grid-row: 1 / 3; background: radial-gradient(60% 50% at 40% 30%, var(--paywall-art-1), var(--paywall-art-2) 55%, var(--paywall-art-3)); }
+.needt-v3 .pw-mood-print-el-2 { background: linear-gradient(160deg, var(--paywall-art-4), var(--paywall-art-5)); }
+.needt-v3 .pw-mood-print-el-3 { background: linear-gradient(200deg, var(--paywall-art-6), var(--paywall-art-7)); }
+.needt-v3 .pw-plans-box { background: var(--surface-raised); }
+.needt-v3 .pw-scene-abs { position: absolute; inset: 0; }
+.needt-v3 .pw-scene-abs-2 { position: absolute; right: 0; top: 66px; width: 260px; height: 160px; }
+.needt-v3 .pw-scene-abs-3 { position: absolute; right: 116px; top: 16px; }
+.needt-v3 .pw-scene-abs-4 { position: absolute; right: 18px; top: 0; }
+.needt-v3 .pw-scene-abs-5 { position: absolute; right: 34px; top: 128px; }
+.needt-v3 .pw-scene-abs-6 { position: absolute; left: 20px; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+.needt-v3 .pw-scene-text { font-size: 44px; }
+.needt-v3 .pw-scene-abs-7 { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 40px 0 48px; gap: 24px; }
+.needt-v3 .pw-scene-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.needt-v3 .px-on-sky.pw-scene-text-2 { font: 400 14.5px/21px var(--font-sans); color: var(--px-ink-2); max-width: 330px; text-wrap: pretty; }
+.needt-v3 .pw-scene-box { position: relative; flex: none; width: 372px; height: 250px; }
+.needt-v3 .pw-scene-abs-8 { position: absolute; left: 0; top: 22px; }
+.needt-v3 .pw-scene-abs-9 { position: absolute; left: 164px; top: 0; z-index: 1; }
+.needt-v3 .pw-scene-abs-10 { position: absolute; right: -18px; top: 118px; z-index: 2; }
+.needt-v3 .pw-scene-abs-11 { position: absolute; left: 18px; top: 196px; z-index: 3; }
+.needt-v3 .pw-paywall-text { padding: 6px 16px 0; }
+.needt-v3 .pw-paywall-text-2 { padding: 0 26px 6px; }
+.needt-v3 .px-display.pw-promo-card-text { font-size: 26px; line-height: 1; }
+
+/* States: offline line and checkout error under the CTA (desktop) or above
+   it in the phone's bottom bar. */
+.needt-v3 .pw-btn[disabled] { opacity: .4; cursor: not-allowed; transform: none; }
+.needt-v3 .pw-state { display: flex; align-items: center; gap: 8px; max-width: 520px; padding: 8px 8px 8px 12px; border-radius: 12px; box-sizing: border-box;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); font: 500 12.5px/17px var(--font-sans); color: var(--text-secondary); text-align: left; }
+.needt-v3 .pw-state > svg { flex: none; color: var(--text-tertiary); }
+.needt-v3 .pw-state.is-offline { padding-right: 12px; }
+.needt-v3 .pw-state.is-error > svg { color: var(--destructive); }
+.needt-v3 .pw-state-t { flex: 1 1 auto; min-width: 0; text-wrap: pretty; }
+.needt-v3 .pw-state-t b { font-weight: 600; color: var(--text-primary); }
+.needt-v3 .pw-state .pw-btn.pw-state-btn { flex: none; height: 30px; padding: 0 12px; border-radius: 9px; font-size: 13px; }
+.needt-v3 .pw-phone .pw-bar .pw-state { max-width: none; margin-bottom: 4px; }
+@keyframes v3-pw-spin { to { transform: rotate(360deg); } }
+.needt-v3 .pw-spin { display: inline-block; width: 11px; height: 11px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid var(--fill-5); border-top-color: currentColor; animation: v3-pw-spin .8s linear infinite; }
+/* Tablet (768): the sheet is ~700 wide — the headline needs the whole top, so
+   the collage steps aside earlier than the 760 rule in PW_CSS. */
+@media (max-width: 900px) { .needt-v3 .pw-sheet .pw-collage { display: none; } }
+/* Trial clarity (08.10.26): the line under the CTA wraps to a readable width. */
+.needt-v3 .pw-go-sub { max-width: 460px; text-wrap: pretty; }
+
+/* ── Pro gating (08.10.26) ─────────────────────────────────────────────────
+   ProBadge: the promo pill's black, two sizes. md 18px tall, sm 15px. */
+.needt-v3 .pro-badge { display: inline-flex; align-items: center; gap: 3px; flex: none; height: 18px; padding: 0 6px; box-sizing: border-box; border-radius: 6px; white-space: nowrap;
+  font: 700 10px/1 var(--font-sans); letter-spacing: .06em; color: var(--text-on-fill); background: var(--badge-dark-bg); vertical-align: middle; }
+.needt-v3 .pro-badge.is-sm { height: 15px; padding: 0 4px; border-radius: 4px; font-size: 8.5px; gap: 2px; letter-spacing: .07em; }
+.needt-v3 .pro-badge > svg { flex: none; }
+.needt-v3[data-theme="dark"] .pro-badge { box-shadow: var(--white-a16) 0 0 0 1px inset; }
+/* ProGate: the children keep their own look; the pill sits after them. */
+/* Inline pill inside a button or a label. */
+.needt-v3 .nx-btn .pro-badge { margin-left: 2px; }
+/* ProUpsell: the one soft card a screen may carry. */
+.needt-v3 .pro-upsell { display: flex; align-items: center; gap: 12px; padding: 12px 10px 12px 14px; border-radius: 16px; box-sizing: border-box;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.needt-v3 .pro-upsell-mark { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; background: var(--badge-dark-bg); color: var(--text-on-fill); }
+.needt-v3[data-theme="dark"] .pro-upsell-mark { box-shadow: var(--white-a16) 0 0 0 1px inset; }
+.needt-v3 .pro-upsell-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .pro-upsell-title { display: flex; align-items: center; gap: 6px; font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .pro-upsell-line { font: var(--type-meta); color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .pro-upsell-cta { flex: none; }
+.needt-v3 .pro-upsell-x { flex: none; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-tertiary); cursor: default; }
+.needt-v3 .pro-upsell-x:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .pro-upsell.is-leaving { animation: pw-promo-out 180ms ease-in both; }
+/* ProLimit: a quiet count, the way up only when it is full. */
+.needt-v3 .pro-limit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .pro-limit-up { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text-primary); cursor: default; text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; }
+.needt-v3 .pro-limit-up:hover { text-decoration-color: currentColor; }
+/* The paywall opened from a locked feature: one line at the top names it. */
+.needt-v3 .pw-feature { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 10px; border-radius: 999px;
+  background: var(--badge-dark-bg); color: var(--text-on-fill); font: 500 12.5px/15px var(--font-sans); text-shadow: none; box-shadow: var(--black-a18) 0 6px 16px -6px; }
+.needt-v3 .pw-feature b { font-weight: 650; }
+.needt-v3[data-theme="dark"] .pw-feature { box-shadow: var(--white-a16) 0 0 0 1px inset; }
+.needt-v3 .pw-brand { display: flex; align-items: center; gap: 10px; }

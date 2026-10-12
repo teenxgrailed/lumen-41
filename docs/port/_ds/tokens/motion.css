@@ -1,0 +1,85 @@
+/* Motion — the product moves, and every movement says something.
+   Three durations and three curves, and nothing outside them.
+
+   0.25s  theme crossfade — background / border / colour.
+   0.15s  hover, press, reveal — shadow, background, colour.
+   0.12s  an overlay arriving: it scales up from the point it was opened from,
+          so the surface says what it belongs to before it is read. Overlays
+          leave instantly — the arrival carries information, the departure
+          carries none and only delays the next thing.
+   0.14s  a screen arriving: a short rise and fade, so a tab switch reads as
+          one place replacing another rather than a repaint.
+
+   Motion is on by default and yields when the system asks it to: with
+   prefers-reduced-motion the durations collapse to nothing, so every overlay
+   still appears and disappears correctly — as an instant state change — and
+   the spinner keeps rotating, because rotation is the message rather than the
+   decoration.
+
+   The rule that remains: nothing moves without a reason a person could name.
+   Decoration that repeats forty times a day stops being decoration and starts
+   being noise — a spring on a menu is charming twice and tiring after that.
+   The spinner rotates because rotation is the whole message. */
+
+:root {
+  --transition-theme: 0.25s ease; /* @kind other */
+  --transition-hover: 0.15s ease; /* @kind other */
+  --duration-theme: 0.25s; /* @kind other */
+  --duration-hover: 0.15s; /* @kind other */
+  --duration-pop: 0.12s; /* @kind other */
+  --duration-screen: 0.14s; /* @kind other */
+  --ease-default: ease; /* @kind other */
+  /* Fast out of the gate, settled at the end — the curve of something that
+     was already on its way when you asked for it. */
+  --ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1); /* @kind other */
+  --transition-pop: var(--duration-pop) var(--ease-pop); /* @kind other */
+}
+
+/* The person asked the operating system for less movement. Answer it here,
+   once, at the tokens — every surface downstream inherits the answer. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-pop: 0.01ms; /* @kind other */
+    --duration-screen: 0.01ms; /* @kind other */
+    --transition-pop: 0.01ms linear; /* @kind other */
+    --transition-hover: 0.01ms linear; /* @kind other */
+    --transition-theme: 0.01ms linear; /* @kind other */
+  }
+}
+
+@keyframes needt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* An overlay arriving. transform-origin is set by the surface that opens it —
+   a menu from its trigger's corner, a popover from its anchor's edge. */
+@keyframes needt-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* A modal surface: the same arrival, one step softer, because it is not
+   attached to a point on the screen. */
+@keyframes needt-pop-modal {
+  from { opacity: 0; transform: scale(0.975); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* The ground behind a modal. */
+@keyframes needt-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* A screen replacing another. */
+@keyframes needt-screen {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Something the app just did to your day: a block the scheduler placed, a task
+   that moved. The ring blooms once and settles into the resting ring. */
+@keyframes needt-landed {
+  0%   { box-shadow: var(--shadow-focus); }
+  100% { box-shadow: var(--shadow-ring); }
+}

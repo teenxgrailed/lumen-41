@@ -41,7 +41,25 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const BUNDLE = process.argv[2] || join(ROOT, "Content height and label fixes");
+
+/*
+ * Arguments: `[bundle] [--scope .needt-v3] [--out src/styles/v3]`.
+ * Without --scope this is the September `.needt-v2` vendoring, unchanged.
+ * With `--scope .needt-v3` it is the design v3 port (see `syncV3` below).
+ */
+const ARGS = (() => {
+  const out = { positional: [], scope: null, out: null };
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === "--scope") out.scope = argv[++i];
+    else if (argv[i] === "--out") out.out = argv[++i];
+    else out.positional.push(argv[i]);
+  }
+  return out;
+})();
+
+const BUNDLE =
+  ARGS.positional[0] || join(ROOT, "Content height and label fixes");
 const SCOPE = ".needt-v2";
 
 /** Token files, in the order the design system's own styles.css imports them. */
@@ -112,7 +130,7 @@ function rescope(selectorList) {
  * at-rule. At-rules themselves and keyframe steps pass through untouched: they
  * are not selectors, and scoping them produces CSS that silently does nothing.
  */
-function scopeSheet(css) {
+function scopeSheet(css, rescopeList = rescope) {
   // Two things are masked before the selector pass, because a regex over raw
   // CSS reads both of them as selector lists.
   //
@@ -172,7 +190,7 @@ function scopeSheet(css) {
       if (trimmed.startsWith("@")) return match;
 
       const indent = tail.match(/^\s*/)[0];
-      return `${boundary}${head}${indent}${rescope(trimmed)} {`;
+      return `${boundary}${head}${indent}${rescopeList(trimmed)} {`;
     }
   );
 
@@ -253,6 +271,451 @@ function header(lines) {
     "   " + "=".repeat(72) + " */",
     "",
   ].join("\n");
+}
+
+/* ==========================================================================
+ * DESIGN V3 (`--scope .needt-v3 --out src/styles/v3`)
+ *
+ *   npm run tokens:sync:v3                      # frozen copy in docs/port
+ *   npm run tokens:sync:v3 -- "<bundle path>"   # a fresh download
+ *
+ * Source: either the frozen, committed copy (`docs/port/prototype` +
+ * `docs/port/_ds`, the default, so the output is reproducible from the repo)
+ * or a downloaded "Needt - Design : App, Landing" bundle (`needt-app/` +
+ * `_ds/<id>/`). Every prototype stylesheet becomes one file under the out
+ * directory, rescoped under `.needt-v3`, plus `index.css` importing the
+ * desktop set in the prototype's own <link> order.
+ *
+ * How the prototype themes, and what that becomes:
+ *   - It puts the theme as a class on BOTH <html> and the `.app` div
+ *     (`paper` = light, `dark`, legacy `dim`/`warm`), plus `theme-time` while
+ *     Time is chosen, and `data-accent` on <html>.
+ *   - Here one element carries all of it: the `.needt-v3` scope element, with
+ *     `data-theme="light|dark"`, `data-drift="on"` for Time, `data-accent`,
+ *     and the classes `theme-surface theme-drifts`.
+ *   - So every theme mark in a selector's first compound moves onto the scope
+ *     (`.app.dark` → `.needt-v3[data-theme="dark"] .app`), and a second
+ *     compound made only of theme marks merges into it too
+ *     (`[data-accent="blue"] :is(.paper, .warm)` → one scope compound).
+ *     `html`/`body`/`:root` compounds collapse onto the scope.
+ *   - A nested `.needt-v3` element (a theme miniature) re-themes its subtree.
+ * ========================================================================== */
+const V3_SCOPE = ARGS.scope || ".needt-v3";
+
+/** Theme class → the attribute selector it becomes on the scope element. */
+const V3_THEME_TOKENS = {
+  ".paper": ':is([data-theme="light"], [data-theme="paper"])',
+  ".dark": '[data-theme="dark"]',
+  ".dim": '[data-theme="dim"]',
+  ".warm": '[data-theme="warm"]',
+  ".drift": '[data-drift="on"]',
+  ".theme-time": '[data-drift="on"]',
+};
+
+/** The desktop stylesheets index-dev.html links, in its order. */
+const V3_DESKTOP_ORDER = [
+  "ds-tokens",
+  "exposure-wordmark",
+  "themes",
+  "composer",
+  "app",
+  "base",
+  "shell",
+  "focus",
+  "settings",
+  "chat",
+  "docs",
+  "places",
+  "connections",
+  "scenes",
+  "paywall",
+  "auth",
+  "tasks",
+  "home",
+  "calendar",
+  "mail",
+  "habits",
+];
+
+/**
+ * The phone stylesheets mobile-dev.html links after the desktop set, in its
+ * order. They are imported here, inside index.css, so they load before the
+ * hand-written overrides (v3-overrides/*.css) and an override wins over a
+ * vendored rule at equal specificity. (mobile.css, which mobile-dev.html loads
+ * after base, follows the desktop set here.)
+ */
+const V3_PHONE_ORDER = [
+  "mobile",
+  "mobile-onboarding",
+  "mobile-nav",
+  "nav-a",
+  "phone-kit",
+  "phone-overlays",
+  "phone-tasks",
+  "phone-drag",
+  "phone-docs",
+  "phone-mail",
+  "phone-habits",
+  "phone-places",
+  "phone-settings",
+  "mobile-v2-plates",
+];
+
+/** Split on a top-level delimiter, ignoring ones inside (), [] and quotes. */
+function splitTopLevel(text, isDelim) {
+  const parts = [];
+  let depth = 0;
+  let quote = null;
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\") i += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === "(" || ch === "[") depth += 1;
+    else if (ch === ")" || ch === "]") depth -= 1;
+    else if (depth === 0 && isDelim(ch, i)) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+/** `a > b c` → [{ comb: "", sel: "a" }, { comb: ">", sel: "b" }, { comb: " ", sel: "c" }]. */
+function splitCompounds(selector) {
+  const out = [];
+  let depth = 0;
+  let quote = null;
+  let cur = "";
+  let comb = "";
+  const flush = () => {
+    if (cur) out.push({ comb: out.length ? comb || " " : "", sel: cur });
+    cur = "";
+    comb = "";
+  };
+  for (let i = 0; i < selector.length; i += 1) {
+    const ch = selector[i];
+    if (quote) {
+      cur += ch;
+      if (ch === "\\") cur += selector[++i] ?? "";
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+      continue;
+    }
+    if (ch === "(" || ch === "[") depth += 1;
+    if (ch === ")" || ch === "]") depth -= 1;
+    if (depth === 0 && (ch === ">" || ch === "+" || ch === "~")) {
+      if (cur) flush();
+      comb = ch;
+      continue;
+    }
+    if (depth === 0 && /\s/.test(ch)) {
+      if (cur) flush();
+      continue;
+    }
+    cur += ch;
+  }
+  flush();
+  return out;
+}
+
+/** One compound → simple selectors (`.a[b]:is(.c, .d)::e` → 4 tokens). */
+function splitSimple(compound) {
+  const tokens = [];
+  const re =
+    /(::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?|\.[\w-]+|#[\w-]+|\[[^\]]*\]|\*|[\w-]+)/g;
+  let m;
+  let consumed = 0;
+  while ((m = re.exec(compound))) {
+    if (m.index !== consumed) return null; // something we do not understand
+    tokens.push(m[0]);
+    consumed = m.index + m[0].length;
+  }
+  return consumed === compound.length ? tokens : null;
+}
+
+/** `:is(.dark, .dim)` → `:is([data-theme="dark"], [data-theme="dim"])`, else null. */
+function themeToken(token) {
+  if (V3_THEME_TOKENS[token]) return V3_THEME_TOKENS[token];
+  const is = token.match(/^:(is|where)\((.*)\)$/);
+  if (!is) return null;
+  const items = splitTopLevel(is[2], (ch) => ch === ",").map((s) => s.trim());
+  if (!items.length || !items.every((s) => V3_THEME_TOKENS[s])) return null;
+  return `:${is[1]}(${items.map((s) => V3_THEME_TOKENS[s]).join(", ")})`;
+}
+
+const ROOT_ELEMENT = new Set([":root", "html", "body"]);
+
+function rescopeV3Selector(selector) {
+  const compounds = splitCompounds(selector.trim());
+  if (!compounds.length) return selector;
+  const first = splitSimple(compounds[0].sel);
+  if (!first) return `${V3_SCOPE} ${selector.trim()}`;
+
+  let scope = V3_SCOPE;
+  let rootPseudo = ""; // ::view-transition-* lives on the document root
+  const keep = [];
+  const isRoot = ROOT_ELEMENT.has(first[0]);
+
+  for (const token of first) {
+    if (ROOT_ELEMENT.has(token)) continue;
+    const theme = themeToken(token);
+    if (theme) {
+      scope += theme;
+      continue;
+    }
+    if (isRoot && token.startsWith("::view-transition")) {
+      rootPseudo += token;
+      continue;
+    }
+    if (isRoot) {
+      scope += token;
+      continue;
+    } // html.is-drag-active, :root[data-dt-ambient]
+    keep.push(token);
+  }
+
+  // A lone [data-accent] in the first compound is the root's accent.
+  if (
+    !isRoot &&
+    keep.length &&
+    keep.every((t) => /^\[data-accent[\]=]/.test(t))
+  ) {
+    scope += keep.join("");
+    keep.length = 0;
+  }
+
+  let rest = compounds.slice(1);
+  // `[data-accent="x"] :is(.paper, .warm)`: the second compound is the
+  // prototype's `.app` repeating the theme. On one scope element it merges.
+  if (!keep.length && rest.length && rest[0].comb === " ") {
+    const second = splitSimple(rest[0].sel);
+    if (second && second.every((t) => themeToken(t))) {
+      scope += second.map(themeToken).join("");
+      rest = rest.slice(1);
+    }
+  }
+
+  if (rootPseudo) {
+    return `:root:has(${scope})${rootPseudo}`;
+  }
+
+  let out = scope;
+  if (keep.length) out += " " + keep.join("");
+  for (const c of rest) out += (c.comb === " " ? " " : ` ${c.comb} `) + c.sel;
+  return out;
+}
+
+function rescopeV3(selectorList) {
+  return splitTopLevel(selectorList, (ch) => ch === ",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(rescopeV3Selector)
+    .join(",\n");
+}
+
+/**
+ * The display face. The prototype loads the Exposure TRIAL file by family
+ * name; the app loads the licensed `public/fonts/ExposureVAR.woff2` through
+ * next/font (`src/lib/needt3/fonts.ts`), which exposes it as a CSS variable.
+ * The @font-face is stripped (stripFontFaces) and the family name rewritten.
+ */
+function rewriteFontFamilies(css) {
+  return css.replace(/(["'])Exposure VAR\1/g, "var(--font-v3-exposure)");
+}
+
+/**
+ * The design system's fonts.css @imports Google Fonts (Inter, Instrument
+ * Serif, JetBrains Mono). The v2 vendoring already imports that exact URL
+ * from globals.css, and an @import that is not first in the bundle is
+ * dropped anyway, so the v3 copy leaves it out.
+ * //todo contract step: when .needt-v2 is deleted, load these three through
+ * next/font in src/lib/needt3/fonts.ts instead of the CDN import.
+ */
+function stripRemoteImports(css) {
+  return css.replace(
+    /@import\s+url\(["']?https?:[^)]*\)\s*;?/g,
+    "/* remote @import removed by sync-design-tokens (v3); see the script */"
+  );
+}
+
+/**
+ * Known damage in the frozen copy, fixed before parsing:
+ * - styles/mobile.css lost the `/*` that opens the doc-reader comment, so the
+ *   comment text reads as a selector and the rest of the file is garbage.
+ * - app.css carries the same stray dot-and-terminator suffix the v2 capture had (see
+ *   stripCaptureArtifacts): browsers skip it, Next's CSS minimizer fails the
+ *   production build on it.
+ */
+function stripV3CaptureArtifacts(css, name) {
+  css = stripCaptureArtifacts(css);
+  if (name === "mobile") {
+    return css.replace(
+      /(\.iosf-keyboard-11 \{[^}]*\})([ \t]+doc-style\.jsx \(backdrop)/,
+      "$1\n/* The doc reader:$2"
+    );
+  }
+  return css;
+}
+
+/**
+ * @keyframes are global: a selector scope does not reach them. 46 of the
+ * prototype's names are also defined by the v2 layer (needt-motion.css,
+ * globals.css), so vendoring them verbatim would replace the old screens'
+ * animations whenever the v3 CSS loads. Every v3 keyframe is renamed
+ * `v3-<name>`, with its uses in `animation`, `animation-name` and custom
+ * properties. A component that names a keyframe in inline style must use the
+ * `v3-` name.
+ */
+const V3_KEYFRAME_PREFIX = "v3-";
+
+function collectKeyframes(css) {
+  return [...css.matchAll(/@(?:-\w+-)?keyframes\s+([\w-]+)/g)].map((m) => m[1]);
+}
+
+function renameKeyframes(css, names) {
+  if (!names.size) return css;
+  const renameValue = (value) =>
+    value.replace(/(^|[\s,(])([\w-]+)(?=$|[\s,)])/g, (all, lead, word) =>
+      names.has(word) ? `${lead}${V3_KEYFRAME_PREFIX}${word}` : all
+    );
+  return css
+    .replace(/@((?:-\w+-)?keyframes)\s+([\w-]+)/g, (all, kw, name) =>
+      names.has(name) ? `@${kw} ${V3_KEYFRAME_PREFIX}${name}` : all
+    )
+    .replace(
+      /(^|[;{\s])(animation(?:-name)?|--[\w-]+)(\s*:)([^;{}]*)/g,
+      (all, lead, prop, colon, value) =>
+        `${lead}${prop}${colon}${renameValue(value)}`
+    );
+}
+
+function syncV3() {
+  const bundle = ARGS.positional[0]
+    ? join(ARGS.positional[0])
+    : join(ROOT, "docs", "port");
+  const appDir = existsSync(join(bundle, "needt-app"))
+    ? join(bundle, "needt-app")
+    : join(bundle, "prototype");
+  const dsRoot = join(bundle, "_ds");
+  const dsDirV3 = existsSync(join(dsRoot, "tokens"))
+    ? dsRoot
+    : existsSync(dsRoot)
+      ? readdirSync(dsRoot, { withFileTypes: true })
+          .filter((e) => e.isDirectory())
+          .map((e) => join(dsRoot, e.name))
+          .find((d) => existsSync(join(d, "tokens")))
+      : null;
+  if (!existsSync(join(appDir, "themes.css")) || !dsDirV3) {
+    console.error(`No prototype (themes.css) or _ds/tokens under ${bundle}.`);
+    process.exit(1);
+  }
+
+  const outDir = join(ROOT, ARGS.out || join("src", "styles", "v3"));
+  mkdirSync(outDir, { recursive: true });
+  const day = new Date().toISOString().slice(0, 10);
+  const source = bundle.startsWith(ROOT)
+    ? bundle.slice(ROOT.length + 1)
+    : basename(bundle);
+  const banner = (what) =>
+    header([
+      `Needt design v3 — ${what} — VENDORED, DO NOT EDIT BY HAND.`,
+      `Generated from ${source} on ${day}; scoped under ${V3_SCOPE}.`,
+      "Regenerate with: npm run tokens:sync:v3",
+    ]);
+  const prepare = (css, name) =>
+    scopeSheet(
+      rewriteFontFamilies(
+        stripRemoteImports(
+          stripFontFaces(stripV3CaptureArtifacts(css, name), `${name}.css`)
+        )
+      ),
+      rescopeV3
+    );
+
+  const sheets = new Map();
+  const write = (name, body) => sheets.set(name, body);
+
+  let tokens = banner("design-system tokens");
+  for (const name of ORDER) {
+    const file = join(dsDirV3, "tokens", `${name}.css`);
+    if (!existsSync(file)) continue;
+    tokens += `/* ---------- tokens/${name}.css ---------- */\n`;
+    tokens += prepare(readFileSync(file, "utf8"), name) + "\n";
+  }
+  write("ds-tokens", tokens);
+
+  for (const name of ["themes", "app", "composer", "exposure-wordmark"]) {
+    const file = join(appDir, `${name}.css`);
+    if (!existsSync(file)) continue;
+    write(
+      name,
+      banner(`${name}.css`) + prepare(readFileSync(file, "utf8"), name)
+    );
+  }
+
+  const stylesDir = join(appDir, "styles");
+  for (const entry of readdirSync(stylesDir)
+    .filter((f) => f.endsWith(".css"))
+    .sort()) {
+    const name = entry.replace(/\.css$/, "");
+    write(
+      name,
+      banner(`styles/${entry}`) +
+        prepare(readFileSync(join(stylesDir, entry), "utf8"), name)
+    );
+  }
+
+  const keyframes = new Set([...sheets.values()].flatMap(collectKeyframes));
+  for (const [name, body] of sheets) {
+    writeFileSync(
+      join(outDir, `${name}.css`),
+      renameKeyframes(body, keyframes)
+    );
+  }
+  const written = [...sheets.keys()];
+
+  const index = [
+    header([
+      "Needt design v3 — the desktop stylesheets in the prototype's order,",
+      "then the phone stylesheets in mobile-dev.html's order.",
+      "VENDORED, DO NOT EDIT BY HAND. Regenerate with: npm run tokens:sync:v3",
+    ]),
+    ...V3_DESKTOP_ORDER.filter((n) => written.includes(n)).map(
+      (n) => `@import "./${n}.css";`
+    ),
+    "",
+    "/* Phone */",
+    ...V3_PHONE_ORDER.filter((n) => written.includes(n)).map(
+      (n) => `@import "./${n}.css";`
+    ),
+    "",
+  ].join("\n");
+  writeFileSync(join(outDir, "index.css"), index);
+
+  console.log(
+    `Vendored ${written.length} stylesheets under ${V3_SCOPE} into ${outDir}.`
+  );
+}
+
+if (ARGS.scope) {
+  if (ARGS.scope !== ".needt-v3") {
+    console.error(
+      `Unknown scope ${ARGS.scope}; the v3 pipeline writes .needt-v3 only.`
+    );
+    process.exit(1);
+  }
+  syncV3();
+  process.exit(0);
 }
 
 const dsDir = existsSync(join(BUNDLE, "_ds"))

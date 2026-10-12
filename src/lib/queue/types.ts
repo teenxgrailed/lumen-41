@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
   lifetimeCheckoutReconciliation: "lifetime-checkout-reconciliation",
   trials: "trials",
   accountLifecycle: "account-lifecycle",
+  imports: "imports",
 } as const;
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
@@ -55,3 +56,9 @@ export type AccountLifecycleJobData =
   | { kind: "export"; requestId: string }
   | { kind: "delete"; requestId: string }
   | { kind: "sweep" };
+
+/**
+ * A run carries only its id: the source token is read from the run row,
+ * never queued. The sweep fails runs a lost worker left behind.
+ */
+export type ImportJobData = { importRunId: string } | { kind: "sweep" };

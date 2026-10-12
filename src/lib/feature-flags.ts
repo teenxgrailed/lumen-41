@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 
 import { prisma } from "@/lib/prisma";
 
-function rolloutBucket(flagKey: string, userId: string) {
+export function rolloutBucket(flagKey: string, userId: string) {
   const digest = createHash("sha256").update(`${flagKey}:${userId}`).digest();
   return digest.readUInt32BE(0) % 100;
 }

@@ -13,11 +13,16 @@ import { useTaskStore } from "@/store/task";
 
 import { NewTask, Task, TaskStatus } from "@/types/task";
 
-jest.mock("sonner", () => ({
-  toast: {
+/* The store raises notices while it mutates. They go to the design's
+   notification stack, which is not mounted here. */
+jest.mock("@/lib/notifications", () => ({
+  notify: {
     dismiss: jest.fn(),
     error: jest.fn(),
-    loading: jest.fn(() => "toast-id"),
+    loading: jest.fn(() => "notice-id"),
+    success: jest.fn(),
+    warning: jest.fn(),
+    info: jest.fn(),
   },
 }));
 

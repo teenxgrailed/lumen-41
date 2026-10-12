@@ -1,0 +1,243 @@
+/* ========================================================================
+   Needt design v3 — styles/auth.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* auth.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* AuthScreen.jsx — static inline styles moved here */
+.needt-v3 .auth-raised-row { display: flex; color: var(--text-primary); }
+.needt-v3 .auth-field-row { position: relative; display: flex; }
+.needt-v3 .auth-field-input { flex: 1; min-width: 0; height: 44px; border: 0; outline: none; border-radius: 12px; background: var(--surface-raised); font-size: 14px; color: var(--text-primary); font-family: inherit; transition: box-shadow var(--transition-hover); }
+.needt-v3 .auth-field-abs { position: absolute; right: 6px; top: 6px; }
+.needt-v3 .auth-error-text { font-size: 12px; color: var(--destructive); padding-left: 2px; }
+.needt-v3 .auth-ax-fallback-scene-abs { position: absolute; inset: 0; background: linear-gradient(var(--sky-day-top), var(--sky-day-mid) 55%, var(--sky-day-low)); color: var(--sky-on-light-ink); --px-ink: var(--sky-on-light-ink); --px-ink-2: var(--sky-on-light-ink-2); --px-ink-3: var(--sky-on-light-ink-3); }
+.needt-v3 .auth-ax-fallback-scene-box { position: relative; height: 100%; }
+.needt-v3 .auth-stack-6 { display: flex; flex-direction: column; gap: 6px; }
+.needt-v3 .auth-ax-collage-abs { position: absolute; left: calc(50% + 316px); top: 13%; }
+.needt-v3 .auth-ax-collage-abs-2 { position: absolute; left: calc(50% + 352px); top: 71%; }
+.needt-v3 .auth-signin-abs { position: absolute; inset: 0; z-index: 2; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 28px 16px; }
+.needt-v3 .auth-signin-col { margin: auto 0; width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.needt-v3 .auth-flex { display: flex; }
+.needt-v3 .auth-signin-col-2 { padding: 30px 30px 24px; display: flex; flex-direction: column; }
+.needt-v3 .auth-signin-el { text-align: center; padding-bottom: 10px; }
+.needt-v3 .auth-signin-text { margin: 10px 0 22px; font-size: 13px; line-height: 1.45; color: var(--text-tertiary); text-align: center; text-wrap: pretty; }
+.needt-v3 .auth-stack-8 { display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .auth-signin-row-2 { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+.needt-v3 .auth-signin-el-2 { flex: 1; height: 1px; background: var(--border); }
+.needt-v3 .auth-signin-text-2 { font-size: 12px; color: var(--text-tertiary); }
+.needt-v3 .auth-signin-col-4 { display: flex; flex-direction: column; gap: 10px; }
+.needt-v3 .auth-signin-text-3 { font-size: 12px; padding-left: 2px; }
+.needt-v3 .auth-signin-row-3 { display: flex; align-items: flex-start; gap: 6px; padding: 9px 12px; border-radius: 12px; background: var(--fill-destructive); font-size: 12px; color: var(--destructive); text-wrap: pretty; }
+.needt-v3 .nx-btn.auth-signin-btn { width: 100%; margin-top: 4px; }
+.needt-v3 .ax-link.auth-signin-text-4 { font-weight: 500; }
+.needt-v3 .auth-row-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 10px 14px 10px 12px; border: 0; cursor: default; text-align: left; border-radius: 14px; transition: box-shadow var(--transition-hover), background-color var(--transition-hover); }
+.needt-v3 .auth-row-row-2 { flex: 0 0 auto; display: flex; }
+.needt-v3 .auth-row-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .auth-row-text { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.needt-v3 .auth-row-text-2 { font-size: 13px; color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .auth-row-grid { flex: 0 0 auto; width: 20px; height: 20px; display: grid; place-items: center; color: white; transition: background-color var(--transition-hover); }
+.needt-v3 .auth-ax-step-art-el { transition: opacity 200ms ease; }
+.needt-v3 .auth-ax-step-art-text-2 { padding: 5px 11px; font-size: 12px; }
+.needt-v3 .auth-onboarding-abs { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 18px 32px 24px 48px; box-sizing: border-box; }
+.needt-v3 .auth-onboarding-row { flex: none; display: flex; align-items: center; gap: 16px; }
+.needt-v3 .auth-onboarding-text { margin: 0 auto; }
+.needt-v3 .auth-onboarding-row-2 { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 56px; padding-top: 16px; }
+.needt-v3 .auth-onboarding-col { flex: 0 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.needt-v3 .auth-onboarding-el { align-self: flex-start; }
+.needt-v3 .auth-onboarding-text-2 { font-size: 58px; }
+.needt-v3 .px-on-sky.auth-onboarding-text-3 { margin: 0; max-width: 360px; font: 400 15px/22px var(--font-sans); color: var(--px-ink-2); text-wrap: pretty; }
+.needt-v3 .auth-onboarding-col-2 { flex: 0 1 auto; min-height: 0; max-height: calc(100vh - 210px); display: flex; flex-direction: column; }
+.needt-v3 .auth-onboarding-col-3 { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 24px 22px 16px; }
+.needt-v3 .auth-onboarding-el-2 { padding-bottom: 14px; }
+.needt-v3 .auth-onboarding-row-6 { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--border); }
+.needt-v3 .auth-onboarding-text-10 { margin-left: auto; }
+
+/* The Apple / Google buttons. */
+.needt-v3 .auth-oauth { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 44px; border: 0; cursor: default; border-radius: 12px;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+/* States: the error row in the card, the quiet offline line under it. */
+.needt-v3 .auth-net { margin-top: 2px; }
+.needt-v3 .auth-net .st-error-text { font-size: 13px; line-height: 18px; }
+.needt-v3 .auth-offline { display: flex; align-items: center; gap: 8px; text-align: left; }
+.needt-v3 .auth-offline > svg { flex: none; color: var(--text-tertiary); }
+.needt-v3 .auth-oauth[disabled] { opacity: .4; cursor: not-allowed; box-shadow: var(--shadow-raised) !important; }
+.needt-v3 .auth-cal-offline { display: flex; align-items: center; gap: 8px; margin: 6px 2px 0; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .auth-cal-offline > svg { flex: none; }
+.needt-v3 .auth-onboarding-card { flex: none; max-height: 100%; display: flex; flex-direction: column; }
+/* Onboarding calendar connect (08.10.26): spinner while the OAuth runs, the error line. */
+.needt-v3 .auth-row-text-2.is-error { color: var(--destructive); }
+.needt-v3 .auth-row-spin { flex: 0 0 auto; width: 18px; height: 18px; margin: 1px; box-sizing: border-box; border-radius: 999px; border: 2px solid var(--fill-5); border-top-color: var(--text-secondary); animation: v3-auth-row-spin 0.8s linear infinite; }
+@keyframes v3-auth-row-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .auth-row-spin { animation-duration: 2.4s; } }
+
+/* ── 08.10.26: password recovery, onboarding redesign ─────────────────────── */
+/* Sign in: the hint under the password and "Forgot password?" share a line. */
+.needt-v3 .auth-pass-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.needt-v3 .ax-link.auth-forgot { font-size: 12px; color: var(--text-secondary); }
+.needt-v3 .auth-recover-mail { font-weight: 600; color: var(--text-primary); word-break: break-all; }
+.needt-v3 .auth-recover-demo { margin-left: 8px; padding: 2px 6px; border-radius: 6px; background: var(--fill-3); font: 500 10.5px/13px var(--font-sans); color: var(--text-tertiary); letter-spacing: .02em; }
+.needt-v3 .auth-recover-resend { margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-tertiary); text-align: center; text-wrap: pretty; }
+.needt-v3 .auth-recover-resend .ax-link { color: var(--text-primary); }
+.needt-v3 .auth-recover-resend .ax-link[disabled] { opacity: .4; cursor: not-allowed; }
+.needt-v3 .auth-recover-wait { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* The theme switch in the onboarding corner: a small glass segmented chip. */
+.needt-v3 .auth-theme { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9999px;
+  background-color: var(--white-a55); background-image: linear-gradient(var(--white-a0), var(--white-a40));
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); box-shadow: var(--white-a70) 0 0 0 1px inset, var(--black-a6) 0 0 0 1px; }
+.needt-v3[data-theme="dark"] .auth-theme { background-color: var(--smoke-a55); background-image: none; box-shadow: var(--white-a8) 0 0 0 1px inset, var(--white-a10) 0 0 0 1px; }
+.needt-v3 .auth-theme-b { height: 24px; padding: 0 10px; border: 0; border-radius: 9999px; background: transparent; cursor: default; font: 500 12px/1 var(--font-sans); color: var(--text-secondary); transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v3 .auth-theme-b:hover { background: var(--fill-3); color: var(--text-primary); }
+.needt-v3 .auth-theme-b.is-on { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
+.needt-v3 .auth-theme-b:active { transform: scale(.97); }
+
+/* Calendar rows on the setup step are a size down, so hours fit under them. */
+.needt-v3 .auth-row-row.is-compact { padding: 7px 12px 7px 10px; gap: 12px; border-radius: 12px; }
+.needt-v3 .auth-row-row.is-compact .auth-row-text { font-size: 14px; }
+.needt-v3 .auth-row-row.is-compact .auth-row-text-2 { font-size: 12px; }
+
+/* Working hours + time zone: one form row each (label column 105px). */
+.needt-v3 .auth-ob-gap { padding-top: 18px; }
+.needt-v3 .auth-ob-hours { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.needt-v3 .auth-ob-line { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.needt-v3 .auth-ob-label { flex: 0 0 var(--form-label-w, 105px); font-size: 13px; color: var(--text-secondary); }
+.needt-v3 .auth-ob-to { font-size: 13px; color: var(--text-tertiary); }
+.needt-v3 .auth-ob-hint { display: block; margin-top: 2px; font-size: 12px; line-height: 1.45; color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .auth-onboarding-col-3 > .auth-ob-hint { margin-top: 12px; }
+.needt-v3 .auth-select { position: relative; display: inline-flex; align-items: center; width: 96px; height: 32px; }
+.needt-v3 .auth-select.is-wide { flex: 1; min-width: 0; width: auto; }
+.needt-v3 .auth-select select { appearance: none; -webkit-appearance: none; width: 100%; height: 100%; padding: 0 28px 0 10px; border: 0; border-radius: var(--radius-lg); background: var(--fill-3);
+  box-shadow: var(--fill-5) 0 0 0 1px inset; font: var(--type-ui); font-variant-numeric: tabular-nums; color: var(--text-primary); cursor: default; outline: none; }
+.needt-v3 .auth-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .auth-select.is-invalid select { box-shadow: var(--destructive) 0 0 0 1px inset; }
+.needt-v3 .auth-select-chev { position: absolute; right: 8px; pointer-events: none; display: flex; color: var(--text-tertiary); }
+
+/* The real Composer, embedded: no scrim, no lift, no Cancel, no kind switch. */
+.needt-v3 .auth-composer .cmp-scrim { position: static; inset: auto; z-index: auto; display: block; padding: 0; background: none; animation: none; }
+.needt-v3 .auth-composer .cmp-sheet { width: 100%; box-shadow: var(--shadow-ring); animation: none; }
+.needt-v3 .auth-composer .cmp-seg,
+.needt-v3 .auth-composer .shell-composer-text-2,
+.needt-v3 .auth-composer .shell-composer-row-2 .nx-btn-text { display: none; }
+/* Phone: the compact line (Mobile.jsx's composer look) inside the glass card. */
+.needt-v3 .auth-ma-composer { width: auto; }
+.needt-v3 .auth-ma-composer .co-go[disabled] { opacity: .4; cursor: not-allowed; }
+
+/* "Here's where Needt put it": the mini day. */
+.needt-v3 .auth-tl { position: relative; margin: 4px 0 0 46px; }
+.needt-v3 .auth-tl-hour { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--border); }
+.needt-v3 .auth-tl-label { position: absolute; left: -46px; top: -7px; width: 38px; text-align: right; font: 500 11px/14px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
+.needt-v3 .auth-tl-hours { position: absolute; left: 0; right: 0; background: var(--fill-1); border-radius: 4px; }
+.needt-v3 .auth-tl-block { position: absolute; left: 4px; right: 4px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px; overflow: hidden; border-radius: 7px;
+  font: 500 12px/14px var(--font-sans); color: var(--text-secondary); white-space: nowrap; }
+.needt-v3 .auth-tl-block.is-event { background: var(--fill-4); padding-left: 12px; }
+.needt-v3 .auth-tl-block.is-event::before { content: ""; position: absolute; left: 4px; top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--text-quaternary); }
+.needt-v3 .auth-tl-block.is-task { background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.needt-v3 .auth-tl-block.is-new { z-index: 2; background: var(--fill-accent); box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--text-primary); font-weight: 600; }
+.needt-v3 .auth-tl-block.is-new > svg { flex: none; color: var(--accent); }
+.needt-v3 .auth-tl-time { flex: none; font-variant-numeric: tabular-nums; color: var(--text-tertiary); font-weight: 500; }
+.needt-v3 .auth-tl-block.is-new .auth-tl-time { color: var(--text-secondary); }
+.needt-v3 .auth-tl-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .auth-tl-len { margin-left: auto; flex: none; font-weight: 500; color: var(--text-tertiary); }
+.needt-v3 .auth-tl-now { position: absolute; left: -4px; right: 0; z-index: 3; height: 0; border-top: 1.5px solid var(--accent); pointer-events: none; }
+.needt-v3 .auth-tl-now::before { content: ""; position: absolute; left: -3px; top: -4.5px; width: 7px; height: 7px; border-radius: 9px; background: var(--accent); }
+.needt-v3 .auth-tl-now > span { position: absolute; right: 0; top: -16px; font: 600 10.5px/13px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--accent); }
+.needt-v3 .auth-ob-why { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow-ring);
+  font-size: 13px; line-height: 1.45; color: var(--text-primary); text-wrap: pretty; }
+.needt-v3 .auth-ob-why > svg { flex: none; margin-top: 2px; color: var(--text-tertiary); }
+/* The dots stay centred with the theme switch and Skip on the right. */
+.needt-v3 .auth-onboarding-row { position: relative; }
+.needt-v3 .auth-onboarding-row > .auth-onboarding-text { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; }
+.needt-v3 .auth-onboarding-row > .auth-theme { margin-left: auto; }
+/* Tablet and narrow windows (< 1100): the headline over the card, one column. */
+@media (max-width: 1099px) {
+  .needt-v3 .auth-onboarding-abs { padding: 18px 24px 24px; }
+  .needt-v3 .auth-onboarding-row > .auth-onboarding-text { position: static; transform: none; margin: 0 auto; }
+  .needt-v3 .auth-onboarding-row > .auth-theme { margin-left: 0; }
+  .needt-v3 .auth-onboarding-row-2 { flex-direction: column; align-items: center; justify-content: flex-start; gap: 20px; padding-top: 28px; overflow-y: auto; }
+  .needt-v3 .auth-onboarding-col { flex: none; width: min(600px, 100%); gap: 10px; }
+  .needt-v3 .auth-onboarding-text-2 { font-size: 46px; }
+  .needt-v3 .px-on-sky.auth-onboarding-text-3 { max-width: none; }
+  .needt-v3 .auth-onboarding-card { width: min(600px, 100%) !important; }
+  .needt-v3 .auth-onboarding-col-2 { max-height: none; }
+}
+
+/* Phone setup (MobileAuth.jsx): the top row, hours, the forgot link. */
+.needt-v3 .ma-setup-top { flex: none; display: flex; align-items: center; gap: 8px; }
+.needt-v3 .ma-setup-top > .auth-theme { margin-left: auto; }
+.needt-v3 .ma-setup-top .auth-theme-b { padding: 0 8px; }
+.needt-v3 .ma-hours { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.needt-v3 .ma-hours-line { display: flex; align-items: center; gap: 8px; }
+.needt-v3 .ma-hours .auth-select { height: 44px; }
+.needt-v3 .ma-hours-line .auth-select { flex: 1; width: auto; }
+.needt-v3 .ma-hours .auth-select.is-wide { flex: none; width: 100%; }
+.needt-v3 .ma-hours .auth-select select { font-size: 15px; }
+
+/* ── "Make your sidebar" (onboarding step 3, 08.10.26) ────────────────────── */
+/* The grid: a slice of the real sidebar — its ground, three columns, 64px tiles. */
+.needt-v3 .ob-sb-panel { align-self: center; width: 100%; max-width: 330px; box-sizing: border-box; padding: 10px; border-radius: var(--radius-xl); background: var(--background); box-shadow: var(--shadow-ring); }
+.needt-v3 .ob-sb-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.needt-v3 .ob-sb-cell { min-width: 0; }
+.needt-v3 .ob-sb-tile { position: relative; width: 100%; height: 64px; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  padding: 10px 10px 9px; border: 0; border-radius: var(--radius-xl); cursor: grab; color: var(--text-secondary); font: inherit; text-align: left;
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+.needt-v3 .ob-sb-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .ob-sb-tile .sb-place-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.needt-v3 .ob-sb-tile.is-fixed { cursor: default; }
+.needt-v3 .ob-sb-tile.is-fixed:hover { background: var(--fill-3); transform: none; box-shadow: none; }
+.needt-v3 .ob-sb-tile.is-picked,
+.needt-v3 .ob-sb-tile.is-picked:hover { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--fill-accent); }
+.needt-v3 .ob-sb-tile.is-over,
+.needt-v3 .ob-sb-tile.is-over:hover { box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-raised); background: var(--fill-accent); transform: scale(1.04); }
+.needt-v3 .ob-sb-tile.is-lifted { opacity: .3; }
+/* While something is picked or lifted, the tiles it can land on say so. */
+.needt-v3 .ob-sb.is-picking .ob-sb-grid .ob-sb-tile:not(.is-fixed):not(.is-picked),
+.needt-v3 .ob-sb.is-dragging .ob-sb-grid .ob-sb-tile:not(.is-fixed):not(.is-over):not(.is-lifted) { box-shadow: inset 0 0 0 1px var(--fill-5); }
+/* More's own glyph when Sidebar.jsx does not export PlaceGlyph: six dots. */
+.needt-v3 .ob-sb-more { display: grid; grid-template-columns: repeat(3, 6px); gap: 3px 2px; padding: 3px 0; }
+.needt-v3 .ob-sb-more > i { width: 6px; height: 6px; border-radius: 9px; background: var(--accent); }
+.needt-v3 .ob-sb-more > i:nth-child(2) { background: var(--destructive); }
+.needt-v3 .ob-sb-more > i:nth-child(3) { background: var(--info); }
+.needt-v3 .ob-sb-more > i:nth-child(4) { background: var(--success); }
+.needt-v3 .ob-sb-more > i:nth-child(5) { background: var(--text-tertiary); }
+.needt-v3 .ob-sb-more > i:nth-child(6) { background: var(--fill-accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* The sea: a small sky with its cloud sea; the other places float on it. */
+.needt-v3 .ob-sb-sea { position: relative; height: 200px; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-ring); }
+.needt-v3 .ob-sb-sky.px-sky { position: absolute; inset: 0; }
+.needt-v3 .ob-sb-float { position: absolute; inset: 0; z-index: 1; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 12px 10px; padding: 14px; box-sizing: border-box; }
+/* The tiles settle onto the sea once when the step appears, then hold still. */
+.needt-v3 .ob-sb-bob { display: block; width: 104px; animation: v3-ob-sb-bob 4.2s ease-in-out 1 backwards; }
+.needt-v3 .ob-sb-bob.is-b1 { margin-top: 10px; animation-duration: 4.8s; animation-delay: -1.3s; }
+.needt-v3 .ob-sb-bob.is-b2 { margin-top: -4px; animation-duration: 3.9s; animation-delay: -2.4s; }
+.needt-v3 .ob-sb-bob.is-b3 { margin-top: 6px; animation-duration: 5.2s; animation-delay: -.7s; }
+.needt-v3 .ob-sb-float .ob-sb-tile { background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.needt-v3 .ob-sb-float .ob-sb-tile:hover { background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.needt-v3 .ob-sb-float .ob-sb-tile.is-picked,
+.needt-v3 .ob-sb-float .ob-sb-tile.is-over { box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-raised); }
+@keyframes v3-ob-sb-bob { from { transform: translateY(-6px) rotate(.6deg); } to { transform: none; } }
+
+/* Swaps: the new tile settles, the one it replaced springs back into the sea. */
+.needt-v3 .ob-sb-tile.is-land { animation: v3-ob-sb-land 320ms var(--nx-ease, ease-out); }
+.needt-v3 .ob-sb-tile.is-back { animation: v3-ob-sb-back 560ms cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes v3-ob-sb-land { from { transform: scale(.9); } to { transform: none; } }
+@keyframes v3-ob-sb-back { from { transform: translateY(-46px) scale(.8); opacity: .3; } to { transform: none; opacity: 1; } }
+
+/* The lifted tile follows the pointer (a portal on <body>, over the onboarding). */
+.needt-v3 .ob-sb-ghost { position: fixed; left: 0; top: 0; z-index: 1000; width: var(--ob-w); height: var(--ob-h); pointer-events: none;
+  transform: translate(var(--ob-x), var(--ob-y)); }
+.needt-v3 .ob-sb-ghost.is-returning { transition: transform 240ms var(--nx-ease, ease-out); }
+.needt-v3 .ob-sb-ghost .ob-sb-tile { background: var(--surface-raised); box-shadow: var(--shadow-floating); transform: rotate(2deg) scale(1.05); cursor: grabbing; }
+.needt-v3 .ob-sb-ghost.is-returning .ob-sb-tile { transform: none; transition: transform 240ms var(--nx-ease, ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ob-sb-bob,
+.needt-v3 .ob-sb-tile.is-land,
+.needt-v3 .ob-sb-tile.is-back { animation: none; }
+  .needt-v3 .ob-sb-ghost.is-returning,
+.needt-v3 .ob-sb-ghost.is-returning .ob-sb-tile { transition: none; }
+  .needt-v3 .ob-sb-ghost .ob-sb-tile,
+.needt-v3 .ob-sb-tile.is-over { transform: none; }
+}
+.needt-v3 .ob-sb { display: flex; flex-direction: column; }
+.needt-v3 .ob-sb > .auth-ob-hint { margin-top: 8px; }

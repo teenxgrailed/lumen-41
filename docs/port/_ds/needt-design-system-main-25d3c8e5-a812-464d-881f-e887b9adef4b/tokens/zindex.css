@@ -1,0 +1,20 @@
+/* Z-index — sixteen named steps. Never author a raw z-index. */
+
+:root {
+  --z-base: 0; /* @kind other */
+  --z-local: 10; /* @kind other */
+  --z-sticky: 20; /* @kind other */
+  --z-titlebar: 40; /* @kind other */
+  --z-panel: 50; /* @kind other */
+  --z-dropdown: 100; /* @kind other */
+  --z-tooltip: 150; /* @kind other */
+  --z-modal: 200; /* @kind other */
+  --z-overlay: 300; /* @kind other */
+  --z-fullscreen: 350; /* @kind other */
+  --z-floating-backdrop: 390; /* @kind other */
+  --z-floating-menu: 400; /* @kind other */
+  --z-island-overlay: 390; /* @kind other */
+  --z-island: 400; /* @kind other */
+  --z-island-popover: 410; /* @kind other */
+  --z-splash: 600; /* @kind other */
+}

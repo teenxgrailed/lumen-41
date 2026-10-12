@@ -1,0 +1,465 @@
+/* ========================================================================
+   Needt design v3 — styles/tasks.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* tasks.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── task.jsx · THE TASK ─────────────────────────────────────────────── */
+/* Checkbox (desk 16px; touch 44px target around a 20px box). */
+.needt-v3 .tk-check { flex: none; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 5.7px; cursor: default; display: grid; place-items: center;
+  background: transparent; box-shadow: color-mix(in oklab, var(--text-primary) 22%, transparent) 0 0 0 1.5px inset;
+  color: var(--surface-raised); transition: background-color 120ms ease; }
+.needt-v3 .tk-check.is-on { box-shadow: none; }
+.needt-v3 .tk-check-touch { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -12px -12px -12px -12px; padding: 0; border: 0; background: transparent; cursor: default; }
+.needt-v3 .tk-check-touch-box { display: grid; place-items: center; background: transparent; color: var(--surface-raised);
+  box-shadow: color-mix(in oklab, var(--text-primary) 26%, transparent) 0 0 0 1.5px inset; transition: background-color 120ms ease; }
+.needt-v3 .tk-check-touch-box.is-on { box-shadow: none; }
+
+/* Shared bits. */
+.needt-v3 .tk-src { display: inline-flex; }
+.needt-v3 .tk-dot { flex: none; width: 6px; height: 6px; border-radius: 3px; }
+.needt-v3 .tk-ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .tk-clip { overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .tk-late { color: var(--destructive); }
+.needt-v3 .tk-label { font: var(--type-meta-medium); color: var(--text-tertiary); }
+.needt-v3 .tk-rail { flex: none; width: 3px; align-self: stretch; border-radius: 2px; }
+
+/* Desk meta: fixed columns (time 44 · duration 52 · source 16 · project 120). */
+.needt-v3 .tk-dmeta { flex: none; display: flex; align-items: center; gap: 8px; font: var(--type-meta); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-cell { flex: none; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
+.needt-v3 .tk-cell-time { width: auto; min-width: 44px; }
+.needt-v3 .tk-cell-dur { width: 52px; }
+.needt-v3 .tk-cell-src { width: 16px; justify-content: center; }
+.needt-v3 .tk-cell-proj { width: 120px; justify-content: flex-start; gap: 6px; overflow: hidden; }
+
+/* Inline meta line (phone, card label row). */
+.needt-v3 .tk-lmeta { display: flex; align-items: center; gap: 10px; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-lm-proj { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.needt-v3 .tk-lm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Long project name: only the name gives way; date, duration and labels never wrap. */
+.needt-v3 .tk-lmeta > * { flex: none; white-space: nowrap; }
+.needt-v3 .tk-lmeta > .tk-lm-proj { flex: 0 1 auto; overflow: hidden; }
+.needt-v3 .tk-card-label > * { flex: none; white-space: nowrap; }
+.needt-v3 .tk-card-label > .tk-card-right { flex: 0 1 auto; min-width: 0; }
+.needt-v3 .tk-card-right > * { flex: none; }
+.needt-v3 .tk-card-right > .tk-card-proj { flex: 0 1 auto; min-width: 0; }
+
+/* Parts counter: ring + "1/2" in tertiary grey (≥ 4.5:1 on light and dark). */
+.needt-v3 .tk-count { flex: none; align-self: center; display: inline-flex; align-items: center; gap: 4px; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-ring { flex: none; display: block; transform: rotate(-90deg); }
+.needt-v3 .tk-ring-track { fill: none; stroke: var(--fill-5); stroke-width: 2; }
+.needt-v3 .tk-ring-fill { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; transition: stroke-dashoffset 400ms var(--nx-ease); }
+.needt-v3 .tk-value { flex: none; font: var(--type-meta-medium); color: var(--success); }
+
+/* Row · touch (phone). */
+.needt-v3 .tk-touch { display: flex; align-items: flex-start; gap: 12px; min-height: 48px; padding: 12px 8px; margin: 0 -8px; border-radius: 12px; cursor: default; transition: opacity 200ms ease; }
+.needt-v3 .tk-touch-check { flex: none; padding-top: 0; }
+.needt-v3 .tk-touch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.needt-v3 .tk-touch-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.needt-v3 .tk-touch-title { flex: 0 1 auto; min-width: 0; font: 500 15px/20px var(--font-sans); color: var(--text-primary); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 240ms ease; }
+.needt-v3 .tk-touch-title.is-done { color: var(--text-muted); text-decoration: line-through; }
+
+/* Row · mini (Inbox rail, project cards). */
+.needt-v3 .tk-mini { display: flex; align-items: center; gap: 10px; min-height: 26px; cursor: default; }
+.needt-v3 .tk-mini-title { flex: 1; min-width: 0; font: 500 13px/17px var(--font-sans); color: var(--text-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .tk-mini-title.is-done { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .tk-mini-dur { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Row · agenda (Calendar › Days). */
+.needt-v3 .tk-agenda { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: default; opacity: 1; background: transparent; transition: background-color 120ms ease; }
+.needt-v3 .tk-agenda.is-done { opacity: 0.55; }
+.needt-v3 .tk-agenda.is-hot { background: var(--fill-2); }
+.needt-v3 .tk-ag-meta { flex: none; display: inline-flex; align-items: center; gap: 6px; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .tk-ag-chip { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 6px; max-width: 120px; color: var(--text-secondary); }
+.needt-v3 .tk-ag-time { flex: none; width: 40px; padding-top: 1px; font: var(--type-meta-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-ag-time.is-allday { color: var(--text-tertiary); }
+.needt-v3 .tk-ag-body { flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: flex-start; gap: 10px; }
+.needt-v3 .tk-ag-body.is-stacked { flex-direction: column; gap: 4px; }
+.needt-v3 .tk-ag-ctime { font: var(--type-meta-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-ag-cdur { color: var(--text-tertiary); font-weight: 400; }
+.needt-v3 .tk-ag-title { flex: 1; min-width: 0; font: 500 13px/18px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; text-decoration: none;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.needt-v3 .tk-ag-title.is-done { text-decoration: line-through; }
+
+/* Row · desk (Home, Tasks, Projects). */
+.needt-v3 .tk-desk { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 4px 8px; margin: 0 -8px; border-radius: var(--radius-md);
+  background: transparent; cursor: default; transition: background-color var(--transition-hover); }
+.needt-v3 .tk-desk.is-hot { background: var(--fill-3); }
+.needt-v3 .tk-desk-body { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.needt-v3 .tk-desk-title { font: 500 15px/20px var(--font-sans); color: var(--text-primary); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 280ms ease; }
+.needt-v3 .tk-desk-title.is-done { color: var(--text-muted); }
+.needt-v3 .tk-desk-title.is-crossed { text-decoration: line-through; }
+.needt-v3 .tk-entry { display: flex; align-items: center; gap: 6px; padding: 0 0 4px 26px; font: var(--type-ui); color: var(--text-tertiary); }
+
+/* Card · preview (Mail's "Make a task" result). */
+.needt-v3 .tk-prev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--fill-3); cursor: default; }
+.needt-v3 .tk-prev-title { font: 500 14px/18px var(--font-sans); color: var(--text-primary); text-decoration: none; }
+.needt-v3 .tk-prev-title.is-done { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .tk-prev-where { margin-left: auto; font: var(--type-meta); color: var(--text-tertiary); }
+
+/* Card · touch (phone Next up). */
+.needt-v3 .tk-tcard { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 14px 17px; border-radius: 16px;
+  background: var(--surface-raised); box-shadow: var(--shadow-raised); overflow: hidden; }
+.needt-v3 .tk-tcard-rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.needt-v3 .tk-tcard-head { display: flex; align-items: center; gap: 10px; }
+.needt-v3 .tk-tcard-meta { margin-left: auto; min-width: 0; }
+.needt-v3 .tk-tcard-title { font: 600 17px/22px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .tk-tcard-note { font: var(--type-ui); color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .tk-tcard-acts { display: flex; gap: 8px; padding-top: 4px; }
+
+/* Card · desk (Home Next up) — the summary-card frame; Home's HdCard reuses
+   .tk-card / .tk-card-plate / .tk-card-label / .tk-card-right. */
+.needt-v3 .tk-card { padding: 5px; border-radius: 16px; box-shadow: var(--shadow-ring); box-sizing: border-box; }
+.needt-v3 .tk-card-plate { height: 100%; min-height: 112px; box-sizing: border-box; padding: 12px 14px; border-radius: 11px; background: var(--surface-raised); box-shadow: var(--shadow-ring);
+  display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+.needt-v3 .tk-card-label { display: flex; align-items: center; gap: 8px; font: var(--type-meta-medium); color: var(--text-tertiary); min-height: 18px; }
+.needt-v3 .tk-card-right { margin-left: auto; display: flex; align-items: center; gap: 8px; font: var(--type-meta); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .tk-card-proj { display: inline-flex; align-items: center; gap: 5px; max-width: 110px; overflow: hidden; }
+.needt-v3 .tk-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.needt-v3 .tk-card-title { font: 600 15px/20px var(--font-sans); color: var(--text-primary); cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .tk-card-note { font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .tk-card-acts { display: flex; gap: 6px; margin-top: auto; }
+
+/* Block (calendar grid). Placement, tint, lift and padding stay inline. */
+.needt-v3 .tk-block { box-sizing: border-box; border-radius: 8px; overflow: hidden; cursor: default; outline: none;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease, left 140ms ease, width 140ms ease; animation: v3-nx-swap 260ms var(--nx-ease) both; }
+.needt-v3 .tk-block:focus-visible,
+.needt-v3 .tk-block:focus:not(:focus-visible) { outline: none; }
+.needt-v3 .tk-block-rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.needt-v3 .tk-block-line { display: flex; align-items: baseline; gap: 5px; min-width: 0; font: 500 12px/15px var(--font-sans); white-space: nowrap; }
+.needt-v3 .tk-block-time { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-block-ltitle { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); text-decoration: none; }
+.needt-v3 .tk-block-ltitle.is-done,
+.needt-v3 .tk-block-title.is-done { text-decoration: line-through; }
+.needt-v3 .tk-block-title { font: 500 12px/15px var(--font-sans); color: var(--text-primary); overflow: hidden; text-decoration: none; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; }
+.needt-v3 .tk-block-range { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── work.jsx · Tasks / Projects ─────────────────────────────────────── */
+.needt-v3 .wk-screen { flex: 1; min-height: 0; width: 100%; max-width: 1240px; display: flex; flex-direction: column; }
+.needt-v3 .wk-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
+.needt-v3 .wk-title { margin: 0; font: var(--type-page-title); color: var(--text-primary); }
+.needt-v3 .wk-tabs { margin-left: auto; display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.needt-v3 .wk-tabbtn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 0; border-radius: var(--radius-lg); cursor: default; font: var(--type-ui); }
+.needt-v3 .wk-tabbtn.is-on { font: var(--type-ui-medium); }
+.needt-v3 .wk-meta { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .wk-num { font-variant-numeric: tabular-nums; }
+.needt-v3 .wk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .wk-cards { flex: none; display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 6px 24px 14px 26px; margin: 0 0 4px; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, var(--color-black) calc(100% - 24px), transparent); mask-image: linear-gradient(to right, var(--color-black) calc(100% - 24px), transparent); }
+.needt-v3 .wk-clear { flex: none; }
+.needt-v3 .wk-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 4px 40px 26px; display: flex; flex-direction: column; gap: 22px; }
+.needt-v3 .wk-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding: 6px 0 2px; }
+.needt-v3 .wk-list { max-width: 820px; display: flex; flex-direction: column; }
+.needt-v3 .wk-ring { display: block; transform: rotate(-90deg); }
+.needt-v3 .wk-ring-fill { transition: stroke-dashoffset 400ms var(--nx-ease); }
+
+/* Project card (Projects) and mini card (Tasks): hue frame stays inline. */
+.needt-v3 .wk-pcard { padding: 6px 6px 0; border-radius: 16px; box-shadow: var(--shadow-ring); transform: none; transition: box-shadow var(--transition-hover), transform var(--transition-hover); }
+.needt-v3 .wk-pcard.is-hot { box-shadow: var(--shadow-raised-hover); transform: translateY(-1px); }
+.needt-v3 .wk-pcard-plate { height: 196px; box-sizing: border-box; padding: 12px 14px; border-radius: 10px 10px 0 0; background: var(--surface-raised); box-shadow: var(--shadow-ring); display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.needt-v3 .wk-pcard-head { display: flex; align-items: flex-start; gap: 8px; }
+.needt-v3 .wk-pcard-name { font: 600 15px/19px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; hyphens: auto; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.needt-v3 .wk-mcard { flex: none; width: 180px; padding: 5px; border: 0; border-radius: 16px; cursor: default; text-align: left; transition: box-shadow var(--transition-hover), transform var(--transition-hover); }
+.needt-v3 .wk-mcard-plate { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 11px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
+.needt-v3 .wk-mcard-name { font: 600 14px/18px var(--font-sans); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .wk-mcard-name.is-none { color: var(--text-secondary); }
+
+/* Projects (08.10.26): Cards / List switch, clickable cards, the project page. */
+.needt-v3 .wk-pview { margin-left: auto; width: 168px; }
+.needt-v3 .nx-btn.wk-back { margin-left: -4px; color: var(--text-secondary); }
+.needt-v3 .wk-pcard.is-link { cursor: default; }
+.needt-v3 .wk-pcard.is-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.needt-v3 .wk-ppage { display: flex; flex-direction: column; gap: 18px; max-width: 820px; }
+.needt-v3 .wk-phero { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.needt-v3 .wk-phero-tile { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: var(--radius-xl); box-shadow: var(--shadow-ring); }
+.needt-v3 .wk-phero-text { gap: 4px; }
+.needt-v3 .wk-phero-name { margin: 0; font: var(--type-page-title); color: var(--text-primary); overflow-wrap: anywhere; hyphens: auto;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.needt-v3 .wk-phero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .wk-phero-late { color: var(--destructive); }
+.needt-v3 .wk-phero-ring { flex: none; align-self: flex-start; padding-top: 6px; }
+.needt-v3 .wk-phero-side { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; }
+.needt-v3 .wk-phero-side .wk-phero-ring { padding-top: 0; }
+.needt-v3 .wk-more { position: relative; display: inline-flex; }
+.needt-v3 .wk-more-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: var(--z-dropdown); }
+.needt-v3 .wk-padd { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-ring); cursor: text; }
+.needt-v3 .wk-padd:focus-within { box-shadow: var(--shadow-ring), var(--text-tertiary) 0 0 0 1px inset; }
+.needt-v3 .wk-padd-plus { flex: none; display: flex; color: var(--text-tertiary); }
+.needt-v3 .wk-padd-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; font: 500 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .wk-padd-input::placeholder { color: var(--text-muted); }
+.needt-v3 .wk-ppage .wk-empty { margin-top: 8px; }
+
+/* Empty state. */
+.needt-v3 .wk-empty { max-width: 820px; margin-top: 32px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.needt-v3 .wk-empty-title { margin-top: 4px; font: 600 15px/20px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .wk-empty-line { font: var(--type-ui); color: var(--text-tertiary); }
+.needt-v3 .nx-btn.wk-empty-cta { margin-top: 6px; }
+
+/* New / Edit project sheet. */
+.needt-v3 .wk-scrim { position: fixed; inset: 0; z-index: 1050; display: grid; place-items: center; background: var(--nx-scrim); }
+.needt-v3 .wk-sheet { width: 380px; padding: 20px 20px 16px; border-radius: 20px; background: var(--surface-raised); box-shadow: var(--shadow-floating); display: flex; flex-direction: column; gap: 16px; }
+.needt-v3 .wk-sheet-title { font: 600 15px/19px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .wk-sheet-input { height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--fill-2); box-shadow: var(--border) 0 0 0 1px inset; outline: none; font: 500 13px/16px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .wk-sheet-row { display: flex; align-items: center; gap: 10px; }
+.needt-v3 .wk-sheet-label { font: var(--type-meta); color: var(--text-tertiary); margin-right: 4px; }
+.needt-v3 .wk-swatch { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 11px; cursor: default; box-shadow: var(--border) 0 0 0 1px inset; transition: box-shadow 140ms ease; }
+.needt-v3 .wk-sheet-error { font: var(--type-meta); color: var(--destructive); margin-top: -8px; }
+.needt-v3 .wk-sheet-acts { display: flex; justify-content: flex-end; gap: 8px; }
+.needt-v3 .nx-btn.wk-create { opacity: 1; transition: opacity 140ms ease; }
+.needt-v3 .nx-btn.wk-create[disabled] { opacity: 0.4; }
+
+/* ── Dialogs.jsx · THE TASK CARD (08.10.26 rebuild) ─────────────────────
+   One compact column, ~560 px, centred. Chips under the title open small
+   popovers; Scheduling is an inline section behind ⋯. Placement of popovers
+   and the format bar comes in as --tdc-x / --tdc-y (measured, relative to
+   the card); hues come in as --tdc-hue. Everything else is tokens. */
+@keyframes v3-tdc-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes v3-tdc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v3-tdc-pop { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+
+.needt-v3 .tdc-scrim { position: absolute; inset: 0; z-index: 620; display: grid; place-items: center; padding: 24px;
+  background: var(--overlay-scrim); animation: v3-tdc-fade 160ms ease both; }
+.needt-v3 .tdc-card { position: relative; width: min(560px, 100%); max-height: min(720px, 100%); display: flex; flex-direction: column;
+  border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-floating);
+  animation: v3-tdc-in 160ms var(--nx-ease) both; transform-origin: 50% 40%; }
+.needt-v3[data-theme="dark"] .tdc-card,
+.needt-v3[data-theme="dark"] .tdc-pop { background: var(--surface-floating); }
+
+/* Head: round checkbox · title · ⋯ · ×. */
+.needt-v3 .tdc-head { position: relative; flex: none; display: flex; align-items: flex-start; gap: 12px; padding: 18px 12px 0 20px; }
+.needt-v3 .tdc-check { flex: none; width: 22px; height: 22px; margin-top: 3px; padding: 0; border: 0; border-radius: 11px; cursor: default;
+  display: grid; place-items: center; background: transparent; color: var(--surface-raised);
+  box-shadow: color-mix(in oklab, var(--text-primary) 26%, transparent) 0 0 0 1.5px inset;
+  transition: background-color 120ms ease, box-shadow 120ms ease, transform 90ms ease; }
+.needt-v3 .tdc-check:hover { box-shadow: color-mix(in oklab, var(--text-primary) 45%, transparent) 0 0 0 1.5px inset; background: var(--fill-2); }
+.needt-v3 .tdc-check:active { transform: scale(0.97); }
+.needt-v3 .tdc-check.is-on { background: var(--text-primary); box-shadow: none; }
+.needt-v3 .tdc-check.is-half { background: conic-gradient(var(--accent) 0 50%, transparent 50% 100%); }
+.needt-v3 .tdc-title { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; outline: none; resize: none; background: transparent;
+  field-sizing: content; min-height: 28px; max-height: 140px; overflow-y: auto; overflow-wrap: anywhere;
+  font: 600 20px/28px var(--font-sans); letter-spacing: -0.01em; color: var(--text-primary); }
+.needt-v3 .tdc-title:focus,
+.needt-v3 .tdc-title:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .tdc-title::placeholder { color: var(--text-disabled); }
+.needt-v3 .tdc-card.is-done .tdc-title { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .tdc-head-end { flex: none; display: flex; align-items: center; gap: 2px; }
+.needt-v3 .tdc-icon-btn { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 9px; display: grid; place-items: center;
+  background: transparent; color: var(--text-tertiary); cursor: default; transition: background-color var(--transition-hover), color var(--transition-hover), transform 90ms ease; }
+.needt-v3 .tdc-icon-btn:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .tdc-icon-btn:active { transform: scale(0.97); }
+.needt-v3 .tdc-icon-btn[aria-expanded="true"] { box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+
+/* Chips. */
+.needt-v3 .tdc-chips { position: relative; flex: none; display: flex; flex-wrap: nowrap; gap: 4px; min-width: 0; padding: 14px 16px 0 16px; }
+.needt-v3 .tdc-chips > .tdc-chip { flex: none; }
+/* Off-screen copy of every chip, measured to decide what folds into "+N". */
+.needt-v3 .tdc-chips-measure { position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: hidden; display: flex; gap: 4px; visibility: hidden; pointer-events: none; white-space: nowrap; }
+.needt-v3 .tdc-chips-measure > .tdc-chip { flex: none; }
+.needt-v3 .tdc-more { padding: 0 9px; color: var(--text-tertiary); }
+.needt-v3 .tdc-more:hover { color: var(--text-secondary); }
+.needt-v3 .tdc-opt-text.is-empty { color: var(--text-tertiary); }
+.needt-v3 .tdc-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; max-width: 220px; padding: 0 8px; border: 0; border-radius: 9px;
+  background: var(--fill-2); color: var(--text-secondary); font: var(--type-meta-medium); font-variant-numeric: tabular-nums; cursor: default;
+  transition: background-color var(--transition-hover), color var(--transition-hover), transform 90ms ease; }
+.needt-v3 .tdc-chip:hover { background: var(--fill-4); }
+.needt-v3 .tdc-chip:active { transform: scale(0.97); }
+.needt-v3 .tdc-chip[aria-expanded="true"] { box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.needt-v3 .tdc-chip.is-empty { background: transparent; color: var(--text-tertiary); box-shadow: var(--border) 0 0 0 1px inset; }
+.needt-v3 .tdc-chip.is-empty:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .tdc-chip.is-empty .tdc-chip-text::before { content: "+ "; }
+.needt-v3 .tdc-chip.is-empty[aria-expanded="true"] { box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.needt-v3 .tdc-chip.is-danger { color: var(--destructive); }
+.needt-v3 .tdc-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .tdc-dot { flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--tdc-hue, var(--text-quaternary)); }
+.needt-v3 .tdc-dot.is-none { background: transparent; box-shadow: var(--text-quaternary) 0 0 0 1.5px inset; }
+
+/* The one-line Scheduling summary under the chips (only when not default). */
+.needt-v3 .tdc-sum { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 36px); height: 24px; margin: 6px 20px 0 16px; padding: 0 8px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); font: var(--type-meta); font-variant-numeric: tabular-nums; cursor: default;
+  transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v3 .tdc-sum:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .tdc-sum-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Body (scrolls). */
+.needt-v3 .tdc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px 20px 16px 54px; }
+.needt-v3 .tdc-label { display: inline-flex; align-items: center; gap: 6px; font: var(--type-meta-medium); color: var(--text-tertiary); }
+
+/* Notes: plain text (`notes`), a borderless textarea that grows with it. */
+.needt-v3 .tdc-notes { display: block; width: 100%; min-height: 22px; margin: 0; padding: 0; border: 0; outline: none; resize: none; overflow: hidden; background: transparent;
+  font: var(--type-body); color: var(--text-secondary); overflow-wrap: anywhere; cursor: text; }
+.needt-v3 .tdc-notes:focus,
+.needt-v3 .tdc-notes:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .tdc-notes::placeholder { color: var(--text-disabled); }
+
+/* Subtasks. */
+.needt-v3 .tdc-subs { display: flex; flex-direction: column; gap: 0; margin-left: -34px; }
+.needt-v3 .tdc-subs-head { display: flex; align-items: center; gap: 8px; padding: 0 0 4px 34px; }
+.needt-v3 .tdc-count { margin-left: auto; }
+.needt-v3 .tdc-sub { position: relative; display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px 0 0; border-radius: var(--radius-md); transition: background-color var(--transition-hover), opacity 120ms ease; }
+.needt-v3 .tdc-sub:hover { background: var(--fill-2); }
+.needt-v3 .tdc-sub.is-dragging { opacity: 0.4; }
+.needt-v3 .tdc-sub.is-drop-before::before,
+.needt-v3 .tdc-sub.is-drop-after::after { content: ""; position: absolute; left: 34px; right: 0; height: 2px; border-radius: 1px; background: var(--accent); }
+.needt-v3 .tdc-sub.is-drop-before::before { top: -1px; }
+.needt-v3 .tdc-sub.is-drop-after::after { bottom: -1px; }
+.needt-v3 .tdc-grip { flex: none; width: 18px; margin-left: 8px; display: flex; justify-content: center; color: var(--text-quaternary); opacity: 0; cursor: grab; transition: opacity var(--transition-hover); }
+.needt-v3 .tdc-sub:hover .tdc-grip { opacity: 1; }
+.needt-v3 .tdc-sub-check { flex: none; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 5px; display: grid; place-items: center; cursor: default;
+  background: transparent; color: var(--surface-raised); box-shadow: color-mix(in oklab, var(--text-primary) 24%, transparent) 0 0 0 1.5px inset; transition: background-color 120ms ease; }
+.needt-v3 .tdc-sub-check.is-on { background: var(--text-tertiary); box-shadow: none; }
+.needt-v3 .tdc-sub-title { flex: 1; min-width: 0; height: 30px; padding: 0; border: 0; outline: none; background: transparent; font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .tdc-sub-title:focus,
+.needt-v3 .tdc-sub-title:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .tdc-sub:focus-within { background: var(--fill-2); }
+.needt-v3 .tdc-sub-title::placeholder { color: var(--text-disabled); }
+.needt-v3 .tdc-sub-title.is-done { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .tdc-sub-del { width: 24px; height: 24px; opacity: 0; }
+.needt-v3 .tdc-sub:hover .tdc-sub-del,
+.needt-v3 .tdc-sub-del:focus-visible { opacity: 1; }
+.needt-v3 .tdc-sub-add { cursor: text; }
+.needt-v3 .tdc-sub-add:hover { background: transparent; }
+.needt-v3 .tdc-sub-plus { flex: none; width: 16px; display: flex; justify-content: center; color: var(--text-tertiary); }
+
+/* First step — one compact row: the label, a one-line field (`entry`), and
+   Start focus once there is a way in. */
+.needt-v3 .tdc-step { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 4px 0 10px; border-radius: 10px;
+  background: var(--fill-2); color: var(--text-secondary); transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-step:hover,
+.needt-v3 .tdc-step:focus-within { background: var(--fill-3); }
+.needt-v3 .tdc-step-arrow { flex: none; display: flex; color: var(--text-tertiary); }
+.needt-v3 .tdc-step-label { flex: none; font: var(--type-meta-medium); color: var(--text-tertiary); }
+.needt-v3 .tdc-step-input { flex: 1; min-width: 0; height: 30px; padding: 0; border: 0; outline: none; background: transparent; font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .tdc-step-input:focus,
+.needt-v3 .tdc-step-input:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .tdc-step-input::placeholder { color: var(--text-disabled); font: var(--type-ui); }
+.needt-v3 .tdc-step-cost { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tdc-step-go { flex: none; }
+
+/* Attachments. */
+.needt-v3 .tdc-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.needt-v3 .tdc-file { display: inline-flex; align-items: center; gap: 6px; height: 28px; max-width: 240px; padding: 0 2px 0 10px; border-radius: 9px; background: var(--fill-2);
+  font: var(--type-meta); color: var(--text-secondary); }
+.needt-v3 .tdc-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .tdc-file .tdc-icon-btn { width: 22px; height: 22px; border-radius: 6px; }
+
+/* Scheduling — inline section behind ⋯ → Scheduling…. */
+.needt-v3 .tdc-sched { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; border-radius: 12px; background: var(--fill-1); box-shadow: var(--border) 0 0 0 1px inset;
+  animation: v3-tdc-pop 160ms var(--nx-ease) both; }
+.needt-v3 .tdc-sched-head { display: flex; align-items: center; justify-content: space-between; margin: -2px -4px -2px 0; }
+.needt-v3 .tdc-srow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.needt-v3 .tdc-srow-label { flex: none; width: 116px; font: var(--type-meta-medium); color: var(--text-secondary); }
+.needt-v3 .tdc-srow-hint { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .tdc-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--fill-3); }
+.needt-v3 .tdc-seg > button { height: 24px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; cursor: default;
+  font: var(--type-meta-medium); color: var(--text-tertiary); transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v3 .tdc-seg > button:hover { color: var(--text-secondary); }
+.needt-v3 .tdc-seg > button[aria-pressed="true"] { background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
+.needt-v3 .tdc-pills { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 1; }
+.needt-v3 .tdc-pill { height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; cursor: default;
+  font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-pill:hover { background: var(--fill-3); color: var(--text-secondary); }
+.needt-v3 .tdc-pill[aria-pressed="true"] { color: var(--text-primary); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+
+/* Footer. */
+.needt-v3 .tdc-foot { flex: none; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 12px 0 20px; box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .tdc-meta { flex: 1; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.needt-v3 .tdc-saved { display: inline-flex; align-items: center; gap: 4px; font: var(--type-meta-medium); color: var(--text-tertiary); opacity: 0; transition: opacity 400ms ease; }
+.needt-v3 .tdc-saved[data-on="1"] { opacity: 1; transition: opacity 120ms ease; }
+
+/* Popovers and the ⋯ menu. */
+.needt-v3 .tdc-pop { position: absolute; z-index: 4; left: clamp(12px, var(--tdc-x), calc(100% - 272px)); top: var(--tdc-y); width: 260px; max-height: 380px; overflow-y: auto;
+  padding: 6px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating); animation: v3-tdc-pop 140ms var(--nx-ease) both; }
+.needt-v3 .tdc-pop.is-duration { width: 232px; left: clamp(12px, var(--tdc-x), calc(100% - 244px)); }
+.needt-v3 .tdc-menu { left: auto; right: 44px; top: 50px; width: 220px; }
+.needt-v3 .tdc-sep { display: block; height: 1px; margin: 4px 6px; background: var(--border); }
+.needt-v3 .tdc-list { display: flex; flex-direction: column; }
+.needt-v3 .tdc-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: default;
+  font: var(--type-ui); color: var(--text-primary); transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-opt:hover { background: var(--fill-3); }
+.needt-v3 .tdc-opt > svg,
+.needt-v3 .tdc-opt > span:last-child > svg { color: var(--text-secondary); }
+.needt-v3 .tdc-opt.is-danger { color: var(--destructive); }
+.needt-v3 .tdc-opt.is-danger .tdc-flag { color: var(--destructive); }
+.needt-v3 .tdc-opt-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .tdc-opt-key { flex: none; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .tdc-flag { flex: none; width: 16px; display: flex; justify-content: center; color: var(--text-tertiary); }
+.needt-v3 .tdc-flag.is-urgent { color: var(--destructive); }
+.needt-v3 .tdc-flag.is-high { color: var(--text-primary); }
+.needt-v3 .tdc-flag.is-medium { color: var(--text-secondary); }
+.needt-v3 .tdc-box { flex: none; width: 16px; height: 16px; border-radius: 5px; display: grid; place-items: center; color: var(--surface-raised);
+  box-shadow: color-mix(in oklab, var(--text-primary) 24%, transparent) 0 0 0 1.5px inset; }
+.needt-v3 .tdc-box.is-on { background: var(--text-primary); box-shadow: none; }
+.needt-v3 .tdc-face { flex: none; width: 18px; height: 18px; border-radius: 9px; display: grid; place-items: center; background: var(--tdc-hue); color: var(--text-on-fill); font: 600 8px/1 var(--font-sans); }
+.needt-v3 .tdc-search { display: flex; align-items: center; gap: 8px; height: 32px; margin-bottom: 4px; padding: 0 8px; border-radius: 9px; background: var(--fill-2); color: var(--text-tertiary); cursor: text; }
+.needt-v3 .tdc-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .tdc-search input:focus,
+.needt-v3 .tdc-search input:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .tdc-search:focus-within { box-shadow: var(--text-tertiary) 0 0 0 1px inset; }
+.needt-v3 .tdc-search input::placeholder { color: var(--text-muted); }
+.needt-v3 .tdc-empty { padding: 8px; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .tdc-pop-clear { align-self: flex-start; margin-top: 2px; }
+.needt-v3 .tdc-pop-date,
+.needt-v3 .tdc-pop-dur,
+.needt-v3 .tdc-pop-list { display: flex; flex-direction: column; gap: 6px; }
+.needt-v3 .tdc-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.needt-v3 .tdc-quick-btn { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; cursor: default;
+  font: var(--type-ui); color: var(--text-primary); transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-quick-btn > svg { color: var(--text-tertiary); }
+.needt-v3 .tdc-quick-btn:hover { background: var(--fill-3); }
+.needt-v3 .tdc-quick-btn.is-on { box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.needt-v3 .tdc-cal { padding: 4px 2px 0; box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .tdc-cal-head { display: flex; align-items: center; gap: 2px; padding: 4px 0 2px 6px; }
+.needt-v3 .tdc-cal-month { flex: 1; font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .tdc-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.needt-v3 .tdc-cal-dow { height: 24px; display: grid; place-items: center; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .tdc-cal-day { height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: default; font: var(--type-ui); color: var(--text-primary);
+  font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-cal-day:hover { background: var(--fill-3); }
+.needt-v3 .tdc-cal-day.is-today { color: var(--accent); font-weight: 600; }
+.needt-v3 .tdc-cal-day.is-on { background: var(--accent-fill); color: var(--accent-contrast); }
+.needt-v3 .tdc-pop-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px 0; box-shadow: var(--border) 0 1px 0 0 inset; }
+.needt-v3 .tdc-pop-label { flex: 1; display: inline-flex; align-items: center; gap: 6px; font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .tdc-time { height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--fill-2); outline: none; font: var(--type-ui); color: var(--text-primary); font-variant-numeric: tabular-nums; color-scheme: light dark; }
+.needt-v3 .tdc-dur-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.needt-v3 .tdc-dur { height: 32px; padding: 0; border: 0; border-radius: 9px; background: var(--fill-2); cursor: default; font: var(--type-meta-medium); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
+.needt-v3 .tdc-dur:hover { background: var(--fill-4); }
+.needt-v3 .tdc-dur.is-on { color: var(--text-primary); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+
+/* Phone / narrow: the card takes the width, chips line up from the left. */
+@media (max-width: 600px) {
+  .needt-v3 .tdc-scrim { padding: 12px; align-items: end; }
+  .needt-v3 .tdc-card { max-height: calc(100% - 24px); border-radius: 20px; }
+  .needt-v3 .tdc-body { padding-left: 20px; }
+  .needt-v3 .tdc-subs { margin-left: -34px; }
+  .needt-v3 .tdc-srow-label { width: 100%; }
+}
+/* Check reward: the global [aria-checked="true"] / [aria-pressed="true"] tick
+   (app.css) is state-driven, so it replayed whenever a done task mounted.
+   Here it plays only on .is-ticking, which useCheckTick sets on a real toggle. */
+.needt-v3 .tk-check.nx-check[aria-pressed="true"] svg { animation: none; }
+.needt-v3 .tdc-check[aria-checked="true"],
+.needt-v3 .tdc-sub-check[aria-checked="true"],
+.needt-v3 .tdc-opt[aria-checked="true"] { animation: none; }
+.needt-v3 .tk-check.nx-check.is-ticking svg,
+.needt-v3 .tk-check-touch-box.is-ticking svg { animation: v3-nx-tick 260ms var(--nx-ease); }
+.needt-v3 .tdc-check.is-ticking,
+.needt-v3 .tdc-sub-check.is-ticking { animation: v3-needt-tick 0.32s cubic-bezier(0.2, 0.9, 0.24, 1), v3-needt-tick-ring 0.6s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .tdc-scrim,
+.needt-v3 .tdc-card,
+.needt-v3 .tdc-pop,
+.needt-v3 .tdc-sched { animation: none; }
+  .needt-v3 .tk-check.nx-check.is-ticking svg,
+.needt-v3 .tk-check-touch-box.is-ticking svg,
+.needt-v3 .tdc-check.is-ticking,
+.needt-v3 .tdc-sub-check.is-ticking { animation-duration: 1ms; }
+  .needt-v3 .tdc-chip,
+.needt-v3 .tdc-check,
+.needt-v3 .tdc-icon-btn { transition: none; }
+}
