@@ -3,7 +3,8 @@
 import { type ReactNode, useState } from "react";
 
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
-import { FiCheck, FiChevronDown, FiLock } from "react-icons/fi";
+import { FiCheck, FiLock } from "react-icons/fi";
+import { LuChevronsUpDown } from "react-icons/lu";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
@@ -161,7 +162,7 @@ export function SSelect({
           </button>
         </Dropdown.Trigger>
         <span className="settings-sselect-layer">
-          <FiChevronDown size={13} aria-hidden />
+          <LuChevronsUpDown size={13} aria-hidden />
         </span>
       </span>
       {shown && container ? (
@@ -205,6 +206,49 @@ export function SSelect({
         </Dropdown.Portal>
       ) : null}
     </Dropdown.Root>
+  );
+}
+
+/**
+ * The person's face on a quiet disc (SettingsScreen.jsx `MeAvatar`): initials
+ * on fill-5, or their picture when they have one. `lg` is the rail's, `xl`
+ * the Account profile card's. (The shell's `Avatar` is the raised square the
+ * sidebar uses; Settings draws a disc.)
+ */
+export function MeDisc({
+  initials,
+  name,
+  src,
+  size,
+}: {
+  initials: string;
+  name: string;
+  src?: string | null;
+  size: "lg" | "xl";
+}) {
+  return (
+    <span
+      className={size === "lg" ? "settings-me-avatar is-lg" : "settings-grid"}
+      role="img"
+      aria-label={name}
+      style={src ? { overflow: "hidden" } : undefined}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            borderRadius: "inherit",
+          }}
+        />
+      ) : (
+        initials
+      )}
+    </span>
   );
 }
 

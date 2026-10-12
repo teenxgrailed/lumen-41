@@ -60,6 +60,18 @@ export function toLocalDateKey(date: Date): string {
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
 }
+/**
+ * A short calendar date in the person's locale-free English form: "7 Nov", or
+ * "7 Nov 2027" with `withYear`. Used by plan lines ("renews 7 Nov").
+ */
+export function formatShortDate(date: Date, withYear = false): string {
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
+  });
+}
+
 export function formatDate(date: Date): string {
   // Ensure we have a valid date object
   const validDate =

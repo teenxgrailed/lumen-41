@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain text, no HTML), read for the whole list with one extra query.
   `?preview=false` leaves it out. Pages you cannot see still return nothing,
   and the trash list has no preview. The phone's Docs cards draw it too.
+- Settings (design_v3, desktop sheet): the rail rows have their icons, the
+  person is a disc of initials, and the plan card is the printed sky with the
+  PRO badge. Appearance shows each theme as the Home screen drawn small
+  (System cut down the middle, Time on the diagonal), the nine accent
+  swatches show their own colours in the light theme again, the accent card
+  has its progress bar, and the Time card says where the sun is. Select
+  controls use the up-down chevron. About has What's new, and a paid plan's
+  line says when it renews.
 - Mailbox (desktop, design v3): the header now matches the design. It always
   shows your accounts as chips (Gmail / Outlook, with a red dot when one needs
   reconnecting), the tabs Needs you / All / Made into tasks plus Sent and
