@@ -123,6 +123,37 @@ describe("reset-user-data plan", () => {
     expect(undecided).toEqual([]);
   });
 
+  it("time entries go only with personal tasks, never by bare user id", () => {
+    const step = plan.find((s) => s.table === "TimeEntry");
+    expect(step?.where).toEqual({ task: expect.any(Object) });
+    expect(step?.where).not.toHaveProperty("userId");
+    expect(step?.where).not.toHaveProperty("OR");
+  });
+
+  it("keeps tags attached to tasks outside the personal workspace", () => {
+    const step = plan.find((s) => s.table === "Tag");
+    const task = plan.find((s) => s.table === "Task");
+    expect(step?.where).toEqual({
+      userId: USER_ID,
+      tasks: { none: { NOT: task?.where } },
+    });
+  });
+
+  it("filters workspace-scoped AI and agent rows to the personal workspace", () => {
+    for (const table of [
+      "AgentAction",
+      "AgentRun",
+      "AiConversation",
+      "AgentMemory",
+      "ImportRun",
+      "WeeklyFocusTarget",
+    ]) {
+      expect(plan.find((s) => s.table === table)?.where).toEqual({
+        workspaceId: WORKSPACE_ID,
+      });
+    }
+  });
+
   it("without a personal workspace, workspace-only steps match nothing", () => {
     const noWs = reset.buildPlan(USER_ID, null) as typeof plan;
     const moodboard = noWs.find((s) => s.table === "Moodboard");
@@ -183,6 +214,22 @@ describe("reset-user-data run", () => {
     const unlinks = writes.filter((c) => c.method === "updateMany");
     expect(unlinks).toHaveLength(1);
     expect(unlinks[0].delegate).toBe("task");
+  });
+
+  it("refuses a linked workspace that is not PERSONAL, without writing", async () => {
+    const shared = {
+      ...TARGET,
+      personalWorkspace: { ...TARGET.personalWorkspace, kind: "SHARED" },
+    };
+    const { client, calls } = mockClient([shared]);
+    const code = await reset.run(client, {
+      email: TARGET.email,
+      confirm: true,
+    });
+    expect(code).toBe(1);
+    expect(calls.map((c) => `${c.delegate}.${c.method}`)).toEqual([
+      "user.findMany",
+    ]);
   });
 
   it("refuses an ambiguous email", async () => {

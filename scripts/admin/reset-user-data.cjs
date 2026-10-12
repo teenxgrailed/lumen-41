@@ -18,6 +18,16 @@
  * that workspace and is kept. `assertScoped` refuses to run a step whose
  * filter names neither id.
  *
+ * Every model with a workspace column is filtered to the personal workspace
+ * only: AgentAction, AgentRun, AiConversation, AiMessage, AgentMemory,
+ * ImportRun, SchedulingRun and WeeklyFocusTarget rows in shared workspaces
+ * are kept. TimeEntry goes only with personal tasks. A Tag goes only if none
+ * of its tasks lives outside the personal workspace. Rows without a
+ * workspace column (settings, calendars, mail, AiUsage, notifications, ...)
+ * are deleted by user id. Side effect in shared workspaces: deleting the
+ * user's WorkSchedule rows sets Task.scheduleId / Habit.scheduleId to null on
+ * their tasks and habits there (ON DELETE SET NULL); nothing else changes.
+ *
  * Provider tokens are NOT revoked at Google, Outlook or Composio. The only
  * revocation helper (src/services/account/account-external-access.ts) is
  * TypeScript wired into the app bundle and cannot be required from here; and
@@ -92,30 +102,30 @@ function buildPlan(userId, workspaceId) {
 
   const steps = [
     // AI, agent and imports
-    ["AgentAction", "agentAction", any(uid, ws)],
-    ["AgentRun", "agentRun", any(uid, ws)],
-    ["AiMessage", "aiMessage", any(uid, ws, { conversation: uid })],
-    ["AiConversation", "aiConversation", any(uid, ws)],
-    ["AgentMemory", "agentMemory", any(uid, ws)],
+    ["AgentAction", "agentAction", wsOnly],
+    ["AgentRun", "agentRun", wsOnly],
+    ["AiMessage", "aiMessage", any(ws, viaWs("conversation"))],
+    ["AiConversation", "aiConversation", wsOnly],
+    ["AgentMemory", "agentMemory", wsOnly],
     ["AiUsage", "aiUsage", uid],
     ["AiPageChangeProposal", "aiPageChangeProposal", any(uid, { page: G })],
     ["AISettings", "aISettings", uid],
     ["AIOAuthConnection", "aIOAuthConnection", uid],
     ["AIOAuthState", "aIOAuthState", uid],
     ["ImportItemMap", "importItemMap", uid],
-    ["ImportRun", "importRun", any(uid, ws)],
+    ["ImportRun", "importRun", wsOnly],
 
     // Scheduling, focus, reminders
-    ["SchedulingRun", "schedulingRun", any(uid, ws)],
+    ["SchedulingRun", "schedulingRun", any(ws, legacy)],
     ["ProactiveNudge", "proactiveNudge", any(uid, { task: T })],
     ["TaskReminder", "taskReminder", any(uid, { task: T })],
     ["ScheduledBlock", "scheduledBlock", any(uid, { task: T })],
-    ["TimeEntry", "timeEntry", any(uid, { task: T })],
+    ["TimeEntry", "timeEntry", { task: T }],
     ["FocusSession", "focusSession", uid],
     ["FocusStats", "focusStats", uid],
     ["DailyAgenda", "dailyAgenda", uid],
     ["ClosedDay", "closedDay", uid],
-    ["WeeklyFocusTarget", "weeklyFocusTarget", any(uid, ws)],
+    ["WeeklyFocusTarget", "weeklyFocusTarget", wsOnly],
     ["IdempotencyRecord", "idempotencyRecord", uid],
 
     // Task sync and task children
@@ -229,7 +239,7 @@ function buildPlan(userId, workspaceId) {
     ["Notification", "notification", uid],
     ["Booking", "booking", any({ ownerId: userId }, { bookingPage: uid })],
     ["BookingPage", "bookingPage", uid],
-    ["Tag", "tag", uid],
+    ["Tag", "tag", { userId, tasks: { none: { NOT: T } } }],
 
     // Settings: the app upserts each with its defaults on next read.
     ["UserSettings", "userSettings", uid],
@@ -271,7 +281,7 @@ function assertScoped(table, where, userId, workspaceId) {
 }
 
 /** Share invites carry no foreign key, only the page/moodboard id. */
-async function shareInviteWhere(client, userId, plan) {
+async function shareInviteWhere(client, plan) {
   const pageStep = plan.find((step) => step.table === "Page");
   const boardStep = plan.find((step) => step.table === "Moodboard");
   const [pages, moodboards] = await Promise.all([
@@ -292,7 +302,7 @@ async function shareInviteWhere(client, userId, plan) {
     });
   }
   if (clauses.length === 0) return NOTHING;
-  return { invitedById: userId, OR: clauses };
+  return clauses.length === 1 ? clauses[0] : { OR: clauses };
 }
 
 const USER_RESET = { onboardingCompletedAt: null, onboardingUses: [] };
@@ -372,6 +382,12 @@ async function run(client, args) {
     console.error(`No user with email ${args.email}. Nothing done.`);
     return 1;
   }
+  if (user.personalWorkspace && user.personalWorkspace.kind !== "PERSONAL") {
+    console.error(
+      `Workspace ${user.personalWorkspace.id} is linked as personal but has kind=${user.personalWorkspace.kind}; refusing. Nothing done.`
+    );
+    return 1;
+  }
   const workspaceId = user.personalWorkspace ? user.personalWorkspace.id : null;
   console.log(`User      ${user.id}  ${user.email}  role=${user.role}`);
   console.log(
@@ -382,7 +398,7 @@ async function run(client, args) {
   );
 
   const plan = buildPlan(user.id, workspaceId);
-  const inviteWhere = await shareInviteWhere(client, user.id, plan);
+  const inviteWhere = await shareInviteWhere(client, plan);
 
   if (!args.confirm) {
     printCounts(
@@ -392,7 +408,10 @@ async function run(client, args) {
     console.log(
       `  User: onboardingCompletedAt ${user.onboardingCompletedAt ? "-> null" : "already null"}, onboardingUses -> []`
     );
-    console.log("\nNothing was changed. Re-run with --confirm to delete.");
+    console.log(
+      "\nWARNING: run while the user is signed out; the transaction can wait on worker locks."
+    );
+    console.log("Nothing was changed. Re-run with --confirm to delete.");
     return 0;
   }
 
