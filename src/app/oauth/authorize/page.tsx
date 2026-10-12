@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 
+import { WorkspacePicker } from "./WorkspacePicker";
+
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Connect an app · Needt" };
 
@@ -139,22 +141,17 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
           ) : null}
         </fieldset>
 
-        <label className="mt-5 block">
+        <div className="mt-5">
           <span className="mb-1 block text-[12px] font-medium text-muted-foreground">
             Only in this workspace
           </span>
-          <select
-            name="workspaceId"
-            defaultValue={workspaces[0]?.workspace.id}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-foreground"
-          >
-            {workspaces.map(({ workspace, role }) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name} ({role.toLowerCase()})
-              </option>
-            ))}
-          </select>
-        </label>
+          <WorkspacePicker
+            workspaces={workspaces.map(({ workspace, role }) => ({
+              id: workspace.id,
+              label: `${workspace.name} (${role.toLowerCase()})`,
+            }))}
+          />
+        </div>
 
         <div className="mt-6 flex justify-end gap-2">
           <Button type="submit" name="decision" value="deny" variant="outline">
