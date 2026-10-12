@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
 import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
 import {
   ChangeType,
@@ -271,22 +272,8 @@ export async function POST(request: NextRequest) {
     });
 
     const plan = await getPlan(userId);
-    const defaultReminders =
-      plan === "FREE"
-        ? task.deadline || task.dueDate
-          ? [{ kind: "BEFORE_DEADLINE" as const, offsetMinutes: 60 }]
-          : [{ kind: "BEFORE_START" as const, offsetMinutes: 10 }]
-        : [
-            { kind: "BEFORE_START" as const, offsetMinutes: 10 },
-            { kind: "BEFORE_DEADLINE" as const, offsetMinutes: 60 },
-          ];
     await prisma.taskReminder.createMany({
-      data: defaultReminders.map((reminder) => ({
-        userId: schedulingUserId,
-        taskId: task.id,
-        ...reminder,
-        channels: ["push", "email"],
-      })),
+      data: defaultTaskReminderRows(plan, task, schedulingUserId),
       skipDuplicates: true,
     });
 

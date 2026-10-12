@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Operations and undo: task, project, schedule, mail-to-task and habit
+  changes now have one registry (`src/services/ops`) with strict inputs and
+  workspace roles. Every write is logged with its inverse, so it can be undone
+  for seven days from `POST /api/agent/actions/:id/undo` (or a whole agent run
+  from `/api/agent/runs/:id/undo`). Undo refuses, and says which rows, when
+  something changed after the action. External tools list and run the same
+  operations through `GET /api/connect/ops` and `POST /api/connect/ops/:name`
+  with their connector token. Operations follow the app's rules: default
+  reminders on new tasks, read-only tasks in archived projects, no habit
+  marks on future days. The log is pruned 30 days after the undo window. The
+  chat agent and MCP server move onto it in follow-up changes.
+
 - Fixed: a page in the trash could not be restored. `PATCH /api/pages/:id`
   with `{ "trashed": false }` now brings it back, with its children, blocks
   and files, for anyone who could have trashed it; restoring twice changes

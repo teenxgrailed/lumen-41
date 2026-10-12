@@ -10,6 +10,7 @@ import { deleteExpiredReauthentications } from "@/services/account/account-reaut
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
+import { pruneAgentActionLog } from "@/services/ops/retention";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -242,6 +243,7 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await expireAccountExports();
   await deleteExpiredReauthentications();
   await finalizeDueAccountDeletions();
+  await pruneAgentActionLog();
 }
 
 // BullMQ and the app can resolve distinct compatible ioredis patch versions,
