@@ -16,9 +16,9 @@ import { SBtn, SGroup, SRow, V3Switch } from "./kit";
 /**
  * Data & privacy. Export tasks and the full export use the routes the old
  * Settings uses; the rest of the prototype's rows have nothing behind them.
- * Import from Todoist sits behind the `imports` flag (ImportGroup).
+ * Import from Todoist and Notion sits behind the `imports` flag (ImportGroup).
  * //todo: Tasks as CSV (the route sends JSON), Documents as Markdown, the
- * rest of the Import menu (Markdown, Notion, Google Docs, .ics, CSV: import.jsx).
+ * rest of the Import menu (Markdown, Google Docs, .ics, CSV: import.jsx).
  */
 export function DataSection() {
   const mark = useMark();
