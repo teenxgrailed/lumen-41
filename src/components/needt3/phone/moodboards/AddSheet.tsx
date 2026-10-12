@@ -2,7 +2,9 @@
 
 import { type CSSProperties, useRef } from "react";
 
-import { LuLink, LuPalette, LuText } from "react-icons/lu";
+import { LuImage, LuLink, LuPalette, LuText } from "react-icons/lu";
+
+import { ProBadge } from "@/components/needt3/paywall/Pro";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { PkButton, PkField, PkGlass, PkHueTile, PkSheet, pkCx } from "../kit";
@@ -56,8 +58,9 @@ const TITLES: Record<AddAsk["step"], string> = {
 
 /**
  * Add a reference (PhbAddSheet): pick a kind, then its small form. Link,
- * colour and note only: a photo needs an upload route and Pinterest a
- * connection, neither of which exists. The draft is the controller's.
+ * colour and note, or a photo; Pinterest needs a
+ * connection, which does not exist: its row says "Coming soon". A photo opens
+ * the file picker. The draft is the controller's.
  */
 export function AddSheet({
   ask,
@@ -65,12 +68,15 @@ export function AddSheet({
   onChange,
   onClose,
   onSave,
+  onPhoto,
 }: {
   ask: AddAsk | null;
   saving: boolean;
   onChange: (p: Partial<AddAsk>) => void;
   onClose: () => void;
   onSave: () => void;
+  /** Opens the file picker (it must run inside the tap) and closes the sheet. */
+  onPhoto: () => void;
 }) {
   /* The last ask stays drawn while the sheet slides away. */
   const last = useRef<AddAsk | null>(null);
@@ -117,6 +123,23 @@ export function AddSheet({
     >
       {!a ? null : a.step === "pick" ? (
         <div className="phb-kinds" role="menu">
+          <PkGlass
+            as="button"
+            className="phb-kind"
+            role="menuitem"
+            data-phb-kind="photo"
+            onClick={onPhoto}
+          >
+            <PkHueTile
+              icon={<LuImage size={20} aria-hidden />}
+              hue="var(--hue-blue)"
+              size={44}
+            />
+            <span className="phb-kind-text">
+              <span className="phb-kind-label">Photo</span>
+              <span className="phb-kind-hint">From your library or camera</span>
+            </span>
+          </PkGlass>
           {KINDS.map(({ k, label, hint, icon: Icon, hue }) => (
             <PkGlass
               key={k}
@@ -137,6 +160,27 @@ export function AddSheet({
               </span>
             </PkGlass>
           ))}
+          {/* Pinterest has no connection behind it yet: the row says so. */}
+          <PkGlass
+            as="button"
+            className="phb-kind"
+            role="menuitem"
+            aria-disabled="true"
+            disabled
+            data-phb-kind="pinterest"
+          >
+            <PkHueTile
+              icon={<LuLink size={20} aria-hidden />}
+              hue="var(--brand-pinterest)"
+              size={44}
+            />
+            <span className="phb-kind-text">
+              <span className="phb-kind-label">
+                Pinterest <ProBadge size="sm" />
+              </span>
+              <span className="phb-kind-hint">Coming soon</span>
+            </span>
+          </PkGlass>
         </div>
       ) : a.step === "link" ? (
         <div className="phb-form">

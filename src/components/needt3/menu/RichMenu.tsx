@@ -14,6 +14,8 @@ export type RichMenuItem =
       sep?: false;
       art: ArtName;
       title: string;
+      /** A mark after the title (the PRO pill). */
+      badge?: ReactNode;
       sub?: string;
       kbd?: string;
       disabled?: boolean;
@@ -46,7 +48,16 @@ function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
         <Art name={it.art} />
       </span>
       <span className="base-stack shell-rich-row-stack">
-        <span className="shell-whats-new-text-2">{it.title}</span>
+        <span className="shell-whats-new-text-2">
+          {it.badge ? (
+            <span className="pl-pro-title">
+              {it.title}
+              {it.badge}
+            </span>
+          ) : (
+            it.title
+          )}
+        </span>
         {it.sub ? <span className="shell-rich-row-text">{it.sub}</span> : null}
       </span>
       {it.kbd ? (
@@ -83,7 +94,16 @@ function SmallRow({ it, i }: { it: Row; i: number }) {
       >
         <Art name={it.art} size={22} />
       </span>
-      <span className="shell-small-row-span">{it.title}</span>
+      <span className="shell-small-row-span">
+        {it.badge ? (
+          <span className="pl-pro-title">
+            {it.title}
+            {it.badge}
+          </span>
+        ) : (
+          it.title
+        )}
+      </span>
       {it.kbd ? (
         <span className="base-meta shell-rich-row-text-2">{it.kbd}</span>
       ) : null}

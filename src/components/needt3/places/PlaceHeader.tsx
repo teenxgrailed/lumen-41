@@ -17,7 +17,8 @@ export function PlaceHeader({
   add,
 }: {
   art: ArtName;
-  title: string;
+  /** A string, or a node (a board's title is editable in place). */
+  title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
   add?: ReactNode;
@@ -25,7 +26,10 @@ export function PlaceHeader({
   return (
     <header className="pl-place-header-row">
       {add ?? <Art name={art} size={30} />}
-      <h1 className="pl-place-header-text" title={title}>
+      <h1
+        className="pl-place-header-text"
+        title={typeof title === "string" ? title : undefined}
+      >
         {title}
       </h1>
       {meta ? <span className="pl-place-header-text-2">{meta}</span> : null}

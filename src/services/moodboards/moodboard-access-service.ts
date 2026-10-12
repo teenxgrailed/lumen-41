@@ -6,6 +6,8 @@ import {
 } from "@/lib/auth/moodboard-auth";
 import { prisma } from "@/lib/prisma";
 
+import { touchMoodboard } from "./moodboard-item-service";
+
 export class MoodboardAccessServiceError extends Error {
   constructor(
     public readonly code:
@@ -52,11 +54,36 @@ async function requireFullAccess(
   return moodboard;
 }
 
+/**
+ * Who is on a board. Anyone who can see the board may read it (the phone's
+ * "People" view); only full access also gets `candidates`, the workspace
+ * members an invite by email can reach.
+ */
 export async function listMoodboardAccessGrants(
   actor: MoodboardAccessActor,
   moodboardId: string
 ) {
-  const moodboard = await requireFullAccess(actor, moodboardId);
+  const access = await resolveMoodboardAccess(actor, moodboardId);
+  if (!access || !actor.workspace) {
+    throw new MoodboardAccessServiceError("MOODBOARD_NOT_FOUND", 404);
+  }
+  const moodboard = await prisma.moodboard.findFirst({
+    where: {
+      id: moodboardId,
+      workspaceId: actor.workspace.workspaceId,
+      archivedAt: null,
+    },
+    select: {
+      id: true,
+      createdById: true,
+      workspaceId: true,
+      linkShare: true,
+      createdBy: { select: { name: true, email: true, image: true } },
+    },
+  });
+  if (!moodboard) {
+    throw new MoodboardAccessServiceError("MOODBOARD_NOT_FOUND", 404);
+  }
   const grants = await prisma.moodboardAccessGrant.findMany({
     where: { moodboardId },
     select: {
@@ -66,7 +93,26 @@ export async function listMoodboardAccessGrants(
     },
     orderBy: { createdAt: "asc" },
   });
-  return { creatorId: moodboard.createdById, grants };
+  const full = access.role === MoodboardAccessRole.FULL_ACCESS;
+  const candidates = full
+    ? (
+        await prisma.workspaceMember.findMany({
+          where: { workspaceId: moodboard.workspaceId },
+          select: {
+            userId: true,
+            user: { select: { name: true, email: true, image: true } },
+          },
+        })
+      ).map((m) => ({ userId: m.userId, user: m.user }))
+    : [];
+  return {
+    creatorId: moodboard.createdById,
+    creator: moodboard.createdBy,
+    linkShare: moodboard.linkShare,
+    myRole: access.role,
+    grants,
+    candidates,
+  };
 }
 
 export async function setMoodboardAccessGrant(
@@ -91,7 +137,7 @@ export async function setMoodboardAccessGrant(
   if (!member) {
     throw new MoodboardAccessServiceError("WORKSPACE_MEMBER_REQUIRED", 403);
   }
-  return prisma.moodboardAccessGrant.upsert({
+  const grant = await prisma.moodboardAccessGrant.upsert({
     where: { moodboardId_userId: { moodboardId, userId } },
     create: { moodboardId, userId, role, grantedById: actor.userId },
     update: { role, grantedById: actor.userId },
@@ -101,6 +147,34 @@ export async function setMoodboardAccessGrant(
       user: { select: { name: true, email: true, image: true } },
     },
   });
+  await touchMoodboard(prisma, moodboardId);
+  return grant;
+}
+
+/**
+ * Invite by email (View → VIEWER, Edit → EDITOR). Only people already in the
+ * board's workspace can be reached: nobody is emailed, and an address with no
+ * account here has nothing to attach a grant to. //todo: a ShareInvite row for
+ * them (data map M2) once there is an accept step.
+ */
+export async function inviteMoodboardMember(
+  actor: MoodboardAccessActor,
+  moodboardId: string,
+  email: string,
+  role: MoodboardAccessRole
+) {
+  const moodboard = await requireFullAccess(actor, moodboardId);
+  const member = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId: moodboard.workspaceId,
+      user: { email: { equals: email.trim(), mode: "insensitive" } },
+    },
+    select: { userId: true },
+  });
+  if (!member) {
+    throw new MoodboardAccessServiceError("WORKSPACE_MEMBER_REQUIRED", 403);
+  }
+  return setMoodboardAccessGrant(actor, moodboardId, member.userId, role);
 }
 
 export async function removeMoodboardAccessGrant(
@@ -108,7 +182,12 @@ export async function removeMoodboardAccessGrant(
   moodboardId: string,
   userId: string
 ) {
-  const moodboard = await requireFullAccess(actor, moodboardId);
+  // Anyone may take themselves off a board that is not theirs ("Leave board");
+  // taking someone else off needs full access.
+  const leaving = userId === actor.userId;
+  const moodboard = leaving
+    ? await requireAnyAccess(actor, moodboardId)
+    : await requireFullAccess(actor, moodboardId);
   if (moodboard.createdById === userId) {
     throw new MoodboardAccessServiceError(
       "MOODBOARD_CREATOR_ACCESS_FIXED",
@@ -118,4 +197,27 @@ export async function removeMoodboardAccessGrant(
   await prisma.moodboardAccessGrant.deleteMany({
     where: { moodboardId, userId },
   });
+  await touchMoodboard(prisma, moodboardId);
+}
+
+async function requireAnyAccess(
+  actor: MoodboardAccessActor,
+  moodboardId: string
+) {
+  const access = await resolveMoodboardAccess(actor, moodboardId);
+  if (!access || !actor.workspace) {
+    throw new MoodboardAccessServiceError("MOODBOARD_NOT_FOUND", 404);
+  }
+  const moodboard = await prisma.moodboard.findFirst({
+    where: {
+      id: moodboardId,
+      workspaceId: actor.workspace.workspaceId,
+      archivedAt: null,
+    },
+    select: { id: true, createdById: true, workspaceId: true },
+  });
+  if (!moodboard) {
+    throw new MoodboardAccessServiceError("MOODBOARD_NOT_FOUND", 404);
+  }
+  return moodboard;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { newDate } from "@/lib/date-utils";
 
@@ -23,6 +23,7 @@ function TrashRow({
   title,
   meta,
   onRestore,
+  onDeleteForever,
 }: {
   i: number;
   ctx: string;
@@ -31,7 +32,15 @@ function TrashRow({
   title: string;
   meta: string;
   onRestore: () => void;
+  /** Only where the server can delete for good (moodboards). */
+  onDeleteForever?: () => void;
 }) {
+  const [sure, setSure] = useState(false);
+  useEffect(() => {
+    if (!sure) return undefined;
+    const t = window.setTimeout(() => setSure(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [sure]);
   return (
     <div
       className="nx-swap pl-trash-row"
@@ -57,9 +66,19 @@ function TrashRow({
       >
         Restore
       </button>
-      {/* //todo: "Delete forever" and "Empty Trash". DELETE /api/tasks/:id and
-          DELETE /api/moodboards/:id only archive, which is not Trash; both
-          wait for a hard-delete route (and the 30-day purge job). */}
+      {onDeleteForever ? (
+        // Two steps, no dialog: the first click asks, the second deletes.
+        <button
+          type="button"
+          className={"nx-btn " + (sure ? "nx-btn-danger" : "nx-btn-text")}
+          data-trash-forever=""
+          onClick={() => (sure ? onDeleteForever() : setSure(true))}
+        >
+          {sure ? "Delete for good?" : "Delete forever"}
+        </button>
+      ) : null}
+      {/* //todo: tasks' "Delete forever" and "Empty Trash" wait for a hard
+          delete on DELETE /api/tasks/:id (it archives) and the 30-day purge. */}
     </div>
   );
 }
@@ -90,6 +109,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
     projectName,
     restoreTask,
     restoreBoard,
+    deleteBoardForever,
   } = c;
 
   const now = newDate();
@@ -172,6 +192,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
                 title={b.title || tr.untitled_moodboard}
                 meta={trashMeta(b.trashedAt!, now, timeZone)}
                 onRestore={() => void restoreBoard(b.id, b.title)}
+                onDeleteForever={() => void deleteBoardForever(b.id, b.title)}
               />
             ))}
           </div>

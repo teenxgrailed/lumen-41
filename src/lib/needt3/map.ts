@@ -638,6 +638,23 @@ export interface ApiMoodboard {
   itemCount?: number;
   /** The list route only: the board's first references, for the grid cover. */
   preview?: ApiBoardPreview[];
+  /** The list route only: the old canvas stored something (its bytes are not read). */
+  hasCanvas?: boolean;
+  /** The list route only: who made the board. */
+  owner?: { id?: string; name?: string | null; email?: string | null } | null;
+  /** The list route only: people other than the owner, how many and the first few. */
+  memberCount?: number;
+  members?: ApiBoardMember[];
+  /** The single-board route, for people with full access, once link sharing is on. */
+  shareToken?: string | null;
+}
+
+export interface ApiBoardMember {
+  userId: string;
+  role?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
 }
 
 /** One reference as the list sends it: just what a cover tile draws. */
@@ -669,6 +686,27 @@ export interface V3Board {
   itemCount?: number | null;
   /** The first references in wall order (at most three), for the grid cover. */
   preview?: V3BoardPreview[];
+  /** The old canvas stored something: the grid shows it read-only. */
+  hasCanvas?: boolean;
+  /** Who made the board (the list only). */
+  owner?: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+  } | null;
+  /** People on the board besides the owner: a count and the first few (the list only). */
+  memberCount?: number | null;
+  members?: V3BoardMember[];
+  /** Secret half of the public address `/b/<id>/<token>`; full access only, link sharing on. */
+  shareToken?: string | null;
+}
+
+export interface V3BoardMember {
+  userId: string;
+  role: BoardRole;
+  name: string | null;
+  email: string | null;
+  image: string | null;
 }
 
 export type V3BoardPreviewKind = "image" | "link" | "color" | "note";
@@ -702,6 +740,23 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
         ? row.accessRole
         : null,
     itemCount: typeof row.itemCount === "number" ? row.itemCount : null,
+    hasCanvas: row.hasCanvas === true,
+    owner: row.owner
+      ? {
+          id: row.owner.id ?? null,
+          name: row.owner.name ?? null,
+          email: row.owner.email ?? null,
+        }
+      : null,
+    memberCount: typeof row.memberCount === "number" ? row.memberCount : null,
+    members: (row.members ?? []).map((m) => ({
+      userId: m.userId,
+      role: m.role === "EDITOR" || m.role === "FULL_ACCESS" ? m.role : "VIEWER",
+      name: m.name ?? null,
+      email: m.email ?? null,
+      image: m.image ?? null,
+    })),
+    shareToken: row.shareToken ?? null,
     preview: (row.preview ?? [])
       .filter((p) => PREVIEW_KINDS.includes(p.kind))
       .map((p) => ({

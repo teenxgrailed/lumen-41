@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { GET as ASSET } from "@/app/api/moodboards/[id]/assets/[assetId]/route";
 import { DELETE, PATCH } from "@/app/api/moodboards/[id]/items/[itemId]/route";
-import { GET, POST } from "@/app/api/moodboards/[id]/items/route";
+import {
+  GET,
+  POST,
+  PATCH as REORDER,
+} from "@/app/api/moodboards/[id]/items/route";
+import { POST as UPLOAD } from "@/app/api/moodboards/[id]/items/upload/route";
 import { MOODBOARD_ITEM_LIMIT } from "@/services/moodboards/moodboard-item-service";
+import { unfurlLink } from "@/services/moodboards/unfurl";
 import {
   MoodboardAccessRole,
   WorkspaceKind,
@@ -43,9 +50,20 @@ type Item = {
   secretStorageKey?: string;
 };
 
-const db: { boards: Board[]; items: Item[]; seq: number } = {
+const db: {
+  boards: Board[];
+  items: Item[];
+  assets: {
+    id: string;
+    moodboardId: string;
+    bytes?: Buffer;
+    mimeType?: string;
+  }[];
+  seq: number;
+} = {
   boards: [],
   items: [],
+  assets: [],
   seq: 0,
 };
 
@@ -67,13 +85,34 @@ function sortItems(rows: Item[], order: Record<string, "asc" | "desc">[]) {
 }
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
+/* The old canvas's tiles and the page preview have their own tests. */
+const mockCanvas = jest.fn();
+jest.mock("@/services/moodboards/moodboard-canvas", () => ({
+  readCanvasProjection: (...a: unknown[]) => mockCanvas(...a),
+}));
+jest.mock("@/services/moodboards/unfurl", () => ({ unfurlLink: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => {
   const prisma: Record<string, unknown> = {
     // Filled in beforeEach: returns only the caller's own grant.
-    moodboard: { findFirst: jest.fn() },
+    moodboard: { findFirst: jest.fn(), update: jest.fn(async () => ({})) },
+    moodboardAsset: {
+      count: jest.fn(async () => db.assets.length),
+      create: jest.fn(async ({ data }: { data: { moodboardId: string } }) => {
+        db.seq += 1;
+        const row = { id: `asset-${db.seq}`, ...data };
+        db.assets.push(row as never);
+        return row;
+      }),
+      findFirst: jest.fn(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          db.assets.find((a) =>
+            matches(a as unknown as Record<string, unknown>, where)
+          ) ?? null
+      ),
+    },
     moodboardItem: {
       findMany: jest.fn(
         async ({
@@ -277,6 +316,9 @@ const remove = (itemId: string, board = "board-a") =>
 beforeEach(() => {
   jest.clearAllMocks();
   db.seq = 0;
+  db.assets = [];
+  mockCanvas.mockResolvedValue({ items: [], skipped: 0 });
+  (unfurlLink as jest.Mock).mockResolvedValue(null);
   db.boards = [
     {
       id: "board-a",
@@ -685,5 +727,432 @@ describe("DELETE /api/moodboards/:id/items/:itemId", () => {
   it("returns 404 for an item that does not exist", async () => {
     as("editor");
     expect((await remove("nope")).status).toBe(404);
+  });
+});
+
+/* ---------- reorder ---------- */
+
+const reorder = (body: unknown, board = "board-a") =>
+  must(
+    REORDER(request(`/api/moodboards/${board}/items`, "PATCH", body), {
+      params: Promise.resolve({ id: board }),
+    })
+  );
+const wall = (board = "board-a") =>
+  db.items
+    .filter((i) => i.moodboardId === board)
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+    .map((i) => `${i.id}:${i.position}`);
+
+describe("PATCH /api/moodboards/:id/items (reorder)", () => {
+  it("puts the listed references in the new order and renumbers the wall 1..n", async () => {
+    as("editor");
+    // the wall reads a-tie-1, a-tie-2, a-late
+    const res = await reorder({ order: ["a-late", "a-tie-2", "a-tie-1"] });
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as { items: { id: string }[] }).items.map((i) => i.id)
+    ).toEqual(["a-late", "a-tie-2", "a-tie-1"]);
+    expect(wall()).toEqual(["a-late:1", "a-tie-2:2", "a-tie-1:3"]);
+  });
+
+  it("gives the listed ones the places the listed ones held and leaves the rest where they are", async () => {
+    as("editor");
+    await reorder({ order: ["a-late", "a-tie-1"] });
+    // a-tie-2 was in the middle and stays there
+    expect(wall()).toEqual(["a-late:1", "a-tie-2:2", "a-tie-1:3"]);
+  });
+
+  it("touches the board's Date updated", async () => {
+    as("editor");
+    await reorder({ order: ["a-late", "a-tie-1"] });
+    expect(prisma.moodboard.update).toHaveBeenCalled();
+  });
+
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "refuses %s with 403 and moves nothing",
+    async (actor) => {
+      as(actor);
+      const before = wall();
+      expect((await reorder({ order: ["a-late", "a-tie-1"] })).status).toBe(
+        403
+      );
+      expect(wall()).toEqual(before);
+      expect(prisma.moodboardItem.update).not.toHaveBeenCalled();
+    }
+  );
+
+  it("answers 404 for an id that is not on this board, and moves nothing", async () => {
+    as("editor");
+    const before = wall();
+    expect((await reorder({ order: ["a-late", "b-only"] })).status).toBe(404);
+    expect(wall()).toEqual(before);
+  });
+
+  it.each([
+    ["a duplicate id", { order: ["a-late", "a-late"] }],
+    ["an empty order", { order: [] }],
+    ["no order", {}],
+    ["a field it does not know", { order: ["a-late"], moodboardId: "x" }],
+    [
+      "more ids than a board can hold",
+      {
+        order: Array.from(
+          { length: MOODBOARD_ITEM_LIMIT + 1 },
+          (_, i) => `i${i}`
+        ),
+      },
+    ],
+  ])("rejects %s with 400", async (_name, body) => {
+    as("editor");
+    const before = wall();
+    expect((await reorder(body)).status).toBe(400);
+    expect(wall()).toEqual(before);
+  });
+});
+
+/* ---------- pictures ---------- */
+
+const JPEG = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46,
+]);
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+
+function uploadRequest(
+  bytes: Buffer | null,
+  fields: Record<string, string> = {},
+  board = "board-a"
+) {
+  const form = new FormData();
+  if (bytes)
+    form.append(
+      "file",
+      new File([new Uint8Array(bytes)], "chair.jpg", { type: "image/jpeg" })
+    );
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  return must(
+    UPLOAD(
+      new NextRequest(`http://localhost/api/moodboards/${board}/items/upload`, {
+        method: "POST",
+        body: form,
+      }),
+      { params: Promise.resolve({ id: board }) }
+    )
+  );
+}
+
+describe("POST /api/moodboards/:id/items/upload", () => {
+  it("stores the picture and adds its tile together", async () => {
+    as("editor");
+    const res = await uploadRequest(JPEG, {
+      title: "Chair",
+      ratio: "1.5",
+      position: "0",
+    });
+    expect(res.status).toBe(201);
+    const { item } = (await res.json()) as {
+      item: {
+        kind: string;
+        url: string;
+        title: string;
+        ratio: number;
+        position: number;
+      };
+    };
+    expect(item).toMatchObject({
+      kind: "image",
+      title: "Chair",
+      ratio: 1.5,
+      position: 0,
+    });
+    expect(item.url).toBe(`/api/moodboards/board-a/assets/${db.assets[0].id}`);
+    expect(db.assets).toHaveLength(1);
+    expect(prisma.moodboard.update).toHaveBeenCalled();
+  });
+
+  it("reads the type from the bytes, not from what the client said", async () => {
+    as("editor");
+    expect((await uploadRequest(PNG)).status).toBe(201);
+    expect((db.assets[0] as unknown as { mimeType: string }).mimeType).toBe(
+      "image/png"
+    );
+  });
+
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "refuses %s with 403 and stores nothing",
+    async (actor) => {
+      as(actor);
+      expect((await uploadRequest(JPEG)).status).toBe(403);
+      expect(db.assets).toHaveLength(0);
+    }
+  );
+
+  it("refuses a file that is not a picture (415), however it is named", async () => {
+    as("editor");
+    const res = await uploadRequest(Buffer.from("<svg onload=alert(1)></svg>"));
+    expect(res.status).toBe(415);
+    expect(db.assets).toHaveLength(0);
+  });
+
+  it("refuses a picture over 4 MB (413)", async () => {
+    as("editor");
+    const big = Buffer.concat([JPEG, Buffer.alloc(4 * 1024 * 1024)]);
+    expect((await uploadRequest(big)).status).toBe(413);
+    expect(db.assets).toHaveLength(0);
+  });
+
+  it("answers 400 for an empty file or no file", async () => {
+    as("editor");
+    expect((await uploadRequest(Buffer.alloc(0))).status).toBe(400);
+    expect((await uploadRequest(null)).status).toBe(400);
+  });
+
+  it("answers 409 on a full board and writes nothing", async () => {
+    as("editor");
+    for (let i = 0; i < MOODBOARD_ITEM_LIMIT; i++)
+      db.items.push(
+        item({ id: `fill-${i}`, moodboardId: "board-a", position: 10 + i })
+      );
+    const before = db.items.length;
+    expect((await uploadRequest(JPEG)).status).toBe(409);
+    expect(db.items).toHaveLength(before);
+    expect(db.assets).toHaveLength(0);
+  });
+});
+
+describe("a picture's address in an item", () => {
+  const asset = () => {
+    db.assets.push({ id: "asset-x", moodboardId: "board-a" });
+    return "/api/moodboards/board-a/assets/asset-x";
+  };
+
+  it("accepts this board's own uploaded picture on an image", async () => {
+    as("editor");
+    const url = asset();
+    expect((await create({ kind: "image", url })).status).toBe(201);
+  });
+
+  it.each([
+    ["a picture that does not exist", "/api/moodboards/board-a/assets/nope"],
+    ["another board's picture", "/api/moodboards/board-b/assets/asset-x"],
+    ["another API path", "/api/moodboards/board-a/items"],
+  ])("refuses %s as an image address (400)", async (_name, url) => {
+    as("editor");
+    asset();
+    db.assets.push({ id: "asset-x", moodboardId: "board-b" });
+    expect((await create({ kind: "image", url })).status).toBe(400);
+  });
+
+  it("does not let a link or a preview picture point at an upload", async () => {
+    as("editor");
+    const url = asset();
+    expect((await create({ kind: "link", url })).status).toBe(400);
+    expect(
+      (
+        await create({
+          kind: "link",
+          url: "https://a.example.com",
+          thumbnailUrl: url,
+        })
+      ).status
+    ).toBe(400);
+  });
+
+  it("does not let a patch point an image at a picture of another board", async () => {
+    as("editor");
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "https://i.example.com/a.jpg",
+        text: null,
+      })
+    );
+    db.assets.push({ id: "other", moodboardId: "board-b" });
+    expect(
+      (await patch("img", { url: "/api/moodboards/board-b/assets/other" }))
+        .status
+    ).toBe(400);
+  });
+});
+
+describe("GET /api/moodboards/:id/assets/:assetId", () => {
+  const get = (assetId: string, board = "board-a") =>
+    must(
+      ASSET(request(`/api/moodboards/${board}/assets/${assetId}`, "GET"), {
+        params: Promise.resolve({ id: board, assetId }),
+      })
+    );
+
+  beforeEach(() => {
+    db.assets.push({
+      id: "asset-1",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it.each(["creator", "editor", "viewer", "grantedViewer"] as const)(
+    "serves the bytes to %s, as an image that cannot be sniffed into something else",
+    async (actor) => {
+      as(actor);
+      const res = await get("asset-1");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toBe("image/jpeg");
+      expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(res.headers.get("content-security-policy")).toContain(
+        "default-src 'none'"
+      );
+    }
+  );
+
+  it.each(["outsider", "removedFallback"] as const)(
+    "refuses %s (403)",
+    async (actor) => {
+      as(actor);
+      expect((await get("asset-1")).status).toBe(403);
+    }
+  );
+
+  it("answers 404 for a picture that is not on this board", async () => {
+    as("editor");
+    expect((await get("missing")).status).toBe(404);
+  });
+});
+
+/* ---------- the old canvas, read-side ---------- */
+
+describe("the wall carries what the old canvas stored", () => {
+  it("lists the board's own references first, then the canvas tiles, read-only", async () => {
+    as("viewer");
+    mockCanvas.mockResolvedValue({
+      items: [
+        {
+          id: "canvas:e1",
+          kind: "note",
+          url: null,
+          text: "Heavier fabric",
+          title: null,
+          ratio: 0.7,
+          position: 1_000_000_000,
+          createdAt: null,
+        },
+      ],
+      skipped: 3,
+    });
+    const body = (await (await list()).json()) as {
+      items: { id: string; fromCanvas?: boolean }[];
+      canvasSkipped: number;
+    };
+    expect(body.items.map((i) => i.id)).toEqual([
+      "a-tie-1",
+      "a-tie-2",
+      "a-late",
+      "canvas:e1",
+    ]);
+    expect(body.items.at(-1)?.fromCanvas).toBe(true);
+    expect(body.items[0]).not.toHaveProperty("fromCanvas");
+    expect(body.canvasSkipped).toBe(3);
+  });
+
+  it("cannot change a canvas tile: it is not a row (404)", async () => {
+    as("editor");
+    expect((await patch("canvas:e1", { text: "x" })).status).toBe(404);
+    expect((await remove("canvas:e1")).status).toBe(404);
+  });
+
+  it("reads no canvas for a caller who may not see the board", async () => {
+    as("outsider");
+    expect((await list()).status).toBe(403);
+    expect(mockCanvas).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- link previews ---------- */
+
+describe("a link's preview", () => {
+  it("is read from the page and replaces the typed title and picture", async () => {
+    as("editor");
+    (unfurlLink as jest.Mock).mockResolvedValue({
+      title: "Boxy wool overshirt",
+      siteName: "SSENSE",
+      thumbnailUrl: "https://img.example.com/a.jpg",
+    });
+    const res = await create({
+      kind: "link",
+      url: "https://www.ssense.com/en/p/overshirt",
+      title: "Overshirt",
+      source: { name: "Ssense", domain: "ssense.com" },
+    });
+    expect(res.status).toBe(201);
+    const { item: made } = (await res.json()) as {
+      item: {
+        title: string;
+        thumbnailUrl: string;
+        source: { name: string; domain: string };
+      };
+    };
+    expect(unfurlLink).toHaveBeenCalledWith(
+      "https://www.ssense.com/en/p/overshirt"
+    );
+    expect(made).toMatchObject({
+      title: "Boxy wool overshirt",
+      thumbnailUrl: "https://img.example.com/a.jpg",
+      source: { name: "SSENSE", domain: "ssense.com" },
+    });
+  });
+
+  it("falls back to what was sent when the page cannot be read", async () => {
+    as("editor");
+    (unfurlLink as jest.Mock).mockResolvedValue(null);
+    const { item: made } = (await (
+      await create({
+        kind: "link",
+        url: "https://a.example.com/x",
+        title: "Typed",
+      })
+    ).json()) as { item: { title: string; thumbnailUrl: string | null } };
+    expect(made.title).toBe("Typed");
+    expect(made.thumbnailUrl).toBeNull();
+  });
+
+  it("is not looked up for a picture, a colour or a note, nor when a preview picture came with it", async () => {
+    as("editor");
+    await create({ kind: "note", text: "x" });
+    await create({ kind: "color", color: "#112233" });
+    await create({
+      kind: "link",
+      url: "https://a.example.com/x",
+      thumbnailUrl: "https://a.example.com/p.jpg",
+    });
+    expect(unfurlLink).not.toHaveBeenCalled();
+  });
+
+  it("is not looked up for someone who may not write", async () => {
+    as("viewer");
+    await create({ kind: "link", url: "https://a.example.com/x" });
+    expect(unfurlLink).not.toHaveBeenCalled();
+  });
+});
+
+describe("Date updated", () => {
+  it.each([
+    ["adding", () => create({ kind: "note", text: "x" })],
+    ["changing", () => patch("a-late", { text: "y" })],
+    ["removing", () => remove("a-late")],
+  ])("moves when %s a reference", async (_n, act) => {
+    as("editor");
+    await act();
+    expect(prisma.moodboard.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "board-a" } })
+    );
+  });
+
+  it("does not move when a viewer's write is refused", async () => {
+    as("viewer");
+    await create({ kind: "note", text: "x" });
+    expect(prisma.moodboard.update).not.toHaveBeenCalled();
   });
 });

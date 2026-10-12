@@ -1,11 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
-
 import {
   MoodboardsScreen,
   notifyBoardsBlocked,
 } from "../../places/MoodboardsScreen";
+import { BoardPage } from "../../places/board/BoardPage";
 import { useBoardsController } from "../../places/useBoardsController";
 import { usePhoneUi } from "../../root/phone-ui-context";
 import { usePhoneOverlays } from "../overlays/store";
@@ -38,21 +37,20 @@ export function MoodboardsRoute() {
 }
 
 /**
- * `/moodboards/[id]`: the phone board page under 700 px (the references come
- * from the items API), the existing board workspace (`workspace`, passed in
- * by the server page) at every other width. The controller (rename draft, the
- * add sheet's draft, the in-flight writes) is called here, above the switch,
- * so crossing 700 px keeps a half-typed reference and writes once.
+ * `/moodboards/[id]`: the board's grid. The phone page under 700 px, the
+ * desktop page above it, both reading the items API. The controller (rename
+ * draft, the add sheet's draft, the open reference and dialog, the in-flight
+ * writes) is called here, above the switch, and handed to BOTH faces, so
+ * crossing 700 px keeps a half-typed reference and writes once. (The old
+ * canvas is only the flag-off face of this route; see the server page.)
  */
-export function MoodboardRoute({
-  id,
-  workspace,
-}: {
-  id: string;
-  workspace: ReactNode;
-}) {
+export function MoodboardRoute({ id }: { id: string }) {
   const ui = usePhoneUi();
   const onBlocked = useBlocked();
   const ctl = useBoardsController({ onBlocked });
-  return ui === "phone" ? <PhoneBoardPage ctl={ctl} id={id} /> : workspace;
+  return ui === "phone" ? (
+    <PhoneBoardPage ctl={ctl} id={id} />
+  ) : (
+    <BoardPage ctl={ctl} id={id} />
+  );
 }

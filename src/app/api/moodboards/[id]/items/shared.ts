@@ -6,6 +6,8 @@ import {
   MoodboardItemLimitError,
   MoodboardItemNotFoundError,
   MoodboardItemRequiredFieldError,
+  MoodboardOrderError,
+  MoodboardUploadError,
 } from "@/services/moodboards/moodboard-item-service";
 import type { ZodSchema } from "zod";
 
@@ -41,6 +43,22 @@ export function moodboardItemErrorResponse(
         issues: [{ path: [error.field], message: error.message }],
       },
       { status: 400 }
+    );
+  }
+  if (error instanceof MoodboardOrderError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof MoodboardUploadError) {
+    return NextResponse.json(
+      { error: error.message },
+      {
+        status:
+          error.code === "TOO_LARGE"
+            ? 413
+            : error.code === "BAD_TYPE"
+              ? 415
+              : 400,
+      }
     );
   }
   if (error instanceof MoodboardItemNotFoundError) {
