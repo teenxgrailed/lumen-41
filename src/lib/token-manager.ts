@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 
 import { getOutlookCredentials } from "@/lib/auth";
+import {
+  openConnectedAccountTokens,
+  sealConnectedAccountTokens,
+} from "@/lib/connected-account-secrets";
 import { createGoogleOAuthClient } from "@/lib/google";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -29,13 +33,20 @@ export class TokenManager {
     return TokenManager.instance;
   }
 
+  // Every read of stored tokens in this class goes through here, so callers
+  // always receive plaintext and the database only ever holds ciphertext.
+  private async findAccount(accountId: string, userId: string) {
+    const account = await prisma.connectedAccount.findUnique({
+      where: { id: accountId, userId },
+    });
+    return account ? openConnectedAccountTokens(account) : null;
+  }
+
   async getTokens(
     accountId: string,
     userId: string
   ): Promise<TokenInfo | null> {
-    const account = await prisma.connectedAccount.findUnique({
-      where: { id: accountId, userId },
-    });
+    const account = await this.findAccount(accountId, userId);
 
     if (!account) {
       return null;
@@ -69,9 +80,7 @@ export class TokenManager {
     accountId: string,
     userId: string
   ): Promise<TokenInfo | null> {
-    const account = await prisma.connectedAccount.findUnique({
-      where: { id: accountId, userId },
-    });
+    const account = await this.findAccount(accountId, userId);
 
     if (!account || !account.refreshToken) {
       return null;
@@ -95,18 +104,19 @@ export class TokenManager {
       // Update tokens in database
       const updatedAccount = await prisma.connectedAccount.update({
         where: { id: accountId, userId },
-        data: {
+        data: sealConnectedAccountTokens({
           accessToken: response.credentials.access_token!,
           refreshToken:
             response.credentials.refresh_token || account.refreshToken,
           expiresAt,
-        },
+        }),
       });
 
+      const opened = openConnectedAccountTokens(updatedAccount);
       return {
-        accessToken: updatedAccount.accessToken,
-        refreshToken: updatedAccount.refreshToken || undefined,
-        expiresAt: updatedAccount.expiresAt,
+        accessToken: opened.accessToken,
+        refreshToken: opened.refreshToken || undefined,
+        expiresAt: opened.expiresAt,
       };
     } catch (error) {
       await logger.error(
@@ -137,11 +147,11 @@ export class TokenManager {
     // account), we update an existing row if found, otherwise create - and if
     // the create loses the race and hits the unique constraint (P2002), we fall
     // back to updating the row the winner just inserted.
-    const data = {
+    const data = sealConnectedAccountTokens({
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       expiresAt: tokens.expiresAt,
-    };
+    });
 
     const existing = await prisma.connectedAccount.findFirst({
       where: { userId, provider, email },
@@ -185,9 +195,7 @@ export class TokenManager {
     accountId: string,
     userId: string
   ): Promise<TokenInfo | null> {
-    const account = await prisma.connectedAccount.findUnique({
-      where: { id: accountId, userId },
-    });
+    const account = await this.findAccount(accountId, userId);
 
     if (!account || !account.refreshToken) {
       return null;
@@ -222,17 +230,18 @@ export class TokenManager {
       // Update tokens in database
       const updatedAccount = await prisma.connectedAccount.update({
         where: { id: accountId, userId },
-        data: {
+        data: sealConnectedAccountTokens({
           accessToken: data.access_token,
           refreshToken: data.refresh_token || account.refreshToken,
           expiresAt,
-        },
+        }),
       });
 
+      const opened = openConnectedAccountTokens(updatedAccount);
       return {
-        accessToken: updatedAccount.accessToken,
-        refreshToken: updatedAccount.refreshToken || undefined,
-        expiresAt: updatedAccount.expiresAt,
+        accessToken: opened.accessToken,
+        refreshToken: opened.refreshToken || undefined,
+        expiresAt: opened.expiresAt,
       };
     } catch (error) {
       await logger.error(
@@ -250,9 +259,7 @@ export class TokenManager {
     accountId: string,
     userId: string
   ): Promise<TokenInfo | null> {
-    const account = await prisma.connectedAccount.findUnique({
-      where: { id: accountId, userId },
-    });
+    const account = await this.findAccount(accountId, userId);
 
     if (!account) {
       return null;

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret } from "@/lib/security/secret-encryption";
 
 import {
   classifyCalDAVError,
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
       const client = createCalDAVClient(
         account.caldavUrl,
         account.caldavUsername,
-        account.accessToken
+        decryptSecret(account.accessToken)
       );
 
       // Login to the CalDAV server

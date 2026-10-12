@@ -1,6 +1,9 @@
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
-import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
+import {
+  markEmailVerifiedAndStartTrial,
+  trialEmailKey,
+} from "@/lib/trials/trial-service";
 
 const describeIntegration =
   process.env.TRIAL_INTEGRATION === "1" ? describe : describe.skip;
@@ -14,7 +17,7 @@ describeIntegration("trial canonical-email concurrency", () => {
 
   afterAll(async () => {
     await prisma.trialGrant.deleteMany({
-      where: { emailKey: `needttrial${runId}@gmail.com` },
+      where: { emailKey: trialEmailKey(`needttrial${runId}@gmail.com`) },
     });
     await prisma.user.deleteMany({ where: { email: { in: emails } } });
     await prisma.$disconnect();
@@ -48,7 +51,7 @@ describeIntegration("trial canonical-email concurrency", () => {
     ).resolves.toBe(2);
     await expect(
       prisma.trialGrant.count({
-        where: { emailKey: `needttrial${runId}@gmail.com` },
+        where: { emailKey: trialEmailKey(`needttrial${runId}@gmail.com`) },
       })
     ).resolves.toBe(1);
   });

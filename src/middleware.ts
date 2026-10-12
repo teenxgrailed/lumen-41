@@ -14,6 +14,7 @@ const publicRoutes = [
   "/auth/reset-password",
   "/auth/error",
   "/api/auth/register",
+  "/api/waitlist",
   "/beta",
   "/terms",
   "/privacy",

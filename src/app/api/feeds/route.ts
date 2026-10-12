@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import {
+  feedBatchUpdateSchema,
+  feedCreateSchema,
+} from "@/lib/calendar-feed-input";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -71,10 +75,16 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const feedData = await request.json();
+    const parsed = feedCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid calendar", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
     const created = await prisma.calendarFeed.create({
       data: {
-        ...feedData,
+        ...parsed.data,
         // Associate the feed with the current user
         userId,
       },
@@ -107,18 +117,25 @@ export async function PUT(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const { feeds } = await request.json();
+    const parsed = feedBatchUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid calendars", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const { feeds } = parsed.data;
 
     // Use transaction to ensure all updates succeed or none do
     await prisma.$transaction(
-      feeds.map((feed: CalendarFeedUpdate) =>
+      feeds.map(({ id, ...data }: CalendarFeedUpdate) =>
         prisma.calendarFeed.update({
           where: {
-            id: feed.id,
+            id,
             // Ensure the feed belongs to the current user
             userId,
           },
-          data: feed,
+          data,
         })
       )
     );

@@ -27,8 +27,8 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/lib/realtime/publish", () => ({
   publishRealtimeEvent: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("@/services/ai/encryption", () => ({
-  decryptSecret: (value: string | null) =>
+jest.mock("@/services/imports/token-secret", () => ({
+  openImportToken: (value: string | null) =>
     value === "enc:token" ? "todoist-token" : null,
 }));
 

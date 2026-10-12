@@ -42,6 +42,9 @@ import {
 
 const LOG_SOURCE = "SignInRoute";
 
+/** The landing page, where the waitlist form lives while sign-up is closed. */
+const WAITLIST_URL = "https://needt.app";
+
 type OAuthProviderId = "google" | "azure-ad";
 
 const OAUTH: Readonly<
@@ -64,6 +67,9 @@ export function SignInRoute({
 
   const [mode, setMode] = React.useState<AuthMode>("login");
   const [allowSignup, setAllowSignup] = React.useState(false);
+  /* Until the answer arrives neither invitation is drawn, so an open
+     sign-up never flashes the waitlist line first. */
+  const [signupKnown, setSignupKnown] = React.useState(false);
   const [configured, setConfigured] = React.useState<readonly AuthProvider[]>(
     []
   );
@@ -74,7 +80,10 @@ export function SignInRoute({
   const typed = React.useRef("");
 
   React.useEffect(() => {
-    void isPublicSignupEnabledClient().then(setAllowSignup);
+    void isPublicSignupEnabledClient().then((enabled) => {
+      setAllowSignup(enabled);
+      setSignupKnown(true);
+    });
     void getProviders()
       .then((available: Record<string, ClientSafeProvider> | null) => {
         if (!available) return;
@@ -303,18 +312,43 @@ export function SignInRoute({
           ) : null
         }
         footer={
-          <p
-            style={{
-              margin: 0,
-              textAlign: "center",
-              font: "var(--type-meta)",
-              color: "var(--text-disabled)",
-            }}
-          >
-            <Link href="/terms">Terms</Link>
-            {" · "}
-            <Link href="/privacy">Privacy</Link>
-          </p>
+          <>
+            {signupKnown && !allowSignup ? (
+              /* Registration is closed until launch. The person who came to
+                 make an account is told where the door is instead. */
+              <p
+                style={{
+                  margin: 0,
+                  textAlign: "center",
+                  font: "var(--type-meta)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                New here? Needt opens soon.{" "}
+                <a
+                  href={WAITLIST_URL}
+                  style={{
+                    font: "var(--type-meta-medium)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  Join the waitlist
+                </a>
+              </p>
+            ) : null}
+            <p
+              style={{
+                margin: 0,
+                textAlign: "center",
+                font: "var(--type-meta)",
+                color: "var(--text-disabled)",
+              }}
+            >
+              <Link href="/terms">Terms</Link>
+              {" · "}
+              <Link href="/privacy">Privacy</Link>
+            </p>
+          </>
         }
       />
     </div>

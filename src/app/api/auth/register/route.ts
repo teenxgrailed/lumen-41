@@ -5,6 +5,11 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
+import {
+  SIGNUPS_CLOSED_CODE,
+  SIGNUPS_CLOSED_MESSAGE,
+  areSignupsOpen,
+} from "@/lib/auth/signups";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +30,18 @@ const registrationSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await areSignupsOpen())) {
+      logger.warn(
+        "Registration attempted while signups are closed",
+        {},
+        LOG_SOURCE
+      );
+      return NextResponse.json(
+        { error: SIGNUPS_CLOSED_MESSAGE, code: SIGNUPS_CLOSED_CODE },
+        { status: 403 }
+      );
+    }
+
     if (!(await isPublicSignupEnabled())) {
       logger.warn(
         "Registration attempted while public signup is disabled",
@@ -129,10 +146,7 @@ export async function POST(request: NextRequest) {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      return NextResponse.json(
-        { success: true },
-        { status: 201 }
-      );
+      return NextResponse.json({ success: true }, { status: 201 });
     }
 
     logger.error(

@@ -1,4 +1,3 @@
-import { decryptSecret } from "@/services/ai/encryption";
 import type { Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -11,6 +10,7 @@ import { createPlanLimitGuard, createPrismaImportStore } from "./prisma-store";
 import { TodoistApiError, fetchTodoistSnapshot } from "./todoist/client";
 import { planTodoistImport } from "./todoist/mapper";
 import type { TodoistSnapshot } from "./todoist/types";
+import { openImportToken } from "./token-secret";
 import {
   ImportCancelledError,
   type ImportCounts,
@@ -18,10 +18,6 @@ import {
   type ImportStore,
   type ImportWarning,
 } from "./types";
-
-//todo: switch encryptSecret/decryptSecret to the enc:v1 helper
-// (src/lib/security/secret-encryption.ts on main, #115) once main and
-// port/integration meet.
 
 const LOG_SOURCE = "ImportRunner";
 
@@ -138,7 +134,7 @@ export async function processImportRun(
   let counts: ImportCounts | null = null;
   let warnings: ImportWarning[] = [];
   try {
-    const token = decryptSecret(run.encryptedToken);
+    const token = openImportToken(run.encryptedToken);
     if (!token) {
       throw new TodoistApiError(
         "unauthorized",

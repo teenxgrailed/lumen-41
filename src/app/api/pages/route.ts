@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       tagIds,
       favorites: request.nextUrl.searchParams.get("favorites") === "true",
       privateOnly: request.nextUrl.searchParams.get("privateOnly") === "true",
+      trashed: request.nextUrl.searchParams.get("trashed") === "true",
     });
     return NextResponse.json({ pages });
   } catch (error) {

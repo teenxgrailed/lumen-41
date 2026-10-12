@@ -2,6 +2,7 @@ import { Resend } from "resend";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 const LOG_SOURCE = "ResendAPI";
 
@@ -18,7 +19,8 @@ export async function getResend(): Promise<Resend> {
     }
 
     // Get the API key from SystemSettings
-    const settings = await prisma.systemSettings.findFirst();
+    const stored = await prisma.systemSettings.findFirst();
+    const settings = stored ? openSystemSettingsSecrets(stored) : null;
     if (!settings?.resendApiKey) {
       throw new Error("Resend API key not found in system settings");
     }

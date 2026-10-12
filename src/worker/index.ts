@@ -14,6 +14,7 @@ import {
 } from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
+import { pruneAgentActionLog } from "@/services/ops/retention";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -99,6 +100,7 @@ import {
   scrubSentryEvent,
   scrubSentrySpan,
 } from "@/lib/sentry/privacy";
+import { hashLegacyTrialEmailKeys } from "@/lib/trials/trial-service";
 
 const LOG_SOURCE = "NeedtWorker";
 const WEBHOOK_RENEW_INTERVAL_MS = 6 * 60 * 60 * 1_000;
@@ -223,6 +225,15 @@ async function processLifetimeCheckoutReconciliation() {
 }
 
 async function processTrials() {
+  try {
+    await hashLegacyTrialEmailKeys();
+  } catch (error) {
+    await logger.error(
+      "Could not hash legacy trial email keys",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
   await processTrialLifecycle();
 }
 
@@ -238,6 +249,7 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await expireAccountExports();
   await deleteExpiredReauthentications();
   await finalizeDueAccountDeletions();
+  await pruneAgentActionLog();
 }
 
 async function processImport(job: Job<ImportJobData>) {

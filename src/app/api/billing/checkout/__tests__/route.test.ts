@@ -7,6 +7,7 @@ import {
   attachLifetimeCheckout,
   reserveLifetimeCheckout,
 } from "@/lib/creem/lifetime-cap";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth/api-auth", () => ({
@@ -20,6 +21,9 @@ jest.mock("@/lib/creem/config", () => ({
 jest.mock("@/lib/creem/lifetime-cap", () => ({
   attachLifetimeCheckout: jest.fn(),
   reserveLifetimeCheckout: jest.fn(),
+}));
+jest.mock("@/lib/feature-flags", () => ({
+  isFeatureEnabled: jest.fn().mockResolvedValue(true),
 }));
 jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
@@ -65,6 +69,18 @@ describe("Lifetime checkout route", () => {
     (getCreemClient as jest.Mock).mockReturnValue({
       checkouts: { create: createCheckout },
     });
+  });
+
+  it("refuses checkout while the billing_checkout flag is off", async () => {
+    (isFeatureEnabled as jest.Mock).mockResolvedValueOnce(false);
+
+    const response = await POST(lifetimeRequest());
+
+    expect(response!.status).toBe(503);
+    expect(await response!.json()).toEqual({ error: "Checkout opens soon." });
+    expect(isFeatureEnabled).toHaveBeenCalledWith("billing_checkout", "user_1");
+    expect(reserveLifetimeCheckout).not.toHaveBeenCalled();
+    expect(createCheckout).not.toHaveBeenCalled();
   });
 
   it("does not call Creem after the 300 slots are occupied", async () => {

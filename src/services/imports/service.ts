@@ -1,4 +1,3 @@
-import { encryptSecret } from "@/services/ai/encryption";
 import type { ImportRun, ImportSource, Prisma } from "@prisma/client";
 import crypto from "crypto";
 
@@ -10,11 +9,8 @@ import { prisma } from "@/lib/prisma";
 import { enqueueImportRun } from "@/lib/queue/enqueue";
 
 import { getTodoistOAuthConfig } from "./todoist/client";
+import { sealImportToken } from "./token-secret";
 import { type ImportCounts, type ImportWarning, emptyCounts } from "./types";
-
-//todo: switch encryptSecret/decryptSecret to the enc:v1 helper
-// (src/lib/security/secret-encryption.ts on main, #115) once main and
-// port/integration meet.
 
 const LOG_SOURCE = "ImportService";
 
@@ -193,7 +189,7 @@ export async function createImportRun(input: {
       workspaceId: input.workspaceId,
       source: input.source,
       status: "queued",
-      encryptedToken: encryptSecret(input.token),
+      encryptedToken: sealImportToken(input.token),
     },
   });
   try {
