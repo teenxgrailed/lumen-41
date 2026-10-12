@@ -1,3 +1,4 @@
+import { startWorkerHealthServer } from "@/worker/health-server";
 import { runWorkerStartupChecks } from "@/worker/startup";
 
 import { getWebhookRenewQueue } from "@/lib/queue/queues";
@@ -117,6 +118,7 @@ jest.mock("@/lib/sentry/privacy", () => ({
 
 const mockRunWorkerStartupChecks = jest.mocked(runWorkerStartupChecks);
 const mockGetWebhookRenewQueue = jest.mocked(getWebhookRenewQueue);
+const mockStartWorkerHealthServer = jest.mocked(startWorkerHealthServer);
 
 describe("worker VAPID startup warning", () => {
   it("executes the VAPID check from the real worker start before queue setup", async () => {
@@ -131,6 +133,29 @@ describe("worker VAPID startup warning", () => {
       expect(
         mockRunWorkerStartupChecks.mock.invocationCallOrder[0]
       ).toBeLessThan(mockGetWebhookRenewQueue.mock.invocationCallOrder[0]);
+    } finally {
+      processOnce.mockRestore();
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
+  });
+
+  it("listens for health checks before the slow startup work", async () => {
+    jest.useFakeTimers();
+    const processOnce = jest.spyOn(process, "once").mockReturnValue(process);
+    try {
+      const { start } = await import("@/worker/index");
+
+      await start();
+
+      const listened =
+        mockStartWorkerHealthServer.mock.invocationCallOrder.at(-1)!;
+      expect(listened).toBeLessThan(
+        mockRunWorkerStartupChecks.mock.invocationCallOrder.at(-1)!
+      );
+      expect(listened).toBeLessThan(
+        mockGetWebhookRenewQueue.mock.invocationCallOrder.at(-1)!
+      );
     } finally {
       processOnce.mockRestore();
       jest.clearAllTimers();

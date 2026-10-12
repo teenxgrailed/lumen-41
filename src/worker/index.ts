@@ -313,6 +313,11 @@ for (const worker of workers) {
 }
 
 export async function start(): Promise<void> {
+  // Listen first. Everything below talks to Redis and Postgres and can take
+  // a while on a cold host; a health check that cannot connect until all of
+  // it finishes reads as a dead container and gets it restarted mid-start.
+  // Release readiness is still proven by the Redis heartbeat, not this port.
+  workerHealthServer = await startWorkerHealthServer();
   await runWorkerStartupChecks();
   if (isGitBuildSha(BUILD_SHA)) {
     releaseHeartbeatRedis =
@@ -386,7 +391,6 @@ export async function start(): Promise<void> {
   await Promise.all(
     mailAccountIds.map((accountId) => ensureImapIdleWatcher(accountId))
   );
-  workerHealthServer = await startWorkerHealthServer();
   await logger.info(
     "Needt background worker started",
     {

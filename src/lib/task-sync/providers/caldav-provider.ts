@@ -7,6 +7,7 @@ import {
   CalendarQueryParams,
   ExtendedDAVClient,
 } from "@/lib/caldav-interfaces";
+import { openConnectedAccountTokens } from "@/lib/connected-account-secrets";
 import { logger } from "@/lib/logger";
 
 import { Priority, Task, TaskStatus } from "@/types/task";
@@ -42,16 +43,16 @@ const WRITE_NOT_SUPPORTED =
  */
 export class CalDAVTaskProvider implements TaskProviderInterface {
   private client: ExtendedDAVClient | null;
+  private account: ConnectedAccount;
 
   /**
    * @param account The connected CalDAV account (URL, username, password).
    * @param client Optional pre-built client; primarily for testing. When
    *   omitted, a `tsdav` client is created lazily from the account credentials.
    */
-  constructor(
-    private account: ConnectedAccount,
-    client?: ExtendedDAVClient
-  ) {
+  constructor(account: ConnectedAccount, client?: ExtendedDAVClient) {
+    // The stored password is encrypted; tsdav needs the plaintext.
+    this.account = openConnectedAccountTokens(account);
     this.client = client ?? null;
   }
 
@@ -133,8 +134,11 @@ export class CalDAVTaskProvider implements TaskProviderInterface {
    *
    * @param listId The CalDAV URL of the task collection.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getTasks(listId: string, options?: SyncOptions): Promise<ExternalTask[]> {
+  async getTasks(
+    listId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    options?: SyncOptions
+  ): Promise<ExternalTask[]> {
     const client = await this.getClient();
     const responses = await client.calendarQuery(
       this.createVTodoQueryParams(listId)
@@ -330,8 +334,7 @@ export class CalDAVTaskProvider implements TaskProviderInterface {
    * the `string` / `{ _cdata }` shapes different servers/libraries return.
    */
   private extractICalData(obj: DAVResponse): string {
-    const raw =
-      obj.props?.["calendar-data"] ?? obj.props?.calendarData ?? "";
+    const raw = obj.props?.["calendar-data"] ?? obj.props?.calendarData ?? "";
 
     if (typeof raw === "string") return raw;
     if (typeof raw === "object" && raw !== null) {

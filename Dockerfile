@@ -1,10 +1,11 @@
 # Base stage for both development and production
 FROM node:22-alpine3.19 AS base
 WORKDIR /app
-ARG SOURCE_COMMIT=local
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEEDT_BUILD_SHA=$SOURCE_COMMIT
+# The release SHA is declared in the stages that use it, not here: an ENV in
+# the base stage changes on every commit and would invalidate the `npm ci`
+# layers below it, so a CI image build could never reuse its cache.
 
 # Install netcat
 RUN apk add --no-cache netcat-openbsd
@@ -40,7 +41,36 @@ WORKDIR /app
 # Next.js type checking can exceed Node's default ~2 GiB heap in Coolify's
 # source build. Match the dedicated production Dockerfile's build allowance.
 ENV NODE_OPTIONS=--max-old-space-size=4096
-RUN npm run build
+# Release images are built in CI and passed NEEDT_BUILD_SHA; Coolify's own
+# source build passes SOURCE_COMMIT instead, which stays as the fallback.
+ARG SOURCE_COMMIT=local
+ARG NEEDT_BUILD_SHA
+ENV NEEDT_BUILD_SHA=${NEEDT_BUILD_SHA:-$SOURCE_COMMIT}
+ENV NEXT_PUBLIC_NEEDT_BUILD_SHA=$NEEDT_BUILD_SHA
+# Next inlines NEXT_PUBLIC_* into the browser bundle at build time, so an
+# image built outside Coolify only has them if they are declared here.
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_COLLABORATION_URL
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_COLLABORATION_URL=$NEXT_PUBLIC_COLLABORATION_URL \
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+# Source maps upload only when CI mounts the Sentry secrets; Coolify's
+# fallback build has none and builds without uploading.
+RUN --mount=type=secret,id=sentry_auth_token,required=false \
+    --mount=type=secret,id=sentry_org,required=false \
+    --mount=type=secret,id=sentry_project,required=false \
+    for name in auth_token org project; do \
+      file="/run/secrets/sentry_$name"; \
+      if [ -s "$file" ]; then \
+        export "SENTRY_$(echo "$name" | tr a-z A-Z)=$(cat "$file")"; \
+      fi; \
+    done && \
+    npm run build
 
 # Runtime dependencies are installed from package-lock.json so the entrypoint
 # always uses the project's Prisma 6 CLI. Without this layer, `npx prisma`
@@ -74,6 +104,10 @@ USER node
 
 # entrypoint.sh runs `exec "$@"`, so this CMD becomes the worker process.
 ENTRYPOINT ["/app/entrypoint.sh"]
+# Declared last so the layers above stay cached between releases.
+ARG SOURCE_COMMIT=local
+ARG NEEDT_BUILD_SHA
+ENV NEEDT_BUILD_SHA=${NEEDT_BUILD_SHA:-$SOURCE_COMMIT}
 CMD ["node", "dist/worker/index.js"]
 
 # Collaboration stage - same image, runs the Hocuspocus collaboration server.
@@ -95,6 +129,10 @@ USER node
 EXPOSE 1234
 
 ENTRYPOINT ["/app/entrypoint.sh"]
+# Declared last so the layers above stay cached between releases.
+ARG SOURCE_COMMIT=local
+ARG NEEDT_BUILD_SHA
+ENV NEEDT_BUILD_SHA=${NEEDT_BUILD_SHA:-$SOURCE_COMMIT}
 CMD ["node", "dist/collaboration/index.mjs"]
 
 # Production stage
@@ -121,4 +159,8 @@ ENTRYPOINT ["/app/entrypoint.sh"]
 # Run the web service with the default command. In Coolify, create a second
 # service from the same image and override its command with:
 # node dist/worker/index.js
+# Declared last so the layers above stay cached between releases.
+ARG SOURCE_COMMIT=local
+ARG NEEDT_BUILD_SHA
+ENV NEEDT_BUILD_SHA=${NEEDT_BUILD_SHA:-$SOURCE_COMMIT}
 CMD ["node", "server.js"] 
