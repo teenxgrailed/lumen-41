@@ -260,3 +260,60 @@ describe("unfurlLink", () => {
     expect(p?.title).toBe("B");
   });
 });
+
+describe("hostile pages cannot stall the server or poison a row", () => {
+  const MB = 1024 * 1024;
+  const timed = (html: string) => {
+    const t0 = performance.now();
+    const p = parseLinkPreview(html, "https://x.com/");
+    return { ms: performance.now() - t0, p };
+  };
+
+  it.each([
+    ["meta tags that never close", "<meta ".repeat(MB / 6)],
+    ["a title that never closes", "<title>" + "a".repeat(MB)],
+    ["many titles that never close", "<title ".repeat(MB / 7)],
+    ["an attribute that never closes", '<meta content="' + "x".repeat(MB)],
+    ["a million equals signs", "<meta " + "=".repeat(MB)],
+    ["nested angle brackets", "<<<<meta ".repeat(MB / 9)],
+    [
+      "entities without end",
+      "<meta property=og:title content=" + "&#x".repeat(MB / 3) + ">",
+    ],
+    ["whitespace", "<meta" + " ".repeat(MB) + "name=a>"],
+  ])("%s: parsed in well under 100 ms", (_name, html) => {
+    const { ms } = timed(html);
+    expect(ms).toBeLessThan(100);
+  });
+
+  it("looks only at the first 64 KB: a tag after that is not read", () => {
+    const html =
+      "<head>" +
+      " ".repeat(70 * 1024) +
+      '<meta property="og:title" content="Late"></head>';
+    expect(timed(html).p.title).toBeNull();
+  });
+
+  it("skips an enormous tag but still reads the next ordinary one", () => {
+    const html = `<head><meta property="og:title" content="${"x".repeat(9000)}"><meta property="og:site_name" content="Shop"></head>`;
+    expect(timed(html).p).toMatchObject({ title: null, siteName: "Shop" });
+  });
+
+  it("strips NUL and other control characters from what it keeps (Postgres refuses NUL)", () => {
+    const { p } = timed(
+      '<head><meta property="og:title" content="Boxy&#0;wool\u0000over\u0007shirt"><meta property="og:site_name" content="Sh\u0000op"></head>'
+    );
+    expect(p.title).not.toMatch(/[\u0000-\u001f]/);
+    expect(p.siteName).not.toMatch(/[\u0000-\u001f]/);
+    expect(p.title).toContain("Boxy");
+    expect(p.siteName).toBe("Sh op");
+  });
+
+  it("does not take <metadata> for a meta tag, and reads single-quoted and bare values", () => {
+    const p = parseLinkPreview(
+      `<head><metadata name="og:title" content="no"><meta property='og:title' content='Yes'><meta name=og:site_name content=Bare></head>`,
+      "https://x.com/"
+    );
+    expect(p).toMatchObject({ title: "Yes", siteName: "Bare" });
+  });
+});

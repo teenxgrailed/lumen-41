@@ -58,6 +58,21 @@ Tests: items route (reorder, upload, asset address, canvas, unfurl, Date updated
 - Orphaned `MoodboardAsset` rows (a removed tile keeps its picture so Undo works) have no purge job yet (todo in the item service, with the Trash 30-day purge).
 - Tasks' Delete forever and Empty Trash (other lane's routes).
 
+## Security review follow-up (2026-10-12, second commit)
+
+Fixed after an independent review, each with a test that goes red when the fix is removed:
+- Link previews no longer run a regex over the page: the head (first 64 KB) is scanned with `indexOf` and a one-pass attribute reader, oversize tags are skipped, control characters and NUL are stripped from what is kept. A hostile 1 MB body parses in well under 100 ms.
+- The public link token is `HMAC(id, linkTokenVersion)` (new additive column `Moodboard.linkTokenVersion`, migration `20261012140000`); turning "Anyone with the link" off bumps it, so an old address never returns. No new env key.
+- Upload: access (EDITOR) is checked before the body is read; the 4 MB cap is counted on the bytes as they arrive (a missing or lying Content-Length does not skip it) and the stream is cancelled.
+- Item create, upload and reorder lock the board row (`SELECT … FOR UPDATE`) inside the transaction. Pictures no tile shows and older than an hour are swept at upload time, so an emptied board takes uploads again; the 1000-picture cap answers "too many unused pictures" (409), not "full". A removed picture is no longer served (authed or public) unless a tile shows it; Undo re-adds the tile and so the picture.
+- Reorder is one `UPDATE … FROM (VALUES …)` statement.
+- Failed board-item writes refetch the scope (`rollback: "refetch"` in `useUndoableMutation`) instead of restoring a snapshot that could undo other successful edits.
+- Delete forever needs the board's creator or a workspace owner. Public page: the domain is derived from the address (never client-supplied), `referrer: no-referrer`, only a whitelisted `source`.
+- A board in Trash refuses item writes, uploads, grants, title and link changes (409/403); restore is the one change allowed, and leaving and reading stay allowed.
+- The note autosave flushes a pending (under 400 ms) edit when the detail unmounts.
+
+Known limits (not built): no per-workspace storage quota; no per-user rate limit on server-side fetches; no re-unfurl when a link's url is patched; DNS resolution is outside the 4 s abort signal; the canvas Yjs state is decoded on every `GET /items`; reorder ties and gaps under concurrent writers resolve by the row lock order; the "Private" lock wording (owner question); hotlinked link thumbnails on the public page reveal the viewer's IP to that site; public assets have no ETag or rate limit.
+
 ## Working state
 
 - Files currently dirty or expected to change: none after the push.

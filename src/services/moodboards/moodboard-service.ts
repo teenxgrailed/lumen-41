@@ -1,4 +1,4 @@
-import { MoodboardAccessRole, Prisma } from "@prisma/client";
+import { MoodboardAccessRole, Prisma, WorkspaceRole } from "@prisma/client";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { authSecret } from "@/lib/auth/auth-secret";
@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import {
   MOODBOARD_ITEM_LIMIT,
   MOODBOARD_ITEM_ORDER,
+  assetPath,
   parseAssetPath,
 } from "./moodboard-item-service";
 
@@ -206,17 +207,18 @@ export async function createMoodboard(
 export async function getMoodboard(actor: MoodboardActor, moodboardId: string) {
   const access = await resolveMoodboardAccess(actor, moodboardId);
   if (!access) return null;
-  const moodboard = await prisma.moodboard.findFirst({
+  const row = await prisma.moodboard.findFirst({
     where: { id: moodboardId, ...scope(actor), archivedAt: null },
-    select: moodboardSelect,
+    select: { ...moodboardSelect, linkTokenVersion: true },
   });
-  if (!moodboard) return null;
+  if (!row) return null;
+  const { linkTokenVersion, ...moodboard } = row;
   return {
     ...moodboard,
     accessRole: access.role,
     // Only the people who can turn the link off see its address.
     ...(moodboard.linkShare && ROLE_RANK[access.role] >= ROLE_RANK.FULL_ACCESS
-      ? { shareToken: moodboardLinkToken(moodboard.id) }
+      ? { shareToken: moodboardLinkToken(moodboard.id, linkTokenVersion) }
       : {}),
   };
 }
@@ -225,26 +227,51 @@ export async function getMoodboard(actor: MoodboardActor, moodboardId: string) {
 
 /**
  * The secret half of a board's public address, `/b/<id>/<token>`: an HMAC of
- * the id under the server's auth secret. Board ids alone are guessable, so the
- * link needs more than the id; turning "Anyone with the link" off makes every
- * such address stop working (the flag is checked on every read).
+ * the id and the board's `linkTokenVersion` under the server's auth secret
+ * (domain-separated from every other use of it). Board ids alone are
+ * guessable, so the link needs more than the id. Turning "Anyone with the
+ * link" off bumps the version, so an address that was shared once never works
+ * again, even if sharing is turned back on: the new address is a new token.
  */
-export function moodboardLinkToken(moodboardId: string) {
+export function moodboardLinkToken(moodboardId: string, version = 0) {
   return createHmac("sha256", authSecret())
-    .update(`moodboard-link:v1:${moodboardId}`)
+    .update(`moodboard-link:v2:${moodboardId}:${version}`)
     .digest("base64url")
     .slice(0, 32);
 }
 
-export function moodboardLinkTokenValid(moodboardId: string, token: string) {
-  const want = Buffer.from(moodboardLinkToken(moodboardId));
+export function moodboardLinkTokenValid(
+  moodboardId: string,
+  version: number,
+  token: string
+) {
+  const want = Buffer.from(moodboardLinkToken(moodboardId, version));
   const got = Buffer.from(token);
   return want.length === got.length && timingSafeEqual(want, got);
 }
 
-/** A board's public view: only when link sharing is on and the board is live. */
-export async function getPublicMoodboard(moodboardId: string, token: string) {
-  if (!moodboardLinkTokenValid(moodboardId, token)) return null;
+/** The address a shared picture or tile shows: only what a reader needs, derived here. */
+function publicSource(kind: string, url: string | null, source: unknown) {
+  let domain: string | undefined;
+  if (kind === "link" && url) {
+    try {
+      domain = new URL(url).hostname.replace(/^www\./, "").slice(0, 253);
+    } catch {
+      /* not an address */
+    }
+  }
+  const name =
+    source && typeof source === "object" && !Array.isArray(source)
+      ? (source as { name?: unknown }).name
+      : undefined;
+  const out: { name?: string; domain?: string } = {};
+  if (typeof name === "string" && name.trim()) out.name = name.slice(0, 120);
+  if (domain) out.domain = domain;
+  return Object.keys(out).length ? out : null;
+}
+
+/** The live, shared, untrashed board a public address names, or null (wrong token included). */
+async function publicBoard(moodboardId: string, token: string) {
   const board = await prisma.moodboard.findFirst({
     where: {
       id: moodboardId,
@@ -252,8 +279,17 @@ export async function getPublicMoodboard(moodboardId: string, token: string) {
       archivedAt: null,
       trashedAt: null,
     },
-    select: { id: true, title: true, updatedAt: true },
+    select: { id: true, title: true, linkTokenVersion: true },
   });
+  if (!board) return null;
+  return moodboardLinkTokenValid(board.id, board.linkTokenVersion, token)
+    ? board
+    : null;
+}
+
+/** A board's public view: only when link sharing is on and the board is live. */
+export async function getPublicMoodboard(moodboardId: string, token: string) {
+  const board = await publicBoard(moodboardId, token);
   if (!board) return null;
   const items = await prisma.moodboardItem.findMany({
     where: { moodboardId },
@@ -282,7 +318,6 @@ export async function getPublicMoodboard(moodboardId: string, token: string) {
     id: board.id,
     title: board.title,
     items: items.map((i) => {
-      const src = i.source as { name?: string; domain?: string } | null;
       return {
         id: i.id,
         kind: i.kind,
@@ -292,7 +327,7 @@ export async function getPublicMoodboard(moodboardId: string, token: string) {
         title: i.title,
         ratio: i.ratio,
         colorName: i.colorName,
-        source: src && typeof src === "object" ? src : null,
+        source: publicSource(i.kind, i.url, i.source),
         thumbnailUrl: i.thumbnailUrl,
       };
     }),
@@ -305,17 +340,18 @@ export async function readPublicMoodboardAsset(
   token: string,
   assetId: string
 ) {
-  if (!moodboardLinkTokenValid(moodboardId, token)) return null;
-  const board = await prisma.moodboard.findFirst({
+  const board = await publicBoard(moodboardId, token);
+  if (!board) return null;
+  // Only a picture a tile on the board still shows is served.
+  const live = await prisma.moodboardItem.findFirst({
     where: {
-      id: moodboardId,
-      linkShare: true,
-      archivedAt: null,
-      trashedAt: null,
+      moodboardId,
+      kind: "image",
+      url: assetPath(moodboardId, assetId),
     },
     select: { id: true },
   });
-  if (!board) return null;
+  if (!live) return null;
   const asset = await prisma.moodboardAsset.findFirst({
     where: { id: assetId, moodboardId },
     select: { bytes: true, mimeType: true },
@@ -327,8 +363,9 @@ export async function readPublicMoodboardAsset(
 
 /**
  * Delete forever (Trash): the board with its items, pictures and people. Only
- * from Trash, and only with full access; the canvas state and snapshots go
- * with it because they hang off the board.
+ * from Trash, and only for the board's creator or a workspace owner (a Full
+ * access grant on the board is not enough to destroy it); the canvas state and
+ * snapshots go with it because they hang off the board.
  */
 export async function deleteMoodboardForever(
   actor: MoodboardActor,
@@ -345,6 +382,14 @@ export async function deleteMoodboardForever(
   }
   const workspace = scope(actor);
   if (!workspace) return "denied" as const;
+  const board = await prisma.moodboard.findFirst({
+    where: { id: moodboardId, ...workspace },
+    select: { createdById: true },
+  });
+  const mayDestroy =
+    board?.createdById === actor.userId ||
+    actor.workspace?.role === WorkspaceRole.OWNER;
+  if (!mayDestroy) return "denied" as const;
   const { count } = await prisma.moodboard.deleteMany({
     where: { id: moodboardId, ...workspace, trashedAt: { not: null } },
   });
@@ -369,9 +414,12 @@ export async function updateMoodboard(
     input.linkShare !== undefined
       ? MoodboardAccessRole.FULL_ACCESS
       : MoodboardAccessRole.EDITOR;
-  if (!(await resolveMoodboardAccess(actor, moodboardId, requiredRole))) {
+  const access = await resolveMoodboardAccess(actor, moodboardId, requiredRole);
+  if (!access) return null;
+  // A board in Trash only comes back; nothing else on it changes.
+  const changing = Object.entries(input).filter(([, v]) => v !== undefined);
+  if (access.trashed && !(changing.length === 1 && input.trashed === false))
     return null;
-  }
   const workspace = scope(actor);
   if (!workspace) return null;
   if (input.projectId !== undefined) {
@@ -387,6 +435,8 @@ export async function updateMoodboard(
     ...(input.projectId !== undefined && { projectId: input.projectId }),
     ...(typeof input.linkShare === "boolean" && {
       linkShare: input.linkShare,
+      // Off retires every address shared so far (see moodboardLinkToken).
+      ...(input.linkShare ? {} : { linkTokenVersion: { increment: 1 } }),
     }),
     ...(input.pinterestBoardId !== undefined && {
       pinterestBoardId: input.pinterestBoardId,

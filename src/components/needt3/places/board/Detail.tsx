@@ -52,6 +52,8 @@ export function Detail({
   const timer = useRef<number | null>(null);
   const latest = useRef({ note, item, readOnly });
   latest.current = { note, item, readOnly };
+  const saveRef = useRef(onSave);
+  saveRef.current = onSave;
 
   const flush = (value: string) => {
     if (timer.current) window.clearTimeout(timer.current);
@@ -61,10 +63,9 @@ export function Detail({
     // A note's words cannot be emptied (the route refuses); the caption on any
     // other reference can.
     if (it.kind === "note" && !value.trim()) return;
-    void onSave(
-      it.id,
-      it.kind === "note" ? value : value.trim() ? value : null
-    ).then((ok) => ok && setSaved(true));
+    void saveRef
+      .current(it.id, it.kind === "note" ? value : value.trim() ? value : null)
+      .then((ok) => ok && setSaved(true));
   };
 
   useEffect(() => {
@@ -81,9 +82,13 @@ export function Detail({
     if (timer.current) flush(latest.current.note);
     onClose();
   };
+  // Unmounting with a pause still pending (the board page closes under it) saves
+  // what was typed instead of dropping it; the write belongs to the controller.
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
   useEffect(
     () => () => {
-      if (timer.current) window.clearTimeout(timer.current);
+      if (timer.current) flushRef.current(latest.current.note);
     },
     []
   );

@@ -384,3 +384,46 @@ describe("the canvas's tiles", () => {
     ).not.toHaveProperty("fromCanvas");
   });
 });
+
+describe("a failed write does not undo other writes that succeeded", () => {
+  it("reads the wall again instead of restoring a stale snapshot", async () => {
+    await mountProbe();
+    // i2 is removed for real (the server forgets it); then a write on i1 is refused
+    const server = global.fetch as unknown as jest.Mock;
+    const base = server.getMockImplementation()!;
+    let failRemoveOf: string | null = null;
+    server.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE" && url.endsWith("/i2"))
+        serverItems = serverItems.filter((r) => r.id !== "i2");
+      if (
+        init?.method === "DELETE" &&
+        failRemoveOf &&
+        url.endsWith(failRemoveOf)
+      ) {
+        calls.push({ url, method: "DELETE" });
+        // refused late, after the other write has succeeded and the wall was re-read
+        await new Promise((r) => setTimeout(r, 60));
+        return reply(403, { error: "no" });
+      }
+      return base(url, init);
+    });
+    failRemoveOf = "/i1";
+    // i1's removal is slow; i2's goes through while it is in flight
+    let first: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      first = api
+        .remove!.mutateAsync({ boardId: "b1", id: "i1" })
+        .catch(() => undefined);
+      await api.remove!.mutateAsync({ boardId: "b1", id: "i2" });
+    });
+    await act(async () => void (await first));
+    // checked right away: a stale snapshot would bring i2 back until the next read
+    const ids = client
+      .getQueryData<V3BoardItem[]>(boardItemsKey("b1"))
+      ?.map((i) => i.id);
+    // i1 is back (its write failed); i2 stays gone (its write succeeded)
+    expect(ids).toEqual(["i1"]);
+    // and the wall was read again from the server
+    expect(calls.filter((c) => c.method === "GET").length).toBeGreaterThan(1);
+  });
+});

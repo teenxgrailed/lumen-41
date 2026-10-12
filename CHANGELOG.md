@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
   opened on the side with a note that saves itself, drag to reorder (hold and
   drag on the phone), "View as guest", Share with View / Edit by email,
-  "Anyone with the link" (a read-only page at `/b/<id>/<token>`) and Leave
+  "Anyone with the link" (a read-only page at `/b/<id>/<token>`; turning it off retires that address for good) and Leave
   board. Pictures are shrunk to a JPEG of at most 900 px before upload and
   stored with the board; a pasted link is read server-side for its title and
   picture (https only, nothing private is ever contacted). The list sorts by

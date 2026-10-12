@@ -7,6 +7,7 @@ import {
   MoodboardItemNotFoundError,
   MoodboardItemRequiredFieldError,
   MoodboardOrderError,
+  MoodboardTrashedError,
   MoodboardUploadError,
 } from "@/services/moodboards/moodboard-item-service";
 import type { ZodSchema } from "zod";
@@ -48,6 +49,9 @@ export function moodboardItemErrorResponse(
   if (error instanceof MoodboardOrderError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+  if (error instanceof MoodboardTrashedError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
+  }
   if (error instanceof MoodboardUploadError) {
     return NextResponse.json(
       { error: error.message },
@@ -57,7 +61,9 @@ export function moodboardItemErrorResponse(
             ? 413
             : error.code === "BAD_TYPE"
               ? 415
-              : 400,
+              : error.code === "TOO_MANY"
+                ? 409
+                : 400,
       }
     );
   }
@@ -94,4 +100,29 @@ export async function parseItemBody<T>(
     };
   }
   return { ok: true, data: parsed.data };
+}
+
+/** Room for the multipart envelope (boundaries, field names, the small fields). */
+export const FORM_OVERHEAD = 64 * 1024;
+
+/** The request body, or "too_large" once more than `max` bytes have arrived (the stream is cancelled). */
+export async function readCapped(
+  request: NextRequest,
+  max: number
+): Promise<Buffer | "too_large"> {
+  const reader = request.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => undefined);
+      return "too_large";
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
 }

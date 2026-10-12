@@ -122,6 +122,13 @@ export interface UndoableMutationOptions<V, R> {
    * the generic "could not" notice is not shown.
    */
   quiet?: (error: unknown) => boolean;
+  /**
+   * What a failed write does to the cache. "snapshot" (default) puts back what
+   * was there before the request. "refetch" does not: a snapshot taken at the
+   * start would also undo writes that succeeded in the meantime (a wall edited
+   * by several quick changes), so the scope is read again from the server.
+   */
+  rollback?: "snapshot" | "refetch";
 }
 
 /** The items route said the board is full (409). */
@@ -162,6 +169,7 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
     inverse,
     inverseFromResult,
     quiet,
+    rollback = "snapshot",
   } = opts;
 
   const run = useCallback(
@@ -184,7 +192,9 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
           },
         };
       } catch (error) {
-        snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
+        if (rollback === "refetch")
+          keys.forEach((k) => void qc.invalidateQueries({ queryKey: k }));
+        else snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
         if (!quiet?.(error))
           notify.error(`Could not ${label}. Your change was reverted.`);
         void logger.error(
@@ -195,7 +205,17 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
         throw error;
       }
     },
-    [qc, scope, label, optimistic, request, inverse, inverseFromResult, quiet]
+    [
+      qc,
+      scope,
+      label,
+      optimistic,
+      request,
+      inverse,
+      inverseFromResult,
+      quiet,
+      rollback,
+    ]
   );
 
   return useMutation<Undoable<R>, Error, V>({ mutationFn: run });

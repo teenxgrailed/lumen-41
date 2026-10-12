@@ -408,6 +408,30 @@ describe("a reference opened on the side", () => {
     });
   });
 
+  it("a note typed in the last 400 ms is saved, not dropped, when the page goes away", async () => {
+    mount();
+    click(q('[data-id="b"]'));
+    await flush();
+    const area = doc<HTMLTextAreaElement>("textarea[name=mb-detail-note]")!;
+    const set = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value"
+    )?.set;
+    act(() => {
+      set?.call(area, "Typed just now");
+      area.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(mockSaveItem).not.toHaveBeenCalled();
+    act(() => root.unmount()); // navigated away before the pause ended
+    expect(mockSaveItem).toHaveBeenCalledTimes(1);
+    expect(mockSaveItem).toHaveBeenCalledWith({
+      boardId: "b1",
+      id: "b",
+      patch: { text: "Typed just now" },
+    });
+    root = createRoot(host);
+  });
+
   it("a viewer cannot type in it or remove from it", async () => {
     mockRole = "VIEWER";
     mount();

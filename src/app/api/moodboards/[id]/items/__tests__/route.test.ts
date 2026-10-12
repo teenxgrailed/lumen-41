@@ -30,6 +30,7 @@ type Board = {
   workspaceId: string;
   createdById: string;
   archivedAt: Date | null;
+  trashedAt?: Date | null;
   grants: { userId: string; role: MoodboardAccessRole }[];
 };
 type Item = {
@@ -58,6 +59,7 @@ const db: {
     moodboardId: string;
     bytes?: Buffer;
     mimeType?: string;
+    createdAt?: Date;
   }[];
   seq: number;
 } = {
@@ -98,11 +100,50 @@ jest.mock("@/lib/prisma", () => {
   const prisma: Record<string, unknown> = {
     // Filled in beforeEach: returns only the caller's own grant.
     moodboard: { findFirst: jest.fn(), update: jest.fn(async () => ({})) },
+    // FOR UPDATE and the one-statement reorder, as the database would run them
+    $queryRaw: jest.fn(async () => []),
+    $executeRaw: jest.fn(async (sql: { values: unknown[] }) => {
+      const v = sql.values;
+      const board = v[v.length - 1];
+      for (let i = 0; i + 1 < v.length - 1; i += 2) {
+        const row = db.items.find(
+          (r) => r.id === v[i] && r.moodboardId === board
+        );
+        if (row) row.position = v[i + 1] as number;
+      }
+      return (v.length - 1) / 2;
+    }),
     moodboardAsset: {
+      deleteMany: jest.fn(
+        async ({
+          where,
+        }: {
+          where: {
+            moodboardId: string;
+            id: { notIn: string[] };
+            createdAt: { lt: Date };
+          };
+        }) => {
+          const before = db.assets.length;
+          db.assets = db.assets.filter(
+            (a) =>
+              !(
+                a.moodboardId === where.moodboardId &&
+                !where.id.notIn.includes(a.id) &&
+                (a.createdAt ?? new Date(0)) < where.createdAt.lt
+              )
+          );
+          return { count: before - db.assets.length };
+        }
+      ),
       count: jest.fn(async () => db.assets.length),
       create: jest.fn(async ({ data }: { data: { moodboardId: string } }) => {
         db.seq += 1;
-        const row = { id: `asset-${db.seq}`, ...data };
+        const row = {
+          id: `asset-${db.seq}`,
+          createdAt: new Date(Date.UTC(2026, 9, 12, 10, 0)),
+          ...data,
+        };
         db.assets.push(row as never);
         return row;
       }),
@@ -126,7 +167,7 @@ jest.mock("@/lib/prisma", () => {
             db.items.filter((i) =>
               matches(i as unknown as Record<string, unknown>, where)
             ),
-            orderBy
+            orderBy ?? []
           )
       ),
       findFirst: jest.fn(
@@ -379,6 +420,7 @@ beforeEach(() => {
         id: board.id,
         createdById: board.createdById,
         workspaceId: board.workspaceId,
+        trashedAt: board.trashedAt ?? null,
         accessGrants: board.grants
           .filter((g) => g.userId === select.accessGrants.where.userId)
           .map((g) => ({ role: g.role })),
@@ -992,6 +1034,16 @@ describe("GET /api/moodboards/:id/assets/:assetId", () => {
       bytes: JPEG,
       mimeType: "image/jpeg",
     });
+    // a tile that shows it: only a shown picture is served
+    db.items.push(
+      item({
+        id: "shown",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/asset-1",
+        text: null,
+      })
+    );
   });
 
   it.each(["creator", "editor", "viewer", "grantedViewer"] as const)(
@@ -1154,5 +1206,214 @@ describe("Date updated", () => {
     as("viewer");
     await create({ kind: "note", text: "x" });
     expect(prisma.moodboard.update).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- review fixes ---------- */
+
+/** A request whose body is a stream we can watch: how much of it was pulled, and whether it was cancelled. */
+function streamed(totalBytes: number, headers: Record<string, string> = {}) {
+  const state = { pulled: 0, cancelled: false };
+  const chunk = new Uint8Array(64 * 1024);
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        if (state.pulled >= totalBytes) return controller.close();
+        state.pulled += chunk.byteLength;
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        state.cancelled = true;
+      },
+    },
+    { highWaterMark: 0 }
+  );
+  const req = new NextRequest(
+    "http://localhost/api/moodboards/board-a/items/upload",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+        ...headers,
+      },
+      body,
+      duplex: "half",
+    } as never
+  );
+  return { req, state };
+}
+const upload = (req: NextRequest) =>
+  must(UPLOAD(req, { params: Promise.resolve({ id: "board-a" }) }));
+
+describe("an upload checks who you are before it reads anything", () => {
+  it.each(["viewer", "grantedViewer", "outsider", "removedFallback"] as const)(
+    "%s: 403, and not one byte of the body is pulled",
+    async (actor) => {
+      as(actor);
+      const { req, state } = streamed(8 * 1024 * 1024);
+      expect((await upload(req)).status).toBe(403);
+      expect(state.pulled).toBe(0);
+    }
+  );
+
+  it("an editor's oversize body with NO Content-Length is cut at the cap: 413, stream cancelled early", async () => {
+    as("editor");
+    const { req, state } = streamed(64 * 1024 * 1024);
+    expect(req.headers.get("content-length")).toBeNull();
+    expect((await upload(req)).status).toBe(413);
+    expect(state.cancelled).toBe(true);
+    expect(state.pulled).toBeLessThan(6 * 1024 * 1024);
+  });
+
+  it("a lying Content-Length does not help either", async () => {
+    as("editor");
+    const { req, state } = streamed(16 * 1024 * 1024, {
+      "content-length": "100",
+    });
+    expect((await upload(req)).status).toBe(413);
+    expect(state.pulled).toBeLessThan(6 * 1024 * 1024);
+  });
+});
+
+describe("a board in Trash is read-only", () => {
+  beforeEach(() => {
+    db.boards[0].trashedAt = new Date("2026-10-10T00:00:00Z");
+  });
+
+  it("still reads", async () => {
+    as("editor");
+    expect((await list()).status).toBe(200);
+  });
+
+  it.each([
+    ["add", () => create({ kind: "note", text: "x" })],
+    ["change", () => patch("a-late", { text: "y" })],
+    ["remove", () => remove("a-late")],
+    ["reorder", () => reorder({ order: ["a-late", "a-tie-1"] })],
+    ["upload", () => uploadRequest(JPEG)],
+  ])("refuses to %s (409) and writes nothing", async (_n, act) => {
+    as("owner");
+    const before = JSON.stringify(db.items);
+    expect((await act()).status).toBe(409);
+    expect(JSON.stringify(db.items)).toBe(before);
+    expect(db.assets).toHaveLength(0);
+  });
+});
+
+describe("writers on one board are serialised, and a reorder is one statement", () => {
+  it.each([
+    ["add", () => create({ kind: "note", text: "x" })],
+    ["upload", () => uploadRequest(JPEG)],
+    ["reorder", () => reorder({ order: ["a-late", "a-tie-1"] })],
+  ])(
+    "%s takes the board's row lock inside the transaction",
+    async (_n, act) => {
+      as("editor");
+      await act();
+      const raw = (prisma.$queryRaw as jest.Mock).mock.calls[0][0] as string[];
+      expect(raw.join("?")).toContain('FROM "Moodboard"');
+      expect(raw.join("?")).toContain("FOR UPDATE");
+    }
+  );
+
+  it("a reorder of a 500-item wall is one UPDATE, not 500", async () => {
+    as("editor");
+    db.items = Array.from({ length: 500 }, (_, i) =>
+      item({ id: `w${i}`, moodboardId: "board-a", position: i + 1 })
+    );
+    const order = db.items.map((i) => i.id).reverse();
+    expect((await reorder({ order })).status).toBe(200);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.moodboardItem.update).not.toHaveBeenCalled();
+    expect(wall().slice(0, 2)).toEqual(["w499:1", "w498:2"]);
+  });
+
+  it("an unchanged order writes nothing", async () => {
+    as("editor");
+    // a wall that is already numbered 1..n
+    db.items = db.items.filter((i) => i.moodboardId === "board-a");
+    db.items.forEach((i, n) => (i.position = n + 1));
+    const ids = [...db.items]
+      .sort((a, b) => a.position - b.position)
+      .map((i) => i.id);
+    await reorder({ order: ids });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+  });
+});
+
+describe("pictures: orphans, caps and who may still read one", () => {
+  const OLD = new Date("2026-10-12T08:00:00Z"); // older than the keep window
+  it("an emptied board takes uploads again: pictures no tile shows are swept", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    for (let i = 0; i < 1000; i++)
+      db.assets.push({
+        id: `old-${i}`,
+        moodboardId: "board-a",
+        createdAt: OLD,
+      });
+    expect((await uploadRequest(JPEG)).status).toBe(201);
+    expect(db.assets.filter((a) => a.id.startsWith("old-"))).toHaveLength(0);
+    jest.useRealTimers();
+  });
+
+  it("keeps a picture a tile still shows, and one removed less than an hour ago (Undo)", async () => {
+    as("editor");
+    jest.useFakeTimers().setSystemTime(new Date("2026-10-12T12:00:00Z"));
+    db.items.push(
+      item({
+        id: "img",
+        moodboardId: "board-a",
+        kind: "image",
+        url: "/api/moodboards/board-a/assets/shown",
+        text: null,
+      })
+    );
+    db.assets.push(
+      { id: "shown", moodboardId: "board-a", createdAt: OLD },
+      {
+        id: "recent",
+        moodboardId: "board-a",
+        createdAt: new Date("2026-10-12T11:30:00Z"),
+      },
+      { id: "stale", moodboardId: "board-a", createdAt: OLD }
+    );
+    await uploadRequest(JPEG);
+    const ids = db.assets.map((a) => a.id);
+    expect(ids).toContain("shown");
+    expect(ids).toContain("recent");
+    expect(ids).not.toContain("stale");
+    jest.useRealTimers();
+  });
+
+  it("when the cap is really reached the answer says so, and does not say the board is full", async () => {
+    as("editor");
+    for (let i = 0; i < 1000; i++)
+      db.assets.push({
+        id: `fresh-${i}`,
+        moodboardId: "board-a",
+        createdAt: new Date(),
+      });
+    const res = await uploadRequest(JPEG);
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("unused pictures");
+    expect(body.error).not.toMatch(/full/i);
+  });
+
+  it("a removed picture is no longer served, to anyone", async () => {
+    db.assets.push({
+      id: "gone",
+      moodboardId: "board-a",
+      bytes: JPEG,
+      mimeType: "image/jpeg",
+    });
+    as("creator");
+    const res = await must(
+      ASSET(request("/api/moodboards/board-a/assets/gone", "GET"), {
+        params: Promise.resolve({ id: "board-a", assetId: "gone" }),
+      })
+    );
+    expect(res.status).toBe(404);
   });
 });

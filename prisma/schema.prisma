@@ -1794,6 +1794,8 @@ model Moodboard {
   projectId          String?
   project            Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   linkShare          Boolean                      @default(false)
+  /// Mixed into the public link's token; bumped when sharing is turned off, so an old address never comes back.
+  linkTokenVersion   Int                          @default(0)
   pinterestBoardId   String?
   pinterestStatus    String?
   pinterestSyncedAt  DateTime?

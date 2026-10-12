@@ -15,7 +15,7 @@ jest.mock("@/lib/auth/moodboard-auth", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     moodboard: { findMany: jest.fn(), findFirst: jest.fn() },
-    moodboardItem: { findMany: jest.fn() },
+    moodboardItem: { findMany: jest.fn(), findFirst: jest.fn() },
     moodboardAsset: { findFirst: jest.fn() },
   },
 }));
@@ -23,7 +23,7 @@ jest.mock("@/lib/prisma", () => ({
 const { prisma } = jest.requireMock<{
   prisma: {
     moodboard: { findMany: jest.Mock; findFirst: jest.Mock };
-    moodboardItem: { findMany: jest.Mock };
+    moodboardItem: { findMany: jest.Mock; findFirst: jest.Mock };
     moodboardAsset: { findFirst: jest.Mock };
   };
 }>("@/lib/prisma");
@@ -218,23 +218,48 @@ describe("Anyone with the link", () => {
   beforeEach(() => {
     prisma.moodboard.findFirst.mockReset();
     prisma.moodboardItem.findMany.mockReset();
+    prisma.moodboardItem.findFirst.mockReset();
     prisma.moodboardAsset.findFirst.mockReset();
   });
+  const board = (version = 0) => ({
+    id: "b1",
+    title: "Rooms",
+    linkTokenVersion: version,
+  });
 
-  it("makes a token that belongs to one board, and only that one", () => {
-    const t = moodboardLinkToken("board-a");
+  it("makes a token that belongs to one board and one version, and only that", () => {
+    const t = moodboardLinkToken("board-a", 0);
     expect(t).toHaveLength(32);
-    expect(moodboardLinkTokenValid("board-a", t)).toBe(true);
-    expect(moodboardLinkTokenValid("board-b", t)).toBe(false);
-    expect(moodboardLinkTokenValid("board-a", t.slice(0, 31) + "x")).toBe(
+    expect(moodboardLinkTokenValid("board-a", 0, t)).toBe(true);
+    expect(moodboardLinkTokenValid("board-b", 0, t)).toBe(false);
+    expect(moodboardLinkTokenValid("board-a", 1, t)).toBe(false);
+    expect(moodboardLinkTokenValid("board-a", 0, t.slice(0, 31) + "x")).toBe(
       false
     );
-    expect(moodboardLinkTokenValid("board-a", "")).toBe(false);
+    expect(moodboardLinkTokenValid("board-a", 0, "")).toBe(false);
+    expect(moodboardLinkToken("board-a", 1)).not.toBe(t);
+  });
+
+  it("an address shared before sharing was turned off never works again, even after it is turned back on", async () => {
+    const before = moodboardLinkToken("b1", 0);
+    // sharing was off, then on again: the board's version moved to 1
+    prisma.moodboard.findFirst.mockResolvedValue(board(1));
+    prisma.moodboardItem.findMany.mockResolvedValue([]);
+    expect(await getPublicMoodboard("b1", before)).toBeNull();
+    expect(
+      await getPublicMoodboard("b1", moodboardLinkToken("b1", 1))
+    ).not.toBeNull();
+    prisma.moodboardAsset.findFirst.mockResolvedValue({
+      bytes: Buffer.from([1]),
+      mimeType: "image/png",
+    });
+    prisma.moodboardItem.findFirst.mockResolvedValue({ id: "t" });
+    expect(await readPublicMoodboardAsset("b1", before, "a1")).toBeNull();
   });
 
   it("opens a board only with the right token, only while sharing is on", async () => {
-    const t = moodboardLinkToken("b1");
-    prisma.moodboard.findFirst.mockResolvedValue({ id: "b1", title: "Rooms" });
+    const t = moodboardLinkToken("b1", 0);
+    prisma.moodboard.findFirst.mockResolvedValue(board());
     prisma.moodboardItem.findMany.mockResolvedValue([
       {
         id: "i",
@@ -250,11 +275,11 @@ describe("Anyone with the link", () => {
       },
     ]);
     expect(await getPublicMoodboard("b1", "wrong")).toBeNull();
-    expect(prisma.moodboard.findFirst).not.toHaveBeenCalled();
-    const board = await getPublicMoodboard("b1", t);
-    expect(board?.items).toHaveLength(1);
+    expect(prisma.moodboardItem.findMany).not.toHaveBeenCalled();
+    const b = await getPublicMoodboard("b1", t);
+    expect(b?.items).toHaveLength(1);
     // sharing off / in Trash / archived: the query itself excludes it
-    expect(prisma.moodboard.findFirst.mock.calls[0][0].where).toEqual({
+    expect(prisma.moodboard.findFirst.mock.calls.at(-1)?.[0].where).toEqual({
       id: "b1",
       linkShare: true,
       archivedAt: null,
@@ -264,10 +289,27 @@ describe("Anyone with the link", () => {
     expect(await getPublicMoodboard("b1", t)).toBeNull();
   });
 
-  it("sends only what a reader needs, and points uploads at the public route", async () => {
-    const t = moodboardLinkToken("b1");
-    prisma.moodboard.findFirst.mockResolvedValue({ id: "b1", title: "Rooms" });
+  it("sends only what a reader needs: the domain is derived from the address, never taken from the client", async () => {
+    const t = moodboardLinkToken("b1", 0);
+    prisma.moodboard.findFirst.mockResolvedValue(board());
     prisma.moodboardItem.findMany.mockResolvedValue([
+      {
+        id: "l",
+        kind: "link",
+        url: "https://www.are.na/block/1",
+        color: null,
+        text: null,
+        title: "T",
+        ratio: 0.7,
+        colorName: null,
+        thumbnailUrl: null,
+        source: {
+          name: "Are.na",
+          domain: "bank.example.com",
+          token: "secret",
+          extra: 1,
+        },
+      },
       {
         id: "i",
         kind: "image",
@@ -277,32 +319,43 @@ describe("Anyone with the link", () => {
         title: "Chair",
         ratio: 1.5,
         colorName: null,
-        source: null,
         thumbnailUrl: null,
+        source: { name: "x".repeat(500), domain: "evil.example" },
       },
     ]);
-    const board = await getPublicMoodboard("b1", t);
-    expect(board?.items[0].url).toBe(
-      `/api/public/moodboards/b1/${t}/assets/a1`
-    );
+    const b = await getPublicMoodboard("b1", t);
+    expect(b?.items[0].source).toEqual({ name: "Are.na", domain: "are.na" });
+    expect(b?.items[1].url).toBe(`/api/public/moodboards/b1/${t}/assets/a1`);
+    // an uploaded picture has no site: nothing client-supplied is passed on
+    expect(b?.items[1].source).toEqual({ name: "x".repeat(120) });
     expect(
       Object.keys(prisma.moodboardItem.findMany.mock.calls[0][0].select)
     ).not.toContain("moodboardId");
   });
 
-  it("serves a picture only while the board is shared and the token fits", async () => {
-    const t = moodboardLinkToken("b1");
+  it("serves a picture only while the board is shared, the token fits and a tile still shows it", async () => {
+    const t = moodboardLinkToken("b1", 0);
     prisma.moodboard.findFirst.mockResolvedValue(null);
     expect(await readPublicMoodboardAsset("b1", t, "a1")).toBeNull();
-    expect(prisma.moodboardAsset.findFirst).not.toHaveBeenCalled();
-    prisma.moodboard.findFirst.mockResolvedValue({ id: "b1" });
+    prisma.moodboard.findFirst.mockResolvedValue(board());
     prisma.moodboardAsset.findFirst.mockResolvedValue({
       bytes: Buffer.from([1, 2]),
       mimeType: "image/png",
     });
+    prisma.moodboardItem.findFirst.mockResolvedValue(null); // the tile was removed
+    expect(await readPublicMoodboardAsset("b1", t, "a1")).toBeNull();
+    expect(prisma.moodboardAsset.findFirst).not.toHaveBeenCalled();
+    prisma.moodboardItem.findFirst.mockResolvedValue({ id: "tile" });
     expect(await readPublicMoodboardAsset("b1", "bad", "a1")).toBeNull();
     expect((await readPublicMoodboardAsset("b1", t, "a1"))?.mimeType).toBe(
       "image/png"
+    );
+    expect(prisma.moodboardItem.findFirst.mock.calls.at(-1)?.[0].where).toEqual(
+      {
+        moodboardId: "b1",
+        kind: "image",
+        url: "/api/moodboards/b1/assets/a1",
+      }
     );
   });
 });

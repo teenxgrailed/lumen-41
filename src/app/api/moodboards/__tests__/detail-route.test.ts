@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { PUT } from "@/app/api/moodboards/[id]/permissions/route";
-import { DELETE } from "@/app/api/moodboards/[id]/route";
+import { DELETE, PATCH } from "@/app/api/moodboards/[id]/route";
 import { GET as LIST } from "@/app/api/moodboards/route";
 import { MoodboardAccessRole } from "@prisma/client";
 
@@ -36,13 +36,16 @@ const { prisma } =
   jest.requireMock<typeof import("@/lib/prisma")>("@/lib/prisma");
 const resolve = resolveMoodboardAccess as jest.Mock;
 const RANK = { VIEWER: 0, EDITOR: 1, FULL_ACCESS: 2 } as const;
-const actAs = (role: MoodboardAccessRole | null) =>
+const actAs = (role: MoodboardAccessRole | null, trashed = false) =>
   resolve.mockImplementation(
     async (
       _a: unknown,
       _id: string,
       need: MoodboardAccessRole = MoodboardAccessRole.VIEWER
-    ) => (role && RANK[role] >= RANK[need] ? { moodboardId: "b1", role } : null)
+    ) =>
+      role && RANK[role] >= RANK[need]
+        ? { moodboardId: "b1", role, trashed }
+        : null
   );
 
 const auth = { userId: "u1", workspace: { workspaceId: "w1", role: "OWNER" } };
@@ -92,6 +95,86 @@ describe("DELETE /api/moodboards/:id?permanent=true (Trash → Delete forever)",
     await DELETE(req("/api/moodboards/b1", "DELETE"), ctx);
     expect(prisma.moodboard.deleteMany).not.toHaveBeenCalled();
     expect(prisma.moodboard.updateMany).toHaveBeenCalled();
+  });
+});
+
+describe("Delete forever needs the creator or a workspace owner, not just a Full access grant", () => {
+  const forever = () =>
+    DELETE(req("/api/moodboards/b1?permanent=true", "DELETE"), ctx);
+  const as = (userId: string, role: string, createdById: string) => {
+    (authenticateRequest as jest.Mock).mockResolvedValue({
+      userId,
+      workspace: { workspaceId: "w1", role },
+    });
+    (prisma.moodboard.findFirst as jest.Mock).mockResolvedValue({
+      createdById,
+    });
+    (prisma.moodboard.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+  };
+
+  it("the creator may, whatever their workspace role", async () => {
+    as("u1", "EDITOR", "u1");
+    expect((await forever())?.status).toBe(204);
+  });
+
+  it("a workspace owner may", async () => {
+    as("u2", "OWNER", "u1");
+    expect((await forever())?.status).toBe(204);
+  });
+
+  it("someone who was only given Full access on the board may not", async () => {
+    as("u2", "EDITOR", "u1");
+    expect((await forever())?.status).toBe(403);
+    expect(prisma.moodboard.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("a board in Trash is read-only; restoring is the one change allowed", () => {
+  const patch = (body: unknown) =>
+    PATCH(req("/api/moodboards/b1", "PATCH", body), ctx);
+  beforeEach(() => {
+    actAs(MoodboardAccessRole.FULL_ACCESS, true);
+    (prisma.moodboard.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.moodboard.findFirst as jest.Mock).mockResolvedValue({ id: "b1" });
+  });
+
+  it.each([
+    ["a new title", { title: "x" }],
+    ["link sharing", { linkShare: true }],
+    ["a restore together with a title", { trashed: false, title: "x" }],
+  ])("refuses %s", async (_n, body) => {
+    expect((await patch(body))?.status).toBe(403);
+    expect(prisma.moodboard.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows the restore", async () => {
+    expect((await patch({ trashed: false }))?.status).toBe(200);
+    expect(prisma.moodboard.updateMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("turning link sharing off retires the address", () => {
+  const patch = (body: unknown) =>
+    PATCH(req("/api/moodboards/b1", "PATCH", body), ctx);
+  beforeEach(() => {
+    (prisma.moodboard.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.moodboard.findFirst as jest.Mock).mockResolvedValue({ id: "b1" });
+  });
+  const data = () =>
+    (prisma.moodboard.updateMany as jest.Mock).mock.calls[0][0].data;
+
+  it("off bumps the token version", async () => {
+    await patch({ linkShare: false });
+    expect(data()).toMatchObject({
+      linkShare: false,
+      linkTokenVersion: { increment: 1 },
+    });
+  });
+
+  it("on does not (the version already moved when it went off)", async () => {
+    await patch({ linkShare: true });
+    expect(data().linkShare).toBe(true);
+    expect(data()).not.toHaveProperty("linkTokenVersion");
   });
 });
 

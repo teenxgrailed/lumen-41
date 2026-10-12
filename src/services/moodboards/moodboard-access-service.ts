@@ -14,8 +14,9 @@ export class MoodboardAccessServiceError extends Error {
       | "MOODBOARD_NOT_FOUND"
       | "MOODBOARD_FULL_ACCESS_REQUIRED"
       | "WORKSPACE_MEMBER_REQUIRED"
-      | "MOODBOARD_CREATOR_ACCESS_FIXED",
-    public readonly status: 403 | 404
+      | "MOODBOARD_CREATOR_ACCESS_FIXED"
+      | "MOODBOARD_TRASHED",
+    public readonly status: 403 | 404 | 409
   ) {
     super(code);
     this.name = "MoodboardAccessServiceError";
@@ -36,6 +37,10 @@ async function requireFullAccess(
       "MOODBOARD_FULL_ACCESS_REQUIRED",
       403
     );
+  }
+  // Who has access to a board in Trash does not change until it is restored.
+  if (access.trashed) {
+    throw new MoodboardAccessServiceError("MOODBOARD_TRASHED", 409);
   }
   if (!actor.workspace) {
     throw new MoodboardAccessServiceError("MOODBOARD_NOT_FOUND", 404);

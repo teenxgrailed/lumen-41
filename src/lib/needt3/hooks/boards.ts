@@ -308,6 +308,7 @@ export function useAddBoardItem() {
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "add the reference",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
     quiet: isBoardFull, // the caller words it: BOARD_FULL_TEXT
     inverseFromResult: true,
     inverse: (_qc, vars, result) =>
@@ -360,6 +361,7 @@ export function useUpdateBoardItem() {
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "save the reference",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
     inverse: (qc, { boardId, id, patch }) => {
       const cur = findListItem<V3BoardItem>(qc, boardItemsKey(boardId), id);
       return cur ? { boardId, id, patch: previousFields(cur, patch) } : null;
@@ -392,6 +394,7 @@ export function useReorderBoardItems() {
   return useUndoableMutation<{ boardId: string; order: string[] }, unknown>({
     scope: BOARD_ITEMS_SCOPE,
     label: "change the order",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
     inverse: (qc, { boardId, order }) => {
       const list = qc.getQueryData<V3BoardItem[]>(boardItemsKey(boardId)) ?? [];
       const listed = new Set(order);
@@ -428,6 +431,7 @@ export function useRemoveBoardItem() {
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "remove the reference",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
     inverse: (qc, vars) => {
       if (!("id" in vars)) return null;
       const cur = findListItem<V3BoardItem>(

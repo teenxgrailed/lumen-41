@@ -53,7 +53,7 @@ const viewer = { userId: "viewer", workspace: workspace(WorkspaceRole.VIEWER) };
 
 const RANK = { VIEWER: 0, EDITOR: 1, FULL_ACCESS: 2 } as const;
 /** The real resolver's rule: the actor's role, if it reaches the required one. */
-function actAs(role: MoodboardAccessRole | null) {
+function actAs(role: MoodboardAccessRole | null, trashed = false) {
   resolveAccess.mockImplementation(
     async (
       _a: unknown,
@@ -61,7 +61,7 @@ function actAs(role: MoodboardAccessRole | null) {
       required: MoodboardAccessRole = MoodboardAccessRole.VIEWER
     ) =>
       role && RANK[role] >= RANK[required]
-        ? { moodboardId: "board", role }
+        ? { moodboardId: "board", role, trashed }
         : null
   );
 }
@@ -240,6 +240,43 @@ describe("Moodboard access grants", () => {
         status: 403,
       });
       expect(grantUpsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a board in Trash keeps its people as they are", () => {
+    beforeEach(() => actAs(MoodboardAccessRole.FULL_ACCESS, true));
+
+    it("refuses to give, invite or remove (409), and writes nothing", async () => {
+      await expect(
+        setMoodboardAccessGrant(
+          actor,
+          "board",
+          "m1",
+          MoodboardAccessRole.EDITOR
+        )
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED", status: 409 });
+      await expect(
+        inviteMoodboardMember(
+          actor,
+          "board",
+          "m@x.io",
+          MoodboardAccessRole.VIEWER
+        )
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED" });
+      await expect(
+        removeMoodboardAccessGrant(actor, "board", "m1")
+      ).rejects.toMatchObject({ code: "MOODBOARD_TRASHED" });
+      expect(grantUpsert).not.toHaveBeenCalled();
+      expect(prisma.moodboardAccessGrant.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("still lists who is on it, and still lets someone leave", async () => {
+      await expect(
+        listMoodboardAccessGrants(actor, "board")
+      ).resolves.toBeTruthy();
+      actAs(MoodboardAccessRole.VIEWER, true);
+      await removeMoodboardAccessGrant(viewer, "board", "viewer");
+      expect(prisma.moodboardAccessGrant.deleteMany).toHaveBeenCalled();
     });
   });
 

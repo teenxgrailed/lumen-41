@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Moodboard",
   robots: { index: false, follow: false },
+  // A shared board's address carries its secret: never send it on to a link's site.
+  referrer: "no-referrer",
 };
 
 type Params = { params: Promise<{ id: string; token: string }> };
@@ -53,6 +55,7 @@ export default async function PublicMoodboardPage({ params }: Params) {
                 <img
                   src={it.url}
                   alt={it.title ?? ""}
+                  referrerPolicy="no-referrer"
                   style={{ width: "100%", borderRadius: 14, display: "block" }}
                 />
               ) : it.kind === "color" && it.color && HEX.test(it.color) ? (
@@ -95,6 +98,7 @@ export default async function PublicMoodboardPage({ params }: Params) {
                     <img
                       src={it.thumbnailUrl}
                       alt=""
+                      referrerPolicy="no-referrer"
                       style={{ width: "100%", display: "block" }}
                     />
                   ) : null}
