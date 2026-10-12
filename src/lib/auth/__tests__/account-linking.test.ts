@@ -34,7 +34,8 @@ const VERIFIED: Record<string, Record<string, unknown>> = {
   "azure-ad": {
     sub: "m",
     email: "ann@example.com",
-    tid: "9188040d-6c67-4c5b-b112-36a304b66dad",
+    tid: "corp",
+    xms_edov: true,
   },
   openai: { sub: "o", email: "ann@example.com", email_verified: true },
   discord: { id: "d", email: "ann@example.com", verified: true },
@@ -73,14 +74,27 @@ describe("verifiedProviderEmail", () => {
     }
   );
 
-  it("Microsoft work accounts count once the tenant verified the domain", () => {
+  it("Microsoft needs xms_edov for every tenant, personal accounts included", () => {
+    expect(
+      verifiedProviderEmail("azure-ad", {
+        email: "ann@outlook.com",
+        tid: "9188040d-6c67-4c5b-b112-36a304b66dad",
+      })
+    ).toBeNull();
+    expect(
+      verifiedProviderEmail("azure-ad", {
+        email: "ann@outlook.com",
+        tid: "9188040d-6c67-4c5b-b112-36a304b66dad",
+        xms_edov: true,
+      })
+    ).toBe("ann@outlook.com");
     expect(
       verifiedProviderEmail("azure-ad", {
         email: "ann@corp.com",
         tid: "corp",
-        xms_edov: true,
+        xms_edov: false,
       })
-    ).toBe("ann@corp.com");
+    ).toBeNull();
   });
 
   it("X never vouches for an email", () => {

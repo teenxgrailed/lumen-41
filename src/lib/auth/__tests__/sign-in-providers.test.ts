@@ -1,6 +1,5 @@
 import { createPublicKey, generateKeyPairSync, verify } from "node:crypto";
 
-import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { SIGN_IN_PROVIDER_IDS } from "@/lib/auth/sign-in-provider-ids";
 import {
   APPLE_SECRET_MAX_SECONDS,
@@ -10,15 +9,13 @@ import {
   crossSiteCallbackCookies,
   normalizeApplePrivateKey,
   readSignInProviderConfig,
+  resetSignInProviderConfigCache,
   signAppleClientSecret,
 } from "@/lib/auth/sign-in-providers";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/security/secret-encryption";
 
-jest.mock("@/lib/auth", () => ({
-  getGoogleCredentials: jest.fn(),
-  getOutlookCredentials: jest.fn(),
-}));
 jest.mock("@/lib/prisma", () => ({
   prisma: { systemSettings: { findFirst: jest.fn() } },
 }));
@@ -141,6 +138,48 @@ describe("buildSignInProviders", () => {
     }
   });
 
+  it("Microsoft reads the ID token, so tid and xms_edov reach the profile", () => {
+    const ms = effective(byId(ALL, "azure-ad")) as AnyProvider & {
+      idToken?: boolean;
+      wellKnown: string;
+    };
+    expect(ms.idToken).toBe(true);
+    // the multi-tenant discovery URL, which openid-client recognises and
+    // validates `iss` against the token's own tid
+    expect(ms.wellKnown).toMatch(
+      /^https:\/\/login\.microsoftonline\.com\/common\/v2\.0\/\.well-known\/openid-configuration/
+    );
+  });
+
+  it("Microsoft profile: email only when xms_edov, photo still fetched", async () => {
+    const fetchMock = jest.fn(async () => ({ ok: false }));
+    (globalThis as { fetch?: unknown }).fetch = fetchMock;
+    const ms = byId(ALL, "azure-ad") as unknown as {
+      profile: (
+        p: unknown,
+        t: unknown
+      ) => Promise<{ id: string; email: string | null }>;
+    };
+    const tokens = { access_token: "at" };
+    const claims = { sub: "ms-sub", name: "Ann", email: "Ann@Corp.com" };
+    await expect(
+      ms.profile({ ...claims, tid: "corp" }, tokens)
+    ).resolves.toMatchObject({ id: "ms-sub", email: null });
+    await expect(
+      ms.profile(
+        { ...claims, tid: "9188040d-6c67-4c5b-b112-36a304b66dad" },
+        tokens
+      )
+    ).resolves.toMatchObject({ email: null });
+    await expect(
+      ms.profile({ ...claims, tid: "corp", xms_edov: true }, tokens)
+    ).resolves.toMatchObject({ id: "ms-sub", email: "ann@corp.com" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("graph.microsoft.com/v1.0/me/photos"),
+      expect.objectContaining({ headers: { Authorization: "Bearer at" } })
+    );
+  });
+
   it("Sign in with ChatGPT: OpenAI OIDC with PKCE, state and nonce", () => {
     const openai = byId(ALL, "openai") as AnyProvider & {
       wellKnown: string;
@@ -234,13 +273,7 @@ describe("Apple's client secret", () => {
 describe("readSignInProviderConfig", () => {
   const saved = { ...process.env };
   beforeEach(() => {
-    jest.mocked(getGoogleCredentials).mockResolvedValue({
-      clientId: "",
-      clientSecret: "",
-    });
-    jest
-      .mocked(getOutlookCredentials)
-      .mockResolvedValue({ clientId: "", clientSecret: "", tenantId: "" });
+    resetSignInProviderConfigCache();
     process.env.DATABASE_URL ||= "postgresql://localhost/test";
   });
   afterEach(() => {
@@ -270,6 +303,59 @@ describe("readSignInProviderConfig", () => {
     });
     expect(config.twitter).toEqual({ clientId: "", clientSecret: "" });
   });
+
+  it("reads Google and Microsoft from the same columns, tenant common by default", async () => {
+    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
+      googleClientId: "db-g",
+      googleClientSecret: encryptSecret("db-gs"),
+      outlookClientId: "db-m",
+      outlookClientSecret: encryptSecret("db-ms"),
+      outlookTenantId: null,
+    } as never);
+    delete process.env.AZURE_AD_TENANT_ID;
+    const config = await readSignInProviderConfig();
+    expect(config.google).toEqual({ clientId: "db-g", clientSecret: "db-gs" });
+    expect(config["azure-ad"]).toEqual({
+      clientId: "db-m",
+      clientSecret: "db-ms",
+      tenantId: "common",
+    });
+  });
+
+  it("keeps the last good settings when a later read fails, and logs it", async () => {
+    delete process.env.GITHUB_CLIENT_ID;
+    delete process.env.GITHUB_CLIENT_SECRET;
+    const findFirst = jest.mocked(prisma.systemSettings.findFirst);
+    findFirst.mockResolvedValueOnce({
+      githubClientId: "db-gh",
+      githubClientSecret: encryptSecret("db-ghs"),
+    } as never);
+    await readSignInProviderConfig();
+    findFirst.mockRejectedValueOnce(new Error("db down"));
+    const config = await readSignInProviderConfig();
+    expect(config.github).toEqual({
+      clientId: "db-gh",
+      clientSecret: "db-ghs",
+    });
+    expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+      expect.stringContaining("keeping the last good"),
+      expect.anything(),
+      "SignInProviders"
+    );
+  });
+
+  it("falls back to the environment when no read has ever worked", async () => {
+    process.env.GITHUB_CLIENT_ID = "env-gh";
+    process.env.GITHUB_CLIENT_SECRET = "env-ghs";
+    jest
+      .mocked(prisma.systemSettings.findFirst)
+      .mockRejectedValueOnce(new Error("db down"));
+    const config = await readSignInProviderConfig();
+    expect(config.github).toEqual({
+      clientId: "env-gh",
+      clientSecret: "env-ghs",
+    });
+  });
 });
 
 describe("crossSiteCallbackCookies", () => {
@@ -282,6 +368,8 @@ describe("crossSiteCallbackCookies", () => {
       httpOnly: true,
     });
     expect(cookies.state?.name).toBe("__Secure-next-auth.state");
+    // the return address keeps NextAuth's SameSite=Lax default
+    expect(cookies).not.toHaveProperty("callbackUrl");
     expect(cookies).not.toHaveProperty("sessionToken");
     expect(cookies).not.toHaveProperty("csrfToken");
   });

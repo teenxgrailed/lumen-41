@@ -1,15 +1,14 @@
 import type { NextAuthOptions } from "next-auth";
-import type { OAuthConfig } from "next-auth/providers/oauth";
 import AppleProvider from "next-auth/providers/apple";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import DiscordProvider from "next-auth/providers/discord";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
+import type { OAuthConfig } from "next-auth/providers/oauth";
 import TwitterProvider from "next-auth/providers/twitter";
 
 import { createPrivateKey, sign } from "node:crypto";
 
-import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 import { verifiedProviderEmail } from "@/lib/auth/account-linking";
 import type { SignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { newDate } from "@/lib/date-utils";
@@ -67,40 +66,19 @@ const env = (name: string) => process.env[name]?.trim() || "";
 const pick = (stored: unknown, envName: string) =>
   (typeof stored === "string" && stored.trim()) || env(envName);
 
-/**
- * Credentials for every provider: the System Settings value when set (secrets
- * decrypted), else the environment variable. Google and Microsoft keep their
- * existing readers, which the Connections flows share.
- */
-export async function readSignInProviderConfig(): Promise<SignInProviderConfig> {
-  const [google, outlook] = await Promise.all([
-    getGoogleCredentials(),
-    getOutlookCredentials(),
-  ]);
-
-  let stored: Record<string, unknown> = {};
-  if (process.env.DATABASE_URL) {
-    try {
-      const row = await prisma.systemSettings.findFirst();
-      if (row) stored = openSystemSettingsSecrets(row);
-    } catch (error) {
-      logger.error(
-        "Failed to read sign-in provider settings",
-        { error: error instanceof Error ? error.message : "Unknown error" },
-        LOG_SOURCE
-      );
-    }
-  }
-
+/** The provider config built from the given System Settings row (or none). */
+export function signInProviderConfigFrom(
+  stored: Record<string, unknown>
+): SignInProviderConfig {
   return {
     google: {
-      clientId: google.clientId || "",
-      clientSecret: google.clientSecret || "",
+      clientId: pick(stored.googleClientId, "GOOGLE_CLIENT_ID"),
+      clientSecret: pick(stored.googleClientSecret, "GOOGLE_CLIENT_SECRET"),
     },
     "azure-ad": {
-      clientId: outlook.clientId || "",
-      clientSecret: outlook.clientSecret || "",
-      tenantId: outlook.tenantId || "",
+      clientId: pick(stored.outlookClientId, "AZURE_AD_CLIENT_ID"),
+      clientSecret: pick(stored.outlookClientSecret, "AZURE_AD_CLIENT_SECRET"),
+      tenantId: pick(stored.outlookTenantId, "AZURE_AD_TENANT_ID") || "common",
     },
     apple: {
       clientId: pick(stored.appleClientId, "APPLE_CLIENT_ID"),
@@ -132,6 +110,45 @@ export async function readSignInProviderConfig(): Promise<SignInProviderConfig> 
       ),
     },
   };
+}
+
+/** The last config read from a working database; see readSignInProviderConfig. */
+let lastGoodConfig: SignInProviderConfig | null = null;
+
+/** Test hook: forget the remembered config. */
+export function resetSignInProviderConfigCache() {
+  lastGoodConfig = null;
+}
+
+/**
+ * Credentials for every provider: the System Settings value when set (secrets
+ * decrypted), else the environment variable. Google and Microsoft read the
+ * same columns and variables as the Connections flows (`@/lib/auth`).
+ *
+ * When the settings read fails, the last config read from a working database
+ * is kept (and the failure logged), so a database hiccup during the ten-minute
+ * handler rebuild does not silently drop providers configured only in System
+ * Settings. Before any good read, the environment is all there is.
+ */
+export async function readSignInProviderConfig(): Promise<SignInProviderConfig> {
+  if (!process.env.DATABASE_URL) return signInProviderConfigFrom({});
+  try {
+    const row = await prisma.systemSettings.findFirst();
+    const config = signInProviderConfigFrom(
+      row ? (openSystemSettingsSecrets(row) as Record<string, unknown>) : {}
+    );
+    lastGoodConfig = config;
+    return config;
+  } catch (error) {
+    logger.error(
+      lastGoodConfig
+        ? "Failed to read sign-in provider settings; keeping the last good ones"
+        : "Failed to read sign-in provider settings; using the environment only",
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      LOG_SOURCE
+    );
+    return lastGoodConfig ?? signInProviderConfigFrom({});
+  }
 }
 
 /** Whether a provider has everything it needs; anything less hides it. */
@@ -418,6 +435,14 @@ export function buildSignInProviders(
           ...config["azure-ad"],
           allowDangerousEmailAccountLinking: true,
           authorization: { params: { scope: SIGN_IN_SCOPES["azure-ad"] } },
+          /* The profile is the ID token's claims (tid, xms_edov, email), not
+             Graph's OIDC userinfo, which has none of them. Its `sub` is the
+             same value, so existing linked accounts still match. For the
+             common / organizations / consumers tenants openid-client checks
+             `iss` against the tenant in the token's own `tid`. The photo
+             fetch still uses tokens.access_token. */
+          idToken: true,
+          checks: ["pkce", "state"],
         }) as AnyOAuth
       )
     );
@@ -463,10 +488,13 @@ export function buildSignInProviders(
 
 /**
  * Apple returns to the callback with a cross-site form POST, which does not
- * carry SameSite=Lax cookies, so the PKCE verifier, state, nonce and return
- * address NextAuth set before leaving would be missing. Over HTTPS those four
- * short-lived cookies are sent as SameSite=None; Secure instead. The session
- * and CSRF cookies keep NextAuth's defaults.
+ * carry SameSite=Lax cookies, so the PKCE verifier, state and nonce NextAuth
+ * set before leaving would be missing. Over HTTPS those three short-lived
+ * cookies are sent as SameSite=None; Secure instead. Everything else keeps
+ * NextAuth's SameSite=Lax default, the return address included: after an
+ * Apple sign-in that cookie is not sent, so NextAuth lands on the site root
+ * (a new account still goes to setup via `pages.newUser`). That costs the
+ * deep link, not the sign-in.
  */
 export function crossSiteCallbackCookies(
   baseUrl: string | undefined
@@ -486,9 +514,5 @@ export function crossSiteCallbackCookies(
     },
     state: { name: "__Secure-next-auth.state", options: options(60 * 15) },
     nonce: { name: "__Secure-next-auth.nonce", options: options() },
-    callbackUrl: {
-      name: "__Secure-next-auth.callback-url",
-      options: options(),
-    },
   };
 }

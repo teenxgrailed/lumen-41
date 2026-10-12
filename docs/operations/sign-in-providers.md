@@ -38,8 +38,9 @@ https://use.needt.app/api/auth/callback/<id>
   provider vouches that the email is verified and it equals the account's
   email (case ignored): Google and Apple `email_verified`, GitHub's primary
   _and_ verified address from `/user/emails`, Discord's `verified` flag,
-  LinkedIn and ChatGPT `email_verified`, Microsoft personal accounts, and
-  Microsoft work accounts whose tenant verified the domain (`xms_edov`).
+  LinkedIn and ChatGPT `email_verified`, and Microsoft `xms_edov` (any
+  tenant, personal accounts included: Microsoft documents the plain `email`
+  claim as not guaranteed correct).
 - Anything else that matches an existing email is refused with "This email
   already belongs to a Needt account. Sign in using the method you used
   before." The person signs in the old way.
@@ -144,9 +145,11 @@ registration.
    types: _any organizational directory and personal Microsoft accounts_;
    tenant `common`.
 3. **Token configuration → Add optional claim → ID** → tick `email` and
-   `xms_edov` → Add. Without `xms_edov` work and school accounts still sign
-   in, but can never join an existing Needt account by email; personal
-   accounts (outlook.com, hotmail.com, live.com) join either way.
+   `xms_edov` → Add. **Required for an email at all**: Needt reads the
+   Microsoft profile from the ID token and keeps the email only when
+   `xms_edov` is true. Without it every Microsoft account still signs in,
+   but as a new account with no email address (no trial, no mail), and never
+   joins an existing Needt account.
 4. **API permissions**: sign-in needs only `openid`, `profile`, `email`,
    `User.Read` (delegated). The calendar permissions stay for Connections.
 5. System Settings → _Outlook Calendar Integration_: **Outlook Client ID**,

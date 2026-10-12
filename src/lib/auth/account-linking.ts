@@ -19,9 +19,6 @@ const LINK_FAILED_REDIRECT = "/auth/signin?error=OAuthCallback";
  */
 export const NEVER_LINK_PROVIDERS: ReadonlySet<string> = new Set(["twitter"]);
 
-/** Microsoft's tenant for personal accounts (outlook.com, live.com, ...). */
-const MICROSOFT_CONSUMER_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad";
-
 type Profile = Record<string, unknown> | undefined | null;
 
 const isTrue = (value: unknown) => value === true || value === "true";
@@ -43,9 +40,13 @@ export function normalizeEmail(value: unknown): string | null {
  *   GitHub provider puts in `verified_primary_email` (`sign-in-providers.ts`).
  *   The public profile email is never trusted.
  * - Discord: the account's `verified` flag.
- * - Microsoft: a work or school address only when the tenant verified the
- *   domain (`xms_edov`, an optional claim the app registration must request);
- *   a personal Microsoft account's address is Microsoft's own sign-in name.
+ * - Microsoft: only with `xms_edov` true, for every tenant, personal
+ *   accounts included. Microsoft documents the `email` claim as "isn't
+ *   guaranteed to be correct, and is mutable over time - never use it for
+ *   authorization", and gives no separate guarantee for the consumer tenant
+ *   (https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims-reference,
+ *   rows `email` and `xms_edov`). `xms_edov` is an optional claim the app
+ *   registration must request, together with `email`.
  * - X and anything unknown: never.
  */
 export function verifiedProviderEmail(
@@ -66,10 +67,7 @@ export function verifiedProviderEmail(
     case "discord":
       return profile.verified === true ? normalizeEmail(profile.email) : null;
     case "azure-ad":
-      return isTrue(profile.xms_edov) ||
-        profile.tid === MICROSOFT_CONSUMER_TENANT
-        ? normalizeEmail(profile.email)
-        : null;
+      return isTrue(profile.xms_edov) ? normalizeEmail(profile.email) : null;
     default:
       return null;
   }
