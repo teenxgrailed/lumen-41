@@ -5,13 +5,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { LuCheck, LuTarget } from "react-icons/lu";
 
 import { formatInTimeZone } from "@/lib/date-utils";
-import { clock, durLabel, moveOverdue } from "@/lib/needt3/day";
-import {
-  habitColor,
-  habitDoneOn,
-  at as hourAt,
-  liveHabits,
-} from "@/lib/needt3/derive";
+import { clock, durLabel } from "@/lib/needt3/day";
+import { habitColor, habitDoneOn, liveHabits } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import {
   useCheckins,
@@ -26,6 +21,7 @@ import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { hourAt } from "../../home/derive";
 import {
   PkButton,
   PkEmpty,
@@ -42,7 +38,7 @@ import {
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { usePhoneClock } from "./clock";
-import { homeView, nextUpWhy } from "./model";
+import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
 import { useTaskPull } from "./pull";
 import type { HomeController } from "./useHomeController";
@@ -121,7 +117,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   };
 
   const moveToToday = () => {
-    const r = moveOverdue(all, today);
+    const r = moveLate(v.sec.late, today);
     if (!r) return;
     // each move stands alone: one that fails is rolled back and reported by
     // the mutation without taking the others' Undo with it
@@ -164,7 +160,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   );
 
   const ready = hasContent(tasksQuery);
-  const nuAt = nu ? hourAt(nu) : null;
+  const nuAt = nu ? hourAt(nu, today) : null;
   const d = formatInTimeZone(now, tz, "EEEE, d MMMM");
   const week = formatInTimeZone(now, tz, "I");
 
@@ -263,7 +259,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           >
             {nu.title}
           </button>
-          <p className="v2p-next-why">{nextUpWhy(N)}</p>
+          <p className="v2p-next-why">{nextUpWhy(N, today)}</p>
           <div className="v2p-next-actions">
             <PkButton
               kind="primary"

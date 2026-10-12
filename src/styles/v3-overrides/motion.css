@@ -864,8 +864,10 @@
  * Self-contained: the vendored mobile-v2-plates.css is untouched. */
 
 /* Rule 11: an entry plays once and never holds its end state (fill is
- * `backwards`, not `both`): the day swap, Next up and the now/next plate. */
-.needt-v3 :is(.v2p-swap, .v2p-next, .v2p-evplate) {
+ * `backwards`, not `both`): the day swap, Next up, the now/next plate and the
+ * picked day's plate in the week strip and the month grid. */
+.needt-v3
+  :is(.v2p-swap, .v2p-next, .v2p-evplate, .v2p-wd-plate, .v2p-mc-plate) {
   animation-fill-mode: backwards;
 }
 

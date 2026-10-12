@@ -8,6 +8,10 @@ import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
+import type {
+  HomeController,
+  HomeTab,
+} from "@/components/needt3/phone/home/useHomeController";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
@@ -86,8 +90,7 @@ const STRIKE_MS = 600;
 const GONE_MS = 870;
 const BACK_MS = 320;
 
-type Phase = "strike" | "collapse";
-type Tab = "day" | "week";
+type Tab = HomeTab;
 
 /** Re-render once a minute so the now line and "Was planned for" stay true. */
 function useNowMinute() {
@@ -99,7 +102,7 @@ function useNowMinute() {
   return now;
 }
 
-function DesktopHome() {
+function DesktopHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
@@ -122,19 +125,24 @@ function DesktopHome() {
   const { setComposerOpen, setAskOpen, setFocusOpen, openSettings } =
     useNeedt3Ui();
 
-  const [tab, setTab] = useState<Tab>("day");
-  const [fold, setFold] = useState<Record<string, boolean>>({ done: true });
-  const [leaving, setLeaving] = useState<Record<string, Phase>>({});
-  const [back, setBack] = useState<Record<string, boolean>>({});
-  const [skipped, setSkipped] = useState<string[]>([]);
-  const closed = useRef<string[]>([]);
-  const timers = useRef<Record<string, number[]>>({});
+  // The route's controller (created above the face switch, so a resize across
+  // 700 px keeps all of it): tab, folds, Skip, the rows playing their exit and
+  // the timers that end them.
+  const {
+    tab,
+    setTab,
+    fold,
+    setFold,
+    leaving,
+    setLeaving,
+    back,
+    setBack,
+    skipped,
+    setSkipped,
+    closed,
+    timers,
+  } = ctl;
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const live = timers.current;
-    return () => Object.values(live).forEach((l) => l.forEach(clearTimeout));
-  }, []);
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const { late, day, inbox } = useMemo(
@@ -198,10 +206,13 @@ function DesktopHome() {
     setAskOpen(true);
   };
 
-  const clearTimers = (id: string) => {
-    (timers.current[id] ?? []).forEach(clearTimeout);
-    delete timers.current[id];
-  };
+  const clearTimers = useCallback(
+    (id: string) => {
+      (timers.current[id] ?? []).forEach(clearTimeout);
+      delete timers.current[id];
+    },
+    [timers]
+  );
   const drop = <T,>(
     set: (f: (m: Record<string, T>) => Record<string, T>) => void,
     id: string
@@ -248,7 +259,7 @@ function DesktopHome() {
         ];
       }
     },
-    [toggleTask, reduced]
+    [toggleTask, reduced, clearTimers, closed, timers, setLeaving, setBack]
   );
 
   const undoLast = () => {
@@ -653,5 +664,5 @@ const EventIcon = () => <FiCalendar size={13} aria-hidden />;
  * crossing the width loses none of it.
  */
 export function HomeScreen() {
-  return <HomeFaces desktop={<DesktopHome />} />;
+  return <HomeFaces desktop={(ctl) => <DesktopHome ctl={ctl} />} />;
 }

@@ -1,6 +1,6 @@
 import type { V3Task } from "@/lib/needt3/map";
 
-import { homeView, nextUpWhy, taskHits } from "../model";
+import { homeView, moveLate, nextUpWhy, taskHits } from "../model";
 
 const TODAY = "2026-09-02";
 const task = (id: string, o: Partial<V3Task> = {}) =>
@@ -97,8 +97,10 @@ describe("nextUpWhy", () => {
     const a = task("a", { dueDate: "2026-09-01" });
     const b = task("b", { dueDate: "2026-08-30" });
     const v = homeView([a, b], TODAY);
-    expect(nextUpWhy(v.next)).toBe("Overdue since 30 Aug · +1 overdue");
-    expect(nextUpWhy(homeView([a], TODAY).next)).toBe("Overdue since 1 Sep");
+    expect(nextUpWhy(v.next, TODAY)).toBe("Overdue since 30 Aug · +1 overdue");
+    expect(nextUpWhy(homeView([a], TODAY).next, TODAY)).toBe(
+      "Overdue since 1 Sep"
+    );
   });
   it("fits before the next timed task, else due today", () => {
     const fits = homeView(
@@ -108,7 +110,7 @@ describe("nextUpWhy", () => {
       ],
       TODAY
     );
-    expect(nextUpWhy(fits.next)).toBe("Fits before 11:00");
+    expect(nextUpWhy(fits.next, TODAY)).toBe("Fits before 11:00");
     const tight = homeView(
       [
         task("a", {
@@ -119,8 +121,8 @@ describe("nextUpWhy", () => {
       ],
       TODAY
     );
-    expect(nextUpWhy(tight.next)).toBe("Due today");
-    expect(nextUpWhy(homeView([], TODAY).next)).toBe("");
+    expect(nextUpWhy(tight.next, TODAY)).toBe("Due today");
+    expect(nextUpWhy(homeView([], TODAY).next, TODAY)).toBe("");
   });
 });
 
@@ -148,5 +150,64 @@ describe("taskHits", () => {
   it("nothing for an empty query or a trashed task", () => {
     expect(taskHits(list, "  ", TODAY)).toEqual([]);
     expect(taskHits(list, "gym", TODAY)).toEqual([]);
+  });
+});
+
+describe("a task's day is its scheduledStart's day (the desktop Home's rule)", () => {
+  it("due today but scheduled tomorrow 09:00 is tomorrow's, not today's or Next up", () => {
+    const t = task("moved", {
+      dueDate: TODAY,
+      scheduledStart: "2026-09-03T09:00",
+    });
+    const v = homeView([t], TODAY);
+    expect(v.sec.day).toEqual([]);
+    expect(v.next.nu).toBeNull();
+    expect(v.parts).toEqual([]);
+    expect(v.tomorrowRows.map((x) => x.id)).toEqual(["moved"]);
+    expect(v.total).toBe(0);
+  });
+  it("no due date but scheduled today 15:00 is in Today, not the Inbox", () => {
+    const t = task("placed", {
+      dueDate: null,
+      scheduledStart: `${TODAY}T15:00`,
+    });
+    const v = homeView([t], TODAY);
+    expect(v.inboxRows).toEqual([]);
+    expect(v.next.nu?.id).toBe("placed");
+    expect(v.total).toBe(1);
+    expect(nextUpWhy(v.next, TODAY)).toBe("Today"); // placed today, not due
+  });
+  it("scheduled yesterday, due later: overdue since the day it was placed", () => {
+    const t = task("slipped", {
+      dueDate: "2026-09-10",
+      scheduledStart: "2026-09-01T09:00",
+    });
+    const v = homeView([t], TODAY);
+    expect(v.sec.late.map((x) => x.id)).toEqual(["slipped"]);
+    expect(nextUpWhy(v.next, TODAY)).toBe("Overdue since 1 Sep");
+  });
+  it("Move to today moves what the Home calls overdue, keeping the hour", () => {
+    const t = task("slipped", {
+      dueDate: "2026-09-10",
+      scheduledStart: "2026-09-01T09:00",
+      estimatedMinutes: 30,
+    });
+    const v = homeView([t, task("fine")], TODAY);
+    const r = moveLate(v.sec.late, TODAY);
+    expect(r?.label).toBe("1 task moved to today");
+    expect(r?.moves[0]).toMatchObject({
+      id: "slipped",
+      patch: { dueDate: TODAY, scheduledStart: `${TODAY}T09:00` },
+      before: { dueDate: "2026-09-10", scheduledStart: "2026-09-01T09:00" },
+    });
+    expect(moveLate([], TODAY)).toBeNull();
+  });
+  it("the pull-down names the day it is placed on", () => {
+    const t = task("p", {
+      title: "Plan",
+      dueDate: "2026-09-10",
+      scheduledStart: "2026-09-04T10:00",
+    });
+    expect(taskHits([t], "plan", TODAY)[0].meta).toBe("4 Sep · 10:00");
   });
 });

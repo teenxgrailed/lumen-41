@@ -16,8 +16,10 @@ import { qk } from "@/lib/needt3/query-keys";
 
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { CalendarFaces } from "../../calendar/CalendarFaces";
+import type { CalendarController } from "../../calendar/useCalendarController";
 import { usePhoneOverlays } from "../../overlays/store";
 import { HomeFaces } from "../HomeFaces";
+import type { HomeController } from "../useHomeController";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -161,9 +163,40 @@ const seed = (tasks: V3Task[] | undefined = TASKS) => {
 
 // The route components, as the frame draws them: a face switch over a stub
 // desktop face, under the frame's phone-ui context.
-const desktop = h("div", { "data-desktop": "" });
-const PhoneHome = () => h(HomeFaces, { desktop });
-const PhoneCalendar = () => h(CalendarFaces, { desktop });
+// The stub desktop faces are stateful the way the real ones are: all their
+// state is the route's controller (HomeScreen / CalendarCraft destructure the
+// same fields), so what they show is what the controller kept.
+const Btn = (id: string, text: string, onClick: () => void) =>
+  h("button", { type: "button", "data-d": id, onClick }, text);
+const DeskHome = ({ ctl }: { ctl: HomeController }) =>
+  h(
+    "div",
+    { "data-desktop": "" },
+    Btn("tab", ctl.tab, () => ctl.setTab(ctl.tab === "day" ? "week" : "day")),
+    Btn("late", String(!!ctl.fold.late), ctl.flip("late")),
+    Btn("done", String(!!ctl.fold.done), ctl.flip("done")),
+    Btn("skip", ctl.skipped.join(), () => ctl.setSkipped((x) => [...x, "x"])),
+    Btn("leaving", Object.keys(ctl.leaving).join(), () => {
+      ctl.setLeaving({ a: "strike" });
+      ctl.timers.current.a = [window.setTimeout(() => ctl.setLeaving({}), 50)];
+    })
+  );
+const DeskCal = ({ ctl }: { ctl: CalendarController }) =>
+  h(
+    "div",
+    { "data-desktop": "" },
+    Btn("week", String(ctl.weekFrom), () => ctl.setWeekFrom("2026-09-14")),
+    Btn("view", String(ctl.viewLocal), () => ctl.setViewLocal("days")),
+    Btn("draft", ctl.draft ? ctl.draft.date : "", () =>
+      ctl.setDraft({ date: TODAY, at: 10, key: 1 })
+    )
+  );
+const PhoneHome = () =>
+  h(HomeFaces, { desktop: (ctl: HomeController) => h(DeskHome, { ctl }) });
+const PhoneCalendar = () =>
+  h(CalendarFaces, {
+    desktop: (ctl: CalendarController) => h(DeskCal, { ctl }),
+  });
 const render = (screen: FunctionComponent, ui: "phone" | "desktop") =>
   root.render(
     h(
@@ -172,7 +205,8 @@ const render = (screen: FunctionComponent, ui: "phone" | "desktop") =>
       h(PhoneUiProvider, { value: ui }, h(screen))
     )
   );
-const mount = (screen: FunctionComponent) => act(() => render(screen, "phone"));
+const mount = (screen: FunctionComponent, ui: "phone" | "desktop" = "phone") =>
+  act(() => render(screen, ui));
 /** The window crosses 700 px: same tree, another face. */
 const swap = (screen: FunctionComponent, ui: "phone" | "desktop") =>
   act(() => render(screen, ui));
@@ -560,6 +594,37 @@ describe("two faces, one state (crossing 700 px)", () => {
     expect(toggle).toHaveBeenCalledTimes(1);
   });
 
+  it("the desktop's state survives a round trip through the phone (and the phone's the desktop)", () => {
+    mount(PhoneHome, "desktop");
+    click(q("[data-d=tab]"));
+    click(q("[data-d=late]"));
+    click(q("[data-d=skip]"));
+    click(q("[data-d=done]")); // the fold both faces share: Done today opens
+    swap(PhoneHome, "phone");
+    expect(qa("[data-desktop]")).toHaveLength(0);
+    // Done today is open on the phone too, and Skip passed nothing real over
+    expect(qa("[data-pk-row=doneNow]")).toHaveLength(1);
+    click(q("[data-v2p-skip]"));
+    swap(PhoneHome, "desktop");
+    expect(q("[data-d=tab]").textContent).toBe("week");
+    expect(q("[data-d=late]").textContent).toBe("true");
+    expect(q("[data-d=skip]").textContent).toBe("x,late"); // the phone's Skip is in the same list
+    expect(q("[data-d=done]").textContent).toBe("false");
+  });
+
+  it("a desktop row's strike ends after the face is gone", () => {
+    jest.useFakeTimers({ now: NOW });
+    mount(PhoneHome, "desktop");
+    click(q("[data-d=leaving]"));
+    expect(q("[data-d=leaving]").textContent).toBe("a");
+    swap(PhoneHome, "phone"); // the desktop face unmounts mid-strike
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+    swap(PhoneHome, "desktop");
+    expect(q("[data-d=leaving]").textContent).toBe("");
+  });
+
   describe("Calendar", () => {
     beforeEach(() =>
       client.setQueryData(qk.tasks({}), [
@@ -579,6 +644,23 @@ describe("two faces, one state (crossing 700 px)", () => {
         "2026-09-10"
       );
       expect(q("[data-v2p-view]").getAttribute("data-v2p-view")).toBe("month");
+    });
+    it("keeps the desktop's paging, view and slot draft across a round trip", () => {
+      mount(PhoneCalendar, "desktop");
+      click(q("[data-d=week]"));
+      click(q("[data-d=view]"));
+      click(q("[data-d=draft]"));
+      swap(PhoneCalendar, "phone");
+      expect(qa("[data-desktop]")).toHaveLength(0);
+      click(q("[data-v2p-day='2026-09-04']")); // the phone's own pick, meanwhile
+      swap(PhoneCalendar, "desktop");
+      expect(q("[data-d=week]").textContent).toBe("2026-09-14");
+      expect(q("[data-d=view]").textContent).toBe("days");
+      expect(q("[data-d=draft]").textContent).toBe(TODAY);
+      swap(PhoneCalendar, "phone");
+      expect(
+        q("[role=tab][aria-selected=true]").getAttribute("data-v2p-day")
+      ).toBe("2026-09-04");
     });
     it("keeps an open fold", () => {
       mount(PhoneCalendar);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { newDate } from "@/lib/date-utils";
 import { laterPatch } from "@/lib/needt3/day";
@@ -15,18 +15,22 @@ import { dayIn } from "../overlays/today";
 
 const none = () => undefined;
 
-export type HomeFold = { tomorrow: boolean; done: boolean; habits: boolean };
+/** A row's exit on the desktop Home: the strike plays, then the row collapses. */
+export type HomePhase = "strike" | "collapse";
+/** The desktop Home's tabs. */
+export type HomeTab = "day" | "week";
+/** Section name → folded. Both faces: `done` is the same fold on either. */
+export type HomeFold = Record<string, boolean>;
 
 /**
- * What the phone Home keeps that must outlive a face swap (the window crossing
- * 700 px): which sections are open, what Skip passed over, and the rows that
- * are on their way out together with their write. It is called once, by the
- * route component above the face switch (`HomeFaces`), and handed down — a
- * face that owned it would lose a half-played exit (the write would never be
- * sent) when the window is resized.
- *
- * The desktop Home keeps its own (tabs, folds by section name, the strike
- * timers); none of that has a phone equivalent, and nothing of it is a write.
+ * What the Home route keeps that must outlive a face swap (the window
+ * crossing 700 px): created once, by `HomeFaces` above the switch, and handed
+ * to BOTH faces. Shared by name: which sections are folded, and what Skip
+ * passed over. The desktop face's own: its tab, and the rows playing their
+ * strike / return (with the timers that end them, which therefore belong here:
+ * a face that cleared them on unmount would leave a row struck for good). The
+ * phone face's own: the rows on their way out with their write, and the
+ * hold-out set that keeps a row from blinking back.
  */
 export function useHomeController() {
   const tz = useTimeZone();
@@ -36,13 +40,23 @@ export function useHomeController() {
   const updateTask = useUpdateTask();
 
   const [fold, setFold] = useState<HomeFold>({
-    tomorrow: true,
     done: true,
+    tomorrow: true,
     habits: true,
   });
-  const flip = (k: keyof HomeFold) => () =>
-    setFold((f) => ({ ...f, [k]: !f[k] }));
+  const flip = (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] }));
   const [skipped, setSkipped] = useState<string[]>([]);
+
+  // the desktop face's
+  const [tab, setTab] = useState<HomeTab>("day");
+  const [leaving, setLeaving] = useState<Record<string, HomePhase>>({});
+  const [back, setBack] = useState<Record<string, boolean>>({});
+  const closed = useRef<string[]>([]);
+  const timers = useRef<Record<string, number[]>>({});
+  useEffect(() => {
+    const live = timers.current;
+    return () => Object.values(live).forEach((l) => l.forEach(clearTimeout));
+  }, []);
   // Ids whose write is in flight after the row has left: they stay out of the
   // lists until the optimistic change lands, so a row never blinks back.
   const [gone, setGone] = useState<Record<string, 1>>({});
@@ -77,7 +91,24 @@ export function useHomeController() {
     else exit.exit(t, "check");
   };
 
-  return { fold, setFold, flip, skipped, setSkipped, gone, exit, check };
+  return {
+    fold,
+    setFold,
+    flip,
+    skipped,
+    setSkipped,
+    gone,
+    exit,
+    check,
+    tab,
+    setTab,
+    leaving,
+    setLeaving,
+    back,
+    setBack,
+    closed,
+    timers,
+  };
 }
 
 export type HomeController = ReturnType<typeof useHomeController>;

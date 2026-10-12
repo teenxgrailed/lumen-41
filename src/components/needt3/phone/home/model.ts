@@ -1,21 +1,24 @@
 /**
  * The phone Home's rules (mobile-v2-plates.jsx `V2pHome`), pure. The day's
- * split and the "Next up" pick are `@/lib/needt3/day` (`sections`, `nextUp`);
- * what is here is how the phone reads them: which rows stay under the
+ * split is the desktop Home's (`splitHome`: a task's day is the day of its
+ * `scheduledStart`, else its due day) and the "Next up" pick is `nextUp` of
+ * `@/lib/needt3/day`; what is here is how the phone reads them: which rows stay under the
  * plate, what the plate says, what the pull-down finds. Nothing reads the
  * clock: `today` is always an argument.
  */
 import {
   type DaySections,
+  type Move,
   type NextUp,
   clock,
-  isLate,
   nextUp,
   parts,
-  sections,
+  snapshot,
 } from "@/lib/needt3/day";
-import { dueLabel, at as hourAt } from "@/lib/needt3/derive";
+import { addDays, dayLabel, moveDay } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
+
+import { dayOf, hourAt, splitHome } from "../../home/derive";
 
 export interface HomeView {
   sec: DaySections<V3Task>;
@@ -60,7 +63,12 @@ export function homeView(
 ): HomeView {
   const busy = opts.busy ?? {};
   const live = tasks.filter((t) => !t.trashedAt);
-  const sec = sections(live, today);
+  const split = splitHome(live, today);
+  const tomorrow = addDays(today, 1);
+  const sec: DaySections<V3Task> = {
+    ...split,
+    next: live.filter((t) => !t.noSlot && dayOf(t) === tomorrow),
+  };
   const day = sec.day;
   // Only today's own closed tasks are "Done today": a task with no day that
   // was closed last month is not.
@@ -98,19 +106,21 @@ export function homeView(
   };
 }
 
-/** The line under the plate's title. */
+/** The line under the plate's title. `today` = the person's day. */
 export function nextUpWhy(
-  n: Pick<NextUp<V3Task>, "nu" | "after" | "lateOpen">
+  n: Pick<NextUp<V3Task>, "nu" | "after" | "lateOpen">,
+  today: string
 ): string {
   const nu = n.nu;
   if (!nu) return "";
   if (n.lateOpen.includes(nu)) {
-    const since = dueLabel(nu);
+    // the due day when that is what passed, else the day it was placed on
+    const since = nu.dueDate && nu.dueDate < today ? nu.dueDate : dayOf(nu);
     const more = n.lateOpen.length - 1;
-    return `Overdue${since ? ` since ${since}` : ""}${more > 0 ? ` · +${more} overdue` : ""}`;
+    return `Overdue${since ? ` since ${dayLabel(since)}` : ""}${more > 0 ? ` · +${more} overdue` : ""}`;
   }
-  const at = hourAt(nu);
-  const after = n.after ? hourAt(n.after) : null;
+  const at = hourAt(nu, today);
+  const after = n.after ? hourAt(n.after, today) : null;
   if (
     after != null &&
     at != null &&
@@ -118,7 +128,28 @@ export function nextUpWhy(
     at + nu.estimatedMinutes / 60 <= after
   )
     return `Fits before ${clock(after)}`;
-  return "Due today";
+  // "Due today" only when it is; a task placed today and due later is "Today"
+  return nu.dueDate === today ? "Due today" : "Today";
+}
+
+/**
+ * Every open overdue task moved onto today (the desktop's "Move to today"),
+ * with the words for the toast and what puts each back.
+ */
+export function moveLate(
+  late: readonly V3Task[],
+  today: string
+): { label: string; moves: Move[] } | null {
+  const list = late.filter((t) => !t.done);
+  if (!list.length) return null;
+  return {
+    label: `${list.length} ${list.length === 1 ? "task" : "tasks"} moved to today`,
+    moves: list.map((t) => ({
+      id: t.id,
+      patch: moveDay(t, today, today),
+      before: snapshot(t),
+    })),
+  };
 }
 
 export interface TaskHit {
@@ -144,15 +175,16 @@ export function taskHits(
     .filter((t) => !t.trashedAt && t.title.toLowerCase().includes(q))
     .slice(0, 5)
     .map((t) => {
+      const day = dayOf(t);
       const h = hourAt(t);
-      const late = isLate(t, today);
+      const late = !t.done && !t.noSlot && !!day && day < today;
       return {
         id: t.id,
         title: t.title,
         done: t.done,
         task: t,
         meta: [
-          t.done ? "Done" : late ? "Overdue" : (dueLabel(t) ?? "Inbox"),
+          t.done ? "Done" : late ? "Overdue" : (dayLabel(day) ?? "Inbox"),
           h != null ? clock(h) : null,
         ]
           .filter(Boolean)
