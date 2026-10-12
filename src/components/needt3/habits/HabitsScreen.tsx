@@ -16,46 +16,17 @@ import { PopMenu } from "@/components/needt3/mail/PopMenu";
 import { PlEmpty, StScreen } from "@/components/needt3/states/StScreen";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
-import {
-  type Checkin,
-  daysBetween,
-  habitColor,
-  habitDoneOn,
-  liveHabits,
-} from "@/lib/needt3/derive";
-import {
-  useArchiveHabit,
-  useCheckins,
-  useCreateHabit,
-  useHabits,
-  useToggleHabitToday,
-  useUpdateHabit,
-} from "@/lib/needt3/hooks/habits";
-import { usePlan } from "@/lib/needt3/hooks/plan";
-import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
-import {
-  FREE_HABITS,
-  PER_WEEK_CHOICES,
-  capHabits,
-  habitCard,
-  habitGate,
-  normTime,
-  timeLeft,
-  timeOk,
-} from "./derive";
+import { type HabitForm, checkHabitForm } from "../phone/habits/model";
+import { FREE_HABITS, PER_WEEK_CHOICES, habitCard, timeLeft } from "./derive";
+import type { HabitsController } from "./useHabitsController";
 
 const hb = strings["Habits.jsx"];
 const pl = strings["places.jsx"];
-
-const undoToast = (msg: string, undo: () => Promise<void>) =>
-  notify.success(msg, {
-    action: { label: "Undo", onClick: () => void undo() },
-  });
 
 /* The strip: fourteen cells, the last is today and the only control. */
 function HabitStrip({
@@ -245,40 +216,25 @@ function HabitLeft({ tz }: { tz: string }) {
   );
 }
 
-interface SheetForm {
-  title: string;
-  time: string;
-  perWeek: number | null;
-  projectId: string | null;
-}
-
-/** New / edit habit (places.jsx PlHabitSheet), drawn inside the v3 scope. */
+/** New / edit habit (places.jsx PlHabitSheet), drawn inside the v3 scope. The form is the controller's. */
 function HabitSheet({
-  habit,
+  form,
   projects,
+  saving,
+  onChange,
   onClose,
   onSave,
 }: {
-  habit: V3Habit | null;
+  form: HabitForm;
   projects: readonly V3Project[];
+  saving: boolean;
+  onChange: (p: Partial<HabitForm>) => void;
   onClose: () => void;
-  onSave: (f: {
-    title: string;
-    time: string | null;
-    perWeek: number | null;
-    projectId: string | null;
-  }) => void;
+  onSave: () => void;
 }) {
-  const [f, setF] = useState<SheetForm>(() =>
-    habit
-      ? {
-          title: habit.title,
-          time: habit.schedule.time ?? "",
-          perWeek: habit.schedule.perWeek,
-          projectId: habit.projectId,
-        }
-      : { title: "", time: "", perWeek: null, projectId: null }
-  );
+  const f = form;
+  const setF = (next: HabitForm) => onChange(next);
+  const habit = f.editId ? f : null;
   const nameRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -291,16 +247,10 @@ function HabitSheet({
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, []);
-  const atOk = timeOk(f.time);
-  const ok = !!f.title.trim() && atOk;
+  const { ok, timeOk: atOk } = checkHabitForm(f);
   const save = () => {
-    if (!ok) return;
-    onSave({
-      title: f.title.trim(),
-      time: normTime(f.time),
-      perWeek: f.perWeek,
-      projectId: f.projectId,
-    });
+    if (!ok || saving) return;
+    onSave();
   };
   const sheetTitle = habit
     ? pl.PlHabitSheet.edit_habit
@@ -424,7 +374,7 @@ function HabitSheet({
           <button
             type="button"
             className="nx-btn nx-btn-primary pl-habit-save"
-            disabled={!ok}
+            disabled={!ok || saving}
             onClick={save}
           >
             {habit ? pl.PlHabitSheet.save : pl.PlHabitSheet.create_habit}
@@ -435,79 +385,29 @@ function HabitSheet({
   );
 }
 
-export function HabitsScreen() {
-  const tz = useTimeZone();
-  const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-  const habits = useHabits();
-  const checkinsQuery = useCheckins();
-  const projectsQuery = useProjects();
-  const plan = usePlan();
-  const toggleToday = useToggleHabitToday();
-  const createHabit = useCreateHabit();
-  const updateHabit = useUpdateHabit();
-  const archiveHabit = useArchiveHabit();
-  const [sheet, setSheet] = useState<{ open: boolean; habit: V3Habit | null }>({
-    open: false,
-    habit: null,
+/** The desktop's notice when a new habit is refused by the Free allowance. */
+export function notifyHabitsBlocked() {
+  notify.info(`Free keeps ${FREE_HABITS} habits. Upgrade to Pro for more.`, {
+    action: {
+      label: "See plans",
+      onClick: () => window.location.assign("/settings#billing"),
+    },
   });
-  const [all, setAll] = useState(false);
+}
 
-  const list = liveHabits(habits.data ?? []);
-  const checkins = checkinsQuery.data ?? [];
-  const projects = projectsQuery.data ?? [];
-  // The same limit the API enforces (POST /api/habits answers 403
-  // UPGRADE_REQUIRED past it); this gate only saves the round trip.
-  const gate = habitGate(plan.data?.kind, list.length);
-  const kept = list.filter((h) => habitDoneOn(h.id, today, checkins)).length;
-  const { over, shown } = capHabits(list, all);
+/** The desktop's archive notice (the phone words it its own way). */
+export const archivedNotice = (title: string) => `“${title}” archived`;
 
-  const openNew = () => {
-    if (gate.atLimit) {
-      notify.info(
-        `Free keeps ${FREE_HABITS} habits. Upgrade to Pro for more.`,
-        {
-          action: {
-            label: "See plans",
-            onClick: () => window.location.assign("/settings#billing"),
-          },
-        }
-      );
-      return;
-    }
-    setSheet({ open: true, habit: null });
-  };
-  const closeSheet = () => setSheet((s) => ({ open: false, habit: s.habit }));
-
-  const save = async (f: {
-    title: string;
-    time: string | null;
-    perWeek: number | null;
-    projectId: string | null;
-  }) => {
-    const habit = sheet.habit;
-    closeSheet();
-    const fields = {
-      title: f.title,
-      projectId: f.projectId,
-      schedule: { time: f.time, perWeek: f.perWeek },
-    };
-    if (habit) {
-      const { undo } = await updateHabit.mutateAsync({
-        id: habit.id,
-        patch: fields,
-      });
-      undoToast(pl.PlHabitSheet.habit_updated, undo);
-    } else {
-      const { undo } = await createHabit.mutateAsync({ draft: fields });
-      undoToast(`Habit “${f.title}” added`, undo);
-    }
-  };
-
-  const archive = async (h: V3Habit) => {
-    await archiveHabit.mutateAsync({ id: h.id });
-    //todo: Undo needs an un-archive write on /api/habits/[id].
-    notify.success(`“${h.title}” archived`);
-  };
+/**
+ * Habits, desktop face. What it holds (the sheet and its draft, "show all",
+ * the writes) is `ctl`, created once by the route above the phone / desktop
+ * switch (`useHabitsController`).
+ */
+export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
+  const { habits, list, shown, over, all, setAll, checkins, projects, today } =
+    ctl;
+  const gate = ctl.quota;
+  const kept = ctl.kept;
 
   const meta =
     gate.max !== null
@@ -523,7 +423,7 @@ export function HabitsScreen() {
           title={pl.HabitsScreen.new_habit}
           data-page-add=""
           className="nx-btn nx-btn-secondary page-add"
-          onClick={openNew}
+          onClick={ctl.openNew}
         >
           <FiPlus size={18} aria-hidden />
         </button>
@@ -540,7 +440,7 @@ export function HabitsScreen() {
               <button
                 type="button"
                 className="nx-btn nx-btn-primary"
-                onClick={openNew}
+                onClick={ctl.openNew}
               >
                 <FiPlus size={14} aria-hidden />
                 {pl.HabitsScreen.new_habit}
@@ -570,11 +470,9 @@ export function HabitsScreen() {
                       hue={habitColor(h, projects) || "var(--text-tertiary)"}
                       checkins={checkins}
                       today={today}
-                      onToggle={(x, done) =>
-                        void toggleToday.mutateAsync({ id: x.id, done })
-                      }
-                      onRename={(x) => setSheet({ open: true, habit: x })}
-                      onArchive={(x) => void archive(x)}
+                      onToggle={ctl.tick}
+                      onRename={ctl.openEdit}
+                      onArchive={(x) => void ctl.archive(x)}
                     />
                   ))}
                 </div>
@@ -601,19 +499,21 @@ export function HabitsScreen() {
                   only the 14-day strip, so it is not drawn yet. */}
               <div className="pl-habits-side">
                 <section className="nx-swap pl-habits-left">
-                  <HabitLeft tz={tz} />
+                  <HabitLeft tz={ctl.tz} />
                 </section>
               </div>
             </div>
           </>
         )}
       </StScreen>
-      {sheet.open ? (
+      {ctl.form ? (
         <HabitSheet
-          habit={sheet.habit}
+          form={ctl.form}
           projects={projects}
-          onClose={closeSheet}
-          onSave={(f) => void save(f)}
+          saving={ctl.saving}
+          onChange={ctl.patchForm}
+          onClose={ctl.closeForm}
+          onSave={() => void ctl.save()}
         />
       ) : null}
     </div>

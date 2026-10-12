@@ -108,13 +108,14 @@ export function useToggleHabitToday() {
 }
 
 /** Create a habit. Undo archives it. */
-export function useCreateHabit() {
+export function useCreateHabit(opts?: { quiet?: (error: unknown) => boolean }) {
   return useUndoableMutation<
     { draft: HabitPatch & { title: string } } | { archiveId: string },
     V3Habit | null
   >({
     scope: HABITS,
     label: "create the habit",
+    quiet: opts?.quiet,
     inverseFromResult: true,
     inverse: (_qc, vars, result) =>
       "draft" in vars && result ? { archiveId: result.id } : null,

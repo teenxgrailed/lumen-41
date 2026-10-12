@@ -620,7 +620,12 @@ export interface ApiMoodboard {
   pinterestStatus?: string | null;
   pinterestSyncedAt?: string | null;
   trashedAt?: string | null;
+  /** Only the single-board route sends the caller's role. */
+  accessRole?: string | null;
 }
+
+/** What the caller may do on a board (`MoodboardAccessRole`). */
+export type BoardRole = "FULL_ACCESS" | "EDITOR" | "VIEWER";
 
 export interface V3Board {
   id: string;
@@ -632,6 +637,8 @@ export interface V3Board {
   pinterestStatus: string | null;
   pinterestSyncedAt: string | null;
   trashedAt: string | null;
+  /** The caller's role; null when the route did not send it (the list). */
+  accessRole?: BoardRole | null;
 }
 
 export function boardFromApi(row: ApiMoodboard): V3Board {
@@ -645,6 +652,12 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
     pinterestStatus: row.pinterestStatus ?? null,
     pinterestSyncedAt: row.pinterestSyncedAt ?? null,
     trashedAt: row.trashedAt ?? null,
+    accessRole:
+      row.accessRole === "FULL_ACCESS" ||
+      row.accessRole === "EDITOR" ||
+      row.accessRole === "VIEWER"
+        ? row.accessRole
+        : null,
   };
 }
 
