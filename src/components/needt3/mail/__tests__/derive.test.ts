@@ -2,8 +2,10 @@ import type { V3MailThread } from "@/lib/needt3/map";
 
 import fixtures from "../../../../../docs/port/prototype/port/fixtures/mail-threads.json";
 import {
+  composeLink,
   firstName,
   groupByDay,
+  headerAccounts,
   inTab,
   initials,
   madeTasks,
@@ -174,5 +176,72 @@ describe("providerLink (Reply / Forward open the provider)", () => {
     expect(providerLabel("GMAIL")).toBe("Gmail");
     expect(providerLabel("OUTLOOK")).toBe("Outlook");
     expect(providerLabel("IMAP")).toBe("your mail app");
+  });
+});
+
+describe("composeLink", () => {
+  it("opens Gmail's compose view for the signed-in account", () => {
+    expect(composeLink({ provider: "GMAIL", address: "me@gmail.com" })).toBe(
+      "https://mail.google.com/mail/u/me%40gmail.com/?view=cm&fs=1"
+    );
+  });
+  it("opens Outlook on the web's compose deep link", () => {
+    expect(
+      composeLink({ provider: "OUTLOOK", address: "me@outlook.com" })
+    ).toBe("https://outlook.office.com/mail/deeplink/compose");
+  });
+  it("opens the default mail app for IMAP, which has no web app", () => {
+    expect(composeLink({ provider: "IMAP", address: "me@host.ch" })).toBe(
+      "mailto:me%40host.ch"
+    );
+  });
+});
+
+describe("headerAccounts", () => {
+  const gmail = { id: "a1", provider: "GMAIL", address: "me@gmail.com" };
+  const outlook = { id: "a2", provider: "OUTLOOK", address: "me@outlook.com" };
+
+  it("draws nothing until the accounts have loaded", () => {
+    expect(headerAccounts(undefined)).toEqual([]);
+    expect(headerAccounts(null)).toEqual([]);
+  });
+  it("draws Gmail and Outlook as not connected when there is no account", () => {
+    expect(headerAccounts([]).map((c) => [c.label, c.missing, c.down])).toEqual(
+      [
+        ["Gmail", true, true],
+        ["Outlook", true, true],
+      ]
+    );
+  });
+  it("draws one chip per account, down only on ERROR", () => {
+    const chips = headerAccounts([
+      { ...gmail, status: "ACTIVE" },
+      { ...outlook, status: "ERROR" },
+    ]);
+    expect(chips.map((c) => [c.label, c.down, c.missing])).toEqual([
+      ["Gmail", false, false],
+      ["Outlook", true, false],
+    ]);
+  });
+  it("names two accounts of one provider by address", () => {
+    const chips = headerAccounts([
+      { ...gmail, status: "ACTIVE" },
+      {
+        id: "a3",
+        provider: "GMAIL",
+        address: "work@gmail.com",
+        status: "ACTIVE",
+      },
+    ]);
+    expect(chips.map((c) => c.label)).toEqual([
+      "me@gmail.com",
+      "work@gmail.com",
+    ]);
+  });
+  it("names an IMAP account by address", () => {
+    const chips = headerAccounts([
+      { id: "a4", provider: "IMAP", address: "me@host.ch", status: "ACTIVE" },
+    ]);
+    expect(chips[0].label).toBe("me@host.ch");
   });
 });

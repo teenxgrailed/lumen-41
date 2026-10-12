@@ -13,6 +13,7 @@ import {
   FiChevronLeft,
   FiCornerUpLeft,
   FiCornerUpRight,
+  FiEdit3,
   FiInbox,
   FiList,
   FiMail,
@@ -21,6 +22,7 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 
+import { Art } from "@/components/needt3/menu/Art";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 
@@ -36,11 +38,14 @@ import { PopMenu } from "./PopMenu";
 import {
   MAIL_TABS,
   type MailTab,
+  composeLink,
   firstName,
+  headerAccounts,
   initials,
   providerLabel,
   providerLink,
 } from "./derive";
+import { headerCopy } from "./strings";
 import type { Mailbox } from "./useMailbox";
 
 const copy = strings["MailScreen.jsx"];
@@ -64,6 +69,16 @@ const EMPTY: Record<MailTab, [string, string, string, MailTab | null]> = {
     null,
   ],
 };
+/**
+ * Sent and Drafts are in the prototype's tab strip, but the sync stores no
+ * Sent or Drafts view the Mailbox could list (the inbox query drops every
+ * message that left the inbox, and Outlook and IMAP sync only the inbox), and
+ * mail is read-only at the provider. They are drawn, disabled, with the reason.
+ */
+const HELD_TABS = [
+  ["sent", copy.ML_TABS.sent, headerCopy.sentHeld],
+  ["drafts", copy.ML_TABS.drafts, headerCopy.draftsHeld],
+] as const;
 const NARROW_QUERY = "(max-width: 899px)";
 
 function useNarrow() {
@@ -271,18 +286,47 @@ export function MailScreen({ box }: { box: Mailbox }) {
     ? (accounts.data ?? []).find((a) => a.id === open.accountId)
     : undefined;
 
+  const chips = headerAccounts(accounts.data);
+  const accountList = accounts.data ?? [];
+  const acctSince = new Map(
+    accountList.map((a) => [
+      a.id,
+      a.lastSyncAt ? formatInTimeZone(a.lastSyncAt, tz, "HH:mm") : null,
+    ])
+  );
+  // Nothing is connected: the empty list says so, whatever tab is showing
+  // ("Inbox zero" would be a lie).
+  const noAccount = accounts.isSuccess && accountList.length === 0;
+  const newInner = (
+    <>
+      <FiEdit3 size={14} aria-hidden />
+      <span className="ml-new-label">{headerCopy.newMessage}</span>
+    </>
+  );
+  const newButton = (
+    <button
+      type="button"
+      className="nx-btn nx-btn-primary ml-new"
+      data-ml-new=""
+      aria-label={headerCopy.newMessage}
+    >
+      {newInner}
+    </button>
+  );
+
   return (
     <div className="ml-screen" data-v3-screen="mail">
       <header className="ml-head">
         <h1 className="ml-title">{copy.MailScreen.mailbox}</h1>
         <span className="ml-accts">
-          {(accounts.data ?? []).map((a) => {
+          {chips.map((c) => {
             const mark = brandIdForConnection({
               kind: "mail",
-              provider: a.provider,
+              provider: c.provider,
             });
-            return (
-              <span key={a.id} className="ml-acct" title={a.address}>
+            const since = acctSince.get(c.key) ?? null;
+            const body = (
+              <>
                 {mark ? (
                   <BrandIcon id={mark} size={16} />
                 ) : (
@@ -291,15 +335,32 @@ export function MailScreen({ box }: { box: Mailbox }) {
                     style={{ background: "var(--text-quaternary)" }}
                   />
                 )}
-                {providerLabel(a.provider) === "your mail app"
-                  ? a.address
-                  : providerLabel(a.provider)}
-                {a.status === "ERROR" ? (
-                  <span
-                    className="ml-acct-down"
-                    title="Disconnected — reconnect below"
-                  />
-                ) : null}
+                {c.label}
+                {c.down ? <span className="ml-acct-down" aria-hidden /> : null}
+              </>
+            );
+            if (c.missing)
+              return (
+                <a
+                  key={c.key}
+                  href="/connections"
+                  className="ml-acct is-link"
+                  data-ml-acct={c.provider}
+                  data-ml-acct-state="missing"
+                  title={headerCopy.notConnected(c.label)}
+                >
+                  {body}
+                </a>
+              );
+            return (
+              <span
+                key={c.key}
+                className="ml-acct"
+                data-ml-acct={c.provider}
+                data-ml-acct-state={c.down ? "down" : "ok"}
+                title={c.down ? headerCopy.down(since) : c.address}
+              >
+                {body}
               </span>
             );
           })}
@@ -318,7 +379,67 @@ export function MailScreen({ box }: { box: Mailbox }) {
               <span className="ml-tab-n">{counts[id]}</span>
             </button>
           ))}
+          <span className="ml-tabs-sep" aria-hidden="true" />
+          {HELD_TABS.map(([id, label, why]) => (
+            <button
+              key={id}
+              type="button"
+              className="ml-tab is-held"
+              aria-disabled="true"
+              title={why}
+              data-ml-tab={id}
+            >
+              {label}
+            </button>
+          ))}
         </span>
+        {accountList.length > 1 ? (
+          <PopMenu
+            label={headerCopy.newMessage}
+            prompt={headerCopy.writeIn}
+            align="right"
+            width={280}
+            trigger={() => newButton}
+            items={accountList.map((a) => ({
+              key: a.id,
+              title: providerLabel(a.provider),
+              sub: a.address,
+              onSelect: () =>
+                window.open(composeLink(a), "_blank", "noopener,noreferrer"),
+            }))}
+          />
+        ) : accountList.length === 1 ? (
+          <a
+            className="nx-btn nx-btn-primary ml-new"
+            data-ml-new=""
+            aria-label={headerCopy.newMessage}
+            title={headerCopy.newMessageOpens(
+              providerLabel(accountList[0].provider)
+            )}
+            href={composeLink(accountList[0])}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {newInner}
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="nx-btn nx-btn-primary ml-new"
+            data-ml-new=""
+            aria-label={headerCopy.newMessage}
+            aria-disabled="true"
+            title={
+              accounts.isError
+                ? headerCopy.accountsFailed
+                : accounts.isSuccess
+                  ? headerCopy.noAccountToWrite
+                  : headerCopy.accountsLoading
+            }
+          >
+            {newInner}
+          </button>
+        )}
       </header>
 
       <StScreen query={mail} screen="mail">
@@ -331,6 +452,9 @@ export function MailScreen({ box }: { box: Mailbox }) {
               key={tab}
               className={`scroll-inner nx-swap ml-list${narrow ? " is-narrow" : ""}`}
               data-ml-list={tab}
+              data-ml-empty={
+                !list.length ? (noAccount ? "no-account" : tab) : undefined
+              }
             >
               {down.map((a) => (
                 <ConnBanner
@@ -346,25 +470,43 @@ export function MailScreen({ box }: { box: Mailbox }) {
               ))}
               {!list.length ? (
                 <div className="nx-swap ml-empty">
-                  <FiInbox size={40} aria-hidden />
-                  {/* //todo: the place picture is <Art name="mail"> (T05). */}
-                  <span className="ml-empty-title">{EMPTY[tab][0]}</span>
-                  <span className="ml-empty-line">{EMPTY[tab][1]}</span>
-                  {EMPTY[tab][3] ? (
-                    <button
-                      type="button"
-                      className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
-                      onClick={() => setTab(EMPTY[tab][3] as MailTab)}
-                    >
-                      {EMPTY[tab][2]}
-                    </button>
+                  <Art name="mail" size={56} />
+                  {noAccount ? (
+                    <>
+                      <span className="ml-empty-title">
+                        {headerCopy.noAccountTitle}
+                      </span>
+                      <span className="ml-empty-line">
+                        {headerCopy.noAccountLine}
+                      </span>
+                      <a
+                        href="/connections"
+                        className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
+                      >
+                        {headerCopy.openConnections}
+                      </a>
+                    </>
                   ) : (
-                    <a
-                      href="/connections"
-                      className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
-                    >
-                      {EMPTY[tab][2]}
-                    </a>
+                    <>
+                      <span className="ml-empty-title">{EMPTY[tab][0]}</span>
+                      <span className="ml-empty-line">{EMPTY[tab][1]}</span>
+                      {EMPTY[tab][3] ? (
+                        <button
+                          type="button"
+                          className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
+                          onClick={() => setTab(EMPTY[tab][3] as MailTab)}
+                        >
+                          {EMPTY[tab][2]}
+                        </button>
+                      ) : (
+                        <a
+                          href="/connections"
+                          className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
+                        >
+                          {EMPTY[tab][2]}
+                        </a>
+                      )}
+                    </>
                   )}
                 </div>
               ) : null}
