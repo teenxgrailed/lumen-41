@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Settings → Plan does.
 - Added (design_v3): "Sign out of all devices" in Settings → Account, on the
   desktop and the phone, with a confirm.
-- `/docs` and `/docs/:id` redirect permanently to `/pages`. With design_v3 on,
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
   an unknown address shows a 404 inside the app instead of the old dark page.
 - Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
   and syncs them; before, the account had no calendars and the calendar stayed
