@@ -16,6 +16,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   show and database properties kept as text are listed as notes. Needs
   `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`; additive migration
   `20261012120000_import_asset_entity`.
+- Fixed (design_v3): one overdue rule everywhere. A task is overdue only when
+  its due date is before today in your time zone; a passed block or a stale
+  scheduled time no longer counts, and a task due or scheduled today sits in
+  Today. Home, Tasks (desktop and phone), the sidebar badge and Move to today
+  now agree. A date-only due date no longer turns overdue a day early west of
+  UTC.
+- Fixed (design_v3): the Tasks "Today" tab draws its Today group (tasks due or
+  scheduled today, timed ones by time), not only Overdue.
+- Fixed (design_v3): the sidebar plan pill says "Lifetime" for Lifetime, as
+  Settings → Plan does.
+- Added (design_v3): "Sign out of all devices" in Settings → Account, on the
+  desktop and the phone, with a confirm.
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
+  an unknown address shows a 404 inside the app instead of the old dark page.
+- Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
+  and syncs them; before, the account had no calendars and the calendar stayed
+  empty. A CalDAV fetch that fails no longer archives every event of the
+  calendar, and events the server returns again come back.
+
+- Operations and undo: task, project, schedule, mail-to-task and habit
+  changes now have one registry (`src/services/ops`) with strict inputs and
+  workspace roles. Every write is logged with its inverse, so it can be undone
+  for seven days from `POST /api/agent/actions/:id/undo` (or a whole agent run
+  from `/api/agent/runs/:id/undo`). Undo refuses, and says which rows, when
+  something changed after the action. External tools list and run the same
+  operations through `GET /api/connect/ops` and `POST /api/connect/ops/:name`
+  with their connector token. Operations follow the app's rules: default
+  reminders on new tasks, read-only tasks in archived projects, no habit
+  marks on future days. The log is pruned 30 days after the undo window. The
+  chat agent and MCP server move onto it in follow-up changes.
+
+- Fixed: a page in the trash could not be restored. `PATCH /api/pages/:id`
+  with `{ "trashed": false }` now brings it back, with its children, blocks
+  and files, for anyone who could have trashed it; restoring twice changes
+  nothing, and a page whose parent is still in the trash comes back at the
+  top level. `GET /api/pages?trashed=true` lists the trash.
+- Release: when two merges land close together, the older release run no
+  longer asks Coolify for an image the newer run has not pushed yet. It
+  stands down and the newer run deploys, so production stops showing failed
+  deployments for commits that were already superseded.
+- The Google and Outlook OAuth client secrets and the Resend API key saved in
+  admin system settings are encrypted at rest (`enc:v1:`), like provider
+  tokens. Existing values are encrypted by the same worker-start backfill;
+  the admin form still shows the mask and keeps a secret that is not retyped.
+- Connected-calendar, mail and task credentials are encrypted at rest:
+  Google and Outlook OAuth tokens and CalDAV/iCloud passwords are stored as
+  AES-256-GCM (`enc:v1:`) instead of plaintext, as are the sign-in tokens
+  NextAuth keeps. Existing rows are encrypted by the worker at start; reads
+  accept both forms meanwhile. The session no longer carries the sign-in
+  provider's OAuth tokens to the browser, and the worker refuses to start in
+  production without `AI_ENCRYPTION_KEY` or `NEXTAUTH_SECRET`.
+- Deleting an account now cuts third-party access before the data goes:
+  Google and Outlook calendar push channels are stopped, the Google grant is
+  revoked at Google, Composio connections are deleted and revoked upstream,
+  and Web Push endpoints are dropped. Microsoft and CalDAV credentials, which
+  have no revoke call, are deleted with the account. Each step is
+  best-effort and never holds the deletion up.
+- The one-trial-per-email record no longer keeps the email: it stores a keyed
+  hash of the normalized address, and the worker rewrites existing records.
+- Signing out from any menu now clears the account's data from the browser —
+  every localStorage key except the theme and other device preferences, plus
+  the offline cache — after giving changes saved offline a few seconds to
+  sync.
+- Hosted AI requests are routed only to OpenRouter hosts based in the US or
+  the EU, with known hosts elsewhere refused on every request.
+- Free keeps three active habits, enforced by the API: creating a fourth, or
+  restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
+  Pro, Lifetime and trials are unlimited. Habits above the limit after a
+  downgrade stay and stay editable. An archived habit is restored with
+  `PATCH /api/habits/:id` and `{ "archived": false }`.
+- Security: a session now lasts 30 days and slides — every visit renews it,
+  and a device left unused for 30 days is signed out (it was one year).
+  Settings › Account has "Sign out of all devices"
+  (`POST /api/account/sessions/revoke`), which signs out every device
+  including this one; other devices stop working within a minute. Resetting a
+  password does the same, and a deleted or disabled account is signed out
+  everywhere.
+- Privacy: the app no longer loads Inter, Instrument Serif and JetBrains Mono
+  from Google Fonts, so a visitor's IP address is no longer sent to Google on
+  page load. The same font files are now served from the app itself
+  (`public/fonts/ds/`, SIL OFL 1.1), and `npm run tokens:sync` strips the
+  Google import so a re-sync cannot bring it back. Every subset Google
+  served is kept — Cyrillic, Greek and Vietnamese included — and a page
+  downloads only the subsets its text uses. The files have hashed names and
+  are cached by browsers for a year.
+- Fixed: typing a new Google or Outlook client secret or Resend API key in
+  admin system settings saved only its first character. Secret fields now
+  save once, when you leave the field or press Enter, and the field keeps
+  what you typed while it has focus. The server drops its cached Resend
+  client when the key changes.
 - Import from Todoist (behind the new `imports` feature flag, off unless a
   flag row turns it on). Settings -> Data -> Import sends you through
   Todoist's read-only consent screen, then a background job brings in

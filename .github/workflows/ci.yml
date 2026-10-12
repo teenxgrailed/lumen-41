@@ -109,10 +109,12 @@ jobs:
       - run: npm run lint
       - run: npm run check:branding
       - run: npm run check:ui-contracts
+      - run: npm run check:worker-bundle
       - run: npm run test:unit -- --runInBand
         env:
           LIFETIME_CAP_INTEGRATION: "1"
           TRIAL_INTEGRATION: "1"
+          PAGE_TRASH_INTEGRATION: "1"
       - run: npm run build:collaboration
       - run: npm run check:collaboration-runtime
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Re-vendor the design tokens from a downloaded Claude Design bundle.
  *
@@ -29,8 +30,14 @@
  * it, the existing app is untouched. When every screen is ported the scope is
  * removed in one commit and the shadcn block goes with it.
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,12 +58,24 @@ const ARGS = (() => {
   return out;
 })();
 
-const BUNDLE = ARGS.positional[0] || join(ROOT, "Content height and label fixes");
+const BUNDLE =
+  ARGS.positional[0] || join(ROOT, "Content height and label fixes");
 const SCOPE = ".needt-v2";
 
 /** Token files, in the order the design system's own styles.css imports them. */
-const ORDER = ["fonts", "colors", "typography", "spacing", "radius",
-               "elevation", "motion", "zindex", "base", "components", "ui"];
+const ORDER = [
+  "fonts",
+  "colors",
+  "typography",
+  "spacing",
+  "radius",
+  "elevation",
+  "motion",
+  "zindex",
+  "base",
+  "components",
+  "ui",
+];
 
 /** Theme scopes. A theme is a data attribute so one switch drives every token. */
 const THEME = {
@@ -95,11 +114,13 @@ function rescope(selectorList) {
         return `${SCOPE}[data-theme="${descendantTheme[1]}"] ${descendantTheme[2]}`;
       }
       if (s === "html" || s === "body") return SCOPE;
-      if (s.startsWith("html[") || s.startsWith("body[")) return SCOPE + s.slice(4);
-      if (s.startsWith(".drift")) return `${SCOPE}[data-drift="on"]${s.slice(6)}`;
-      if (s.startsWith("::")) return `${SCOPE} ${s}`;          // ::selection, ::placeholder
+      if (s.startsWith("html[") || s.startsWith("body["))
+        return SCOPE + s.slice(4);
+      if (s.startsWith(".drift"))
+        return `${SCOPE}[data-drift="on"]${s.slice(6)}`;
+      if (s.startsWith("::")) return `${SCOPE} ${s}`; // ::selection, ::placeholder
       if (s.startsWith(":root")) return s.replace(":root", SCOPE);
-      return `${SCOPE} ${s}`;                                   // .rb-entry, .scroll-inner, …
+      return `${SCOPE} ${s}`; // .rb-entry, .scroll-inner, …
     })
     .join(",\n");
 }
@@ -148,7 +169,8 @@ function scopeSheet(css, rescopeList = rescope) {
           if (depth === 0) break;
         }
       }
-      out += work.slice(i, found.index) + stash(work.slice(found.index, end + 1));
+      out +=
+        work.slice(i, found.index) + stash(work.slice(found.index, end + 1));
       i = end + 1;
     }
   })();
@@ -169,13 +191,16 @@ function scopeSheet(css, rescopeList = rescope) {
 
       const indent = tail.match(/^\s*/)[0];
       return `${boundary}${head}${indent}${rescopeList(trimmed)} {`;
-    },
+    }
   );
 
   // Restore innermost-first: a masked keyframe block can contain masked comments.
   let restored = scoped;
   for (let pass = 0; pass < 4 && /\u0000\d+\u0000/.test(restored); pass += 1) {
-    restored = restored.replace(PLACEHOLDER, (_, index) => masked[Number(index)]);
+    restored = restored.replace(
+      PLACEHOLDER,
+      (_, index) => masked[Number(index)]
+    );
   }
   return restored;
 }
@@ -218,9 +243,34 @@ function stripCaptureArtifacts(css) {
   return css.replace(/}\.[ \t]+\*\/(?=\s*\.nt-block\[data-compact=)/g, "}");
 }
 
+/**
+ * Drop every stylesheet @import that reaches the Google Fonts CDN.
+ *
+ * The design system's `tokens/fonts.css` loads Inter, Instrument Serif and
+ * JetBrains Mono from fonts.googleapis.com, which hands every visitor's IP
+ * address to Google on each page load. The three families are self-hosted
+ * instead: the woff2 files live in public/fonts/ds/ and their @font-face rules
+ * in src/styles/needt-fonts.css, under the same family names the tokens use.
+ * Without this pass the next sync would quietly put the CDN back.
+ */
+const GOOGLE_FONTS_IMPORT =
+  /@import\s+url\(\s*["']?https:\/\/fonts\.googleapis\.com\/[^)]*\)\s*;/g;
+
+function stripGoogleFontImports(css, label) {
+  return css.replace(
+    GOOGLE_FONTS_IMPORT,
+    `/* Google Fonts @import removed from ${label} by tokens:sync — the families ` +
+      `are self-hosted in src/styles/needt-fonts.css. */`
+  );
+}
+
 function header(lines) {
-  return ["/* " + "=".repeat(72), ...lines.map((l) => "   " + l),
-          "   " + "=".repeat(72) + " */", ""].join("\n");
+  return [
+    "/* " + "=".repeat(72),
+    ...lines.map((l) => "   " + l),
+    "   " + "=".repeat(72) + " */",
+    "",
+  ].join("\n");
 }
 
 /* ==========================================================================
@@ -264,10 +314,27 @@ const V3_THEME_TOKENS = {
 
 /** The desktop stylesheets index-dev.html links, in its order. */
 const V3_DESKTOP_ORDER = [
-  "ds-tokens", "exposure-wordmark", "themes", "composer", "app",
-  "base", "shell", "focus", "settings", "chat", "docs", "places",
-  "connections", "scenes", "paywall", "auth", "tasks", "home", "calendar",
-  "mail", "habits",
+  "ds-tokens",
+  "exposure-wordmark",
+  "themes",
+  "composer",
+  "app",
+  "base",
+  "shell",
+  "focus",
+  "settings",
+  "chat",
+  "docs",
+  "places",
+  "connections",
+  "scenes",
+  "paywall",
+  "auth",
+  "tasks",
+  "home",
+  "calendar",
+  "mail",
+  "habits",
 ];
 
 /**
@@ -278,9 +345,20 @@ const V3_DESKTOP_ORDER = [
  * after base, follows the desktop set here.)
  */
 const V3_PHONE_ORDER = [
-  "mobile", "mobile-onboarding", "mobile-nav", "nav-a", "phone-kit",
-  "phone-overlays", "phone-tasks", "phone-drag", "phone-docs", "phone-mail",
-  "phone-habits", "phone-places", "phone-settings", "mobile-v2-plates",
+  "mobile",
+  "mobile-onboarding",
+  "mobile-nav",
+  "nav-a",
+  "phone-kit",
+  "phone-overlays",
+  "phone-tasks",
+  "phone-drag",
+  "phone-docs",
+  "phone-mail",
+  "phone-habits",
+  "phone-places",
+  "phone-settings",
+  "mobile-v2-plates",
 ];
 
 /** Split on a top-level delimiter, ignoring ones inside (), [] and quotes. */
@@ -328,7 +406,11 @@ function splitCompounds(selector) {
       else if (ch === quote) quote = null;
       continue;
     }
-    if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+      continue;
+    }
     if (ch === "(" || ch === "[") depth += 1;
     if (ch === ")" || ch === "]") depth -= 1;
     if (depth === 0 && (ch === ">" || ch === "+" || ch === "~")) {
@@ -349,7 +431,8 @@ function splitCompounds(selector) {
 /** One compound → simple selectors (`.a[b]:is(.c, .d)::e` → 4 tokens). */
 function splitSimple(compound) {
   const tokens = [];
-  const re = /(::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?|\.[\w-]+|#[\w-]+|\[[^\]]*\]|\*|[\w-]+)/g;
+  const re =
+    /(::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?|\.[\w-]+|#[\w-]+|\[[^\]]*\]|\*|[\w-]+)/g;
   let m;
   let consumed = 0;
   while ((m = re.exec(compound))) {
@@ -386,14 +469,27 @@ function rescopeV3Selector(selector) {
   for (const token of first) {
     if (ROOT_ELEMENT.has(token)) continue;
     const theme = themeToken(token);
-    if (theme) { scope += theme; continue; }
-    if (isRoot && token.startsWith("::view-transition")) { rootPseudo += token; continue; }
-    if (isRoot) { scope += token; continue; } // html.is-drag-active, :root[data-dt-ambient]
+    if (theme) {
+      scope += theme;
+      continue;
+    }
+    if (isRoot && token.startsWith("::view-transition")) {
+      rootPseudo += token;
+      continue;
+    }
+    if (isRoot) {
+      scope += token;
+      continue;
+    } // html.is-drag-active, :root[data-dt-ambient]
     keep.push(token);
   }
 
   // A lone [data-accent] in the first compound is the root's accent.
-  if (!isRoot && keep.length && keep.every((t) => /^\[data-accent[\]=]/.test(t))) {
+  if (
+    !isRoot &&
+    keep.length &&
+    keep.every((t) => /^\[data-accent[\]=]/.test(t))
+  ) {
     scope += keep.join("");
     keep.length = 0;
   }
@@ -446,8 +542,10 @@ function rewriteFontFamilies(css) {
  * next/font in src/lib/needt3/fonts.ts instead of the CDN import.
  */
 function stripRemoteImports(css) {
-  return css.replace(/@import\s+url\(["']?https?:[^)]*\)\s*;?/g,
-    "/* remote @import removed by sync-design-tokens (v3); see the script */");
+  return css.replace(
+    /@import\s+url\(["']?https?:[^)]*\)\s*;?/g,
+    "/* remote @import removed by sync-design-tokens (v3); see the script */"
+  );
 }
 
 /**
@@ -463,7 +561,7 @@ function stripV3CaptureArtifacts(css, name) {
   if (name === "mobile") {
     return css.replace(
       /(\.iosf-keyboard-11 \{[^}]*\})([ \t]+doc-style\.jsx \(backdrop)/,
-      "$1\n/* The doc reader:$2",
+      "$1\n/* The doc reader:$2"
     );
   }
   return css;
@@ -488,16 +586,23 @@ function renameKeyframes(css, names) {
   if (!names.size) return css;
   const renameValue = (value) =>
     value.replace(/(^|[\s,(])([\w-]+)(?=$|[\s,)])/g, (all, lead, word) =>
-      names.has(word) ? `${lead}${V3_KEYFRAME_PREFIX}${word}` : all);
+      names.has(word) ? `${lead}${V3_KEYFRAME_PREFIX}${word}` : all
+    );
   return css
     .replace(/@((?:-\w+-)?keyframes)\s+([\w-]+)/g, (all, kw, name) =>
-      names.has(name) ? `@${kw} ${V3_KEYFRAME_PREFIX}${name}` : all)
-    .replace(/(^|[;{\s])(animation(?:-name)?|--[\w-]+)(\s*:)([^;{}]*)/g,
-      (all, lead, prop, colon, value) => `${lead}${prop}${colon}${renameValue(value)}`);
+      names.has(name) ? `@${kw} ${V3_KEYFRAME_PREFIX}${name}` : all
+    )
+    .replace(
+      /(^|[;{\s])(animation(?:-name)?|--[\w-]+)(\s*:)([^;{}]*)/g,
+      (all, lead, prop, colon, value) =>
+        `${lead}${prop}${colon}${renameValue(value)}`
+    );
 }
 
 function syncV3() {
-  const bundle = ARGS.positional[0] ? join(ARGS.positional[0]) : join(ROOT, "docs", "port");
+  const bundle = ARGS.positional[0]
+    ? join(ARGS.positional[0])
+    : join(ROOT, "docs", "port");
   const appDir = existsSync(join(bundle, "needt-app"))
     ? join(bundle, "needt-app")
     : join(bundle, "prototype");
@@ -518,17 +623,23 @@ function syncV3() {
   const outDir = join(ROOT, ARGS.out || join("src", "styles", "v3"));
   mkdirSync(outDir, { recursive: true });
   const day = new Date().toISOString().slice(0, 10);
-  const source = bundle.startsWith(ROOT) ? bundle.slice(ROOT.length + 1) : basename(bundle);
-  const banner = (what) => header([
-    `Needt design v3 — ${what} — VENDORED, DO NOT EDIT BY HAND.`,
-    `Generated from ${source} on ${day}; scoped under ${V3_SCOPE}.`,
-    "Regenerate with: npm run tokens:sync:v3",
-  ]);
+  const source = bundle.startsWith(ROOT)
+    ? bundle.slice(ROOT.length + 1)
+    : basename(bundle);
+  const banner = (what) =>
+    header([
+      `Needt design v3 — ${what} — VENDORED, DO NOT EDIT BY HAND.`,
+      `Generated from ${source} on ${day}; scoped under ${V3_SCOPE}.`,
+      "Regenerate with: npm run tokens:sync:v3",
+    ]);
   const prepare = (css, name) =>
     scopeSheet(
-      rewriteFontFamilies(stripRemoteImports(stripFontFaces(
-        stripV3CaptureArtifacts(css, name), `${name}.css`))),
-      rescopeV3,
+      rewriteFontFamilies(
+        stripRemoteImports(
+          stripFontFaces(stripV3CaptureArtifacts(css, name), `${name}.css`)
+        )
+      ),
+      rescopeV3
     );
 
   const sheets = new Map();
@@ -546,18 +657,30 @@ function syncV3() {
   for (const name of ["themes", "app", "composer", "exposure-wordmark"]) {
     const file = join(appDir, `${name}.css`);
     if (!existsSync(file)) continue;
-    write(name, banner(`${name}.css`) + prepare(readFileSync(file, "utf8"), name));
+    write(
+      name,
+      banner(`${name}.css`) + prepare(readFileSync(file, "utf8"), name)
+    );
   }
 
   const stylesDir = join(appDir, "styles");
-  for (const entry of readdirSync(stylesDir).filter((f) => f.endsWith(".css")).sort()) {
+  for (const entry of readdirSync(stylesDir)
+    .filter((f) => f.endsWith(".css"))
+    .sort()) {
     const name = entry.replace(/\.css$/, "");
-    write(name, banner(`styles/${entry}`) + prepare(readFileSync(join(stylesDir, entry), "utf8"), name));
+    write(
+      name,
+      banner(`styles/${entry}`) +
+        prepare(readFileSync(join(stylesDir, entry), "utf8"), name)
+    );
   }
 
   const keyframes = new Set([...sheets.values()].flatMap(collectKeyframes));
   for (const [name, body] of sheets) {
-    writeFileSync(join(outDir, `${name}.css`), renameKeyframes(body, keyframes));
+    writeFileSync(
+      join(outDir, `${name}.css`),
+      renameKeyframes(body, keyframes)
+    );
   }
   const written = [...sheets.keys()];
 
@@ -567,20 +690,28 @@ function syncV3() {
       "then the phone stylesheets in mobile-dev.html's order.",
       "VENDORED, DO NOT EDIT BY HAND. Regenerate with: npm run tokens:sync:v3",
     ]),
-    ...V3_DESKTOP_ORDER.filter((n) => written.includes(n)).map((n) => `@import "./${n}.css";`),
+    ...V3_DESKTOP_ORDER.filter((n) => written.includes(n)).map(
+      (n) => `@import "./${n}.css";`
+    ),
     "",
     "/* Phone */",
-    ...V3_PHONE_ORDER.filter((n) => written.includes(n)).map((n) => `@import "./${n}.css";`),
+    ...V3_PHONE_ORDER.filter((n) => written.includes(n)).map(
+      (n) => `@import "./${n}.css";`
+    ),
     "",
   ].join("\n");
   writeFileSync(join(outDir, "index.css"), index);
 
-  console.log(`Vendored ${written.length} stylesheets under ${V3_SCOPE} into ${outDir}.`);
+  console.log(
+    `Vendored ${written.length} stylesheets under ${V3_SCOPE} into ${outDir}.`
+  );
 }
 
 if (ARGS.scope) {
   if (ARGS.scope !== ".needt-v3") {
-    console.error(`Unknown scope ${ARGS.scope}; the v3 pipeline writes .needt-v3 only.`);
+    console.error(
+      `Unknown scope ${ARGS.scope}; the v3 pipeline writes .needt-v3 only.`
+    );
     process.exit(1);
   }
   syncV3();
@@ -589,11 +720,14 @@ if (ARGS.scope) {
 
 const dsDir = existsSync(join(BUNDLE, "_ds"))
   ? readdirSync(join(BUNDLE, "_ds"), { withFileTypes: true })
-      .filter((e) => e.isDirectory()).map((e) => join(BUNDLE, "_ds", e.name))[0]
+      .filter((e) => e.isDirectory())
+      .map((e) => join(BUNDLE, "_ds", e.name))[0]
   : null;
 
 if (!dsDir || !existsSync(join(dsDir, "tokens"))) {
-  console.error(`No token directory under ${BUNDLE}/_ds — is the bundle unpacked?`);
+  console.error(
+    `No token directory under ${BUNDLE}/_ds — is the bundle unpacked?`
+  );
   process.exit(1);
 }
 
@@ -620,7 +754,10 @@ for (const name of ORDER) {
   const file = join(dsDir, "tokens", `${name}.css`);
   if (!existsSync(file)) continue;
   tokens += `/* ---------- tokens/${name}.css ---------- */\n`;
-  tokens += scopeSheet(readFileSync(file, "utf8")) + "\n";
+  tokens +=
+    scopeSheet(
+      stripGoogleFontImports(readFileSync(file, "utf8"), `tokens/${name}.css`)
+    ) + "\n";
 }
 writeFileSync(join(outDir, "needt-ds-tokens.css"), tokens);
 
@@ -651,7 +788,9 @@ writeFileSync(join(outDir, "needt-themes.css"), themes);
  * design system uses, or this layer lands on nothing.
  */
 const indexHtml = readFileSync(join(BUNDLE, "needt-app", "index.html"), "utf8");
-const styleBlocks = [...indexHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
+const styleBlocks = [
+  ...indexHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g),
+].map((m) => m[1]);
 
 let motion = header([
   "Needt motion layer — VENDORED, DO NOT EDIT BY HAND.",
@@ -664,7 +803,9 @@ let motion = header([
   "prefers-reduced-motion, which is part of what is vendored.",
 ]);
 for (const block of styleBlocks) {
-  motion += scopeSheet(stripCaptureArtifacts(stripFontFaces(block, "index.html"))) + "\n";
+  motion +=
+    scopeSheet(stripCaptureArtifacts(stripFontFaces(block, "index.html"))) +
+    "\n";
 }
 
 /* Component stylesheets that belong with the components rather than the kit. */
@@ -672,7 +813,9 @@ for (const name of ["composer", "exposure-wordmark"]) {
   const file = join(BUNDLE, "needt-app", `${name}.css`);
   if (!existsSync(file)) continue;
   motion += `/* ---------- ${name}.css ---------- */\n`;
-  motion += scopeSheet(stripFontFaces(readFileSync(file, "utf8"), `${name}.css`)) + "\n";
+  motion +=
+    scopeSheet(stripFontFaces(readFileSync(file, "utf8"), `${name}.css`)) +
+    "\n";
 }
 writeFileSync(join(outDir, "needt-motion.css"), motion);
 

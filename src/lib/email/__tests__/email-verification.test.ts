@@ -19,6 +19,7 @@ const tx = {
   subscription: { upsert: jest.fn() },
   trialGrant: {
     createMany: jest.fn(),
+    findFirst: jest.fn(),
     findUnique: jest.fn(),
   },
 };
@@ -40,11 +41,12 @@ jest.mock("@/lib/email/email-service", () => ({
 describe("email verification confirmation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(prisma.$transaction).mockImplementation(async (operation) =>
-      (
-        operation as unknown as (client: typeof tx) => Promise<unknown>
-      )(tx)
-    );
+    process.env.RATE_LIMIT_HASH_SECRET = "trial-test-secret";
+    jest
+      .mocked(prisma.$transaction)
+      .mockImplementation(async (operation) =>
+        (operation as unknown as (client: typeof tx) => Promise<unknown>)(tx)
+      );
     tx.verificationToken.delete.mockResolvedValue({});
     tx.verificationToken.deleteMany.mockResolvedValue({ count: 1 });
     tx.user.findUnique.mockResolvedValue({
@@ -53,6 +55,7 @@ describe("email verification confirmation", () => {
     });
     tx.user.update.mockResolvedValue({});
     tx.subscription.upsert.mockResolvedValue({});
+    tx.trialGrant.findFirst.mockResolvedValue(null);
     tx.trialGrant.createMany.mockResolvedValue({ count: 1 });
     tx.trialGrant.findUnique.mockResolvedValue({
       id: "trial-1",
@@ -125,7 +128,9 @@ describe("email verification delivery", () => {
   });
 
   it("keeps older active links when delivery of a replacement fails", async () => {
-    jest.mocked(EmailService.sendEmail).mockRejectedValue(new Error("Resend down"));
+    jest
+      .mocked(EmailService.sendEmail)
+      .mockRejectedValue(new Error("Resend down"));
 
     await expect(
       sendEmailVerification({

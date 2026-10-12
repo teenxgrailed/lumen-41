@@ -20,8 +20,8 @@ import { enqueueImportRun } from "@/lib/queue/enqueue";
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueImportRun: jest.fn() }));
-jest.mock("@/services/ai/encryption", () => ({
-  encryptSecret: (v: string) => `enc(${v})`,
+jest.mock("@/services/imports/token-secret", () => ({
+  sealImportToken: (v: string) => `enc(${v})`,
 }));
 jest.mock("@/lib/auth/email-verification-access", () => ({
   getEmailVerificationStatus: jest

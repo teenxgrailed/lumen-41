@@ -8,6 +8,7 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
 import {
+  clearIfSignedOut,
   clearNeedtOfflineData,
   setNeedtOfflineScope,
 } from "@/lib/pwa/offline-client";
@@ -106,8 +107,20 @@ export function PWARegister() {
   useEffect(() => {
     const userId = session?.user?.id;
     if (status === "unauthenticated" || !userId) {
-      if (status === "unauthenticated") void clearNeedtOfflineData();
-      return;
+      /* Offline, the session check fails the same way a signed-out one
+         does, and clearing then would throw away changes saved offline. */
+      if (status !== "unauthenticated") return;
+      if (navigator.onLine) {
+        void clearNeedtOfflineData();
+        return;
+      }
+      /* Back online, the cleanup runs once the server confirms there is no
+         session; a session that only looked absent offline keeps its data. */
+      const retryCleanup = () => {
+        void clearIfSignedOut();
+      };
+      window.addEventListener("online", retryCleanup, { once: true });
+      return () => window.removeEventListener("online", retryCleanup);
     }
 
     let cancelled = false;

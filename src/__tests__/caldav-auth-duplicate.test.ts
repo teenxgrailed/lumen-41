@@ -5,6 +5,10 @@ import { Prisma } from "@prisma/client";
 import * as apiAuth from "@/lib/auth/api-auth";
 import * as entitlements from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import {
+  decryptSecret,
+  isEncryptedSecret,
+} from "@/lib/security/secret-encryption";
 
 jest.mock("@/lib/auth/api-auth");
 jest.mock("@/lib/entitlements");
@@ -22,6 +26,10 @@ jest.mock("@/app/api/calendar/caldav/utils", () => ({
   handleFastmailPath: jest.fn(() => undefined),
   loginToCalDAVServer: jest.fn(),
   normalizeCalDAVServerUrl: jest.fn((url: string) => url),
+}));
+const mockAddFeeds = jest.fn();
+jest.mock("@/lib/caldav-feeds", () => ({
+  addCalDAVFeeds: (...a: unknown[]) => mockAddFeeds(...a),
 }));
 jest.mock("@/lib/logger", () => ({
   logger: {
@@ -45,6 +53,7 @@ function makeRequest(body: Record<string, unknown>) {
 describe("CalDAV auth route - duplicate server handling", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAddFeeds.mockResolvedValue({ added: ["f1", "f2"] });
     (apiAuth.authenticateRequest as jest.Mock).mockResolvedValue({
       userId: "user-1",
     });
@@ -97,6 +106,46 @@ describe("CalDAV auth route - duplicate server handling", () => {
     if (!res) throw new Error("expected a response");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ success: true, accountId: "acc-1" });
+    expect(json).toEqual({ success: true, accountId: "acc-1", feeds: 2 });
+    // the account's calendars are added and synced right away
+    expect(mockAddFeeds).toHaveBeenCalledWith({ id: "acc-1" }, "user-1");
+  });
+
+  it("stays connected when adding the calendars fails", async () => {
+    mockPrisma.connectedAccount.create.mockResolvedValue({ id: "acc-1" });
+    mockAddFeeds.mockRejectedValueOnce(new Error("503"));
+
+    const res = await POST(
+      makeRequest({
+        serverUrl: "https://server-b.example.com",
+        username: "FOO",
+        password: "secret",
+      })
+    );
+
+    if (!res) throw new Error("expected a response");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      success: true,
+      accountId: "acc-1",
+      feeds: 0,
+    });
+  });
+
+  it("stores the CalDAV password encrypted, never as plaintext", async () => {
+    mockPrisma.connectedAccount.create.mockResolvedValue({ id: "acc-2" });
+
+    await POST(
+      makeRequest({
+        serverUrl: "https://server-c.example.com",
+        username: "FOO",
+        password: "app-specific-password",
+      })
+    );
+
+    const { data } = mockPrisma.connectedAccount.create.mock.calls[0][0];
+    expect(data.accessToken).not.toContain("app-specific-password");
+    expect(isEncryptedSecret(data.accessToken)).toBe(true);
+    expect(decryptSecret(data.accessToken)).toBe("app-specific-password");
   });
 });

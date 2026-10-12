@@ -50,6 +50,34 @@ const nextConfig = {
     // route chunks; bundling Yjs per route triggers its duplicate-import guard.
     "yjs",
   ],
+
+  // The self-hosted design-system fonts never change under a given name: each
+  // filename in public/fonts/ds/ carries a hash of its content, so a changed
+  // font ships under a new URL. That makes a year-long immutable cache safe.
+  // Scoped to /fonts/ds/ because the other files under /fonts/ are not
+  // content-addressed and would be served stale after a change.
+  // Documents live at /pages; /docs (the name people and old links use) was a
+  // 404. Temporary (307), so /docs stays free for public API docs later.
+  async redirects() {
+    return [
+      { source: "/docs", destination: "/pages", permanent: false },
+      { source: "/docs/:id", destination: "/pages/:id", permanent: false },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: "/fonts/ds/:file*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = withSentryConfig(nextConfig, {

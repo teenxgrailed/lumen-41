@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import { cancelRecurringBillingForDeletion } from "./account-billing";
+import { revokeExternalAccessForDeletion } from "./account-external-access";
 
 const LOG_SOURCE = "AccountDeletion";
 export const ACCOUNT_DELETION_GRACE_DAYS = 7;
@@ -537,6 +538,20 @@ export async function finalizeAccountDeletion(
     });
     if (billingRequest?.userId) {
       await cancelRecurringBillingForDeletion(billingRequest.userId);
+      /* Before the rows go: stopping a calendar channel and revoking a grant
+         both need the tokens the transaction below deletes. */
+      await revokeExternalAccessForDeletion(billingRequest.userId).catch(
+        async (error) => {
+          await logger.warn(
+            "External access revocation failed; deletion continues",
+            {
+              requestId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            LOG_SOURCE
+          );
+        }
+      );
     }
     await prisma.$transaction(
       async (tx) => {

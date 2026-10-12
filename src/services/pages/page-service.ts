@@ -33,13 +33,15 @@ export async function listPages(
     tagIds?: string[];
     favorites?: boolean;
     privateOnly?: boolean;
+    /** List the trash instead of the live pages. */
+    trashed?: boolean;
   }
 ) {
   const tagIds = [...new Set(options?.tagIds ?? [])];
   const pages = await prisma.page.findMany({
     where: {
       ...actorPageScope(actor),
-      trashedAt: null,
+      trashedAt: options?.trashed ? { not: null } : null,
       ...(options?.folderId ? { folderId: options.folderId } : {}),
       ...(options?.favorites ? { isFavorite: true } : {}),
       ...(options?.privateOnly ? { isPrivate: true } : {}),
@@ -75,6 +77,7 @@ export async function listPages(
       coverUrl: true,
       projectId: true,
       style: true,
+      trashedAt: true,
       database: { select: { id: true } },
       accessGrants: {
         where: { userId: actorUserId(actor) },
@@ -118,6 +121,43 @@ export async function getPage(actor: PageActor, pageId: string) {
     where: { id: pageId, ...actorPageScope(actor), trashedAt: null },
     include: pageDetailInclude,
   });
+}
+
+/**
+ * Brings a page back from the trash. Needs the same access as trashing it
+ * (FULL_ACCESS), read with trashed rows included since every other check
+ * hides them. Idempotent: a page that is not in the trash is returned as it
+ * is, with no write. Children, blocks and assets were never touched by the
+ * trash, so they come back with the page. A page whose parent is still in
+ * the trash would return under a hidden parent; it comes back at the top
+ * level instead.
+ */
+export async function restorePage(actor: PageActor, pageId: string) {
+  const access = await actorCanAccess(
+    actor,
+    pageId,
+    PageAccessRole.FULL_ACCESS,
+    { includeTrashed: true }
+  );
+  if (!access) return null;
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, ...actorPageScope(actor) },
+    select: { id: true, trashedAt: true, parentId: true },
+  });
+  if (!page) return null;
+  if (page.trashedAt) {
+    const trashedParent = page.parentId
+      ? await prisma.page.findFirst({
+          where: { id: page.parentId, trashedAt: { not: null } },
+          select: { id: true },
+        })
+      : null;
+    await prisma.page.updateMany({
+      where: { id: pageId, trashedAt: { not: null } },
+      data: { trashedAt: null, ...(trashedParent ? { parentId: null } : {}) },
+    });
+  }
+  return getPage(actor, pageId);
 }
 
 async function assertOwnedParent(actor: PageActor, parentId?: string | null) {
@@ -207,7 +247,19 @@ export async function updatePage(
     style?: Prisma.InputJsonObject | null;
     projectId?: string | null;
   }
-) {
+): Promise<Awaited<ReturnType<typeof getPage>>> {
+  if (input.trashed === false) {
+    // Restoring reads the trashed row; every other change waits until the
+    // page is live again and then goes through the normal checks below.
+    const restored = await restorePage(actor, pageId);
+    if (!restored) return null;
+    const { trashed: _restored, ...rest } = input;
+    void _restored;
+    const hasOtherChanges = Object.values(rest).some(
+      (value) => value !== undefined
+    );
+    return hasOtherChanges ? updatePage(actor, pageId, rest) : restored;
+  }
   const requiredRole =
     input.isPrivate !== undefined || input.trashed !== undefined
       ? PageAccessRole.FULL_ACCESS

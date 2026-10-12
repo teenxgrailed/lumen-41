@@ -45,8 +45,13 @@ export function NeedtNotices() {
            positioned ancestor, so this anchor is the right-hand strip and
            nothing more. It covered the viewport in the first cut, which put
            a transparent layer over every pixel of every screen and marked
-           the whole window as somewhere the companion must keep clear of. */
+           the whole window as somewhere the companion must keep clear of.
+           `.needt-v2` is also the page scope and paints the canvas, so the
+           anchor says it is transparent: without that the strip is an
+           opaque slab over the right of every screen, the whole window on a
+           phone. */
         style={{
+          background: "transparent",
           position: "fixed",
           top: 0,
           right: 0,

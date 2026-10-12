@@ -19,6 +19,11 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     autoScheduleSettings: { upsert: jest.fn() },
     userSettings: { upsert: jest.fn() },
+    user: {
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ isActive: true, sessionVersion: 0 }),
+    },
   },
 }));
 jest.mock("@/lib/trials/trial-service", () => ({

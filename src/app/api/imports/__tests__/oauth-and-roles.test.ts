@@ -34,8 +34,8 @@ jest.mock("@/lib/entitlements", () => ({
   getPlan: jest.fn().mockResolvedValue("PRO"),
 }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueImportRun: jest.fn() }));
-jest.mock("@/services/ai/encryption", () => ({
-  encryptSecret: (v: string) => `enc(${v})`,
+jest.mock("@/services/imports/token-secret", () => ({
+  sealImportToken: (v: string) => `enc(${v})`,
 }));
 jest.mock("@/services/imports/todoist/client", () => ({
   ...jest.requireActual("@/services/imports/todoist/client"),
@@ -83,9 +83,11 @@ describe("Todoist OAuth callback and workspace roles", () => {
       TODOIST_CLIENT_ID: "cid",
       TODOIST_CLIENT_SECRET: "secret",
     };
-    jest
-      .mocked(prisma.user.findUnique)
-      .mockResolvedValue({ id: USER, isActive: true } as never);
+    jest.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: USER,
+      isActive: true,
+      sessionVersion: 0,
+    } as never);
     jest
       .mocked(prisma.workspace.upsert)
       .mockResolvedValue({ id: PERSONAL, kind: "PERSONAL" } as never);

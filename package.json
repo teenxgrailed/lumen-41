@@ -32,6 +32,7 @@
     "check:agent-handoffs": "node scripts/check-agent-handoffs.mjs",
     "check:collaboration-runtime": "node scripts/check-collaboration-runtime.mjs",
     "check:runtime-shas": "node scripts/check-runtime-shas.mjs",
+    "check:worker-bundle": "node scripts/check-worker-bundle.mjs",
     "check:ui-contracts": "node scripts/check-ui-contracts-admin-settings-fixtures.mjs && node scripts/check-ui-contracts.mjs",
     "prisma:generate": "prisma generate",
     "tokens:sync": "node scripts/sync-design-tokens.mjs",

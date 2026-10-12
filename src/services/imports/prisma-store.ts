@@ -2,7 +2,7 @@ import type { ImportSource } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
-import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
+import { plainTaskDescriptionForStorage } from "@/lib/task-description-prefix";
 
 import { TaskStatus } from "@/types/task";
 
@@ -138,8 +138,7 @@ export function createPrismaImportStore(input: {
           : null;
       const data = {
         title: task.title,
-        description:
-          sanitizeTaskDescriptionForStorage(task.description) ?? null,
+        description: plainTaskDescriptionForStorage(task.description) ?? null,
         dueDate: task.dueDate,
         deadline: task.deadline,
         estimatedMinutes: task.estimatedMinutes,

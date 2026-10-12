@@ -160,7 +160,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const state = dayState(day, late.length, leavingIds);
   const closedDay = state === "closed";
   const doneToday = day.filter((t) => t.done && !leaving[t.id]);
-  const sections = closedDay ? [] : sectionsOf(day, shown);
+  const sections = closedDay ? [] : sectionsOf(day, shown, today);
   const lateShown = late.filter(shown);
   const inboxShown = inbox.filter(shown);
 

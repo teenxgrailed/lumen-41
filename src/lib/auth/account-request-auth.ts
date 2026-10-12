@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 
 import { authSecret } from "@/lib/auth/auth-secret";
+import { sessionStateAllows } from "@/lib/auth/session-version";
 import { prisma } from "@/lib/prisma";
 
 export async function authenticateAccountRequest(request: NextRequest): Promise<
@@ -26,15 +27,15 @@ export async function authenticateAccountRequest(request: NextRequest): Promise<
   }
   const user = await prisma.user.findUnique({
     where: { id: token.sub },
-    select: { id: true, email: true, isActive: true },
+    select: { id: true, email: true, isActive: true, sessionVersion: true },
   });
-  if (!user?.isActive) {
+  if (!user || !sessionStateAllows(user, token)) {
     return {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
   return {
-    user,
+    user: { id: user.id, email: user.email, isActive: user.isActive },
     sessionHash: createHash("sha256").update(rawToken).digest("hex"),
   };
 }

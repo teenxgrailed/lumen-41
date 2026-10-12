@@ -39,8 +39,8 @@ jest.mock("@/lib/entitlements", () => ({
   getPlan: jest.fn().mockResolvedValue("PRO"),
 }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueImportRun: jest.fn() }));
-jest.mock("@/services/ai/encryption", () => ({
-  encryptSecret: (v: string) => `enc(${v})`,
+jest.mock("@/services/imports/token-secret", () => ({
+  sealImportToken: (v: string) => `enc(${v})`,
 }));
 jest.mock("@/services/imports/notion/client", () => ({
   ...jest.requireActual("@/services/imports/notion/client"),
@@ -95,9 +95,11 @@ describe("Notion OAuth routes", () => {
       NOTION_CLIENT_SECRET: "notion-secret",
     };
     jest.mocked(isFeatureEnabled).mockResolvedValue(true);
-    jest
-      .mocked(prisma.user.findUnique)
-      .mockResolvedValue({ id: USER, isActive: true } as never);
+    jest.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: USER,
+      isActive: true,
+      sessionVersion: 0,
+    } as never);
     jest
       .mocked(prisma.workspace.upsert)
       .mockResolvedValue({ id: PERSONAL, kind: "PERSONAL" } as never);

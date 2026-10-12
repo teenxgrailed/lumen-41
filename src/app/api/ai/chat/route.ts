@@ -177,6 +177,8 @@ function fallbackToolFromMessage(message: string): AIChatToolCall | null {
   return null;
 }
 
+//todo: replace this switch with runOp() from @/services/ops so chat writes go
+// through the same registry, AgentAction log, and undo as /api/connect/ops.
 async function executeTool(
   ai: SchedulerAI,
   call: AIChatToolCall,
