@@ -85,9 +85,9 @@ export function TileFace({ it, big }: { it: PhoneBoardItem; big?: boolean }) {
 
 /**
  * The wall (phone-habits.jsx PhbWall): a board's references in two columns,
- * each into the shorter one. Read-only: the hold-to-lift reorder and every
- * write need the references route, which does not exist yet (data map §7).
- * A tap calls `onOpen` when the screen gives one.
+ * each into the shorter one. The wall itself only shows; adding and removing
+ * go through the board controller (the items routes). //todo: hold-to-lift
+ * reorder (PATCH position). A tap calls `onOpen` when the screen gives one.
  */
 export function Wall({
   items,

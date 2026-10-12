@@ -14,9 +14,11 @@ import {
   useTrashBoard,
   useUpdateBoard,
 } from "@/lib/needt3/hooks/boards";
+import { isBoardFull } from "@/lib/needt3/hooks/core";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
 
 import {
   type AddAsk,
@@ -29,6 +31,7 @@ import {
   renameChanges,
 } from "../phone/moodboards/model";
 import { snack } from "../phone/overlays/snack";
+import { BOARD_FULL_TEXT } from "./derive";
 
 /** The place's list route; a board is one level under it. */
 export const BOARDS_PATH = "/moodboards";
@@ -160,12 +163,19 @@ export function useBoardsController(opts: BoardsControllerOptions) {
 
   /** Delete = move to Trash, kept 30 days, with Undo. */
   const remove = async (b: Pick<V3Board, "id" | "title">, leave = false) => {
+    if (busy.current) return false;
+    busy.current = true;
+    setSaving(true);
     try {
       const gone = await trash.mutateAsync({ id: b.id, trashed: true });
       snack(`“${b.title || UNTITLED_BOARD}” moved to Trash`, gone.undo);
       if (leave) back();
+      return true;
     } catch {
-      /* the hook told the person and put the board back */
+      return false; // the hook told the person and put the board back
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
   };
 
@@ -192,8 +202,11 @@ export function useBoardsController(opts: BoardsControllerOptions) {
       snack("Added to this board", undo);
       setAdd(null);
       return true;
-    } catch {
-      return false; // the hook told the person; the sheet and the text stay
+    } catch (error) {
+      /* The hook told the person, except for a full board (409), which is
+         answered here; the sheet and the text stay either way. */
+      if (isBoardFull(error)) notify.info(BOARD_FULL_TEXT);
+      return false;
     } finally {
       busy.current = false;
       setSaving(false);

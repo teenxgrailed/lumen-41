@@ -2,8 +2,11 @@
 
 import { useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { liveHabits } from "@/lib/needt3/derive";
+import { isUpgradeRequired } from "@/lib/needt3/hooks/core";
 import {
   useArchiveHabit,
   useCheckins,
@@ -16,6 +19,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Habit } from "@/lib/needt3/map";
+import { qk } from "@/lib/needt3/query-keys";
 
 import {
   BLANK_HABIT_FORM,
@@ -63,7 +67,10 @@ export function useHabitsController(opts: HabitsControllerOptions) {
   const projectsQuery = useProjects();
   const plan = usePlan();
   const toggleToday = useToggleHabitToday();
-  const createHabit = useCreateHabit();
+  /* A plan refusal from the server is answered here (the paywall), so the
+     mutation's generic "could not" notice stays quiet for it. */
+  const createHabit = useCreateHabit({ quiet: isUpgradeRequired });
+  const qc = useQueryClient();
   const updateHabit = useUpdateHabit();
   const archiveHabit = useArchiveHabit();
 
@@ -100,6 +107,17 @@ export function useHabitsController(opts: HabitsControllerOptions) {
   const patchForm = (p: Partial<HabitForm>) =>
     setForm((f) => (f ? { ...f, ...p } : f));
 
+  /**
+   * The server said no (403 UPGRADE_REQUIRED): the plan the client held was
+   * stale. Refresh it and send the person to the same place a refused tap
+   * goes; the sheet and its text stay.
+   */
+  const refused = (error: unknown) => {
+    if (!isUpgradeRequired(error)) return;
+    void qc.invalidateQueries({ queryKey: qk.plan() });
+    optsRef.current.onBlocked();
+  };
+
   /** Create from a bare name (the pull-down's Enter): the same gate. */
   const create = async (title: string) => {
     const name = title.trim();
@@ -112,7 +130,8 @@ export function useHabitsController(opts: HabitsControllerOptions) {
       });
       snack(`Habit “${name}” added`, undo);
       return true;
-    } catch {
+    } catch (error) {
+      refused(error);
       return false; // the hook told the person and put the cache back
     } finally {
       busy.current = false;
@@ -140,8 +159,10 @@ export function useHabitsController(opts: HabitsControllerOptions) {
         snack(`Habit “${fields.title}” added`, undo);
       }
       setForm(null);
-    } catch {
-      /* the hook told the person; the sheet and what they typed stay */
+    } catch (error) {
+      /* the hook told the person (or `refused` opened the paywall); the
+         sheet and what they typed stay */
+      refused(error);
     } finally {
       busy.current = false;
       setSaving(false);

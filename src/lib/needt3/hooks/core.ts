@@ -116,6 +116,26 @@ export interface UndoableMutationOptions<V, R> {
   inverse?: (qc: QueryClient, vars: V, result?: R) => V | null;
   /** Inverse computed only once the server has answered (e.g. a create). */
   inverseFromResult?: boolean;
+  /**
+   * An error the caller answers itself (a plan refusal that opens the
+   * paywall): the change is still reverted and the error still thrown, but
+   * the generic "could not" notice is not shown.
+   */
+  quiet?: (error: unknown) => boolean;
+}
+
+/** The items route said the board is full (409). */
+export function isBoardFull(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409;
+}
+
+/** The server refused the write because the plan does not allow it. */
+export function isUpgradeRequired(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    error.message === "UPGRADE_REQUIRED"
+  );
 }
 
 function scopes(scope: QueryKey | readonly QueryKey[]): QueryKey[] {
@@ -134,8 +154,15 @@ function scopes(scope: QueryKey | readonly QueryKey[]): QueryKey[] {
  */
 export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
   const qc = useQueryClient();
-  const { scope, label, optimistic, request, inverse, inverseFromResult } =
-    opts;
+  const {
+    scope,
+    label,
+    optimistic,
+    request,
+    inverse,
+    inverseFromResult,
+    quiet,
+  } = opts;
 
   const run = useCallback(
     async (vars: V): Promise<Undoable<R>> => {
@@ -158,7 +185,8 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
         };
       } catch (error) {
         snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
-        notify.error(`Could not ${label}. Your change was reverted.`);
+        if (!quiet?.(error))
+          notify.error(`Could not ${label}. Your change was reverted.`);
         void logger.error(
           `v3 mutation failed: ${label}`,
           { error: error instanceof Error ? error.message : String(error) },
@@ -167,7 +195,7 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
         throw error;
       }
     },
-    [qc, scope, label, optimistic, request, inverse, inverseFromResult]
+    [qc, scope, label, optimistic, request, inverse, inverseFromResult, quiet]
   );
 
   return useMutation<Undoable<R>, Error, V>({ mutationFn: run });

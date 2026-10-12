@@ -25,6 +25,25 @@ export const FREE_BOARDS: number = PLAN_LIMITS.FREE.boards;
 
 /* ---------- moodboards ---------- */
 
+/**
+ * A board holds this many references (409 "Moodboard is full" past it).
+ * Mirrors MOODBOARD_ITEM_LIMIT in the server's item service, which cannot be
+ * imported here (it pulls in Prisma).
+ */
+export const BOARD_ITEM_LIMIT = 500;
+export const BOARD_FULL_TEXT = `This board holds ${BOARD_ITEM_LIMIT} references`;
+
+/**
+ * May the caller change a board (rename, delete, add or remove references)?
+ * EDITOR and above. An unknown role (not read yet, or the read failed) is
+ * not enough: the controls wait for the server to say so.
+ */
+export function canEditBoard(
+  board: Pick<V3Board, "accessRole"> | null | undefined
+) {
+  return board?.accessRole === "FULL_ACCESS" || board?.accessRole === "EDITOR";
+}
+
 export type BoardSortKey = "updated" | "created" | "name";
 export interface BoardSort {
   key: BoardSortKey;

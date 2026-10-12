@@ -67,10 +67,10 @@ export function notifyBoardsBlocked() {
  * Moodboards (places.jsx `MoodboardsScreen`): a grid of boards, not a canvas.
  * Create, sort, open and delete (to Trash, with Undo).
  *
- * //todo: board items. `MoodboardItem` has no route, so a card cannot show
- * its collage or "n references", and a board's own page (images, links,
- * colours, notes, Pinterest, guest view, Share) is still the old workspace
- * at `/moodboards/[id]`. Both come with an items route.
+ * //todo: board items. The list route sends no items, so a card cannot show
+ * its collage or "n references" yet; a board's own page is the old workspace
+ * at `/moodboards/[id]` on the desktop (images, links, colours, notes,
+ * Pinterest, guest view, Share) and the phone board page under 700 px.
  * //todo: members avatars / "Private" lock on the card need the members list.
  */
 export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {

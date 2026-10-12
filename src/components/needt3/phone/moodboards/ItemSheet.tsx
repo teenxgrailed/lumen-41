@@ -22,6 +22,7 @@ export function ItemSheet({
   board,
   tz,
   saving,
+  canRemove,
   onClose,
   onRemove,
 }: {
@@ -29,6 +30,8 @@ export function ItemSheet({
   board: string;
   tz: string;
   saving: boolean;
+  /** EDITOR and above; a viewer sees the reference and its source only. */
+  canRemove: boolean;
   onClose: () => void;
   onRemove: (item: PhoneBoardItem) => void;
 }) {
@@ -54,14 +57,16 @@ export function ItemSheet({
       className="phb-item-sheet"
       footer={
         <>
-          <PkButton
-            icon={<LuTrash2 size={18} aria-hidden />}
-            className="phb-danger"
-            aria-label={t.PhbItemSheet.remove_from_board}
-            disabled={!it || saving}
-            onClick={() => it && onRemove(it)}
-            data-phb-item-remove
-          />
+          {canRemove ? (
+            <PkButton
+              icon={<LuTrash2 size={18} aria-hidden />}
+              className="phb-danger"
+              aria-label={t.PhbItemSheet.remove_from_board}
+              disabled={!it || saving}
+              onClick={() => it && onRemove(it)}
+              data-phb-item-remove
+            />
+          ) : null}
           <PkButton kind="primary" onClick={onClose} data-phb-item-done>
             {t.PhbItemSheet.done}
           </PkButton>

@@ -14,6 +14,7 @@ import {
   dropListItem,
   fetchJson,
   findListItem,
+  isBoardFull,
   patchListItem,
   previousFields,
   sendJson,
@@ -244,6 +245,7 @@ export function useAddBoardItem() {
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "add the reference",
+    quiet: isBoardFull, // the caller words it: BOARD_FULL_TEXT
     inverseFromResult: true,
     inverse: (_qc, vars, result) =>
       "draft" in vars && result

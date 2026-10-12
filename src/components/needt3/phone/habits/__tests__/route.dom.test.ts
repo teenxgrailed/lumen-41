@@ -9,7 +9,10 @@
  */
 import { act, createElement as h } from "react";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
+
+import { ApiError } from "@/lib/needt3/hooks/core";
 
 import { FREE_HABITS } from "../../../habits/derive";
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
@@ -89,8 +92,17 @@ const habit = (id: string, title: string) => ({
 let host: HTMLDivElement;
 let root: Root;
 
+let client: QueryClient;
 const render = (ui: "phone" | "desktop") =>
-  act(() => root.render(h(PhoneUiProvider, { value: ui }, h(HabitsRoute))));
+  act(() =>
+    root.render(
+      h(
+        QueryClientProvider,
+        { client },
+        h(PhoneUiProvider, { value: ui }, h(HabitsRoute))
+      )
+    )
+  );
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel);
 const flush = () => act(async () => void (await Promise.resolve()));
 
@@ -126,6 +138,7 @@ beforeEach(() => {
   jest
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockImplementation(() => null);
+  client = new QueryClient();
   mockToggle.mockReset();
   mockCreate.mockReset();
   mockUpdate.mockReset();
@@ -151,9 +164,11 @@ afterEach(() => {
 describe("the Free allowance", () => {
   it("shows the count on Free and nothing on Pro", () => {
     render("phone");
-    expect(q("[data-phb-quota]")?.textContent).toMatch(
-      new RegExp(`^2 of ${FREE_HABITS} habits`)
-    );
+    expect(
+      q("[data-phb-quota]")?.textContent?.startsWith(
+        `2 of ${FREE_HABITS} habits`
+      )
+    ).toBe(true);
     mockPlanKind = "yearly";
     render("phone");
     expect(q("[data-phb-quota]")).toBeNull();
@@ -162,9 +177,11 @@ describe("the Free allowance", () => {
   it("a new habit at the limit opens the paywall, not the sheet", () => {
     mockHabits = full();
     render("phone");
-    expect(q("[data-phb-quota]")?.textContent).toMatch(
-      new RegExp(`^${FREE_HABITS} of ${FREE_HABITS} habits`)
-    );
+    expect(
+      q("[data-phb-quota]")?.textContent?.startsWith(
+        `${FREE_HABITS} of ${FREE_HABITS} habits`
+      )
+    ).toBe(true);
     click(q("[data-phb-new]"));
     expect(usePhoneOverlays.getState().paywall).toBe(
       `more than ${FREE_HABITS} habits`
@@ -359,6 +376,38 @@ describe("saving", () => {
     expect(mockCreate).toHaveBeenCalledTimes(2);
     await flush();
     await flush();
+  });
+
+  it("the server's 403 UPGRADE_REQUIRED opens the paywall once and keeps the sheet and the text", async () => {
+    mockCreate.mockRejectedValue(new ApiError(403, "UPGRADE_REQUIRED"));
+    mockPlanKind = undefined; // the client's plan was stale: nothing gated the tap
+    render("phone");
+    click(q("[data-phb-new]"));
+    typeInto(doc<HTMLInputElement>("#phb-name")!, "Stretch");
+    click(doc("[data-phb-create]"));
+    await flush();
+    await flush();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(usePhoneOverlays.getState().paywall).toBe(
+      `more than ${FREE_HABITS} habits`
+    );
+    expect(mockSnack).not.toHaveBeenCalled();
+    expect(mockInfo).not.toHaveBeenCalled();
+    expect(doc<HTMLInputElement>("#phb-name")?.value).toBe("Stretch");
+  });
+
+  it("the same refusal on the desktop shows the notice once", async () => {
+    mockCreate.mockRejectedValue(new ApiError(403, "UPGRADE_REQUIRED"));
+    mockPlanKind = undefined;
+    render("desktop");
+    click(q("[data-page-add]"));
+    typeInto(doc<HTMLInputElement>('input[name="habit-name"]')!, "Stretch");
+    click(doc(".pl-habit-save"));
+    await flush();
+    await flush();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockInfo).toHaveBeenCalledTimes(1);
+    expect(usePhoneOverlays.getState().paywall).toBe(false);
   });
 
   it("an invalid time shows its error and blocks Create", () => {

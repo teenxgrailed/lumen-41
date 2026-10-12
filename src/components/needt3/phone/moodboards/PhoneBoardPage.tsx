@@ -10,10 +10,11 @@ import {
   LuTrash2,
 } from "react-icons/lu";
 
-import { useBoardItems, useBoards } from "@/lib/needt3/hooks/boards";
+import { useBoard, useBoardItems, useBoards } from "@/lib/needt3/hooks/boards";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { canEditBoard } from "../../places/derive";
 import type { BoardsController } from "../../places/useBoardsController";
 import {
   PkActions,
@@ -64,12 +65,19 @@ export function PhoneBoardPage({
   const tz = useTimeZone();
   const [acts, setActs] = useState<PkActs | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const b = (boards.data ?? []).find((x) => x.id === id && !x.trashedAt);
+  const one = useBoard(id);
+  const listed = (boards.data ?? []).find((x) => x.id === id && !x.trashedAt);
+  /* The list does not send the caller's role; the single-board read does.
+     Until it says EDITOR or above, nothing that writes is shown. */
+  const b = listed
+    ? { ...listed, accessRole: one.data?.accessRole ?? listed.accessRole }
+    : undefined;
+  const canEdit = canEditBoard(b);
   const items: readonly PhoneBoardItem[] = itemsQuery.data ?? [];
   const open = items.find((x) => x.id === openId) ?? null;
 
   const options = () => {
-    if (!b) return;
+    if (!b || !canEdit) return;
     setActs({
       title: b.title || UNTITLED_BOARD,
       actions: [
@@ -126,25 +134,29 @@ export function PhoneBoardPage({
         <span>{madeLine(b.createdAt, tz)}</span>
       </p>
       <div className="phb-bh-acts">
-        <PkButton
-          kind="primary"
-          small
-          icon={<LuPlus size={16} aria-hidden />}
-          onClick={() => ctl.openAdd(b.id)}
-          data-phb-add
-        >
-          {t.PhbBoardPage.add}
-        </PkButton>
-        <PkGlass
-          as="button"
-          round
-          className="phb-gbtn is-icon"
-          onClick={options}
-          aria-label={t.PhbBoardPage.board_options}
-          data-phb-more
-        >
-          <LuEllipsis size={18} aria-hidden />
-        </PkGlass>
+        {canEdit ? (
+          <>
+            <PkButton
+              kind="primary"
+              small
+              icon={<LuPlus size={16} aria-hidden />}
+              onClick={() => ctl.openAdd(b.id)}
+              data-phb-add
+            >
+              {t.PhbBoardPage.add}
+            </PkButton>
+            <PkGlass
+              as="button"
+              round
+              className="phb-gbtn is-icon"
+              onClick={options}
+              aria-label={t.PhbBoardPage.board_options}
+              data-phb-more
+            >
+              <LuEllipsis size={18} aria-hidden />
+            </PkGlass>
+          </>
+        ) : null}
       </div>
     </div>
   ) : null;
@@ -187,13 +199,15 @@ export function PhoneBoardPage({
                       t.PhbBoardPage.photos_links_colours_and_notes_whatever_
                     }
                     action={
-                      <PkButton
-                        kind="primary"
-                        icon={<LuPlus size={16} aria-hidden />}
-                        onClick={() => ctl.openAdd(b.id)}
-                      >
-                        {t.PhbBoardPage.add_a_reference}
-                      </PkButton>
+                      canEdit ? (
+                        <PkButton
+                          kind="primary"
+                          icon={<LuPlus size={16} aria-hidden />}
+                          onClick={() => ctl.openAdd(b.id)}
+                        >
+                          {t.PhbBoardPage.add_a_reference}
+                        </PkButton>
+                      ) : undefined
                     }
                   />
                 )}
@@ -221,6 +235,7 @@ export function PhoneBoardPage({
         board={b?.title || UNTITLED_BOARD}
         tz={tz}
         saving={ctl.saving}
+        canRemove={canEdit}
         onClose={() => setOpenId(null)}
         onRemove={(it) => {
           setOpenId(null);

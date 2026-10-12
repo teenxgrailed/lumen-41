@@ -13,6 +13,7 @@ import { act, createElement as h } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
+import { ApiError } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
@@ -34,6 +35,7 @@ const mockSnack = jest.fn();
 const mockPush = jest.fn();
 let mockBoards: unknown[] = [];
 let mockPlanKind = "free";
+let mockRole: string | undefined = "EDITOR";
 
 const query = (data: unknown) => ({
   data,
@@ -54,6 +56,12 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
   useAddBoardItem: () => ({ mutateAsync: mockAdd }),
   useRemoveBoardItem: () => ({ mutateAsync: mockRemove }),
   useBoardItems: () => mockItemsQuery,
+  useBoard: () =>
+    query(
+      mockRole
+        ? { ...(mockBoards[0] as object), accessRole: mockRole }
+        : undefined
+    ),
 }));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => query({ kind: mockPlanKind }),
@@ -191,6 +199,7 @@ beforeEach(() => {
     mockRetry,
   ].forEach((m) => m.mockReset());
   mockBoards = [];
+  mockRole = "EDITOR";
   mockItemsQuery = query([]);
   client = new QueryClient();
   usePhoneOverlays.setState({ paywall: false });
@@ -451,6 +460,71 @@ describe("one board", () => {
     expect(mockPush).toHaveBeenCalledWith("/moodboards");
   });
 
+  it("two taps on Delete trash the board once, with one snack", async () => {
+    let resolve: (v: unknown) => void = () => undefined;
+    mockTrash.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    page("phone");
+    click(q("[data-phb-more]"));
+    const del = doc('[data-phb-act="delete"]');
+    click(del);
+    click(del);
+    click(del);
+    expect(mockTrash).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve({ result: undefined, undo: jest.fn() });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(mockSnack).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["EDITOR", "FULL_ACCESS"])(
+    "%s sees Add and the board's actions",
+    (role) => {
+      mockRole = role;
+      mockItemsQuery = query([item("i1")]);
+      page("phone");
+      expect(q("[data-phb-add]")).not.toBeNull();
+      expect(q("[data-phb-more]")).not.toBeNull();
+      click(q("[data-phb-more]"));
+      expect(doc('[data-phb-act="rename"]')).not.toBeNull();
+      expect(doc('[data-phb-act="delete"]')).not.toBeNull();
+      click(q('[data-phb-item="i1"]'));
+      expect(doc("[data-phb-item-remove]")).not.toBeNull();
+    }
+  );
+
+  it("a VIEWER sees the references and none of the controls that write", () => {
+    mockRole = "VIEWER";
+    mockItemsQuery = query([item("i1")]);
+    page("phone");
+    expect(host.querySelectorAll("[data-phb-item]")).toHaveLength(1);
+    expect(q("[data-phb-add]")).toBeNull();
+    expect(q("[data-phb-more]")).toBeNull();
+    click(q('[data-phb-item="i1"]'));
+    expect(doc("[data-phb-detail]")).not.toBeNull();
+    expect(doc("[data-phb-item-remove]")).toBeNull();
+  });
+
+  it("an empty board offers a viewer no Add", () => {
+    mockRole = "VIEWER";
+    page("phone");
+    expect(host.textContent).toContain("Nothing on this board yet");
+    expect(q("[data-phb-add]")).toBeNull();
+    expect(host.textContent).not.toContain("Add a reference");
+  });
+
+  it("until the server has said the role nothing that writes is shown", () => {
+    mockRole = undefined;
+    page("phone");
+    expect(q("[data-phb-add]")).toBeNull();
+    expect(q("[data-phb-more]")).toBeNull();
+  });
+
   it("a failed delete stays on the board", async () => {
     mockTrash.mockRejectedValue(new Error("403"));
     page("phone");
@@ -508,6 +582,20 @@ describe("a board's references", () => {
     });
     await flush();
     expect(mockSnack).toHaveBeenCalledWith("Added to this board", undo);
+  });
+
+  it("a full board (409) shows the 500-reference notice, keeps the sheet and the text", async () => {
+    mockAdd.mockRejectedValue(new ApiError(409, "Moodboard is full"));
+    page("phone");
+    openNote();
+    typeArea(area()!, "Oak");
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    await flush();
+    expect(mockInfo).toHaveBeenCalledTimes(1);
+    expect(mockInfo).toHaveBeenCalledWith("This board holds 500 references");
+    expect(mockSnack).not.toHaveBeenCalled();
+    expect(area()?.value).toBe("Oak");
   });
 
   it("a half-typed note survives crossing 700 px, and one save is one write", async () => {

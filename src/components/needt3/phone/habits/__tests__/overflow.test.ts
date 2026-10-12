@@ -5,66 +5,80 @@
  * the P9 section of motion.css) and the markup that carries the class.
  */
 import { readFileSync } from "fs";
-import { join } from "path";
 
-const root = join(__dirname, "../../../../../..");
-const css = (p: string) => readFileSync(join(root, p), "utf8");
-const all = [
-  css("src/styles/v3/phone-kit.css"),
-  css("src/styles/v3/phone-habits.css"),
-  css("src/styles/v3-overrides/motion.css"),
-].join("\n");
+const kitCss = readFileSync("src/styles/v3/phone-kit.css", "utf8");
+const habitsCss = readFileSync("src/styles/v3/phone-habits.css", "utf8");
+const motionCss = readFileSync("src/styles/v3-overrides/motion.css", "utf8");
+const habitsSrc = readFileSync(
+  "src/components/needt3/phone/habits/PhoneHabits.tsx",
+  "utf8"
+);
+const all = [kitCss, habitsCss, motionCss].join("\n");
 
-/** The declarations of the first rule whose selector list names `sel`. */
-function rule(sel: string): string {
-  const re = new RegExp(
-    `(?:^|[\\s,}])\\.needt-v3 ${sel.replace(/\./g, "\\.")}\\s*[,{][^}]*\\{([^}]*)\\}|\\.needt-v3 ${sel.replace(/\./g, "\\.")}\\s*\\{([^}]*)\\}`,
-    "m"
-  );
-  const m = re.exec(all);
-  return (m?.[1] ?? m?.[2] ?? "").replace(/\s+/g, " ");
+/**
+ * The declarations of the first rule that lists `.needt-v3 <sel>` as one of
+ * its selectors, found by scanning (no pattern built from `sel`).
+ */
+function rule(sel: string, css: string = all): string {
+  const needle = `.needt-v3 ${sel}`;
+  let from = 0;
+  for (;;) {
+    const at = css.indexOf(needle, from);
+    if (at < 0) return "";
+    from = at + needle.length;
+    const next = css[from];
+    // `.phb-board` must not match `.phb-board-title`
+    if (next !== " " && next !== "," && next !== "{" && next !== "\n") continue;
+    const open = css.indexOf("{", at);
+    const close = css.indexOf("}", open);
+    const head = css.slice(at, open);
+    // the selector must end the head or sit in a comma list, not be a
+    // descendant prefix (`.a .b` when we asked for `.a`)
+    const listed = head
+      .split(",")
+      .map((h) => h.trim())
+      .includes(needle);
+    if (!listed) continue;
+    return css.slice(open + 1, close).replace(/\s+/g, " ");
+  }
 }
 
 const ellipsizes = (d: string) =>
-  /overflow:\s*hidden/.test(d) &&
-  /text-overflow:\s*ellipsis/.test(d) &&
-  /white-space:\s*nowrap/.test(d);
+  d.includes("overflow: hidden") &&
+  d.includes("text-overflow: ellipsis") &&
+  d.includes("white-space: nowrap");
 
 describe("long titles take the remaining width and ellipsize", () => {
   it("a today row (kit row): the text column may shrink and its title ellipsizes", () => {
-    expect(rule(".pk-row-main")).toMatch(/min-width:\s*0/);
+    expect(rule(".pk-row-main")).toContain("min-width: 0");
     expect(ellipsizes(rule(".pk-row-title"))).toBe(true);
-    expect(rule(".pk-row-open")).toMatch(/min-width:\s*0/);
+    expect(rule(".pk-row-open")).toContain("min-width: 0");
   });
 
   it("a habit's name in the strip is its own box, not bare text in a flex row", () => {
     const d = rule(".phb-habit-title");
     expect(ellipsizes(d)).toBe(true);
-    expect(d).toMatch(/min-width:\s*0/);
-    expect(d).toMatch(/flex:\s*1/);
-    expect(rule(".phb-habit-main")).toMatch(/min-width:\s*0/);
-    const src = readFileSync(
-      join(root, "src/components/needt3/phone/habits/PhoneHabits.tsx"),
-      "utf8"
-    );
-    expect(src).toMatch(/className="phb-habit-title">\{h\.title\}<\/span>/);
+    expect(d).toContain("min-width: 0");
+    expect(d).toContain("flex: 1");
+    expect(rule(".phb-habit-main")).toContain("min-width: 0");
+    expect(habitsSrc).toContain('className="phb-habit-title">{h.title}</span>');
   });
 
   it("a board card's title and count ellipsize inside a column that may shrink", () => {
     expect(ellipsizes(rule(".phb-board-title"))).toBe(true);
-    expect(rule(".phb-board")).toMatch(/min-width:\s*0/);
-    expect(rule(".phb-boards")).toMatch(/minmax\(0,\s*1fr\)/);
+    expect(rule(".phb-board")).toContain("min-width: 0");
+    expect(rule(".phb-boards")).toContain("minmax(0, 1fr)");
     expect(ellipsizes(rule(".phb-board-count"))).toBe(true);
   });
 
   it("a board page's title wraps and the wall's columns may shrink", () => {
-    expect(rule(".phb-bh-title")).toMatch(/overflow-wrap:\s*anywhere/);
-    expect(rule(".phb-col")).toMatch(/min-width:\s*0/);
+    expect(rule(".phb-bh-title")).toContain("overflow-wrap: anywhere");
+    expect(rule(".phb-col")).toContain("min-width: 0");
     expect(ellipsizes(rule(".phb-tile-cap > span:last-child"))).toBe(true);
   });
 
   it("the P9 section keeps chrome type at 13 px", () => {
-    const p9 = css("src/styles/v3-overrides/motion.css").split("P9 · phone")[1];
-    expect(p9).toMatch(/\.phb-seg-btn\s*\{\s*font-size:\s*13px/);
+    const p9 = motionCss.split("P9 · phone")[1];
+    expect(rule(".phb-seg-btn", p9)).toContain("font-size: 13px");
   });
 });
