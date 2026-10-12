@@ -47,7 +47,7 @@ import {
   resendClock,
   showWaitlist,
 } from "../../auth/auth-logic";
-import { useAuthFields } from "../../auth/use-auth-fields";
+import { useAuthFields, useAuthSteps } from "../../auth/use-auth-fields";
 import {
   MaBrand,
   MaButton,
@@ -59,8 +59,6 @@ import {
   MaScene,
   MaTile,
 } from "./Scene";
-
-type Recover = null | "ask" | "sent";
 
 export type PhoneAuthProps = Omit<
   AuthScreenProps,
@@ -89,20 +87,17 @@ export function PhoneAuth({
   privacyHref = "/privacy",
   seed,
   fields,
+  steps,
 }: PhoneAuthProps) {
   const signup = mode !== "login";
   const online = useOnline();
   const offline = !online;
   const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
-  const [touched, setTouched] = React.useState(false);
+  const { touched, setTouched, refused, setRefused, recover, setRecover } =
+    useAuthSteps(steps);
   const [busy, setBusy] = React.useState(false);
-  const [refused, setRefused] = React.useState<{
-    reason: "taken" | "wrong" | null;
-    message: string | null;
-  } | null>(null);
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
-  const [recover, setRecover] = React.useState<Recover>(null);
   const [limited, setLimited] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   const lastTry = React.useRef<(() => Promise<void>) | null>(null);
