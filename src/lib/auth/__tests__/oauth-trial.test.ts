@@ -30,6 +30,13 @@ jest.mock("@/lib/trials/trial-service", () => ({
   markEmailVerifiedAndStartTrial: jest.fn(),
 }));
 
+describe("a brand-new OAuth account", () => {
+  it("is sent to first-run setup; NextAuth uses this only for a new user", async () => {
+    const options = await getAuthOptions();
+    expect(options.pages?.newUser).toBe("/setup");
+  });
+});
+
 describe("OAuth trial activation", () => {
   it("uses the adapter-backed user id and starts Pro on first OAuth login", async () => {
     jest.mocked(markEmailVerifiedAndStartTrial).mockResolvedValue({} as never);

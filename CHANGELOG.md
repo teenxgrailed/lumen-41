@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Design v3 for everyone: a migration turns the `design_v3` flag on at a
+  100 % rollout, so sign-in, sign-up and password recovery wear the v3
+  screens for every visitor and every signed-in person lands in the v3 app.
+  A brand-new account (credentials or OAuth) goes on to the v3 first-run
+  setup; people who already use Needt go straight to the app. A
+  `FeatureFlagOverride` set to false still keeps one person on the old design.
+
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and
   workspace roles. Every write is logged with its inverse, so it can be undone
