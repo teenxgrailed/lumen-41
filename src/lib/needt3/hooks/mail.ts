@@ -91,14 +91,21 @@ export function useTrashMail() {
   });
 }
 
-/** Archive at the provider. There is no un-archive route, so no undo yet. */
+/**
+ * Archive at the provider. `read` also marks the message read in the same
+ * request (archiving reads it, as in the prototype). There is no un-archive
+ * route, so no undo yet.
+ */
 export function useArchiveMail() {
-  return useUndoableMutation<{ id: string }, unknown>({
+  return useUndoableMutation<{ id: string; read?: boolean }, unknown>({
     scope: MAIL,
     label: "archive the message",
     //todo: undo needs an un-archive action on /api/mail/messages/[id].
     optimistic: (qc, { id }) => dropListItem<V3MailThread>(qc, MAIL, id),
-    request: ({ id }) =>
-      sendJson(`/api/mail/messages/${id}`, "PATCH", { archive: true }),
+    request: ({ id, read }) =>
+      sendJson(`/api/mail/messages/${id}`, "PATCH", {
+        archive: true,
+        ...(read && { isRead: true }),
+      }),
   });
 }
