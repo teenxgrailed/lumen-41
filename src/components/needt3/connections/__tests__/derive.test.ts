@@ -98,6 +98,30 @@ describe("buildItems", () => {
   });
 });
 
+describe("a mailbox the server catalog also lists", () => {
+  it("is one card with one key, the native mailbox", () => {
+    const items = buildItems(
+      [
+        entry("gmail", "Gmail", "communication"),
+        entry("notion", "Notion", "notes"),
+      ],
+      [],
+      [
+        acct({
+          kind: "mail",
+          provider: "google",
+          label: "me@gmail.com",
+          accountId: "m1",
+        }),
+      ]
+    );
+    const gmail = items.filter((i) => i.slug === "gmail");
+    expect(gmail).toHaveLength(1);
+    expect(gmail[0]).toMatchObject({ kind: "mail", native: true });
+    expect(new Set(items.map((i) => i.key)).size).toBe(items.length);
+  });
+});
+
 describe("several accounts of one provider", () => {
   const items = buildItems(
     catalog,

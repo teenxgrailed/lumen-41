@@ -13,6 +13,8 @@ import {
 // One entry, so the vendored CSS always loads before the port's overrides.
 import "@/styles/v3-entry.css";
 
+import { TOP_BANNER_VAR } from "@/components/auth/EmailVerificationGate";
+
 import { newDate } from "@/lib/date-utils";
 import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
@@ -116,7 +118,14 @@ export function V3Root({
         data-accent={accent}
         data-theme-choice={theme}
         data-ui={ui}
-        style={resolved.vars as CSSProperties}
+        style={
+          {
+            ...(resolved.vars as CSSProperties),
+            // Start below a fixed top banner (email confirmation) instead of
+            // under it; 0 when there is none.
+            paddingTop: `var(${TOP_BANNER_VAR}, 0px)`,
+          } as CSSProperties
+        }
         suppressHydrationWarning
       >
         <PhoneUiProvider value={ui}>

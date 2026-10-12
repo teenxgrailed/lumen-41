@@ -32,10 +32,34 @@ export function useResolvedPhoneUi(initial: PhoneUi, forced: boolean): PhoneUi {
   useLayoutEffect(() => {
     if (forced || typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia(PHONE_MEDIA_QUERY);
-    setNarrow(mq.matches);
-    const read = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    // Not only the change event: a crossing that lands while the tab is
+    // hidden, or a resize the browser reports without a media-query event,
+    // must not leave the frame on the wrong UI until a reload. A media-query
+    // event carries its answer; resize, orientation and a tab coming back
+    // ask the query again.
+    const read = (e?: Event | MediaQueryListEvent) =>
+      setNarrow(
+        e && "matches" in e && typeof e.matches === "boolean"
+          ? e.matches
+          : mq.matches
+      );
+    read();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") read();
+    };
     mq.addEventListener("change", read);
-    return () => mq.removeEventListener("change", read);
+    const reread = () => read();
+    window.addEventListener("resize", reread);
+    window.addEventListener("orientationchange", reread);
+    window.addEventListener("pageshow", reread);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      mq.removeEventListener("change", read);
+      window.removeEventListener("resize", reread);
+      window.removeEventListener("orientationchange", reread);
+      window.removeEventListener("pageshow", reread);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [forced]);
   return resolvePhoneUi({ initial, forced, narrow });
 }
