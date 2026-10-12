@@ -318,6 +318,11 @@ export interface PhoneSettingsProps {
   /** The Menu page's half-filled pill; null = what is saved. Owned above the face switch. */
   pill: MenuPlaceId[] | null;
   onPill: (pill: MenuPlaceId[] | null) => void;
+  /**
+   * How far the page on show is scrolled, held by the sheet above the face
+   * switch so crossing 700 px keeps it. A new page starts at 0.
+   */
+  pageY?: { current: number };
 }
 
 /**
@@ -344,6 +349,7 @@ export function PhoneSettings({
   onMenu,
   pill,
   onPill,
+  pageY,
 }: PhoneSettingsProps) {
   const router = useRouter();
   const [live, setLive] = useState(open);
@@ -373,11 +379,25 @@ export function PhoneSettings({
     onPage(null);
   }, [onPage, onMenu, onPill]);
 
-  /* The page opens at its top; the list comes back where it was left. */
+  /* A page opens where the sheet says (its top for a new one, where the
+     desktop left it after a crossing); the list comes back where it was. */
   useLayoutEffect(() => {
     const el = scrollerOf(stage.current);
-    if (el) el.scrollTop = current ? 0 : listY.current;
-  }, [current]);
+    if (!el) return;
+    if (!current) el.scrollTop = listY.current;
+    else el.scrollTop = current === "menu" ? 0 : (pageY?.current ?? 0);
+  }, [current, pageY]);
+
+  /* Keep the page's scroll in the sheet's hands while it is on show. */
+  useEffect(() => {
+    const el = scrollerOf(stage.current);
+    if (!el || !pageY || !current || current === "menu") return undefined;
+    const keep = () => {
+      pageY.current = el.scrollTop;
+    };
+    el.addEventListener("scroll", keep, { passive: true });
+    return () => el.removeEventListener("scroll", keep);
+  }, [current, pageY]);
 
   /* Esc on a page goes back first (the sheet's own Esc closes). Window
      capture, so it runs before the sheet's listener and stops it. */
