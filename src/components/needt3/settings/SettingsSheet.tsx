@@ -12,7 +12,22 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+import type { IconType } from "react-icons";
 import { FiArrowUpRight, FiCheck, FiX } from "react-icons/fi";
+import {
+  LuBell,
+  LuCable,
+  LuClock,
+  LuCommand,
+  LuCreditCard,
+  LuDatabase,
+  LuInfo,
+  LuListChecks,
+  LuPalette,
+  LuSlidersHorizontal,
+  LuTarget,
+  LuUser,
+} from "react-icons/lu";
 
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
@@ -24,7 +39,8 @@ import { Sheet } from "../ctx/Sheet";
 import type { MenuPlaceId } from "../phone/menu/places";
 import { PhoneSettings } from "../phone/settings/PhoneSettings";
 import { usePhoneUi } from "../root/phone-ui-context";
-import { Avatar, initialsOf } from "../shell/Avatar";
+import { PxBadge, PxSky } from "../scenes";
+import { initialsOf } from "../shell/Avatar";
 import { AboutSection } from "./AboutSection";
 import { AccountSection } from "./AccountSection";
 import { AlertsSection } from "./AlertsSection";
@@ -45,8 +61,25 @@ import {
   planInfo,
   sectionOf,
 } from "./derive";
+import { MeDisc } from "./kit";
 
 const SAVED_MS = 1700;
+
+/** The rail's row icons (SettingsScreen.jsx `NAV`, lucide at 15). */
+const NAV_ICONS: Record<string, IconType> = {
+  account: LuUser,
+  plan: LuCreditCard,
+  general: LuSlidersHorizontal,
+  appearance: LuPalette,
+  day: LuClock,
+  tasks: LuListChecks,
+  focus: LuTarget,
+  alerts: LuBell,
+  keys: LuCommand,
+  connections: LuCable,
+  data: LuDatabase,
+  about: LuInfo,
+};
 const P = priceStrings();
 
 /**
@@ -242,10 +275,10 @@ export function SettingsSheet() {
             title="Open Account"
           >
             <span className="settings-span">
-              <Avatar
+              <MeDisc
                 initials={initialsOf(name)}
                 name={name}
-                size={80}
+                size="lg"
                 src={user?.image}
               />
               <span className="settings-tier" data-settings-tier>
@@ -263,14 +296,19 @@ export function SettingsSheet() {
             className="settings-plan"
             type="button"
             data-settings-plan={kind}
+            data-px-scope
             onClick={() => pick("plan")}
           >
+            <PxSky variant="d" scene="promo" intensity={0.9} horizon="none" />
             <span className="settings-layer">
               <span className="base-row">
-                <span className="settings-px-calm">Needt</span>
+                <span className="px-display px-on-sky settings-px-calm">
+                  Needt
+                </span>
+                <PxBadge>{kind === "lifetime" ? "Lifetime" : "Pro"}</PxBadge>
               </span>
               <span className="settings-row-2">
-                <span className="base-stack settings-px-calm-2">
+                <span className="px-on-sky base-stack settings-px-calm-2">
                   <span className="settings-srow-text">
                     {kind === "free" ? "Free plan" : info.name}
                   </span>
@@ -301,6 +339,7 @@ export function SettingsSheet() {
               ) : null}
               {g.items.map((item) => {
                 const on = !item.jump && section === item.id;
+                const Icon = NAV_ICONS[item.id];
                 return (
                   <button
                     className="settings-row-4 settings-nav-row"
@@ -321,6 +360,9 @@ export function SettingsSheet() {
                       } else pick(item.id as SectionId);
                     }}
                   >
+                    <span className="settings-row-5">
+                      {Icon ? <Icon size={15} aria-hidden /> : null}
+                    </span>
                     {item.name}
                     {item.jump ? (
                       <span
