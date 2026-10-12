@@ -45,7 +45,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       typeof body.isPrivate === "boolean" || typeof body.trashed === "boolean"
         ? PageAccessRole.FULL_ACCESS
         : PageAccessRole.EDITOR;
-    if (!(await resolvePageAccess(auth, id, requiredRole))) {
+    // `{ trashed: false }` restores, so it must see the trashed row.
+    const restoring = body.trashed === false;
+    if (
+      !(await resolvePageAccess(auth, id, requiredRole, {
+        includeTrashed: restoring,
+      }))
+    ) {
       return NextResponse.json(
         { error: "Page access denied" },
         { status: 403 }
