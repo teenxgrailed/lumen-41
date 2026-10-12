@@ -5,6 +5,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -82,13 +83,20 @@ import {
   BlockIdentity,
   ensureBlockIds,
 } from "@/components/documents/BlockIdentity";
+import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
+import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
 import {
   PageAutosave,
   type PageSaveState,
   selectLatestPageRevision,
 } from "@/components/pages/page-autosave";
+import {
+  PAGE_COMMAND_EVENT,
+  PAGE_TOOL_EVENT,
+  type PageCommandId,
+} from "@/components/pages/page-commands";
 import {
   documentFromPageBlocks,
   legacyPageHtml,
@@ -123,6 +131,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
+import { announcePagePatched } from "@/lib/needt3/page-events";
 import { notify } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { randomId } from "@/lib/uuid";
@@ -154,6 +163,15 @@ type SpecialKind =
   | "DATE_MENTION"
   | "FORM";
 type PageCommand = BasicCommand | SpecialKind;
+// `page-commands` lists the same ids for the v3 Insert tab: this stops
+// compiling when one list gains or loses an id the other does not have.
+type CommandsInStep = [PageCommand] extends [PageCommandId]
+  ? [PageCommandId] extends [PageCommand]
+    ? true
+    : never
+  : never;
+const commandsInStep: CommandsInStep = true;
+void commandsInStep;
 type PageComment = {
   id: string;
   body: string;
@@ -446,6 +464,10 @@ export function PageWorkspace({
 }) {
   const router = useRouter();
   const hostRef = useRef<HTMLDivElement>(null);
+  const headSlots = useDocHeadSlots();
+  const v3Layer = useV3PortalContainer();
+  const inChrome = Boolean(headSlots.status && headSlots.more);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const autosave = useRef<PageAutosave | null>(null);
   const pageRevisionRef = useRef<number | null>(null);
   const hydrated = useRef(false);
@@ -1091,6 +1113,7 @@ export function PageWorkspace({
     setPage((current) =>
       current ? ({ ...current, ...values } as PageDetail) : current
     );
+    announcePagePatched({ pageId, values });
     const response = await fetch(`/api/pages/${pageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1697,6 +1720,61 @@ export function PageWorkspace({
     setSlash(null);
   };
 
+  // In the v3 chrome the title is a wrapping field (the prototype's h1 wraps
+  // onto a second line instead of clipping); it grows with its text and with
+  // the sheet's width (Wide Page).
+  const pageTitle = page?.title;
+  const hasPage = Boolean(page);
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return undefined;
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      fit();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [inChrome, pageTitle, hasPage]);
+
+  // A block picked in the v3 inspector's Insert tab (see `page-commands`).
+  const commandRef = useRef(applyCommand);
+  commandRef.current = applyCommand;
+  useEffect(() => {
+    const on = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{ pageId?: string; command?: string }>
+      ).detail;
+      if (!detail || detail.pageId !== pageId || !canEdit || !editor) return;
+      const known = COMMANDS.find((command) => command.id === detail.command);
+      if (!known) return;
+      commandRef.current(known.id, false);
+    };
+    window.addEventListener(PAGE_COMMAND_EVENT, on);
+    return () => window.removeEventListener(PAGE_COMMAND_EVENT, on);
+  }, [canEdit, editor, pageId]);
+
+  // A tool of "Page options" opened from outside (the v3 Info tab's Versions).
+  const toolRef = useRef(openTool);
+  toolRef.current = openTool;
+  useEffect(() => {
+    const on = (event: Event) => {
+      const detail = (event as CustomEvent<{ pageId?: string; tool?: string }>)
+        .detail;
+      if (!detail || detail.pageId !== pageId) return;
+      if (detail.tool === "history") void toolRef.current("history");
+    };
+    window.addEventListener(PAGE_TOOL_EVENT, on);
+    return () => window.removeEventListener(PAGE_TOOL_EVENT, on);
+  }, [pageId]);
+
   if (!page) {
     return (
       <div className="mx-auto max-w-4xl animate-pulse px-8 py-16">
@@ -1708,242 +1786,271 @@ export function PageWorkspace({
   if (page.database)
     return <DatabaseWorkspace page={page} onPatch={patchPage} />;
 
-  return (
-    <div className="min-h-dvh bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="sticky top-0 z-20 flex h-12 items-center gap-1.5 border-b border-[var(--border-subtle)] bg-[var(--surface-canvas)] px-2 sm:px-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/pages")}
-          aria-label="Back to pages"
-        >
-          <ChevronLeft />
-        </Button>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-          <span className="mr-1.5">{page.icon || "📄"}</span>
-          {page.title || "Untitled"}
-        </span>
-        <div
-          className="hidden items-center -space-x-1 sm:flex"
-          aria-label={`${collaborators.length} active collaborators`}
-        >
-          {collaborators.slice(0, 3).map((collaborator, index) => (
-            <span
-              key={`${collaborator.name}-${index}`}
-              className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
-              style={{ backgroundColor: collaborator.color }}
-              title={collaborator.name}
-            />
-          ))}
-        </div>
-        <span
-          className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
-          aria-live="polite"
-        >
+  // In the v3 document chrome the editor's own header controls (who is here,
+  // the save state, "Page options") are drawn in the top bar (`doc-head-slot`);
+  // Back, the title and Share are the chrome's (the rail's back arrow, the
+  // breadcrumb, the Share sheet). Everywhere else the header is as it was.
+  const headStatus = (
+    <>
+      <div
+        className="hidden items-center -space-x-1 sm:flex"
+        aria-label={`${collaborators.length} active collaborators`}
+      >
+        {collaborators.slice(0, 3).map((collaborator, index) => (
           <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              collaborationStatus === "connected"
-                ? "bg-emerald-500"
-                : collaborationStatus === "connecting"
-                  ? "bg-amber-500"
-                  : "bg-[var(--text-disabled)]"
-            )}
+            key={`${collaborator.name}-${index}`}
+            className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
+            style={{ backgroundColor: collaborator.color }}
+            title={collaborator.name}
           />
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "offline"
+        ))}
+      </div>
+      <span
+        className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
+        aria-live="polite"
+      >
+        <span
+          data-collab={collaborationStatus}
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            collaborationStatus === "connected"
+              ? "bg-emerald-500"
+              : collaborationStatus === "connecting"
+                ? "bg-amber-500"
+                : "bg-[var(--text-disabled)]"
+          )}
+        />
+        {saveState === "saving"
+          ? "Saving…"
+          : saveState === "offline"
+            ? "Draft kept"
+            : saveState === "failed"
               ? "Draft kept"
-              : saveState === "failed"
-                ? "Draft kept"
-                : "Saved"}
-        </span>
-        {canManageAccess && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hidden sm:inline-flex"
-            onClick={() => void openTool("permissions")}
+              : "Saved"}
+      </span>
+    </>
+  );
+  const headMore = (
+    <Popover>
+      <PopoverTrigger asChild>
+        {inChrome ? (
+          <button
+            type="button"
+            className="btn-icon btn-ghost"
+            aria-label="Page options"
           >
-            Share
+            <MoreHorizontal size={16} />
+          </button>
+        ) : (
+          <Button variant="ghost" size="icon" aria-label="Page options">
+            <MoreHorizontal />
           </Button>
         )}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="Page options">
-              <MoreHorizontal />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-60 p-1.5">
-            <div className="mb-1 flex items-center gap-1 border-b border-[var(--border-subtle)] px-1 pb-1.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-1"
-                onClick={() => editor?.chain().focus().undo().run()}
-                disabled={!canEdit || !editor?.can().undo()}
-                aria-label="Undo"
-              >
-                <Undo2 />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-1"
-                onClick={() => editor?.chain().focus().redo().run()}
-                disabled={!canEdit || !editor?.can().redo()}
-                aria-label="Redo"
-              >
-                <Redo2 />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-1"
-                onClick={() => void patchPage({ isFavorite: !page.isFavorite })}
-                disabled={!canEdit}
-                aria-label={
-                  page.isFavorite ? "Remove from favorites" : "Add to favorites"
-                }
-              >
-                <Star
-                  className={
-                    page.isFavorite ? "fill-current text-amber-400" : ""
-                  }
-                />
-              </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className={cn("w-60 p-1.5", inChrome && "doc-more-menu")}
+        container={inChrome ? v3Layer : undefined}
+      >
+        <div className="mb-1 flex items-center gap-1 border-b border-[var(--border-subtle)] px-1 pb-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-1"
+            onClick={() => editor?.chain().focus().undo().run()}
+            disabled={!canEdit || !editor?.can().undo()}
+            aria-label="Undo"
+          >
+            <Undo2 />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-1"
+            onClick={() => editor?.chain().focus().redo().run()}
+            disabled={!canEdit || !editor?.can().redo()}
+            aria-label="Redo"
+          >
+            <Redo2 />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-1"
+            onClick={() => void patchPage({ isFavorite: !page.isFavorite })}
+            disabled={!canEdit}
+            aria-label={
+              page.isFavorite ? "Remove from favorites" : "Add to favorites"
+            }
+          >
+            <Star
+              className={page.isFavorite ? "fill-current text-amber-400" : ""}
+            />
+          </Button>
+        </div>
+        <button
+          type="button"
+          onClick={() => void openTool("comments")}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <MessageSquare className="h-4 w-4 text-[var(--text-muted)]" />
+          Comments
+        </button>
+        {canManageAccess && (
+          <button
+            type="button"
+            onClick={() => void openTool("permissions")}
+            className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+          >
+            <ShieldCheck className="h-4 w-4 text-[var(--text-muted)]" />
+            Share &amp; permissions
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void createSubpage()}
+          disabled={!canEdit}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)] disabled:opacity-40"
+        >
+          <FilePlus className="h-4 w-4 text-[var(--text-muted)]" />
+          New subpage
+        </button>
+        <button
+          type="button"
+          onClick={() => void openTool("templates")}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <LayoutTemplate className="h-4 w-4 text-[var(--text-muted)]" />
+          Templates
+        </button>
+        <button
+          type="button"
+          onClick={() => void openTool("history")}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <History className="h-4 w-4 text-[var(--text-muted)]" />
+          Version history
+        </button>
+        <button
+          type="button"
+          onClick={() => void openTool("backlinks")}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <Link2 className="h-4 w-4 text-[var(--text-muted)]" />
+          Backlinks
+        </button>
+        <button
+          type="button"
+          onClick={() => void openTool("ai")}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <Sparkles className="h-4 w-4 text-[var(--text-muted)]" />
+          Ask AI
+        </button>
+        <label className="mt-1 flex min-h-10 items-center gap-2 border-t border-[var(--border-subtle)] px-2.5 pt-1 text-[13px]">
+          <LockKeyhole className="h-4 w-4 text-[var(--text-muted)]" />
+          <span className="min-w-0 flex-1">Private Page</span>
+          <Switch
+            checked={page.isPrivate}
+            disabled={!canManageAccess}
+            onCheckedChange={(checked) =>
+              void patchPage({ isPrivate: checked })
+            }
+          />
+        </label>
+        {canEdit && pageMetadata.folders.length > 0 && (
+          <div className="mt-1 border-t border-[var(--border-subtle)] px-2.5 py-2">
+            <span className="mb-1 flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+              <Folder className="h-3.5 w-3.5" /> Folder
+            </span>
+            <NeedtPicker
+              ariaLabel="Page folder"
+              options={[
+                { value: "__none__", label: "No folder" },
+                ...pageMetadata.folders.map((folder) => ({
+                  value: folder.id,
+                  label: folder.name,
+                })),
+              ]}
+              onValueChange={(folderId) =>
+                void patchOrganization({
+                  folderId: folderId === "__none__" ? null : folderId,
+                })
+              }
+              triggerVariant="field"
+              value={page.folderId ?? "__none__"}
+            />
+          </div>
+        )}
+        {canEdit && pageMetadata.tags.length > 0 && (
+          <div className="border-t border-[var(--border-subtle)] px-2.5 py-2">
+            <span className="mb-1 flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+              <Tag className="h-3.5 w-3.5" /> Tags
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {pageMetadata.tags.map((tag) => {
+                const selected = page.tags?.some(({ id }) => id === tag.id);
+                return (
+                  <Button
+                    key={tag.id}
+                    size="sm"
+                    type="button"
+                    variant={selected ? "secondary" : "outline"}
+                    onClick={() =>
+                      void patchOrganization({
+                        tagIds: selected
+                          ? page.tags
+                              ?.filter(({ id }) => id !== tag.id)
+                              .map(({ id }) => id)
+                          : [...(page.tags?.map(({ id }) => id) ?? []), tag.id],
+                      })
+                    }
+                  >
+                    {tag.name}
+                  </Button>
+                );
+              })}
             </div>
-            <button
-              type="button"
-              onClick={() => void openTool("comments")}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+  return (
+    <div className="min-h-dvh bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      {inChrome ? (
+        <>
+          {createPortal(headStatus, headSlots.status as HTMLElement)}
+          {createPortal(headMore, headSlots.more as HTMLElement)}
+        </>
+      ) : (
+        <header className="sticky top-0 z-20 flex h-12 items-center gap-1.5 border-b border-[var(--border-subtle)] bg-[var(--surface-canvas)] px-2 sm:px-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/pages")}
+            aria-label="Back to pages"
+          >
+            <ChevronLeft />
+          </Button>
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+            <span className="mr-1.5">{page.icon || "📄"}</span>
+            {page.title || "Untitled"}
+          </span>
+          {headStatus}
+          {canManageAccess && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+              onClick={() => void openTool("permissions")}
             >
-              <MessageSquare className="h-4 w-4 text-[var(--text-muted)]" />
-              Comments
-            </button>
-            {canManageAccess && (
-              <button
-                type="button"
-                onClick={() => void openTool("permissions")}
-                className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
-              >
-                <ShieldCheck className="h-4 w-4 text-[var(--text-muted)]" />
-                Share &amp; permissions
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void createSubpage()}
-              disabled={!canEdit}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)] disabled:opacity-40"
-            >
-              <FilePlus className="h-4 w-4 text-[var(--text-muted)]" />
-              New subpage
-            </button>
-            <button
-              type="button"
-              onClick={() => void openTool("templates")}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
-            >
-              <LayoutTemplate className="h-4 w-4 text-[var(--text-muted)]" />
-              Templates
-            </button>
-            <button
-              type="button"
-              onClick={() => void openTool("history")}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
-            >
-              <History className="h-4 w-4 text-[var(--text-muted)]" />
-              Version history
-            </button>
-            <button
-              type="button"
-              onClick={() => void openTool("backlinks")}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
-            >
-              <Link2 className="h-4 w-4 text-[var(--text-muted)]" />
-              Backlinks
-            </button>
-            <button
-              type="button"
-              onClick={() => void openTool("ai")}
-              className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
-            >
-              <Sparkles className="h-4 w-4 text-[var(--text-muted)]" />
-              Ask AI
-            </button>
-            <label className="mt-1 flex min-h-10 items-center gap-2 border-t border-[var(--border-subtle)] px-2.5 pt-1 text-[13px]">
-              <LockKeyhole className="h-4 w-4 text-[var(--text-muted)]" />
-              <span className="min-w-0 flex-1">Private Page</span>
-              <Switch
-                checked={page.isPrivate}
-                disabled={!canManageAccess}
-                onCheckedChange={(checked) =>
-                  void patchPage({ isPrivate: checked })
-                }
-              />
-            </label>
-            {canEdit && pageMetadata.folders.length > 0 && (
-              <div className="mt-1 border-t border-[var(--border-subtle)] px-2.5 py-2">
-                <span className="mb-1 flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                  <Folder className="h-3.5 w-3.5" /> Folder
-                </span>
-                <NeedtPicker
-                  ariaLabel="Page folder"
-                  options={[
-                    { value: "__none__", label: "No folder" },
-                    ...pageMetadata.folders.map((folder) => ({
-                      value: folder.id,
-                      label: folder.name,
-                    })),
-                  ]}
-                  onValueChange={(folderId) =>
-                    void patchOrganization({
-                      folderId: folderId === "__none__" ? null : folderId,
-                    })
-                  }
-                  triggerVariant="field"
-                  value={page.folderId ?? "__none__"}
-                />
-              </div>
-            )}
-            {canEdit && pageMetadata.tags.length > 0 && (
-              <div className="border-t border-[var(--border-subtle)] px-2.5 py-2">
-                <span className="mb-1 flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                  <Tag className="h-3.5 w-3.5" /> Tags
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {pageMetadata.tags.map((tag) => {
-                    const selected = page.tags?.some(({ id }) => id === tag.id);
-                    return (
-                      <Button
-                        key={tag.id}
-                        size="sm"
-                        type="button"
-                        variant={selected ? "secondary" : "outline"}
-                        onClick={() =>
-                          void patchOrganization({
-                            tagIds: selected
-                              ? page.tags
-                                  ?.filter(({ id }) => id !== tag.id)
-                                  .map(({ id }) => id)
-                              : [
-                                  ...(page.tags?.map(({ id }) => id) ?? []),
-                                  tag.id,
-                                ],
-                          })
-                        }
-                      >
-                        {tag.name}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
-      </header>
+              Share
+            </Button>
+          )}
+          {headMore}
+        </header>
+      )}
 
       <div
         className="sticky top-12 z-[15] hidden h-10 items-center justify-center border-b border-[var(--border-subtle)] bg-[var(--surface-canvas)] px-3 sm:flex"
@@ -2166,16 +2273,48 @@ export function PageWorkspace({
           )}
         </div>
         {page.icon && <div className="mb-3 text-5xl">{page.icon}</div>}
-        <input
-          value={page.title}
-          readOnly={!canEdit}
-          onChange={(event) => setPage({ ...page, title: event.target.value })}
-          onBlur={() => void patchPage({ title: page.title })}
-          className="mb-3 w-full border-0 bg-transparent p-0 text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.045em] outline-none ring-0 placeholder:text-[var(--text-disabled)] focus:ring-0 sm:text-5xl"
-          placeholder="Untitled"
-        />
-        <div className="mb-12 flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
-          {pageEditedLabel(page.updatedAt)}
+        {inChrome ? (
+          <textarea
+            ref={titleRef}
+            data-page-title=""
+            rows={1}
+            spellCheck={false}
+            value={page.title}
+            readOnly={!canEdit}
+            onChange={(event) => {
+              const title = event.target.value.replace(/[\r\n]+/g, " ");
+              setPage({ ...page, title });
+              announcePagePatched({ pageId, values: { title } });
+            }}
+            onBlur={() => void patchPage({ title: page.title })}
+            onKeyDown={(event) => {
+              // Enter ends the title and goes to the first line of the page.
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                editor?.commands.focus("start");
+              }
+            }}
+            className="w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none ring-0 placeholder:text-[var(--text-disabled)] focus:ring-0"
+            placeholder="Untitled"
+          />
+        ) : (
+          <input
+            data-page-title=""
+            value={page.title}
+            readOnly={!canEdit}
+            onChange={(event) =>
+              setPage({ ...page, title: event.target.value })
+            }
+            onBlur={() => void patchPage({ title: page.title })}
+            className="mb-3 w-full border-0 bg-transparent p-0 text-[2.35rem] font-semibold leading-[1.08] tracking-[-0.045em] outline-none ring-0 placeholder:text-[var(--text-disabled)] focus:ring-0 sm:text-5xl"
+            placeholder="Untitled"
+          />
+        )}
+        <div
+          data-page-meta=""
+          className="mb-12 flex items-center gap-2 text-[11px] text-[var(--text-muted)]"
+        >
+          <span data-page-edited="">{pageEditedLabel(page.updatedAt)}</span>
           {page.blocks.some((block) => block.createdBy === "AI") && (
             <span className="ml-2 flex items-center gap-1">
               <Sparkles className="h-3 w-3" /> Written with AI
@@ -2303,6 +2442,7 @@ export function PageWorkspace({
               <div
                 role="menu"
                 aria-label="Page commands"
+                data-doc-menu={inChrome ? "" : undefined}
                 className="needt-page-command-menu needt-overlay-depth z-[60] overflow-y-auto border border-[var(--popover-border)] p-1.5 sm:z-30"
                 style={
                   {
@@ -2324,6 +2464,7 @@ export function PageWorkspace({
                       role="menuitem"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => applyCommand(command.id)}
+                      data-active={index === slashIndex ? "" : undefined}
                       className={cn(
                         "flex min-h-11 w-full items-center gap-3 rounded-[var(--control-radius)] px-2.5 py-2 text-left hover:bg-[var(--menu-item-hover)] sm:min-h-0",
                         index === slashIndex && "bg-[var(--menu-item-hover)]"
@@ -2343,7 +2484,7 @@ export function PageWorkspace({
                 })}
               </div>
             </>,
-            document.body
+            inChrome && v3Layer ? v3Layer : document.body
           )}
       </main>
 

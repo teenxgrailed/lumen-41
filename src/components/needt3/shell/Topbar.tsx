@@ -4,9 +4,13 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import { LuArrowRight, LuChevronDown, LuPanelLeft } from "react-icons/lu";
 
+import { useDoc } from "@/lib/needt3/hooks/docs";
+
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useExit } from "../ctx/useExit";
+import { DocPanelToggle, DocTopRight } from "../document/DocTopRight";
+import { useOpenDocId } from "../document/open-doc";
 import { Tooltip } from "../menu/Tooltip";
 import { useShellApi } from "./ShellContext";
 import { TopIcons } from "./TopIcons";
@@ -115,8 +119,18 @@ function SidebarToggle() {
   );
 }
 
-/** The design system's CommandBar: the search in the middle of the bar. */
-function CommandBar({ onClick }: { onClick: () => void }) {
+/**
+ * The design system's CommandBar: the search in the middle of the bar. While a
+ * document is open its label is the breadcrumb "Documents / <title>" and the
+ * shortcut hint steps away (prototype App.jsx `TabBar`); it still opens ⌘K.
+ */
+function CommandBar({
+  onClick,
+  crumb,
+}: {
+  onClick: () => void;
+  crumb?: string | null;
+}) {
   return (
     <button
       type="button"
@@ -131,19 +145,37 @@ function CommandBar({ onClick }: { onClick: () => void }) {
         justifyContent: "space-between",
       }}
     >
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <LuArrowRight size={16} />
-        <span style={{ font: "var(--type-ui)" }}>Open</span>
-      </span>
       <span
-        style={{
-          font: "var(--type-meta)",
-          color: "var(--text-muted)",
-          fontVariantNumeric: "tabular-nums",
-        }}
+        style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}
       >
-        ⌘K
+        <LuArrowRight size={16} style={{ flex: "none" }} />
+        <span
+          style={{
+            font: "var(--type-ui)",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {crumb == null
+            ? "Open"
+            : crumb
+              ? `Documents / ${crumb}`
+              : "Documents"}
+        </span>
       </span>
+      {crumb == null ? (
+        <span
+          style={{
+            font: "var(--type-meta)",
+            color: "var(--text-muted)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          ⌘K
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -155,17 +187,24 @@ function CommandBar({ onClick }: { onClick: () => void }) {
  */
 export function Topbar() {
   const setPaletteOpen = useNeedt3Ui((s) => s.setPaletteOpen);
+  const docId = useOpenDocId();
+  const doc = useDoc(docId);
   return (
     <nav className="tab-bar shell-tab-bar-tab-bar" aria-label="Top bar">
       <span className="shell-tab-bar-row">
         <SidebarToggle />
       </span>
       <span className="shell-tab-bar-span">
-        <CommandBar onClick={() => setPaletteOpen(true)} />
+        <CommandBar
+          onClick={() => setPaletteOpen(true)}
+          crumb={docId ? (doc.data ? doc.data.title || "Untitled" : "") : null}
+        />
       </span>
       <span className="base-row shell-tab-bar-row-2">
+        {docId ? <DocTopRight /> : null}
         {/* //todo: StOfflineIndicator (S4 states) mounts here. */}
         <TopIcons />
+        {docId ? <DocPanelToggle /> : null}
       </span>
     </nav>
   );
