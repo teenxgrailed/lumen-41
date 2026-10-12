@@ -22,6 +22,11 @@
  */
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { notesText } from "@/lib/needt3/derive";
+import {
+  PREVIEW_MAX_ROWS,
+  PREVIEW_ROW_TEXT,
+  type PagePreviewBlock,
+} from "@/lib/pages/page-preview";
 
 export type V3StageId = "todo" | "doing" | "review" | "done";
 export type DbTaskStage = "TODO" | "DOING" | "REVIEW" | "DONE";
@@ -728,6 +733,8 @@ export interface ApiPage {
   style?: Record<string, unknown> | null;
   createdAt?: string;
   updatedAt?: string;
+  /** The first blocks as plain rows (`GET /api/pages`); absent from other routes. */
+  preview?: unknown;
 }
 
 export interface V3Doc {
@@ -741,9 +748,60 @@ export interface V3Doc {
   style: Record<string, unknown> | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /**
+   * The page's first blocks for the card's miniature. `undefined` when the
+   * route sent none (a single page, an older server): the card draws no
+   * miniature; `[]` is an empty page.
+   */
+  preview?: PagePreviewBlock[];
+}
+
+const PREVIEW_TYPES: ReadonlySet<string> = new Set([
+  "h1",
+  "h2",
+  "h3",
+  "p",
+  "lead",
+  "li",
+  "ol",
+  "todo",
+  "quote",
+  "callout",
+  "code",
+  "rule",
+  "image",
+]);
+
+/**
+ * The server's preview, read defensively: only known row types, text only,
+ * clipped again to the server's own caps. Anything else is dropped, so the
+ * card never draws a row it does not know how to.
+ */
+export function previewFromApi(raw: unknown): PagePreviewBlock[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const rows: PagePreviewBlock[] = [];
+  for (const item of raw.slice(0, PREVIEW_MAX_ROWS * 4)) {
+    if (rows.length >= PREVIEW_MAX_ROWS) break;
+    if (typeof item !== "object" || item === null) continue;
+    const { type, text, checked } = item as Record<string, unknown>;
+    if (typeof type !== "string" || !PREVIEW_TYPES.has(type)) continue;
+    const marker = type === "rule" || type === "image";
+    if (!marker && (typeof text !== "string" || text === "")) continue;
+    const row: PagePreviewBlock = {
+      type: type as PagePreviewBlock["type"],
+      text:
+        marker || typeof text !== "string"
+          ? ""
+          : text.slice(0, PREVIEW_ROW_TEXT),
+    };
+    if (type === "todo" && checked === true) row.checked = true;
+    rows.push(row);
+  }
+  return rows;
 }
 
 export function docFromApi(row: ApiPage): V3Doc {
+  const preview = previewFromApi(row.preview);
   return {
     id: row.id,
     title: row.title,
@@ -755,5 +813,6 @@ export function docFromApi(row: ApiPage): V3Doc {
     style: row.style ?? null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+    ...(preview ? { preview } : {}),
   };
 }
