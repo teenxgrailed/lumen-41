@@ -234,4 +234,39 @@ describe("import notices and summary", () => {
       })
     ).toBe("Last import failed. Try again later.");
   });
+
+  it("says what the Notion callback came back with", () => {
+    expect(settingsNotices("?import=notion-started")[0]).toMatchObject({
+      tone: "success",
+      title: "Notion import started",
+    });
+    expect(settingsNotices("?import=notion-running")[0].title).toBe(
+      "A Notion import is already running"
+    );
+    expect(settingsNotices("?import=notion-denied")[0]).toMatchObject({
+      tone: "error",
+      title: "Notion import cancelled",
+    });
+    expect(settingsNotices("?import=notion-failed")[0].tone).toBe("error");
+  });
+
+  it("gives the reason a Notion run failed", () => {
+    const counts = { total: 5, done: 1, skipped: 0, failed: 1 };
+    expect(
+      importRunSummary({
+        status: "failed",
+        counts,
+        warnings: [
+          { code: "write_failed", message: "one page" },
+          {
+            code: "notion_unauthorized",
+            message:
+              "Notion did not accept the access. Connect again and retry.",
+          },
+        ],
+      })
+    ).toBe(
+      "Last import failed. Notion did not accept the access. Connect again and retry."
+    );
+  });
 });

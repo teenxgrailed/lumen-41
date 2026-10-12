@@ -200,6 +200,25 @@ const IMPORT_NOTICES: Record<string, SettingsNotice> = {
     title: "Todoist import could not start",
     description: "Try again in a minute.",
   },
+  "notion-started": {
+    tone: "success",
+    title: "Notion import started",
+    description: "Progress shows in Data & privacy.",
+  },
+  "notion-running": {
+    tone: "success",
+    title: "A Notion import is already running",
+  },
+  "notion-denied": {
+    tone: "error",
+    title: "Notion import cancelled",
+    description: "Notion access was not granted.",
+  },
+  "notion-failed": {
+    tone: "error",
+    title: "Notion import could not start",
+    description: "Try again in a minute.",
+  },
 };
 
 /* ---------- import status ---------- */
@@ -233,6 +252,7 @@ export function importRunSummary(run: ImportRunSummaryInput): string {
         .find(
           (w) =>
             w.code.startsWith("todoist_") ||
+            w.code.startsWith("notion_") ||
             w.code.endsWith("_unavailable") ||
             w.code === "import_failed"
         );
