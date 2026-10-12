@@ -93,6 +93,10 @@ export function ProjectPage({
   onOpenTask,
   onEdit,
   onDelete,
+  fold,
+  onFold,
+  draft,
+  onDraft,
 }: {
   project: V3Project;
   tasks: readonly V3Task[];
@@ -100,13 +104,17 @@ export function ProjectPage({
   onOpenTask: (id: string) => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Folded groups and the "Add a task" text, held above the face switch. */
+  fold: Record<string, boolean>;
+  onFold: (key: string) => () => void;
+  draft: string;
+  onDraft: (v: string) => void;
 }) {
   const hue = projectHue(p);
   const s = projectStats(p.id, tasks, today);
   const { groups, done } = projectGroups(p.id, tasks, today);
-  const [fold, setFold] = useState<Record<string, boolean>>({ __done: true });
-  const flip = (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] }));
-  const [draft, setDraft] = useState("");
+  const flip = onFold;
+  const setDraft = onDraft;
   const addRef = useRef<HTMLInputElement>(null);
   const create = useCreateTask();
 
