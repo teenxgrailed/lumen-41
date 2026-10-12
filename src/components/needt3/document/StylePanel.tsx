@@ -20,8 +20,6 @@ import type { V3Doc } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
-import { useNeedt3Ui } from "@/store/needt3-ui";
-
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import {
@@ -51,8 +49,12 @@ import {
   stylePatch,
   textOf,
 } from "../docs/style";
+import { ProBadge } from "../paywall/Pro";
+import { openPaywall } from "../paywall/store";
 
 const copy = docsCopy.DcStylePanel;
+/** What the paywall says was asked for (prototype `DC_PRO_FEATURE`). */
+const PRO_FEATURE = "Document themes";
 
 /**
  * A popover hung to the LEFT of the inspector, top-aligned with its trigger
@@ -144,7 +146,7 @@ function DcPop({
   );
 }
 
-function DcLabel({
+export function DcLabel({
   children,
   first,
 }: {
@@ -243,13 +245,9 @@ function DcSeg<T extends string>({
   );
 }
 
+/** The black "PRO" pill, with the lock when the person is on Free. */
 function ProPill({ locked }: { locked: boolean }) {
-  //todo: the shared ProBadge belongs to the S1 paywall; this is its text.
-  return (
-    <span className="base-meta" data-pro-locked={locked ? "" : undefined}>
-      PRO
-    </span>
-  );
+  return <ProBadge size="sm" locked={locked} />;
 }
 
 function Ink({
@@ -285,14 +283,13 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
   const update = useUpdateDoc();
   const qc = useQueryClient();
   const plan = usePlan();
-  const openSettings = useNeedt3Ui((x) => x.openSettings);
   const fileRef = useRef<HTMLInputElement>(null);
   // Document themes (All Styles, Backdrop) are Pro; colour, text, cover and
   // font stay free (the rule is ../docs/pro-style, which the API enforces). An
   // unknown plan (still loading) counts as not Pro, so a free reader never
   // gets a Pro style through the loading gap.
   const pro = !!plan.data && plan.data.kind !== "free";
-  const toPaywall = () => openSettings("plan");
+  const toPaywall = () => openPaywall(PRO_FEATURE);
   const s = styleOf(doc);
   const pg = pageOf(s.page);
   const pl = read(pg.l);
@@ -723,8 +720,43 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
         )}
       </DcPop>
 
-      {/* //todo: Separator Style is not offered: the title and its rule are
-          drawn by the editor (PageWorkspace), which has no separator hook. */}
+      <DcLabel>{copy.separator_style}</DcLabel>
+      <DcSeg
+        value={s.separator}
+        onChange={(v) => set({ separator: v })}
+        attr="data-dc-sep"
+        items={[
+          ["line", <span key="l" className="docs-dc-style-panel-25" />, "Line"],
+          [
+            "dots",
+            <span key="d" className="docs-dc-style-panel-26">
+              {[0, 1, 2].map((i) => (
+                <span className="docs-dc-style-panel-27" key={i} />
+              ))}
+            </span>,
+            "Dots",
+          ],
+          [
+            "wave",
+            <svg
+              key="w"
+              width="34"
+              height="10"
+              viewBox="0 0 34 10"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M1 6c3-3.5 5.5-3.5 8-.5s5 3 8 0 5.5-3.3 8 0 4.6 3 8-.3"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>,
+            "Hand-drawn",
+          ],
+        ]}
+      />
 
       <DcLabel>{copy.font}</DcLabel>
       <DcSeg

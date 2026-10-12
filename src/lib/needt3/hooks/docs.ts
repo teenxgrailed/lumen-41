@@ -1,8 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { type ApiPage, type V3Doc, docFromApi } from "@/lib/needt3/map";
+import {
+  PAGE_PATCHED_EVENT,
+  type PagePatchedDetail,
+  docFieldsOf,
+} from "@/lib/needt3/page-events";
 import { type DocsSort, qk } from "@/lib/needt3/query-keys";
 
 import {
@@ -51,6 +58,30 @@ export function useDoc(id: string | null | undefined) {
       return docFromApi(page);
     },
   });
+}
+
+/**
+ * Keep the cached document and every cached list in step with what the
+ * editor writes (title, icon, pin, cover): it announces each patch, this
+ * applies it, so the breadcrumb and the rail follow as you type.
+ */
+export function usePageEditSync(id: string | null | undefined) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!id) return undefined;
+    const on = (event: Event) => {
+      const detail = (event as CustomEvent<PagePatchedDetail>).detail;
+      if (!detail || detail.pageId !== id || detail.from === "chrome") return;
+      const patch = docFieldsOf(detail.values);
+      if (!Object.keys(patch).length) return;
+      qc.setQueryData<V3Doc>(qk.doc(id), (cur) =>
+        cur ? { ...cur, ...patch } : cur
+      );
+      patchListItem<V3Doc>(qc, DOCS, id, (d) => ({ ...d, ...patch }));
+    };
+    window.addEventListener(PAGE_PATCHED_EVENT, on);
+    return () => window.removeEventListener(PAGE_PATCHED_EVENT, on);
+  }, [id, qc]);
 }
 
 type DocPatch = Partial<
