@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remote MCP: new write tools `needt_update_task`, `needt_complete_task`,
+  `needt_create_event`, `needt_create_page`, `needt_append_page` and
+  `needt_log_habit`, and `moodboard` in `needt_list`/`needt_get`. They use the
+  same task, page, habit and calendar services as the app, inside the
+  workspace the connection may act in.
 - Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
   host serves only `/mcp` and its OAuth protected-resource metadata, which
   the `401` challenge now points at. Tokens carry scopes (`needt.read`,

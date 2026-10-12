@@ -78,6 +78,9 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
       type: "object",
       properties,
       ...(required.length ? { required } : {}),
+      ...(schema._def.unknownKeys === "strict"
+        ? { additionalProperties: false }
+        : {}),
     });
   }
   throw new Error(

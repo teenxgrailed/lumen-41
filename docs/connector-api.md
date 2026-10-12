@@ -74,19 +74,31 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                | Scope                                          | What it does                                                                                         |
-| ------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `needt_whoami`      | —                                              | The person, token kind, scopes, current workspace and all workspaces                                 |
-| `needt_search`      | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                      |
-| `needt_list`        | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
-| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                         |
-| `needt_create_task` | `needt.write`                                  | `POST /api/connect/tasks`                                                                            |
-| `needt_schedule`    | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
-| `needt_reschedule`  | `needt.write`                                  | `POST /api/connect/reschedule`                                                                       |
-| `needt_control`     | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+| Tool                  | Scope                                          | What it does                                                                                                        |
+| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`        | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                |
+| `needt_search`        | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                     |
+| `needt_list`          | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`     |
+| `needt_get`           | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                        |
+| `needt_create_task`   | `needt.write`                                  | `POST /api/connect/tasks`                                                                                           |
+| `needt_schedule`      | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                         |
+| `needt_reschedule`    | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                      |
+| `needt_control`       | `needt.write` (`needt.read` for `overview`)                                | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                           |
+| `needt_update_task`   | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId; other fields are refused |
+| `needt_complete_task` | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                              |
+| `needt_create_event`  | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                     |
+| `needt_create_page`   | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                |
+| `needt_append_page`   | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                |
+| `needt_log_habit`     | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                         |
 
-Write tools run the connector routes in-process with the caller's own token,
-so auth, workspace scoping and confirmation rules are the routes' own.
+`needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
+run the connector routes in-process with the caller's own token, so auth,
+workspace scoping and confirmation rules are the routes' own. The other write
+tools call the services the app's own routes use (task update, page write
+path, habit completion, local events) after resolving the workspace with an
+editor role, so validation, plan limits and side effects match the app. Pages
+and blocks written through MCP are marked as AI-authored. MCP calls are not
+metered as AI actions.
 
 ### Limits
 
