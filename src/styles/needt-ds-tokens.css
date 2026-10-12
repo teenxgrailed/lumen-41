@@ -22,7 +22,7 @@
    at zero bytes, so Inter is the fallback for everyone else.
    To self-host, drop the .woff2 files in assets/fonts/ and replace the import
    below with local @font-face rules. */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap");
+/* Google Fonts @import removed from tokens/fonts.css by tokens:sync — the families are self-hosted in src/styles/needt-fonts.css. */
 
 /* ---------- tokens/colors.css ---------- */
 /* Colors — Needt.

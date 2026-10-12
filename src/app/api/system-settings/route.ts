@@ -5,6 +5,7 @@ import {
   withoutMaskedSecrets,
 } from "@/lib/api/public-records";
 import { requireAdmin } from "@/lib/auth/api-auth";
+import { clearResendInstance } from "@/lib/email/resend";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
@@ -82,6 +83,12 @@ export async function PATCH(request: NextRequest) {
         });
       }
     });
+
+    // The cached Resend client holds the old key; drop it here, on the server
+    // that caches it, so the next email uses the new one.
+    if ("resendApiKey" in updates) {
+      clearResendInstance();
+    }
 
     // Log if the homepage setting was updated
     if ("disableHomepage" in updates) {
