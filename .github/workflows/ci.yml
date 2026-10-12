@@ -109,6 +109,7 @@ jobs:
       - run: npm run lint
       - run: npm run check:branding
       - run: npm run check:ui-contracts
+      - run: npm run check:worker-bundle
       - run: npm run test:unit -- --runInBand
         env:
           LIFETIME_CAP_INTEGRATION: "1"
