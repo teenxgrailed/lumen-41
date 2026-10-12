@@ -149,6 +149,10 @@ COPY --from=builder /app/dist/worker ./dist/worker
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
+# Operator scripts run by hand from the container terminal, e.g.
+# `node scripts/admin/reset-user-data.cjs --email ...`. Plain CommonJS that
+# needs only @prisma/client and DATABASE_URL.
+COPY scripts/admin ./scripts/admin
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
 USER node

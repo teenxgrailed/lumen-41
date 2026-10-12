@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -341,7 +342,7 @@ export function MailScreen({ box }: { box: Mailbox }) {
             );
             if (c.missing)
               return (
-                <a
+                <Link
                   key={c.key}
                   href="/connections"
                   className="ml-acct is-link"
@@ -350,7 +351,7 @@ export function MailScreen({ box }: { box: Mailbox }) {
                   title={headerCopy.notConnected(c.label)}
                 >
                   {body}
-                </a>
+                </Link>
               );
             return (
               <span
@@ -479,12 +480,12 @@ export function MailScreen({ box }: { box: Mailbox }) {
                       <span className="ml-empty-line">
                         {headerCopy.noAccountLine}
                       </span>
-                      <a
+                      <Link
                         href="/connections"
                         className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
                       >
                         {headerCopy.openConnections}
-                      </a>
+                      </Link>
                     </>
                   ) : (
                     <>
@@ -499,12 +500,12 @@ export function MailScreen({ box }: { box: Mailbox }) {
                           {EMPTY[tab][2]}
                         </button>
                       ) : (
-                        <a
+                        <Link
                           href="/connections"
                           className="nx-btn nx-btn-secondary nx-btn-sm ml-empty-cta"
                         >
                           {EMPTY[tab][2]}
-                        </a>
+                        </Link>
                       )}
                     </>
                   )}

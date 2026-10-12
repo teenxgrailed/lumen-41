@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connected the header no longer goes empty: Gmail and Outlook show as not
   connected, the list says "No mail account connected" with Open Connections,
   and New message waits for an account.
+- Fixed (design_v3): one overdue rule everywhere. A task is overdue only when
+  its due date is before today in your time zone; a passed block or a stale
+  scheduled time no longer counts, and a task due or scheduled today sits in
+  Today. Home, Tasks (desktop and phone), the sidebar badge and Move to today
+  now agree. A date-only due date no longer turns overdue a day early west of
+  UTC.
+- Fixed (design_v3): the Tasks "Today" tab draws its Today group (tasks due or
+  scheduled today, timed ones by time), not only Overdue.
+- Fixed (design_v3): the sidebar plan pill says "Lifetime" for Lifetime, as
+  Settings → Plan does.
+- Added (design_v3): "Sign out of all devices" in Settings → Account, on the
+  desktop and the phone, with a confirm.
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
+  an unknown address shows a 404 inside the app instead of the old dark page.
+- Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
+  and syncs them; before, the account had no calendars and the calendar stayed
+  empty. A CalDAV fetch that fails no longer archives every event of the
+  calendar, and events the server returns again come back.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and
