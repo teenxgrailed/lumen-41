@@ -13,16 +13,27 @@ import {
 } from "react-icons/fi";
 
 import { PopMenu } from "@/components/needt3/mail/PopMenu";
+import { ProLimit, useIsPro } from "@/components/needt3/paywall/Pro";
 import { PlEmpty, StScreen } from "@/components/needt3/states/StScreen";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
+import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { type HabitForm, checkHabitForm } from "../phone/habits/model";
-import { FREE_HABITS, PER_WEEK_CHOICES, habitCard, timeLeft } from "./derive";
+import {
+  FREE_HABITS,
+  MONTH_LONG,
+  MONTH_SHORT,
+  PER_WEEK_CHOICES,
+  activeDays,
+  habitCard,
+  monthRows,
+  timeLeft,
+} from "./derive";
 import type { HabitsController } from "./useHabitsController";
 
 const hb = strings["Habits.jsx"];
@@ -161,6 +172,118 @@ function HabitTodayCard({
         <span className="hb-today-label">{c.label}</span>
       </span>
       <HabitStrip done={c.days} hue={hue} onToggle={toggle} />
+    </div>
+  );
+}
+
+/**
+ * Last four months (Habits.jsx HabitRail + HabitMonths): a dot a day, filled
+ * where any shown habit was kept, grey where none was, a ring while the day is
+ * still ahead. "All" or one habit; today's dot ticks (all, or the one picked).
+ */
+function HabitMonths({
+  list,
+  projects,
+  checkins,
+  today,
+  onTick,
+}: {
+  list: readonly V3Habit[];
+  projects: readonly V3Project[];
+  checkins: readonly Checkin[];
+  today: string;
+  onTick: (h: V3Habit, done: boolean) => void;
+}) {
+  const [pickId, setPickId] = useState<string | null>(null);
+  const picked = list.find((h) => h.id === pickId) ?? null;
+  const shown = picked ? [picked] : list;
+  const hue = picked ? habitColor(picked, projects) || "var(--accent)" : null;
+  const rows = monthRows(
+    today,
+    shown.map((h) => h.id),
+    checkins
+  );
+  const active = activeDays(rows);
+  const keptToday = (h: V3Habit) =>
+    checkins.some((c) => c.habitId === h.id && c.date === today && c.done);
+  const tickToday = () => {
+    if (picked) return onTick(picked, !keptToday(picked));
+    const allOn = list.length > 0 && list.every(keptToday);
+    list.forEach((h) => onTick(h, !allOn));
+  };
+  const curMonth = rows.find((r) => r.current)?.month ?? 0;
+  return (
+    <div className="hb-rail">
+      <div className="hb-picks" role="tablist" aria-label={hb.HabitRail.show}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!picked}
+          className={`hb-pick${!picked ? " is-on" : ""}`}
+          onClick={() => setPickId(null)}
+        >
+          {hb.HabitRail.all}
+        </button>
+        {list.map((h) => (
+          <button
+            key={h.id}
+            type="button"
+            role="tab"
+            aria-selected={picked?.id === h.id}
+            className={`hb-pick${picked?.id === h.id ? " is-on" : ""}`}
+            onClick={() => setPickId(h.id)}
+          >
+            <span
+              className="hb-pick-dot"
+              style={{ background: habitColor(h, projects) || "var(--accent)" }}
+            />
+            {h.title}
+          </button>
+        ))}
+      </div>
+      <div className="hb-months" data-hb-months="">
+        {rows.map((r) => (
+          <div
+            key={r.key}
+            className={`hb-month${r.current ? " is-current" : ""}`}
+          >
+            <span className="hb-month-name">
+              {MONTH_SHORT[r.month].toUpperCase()}
+            </span>
+            <div className="hb-month-dots">
+              {r.dots.map((d) => {
+                const label = `${d.day} ${MONTH_SHORT[r.month]}${
+                  d.kind === "ahead"
+                    ? " · ahead"
+                    : ` · ${d.kept} of ${shown.length} kept`
+                }`;
+                const fill =
+                  d.kind === "on"
+                    ? hue ||
+                      (d.ratio >= 1
+                        ? "var(--accent)"
+                        : `color-mix(in oklab, var(--accent) ${Math.round(35 + d.ratio * 55)}%, transparent)`)
+                    : null;
+                return (
+                  <span
+                    key={d.day}
+                    title={label}
+                    aria-label={label}
+                    onClick={d.today ? tickToday : undefined}
+                    className={`hb-dot is-${d.kind}${d.today ? " is-today" : ""}`}
+                    style={fill ? { background: fill } : undefined}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <span className="hb-months-sum">
+          <b className="font-display">{active}</b>{" "}
+          {active === 1 ? "active day" : "active days"} in{" "}
+          {MONTH_LONG[curMonth]}
+        </span>
+      </div>
     </div>
   );
 }
@@ -406,13 +529,22 @@ export const archivedNotice = (title: string) => `“${title}” archived`;
 export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
   const { habits, list, shown, over, all, setAll, checkins, projects, today } =
     ctl;
-  const gate = ctl.quota;
   const kept = ctl.kept;
 
-  const meta =
-    gate.max !== null
-      ? `${gate.used} of ${gate.max} habits on Free`
-      : `${list.length} ${list.length === 1 ? "habit" : "habits"} ${pl.HabitsScreen.nothing_carries_over}`;
+  const pro = useIsPro();
+  const history = useCheckinHistory();
+  // Free reads "3 of 3 habits · Upgrade for more" (4 habits · Free includes 3
+  // once over); Pro reads the count and what the screen promises.
+  const meta = !pro ? (
+    <ProLimit
+      used={list.length}
+      max={FREE_HABITS}
+      noun="habits"
+      feature={`${pl.HabitsScreen.more_than} ${FREE_HABITS} habits`}
+    />
+  ) : (
+    `${list.length} ${list.length === 1 ? "habit" : "habits"} ${pl.HabitsScreen.nothing_carries_over}`
+  );
 
   return (
     <div className="scroll-inner pl-habits-col" data-v3-screen="habits">
@@ -494,9 +626,23 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
               </div>
             </section>
             <div className="pl-habits-grid">
-              {/* //todo: "Last four months" (HabitMonths + HabitRail) needs
-                  HabitCompletion history past fourteen days; the API returns
-                  only the 14-day strip, so it is not drawn yet. */}
+              <section className="nx-swap pl-habits-col-2">
+                <span className="pl-sheet-title">
+                  {pl.HabitsScreen.last_four_months}
+                </span>
+                <span className="pl-habits-text">
+                  {pl.HabitsScreen.one_dot_a_day_coloured_kept_grey_missed_}
+                </span>
+                <HabitMonths
+                  list={list}
+                  projects={projects}
+                  // The long read; until it arrives (or if it fails) the cards'
+                  // own fourteen days, so the current month is never blank.
+                  checkins={history.data ?? checkins}
+                  today={today}
+                  onTick={ctl.tick}
+                />
+              </section>
               <div className="pl-habits-side">
                 <section className="nx-swap pl-habits-left">
                   <HabitLeft tz={ctl.tz} />

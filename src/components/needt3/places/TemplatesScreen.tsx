@@ -4,7 +4,7 @@ import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { Art } from "../menu/Art";
 import { PlEmpty, StScreen } from "../states/StScreen";
 import { PlDocCard } from "./PlDocCard";
-import { PlaceHeader } from "./PlaceHeader";
+import { PlSceneHeader } from "./PlSceneHeader";
 import { templatesMeta } from "./derive";
 import type { TemplatesController } from "./useTemplatesController";
 
@@ -20,10 +20,20 @@ export function TemplatesScreen({ c }: { c: TemplatesController }) {
 
   return (
     <div className="scroll-inner pl-page" data-v3-screen="templates">
-      <PlaceHeader
-        art="template"
+      <PlSceneHeader
+        variant="b"
+        kicker={tp.templates}
         title={tp.templates}
         meta={templatesMeta(list.length)}
+        // A saved template carries no look of its own yet, so its print is the
+        // plain page; Shared pages bring their real backdrop.
+        prints={list.slice(0, 3).map((t) => ({
+          id: t.id,
+          title: t.name,
+          caption: t.name,
+          doc: { coverUrl: null, style: null },
+          onOpen: () => void makePage(t.id, t.name),
+        }))}
       />
       <StScreen query={templates} kind="grid" screen="templates">
         {!list.length ? (
