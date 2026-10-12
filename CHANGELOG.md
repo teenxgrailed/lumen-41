@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Release: when two merges land close together, the older release run no
+  longer asks Coolify for an image the newer run has not pushed yet. It
+  stands down and the newer run deploys, so production stops showing failed
+  deployments for commits that were already superseded.
 - Free keeps three active habits, enforced by the API: creating a fourth, or
   restoring an archived one past the limit, answers 403 `UPGRADE_REQUIRED`.
   Pro, Lifetime and trials are unlimited. Habits above the limit after a
