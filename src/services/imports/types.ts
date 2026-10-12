@@ -134,6 +134,12 @@ export interface ImportProgressHooks {
     warnings: ImportWarning[]
   ) => Promise<void>;
   isCancelled?: () => Promise<boolean>;
+  /**
+   * Called from the long stretches that do not tick progress (paging
+   * discovery, building the tree, downloading a file). The runner throttles
+   * it to one `updatedAt` write a minute.
+   */
+  onHeartbeat?: () => Promise<void>;
 }
 
 export class ImportCancelledError extends Error {
