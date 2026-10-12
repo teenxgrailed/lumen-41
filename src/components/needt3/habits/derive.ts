@@ -11,6 +11,7 @@ import {
   habitStreak,
   habitWeek,
 } from "@/lib/needt3/derive";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 /**
  * How many days back the checkins reach. `useCheckins` reads the
@@ -19,8 +20,11 @@ import {
  */
 export const HABIT_WINDOW = 14;
 
-/** Free keeps three habits (paywall.jsx `PL_FREE_HABITS`). */
-export const FREE_HABITS = 3;
+/**
+ * Free's active-habit limit, read from the plan table the API enforces
+ * (`canCreateHabit` in `@/lib/entitlements`); never a local constant.
+ */
+export const FREE_HABITS: number = PLAN_LIMITS.FREE.habits;
 
 export const PER_WEEK_CHOICES: readonly [number | null, string][] = [
   [null, "Every day"],
