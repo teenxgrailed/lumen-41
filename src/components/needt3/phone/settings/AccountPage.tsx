@@ -2,13 +2,13 @@
 
 import { useRef, useState } from "react";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 import { LuUsers } from "react-icons/lu";
 
 import { AccountSettings } from "@/components/settings/AccountSettings";
 
-import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 
 import {
   EVERYWHERE_COPY,
@@ -29,8 +29,7 @@ export function useSignOut() {
     if (going.current) return;
     going.current = true;
     try {
-      await clearNeedtOfflineData();
-      await signOut({ callbackUrl: "/auth/signin" });
+      await signOutOfNeedt();
     } finally {
       going.current = false;
     }

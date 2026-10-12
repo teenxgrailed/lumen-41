@@ -21,6 +21,7 @@ import { DataSettings } from "@/components/settings/DataSettings";
 import { DesktopSettings } from "@/components/settings/DesktopSettings";
 import { ImportExportSettings } from "@/components/settings/ImportExportSettings";
 import { IntegrationSettings } from "@/components/settings/IntegrationSettings";
+import { LegalSettings } from "@/components/settings/LegalSettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { OnboardingChecklist } from "@/components/settings/OnboardingChecklist";
 import { ReportBugDialog } from "@/components/settings/ReportBugDialog";
@@ -299,6 +300,7 @@ export function SettingsRoute() {
           <AIAssistantSettings />
           <ImportExportSettings />
           <DataSettings />
+          <LegalSettings />
         </BoundSection>
       ),
     }),

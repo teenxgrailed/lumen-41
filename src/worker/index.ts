@@ -14,7 +14,10 @@ import {
 } from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { collectOperationsHealth } from "@/services/operations/health";
-import { pruneAgentActionLog } from "@/services/ops/retention";
+import {
+  pruneAgentActionLog,
+  pruneOrphanTrialGrants,
+} from "@/services/ops/retention";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -252,6 +255,7 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await deleteExpiredReauthentications();
   await finalizeDueAccountDeletions();
   await pruneAgentActionLog();
+  await pruneOrphanTrialGrants();
 }
 
 async function processImport(job: Job<ImportJobData>) {

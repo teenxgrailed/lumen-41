@@ -19,8 +19,11 @@ interrupted batch safe to replay.
 
 Configure encrypted Coolify/PostgreSQL backups:
 
-- daily, retained for 14 days;
-- weekly, retained for 8 weeks.
+- daily, retained for 30 days.
+
+The Privacy Notice (§8) promises that backups are kept for at most 30 days,
+so do not add longer-lived weekly or monthly copies. Reverse-proxy and
+container logs are promised the same 30-day ceiling.
 
 Quarterly, restore the newest backup into an isolated scratch database. Never
 point a running web or worker service at the scratch database.
