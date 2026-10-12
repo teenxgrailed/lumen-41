@@ -1,7 +1,7 @@
 /**
  * The phone Home's rules (mobile-v2-plates.jsx `V2pHome`), pure. The day's
- * split is the desktop Home's (`splitHome`: a task's day is the day of its
- * `scheduledStart`, else its due day) and the "Next up" pick is `nextUp` of
+ * split is the desktop Home's (`splitHome`, on the one day rule of
+ * `@/lib/needt3/task-day`: overdue = due before today) and the "Next up" pick is `nextUp` of
  * `@/lib/needt3/day`; what is here is how the phone reads them: which rows stay under the
  * plate, what the plate says, what the pull-down finds. Nothing reads the
  * clock: `today` is always an argument.
@@ -17,6 +17,7 @@ import {
 } from "@/lib/needt3/day";
 import { addDays, dayLabel, moveDay } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
+import { isOverdue } from "@/lib/needt3/task-day";
 
 import { dayOf, hourAt, splitHome } from "../../home/derive";
 
@@ -67,7 +68,7 @@ export function homeView(
   const tomorrow = addDays(today, 1);
   const sec: DaySections<V3Task> = {
     ...split,
-    next: live.filter((t) => !t.noSlot && dayOf(t) === tomorrow),
+    next: live.filter((t) => !t.noSlot && dayOf(t, today) === tomorrow),
   };
   const day = sec.day;
   // Only today's own closed tasks are "Done today": a task with no day that
@@ -93,7 +94,7 @@ export function homeView(
     dayClosed,
     next,
     lateRows,
-    parts: parts(notNu(day)),
+    parts: parts(notNu(day), today),
     inboxRows,
     tomorrowRows,
     allDone: dayClosed && !nu,
@@ -115,7 +116,7 @@ export function nextUpWhy(
   if (!nu) return "";
   if (n.lateOpen.includes(nu)) {
     // the due day when that is what passed, else the day it was placed on
-    const since = nu.dueDate && nu.dueDate < today ? nu.dueDate : dayOf(nu);
+    const since = nu.dueDate;
     const more = n.lateOpen.length - 1;
     return `Overdue${since ? ` since ${dayLabel(since)}` : ""}${more > 0 ? ` · +${more} overdue` : ""}`;
   }
@@ -175,9 +176,9 @@ export function taskHits(
     .filter((t) => !t.trashedAt && t.title.toLowerCase().includes(q))
     .slice(0, 5)
     .map((t) => {
-      const day = dayOf(t);
-      const h = hourAt(t);
-      const late = !t.done && !t.noSlot && !!day && day < today;
+      const day = dayOf(t, today);
+      const h = day ? hourAt(t, day) : null;
+      const late = isOverdue(t, today);
       return {
         id: t.id,
         title: t.title,

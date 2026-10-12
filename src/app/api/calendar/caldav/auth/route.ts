@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { addCalDAVFeeds } from "@/lib/caldav-feeds";
 import { canAddCalendar } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -193,7 +194,32 @@ export async function POST(request: NextRequest) {
         LOG_SOURCE
       );
 
-      return NextResponse.json({ success: true, accountId: account.id });
+      // Add the account's event calendars as feeds and start their first
+      // sync, as the Google callback does: a connected account with no feeds
+      // never syncs, and the calendar stays empty. Best-effort — the account
+      // is connected either way.
+      let feeds = 0;
+      try {
+        feeds = (await addCalDAVFeeds(account, userId)).added.length;
+      } catch (feedError) {
+        logger.error(
+          "Could not add the CalDAV account's calendars",
+          {
+            accountId: account.id,
+            error:
+              feedError instanceof Error
+                ? feedError.message
+                : String(feedError),
+          },
+          LOG_SOURCE
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        accountId: account.id,
+        feeds,
+      });
     } catch (error) {
       // A unique-constraint violation here means this exact CalDAV server +
       // username is already connected for this user (a genuine duplicate).

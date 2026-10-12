@@ -12,6 +12,12 @@ import {
   weekday,
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import {
+  hourOn,
+  isOnToday,
+  isOverdue as overdue,
+  taskDay,
+} from "@/lib/needt3/task-day";
 
 export type WorkTab = "inbox" | "today" | "upcoming" | "all";
 export type ProjectSort = "manual" | "name" | "open";
@@ -36,9 +42,14 @@ type WorkTask = Pick<
 > &
   Partial<Pick<V3Task, "noSlot" | "isFixed">>;
 
-/** Open and due before today. */
-export const isOverdue = (t: WorkTask, today: string) =>
-  !t.done && !!t.dueDate && t.dueDate < today;
+/** Open and due before today (`@/lib/needt3/task-day`, the one rule). */
+export const isOverdue = (t: WorkTask, today: string) => overdue(t, today);
+
+/** Today's order: timed ones by the hour of their block today, untimed last. */
+export const byTimeOn =
+  (today: string) =>
+  <T extends WorkTask>(a: T, b: T) =>
+    (hourOn(a, today) ?? 99) - (hourOn(b, today) ?? 99);
 
 /** By the hour it sits at; unplaced tasks last, order otherwise kept. */
 export function byTime<T extends WorkTask>(a: T, b: T) {
@@ -129,21 +140,21 @@ export function workModel(opts: {
     : liveAll;
 
   const last = addDays(today, UPCOMING_DAYS);
-  const inbox = live.filter((t) => !t.dueDate && !t.isFixed && !t.done);
-  const todayL = live.filter((t) => isOverdue(t, today) || t.dueDate === today);
-  const upcoming = live.filter(
-    (t) =>
-      !isOverdue(t, today) &&
-      !!t.dueDate &&
-      t.dueDate > today &&
-      t.dueDate <= last
-  );
+  const dayOf = (t: V3Task) => taskDay(t, today);
+  const noDay = (t: V3Task) => !dayOf(t) && !t.isFixed;
+  const inbox = live.filter((t) => noDay(t) && !t.done);
+  // Today = overdue (due before today) + due or scheduled today
+  const todayL = live.filter((t) => isOverdue(t, today) || isOnToday(t, today));
+  const upcoming = live.filter((t) => {
+    const d = dayOf(t);
+    return !isOverdue(t, today) && !!d && d > today && d <= last;
+  });
 
   let sections: Section[] = [];
   let done: V3Task[] = [];
   if (tab === "inbox") {
     sections = [{ key: "inbox", title: "Inbox", tasks: inbox }];
-    done = live.filter((t) => !t.dueDate && !t.isFixed && t.done);
+    done = live.filter((t) => noDay(t) && t.done);
   } else if (tab === "today") {
     sections = [
       {
@@ -165,7 +176,7 @@ export function workModel(opts: {
       sections.push({
         key: `day-${i}`,
         title: upcomingTitle(day, today),
-        tasks: upcoming.filter((t) => t.dueDate === day),
+        tasks: upcoming.filter((t) => dayOf(t) === day),
       });
     }
     done = upcoming.filter((t) => t.done);
@@ -194,7 +205,7 @@ export function workModel(opts: {
       ...s,
       tasks: sorted(
         s.tasks.filter((t) => !t.done),
-        byTime
+        s.key === "today" ? byTimeOn(today) : byTime
       ),
     }))
     .filter((s) => s.tasks.length);
@@ -265,6 +276,8 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
   ).slice(0, n);
 }
 
+type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
+
 /** The project page: open tasks grouped by when, and the Done list. */
 export function projectGroups(
   projectId: string,
@@ -273,34 +286,40 @@ export function projectGroups(
 ) {
   const mine = tasks.filter((t) => t.projectId === projectId);
   const open = mine.filter((t) => !t.done);
-  const late = (t: V3Task) => isOverdue(t, today);
+  // Every open task lands in exactly one group. A "no slot" task (it could
+  // not be placed) is never overdue by the one rule, so it sits under No
+  // date whatever its due day — before, one due yesterday fell out of every
+  // group and vanished from the page.
+  const groupOf = (t: V3Task): ProjectGroupKey => {
+    if (isOverdue(t, today)) return "Overdue";
+    if (t.noSlot) return "No date";
+    const d = taskDay(t, today);
+    if (d === today) return "Today";
+    if (d && d > today) return "Upcoming";
+    return "No date";
+  };
+  const of = (k: ProjectGroupKey) => open.filter((t) => groupOf(t) === k);
   const groups: Section[] = [
     {
       key: "Overdue",
       title: "Overdue",
       tone: "late" as const,
-      tasks: sorted(open.filter(late), byDay),
+      tasks: sorted(of("Overdue"), byDay),
     },
     {
       key: "Today",
       title: "Today",
-      tasks: sorted(
-        open.filter((t) => !late(t) && t.dueDate === today),
-        byTime
-      ),
+      tasks: sorted(of("Today"), byTimeOn(today)),
     },
     {
       key: "Upcoming",
       title: "Upcoming",
-      tasks: sorted(
-        open.filter((t) => !late(t) && !!t.dueDate && t.dueDate > today),
-        byDay
-      ),
+      tasks: sorted(of("Upcoming"), byDay),
     },
     {
       key: "No date",
       title: "No date",
-      tasks: open.filter((t) => !late(t) && !t.dueDate),
+      tasks: of("No date"),
     },
   ].filter((g) => g.tasks.length);
   return {

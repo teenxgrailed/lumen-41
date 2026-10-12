@@ -10,7 +10,12 @@ import { AccountSettings } from "@/components/settings/AccountSettings";
 
 import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
+import {
+  EVERYWHERE_COPY,
+  useSignOutEverywhere,
+} from "../../settings/sign-out-everywhere";
 import { initialsOf } from "../../shell/Avatar";
+import { PkButton } from "../kit";
 import { PsGlyph, PsGroup, PsRow } from "./parts";
 
 /**
@@ -44,6 +49,7 @@ export function useSignOut() {
 export function AccountPage() {
   const session = useSession();
   const [deleting, setDeleting] = useState(false);
+  const everywhere = useSignOutEverywhere();
   const leave = useSignOut();
   const user = session.data?.user;
   const name = user?.name || user?.email?.split("@")[0] || "Account";
@@ -87,6 +93,43 @@ export function AccountPage() {
           onOpen={() => void leave()}
           data={{ "data-ps-signout": "" }}
         />
+        {everywhere.armed ? (
+          <PsRow
+            title={EVERYWHERE_COPY.title}
+            desc={EVERYWHERE_COPY.ask}
+            expanded
+            control={
+              <>
+                <PkButton
+                  small
+                  disabled={everywhere.busy}
+                  onClick={everywhere.cancel}
+                >
+                  Cancel
+                </PkButton>
+                <PkButton
+                  small
+                  kind="primary"
+                  className="ppl-danger"
+                  disabled={everywhere.busy}
+                  onClick={() => void everywhere.confirm()}
+                  data-ps-signout-all-confirm=""
+                >
+                  {everywhere.busy ? EVERYWHERE_COPY.busy : EVERYWHERE_COPY.cta}
+                </PkButton>
+              </>
+            }
+          />
+        ) : (
+          <PsRow
+            title={EVERYWHERE_COPY.title}
+            desc={EVERYWHERE_COPY.desc}
+            tone="link"
+            chevron={false}
+            onOpen={everywhere.arm}
+            data={{ "data-ps-signout-all": "" }}
+          />
+        )}
       </PsGroup>
       <PsGroup title="Danger zone">
         <PsRow
