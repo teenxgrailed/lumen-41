@@ -3211,6 +3211,8 @@ model ImportItemMap {
 
   @@unique([userId, source, externalId, entityType])
   @@index([importRunId])
+}
+
 // OAuth 2.1 authorization server for the remote MCP server. Opaque tokens:
 // only their sha256 is stored. A client is either registered dynamically
 // (RFC 7591, `kind = "dcr"`) or identified by the https URL of its client
