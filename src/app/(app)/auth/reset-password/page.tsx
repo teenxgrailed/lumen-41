@@ -34,7 +34,7 @@ export default async function ResetPasswordPage({
   }
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
+    <div className="container flex h-dvh w-screen flex-col items-center justify-center">
       {/* useSearchParams in the form needs a Suspense boundary to prerender
           (previously provided by the removed global loading.tsx). */}
       <Suspense fallback={null}>

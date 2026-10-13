@@ -43,7 +43,7 @@ export default function Error({
         <meta name="description" content="An error occurred" />
       </head>
       <body className={inter.className} suppressHydrationWarning>
-        <div className="needt-page-depth flex min-h-screen flex-col items-center justify-center p-4 text-center text-[var(--text-primary)]">
+        <div className="needt-page-depth flex min-h-dvh flex-col items-center justify-center p-4 text-center text-[var(--text-primary)]">
           <h1 className="mb-4 text-4xl font-bold">Something went wrong!</h1>
           <p className="mb-6">An unexpected error has occurred.</p>
           <div className="flex space-x-4">

@@ -33,7 +33,7 @@ export default async function SetupPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-foreground">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background p-4 text-foreground">
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-4xl font-bold">{APP_NAME} Setup</h1>
         <p className="text-muted-foreground">

@@ -29,7 +29,7 @@ export default async function PublicBookingPage({
   if (!page) notFound();
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:py-16">
+    <main className="min-h-dvh bg-background px-4 py-10 text-foreground sm:py-16">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 max-w-2xl">
           <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
