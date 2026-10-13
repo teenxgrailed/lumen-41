@@ -84,7 +84,11 @@ jest.mock("@/lib/prisma", () => ({
     calendarEvent: { create: jest.fn() },
     userSettings: { findUnique: jest.fn() },
     habit: { findFirst: jest.fn() },
-    habitCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
+    habitCompletion: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     moodboard: { findMany: jest.fn(), findFirst: jest.fn() },
     $transaction: jest.fn(),
   },
@@ -554,9 +558,25 @@ describe("MCP write tools", () => {
     it("lists the workspace's boards", async () => {
       jest
         .mocked(prisma.moodboard.findMany)
-        .mockResolvedValue([{ id: "board-1", title: "Mood" }] as never);
+        .mockResolvedValue([
+          {
+            id: "board-1",
+            title: "Mood",
+            createdById: "user-1",
+            _count: { items: 2 },
+            items: [],
+            accessGrants: [],
+          },
+        ] as never);
       const result = await call("needt_list", { type: "moodboard" });
-      expect(result.payload.items).toEqual([{ id: "board-1", title: "Mood" }]);
+      expect(result.payload.items).toEqual([
+        expect.objectContaining({
+          id: "board-1",
+          title: "Mood",
+          itemCount: 2,
+          accessRole: "FULL_ACCESS",
+        }),
+      ]);
       expect(
         jest.mocked(prisma.moodboard.findMany).mock.calls[0][0]
       ).toMatchObject({

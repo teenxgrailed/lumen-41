@@ -340,7 +340,18 @@ async function listRows(
     case "page":
       return sliceAfter(await listPages({ userId, workspace }), args);
     case "moodboard":
-      return sliceAfter(await listMoodboards({ userId, workspace }), args);
+      // Slim rows: the app's list also carries member emails and previews.
+      return sliceAfter(
+        (await listMoodboards({ userId, workspace })).map((board) => ({
+          id: board.id,
+          title: board.title,
+          accessRole: board.accessRole,
+          itemCount: board.itemCount,
+          createdAt: board.createdAt,
+          updatedAt: board.updatedAt,
+        })),
+        args
+      );
     case "habit":
       return page(
         await prisma.habit.findMany({
