@@ -47,9 +47,12 @@ export function V3SignInRoute({
   error,
   initialUi = "desktop",
   uiForced = false,
+  startRecover = false,
 }: {
   callbackUrl?: string;
   error?: string;
+  /** Open on "Forgot your password?" (/auth/reset-password without a token). */
+  startRecover?: boolean;
   /** The server's pick for the first render (`phoneUiFrom`). */
   initialUi?: PhoneUi;
   /** The `needt-ui` cookie pinned a side: the width never overrides it. */
@@ -70,6 +73,12 @@ export function V3SignInRoute({
   );
   /* ... and so do the flow's steps: recovery open, last refusal, touched. */
   const steps = useAuthSteps(undefined);
+  const { setRecover } = steps;
+  React.useEffect(() => {
+    if (startRecover) setRecover("ask");
+    // Once, on arrival: closing recovery afterwards must stay closed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /* null until /api/auth/public-signup has answered: neither "Create one" nor
      the waitlist line is drawn before then. */
   const [allowSignup, setAllowSignup] = React.useState<boolean | null>(null);
