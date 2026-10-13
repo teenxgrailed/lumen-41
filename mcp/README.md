@@ -1,38 +1,36 @@
-# Needt MCP Server
+# Needt MCP
 
-This stdio MCP server wraps Needt's existing connector API. It does not duplicate scheduling logic; every tool calls `/api/connect/*` with a personal bearer token.
+Needt hosts its MCP server inside the web app at `/api/mcp` (Streamable HTTP,
+stateless JSON). The tool catalogue lives in
+`src/services/connectors/mcp/tools.ts`; see `docs/connector-api.md` for the
+tool list.
 
-## Environment
+Generate a token in Needt: Settings -> Personal API.
+
+## Claude Code (recommended)
 
 ```bash
-NEEDT_BASE_URL=http://localhost:3000
-NEEDT_CONNECT_TOKEN=needt_REPLACE_ME
+claude mcp add --transport http needt https://use.needt.app/api/mcp \
+  --header "Authorization: Bearer needt_REPLACE_ME"
 ```
 
-Generate the token in Needt: Settings -> Connectors.
+Add `--header "x-workspace-id: <id>"` to work in a shared workspace instead of
+the personal one.
 
-## Tools
+## stdio bridge
 
-- `needt_create_task` -> `POST /api/connect/tasks`
-- `needt_list_tasks` -> `GET /api/connect/tasks`
-- `needt_schedule` -> `POST /api/connect/schedule`
-- `needt_reschedule` -> `POST /api/connect/reschedule`
-- `needt_control` -> private app control for overview, projects, task updates/completion, local calendars, and events. Destructive actions require `confirm: true`.
-
-Use `action: "overview"` first to inspect the current app state. Then use
-`create_project`, `update_project`, `update_task`, `complete_task`,
-`create_calendar`, `create_event`, or `update_event`. Deletes are intentionally
-blocked until the caller sends `confirm: true` with the delete action.
-
-## Run
+`needt-mcp-server.mjs` is a thin stdio-to-HTTP bridge for clients that only
+launch local processes. It forwards every JSON-RPC message to
+`${NEEDT_BASE_URL}/api/mcp` and has no tool list of its own.
 
 ```bash
+NEEDT_BASE_URL=https://use.needt.app
+NEEDT_CONNECT_TOKEN=needt_REPLACE_ME
+NEEDT_WORKSPACE_ID=        # optional
 npm run mcp:needt
 ```
 
-## Claude Desktop
-
-Add this to `claude_desktop_config.json`, adjusting the repo path and token:
+### Claude Desktop
 
 ```json
 {
@@ -41,12 +39,10 @@ Add this to `claude_desktop_config.json`, adjusting the repo path and token:
       "command": "node",
       "args": ["/path/to/Needt/mcp/needt-mcp-server.mjs"],
       "env": {
-        "NEEDT_BASE_URL": "http://localhost:3000",
+        "NEEDT_BASE_URL": "https://use.needt.app",
         "NEEDT_CONNECT_TOKEN": "needt_REPLACE_ME"
       }
     }
   }
 }
 ```
-
-For production, set `NEEDT_BASE_URL` to the deployed URL and use a token generated in that environment.

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
+  host serves only `/mcp` and its OAuth protected-resource metadata, which
+  the `401` challenge now points at. Tokens carry scopes (`needt.read`,
+  `needt.write`, `mail.read`; a personal token has all three) and a call
+  without the scope it needs gets `403 insufficient_scope`. The connector
+  routes read the same tokens. New `needt_whoami` tool; every tool takes an
+  optional `workspaceId` and says whether it reads or writes. Protocol
+  `2025-11-25`; JSON-RPC batches are refused. Limits: 120 calls/min and 30
+  writes/min per person, 600 calls/min per IP.
+- Claude Code, Claude Desktop and other agents connect to Needt directly at
+  `/api/mcp` with the personal access token. They can search, list and read
+  tasks, projects, calendars, events, pages, habits and mail, and create and
+  change tasks, projects and events. Settings → Personal API shows the URL
+  and the one-line `claude mcp add` command. The local stdio server is now a
+  thin bridge to the same endpoint, so it gained the restore actions it was
+  missing.
 - The application at use.needt.app asks not to be indexed: `/robots.txt`
   disallows everything and is readable without signing in, and every response
   carries `X-Robots-Tag: noindex, nofollow`. The worker can ping an external

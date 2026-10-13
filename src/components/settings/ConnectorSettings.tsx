@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 
 import { Copy, KeyRound, Save } from "lucide-react";
-import { notify } from "@/lib/notifications";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+
+import { notify } from "@/lib/notifications";
 
 import {
   SettingRow,
@@ -35,11 +36,49 @@ const DEFAULT_SETTINGS: ConnectorSettingsResponse = {
   webhookTaskComplete: false,
 };
 
+function CopyLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="w-[84px] shrink-0 text-[12px] text-[var(--text-secondary)]">
+        {label}
+      </span>
+      <code className="min-w-0 flex-1 truncate font-mono text-[12px]">
+        {value}
+      </code>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 shrink-0"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(value);
+            notify.success(`${label} copied`);
+          } catch {
+            notify.error("Could not copy");
+          }
+        }}
+        aria-label={`Copy ${label}`}
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 export function ConnectorSettings() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [origin, setOrigin] = useState("https://use.needt.app");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const mcpUrl = `${origin}/api/mcp`;
+  const mcpCommand = `claude mcp add --transport http needt ${mcpUrl} --header "Authorization: Bearer ${newToken ?? "needt_…"}"`;
 
   useEffect(() => {
     let cancelled = false;
@@ -174,6 +213,19 @@ export function ConnectorSettings() {
             <KeyRound className="mr-2 h-4 w-4" />
             {settings.hasToken ? "Rotate token" : "Generate token"}
           </Button>
+        </div>
+      </SettingRow>
+
+      <SettingRow
+        label="Agents (MCP)"
+        description="Connect Claude Code, Claude Desktop, or any MCP client with your access token."
+      >
+        <div className="space-y-2">
+          <CopyLine label="Server URL" value={mcpUrl} />
+          <CopyLine label="Claude Code" value={mcpCommand} />
+          <p className="text-[12px] text-[var(--text-secondary)]">
+            Uses the access token above. Rotating it disconnects every agent.
+          </p>
         </div>
       </SettingRow>
 
