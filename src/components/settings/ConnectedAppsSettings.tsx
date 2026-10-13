@@ -41,7 +41,10 @@ export function ConnectedAppsSettings() {
       setApps([]);
       return;
     }
-    setApps(((await response.json()) as { apps: ConnectedApp[] }).apps);
+    const body = (await response.json().catch(() => null)) as {
+      apps?: ConnectedApp[];
+    } | null;
+    setApps(Array.isArray(body?.apps) ? body.apps : []);
   }, []);
 
   useEffect(() => {
