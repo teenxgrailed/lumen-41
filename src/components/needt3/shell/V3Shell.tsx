@@ -20,9 +20,11 @@ import { CtxLayer } from "../ctx/CtxLayer";
 import { registerCtx } from "../ctx/registry";
 import { DocRail } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
+import { TitleTips } from "../menu/TitleTips";
 import { CommandPalette } from "../palette/CommandPalette";
 import { PhoneShell } from "../phone/shell/PhoneShell";
 import { ShellFrame } from "../root/ShellFrame";
+import { BugSheet } from "./BugSheet";
 import { CustomizeSidebar } from "./CustomizeSidebar";
 import { KeySheet } from "./KeySheet";
 import { PermanentHosts } from "./PermanentHosts";
@@ -80,6 +82,7 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const [customize, setCustomize] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
+  const [bugOpen, setBugOpen] = useState(false);
   const keyState = useRef<KeyState>({ lead: "", leadAt: 0 });
   // The shortcuts read the UI as it is when a key is pressed.
   const phoneRef = useRef(phone);
@@ -110,6 +113,7 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
       openCustomize: () => setCustomize(true),
       openKeys: () => setKeysOpen(true),
       openWhatsNew: () => setNewsOpen(true),
+      openBug: () => setBugOpen(true),
     }),
     [narrow, focusMode, toggleSidebar]
   );
@@ -291,6 +295,8 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
       <CustomizeSidebar open={customize} onClose={() => setCustomize(false)} />
       <KeySheet open={keysOpen} onClose={() => setKeysOpen(false)} />
       <WhatsNew open={newsOpen} onClose={() => setNewsOpen(false)} />
+      <BugSheet open={bugOpen} onClose={() => setBugOpen(false)} />
+      <TitleTips />
       <CommandPalette
         open={paletteOpen}
         onClose={() => useNeedt3Ui.getState().setPaletteOpen(false)}

@@ -4,7 +4,7 @@ import { createContext, useContext } from "react";
 
 /**
  * Shell-local chrome state that is not in the S1 UI store: the narrow
- * floating rail, Focus Mode, Customize Sidebar and the Keyboard sheet.
+ * floating rail, Focus Mode, Customize Sidebar, the Keyboard sheet and the bug report.
  */
 export interface ShellApi {
   /** Window below 1100px: the rail floats over the page. */
@@ -15,6 +15,7 @@ export interface ShellApi {
   openCustomize: () => void;
   openKeys: () => void;
   openWhatsNew: () => void;
+  openBug: () => void;
 }
 
 const noop = () => {};
@@ -27,6 +28,7 @@ export const ShellContext = createContext<ShellApi>({
   openCustomize: noop,
   openKeys: noop,
   openWhatsNew: noop,
+  openBug: noop,
 });
 
 export function useShellApi() {

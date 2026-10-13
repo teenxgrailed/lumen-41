@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where that ink cannot be read on the page in the current theme (light text on
   the white page in Light, dark text on the grey page in Dark), the page uses Auto
   ink for that theme.
+- The app has its own icon: the dark Needt tile in the browser tab, the
+  installed app, the home-screen touch icon and notifications, so an app tab is
+  told apart from a needt.app tab at a glance.
+- Browser tabs name the section you are in and nothing else: Home, Calendar,
+  Tasks, Docs, Mailbox, Projects, Moodboards, Habits, Templates, Shared, Trash,
+  Connections, Settings and so on. A document, moodboard or project shows its
+  own name.
 - Adding a task from the v3 quick-add no longer fails with "Could not create the task":
   `POST /api/tasks` now opens the task as `todo` when the request names no status.
 - Connections › AI tools is now real (Pro): one card per AI tool with numbered
@@ -28,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `claude mcp add` command, rotating disconnects agents) and the apps signed in
   through Needt MCP with Disconnect; desktop and phone. Claude, ChatGPT and
   Perplexity stay "opens soon" until `NEXT_PUBLIC_MCP_OAUTH_URL` is set.
+- Desktop shell: sidebar tiles, menu rows and other button-like links no longer
+  underline on hover or focus (keyboard focus keeps its ring). Tooltips are
+  Craft-style: they appear after about 0.6 s, open at once when you move to a
+  neighbouring one, fade in 120 ms, go away on press or scroll, and show the
+  shortcut at the right (for example "Toggle sidebar visibility" with the key
+  in a muted badge). The browser's own `title` tooltips in the shell use the
+  same look. The Help menu gains Report a problem (sends to the bug reports),
+  the Needt Pro card shows above the sidebar footer for Free accounts, and an
+  Import button (Notion, Todoist) appears beside Focus when imports are on.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

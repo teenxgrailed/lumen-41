@@ -4,6 +4,9 @@ import { WorkScreen } from "@/components/needt3/work/WorkScreen";
 import { WorkspaceRoute } from "@/components/needt/workspace";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("projects");
 
 export default async function ProjectsPage() {
   if (await isDesignV3()) {
