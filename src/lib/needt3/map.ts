@@ -22,6 +22,11 @@
  */
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { notesText } from "@/lib/needt3/derive";
+import {
+  PREVIEW_MAX_ROWS,
+  PREVIEW_ROW_TEXT,
+  type PagePreviewBlock,
+} from "@/lib/pages/page-preview";
 
 export type V3StageId = "todo" | "doing" | "review" | "done";
 export type DbTaskStage = "TODO" | "DOING" | "REVIEW" | "DONE";
@@ -70,9 +75,21 @@ export const fromCents = (c: number | null | undefined) =>
 
 /* ---------- dates ---------- */
 
-/** UTC ISO → local "YYYY-MM-DD" in `tz`. */
+/** An instant at exactly UTC midnight: how a date-only value is stored. */
+const UTC_MIDNIGHT = /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?(?:Z|\+00:00)$/;
+
+/**
+ * UTC ISO → local "YYYY-MM-DD" in `tz`. A value at exactly UTC midnight is a
+ * date-only day (the API, task sync and the old screens store "2026-10-12" as
+ * `2026-10-12T00:00:00Z`), so it keeps its day: read in a zone west of UTC it
+ * would otherwise land on the day before and turn overdue a day early. v3
+ * itself writes local midnight (`localToIso`), which is UTC midnight only in
+ * a zero-offset zone, where both readings agree.
+ */
 export function isoToDay(iso: string | null | undefined, tz: string) {
-  return iso ? formatInTimeZone(iso, tz, "yyyy-MM-dd") : null;
+  if (!iso) return null;
+  const m = UTC_MIDNIGHT.exec(iso);
+  return m ? m[1] : formatInTimeZone(iso, tz, "yyyy-MM-dd");
 }
 /** UTC ISO → local "YYYY-MM-DDTHH:mm" in `tz`. */
 export function isoToStamp(iso: string | null | undefined, tz: string) {
@@ -622,6 +639,37 @@ export interface ApiMoodboard {
   trashedAt?: string | null;
   /** Only the single-board route sends the caller's role. */
   accessRole?: string | null;
+  /** The list route only: how many references the board holds. */
+  itemCount?: number;
+  /** The list route only: the board's first references, for the grid cover. */
+  preview?: ApiBoardPreview[];
+  /** The list route only: the old canvas stored something (its bytes are not read). */
+  hasCanvas?: boolean;
+  /** The list route only: who made the board. */
+  owner?: { id?: string; name?: string | null; email?: string | null } | null;
+  /** The list route only: people other than the owner, how many and the first few. */
+  memberCount?: number;
+  members?: ApiBoardMember[];
+  /** The single-board route, for people with full access, once link sharing is on. */
+  shareToken?: string | null;
+}
+
+export interface ApiBoardMember {
+  userId: string;
+  role?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+/** One reference as the list sends it: just what a cover tile draws. */
+export interface ApiBoardPreview {
+  id: string;
+  kind: string;
+  url?: string | null;
+  color?: string | null;
+  text?: string | null;
+  thumbnailUrl?: string | null;
 }
 
 /** What the caller may do on a board (`MoodboardAccessRole`). */
@@ -639,7 +687,45 @@ export interface V3Board {
   trashedAt: string | null;
   /** The caller's role; null when the route did not send it (the list). */
   accessRole?: BoardRole | null;
+  /** References on the board; null when the route did not say (the single-board read). */
+  itemCount?: number | null;
+  /** The first references in wall order (at most three), for the grid cover. */
+  preview?: V3BoardPreview[];
+  /** The old canvas stored something: the grid shows it read-only. */
+  hasCanvas?: boolean;
+  /** Who made the board (the list only). */
+  owner?: {
+    id: string | null;
+    name: string | null;
+    email: string | null;
+  } | null;
+  /** People on the board besides the owner: a count and the first few (the list only). */
+  memberCount?: number | null;
+  members?: V3BoardMember[];
+  /** Secret half of the public address `/b/<id>/<token>`; full access only, link sharing on. */
+  shareToken?: string | null;
 }
+
+export interface V3BoardMember {
+  userId: string;
+  role: BoardRole;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
+
+export type V3BoardPreviewKind = "image" | "link" | "color" | "note";
+
+export interface V3BoardPreview {
+  id: string;
+  kind: V3BoardPreviewKind;
+  url: string | null;
+  color: string | null;
+  text: string | null;
+  thumbnailUrl: string | null;
+}
+
+const PREVIEW_KINDS: readonly string[] = ["image", "link", "color", "note"];
 
 export function boardFromApi(row: ApiMoodboard): V3Board {
   return {
@@ -658,6 +744,34 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
       row.accessRole === "VIEWER"
         ? row.accessRole
         : null,
+    itemCount: typeof row.itemCount === "number" ? row.itemCount : null,
+    hasCanvas: row.hasCanvas === true,
+    owner: row.owner
+      ? {
+          id: row.owner.id ?? null,
+          name: row.owner.name ?? null,
+          email: row.owner.email ?? null,
+        }
+      : null,
+    memberCount: typeof row.memberCount === "number" ? row.memberCount : null,
+    members: (row.members ?? []).map((m) => ({
+      userId: m.userId,
+      role: m.role === "EDITOR" || m.role === "FULL_ACCESS" ? m.role : "VIEWER",
+      name: m.name ?? null,
+      email: m.email ?? null,
+      image: m.image ?? null,
+    })),
+    shareToken: row.shareToken ?? null,
+    preview: (row.preview ?? [])
+      .filter((p) => PREVIEW_KINDS.includes(p.kind))
+      .map((p) => ({
+        id: p.id,
+        kind: p.kind as V3BoardPreviewKind,
+        url: p.url ?? null,
+        color: p.color ?? null,
+        text: p.text ?? null,
+        thumbnailUrl: p.thumbnailUrl ?? null,
+      })),
   };
 }
 
@@ -674,6 +788,10 @@ export interface ApiPage {
   style?: Record<string, unknown> | null;
   createdAt?: string;
   updatedAt?: string;
+  /** Present on `GET /api/pages/:id`: a database page has no text editor. */
+  database?: { id: string } | null;
+  /** The first blocks as plain rows (`GET /api/pages`); absent from other routes. */
+  preview?: unknown;
 }
 
 export interface V3Doc {
@@ -687,9 +805,62 @@ export interface V3Doc {
   style: Record<string, unknown> | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** A database page: rows, not blocks, so no Insert tab. */
+  isDatabase?: boolean;
+  /**
+   * The page's first blocks for the card's miniature. `undefined` when the
+   * route sent none (a single page, an older server): the card draws no
+   * miniature; `[]` is an empty page.
+   */
+  preview?: PagePreviewBlock[];
+}
+
+const PREVIEW_TYPES: ReadonlySet<string> = new Set([
+  "h1",
+  "h2",
+  "h3",
+  "p",
+  "lead",
+  "li",
+  "ol",
+  "todo",
+  "quote",
+  "callout",
+  "code",
+  "rule",
+  "image",
+]);
+
+/**
+ * The server's preview, read defensively: only known row types, text only,
+ * clipped again to the server's own caps. Anything else is dropped, so the
+ * card never draws a row it does not know how to.
+ */
+export function previewFromApi(raw: unknown): PagePreviewBlock[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const rows: PagePreviewBlock[] = [];
+  for (const item of raw.slice(0, PREVIEW_MAX_ROWS * 4)) {
+    if (rows.length >= PREVIEW_MAX_ROWS) break;
+    if (typeof item !== "object" || item === null) continue;
+    const { type, text, checked } = item as Record<string, unknown>;
+    if (typeof type !== "string" || !PREVIEW_TYPES.has(type)) continue;
+    const marker = type === "rule" || type === "image";
+    if (!marker && (typeof text !== "string" || text === "")) continue;
+    const row: PagePreviewBlock = {
+      type: type as PagePreviewBlock["type"],
+      text:
+        marker || typeof text !== "string"
+          ? ""
+          : text.slice(0, PREVIEW_ROW_TEXT),
+    };
+    if (type === "todo" && checked === true) row.checked = true;
+    rows.push(row);
+  }
+  return rows;
 }
 
 export function docFromApi(row: ApiPage): V3Doc {
+  const preview = previewFromApi(row.preview);
   return {
     id: row.id,
     title: row.title,
@@ -701,5 +872,7 @@ export function docFromApi(row: ApiPage): V3Doc {
     style: row.style ?? null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+    ...(row.database ? { isDatabase: true } : null),
+    ...(preview ? { preview } : {}),
   };
 }

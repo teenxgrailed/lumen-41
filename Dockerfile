@@ -54,11 +54,14 @@ ARG NEXT_PUBLIC_COLLABORATION_URL
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT
+# Optional: empty means the cookieless Umami tag is not rendered.
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_COLLABORATION_URL=$NEXT_PUBLIC_COLLABORATION_URL \
     NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
-    NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT \
+    NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 # Source maps upload only when CI mounts the Sentry secrets; Coolify's
 # fallback build has none and builds without uploading.
 RUN --mount=type=secret,id=sentry_auth_token,required=false \
@@ -149,6 +152,10 @@ COPY --from=builder /app/dist/worker ./dist/worker
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
+# Operator scripts run by hand from the container terminal, e.g.
+# `node scripts/admin/reset-user-data.cjs --email ...`. Plain CommonJS that
+# needs only @prisma/client and DATABASE_URL.
+COPY scripts/admin ./scripts/admin
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
 USER node

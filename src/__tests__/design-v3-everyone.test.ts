@@ -6,9 +6,13 @@
  */
 import { getServerSession } from "next-auth/next";
 
+import ResetPasswordPage from "@/app/(app)/auth/reset-password/page";
 import SignInPage from "@/app/(app)/auth/signin/page";
+import ConfirmEmailPage from "@/app/auth/confirm-email/page";
 import { readFileSync } from "node:fs";
 
+import { V3ConfirmEmailRoute } from "@/components/needt3/auth/ConfirmEmailRoute";
+import { V3ResetPasswordRoute } from "@/components/needt3/auth/ResetPasswordRoute";
 import { V3SignInRoute } from "@/components/needt3/auth/SignInRoute";
 import { SignInRoute } from "@/components/needt/auth/SignInRoute";
 
@@ -32,6 +36,18 @@ jest.mock("@/lib/auth/auth-options", () => ({ getAuthOptions: jest.fn() }));
 jest.mock("@/lib/needt3/design-flag", () => ({ isDesignV3: jest.fn() }));
 jest.mock("@/components/needt3/auth/SignInRoute", () => ({
   V3SignInRoute: () => null,
+}));
+jest.mock("@/components/needt3/auth/ResetPasswordRoute", () => ({
+  V3ResetPasswordRoute: () => null,
+}));
+jest.mock("@/components/needt3/auth/ConfirmEmailRoute", () => ({
+  V3ConfirmEmailRoute: () => null,
+}));
+jest.mock("@/components/auth/PasswordResetForm", () => ({
+  PasswordResetForm: () => null,
+}));
+jest.mock("@/components/auth/ConfirmEmailForm", () => ({
+  ConfirmEmailForm: () => null,
 }));
 jest.mock("@/components/needt/auth/SignInRoute", () => ({
   SignInRoute: () => null,
@@ -82,6 +98,51 @@ describe("the sign-in page for a signed-out visitor", () => {
       rolloutPercentage: 100,
     } as never);
     expect((await render()).type).toBe(SignInRoute);
+  });
+});
+
+type El = { type: unknown; props: Record<string, unknown> };
+
+describe("the pages a mail's link opens", () => {
+  beforeEach(() => findFlag.mockResolvedValue(EVERYONE as never));
+
+  it("a reset link is the v3 Set a new password, with its token", async () => {
+    const el = (await ResetPasswordPage({
+      searchParams: Promise.resolve({ token: "tok" }),
+    })) as El;
+    expect(el.type).toBe(V3ResetPasswordRoute);
+    expect(el.props.token).toBe("tok");
+  });
+
+  it("without a token it is the v3 sign-in, open on recovery", async () => {
+    const el = (await ResetPasswordPage({
+      searchParams: Promise.resolve({}),
+    })) as El;
+    expect(el.type).toBe(V3SignInRoute);
+    expect(el.props.startRecover).toBe(true);
+  });
+
+  it("a confirmation link is the v3 Confirm your email", async () => {
+    const el = (await ConfirmEmailPage({
+      searchParams: Promise.resolve({ email: "a@x.ch", token: "t" }),
+    })) as El;
+    expect(el.type).toBe(V3ConfirmEmailRoute);
+    expect(el.props).toMatchObject({ email: "a@x.ch", token: "t" });
+  });
+
+  it("both fall back to the old forms if the flag is rolled back", async () => {
+    findFlag.mockResolvedValue({
+      enabled: false,
+      rolloutPercentage: 0,
+    } as never);
+    const reset = (await ResetPasswordPage({
+      searchParams: Promise.resolve({ token: "tok" }),
+    })) as El;
+    const confirm = (await ConfirmEmailPage({
+      searchParams: Promise.resolve({ email: "a@x.ch", token: "t" }),
+    })) as El;
+    expect(reset.type).not.toBe(V3ResetPasswordRoute);
+    expect(confirm.type).not.toBe(V3ConfirmEmailRoute);
   });
 });
 

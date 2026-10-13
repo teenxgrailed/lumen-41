@@ -9,7 +9,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
-import { PRO_FEATURES } from "../../settings/PlanSection";
+import { PRO_FEATURES, failedPaymentLine } from "../../settings/PlanSection";
 import { isPro, planInfo, trialBarPct } from "../../settings/derive";
 import { PkButton } from "../kit";
 import { PsGroup, PsProTag, PsRow, usePs } from "./parts";
@@ -111,6 +111,15 @@ export function PlanPage() {
             {P.trialTerms}
           </span>
         ) : null}
+        {b?.paymentFailed ? (
+          <span
+            className="ps-plan-terms"
+            role="alert"
+            data-ps-payment-failed=""
+          >
+            {failedPaymentLine(b)}
+          </span>
+        ) : null}
         {closed && !pro ? (
           <span className="ps-plan-terms" role="status">
             Checkout is not open yet. Plans will be available here as soon as
@@ -164,7 +173,9 @@ export function PlanPage() {
           ) : null}
           {b?.canManageBilling ? (
             <PsRow
-              title="Invoices and payment"
+              title={
+                b.paymentFailed ? "Manage billing" : "Invoices and payment"
+              }
               disabled={busy}
               onOpen={() => void portal()}
               data={{ "data-ps-portal": "" }}

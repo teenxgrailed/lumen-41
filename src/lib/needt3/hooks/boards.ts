@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { newDate } from "@/lib/date-utils";
+import { applyOrderSlots } from "@/lib/needt3/board-order";
 import {
   type ApiMoodboard,
   type V3Board,
@@ -11,10 +12,12 @@ import {
 import { qk } from "@/lib/needt3/query-keys";
 
 import {
+  ApiError,
   dropListItem,
   fetchJson,
   findListItem,
   isBoardFull,
+  isUploadRefusal,
   patchListItem,
   previousFields,
   sendJson,
@@ -23,16 +26,34 @@ import {
 
 const BOARDS = qk.boards();
 
+/** How the grid is ordered; the server sorts (`?sort=&dir=`). */
+export interface BoardListSort {
+  key: "updated" | "created" | "name";
+  dir: "asc" | "desc";
+}
+const DEFAULT_SORT: BoardListSort = { key: "updated", dir: "desc" };
+
 /**
  * Moodboards. The list carries trashed boards too (`trashedAt` set), so the
- * grid filters with `!trashedAt` and Trash with `trashedAt`.
+ * grid filters with `!trashedAt` and Trash with `trashedAt`. With a `sort` the
+ * server orders the list (Name, Date created, Date updated); every sort is its
+ * own cache entry under `qk.boards()`, so one optimistic write patches them all.
  */
-export function useBoards() {
+export function useBoards(sort?: BoardListSort) {
+  const by = sort ?? DEFAULT_SORT;
+  const isDefault = by.key === DEFAULT_SORT.key && by.dir === DEFAULT_SORT.dir;
   return useQuery({
-    queryKey: BOARDS,
+    queryKey: isDefault ? BOARDS : [...BOARDS, by.key, by.dir],
+    // The grid's covers come from the list; items change on the board's own
+    // page, so a return to the grid reads the list again.
+    staleTime: 0,
     queryFn: async () =>
       (
-        await fetchJson<{ moodboards: ApiMoodboard[] }>("/api/moodboards")
+        await fetchJson<{ moodboards: ApiMoodboard[] }>(
+          isDefault
+            ? "/api/moodboards"
+            : `/api/moodboards?sort=${by.key}&dir=${by.dir}`
+        )
       ).moodboards.map(boardFromApi),
   });
 }
@@ -147,6 +168,8 @@ export interface ApiBoardItem {
   position?: number;
   createdAt?: string;
   updatedAt?: string;
+  /** Drawn on the old canvas: shown read-only. */
+  fromCanvas?: boolean;
 }
 
 /** A reference on a board's wall. */
@@ -163,6 +186,8 @@ export interface V3BoardItem {
   thumbnailUrl: string | null;
   position: number;
   createdAt: string | null;
+  /** Drawn on the old canvas: no remove, reorder or caption. */
+  fromCanvas?: boolean;
 }
 
 export function boardItemFromApi(row: ApiBoardItem): V3BoardItem {
@@ -179,6 +204,7 @@ export function boardItemFromApi(row: ApiBoardItem): V3BoardItem {
     thumbnailUrl: row.thumbnailUrl ?? null,
     position: row.position ?? 0,
     createdAt: row.createdAt ?? null,
+    ...(row.fromCanvas ? { fromCanvas: true } : {}),
   };
 }
 
@@ -233,22 +259,62 @@ export function useBoardItems(boardId: string | null | undefined) {
   });
 }
 
+/** A picture to add: already shrunk by the face (JPEG, 900 px at most). */
+export interface BoardUploadDraft {
+  file: Blob;
+  name: string;
+  title?: string | null;
+  /** height / width */
+  ratio?: number | null;
+  /** Where in the wall; omitted = the end. */
+  position?: number;
+}
+
+/** multipart POST that throws ApiError with the server's message (fetchJson sets a JSON header). */
+async function postPicture(boardId: string, draft: BoardUploadDraft) {
+  const form = new FormData();
+  form.append("file", draft.file, draft.name);
+  if (draft.title) form.append("title", draft.title);
+  if (draft.ratio) form.append("ratio", String(draft.ratio));
+  if (draft.position !== undefined)
+    form.append("position", String(draft.position));
+  const res = await fetch(`/api/moodboards/${boardId}/items/upload`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let message = res.statusText || `Request failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { error?: unknown };
+      if (typeof body.error === "string") message = body.error;
+    } catch {
+      /* keep the status text */
+    }
+    throw new ApiError(res.status, message);
+  }
+  return boardItemFromApi(((await res.json()) as { item: ApiBoardItem }).item);
+}
+
 /**
- * Add a reference to the end of the wall; Undo removes it. (The items routes
- * do not read If-Match, so none is sent.)
+ * Add a reference to the end of the wall (a link, colour or note by draft, a
+ * picture by upload); Undo removes it. (The items routes do not read
+ * If-Match, so none is sent.)
  */
 export function useAddBoardItem() {
   return useUndoableMutation<
     | { boardId: string; draft: BoardItemDraft }
+    | { boardId: string; upload: BoardUploadDraft }
     | { boardId: string; removeId: string },
     V3BoardItem | null
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "add the reference",
-    quiet: isBoardFull, // the caller words it: BOARD_FULL_TEXT
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
+    // the caller words these: BOARD_FULL_TEXT, or the server's own message
+    quiet: (e) => isBoardFull(e) || isUploadRefusal(e),
     inverseFromResult: true,
     inverse: (_qc, vars, result) =>
-      "draft" in vars && result
+      !("removeId" in vars) && result
         ? { boardId: vars.boardId, removeId: result.id }
         : null,
     optimistic: (qc, vars) => {
@@ -267,6 +333,7 @@ export function useAddBoardItem() {
         );
         return null;
       }
+      if ("upload" in vars) return postPicture(vars.boardId, vars.upload);
       return boardItemFromApi(
         (
           await sendJson<{ item: ApiBoardItem }>(
@@ -280,6 +347,83 @@ export function useAddBoardItem() {
   });
 }
 
+/** Fields a person edits on a reference: its caption / note, title, colour. */
+export type BoardItemPatch = Partial<
+  Pick<V3BoardItem, "text" | "title" | "color" | "colorName">
+>;
+
+/**
+ * Change a reference (autosave on the detail, the phone's Done). Undo puts the
+ * old fields back. A tile drawn from the old canvas has no row to change.
+ */
+export function useUpdateBoardItem() {
+  return useUndoableMutation<
+    { boardId: string; id: string; patch: BoardItemPatch },
+    V3BoardItem
+  >({
+    scope: BOARD_ITEMS_SCOPE,
+    label: "save the reference",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
+    inverse: (qc, { boardId, id, patch }) => {
+      const cur = findListItem<V3BoardItem>(qc, boardItemsKey(boardId), id);
+      return cur ? { boardId, id, patch: previousFields(cur, patch) } : null;
+    },
+    optimistic: (qc, { boardId, id, patch }) =>
+      patchListItem<V3BoardItem>(qc, boardItemsKey(boardId), id, (it) => ({
+        ...it,
+        ...patch,
+      })),
+    request: async ({ boardId, id, patch }) =>
+      boardItemFromApi(
+        (
+          await sendJson<{ item: ApiBoardItem }>(
+            `/api/moodboards/${boardId}/items/${id}`,
+            "PATCH",
+            patch
+          )
+        ).item
+      ),
+  });
+}
+
+/**
+ * Put references in a new order (drag, "Move to top"). `order` lists the ids
+ * that moved, in their new order; the server gives them the places those ids
+ * held, so a reference added meanwhile is not displaced. Undo lists the same
+ * ids in their old order. Nothing is sent for an order that changes nothing.
+ */
+export function useReorderBoardItems() {
+  return useUndoableMutation<{ boardId: string; order: string[] }, unknown>({
+    scope: BOARD_ITEMS_SCOPE,
+    label: "change the order",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
+    inverse: (qc, { boardId, order }) => {
+      const list = qc.getQueryData<V3BoardItem[]>(boardItemsKey(boardId)) ?? [];
+      const listed = new Set(order);
+      const before = list.filter((i) => listed.has(i.id)).map((i) => i.id);
+      return before.length ? { boardId, order: before } : null;
+    },
+    optimistic: (qc, { boardId, order }) => {
+      qc.setQueryData<V3BoardItem[]>(boardItemsKey(boardId), (list) => {
+        if (!list) return list;
+        const own = list.filter((i) => !i.fromCanvas);
+        const byId = new Map(own.map((i) => [i.id, i]));
+        const ids = applyOrderSlots(
+          own.map((i) => i.id),
+          order.filter((id) => byId.has(id))
+        );
+        const reordered = ids.map((id, n) => ({
+          ...(byId.get(id) as V3BoardItem),
+          position: n + 1,
+        }));
+        return [...reordered, ...list.filter((i) => i.fromCanvas)];
+      });
+    },
+    request: ({ boardId, order }) =>
+      sendJson(`/api/moodboards/${boardId}/items`, "PATCH", { order }),
+  });
+}
+
 /** Remove a reference; Undo puts it back where it was (a new id, the same place). */
 export function useRemoveBoardItem() {
   return useUndoableMutation<
@@ -289,6 +433,7 @@ export function useRemoveBoardItem() {
   >({
     scope: BOARD_ITEMS_SCOPE,
     label: "remove the reference",
+    rollback: "refetch", // a snapshot would also undo other edits that succeeded
     inverse: (qc, vars) => {
       if (!("id" in vars)) return null;
       const cur = findListItem<V3BoardItem>(
@@ -312,5 +457,20 @@ export function useRemoveBoardItem() {
             "POST",
             vars.restore
           ),
+  });
+}
+
+/**
+ * Trash → Delete forever: the board, its references, pictures and people go.
+ * The server only does it for a board already in Trash and only with full
+ * access, and it cannot be taken back, so there is no Undo.
+ */
+export function useDeleteBoardForever() {
+  return useUndoableMutation<{ id: string }, unknown>({
+    scope: BOARDS,
+    label: "delete the board",
+    optimistic: (qc, { id }) => dropListItem<V3Board>(qc, BOARDS, id),
+    request: ({ id }) =>
+      sendJson(`/api/moodboards/${id}?permanent=true`, "DELETE"),
   });
 }

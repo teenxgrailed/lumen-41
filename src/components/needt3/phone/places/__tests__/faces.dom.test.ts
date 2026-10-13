@@ -118,6 +118,7 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
 jest.mock("@/lib/needt3/hooks/boards", () => ({
   useBoards: () => ({ ...idle, data: [] }),
   useTrashBoard: () => ({ mutateAsync: jest.fn() }),
+  useDeleteBoardForever: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({ data: [] }),

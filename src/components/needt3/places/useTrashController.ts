@@ -2,7 +2,11 @@
 
 import { useMemo, useRef } from "react";
 
-import { useBoards, useTrashBoard } from "@/lib/needt3/hooks/boards";
+import {
+  useBoards,
+  useDeleteBoardForever,
+  useTrashBoard,
+} from "@/lib/needt3/hooks/boards";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks, useTrashTask } from "@/lib/needt3/hooks/tasks";
@@ -14,11 +18,13 @@ const tr = strings["places.jsx"].TrashScreen;
 
 /**
  * Trash: what is in it (tasks and moodboards the person deleted) and the one
- * thing the desktop port wired, Restore, with its notice and Undo. The route
- * calls this once above its two faces.
+ * Restore (with its notice and Undo) and, for a moodboard, Delete forever
+ * (the board, its references, pictures and people; no Undo). The route calls
+ * this once above its two faces.
  *
- * //todo: Delete forever, Empty Trash and pages wait for the routes named in
- * `TrashScreen` (hard delete, a list-trashed-pages mode and a page restore).
+ * //todo: tasks' Delete forever, Empty Trash and pages wait for the routes
+ * named in `TrashScreen` (hard delete for tasks, a list-trashed-pages mode and
+ * a page restore).
  */
 export function useTrashController() {
   const timeZone = useTimeZone();
@@ -27,6 +33,7 @@ export function useTrashController() {
   const projects = useProjects();
   const trashTask = useTrashTask();
   const trashBoard = useTrashBoard();
+  const deleteBoard = useDeleteBoardForever();
 
   const projectName = (id: string | null) =>
     id ? projects.data?.find((p) => p.id === id)?.name : undefined;
@@ -64,6 +71,16 @@ export function useTrashController() {
       });
     });
 
+  const deleteBoardForever = (id: string, title: string) =>
+    once(`board:${id}`, async () => {
+      try {
+        await deleteBoard.mutateAsync({ id });
+        notify.success(`Deleted “${title || tr.untitled_moodboard}” for good`);
+      } catch {
+        /* the hook told the person and put the board back */
+      }
+    });
+
   return {
     timeZone,
     tasks,
@@ -73,6 +90,7 @@ export function useTrashController() {
     projectName,
     restoreTask,
     restoreBoard,
+    deleteBoardForever,
   };
 }
 

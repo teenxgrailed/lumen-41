@@ -10,6 +10,95 @@ Authorization: Bearer needt_...
 Content-Type: application/json
 ```
 
+## MCP (Claude Code, Claude Desktop, claude.ai, ChatGPT)
+
+Needt runs a remote MCP server (Streamable HTTP, stateless, JSON responses,
+POST only, protocol versions `2025-11-25`, `2025-06-18`, `2025-03-26`,
+`2024-11-05`). JSON-RPC batches are refused (`-32600`).
+
+| URL                             | Who uses it                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `https://mcp.needt.app/mcp`     | Canonical resource; OAuth clients (claude.ai, ChatGPT)   |
+| `https://use.needt.app/api/mcp` | Clients that send a personal `needt_…` token in a header |
+
+With a personal token:
+
+1. Settings -> Personal API -> Generate token (shown once; rotating it
+   disconnects every agent).
+2. Connect:
+
+```bash
+claude mcp add --transport http needt https://use.needt.app/api/mcp \
+  --header "Authorization: Bearer needt_REPLACE_ME"
+```
+
+Clients that only launch local processes can use the stdio bridge in `mcp/`.
+
+### Authorization
+
+A request without a usable token gets `401` with
+
+```http
+WWW-Authenticate: Bearer resource_metadata="https://mcp.needt.app/.well-known/oauth-protected-resource/mcp", scope="needt.read needt.write mail.read"
+```
+
+The metadata (RFC 9728) is served at
+`/.well-known/oauth-protected-resource` and
+`/.well-known/oauth-protected-resource/mcp` on both hosts. It names the
+resource `https://mcp.needt.app/mcp` and the authorization server
+`https://use.needt.app`.
+
+| Scope         | Allows                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `needt.read`  | Search, list and read tasks, projects, events, pages, habits                                                           |
+| `needt.write` | Create and change them, run the scheduler                                                                              |
+| `mail.read`   | Mail metadata (sender, subject, snippet, labels; never the body) in search, `needt_list`/`needt_get` with `type: mail` |
+
+A personal token carries all three and is not tied to a workspace. A call
+that needs a scope the token lacks gets `403` with
+`WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
+scope; search without `mail.read` simply leaves mail out.
+
+The same token rules apply to the `/api/connect/*` routes below: reads need
+`needt.read`, writes `needt.write`.
+
+### Workspaces
+
+Every tool takes an optional `workspaceId` argument (OAuth clients cannot
+send headers). Header clients can also send `x-workspace-id: <id>`.
+`needt_whoami` lists the person's workspaces. Without either, calls act in
+the personal workspace — or, for an OAuth grant, in the workspace chosen at
+consent; an OAuth grant cannot act in any other.
+
+### Tools
+
+Every tool carries `readOnlyHint` and `destructiveHint` annotations.
+
+| Tool                | Scope                                          | What it does                                                                                         |
+| ------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `needt_whoami`      | —                                              | The person, token kind, scopes, current workspace and all workspaces                                 |
+| `needt_search`      | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                      |
+| `needt_list`        | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
+| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                         |
+| `needt_create_task` | `needt.write`                                  | `POST /api/connect/tasks`                                                                            |
+| `needt_schedule`    | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
+| `needt_reschedule`  | `needt.write`                                  | `POST /api/connect/reschedule`                                                                       |
+| `needt_control`     | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+
+Write tools run the connector routes in-process with the caller's own token,
+so auth, workspace scoping and confirmation rules are the routes' own.
+
+### Limits
+
+| Limit                   | Per minute |
+| ----------------------- | ---------- |
+| Every call, per person  | 120        |
+| Write tools, per person | 30         |
+| Every call, per IP      | 600        |
+
+The per-IP limit is generous because hosted clients share a few egress
+addresses. Over a limit the answer is `429` with `Retry-After`.
+
 ## Create Task
 
 ```bash
@@ -89,13 +178,13 @@ curl -X POST http://localhost:3000/api/connect/reschedule \
 
 ## Imports
 
-Bring projects and tasks in from another tool. Todoist only for now. The
+Bring projects, tasks and pages in from another tool: Todoist and Notion. The
 whole surface is behind the `imports` feature flag: while it is off for you,
 `GET` answers `{"enabled": false, "sources": {}, "runs": []}` and every other
 route answers `404 IMPORTS_DISABLED`.
 
 ```http
-GET  /api/connect/imports              # flag state, configured sources, last 5 runs
+GET  /api/connect/imports              # flag state, configured sources, last 5 runs of each
 POST /api/connect/imports              # start
 GET  /api/connect/imports/:id          # status, progress, warnings
 POST /api/connect/imports/:id/cancel   # stop a queued or running run
@@ -105,7 +194,9 @@ The same routes exist under `/api/imports` for the signed-in session (the
 Settings screen uses those).
 
 Start with a Todoist personal API token (Todoist -> Settings ->
-Integrations -> Developer); the run is queued at once:
+Integrations -> Developer) or a Notion internal integration token (the pages
+shared with that integration are what gets imported); the run is queued at
+once:
 
 ```bash
 curl -X POST http://localhost:3000/api/connect/imports \
@@ -115,12 +206,15 @@ curl -X POST http://localhost:3000/api/connect/imports \
 ```
 
 `202 {"run": {...}}`. Without `token` the answer is
-`{"authorizeUrl": "https://.../api/imports/todoist/authorize?workspaceId=..."}`:
-open it in a browser where you are signed in to Needt to go through Todoist's
-consent screen (read-only scope `data:read`); the run starts when Todoist
-sends you back. That path needs `TODOIST_CLIENT_ID` / `TODOIST_CLIENT_SECRET`
-on the server, else `503 NOT_CONFIGURED`. One run per source at a time:
-another start while one is queued or running is `409 IMPORT_IN_PROGRESS`.
+`{"authorizeUrl": "https://.../api/imports/<source>/authorize?workspaceId=..."}`:
+open it in a browser where you are signed in to Needt to go through the
+source's consent screen (Todoist: read-only scope `data:read`; Notion: its own
+page picker, where you choose which pages and databases are shared); the run
+starts when the source sends you back. That path needs `TODOIST_CLIENT_ID` /
+`TODOIST_CLIENT_SECRET` (or `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`) on the
+server, else `503 NOT_CONFIGURED`; `GET` says which sources are configured. One
+run per source at a time: another start while one is queued or running is
+`409 IMPORT_IN_PROGRESS`.
 
 A run:
 
@@ -147,11 +241,12 @@ A run:
 
 `status` is `queued`, `running`, `done`, `failed` or `cancelled`. A failed
 run says why in its last warning (`todoist_unauthorized`,
-`todoist_rate_limited`, `todoist_unavailable`, `worker_unavailable`,
-`worker_lost`, `import_failed`). `worker_lost` means the background worker
+`todoist_rate_limited`, `todoist_unavailable`, `notion_unauthorized`,
+`notion_rate_limited`, `notion_unavailable`, `notion_forbidden`,
+`worker_unavailable`, `worker_lost`, `import_failed`). `worker_lost` means the background worker
 went away mid-run: a run still queued after 2 hours, or running with no
 progress for 30 minutes, is failed by a sweep every 10 minutes. A run of
-another user is `404`. The Todoist token is kept encrypted on the run only
+another user is `404`. The source token is kept encrypted on the run only
 while it is queued or running and is erased when it ends; it is never
 returned.
 
@@ -183,6 +278,49 @@ priority, project, stage; tags are only added) and never duplicates them.
 Rows are matched within the workspace the run imports into: importing into
 another workspace makes fresh rows there and leaves the first ones as they
 were.
+
+### Notion
+
+Notion shows its own page picker during the consent step: you choose the pages
+and databases to share, and only those (with everything under them) are
+imported. The run reads them through Notion's API (version `2026-03-11`,
+paced to 3 requests a second, waiting out `Retry-After` when Notion limits
+it). Pages come in as private pages of the importing person, so importing into
+a shared workspace shares nothing until you choose to.
+
+| Notion                                                                                                             | Needt                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Page                                                                                                               | Page, under its parent; a page whose parent was not shared becomes a root                                                                                                                                                |
+| Icon (emoji), cover                                                                                                | Page icon, cover (files are downloaded; other icons are left out and counted)                                                                                                                                            |
+| Paragraphs, headings, lists, to-dos, quotes, code                                                                  | The same blocks; nested lists keep their nesting                                                                                                                                                                         |
+| Callout, toggle                                                                                                    | Callout and toggle blocks (a toggle's children follow it as ordinary blocks)                                                                                                                                             |
+| Columns, synced blocks                                                                                             | The children in reading order (a synced block no longer syncs; a note says so)                                                                                                                                           |
+| Table                                                                                                              | Table (rich text only)                                                                                                                                                                                                   |
+| Child page, database reference, page mention                                                                       | A link to the imported page; to one that was not imported, a Notion link and a note                                                                                                                                      |
+| Image, file, PDF, audio, video                                                                                     | Image / file block; Notion-hosted files are downloaded the moment they are fetched (they expire after about an hour), up to 10 MB each and 200 MB a run; over that, or failing, the Notion link stays and a note says so |
+| Bookmark, embed, link preview                                                                                      | Bookmark / link block with the real address                                                                                                                                                                              |
+| Equation                                                                                                           | Code (`latex`), with a note                                                                                                                                                                                              |
+| Database                                                                                                           | A page holding a database with a Table view; each row is a page with its values, and its body                                                                                                                            |
+| Title, text, number, select, status, multi-select, date, checkbox, URL, email, phone, files, created / edited time | Title, text, number, select, select, multi-select, date, checkbox, URL, email, phone, files, date                                                                                                                        |
+| People, relation, rollup, formula, created by, edited by, unique ID                                                | Text: a snapshot of what Notion showed (names, titles of related pages, the computed value); one note per database names the kinds kept as text                                                                          |
+
+Only addresses Needt opens are kept: `http`, `https`, `mailto` and Needt page
+paths. A link, bookmark, file, image or cover with any other address
+(`javascript:`, `data:` and the like) comes in as plain text and is counted as
+`link_unsafe`. Files are downloaded only from Notion's own hosts, a redirect
+to any other host stops the download, and a file keeps its type only when it
+is a common image, PDF, audio, video, text or CSV type; anything else
+(including SVG and HTML) is stored as an opaque download.
+
+Skipped: comments, views, live formulas, buttons, verification, templates,
+page permissions, the source of a synced block, and turning databases into
+tasks. A second run updates the pages whose last edit in Notion moved and skips
+the rest; a page deleted in Notion is left alone in Needt. Notes (`warnings`)
+include `truncated` (Notion returned part of a very large page),
+`unknown_blocks`, `unsupported_block`, `link_unresolved`, `link_unsafe`,
+`equation`,
+`synced_block`, `asset_oversize`, `asset_budget`, `asset_failed`,
+`properties_flattened`, `database_truncated` and `database_rows_failed`.
 
 ## Operations
 
@@ -361,7 +499,8 @@ Fields (anything else in the body is a `400`):
 
 `data:` and `javascript:` addresses are refused: the item stores an address,
 not the file. A path on this site may not contain `\`, must stay on this site
-once normalised, and may not point under `/api/`. `PATCH` takes any of the
+once normalised, and may not point under `/api/`, except an `image`'s own
+uploaded picture (`/api/moodboards/:id/assets/:assetId`, of this board). `PATCH` takes any of the
 fields above except `kind`; `null` clears one, except the field the item's kind
 requires (`url` on `image`/`link`, `color` on `color`, `text` on `note`), which
 is a `400`.
@@ -371,6 +510,59 @@ board answers `409 {"error":"Moodboard is full","limit":500}`; the list
 returns at most 500. Responses carry `{ "item": {...} }` (list: `{ "items": [...] }`)
 with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
 `DELETE` answers `204`.
+
+### Reorder, pictures, sorting, sharing
+
+```http
+PATCH  /api/moodboards/:id/items          { "order": ["itemId", ...] }
+POST   /api/moodboards/:id/items/upload   multipart: file, title?, ratio?, position?
+GET    /api/moodboards/:id/assets/:assetId
+GET    /api/moodboards?sort=updated|created|name&dir=asc|desc
+DELETE /api/moodboards/:id?permanent=true
+PUT    /api/moodboards/:id/permissions    { "email": "...", "role": "VIEWER|EDITOR" }
+DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
+```
+
+- **Reorder** needs an editor. The listed references take, in that order, the
+  places the listed ones held (the rest stay put) and the wall is renumbered
+  1..n; the answer is the wall in its new order. An id that is not on the board
+  is `404` and nothing moves; a repeated id, an empty list or more than 500 ids
+  is `400`.
+- **Upload** takes a JPEG, PNG, WebP or GIF up to 1.5 MB (the type is read from
+  the bytes: `415` otherwise, `413` over the size). The picture and its `image`
+  item are written together (`201 { "item" }`). The item counts toward the
+  500; the board page shrinks pictures to a JPEG of at most 900 px first.
+  A workspace also holds at most 200 MB of pictures in all its boards, the same
+  on every plan: past that an upload is `413` with "Your workspace's moodboard
+  pictures are full (200 MB). Remove some pictures to add more." Pictures
+  nothing refers to any more are freed an hour after they were added (when a
+  tile is removed, the picture of that tile stays for that hour so Undo works).
+  A picture is served with `Cache-Control: private, max-age=300`, only while a
+  tile on its board refers to it.
+- **Links** are read server-side when created without `thumbnailUrl`: the
+  page's title, site name and picture address replace what was sent. Only
+  `https` pages on the default port, never a private, loopback or link-local
+  address (also after redirects), at most 1 MB and 4 seconds. Anything that
+  fails leaves the link as sent. Each person is read at most 30 times in 10
+  minutes; over that, the link is saved as sent, without an error.
+- **List** order is the server's; `name` ignores case. Any change to a board's
+  references, people or title moves its `updatedAt` ("Date updated").
+- **Delete forever** only works for a board already in Trash (`409` otherwise)
+  and only for the board's creator or a workspace owner; someone who was only
+  given full access on the board is refused (`403`).
+- **Permissions**: reading who is on a board is open to anyone who can see it;
+  giving, changing or removing a role needs full access, and an invite reaches
+  people already in the workspace (`403 WORKSPACE_MEMBER_REQUIRED` otherwise;
+  nobody is emailed). Anyone may remove their own access (Leave board).
+- **Old canvas**: `GET …/items` also returns, after the board's own items,
+  what the old canvas stored as read-only items (`fromCanvas: true`, ids that
+  start with `canvas:`) and `canvasSkipped`, the canvas elements with no grid
+  form.
+- **Anyone with the link**: `PATCH /api/moodboards/:id { "linkShare": true }`
+  (full access) opens a read-only page at `/b/:id/:token` (the token is
+  `shareToken` on `GET /api/moodboards/:id`, for full access) and
+  `GET /api/public/moodboards/:id/:token`. Turning it off, Trash or a wrong
+  token answer `404`.
 
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.

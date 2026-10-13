@@ -14,6 +14,16 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
+  // The application is private; only the landing on needt.app is indexable.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
+
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -56,6 +66,15 @@ const nextConfig = {
   // font ships under a new URL. That makes a year-long immutable cache safe.
   // Scoped to /fonts/ds/ because the other files under /fonts/ are not
   // content-addressed and would be served stale after a change.
+  // Documents live at /pages; /docs (the name people and old links use) was a
+  // 404. Temporary (307), so /docs stays free for public API docs later.
+  async redirects() {
+    return [
+      { source: "/docs", destination: "/pages", permanent: false },
+      { source: "/docs/:id", destination: "/pages/:id", permanent: false },
+    ];
+  },
+
   async headers() {
     return [
       {

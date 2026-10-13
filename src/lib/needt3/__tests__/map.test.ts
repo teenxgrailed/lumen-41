@@ -8,6 +8,7 @@ import {
   type ApiTask,
   type V3TaskPatch,
   boardFromApi,
+  docFromApi,
   eventFromApi,
   eventPatchToApi,
   eventSourceFromFeedType,
@@ -314,6 +315,32 @@ describe("project, habit, event, mail and board mapping", () => {
       linkShare: false,
       projectId: null,
       trashedAt: null,
+      itemCount: null,
+      preview: [],
+    });
+  });
+
+  it("boards carry the list's count and first references, dropping unknown kinds", () => {
+    const b = boardFromApi({
+      id: "b",
+      title: "Moods",
+      itemCount: 8,
+      preview: [
+        { id: "1", kind: "image", url: "https://x.test/a.jpg" },
+        { id: "2", kind: "color", color: "#111111" },
+        { id: "3", kind: "sticker" },
+        { id: "4", kind: "note", text: "hello" },
+      ],
+    });
+    expect(b.itemCount).toBe(8);
+    expect(b.preview?.map((p) => p.id)).toEqual(["1", "2", "4"]);
+    expect(b.preview?.[0]).toEqual({
+      id: "1",
+      kind: "image",
+      url: "https://x.test/a.jpg",
+      color: null,
+      text: null,
+      thumbnailUrl: null,
     });
   });
 });
@@ -344,5 +371,16 @@ describe("api fields", () => {
     expect(trashedAtFrom(undefined)).toBeUndefined();
     expect(trashedAtFrom(false)).toBeNull();
     expect(trashedAtFrom(true)).toBeInstanceOf(Date);
+  });
+});
+
+describe("docFromApi: database pages", () => {
+  it("marks a page that is a database and no other", () => {
+    const base = { id: "p", title: "T" };
+    expect(docFromApi({ ...base, database: { id: "d" } }).isDatabase).toBe(
+      true
+    );
+    expect(docFromApi({ ...base, database: null }).isDatabase).toBeUndefined();
+    expect(docFromApi(base).isDatabase).toBeUndefined();
   });
 });

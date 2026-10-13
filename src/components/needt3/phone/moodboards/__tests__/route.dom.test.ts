@@ -29,7 +29,10 @@ const mockUpdate = jest.fn();
 const mockTrash = jest.fn();
 const mockAdd = jest.fn();
 const mockRemove = jest.fn();
+const mockSaveItem = jest.fn();
+const mockReorder = jest.fn();
 const mockRetry = jest.fn();
+const mockSorts: unknown[] = [];
 let mockItemsQuery: Record<string, unknown> = {};
 const mockSnack = jest.fn();
 const mockPush = jest.fn();
@@ -49,12 +52,18 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 jest.mock("@/lib/needt3/hooks/boards", () => ({
-  useBoards: () => query(mockBoards),
+  useBoards: (sort?: unknown) => {
+    mockSorts.push(sort);
+    return query(mockBoards);
+  },
   useCreateBoard: () => ({ mutateAsync: mockCreate }),
   useUpdateBoard: () => ({ mutateAsync: mockUpdate }),
   useTrashBoard: () => ({ mutateAsync: mockTrash }),
   useAddBoardItem: () => ({ mutateAsync: mockAdd }),
   useRemoveBoardItem: () => ({ mutateAsync: mockRemove }),
+  useUpdateBoardItem: () => ({ mutateAsync: mockSaveItem }),
+  useReorderBoardItems: () => ({ mutateAsync: mockReorder }),
+  boardItemsKey: (id: string) => ["v3", "board", id, "items"],
   useBoardItems: () => mockItemsQuery,
   useBoard: () =>
     query(
@@ -63,21 +72,40 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
         : undefined
     ),
 }));
+jest.mock("@/lib/needt3/hooks/board-share", () => ({
+  useSetBoardGrant: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useBoardAccess: () =>
+    query({
+      creatorId: "u0",
+      creator: { name: "Owner", email: "o@x.io", image: null },
+      linkShare: false,
+      myRole: mockRole,
+      grants: [],
+      candidates: [],
+    }),
+}));
+jest.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { id: "u1", name: "Me" } } }),
+}));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => query({ kind: mockPlanKind }),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
+  // the desktop grid's dismissable upsell: no settings loaded, so none shows
+  useSettings: () => query(undefined),
+  useSetPref: () => jest.fn(),
 }));
 jest.mock("../../overlays/snack", () => ({
   snack: (...a: unknown[]) => mockSnack(...a),
 }));
 const mockInfo = jest.fn();
+const mockError = jest.fn();
 jest.mock("@/lib/notifications", () => ({
   notify: {
     info: (...a: unknown[]) => mockInfo(...a),
     success: jest.fn(),
-    error: jest.fn(),
+    error: (...a: unknown[]) => mockError(...a),
   },
 }));
 
@@ -138,13 +166,7 @@ const mount = (ui: "phone" | "desktop", el: ReturnType<typeof h>) =>
   );
 const list = (ui: "phone" | "desktop") => mount(ui, h(MoodboardsRoute));
 const page = (ui: "phone" | "desktop", id = "b1") =>
-  mount(
-    ui,
-    h(MoodboardRoute, {
-      id,
-      workspace: h("div", { "data-workspace": "" }),
-    })
-  );
+  mount(ui, h(MoodboardRoute, { id }));
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel);
 const doc = <T extends Element>(sel: string) => document.querySelector<T>(sel);
 const flush = () => act(async () => void (await Promise.resolve()));
@@ -194,8 +216,11 @@ beforeEach(() => {
     mockSnack,
     mockPush,
     mockInfo,
+    mockError,
     mockAdd,
     mockRemove,
+    mockSaveItem,
+    mockReorder,
     mockRetry,
   ].forEach((m) => m.mockReset());
   mockBoards = [];
@@ -243,6 +268,24 @@ describe("the boards list", () => {
     expect(usePhoneOverlays.getState().paywall).toBe("more than 1 moodboard");
     expect(doc("#phb-board-name")).toBeNull();
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("the ⋯ menu sorts on the server: the choice goes to the list query and flips on a second click", () => {
+    mockBoards = [board("b1", "Rooms")];
+    seed("monthly");
+    list("desktop");
+    mockSorts.length = 0;
+    click(q("[data-mb-more]"));
+    const row = (label: string) =>
+      [...document.querySelectorAll<HTMLElement>("[role=menuitem]")].find((e) =>
+        e.textContent?.includes(label)
+      ) ?? null;
+    click(row("Date created"));
+    expect(mockSorts.at(-1)).toEqual({ key: "created", dir: "desc" });
+    click(row("Date created")); // the active row flips
+    expect(mockSorts.at(-1)).toEqual({ key: "created", dir: "asc" });
+    click(row("Name"));
+    expect(mockSorts.at(-1)).toEqual({ key: "name", dir: "asc" });
   });
 
   it("the face is the route's choice and the desktop screen is untouched", () => {
@@ -405,10 +448,16 @@ describe("one board", () => {
     expect(mockRetry).toHaveBeenCalledTimes(1);
   });
 
-  it("other widths keep the existing workspace", () => {
+  it("other widths get the desktop board page, not the phone's", () => {
+    mockBoards = [board("b1", "Rooms")];
+    mockItemsQuery = query([item("i1")]);
     page("desktop");
-    expect(q("[data-workspace]")).not.toBeNull();
+    expect(q('[data-v3-screen="moodboard"]')).not.toBeNull();
     expect(q("[data-phb-page]")).toBeNull();
+    expect(q('[data-id="i1"]')).not.toBeNull();
+    page("phone");
+    expect(q('[data-v3-screen="moodboard"]')).toBeNull();
+    expect(q("[data-phb-page]")).not.toBeNull();
   });
 
   it("a board that is gone says so and goes back", () => {
@@ -419,6 +468,7 @@ describe("one board", () => {
   });
 
   it("rename writes the new title; the same words write nothing", async () => {
+    mockRole = "FULL_ACCESS";
     mockUpdate.mockResolvedValue({
       result: board("b1", "Kitchen"),
       undo: jest.fn(),
@@ -450,6 +500,7 @@ describe("one board", () => {
 
   it("delete moves the board to Trash with Undo, and leaves the page", async () => {
     const undo = jest.fn();
+    mockRole = "FULL_ACCESS";
     mockTrash.mockResolvedValue({ result: undefined, undo });
     page("phone");
     click(q("[data-phb-more]"));
@@ -461,6 +512,7 @@ describe("one board", () => {
   });
 
   it("two taps on Delete trash the board once, with one snack", async () => {
+    mockRole = "FULL_ACCESS";
     let resolve: (v: unknown) => void = () => undefined;
     mockTrash.mockReturnValue(
       new Promise((r) => {
@@ -492,7 +544,8 @@ describe("one board", () => {
       expect(q("[data-phb-more]")).not.toBeNull();
       click(q("[data-phb-more]"));
       expect(doc('[data-phb-act="rename"]')).not.toBeNull();
-      expect(doc('[data-phb-act="delete"]')).not.toBeNull();
+      // Trash needs full access on the server, so only that role is offered it.
+      expect(!!doc('[data-phb-act="delete"]')).toBe(role === "FULL_ACCESS");
       click(q('[data-phb-item="i1"]'));
       expect(doc("[data-phb-item-remove]")).not.toBeNull();
     }
@@ -504,7 +557,11 @@ describe("one board", () => {
     page("phone");
     expect(host.querySelectorAll("[data-phb-item]")).toHaveLength(1);
     expect(q("[data-phb-add]")).toBeNull();
-    expect(q("[data-phb-more]")).toBeNull();
+    // ⋯ is there for People, and offers nothing that writes
+    click(q("[data-phb-more]"));
+    expect(doc('[data-phb-act="share"]')).not.toBeNull();
+    expect(doc('[data-phb-act="rename"]')).toBeNull();
+    expect(doc('[data-phb-act="delete"]')).toBeNull();
     click(q('[data-phb-item="i1"]'));
     expect(doc("[data-phb-detail]")).not.toBeNull();
     expect(doc("[data-phb-item-remove]")).toBeNull();
@@ -522,10 +579,13 @@ describe("one board", () => {
     mockRole = undefined;
     page("phone");
     expect(q("[data-phb-add]")).toBeNull();
-    expect(q("[data-phb-more]")).toBeNull();
+    click(q("[data-phb-more]"));
+    expect(doc('[data-phb-act="rename"]')).toBeNull();
+    expect(doc('[data-phb-act="delete"]')).toBeNull();
   });
 
   it("a failed delete stays on the board", async () => {
+    mockRole = "FULL_ACCESS";
     mockTrash.mockRejectedValue(new Error("403"));
     page("phone");
     click(q("[data-phb-more]"));
@@ -573,7 +633,8 @@ describe("a board's references", () => {
     expect(mockAdd).toHaveBeenCalledTimes(1);
     expect(mockAdd).toHaveBeenCalledWith({
       boardId: "b1",
-      draft: { kind: "note", text: "Oak, matte", ratio: 0.7 },
+      // new references go to the front of the wall
+      draft: { kind: "note", text: "Oak, matte", ratio: 0.7, position: 0 },
     });
     const undo = jest.fn();
     await act(async () => {
@@ -598,13 +659,29 @@ describe("a board's references", () => {
     expect(area()?.value).toBe("Oak");
   });
 
+  it("a refused picture (413) says why, in the server's words, and keeps the sheet", async () => {
+    const why = "Your workspace's moodboard pictures are full (200 MB).";
+    mockAdd.mockRejectedValue(new ApiError(413, why));
+    page("phone");
+    openNote();
+    typeArea(area()!, "Oak");
+    click(doc("[data-phb-add-save]"));
+    await flush();
+    await flush();
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError).toHaveBeenCalledWith(why);
+    expect(mockInfo).not.toHaveBeenCalled();
+    expect(mockSnack).not.toHaveBeenCalled();
+    expect(area()?.value).toBe("Oak");
+  });
+
   it("a half-typed note survives crossing 700 px, and one save is one write", async () => {
     mockAdd.mockResolvedValue({ result: item("n1"), undo: jest.fn() });
     page("phone");
     openNote();
     typeArea(area()!, "Oak");
     page("desktop");
-    expect(q("[data-workspace]")).not.toBeNull();
+    expect(q('[data-v3-screen="moodboard"]')).not.toBeNull();
     page("phone");
     expect(area()?.value).toBe("Oak");
     expect(mockAdd).not.toHaveBeenCalled();
@@ -658,6 +735,7 @@ describe("a board's references", () => {
         title: "Are.na",
         source: { name: "Are.na", domain: "are.na" },
         ratio: 0.75,
+        position: 0,
       },
     });
   });
@@ -677,6 +755,7 @@ describe("a board's references", () => {
         color: "#C2410C",
         colorName: "Custom",
         ratio: 0.8,
+        position: 0,
       },
     });
   });

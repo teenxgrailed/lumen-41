@@ -190,6 +190,7 @@ model User {
   taskAttachments        TaskAttachment[]
   pageViews              PageView[]
   shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
+  moodboardAssets        MoodboardAsset[]
   notifications          Notification[]
   accessLinks            AccessLink[]
   importRuns             ImportRun[]
@@ -1793,11 +1794,14 @@ model Moodboard {
   projectId          String?
   project            Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   linkShare          Boolean                      @default(false)
+  /// Mixed into the public link's token; bumped when sharing is turned off, so an old address never comes back.
+  linkTokenVersion   Int                          @default(0)
   pinterestBoardId   String?
   pinterestStatus    String?
   pinterestSyncedAt  DateTime?
   trashedAt          DateTime?
   items              MoodboardItem[]
+  assets             MoodboardAsset[]
 
   @@index([workspaceId, archivedAt])
   @@index([createdById])
@@ -3095,6 +3099,25 @@ model MoodboardItem {
   @@index([moodboardId, position])
 }
 
+/// A picture uploaded to a moodboard's grid. The bytes live in the row (as
+/// PageAsset does); a MoodboardItem of kind "image" points at it with
+/// /api/moodboards/<board>/assets/<id>. Deleting the board deletes them.
+model MoodboardAsset {
+  id           String    @id @default(cuid())
+  moodboardId  String
+  moodboard    Moodboard @relation(fields: [moodboardId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  originalName String
+  mimeType     String
+  size         Int
+  bytes        Bytes
+  createdAt    DateTime  @default(now())
+
+  @@index([moodboardId, createdAt])
+  @@index([userId])
+}
+
 /// A notification card that every producer writes to; ProactiveNudge stays
 /// the dedupe and delivery log.
 model Notification {
@@ -3156,6 +3179,7 @@ enum ImportEntityType {
   page
   database
   record
+  asset
 }
 
 /// One import from another tool. The source token lives here only while the

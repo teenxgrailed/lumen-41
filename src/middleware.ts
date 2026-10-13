@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { authSecret } from "@/lib/auth/auth-secret";
+import { mcpHost } from "@/lib/mcp-config";
 import { publicAppUrl } from "@/lib/public-url";
 
 // List of public routes that don't require authentication
 const publicRoutes = [
+  "/.well-known/",
   "/setup",
   "/api/setup/check",
   "/auth/signin",
@@ -19,9 +21,11 @@ const publicRoutes = [
   "/terms",
   "/privacy",
   "/p/",
+  "/b/",
   "/style",
   "/subscription/lifetime/success",
   "/subscription/lifetime/setup-password",
+  "/robots.txt",
 ];
 
 // Routes that only admins can access
@@ -56,8 +60,47 @@ function isPublicRoute(pathname: string): boolean {
 /**
  * Middleware for handling authentication and authorization
  */
+function firstHost(value: string | null): string | null {
+  return value?.split(",")[0].trim().toLowerCase() || null;
+}
+
+/**
+ * Whether a request is addressed to the MCP host. Either header naming it is
+ * enough: a client-supplied X-Forwarded-Host must never pull app pages or
+ * cookies onto mcp.needt.app (it can only make a request *more* restricted).
+ */
+function isMcpHostRequest(request: NextRequest): boolean {
+  const host = mcpHost();
+  return (
+    firstHost(request.headers.get("host") ?? request.nextUrl.host) === host ||
+    firstHost(request.headers.get("x-forwarded-host")) === host
+  );
+}
+
+const MCP_METADATA_PATHS = new Set([
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/oauth-protected-resource/mcp",
+]);
+
+/**
+ * `mcp.needt.app` serves the MCP endpoint and its metadata and nothing else:
+ * no app pages, no session cookies, no sign-in redirects.
+ */
+function mcpHostResponse(request: NextRequest): NextResponse {
+  const { pathname, search } = request.nextUrl;
+  if (pathname === "/mcp") {
+    return NextResponse.rewrite(new URL(`/api/mcp${search}`, request.url));
+  }
+  if (MCP_METADATA_PATHS.has(pathname)) return NextResponse.next();
+  return NextResponse.json({ error: "not_found" }, { status: 404 });
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isMcpHostRequest(request)) {
+    return mcpHostResponse(request);
+  }
 
   // Allow static files to bypass authentication
   const hasStaticExtension = staticFileExtensions.some((ext) =>

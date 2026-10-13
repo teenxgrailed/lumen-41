@@ -254,3 +254,41 @@ describe("labels", () => {
     expect(wkMins(20)).toBe("20 min");
   });
 });
+
+describe("Today tab: Overdue, then a Today group (prototype work.jsx)", () => {
+  it("renders today's due and scheduled tasks under Today, timed ones by time", () => {
+    const tasks = [
+      t("late", { dueDate: "2026-08-31" }),
+      t("noon", { scheduledStart: `${TODAY}T12:00` }),
+      t("due", { dueDate: TODAY }),
+      t("nine", { dueDate: TODAY, scheduledStart: `${TODAY}T09:00` }),
+      // block yesterday, due today: today's, with no hour
+      t("slid", { dueDate: TODAY, scheduledStart: "2026-08-31T19:00" }),
+      t("tomorrow", { dueDate: "2026-09-02" }),
+    ];
+    const m = workModel({ tasks, projects: [], today: TODAY, tab: "today" });
+    expect(m.sections.map((s) => [s.key, s.tasks.map((x) => x.id)])).toEqual([
+      ["overdue", ["late"]],
+      ["today", ["nine", "noon", "due", "slid"]],
+    ]);
+    expect(m.counts.today).toBe(5);
+  });
+
+  it("a stale block with no due date is neither overdue nor today: Inbox", () => {
+    const tasks = [t("stale", { scheduledStart: "2026-08-31T21:00" })];
+    const today = workModel({
+      tasks,
+      projects: [],
+      today: TODAY,
+      tab: "today",
+    });
+    expect(today.sections).toEqual([]);
+    const inbox = workModel({
+      tasks,
+      projects: [],
+      today: TODAY,
+      tab: "inbox",
+    });
+    expect(inbox.sections[0].tasks.map((x) => x.id)).toEqual(["stale"]);
+  });
+});

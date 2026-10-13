@@ -71,6 +71,15 @@ TODOIST_CLIENT_SECRET=""
 
 Register an app at https://developer.todoist.com/appconsole.html with the OAuth redirect URL `<NEXTAUTH_URL>/api/imports/todoist/callback`. Without these values Settings -> Data shows the Todoist import as not set up, and `POST /api/imports` answers `503 NOT_CONFIGURED` (a Todoist personal API token passed as `token` still works). The import is also behind the `imports` feature flag, off unless a flag row turns it on.
 
+## Notion Import (optional)
+
+```bash
+NOTION_CLIENT_ID=""
+NOTION_CLIENT_SECRET=""
+```
+
+Create a public integration at https://www.notion.so/profile/integrations (Developer portal -> Connections -> New connection, type Public) with the OAuth redirect URI `<NEXTAUTH_URL>/api/imports/notion/callback` (production: `https://use.needt.app/api/imports/notion/callback`) and the "Read content" capability. The client ID and secret are on the connection's Configuration tab. Without these values Settings -> Data shows the Notion import as not set up, and `POST /api/imports` answers `503 NOT_CONFIGURED` (a Notion internal integration token passed as `token` still works). People choose which pages and databases to share in Notion's own page picker during the consent step; only those are imported. The import is behind the same `imports` feature flag as Todoist.
+
 ## Apple / iCloud Calendar
 
 No env vars are required for Apple Calendar in the current baseline. Use the CalDAV connection form with:
@@ -183,3 +192,18 @@ runtime secrets/configuration on both web and worker. The server exposes the
 public key to authenticated clients; the private key never reaches the
 browser. Expired (`404`/`410`) subscriptions are pruned and email is used as a
 fallback. On iOS, Web Push requires Needt to be installed to the Home Screen.
+
+## Monitoring and Analytics (optional)
+
+```bash
+NEEDT_HEARTBEAT_URL=""
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=""
+```
+
+- `NEEDT_HEARTBEAT_URL` is read by the worker. When set, the worker sends a
+  `GET` to it on start and on every release-heartbeat tick, so an external
+  uptime monitor (a push/heartbeat check) notices a stopped worker. Failures
+  and timeouts (5s) are logged as warnings and never stop the worker.
+- `NEXT_PUBLIC_UMAMI_WEBSITE_ID` turns on cookieless Umami analytics from
+  `https://stats.needt.app`. Next.js inlines it during `npm run build`; in CI
+  it comes from the repository variable of the same name and may be empty.

@@ -6,7 +6,11 @@
  * type is declared here and nothing fills it yet.
  */
 import { formatInTimeZone } from "@/lib/date-utils";
-import type { BoardItemDraft, V3BoardItem } from "@/lib/needt3/hooks/boards";
+import type {
+  BoardItemDraft,
+  BoardItemPatch,
+  V3BoardItem,
+} from "@/lib/needt3/hooks/boards";
 import { proLimitFull, proLimitText } from "@/lib/needt3/paywall";
 
 import { FREE_BOARDS, boardGate } from "../../places/derive";
@@ -311,4 +315,72 @@ export function searchItems(items: readonly PhoneBoardItem[], q: string) {
 
 export function referenceCount(n: number) {
   return `${n} ${n === 1 ? "reference" : "references"}`;
+}
+
+/* ── Editing a reference (PhbItemSheet) ── */
+
+/** What the item sheet's fields hold while it is open. */
+export interface ItemForm {
+  title: string;
+  text: string;
+  colorName: string;
+  color: string;
+}
+
+export const formOf = (it: PhoneBoardItem): ItemForm => ({
+  title: it.title || "",
+  text: it.text || "",
+  colorName: it.colorName || "",
+  color: it.color || "",
+});
+
+const SIX = /^#?[0-9a-f]{6}$/i;
+
+/**
+ * The fields that changed (PhbItemSheet `close`), or null when nothing did.
+ * A note's words and a colour's hex cannot be emptied (the route refuses),
+ * so those edits are dropped rather than sent; any other caption can be
+ * cleared (null).
+ */
+export function itemPatch(
+  it: PhoneBoardItem,
+  f: ItemForm
+): BoardItemPatch | null {
+  const p: BoardItemPatch = {};
+  if (it.kind !== "note" && it.kind !== "color" && f.title !== (it.title || ""))
+    p.title = f.title.trim() || null;
+  if (f.text !== (it.text || "")) {
+    const t = f.text.trim();
+    if (it.kind === "note") {
+      if (t) p.text = t;
+    } else p.text = t || null;
+  }
+  if (it.kind === "color") {
+    if (f.colorName !== (it.colorName || ""))
+      p.colorName = f.colorName.trim() || "Colour";
+    if (SIX.test(f.color.trim())) {
+      const hex = `#${f.color.trim().replace(/^#/, "").toUpperCase()}`;
+      if (hex !== (it.color || "").toUpperCase()) p.color = hex;
+    }
+  }
+  return Object.keys(p).length ? p : null;
+}
+
+/**
+ * The one line under a board card (PhbBoardCard): "From Lena" on a board that
+ * is someone else's, else how many references it holds ("Canvas board" when
+ * the old canvas holds them and no row does).
+ */
+export function cardMeta(b: {
+  accessRole?: string | null;
+  owner?: { name: string | null; email: string | null } | null;
+  itemCount?: number | null;
+  hasCanvas?: boolean;
+}) {
+  if (b.accessRole && b.accessRole !== "FULL_ACCESS") {
+    const name = b.owner?.name || b.owner?.email?.split("@")[0];
+    if (name) return `From ${name}`;
+  }
+  if (!b.itemCount && b.hasCanvas) return "Canvas board";
+  return referenceCount(b.itemCount ?? 0);
 }

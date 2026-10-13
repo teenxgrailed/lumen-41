@@ -24,6 +24,144 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A brand-new account (credentials or OAuth) goes on to the v3 first-run
   setup; people who already use Needt go straight to the app. A
   `FeatureFlagOverride` set to false still keeps one person on the old design.
+- The pages the reset and confirmation mails open are v3 too, on desktop and
+  phone: "Set a new password" (same server rule and rate limits; a dead link
+  offers a new one) and "Confirm your email" (confirm on a press, then
+  continue to the app; an expired or used link sends a new one).
+  `/auth/reset-password` without a token opens sign-in on "Forgot your
+  password?".
+- Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
+  host serves only `/mcp` and its OAuth protected-resource metadata, which
+  the `401` challenge now points at. Tokens carry scopes (`needt.read`,
+  `needt.write`, `mail.read`; a personal token has all three) and a call
+  without the scope it needs gets `403 insufficient_scope`. The connector
+  routes read the same tokens. New `needt_whoami` tool; every tool takes an
+  optional `workspaceId` and says whether it reads or writes. Protocol
+  `2025-11-25`; JSON-RPC batches are refused. Limits: 120 calls/min and 30
+  writes/min per person, 600 calls/min per IP.
+- Claude Code, Claude Desktop and other agents connect to Needt directly at
+  `/api/mcp` with the personal access token. They can search, list and read
+  tasks, projects, calendars, events, pages, habits and mail, and create and
+  change tasks, projects and events. Settings → Personal API shows the URL
+  and the one-line `claude mcp add` command. The local stdio server is now a
+  thin bridge to the same endpoint, so it gained the restore actions it was
+  missing.
+- The application at use.needt.app asks not to be indexed: `/robots.txt`
+  disallows everything and is readable without signing in, and every response
+  carries `X-Robots-Tag: noindex, nofollow`. The worker can ping an external
+  uptime monitor (`NEEDT_HEARTBEAT_URL`), and cookieless Umami analytics load
+  when `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is set at build time.
+- Moodboards (design v3) get the grid logic of the design on desktop and phone.
+  A board is a grid of pictures, links, colours and notes: Add (Upload images,
+  drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
+  opened on the side with a note that saves itself, drag to reorder (hold and
+  drag on the phone), "View as guest", Share with View / Edit by email,
+  "Anyone with the link" (a read-only page at `/b/<id>/<token>`; turning it off retires that address for good) and Leave
+  board. Pictures are shrunk to a JPEG of at most 900 px (1.5 MB at most) before
+  upload and stored with the board, with a 200 MB picture total per workspace on
+  every plan ("Your workspace's moodboard pictures are full" when it is reached); a pasted link is read server-side for its title and
+  picture (https only, nothing private is ever contacted; 30 reads per person per 10
+  minutes, then the link is saved as typed). The list sorts by
+  Name, Date created or Date updated on the server, a board's Date updated
+  moves with every change to it, Trash can Delete forever, and the Pinterest
+  row says "Coming soon". The old collaborative canvas stays on the flag-off
+  route; with the flag on, what it stored shows on the grid read-only. New API:
+  `PATCH /api/moodboards/:id/items` (reorder), `POST …/items/upload`,
+  `GET …/assets/:id`, `?sort=&dir=` on the list, `DELETE …?permanent=true`,
+  `PUT …/permissions` by email, and Leave through `DELETE …/permissions`.
+- Fixed (design_v3, opened document): the document screen now matches the
+  prototype at desktop width, light and dark. The top bar shows
+  "Documents / title" with the avatar, Insert and Share on the right, and the
+  editor's save state and Page options menu (now drawn as a v3 menu); the left
+  rail becomes the document's own panel (Contents, Find, a switcher back to the
+  places); the page keeps the sheet's measures (760 or 1080 wide, 32px bold
+  title that wraps, rule under it in the chosen separator, 16px body, to-do,
+  quote, code, table, image and callout blocks); the inspector has Insert (adds
+  a block at the cursor), Style (now with Separator Style and the PRO badge)
+  and Info (Versions, Numbers); the selection bar and the "/" menu are v3
+  surfaces; the editor's own toolbar is not drawn. The title follows the
+  breadcrumb and the rail as you type. Free users who tap a Pro style now get
+  the paywall sheet.
+- Docs: each document card in the grid now shows its page in miniature, as
+  the design does: the first blocks (headings, paragraphs, lists, to-dos,
+  quotes, callouts, code, dividers, a picture) drawn small on the page's own
+  colour. `GET /api/pages` adds a short `preview` to every live page, a list of
+  `{ type, text }` rows (at most 8 rows, 120 characters a row, 600 in all;
+  plain text, no HTML), read for the whole list with one extra query.
+  `?preview=false` leaves it out. Pages you cannot see still return nothing,
+  and the trash list has no preview. The phone's Docs cards draw it too.
+- Connections (desktop, new design): the screen now sits on the printed sky
+  like the rest of the new design: a centred hero ("Sources", a large
+  Connections title, one line, and a pill that says "Outlook needs
+  reconnecting" when something lost access), centred tabs with the connected
+  count, the Connected / All apps switch, the Mail & chat, Calendars, Work and
+  Files chips, search, and glass cards in three, two or one column. The
+  toolbar stays in view while you scroll. The phone uses the same chips and
+  sections.
+- Settings (design_v3, desktop sheet): the rail rows have their icons, the
+  person is a disc of initials, and the plan card is the printed sky with the
+  PRO badge. Appearance shows each theme as the Home screen drawn small
+  (System cut down the middle, Time on the diagonal), the nine accent
+  swatches show their own colours in the light theme again, the accent card
+  has its progress bar, and the Time card says where the sun is. Select
+  controls use the up-down chevron. About has What's new, and a paid plan's
+  line says when it renews.
+- Mailbox (desktop, design v3): the header now matches the design. It always
+  shows your accounts as chips (Gmail / Outlook, with a red dot when one needs
+  reconnecting), the tabs Needs you / All / Made into tasks plus Sent and
+  Drafts, and a New message button. Sent and Drafts are drawn but off ("Sent
+  folder isn't synced yet"): Needt does not store those folders, and mail stays
+  read-only at the provider. New message opens Gmail's or Outlook's own compose
+  window in a new tab (a menu when you have two accounts). With no account
+  connected the header no longer goes empty: Gmail and Outlook show as not
+  connected, the list says "No mail account connected" with Open Connections,
+  and New message waits for an account.
+- Templates and Shared now open on the painted-sky banner from the design
+  (kicker, big serif title, meta line and up to three of the place's own pages
+  on frosted glass) instead of a plain header. Moodboards cards show the first
+  three references as a collage (the grey glyph only for an empty board) with
+  the reference count, and Free sees "3 boards · Free includes 1 · Upgrade for
+  more" and the one "Unlimited moodboards" card. Habits shows "Last four
+  months" again (a dot a day, All or one habit) and Free reads "4 habits · Free
+  includes 3 · Upgrade for more". `GET /api/moodboards` now also sends
+  `itemCount` and `preview` (the first three references), and the new
+  `GET /api/habits/history` sends each habit's last 124 days. The painted sky no
+  longer turns to night on a light page when the old theme setting is dark.
+- Fixed (Notion import review): links, bookmarks, files, images and covers
+  keep only `http`, `https`, `mailto` and Needt page addresses (anything else,
+  such as `javascript:`, comes in as plain text with a note), and page blocks
+  draw a link or image only for such an address. Page files are served with a
+  sandbox policy and no content sniffing, and SVG is always a download. The
+  importer stores only common file types (anything else is an opaque
+  download), downloads only from Notion's own hosts including every redirect,
+  and keeps a long run alive for the sweeper.
+- Import from Notion (behind the same `imports` feature flag). Settings ->
+  Data -> Import sends you to Notion, where you pick the pages and databases
+  to share in Notion's own page picker; only those are imported, with their
+  tree, text, tables, images and files, and databases with their rows. Links
+  between imported pages keep working, a second run updates only what
+  changed, and pages Notion could only partly return, blocks Needt cannot
+  show and database properties kept as text are listed as notes. Needs
+  `NOTION_CLIENT_ID` / `NOTION_CLIENT_SECRET`; additive migration
+  `20261012120000_import_asset_entity`.
+- Fixed (design_v3): one overdue rule everywhere. A task is overdue only when
+  its due date is before today in your time zone; a passed block or a stale
+  scheduled time no longer counts, and a task due or scheduled today sits in
+  Today. Home, Tasks (desktop and phone), the sidebar badge and Move to today
+  now agree. A date-only due date no longer turns overdue a day early west of
+  UTC.
+- Fixed (design_v3): the Tasks "Today" tab draws its Today group (tasks due or
+  scheduled today, timed ones by time), not only Overdue.
+- Fixed (design_v3): the sidebar plan pill says "Lifetime" for Lifetime, as
+  Settings → Plan does.
+- Added (design_v3): "Sign out of all devices" in Settings → Account, on the
+  desktop and the phone, with a confirm.
+- `/docs` and `/docs/:id` redirect (307) to `/pages`. With design_v3 on,
+  an unknown address shows a 404 inside the app instead of the old dark page.
+- Fixed: connecting Apple / iCloud (CalDAV) now adds the account's calendars
+  and syncs them; before, the account had no calendars and the calendar stayed
+  empty. A CalDAV fetch that fails no longer archives every event of the
+  calendar, and events the server returns again come back.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

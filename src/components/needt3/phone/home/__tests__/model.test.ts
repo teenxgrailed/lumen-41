@@ -153,18 +153,18 @@ describe("taskHits", () => {
   });
 });
 
-describe("a task's day is its scheduledStart's day (the desktop Home's rule)", () => {
-  it("due today but scheduled tomorrow 09:00 is tomorrow's, not today's or Next up", () => {
+describe("one day rule (task-day): overdue = due before today", () => {
+  it("due today but scheduled tomorrow 09:00 is today's, without an hour", () => {
     const t = task("moved", {
       dueDate: TODAY,
       scheduledStart: "2026-09-03T09:00",
     });
     const v = homeView([t], TODAY);
-    expect(v.sec.day).toEqual([]);
-    expect(v.next.nu).toBeNull();
-    expect(v.parts).toEqual([]);
-    expect(v.tomorrowRows.map((x) => x.id)).toEqual(["moved"]);
-    expect(v.total).toBe(0);
+    expect(v.sec.day.map((x) => x.id)).toEqual(["moved"]);
+    expect(v.next.nu?.id).toBe("moved");
+    expect(v.tomorrowRows).toEqual([]);
+    expect(v.total).toBe(1);
+    expect(nextUpWhy(v.next, TODAY)).toBe("Due today");
   });
   it("no due date but scheduled today 15:00 is in Today, not the Inbox", () => {
     const t = task("placed", {
@@ -177,18 +177,29 @@ describe("a task's day is its scheduledStart's day (the desktop Home's rule)", (
     expect(v.total).toBe(1);
     expect(nextUpWhy(v.next, TODAY)).toBe("Today"); // placed today, not due
   });
-  it("scheduled yesterday, due later: overdue since the day it was placed", () => {
+  it("scheduled yesterday, due later: not overdue, it sits on its due day", () => {
     const t = task("slipped", {
       dueDate: "2026-09-10",
       scheduledStart: "2026-09-01T09:00",
     });
     const v = homeView([t], TODAY);
-    expect(v.sec.late.map((x) => x.id)).toEqual(["slipped"]);
-    expect(nextUpWhy(v.next, TODAY)).toBe("Overdue since 1 Sep");
+    expect(v.sec.late).toEqual([]);
+    expect(v.lateN).toBe(0);
+    expect(v.sec.day).toEqual([]);
+    expect(moveLate(v.sec.late, TODAY)).toBeNull();
   });
-  it("Move to today moves what the Home calls overdue, keeping the hour", () => {
+  it("scheduled yesterday 19:00, no due date: not overdue, back in the Inbox", () => {
+    const t = task("stale", {
+      dueDate: null,
+      scheduledStart: "2026-09-01T19:00",
+    });
+    const v = homeView([t], TODAY);
+    expect(v.lateN).toBe(0);
+    expect(v.sec.inbox.map((x) => x.id)).toEqual(["stale"]);
+  });
+  it("Move to today moves the overdue ones (due before today), keeping the hour", () => {
     const t = task("slipped", {
-      dueDate: "2026-09-10",
+      dueDate: "2026-09-01",
       scheduledStart: "2026-09-01T09:00",
       estimatedMinutes: 30,
     });
@@ -198,8 +209,9 @@ describe("a task's day is its scheduledStart's day (the desktop Home's rule)", (
     expect(r?.moves[0]).toMatchObject({
       id: "slipped",
       patch: { dueDate: TODAY, scheduledStart: `${TODAY}T09:00` },
-      before: { dueDate: "2026-09-10", scheduledStart: "2026-09-01T09:00" },
+      before: { dueDate: "2026-09-01", scheduledStart: "2026-09-01T09:00" },
     });
+    expect(nextUpWhy(v.next, TODAY)).toBe("Overdue since 1 Sep");
     expect(moveLate([], TODAY)).toBeNull();
   });
   it("the pull-down names the day it is placed on", () => {

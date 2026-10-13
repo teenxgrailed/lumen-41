@@ -10,8 +10,9 @@ import { AccountSettings } from "@/components/settings/AccountSettings";
 
 import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
-import { Avatar, initialsOf } from "../shell/Avatar";
-import { SGroup, SRow } from "./kit";
+import { initialsOf } from "../shell/Avatar";
+import { MeDisc, SGroup, SRow } from "./kit";
+import { EVERYWHERE_COPY, useSignOutEverywhere } from "./sign-out-everywhere";
 
 /**
  * Account. Name and email come from the session; sign-out clears the offline
@@ -25,6 +26,7 @@ import { SGroup, SRow } from "./kit";
 export function AccountSection() {
   const session = useSession();
   const [deleting, setDeleting] = useState(false);
+  const everywhere = useSignOutEverywhere();
   const user = session.data?.user;
   const name = user?.name || user?.email?.split("@")[0] || "Account";
 
@@ -37,12 +39,14 @@ export function AccountSection() {
     <>
       <SGroup title="Profile">
         <div className="settings-row-10">
-          <Avatar
-            initials={initialsOf(name)}
-            name={name}
-            size={56}
-            src={user?.image}
-          />
+          <span className="settings-span-6">
+            <MeDisc
+              initials={initialsOf(name)}
+              name={name}
+              size="xl"
+              src={user?.image}
+            />
+          </span>
           <div className="settings-stack-4">
             {(
               [
@@ -86,6 +90,43 @@ export function AccountSection() {
       </SGroup>
       <SGroup>
         <SRow title="Sign out" tone="link" onClick={() => void leave()} />
+        <SRow
+          title={EVERYWHERE_COPY.title}
+          desc={everywhere.armed ? EVERYWHERE_COPY.ask : EVERYWHERE_COPY.desc}
+          expanded={everywhere.armed}
+        >
+          {everywhere.armed ? (
+            <>
+              <button
+                type="button"
+                className="nx-btn nx-btn-text"
+                autoFocus
+                disabled={everywhere.busy}
+                onClick={everywhere.cancel}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="nx-btn nx-btn-danger"
+                data-settings-signout-all-confirm=""
+                disabled={everywhere.busy}
+                onClick={() => void everywhere.confirm()}
+              >
+                {everywhere.busy ? EVERYWHERE_COPY.busy : EVERYWHERE_COPY.cta}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="nx-btn nx-btn-text"
+              data-settings-signout-all=""
+              onClick={everywhere.arm}
+            >
+              {EVERYWHERE_COPY.cta}
+            </button>
+          )}
+        </SRow>
       </SGroup>
       <SGroup title="Danger zone">
         <SRow

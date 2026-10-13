@@ -112,7 +112,13 @@ export interface AuthScreenProps {
   steps?: AuthSteps;
 }
 
-function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+export function Eye({
+  shown,
+  onToggle,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+}) {
   return (
     <button
       type="button"
@@ -126,7 +132,7 @@ function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
   );
 }
 
-function Field({
+export function Field({
   value,
   onChange,
   placeholder,
@@ -252,6 +258,51 @@ function Collage() {
       >
         <PwMoodPrint width={140} height={88} />
       </span>
+    </div>
+  );
+}
+
+/** The sky, the collage, the lockup and the frosted card every auth screen
+    on the desktop sits on. The reset-link and confirm-email routes use it too. */
+export function AuthFrame({
+  variant,
+  screen,
+  below,
+  foot,
+  children,
+}: React.PropsWithChildren<{
+  variant: "a" | "c";
+  /** `data-auth-screen`: which step is drawn. */
+  screen: string;
+  /** A line straight under the card (the offline note). */
+  below?: React.ReactNode;
+  foot?: React.ReactNode;
+}>) {
+  return (
+    <div
+      className="auth-enter"
+      data-auth-screen={screen}
+      style={{ position: "fixed", inset: 0, zIndex: 950 }}
+    >
+      <PxSky variant={variant}>
+        <Collage />
+        <div className="scroll-inner auth-signin-abs">
+          <div className="auth-signin-col">
+            <NeedtLockup />
+            <GlassCard
+              className="axs-card"
+              pad={0}
+              radius={24}
+              width="100%"
+              strong
+            >
+              {children}
+            </GlassCard>
+            {below}
+            {foot}
+          </div>
+        </div>
+      </PxSky>
     </div>
   );
 }
@@ -464,31 +515,14 @@ export function AuthScreen({
     body: React.ReactNode,
     foot: React.ReactNode
   ) => (
-    <div
-      className="auth-enter"
-      data-auth-screen={screen}
-      style={{ position: "fixed", inset: 0, zIndex: 950 }}
+    <AuthFrame
+      variant={variant}
+      screen={screen}
+      below={offlineNote}
+      foot={foot}
     >
-      <PxSky variant={variant}>
-        <Collage />
-        <div className="scroll-inner auth-signin-abs">
-          <div className="auth-signin-col">
-            <NeedtLockup />
-            <GlassCard
-              className="axs-card"
-              pad={0}
-              radius={24}
-              width="100%"
-              strong
-            >
-              {body}
-            </GlassCard>
-            {offlineNote}
-            {foot}
-          </div>
-        </div>
-      </PxSky>
-    </div>
+      {body}
+    </AuthFrame>
   );
 
   if (recover) {

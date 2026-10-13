@@ -7,8 +7,11 @@ import {
   LuArrowUp,
   LuCheck,
   LuEllipsis,
+  LuLock,
   LuPlus,
 } from "react-icons/lu";
+
+import { ProLimit, ProUpsell, useIsPro } from "@/components/needt3/paywall/Pro";
 
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
@@ -20,8 +23,11 @@ import { registerCtx } from "../ctx/registry";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { PlEmpty, StScreen } from "../states/StScreen";
+import { PlCollage } from "./PlCollage";
 import { DropMenu, MenuRow } from "./PlMenu";
 import { PlaceHeader } from "./PlaceHeader";
+import { isPrivateBoard, personName } from "./board/logic";
+import { Avatars } from "./board/parts";
 import {
   BOARD_SORTS,
   type BoardSort,
@@ -31,7 +37,7 @@ import {
   boardGate,
   parseBoardSort,
   pickBoardSort,
-  sortBoards,
+  referencesLabel,
 } from "./derive";
 import type { BoardsController } from "./useBoardsController";
 
@@ -64,27 +70,24 @@ export function notifyBoardsBlocked() {
 }
 
 /**
- * Moodboards (places.jsx `MoodboardsScreen`): a grid of boards, not a canvas.
- * Create, sort, open and delete (to Trash, with Undo).
- *
- * //todo: board items. The list route sends no items, so a card cannot show
- * its collage or "n references" yet; a board's own page is the old workspace
- * at `/moodboards/[id]` on the desktop (images, links, colours, notes,
- * Pinterest, guest view, Share) and the phone board page under 700 px.
- * //todo: members avatars / "Private" lock on the card need the members list.
+ * Moodboards (places.jsx `MoodboardsScreen`, the grid of boards): create,
+ * sort (⋯ → Sort by, ordered by the server), open and delete (to Trash, with
+ * Undo). A board opens at `/moodboards/[id]` (`board/BoardPage`).
  */
 export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
-  const boards = useBoards();
-  const plan = usePlan();
   const [sort, setSortState] = useState<BoardSort>(DEFAULT_BOARD_SORT);
   useEffect(() => setSortState(readSort()), []);
+  // The server orders the list (Name, Date created, Date updated).
+  const boards = useBoards(sort);
+  const plan = usePlan();
+  const pro = useIsPro();
 
   const live = useMemo(
     () => (boards.data ?? []).filter((b) => !b.trashedAt),
     [boards.data]
   );
   const gate = boardGate(plan.data?.kind, live.length);
-  const shown = sortBoards(live, sort);
+  const shown = live;
 
   const setSort = (key: BoardSort["key"]) =>
     setSortState((cur) => {
@@ -132,9 +135,17 @@ export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
         art="stack"
         title={mb.moodboards}
         meta={
-          gate.max !== null
-            ? `${gate.used} of ${gate.max} ${gate.max === 1 ? "board" : "boards"} on Free`
-            : boardCount(live.length)
+          // Free: "3 boards · Free includes 1  Upgrade for more" (ProLimit).
+          pro ? (
+            boardCount(live.length)
+          ) : (
+            <ProLimit
+              used={live.length}
+              max={FREE_BOARDS}
+              noun="boards"
+              feature={mb.unlimited_moodboards}
+            />
+          )
         }
         add={
           <button
@@ -235,26 +246,45 @@ export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
                     open(b.id);
                 }}
               >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    height: 150,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: "var(--radius-xl)",
-                    background: "var(--fill-2)",
-                  }}
-                >
-                  <Art name="stack" size={44} />
-                </span>
+                <PlCollage items={b.preview ?? []} height={150} />
                 <span className="pl-mb-row-5">
                   <span className="pl-mb-col-4">
                     <span className="pl-link-sheet-text-2">
                       {b.title || mb.untitled_moodboard}
                     </span>
                     <span className="pl-link-sheet-row-2">
-                      {b.pinterestBoardId ? "Pinterest board" : "Moodboard"}
+                      {b.itemCount
+                        ? referencesLabel(b.itemCount)
+                        : b.hasCanvas
+                          ? "Canvas board"
+                          : b.itemCount === 0
+                            ? referencesLabel(0)
+                            : "Moodboard"}
+                      {b.pinterestBoardId ? " · Pinterest" : ""}
                     </span>
+                  </span>
+                  <span className="pl-mb-row-7">
+                    {isPrivateBoard({
+                      memberCount: b.memberCount,
+                      linkShare: b.linkShare,
+                    }) ? (
+                      <span
+                        className="mb-lock pl-mb-row-3"
+                        title="Private — only you"
+                      >
+                        <LuLock size={13} aria-label="Private" />
+                      </span>
+                    ) : (b.members?.length ?? 0) > 0 ? (
+                      <Avatars
+                        people={(b.members ?? []).map((m) => ({
+                          key: m.email ?? m.userId,
+                          name: personName(m),
+                        }))}
+                        size={20}
+                        max={3}
+                        total={b.memberCount ?? undefined}
+                      />
+                    ) : null}
                   </span>
                   <span
                     onClick={(e) => e.stopPropagation()}
@@ -294,6 +324,17 @@ export function MoodboardsScreen({ ctl }: { ctl: BoardsController }) {
           </div>
         )}
       </StScreen>
+      {/* The one soft upsell here (Free only, dismissible for good). */}
+      {live.length ? (
+        <ProUpsell
+          id="moodboards"
+          feature={mb.unlimited_moodboards}
+          title={mb.unlimited_moodboards}
+          line={mb.free_keeps_one_board_pro_adds_as_many_as_2}
+          cta={mb.try_pro_free}
+          className="pl-upsell"
+        />
+      ) : null}
     </div>
   );
 }

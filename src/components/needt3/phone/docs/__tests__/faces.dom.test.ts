@@ -63,7 +63,11 @@ interface Q {
   refetch: () => void;
 }
 let query: Q;
-jest.mock("@/lib/needt3/hooks/docs", () => ({ useDoc: () => query }));
+const syncCalls: string[] = [];
+jest.mock("@/lib/needt3/hooks/docs", () => ({
+  useDoc: () => query,
+  usePageEditSync: (id: string) => void syncCalls.push(id),
+}));
 
 let host: HTMLDivElement;
 let root: Root;
@@ -129,6 +133,15 @@ const show = (ui: "phone" | "desktop") =>
 const editor = () => host.querySelector<HTMLElement>("[data-editor]");
 
 describe("Docs faces", () => {
+  it("applies the editor's writes above the face switch, on both faces", () => {
+    syncCalls.length = 0;
+    show("desktop");
+    show("phone");
+    expect(syncCalls.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(syncCalls)).toEqual(new Set(["p9"]));
+    expect(faces()).toEqual(["doc-phone"]);
+  });
+
   it("phone on a phone, the desktop screen otherwise", () => {
     act(() =>
       root.render(h(PhoneUiProvider, { value: "phone", children: h(DocsFace) }))

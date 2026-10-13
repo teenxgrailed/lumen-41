@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  deleteMoodboardForever,
   getMoodboard,
   updateMoodboard,
 } from "@/services/moodboards/moodboard-service";
@@ -71,6 +72,21 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   if ("response" in auth) return auth.response;
   const { id } = await params;
   try {
+    // Trash → "Delete forever": ?permanent=true, only for a board in Trash.
+    if (request.nextUrl.searchParams.get("permanent") === "true") {
+      const outcome = await deleteMoodboardForever(auth, id);
+      if (outcome === "denied")
+        return NextResponse.json(
+          { error: "Moodboard access denied" },
+          { status: 403 }
+        );
+      if (outcome === "not_in_trash")
+        return NextResponse.json(
+          { error: "Move the moodboard to Trash first" },
+          { status: 409 }
+        );
+      return new NextResponse(null, { status: 204 });
+    }
     const moodboard = await updateMoodboard(auth, id, { archived: true });
     return moodboard
       ? NextResponse.json({ moodboard })

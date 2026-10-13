@@ -121,23 +121,32 @@ test.describe("clean-database first run", () => {
       });
 
       await page.goto("/auth/signin?error=OAuthAccountNotLinked");
-      const authAlert = page.locator("p[role=alert]");
-      await expect(authAlert).toContainText("method you used before");
+      /* The v3 phone face announces it in a note, not a <p>; the role is
+         what has to hold. */
+      const authAlert = page
+        .getByRole("alert")
+        .filter({ hasText: "method you used before" });
+      await expect(authAlert).toBeVisible();
       await expect(authAlert).not.toContainText("OAuthAccountNotLinked");
 
       const email = `onboarding-${viewport}-${runId}@example.com`;
       const password = "Needt-onboarding-Password1";
       createdEmails.push(email);
 
-      /* The ported sign-in has no tabs and no second password field: the
-         show/hide eye covers the typo the confirmation guarded against, and
-         the name is asked for in Settings. The switch at the bottom only
-         appears where public sign-up is allowed, which a clean database is. */
-      await page.getByRole("button", { name: "Create one" }).click();
-      await page.getByPlaceholder("you@example.com").fill(email);
-      await page.getByPlaceholder("At least 8 characters").fill(password);
-      await page.getByRole("button", { name: "Create account" }).click();
-      await expect(page).toHaveURL(/\/calendar$/, { timeout: 30_000 });
+      /* The v3 phone sign-in: no tabs and no second password field (the
+         show/hide eye covers the typo the confirmation guarded against). The
+         switch only appears where public sign-up is allowed, which a clean
+         database is. A new account goes on to first-run setup. */
+      await page.getByRole("button", { name: /Create one/ }).click();
+      await page.getByRole("textbox", { name: "Email" }).fill(email);
+      await page
+        .getByRole("textbox", { name: "Password", exact: true })
+        .fill(password);
+      await page.getByRole("button", { name: "Create the account" }).click();
+      await expect(page).toHaveURL(/\/setup$/, { timeout: 30_000 });
+      await expect(page.locator("[data-onboarding-step]").first()).toBeVisible({
+        timeout: 30_000,
+      });
 
       const user = await prisma.user.findUniqueOrThrow({
         where: { email },
@@ -149,6 +158,15 @@ test.describe("clean-database first run", () => {
       });
       expect(user.emailVerified).toBeNull();
       expect(user.autoScheduleSettings?.userId).toBe(user.id);
+
+      //todo: port the rest of this walk (empty states, email confirmation,
+      // calendar connect, first scheduled task) to the v3 screens. Until
+      // then this account is held on the old design so the walk still covers
+      // the server paths behind it; sign-up and onboarding above are v3.
+      await prisma.featureFlagOverride.create({
+        data: { flagKey: "design_v3", userId: user.id, enabled: false },
+      });
+      await page.goto("/calendar");
 
       await expect(page.getByTestId("calendar-empty-state")).toBeVisible({
         timeout: 30_000,
@@ -210,7 +228,9 @@ test.describe("clean-database first run", () => {
       await page.goto(
         `/auth/confirm-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(rawToken)}`
       );
+      // The v3 page: confirm on a press, then say so and offer the way in.
       await page.getByRole("button", { name: "Confirm email" }).click();
+      await page.getByRole("button", { name: "Continue to Needt" }).click();
       await page.waitForURL(/\/settings\?emailVerification=verified$/, {
         timeout: 30_000,
         waitUntil: "commit",

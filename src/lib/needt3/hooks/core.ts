@@ -122,11 +122,37 @@ export interface UndoableMutationOptions<V, R> {
    * the generic "could not" notice is not shown.
    */
   quiet?: (error: unknown) => boolean;
+  /**
+   * What a failed write does to the cache. "snapshot" (default) puts back what
+   * was there before the request. "refetch" does not: a snapshot taken at the
+   * start would also undo writes that succeeded in the meantime (a wall edited
+   * by several quick changes), so the scope is read again from the server.
+   */
+  rollback?: "snapshot" | "refetch";
 }
 
-/** The items route said the board is full (409). */
+/** The items route said the board is full (409 "Moodboard is full"). */
 export function isBoardFull(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409;
+  return (
+    error instanceof ApiError &&
+    error.status === 409 &&
+    error.message === "Moodboard is full"
+  );
+}
+
+/**
+ * The server refused a picture or a write with words meant for the person:
+ * too big (413), not a picture (415), the workspace's pictures are full (413),
+ * too many unused pictures or a board in Trash (409). The caller shows
+ * `error.message`.
+ */
+export function isUploadRefusal(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    (error.status === 413 ||
+      error.status === 415 ||
+      (error.status === 409 && !isBoardFull(error)))
+  );
 }
 
 /** The server refused the write because the plan does not allow it. */
@@ -162,6 +188,7 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
     inverse,
     inverseFromResult,
     quiet,
+    rollback = "snapshot",
   } = opts;
 
   const run = useCallback(
@@ -184,7 +211,9 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
           },
         };
       } catch (error) {
-        snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
+        if (rollback === "refetch")
+          keys.forEach((k) => void qc.invalidateQueries({ queryKey: k }));
+        else snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
         if (!quiet?.(error))
           notify.error(`Could not ${label}. Your change was reverted.`);
         void logger.error(
@@ -195,7 +224,17 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
         throw error;
       }
     },
-    [qc, scope, label, optimistic, request, inverse, inverseFromResult, quiet]
+    [
+      qc,
+      scope,
+      label,
+      optimistic,
+      request,
+      inverse,
+      inverseFromResult,
+      quiet,
+      rollback,
+    ]
   );
 
   return useMutation<Undoable<R>, Error, V>({ mutationFn: run });

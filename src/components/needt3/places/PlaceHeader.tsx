@@ -7,9 +7,7 @@ import { Art, type ArtName } from "../menu/Art";
 /**
  * The place's picture (or a "+" button), the title and one quiet line
  * (places.jsx `PlaceHeader`).
- * //todo: Templates and Shared open on a painted-sky banner (`PlSceneHeader`
- * + `PxSky`, scenes.jsx 1–1465); the sky engine is not ported yet, so they
- * use this plain header, which is what the prototype falls back to too.
+ * Templates and Shared open on the painted-sky banner instead (`PlSceneHeader`).
  */
 export function PlaceHeader({
   art,
@@ -19,7 +17,8 @@ export function PlaceHeader({
   add,
 }: {
   art: ArtName;
-  title: string;
+  /** A string, or a node (a board's title is editable in place). */
+  title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
   add?: ReactNode;
@@ -27,7 +26,10 @@ export function PlaceHeader({
   return (
     <header className="pl-place-header-row">
       {add ?? <Art name={art} size={30} />}
-      <h1 className="pl-place-header-text" title={title}>
+      <h1
+        className="pl-place-header-text"
+        title={typeof title === "string" ? title : undefined}
+      >
         {title}
       </h1>
       {meta ? <span className="pl-place-header-text-2">{meta}</span> : null}

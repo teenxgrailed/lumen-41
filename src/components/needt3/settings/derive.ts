@@ -4,7 +4,8 @@
  * locks, and the hour / weekday helpers the Your day rows need.
  */
 import { calendarConnectionNotice } from "@/lib/calendar-connection-status";
-import type { AccentId, ThemeChoice } from "@/lib/needt3/theme";
+import { formatShortDate, newDate } from "@/lib/date-utils";
+import type { AccentId, ThemeChoice, TimeReading } from "@/lib/needt3/theme";
 
 export type SectionId =
   | "account"
@@ -200,6 +201,25 @@ const IMPORT_NOTICES: Record<string, SettingsNotice> = {
     title: "Todoist import could not start",
     description: "Try again in a minute.",
   },
+  "notion-started": {
+    tone: "success",
+    title: "Notion import started",
+    description: "Progress shows in Data & privacy.",
+  },
+  "notion-running": {
+    tone: "success",
+    title: "A Notion import is already running",
+  },
+  "notion-denied": {
+    tone: "error",
+    title: "Notion import cancelled",
+    description: "Notion access was not granted.",
+  },
+  "notion-failed": {
+    tone: "error",
+    title: "Notion import could not start",
+    description: "Try again in a minute.",
+  },
 };
 
 /* ---------- import status ---------- */
@@ -233,6 +253,7 @@ export function importRunSummary(run: ImportRunSummaryInput): string {
         .find(
           (w) =>
             w.code.startsWith("todoist_") ||
+            w.code.startsWith("notion_") ||
             w.code.endsWith("_unavailable") ||
             w.code === "import_failed"
         );
@@ -289,6 +310,25 @@ export function planInfo(kind: string | null | undefined): PlanInfo {
     default:
       return { name: "Free", badge: "Free" };
   }
+}
+
+/**
+ * "renews 7 Oct 2027" for a paid plan whose period end is known (the
+ * prototype's plan line: "$59 / year ($4.92/mo) · renews 7 Oct 2027"); the
+ * year is left off for a date within the next 11 months, as the monthly line
+ * ("renews 7 Nov"). Empty when there is no date.
+ */
+export function renewsText(
+  periodEnd: string | null | undefined,
+  now: Date,
+  cancelAtPeriodEnd = false
+): string {
+  if (!periodEnd) return "";
+  const d = newDate(periodEnd);
+  if (Number.isNaN(d.getTime())) return "";
+  const soon = d.getTime() - now.getTime() < 330 * 86_400_000;
+  /* A subscription set to cancel does not renew: it ends on that date. */
+  return `${cancelAtPeriodEnd ? "ends" : "renews"} ${formatShortDate(d, !soon)}`;
 }
 
 /** Width of the trial bar: days left over the trial length, 0–100. */
@@ -434,4 +474,34 @@ export function accentFromPrefs(
 ) {
   const v = prefs?.accent;
   return typeof v === "string" ? v : undefined;
+}
+
+/** Local hours as "HH:MM" (Drift.jsx `fmtHour`). */
+export function fmtHour(h: number | null | undefined) {
+  if (h == null) return "—";
+  const m = Math.round(h * 60) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The Time card's live reading (Drift.jsx `line`): where the sun is and what
+ * comes next, e.g. "Now: Day · sunset 19:42 · Zürich". `icon` names the glyph
+ * the row draws beside it.
+ */
+export function timeNow(t: Pick<TimeReading, "phase" | "times" | "place">) {
+  const night = t.phase === "Night" || t.phase === "Dawn";
+  const upcoming = night
+    ? t.times.sunrise != null
+      ? `sunrise ${fmtHour(t.times.sunrise)}`
+      : "no sunrise today"
+    : t.times.sunset != null
+      ? `sunset ${fmtHour(t.times.sunset)}`
+      : "no sunset today";
+  const icon: "sunrise" | "sunset" | "sun" =
+    t.phase === "Dawn"
+      ? "sunrise"
+      : t.phase === "Dusk" || t.phase === "Night"
+        ? "sunset"
+        : "sun";
+  return { line: `Now: ${t.phase} · ${upcoming} · ${t.place.name}`, icon };
 }

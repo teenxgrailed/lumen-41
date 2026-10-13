@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { WorkspaceRole } from "@prisma/client";
-import crypto from "crypto";
 
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import {
@@ -10,15 +9,18 @@ import {
   requestedWorkspaceId,
   resolveWorkspaceAccess,
 } from "@/lib/auth/workspace-auth";
+import { bearerChallenge } from "@/lib/mcp-config";
+import type { McpScope } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
 
-export function generateConnectorToken() {
-  return `needt_${crypto.randomBytes(32).toString("base64url")}`;
-}
+import {
+  type BearerAuth,
+  authenticateBearer,
+  hasScopes,
+  insufficientScopeResponse,
+} from "./bearer";
 
-export function hashConnectorToken(token: string) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
+export { generateConnectorToken, hashConnectorToken } from "./auth-tokens";
 
 /**
  * Invalidates the user's connector token (the `needt_…` bearer external tools
@@ -40,23 +42,31 @@ export async function ensureConnectorSettings(userId: string) {
   });
 }
 
+/** The user behind an `Authorization` header, or null (any token kind). */
 export async function authenticateConnectorToken(authHeader: string | null) {
-  const [scheme, token] = authHeader?.split(" ") ?? [];
-  if (scheme !== "Bearer" || !token) {
-    return null;
-  }
-
-  const settings = await prisma.connectorSettings.findUnique({
-    where: { tokenHash: hashConnectorToken(token) },
+  const auth = await authenticateBearer({
+    headers: new Headers(authHeader ? { authorization: authHeader } : {}),
   });
-
-  return settings?.userId ?? null;
+  return auth?.userId ?? null;
 }
 
+/** The scope a workspace role needs: reading needs read, anything else write. */
+export function scopeForRole(role: WorkspaceRole): McpScope {
+  return role === WorkspaceRole.VIEWER ? "needt.read" : "needt.write";
+}
+
+/**
+ * Resolves the workspace a connector call acts in. An OAuth grant is bound to
+ * the workspace the person picked at consent: asking for another one is
+ * refused, and asking for none means that one. Otherwise the
+ * `X-Workspace-Id` header, `?workspaceId=`, or `workspaceId` (an MCP
+ * tool argument, for clients that cannot send headers) picks it.
+ */
 export async function authorizeConnectorWorkspace(
   request: NextRequest,
   userId: string,
-  requiredRole: WorkspaceRole
+  requiredRole: WorkspaceRole,
+  options: { workspaceId?: string; boundWorkspaceId?: string } = {}
 ): Promise<
   | { userId: string; workspace: WorkspaceAccess; response?: undefined }
   | { response: NextResponse; userId?: undefined; workspace?: undefined }
@@ -74,9 +84,30 @@ export async function authorizeConnectorWorkspace(
         ),
       };
     }
+    const fromRequest = requestedWorkspaceId(request);
+    const asked = options.workspaceId?.trim() || undefined;
+    if (fromRequest && asked && fromRequest !== asked) {
+      throw new WorkspaceAuthorizationError(
+        "Conflicting workspace identifiers.",
+        400,
+        "INVALID_WORKSPACE_REQUEST"
+      );
+    }
+    const wanted = asked ?? fromRequest;
+    if (
+      options.boundWorkspaceId &&
+      wanted &&
+      wanted !== options.boundWorkspaceId
+    ) {
+      throw new WorkspaceAuthorizationError(
+        "This connection is limited to another workspace.",
+        403,
+        "WORKSPACE_ACCESS_DENIED"
+      );
+    }
     const workspace = await resolveWorkspaceAccess({
       userId,
-      requestedWorkspaceId: requestedWorkspaceId(request),
+      requestedWorkspaceId: options.boundWorkspaceId ?? wanted,
       requiredRole,
     });
     return { userId, workspace };
@@ -93,17 +124,41 @@ export async function authorizeConnectorWorkspace(
   }
 }
 
+/**
+ * Authenticates a `/api/connect/*` call with any bearer kind, checks the
+ * scope its role needs, and resolves the workspace (bound for OAuth).
+ */
 export async function authenticateConnectorRequest(
   request: NextRequest,
   requiredRole: WorkspaceRole
-) {
-  const userId = await authenticateConnectorToken(
-    request.headers.get("authorization")
-  );
-  if (!userId) {
+): Promise<
+  | {
+      userId: string;
+      workspace: WorkspaceAccess;
+      bearer: BearerAuth;
+      response?: undefined;
+    }
+  | { response: NextResponse; userId?: undefined; workspace?: undefined }
+> {
+  const bearer = await authenticateBearer(request);
+  if (!bearer) {
     return {
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      response: NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: { "WWW-Authenticate": bearerChallenge() } }
+      ),
     };
   }
-  return authorizeConnectorWorkspace(request, userId, requiredRole);
+  const scope = scopeForRole(requiredRole);
+  if (!hasScopes(bearer, [scope])) {
+    return { response: insufficientScopeResponse([scope]) };
+  }
+  const auth = await authorizeConnectorWorkspace(
+    request,
+    bearer.userId,
+    requiredRole,
+    { boundWorkspaceId: bearer.workspaceId }
+  );
+  if (auth.response) return { response: auth.response };
+  return { userId: auth.userId, workspace: auth.workspace, bearer };
 }

@@ -4,16 +4,18 @@ import { useState } from "react";
 
 import { FiCheck, FiChevronRight } from "react-icons/fi";
 
+import { failedPaymentMessage } from "@/lib/creem/failed-payment";
+import { newDate } from "@/lib/date-utils";
 import {
   type CheckoutChoice,
   openBillingPortal,
   startCheckout,
 } from "@/lib/needt3/hooks/account";
-import { usePlan } from "@/lib/needt3/hooks/plan";
+import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
-import { isPro, planInfo, trialBarPct } from "./derive";
+import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
 
 const P = priceStrings();
@@ -29,6 +31,19 @@ export const PRO_FEATURES: readonly (readonly [string, string])[] = [
   ],
   ["Unlimited moodboards", "As many boards as you like, and Pinterest"],
 ];
+
+/**
+ * What to say while Creem could not collect a payment (the old billing
+ * screen's alert, word for word). Shared with the phone's Plan page.
+ */
+export function failedPaymentLine(
+  b: Pick<V3Plan, "plan" | "currentPeriodEnd">
+) {
+  return failedPaymentMessage({
+    effectivePlan: b.plan === "PRO" || b.plan === "LIFETIME" ? b.plan : "FREE",
+    currentPeriodEnd: b.currentPeriodEnd,
+  });
+}
 
 /**
  * Plan & billing. Prices, the trial length and the lifetime cap come from
@@ -52,6 +67,7 @@ export function PlanSection() {
   const info = planInfo(kind);
   const pro = isPro(kind);
   const closed = b ? !b.configured : false;
+  const paymentFailed = b?.paymentFailed ?? false;
 
   const buy = async (id: string, choice: CheckoutChoice) => {
     setBusy(id);
@@ -115,9 +131,18 @@ export function PlanSection() {
                     ? `${b?.trialDaysLeft ?? 0} days left of your trial`
                     : kind === "lifetime"
                       ? "Pro for good."
-                      : kind === "yearly"
-                        ? `${P.yearly} / year`
-                        : P.monthly + " / month"}
+                      : [
+                          kind === "yearly"
+                            ? `${P.yearly} / year (${P.yearlyPerMonth}/mo)`
+                            : `${P.monthly} / month`,
+                          renewsText(
+                            b?.currentPeriodEnd,
+                            newDate(),
+                            b?.cancelAtPeriodEnd === true
+                          ),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
               </span>
             </span>
             {kind === "lifetime" ? (
@@ -191,6 +216,16 @@ export function PlanSection() {
               billing is switched on.
             </span>
           ) : null}
+          {paymentFailed && b ? (
+            <span
+              className="base-meta"
+              role="alert"
+              data-settings-payment-failed
+              style={{ color: "var(--destructive)" }}
+            >
+              {failedPaymentLine(b)}
+            </span>
+          ) : null}
           {error ? (
             <span
               className="base-meta"
@@ -203,7 +238,7 @@ export function PlanSection() {
           {b?.canManageBilling ? (
             <span className="settings-grid-3 is-one">
               <SBtn disabled={busy === "portal"} onClick={() => void portal()}>
-                Invoices and payment
+                {paymentFailed ? "Manage billing" : "Invoices and payment"}
               </SBtn>
             </span>
           ) : null}

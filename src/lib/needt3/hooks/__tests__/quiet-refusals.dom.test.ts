@@ -11,7 +11,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
 import { useAddBoardItem } from "../boards";
-import { ApiError, isBoardFull, isUpgradeRequired } from "../core";
+import {
+  ApiError,
+  isBoardFull,
+  isUpgradeRequired,
+  isUploadRefusal,
+} from "../core";
 import { useCreateHabit } from "../habits";
 
 (
@@ -75,6 +80,17 @@ describe("the detectors", () => {
     expect(isUpgradeRequired(new Error("UPGRADE_REQUIRED"))).toBe(false);
     expect(isBoardFull(new ApiError(409, "Moodboard is full"))).toBe(true);
     expect(isBoardFull(new ApiError(403, "x"))).toBe(false);
+    // a 409 that is not "full" (a board with too many unused pictures) is not "full"
+    expect(isBoardFull(new ApiError(409, "too many unused pictures"))).toBe(
+      false
+    );
+    expect(isUploadRefusal(new ApiError(413, "big"))).toBe(true);
+    expect(isUploadRefusal(new ApiError(415, "type"))).toBe(true);
+    expect(isUploadRefusal(new ApiError(409, "too many unused pictures"))).toBe(
+      true
+    );
+    expect(isUploadRefusal(new ApiError(409, "Moodboard is full"))).toBe(false);
+    expect(isUploadRefusal(new ApiError(500, "boom"))).toBe(false);
   });
 });
 

@@ -268,3 +268,20 @@ describe("where a sign-in lands", () => {
     expect(went).toBe("/calendar");
   });
 });
+
+describe("opened from /auth/reset-password without a token", () => {
+  it("starts on Forgot your password, and Back to sign in closes it", async () => {
+    await act(async () => {
+      root.render(
+        h(V3SignInRoute, { callbackUrl: "/calendar", startRecover: true })
+      );
+    });
+    expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-back-signin]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    expect(q('[data-auth-screen="login"]')).not.toBeNull();
+  });
+});
