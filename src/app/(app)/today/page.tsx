@@ -2,6 +2,9 @@ import { HomeScreen } from "@/components/needt3/home/HomeScreen";
 import { TodayRoute } from "@/components/needt/home/TodayRoute";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("today");
 
 export const dynamic = "force-dynamic";
 

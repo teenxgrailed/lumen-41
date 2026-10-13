@@ -45,7 +45,9 @@ import { DocSwitch } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
+import { PromoCard } from "../paywall";
 import { AccountMenu } from "./AccountMenu";
+import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
 import { useShellApi } from "./ShellContext";
 import {
@@ -938,7 +940,7 @@ export function Sidebar() {
       </div>
 
       <div className="shell-sidebar-stack-2">
-        {/* //todo: Needt Pro promo strip (S1 paywall PwPromoCard) above the foot. */}
+        <PromoCard />
         <div className="sb-foot shell-sidebar-foot">
           <span
             data-drop="focus"
@@ -946,8 +948,7 @@ export function Sidebar() {
           >
             <FocusControl />
           </span>
-          {/* //todo: Import menu (Markdown, Notion, Google Docs, .ics, CSV)
-              once import.jsx is ported; only a tasks CSV route exists today. */}
+          <ImportMenu />
           <span className="shell-sidebar-row-2">
             {/* The one create button for everything. A page's own + only
                 makes that page's thing. */}
