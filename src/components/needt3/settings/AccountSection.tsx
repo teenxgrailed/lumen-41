@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 import { FiUsers } from "react-icons/fi";
 
 import { AccountSettings } from "@/components/settings/AccountSettings";
 
-import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
+import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
 import { initialsOf } from "../shell/Avatar";
 import { MeDisc, SGroup, SRow } from "./kit";
@@ -31,7 +31,8 @@ export function AccountSection() {
   const name = user?.name || user?.email?.split("@")[0] || "Account";
 
   const leave = async () => {
-    await signOutOfNeedt();
+    await clearNeedtOfflineData();
+    await signOut({ callbackUrl: "/auth/signin" });
   };
 
   return (

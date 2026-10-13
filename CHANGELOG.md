@@ -144,9 +144,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the draft placeholders. The operator's name, the EU representative, and the
   effective date live in one module, `src/lib/legal/operator.ts`. Settings
   links to all three documents.
-- Fixed: signing out from the new account menu or the new account settings
-  (desktop and phone) now sends pending offline changes and clears the
-  browser's copy of your data, like every other sign-out control.
 - Trial records whose account was deleted are removed two years after the
   trial ended.
 

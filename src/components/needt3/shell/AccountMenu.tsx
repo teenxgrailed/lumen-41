@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 import { createPortal } from "react-dom";
 import {
@@ -20,7 +20,6 @@ import {
   LuUsers,
 } from "react-icons/lu";
 
-import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { type V3PlanKind, usePlan } from "@/lib/needt3/hooks/plan";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 import { notify } from "@/lib/notifications";
@@ -370,7 +369,9 @@ export function AccountMenu() {
               <AcctRow
                 icon={<LuLogOut size={16} />}
                 label="Sign out"
-                onClick={run(() => void signOutOfNeedt())}
+                onClick={run(
+                  () => void signOut({ callbackUrl: "/auth/signin" })
+                )}
               />
             </div>,
             container

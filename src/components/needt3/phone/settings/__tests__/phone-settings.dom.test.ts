@@ -46,8 +46,7 @@ jest.mock("@/lib/auth/client-sign-out", () => ({
   signOutOfNeedt: (...a: unknown[]) => mockSignOutAll(...a),
 }));
 jest.mock("@/lib/pwa/offline-client", () => ({
-  // Sign-out goes through signOutOfNeedt, which syncs then clears here.
-  prepareNeedtSignOut: () => mockClear(),
+  clearNeedtOfflineData: () => mockClear(),
 }));
 jest.mock("@/components/settings/AccountSettings", () => ({
   AccountSettings: () =>
