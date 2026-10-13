@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The app has its own icon: the dark Needt tile in the browser tab, the
+  installed app, the home-screen touch icon and notifications, so an app tab is
+  told apart from a needt.app tab at a glance.
+- Browser tabs name the section you are in and nothing else: Home, Calendar,
+  Tasks, Docs, Mailbox, Projects, Moodboards, Habits, Templates, Shared, Trash,
+  Connections, Settings and so on. A document, moodboard or project shows its
+  own name.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

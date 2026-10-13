@@ -2,6 +2,9 @@ import { CalendarCraft } from "@/components/needt3/calendar/CalendarCraft";
 import { CalendarRoute } from "@/components/needt/calendar/CalendarRoute";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("calendar");
 
 export const dynamic = "force-dynamic";
 
