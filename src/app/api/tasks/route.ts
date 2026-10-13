@@ -247,6 +247,12 @@ export async function POST(request: NextRequest) {
     const task = await prisma.task.create({
       data: {
         ...taskData,
+        // Task.status has no database default; a caller that names none (the
+        // v3 composer, the public API) gets an open task, not a 500.
+        status:
+          typeof taskData.status === "string" && taskData.status
+            ? taskData.status
+            : TaskStatus.TODO,
         description,
         // Associate the task with the current user
         userId,

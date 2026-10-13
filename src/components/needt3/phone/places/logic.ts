@@ -13,6 +13,7 @@ import {
   chipOf,
   chipsOf,
 } from "../../connections/derive";
+import { aiSub } from "../../connections/mcp";
 import type { ConnectionsTab } from "../../connections/useConnectionsController";
 import { trashMeta } from "../../places/derive";
 
@@ -22,9 +23,10 @@ import { trashMeta } from "../../places/derive";
 export function connectionsSub(
   items: readonly CnItem[],
   tab: ConnectionsTab,
-  loaded: boolean
+  loaded: boolean,
+  aiApps = 0
 ) {
-  if (tab === "ai") return "No AI tools connected yet";
+  if (tab === "ai") return aiSub(aiApps);
   if (!loaded) return "";
   const issues = items.filter((i) => i.state === "disconnected");
   if (issues.length)
