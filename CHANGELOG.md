@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- More ways to sign in: Apple, GitHub, Sign in with ChatGPT, Discord, X and
+  LinkedIn join Google and Microsoft. The sign-in and sign-up screens (desktop
+  and phone) show Google, Apple and GitHub; "More ways to sign in" reveals the
+  rest. A provider shows only once it is configured in System Settings
+  (secrets encrypted) or the environment. A provider sign-in joins an existing
+  account only on an email the provider verified; otherwise it is refused
+  with "sign in the way you did before", and X never joins an existing
+  account. Closed registration applies to every provider. Microsoft sign-in
+  no longer asks for calendar and task access (the Outlook connection does).
+  Owner setup: `docs/operations/sign-in-providers.md`.
+
+- Design v3 for everyone: a migration turns the `design_v3` flag on at a
+  100 % rollout, so sign-in, sign-up and password recovery wear the v3
+  screens for every visitor and every signed-in person lands in the v3 app.
+  A brand-new account (credentials or OAuth) goes on to the v3 first-run
+  setup; people who already use Needt go straight to the app. A
+  `FeatureFlagOverride` set to false still keeps one person on the old design.
+- The pages the reset and confirmation mails open are v3 too, on desktop and
+  phone: "Set a new password" (same server rule and rate limits; a dead link
+  offers a new one) and "Confirm your email" (confirm on a press, then
+  continue to the app; an expired or used link sends a new one).
+  `/auth/reset-password` without a token opens sign-in on "Forgot your
+  password?".
 - Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
   host serves only `/mcp` and its OAuth protected-resource metadata, which
   the `401` challenge now points at. Tokens carry scopes (`needt.read`,

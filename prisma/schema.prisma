@@ -2402,7 +2402,23 @@ model SystemSettings {
   outlookClientId                      String?
   outlookClientSecret                  String?
   outlookTenantId                      String?
-  logLevel                             String   @default("none") // none, debug, info, warn, error
+  /// Sign-in providers (docs/operations/sign-in-providers.md). Secrets are
+  /// stored encrypted (enc:v1), like the Google and Outlook client secrets.
+  appleClientId                        String?
+  appleTeamId                          String?
+  appleKeyId                           String?
+  applePrivateKey                      String?
+  githubClientId                       String?
+  githubClientSecret                   String?
+  discordClientId                      String?
+  discordClientSecret                  String?
+  twitterClientId                      String?
+  twitterClientSecret                  String?
+  linkedinClientId                     String?
+  linkedinClientSecret                 String?
+  openaiSiwcClientId                   String?
+  openaiSiwcClientSecret               String?
+  logLevel                            String   @default("none") // none, debug, info, warn, error
   logRetention                         Json? // Retention periods per log level
   logDestination                       String   @default("db") // db, file, both
   publicSignup                         Boolean  @default(true) // Whether public signup is enabled

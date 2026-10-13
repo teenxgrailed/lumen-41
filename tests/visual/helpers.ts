@@ -2,6 +2,7 @@ import { encode } from "next-auth/jwt";
 
 import { expect } from "@playwright/test";
 
+import { DESIGN_V3 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -38,7 +39,28 @@ export async function freezeNeedtNow(page: import("@playwright/test").Page) {
   }
 }
 
-export async function signInVisualUser(page: import("@playwright/test").Page) {
+/**
+ * Since 20261012120000_design_v3_everyone every person is on the v3 frame, but
+ * most visual specs still assert the old shell. Each spec therefore names the
+ * frame it looks at; the visual user gets a per-user `design_v3` override to
+ * match (an override outranks the 100 % rollout). Default is the old shell;
+ * `NEEDT_DESIGN=v3` flips the default for a full v3 run. Specs run one file at
+ * a time (workers: 1), so the row is never contended.
+ */
+export type VisualDesign = "legacy" | "v3";
+
+async function setVisualDesign(userId: string, design: VisualDesign) {
+  await prisma.featureFlagOverride.upsert({
+    where: { flagKey_userId: { flagKey: DESIGN_V3, userId } },
+    update: { enabled: design === "v3" },
+    create: { flagKey: DESIGN_V3, userId, enabled: design === "v3" },
+  });
+}
+
+export async function signInVisualUser(
+  page: import("@playwright/test").Page,
+  options: { design?: VisualDesign } = {}
+) {
   await freezeNeedtNow(page);
   await page.addInitScript(() => {
     sessionStorage.setItem("needt-ai-companion-intro-seen", "1");
@@ -48,6 +70,10 @@ export async function signInVisualUser(page: import("@playwright/test").Page) {
     select: { id: true },
   });
   expect(user).toBeTruthy();
+  await setVisualDesign(
+    user!.id,
+    options.design ?? (process.env.NEEDT_DESIGN === "v3" ? "v3" : "legacy")
+  );
   const workspace = await prisma.workspace.findUnique({
     where: { personalOwnerId: user!.id },
     select: { id: true },

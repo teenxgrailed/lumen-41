@@ -209,3 +209,79 @@ describe("crossing 700px", () => {
     expect(location.href).toBe(START);
   });
 });
+
+const submitForm = () =>
+  act(async () => {
+    q<HTMLFormElement>("form")!.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+  });
+
+describe("where a sign-in lands", () => {
+  /* The page keeps rendering after the redirect is set (next/image reads
+     `location.href` as a base URL), so record the target and keep the
+     current address absolute. */
+  let went: string | null = null;
+  beforeEach(() => {
+    went = null;
+    Object.defineProperty(location, "href", {
+      configurable: true,
+      get: () => START,
+      set: (value: string) => {
+        went = value;
+      },
+    });
+  });
+  afterEach(() => {
+    Object.defineProperty(location, "href", {
+      configurable: true,
+      writable: true,
+      value: START,
+    });
+  });
+
+  it("a new account goes on to first-run setup (the onboarding)", async () => {
+    signup = { ok: true, body: { enabled: true } };
+    signIn.mockResolvedValue({ ok: true });
+    await mount();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-switch]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/auth/register",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(went).toBe("/setup");
+  });
+
+  it("a returning person goes where they were going, never through setup", async () => {
+    signIn.mockResolvedValue({ ok: true });
+    await mount();
+    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+    expect(went).toBe("/calendar");
+  });
+});
+
+describe("opened from /auth/reset-password without a token", () => {
+  it("starts on Forgot your password, and Back to sign in closes it", async () => {
+    await act(async () => {
+      root.render(
+        h(V3SignInRoute, { callbackUrl: "/calendar", startRecover: true })
+      );
+    });
+    expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-back-signin]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    expect(q('[data-auth-screen="login"]')).not.toBeNull();
+  });
+});

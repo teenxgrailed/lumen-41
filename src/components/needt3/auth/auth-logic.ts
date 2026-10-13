@@ -2,6 +2,8 @@
  * Sign-in rules that do not need a DOM (prototype AuthScreen.jsx): what is
  * wrong with the fields, and what the submit button says.
  */
+import { MAIN_SIGN_IN_PROVIDER_IDS } from "@/lib/auth/sign-in-provider-ids";
+
 export type AuthMode = "login" | "signup";
 
 export const MIN_PASSWORD = 8;
@@ -124,12 +126,46 @@ export function formReady(f: { mail: string; pass: string }): boolean {
 }
 
 /**
- * The text on a sign-in provider's button, as the providers' own button
- * guidelines word it: "Continue with Google", "Sign in with Microsoft". One
- * place so the desktop and the phone say the same.
+ * The text on a sign-in provider's button, as each provider's own button
+ * guidelines word it. One place so the desktop and the phone say the same.
+ * Google: "Continue with Google"; Apple (HIG): "Sign in with Apple";
+ * Microsoft: "Sign in with Microsoft"; OpenAI: "Sign in with ChatGPT";
+ * LinkedIn: "Sign in with LinkedIn"; X: "Sign in with X".
  */
+const SIGN_IN_VERB: Readonly<Record<string, "Sign in with" | "Continue with">> =
+  {
+    google: "Continue with",
+    apple: "Sign in with",
+    github: "Continue with",
+    "azure-ad": "Sign in with",
+    openai: "Sign in with",
+    discord: "Continue with",
+    twitter: "Sign in with",
+    linkedin: "Sign in with",
+  };
+
 export function oauthButtonLabel(provider: { id: string; label: string }) {
-  return provider.id === "azure-ad"
-    ? `Sign in with ${provider.label}`
-    : `Continue with ${provider.label}`;
+  const verb = Object.prototype.hasOwnProperty.call(SIGN_IN_VERB, provider.id)
+    ? SIGN_IN_VERB[provider.id]
+    : "Continue with";
+  return `${verb} ${provider.label}`;
 }
+
+/**
+ * Owner decision 2026-10-12: the screen shows Google, Apple and GitHub, and a
+ * "More ways to sign in" control reveals the rest. Only configured providers
+ * ever arrive here; order follows `SIGN_IN_PROVIDERS`. With none of the three
+ * configured there is nothing to be "more" than, so the rest show directly.
+ */
+export function splitSignInProviders<T extends { id: string }>(
+  providers: readonly T[],
+  mainIds: readonly string[] = MAIN_SIGN_IN_PROVIDER_IDS
+): { main: T[]; more: T[] } {
+  const main: T[] = [];
+  const more: T[] = [];
+  for (const p of providers) (mainIds.includes(p.id) ? main : more).push(p);
+  return main.length ? { main, more } : { main: more, more: [] };
+}
+
+/** The label on the control that reveals the providers past the first three. */
+export const MORE_SIGN_IN_WAYS_LABEL = "More ways to sign in";
