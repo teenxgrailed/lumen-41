@@ -79,8 +79,11 @@ describe("theme model", () => {
     // Regression: themes.css re-declares --background on `.app` from a fixed
     // Light/Dark base, shadowing the engine's inline value. The engine also
     // writes --time-bg, which theme-time.css mixes the ambient tint into.
-    const early = timeThemeAt(at(5), ZURICH, PALETTES);
-    expect(early.pure).toBe(false);
+    // Machine-zone independent: take any hour that is between day and night.
+    const early = Array.from({ length: 24 }, (_, h) =>
+      timeThemeAt(at(h), ZURICH, PALETTES)
+    ).find((r) => !r.pure)!;
+    expect(early).toBeDefined();
     expect(early.vars["--time-bg"]).toBe(early.vars["--background"]);
     const css = readFileSync(
       join(process.cwd(), "src/styles/v3-overrides/theme-time.css"),
