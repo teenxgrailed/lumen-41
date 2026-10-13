@@ -22,11 +22,12 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
 import { WorkspacePicker } from "./WorkspacePicker";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Connect an app · Needt" };
+export const metadata = { title: SECTION_TITLES.connectApp };
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

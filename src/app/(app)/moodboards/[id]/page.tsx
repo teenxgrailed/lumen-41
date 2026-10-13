@@ -1,7 +1,19 @@
+import type { Metadata } from "next";
+
 import { MoodboardWorkspace } from "@/components/moodboards/MoodboardWorkspace";
 import { MoodboardRoute } from "@/components/needt3/phone/moodboards/MoodboardsRoute";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { moodboardTabTitle } from "@/lib/needt3/item-titles";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return { title: await moodboardTabTitle(id) };
+}
 
 export default async function MoodboardPage({
   params,
