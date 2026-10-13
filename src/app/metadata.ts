@@ -1,14 +1,20 @@
 import type { Metadata, Viewport } from "next";
 
-import { APP_DESCRIPTION, APP_NAME } from "@/lib/app-config";
+import { APP_DESCRIPTION, APP_NAME, APP_TITLE } from "@/lib/app-config";
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  // No template: inner pages already set "Page | Needt" themselves.
+  title: { default: APP_TITLE },
   description: APP_DESCRIPTION,
   openGraph: {
-    title: APP_NAME,
+    title: APP_TITLE,
     description: APP_DESCRIPTION,
     type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: APP_TITLE,
+    description: APP_DESCRIPTION,
   },
   manifest: "/manifest.webmanifest",
   applicationName: APP_NAME,
@@ -24,7 +30,11 @@ export const metadata: Metadata = {
       { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
+      {
+        url: "/icons/apple-touch-icon.png",
+        type: "image/png",
+        sizes: "180x180",
+      },
     ],
   },
 };
