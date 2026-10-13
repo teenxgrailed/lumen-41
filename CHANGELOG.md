@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Adding a task from the v3 quick-add no longer fails with "Could not create the task":
+  `POST /api/tasks` now opens the task as `todo` when the request names no status.
 - Connections › AI tools is now real (Pro): one card per AI tool with numbered
   setup steps, a one-click access token (shown once, ready-to-copy
   `claude mcp add` command, rotating disconnects agents) and the apps signed in
