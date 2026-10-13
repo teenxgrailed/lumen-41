@@ -5,11 +5,12 @@ import { NotFoundFace } from "@/components/needt3/states/NotFoundFace";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
 import { missingRouteFace } from "@/lib/needt3/not-found";
+import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Not found",
+  title: SECTION_TITLES.notFound,
   robots: { index: false, follow: false },
 };
 

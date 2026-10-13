@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 
 import { DocumentFace } from "@/components/needt3/phone/docs";
@@ -6,6 +7,16 @@ import { PageWorkspace } from "@/components/pages/PageWorkspace";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { documentTabTitle } from "@/lib/needt3/item-titles";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return { title: await documentTabTitle(id) };
+}
 
 export const dynamic = "force-dynamic";
 

@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { HabitsRoute as HabitsRouteBody } from "@/components/needt3/phone/habits/HabitsRoute";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("habits");
 
 export const dynamic = "force-dynamic";
 

@@ -8,11 +8,12 @@ import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { isAuthDesignV3 } from "@/lib/needt3/auth-design";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
+import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: `Sign In | ${APP_NAME}`,
+  title: SECTION_TITLES.signIn,
   description: `Sign in to your ${APP_NAME} account`,
 };
 
