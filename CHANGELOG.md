@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Time theme now colours the page background too: in the evening and early
+  morning the background stayed Dark-grey while the controls followed Time.
 - Remote MCP: new write tools `needt_update_task`, `needt_complete_task`,
   `needt_create_event`, `needt_create_page`, `needt_append_page` and
   `needt_log_habit`, and `moodboard` in `needt_list`/`needt_get`. They use the
