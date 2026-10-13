@@ -1,0 +1,12 @@
+# needt.app
+User-agent: *
+Allow: /
+
+# AI search crawlers (needed to appear in ChatGPT search and Perplexity)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://needt.app/sitemap.xml

@@ -15,7 +15,7 @@ RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 
 COPY docker/landing/nginx.conf /etc/nginx/conf.d/landing.conf
 COPY docker/landing/security-headers.conf /etc/nginx/landing/security-headers.conf
-COPY design-refs/landing/ /usr/share/nginx/html/
+COPY landing-site/ /usr/share/nginx/html/
 
 # Traefik in Coolify routes to this port; keep it aligned with the service's
 # "Ports exposes" field. The collaboration service was down for eleven days
