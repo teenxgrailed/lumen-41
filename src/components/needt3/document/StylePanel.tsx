@@ -247,7 +247,7 @@ function DcSeg<T extends string>({
 
 /** The black "PRO" pill, with the lock when the person is on Free. */
 function ProPill({ locked }: { locked: boolean }) {
-  return <ProBadge size="sm" locked={locked} />;
+  return <ProBadge size="sm" locked={locked} feature={PRO_FEATURE} />;
 }
 
 function Ink({

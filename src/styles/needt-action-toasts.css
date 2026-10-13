@@ -1,0 +1,155 @@
+/* ACTION TOASTS (src/components/needt/corner/ActionToasts.tsx).
+   A compact pill at the bottom centre, inverted against the page: the fill is
+   the theme's text colour and the ink its background, so Light gets a
+   near-black pill with white text and Dark a white pill with dark text, and
+   Time follows whichever it resolves to. Unscoped on purpose: the host is
+   mounted inside `.needt-v3` or `.needt-v2`, whichever resolves the tokens. */
+.nx-action-toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1300;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.nx-action-toast {
+  pointer-events: auto;
+  transform-origin: 50% 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 8px 0 16px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--background);
+  box-shadow: var(--shadow-floating);
+  font: 500 13px/16px var(--font-sans);
+  animation: nx-action-toast-in 0.42s cubic-bezier(0.2, 0.8, 0.22, 1) both;
+  transition:
+    transform 0.34s cubic-bezier(0.2, 0.8, 0.22, 1),
+    opacity 0.24s ease;
+}
+@keyframes nx-action-toast-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.96);
+  }
+  64% {
+    opacity: 1;
+    transform: translate3d(0, -2px, 0) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes nx-action-toast-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    max-height: 60px;
+    margin-top: 0;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+    max-height: 0;
+    margin-top: -8px;
+  }
+}
+.nx-action-toast.is-out {
+  animation: nx-action-toast-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+  overflow: hidden;
+}
+.nx-action-toast-mark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--destructive);
+}
+.nx-action-toast-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 12px 0;
+}
+.nx-action-toast-act {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--background) 16%, transparent);
+  color: var(--background);
+  font: 600 13px/16px var(--font-sans);
+  cursor: default;
+}
+.nx-action-toast-act:hover {
+  background: color-mix(in oklch, var(--background) 24%, transparent);
+}
+/* The dismiss is not one of the things a toast offers: it appears under the
+   hand and under keyboard focus, and takes no room otherwise. */
+.nx-action-toast-x {
+  flex: none;
+  width: 0;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--background);
+  opacity: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  cursor: default;
+  transition:
+    opacity var(--transition-hover, 0.15s ease),
+    width 0.15s ease;
+}
+.nx-action-toast:hover .nx-action-toast-x,
+.nx-action-toast:focus-within .nx-action-toast-x {
+  width: 24px;
+  opacity: 0.7;
+}
+.nx-action-toast-x:hover {
+  opacity: 1;
+}
+.nx-action-toast-act:focus-visible,
+.nx-action-toast-x:focus-visible {
+  outline: 2px solid var(--background);
+  outline-offset: 1px;
+}
+/* Beside the Ask Needt corner the centre is free until the window is narrow;
+   under that the pill sits above the corner rather than on it. */
+@media (max-width: 900px) {
+  .nx-action-toasts {
+    bottom: 76px;
+  }
+}
+/* The phone: above the bottom bar. */
+@media (max-width: 700px) {
+  .nx-action-toasts {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nx-action-toast {
+    animation: none;
+    transition: none;
+  }
+  .nx-action-toast.is-out {
+    animation: none;
+  }
+}

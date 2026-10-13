@@ -46,6 +46,7 @@ import { useOpenDocId } from "../document/open-doc";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { AccountMenu } from "./AccountMenu";
+import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
 import { useShellApi } from "./ShellContext";
 import {
@@ -946,8 +947,11 @@ export function Sidebar() {
           >
             <FocusControl />
           </span>
-          {/* //todo: Import menu (Markdown, Notion, Google Docs, .ics, CSV)
-              once import.jsx is ported; only a tasks CSV route exists today. */}
+          {/* Import: Notion and a tasks CSV are backed; Markdown, Google Docs
+              and .ics are listed as "Soon" (./import-menu).
+              //todo: those three once pages take a body and a calendar-file
+              route exists. */}
+          <ImportMenu />
           <span className="shell-sidebar-row-2">
             {/* The one create button for everything. A page's own + only
                 makes that page's thing. */}

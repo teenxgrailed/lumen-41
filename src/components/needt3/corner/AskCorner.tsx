@@ -10,9 +10,12 @@
  * clip, never a width/height animation. The island is never a toast — no
  * second object arrives beside the pill.
  *
- * Notices come from the `notify` facade (src/lib/notifications.ts) through
- * the bridge in needt/corner; this mounts the sink for the v3 frame, where the
- * old AppShell's <NeedtNotices> does not exist. Hovering the island, focus
+ * Notices that ask for the island (`surface: "island"` on the `notify`
+ * facade, src/lib/notifications.ts: the proactive nudges) come through the
+ * bridge in needt/corner; this mounts that sink for the v3 frame, where the
+ * old AppShell's <NeedtNotices> does not exist. The transient action notices
+ * (what you did, with Undo) are not drawn here: they are the compact pill at
+ * the bottom centre (<ActionToasts>, mounted by PermanentHosts). Hovering the island, focus
  * inside it, or having the panel open holds the dismiss clocks.
  */
 import * as React from "react";
@@ -78,8 +81,8 @@ const KINDS: Record<
 function Sink() {
   const api = useNotify();
   React.useEffect(() => {
-    setNoticeSink(api);
-    return () => setNoticeSink(null);
+    setNoticeSink(api, "island");
+    return () => setNoticeSink(null, "island");
   }, [api]);
   return null;
 }

@@ -8,6 +8,7 @@ import { LuChevronsUpDown } from "react-icons/lu";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { lockedBadgeProps } from "../paywall/Pro";
 
 /* Craft-pattern primitives (SettingsScreen.jsx 30–104). A group is a stack
    of rows on fill-3; a row is title 13/600, a line of description at 12 and
@@ -313,13 +314,21 @@ export function V3Switch({
   );
 }
 
-/** PRO mark (paywall.jsx `ProBadge`): locked on Free, plain on Pro. */
-export function ProPill({ locked }: { locked?: boolean }) {
+/** PRO mark (paywall.jsx `ProBadge`): locked on Free, plain on Pro. Locked, it
+ *  opens the paywall on `feature`. */
+export function ProPill({
+  locked,
+  feature,
+}: {
+  locked?: boolean;
+  feature?: string;
+}) {
   return (
     <span
       className={"pro-badge is-sm" + (locked ? " is-locked" : "")}
       data-pro-badge={locked ? "locked" : "on"}
       aria-label={locked ? "Pro feature — locked" : "Pro feature"}
+      {...(locked ? lockedBadgeProps(feature) : {})}
     >
       {locked ? <FiLock size={8} aria-hidden /> : null}PRO
     </span>
