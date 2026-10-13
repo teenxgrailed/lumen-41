@@ -133,7 +133,7 @@ export function MobileAuthScreen({
           }}
         >
           {signup
-            ? "A planner that puts your work into the hours you actually have."
+            ? "Everything you're working on, in one place."
             : "Welcome back."}
         </span>
       </div>
