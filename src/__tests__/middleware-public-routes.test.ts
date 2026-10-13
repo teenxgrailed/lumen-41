@@ -32,4 +32,13 @@ describe("public route middleware", () => {
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
+
+  it("serves robots.txt without a session so crawlers can read it", async () => {
+    const response = await middleware(
+      new NextRequest("http://needt.test/robots.txt")
+    );
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
 });

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 const workflow = readFileSync(".github/workflows/docker-publish.yml", "utf8");
 const deployScript = readFileSync("scripts/coolify-deploy-image.sh", "utf8");
+const dockerfile = readFileSync("Dockerfile", "utf8");
 
 function job(name: string) {
   const start = workflow.indexOf(`\n  ${name}:\n`);
@@ -112,6 +113,15 @@ describe("production deployment workflow", () => {
       "${COLLABORATION_HEALTH_URL:?NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL is required}"
     );
     expect(workflow).not.toContain("NEEDT_PRODUCTION_WORKER_HEALTH_URL");
+  });
+
+  it("passes the Umami website id to the build but never requires it", () => {
+    const images = job("images");
+    expect(images).toContain(
+      "NEXT_PUBLIC_UMAMI_WEBSITE_ID=${{ vars.NEXT_PUBLIC_UMAMI_WEBSITE_ID }}"
+    );
+    expect(images).not.toContain("NEXT_PUBLIC_UMAMI_WEBSITE_ID:?");
+    expect(dockerfile).toContain("ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID");
   });
 
   it("deploys through one script that needs only deploy rights", () => {

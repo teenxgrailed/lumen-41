@@ -14,6 +14,16 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
+  // The application is private; only the landing on needt.app is indexable.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
+
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
