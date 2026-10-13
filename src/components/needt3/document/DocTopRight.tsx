@@ -88,7 +88,7 @@ export function DocPanelToggle() {
   const [open, setOpen] = useDocPanel();
   const label = (open ? "Hide" : "Show") + " the side panel";
   return (
-    <Tooltip label={`${label} • ⌘⌥\\`} side="bottom">
+    <Tooltip label={label} keys="⌘⌥\\" side="bottom">
       <button
         type="button"
         className="nx-press sk-rtoggle"

@@ -1,10 +1,6 @@
 "use client";
 
-/* IMPORT (prototype Sidebar.jsx): an icon at the foot of the rail whose label
-   slides out under the hand, and the menu "Where would you like to import
-   from?". Only the rows with something behind them do anything; see
-   ./import-menu for which. */
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuImport } from "react-icons/lu";
@@ -16,37 +12,47 @@ import { notify } from "@/lib/notifications";
 
 import { RichMenu } from "../menu/RichMenu";
 import {
-  IMPORT_PROMPT,
-  type ImportKind,
-  type ImportsFacts,
-  importRows,
-} from "./import-menu";
+  type ImportsState,
+  type SourceId,
+  importMenuItems,
+} from "./import-sources";
 
+/**
+ * Icon-only at rest; the label slides out on hover and focus (shell.css
+ * `.sb-reveal`). Notion and Todoist rows appear while Import is on and the
+ * server has them set up; a CSV of tasks always works; Markdown, Google Docs
+ * and .ics are listed as "Soon".
+ */
 export function ImportMenu() {
+  const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const file = useRef<HTMLInputElement>(null);
-  const imports = useQuery({
+  const state = useQuery({
     queryKey: qk.imports(),
-    queryFn: () => fetchJson<ImportsFacts>("/api/imports"),
+    queryFn: () => fetchJson<ImportsState>("/api/imports"),
     staleTime: 5 * 60_000,
+    retry: false,
   });
 
-  async function startNotion() {
+  const start = async (source: SourceId) => {
+    if (busy) return;
+    setBusy(true);
     try {
       const { authorizeUrl } = await sendJson<{ authorizeUrl: string }>(
         "/api/imports",
         "POST",
-        { source: "notion" }
+        { source }
       );
       window.location.assign(authorizeUrl);
     } catch (error) {
       notify.error(
         error instanceof Error ? error.message : "Could not start the import."
       );
+      setBusy(false);
     }
-  }
+  };
 
-  async function importCsv(picked: File) {
+  const importCsv = async (picked: File) => {
     try {
       const body = csvToImport(parseCsv(await picked.text()));
       if (!body.tasks.length) {
@@ -70,39 +76,31 @@ export function ImportMenu() {
         error instanceof Error ? error.message : "Couldn't import that file"
       );
     }
-  }
-
-  const run = (kind: ImportKind) => {
-    if (kind === "notion") void startNotion();
-    else if (kind === "csv") file.current?.click();
   };
 
+  const items = importMenuItems(state.data, {
+    start: (s) => void start(s),
+    csv: () => file.current?.click(),
+  });
   return (
     <>
       <RichMenu
         up
         small
-        prompt={IMPORT_PROMPT}
+        prompt="Where would you like to import from?"
         width={264}
         trigger={(open) => (
-          /* Icon-only at rest; the label is the name, so no aria-label. */
           <button
             type="button"
             aria-expanded={open}
             data-sb-import=""
             className={`nx-press sb-reveal sb-import${open ? " is-open" : ""}`}
           >
-            <LuImport size={16} aria-hidden />
+            <LuImport size={16} />
             <span className="sb-reveal-label">Import</span>
           </button>
         )}
-        items={importRows(imports.data).map((row) => ({
-          art: row.art,
-          title: row.title,
-          kbd: row.note,
-          disabled: !row.backed,
-          onClick: () => run(row.kind),
-        }))}
+        items={items}
       />
       <input
         ref={file}

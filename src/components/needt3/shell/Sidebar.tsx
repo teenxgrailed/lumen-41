@@ -45,6 +45,7 @@ import { DocSwitch } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
+import { PromoCard } from "../paywall";
 import { AccountMenu } from "./AccountMenu";
 import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
@@ -939,7 +940,7 @@ export function Sidebar() {
       </div>
 
       <div className="shell-sidebar-stack-2">
-        {/* //todo: Needt Pro promo strip (S1 paywall PwPromoCard) above the foot. */}
+        <PromoCard />
         <div className="sb-foot shell-sidebar-foot">
           <span
             data-drop="focus"
@@ -947,10 +948,6 @@ export function Sidebar() {
           >
             <FocusControl />
           </span>
-          {/* Import: Notion and a tasks CSV are backed; Markdown, Google Docs
-              and .ics are listed as "Soon" (./import-menu).
-              //todo: those three once pages take a body and a calendar-file
-              route exists. */}
           <ImportMenu />
           <span className="shell-sidebar-row-2">
             {/* The one create button for everything. A page's own + only
