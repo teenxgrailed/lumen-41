@@ -4,7 +4,7 @@ import { APP_DESCRIPTION, APP_NAME, APP_TITLE } from "@/lib/app-config";
 
 export const metadata: Metadata = {
   // No template: inner pages already set "Page | Needt" themselves.
-  title: { default: APP_TITLE },
+  title: { absolute: APP_TITLE },
   description: APP_DESCRIPTION,
   openGraph: {
     title: APP_TITLE,
