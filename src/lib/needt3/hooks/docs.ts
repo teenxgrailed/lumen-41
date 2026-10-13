@@ -4,10 +4,17 @@ import { useEffect } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { type ApiPage, type V3Doc, docFromApi } from "@/lib/needt3/map";
+import {
+  type ApiPage,
+  type V3Doc,
+  docFromApi,
+  previewFromApi,
+} from "@/lib/needt3/map";
 import {
   PAGE_PATCHED_EVENT,
+  PAGE_PREVIEW_EVENT,
   type PagePatchedDetail,
+  type PagePreviewDetail,
   docFieldsOf,
 } from "@/lib/needt3/page-events";
 import { type DocsSort, qk } from "@/lib/needt3/query-keys";
@@ -82,6 +89,32 @@ export function usePageEditSync(id: string | null | undefined) {
     window.addEventListener(PAGE_PATCHED_EVENT, on);
     return () => window.removeEventListener(PAGE_PATCHED_EVENT, on);
   }, [id, qc]);
+}
+
+/**
+ * Keep the first lines of every edited page current in the cached document
+ * and every cached list (Docs grid, Pinned faces, rail thumb). The editor
+ * announces them after a pause in typing and once more as it is left, which
+ * is why this is mounted in the shell (it outlives the document screen) and
+ * not next to the editor.
+ */
+export function useLivePreviews() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const on = (event: Event) => {
+      const detail = (event as CustomEvent<PagePreviewDetail>).detail;
+      if (!detail || typeof detail.pageId !== "string") return;
+      const preview = previewFromApi(detail.preview);
+      if (!preview) return;
+      const id = detail.pageId;
+      qc.setQueryData<V3Doc>(qk.doc(id), (cur) =>
+        cur ? { ...cur, preview } : cur
+      );
+      patchListItem<V3Doc>(qc, DOCS, id, (d) => ({ ...d, preview }));
+    };
+    window.addEventListener(PAGE_PREVIEW_EVENT, on);
+    return () => window.removeEventListener(PAGE_PREVIEW_EVENT, on);
+  }, [qc]);
 }
 
 type DocPatch = Partial<

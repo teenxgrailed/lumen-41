@@ -10,6 +10,7 @@ import {
   findRanges,
   occurrences,
   outlineOf,
+  sameOutline,
   scrollToOutline,
 } from "../outline";
 
@@ -108,5 +109,29 @@ describe("Find on text whose lower-case form is longer", () => {
     expect(occurrences("The the THE", "the", false)).toEqual([0, 4, 8]);
     expect(occurrences("The the THE", "the", true)).toEqual([4]);
     expect(occurrences("abc", "", false)).toEqual([]);
+  });
+});
+
+describe("sameOutline", () => {
+  const rows = [
+    { text: "Title", level: 0 },
+    { text: "Scope", level: 1 },
+  ];
+  it("is true for the same rows, so typing in a paragraph writes nothing", () => {
+    expect(
+      sameOutline(
+        rows,
+        rows.map((r) => ({ ...r }))
+      )
+    ).toBe(true);
+  });
+  it("is false for a changed, added or removed heading", () => {
+    expect(sameOutline(rows, [rows[0], { text: "Scopes", level: 1 }])).toBe(
+      false
+    );
+    expect(sameOutline(rows, [rows[0], { text: "Scope", level: 2 }])).toBe(
+      false
+    );
+    expect(sameOutline(rows, [rows[0]])).toBe(false);
   });
 });

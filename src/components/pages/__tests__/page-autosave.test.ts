@@ -172,6 +172,92 @@ describe("PageAutosave", () => {
     expect(onStateChange).toHaveBeenCalledWith("saved");
   });
 
+  describe("typing cost", () => {
+    const make = (
+      over: Partial<ConstructorParameters<typeof PageAutosave>[0]> = {}
+    ) => {
+      const persistDraft = jest.fn();
+      const save = jest.fn().mockResolvedValue(undefined);
+      const autosave = new PageAutosave({
+        delayMs: 650,
+        isOnline: () => true,
+        onStateChange: jest.fn(),
+        persistDraft,
+        removeDraft: jest.fn(),
+        save,
+        ...over,
+      });
+      return { autosave, persistDraft, save };
+    };
+
+    it("serialises the page once per pause, not once per keystroke", async () => {
+      const { autosave, persistDraft, save } = make();
+      const read = jest.fn(() => latestDraft);
+
+      for (let key = 0; key < 40; key += 1) {
+        autosave.schedule(read);
+        await jest.advanceTimersByTimeAsync(30);
+      }
+      // 40 keystrokes, 30 ms apart: nothing was read or written while typing.
+      expect(read).not.toHaveBeenCalled();
+      expect(persistDraft).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(700);
+
+      // One read serves the draft and the save of the same revision.
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(persistDraft).toHaveBeenCalledTimes(1);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(save).toHaveBeenCalledWith(latestDraft);
+    });
+
+    it("still writes the draft during a long run of typing", async () => {
+      const { autosave, persistDraft } = make();
+      for (let key = 0; key < 100; key += 1) {
+        autosave.schedule(() => latestDraft);
+        await jest.advanceTimersByTimeAsync(100);
+      }
+      // Never a 250 ms pause, yet the draft is written at least every 2 s.
+      expect(persistDraft.mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("writes the draft now when asked, and when the page goes away", () => {
+      const { autosave, persistDraft } = make();
+      autosave.schedule(() => firstDraft);
+      autosave.persistDraftNow();
+      expect(persistDraft).toHaveBeenCalledWith(firstDraft);
+
+      autosave.schedule(() => latestDraft);
+      autosave.dispose();
+      expect(persistDraft).toHaveBeenLastCalledWith(latestDraft);
+    });
+
+    it("does not rewrite a draft the save has already removed", async () => {
+      const { autosave, persistDraft } = make({ draftDelayMs: 1_000 });
+      autosave.schedule(latestDraft);
+      await jest.advanceTimersByTimeAsync(650); // saved, draft removed
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect(persistDraft).not.toHaveBeenCalled();
+    });
+
+    it("puts the latest edit in the draft before handing the page to collaboration", () => {
+      const { autosave, persistDraft } = make();
+      autosave.schedule(() => latestDraft);
+      expect(persistDraft).not.toHaveBeenCalled();
+      autosave.setWriteAuthority("collaboration");
+      expect(persistDraft).toHaveBeenCalledWith(latestDraft);
+    });
+
+    it("survives an editor destroyed under the reader", () => {
+      const { autosave, persistDraft } = make();
+      autosave.schedule(() => {
+        throw new Error("destroyed");
+      });
+      expect(() => autosave.dispose()).not.toThrow();
+      expect(persistDraft).not.toHaveBeenCalled();
+    });
+  });
+
   it("never regresses the page revision when responses arrive out of order", () => {
     const firstCommit = 41;
     const secondCommit = 42;

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documents no longer lag while you type. Three things ran on every keystroke:
+  the whole page was turned into JSON and written to local storage, a
+  collaborator's caret move (which fires on each of your keystrokes) re-rendered
+  the whole editor and re-applied its configuration, and the word count read the
+  page's text. The page is now written to the recovery draft and saved after a
+  short pause (and on closing the tab), and the editor's configuration is built once.
+- Document previews: pinned documents in the sidebar and the rows of the Docs
+  list wear the page's face with its title and first lines (not a generic
+  icon), and a document you just edited (a checklist, say) shows its lines in the
+  Docs grid straight away instead of staying blank until the list reloads.
+- A document's "Dark" or "Light" text can no longer make the page unreadable:
+  where that ink cannot be read on the page in the current theme (light text on
+  the white page in Light, dark text on the grey page in Dark), the page uses Auto
+  ink for that theme.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

@@ -31,6 +31,14 @@ export function outlineOf(
   ];
 }
 
+/** The same rows in the same order (so the store need not be written). */
+export function sameOutline(a: DocOutlineRow[], b: DocOutlineRow[]) {
+  return (
+    a.length === b.length &&
+    a.every((row, i) => row.text === b[i].text && row.level === b[i].level)
+  );
+}
+
 /** Scroll the page to the row: the title is the top, the rest are headings in order. */
 export function scrollToOutline(
   page: Element | null,
