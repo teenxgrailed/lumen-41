@@ -496,17 +496,6 @@
     user-select: none;
   }
 
-  /* iOS zooms any focused field under 16px; phones only so desktop keeps
-     the 13px chrome scale. */
-  @media (max-width: 699px) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-    textarea,
-    select,
-    [contenteditable="true"] {
-      font-size: 16px;
-    }
-  }
-
   button,
   a,
   input,
