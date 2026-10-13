@@ -25,6 +25,7 @@ const publicRoutes = [
   "/style",
   "/subscription/lifetime/success",
   "/subscription/lifetime/setup-password",
+  "/robots.txt",
 ];
 
 // Routes that only admins can access

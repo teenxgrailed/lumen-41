@@ -22,6 +22,7 @@ import {
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
+import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
@@ -110,6 +111,7 @@ let workerHealthServer: Awaited<
 let releaseHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let releaseHeartbeatRefresh: Promise<void> | null = null;
 let releaseHeartbeatRedis: ReleaseHealthRedis | null = null;
+let externalHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -379,6 +381,9 @@ export async function start(): Promise<void> {
     }, WORKER_RELEASE_HEARTBEAT_INTERVAL_MS);
     releaseHeartbeatInterval.unref();
   }
+  externalHeartbeatInterval = startExternalHeartbeat(
+    WORKER_RELEASE_HEARTBEAT_INTERVAL_MS
+  );
   await getWebhookRenewQueue().upsertJobScheduler(
     "calendar-webhook-renewal",
     { every: WEBHOOK_RENEW_INTERVAL_MS },
@@ -449,6 +454,8 @@ async function shutdown(signal: string): Promise<void> {
   clearInterval(healthInterval);
   if (releaseHeartbeatInterval) clearInterval(releaseHeartbeatInterval);
   releaseHeartbeatInterval = null;
+  if (externalHeartbeatInterval) clearInterval(externalHeartbeatInterval);
+  externalHeartbeatInterval = null;
   if (releaseHeartbeatRedis) {
     const redis = releaseHeartbeatRedis;
     releaseHeartbeatRedis = null;
