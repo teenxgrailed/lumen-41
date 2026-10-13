@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/connect/control/route";
 import {
+  authenticateConnectorRequest,
   authenticateConnectorToken,
-  authorizeConnectorWorkspace,
 } from "@/services/connectors/auth";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
@@ -66,9 +66,15 @@ describe("connector recoverable mutations", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(authenticateConnectorToken).mockResolvedValue("user-1");
-    jest
-      .mocked(authorizeConnectorWorkspace)
-      .mockResolvedValue({ userId: "user-1", workspace });
+    jest.mocked(authenticateConnectorRequest).mockResolvedValue({
+      userId: "user-1",
+      workspace,
+      bearer: {
+        userId: "user-1",
+        kind: "personal",
+        scopes: ["needt.read", "needt.write", "mail.read"],
+      },
+    });
     taskModel.findFirst.mockResolvedValue({
       id: "task-1",
       title: "Ship release",
