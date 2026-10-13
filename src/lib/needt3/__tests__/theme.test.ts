@@ -1,3 +1,6 @@
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { newDateFromYMD } from "@/lib/date-utils";
 import {
   ACCENTS,
@@ -70,5 +73,21 @@ describe("theme model", () => {
     const midnight = timeThemeAt(at(0), ZURICH, PALETTES);
     expect(midnight.side).toBe("dark");
     expect(midnight.pure).toBe(true);
+  });
+
+  it("hands the page background to the .app surface between day and night", () => {
+    // Regression: themes.css re-declares --background on `.app` from a fixed
+    // Light/Dark base, shadowing the engine's inline value. The engine also
+    // writes --time-bg, which theme-time.css mixes the ambient tint into.
+    const early = timeThemeAt(at(5), ZURICH, PALETTES);
+    expect(early.pure).toBe(false);
+    expect(early.vars["--time-bg"]).toBe(early.vars["--background"]);
+    const css = readFileSync(
+      join(process.cwd(), "src/styles/v3-overrides/theme-time.css"),
+      "utf8"
+    );
+    expect(css).toContain('[data-drift="on"][data-theme="dark"] .app');
+    expect(css).toContain("var(--time-bg, #202022)");
+    expect(css).toContain('[data-drift="on"][data-theme="light"] .app');
   });
 });
