@@ -140,7 +140,26 @@ function Connected() {
 
 let host: HTMLDivElement;
 let root: Root;
+let appsData: unknown[] = [];
+const fetchMock = jest.fn();
+const flush = () => act(async () => void (await Promise.resolve()));
 beforeEach(() => {
+  appsData = [];
+  fetchMock.mockReset();
+  fetchMock.mockImplementation(
+    async (url: string, init?: { method?: string }) => {
+      const ok = (body: unknown) => ({ ok: true, json: async () => body });
+      if (url === "/api/oauth/connected-apps") return ok({ apps: appsData });
+      if (url === "/api/connector-settings")
+        return ok(
+          init?.method === "POST"
+            ? { hasToken: true, token: "needt_secret_token_123" }
+            : { hasToken: false }
+        );
+      return ok({});
+    }
+  );
+  (globalThis as { fetch?: unknown }).fetch = fetchMock;
   openPaywall.mockReset();
   accountsData = [];
   integrations = [];
@@ -428,15 +447,78 @@ describe("the AI tools tab", () => {
     click($("[data-cn-promo-plans]"));
     expect(openPaywall).toHaveBeenLastCalledWith();
   });
-  it("on a paid plan keeps the bar and says there is nothing to set up yet", () => {
+  it("on a paid plan lists the six tools; OAuth ones wait for the sign-in host", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
     render();
+    await flush();
     expect($("[data-cn-ai-promo]")).toBeNull();
     expect($(".cn-bar")).not.toBeNull();
     expect($(".cn-chip")).toBeNull();
-    expect($("[data-cn-ai-soon]")).not.toBeNull();
+    expect(cards()).toEqual([
+      "claude",
+      "chatgpt",
+      "cursor",
+      "gemini",
+      "perplexity",
+      "othermcp",
+    ]);
+    expect(($("[data-cn-connect=claude]") as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect(($("[data-cn-connect=cursor]") as HTMLButtonElement).disabled).toBe(
+      false
+    );
     expect(text("[data-cn-status]")).toBe("No AI tools connected yet");
+  });
+  it("creates a token once, shows the ready command, and rotating warns", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    render();
+    await flush();
+    click($("[data-cn-connect=othermcp]"));
+    expect(
+      document.body.querySelector("[data-cn-steps=othermcp]")
+    ).not.toBeNull();
+    click(document.body.querySelector("[data-cn-genkey]"));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith("/api/connector-settings", {
+      method: "POST",
+    });
+    expect(
+      document.body.querySelector("[data-cn-token=shown]")?.textContent
+    ).toBe("needt_secret_token_123");
+    const code = document.body.querySelector("[data-cn-code]")?.textContent;
+    expect(code).toContain("claude mcp add --transport http needt");
+    expect(code).toContain("/api/mcp");
+    expect(code).not.toContain("needt_secret_token_123"); // masked on screen
+    expect(document.body.textContent).toContain("disconnects every agent");
+  });
+  it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    expect($$("[data-cn-app]").length).toBe(1);
+    click($("[data-cn-show=connected]"));
+    expect(cards()).toEqual(["claude"]);
+    expect($("[data-cn-card=claude]").dataset.state).toBe("connected");
+    click($("[data-cn-app-bye=g1]"));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
+      method: "DELETE",
+    });
+    expect($$("[data-cn-app]").length).toBe(0);
+    expect($("[data-cn-ai-soon]")).not.toBeNull();
   });
 });
 
