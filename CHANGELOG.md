@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tab title shows the time left, and Start focus says "Focus started · 25 min
   on “task”". On the phone it is a full sheet. Ambient sound and "Hide other
   tasks" are remembered but do nothing yet.
+- The app has its own icon: the dark Needt tile in the browser tab, the
+  installed app, the home-screen touch icon and notifications, so an app tab is
+  told apart from a needt.app tab at a glance.
+- Browser tabs name the section you are in and nothing else: Home, Calendar,
+  Tasks, Docs, Mailbox, Projects, Moodboards, Habits, Templates, Shared, Trash,
+  Connections, Settings and so on. A document, moodboard or project shows its
+  own name.
 - Adding a task from the v3 quick-add no longer fails with "Could not create the task":
   `POST /api/tasks` now opens the task as `todo` when the request names no status.
 - Connections › AI tools is now real (Pro): one card per AI tool with numbered
