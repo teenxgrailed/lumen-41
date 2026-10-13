@@ -42,6 +42,9 @@ model ConnectedAccount {
   // does), NOT `prisma db push`. `db push` builds this index from the schema DSL,
   // which cannot express NULLS NOT DISTINCT, so it would treat null caldavUrl as
   // distinct and silently allow duplicate OAuth (Google/Outlook) accounts.
+  // Design v3: declined / all-day / write-back sync choices.
+  syncOptions Json?
+
   @@unique([userId, provider, email, caldavUrl], map: "ConnectedAccount_userId_provider_email_caldavUrl_key")
   @@index([userId])
 }
@@ -116,6 +119,8 @@ model User {
   aiConversations        AiConversation[]
   aiMessages             AiMessage[]
   agentMemories          AgentMemory[]
+  agentRuns              AgentRun[]
+  agentActions           AgentAction[]
   aiUsage                AiUsage[]
   connectorSettings      ConnectorSettings?
   timeEntries            TimeEntry[]
@@ -179,6 +184,17 @@ model User {
   meetingNoteProposals   MeetingNoteProposal[]     @relation("MeetingNoteProposalCreator")
   closedDays             ClosedDay[]
   taskWaitsOnMe          TaskWait[]                @relation("TaskWaitWaitingOnUser")
+  // Design v3 onboarding: what the person uses Needt for, and when they finished.
+  onboardingUses         String[]                  @default([])
+  onboardingCompletedAt  DateTime?
+  taskAttachments        TaskAttachment[]
+  pageViews              PageView[]
+  shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
+  moodboardAssets        MoodboardAsset[]
+  notifications          Notification[]
+  accessLinks            AccessLink[]
+  importRuns             ImportRun[]
+  importItemMaps         ImportItemMap[]
 }
 
 model Workspace {
@@ -209,6 +225,9 @@ model Workspace {
   aiConversations      AiConversation[]
   aiMessages           AiMessage[]
   agentMemories        AgentMemory[]
+  importRuns           ImportRun[]
+  agentRuns            AgentRun[]
+  agentActions         AgentAction[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -435,29 +454,38 @@ model MailAccount {
 }
 
 model MailMessage {
-  id           String      @id @default(cuid())
-  accountId    String
-  account      MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  externalId   String
-  threadId     String?
-  fromName     String?
-  fromAddress  String?
-  toAddresses  Json
-  subject      String
-  snippet      String
-  date         DateTime
-  isRead       Boolean     @default(false)
-  isArchived   Boolean     @default(false)
-  snoozedUntil DateTime?
-  labels       Json
-  bodyHtml     String?     @db.Text
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  accountId     String
+  account       MailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  externalId    String
+  threadId      String?
+  fromName      String?
+  fromAddress   String?
+  toAddresses   Json
+  subject       String
+  snippet       String
+  date          DateTime
+  isRead        Boolean     @default(false)
+  isArchived    Boolean     @default(false)
+  snoozedUntil  DateTime?
+  labels        Json
+  bodyHtml      String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  // Design v3 (mail stays read-only): Trash, cc/bcc, attachment metadata,
+  // and the AI triage written at sync time.
+  trashedAt     DateTime?
+  ccAddresses   Json?
+  bccAddresses  Json?
+  attachments   Json?
+  needsReply    Boolean?
+  suggestedTask String?
 
   @@unique([accountId, externalId])
   @@index([accountId, date])
   @@index([accountId, isRead, isArchived])
   @@index([accountId, isArchived, snoozedUntil])
+  @@index([accountId, trashedAt])
 }
 
 /// A private, user-owned sender rule for a focused Mail inbox. Focused splits
@@ -513,8 +541,13 @@ model Project {
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
   // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  // Design v3: frame tint and manual order.
+  ground     String?
+  position   Float       @default(0)
+  pages      Page[]
+  moodboards Moodboard[]
 
   @@index([status])
   @@index([userId])
@@ -859,7 +892,7 @@ model Task {
   // `null`, per the contract's three-state convention, when it still can't
   // be).
   entry                  String? // The task's two-minute first step.
-  noSlot                 Boolean    @default(false) // Belongs to no day/rail.
+  noSlot                 Boolean          @default(false) // Belongs to no day/rail.
   lastTouchedAt          DateTime? // Backs `age` without updatedAt's reschedule noise.
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
   valueCents             Int? // Money task: what it is worth, in integer cents.
@@ -867,6 +900,14 @@ model Task {
   globalStage            TaskStage? // Four global stages, independent of any project.
   parts                  TaskPart[]
   waits                  TaskWait[]
+  // Design v3: Trash (distinct from the read-only archive), the origin
+  // chip (mail | doc | chat) and "Don't split".
+  trashedAt              DateTime?
+  originKind             String?
+  originId               String?
+  originQuote            String?
+  splitAllowed           Boolean          @default(true)
+  attachments            TaskAttachment[]
 
   @@unique([recurrenceMasterId, recurrenceInstanceAt])
   @@unique([habitId, habitOccurrenceAt])
@@ -906,6 +947,8 @@ model Task {
   @@index([blockFeedId])
   @@index([globalStage])
   @@index([habitId, habitOccurrenceAt])
+  @@index([userId, trashedAt])
+  @@index([originKind, originId])
 }
 
 /// One level only — a part can be promoted to a task, never nested further
@@ -972,6 +1015,8 @@ model Habit {
   completions              HabitCompletion[]
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @updatedAt
+  color                    String? // Own colour; null = the project's.
+  icon                     String?
 
   @@index([workspaceId, archivedAt, isActive])
   @@index([userId, archivedAt])
@@ -1420,12 +1465,19 @@ model Page {
   publication           PagePublication?
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
+  // Design v3: document style (backdrop, page, text, font, ...) and its project.
+  style                 Json?
+  projectId             String?
+  project               Project?                   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  views                 PageView[]
+  aiAccess              PageAiAccess[]
 
   @@index([userId, parentId, position])
   @@index([workspaceId])
   @@index([folderId])
   @@index([userId, isFavorite])
   @@index([userId, trashedAt])
+  @@index([projectId])
 }
 
 /// A workspace-scoped Page collection. Moving a Page never changes its
@@ -1533,6 +1585,7 @@ model PageComment {
   resolvedAt DateTime?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+  quote      String? // The words the comment hangs on.
 
   @@index([pageId, resolvedAt, createdAt])
   @@index([blockId])
@@ -1706,15 +1759,16 @@ model PageCollaborationSession {
 }
 
 model PagePublication {
-  id            String    @id @default(cuid())
-  pageId        String    @unique
-  page          Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  token         String    @unique
+  id            String         @id @default(cuid())
+  pageId        String         @unique
+  page          Page           @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  token         String         @unique
   publishedById String?
-  publishedBy   User?     @relation("PagePublicationPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
-  publishedAt   DateTime  @default(now())
+  publishedBy   User?          @relation("PagePublicationPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt   DateTime       @default(now())
   revokedAt     DateTime?
-  updatedAt     DateTime  @updatedAt
+  updatedAt     DateTime       @updatedAt
+  role          PageAccessRole @default(VIEWER)
 
   @@index([revokedAt])
   @@index([publishedById])
@@ -1736,9 +1790,22 @@ model Moodboard {
   snapshots          MoodboardSnapshot[]
   createdAt          DateTime                     @default(now())
   updatedAt          DateTime                     @updatedAt
+  // Design v3: project, link share, the linked Pinterest board, Trash, grid items.
+  projectId          String?
+  project            Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  linkShare          Boolean                      @default(false)
+  /// Mixed into the public link's token; bumped when sharing is turned off, so an old address never comes back.
+  linkTokenVersion   Int                          @default(0)
+  pinterestBoardId   String?
+  pinterestStatus    String?
+  pinterestSyncedAt  DateTime?
+  trashedAt          DateTime?
+  items              MoodboardItem[]
+  assets             MoodboardAsset[]
 
   @@index([workspaceId, archivedAt])
   @@index([createdById])
+  @@index([projectId])
 }
 
 model MoodboardAccessGrant {
@@ -2011,6 +2078,54 @@ model AgentMemory {
   @@index([userId, weight])
 }
 
+/// One agent session that changed data: a chat turn, a background job, or an
+/// MCP/connector call batch. Groups AgentAction rows so they undo together.
+model AgentRun {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       String // user | agent | mcp
+  source      String // chat | background | mcp
+  status      String        @default("running") // running | finished | failed | undone
+  createdAt   DateTime      @default(now())
+  finishedAt  DateTime?
+  actions     AgentAction[]
+
+  @@index([userId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+/// One applied operation from src/services/ops. The inverse is computed and
+/// stored when the operation is applied; targetVersions holds the updatedAt
+/// of every row it touched, so undo can refuse to overwrite later changes.
+model AgentAction {
+  id             String    @id @default(cuid())
+  runId          String?
+  run            AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor          String // user | agent | mcp
+  op             String
+  input          Json
+  before         Json?
+  inverse        Json?
+  targetVersions Json      @default("[]")
+  status         String    @default("applied") // applied | undoing | undone | undo_conflict | failed
+  undoableUntil  DateTime?
+  undoneAt       DateTime?
+  undoneVersions Json?
+  error          String?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([runId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
 model AiUsage {
   id           String   @id @default(cuid())
   userId       String
@@ -2093,6 +2208,8 @@ model AiMessage {
   toolPayload     Json?
   requiresConfirm Boolean        @default(false)
   createdAt       DateTime       @default(now())
+  feedback        String? // "up" | "down"
+  refs            Json? // @-mentions: [{kind, id, label}]
 
   @@index([workspaceId, conversationId, createdAt])
   @@index([workspaceId, userId, createdAt])
@@ -2179,6 +2296,8 @@ model UserSettings {
   timeFormat        String   @default("12h") // "12h", "24h"
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  // Design v3: UI-only preferences in one map; anything the server reads gets a typed column.
+  prefs             Json     @default("{}")
 
   @@index([userId])
 }
@@ -2217,6 +2336,12 @@ model NotificationSettings {
   webPushSubscription   Json?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  // Design v3: what the worker sends.
+  dailyPlan             Boolean  @default(true)
+  dailyPlanTime         String   @default("08:30")
+  mailPlan              Boolean  @default(false)
+  nudges                Boolean  @default(false)
+  weeklyReview          Boolean  @default(true)
 
   @@index([userId])
 }
@@ -2551,6 +2676,8 @@ enum PageBlockType {
   DATE_MENTION
   INLINE_DATABASE
   FORM
+  LEAD
+  TASK_REF
 }
 
 enum DatabasePropertyType {
@@ -2867,4 +2994,219 @@ model CreemSubscriptionCursor {
 
   @@id([userId, creemSubscriptionId])
   @@index([userId, lastEventAt])
+}
+
+// Design v3 port (docs/port/01-data-map.md, M2). All additive.
+
+/// A file on a task: either `url` (an uploaded object) or `bytes` (a small inline file).
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  mimeType  String?
+  size      Int?
+  bytes     Bytes?
+  url       String?
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([userId])
+}
+
+/// When a person last opened a page; backs the per-person "Last viewed" sort.
+model PageView {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pageId   String
+  page     Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, pageId])
+  @@index([pageId])
+}
+
+/// Share a page or moodboard with someone who has no account yet; accepting
+/// it creates the access grant. One table for both resources.
+model ShareInvite {
+  id           String    @id @default(cuid())
+  resourceKind String // "page" | "moodboard"
+  resourceId   String
+  email        String
+  role         String // "VIEWER" | "EDITOR" | "FULL_ACCESS"
+  invitedById  String?
+  invitedBy    User?     @relation("ShareInviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([resourceKind, resourceId, email])
+  @@index([email])
+  @@index([invitedById])
+}
+
+/// Per-tool AI access on a page ("none" | "read" | "edit").
+model PageAiAccess {
+  id        String   @id @default(cuid())
+  pageId    String
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tool      String
+  level     String   @default("none")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pageId, tool])
+}
+
+/// One tile on a moodboard grid (image | link | color | note). Pins are never stored.
+model MoodboardItem {
+  id           String    @id @default(cuid())
+  moodboardId  String
+  moodboard    Moodboard @relation(fields: [moodboardId], references: [id], onDelete: Cascade)
+  kind         String
+  url          String?
+  color        String?
+  text         String?
+  title        String?
+  ratio        Float?
+  colorName    String?
+  source       Json?
+  thumbnailUrl String?
+  position     Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([moodboardId, position])
+}
+
+/// A picture uploaded to a moodboard's grid. The bytes live in the row (as
+/// PageAsset does); a MoodboardItem of kind "image" points at it with
+/// /api/moodboards/<board>/assets/<id>. Deleting the board deletes them.
+model MoodboardAsset {
+  id           String    @id @default(cuid())
+  moodboardId  String
+  moodboard    Moodboard @relation(fields: [moodboardId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  originalName String
+  mimeType     String
+  size         Int
+  bytes        Bytes
+  createdAt    DateTime  @default(now())
+
+  @@index([moodboardId, createdAt])
+  @@index([userId])
+}
+
+/// A notification card that every producer writes to; ProactiveNudge stays
+/// the dedupe and delivery log.
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String
+  title       String
+  body        String?
+  entityKind  String?
+  entityId    String?
+  actions     Json?
+  readAt      DateTime?
+  dismissedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, dismissedAt, createdAt])
+  @@index([entityKind, entityId])
+}
+
+/// An MCP or API access link. Only a hash of the token is stored.
+model AccessLink {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         String // "mcp" | "api"
+  name         String
+  tokenHash    String    @unique
+  tokenPreview String
+  scope        String?
+  permission   String?
+  access       String?
+  projectIds   String[]  @default([])
+  createdAt    DateTime  @default(now())
+  revokedAt    DateTime?
+
+  @@index([userId, revokedAt])
+}
+
+enum ImportSource {
+  todoist
+  notion
+}
+
+enum ImportRunStatus {
+  queued
+  running
+  done
+  failed
+  cancelled
+}
+
+enum ImportEntityType {
+  project
+  stage
+  task
+  part
+  tag
+  page
+  database
+  record
+  asset
+}
+
+/// One import from another tool. The source token lives here only while the
+/// run is queued or running (encrypted) and is set to null when it ends.
+model ImportRun {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source         ImportSource
+  status         ImportRunStatus @default(queued)
+  /// { total, done, skipped, failed }
+  counts         Json            @default("{\"total\":0,\"done\":0,\"skipped\":0,\"failed\":0}")
+  /// [{ code, message, externalId? }]
+  warnings       Json[]          @default([])
+  encryptedToken String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          ImportItemMap[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Which local row an external object became, so a second run updates it
+/// instead of creating a duplicate.
+model ImportItemMap {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source          ImportSource
+  externalId      String
+  entityType      ImportEntityType
+  localId         String
+  importRunId     String?
+  importRun       ImportRun?       @relation(fields: [importRunId], references: [id], onDelete: SetNull)
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([userId, source, externalId, entityType])
+  @@index([importRunId])
 }

@@ -8,7 +8,11 @@ import StarterKit from "@tiptap/starter-kit";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 
-export const pageEditorSchema = getSchema([
+/**
+ * The editor's extension list, shared with server-side code that needs the
+ * same document model (the Notion importer parses Markdown against it).
+ */
+export const pageEditorExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
     link: false,
@@ -25,4 +29,6 @@ export const pageEditorSchema = getSchema([
   TableKit.configure({ table: { resizable: true } }),
   BlockIdentity,
   PageBlockNode,
-]);
+];
+
+export const pageEditorSchema = getSchema(pageEditorExtensions);

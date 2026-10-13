@@ -38,6 +38,7 @@ export async function resolveMoodboardAccess(
       id: true,
       createdById: true,
       workspaceId: true,
+      trashedAt: true,
       accessGrants: {
         where: { userId: actor.userId },
         select: { role: true },
@@ -53,7 +54,12 @@ export async function resolveMoodboardAccess(
       ? MoodboardAccessRole.FULL_ACCESS
       : (directRole ?? inheritedMoodboardRole(actor.workspace.role));
   if (ROLE_RANK[role] < ROLE_RANK[requiredRole]) return null;
-  return { moodboardId: moodboard.id, role };
+  // A board in Trash is read-only; restoring it is the one write allowed.
+  return {
+    moodboardId: moodboard.id,
+    role,
+    trashed: moodboard.trashedAt != null,
+  };
 }
 
 export function moodboardRoleAtLeast(

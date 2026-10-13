@@ -292,7 +292,7 @@ test("Tasks and Projects share the real workspace views and persist completion",
   const state = await mockWorkspace(page);
 
   await page.goto("/tasks");
-  await expect(page.locator(".needt-v2")).toBeVisible();
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toBeVisible();
   await expect(page.getByText(project.name).first()).toBeVisible();
   await expect(page.getByTitle("Publish website")).toBeVisible();
   await expect(page.getByText(person.name)).toBeVisible();

@@ -21,6 +21,7 @@ const publicRoutes = [
   "/terms",
   "/privacy",
   "/p/",
+  "/b/",
   "/style",
   "/subscription/lifetime/success",
   "/subscription/lifetime/setup-password",

@@ -1,5 +1,6 @@
 import { OutlookRecurrenceConverter } from "./outlook-recurrence-converter";
 import { RecurrenceConverter } from "./recurrence-converter";
+import { TodoistRecurrenceConverter } from "./todoist-recurrence-converter";
 
 /**
  * RecurrenceConverterFactory
@@ -18,6 +19,8 @@ export class RecurrenceConverterFactory {
     switch (providerType.toUpperCase()) {
       case "OUTLOOK":
         return new OutlookRecurrenceConverter();
+      case "TODOIST":
+        return new TodoistRecurrenceConverter();
       // Add more providers as needed
 
       default:

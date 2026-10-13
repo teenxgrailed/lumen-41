@@ -1,0 +1,13 @@
+/* ========================================================================
+   Needt design v3 — styles/mobile-nav.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* The live phone's page chrome (mobile-dev.html): the light / dark switch
+   and the phone's screen box. Menu A styles itself (nav-a.css). The old
+   playground's shell styles are in _archive/mobile-nav.legacy.css. */
+.needt-v3 .mn-theme { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--fill-5, var(--surface-raised)); box-shadow: var(--shadow-raised); }
+.needt-v3 .mn-theme-btn { height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--text-tertiary);
+  font: 500 13px/1 var(--font-sans); cursor: default; transition: background-color 0.18s ease, color 0.18s ease; }
+.needt-v3 .mn-theme-btn.is-on { background: var(--text-primary); color: var(--background); }
+.needt-v3 .mn-screen { position: relative; width: 100%; height: 100%; overflow: hidden; }

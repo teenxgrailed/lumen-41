@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import { TaskBusyStatus, WorkspaceRole } from "@prisma/client";
 import { RRule } from "rrule";
 
@@ -9,9 +10,11 @@ import { newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { logger } from "@/lib/logger";
+import { parseV3Fields, taskV3FieldsSchema } from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
 import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
 import {
   ChangeType,
@@ -93,6 +96,7 @@ export async function GET(request: NextRequest) {
         tags: true,
         project: true,
         scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+        ...partsWaitsInclude,
       },
       orderBy: {
         createdAt: "desc",
@@ -137,6 +141,9 @@ export async function POST(request: NextRequest) {
     delete taskData.activities;
     delete taskData.recurrenceMasterId;
     delete taskData.recurrenceInstanceAt;
+    const v3 = parseV3Fields(taskV3FieldsSchema, taskData);
+    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
+    Object.assign(taskData, v3.data);
     const workspaceId = auth.workspace?.workspaceId;
     const assigneeId =
       requestedAssigneeId === undefined ? userId : requestedAssigneeId;
@@ -271,22 +278,8 @@ export async function POST(request: NextRequest) {
     });
 
     const plan = await getPlan(userId);
-    const defaultReminders =
-      plan === "FREE"
-        ? task.deadline || task.dueDate
-          ? [{ kind: "BEFORE_DEADLINE" as const, offsetMinutes: 60 }]
-          : [{ kind: "BEFORE_START" as const, offsetMinutes: 10 }]
-        : [
-            { kind: "BEFORE_START" as const, offsetMinutes: 10 },
-            { kind: "BEFORE_DEADLINE" as const, offsetMinutes: 60 },
-          ];
     await prisma.taskReminder.createMany({
-      data: defaultReminders.map((reminder) => ({
-        userId: schedulingUserId,
-        taskId: task.id,
-        ...reminder,
-        channels: ["push", "email"],
-      })),
+      data: defaultTaskReminderRows(plan, task, schedulingUserId),
       skipDuplicates: true,
     });
 

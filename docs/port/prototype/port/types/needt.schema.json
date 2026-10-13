@@ -1,0 +1,3841 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "GENERATED from port/types/needt.d.ts by port/tools/validate-fixtures.js — do not edit.",
+  "definitions": {
+    "Task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/TaskId"
+        },
+        "title": {
+          "type": "string"
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "done": {
+          "type": "boolean",
+          "description": "NEW — closed or not"
+        },
+        "status": {
+          "$ref": "#/definitions/TaskStatus",
+          "description": "NEW — overlaps Stage + done"
+        },
+        "dueDate": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "estimatedMinutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "minutes (was `est`)"
+        },
+        "scheduledStart": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocalStamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scheduledEnd": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocalStamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "= scheduledStart + estimatedMinutes (default 30); recomputed by NEEDT.sync, never typed"
+        },
+        "isFixed": {
+          "type": "boolean",
+          "description": "NEW — time set by hand, the planner must not move it (was `time`)"
+        },
+        "TaskPart": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TaskPart"
+          }
+        },
+        "TaskWait": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskWait"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Stage": {
+          "$ref": "#/definitions/StageId"
+        },
+        "trashedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "soft delete into Trash"
+        },
+        "blockedBy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW — task that must close first"
+        },
+        "holder": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PersonId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW — who holds the task (a person id)"
+        },
+        "noSlot": {
+          "type": "boolean",
+          "description": "NEW — belongs to no day: no rail, not in the unplaced queue"
+        },
+        "entry": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "NEW — two-minute first step (a one-line field on both task editors; null when cleared)"
+        },
+        "heat": {
+          "type": "number",
+          "description": "NEW (computed) — 0–1 intensity for the category flame"
+        },
+        "tone": {
+          "$ref": "#/definitions/TaskTone",
+          "description": "NEW (computed) — legacy accent tone for old block designs"
+        },
+        "value": {
+          "type": "number",
+          "description": "NEW — money a resale task is worth"
+        },
+        "earned": {
+          "type": "number",
+          "description": "NEW — money already received"
+        },
+        "movedFrom": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HHmm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW (computed) — \"HH:mm\" the scheduler moved it from"
+        },
+        "age": {
+          "type": "number",
+          "description": "NEW (computed) — days untouched; the title fades past 21"
+        },
+        "overdue": {
+          "type": "boolean",
+          "description": "NEW (computed) — past its date and open"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW — \"From …\""
+        },
+        "auto": {
+          "type": "boolean",
+          "description": "NEW — task-dialog settings"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoDay"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hardDeadline": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "task",
+            "event",
+            "doc"
+          ]
+        },
+        "chunk": {
+          "type": [
+            "number",
+            "string",
+            "null"
+          ],
+          "description": "minimum work block, minutes; null = don't split"
+        },
+        "hours": {
+          "type": "string",
+          "enum": [
+            "work",
+            "personal",
+            "any"
+          ],
+          "description": "which hours the planner may use (default \"work\")"
+        },
+        "repeat": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "daily",
+            "weekdays",
+            "weekly",
+            "monthly",
+            null
+          ],
+          "description": "NEW — task-dialog Repeat chip"
+        },
+        "createdAt": {
+          "$ref": "#/definitions/IsoTimestamp",
+          "description": "NEW — stamped by the desktop task dialog (created on duplicate, updated on every edit)"
+        },
+        "updatedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskPriority"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Notes — plain text (newlines kept), the one field both task editors and the focus window write. Older `description` (desktop HTML / phone text) and `note` are folded into it by NEEDT.migrateTask."
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileRef"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "done"
+      ],
+      "additionalProperties": false,
+      "description": "needt.tasks → Task"
+    },
+    "TaskId": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "ProjectId": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SeedProjectId"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "Seed ids, or \"p-<base36>\" / \"p-<slug>\" for the user's own."
+    },
+    "SeedProjectId": {
+      "type": "string",
+      "enum": [
+        "ops",
+        "ds",
+        "german",
+        "resale",
+        "life"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "review",
+        "done"
+      ]
+    },
+    "IsoDay": {
+      "type": "string",
+      "description": "\"YYYY-MM-DD\" (local day)."
+    },
+    "LocalStamp": {
+      "type": "string",
+      "description": "\"YYYY-MM-DDTHH:mm\" (local, no zone) — scheduledStart, Event.startAt, MailThread.receivedAt."
+    },
+    "TaskPart": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "done"
+      ],
+      "additionalProperties": false,
+      "description": "One level of subtasks; ids \"<taskId>.<n>\"."
+    },
+    "TaskWait": {
+      "type": "object",
+      "properties": {
+        "personId": {
+          "$ref": "#/definitions/PersonId"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "personId",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "description": "Waiting on a person (was `waitsOn`)."
+    },
+    "PersonId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "you",
+            "anna",
+            "tom",
+            "lena"
+          ]
+        }
+      ]
+    },
+    "StageId": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "doing",
+        "review",
+        "done"
+      ]
+    },
+    "IsoTimestamp": {
+      "type": "string",
+      "description": "Full ISO timestamp \"2026-10-09T18:01:51.453Z\" — trashedAt, createdAt, archivedAt."
+    },
+    "TaskTone": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "info",
+            "accent",
+            "success"
+          ]
+        }
+      ]
+    },
+    "HHmm": {
+      "type": "string",
+      "description": "\"HH:mm\"."
+    },
+    "TaskSource": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "doc"
+            },
+            "docId": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "docId",
+            "quote"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "mail"
+            },
+            "label": {
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/definitions/MailThreadId"
+            }
+          },
+          "required": [
+            "kind",
+            "label",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "id": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "docId": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Where a task came from — the \"From …\" chip."
+    },
+    "MailThreadId": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "TaskPriority": {
+      "type": "string",
+      "enum": [
+        "urgent",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "FileRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "size",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/ProjectId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CssColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "was `hue`; a CSS colour, seeds use var(--hue-*)"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "lucide icon name, was `glyph`; user projects default \"folder\""
+        },
+        "ground": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectGround"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW — frame tint of the project card"
+        },
+        "seed": {
+          "type": "boolean",
+          "description": "NEW (computed) — marks a built-in project; not meant for storage"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "color",
+        "icon"
+      ],
+      "additionalProperties": false,
+      "description": "needt.projects.all → Project"
+    },
+    "CssColor": {
+      "type": "string",
+      "description": "A CSS colour value, usually a token reference: \"var(--hue-orange)\", \"#1c1c1c\"."
+    },
+    "ProjectGround": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "mist",
+            "sand",
+            "sage",
+            "stone"
+          ]
+        }
+      ],
+      "description": "Project card frame tint (NEW)."
+    },
+    "ProjectSort": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "name",
+        "open"
+      ],
+      "description": "needt.projects.sort → UserSettings.projectSort"
+    },
+    "Doc": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "UI label \"Pinned\" (was starred)"
+        },
+        "coverUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "data URL, \"art:<id>\" or null (was style.cover)"
+        },
+        "trashedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DocStyle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocBlock"
+          }
+        },
+        "hue": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CssColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "NEW (computed) — cached project colour for cards"
+        },
+        "updated": {
+          "type": "string",
+          "description": "NEW (computed) — human labels, should come from the timestamps below"
+        },
+        "viewed": {
+          "type": "string"
+        },
+        "created": {
+          "type": "string"
+        },
+        "createdAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        },
+        "updatedAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        },
+        "viewedAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        },
+        "label": {
+          "type": "string",
+          "description": "NEW (computed) — folder line for Template / Shared cards without a project"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "isFavorite",
+        "coverUrl",
+        "trashedAt",
+        "style",
+        "body"
+      ],
+      "additionalProperties": false,
+      "description": "needt.docs → Doc"
+    },
+    "DocStyle": {
+      "type": "object",
+      "properties": {
+        "backdrop": {
+          "$ref": "#/definitions/DocBackdrop"
+        },
+        "page": {
+          "$ref": "#/definitions/DocPage"
+        },
+        "text": {
+          "$ref": "#/definitions/DocText"
+        },
+        "separator": {
+          "$ref": "#/definitions/DocSeparator"
+        },
+        "font": {
+          "$ref": "#/definitions/DocFont"
+        },
+        "wide": {
+          "type": "boolean"
+        },
+        "bdLook": {
+          "type": "string",
+          "enum": [
+            "immersive",
+            "faded"
+          ],
+          "description": "NEW — backdrop look (phone Page Style)"
+        },
+        "bdBlur": {
+          "type": "boolean",
+          "description": "NEW — backdrop picture blurred 22 px"
+        },
+        "theme": {
+          "type": "string",
+          "description": "NEW — legacy preset ids an old page still wears (map 1:1 until the first edit)"
+        },
+        "ground": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Doc.style — one object (dcSetStyle). Defaults: DC_DEFAULT. Cover is top-level Doc.coverUrl."
+    },
+    "DocBackdrop": {
+      "type": "string",
+      "enum": [
+        "none",
+        "sparkle",
+        "dunes",
+        "mist",
+        "grid",
+        "ink",
+        "sage",
+        "ocean"
+      ]
+    },
+    "DocPage": {
+      "type": "string",
+      "enum": [
+        "white",
+        "paper",
+        "rose",
+        "lilac",
+        "sage",
+        "sky",
+        "sand",
+        "graphite",
+        "black"
+      ]
+    },
+    "DocText": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "dark",
+        "light",
+        "umber",
+        "wine",
+        "plum",
+        "navy",
+        "forest"
+      ]
+    },
+    "DocSeparator": {
+      "type": "string",
+      "enum": [
+        "line",
+        "dots",
+        "wave"
+      ]
+    },
+    "DocFont": {
+      "type": "string",
+      "enum": [
+        "sans",
+        "serif",
+        "mono",
+        "rounded"
+      ]
+    },
+    "DocBlock": {
+      "anyOf": [
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/DocTextKind"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/DocTextKind"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "$ref": "#/definitions/DocBlockExtra"
+            }
+          ],
+          "maxItems": 3
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/DocTextKind"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "$ref": "#/definitions/DocBlockExtra"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "todo"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 3,
+          "items": [
+            {
+              "type": "string",
+              "const": "todo"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          ],
+          "maxItems": 3
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "todo"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 3,
+          "items": [
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          ],
+          "maxItems": 3
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "task"
+            },
+            {
+              "$ref": "#/definitions/RichText"
+            },
+            {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "table"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "table"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "cards"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "cards"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "image"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "image"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "page"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "page"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "items": [
+            {
+              "type": "string",
+              "const": "date"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "maxItems": 2
+        },
+        {
+          "type": "array",
+          "minItems": 4,
+          "items": [
+            {
+              "type": "string",
+              "const": "date"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BlockFmt"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          ],
+          "maxItems": 4
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "const": "rule"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "const": "shot"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "const": "suggest"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        }
+      ],
+      "description": "Doc body block: [kind, text, extra?, fmt?].   p h li quote callout code lead → rich text (p: extra { muted })   todo → rich text, extra true = done · task → title, extra = meta line   table → rows [[cell]] · cards → string[] (legacy demo) · image → data URL / URL (\"\" = empty)   page → linked doc id · date → label (\"Fri 4 Sep\"), the ISO day is fmt.date   rule · shot · suggest → no content"
+    },
+    "DocTextKind": {
+      "type": "string",
+      "enum": [
+        "p",
+        "h",
+        "li",
+        "quote",
+        "callout",
+        "code",
+        "lead",
+        "event",
+        "habit",
+        "ask"
+      ]
+    },
+    "RichText": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Span"
+          }
+        }
+      ],
+      "description": "A plain string (no marks) or spans."
+    },
+    "Span": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "string"
+        },
+        "b": {
+          "type": "boolean"
+        },
+        "i": {
+          "type": "boolean"
+        },
+        "s": {
+          "type": "boolean"
+        },
+        "code": {
+          "type": "boolean"
+        },
+        "href": {
+          "type": "string",
+          "description": "http(s): / mailto: only (dxSafeHref)"
+        },
+        "color": {
+          "$ref": "#/definitions/TextColorId"
+        },
+        "hl": {
+          "$ref": "#/definitions/HighlightId"
+        },
+        "at": {
+          "type": "string",
+          "description": "a mention: the person's email; the words are \"@Name\""
+        }
+      },
+      "required": [
+        "t"
+      ],
+      "additionalProperties": false,
+      "description": "One run of rich text. Stored canonical (dxNorm): equal neighbours merged, empty spans dropped."
+    },
+    "TextColorId": {
+      "type": "string",
+      "enum": [
+        "default",
+        "gray",
+        "brown",
+        "red",
+        "orange",
+        "amber",
+        "yellow",
+        "lime",
+        "green",
+        "teal",
+        "cyan",
+        "sky",
+        "blue",
+        "indigo",
+        "violet",
+        "purple",
+        "pink",
+        "rose"
+      ],
+      "description": "A Choose-a-Color id (DX_COLORS → --pdc2-c-<id>)."
+    },
+    "HighlightId": {
+      "type": "string",
+      "enum": [
+        "yellow",
+        "orange",
+        "red",
+        "pink",
+        "purple",
+        "blue",
+        "green",
+        "gray"
+      ],
+      "description": "A highlight id (DX_HLS → --dsp-hl-<id>)."
+    },
+    "DocBlockExtra": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "muted": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "slot 3 of a text block: `p` → { muted }; anything else unknown is kept as-is by both editors"
+    },
+    "BlockFmt": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "$ref": "#/definitions/IsoDay",
+          "description": "the date block's ISO day"
+        },
+        "remind": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/definitions/TaskId"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "a reminder (the task it made)"
+        },
+        "task": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/definitions/TaskId"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the task made from words in the block"
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocComment"
+          }
+        },
+        "b": {
+          "type": "boolean",
+          "description": "OLD block-level format, read as marks over the whole text (dxMigrateBlock) and written back as spans"
+        },
+        "i": {
+          "type": "boolean"
+        },
+        "s": {
+          "type": "boolean"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TextColorId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Slot 4 of a block — per-block data (not formatting). In the DB, comments → DocComment table."
+    },
+    "DocComment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "description": "author (email or name)"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "$ref": "#/definitions/EpochMs"
+            }
+          ]
+        },
+        "resolvedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "quote",
+        "by",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "EpochMs": {
+      "type": "number",
+      "description": "Epoch milliseconds."
+    },
+    "Template": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DocStyle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocBlock"
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "string",
+          "description": "\"5 blocks\""
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "style",
+        "body"
+      ],
+      "additionalProperties": false,
+      "description": "needt.templates → Template (the user's own; built-ins are code)."
+    },
+    "Habit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "seeds: \"de\", \"walk\"…; new: \"h-<base36>\""
+        },
+        "title": {
+          "type": "string"
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CssColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = the project's colour"
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schedule": {
+          "$ref": "#/definitions/HabitSchedule"
+        },
+        "archivedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "projectId",
+        "color",
+        "icon",
+        "schedule",
+        "archivedAt"
+      ],
+      "additionalProperties": false,
+      "description": "needt.habits → Habit"
+    },
+    "HabitSchedule": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HHmm"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "perWeek": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "null = every day"
+        }
+      },
+      "required": [
+        "time",
+        "perWeek"
+      ],
+      "additionalProperties": false
+    },
+    "HabitCheckin": {
+      "type": "object",
+      "properties": {
+        "habitId": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/definitions/IsoDay"
+        },
+        "done": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "habitId",
+        "date",
+        "done"
+      ],
+      "additionalProperties": false,
+      "description": "needt.habitCheckins → HabitCheckin; record id = `${habitId}|${date}`. A miss is a missing row."
+    },
+    "CalendarEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "\"u<base36>\" (own), \"sync-<provider>-n\" / seed \"e1\"… (synced)"
+        },
+        "title": {
+          "type": "string"
+        },
+        "startAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocalStamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocalStamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isAllDay": {
+          "type": "boolean"
+        },
+        "calendarId": {
+          "$ref": "#/definitions/CalendarId"
+        },
+        "source": {
+          "$ref": "#/definitions/EventSource"
+        },
+        "externalId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "startAt",
+        "endAt",
+        "isAllDay",
+        "calendarId",
+        "source",
+        "externalId"
+      ],
+      "additionalProperties": false,
+      "description": "needt.events → Event (+ the synced seed C2_EVENTS). All-day: …T00:00 to the next day (end exclusive)."
+    },
+    "CalendarId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "work",
+            "personal",
+            "family"
+          ]
+        }
+      ]
+    },
+    "EventSource": {
+      "type": "string",
+      "enum": [
+        "needt",
+        "google",
+        "apple",
+        "outlook"
+      ]
+    },
+    "EventTitleOverrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "needt.events.titles → EventOverride: event id → title (write back to the provider)."
+    },
+    "MailThread": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/MailThreadId"
+        },
+        "accountId": {
+          "$ref": "#/definitions/MailAccountId"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "fromEmail": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "receivedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LocalStamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preview": {
+          "type": "string"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "paragraphs"
+        },
+        "attachment": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "legacy single attachment label \"proof.pdf · 2.4 MB\""
+        },
+        "isRead": {
+          "type": "boolean"
+        },
+        "isArchived": {
+          "type": "boolean"
+        },
+        "trashedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "taskId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the task made from it"
+        },
+        "needsReply": {
+          "type": "boolean"
+        },
+        "suggestedTask": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "sent",
+            "drafts",
+            null
+          ]
+        },
+        "to": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MailAddress"
+          }
+        },
+        "cc": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MailAddress"
+          }
+        },
+        "bcc": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MailAddress"
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileRef"
+          }
+        },
+        "text": {
+          "type": "string",
+          "description": "own mail (sent / drafts)"
+        },
+        "inReplyTo": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MailThreadId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "forwardOf": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MailThreadId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quote": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "accountId",
+        "subject",
+        "from",
+        "fromEmail",
+        "receivedAt",
+        "preview",
+        "body",
+        "attachment",
+        "isRead",
+        "isArchived",
+        "trashedAt",
+        "taskId",
+        "needsReply",
+        "suggestedTask",
+        "folder",
+        "to",
+        "cc",
+        "bcc",
+        "attachments"
+      ],
+      "additionalProperties": false,
+      "description": "needt.mail.threads → MailThread. folder null = received; \"sent\" / \"drafts\" = the user's own."
+    },
+    "MailAccountId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "gmail",
+            "outlook"
+          ]
+        }
+      ]
+    },
+    "MailAddress": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email"
+      ],
+      "additionalProperties": false
+    },
+    "Board": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "projectId": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linkShare": {
+          "type": "boolean"
+        },
+        "pinterestBoardId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "pins are never stored — only the linked board"
+        },
+        "trashedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "createdAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        },
+        "pinterestStatus": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "ok",
+                "lost",
+                null
+              ]
+            }
+          ]
+        },
+        "pinterestSyncedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IsoTimestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "projectId",
+        "linkShare",
+        "pinterestBoardId",
+        "trashedAt"
+      ],
+      "additionalProperties": false,
+      "description": "needt.boards → Board"
+    },
+    "BoardItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "boardId": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/BoardItemKind"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "image: data URL / URL (→ an upload URL in the backend); link: the URL"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CssColor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "ratio": {
+          "type": "number",
+          "description": "height / width"
+        },
+        "colorName": {
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "domain": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "domain"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "thumbnailUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        }
+      },
+      "required": [
+        "id",
+        "boardId",
+        "kind",
+        "url",
+        "color",
+        "text",
+        "position"
+      ],
+      "additionalProperties": false,
+      "description": "needt.boardItems → BoardItem"
+    },
+    "BoardItemKind": {
+      "type": "string",
+      "enum": [
+        "image",
+        "link",
+        "color",
+        "note"
+      ]
+    },
+    "BoardMember": {
+      "type": "object",
+      "properties": {
+        "boardId": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "edit",
+            "view"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "boardId",
+        "email",
+        "role"
+      ],
+      "additionalProperties": false,
+      "description": "needt.boardMembers → BoardMember; record id = `${boardId}|${email}`"
+    },
+    "Chat": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/definitions/EpochMs"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatMessage"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "at",
+        "messages"
+      ],
+      "additionalProperties": false,
+      "description": "needt.chats → Chat (\"c-…\")"
+    },
+    "ChatMessage": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string",
+          "enum": [
+            "you",
+            "needt"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/definitions/EpochMs"
+        },
+        "scope": {
+          "type": "string",
+          "description": "\"This day\" | \"Everything\" | …"
+        },
+        "scopeLine": {
+          "type": "string",
+          "description": "what Needt looked at"
+        },
+        "cards": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ChatCard"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "followups": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feedback": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "up",
+            "down",
+            null
+          ]
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatContextChip"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "text",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "ChatCard": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "timeline"
+            },
+            "title": {
+              "type": "string"
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ChatTimelineRow"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "title",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "draft"
+            },
+            "to": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subject": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "to",
+            "subject",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "changes"
+            },
+            "changes": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "kind",
+            "changes"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "tasks"
+            },
+            "label": {
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "kind",
+            "label",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "overdue"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/TaskId"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "due": {
+                    "type": "string"
+                  },
+                  "len": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "due",
+                  "len"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "doc"
+            },
+            "docId": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "bullets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "meta": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "title"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "slots"
+            },
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "kind",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "found"
+            },
+            "items": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "kind",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ChatTimelineRow": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "fresh": {
+          "type": "boolean"
+        },
+        "busy": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "time",
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "ChatContextChip": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "task",
+            "doc",
+            "day",
+            "workspace",
+            "project",
+            "file"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "chip": {
+          "type": "string"
+        },
+        "sub": {
+          "type": "string"
+        },
+        "art": {
+          "type": "string"
+        },
+        "section": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "the chip a question is scoped to (task / doc / day / workspace / project / file)"
+    },
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "theme": {
+          "$ref": "#/definitions/ThemeSetting",
+          "default": "light"
+        },
+        "accent": {
+          "$ref": "#/definitions/AccentId",
+          "default": "blue"
+        },
+        "aura": {
+          "type": "boolean",
+          "description": "Sky aura behind the shell.",
+          "default": true
+        },
+        "start": {
+          "$ref": "#/definitions/HHmm",
+          "description": "Working hours start.",
+          "default": "09:00"
+        },
+        "end": {
+          "$ref": "#/definitions/HHmm",
+          "description": "Working hours end.",
+          "default": "18:00"
+        },
+        "week": {
+          "type": "string",
+          "enum": [
+            "mon",
+            "sun"
+          ],
+          "default": "mon"
+        },
+        "tz": {
+          "type": "string",
+          "enum": [
+            "cet",
+            "utc",
+            "est"
+          ],
+          "default": "cet"
+        },
+        "order": {
+          "type": "string",
+          "enum": [
+            "deadline",
+            "short",
+            "project"
+          ],
+          "description": "Plan my day puts first.",
+          "default": "deadline"
+        },
+        "chunk": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Min work block.",
+          "default": "30"
+        },
+        "buffer": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Buffer between blocks.",
+          "default": "10"
+        },
+        "auto": {
+          "type": "boolean",
+          "description": "Auto-schedule.",
+          "default": true
+        },
+        "protect": {
+          "type": "boolean",
+          "description": "Protect focus time.",
+          "default": true
+        },
+        "weekends": {
+          "type": "boolean",
+          "description": "Schedule on weekends.",
+          "default": false
+        },
+        "connected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Calendars chosen in onboarding.",
+          "default": [
+            "apple",
+            "google"
+          ]
+        },
+        "apple": {
+          "type": "boolean",
+          "description": "Apple calendar sync on.",
+          "default": true
+        },
+        "google": {
+          "type": "boolean",
+          "description": "Google calendar sync on.",
+          "default": true
+        },
+        "outlookCal": {
+          "type": "boolean",
+          "description": "Outlook calendar sync on.",
+          "default": true
+        },
+        "declined": {
+          "type": "boolean",
+          "description": "Show declined events.",
+          "default": false
+        },
+        "allDay": {
+          "type": "boolean",
+          "description": "Show all-day events.",
+          "default": true
+        },
+        "writeBack": {
+          "type": "boolean",
+          "description": "Write event changes back to the provider.",
+          "default": true
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "week",
+            "days"
+          ],
+          "description": "Calendar view.",
+          "default": "week"
+        },
+        "est": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Default estimate.",
+          "default": "45"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "none"
+            },
+            {
+              "$ref": "#/definitions/ProjectId"
+            }
+          ],
+          "description": "Default project.",
+          "default": "none"
+        },
+        "parts": {
+          "type": "boolean",
+          "description": "Subtasks on.",
+          "default": true
+        },
+        "money": {
+          "type": "boolean",
+          "description": "Money fields on.",
+          "default": true
+        },
+        "len": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Focus length.",
+          "default": "50"
+        },
+        "brk": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Focus break.",
+          "default": "10"
+        },
+        "sound": {
+          "type": "string",
+          "enum": [
+            "none",
+            "tick",
+            "chime"
+          ],
+          "description": "Focus start sound.",
+          "default": "none"
+        },
+        "hideAlerts": {
+          "type": "boolean",
+          "description": "Hide alerts while focusing.",
+          "default": true
+        },
+        "snapSound": {
+          "type": "boolean",
+          "default": false
+        },
+        "stopMark": {
+          "type": "boolean",
+          "default": true
+        },
+        "plan": {
+          "type": "boolean",
+          "description": "Daily plan notification.",
+          "default": true
+        },
+        "mailPlan": {
+          "type": "boolean",
+          "description": "Include mail in the plan.",
+          "default": false
+        },
+        "planTime": {
+          "$ref": "#/definitions/HHmm",
+          "default": "08:30"
+        },
+        "nudge": {
+          "type": "boolean",
+          "default": false
+        },
+        "review": {
+          "type": "boolean",
+          "description": "Weekly review.",
+          "default": true
+        },
+        "links": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "web",
+            "app"
+          ],
+          "description": "Open document links in.",
+          "default": "ask"
+        },
+        "offline": {
+          "type": "boolean",
+          "description": "Offline copy.",
+          "default": true
+        },
+        "mobileTiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Phone menu A's three places (+ \"ask\"). fallback mobile-nav MN_DEFAULT_TILES [\"home\",\"docs\",\"ask\"]"
+        },
+        "sidebarTiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Desktop sidebar places in order. fallback: the sidebar's own layout"
+        },
+        "calHideDone": {
+          "type": "boolean",
+          "description": "Hide done tasks in the calendar. fallback false"
+        },
+        "notify": {
+          "type": "boolean",
+          "description": "Notifications master switch. fallback true"
+        },
+        "usage": {
+          "type": "boolean",
+          "description": "Share anonymous usage data. fallback false"
+        },
+        "uses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What Needt is used for (onboarding). fallback [\"work\"]"
+        },
+        "taskSchedOpen": {
+          "type": "boolean",
+          "description": "Task dialog's scheduling section open. fallback false"
+        },
+        "projectsView": {
+          "type": "string",
+          "enum": [
+            "cards",
+            "list"
+          ],
+          "description": "Projects screen layout. fallback \"cards\""
+        }
+      },
+      "required": [
+        "theme",
+        "accent",
+        "aura",
+        "start",
+        "end",
+        "week",
+        "tz",
+        "order",
+        "chunk",
+        "buffer",
+        "auto",
+        "protect",
+        "weekends",
+        "connected",
+        "apple",
+        "google",
+        "outlookCal",
+        "declined",
+        "allDay",
+        "writeBack",
+        "view",
+        "est",
+        "project",
+        "parts",
+        "money",
+        "len",
+        "brk",
+        "sound",
+        "hideAlerts",
+        "snapSound",
+        "stopMark",
+        "plan",
+        "mailPlan",
+        "planTime",
+        "nudge",
+        "review",
+        "links",
+        "offline"
+      ],
+      "additionalProperties": false,
+      "description": "needt.settings → UserSettings (a map: each key syncs as its own record). Defaults = stores.jsx SETTINGS_DEFAULTS (shown as",
+      "default": "); keys without a default are set\nby a screen and read with a fallback (shown as \"fallback\"). One writer: needtSettings.set(k, v)."
+    },
+    "ThemeSetting": {
+      "type": "string",
+      "enum": [
+        "system",
+        "light",
+        "dark",
+        "time"
+      ]
+    },
+    "AccentId": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "pink",
+        "mint",
+        "violet",
+        "amber",
+        "graphite",
+        "aurora",
+        "sunset",
+        "lagoon"
+      ]
+    },
+    "MinutesString": {
+      "type": "string",
+      "description": "Minutes as the select stores them: a string (\"30\")."
+    },
+    "Connections": {
+      "type": "object",
+      "properties": {
+        "gmail": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "outlook": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "icloudmail": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "protonmail": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "fastmail": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "slack": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "telegram": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "discord": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "gcal": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "ical": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "ocal": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "gdrive": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "figma": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "pinterest": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "notion": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "github": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "linear": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "claude": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "chatgpt": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "cursor": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "gemini": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "perplexity": {
+          "$ref": "#/definitions/ConnectionState"
+        },
+        "othermcp": {
+          "$ref": "#/definitions/ConnectionState"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/ConnectionState"
+      },
+      "description": "needt.connections → Connection: provider id → state (CONN_DEFAULT seeds six)"
+    },
+    "ConnectionState": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "disconnected",
+        "connecting",
+        "none"
+      ]
+    },
+    "ConnectionSyncLabels": {
+      "type": "object",
+      "properties": {
+        "gmail": {
+          "type": "string"
+        },
+        "outlook": {
+          "type": "string"
+        },
+        "icloudmail": {
+          "type": "string"
+        },
+        "protonmail": {
+          "type": "string"
+        },
+        "fastmail": {
+          "type": "string"
+        },
+        "slack": {
+          "type": "string"
+        },
+        "telegram": {
+          "type": "string"
+        },
+        "discord": {
+          "type": "string"
+        },
+        "gcal": {
+          "type": "string"
+        },
+        "ical": {
+          "type": "string"
+        },
+        "ocal": {
+          "type": "string"
+        },
+        "gdrive": {
+          "type": "string"
+        },
+        "figma": {
+          "type": "string"
+        },
+        "pinterest": {
+          "type": "string"
+        },
+        "notion": {
+          "type": "string"
+        },
+        "github": {
+          "type": "string"
+        },
+        "linear": {
+          "type": "string"
+        },
+        "claude": {
+          "type": "string"
+        },
+        "chatgpt": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "gemini": {
+          "type": "string"
+        },
+        "perplexity": {
+          "type": "string"
+        },
+        "othermcp": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "needt.connections.sync → Connection.sync: provider id → \"last synced\" label (CN_SYNC_SEED)"
+    },
+    "AccessLink": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "\"lnk_<10>\""
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "description": "the secret URL (rotated by regenerate)"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "all",
+            "daily",
+            "projects"
+          ]
+        },
+        "permission": {
+          "type": "string",
+          "enum": [
+            "read",
+            "write"
+          ]
+        },
+        "access": {
+          "type": "string",
+          "enum": [
+            "private",
+            "public"
+          ]
+        },
+        "projectIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProjectId"
+          }
+        },
+        "createdAt": {
+          "$ref": "#/definitions/IsoTimestamp"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "url",
+        "scope",
+        "permission",
+        "access",
+        "projectIds",
+        "createdAt"
+      ],
+      "additionalProperties": false,
+      "description": "needt.mcpLinks / needt.apiLinks → AccessLink (kind mcp | api)"
+    },
+    "PlanState": {
+      "type": "string",
+      "enum": [
+        "free",
+        "trial",
+        "monthly",
+        "yearly",
+        "lifetime"
+      ],
+      "description": "needt.plan.state → Subscription.plan (server-owned in the real API)"
+    },
+    "SidebarLayout": {
+      "type": "object",
+      "properties": {
+        "places": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/SidebarPlaceId"
+              },
+              "on": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "on"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "starred",
+                      "projects"
+                    ]
+                  }
+                ]
+              },
+              "on": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "on"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "collapsed": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        }
+      },
+      "required": [
+        "places",
+        "sections",
+        "collapsed"
+      ],
+      "additionalProperties": false,
+      "description": "needt.sidebar.v2 → UserSettings.sidebar"
+    },
+    "SidebarPlaceId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "today",
+            "calendar",
+            "tasks",
+            "docs",
+            "mail",
+            "projects",
+            "moodboards",
+            "habits",
+            "templates",
+            "shared",
+            "trash"
+          ]
+        }
+      ]
+    },
+    "DocsSort": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/definitions/DocSortKey"
+        },
+        "dir": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "dir"
+      ],
+      "additionalProperties": false,
+      "description": "needt.docsSort"
+    },
+    "DocSortKey": {
+      "type": "string",
+      "enum": [
+        "name",
+        "viewed",
+        "created",
+        "updated"
+      ]
+    },
+    "BoardsSort": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "enum": [
+            "name",
+            "created",
+            "updated"
+          ]
+        },
+        "dir": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "dir"
+      ],
+      "additionalProperties": false,
+      "description": "needt.mbSort (moodboards)"
+    },
+    "DocShare": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/DocShareEntry"
+      }
+    },
+    "DocShareEntry": {
+      "type": "object",
+      "properties": {
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/definitions/ShareRole"
+              }
+            },
+            "required": [
+              "email",
+              "role"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "access": {
+          "type": "string",
+          "enum": [
+            "private",
+            "link"
+          ]
+        },
+        "linkRole": {
+          "type": "string",
+          "enum": [
+            "view",
+            "edit",
+            "comment"
+          ]
+        },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "claude": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            },
+            "chatgpt": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            },
+            "cursor": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            },
+            "gemini": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            },
+            "perplexity": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            },
+            "othermcp": {
+              "type": "string",
+              "enum": [
+                "none",
+                "read",
+                "edit"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "per AI tool: what it may do on this page"
+        }
+      },
+      "required": [
+        "members",
+        "access",
+        "linkRole",
+        "ai"
+      ],
+      "additionalProperties": false,
+      "description": "needt.docShare: doc id → its sharing (DocsScreen dcShareBlank)."
+    },
+    "ShareRole": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "edit",
+        "view",
+        "comment"
+      ]
+    },
+    "FocusSession": {
+      "type": "object",
+      "properties": {
+        "d": {
+          "$ref": "#/definitions/IsoDay",
+          "description": "ISO day"
+        },
+        "m": {
+          "type": "number",
+          "description": "minutes"
+        },
+        "t": {
+          "type": "string",
+          "description": "what was focused on"
+        }
+      },
+      "required": [
+        "d",
+        "m",
+        "t"
+      ],
+      "additionalProperties": false,
+      "description": "needt.focus.log → FocusSession (append log, last 400; a table in the DB)"
+    },
+    "Person": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/PersonId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "initials": {
+          "type": "string"
+        },
+        "hue": {
+          "$ref": "#/definitions/CssColor"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "initials",
+        "hue"
+      ],
+      "additionalProperties": false
+    },
+    "Stage": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/StageId"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "SettingsDefaults": {
+      "type": "object",
+      "properties": {
+        "theme": {
+          "$ref": "#/definitions/ThemeSetting",
+          "default": "light"
+        },
+        "accent": {
+          "$ref": "#/definitions/AccentId",
+          "default": "blue"
+        },
+        "aura": {
+          "type": "boolean",
+          "description": "Sky aura behind the shell.",
+          "default": true
+        },
+        "start": {
+          "$ref": "#/definitions/HHmm",
+          "description": "Working hours start.",
+          "default": "09:00"
+        },
+        "end": {
+          "$ref": "#/definitions/HHmm",
+          "description": "Working hours end.",
+          "default": "18:00"
+        },
+        "week": {
+          "type": "string",
+          "enum": [
+            "mon",
+            "sun"
+          ],
+          "default": "mon"
+        },
+        "tz": {
+          "type": "string",
+          "enum": [
+            "cet",
+            "utc",
+            "est"
+          ],
+          "default": "cet"
+        },
+        "order": {
+          "type": "string",
+          "enum": [
+            "deadline",
+            "short",
+            "project"
+          ],
+          "description": "Plan my day puts first.",
+          "default": "deadline"
+        },
+        "chunk": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Min work block.",
+          "default": "30"
+        },
+        "buffer": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Buffer between blocks.",
+          "default": "10"
+        },
+        "auto": {
+          "type": "boolean",
+          "description": "Auto-schedule.",
+          "default": true
+        },
+        "protect": {
+          "type": "boolean",
+          "description": "Protect focus time.",
+          "default": true
+        },
+        "weekends": {
+          "type": "boolean",
+          "description": "Schedule on weekends.",
+          "default": false
+        },
+        "connected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Calendars chosen in onboarding.",
+          "default": [
+            "apple",
+            "google"
+          ]
+        },
+        "apple": {
+          "type": "boolean",
+          "description": "Apple calendar sync on.",
+          "default": true
+        },
+        "google": {
+          "type": "boolean",
+          "description": "Google calendar sync on.",
+          "default": true
+        },
+        "outlookCal": {
+          "type": "boolean",
+          "description": "Outlook calendar sync on.",
+          "default": true
+        },
+        "declined": {
+          "type": "boolean",
+          "description": "Show declined events.",
+          "default": false
+        },
+        "allDay": {
+          "type": "boolean",
+          "description": "Show all-day events.",
+          "default": true
+        },
+        "writeBack": {
+          "type": "boolean",
+          "description": "Write event changes back to the provider.",
+          "default": true
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "week",
+            "days"
+          ],
+          "description": "Calendar view.",
+          "default": "week"
+        },
+        "est": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Default estimate.",
+          "default": "45"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "none"
+            },
+            {
+              "$ref": "#/definitions/ProjectId"
+            }
+          ],
+          "description": "Default project.",
+          "default": "none"
+        },
+        "parts": {
+          "type": "boolean",
+          "description": "Subtasks on.",
+          "default": true
+        },
+        "money": {
+          "type": "boolean",
+          "description": "Money fields on.",
+          "default": true
+        },
+        "len": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Focus length.",
+          "default": "50"
+        },
+        "brk": {
+          "$ref": "#/definitions/MinutesString",
+          "description": "Focus break.",
+          "default": "10"
+        },
+        "sound": {
+          "type": "string",
+          "enum": [
+            "none",
+            "tick",
+            "chime"
+          ],
+          "description": "Focus start sound.",
+          "default": "none"
+        },
+        "hideAlerts": {
+          "type": "boolean",
+          "description": "Hide alerts while focusing.",
+          "default": true
+        },
+        "snapSound": {
+          "type": "boolean",
+          "default": false
+        },
+        "stopMark": {
+          "type": "boolean",
+          "default": true
+        },
+        "plan": {
+          "type": "boolean",
+          "description": "Daily plan notification.",
+          "default": true
+        },
+        "mailPlan": {
+          "type": "boolean",
+          "description": "Include mail in the plan.",
+          "default": false
+        },
+        "planTime": {
+          "$ref": "#/definitions/HHmm",
+          "default": "08:30"
+        },
+        "nudge": {
+          "type": "boolean",
+          "default": false
+        },
+        "review": {
+          "type": "boolean",
+          "description": "Weekly review.",
+          "default": true
+        },
+        "links": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "web",
+            "app"
+          ],
+          "description": "Open document links in.",
+          "default": "ask"
+        },
+        "offline": {
+          "type": "boolean",
+          "description": "Offline copy.",
+          "default": true
+        }
+      },
+      "required": [
+        "theme",
+        "accent",
+        "aura",
+        "start",
+        "end",
+        "week",
+        "tz",
+        "order",
+        "chunk",
+        "buffer",
+        "auto",
+        "protect",
+        "weekends",
+        "connected",
+        "apple",
+        "google",
+        "outlookCal",
+        "declined",
+        "allDay",
+        "writeBack",
+        "view",
+        "est",
+        "project",
+        "parts",
+        "money",
+        "len",
+        "brk",
+        "sound",
+        "hideAlerts",
+        "snapSound",
+        "stopMark",
+        "plan",
+        "mailPlan",
+        "planTime",
+        "nudge",
+        "review",
+        "links",
+        "offline"
+      ],
+      "additionalProperties": false,
+      "description": "SETTINGS_DEFAULTS"
+    },
+    "CalendarSyncDef": {
+      "type": "object",
+      "properties": {
+        "gcal": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": [
+                "google",
+                "apple",
+                "outlookCal"
+              ]
+            },
+            "cals": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "required": [
+            "key",
+            "cals"
+          ],
+          "additionalProperties": false
+        },
+        "ical": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": [
+                "google",
+                "apple",
+                "outlookCal"
+              ]
+            },
+            "cals": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "required": [
+            "key",
+            "cals"
+          ],
+          "additionalProperties": false
+        },
+        "ocal": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": [
+                "google",
+                "apple",
+                "outlookCal"
+              ]
+            },
+            "cals": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "required": [
+            "key",
+            "cals"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "gcal",
+        "ical",
+        "ocal"
+      ],
+      "additionalProperties": false,
+      "description": "CN_CAL_SYNC — calendar provider → its needtSettings switch and the calendars it shows"
+    }
+  }
+}

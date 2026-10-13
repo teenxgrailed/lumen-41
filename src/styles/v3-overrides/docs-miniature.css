@@ -1,0 +1,44 @@
+/* Design v3 — the Docs card's miniature (prototype docs-kit.jsx DocMiniature).
+ *
+ * The vendored docs.css has the row classes (docs-mini-*) but not the scale
+ * the prototype sets inline, and no code row. Scoped under .needt-v3, loaded
+ * last from v3-entry.css, and only tokens: no colour is new. */
+
+/* The miniature is a half-size page: its 13px rows are zoomed to 0.5 (6.5px),
+ * wrapping exactly as the prototype's "laid out at 200% wide, scaled 0.5"
+ * does, but taking only the height it draws, so a card in "Cards by length"
+ * ends where its text ends instead of keeping twice that height. It never
+ * takes a click (docs-mini-doc-1 already has pointer-events: none). */
+.needt-v3 .docs-mini-half {
+  width: 100%;
+  transform: none;
+  zoom: 0.5;
+}
+
+/* A long word or an unbroken URL wraps inside the row instead of widening
+ * the page. */
+.needt-v3 .docs-mini-half > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Code: a chip on the page's own block tint, a few lines of the page's mono. */
+.needt-v3 .docs-mini-code {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--doc-block, var(--fill-2));
+  font: 400 13px/19px var(--font-mono);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+/* No `zoom` (an old engine): fall back to the prototype's own scale. The
+ * card then keeps the page's full height in masonry, as the prototype does. */
+@supports not (zoom: 0.5) {
+  .needt-v3 .docs-mini-half {
+    width: 200%;
+    zoom: normal;
+    transform: scale(0.5);
+  }
+}

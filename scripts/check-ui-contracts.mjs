@@ -97,7 +97,13 @@ for (const file of productSources) {
   }
 
   for (const legacyToken of LEGACY_TOKEN_NAMES) {
-    if (legacyToken === "accent" && name.startsWith("src/components/needt/")) {
+    // `--accent` is a live token in both design systems (v2 `needt/`, v3
+    // `needt3/`, each scoped); it is retired only in the pre-design UI.
+    if (
+      legacyToken === "accent" &&
+      (name.startsWith("src/components/needt/") ||
+        name.startsWith("src/components/needt3/"))
+    ) {
       continue;
     }
     const escaped = legacyToken.replaceAll("-", "\\-");

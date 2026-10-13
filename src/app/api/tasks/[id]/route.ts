@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
+import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import {
   type Prisma,
@@ -16,6 +17,7 @@ import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { logger } from "@/lib/logger";
+import { parseV3Fields, taskV3FieldsSchema } from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import {
   claimOfflineMutation,
@@ -60,6 +62,7 @@ export async function GET(
         tags: true,
         project: true,
         scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+        ...partsWaitsInclude,
         activities: {
           include: { actor: { select: { id: true, name: true, image: true } } },
           orderBy: { createdAt: "desc" },
@@ -158,9 +161,16 @@ export async function PUT(
     delete updates.workspaceId;
     delete updates.assignee;
     delete updates.activities;
+    // GET now includes these; a client echoing the task back must not write
+    // them through the task (they have their own routes).
+    delete updates.parts;
+    delete updates.waits;
     delete updates.archivedAt;
     delete updates.recurrenceMasterId;
     delete updates.recurrenceInstanceAt;
+    const v3 = parseV3Fields(taskV3FieldsSchema, updates);
+    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
+    Object.assign(updates, v3.data);
     const workspaceId = task.workspaceId ?? auth.workspace?.workspaceId;
     if (
       requestedAssigneeId !== undefined &&

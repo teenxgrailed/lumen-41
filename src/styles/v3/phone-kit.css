@@ -1,0 +1,382 @@
+/* ========================================================================
+   Needt design v3 — styles/phone-kit.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* PHONE KIT (phone-kit.jsx, 08.10.26) — the shared Plates primitives.
+   Colours from themes.css: --v2p-* (ground, ink, plates, lavender) and
+   --pk-* (glass, fog, mist, dots). A plate wears the OPPOSITE theme class, so
+   inside it the same tokens read the other theme (menu A's card material).
+   Moving values (scroll-driven --pk-band / --pk-kt / --pk-fog-k, swipe
+   offsets, sheet / pull positions, --pk-scrim-k) are written by the JSX;
+   transitions play on events only.
+   Backdrop blur: no ancestor of a .pk-blur / .pk-scrim-blur / .pk-edge-blur
+   may carry opacity, filter, mask or clip-path (it would become the blur's
+   backdrop root and the blur would see nothing) — fades are on the layers. */
+
+.needt-v3 .pk-screen,
+.needt-v3 .pk-sheet-layer,
+.needt-v3 .pk-pull { --pk-ease: cubic-bezier(0.2, 0.9, 0.25, 1); --pk-spring: cubic-bezier(0.22, 1.25, 0.36, 1); }
+
+/* ── the screen ── */
+.needt-v3 .pk-screen { --pk-band: 0; --pk-kl: 0; --pk-kt: 0; --pk-fog-k: 0; position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.needt-v3 .pk-scroll { user-select: none; -webkit-user-select: none; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding: 52px 20px 0; box-sizing: border-box; }
+.needt-v3 .pk-scroll::-webkit-scrollbar { display: none; }
+.needt-v3 .pk-tail { height: 132px; }
+.needt-v3 .pk-head { padding: 10px 2px 22px; }
+.needt-v3 .pk-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.needt-v3 .pk-title { margin: 0; min-width: 0; font: 600 34px/38px var(--font-sans); letter-spacing: -0.04em; color: var(--v2p-ink); opacity: calc(1 - var(--pk-kl)); }
+.needt-v3 .pk-sub { margin: 4px 0 0; display: flex; align-items: center; gap: 10px; font: 400 14px/20px var(--font-sans); color: var(--v2p-ink-2); font-variant-numeric: tabular-nums; }
+
+/* the progressive blur: three layers, each stronger and masked further toward the edge */
+.needt-v3 .pk-blur { position: absolute; inset: 0; --pk-dir: to bottom; }
+.needt-v3 .pk-blur.is-1 { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(var(--pk-dir), transparent 0%, var(--v2p-ink) 30%); mask-image: linear-gradient(var(--pk-dir), transparent 0%, var(--v2p-ink) 30%); }
+.needt-v3 .pk-blur.is-2 { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(var(--pk-dir), transparent 25%, var(--v2p-ink) 58%); mask-image: linear-gradient(var(--pk-dir), transparent 25%, var(--v2p-ink) 58%); }
+.needt-v3 .pk-blur.is-3 { -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+  -webkit-mask-image: linear-gradient(var(--pk-dir), transparent 55%, var(--v2p-ink) 85%); mask-image: linear-gradient(var(--pk-dir), transparent 55%, var(--v2p-ink) 85%); }
+
+/* 1 · top: content slides under a blur band at the status bar; the large
+   title hands over to a compact one over the glass. z 9: under the device
+   frame's status bar (ios-frame z 10), over rows (z 1). */
+.needt-v3 .pk-topband { position: absolute; left: 0; right: 0; top: 0; height: 116px; z-index: 9; pointer-events: none; }
+.needt-v3 .pk-topband > * { position: absolute; inset: 0; opacity: var(--pk-band); }
+.needt-v3 .pk-topband .pk-blur { --pk-dir: to top; }
+.needt-v3 .pk-topband-wash { background: linear-gradient(to bottom, var(--pk-mist) 0%, var(--pk-mist) 45%, var(--pk-fog-0) 100%); }
+.needt-v3 .pk-compact { position: absolute; left: 64px; right: 64px; top: 52px; height: 44px; z-index: 9; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.needt-v3 .pk-compact-title { font: 600 17px/22px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: var(--pk-kt); transform: translateY(calc((1 - var(--pk-kt)) * 8px)); }
+
+/* 2 · bottom: blur + halftone dots behind the menu pill (the card's fog) */
+.needt-v3 .pk-fog { position: absolute; left: 0; right: 0; bottom: 0; height: 132px; z-index: 9; pointer-events: none; overflow: hidden; }
+.needt-v3 .pk-fog > * { position: absolute; inset: 0; opacity: var(--pk-fog-k); }
+.needt-v3 .pk-fog-wash { background: linear-gradient(to bottom, var(--pk-fog-0) 0%, var(--pk-fog-0) 30%, var(--pk-fog) 92%); }
+.needt-v3 .pk-fog > .pk-fog-dots { inset: auto 0; background-size: 6px 6px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, var(--v2p-ink) 40%, var(--v2p-ink) 62%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, var(--v2p-ink) 40%, var(--v2p-ink) 62%, transparent); }
+.needt-v3 .pk-fog-dots.is-1 { top: 40px; height: 36px; background-image: radial-gradient(circle, var(--pk-dot) 0.55px, transparent 1.1px); }
+.needt-v3 .pk-fog-dots.is-2 { top: 60px; height: 38px; background-image: radial-gradient(circle, var(--pk-dot) 0.95px, transparent 1.5px); background-position: 3px 3px; }
+.needt-v3 .pk-fog-dots.is-3 { top: 82px; height: 42px; background-image: radial-gradient(circle, var(--pk-dot) 1.35px, transparent 1.9px); }
+/* The dots drift like the sky (owner's exception to "nothing loops at rest",
+   MOTION.md): right → left by 8 cells (48px) per cycle — seamless, the
+   layer is 48px wider than the band — and a hair of bob; compositor-only
+   (translate + transform). Running only while the band is live
+   (phone-kit.jsx pkFogLive: on screen, tab visible) and, in a PkScreen,
+   while its fog shows. Nearer (bigger) dots drift faster. */
+.needt-v3 .pk-fog > .pk-fog-dots { right: -48px; will-change: transform, translate;
+  animation: v3-pk-fog-drift 40s linear infinite paused, v3-pk-fog-bob 9s ease-in-out -3s infinite paused; }
+.needt-v3 .pk-fog > .pk-fog-dots.is-2 { animation-duration: 31s, 11s; animation-delay: 0s, -7s; }
+.needt-v3 .pk-fog > .pk-fog-dots.is-3 { animation-duration: 23s, 7.5s; animation-delay: 0s, -1s; }
+.needt-v3 .pk-fog[data-pk-live="1"] > .pk-fog-dots { animation-play-state: running; }
+.needt-v3 .pk-screen[data-pk-fog-on="0"] .pk-fog > .pk-fog-dots { animation-play-state: paused; }
+@keyframes v3-pk-fog-drift { from { translate: 0 0; } to { translate: -48px 0; } }
+@keyframes v3-pk-fog-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-fog > .pk-fog-dots { animation: none; } }
+
+/* ── rolling digits: a 0–9 strip per digit, moved by --d ── */
+.needt-v3 .pk-num { display: inline-flex; white-space: nowrap; }
+.needt-v3 .pk-num-d { position: relative; display: inline-block; height: 1em; overflow: hidden; vertical-align: top; }
+.needt-v3 .pk-num-sizer { visibility: hidden; display: block; line-height: 1em; }
+.needt-v3 .pk-num-strip { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: center;
+  transform: translateY(calc(var(--d, 0) * -1em)); transition: transform 0.72s var(--pk-spring, ease); }
+.needt-v3 .pk-num-strip > span { display: block; height: 1em; line-height: 1em; }
+.needt-v3 .pk-num-ch { display: inline-block; line-height: 1em; white-space: pre; }
+
+/* ── plates: the menu card's material ── */
+.needt-v3 .pk-plate { position: relative; display: block; width: 100%; box-sizing: border-box; border: 0; text-align: left; font-family: inherit;
+  background: var(--v2p-plate); color: var(--v2p-ink); border-radius: 32px; box-shadow: var(--v2p-plate-shadow); -webkit-tap-highlight-color: transparent; }
+
+/* Dark theme: the muted plate (usePkPlate → "pk-muted") — a slightly raised
+   dark surface with light text, no big white card; the primary button
+   inside keeps full contrast (ink on plate). Light theme plates stay
+   inverse. */
+.needt-v3 .pk-plate.pk-muted,
+.needt-v3 .pk-pull.pk-muted,
+.needt-v3 .pk-reveal.is-done.pk-muted { background: var(--v2p-card); box-shadow: var(--v2p-card-edge); }
+.needt-v3 .pk-muted .pk-btn:not(.is-primary):not(.is-ghost),
+.needt-v3 .pk-muted .pk-pull-field,
+.needt-v3 .pk-reveal.pk-muted .pk-reveal-mark { background: var(--v2p-card-raise); }
+.needt-v3 .pk-muted .pk-btn.is-ghost:active { background: var(--v2p-card-raise); }
+
+/* ── buttons ── */
+.needt-v3 .pk-btn { flex: 1; min-width: 0; height: 54px; padding: 0 18px; border: 0; border-radius: 27px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--v2p-plate-raise); color: var(--v2p-ink); font: 600 16px/1 var(--font-sans); letter-spacing: -0.01em;
+  transition: transform 0.18s var(--pk-ease, ease), opacity 0.18s ease; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pk-btn.is-primary { background: var(--v2p-ink); color: var(--v2p-plate); }
+.needt-v3 .pk-btn.is-chip,
+.needt-v3 .pk-btn.is-ghost,
+.needt-v3 .pk-btn.is-inline { flex: none; height: 32px; padding: 0 12px; gap: 6px; border-radius: 16px; background: var(--v2p-raise); font: 500 13px/1 var(--font-sans); letter-spacing: 0; }
+.needt-v3 .pk-btn.is-ghost { background: transparent; color: var(--v2p-ink-2); }
+.needt-v3 .pk-btn.is-ghost:active { background: var(--v2p-plate-raise); }
+.needt-v3 .pk-btn.is-inline { height: 26px; padding: 0 10px; border-radius: 13px; font-size: 12px; }
+.needt-v3 .pk-btn.is-small { height: 44px; border-radius: 22px; font-size: 15px; }
+.needt-v3 .pk-btn.is-block { width: 100%; flex: none; }
+.needt-v3 .pk-btn:active { transform: scale(0.97); }
+.needt-v3 .pk-btn:disabled { opacity: 0.4; }
+.needt-v3 .pk-btn-cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── labels, fields, empty ── */
+.needt-v3 .pk-label { font: 600 12px/16px var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--v2p-ink-2); }
+.needt-v3 .pk-label.is-late { color: var(--v2p-alert); }
+.needt-v3 .pk-field { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
+.needt-v3 .pk-field-input { user-select: text; -webkit-user-select: text; width: 100%; height: 52px; box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 20px;
+  background: var(--v2p-raise); color: var(--v2p-ink); font: 400 16px/23px var(--font-sans); letter-spacing: -0.01em; outline: none; transition: box-shadow 0.2s ease; }
+.needt-v3 .pk-field-input.is-multi { height: auto; min-height: 64px; padding: 14px 16px; resize: none; }
+.needt-v3 .pk-field-input.is-grow { overflow: hidden; }
+.needt-v3 .pk-field-input::placeholder { color: var(--v2p-ink-3); }
+.needt-v3 .pk-field-input:focus { box-shadow: inset 0 0 0 1.5px var(--v2p-lav-ring); }
+.needt-v3 .pk-empty { margin: 8px 2px 18px; font: 400 15px/22px var(--font-sans); color: var(--v2p-ink-2); text-wrap: pretty; }
+.needt-v3 .pk-empty.is-block { display: flex; flex-direction: column; gap: 6px; margin: 24px 2px; }
+.needt-v3 .pk-empty-title { margin: 0; font: 600 22px/26px var(--font-sans); letter-spacing: -0.03em; color: var(--v2p-ink); }
+.needt-v3 .pk-empty-line { margin: 0; }
+.needt-v3 .pk-empty-action { padding-top: 10px; display: flex; }
+
+/* ── sections ── */
+.needt-v3 .pk-sec { display: flex; flex-direction: column; }
+.needt-v3 .pk-sec-head { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 2px 4px; }
+.needt-v3 .pk-sec-fold { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.needt-v3 .pk-sec-count { font: 500 13px/16px var(--font-sans); color: var(--v2p-ink-3); font-variant-numeric: tabular-nums; }
+.needt-v3 .pk-sec.is-big .pk-sec-head { min-height: 48px; }
+.needt-v3 .pk-sec.is-big .pk-sec-fold { height: 48px; align-items: baseline; }
+.needt-v3 .pk-sec-word { font: 600 28px/32px var(--font-sans); letter-spacing: -0.04em; color: var(--v2p-ink); }
+.needt-v3 .pk-sec-word.is-late { color: var(--v2p-alert); }
+.needt-v3 .pk-sec.is-big .pk-sec-count { font-size: 15px; }
+.needt-v3 .pk-sec-chev { display: grid; color: var(--v2p-ink-3); transition: transform 0.22s var(--pk-ease, ease); }
+.needt-v3 .pk-sec-chev.is-folded { transform: rotate(-90deg); }
+.needt-v3 .pk-sec-action { margin-left: auto; }
+.needt-v3 .pk-sec-rows { display: flex; flex-direction: column; box-shadow: inset 0 1px 0 var(--v2p-line); }
+
+/* ── rows: a wrap folds shut (grid rows 1fr → 0fr) when the row leaves ── */
+.needt-v3 .pk-rw { --pk-k: 0; display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.26s var(--pk-ease, ease), opacity 0.26s ease; }
+.needt-v3 .pk-rw.is-out { grid-template-rows: 0fr; opacity: 0; }
+.needt-v3 .pk-rw-in { position: relative; min-height: 0; overflow: hidden; }
+.needt-v3 .pk-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; min-height: 66px; padding: 8px 2px 8px 0; box-sizing: border-box;
+  background: var(--v2p-ground); box-shadow: inset 0 -1px 0 var(--v2p-line); touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: default;
+  transition: transform 0.5s var(--pk-spring, ease); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pk-row.is-flat { padding-left: 2px; }
+.needt-v3 .pk-rw.is-dragging .pk-row { transition: none; }
+.needt-v3 .pk-rw.is-thrown .pk-row { transition: transform 0.2s cubic-bezier(0.4, 0.6, 0.6, 1); }
+/* the one button that opens the row (title, meta, time); the lead / check
+   and the action are its siblings */
+.needt-v3 .pk-row-open { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 12px; margin: 0; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: default; -webkit-tap-highlight-color: transparent; touch-action: pan-y; }
+.needt-v3 .pk-row-open:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: -2px; border-radius: 12px; }
+.needt-v3 .pk-row-act { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.needt-v3 .pk-check { flex: none; width: 44px; height: 44px; margin-left: -6px; padding: 0; border: 0; background: none; display: grid; place-items: center; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pk-check-ring { width: 24px; height: 24px; border-radius: 12px; box-sizing: border-box; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3); color: var(--v2p-ground);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.32s var(--pk-spring, ease); }
+.needt-v3 .pk-check:active .pk-check-ring { transform: scale(0.88); }
+.needt-v3 .pk-check.is-on .pk-check-ring { background: var(--v2p-ink); box-shadow: none; }
+.needt-v3 .pk-row.is-late .pk-check-ring { box-shadow: inset 0 0 0 1.5px var(--v2p-alert); }
+.needt-v3 .pk-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.needt-v3 .pk-row-title { font: 500 17px/22px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.2s ease; }
+.needt-v3 .pk-row.is-done .pk-row-title { color: var(--v2p-ink-3); text-decoration: line-through; text-decoration-color: var(--v2p-ink-3); }
+.needt-v3 .pk-row-meta { display: flex; align-items: center; gap: 8px; min-width: 0; font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+.needt-v3 .pk-row-proj { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .pk-row-clip { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--v2p-ink-2); }
+.needt-v3 .pk-hue { flex: none; width: 7px; height: 7px; border-radius: 4px; background: var(--hue); }
+.needt-v3 .pk-alert-dot { flex: none; width: 6px; height: 6px; border-radius: 3px; background: var(--v2p-alert); }
+.needt-v3 .pk-row-time { flex: none; font: 500 15px/20px var(--font-sans); color: var(--v2p-ink-2); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* what a swipe reveals: done is a plate, tomorrow the raised grey */
+.needt-v3 .pk-reveal { position: absolute; top: 4px; bottom: 4px; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: 0 20px; border-radius: 22px; opacity: 0; visibility: hidden;
+  font: 600 15px/1 var(--font-sans); letter-spacing: -0.01em; }
+.needt-v3 .pk-rw[data-pk-side="done"] .pk-reveal.is-done,
+.needt-v3 .pk-rw[data-pk-side="later"] .pk-reveal.is-later,
+.needt-v3 .pk-rw.is-thrown .pk-reveal { visibility: visible; opacity: calc(0.35 + var(--pk-k) * 0.65); }
+.needt-v3 .pk-rw.is-thrown:not([data-pk-side="done"]) .pk-reveal.is-done,
+.needt-v3 .pk-rw.is-thrown:not([data-pk-side="later"]) .pk-reveal.is-later { visibility: hidden; }
+.needt-v3 .pk-reveal.is-done { justify-content: flex-start; background: var(--v2p-plate); color: var(--v2p-ink); }
+.needt-v3 .pk-reveal.is-later { justify-content: flex-end; background: var(--v2p-raise-2); color: var(--v2p-ink); }
+.needt-v3 .pk-reveal-mark { width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center; background: var(--v2p-plate-raise);
+  transform: scale(calc(0.6 + var(--pk-k) * 0.4)); transition: transform 0.3s var(--pk-spring, ease), background-color 0.2s ease, color 0.2s ease; }
+.needt-v3 .pk-reveal.is-later .pk-reveal-mark { background: var(--v2p-ground); }
+.needt-v3 .pk-rw.is-armed .pk-reveal-mark { transform: scale(1.14); }
+.needt-v3 .pk-rw.is-armed .pk-reveal.is-done .pk-reveal-mark { background: var(--v2p-ink); color: var(--v2p-plate); }
+.needt-v3 .pk-rw.is-armed .pk-reveal.is-later .pk-reveal-mark { background: var(--v2p-ink); color: var(--v2p-ground); }
+
+/* ── chips: a strip whose edges fade into blur, only where there is more ── */
+.needt-v3 .pk-chips { position: relative; margin: 0 -20px; }
+.needt-v3 .pk-chips-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 2px 20px 6px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.needt-v3 .pk-chips-scroll::-webkit-scrollbar { display: none; }
+.needt-v3 .pk-edge { position: absolute; top: 0; bottom: 4px; width: 34px; pointer-events: none; }
+.needt-v3 .pk-edge.is-left { left: 0; }
+.needt-v3 .pk-edge.is-right { right: 0; }
+.needt-v3 .pk-edge > * { position: absolute; inset: 0; opacity: 0; transition: opacity 0.2s ease; }
+.needt-v3 .pk-chips[data-pk-left="1"] .pk-edge.is-left > *,
+.needt-v3 .pk-chips[data-pk-right="1"] .pk-edge.is-right > * { opacity: 1; }
+.needt-v3 .pk-edge-blur.is-1 { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.needt-v3 .pk-edge-blur.is-2 { -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); }
+.needt-v3 .pk-edge.is-left .pk-edge-blur.is-1 { -webkit-mask-image: linear-gradient(to left, transparent, var(--v2p-ink) 60%); mask-image: linear-gradient(to left, transparent, var(--v2p-ink) 60%); }
+.needt-v3 .pk-edge.is-left .pk-edge-blur.is-2 { -webkit-mask-image: linear-gradient(to left, transparent 45%, var(--v2p-ink) 90%); mask-image: linear-gradient(to left, transparent 45%, var(--v2p-ink) 90%); }
+.needt-v3 .pk-edge.is-right .pk-edge-blur.is-1 { -webkit-mask-image: linear-gradient(to right, transparent, var(--v2p-ink) 60%); mask-image: linear-gradient(to right, transparent, var(--v2p-ink) 60%); }
+.needt-v3 .pk-edge.is-right .pk-edge-blur.is-2 { -webkit-mask-image: linear-gradient(to right, transparent 45%, var(--v2p-ink) 90%); mask-image: linear-gradient(to right, transparent 45%, var(--v2p-ink) 90%); }
+.needt-v3 .pk-edge.is-left .pk-edge-wash { background: linear-gradient(to left, var(--pk-fog-0), var(--pk-mist)); }
+.needt-v3 .pk-edge.is-right .pk-edge-wash { background: linear-gradient(to right, var(--pk-fog-0), var(--pk-mist)); }
+
+/* ── 3 · scrim: the screen behind, blurred harder toward the edges ── */
+.needt-v3 .pk-scrim { --pk-scrim-k: 0; position: absolute; inset: 0; z-index: 50; pointer-events: none; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pk-scrim.is-open { pointer-events: auto; }
+.needt-v3 .pk-scrim > * { position: absolute; inset: 0; opacity: var(--pk-scrim-k); }
+.needt-v3 .pk-scrim-blur.is-1 { -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.needt-v3 .pk-scrim-blur.is-2 { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  -webkit-mask-image: radial-gradient(ellipse 78% 70% at 50% 46%, transparent 30%, var(--v2p-ink) 100%); mask-image: radial-gradient(ellipse 78% 70% at 50% 46%, transparent 30%, var(--v2p-ink) 100%); }
+.needt-v3 .pk-scrim-tint { background: var(--v2p-scrim); }
+
+/* ── the pull-down plate ── */
+.needt-v3 .pk-pull { position: absolute; left: 0; right: 0; top: 0; z-index: 51; visibility: hidden; background: var(--v2p-plate); color: var(--v2p-ink);
+  border-radius: 0 0 34px 34px; box-shadow: var(--v2p-plate-shadow); touch-action: none; will-change: clip-path, transform; }
+/* past its height the plate stretches down: the ground reaches up behind it */
+.needt-v3 .pk-pull::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 120px; background: inherit; }
+.needt-v3 .pk-pull-body { padding: 0 16px 14px; will-change: transform, opacity; }
+.needt-v3 .pk-pull-status { height: 56px; }
+.needt-v3 .pk-pull-field { display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 18px; border-radius: 30px; background: var(--v2p-plate-raise); color: var(--v2p-ink-2); }
+.needt-v3 .pk-pull-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; outline: none; color: var(--v2p-ink); font: 500 22px/28px var(--font-sans); letter-spacing: -0.03em; }
+.needt-v3 .pk-pull .pk-pull-input:focus,
+.needt-v3 .pk-pull .pk-pull-input:focus-visible { outline: none; box-shadow: none; }
+.needt-v3 .pk-pull-field:focus-within { box-shadow: inset 0 0 0 1.5px var(--v2p-lav-ring); }
+.needt-v3 .pk-pull-input::placeholder { color: var(--v2p-ink-3); }
+.needt-v3 .pk-pull-hits { display: flex; flex-direction: column; padding: 8px 4px 0; }
+.needt-v3 .pk-pull-hit { display: flex; flex-direction: column; gap: 2px; padding: 12px 4px; border: 0; background: none; text-align: left; color: var(--v2p-ink); box-shadow: inset 0 -1px 0 var(--v2p-line); font-family: inherit; }
+.needt-v3 .pk-pull-hit:last-child { box-shadow: none; }
+.needt-v3 .pk-pull-hit-title { font: 500 17px/22px var(--font-sans); letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pk-pull-hit.is-done .pk-pull-hit-title { text-decoration: line-through; color: var(--v2p-ink-2); }
+.needt-v3 .pk-pull-hit-meta { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pk-pull-none { margin: 0; padding: 14px 6px 2px; font: 400 14px/20px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pk-pull-actions { display: flex; gap: 8px; padding-top: 16px; }
+.needt-v3 .pk-pull-actions .pk-btn { flex: 0 0 auto; }
+.needt-v3 .pk-pull-actions .pk-btn.is-primary { flex: 1; }
+.needt-v3 .pk-pull-grab { display: block; width: 36px; height: 4px; margin: 14px auto 0; border-radius: 2px; background: var(--v2p-ink-3); }
+.needt-v3 .pk-pull-hint { position: absolute; left: 50%; top: 0; z-index: 52; transform: translate(-50%, 68px); padding: 8px 14px; border-radius: 999px; background: var(--v2p-raise); color: var(--v2p-ink-2);
+  font: 500 13px/16px var(--font-sans); white-space: nowrap; opacity: 0; pointer-events: none; transition: background-color 0.2s ease, color 0.2s ease; }
+.needt-v3 .pk-pull-hint.is-armed { background: var(--v2p-lav-soft); color: var(--v2p-lav); }
+
+/* ── the sheet: frosted glass over the blurred screen ── */
+.needt-v3 .pk-sheet-layer { position: absolute; inset: 0; z-index: 60; pointer-events: none; visibility: hidden; font-family: var(--font-sans); }
+.needt-v3 .pk-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; max-height: 92%; display: flex; flex-direction: column; box-sizing: border-box; pointer-events: auto;
+  border-radius: 34px 34px 0 0; background: var(--pk-glass); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  box-shadow: var(--pk-glass-edge), var(--pk-sheet-shadow); color: var(--v2p-ink); outline: none; transform: translate3d(0, 110%, 0); will-change: transform;
+  user-select: none; -webkit-user-select: none; touch-action: none; }
+.needt-v3 .pk-sheet-layer:not(.is-open) .pk-sheet { pointer-events: none; }
+.needt-v3 .pk-sheet-layer > .pk-scrim { z-index: 0; }
+.needt-v3 .pk-sheet-grab { flex: none; display: block; width: 36px; height: 5px; margin: 8px auto 2px; border-radius: 3px; background: var(--v2p-ink-3); }
+.needt-v3 .pk-sheet-head { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px 22px 8px; }
+.needt-v3 .pk-sheet-title { font: 600 26px/30px var(--font-sans); letter-spacing: -0.035em; text-wrap: balance; }
+.needt-v3 .pk-sheet-meta { font: 400 14px/20px var(--font-sans); color: var(--v2p-ink-2); font-variant-numeric: tabular-nums; }
+.needt-v3 .pk-sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 22px 30px; scrollbar-width: none; touch-action: pan-y; }
+.needt-v3 .pk-sheet-body::-webkit-scrollbar { display: none; }
+.needt-v3 .pk-sheet-foot { flex: none; position: relative; z-index: 2; display: flex; gap: 8px; padding: 0 16px 26px; will-change: transform; }
+/* at a lower detent the foot rides up over the body: it gets glass of its own */
+.needt-v3 .pk-sheet-foot.is-pinned { padding-top: 10px; background: var(--pk-glass); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .pk-sheet input,
+.needt-v3 .pk-sheet textarea { user-select: text; -webkit-user-select: text; }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pk-num-strip,
+.needt-v3 .pk-rw,
+.needt-v3 .pk-row,
+.needt-v3 .pk-reveal-mark,
+.needt-v3 .pk-check-ring,
+.needt-v3 .pk-btn,
+.needt-v3 .pk-sec-chev,
+.needt-v3 .pk-edge > * { transition: none; }
+  .needt-v3 .pk-compact-title { transform: none; }
+}
+
+/* ── the sky (08.10.26): the brand sky (scenes.jsx PxSky) as a small accent ──
+   Skies follow the app theme (light: day moods by time, dark: night / dusk);
+   text on a sky reads its own ink (--px-ink*, set by the sky on its scope). */
+.needt-v3 .pk-skyplate { overflow: hidden; isolation: isolate; background: var(--px-ground); color: var(--px-ink); box-shadow: var(--pk-sky-shadow);
+  --v2p-ink: var(--px-ink); --v2p-ink-2: var(--px-ink-2); --v2p-ink-3: var(--px-ink-3); --v2p-alert: var(--pk-sky-alert);
+  --v2p-plate: var(--pk-sky-on-ink); --v2p-plate-raise: var(--pk-sky-glass); }
+.needt-v3 .pk-skyplate[data-px-night="1"] { --v2p-plate: var(--pk-sky-on-ink-night); --v2p-plate-raise: var(--pk-sky-glass-night); --v2p-alert: var(--pk-sky-alert-night); }
+.needt-v3 .pk-skyplate-in { position: relative; z-index: 1; }
+.needt-v3 .pk-skyplate .pk-btn:not(.is-primary) { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: var(--pk-sky-glass-edge); }
+.needt-v3 .pk-skyplate .pk-btn.is-ghost:active { background: var(--pk-sky-glass); }
+
+.needt-v3 .pk-skybadge { position: relative; flex: none; display: block; width: 76px; height: 40px; border-radius: 20px; overflow: hidden; isolation: isolate;
+  background: var(--px-ground); box-shadow: var(--pk-sky-badge-edge); }
+.needt-v3 .pk-empty.is-sky { display: flex; align-items: center; gap: 14px; margin: 10px 2px 20px; font: 400 15px/22px var(--font-sans); color: var(--v2p-ink-2); text-wrap: pretty; }
+.needt-v3 .pk-empty.is-block > .pk-skybadge { margin-bottom: 8px; }
+.needt-v3 .v2p-prog-sky .pk-skybadge { width: 58px; height: 30px; border-radius: 15px; }
+
+/* the pull-down's top strip of sky: revealed first as the plate drops */
+.needt-v3 .pk-pull-sky { position: absolute; left: 0; right: 0; top: 0; height: 92px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.needt-v3 .pk-pull-sky .px-sky { pointer-events: auto; }
+.needt-v3 .pk-pull-body { position: relative; z-index: 1; }
+
+/* ── the halftone sweep: one band of the sky's dot screen, transform only ── */
+.needt-v3 .pk-sweep { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+.needt-v3 .pk-sweep-band { position: absolute; top: 0; bottom: 0; left: 0; width: 56%; will-change: transform;
+  background-image: radial-gradient(circle, var(--pk-dot) 0.9px, transparent 1.5px), radial-gradient(circle, var(--pk-dot) 1.4px, transparent 2px);
+  background-size: 6px 6px, 6px 6px; background-position: 0 0, 3px 3px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%, #000 55%, transparent); mask-image: linear-gradient(90deg, transparent, #000 35%, #000 55%, transparent);
+  transform: translate3d(-100%, 0, 0); animation: v3-pk-sweep-x 380ms cubic-bezier(0.3, 0.6, 0.3, 1) forwards; }
+@keyframes v3-pk-sweep-x { to { transform: translate3d(180%, 0, 0); } }
+.needt-v3 .pk-sweep.is-screen { z-index: 8; }
+.needt-v3 .pk-sweep.is-screen .pk-sweep-band { right: 0; bottom: auto; width: auto; height: 44%;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%, #000 55%, transparent); mask-image: linear-gradient(180deg, transparent, #000 35%, #000 55%, transparent);
+  transform: translate3d(0, -100%, 0); animation: v3-pk-sweep-y 400ms cubic-bezier(0.3, 0.6, 0.3, 1) forwards; }
+@keyframes v3-pk-sweep-y { to { transform: translate3d(0, 232%, 0); } }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-sweep { display: none; } }
+
+/* ── colour: the section glyph tile (PkGlyph, wave 3 09.10.26) — menu A's row
+   icon washed with the place's hue (--pk-gl-hue, a theme token per place). ── */
+.needt-v3 .pk-glyph { --pk-gl: 44px; flex: none; position: relative; display: inline-grid; place-items: center; width: var(--pk-gl); height: var(--pk-gl);
+  border-radius: calc(var(--pk-gl) * 0.32); box-sizing: border-box; vertical-align: middle;
+  background: color-mix(in oklch, var(--pk-gl-hue, var(--v2p-lav)) 16%, var(--v2p-raise)); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--pk-gl-hue, var(--v2p-lav)) 18%, transparent); }
+.needt-v3 .pk-glyph.is-plain { background: var(--v2p-raise); box-shadow: none; }
+.needt-v3 .pk-glyph.is-glass { background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); -webkit-backdrop-filter: blur(12px) saturate(1.5); backdrop-filter: blur(12px) saturate(1.5); }
+.needt-v3 .pk-glyph-art { display: grid; place-items: center; width: calc(var(--pk-gl) * 0.56); height: calc(var(--pk-gl) * 0.56); }
+.needt-v3 .pk-glyph-art > *,
+.needt-v3 .pk-glyph-art .nva-glyph { width: 100%; height: 100%; }
+.needt-v3 .pk-glyph-art svg { display: block; width: 100%; height: 100%; }
+/* in the header: the big tile before the large title, a small one before the compact */
+.needt-v3 .pk-head-glyph { margin-right: -2px; }
+.needt-v3 .pk-head-glyph + .pk-title { flex: 1; }
+.needt-v3 .pk-compact-glyph { margin-right: 8px; opacity: var(--pk-kt); }
+.needt-v3 .pk-sec-glyph { margin-right: 2px; }
+.needt-v3 .pk-sec.is-big .pk-sec-fold { align-items: center; }
+
+/* ── glass: a frosted surface (PkGlass) — chips, buttons, headers, cards ── */
+.needt-v3 .pk-glass { position: relative; box-sizing: border-box; border-radius: 22px; background: var(--pk-glass-chip); color: var(--v2p-ink); box-shadow: var(--pk-glass-chip-edge);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6); }
+.needt-v3 .pk-glass.is-strong { background: var(--pk-glass); }
+.needt-v3 .pk-glass.is-round { border-radius: 999px; }
+.needt-v3 button.pk-glass { border: 0; font: inherit; -webkit-tap-highlight-color: transparent; transition: transform 0.18s var(--pk-ease, ease); }
+.needt-v3 button.pk-glass:active { transform: scale(0.96); }
+@media (prefers-reduced-motion: reduce) { .needt-v3 button.pk-glass { transition: none; } }
+
+/* ── the morph (PkSheet from=…): the sheet grows out of menu A's pill — a wash
+   in the pill's colour fades as it grows, the content arrives late ── */
+.needt-v3 .pk-sheet-morph { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: var(--nva-bg, var(--v2p-plate)); }
+.needt-v3 .pk-sheet-layer.is-morphing .pk-sheet > :not(.pk-sheet-morph) { opacity: var(--pk-morph-k, 1); }
+
+/* glass chips (wave 3): the small chip buttons on the ground are frosted
+   glass; inside a plate they keep the plate's raise */
+.needt-v3 .pk-btn.is-chip { background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); -webkit-backdrop-filter: blur(12px) saturate(1.5); backdrop-filter: blur(12px) saturate(1.5); }
+.needt-v3 .pk-plate:not(.pk-skyplate) .pk-btn.is-chip,
+.needt-v3 .pk-pull .pk-btn.is-chip { background: var(--v2p-plate-raise); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.needt-v3 .pk-head-row.is-top { margin-bottom: 12px; }
+.needt-v3 .pk-head-row.is-top .pk-head-glyph { margin-right: 0; }
+
+/* ── hold → actions (PkHold, PkActions, PkHueTile; wave 3, from mobile.css) ── */
+.needt-v3 .pk-hold { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.needt-v3 .pk-acts { display: flex; flex-direction: column; border-radius: 24px; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); overflow: hidden; }
+.needt-v3 .pk-act { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 16px 10px 12px; box-sizing: border-box; border: 0; background: none; text-align: left;
+  color: var(--v2p-ink); font-family: inherit; -webkit-tap-highlight-color: transparent; transition: background-color 0.15s ease; }
+.needt-v3 .pk-act + .pk-act { box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .pk-act:active { background: var(--v2p-raise); }
+.needt-v3 .pk-act:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: -2px; }
+.needt-v3 .pk-act[disabled] { opacity: 0.45; }
+.needt-v3 .pk-act-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .pk-act-label { font: 500 16px/21px var(--font-sans); letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pk-act-hint { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pk-act.is-danger .pk-act-label { color: var(--v2p-alert); }
+.needt-v3 .pk-act-check { flex: none; display: flex; color: var(--v2p-ink-2); }
+.needt-v3 .pk-hue-tile { color: color-mix(in oklch, var(--pk-gl-hue) 82%, var(--v2p-ink)); }
+.needt-v3 .pk-acts-sheet .pk-sheet-body { padding-bottom: 34px; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-act { transition: none; } }

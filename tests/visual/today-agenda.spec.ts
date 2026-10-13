@@ -46,7 +46,10 @@ test("Today binds real tasks and keeps completion after reload", async ({
       .locator("visible=true")
       .first()
   ).toBeVisible();
-  await expect(page.locator(".needt-v2")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
+    "data-theme",
+    "dark"
+  );
 
   const saved = page.waitForResponse(
     (response) =>
@@ -103,7 +106,7 @@ test("Today exposes load failures and recovers", async ({ page }) => {
   await expect(page.getByText("Today could not be loaded.")).toBeHidden();
   await expect(
     page
-      .locator(".needt-v2")
+      .locator(".needt-v2:not(.needt-notices)")
       .getByText("Today", { exact: true })
       .locator("visible=true")
       .first()

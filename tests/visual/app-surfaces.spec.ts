@@ -63,7 +63,10 @@ test("Calendar, Today, and Workspace stay visually stable", async ({
   await expect(page).toHaveScreenshot("settings-appearance.png");
   await page.goto("/calendar", { waitUntil: "domcontentloaded" });
 
-  await expect(page.locator(".needt-v2")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
+    "data-theme",
+    "dark"
+  );
   await expect(
     page.locator(
       (page.viewportSize()?.width ?? 0) < 640
@@ -101,7 +104,10 @@ test("Calendar, Today, and Workspace stay visually stable", async ({
   await page.keyboard.press("Escape");
 
   await page.goto("/today", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
+    "data-theme",
+    "dark"
+  );
   await expect(
     page
       .getByRole("main")
@@ -137,7 +143,10 @@ test("Calendar, Today, and Workspace stay visually stable", async ({
   await expect(page).toHaveScreenshot("page-document.png");
 
   await page.goto("/tasks", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
+    "data-theme",
+    "dark"
+  );
   await expect(
     page
       .getByRole("main")
@@ -170,7 +179,7 @@ test("primary app surfaces stay coherent in light mode", async ({ page }) => {
   await expect(page).toHaveScreenshot("settings-appearance-light.png");
 
   await page.goto("/calendar", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toHaveAttribute(
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
     "data-theme",
     "paper"
   );
@@ -197,7 +206,7 @@ test("primary app surfaces stay coherent in light mode", async ({ page }) => {
   await page.keyboard.press("Escape");
 
   await page.goto("/today", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toHaveAttribute(
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
     "data-theme",
     "paper"
   );
@@ -205,7 +214,7 @@ test("primary app surfaces stay coherent in light mode", async ({ page }) => {
   await expect(page).toHaveScreenshot("today-light.png");
 
   await page.goto("/tasks", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".needt-v2")).toHaveAttribute(
+  await expect(page.locator(".needt-v2:not(.needt-notices)")).toHaveAttribute(
     "data-theme",
     "paper"
   );

@@ -1,0 +1,658 @@
+/* Design v3 - paywall.jsx PW_CSS (sheet, plans, Pro badges).
+ * HAND-WRITTEN, not vendored: the prototype keeps these rules in a JS string
+ * (injected at run time), so the sync script never sees them. Rescoped under
+ * .needt-v3 (.dark -> [data-theme=dark]); corrections are marked V-*. */
+
+.needt-v3 .pw-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  background: var(--paywall-scrim);
+}
+.needt-v3 .pw-sheet {
+  position: relative;
+  isolation: isolate;
+  width: min(880px, calc(100vw - 64px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--px-ground, var(--sky-brand-mid));
+  box-shadow:
+    var(--black-a45) 0 40px 90px -20px,
+    var(--black-a20) 0 0 0 0.5px;
+}
+.needt-v3 .pw-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.needt-v3 .pw-top,
+.needt-v3 .pw-body,
+.needt-v3 .pw-foot,
+.needt-v3 .pw-bar {
+  position: relative;
+  z-index: 1;
+}
+.needt-v3 .pw-top {
+  flex: none;
+  height: 290px;
+}
+@media (max-height: 820px) {
+  .needt-v3 .pw-top {
+    height: 250px;
+  }
+}
+.needt-v3 .pw-x {
+  position: absolute;
+  z-index: 8;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+}
+.needt-v3 .pw-h {
+  margin: 0;
+}
+.needt-v3 .pw-h-desk {
+  font-size: 60px;
+}
+@media (max-height: 820px) {
+  .needt-v3 .pw-h-desk {
+    font-size: 50px;
+  }
+  .needt-v3 .pw-top .px-kicker {
+    margin-top: 6px;
+  }
+}
+.needt-v3 .pw-plans {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 22px 26px 8px;
+  align-items: stretch;
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.needt-v3 .pw-seg {
+  margin-left: auto;
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--fill-2);
+  box-shadow: var(--shadow-inset-ring);
+}
+.needt-v3 .pw-seg-b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: default;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--text-secondary);
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+.needt-v3 .pw-seg-b:hover {
+  color: var(--text-primary);
+}
+.needt-v3 .pw-seg-b.is-on {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised);
+}
+.needt-v3 .pw-seg-b:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.needt-v3 .pw-seg-save {
+  font: 600 11px/1 var(--font-sans);
+  color: var(--success);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  cursor: default;
+}
+.needt-v3 .pw-plan.is-yearly {
+  padding-top: 26px !important;
+}
+.needt-v3 .pw-radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9px;
+  box-shadow: var(--text-tertiary) 0 0 0 1.5px inset;
+  transition: box-shadow 140ms ease;
+}
+.needt-v3 .pw-radio.is-on {
+  box-shadow: var(--text-primary) 0 0 0 5px inset;
+}
+.needt-v3 .pw-save {
+  font-weight: 600;
+  color: var(--success);
+}
+.needt-v3 .pw-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+.needt-v3 .pw-meter-bar {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-4);
+  overflow: hidden;
+}
+.needt-v3 .pw-meter-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--text-primary);
+}
+.needt-v3 .pw-meter-t {
+  font: 600 12px/14px var(--font-sans);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-freeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 26px 4px;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+  text-align: center;
+}
+.needt-v3 .pw-freeline b {
+  font-weight: 650;
+}
+.needt-v3 .pw-freeline-tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--white-a22);
+  box-shadow: var(--white-a45) 0 0 0 1px inset;
+  font: 600 10px/12px var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+.needt-v3 .pw-go {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 26px 18px;
+}
+.needt-v3 .pw-btn-lg {
+  height: 44px;
+  min-width: 280px;
+  padding: 0 22px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--black-a18) 0 8px 20px -8px;
+}
+.needt-v3 .pw-go-sub {
+  font: 500 12px/15px var(--font-sans);
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+  text-align: center;
+}
+.needt-v3 .pw-phone .pw-bar .pw-go-sub {
+  color: var(--text-secondary);
+  text-shadow: none;
+}
+.needt-v3 .pw-feats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.needt-v3 .pw-feats {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 18px !important;
+}
+.needt-v3 .pw-phone .pw-feats {
+  grid-template-columns: 1fr;
+}
+.needt-v3 .pw-phone .pw-freeline {
+  padding: 16px 16px 0;
+  text-align: left;
+  justify-content: flex-start;
+}
+.needt-v3 .pw-best {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: var(--badge-strong-bg);
+  color: var(--badge-strong-fg);
+  font: 600 11px/13px var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.needt-v3 .pw-was {
+  font: 500 13px/16px var(--font-sans);
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .pw-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.needt-v3 .pw-price .px-display {
+  font-size: 40px;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pw-price .pw-cur {
+  font: 600 13px/1 var(--font-sans);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.needt-v3 .pw-price .pw-per {
+  font: 400 13px/1 var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pw-sub {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  min-height: 16px;
+}
+.needt-v3 .pw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.needt-v3 .pw-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .pw-list li .pw-ck {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--text-primary);
+  color: var(--background);
+}
+.needt-v3 .pw-list li .pw-note {
+  color: var(--text-tertiary);
+}
+.needt-v3 .pw-kick {
+  font:
+    600 11px/14px ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.needt-v3 .pw-ctas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.needt-v3 .pw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 11px;
+  cursor: default;
+  font: 500 13px/1 var(--font-sans);
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    transform 90ms ease,
+    box-shadow 120ms ease;
+}
+.needt-v3 .pw-btn:active {
+  transform: scale(0.97);
+}
+.needt-v3 .pw-btn.is-primary {
+  background: var(--button-inverse-bg);
+  color: var(--button-inverse-fg);
+}
+.needt-v3 .pw-btn.is-primary:hover {
+  background: var(--button-inverse-bg-hover);
+}
+.needt-v3 .pw-btn.is-secondary {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised);
+}
+.needt-v3 .pw-btn.is-secondary:hover {
+  background-image: linear-gradient(var(--fill-2), var(--fill-2));
+}
+.needt-v3 .pw-current {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border-radius: 11px;
+  box-shadow: var(--border) 0 0 0 1px inset;
+  font: 500 13px/1 var(--font-sans);
+  color: var(--text-secondary);
+}
+.needt-v3 .pw-foot {
+  flex: none;
+  padding: 10px 24px 16px;
+  font: 500 12px/15px var(--font-sans);
+  color: var(--px-ink-2);
+  text-align: center;
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+}
+.needt-v3 .pw-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* The glass cards in the collage: real Needt UI at small scale. */
+.needt-v3 .pw-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--color-white);
+  color: var(--ink-fixed);
+  box-shadow:
+    var(--mock-shadow-a12) 0 0 0 0.5px,
+    var(--mock-shadow-a10) 0 2px 6px -2px;
+  font: 500 12px/15px var(--font-sans);
+  white-space: nowrap;
+}
+.needt-v3 .pw-mini .pw-chip {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--mock-chip-bg);
+  color: var(--mock-chip-fg);
+  font: 500 10.5px/13px var(--font-sans);
+}
+.needt-v3 .pw-check {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 7px;
+  box-shadow: var(--ink-fixed) 0 0 0 1.5px inset;
+}
+.needt-v3 .pw-check.is-done {
+  background: var(--ink-fixed);
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  color: var(--color-white);
+}
+/* Phone: a full-screen sheet inside the device. */
+.needt-v3 .pw-phone {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--px-ground, var(--sky-brand-mid));
+  transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.needt-v3 .pw-phone .pw-top {
+  height: 340px;
+}
+.needt-v3 .pw-phone .pw-plans {
+  grid-template-columns: 1fr;
+  padding: 22px 16px 6px;
+  gap: 14px;
+}
+.needt-v3 .pw-phone .pw-bar .pw-go-sub {
+  display: block;
+}
+.needt-v3 .pw-phone .pw-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px 16px 26px;
+  background-color: var(--white-a60);
+  background-image: linear-gradient(var(--white-a0), var(--white-a80));
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow:
+    var(--color-white) 0 1px 0 0 inset,
+    var(--black-a12) 0 -1px 0 0;
+}
+.needt-v3[data-theme="dark"] .pw-phone .pw-bar {
+  background-color: var(--smoke-a55);
+  background-image: linear-gradient(var(--smoke-a0), var(--smoke-a85));
+  box-shadow: var(--white-a8) 0 1px 0 0 inset;
+}
+.needt-v3 .pw-phone .pw-btn {
+  height: 48px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+/* Promo cards (sidebar, mobile More, Settings): the sky fills the whole
+   card; the words sit on it in white with a soft shadow. */
+.needt-v3 .pw-promo {
+  position: relative;
+  display: block;
+  height: 100px;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: default;
+  isolation: isolate;
+  box-shadow:
+    var(--black-a8) 0 0 0 1px,
+    var(--black-a6) 0 4px 12px -4px;
+  transition:
+    box-shadow 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Hover / keyboard focus: the card lifts 2px on a softer, larger shadow; the
+   sky inside parts its clouds and brightens (scenes.jsx), and the corner sun
+   glow opens up. */
+.needt-v3 .pw-promo:hover,
+.needt-v3 .pw-promo:focus-visible {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--black-a8) 0 0 0 1px,
+    var(--black-a6) 0 4px 10px -4px,
+    var(--black-a12) 0 14px 28px -10px;
+}
+.needt-v3 .pw-promo:active {
+  transform: translateY(-1px) scale(0.985);
+  transition-duration: 90ms;
+}
+.needt-v3 .pw-promo-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+  background: radial-gradient(
+    70% 90% at 100% 0%,
+    var(--promo-glow) 0%,
+    var(--promo-glow-0) 70%
+  );
+  transition: opacity 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 .pw-promo:hover .pw-promo-glow,
+.needt-v3 .pw-promo:focus-visible .pw-promo-glow {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pw-promo,
+  .needt-v3 .pw-promo-glow {
+    transition: none;
+  }
+  .needt-v3 .pw-promo:hover,
+  .needt-v3 .pw-promo:focus-visible {
+    transform: none;
+  }
+}
+.needt-v3 .pw-promo-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 12px 11px;
+}
+.needt-v3 .pw-promo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .pw-promo-line {
+  font: 500 12px/16px var(--font-sans);
+  color: var(--px-ink);
+  text-shadow:
+    0 1px 2px var(--px-shadow),
+    0 0 12px var(--px-halo);
+}
+.needt-v3 .pw-promo .pw-x {
+  width: 22px;
+  height: 22px;
+  top: 8px;
+  right: 8px;
+}
+.needt-v3 .pw-glass-in {
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+@keyframes pw-promo-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+.needt-v3 .pw-promo.is-leaving {
+  animation: pw-promo-out 180ms ease-in both;
+}
+@keyframes pw-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pw-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes pw-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pw-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.needt-v3 .pw-scrim {
+  animation: pw-fade 220ms ease backwards;
+}
+.needt-v3 .pw-scrim.is-leaving {
+  animation: pw-fade-out 170ms ease-in both;
+}
+.needt-v3 .pw-sheet {
+  animation: pw-in 320ms cubic-bezier(0.2, 0.9, 0.24, 1) backwards;
+}
+.needt-v3 .pw-scrim.is-leaving .pw-sheet {
+  animation: pw-out 170ms ease-in both;
+}
+.needt-v3 .pw-print-in {
+  animation: pw-in 520ms cubic-bezier(0.2, 0.9, 0.24, 1) backwards;
+}
+@media (max-width: 760px) {
+  .needt-v3 .pw-plans {
+    grid-template-columns: 1fr;
+  }
+  .needt-v3 .pw-collage {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pw-scrim,
+  .needt-v3 .pw-sheet,
+  .needt-v3 .pw-print-in,
+  .needt-v3 .pw-scrim.is-leaving .pw-sheet {
+    animation-duration: 1ms !important;
+  }
+  .needt-v3 .pw-phone {
+    transition: none;
+  }
+}

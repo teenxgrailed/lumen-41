@@ -1,0 +1,138 @@
+/* mail.css — classes extracted from inline styles (07.10.26). Colours only via var(--…) tokens from themes.css. */
+
+/* ── MailScreen.jsx · Mail ───────────────────────────────────────────── */
+.ml-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.ml-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
+.ml-title { margin: 0; font: var(--type-page-title); color: var(--text-primary); }
+.ml-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ml-meta { font: var(--type-meta); color: var(--text-tertiary); }
+.ml-push { margin-left: auto; }
+
+/* Account chips + tab pill. */
+.ml-accts { display: flex; gap: 6px; }
+.ml-acct { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px 0 7px; border-radius: 8px; background: var(--fill-3); font: var(--type-meta-medium); color: var(--text-secondary); }
+.ml-acct-dot { width: 7px; height: 7px; border-radius: 4px; }
+.ml-acct-down { width: 6px; height: 6px; border-radius: 3px; background: var(--destructive); margin-left: 2px; }
+.ml-tabs { margin-left: auto; display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+.ml-tab { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: var(--radius-md); cursor: default; font: var(--type-ui); color: var(--text-tertiary); }
+.ml-tab.is-on { background: var(--fill-4); font: var(--type-ui-medium); color: var(--text-primary); }
+.ml-tab-n { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* Outlook banner. */
+.ml-banner { flex: none; display: flex; gap: 10px; align-items: flex-start; margin: 2px 0 6px; padding: 10px 10px 10px 12px; border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--destructive) 7%, var(--surface-raised)); box-shadow: color-mix(in oklab, var(--destructive) 22%, transparent) 0 0 0 1px inset;
+  opacity: 1; transform: none; transition: opacity 180ms ease, transform 200ms var(--nx-ease); }
+.ml-banner.is-leaving { opacity: 0; transform: translateY(-4px); }
+.ml-banner-ico { flex: none; display: flex; padding-top: 1px; color: var(--destructive); }
+.ml-banner-title { font: 600 13px/17px var(--font-sans); color: var(--text-primary); }
+.ml-banner-line { font: var(--type-meta); color: var(--text-tertiary); text-wrap: pretty; }
+.nx-btn.ml-banner-btn { flex: none; gap: 6px; }
+.ml-spinner { display: inline-block; box-sizing: border-box; border-radius: 999px; border: 1.5px solid var(--fill-5); border-top-color: currentColor; }
+
+/* List. */
+.ml-layout { flex: 1; min-height: 0; display: flex; gap: 16px; }
+.ml-list { flex: none; width: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-bottom: 16px; }
+.ml-list.is-narrow { flex: 1 1 auto; width: auto; max-width: 720px; }
+.ml-day { padding: 12px 14px 6px; font: 600 13px/16px var(--font-sans); color: var(--text-secondary); }
+.ml-avatar { flex: none; border-radius: 999px; display: grid; place-items: center; background: var(--fill-4); font: 600 13px/1 var(--font-sans); color: var(--text-secondary); }
+.ml-row { position: relative; display: flex; gap: 10px; padding: 10px 12px 10px 14px; border-radius: var(--radius-lg); cursor: default;
+  background: transparent; box-shadow: none; transition: background-color var(--transition-hover); }
+.ml-row.is-hot { background: var(--fill-3); }
+.ml-row.is-active { background: var(--surface-raised); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
+.ml-row-dot { position: absolute; left: 4px; top: 22px; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); }
+.ml-row-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ml-row-top { display: flex; align-items: baseline; gap: 8px; }
+.ml-row-from { flex: 1 1 auto; min-width: 0; font: 500 13px/16px var(--font-sans); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-row.is-unread .ml-row-from { font: 600 13px/16px var(--font-sans); }
+.ml-row-time { flex: none; font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.ml-row-subject { font: var(--type-ui); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-row.is-unread .ml-row-subject { font: 500 13px/16px var(--font-sans); }
+.ml-row-preview { font: var(--type-meta); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-row-tags { display: flex; gap: 6px; padding-top: 4px; }
+.ml-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--fill-3); font: var(--type-meta-medium); color: var(--text-secondary); }
+
+/* Empty tab. */
+.ml-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
+.ml-empty-title { margin-top: 4px; font: 500 15px/20px var(--font-sans); color: var(--text-secondary); }
+.ml-empty-line { font: var(--type-ui); color: var(--text-tertiary); }
+.nx-btn.ml-empty-cta { margin-top: 8px; }
+
+/* Reading pane. */
+.ml-msg { flex: 1 1 auto; min-width: 0; overflow-y: auto; margin-bottom: 16px; padding: 28px 44px 40px; border-radius: var(--radius-3xl); background: var(--surface-raised); box-shadow: var(--shadow-ring);
+  display: flex; flex-direction: column; gap: 20px; }
+.ml-msg-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nx-btn.ml-back { margin-left: -8px; padding-left: 6px; }
+.nx-btn.ml-make { padding-right: 10px; }
+.ml-subject { margin: 0; font: 700 26px/32px var(--font-sans); letter-spacing: -0.01em; color: var(--text-primary); }
+.ml-from { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.ml-from-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ml-from-name { font: 600 13px/16px var(--font-sans); color: var(--text-primary); }
+.ml-body { display: flex; flex-direction: column; gap: 12px; max-width: 620px; }
+.ml-p { margin: 0; font: 400 15px/23px var(--font-sans); color: var(--text-secondary); }
+.ml-attach { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 10px; border-radius: var(--radius-lg); background: var(--fill-3); font: var(--type-ui-medium); color: var(--text-primary); }
+.ml-attach-ico { width: 24px; height: 28px; border-radius: 4px; background: var(--surface-raised); box-shadow: var(--shadow-ring); display: grid; place-items: center; color: var(--destructive); font: 700 7px/1 var(--font-sans); }
+.ml-reply { margin-top: auto; max-width: 720px; width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--radius-lg); background: transparent; box-shadow: var(--fill-5) 0 0 0 1px inset;
+  font: var(--type-ui); color: var(--text-tertiary); text-align: left; cursor: text; transition: background-color var(--transition-hover); }
+.ml-reply:hover { background: var(--fill-2); }
+.ml-reply:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Writing (09.10.26): New message, Sent / Drafts tabs, the composer ── */
+.ml-tabs-sep { align-self: center; width: 1px; height: 16px; margin: 0 4px; background: var(--border); }
+.nx-btn.ml-new { flex: none; gap: 6px; }
+.ml-row-draft { margin-right: 6px; color: var(--destructive); font-weight: 500; }
+
+/* The floating composer: a window at the bottom right (Craft / Superhuman). */
+.ml-co { position: fixed; right: 24px; bottom: 20px; z-index: 950; width: 560px; max-width: calc(100vw - 48px); max-height: calc(100vh - 96px); box-sizing: border-box;
+  display: flex; flex-direction: column; border-radius: 18px; background: var(--surface-raised); box-shadow: var(--shadow-floating); transform-origin: bottom right; }
+.ml-co-head { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 18px; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.ml-co-title { flex: 1; min-width: 0; font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.ml-co-row { position: relative; flex: none; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 14px 4px 18px; box-sizing: border-box; box-shadow: var(--border) 0 -1px 0 0 inset; }
+.ml-co-label { flex: none; width: 36px; font: var(--type-ui); color: var(--text-tertiary); }
+.ml-co-from { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 28px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: var(--radius-md); background: transparent;
+  font: var(--type-ui); color: var(--text-primary); cursor: default; transition: background-color var(--transition-hover); }
+.ml-co-from:hover { background: var(--fill-3); }
+.ml-co-from.is-static { margin-left: 0; padding: 0; }
+.ml-co-from-name { font: var(--type-ui-medium); }
+.ml-co-from-mail { color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-co-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ml-co-chip { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 2px 0 8px; border-radius: 7px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); max-width: 100%; }
+.ml-co-chip.is-bad { background: color-mix(in oklab, var(--destructive) 12%, transparent); color: var(--destructive); }
+.ml-co-chip-x { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-tertiary); cursor: default; }
+.ml-co-chip-x:hover { background: var(--fill-4); color: var(--text-primary); }
+.ml-co-input { flex: 1 1 120px; min-width: 80px; height: 28px; border: 0; outline: none; background: transparent; font: var(--type-ui); color: var(--text-primary); }
+.ml-co-input::placeholder, .ml-co-subject::placeholder, .ml-co-body::placeholder { color: var(--text-muted); }
+.ml-co-ccbtn { flex: none; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-meta-medium); color: var(--text-tertiary); cursor: default; }
+.ml-co-ccbtn:hover { background: var(--fill-3); color: var(--text-primary); }
+.ml-co-sug { position: absolute; left: 56px; top: calc(100% + 4px); z-index: 2; width: 360px; max-width: calc(100% - 70px); padding: 6px; box-sizing: border-box; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating);
+  display: flex; flex-direction: column; }
+.ml-co-sug-row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: default; min-width: 0; }
+.ml-co-sug-row.is-on { background: var(--fill-3); }
+.ml-co-sug-row .ml-avatar { font-size: 10px !important; }
+.ml-co-sug-name { flex: none; max-width: 45%; font: var(--type-ui-medium); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-co-sug-mail { flex: 1; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-co-subject { flex: 1; min-width: 0; height: 32px; border: 0; outline: none; background: transparent; font: 600 15px/20px var(--font-sans); color: var(--text-primary); }
+.ml-co-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px 18px 14px; }
+.ml-co-body { flex: 1 0 auto; min-height: 200px; padding: 0; border: 0; outline: none; resize: none; background: transparent; font: 400 15px/23px var(--font-sans); color: var(--text-primary); }
+.ml-co-quote { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 2px 12px; box-shadow: var(--fill-5) 2px 0 0 0 inset; }
+.ml-co-quote.is-read { max-width: 620px; }
+.ml-co-quote-head { font: var(--type-meta-medium); color: var(--text-tertiary); }
+.ml-co-quote-text { font: var(--type-ui); color: var(--text-tertiary); white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.ml-co-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.ml-co-file { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px 0 10px; border-radius: 9px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); max-width: 100%; }
+.ml-co-file-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.ml-co-file-size { font: var(--type-meta); color: var(--text-tertiary); }
+.ml-co-err { flex: none; margin: 0 18px 8px; font: var(--type-meta); color: var(--destructive); }
+.ml-co-foot { flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 10px 10px 14px; box-shadow: var(--border) 0 1px 0 0 inset; }
+.nx-btn.ml-co-send { gap: 8px; }
+.ml-co-kbd { font: var(--type-meta); opacity: 0.6; }
+@media (max-width: 640px) { .ml-co { right: 12px; left: 12px; bottom: 12px; width: auto; } }
+.ml-co-input:focus, .ml-co-input:focus-visible, .ml-co-subject:focus, .ml-co-subject:focus-visible, .ml-co-body:focus, .ml-co-body:focus-visible { outline: none; box-shadow: none; }
+.ml-attach-ico.is-file { color: var(--text-tertiary); }
+.ml-msg.is-quiet { align-items: center; justify-content: center; }
+/* The header holds five tabs and New message: it gives way on narrow windows. */
+.ml-title, .ml-tab { white-space: nowrap; }
+.ml-tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ml-tabs::-webkit-scrollbar { display: none; }
+.ml-tab { flex: none; }
+@media (max-width: 1180px) { .ml-accts { display: none; } }
+@media (max-width: 980px) { .ml-new-label { display: none; } .nx-btn.ml-new { padding: 0 10px; } }

@@ -6,6 +6,10 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import {
+  parseV3Fields,
+  projectV3FieldsSchema,
+} from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { deriveProjectProgress } from "@/lib/projects/progress";
 
@@ -106,6 +110,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     ) {
       return NextResponse.json({ error: "PROJECT_ARCHIVED" }, { status: 409 });
     }
+    const v3 = parseV3Fields(projectV3FieldsSchema, json);
+    if (!v3.ok) return NextResponse.json({ error: v3.error }, { status: 400 });
     const startDate = optionalDate(json.startDate);
     const deadline = optionalDate(json.deadline);
     if (startDate === false || deadline === false) {
@@ -161,6 +167,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
           json.status === ProjectStatus.ARCHIVED
             ? json.status
             : undefined,
+        ...v3.data,
       },
       include: {
         tasks: {

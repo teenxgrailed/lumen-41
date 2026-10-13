@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="icon" href="app-icon/favicon.ico" sizes="32x32"><link rel="icon" href="app-icon/needt-icon-small.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="app-icon/apple-touch-icon.png"><title>Needt — account</title>
+<link rel="stylesheet" href="../_ds/needt-design-system-main-25d3c8e5-a812-464d-881f-e887b9adef4b/styles.css">
+<link rel="stylesheet" href="themes.css?v=1008h">
+<script src="cssvar.js?v=1007n"></script>
+<script src="sync.js?v=1009b"></script>
+<script src="platform.js?v=1009b"></script>
+<script src="Data.js?v=1008m"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script src="../_ds/needt-design-system-main-25d3c8e5-a812-464d-881f-e887b9adef4b/_ds_bundle.js"></script>
+<script type="module" src="needt-icons.js?v=6"></script>
+<style>
+html, body { height: auto; margin: 0; background: var(--background); }
+@keyframes needt-breathe {
+  0%   { transform: skewX(0deg) scale(1, 1);          letter-spacing: -0.014em; }
+  38%  { transform: skewX(-6deg) scale(1.06, 1.045);  letter-spacing: 0.012em; }
+  56%  { transform: skewX(-7deg) scale(1.075, 1.05);  letter-spacing: 0.016em; }
+  78%  { transform: skewX(-2deg) scale(0.995, 1.005); letter-spacing: -0.006em; }
+  100% { transform: skewX(0deg) scale(1, 1);          letter-spacing: -0.014em; }
+}
+@keyframes needt-mark-puff {
+  0%   { transform: scale(0.965, 0.985); letter-spacing: -0.02em; }
+  45%  { transform: scale(1.1, 1.055);   letter-spacing: 0.026em; }
+  100% { transform: scale(1, 1);         letter-spacing: -0.014em; }
+}
+.needt-mark { cursor: default; transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), letter-spacing 0.32s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.needt-mark.is-breathing { animation: needt-breathe 5.2s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.needt-mark:hover { animation-play-state: paused; transform: scale(1.075, 1.05); letter-spacing: 0.018em; }
+.needt-mark.is-held { animation-play-state: paused; transform: scale(0.97, 0.99); letter-spacing: -0.022em; transition-duration: 0.09s; }
+.needt-mark.is-puffed { animation: needt-mark-puff 0.44s cubic-bezier(0.2, 0.7, 0.2, 1), needt-breathe 5.2s cubic-bezier(0.37, 0, 0.63, 1) 0.44s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .needt-mark, .needt-mark.is-puffed { animation: none; transition: none; }
+  .needt-mark:hover, .needt-mark.is-held { transform: none; letter-spacing: var(--tracking-display); }
+}
+@keyframes needt-auth-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.auth-enter { animation: needt-auth-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes needt-step-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes needt-step-back { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.step-enter { animation: needt-step-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.step-enter-back { animation: needt-step-back 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes needt-aurora { 0%, 100% { opacity: 0.5; transform: translate3d(0,0,0) scale(1); } 50% { opacity: 0.85; transform: translate3d(0,-3%,0) scale(1.06); } }
+.auth-aurora { position: absolute; inset: -10%; pointer-events: none;
+  background:
+    radial-gradient(42% 38% at 28% 18%, rgba(var(--accent-rgb), 0.3), transparent 72%),
+    radial-gradient(46% 40% at 78% 72%, rgba(var(--accent-rgb), 0.16), transparent 74%);
+  animation: needt-aurora 9s ease-in-out infinite; }
+@keyframes needt-mini-drop { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+.mini-block { animation: needt-mini-drop 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes needt-mini-now { 0% { top: 18%; } 100% { top: 76%; } }
+.mini-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--accent);
+  box-shadow: rgba(var(--accent-rgb), 0.5) 0 0 6px 0; animation: needt-mini-now 14s linear infinite; }
+/* A refusal arrives once and stays put — it is the answer to a press, so it
+   must not slide in from anywhere the press did not happen. */
+@keyframes needt-refuse { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.refusal { animation: needt-refuse 0.16s ease both; }
+/* Each state below is the real screen at 0.6, framed. Scaling is honest here:
+   nothing is redrawn for the sheet, so a change to the screen changes the
+   sheet in the same commit. */
+/* The frame is the unit of measure: the card sizes itself to its column and the
+   1200px design scales to exactly that width, so a card is never part empty and
+   the row still fills at any viewport. */
+.state { container-type: inline-size; position: relative; width: 100%; aspect-ratio: 1200 / 660;
+  overflow: hidden; border-radius: var(--radius-2xl); background: var(--background); box-shadow: var(--shadow-ring); }
+.state > div { position: absolute; left: 0; top: 0; width: 1200px; height: 660px;
+  transform: scale(calc(100cqw / 1200)); transform-origin: top left; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<link rel="stylesheet" href="exposure-wordmark.css?v=1008m">
+<link rel="stylesheet" href="composer.css?v=1008m">
+<link rel="stylesheet" href="app.css?v=1008m">
+<link rel="stylesheet" href="styles/base.css?v=1008m">
+<link rel="stylesheet" href="styles/shell.css?v=1008m">
+<link rel="stylesheet" href="styles/scenes.css?v=1008m">
+<link rel="stylesheet" href="styles/paywall.css?v=1008m">
+<link rel="stylesheet" href="styles/auth.css?v=1008m">
+<link rel="stylesheet" href="styles/tasks.css?v=1008m">
+<link rel="stylesheet" href="styles/docs.css?v=1008m">
+<!-- What AuthScreen / OnboardingScreen read at render (the same chain mobile.html loads). -->
+<script src="brand-icons.js?v=1008m"></script>
+<script type="text/babel" src="AiOrb.jsx?v=1008m"></script>
+<script type="text/babel" src="app-icon.jsx?v=1008m"></script>
+<script type="text/babel" src="Composer.jsx?v=1008m"></script>
+<script type="text/babel" src="ColumnsView.jsx?v=1008m"></script>
+<script type="text/babel" src="ExposureWordmark.jsx?v=1008m"></script>
+<script type="text/babel" src="Miniature.jsx?v=1008m"></script>
+<script type="text/babel" src="Drift.jsx?v=1008m"></script>
+<script type="text/babel" src="scenes.jsx?v=1008m"></script>
+<script type="text/babel" src="paywall.jsx?v=1008m"></script>
+<script type="text/babel" src="paywall-sheet.jsx?v=1008m"></script>
+<script type="text/babel" src="stores.jsx?v=1008m"></script>
+<script type="text/babel" src="task.jsx?v=1008m"></script>
+<script type="text/babel" src="states.jsx?v=1008m"></script>
+<script type="text/babel" src="settings-kit.jsx?v=1008m"></script>
+<script type="text/babel" src="AuthScreen.jsx?v=1008m"></script>
+<script type="text/babel" data-presets="react">
+/* The kit's babel scripts share one scope, so this page reads the namespace
+   under its own names rather than re-declaring the components. */
+const DS = window.NeedtDesignSystem_25d3c8;
+const PageButton = DS.Button, PageIcon = DS.Icon, PageSeg = DS.SegmentedControl, PageChip = DS.Chip;
+
+/* auth.html — the account flow on its own, next to the kit.
+ *
+ * Top: the flow, clickable end to end — sign up, four setup steps, then the
+ * door into index.html. Bottom: every state of those screens side by side,
+ * because a refusal, a field error and a busy button are only comparable when
+ * they sit on one page. The sheet renders the same components as the flow. */
+const STATES = [
+  { id: "signup", label: "Sign up — empty", note: "First load. The plate is already running; nothing is asked twice.", mode: "signup", seed: {} },
+  { id: "errors", label: "Sign up — field errors", note: "Pressed with a bad address and a short password. Each error names the fix under its own field.", mode: "signup", seed: { mail: "maksym.needt", pass: "short", touched: true } },
+  { id: "taken", label: "Sign up — address taken", note: "The pair is refused, not the field: the message sits above the button, where the press happened.", mode: "signup", seed: { mail: "taken@needt.app", pass: "longenough", touched: true, refused: "taken" } },
+  { id: "wrong", label: "Sign in — no match", note: "Sign in never says which half was wrong.", mode: "login", seed: { mail: "maksym@needt.app", pass: "wrongpass", touched: true, refused: "wrong" } }
+];
+const OB_STATES = [
+  { id: "ob1", label: "Setup 1 — you", note: "Name, zone, theme. The plate holds two blocks: enough to show what it is.", step: 0 },
+  { id: "ob3", label: "Setup 3 — calendars", note: "Connecting tints the events in their calendar's colour on the plate.", step: 2 },
+  { id: "ob4", label: "Setup 4 — first tasks", note: "Three captures, then Plan my day. The plate is a full day by now.", step: 3 }
+];
+
+function Frame({ children }) {
+  return <div className="state"><div>{children}</div></div>;
+}
+
+function Sheet({ label, note, children }) {
+  return (
+    <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{ font: "var(--type-ui-medium)", color: "var(--text-primary)" }}>{label}</span>
+      <span style={{ font: "var(--type-meta)", color: "var(--text-muted)", textWrap: "pretty", minHeight: 29 }}>{note}</span>
+      <Frame>{children}</Frame>
+    </section>
+  );
+}
+
+function Page() {
+  const [theme, setTheme] = React.useState("light");
+  const [stage, setStage] = React.useState("signup");
+  const [mode, setMode] = React.useState("signup");
+
+  return (
+    <div className={"app " + (theme === "light" ? "" : theme)} style={{ minHeight: "100%", background: "var(--background)", padding: "20px 20px 40px" }}>
+      <header style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 16 }}>
+        <span className="needt-lockup"><NeedtAppIcon size={48} /><ExposureWordmark size={44} mode="breathe" /></span>
+        <span style={{ font: "var(--type-meta)", color: "var(--text-muted)" }}>Account · the flow and its states</span>
+        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 11 }}>
+          <PageSeg value={stage} onChange={setStage} label="Stage" items={[
+            { value: "signup", label: "Sign up" }, { value: "onboarding", label: "Setup" }
+          ]} />
+          <PageSeg value={theme} onChange={setTheme} label="Theme" items={[
+            { value: "light", label: "Light" }, { value: "dim", label: "Dim" }, { value: "dark", label: "Dark" }
+          ]} />
+          <PageButton variant="flat" iconRight={<PageIcon name="arrow-right" size={16} />} onClick={() => { window.location.href = "index.html"; }}>Open the app</PageButton>
+        </span>
+      </header>
+
+      {/* THE FLOW — full size, clickable. Sign up hands over to setup; setup's
+          last step hands over to the product. */}
+      <div style={{ position: "relative", height: 720, borderRadius: "var(--radius-3xl)", overflow: "hidden", boxShadow: "var(--shadow-ring)" }}>
+        {stage === "signup"
+          ? <AuthScreen embedded mode={mode} onMode={setMode} onDone={() => setStage(mode === "login" ? "done" : "onboarding")} />
+          : stage === "onboarding"
+          ? <OnboardingScreen embedded theme={theme} onTheme={setTheme} onDone={() => setStage("done")} />
+          : (
+            <div className="auth-enter" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "var(--background)" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11 }}>
+                <span className="display" style={{ fontSize: 42, lineHeight: 1, color: "var(--text-primary)", textAlign: "center" }}>Your day is ready</span>
+                <span style={{ font: "var(--type-ui)", color: "var(--text-muted)" }}>Three tasks placed, 4 h 20 min still free.</span>
+                <span style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+                  <PageButton variant="accent" iconRight={<PageIcon name="arrow-right" size={16} />} onClick={() => { window.location.href = "index.html"; }}>Open Needt</PageButton>
+                  <PageButton variant="flat" onClick={() => setStage("signup")}>Run it again</PageButton>
+                </span>
+              </div>
+            </div>
+          )}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "28px 0 16px" }}>
+        <h2 style={{ margin: 0, font: "var(--type-card-title)", color: "var(--text-primary)" }}>States</h2>
+        <PageChip>{STATES.length + OB_STATES.length}</PageChip>
+        <span style={{ font: "var(--type-meta)", color: "var(--text-muted)" }}>Same components as above, scaled to the frame.</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(556px, 1fr))", gap: 20 }}>
+        {STATES.map((s) => (
+          <Sheet key={s.id} label={s.label} note={s.note}>
+            <AuthScreen embedded mode={s.mode} seed={s.seed} onMode={() => {}} onDone={() => {}} />
+          </Sheet>
+        ))}
+        {OB_STATES.map((s) => (
+          <Sheet key={s.id} label={s.label} note={s.note}>
+            <OnboardingScreen embedded theme={theme} onTheme={() => {}} seed={{ step: s.step }} onDone={() => {}} />
+          </Sheet>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const __root = document.getElementById("root");
+if (__root) ReactDOM.createRoot(__root).render(<Page />);
+</script>
+</body></html>

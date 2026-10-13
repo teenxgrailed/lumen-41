@@ -1,0 +1,199 @@
+/* ========================================================================
+   Needt design v3 — styles/phone-places.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* phone-places — Plates (08.10.26): Connections, Templates, Shared, Trash
+   (phone-places.jsx). Calm rows on the ground, one action per row; raised
+   surfaces only (dark: no white plates — inverse only on the primary
+   button). Colours: --v2p-* / --pk-* and --ppl-* (themes.css). Motion only
+   on taps (the switch, the press). */
+
+/* ── a calm row ── */
+.needt-v3 .ppl-list { display: flex; flex-direction: column; box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .ppl-row { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 0; box-sizing: border-box; box-shadow: inset 0 -1px 0 var(--v2p-line); }
+.needt-v3 .ppl-row-lead { flex: none; display: grid; place-items: center; }
+.needt-v3 .ppl-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .ppl-row-main.is-open { min-height: 44px; justify-content: center; border-radius: 12px; transition: opacity 0.15s ease; }
+.needt-v3 .ppl-row-main.is-open:active { opacity: 0.6; }
+.needt-v3 .ppl-row-main.is-open:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .ppl-row-title { display: flex; align-items: center; gap: 8px; min-width: 0; font: 500 17px/22px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ppl-row-meta { display: flex; align-items: center; gap: 6px; min-width: 0; font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .ppl-row-meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ppl-row-meta.is-late { color: var(--v2p-alert); }
+.needt-v3 .ppl-row-meta.is-late { align-items: flex-start; }
+.needt-v3 .ppl-row-meta.is-late .pk-alert-dot { margin-top: 6px; }
+.needt-v3 .ppl-row-meta.is-late .ppl-row-meta-text { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.needt-v3 .ppl-row-act { flex: none; display: flex; align-items: center; }
+.needt-v3 .ppl-act.pk-btn.is-small { height: 38px; padding: 0 15px; border-radius: 19px; font-size: 14px; flex: none; }
+
+/* sections keep the kit's label; a little air between groups */
+.needt-v3 .ppl-sec + .ppl-sec { margin-top: 22px; }
+.needt-v3 .ppl-sec .pk-sec-rows { box-shadow: inset 0 1px 0 var(--v2p-line); }
+
+/* ── Connections ── */
+.needt-v3 .ppl-tile { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); color: var(--v2p-ink-2); font: 600 16px/1 var(--font-sans); box-sizing: border-box; }
+.needt-v3 .ppl-row-lead svg { display: block; }
+.needt-v3 .ppl-flag { flex: none; padding: 2px 6px; border-radius: 6px; background: var(--v2p-raise); color: var(--v2p-ink-2); font: 600 10px/12px var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; }
+.needt-v3 .ppl-sheet-tile { display: block; padding: 12px 22px 0; }
+
+/* the sync sheet: toggle rows on the glass */
+.needt-v3 .ppl-sync { display: flex; flex-direction: column; gap: 22px; padding-top: 4px; }
+.needt-v3 .ppl-sync-group { display: flex; flex-direction: column; gap: 8px; }
+.needt-v3 .ppl-sync-list { display: flex; flex-direction: column; border-radius: 22px; background: var(--ppl-group); overflow: hidden; }
+.needt-v3 .ppl-sync-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px 8px 16px; box-sizing: border-box; }
+.needt-v3 .ppl-sync-row + .ppl-sync-row { box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .ppl-sync-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .ppl-sync-title { font: 500 16px/21px var(--font-sans); letter-spacing: -0.015em; color: var(--v2p-ink); }
+.needt-v3 .ppl-sync-desc { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .ppl-sync-hint { margin: 0; padding: 0 4px; font: 400 13px/18px var(--font-sans); color: var(--v2p-ink-2); text-wrap: pretty; }
+
+.needt-v3 .ppl-switch { flex: none; position: relative; width: 50px; height: 30px; padding: 0; border: 0; border-radius: 15px; background: var(--ppl-switch-off);
+  transition: background-color 0.2s ease; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .ppl-switch.is-on { background: var(--v2p-ink); }
+.needt-v3 .ppl-switch-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 12px; background: var(--ppl-knob); box-shadow: var(--ppl-knob-shadow);
+  transition: transform 0.32s var(--pk-spring, ease), background-color 0.2s ease; }
+.needt-v3 .ppl-switch.is-on .ppl-switch-knob { transform: translateX(20px); background: var(--v2p-ground); }
+.needt-v3 .ppl-switch:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+
+/* ── Templates: a grid of covers, Use on each ── */
+.needt-v3 .ppl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.needt-v3 .ppl-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 8px 8px 10px; border-radius: 26px; background: var(--v2p-raise); }
+.needt-v3 .ppl-card-text { display: flex; flex-direction: column; gap: 2px; padding: 0 6px; min-width: 0; }
+.needt-v3 .ppl-card-title { font: 600 16px/20px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ppl-card-meta { font: 400 12px/16px var(--font-sans); color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .ppl-card-use.pk-btn.is-small { flex: none; align-self: flex-start; height: 36px; margin-left: 4px; padding: 0 18px; border-radius: 18px; font-size: 14px; }
+
+.needt-v3 .ppl-cover { display: block; padding: 14px 14px 0; height: 104px; box-sizing: border-box; border-radius: 19px; background: var(--ppl-cover-ground); overflow: hidden; }
+.needt-v3 .ppl-cover-page { display: flex; flex-direction: column; gap: 7px; height: 100%; padding: 12px 12px 0; box-sizing: border-box; border-radius: 10px 10px 0 0; background: var(--ppl-page); box-shadow: var(--ppl-page-shadow); }
+.needt-v3 .ppl-cover-title { display: block; width: 58%; height: 7px; border-radius: 4px; background: var(--v2p-ink); opacity: 0.85; }
+.needt-v3 .ppl-cover-b { display: flex; align-items: center; gap: 5px; }
+.needt-v3 .ppl-cover-line { display: block; flex: 1; height: 4px; border-radius: 2px; background: var(--v2p-ink-3); }
+.needt-v3 .ppl-cover-b.is-h .ppl-cover-line { flex: none; width: 44%; height: 5px; background: var(--v2p-ink-2); margin-top: 2px; }
+.needt-v3 .ppl-cover-b.is-p .ppl-cover-line { flex: none; width: 80%; }
+.needt-v3 .ppl-cover-ring { flex: none; width: 7px; height: 7px; border-radius: 4px; box-sizing: border-box; box-shadow: inset 0 0 0 1.2px var(--v2p-ink-2); }
+.needt-v3 .ppl-cover-dot { flex: none; width: 4px; height: 4px; border-radius: 2px; background: var(--v2p-ink-2); }
+
+/* ── Shared ── */
+.needt-v3 .ppl-avatar { width: 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; background: var(--hue); color: var(--ppl-avatar-ink);
+  font: 600 14px/1 var(--font-sans); letter-spacing: 0.01em; }
+.needt-v3 .ppl-thumb { display: grid; place-items: center; }
+.needt-v3 .ppl-thumb .mb-doc-thumb { flex: none; }
+
+/* ── Trash ── */
+.needt-v3 .ppl-glyph { width: 40px; height: 50px; display: grid; place-items: center; color: var(--v2p-ink-3); }
+.needt-v3 .ppl-acts { display: flex; align-items: center; gap: 2px; margin-right: -2px; }
+.needt-v3 .ppl-forget { flex: none; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 20px; display: grid; place-items: center; background: transparent; color: var(--v2p-ink-2);
+  transition: background-color 0.15s ease, transform 0.18s var(--pk-ease, ease); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .ppl-forget:active { background: var(--v2p-raise); transform: scale(0.94); }
+.needt-v3 .ppl-forget:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 1px; }
+.needt-v3 .ppl-confirm .pk-sheet-head { padding-bottom: 18px; }
+.needt-v3 .ppl-confirm .pk-sheet-body { display: none; }
+.needt-v3 .pk-btn.is-primary.ppl-danger { background: var(--v2p-alert); color: var(--ppl-danger-ink); }
+
+/* ── a page, read in a tall sheet ── */
+.needt-v3 .ppl-doc-body.pk-sheet-body { display: flex; flex-direction: column; padding: 4px 0 12px; }
+.needt-v3 .ppl-doc { flex: 1 0 auto; display: flex; flex-direction: column; }
+.needt-v3 .ppl-doc .mb-doc { flex: 1 0 auto; min-height: 0; border-radius: 22px 22px 0 0; overflow: hidden; }
+.needt-v3 .ppl-doc .mb-doc-card { padding-bottom: 40px; }
+
+/* ── wave 3 (09.10.26): account / access sheets, previews, trash groups ── */
+.needt-v3 .ppl-acct-body { display: flex; flex-direction: column; padding-top: 4px; }
+.needt-v3 .ppl-label { display: block; margin: 20px 4px 8px; }
+.needt-v3 .ppl-acct-body > .ppl-glist:first-child { margin-top: 2px; }
+.needt-v3 .ppl-glist { display: flex; flex-direction: column; border-radius: 22px; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); overflow: hidden; }
+.needt-v3 .ppl-kv { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 0 16px; font: 400 15px/20px var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .ppl-kv + .ppl-kv,
+.needt-v3 .ppl-perm + .ppl-perm { box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .ppl-kv-v { color: var(--v2p-ink-2); text-align: right; }
+.needt-v3 .ppl-kv-v.is-connected { color: var(--success); }
+.needt-v3 .ppl-kv-v.is-disconnected { color: var(--v2p-alert); }
+.needt-v3 .ppl-scope { display: inline-flex; align-items: center; gap: 10px; }
+.needt-v3 .ppl-scope > svg { color: var(--success); }
+.needt-v3 .ppl-acct-sync.pk-btn { align-self: flex-start; margin-top: 16px; }
+.needt-v3 .pk-btn.ppl-danger-q { color: var(--v2p-alert); }
+.needt-v3 .ppl-perm { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 16px 10px 12px; box-sizing: border-box; color: var(--v2p-ink-2); }
+.needt-v3 .ppl-perm.is-on { color: var(--v2p-ink); }
+.needt-v3 .ppl-perm-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .ppl-perm-title { font: 500 15px/20px var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .ppl-perm:not(.is-on) .ppl-perm-title { color: var(--v2p-ink-2); }
+.needt-v3 .ppl-perm-desc { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); text-wrap: pretty; }
+.needt-v3 .ppl-role { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-right: 2px; padding: 2px 8px 2px 6px; border-radius: 10px;
+  background: color-mix(in oklch, var(--hue) 16%, var(--v2p-raise)); color: color-mix(in oklch, var(--hue) 75%, var(--v2p-ink)); font: 500 12px/16px var(--font-sans); }
+.needt-v3 .ppl-card-hold { min-width: 0; display: flex; }
+.needt-v3 .ppl-card-hold > .ppl-card { flex: 1; }
+.needt-v3 .ppl-card-open { display: flex; flex-direction: column; gap: 10px; padding: 0; border: 0; background: none; text-align: left; color: inherit; font: inherit; min-width: 0; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .ppl-card-open:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; border-radius: 19px; }
+.needt-v3 .ppl-card { background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); }
+.needt-v3 .ppl-board-thumb { width: 40px; }
+.needt-v3 .ppl-board-thumb .mbm-cover-1 { width: 40px; border-radius: 10px; }
+.needt-v3 .ppl-restore-all.pk-btn { align-self: flex-start; margin: -6px 0 18px; }
+
+/* ── Connections, the desktop's catalogue (09.10.26): tabs, search, category
+   chips, AI tools, setup guide, MCP / API connections, API key ── */
+.needt-v3 .ppl-tabs { display: flex; gap: 8px; margin-top: 14px; }
+.needt-v3 .ppl-tab { flex: 1; height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; font: 500 15px/1 var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; }
+.needt-v3 .ppl-tab.is-on { background: var(--ppl-on); color: var(--ppl-on-ink); box-shadow: var(--ppl-on-edge); }
+.needt-v3 .ppl-tab:focus-visible,
+.needt-v3 .ppl-chip:focus-visible,
+.needt-v3 .ppl-opt:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .ppl-search { display: flex; align-items: center; gap: 8px; height: 44px; margin: 0 0 12px; padding: 0 6px 0 16px; color: var(--v2p-ink-2); }
+.needt-v3 .ppl-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; font: 400 16px/1 var(--font-sans); color: var(--v2p-ink); user-select: text; -webkit-user-select: text; }
+.needt-v3 .ppl-search input::placeholder { color: var(--v2p-ink-3); }
+.needt-v3 .ppl-search input::-webkit-search-cancel-button { display: none; }
+.needt-v3 .ppl-search-x { flex: none; width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 16px; background: transparent; color: var(--v2p-ink-2); }
+.needt-v3 .ppl-chips { margin: 0 -24px 18px; }
+.needt-v3 .ppl-chips .pk-chips-scroll { display: flex; gap: 8px; padding: 2px 24px 4px; }
+.needt-v3 .ppl-chip { flex: none; height: 36px; padding: 0 14px; display: inline-flex; align-items: center; font: 500 14px/1 var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; }
+.needt-v3 .ppl-chip.is-on { background: var(--ppl-on); color: var(--ppl-on-ink); box-shadow: var(--ppl-on-edge); }
+.needt-v3 .ppl-explain { margin: 0 0 18px; font: 400 14px/20px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .ppl-explain b { font-weight: 600; color: var(--v2p-ink); }
+.needt-v3 .ppl-gives { margin: 0 4px 14px; font: 400 15px/21px var(--font-sans); color: var(--v2p-ink); text-wrap: pretty; }
+.needt-v3 .ppl-link-none { padding: 12px 0 4px; }
+/* Free: the AI tab is one promo card */
+.needt-v3 .ppl-promo { display: flex; flex-direction: column; gap: 10px; padding: 22px 20px 20px; }
+.needt-v3 .ppl-promo-tiles { display: flex; gap: 8px; margin-bottom: 4px; opacity: 0.55; }
+.needt-v3 .ppl-promo-title { font: 650 22px/27px var(--font-sans); letter-spacing: -0.025em; color: var(--v2p-ink); }
+.needt-v3 .ppl-promo-line { font: 400 15px/21px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .ppl-promo-list { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; font: 400 15px/20px var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .ppl-promo-list li { display: flex; align-items: center; gap: 8px; }
+.needt-v3 .ppl-promo-list svg { color: var(--success); flex: none; }
+/* setup steps */
+.needt-v3 .ppl-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.needt-v3 .ppl-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px; row-gap: 10px; align-items: start; }
+.needt-v3 .ppl-step-n { width: 28px; height: 28px; border-radius: 14px; display: grid; place-items: center; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); font: 600 13px/1 var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .ppl-step-t { padding-top: 3px; font: 400 15px/22px var(--font-sans); color: var(--v2p-ink); text-wrap: pretty; }
+.needt-v3 .ppl-step-t b { font-weight: 600; }
+.needt-v3 .ppl-step > :nth-child(n+3) { grid-column: 2; }
+.needt-v3 .ppl-path { padding: 1px 6px; border-radius: 6px; background: var(--v2p-raise); font: 500 13px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+.needt-v3 .ppl-mono { flex: 1; min-width: 0; font: 500 13px/18px ui-monospace, "SF Mono", Menlo, monospace; color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text; -webkit-user-select: text; }
+.needt-v3 .ppl-mono.is-code { margin: 0; padding: 12px 14px; border-radius: 16px; background: var(--v2p-raise); white-space: pre; overflow-x: auto; font-size: 12px; }
+.needt-v3 .ppl-copy { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 6px 6px 14px; border-radius: 18px; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); box-sizing: border-box; }
+.needt-v3 .ppl-code { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.needt-v3 .ppl-code .ppl-mono { align-self: stretch; }
+.needt-v3 .ppl-key { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.needt-v3 .ppl-key > .ppl-mono { padding: 12px 14px; border-radius: 16px; background: var(--v2p-raise); }
+.needt-v3 .ppl-key-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.needt-v3 .ppl-check { display: flex; align-items: flex-start; gap: 8px; margin: 18px 4px 0; font: 400 14px/20px var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .ppl-check.is-ok svg { color: var(--success); flex: none; margin-top: 2px; }
+.needt-v3 .ppl-check.is-fail { color: var(--v2p-alert); }
+.needt-v3 .ppl-check.is-fail svg { flex: none; margin-top: 2px; }
+/* a link's options */
+.needt-v3 .ppl-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 16px; border: 0; background: transparent; text-align: left; color: var(--v2p-ink-2); font: inherit; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .ppl-opt + .ppl-opt { box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .ppl-opt.is-on { color: var(--v2p-ink); }
+.needt-v3 .ppl-opt:not(.is-on) .ppl-perm-title { color: var(--v2p-ink-2); }
+.needt-v3 .ppl-opt-check { flex: none; width: 18px; display: grid; place-items: center; }
+.needt-v3 .ppl-link-projects { margin-top: 10px; }
+.needt-v3 .ppl-link-regen.pk-btn,
+.needt-v3 .ppl-link-bundle.pk-btn { align-self: flex-start; margin-top: 10px; }
+.needt-v3 .ppl-warn { display: flex; align-items: flex-start; gap: 8px; margin: 12px 4px 0; font: 400 13px/18px var(--font-sans); color: var(--v2p-alert); }
+.needt-v3 .ppl-warn svg { flex: none; margin-top: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ppl-switch,
+.needt-v3 .ppl-switch-knob,
+.needt-v3 .ppl-forget,
+.needt-v3 .ppl-row-main.is-open { transition: none; }
+}
+.needt-v3 .ppl-explain .ppl-flag { display: inline-block; margin-left: 6px; vertical-align: 1px; }

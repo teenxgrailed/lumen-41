@@ -1,0 +1,213 @@
+[
+  {
+    "id": "it-m0-0",
+    "kind": "color",
+    "url": null,
+    "color": "#1c1c1c",
+    "text": "Flash straight on, no fill.",
+    "colorName": "Night flash",
+    "ratio": 1.4,
+    "createdAt": "2026-10-09T19:02:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 0
+  },
+  {
+    "kind": "link",
+    "url": "https://www.figma.com/design/k3Xq9/SS27-Lookbook-Grid",
+    "title": "SS27 Lookbook Grid",
+    "source": {
+      "name": "Figma",
+      "domain": "figma.com"
+    },
+    "ratio": 0.66,
+    "id": "it-s1",
+    "color": null,
+    "text": null,
+    "createdAt": "2026-10-07T19:02:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 1
+  },
+  {
+    "id": "it-m0-1",
+    "kind": "color",
+    "url": null,
+    "color": "#8a8178",
+    "text": null,
+    "colorName": "Concrete",
+    "ratio": 1,
+    "createdAt": "2026-10-09T19:01:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 2
+  },
+  {
+    "id": "it-m0-2",
+    "kind": "color",
+    "url": null,
+    "color": "#c9c2b6",
+    "text": null,
+    "colorName": "Washed tee",
+    "ratio": 0.8,
+    "createdAt": "2026-10-09T19:00:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 3
+  },
+  {
+    "id": "it-s2",
+    "kind": "note",
+    "url": null,
+    "color": null,
+    "text": "Fewer pieces, heavier fabric. Every look needs one thing that feels wrong.",
+    "ratio": 0.7,
+    "createdAt": "2026-10-08T19:02:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 4
+  },
+  {
+    "id": "it-m0-3",
+    "kind": "color",
+    "url": null,
+    "color": "#3b3f2e",
+    "text": null,
+    "colorName": "Olive army",
+    "ratio": 1.2,
+    "createdAt": "2026-10-09T18:59:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 5
+  },
+  {
+    "id": "it-m0-4",
+    "kind": "color",
+    "url": null,
+    "color": "#b03a2e",
+    "text": null,
+    "colorName": "One red thing",
+    "ratio": 0.9,
+    "createdAt": "2026-10-09T18:58:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 6
+  },
+  {
+    "id": "it-m0-5",
+    "kind": "color",
+    "url": null,
+    "color": "#e9e4da",
+    "text": null,
+    "colorName": "Paper",
+    "ratio": 1.1,
+    "createdAt": "2026-10-09T18:57:37.804Z",
+    "boardId": "mb-ss27",
+    "position": 7
+  },
+  {
+    "id": "it-m1-0",
+    "kind": "color",
+    "url": null,
+    "color": "#0f0f10",
+    "text": null,
+    "colorName": "Tunnel",
+    "ratio": 1.3,
+    "createdAt": "2026-10-09T19:02:37.804Z",
+    "boardId": "mb-shoot",
+    "position": 0
+  },
+  {
+    "id": "it-m1-1",
+    "kind": "color",
+    "url": null,
+    "color": "#5a5f66",
+    "text": null,
+    "colorName": "Steel",
+    "ratio": 1,
+    "createdAt": "2026-10-09T19:01:37.804Z",
+    "boardId": "mb-shoot",
+    "position": 1
+  },
+  {
+    "kind": "link",
+    "url": "https://www.are.na/block/underground-flash-photography",
+    "title": "Underground flash photography",
+    "source": {
+      "name": "Are.na",
+      "domain": "are.na"
+    },
+    "ratio": 0.72,
+    "id": "it-s3",
+    "color": null,
+    "text": null,
+    "createdAt": "2026-10-06T19:02:37.804Z",
+    "boardId": "mb-shoot",
+    "position": 2
+  },
+  {
+    "id": "it-m1-2",
+    "kind": "color",
+    "url": null,
+    "color": "#d8d3c8",
+    "text": null,
+    "colorName": "Flash spill",
+    "ratio": 0.7,
+    "createdAt": "2026-10-09T19:00:37.804Z",
+    "boardId": "mb-shoot",
+    "position": 3
+  },
+  {
+    "id": "it-m1-3",
+    "kind": "color",
+    "url": null,
+    "color": "#26303a",
+    "text": null,
+    "colorName": "Blue hour",
+    "ratio": 1.2,
+    "createdAt": "2026-10-09T18:59:37.804Z",
+    "boardId": "mb-shoot",
+    "position": 4
+  },
+  {
+    "id": "it-m2-0",
+    "kind": "color",
+    "url": null,
+    "color": "#f3f1ec",
+    "text": null,
+    "colorName": "Ground",
+    "ratio": 0.9,
+    "createdAt": "2026-10-09T19:02:37.804Z",
+    "boardId": "mb-shop",
+    "position": 0
+  },
+  {
+    "id": "it-m2-1",
+    "kind": "color",
+    "url": null,
+    "color": "#111111",
+    "text": null,
+    "colorName": "Type",
+    "ratio": 0.8,
+    "createdAt": "2026-10-09T19:01:37.804Z",
+    "boardId": "mb-shop",
+    "position": 1
+  },
+  {
+    "id": "it-m2-2",
+    "kind": "color",
+    "url": null,
+    "color": "#9aa39b",
+    "text": null,
+    "colorName": "Sage",
+    "ratio": 1.1,
+    "createdAt": "2026-10-09T19:00:37.804Z",
+    "boardId": "mb-shop",
+    "position": 2
+  },
+  {
+    "id": "it-m2-3",
+    "kind": "color",
+    "url": null,
+    "color": "#cbbba0",
+    "text": null,
+    "colorName": "Sand",
+    "ratio": 1,
+    "createdAt": "2026-10-09T18:59:37.804Z",
+    "boardId": "mb-shop",
+    "position": 3
+  }
+]

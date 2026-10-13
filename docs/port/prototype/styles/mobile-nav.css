@@ -1,0 +1,8 @@
+/* The live phone's page chrome (mobile-dev.html): the light / dark switch
+   and the phone's screen box. Menu A styles itself (nav-a.css). The old
+   playground's shell styles are in _archive/mobile-nav.legacy.css. */
+.mn-theme { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--fill-5, var(--surface-raised)); box-shadow: var(--shadow-raised); }
+.mn-theme-btn { height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--text-tertiary);
+  font: 500 13px/1 var(--font-sans); cursor: default; transition: background-color 0.18s ease, color 0.18s ease; }
+.mn-theme-btn.is-on { background: var(--text-primary); color: var(--background); }
+.mn-screen { position: relative; width: 100%; height: 100%; overflow: hidden; }

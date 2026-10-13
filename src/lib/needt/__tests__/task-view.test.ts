@@ -102,6 +102,11 @@ const baseRow: NeedtTaskRow = {
   valueCents: null,
   earnedCents: null,
   globalStage: null,
+  trashedAt: null,
+  originKind: null,
+  originId: null,
+  originQuote: null,
+  splitAllowed: true,
 
   project: null,
   parts: [],

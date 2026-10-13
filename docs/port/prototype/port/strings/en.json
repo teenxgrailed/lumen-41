@@ -1,0 +1,5032 @@
+{
+  "_meta": {
+    "generated": "2026-10-09",
+    "files": 53,
+    "strings": 3921,
+    "unique": 2335,
+    "byKind": {
+      "expr": 283,
+      "jsx-expr": 1061,
+      "jsx-text": 807,
+      "jsx-attr": 761,
+      "prop": 576,
+      "pair": 333,
+      "call": 100
+    },
+    "skippedSeedDeclarations": {
+      "Chat.jsx:chatSeed": 48,
+      "stores.jsx:prjSeedHue": 1,
+      "stores.jsx:prjSeeded": 1,
+      "stores.jsx:CONN_SAMPLE": 9,
+      "docs-kit.jsx:DOCS": 99,
+      "DocsScreen.jsx:DC_SHARE_SEED": 3,
+      "DocsScreen.jsx:SEED_BLOCKS": 18,
+      "places.jsx:TEMPLATES": 97,
+      "calendar2.jsx:C2_EVENTS": 16,
+      "Mobile.jsx:MB_DOCS": 95,
+      "Mobile.jsx:MB_TEMPLATES": 97,
+      "Mobile.jsx:mbmSeed": 118,
+      "connections-data.js:CN_SYNC_SEED": 6
+    },
+    "skippedFiles": [
+      "BlockDesigns.jsx",
+      "RichBlock.jsx",
+      "ios-frame.jsx",
+      "Brief.jsx"
+    ],
+    "parseErrors": []
+  },
+  "App.jsx": {
+    "TabBar": {
+      "documents": "Documents /",
+      "untitled": "Untitled",
+      "open": "Open"
+    },
+    "TodayControls": {
+      "taking_what_has_no_time_yet": "Taking what has no time yet",
+      "finish_the_tank_graphic": "Finish the tank graphic",
+      "into_the_first_free_stretch_today": "Into the first free stretch today",
+      "two_more_fit_before_thursday": "Two more fit before Thursday",
+      "plan_my_day": "Plan my day"
+    },
+    "_module": {
+      "open_anything": "Open anything",
+      "new_task_event_document": "New — task, event, document",
+      "start_or_stop_focus": "Start or stop focus",
+      "plan_my_day": "Plan my day",
+      "this_list": "This list",
+      "close_what_is_open": "Close what is open",
+      "home": "Home",
+      "calendar": "Calendar",
+      "workspace": "Workspace",
+      "documents": "Documents",
+      "settings": "Settings",
+      "open_it": "Open it",
+      "close_it": "Close it",
+      "reschedule": "Reschedule",
+      "delete_it": "Delete it",
+      "cycle_the_theme": "Cycle the theme"
+    },
+    "KeySheet": {
+      "keyboard": "Keyboard",
+      "press_anywhere_to_bring_this_back": "Press ? anywhere to bring this back.",
+      "esc_to_close": "esc to close"
+    },
+    "App": {
+      "checked_off": "Checked off",
+      "reopened": "Reopened",
+      "edited": "Edited",
+      "today": "Today",
+      "exit_focus_mode": "Exit Focus Mode"
+    }
+  },
+  "AuthScreen.jsx": {
+    "PwAxCollage": {
+      "today_3_left": "Today · 3 left",
+      "reply_to_tom": "Reply to Tom",
+      "charge_the_flash": "Charge the flash",
+      "list_the_boots_on_ricardo": "List the boots on Ricardo",
+      "habit_day_6": "Habit · day 6",
+      "shoot_one_roll": "Shoot one roll",
+      "calendar_tue": "Calendar · Tue",
+      "standup": "Standup",
+      "shoot_kreis_4": "Shoot · Kreis 4"
+    },
+    "AuthScreen": {
+      "that_address_already_has_an_account_sign": "That address already has an account. Sign in instead.",
+      "that_email_and_password_do_not_match": "That email and password do not match.",
+      "couldnt_save_the_password_check_your_con": "Couldn't save the password — check your connection",
+      "couldnt_send_the_link_check_your_connect": "Couldn't send the link — check your connection",
+      "couldnt_create_your_account_check_your_c": "Couldn't create your account — check your connection",
+      "couldnt_sign_in_check_your_connection": "Couldn't sign in — check your connection",
+      "retrying": "Retrying",
+      "retry": "Retry",
+      "youre_offline_resetting_a_password_needs": "You’re offline — resetting a password needs a connection.",
+      "youre_offline_signing_in_needs_a_connect": "You’re offline — signing in needs a connection.",
+      "everything_here_works_again_once_youre_b": "Everything here works again once you’re back.",
+      "reset_password": "Reset password",
+      "forgot_your": "Forgot your",
+      "enter_the_email_you_sign_in_with_well_se": "Enter the email you sign in with. We’ll send a link to set a new password.",
+      "email": "Email",
+      "enter_your_email_address": "Enter your email address",
+      "enter_your_email": "Enter your email.",
+      "include_an_in_the_address": "Include an @ in the address.",
+      "sending": "Sending…",
+      "send_reset_link": "Send reset link",
+      "check_your": "Check your",
+      "we_sent_a_reset_link_to": "We sent a reset link to",
+      "it_works_for_30_minutes_open_it_on_this_": ". It works for 30 minutes — open it on this device.",
+      "open_the_link": "Open the link",
+      "didnt_get_it_check_spam_or": "Didn’t get it? Check spam, or",
+      "resend_in_0": "resend in 0:",
+      "send_it_again": "send it again",
+      "use_a_different_email": "Use a different email",
+      "set_a_new": "Set a new",
+      "for": "For",
+      "your_account": "your account",
+      "youll_be_signed_in_right_after": ". You’ll be signed in right after.",
+      "new_password": "New password",
+      "hide_password": "Hide password",
+      "show_password": "Show password",
+      "use_at_least_8_characters": "Use at least 8 characters.",
+      "at_least_8_characters": "At least 8 characters.",
+      "signing_you_in": "Signing you in…",
+      "save_and_sign_in": "Save and sign in",
+      "remembered_it": "Remembered it?",
+      "back_to_sign_in": "Back to sign in",
+      "new_account": "New account",
+      "sign_in": "Sign in",
+      "create_your": "Create your",
+      "welcome": "Welcome",
+      "one_planner_for_your_calendar_your_tasks": "One planner for your calendar, your tasks and your projects.",
+      "sign_in_your_day_is_where_you_left_it": "Sign in — your day is where you left it.",
+      "continue_with_apple": "Continue with Apple",
+      "continue_with_google": "Continue with Google",
+      "or": "or",
+      "password": "Password",
+      "choose_a_password": "Choose a password",
+      "forgot_password": "Forgot password?",
+      "setting_up_your_day": "Setting up your day…",
+      "create_account": "Create account",
+      "continue": "Continue",
+      "already_have_an_account": "Already have an account?",
+      "new_to_needt": "New to Needt?",
+      "create_one": "Create one",
+      "by_continuing_you_agree_to_needts": "By continuing you agree to Needt's",
+      "terms": "Terms",
+      "and": "and",
+      "privacy_policy": "Privacy Policy"
+    },
+    "STEPS": {
+      "what_you_use_it_for": "What you use it for",
+      "calendar_and_hours": "Calendar and hours",
+      "your_sidebar": "Your sidebar",
+      "your_first_task": "Your first task",
+      "where_it_went": "Where it went"
+    },
+    "PW_AX_HEAD": {
+      "what_will_you_use_needt": "What will you use Needt",
+      "your_calendar_and": "Your calendar and",
+      "make_your": "Make your",
+      "your_first": "Your first",
+      "heres_where_needt": "Here’s where Needt"
+    },
+    "USES": {
+      "work": "Work",
+      "personal": "Personal",
+      "side_business": "Side business"
+    },
+    "CALS": {
+      "google_calendar": "Google Calendar",
+      "apple_calendar": "Apple Calendar",
+      "outlook": "Outlook",
+      "skip_for_now": "Skip for now"
+    },
+    "OB_ZONES": {
+      "cet_z_rich_berlin_paris": "CET — Zürich, Berlin, Paris",
+      "utc_london_lisbon": "UTC — London, Lisbon",
+      "est_new_york_toronto": "EST — New York, Toronto"
+    },
+    "ObDay": {
+      "now": "Now ·"
+    },
+    "ObTheme": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "time": "Time",
+      "theme": "Theme"
+    },
+    "PwAxStepArt": {
+      "inbox": "Inbox ·",
+      "habit_day_6": "Habit · day 6",
+      "shoot_one_roll": "Shoot one roll",
+      "tue_your_hours": "Tue · your hours",
+      "a_day_with_events": "A day with events",
+      "coffee_kreis_5": "Coffee · Kreis 5",
+      "standup": "Standup",
+      "lunch_with_ana": "Lunch with Ana",
+      "shoot_kreis_4": "Shoot · Kreis 4",
+      "needt_reads_the_words": "Needt reads the words",
+      "plan_the_week": "Plan the week",
+      "pay_the_rent": "Pay the rent",
+      "draft_the_brief": "Draft the brief",
+      "placed_by_needt": "Placed by Needt",
+      "ready": "Ready"
+    },
+    "ObSbTile": {
+      "more": "More",
+      "more_always_stays_last_it_holds_every_ot": "More always stays last — it holds every other place"
+    },
+    "ObSidebarGame": {
+      "your_sidebar_5_tiles_and_more": "Your sidebar · 5 tiles and More",
+      "sidebar_tiles": "Sidebar tiles",
+      "tile": "Tile",
+      "everything_else_drag_one_up": "Everything else · drag one up",
+      "places_under_more": "Places under More",
+      "under_more": "(under More)",
+      "drag_a_place_onto_a_tile_to_swap_it_in_o": "Drag a place onto a tile to swap it in, or drag tiles to reorder. Or click one, then a tile."
+    },
+    "OnboardingScreen": {
+      "setup": "Setup",
+      "skip_setup": "Skip setup",
+      "step": "Step",
+      "pick_any_one_or_more": "Pick any · one or more",
+      "what_you_use_needt_for": "What you use Needt for",
+      "nothing_picked_is_fine_too_needt_starts_": "Nothing picked is fine too — Needt starts neutral.",
+      "calendar_pick_any_or_skip": "Calendar · pick any, or skip",
+      "youre_offline_needt_connects": "You’re offline — Needt connects",
+      "these_calendars": "these calendars",
+      "a_calendar": "a calendar",
+      "once_youre_back_your_picks_are_kept": "once you’re back. Your picks are kept.",
+      "working_hours": "Working hours",
+      "day": "Day",
+      "day_starts": "Day starts",
+      "day_ends": "Day ends",
+      "the_day_has_to_end_at_least_an_hour_afte": "The day has to end at least an hour after it starts.",
+      "time_zone": "Time zone",
+      "found_from_this_device": "Found from this device (",
+      "this_device_says": "This device says",
+      "needt_only_places_work_inside_these_hour": "Needt only places work inside these hours.",
+      "new_task": "New task",
+      "press_enter_to_add_it_needt_finds_it_a_f": "Press Enter to add it — Needt finds it a free slot in your hours.",
+      "your_hours": "· your hours",
+      "back": "Back",
+      "reset": "Reset",
+      "skip": "Skip",
+      "skip_open_needt": "Skip — open Needt",
+      "opening": "Opening…",
+      "open_my_day": "Open my day",
+      "continue": "Continue"
+    }
+  },
+  "Bug.jsx": {
+    "BugSheet": {
+      "report_a_bug": "Report a bug",
+      "close": "Close",
+      "sent_thank_you": "Sent. Thank you.",
+      "it_arrived_with_the_screen_the_theme_and": "It arrived with the screen, the theme and the window size attached, so nobody has to ask you for them.",
+      "what_happened": "What happened",
+      "i_dragged_a_task_onto_thursday_and_it_la": "I dragged a task onto Thursday and it landed on Wednesday.",
+      "what_you_expected": "What you expected",
+      "it_should_land_where_the_outline_was": "It should land where the outline was.",
+      "sent_with_it": "Sent with it",
+      "goes_straight_to_the_developer": "Goes straight to the developer.",
+      "cancel": "Cancel",
+      "send_report": "Send report"
+    }
+  },
+  "Chat.jsx": {
+    "CHAT_NOTES": {
+      "two_hours_opened_up": "Two hours opened up",
+      "factory_call_moved_to_thu_3_sep_so_14_00": "Factory call moved to Thu 3 Sep, so 14:00–16:00 today is free. Tank graphic there?",
+      "plan_my_day": "plan my day",
+      "g_then_c": "G then C",
+      "two_letter_jumps_move_between_screens_g_": "Two-letter jumps move between screens. G H, G C, G W, G D.",
+      "break_a_task_into_parts": "Break a task into parts",
+      "type_while_writing_one_or_add_parts_afte": "Type / while writing one, or add parts after — the counter appears on the block.",
+      "one_task_is_holding_up_three": "One task is holding up three",
+      "workspace_flow_names_what_to_do_first_by": "Workspace → Flow names what to do first, by how much it frees.",
+      "say_it_in_words": "Say it in words",
+      "type_a_day_a_time_a_length_or_a_project_": "Type a day, a time, a length or a #project in the line — the composer reads all of it.",
+      "the_paper_warms_after_sunset": "The paper warms after sunset",
+      "drift_follows_the_sun_where_you_are_sett": "Drift follows the sun where you are. Settings → Appearance."
+    },
+    "ChatTip": {
+      "dismiss_tip": "Dismiss tip",
+      "open_needt_chat": "Open Needt chat"
+    },
+    "chatSlot": {
+      "today": "Today,"
+    },
+    "chatPlanDay": {
+      "no_deadline": "No deadline",
+      "no_deadline_or_project": "No deadline or project",
+      "nothing_to_move_today_already_holds_ever": "Nothing to move — today already holds everything that's due.",
+      "nothing_is_overdue": "Nothing is overdue"
+    },
+    "chatMoveTomorrow": {
+      "same_time_tomorrow_is_free": "Same time tomorrow is free",
+      "heres_the_move_apply_it_when_it_looks_ri": "Here's the move — apply it when it looks right:"
+    },
+    "stChatBlock": {
+      "ask_needt_is_read_only": "Ask Needt is read-only",
+      "your_trial_ended_earlier_answers_stay_he": "Your trial ended — earlier answers stay here.",
+      "ai_paused_until_14_00": "AI paused until 14:00",
+      "your_tasks_and_calendar_still_work": "Your tasks and calendar still work.",
+      "paused_until_14_00": "Paused until 14:00",
+      "ai_is_temporarily_unavailable": "AI is temporarily unavailable",
+      "unavailable_right_now": "Unavailable right now",
+      "youre_offline": "You're offline",
+      "ask_needt_needs_a_connection_your_edits_": "Ask Needt needs a connection. Your edits still save and sync later.",
+      "needs_a_connection": "Needs a connection"
+    },
+    "chatScopeLabel": {
+      "everything": "Everything",
+      "this_day": "This day"
+    },
+    "chatScopes": {
+      "untitled": "Untitled"
+    },
+    "chatScopeLine": {
+      "looked_across_all_your_tasks_and_docs": "Looked across all your tasks and docs"
+    },
+    "CHAT_CMDS": {
+      "plan_my_day": "Plan my day",
+      "fit_overdue_work_into_todays_free_time": "Fit overdue work into today's free time",
+      "summarise_a_doc": "Summarise a doc",
+      "this_doc_or_one_you_mention": "This doc, or one you @-mention",
+      "find": "Find",
+      "tasks_and_docs_or_free_time": "Tasks and docs — or “free time”",
+      "draft_a_reply": "Draft a reply",
+      "short_in_your_voice_ready_to_copy": "Short, in your voice, ready to copy"
+    },
+    "CHAT_NAME": {
+      "maksym": "Maksym"
+    },
+    "chatGreeting": {
+      "good_evening": "Good evening",
+      "good_morning": "Good morning",
+      "good_afternoon": "Good afternoon"
+    },
+    "chatTitleOf": {
+      "new_chat": "New chat"
+    },
+    "S": {
+      "plan_my_day": "Plan my day",
+      "fit_overdue_work_into_free_time": "Fit overdue work into free time",
+      "whats_overdue": "What's overdue?",
+      "past_its_date_oldest_first": "Past its date, oldest first",
+      "summarise_this_doc": "Summarise this doc",
+      "or_one_you_mention": "Or one you @-mention",
+      "draft_a_reply": "Draft a reply",
+      "to_jonas_the_berlin_pickup": "To Jonas — the Berlin pickup",
+      "draft_a_reply_to_jonas": "Draft a reply to Jonas",
+      "find_free_time_this_week": "Find free time this week",
+      "stretches_of_an_hour_or_more": "Stretches of an hour or more",
+      "move_low_priority_to_tomorrow": "Move low-priority to tomorrow",
+      "make_room_for_whats_due": "Make room for what's due",
+      "break_it_into_steps": "Break it into steps",
+      "three_steps_you_can_tick": "Three steps you can tick",
+      "move_it_to_tomorrow": "Move it to tomorrow",
+      "next_free_slot_with_the_reason": "Next free slot, with the reason",
+      "turn_it_into_tasks": "Turn it into tasks",
+      "the_open_to_dos_in_this_doc": "The open to-dos in this doc",
+      "turn_this_doc_into_tasks": "Turn this doc into tasks"
+    },
+    "chatTimeline": {
+      "event": "Event"
+    },
+    "chatFreeWeek": {
+      "today": "Today,"
+    },
+    "chatSearch": {
+      "task": "Task"
+    },
+    "chatReply": {
+      "today": "Today ·",
+      "tomorrow": "Tomorrow ·",
+      "finish_the_tank_graphic": "Finish the tank graphic",
+      "reply_to_the_factory_about_lead_times": "Reply to the factory about lead times",
+      "list_the_boots_on_ricardo": "List the boots on Ricardo",
+      "you_have_13_30_17_00_mostly_free_id_plac": "You have 13:30–17:00 mostly free. I'd place these three, hardest first while it's quiet:",
+      "this_afternoon": "This afternoon",
+      "nothing_is_overdue_everything_open_still": "Nothing is overdue — everything open still has time.",
+      "which_doc_open_one_or_mention_it_with_an": "Which doc? Open one, or mention it with @ and ask again.",
+      "untitled": "Untitled",
+      "open_to_dos_in_the_doc": "Open to-dos in the doc",
+      "30_min": "30 min",
+      "pulling_out_the_to_dos": "Pulling out the to-dos…",
+      "pulling_out_what_matters": "Pulling out what matters…",
+      "no_free_hour_left_in_the_next_five_worki": "No free hour left in the next five working days.",
+      "a_short_one_you_can_send_as_it_is": "A short one you can send as it is:",
+      "short_friendly_and_it_pins_the_evening_d": "Short, friendly, and it pins the evening down:",
+      "nothing_low_priority_is_placed_today_the": "Nothing low-priority is placed today — there's nothing to push.",
+      "low_priority": "Low priority",
+      "no_deadline": "No deadline",
+      "no_deadline_or_project": "No deadline or project",
+      "tomorrow_has_no_free_time_inside_your_wo": "Tomorrow has no free time inside your working hours for these.",
+      "which_task_click_one_first_or_mention_it": "Which task? Click one first, or mention it with @.",
+      "three_steps_smallest_first_so_its_easy_t": "Three steps, smallest first so it's easy to start:",
+      "steps": "Steps",
+      "noted_its_on_the_brief_for_this_week_i_c": "Noted — it's on the brief for this week. I can plan your day, find free time, summarise a doc or draft a reply; type / to see all of it."
+    },
+    "chatInsertDoc": {
+      "untitled": "Untitled"
+    },
+    "ChatTasksCard": {
+      "tasks": "Tasks",
+      "from_an_earlier_chat": "From an earlier chat",
+      "added_to_today": "added to today",
+      "added": "Added",
+      "add": "Add"
+    },
+    "ChatChanges": {
+      "proposed_changes": "Proposed changes",
+      "past_its_due_date_this_move_fixes_that": "Past its due date — this move fixes that",
+      "was": "(was",
+      "from_an_earlier_chat": "From an earlier chat",
+      "applied": "Applied",
+      "undone_nothing_changed": "Undone — nothing changed",
+      "dismissed": "Dismissed",
+      "dismiss": "Dismiss",
+      "apply": "Apply"
+    },
+    "ChatTimeline": {
+      "new": "New",
+      "event": "Event",
+      "nothing_timed_yet_the_whole_day_is_free": "Nothing timed yet — the whole day is free."
+    },
+    "ChatDraftCard": {
+      "reply_to": "Reply to",
+      "draft": "Draft",
+      "copied": "Copied",
+      "copy": "Copy",
+      "insert_into_doc": "Insert into doc",
+      "open_in_mailbox": "Open in Mailbox"
+    },
+    "ChatDocCard": {
+      "summary": "Summary",
+      "insert_into_doc": "Insert into doc",
+      "open_doc": "Open doc"
+    },
+    "ChatSlots": {
+      "free_this_week": "Free this week",
+      "1_h_inside_working_hours": "≥ 1 h, inside working hours"
+    },
+    "ChatFound": {
+      "results": "Results"
+    },
+    "ChatOverdue": {
+      "overdue": "Overdue",
+      "past_its_due_date_plan_it_in_or_let_it_g": "Past its due date — plan it in or let it go ·",
+      "from_an_earlier_chat": "From an earlier chat",
+      "these_were_due_before_today": "These were due before today.",
+      "plan_them_in": "Plan them in"
+    },
+    "ChatThinking": {
+      "thinking": "Thinking…"
+    },
+    "Chat": {
+      "starting_a_focus_session": "Starting a focus session",
+      "call_the_courier_back": "Call the courier back",
+      "capturing_it": "Capturing it",
+      "from_needt_chat": "From Needt chat",
+      "watch_doing_it_now": "Watch — doing it now.",
+      "done_it_is_on_the_brief_for_this_week": "Done — it is on the brief for this week.",
+      "stopped_before_answering": "Stopped before answering.",
+      "copied": "Copied",
+      "chat_cleared": "Chat cleared",
+      "chat_deleted": "Chat deleted",
+      "task": "Task",
+      "doc": "Doc",
+      "project": "Project",
+      "ask_needt": "Ask Needt",
+      "back_to_chat": "Back to chat",
+      "history": "History",
+      "ask_needt_plans_and_moves_are_pro_see_pl": "Ask Needt plans and moves are Pro — see plans",
+      "synced_across_your_devices": "· synced across your devices",
+      "applies_to": "Applies to:",
+      "change": "— change",
+      "new_chat": "New chat",
+      "more": "More",
+      "close": "Close",
+      "clear_this_chat": "Clear this chat",
+      "open_the_brief": "Open the brief",
+      "what_this_applies_to": "What this applies to",
+      "ask_about": "Ask about",
+      "delete": "Delete “",
+      "delete_chat": "Delete chat",
+      "no_chats_yet_ask_something_and_it_will_b": "No chats yet — ask something and it will be kept here.",
+      "im_looking_at": "I'm looking at “",
+      "ask_about_it_or_about_your_day": "”. Ask about it, or about your day.",
+      "ask_what_to_do_with_it": "”. Ask what to do with it.",
+      "ask_about_your_day_your_tasks_or_a_doc_i": "Ask about your day, your tasks or a doc. I'll show what changes before anything moves.",
+      "free_plan_answers_and_drafts_pro_plans_a": "Free plan: answers and drafts. Pro plans and moves your day.",
+      "see_plans": "See plans",
+      "edit_last": "edit last",
+      "copy": "Copy",
+      "retry": "Retry",
+      "good_answer": "Good answer",
+      "bad_answer": "Bad answer",
+      "insert_into_doc": "Insert into doc",
+      "thanks": "Thanks!",
+      "thanks_noted": "Thanks — noted",
+      "ask_needt_j": "Ask Needt (⌘J)",
+      "j": "⌘J",
+      "retrying": "Retrying",
+      "commands": "Commands",
+      "mention": "Mention",
+      "attach_as_context": "Attach as context",
+      "editing_your_last_message": "Editing your last message",
+      "cancel": "Cancel",
+      "esc": "Esc",
+      "remove": "Remove",
+      "edit_and_press_enter": "Edit and press Enter",
+      "ask_or_type_for_commands": "Ask, or type / for commands",
+      "attach_a_file": "Attach a file",
+      "mention_a_task_doc_or_project": "Mention a task, doc or project",
+      "mention_a_task_doc_or_project_2": "Mention a task, doc or project (@)",
+      "commands_2": "Commands (/)",
+      "stop": "Stop",
+      "send": "Send"
+    }
+  },
+  "Composer.jsx": {
+    "CO_RULES": {
+      "tomorrow": "Tomorrow"
+    },
+    "CO_TYPES": {
+      "task": "Task",
+      "event": "Event",
+      "document": "Document",
+      "habit": "Habit"
+    },
+    "CoUnderlay": {
+      "55_transparent": "55%, transparent)",
+      "12_transparent": "12%, transparent)"
+    },
+    "CoChip": {
+      "remove": "Remove"
+    },
+    "CO_PICK": {
+      "date": "Date",
+      "duration": "Duration",
+      "priority": "Priority",
+      "project": "Project"
+    },
+    "CoMenu2": {
+      "no": "No"
+    },
+    "CoDrafts": {
+      "drop_it": "Drop it",
+      "discard": "Discard",
+      "add": "Add"
+    },
+    "Composer": {
+      "new_task": "New task",
+      "kind": "Kind",
+      "doc": "Doc",
+      "habit_from": "Habit, from “",
+      "listening_say_everything_you_need_to_get": "Listening — say everything you need to get done.",
+      "stop": "Stop",
+      "task_name": "Task name",
+      "description": "Description",
+      "drop_the_description": "Drop the description",
+      "today": "Today",
+      "date": "Date",
+      "duration": "Duration",
+      "project": "Project",
+      "priority": "Priority",
+      "more": "More",
+      "say_several_at_once": "Say several at once",
+      "dictate": "Dictate",
+      "cancel": "Cancel",
+      "add_event": "Add event",
+      "add_doc": "Add doc",
+      "add_habit": "Add habit",
+      "add_task": "Add task"
+    }
+  },
+  "Dialogs.jsx": {
+    "TD_PRIO": {
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "TD_REPEAT": {
+      "every_day": "Every day",
+      "every_weekday": "Every weekday",
+      "every_week": "Every week",
+      "every_month": "Every month"
+    },
+    "TD_HOURS": {
+      "work_hours": "Work hours",
+      "personal": "Personal",
+      "any_time": "Any time"
+    },
+    "TD_DRAFT": {
+      "draft_the_launch_brief": "Draft the launch brief",
+      "pull_last_months_numbers": "Pull last month’s numbers",
+      "write_the_draft": "Write the draft",
+      "send_it_for_review": "Send it for review"
+    },
+    "tdDayName": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "yesterday": "Yesterday"
+    },
+    "TdCalendar": {
+      "previous_month": "Previous month",
+      "next_month": "Next month"
+    },
+    "TaskDialog": {
+      "changes_saved": "Changes saved",
+      "date": "Date",
+      "past_its_date_and_still_open_move_it_or_": "Past its date and still open — move it or let it go",
+      "date_and_time": "Date and time",
+      "duration": "Duration",
+      "project": "Project",
+      "priority": "Priority",
+      "urgent_priority": "Urgent priority",
+      "labels": "Labels",
+      "repeat": "Repeat",
+      "who": "Who",
+      "untitled": "Untitled",
+      "duplicated": "Duplicated",
+      "converted_to_an_event": "Converted to an event",
+      "converted_to_a_document": "Converted to a document",
+      "link_copied": "Link copied",
+      "moved_to_trash": "Moved to Trash",
+      "hard_deadline": "Hard deadline",
+      "time": "Time",
+      "no_time": "No time",
+      "remove_deadline": "Remove deadline",
+      "clear_date": "Clear date",
+      "no_duration": "No duration",
+      "find_a_project": "Find a project",
+      "no_project": "No project",
+      "no_project_called": "No project called “",
+      "p": "P",
+      "no_priority": "No priority",
+      "find_or_create_a_label": "Find or create a label",
+      "create": "Create “",
+      "me": "Me",
+      "duplicate": "Duplicate",
+      "convert_to_event": "Convert to event",
+      "convert_to_document": "Convert to document",
+      "move_to_project": "Move to project…",
+      "hide_scheduling": "Hide scheduling",
+      "scheduling": "Scheduling…",
+      "mark_as_to_do": "Mark as to do",
+      "mark_in_progress": "Mark in progress",
+      "task": "Task",
+      "mark_not_done": "Mark not done",
+      "mark_done": "Mark done",
+      "reopen": "Reopen",
+      "done": "Done",
+      "name_it": "Name it",
+      "title": "Title",
+      "more": "More",
+      "close": "Close",
+      "close_esc": "Close · Esc",
+      "delete": "Delete",
+      "scheduling_2": "Scheduling",
+      "placement": "Placement",
+      "auto": "Auto",
+      "fixed": "Fixed",
+      "stays_at": "Stays at",
+      "stays_where_you_put_it": "Stays where you put it",
+      "planned": "Planned",
+      "needt_may_move_it": "— Needt may move it",
+      "needt_finds_the_slot": "Needt finds the slot",
+      "min_work_block": "Min. work block",
+      "dont_split": "Don’t split",
+      "deadline": "Deadline",
+      "hard": "Hard ·",
+      "hours": "Hours",
+      "add_notes": "Add notes",
+      "notes": "Notes",
+      "subtasks": "Subtasks",
+      "reopen_subtask": "Reopen subtask",
+      "tick_subtask": "Tick subtask",
+      "subtask": "Subtask",
+      "remove_subtask": "Remove subtask",
+      "add_subtask": "Add subtask",
+      "first_step": "First step",
+      "the_smallest_thing_that_counts_as_starti": "The smallest thing that counts as starting",
+      "start_a_focus_session_on_the_first_step": "Start a focus session on the first step",
+      "start_focus": "Start focus",
+      "2_min": "2 min",
+      "remove": "Remove",
+      "created": "Created",
+      "updated": "Updated",
+      "changes_save_as_you_type": "Changes save as you type",
+      "draft_nothing_is_saved": "Draft — nothing is saved",
+      "attach": "Attach",
+      "saved": "Saved"
+    },
+    "CommandPalette": {
+      "search": "Search",
+      "tasks": "Tasks",
+      "documents": "Documents",
+      "go_to": "Go to",
+      "nothing_matches_press_enter_to_capture_i": "Nothing matches. Press Enter to capture it as a task."
+    }
+  },
+  "DocsScreen.jsx": {
+    "DcMiniPage": {
+      "untitled": "Untitled"
+    },
+    "DcGallery": {
+      "all_styles": "All Styles",
+      "backdrop_page_text_and_font_together": "Backdrop, page, text and font together"
+    },
+    "DcSwatchGrid": {
+      "minmax_0_1fr": ", minmax(0, 1fr))"
+    },
+    "DcStylePanel": {
+      "cover_added": "Cover added",
+      "style": "Style",
+      "all_styles": "All Styles",
+      "unlock_document_themes_with_pro": "Unlock Document themes with Pro",
+      "themes": "Themes",
+      "color": "Color",
+      "backdrop": "Backdrop",
+      "themes_with_pro": "Themes with Pro",
+      "change_with_pro": "· change with Pro",
+      "document_color": "Document color",
+      "document_color_2": "Document Color",
+      "each_colour_has_a_light_and_a_dark_readi": "Each colour has a Light and a Dark reading.",
+      "text_color": "Text color",
+      "text_color_2": "Text Color",
+      "by_page": "· by page",
+      "a": "A",
+      "auto_picks_dark_or_light_ink_for_the_pag": "Auto picks dark or light ink for the page, so text always reads.",
+      "cover": "Cover",
+      "cover_image": "Cover image",
+      "cover_image_2": "Cover Image",
+      "your_picture": "Your picture",
+      "drawn": "Drawn",
+      "none": "None",
+      "upload_a_picture": "Upload a picture",
+      "remove_cover": "Remove cover",
+      "separator_style": "Separator Style",
+      "line": "Line",
+      "dots": "Dots",
+      "hand_drawn": "Hand-drawn",
+      "font": "Font",
+      "advanced": "Advanced",
+      "wide_page": "Wide Page"
+    },
+    "DocMeta": {
+      "updated": "Updated"
+    },
+    "DocCard": {
+      "untitled_document": "Untitled Document",
+      "unpin": "Unpin",
+      "pin": "Pin"
+    },
+    "SortMenuItems": {
+      "sort_by": "Sort by"
+    },
+    "dcToMarkdown": {
+      "untitled": "Untitled"
+    },
+    "DocList": {
+      "name": "Name",
+      "last_viewed": "Last viewed",
+      "updated": "Updated",
+      "created": "Created",
+      "untitled": "Untitled",
+      "empty_document": "Empty document"
+    },
+    "DocsScreen": {
+      "new_document": "New document",
+      "new_doc": "New Doc",
+      "start_something_new": "Start something new",
+      "new_folder": "New Folder",
+      "keep_things_tidy": "Keep things tidy",
+      "from_template": "From Template",
+      "save_time_with_templates": "Save time with templates",
+      "documents": "Documents",
+      "more": "More",
+      "multi_select_is_coming_soon": "Multi-select is coming soon",
+      "select": "Select",
+      "show_daily_notes": "Show daily notes",
+      "import": "Import",
+      "export_as_markdown": "Export as Markdown",
+      "pdf_export_is_on_its_way": "PDF export is on its way",
+      "export_as_pdf": "Export as PDF",
+      "settings": "Settings",
+      "no_documents_yet_start_one_and_it_shows_": "No documents yet. Start one and it shows up here.",
+      "new_doc_2": "New doc"
+    },
+    "outlineOf": {
+      "untitled": "Untitled"
+    },
+    "BLOCKS": {
+      "text": "Text",
+      "heading": "Heading",
+      "bullet_list": "Bullet list",
+      "checklist": "Checklist",
+      "quote": "Quote",
+      "callout": "Callout",
+      "divider": "Divider",
+      "code_block": "Code block",
+      "page": "Page",
+      "card": "Card",
+      "file": "File",
+      "image": "Image",
+      "task": "Task",
+      "event": "Event",
+      "habit": "Habit",
+      "ask_needt": "Ask Needt",
+      "table": "Table",
+      "gallery": "Gallery",
+      "board": "Board"
+    },
+    "PanelOutline": {
+      "contents": "Contents",
+      "headings_on_the_page_show_up_here": "Headings on the page show up here."
+    },
+    "DOC_TASKS": {
+      "ship_the_sidebar": "Ship the sidebar",
+      "write_the_mailbox_brief": "Write the Mailbox brief",
+      "decide_the_onboarding_door": "Decide the onboarding door"
+    },
+    "PanelTasks": {
+      "tasks": "Tasks",
+      "task_options": "Task options",
+      "show_completed": "Show completed",
+      "open_in_workspace": "Open in Workspace",
+      "no_open_tasks_on_this_page_type_in_the_t": "No open tasks on this page. Type [] in the text to add one."
+    },
+    "PanelFiles": {
+      "attachments": "Attachments",
+      "add_a_file": "Add a file",
+      "media": "Media",
+      "files": "Files",
+      "pdf_240_kb": "PDF · 240 KB",
+      "csv_4_kb": "CSV · 4 KB"
+    },
+    "PanelFind": {
+      "find": "Find",
+      "find_and_replace": "Find and replace",
+      "find_options": "Find options",
+      "match_case": "Match case",
+      "search_all_documents": "Search all documents",
+      "find_on_this_page": "Find on this page",
+      "replace_with": "Replace with",
+      "replace": "Replace",
+      "replace_all": "Replace all",
+      "type_to_search": "Type to search",
+      "no_results": "No results",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "DocPanel": {
+      "back_to_documents": "Back to Documents",
+      "hide_panel": "Hide panel",
+      "untitled": "Untitled",
+      "updated": "Updated",
+      "just_now": "just now",
+      "contents": "Contents",
+      "tasks_in_this_document": "Tasks in this document",
+      "files": "Files",
+      "find_in_document": "Find in document"
+    },
+    "DC_AI_TOOLS": {
+      "claude": "Claude",
+      "chatgpt": "ChatGPT",
+      "cursor": "Cursor",
+      "gemini": "Gemini",
+      "perplexity": "Perplexity",
+      "mcp_client": "MCP client"
+    },
+    "DC_AI_LEVELS": {
+      "none": "None",
+      "read": "Read",
+      "read_edit": "Read & edit"
+    },
+    "DocShareSheet": {
+      "untitled": "Untitled",
+      "can_edit": "Can edit",
+      "can_view": "Can view",
+      "link_copied_only_people_you_invite_can_o": "Link copied — only people you invite can open it",
+      "private_only_you_can_see_this_page": "Private — only you can see this page",
+      "share_document": "Share document",
+      "share": "Share “",
+      "share_2": "Share",
+      "publish": "Publish",
+      "export": "Export",
+      "invite_by_email": "Invite by email",
+      "email_address": "Email address",
+      "role": "Role",
+      "view": "View",
+      "edit": "Edit",
+      "invite": "Invite",
+      "enter_a_full_email_address": "Enter a full email address.",
+      "already_on_this_page": "Already on this page.",
+      "people_with_access": "People with access",
+      "maks": "Maks",
+      "you": "(you)",
+      "maksym_needt_app": "maksym@needt.app",
+      "owner": "Owner",
+      "role_for": "Role for",
+      "remove": "Remove",
+      "general_access": "General access",
+      "private": "Private",
+      "anyone_with_the_link": "Anyone with the link",
+      "no_sign_in_needed_tasks_inside_stay_priv": "No sign-in needed. Tasks inside stay private.",
+      "only_you_and_the_people_above_can_open_i": "Only you and the people above can open it.",
+      "link_role": "Link role",
+      "ai_access": "AI access",
+      "ai_tools_you_connected_through_needt_mcp": "AI tools you connected through Needt MCP reach this page only as far as you allow here.",
+      "reads_the_page_and_writes_into_it": "Reads the page and writes into it",
+      "reads_the_page_changes_nothing": "Reads the page, changes nothing",
+      "cant_see_this_page": "Can’t see this page",
+      "ai_access_for": "AI access for",
+      "no_ai_tools_connected_yet": "No AI tools connected yet.",
+      "connect_an_ai_tool": "Connect an AI tool",
+      "copy_link": "Copy link",
+      "done": "Done",
+      "publish_to_the_web": "Publish to the web",
+      "a_public_page_anyone_can_find_and_read_t": "A public page anyone can find and read. Tasks inside stay private.",
+      "needt_app_p": "needt.app/p/",
+      "markdown": "Markdown",
+      "pdf": "PDF",
+      "through_the_api": "Through the API",
+      "get_api_pages_id": "GET /api/pages/:id"
+    },
+    "DocTopRight": {
+      "insert_a_block_or_type_on_the_page": "Insert a block — or type / on the page",
+      "insert": "Insert",
+      "share": "Share"
+    },
+    "InsertPanel": {
+      "drag_a_block_onto_the_page_or_type_on_it": "Drag a block onto the page, or type / on it.",
+      "basics": "Basics",
+      "line": "Line",
+      "empty_space": "Empty space",
+      "page_break": "Page break",
+      "new_page_from_here": "New page from here"
+    },
+    "FormatPanel": {
+      "text": "Text",
+      "group": "Group",
+      "page": "Page",
+      "docblockcard": "DocBlockCard",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strike": "Strike",
+      "code": "Code",
+      "checklist": "Checklist",
+      "toggle": "Toggle",
+      "bullets": "Bullets",
+      "numbered": "Numbered",
+      "align_left": "Align left",
+      "outdent": "Outdent",
+      "indent": "Indent",
+      "make_it_a_task": "Make it a task",
+      "decoration": "Decoration",
+      "focus": "Focus",
+      "block": "Block",
+      "colour": "Colour",
+      "highlight": "Highlight",
+      "more_colours": "More colours",
+      "font": "Font"
+    },
+    "FontRow": {
+      "aa_default": "Aa Default",
+      "ss": "Ss",
+      "rr": "Rr"
+    },
+    "InfoPanel": {
+      "page_info": "Page info",
+      "actions": "Actions",
+      "properties": "Properties",
+      "created": "Created",
+      "today": "Today",
+      "updated": "Updated",
+      "just_now": "Just now",
+      "author": "Author",
+      "project": "Project",
+      "no_project": "No project",
+      "collapse": "Collapse",
+      "review_by_needt": "Review by Needt",
+      "check_spelling_and_grammar": "Check spelling and grammar",
+      "feedback_on_structure": "Feedback on structure",
+      "check_the_tone": "Check the tone",
+      "make_it_clearer": "Make it clearer",
+      "2_notes": "2 notes",
+      "present": "Present",
+      "move_to": "Move to…",
+      "duplicate": "Duplicate",
+      "pin": "Pin",
+      "versions": "Versions",
+      "delete": "Delete",
+      "numbers": "Numbers",
+      "words": "Words",
+      "characters": "Characters",
+      "blocks": "Blocks",
+      "reading_time": "Reading time",
+      "1_min": "1 min",
+      "who_wrote_what": "Who wrote what",
+      "you": "You",
+      "needt": "Needt",
+      "find_in_page": "Find in page",
+      "open_anything": "Open anything",
+      "ask_needt": "Ask Needt",
+      "add_comment": "Add comment",
+      "move_up": "Move up",
+      "move_down": "Move down",
+      "move_to_top": "Move to top",
+      "move_to_bottom": "Move to bottom",
+      "group": "Group",
+      "ungroup": "Ungroup",
+      "turn_into_a_task": "Turn into a task",
+      "select_a_block_to_use_the_greyed_ones": "Select a block to use the greyed ones."
+    },
+    "Block": {
+      "block_actions": "Block actions",
+      "add_inside_this_block": "Add inside this block",
+      "comment": "Comment",
+      "react": "React",
+      "turn_into_a_task": "Turn into a task",
+      "turn_into_a_card": "Turn into a card",
+      "ask_needt_about_this": "Ask Needt about this",
+      "remind_me": "Remind me",
+      "insert_above": "Insert above",
+      "insert_below": "Insert below",
+      "copy_link_to_block": "Copy link to block",
+      "duplicate": "Duplicate",
+      "delete": "Delete"
+    },
+    "DocComments": {
+      "thread_resolved": "Thread resolved",
+      "comments": "Comments",
+      "reply": "Reply",
+      "resolve": "Resolve"
+    },
+    "SelectionBar": {
+      "enter_a_web_address_like_needt_app": "Enter a web address, like needt.app",
+      "text_colour": "Text colour",
+      "highlight": "Highlight",
+      "a": "A",
+      "none": "None",
+      "paste_or_type_a_link": "Paste or type a link",
+      "link_address": "Link address",
+      "link": "Link",
+      "remove": "Remove",
+      "mention_someone": "Mention someone",
+      "no_one_by_that_name": "No one by that name",
+      "add_a_comment": "Add a comment",
+      "comment": "Comment",
+      "format_the_selected_words": "Format the selected words",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strike": "Strike",
+      "code": "Code",
+      "mention": "Mention",
+      "make_a_task": "Make a task"
+    },
+    "SLASH_ITEMS": {
+      "basics": "Basics"
+    },
+    "DOC_PH": {
+      "ask_needt_anything": "Ask Needt anything…"
+    },
+    "DocPageBlock": {
+      "untitled": "Untitled",
+      "untitled_page": "Untitled page",
+      "untitled_card": "Untitled card",
+      "opens_as_its_own_page": "Opens as its own page",
+      "choose_a_file_or_drop_one_here": "Choose a file, or drop one here",
+      "add_an_image": "Add an image",
+      "task": "Task ·",
+      "today": "· Today",
+      "event_today_14_00_15_00": "Event · Today · 14:00 – 15:00",
+      "habit_every_day_0_of_7_this_week": "Habit · Every day · 0 of 7 this week",
+      "status": "Status",
+      "minmax_0_1fr": ", minmax(0, 1fr))",
+      "to_do": "To do",
+      "doing": "Doing",
+      "done": "Done",
+      "move_the_friday_review_to_thursday_frida": "Move the Friday review to Thursday — Friday already holds two fixed events.",
+      "accept": "Accept",
+      "dismiss": "Dismiss"
+    },
+    "DocSlashMenu": {
+      "search_blocks": "Search blocks",
+      "no_blocks_match_enter_writes_it_as_text": "No blocks match — Enter writes it as text",
+      "all_blocks_in_the_insert_panel": "All blocks in the Insert panel"
+    },
+    "DocumentScreen": {
+      "comment_added": "Comment added",
+      "insert": "Insert",
+      "format": "Format",
+      "style": "Style",
+      "info": "Info",
+      "cover_removed": "Cover removed",
+      "remove": "Remove"
+    }
+  },
+  "Drag.jsx": {
+    "DRAG_SAYS": {
+      "focus_on_this": "Focus on this"
+    }
+  },
+  "Drift.jsx": {
+    "timeThemeAt": {
+      "dawn": "Dawn",
+      "day": "Day",
+      "golden_hour": "Golden hour",
+      "dusk": "Dusk",
+      "night": "Night"
+    }
+  },
+  "ExposureWordmark.jsx": {
+    "ExposureWordmark": {
+      "needt": "Needt"
+    }
+  },
+  "Habits.jsx": {
+    "HabitStrip": {
+      "done_today": "Done today",
+      "today": "Today",
+      "inset_0_0_0_1px": "inset 0 0 0 1px"
+    },
+    "StreakChip": {
+      "a_day_counts_as_closed_when_everything_d": "A day counts as closed when everything due that day was closed. Today is still open;",
+      "of_the_last_14_held": "of the last 14 held."
+    },
+    "HabitTodayCard": {
+      "kept_today": "Kept today",
+      "week_done": "Week done",
+      "not_yet_today": "Not yet today",
+      "in_a_row": "in a row"
+    },
+    "HabitToday": {
+      "today": "Today",
+      "show_fewer": "Show fewer",
+      "show_all": "Show all",
+      "a_missed_day_stays_empty_nothing_carries": "A missed day stays empty. Nothing carries over."
+    },
+    "HabitLeft": {
+      "left_today": "left today",
+      "days_left": "days left"
+    },
+    "HabitRail": {
+      "show": "Show",
+      "all": "All"
+    }
+  },
+  "Help.jsx": {
+    "HelpSheet": {
+      "how_it_works": "How it works",
+      "close": "Close",
+      "keyboard_shortcuts": "Keyboard shortcuts"
+    }
+  },
+  "HomeToday.jsx": {
+    "HD_PART": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening"
+    },
+    "HdCapped": {
+      "show_the_first": "Show the first",
+      "more_not_shown": "more not shown",
+      "show_fewer": "Show fewer",
+      "show_all": "Show all"
+    },
+    "HdFold": {
+      "fold": "Fold",
+      "unfold": "Unfold"
+    },
+    "HdProgressCard": {
+      "progress": "Progress",
+      "of_todays_tasks_done": "% of today's tasks done",
+      "nothing_due": "Nothing due",
+      "all_of_today_is_closed": "All of today is closed",
+      "a_clear_day": "A clear day",
+      "0_min": "0 min",
+      "of_work_left": "of work left"
+    },
+    "HdNextUp": {
+      "next_up": "Next up",
+      "start_focus": "Start focus",
+      "done": "Done",
+      "skip": "Skip"
+    },
+    "HdStreakCard": {
+      "streak": "Streak",
+      "a_missed_day_doesnt_reset_it_to_zero_it_": "A missed day doesn't reset it to zero — it just pauses.",
+      "days_closed": "days closed",
+      "a_miss_only_pauses_it": "A miss only pauses it"
+    },
+    "HdHabitsCard": {
+      "habits": "Habits",
+      "no_habits_yet_add_one_on_habits": "No habits yet — add one on Habits."
+    },
+    "HdPlanButton": {
+      "unlock_plan_my_day_with_pro": "Unlock Plan my day with Pro",
+      "place_what_has_no_time_yet_into_todays_f": "Place what has no time yet into today's free hours",
+      "everything_already_has_a_time": "Everything already has a time",
+      "plan_my_day": "Plan my day"
+    },
+    "HdEmptyDay": {
+      "nothing_planned_for_today": "Nothing planned for today",
+      "a_clear_day_add_what_matters_or_let_need": "A clear day. Add what matters, or let Needt fill the free hours.",
+      "new_task": "New task"
+    },
+    "HdDayClosed": {
+      "day_closed": "Day closed",
+      "tasks": "tasks ·",
+      "0_min": "0 min",
+      "of_work": "of work ·",
+      "kept": "kept.",
+      "overdue_task_is": "overdue task is",
+      "overdue_tasks_are": "overdue tasks are",
+      "still_open": "still open.",
+      "the_rest_of_the_evening_is_yours": "The rest of the evening is yours.",
+      "undo_last": "Undo last",
+      "plan_tomorrow": "Plan tomorrow"
+    },
+    "HdSchedule": {
+      "now": "Now ·",
+      "todays_schedule": "Today's schedule",
+      "calendar": "Calendar",
+      "nothing_timed_today": "Nothing timed today.",
+      "show_around_now": "Show around now",
+      "show_all": "Show all"
+    },
+    "HdInboxCard": {
+      "inbox": "Inbox",
+      "with_no_time_yet": "with no time yet",
+      "clear": "Clear",
+      "all": "All",
+      "anything_you_jot_down_without_a_time_lan": "Anything you jot down without a time lands here.",
+      "more_drag_onto_the_day": "more — drag onto the day"
+    },
+    "HdWeekStats": {
+      "this_week": "This week",
+      "done": "done ·",
+      "nothing_planned_yet": "Nothing planned yet",
+      "hours_planned": "Hours planned",
+      "planned_against": "planned against",
+      "of_working_hours_this_week": "of working hours this week",
+      "more_than": "more than",
+      "of_working_time": "of working time",
+      "working_time": "working time",
+      "overdue": "Overdue",
+      "task_was": "task was",
+      "tasks_were": "tasks were",
+      "due_before_today_and_are_still_open": "due before today and are still open",
+      "nothing_left_behind": "Nothing left behind",
+      "nothing_overdue": "Nothing overdue",
+      "due_before_today_and_still_open_they_eat": "Due before today and still open — they eat into this week.",
+      "nothing_from_before_today_is_still_open": "Nothing from before today is still open."
+    },
+    "HdWeekLoad": {
+      "week_load": "Week load",
+      "planned": "planned ·",
+      "planned_against_your_working_hours_day_b": "Planned against your working hours, day by day",
+      "calendar": "Calendar",
+      "day_off": "Day off",
+      "day_off_2": "day off",
+      "see_which_days_are_over_capacity_before_": "See which days are over capacity before they happen.",
+      "upgrade": "Upgrade",
+      "more_than_your_working_hours": "more than your working hours (",
+      "move_something_to_a_day_with_free_time": "Move something to a day with free time.",
+      "every_day_fits_inside_your_working_hours": "Every day fits inside your working hours ("
+    },
+    "HomeToday": {
+      "taking_what_has_no_time_yet": "Taking what has no time yet",
+      "finish_the_tank_graphic": "Finish the tank graphic",
+      "into_the_first_free_stretch_today": "Into the first free stretch today",
+      "two_more_fit_before_thursday": "Two more fit before Thursday",
+      "day": "Day",
+      "week_ahead": "Week ahead",
+      "new": "New",
+      "new_task": "New Task",
+      "placed_into_a_free_hour": "Placed into a free hour",
+      "n": "N",
+      "new_event": "New Event",
+      "blocks_time_on_your_calendar": "Blocks time on your calendar",
+      "new_doc": "New Doc",
+      "a_page_for_anything": "A page for anything",
+      "tuesday_1_september": "Tuesday, 1 September",
+      "today_week_36": "Today · week 36",
+      "next_up": "Next up",
+      "nothing_left_today": "Nothing left today",
+      "nothing_open": "Nothing open",
+      "tomorrow_is_a_tab_away_week_ahead": "Tomorrow is a tab away — Week ahead.",
+      "add_a_task_or_let_needt_plan_the_day": "Add a task, or let Needt plan the day.",
+      "nothing_planned_yet": "Nothing planned yet.",
+      "let_needt_plan_your_day": "Let Needt plan your day",
+      "tasks_without_a_time_go_into_your_free_h": "Tasks without a time go into your free hours. Try Pro free for",
+      "days_no_card": "days — no card.",
+      "try_pro_free": "Try Pro free",
+      "overdue": "Overdue",
+      "these_were_due_before_today_move_them_or": "These were due before today — move them or let them go.",
+      "move_to_today": "Move to today",
+      "add_a_task": "Add a task",
+      "done_today": "Done today",
+      "notes_for_the_day": "Notes for the day…",
+      "the_week_at_a_glance": "The week at a glance",
+      "today_at_a_glance": "Today at a glance"
+    }
+  },
+  "MailScreen.jsx": {
+    "ACCTS": {
+      "gmail": "Gmail",
+      "outlook": "Outlook"
+    },
+    "MlConnBanner": {
+      "reconnecting_outlook": "Reconnecting Outlook…",
+      "outlook_disconnected": "Outlook disconnected",
+      "nothing_new_has_arrived_since_06_12_repl": "Nothing new has arrived since 06:12 — replies from lena@needt.app and the Swisscom bill may be waiting there.",
+      "connecting": "Connecting",
+      "reconnect": "Reconnect"
+    },
+    "MlRow": {
+      "no_recipients": "No recipients",
+      "draft": "Draft",
+      "no_subject": "No subject",
+      "task": "Task",
+      "needs_you": "Needs you"
+    },
+    "mlMakeTask": {
+      "task_made_for_later": "Task made for later",
+      "task_made_its_in_inbox": "Task made — it's in Inbox"
+    },
+    "mlToCalendar": {
+      "added_to_calendar_tomorrow_10_00": "Added to Calendar — tomorrow 10:00"
+    },
+    "MlRecipients": {
+      "remove": "Remove",
+      "name_or_email": "Name or email",
+      "suggestions": "Suggestions"
+    },
+    "ML_CO_TITLE": {
+      "reply": "Reply",
+      "forward": "Forward",
+      "draft": "Draft",
+      "new_message": "New message"
+    },
+    "MlComposer": {
+      "saved_to_drafts": "Saved to Drafts",
+      "draft_discarded": "Draft discarded",
+      "choose_an_account": "Choose an account",
+      "no_mail_account_connected": "No mail account connected",
+      "close_keep_as_draft": "Close — keep as draft",
+      "from": "From",
+      "to": "To",
+      "cc_bcc": "Cc / Bcc",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "subject": "Subject",
+      "type_something": "Type something…",
+      "message": "Message",
+      "forwarded_message": "Forwarded message ·",
+      "remove": "Remove",
+      "is_disconnected_reconnect_it_to_send": "is disconnected — reconnect it to send.",
+      "send": "Send",
+      "attach_files": "Attach files",
+      "save_draft": "Save draft",
+      "discard": "Discard"
+    },
+    "_module": {
+      "archived": "Archived",
+      "moved_to_trash": "Moved to Trash",
+      "marked_as_unread": "Marked as unread"
+    },
+    "ML_TABS": {
+      "needs_you": "Needs you",
+      "all": "All",
+      "made_into_tasks": "Made into tasks",
+      "sent": "Sent",
+      "drafts": "Drafts"
+    },
+    "MailScreen": {
+      "archived": "Archived",
+      "moved_to_trash": "Moved to Trash",
+      "mailbox": "Mailbox",
+      "disconnected_since_06_12_reconnect_below": "Disconnected since 06:12 — reconnect below",
+      "new_message": "New message",
+      "back_to_the_list": "Back to the list",
+      "task_made_click_to_take_it_back": "Task made — click to take it back",
+      "task_made": "Task made",
+      "make_a_task": "Make a task",
+      "task_for_today": "Task for today",
+      "task_for_later": "Task for later",
+      "calendar_event": "Calendar event",
+      "tomorrow_10_00_30_min": "Tomorrow 10:00 · 30 min",
+      "doc": "Doc",
+      "add_to_calendar": "Add to Calendar",
+      "reply": "Reply",
+      "reply_all": "Reply all",
+      "forward": "Forward",
+      "move_to_trash": "Move to Trash",
+      "archive": "Archive",
+      "no_subject": "No subject",
+      "to": "To",
+      "from": "From",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "today": "Today",
+      "forwarded_message": "Forwarded message ·",
+      "pdf": "PDF",
+      "forward_2": "Forward…",
+      "reply_to": "Reply to",
+      "pick_a_draft_to_keep_writing": "Pick a draft to keep writing.",
+      "pick_a_message_to_read_it": "Pick a message to read it."
+    }
+  },
+  "Miniature.jsx": {
+    "MiTile": {
+      "96_black": "96%, black))"
+    },
+    "MiRail": {
+      "needt": "Needt",
+      "find": "Find",
+      "operations": "Operations",
+      "design_system": "Design system",
+      "resale": "Resale"
+    },
+    "MiDay": {
+      "german": "German",
+      "walk": "Walk",
+      "gym": "Gym",
+      "today": "Today",
+      "draft_the_launch_brief": "Draft the launch brief",
+      "90m": "90m",
+      "operations": "Operations",
+      "review_the_spec": "Review the spec",
+      "60m": "60m",
+      "design_system": "Design system",
+      "german_unit_4": "German — unit 4",
+      "ship_the_camera_body": "Ship the camera body",
+      "45m": "45m",
+      "resale": "Resale"
+    },
+    "MiGrid": {
+      "draft_the_brief": "Draft the brief",
+      "1_1_anna": "1:1 Anna",
+      "print_files": "Print files"
+    },
+    "MiProse": {
+      "week_36_the_september_batch": "Week 36 — the September batch",
+      "legal_sign_off_is_the_only_thing_between": "Legal sign-off is the only thing between us",
+      "and_the_factory_everything_else_is_place": "and the factory. Everything else is placed.",
+      "three_tasks_are_unplaced_and_18_hours_ar": "Three tasks are unplaced and 18 hours are open.",
+      "ask_counsel_for_a_date": "Ask counsel for a date",
+      "send_the_print_files": "Send the print files"
+    },
+    "MiCanvas": {
+      "week_36": "Week 36",
+      "print_files": "Print files",
+      "operations": "Operations",
+      "legal_sign_off_is_the_only_thing": "Legal sign-off is the only thing",
+      "18_h": "18 h",
+      "free_this_week": "free this week"
+    },
+    "MI_TABS": {
+      "prose": "Prose",
+      "agenda": "Agenda"
+    },
+    "MiAuto": {
+      "auto": "Auto"
+    },
+    "Miniature": {
+      "home": "Home"
+    }
+  },
+  "Mobile.jsx": {
+    "MbDoc": {
+      "untitled": "Untitled",
+      "start_writing": "Start writing…"
+    },
+    "MB_SHARED": {
+      "type_scale_proposal": "Type scale — proposal",
+      "chrome": "Chrome",
+      "13_12_nothing_else": "13 / 12, nothing else",
+      "documents": "Documents",
+      "15_body_17_headings": "15 body, 17 headings",
+      "factory_quote_round_2": "Factory quote — round 2",
+      "chf_9_40": "CHF 9.40",
+      "chf_21_00": "CHF 21.00",
+      "lead_time_5_weeks_from_sample_approval": "Lead time 5 weeks from sample approval.",
+      "launch_checklist": "Launch checklist",
+      "domain_renewed": "Domain renewed",
+      "shop_copy": "Shop copy",
+      "photos": "Photos"
+    },
+    "MBM_ME": {
+      "maksym": "Maksym"
+    },
+    "MbmPinMark": {
+      "px_1_georgia_serif": "px/1 Georgia, serif",
+      "p": "P"
+    },
+    "MbmMedia": {
+      "colour": "Colour",
+      "note": "Note"
+    },
+    "SETS": {
+      "launch_brief_for_the_september_release_s": "Launch brief for the September release — scope, open questions, owners, dates and every decision we still have to make before it ships",
+      "thirty_minutes_of_german_out_loud_every_": "Thirty minutes of German out loud, every single evening, before anything else",
+      "flash_after_dark_every_reference_for_the": "Flash after dark — every reference for the autumn shoot, the lookbook and the shop banners",
+      "donaudampfschifffahrtsgesellschaftskapit": "Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen",
+      "rechtschreibungs_bungen": "Rechtschreibungsübungen",
+      "herbstkollektionsinspirationssammlung": "Herbstkollektionsinspirationssammlung",
+      "the_only_reference_so_far": "The only reference so far.",
+      "unsorted": "Unsorted"
+    }
+  },
+  "MobileAuth.jsx": {
+    "MbAuth": {
+      "reset_password": "Reset password",
+      "forgot_your": "Forgot your",
+      "check_your": "Check your",
+      "set_a_new": "Set a new",
+      "enter_the_email_you_sign_in_with_well_se": "Enter the email you sign in with. We’ll send a link to set a new password.",
+      "we_sent_a_reset_link_to": "We sent a reset link to",
+      "it_works_for_30_minutes": ". It works for 30 minutes.",
+      "for": "For",
+      "your_account": "your account",
+      "youll_be_signed_in_right_after": ". You’ll be signed in right after.",
+      "youre_offline_resetting_a_password_needs": "You're offline — resetting a password needs a connection.",
+      "couldnt_save_the_password_the_server_did": "Couldn't save the password — the server didn't answer. Try again in a moment.",
+      "couldnt_send_the_link_the_server_didnt_a": "Couldn't send the link — the server didn't answer. Try again in a moment.",
+      "email": "Email",
+      "include_an_in_the_address": "Include an @ in the address.",
+      "sending": "Sending…",
+      "send_reset_link": "Send reset link",
+      "open_the_link": "Open the link",
+      "didnt_get_it_check_spam_or": "Didn’t get it? Check spam, or",
+      "resend_in_0": "resend in 0:",
+      "send_it_again": "send it again",
+      "use_a_different_email": "Use a different email",
+      "new_password": "New password",
+      "use_at_least_8_characters": "Use at least 8 characters.",
+      "at_least_8_characters": "At least 8 characters.",
+      "signing_you_in": "Signing you in…",
+      "save_and_sign_in": "Save and sign in",
+      "remembered_it": "Remembered it?",
+      "back_to_sign_in": "Back to sign in",
+      "new_account": "New account",
+      "sign_in": "Sign in",
+      "create_your": "Create your",
+      "welcome": "Welcome",
+      "a_planner_that_puts_your_work_into_the_h": "A planner that puts your work into the hours you actually have.",
+      "your_day_is_where_you_left_it": "Your day is where you left it.",
+      "youre_offline_signing_in_needs_a_connect": "You're offline — signing in needs a connection. Your day is still on this phone.",
+      "continue_with_google": "Continue with Google",
+      "google": "Google",
+      "continue_with_apple": "Continue with Apple",
+      "apple": "Apple",
+      "or_with_email": "or with email",
+      "password": "Password",
+      "eight_characters_or_more": "Eight characters or more.",
+      "forgot_password": "Forgot password?",
+      "couldnt_create_the_account_the_server_di": "Couldn't create the account — the server didn't answer. Try again in a moment.",
+      "that_email_and_password_dont_match_try_a": "That email and password don't match. Try again, or continue with Google.",
+      "creating": "Creating…",
+      "signing_in": "Signing in…",
+      "create_the_account": "Create the account",
+      "already_have_an_account": "Already have an account?",
+      "no_account_yet": "No account yet?",
+      "create_one": "Create one"
+    },
+    "MA_ZONES": {
+      "cet_z_rich_berlin_paris": "CET — Zürich, Berlin, Paris",
+      "utc_london_lisbon": "UTC — London, Lisbon",
+      "est_new_york_toronto": "EST — New York, Toronto"
+    },
+    "MaDay": {
+      "now": "Now ·"
+    },
+    "MaTheme": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "time": "Time",
+      "theme": "Theme"
+    },
+    "MA_STEPS": {
+      "what_you_use_it_for": "What you use it for",
+      "calendar_and_hours": "Calendar and hours",
+      "your_menu": "Your menu",
+      "your_first_task": "Your first task",
+      "where_it_went": "Where it went"
+    },
+    "MA_USES": {
+      "work": "Work",
+      "personal": "Personal",
+      "side_business": "Side business"
+    },
+    "MA_CALS": {
+      "google_calendar": "Google Calendar",
+      "apple_calendar": "Apple Calendar",
+      "outlook": "Outlook",
+      "skip_for_now": "Skip for now"
+    },
+    "MaFirstLine": {
+      "task_name": "Task name",
+      "new_task": "New task",
+      "30_transparent": "30%, transparent)",
+      "next_free_slot": "Next free slot",
+      "add_task": "Add task"
+    },
+    "MA_MENU_PLACES": {
+      "home": "Home",
+      "calendar": "Calendar",
+      "tasks": "Tasks",
+      "docs": "Docs",
+      "mailbox": "Mailbox",
+      "habits": "Habits",
+      "boards": "Boards",
+      "projects": "Projects",
+      "ask_needt": "Ask Needt"
+    },
+    "MaMenuStep": {
+      "your_pill_three_sections": "Your pill · three sections",
+      "bottom_menu": "Bottom menu",
+      "slot": "Slot",
+      "tap_to_remove": "— tap to remove",
+      "empty": ": empty",
+      "empty_tap_three_sections_below": "Empty — tap three sections below",
+      "reset": "Reset",
+      "sections_tap_to_add": "Sections · tap to add",
+      "sections": "Sections",
+      "tap_a_section_to_put_it_in_the_next_free": "Tap a section to put it in the next free slot. Tap a slot to empty it, or drag it sideways to reorder."
+    },
+    "MbSetup": {
+      "setup": "Setup",
+      "skip": "Skip",
+      "step": "Step",
+      "youre_offline_your_answers_stay_on_this_": "You're offline — your answers stay on this phone and are sent when you're back.",
+      "what_you_use_needt_for": "What you use Needt for",
+      "pick_one_or_more_it_only_changes_what_ne": "Pick one or more — it only changes what Needt suggests first.",
+      "working_hours": "Working hours",
+      "day_starts": "Day starts",
+      "day_ends": "Day ends",
+      "the_day_has_to_end_at_least_an_hour_afte": "The day has to end at least an hour after it starts.",
+      "time_zone": "Time zone",
+      "found_from_this_phone": "Found from this phone (",
+      "this_phone_says": "This phone says",
+      "work_is_only_placed_inside_these_hours": "Work is only placed inside these hours.",
+      "needt_reads_the_day_length_and_project_f": "Needt reads the day, length and project from the words, then finds a free slot in your hours.",
+      "back": "Back",
+      "continue": "Continue",
+      "pick": "Pick",
+      "skip_open_needt": "Skip — open Needt",
+      "open_my_day": "Open my day"
+    }
+  },
+  "Notifications.jsx": {
+    "NfCard": {
+      "15_transparent": "15%, transparent)",
+      "dismiss": "Dismiss"
+    },
+    "Notifications": {
+      "taking_what_has_no_time_yet": "Taking what has no time yet",
+      "finish_the_tank_graphic": "Finish the tank graphic",
+      "into_the_stretch_that_opened": "Into the stretch that opened",
+      "starting_a_focus_session": "Starting a focus session"
+    }
+  },
+  "SettingsScreen.jsx": {
+    "ME": {
+      "maksym_k": "Maksym K."
+    },
+    "ThemeTile": {
+      "unlock_the_time_theme_with_pro": "Unlock the Time theme with Pro"
+    },
+    "AccentSwatch": {
+      "pro": "— Pro",
+      "unlock_accent_colours_with_pro": "— unlock accent colours with Pro"
+    },
+    "AccentCard": {
+      "blue_is_yours_on_free_the_other_eight_co": "Blue is yours on Free. The other eight come with Pro.",
+      "upgrade": "Upgrade",
+      "fills_take_the_blend_text_and_rings_take": "Fills take the blend; text and rings take its middle.",
+      "selection_links_the_now_line_and_progres": "Selection, links, the now-line and progress."
+    },
+    "NAV": {
+      "account": "Account",
+      "plan_billing": "Plan & billing",
+      "general": "General",
+      "appearance": "Appearance",
+      "your_day": "Your day",
+      "tasks": "Tasks",
+      "focus": "Focus",
+      "notifications": "Notifications",
+      "shortcuts": "Shortcuts",
+      "connections": "Connections",
+      "data_privacy": "Data & privacy",
+      "about": "About"
+    },
+    "TITLES": {
+      "account": "Account"
+    },
+    "SettingsScreen": {
+      "free": "Free",
+      "plans_automatically": "Plans automatically",
+      "plans_when_you_ask": "Plans when you ask",
+      "settings": "Settings",
+      "settings_sections": "Settings sections",
+      "open_account": "Open Account",
+      "needt": "Needt",
+      "lifetime": "Lifetime",
+      "pro": "Pro",
+      "free_plan": "Free plan",
+      "days_free_no_card": "days free · no card",
+      "from": "From",
+      "pro_for_good": "Pro for good.",
+      "see_plans": "See plans",
+      "start_trial": "Start trial",
+      "opens": "Opens",
+      "leaves_settings": "— leaves Settings",
+      "opens_elsewhere": "opens elsewhere",
+      "saved": "Saved",
+      "close_settings": "Close settings",
+      "theme": "Theme",
+      "follows_the_sun_where_you_are_pale_at_da": "Follows the sun where you are: pale at dawn, Light by day, warm at golden hour, Dark after dusk.",
+      "more_themes_are_on_the_way": "More themes are on the way.",
+      "accent_color": "Accent color",
+      "working_hours": "Working hours",
+      "needt_only_plans_work_between_these_time": "Needt only plans work between these times.",
+      "day_starts": "Day starts",
+      "day_ends": "Day ends",
+      "week_starts": "Week starts",
+      "monday": "Monday",
+      "sunday": "Sunday",
+      "time_zone": "Time zone",
+      "cet_z_rich": "CET — Zürich",
+      "utc": "UTC",
+      "est_new_york": "EST — New York",
+      "calendar": "Calendar",
+      "calendar_opens_in": "Calendar opens in",
+      "week_shows_the_grid_agenda_lists_each_da": "Week shows the grid; Agenda lists each day's events and tasks in order.",
+      "week": "Week",
+      "agenda": "Agenda",
+      "planning_options": "Planning options",
+      "how_needt_fills_your_free_time": "How Needt fills your free time.",
+      "plan_automatically": "Plan automatically",
+      "tasks_without_a_time_are_placed_into_you": "Tasks without a time are placed into your free hours.",
+      "plan_my_day_puts_first": "Plan my day puts first",
+      "which_tasks_get_the_earliest_free_time": "Which tasks get the earliest free time.",
+      "nearest_deadline": "Nearest deadline",
+      "shortest_task": "Shortest task",
+      "same_project_together": "Same project together",
+      "keep_focus_blocks_free": "Keep focus blocks free",
+      "nothing_is_placed_inside_a_focus_session": "Nothing is placed inside a focus session.",
+      "shortest_work_block": "Shortest work block",
+      "a_task_is_never_split_into_pieces_shorte": "A task is never split into pieces shorter than this.",
+      "gap_between_tasks": "Gap between tasks",
+      "free_time_left_between_two_planned_tasks": "Free time left between two planned tasks.",
+      "plan_on_weekends": "Plan on weekends",
+      "off_keeps_saturday_and_sunday_empty": "Off keeps Saturday and Sunday empty.",
+      "new_tasks": "New tasks",
+      "default_estimate": "Default estimate",
+      "default_project": "Default project",
+      "no_project": "No project",
+      "resale": "Resale",
+      "operations": "Operations",
+      "design_system": "Design system",
+      "display": "Display",
+      "show_subtasks": "Show subtasks",
+      "subtasks_show_as_rows_under_their_task_n": "Subtasks show as rows under their task, not folded away.",
+      "task_value": "Task value",
+      "shows_what_a_group_of_tasks_earns_you_on": "Shows what a group of tasks earns you once all of them are done, e.g. CHF 840.",
+      "project_activity": "Project activity",
+      "a_small_flame_beside_a_project_grows_wit": "A small flame beside a project grows with what you finished there lately; quiet projects show none.",
+      "session": "Session",
+      "length": "Length",
+      "break": "Break",
+      "start_sound": "Start sound",
+      "silent": "Silent",
+      "tick": "Tick",
+      "chime": "Chime",
+      "while_a_session_runs": "While a session runs",
+      "hide_notifications": "Hide notifications",
+      "sound_when_a_task_snaps": "Sound when a task snaps",
+      "a_short_click_as_a_dragged_task_lands_on": "A short click as a dragged task lands on the quarter hour.",
+      "animate_the_logo": "Animate the logo",
+      "the_needt_logo_moves_gently_during_a_ses": "The Needt logo moves gently during a session. Off keeps it still.",
+      "daily_plan": "Daily plan",
+      "your_days_planned_tasks_and_events_sent_": "Your day's planned tasks and events, sent before the day starts.",
+      "desktop_notification": "Desktop notification",
+      "email": "Email",
+      "time": "Time",
+      "overdue_tasks": "Overdue tasks",
+      "when_a_task_passes_its_deadline_and_has_": "When a task passes its deadline and has no time yet.",
+      "weekly_review": "Weekly review",
+      "friday_after_your_last_planned_task_what": "Friday, after your last planned task — what got done and what carries over.",
+      "links": "Links",
+      "open_document_links_in": "Open document links in",
+      "whether_needt_app_links_open_in_the_brow": "Whether needt.app links open in the browser or the desktop app.",
+      "always_ask": "Always ask",
+      "browser": "Browser",
+      "desktop_app": "Desktop app",
+      "offline": "Offline",
+      "offline_mode": "Offline mode",
+      "view_and_edit_documents_and_tasks_while_": "View and edit documents and tasks while offline. Changes sync when you are back.",
+      "export": "Export",
+      "everything_you_have_in_needt_is_yours_to": "Everything you have in Needt is yours to take with you.",
+      "tasks": "Tasks",
+      "every_task_with_its_project_estimate_and": "Every task with its project, estimate and dates.",
+      "csv": "CSV",
+      "documents": "Documents",
+      "one_markdown_file_per_page": "One Markdown file per page.",
+      "markdown": "Markdown",
+      "export_all": "Export all",
+      "tasks_documents_habits_boards_and_settin": "Tasks, documents, habits, boards and settings in one file.",
+      "import": "Import",
+      "bring_in_your_work": "Bring in your work",
+      "markdown_notion_google_docs_a_calendar_f": "Markdown, Notion, Google Docs, a calendar file (.ics) or a CSV of tasks.",
+      "import_2": "Import…",
+      "markdown_files": "Markdown files",
+      "notion_export": "Notion export",
+      "google_docs": "Google Docs",
+      "calendar_file_ics": "Calendar file (.ics)",
+      "csv_of_tasks": "CSV of tasks",
+      "privacy": "Privacy",
+      "share_usage_data": "Share usage data",
+      "anonymous_counts_of_which_features_get_u": "Anonymous counts of which features get used. Never the content of your tasks, documents or mail.",
+      "this_device": "This device",
+      "download_everything_again": "Download everything again",
+      "clears_what_this_device_keeps_and_fetche": "Clears what this device keeps and fetches it fresh. Nothing is deleted.",
+      "download_again": "Download again",
+      "reset_prototype_data": "Reset prototype data",
+      "stars_trash_task_and_mail_changes_go_bac": "Stars, trash, task and mail changes go back to the demo. The sidebar layout resets too.",
+      "reset": "Reset",
+      "profile": "Profile",
+      "name": "Name",
+      "visible_on_documents_you_share_by_link_o": "Visible on documents you share by link or email.",
+      "where_we_write_to_you_and_one_way_to_sig": "Where we write to you, and one way to sign in.",
+      "edit": "Edit",
+      "sign_in_methods": "Sign-in methods",
+      "password": "Password",
+      "last_changed_in_august": "Last changed in August.",
+      "change": "Change",
+      "google": "Google",
+      "maksym_k_gmail_com": "maksym.k@gmail.com",
+      "disconnect": "Disconnect",
+      "apple": "Apple",
+      "not_set_up": "Not set up",
+      "connect": "Connect",
+      "devices": "Devices",
+      "this_mac": "This Mac",
+      "signed_in_since_12_august_now": "Signed in since 12 August · now",
+      "signed_in_since_3_september_yesterday": "Signed in since 3 September · yesterday",
+      "sign_out": "Sign out",
+      "teams": "Teams",
+      "share_projects_and_documents_with_the_pe": "Share projects and documents with the people you work with, inside your Needt.",
+      "coming_soon": "Coming soon",
+      "danger_zone": "Danger zone",
+      "delete_account": "Delete account",
+      "your_tasks_documents_habits_and_connecti": "Your tasks, documents, habits and connections go at once. Export first under Data & privacy. This cannot be undone.",
+      "your_plan": "Your plan ·",
+      "choose_a_plan": "Choose a plan",
+      "paid_once": "· paid once",
+      "pro_monthly": "Pro Monthly",
+      "cancel_any_time": "Cancel any time",
+      "pro_yearly": "Pro Yearly",
+      "trial_days_left": "trial days left",
+      "youre_one_of_the_first": "You're one of the first",
+      "every_pro_feature_now_and_later_no_renew": ". Every Pro feature, now and later — no renewals.",
+      "you_save": "You save",
+      "a_year_against_monthly": "a year against monthly.",
+      "switch_to_yearly_and_pay": "Switch to yearly and pay",
+      "a_year": "a year.",
+      "switch_to_yearly": "Switch to yearly",
+      "compare_plans": "Compare plans",
+      "invoices": "Invoices",
+      "included_in_your_plan": "Included in your plan",
+      "what_pro_unlocks": "What Pro unlocks",
+      "everything_marked_pro_across_needt": "Everything marked PRO across Needt.",
+      "each_one_is_marked_pro_where_it_lives_tr": "Each one is marked PRO where it lives. Try them all free for",
+      "included": "Included",
+      "prototype": "Prototype",
+      "preview_how_settings_looks_on_each_plan_": "Preview how Settings looks on each plan. Not part of the product.",
+      "plan_state": "Plan state",
+      "pro_trial_9_days_left": "Pro trial · 9 days left",
+      "pro_monthly_2": "Pro monthly",
+      "pro_yearly_2": "Pro yearly",
+      "troubleshooting": "Troubleshooting",
+      "billing_is_wrong": "Billing is wrong",
+      "read_what_to_check_before_writing_to_us": "Read what to check before writing to us.",
+      "report_a_billing_issue": "Report a billing issue",
+      "license_key": "License key",
+      "got_a_key_from_us_activate_it_here": "Got a key from us? Activate it here.",
+      "version": "Version",
+      "needt_0_9_prototype": "Needt 0.9 · prototype",
+      "whats_new": "What's new",
+      "help_centre": "Help centre",
+      "terms_and_privacy": "Terms and privacy"
+    },
+    "ORDER_WORD": {
+      "shortest_first": "shortest first"
+    }
+  },
+  "Sidebar.jsx": {
+    "SB_USER": {
+      "maksym": "Maksym"
+    },
+    "sbPlanLine": {
+      "pro_lifetime": "Pro · Lifetime",
+      "pro": "Pro",
+      "free": "Free"
+    },
+    "sbPlanPill": {
+      "pro": "Pro",
+      "free": "Free"
+    },
+    "SbProPill": {
+      "pro": "PRO"
+    },
+    "SB_THEMES": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "time": "Time"
+    },
+    "SbAcctRow": {
+      "soon": "Soon"
+    },
+    "AccountMenu": {
+      "account": "Account",
+      "free_plan": "Free plan",
+      "manage": "Manage",
+      "upgrade": "Upgrade",
+      "settings": "Settings",
+      "appearance": "Appearance",
+      "theme": "Theme",
+      "invite_to_needt": "Invite to Needt",
+      "invite_link_copied": "Invite link copied",
+      "teams": "Teams",
+      "sign_out": "Sign out"
+    },
+    "FocusControl": {
+      "focus_paused": "Focus paused ·",
+      "focus": "Focus ·",
+      "left_open": "left — open",
+      "start_a_focus_session": "Start a focus session",
+      "focus_session": "Focus session,",
+      "paused": ", paused",
+      "open": "— open",
+      "focus_2": "Focus"
+    },
+    "sbLiveRead": {
+      "event": "Event"
+    },
+    "PlaceTile": {
+      "due_today_done": "due today done",
+      "0_0_round_9999px": "% 0 0 round 9999px)"
+    },
+    "SbSectionHead": {
+      "expand": "Expand",
+      "collapse": "Collapse"
+    },
+    "SbPinPop": {
+      "untitled": "Untitled",
+      "pin_a_doc": "Pin a doc",
+      "no_docs_match": "No docs match",
+      "every_doc_is_pinned": "Every doc is pinned"
+    },
+    "Sidebar": {
+      "more": "More",
+      "everything_is_a_tile": "Everything is a tile",
+      "hide_a_place_to_keep_it_here": "Hide a place to keep it here",
+      "customize_sidebar": "Customize Sidebar",
+      "choose_tiles_and_sections": "Choose tiles and sections",
+      "connections": "Connections",
+      "pinned": "Pinned",
+      "pin_a_doc": "Pin a doc",
+      "untitled": "Untitled",
+      "pin_docs_to_keep_them_close": "Pin docs to keep them close",
+      "projects": "Projects",
+      "new_project": "New project",
+      "actions_for": "Actions for",
+      "import": "Import",
+      "from_markdown_files": "From Markdown files",
+      "from_notion": "From Notion",
+      "from_google_docs": "From Google Docs",
+      "from_a_calendar_file_ics": "From a calendar file (.ics)",
+      "from_a_csv_of_tasks": "From a CSV of tasks",
+      "create": "Create",
+      "new_task": "New task",
+      "placed_into_a_free_hour": "Placed into a free hour",
+      "n": "N",
+      "new_doc": "New doc",
+      "a_page_for_anything": "A page for anything",
+      "new_event": "New event",
+      "blocks_time_on_your_calendar": "Blocks time on your calendar",
+      "a_folder_with_its_own_colour": "A folder with its own colour",
+      "new_habit": "New habit",
+      "comes_back_daily_never_piles_up": "Comes back daily, never piles up",
+      "new_moodboard": "New moodboard",
+      "references_side_by_side": "References side by side"
+    },
+    "PageAddButton": {
+      "new": "New"
+    }
+  },
+  "TodayScreen.jsx": {
+    "WEEK": {
+      "standup": "Standup",
+      "draft_the_launch_brief": "Draft the launch brief",
+      "invoices": "Invoices",
+      "deep_work": "Deep work",
+      "review": "Review",
+      "1_1_anna": "1:1 Anna",
+      "german": "German"
+    },
+    "PLACED": {
+      "draft_the_launch_brief": "Draft the launch brief",
+      "standup": "Standup",
+      "deep_work_design_system": "Deep work — design system",
+      "lunch": "Lunch",
+      "send_invoices_for_august": "Send invoices for August",
+      "1_1_anna": "1:1 Anna",
+      "german_b2_unit_4": "German — B2 unit 4"
+    },
+    "TodayScreen": {
+      "september": "September",
+      "tuesday": "Tuesday",
+      "week_36": "week 36"
+    }
+  },
+  "calendar2.jsx": {
+    "calEvents": {
+      "new_event": "New event"
+    },
+    "C2Draft": {
+      "new_event": "New event",
+      "event_title": "Event title"
+    },
+    "C2Peek": {
+      "event_title": "Event title",
+      "edit_title": "Edit title",
+      "delete": "Delete",
+      "open": "Open",
+      "not_done": "Not done",
+      "done": "Done"
+    },
+    "C2MoreRow": {
+      "more_at": "more at"
+    },
+    "C2SlotList": {
+      "event": "· Event"
+    },
+    "C2SlotPop": {
+      "everything_at": "Everything at"
+    },
+    "WeekView": {
+      "56px_repeat": "56px repeat(",
+      "minmax_0_1fr": ", minmax(0, 1fr))"
+    },
+    "DaysView": {
+      "previous_days": "Previous days",
+      "next_days": "Next days",
+      "3_days": "3 days",
+      "5_days": "5 days",
+      "7_days": "7 days",
+      "minmax_0_1fr": ", minmax(0, 1fr))",
+      "today": "Today",
+      "nothing_planned": "Nothing planned"
+    },
+    "CalendarCraft": {
+      "previous": "Previous",
+      "next": "Next",
+      "reopened": "Reopened “",
+      "done": "Done · “",
+      "new": "New",
+      "new_event": "New Event",
+      "blocks_time_on_your_calendar": "Blocks time on your calendar",
+      "new_task": "New Task",
+      "placed_into_a_free_hour": "Placed into a free hour",
+      "n": "N",
+      "calendar": "Calendar",
+      "previous_days": "Previous days",
+      "previous_week": "Previous week",
+      "next_days": "Next days",
+      "next_week": "Next week",
+      "youre_on_this_week": "You're on this week",
+      "today": "Today",
+      "hide_done": "Hide done",
+      "done_task_hidden": "done task hidden",
+      "done_tasks_hidden": "done tasks hidden",
+      "click_to_show": "— click to show",
+      "done_tasks_are_hidden_click_to_show": "Done tasks are hidden — click to show",
+      "hide_completed_tasks": "Hide completed tasks",
+      "3_days": "3 days",
+      "week": "Week",
+      "agenda": "Agenda"
+    }
+  },
+  "connections-data.js": {
+    "CN_TABS": {
+      "apps_services": "Apps & services",
+      "ai_tools": "AI tools"
+    },
+    "CN_CHIPS": {
+      "all_categories": "All categories",
+      "mail_chat": "Mail & chat",
+      "calendars": "Calendars",
+      "work": "Work",
+      "files": "Files",
+      "creative": "Creative"
+    },
+    "CN_META": {
+      "gmail": "Gmail",
+      "maksym_a_gmail_com": "maksym.a@gmail.com",
+      "outlook": "Outlook",
+      "maksym_outlook_com": "maksym@outlook.com",
+      "token_expired_last_sync_06_12": "Token expired · last sync 06:12",
+      "icloud_mail": "iCloud Mail",
+      "maksym_icloud_com": "maksym@icloud.com",
+      "proton_mail": "Proton Mail",
+      "maksym_proton_me": "maksym@proton.me",
+      "fastmail": "Fastmail",
+      "maksym_fastmail_com": "maksym@fastmail.com",
+      "slack": "Slack",
+      "telegram": "Telegram",
+      "teenx": "@teenx",
+      "discord": "Discord",
+      "google_calendar": "Google Calendar",
+      "apple_calendar": "Apple Calendar",
+      "icloud_personal_family": "iCloud · Personal, Family",
+      "outlook_calendar": "Outlook Calendar",
+      "zoom": "Zoom",
+      "calendly": "Calendly",
+      "notion": "Notion",
+      "maksyms_workspace": "Maksym’s workspace",
+      "linear": "Linear",
+      "demesures": "Demesures",
+      "jira": "Jira",
+      "asana": "Asana",
+      "maksym_my_workspace": "Maksym · My workspace",
+      "trello": "Trello",
+      "maksyms_boards": "Maksym’s boards",
+      "clickup": "ClickUp",
+      "demesures_workspace": "Demesures workspace",
+      "todoist": "Todoist",
+      "obsidian": "Obsidian",
+      "vault_needt_notes": "Vault · Needt notes",
+      "evernote": "Evernote",
+      "google_drive": "Google Drive",
+      "dropbox": "Dropbox",
+      "icloud_drive": "iCloud Drive",
+      "onedrive": "OneDrive",
+      "box": "Box",
+      "github": "GitHub",
+      "figma": "Figma",
+      "maksym_demesures_team": "Maksym · Demesures team",
+      "pinterest": "Pinterest",
+      "teenx_pinterest": "teenx · Pinterest",
+      "canva": "Canva",
+      "maksym_demesures": "Maksym · Demesures",
+      "miro": "Miro",
+      "demesures_team": "Demesures team",
+      "spotify": "Spotify",
+      "claude": "Claude",
+      "chatgpt": "ChatGPT",
+      "cursor": "Cursor",
+      "gemini": "Gemini",
+      "perplexity": "Perplexity",
+      "other_mcp_client": "Other MCP client"
+    },
+    "cnByeText": {
+      "needt_stops_reading_it_tasks_you_made_fr": "Needt stops reading it. Tasks you made from it stay.",
+      "moodboards_stop_showing_your_pins_boards": "Moodboards stop showing your Pins. Boards stay linked — Reconnect brings them back."
+    },
+    "CN_SCOPES": {
+      "all_docs_tasks": "All docs & tasks",
+      "daily_notes_tasks": "Daily notes & tasks",
+      "selected_projects": "Selected projects…"
+    },
+    "CN_PERMS": {
+      "read_only": "Read only",
+      "read_and_write": "Read and write"
+    },
+    "CN_ACCESS": {
+      "private": "Private",
+      "public_link": "Public link"
+    },
+    "CN_LINK_KINDS": {
+      "your_mcp_connections": "Your MCP connections",
+      "for_ai_tools_to_access_your_docs": "For AI tools to access your docs",
+      "chatgpt": "ChatGPT",
+      "claude": "Claude",
+      "cursor": "Cursor",
+      "windsurf": "Windsurf",
+      "raycast": "Raycast",
+      "gemini": "Gemini",
+      "perplexity": "Perplexity",
+      "your_api_connections": "Your API connections",
+      "for_building_workflows_and_shortcuts": "For building workflows and shortcuts",
+      "zapier": "Zapier",
+      "make": "Make",
+      "shortcuts": "Shortcuts"
+    },
+    "cnScopeText": {
+      "no_projects_yet": "No projects yet"
+    },
+    "cnAutoName": {
+      "selected_projects": "Selected projects"
+    },
+    "cnBundle": {
+      "authorization_bearer_your_needt_sign_in_": "Authorization: Bearer <your Needt sign-in token>"
+    },
+    "cnProFeature": {
+      "ai_tools_mcp": "AI tools & MCP",
+      "pinterest_boards": "Pinterest boards",
+      "more_mail_accounts": "More mail accounts"
+    }
+  },
+  "connections.jsx": {
+    "CnPill": {
+      "12_transparent": "12%, transparent)"
+    },
+    "CnMenu": {
+      "options_for": "Options for"
+    },
+    "CnConsent": {
+      "n": "N",
+      "beta": "Beta",
+      "needt_wants_to_access_your": "Needt wants to access your",
+      "signed_in_to_pinterest_as_teenx": "Signed in to Pinterest as teenx",
+      "needt_wants_to": "Needt wants to",
+      "needt_never_posts_or_deletes_anything_fo": "Needt never posts or deletes anything for you.",
+      "you_can_disconnect_any_time_in_connectio": "You can disconnect any time in Connections.",
+      "cancel": "Cancel",
+      "allow": "Allow"
+    },
+    "CnConfirm": {
+      "disconnect": "Disconnect",
+      "cancel": "Cancel"
+    },
+    "CnCopyRow": {
+      "copy": "Copy"
+    },
+    "CnCode": {
+      "copy": "Copy"
+    },
+    "CnKey": {
+      "generate_api_key": "Generate API key",
+      "hide": "Hide",
+      "reveal": "Reveal",
+      "copy": "Copy",
+      "regenerate": "Regenerate",
+      "treat_it_like_a_password_regenerating_st": "Treat it like a password. Regenerating stops the old key at once."
+    },
+    "CnSetup": {
+      "connect": "Connect",
+      "an_mcp_client": "an MCP client",
+      "any_app_that_speaks_mcp": "Any app that speaks MCP",
+      "reads_your_tasks_calendar_and_notes_thro": "reads your tasks, calendar and notes through Needt MCP",
+      "beta": "Beta",
+      "connected_needt_can_see": "Connected — Needt can see",
+      "couldnt_reach": "Couldn’t reach",
+      "ask_it_about_your_day_to_try_it": "Ask it about your day to try it.",
+      "setup_help": "Setup help",
+      "checking": "Checking…",
+      "already_connected": "Already connected",
+      "done": "Done",
+      "cancel": "Cancel",
+      "try_again": "Try again",
+      "check_connection": "Check connection"
+    },
+    "CnCalSync": {
+      "sync_settings": "Sync settings",
+      "calendars": "Calendars",
+      "events_from_these_fill_your_day_and_need": "Events from these fill your day, and Needt plans tasks around them.",
+      "nothing_from": "Nothing from",
+      "shows_in_your_day": "shows in your day.",
+      "events": "Events",
+      "show_declined_events": "Show declined events",
+      "show_all_day_events": "Show all-day events",
+      "write_changes_back": "Write changes back",
+      "moving_an_event_in_needt_moves_it_in": "Moving an event in Needt moves it in",
+      "these_apply_to_every_calendar_you_connec": "These apply to every calendar you connect.",
+      "done": "Done"
+    },
+    "CnLinkSheet": {
+      "new_url_the_old_one_stopped_working": "New URL — the old one stopped working",
+      "close": "Close",
+      "name": "Name",
+      "url": "URL",
+      "copy": "Copy",
+      "regenerate": "Regenerate",
+      "anyone_with_this_url_can_use_it_share_it": "Anyone with this URL can use it — share it only with tools you trust.",
+      "tools_also_need_your_sign_in_token_regen": "Tools also need your sign-in token. Regenerating stops the old URL at once.",
+      "documents": "Documents",
+      "permission_level": "Permission level",
+      "access_mode": "Access mode",
+      "anyone_with_the_url_can_change_your": "Anyone with the URL can change your",
+      "docs_and_tasks": "docs and tasks",
+      "keep_it_secret": ". Keep it secret.",
+      "api_reference": "API reference",
+      "download_ai_bundle": "Download AI bundle",
+      "ai_bundle_downloaded": "AI bundle downloaded",
+      "delete": "Delete “",
+      "ai_tools_using_this_url_lose_access_righ": "AI tools using this URL lose access right away.",
+      "workflows_and_shortcuts_using_this_url_s": "Workflows and shortcuts using this URL stop working right away.",
+      "cancel": "Cancel",
+      "delete_2": "Delete",
+      "delete_this": "Delete this",
+      "view_integration_guide_for": "View integration guide for…",
+      "integration_guides": "Integration guides",
+      "guide_is_coming_soon_on_needt_app": "guide is coming soon on needt.app.",
+      "needt_app_guides": "needt.app/guides/"
+    },
+    "CnLinkCard": {
+      "open": "Open"
+    },
+    "CnLinkSection": {
+      "new": "New"
+    },
+    "CnAiPromo": {
+      "bring_needt_into_your_ai_tools": "Bring Needt into your AI tools",
+      "your_tasks_calendar_and_notes_right_wher": "Your tasks, calendar and notes — right where you already ask questions.",
+      "ai_tools": "AI tools",
+      "try_pro_free_for_14_days": "Try Pro free for 14 days",
+      "see_plans": "See plans"
+    },
+    "CnCard": {
+      "needt_mcp_maksym": "Needt MCP · maksym",
+      "syncing": "Syncing…",
+      "last_used": "Last used",
+      "synced": "Synced",
+      "access_ended_reconnect_to_sync": "Access ended — reconnect to sync",
+      "show_setup_steps": "Show setup steps",
+      "disconnect": "Disconnect…",
+      "sync_settings": "Sync settings",
+      "sync_now": "Sync now",
+      "beta": "Beta",
+      "reconnecting": "Reconnecting",
+      "reconnect": "Reconnect",
+      "unlock": "Unlock",
+      "with_pro": "with Pro",
+      "upgrade": "Upgrade",
+      "connecting": "Connecting",
+      "connect": "Connect"
+    },
+    "ConnectionsScreen": {
+      "new_api_key_the_old_one_stopped_working": "New API key — the old one stopped working",
+      "api_key_created": "API key created",
+      "included_in_pro": "Included in Pro",
+      "no_ai_tools_connected_yet": "No AI tools connected yet",
+      "nothing_connected_yet": "Nothing connected yet",
+      "nothing_matches": "Nothing matches “",
+      "nothing_connected_here_yet": "Nothing connected here yet",
+      "check_the_spelling_or_look_in_ai_tools": "Check the spelling — or look in AI tools.",
+      "check_the_spelling_or_look_in_apps_servi": "Check the spelling — or look in Apps & services.",
+      "switch_to_all_apps_to_see_what_you_can_c": "Switch to All apps to see what you can connect.",
+      "clear_search": "Clear search",
+      "show_all": "Show all",
+      "sources": "Sources",
+      "connections": "Connections",
+      "where_needt_reads_your_mail_calendars_an": "Where Needt reads your mail, calendars and files — and how your AI tools read Needt.",
+      "lost_access_reconnect_to_keep_syncing": "lost access — reconnect to keep syncing",
+      "connection_type": "Connection type",
+      "show": "Show",
+      "connected": "Connected",
+      "all_apps": "All apps",
+      "search_apps_and_services": "Search apps and services",
+      "search_ai_tools": "Search AI tools",
+      "search_apps": "Search apps",
+      "needt_mcp": "Needt MCP",
+      "use_your_needt_tasks_calendar_and_notes_": "— use your Needt tasks, calendar and notes in your favourite AI.",
+      "beta": "Beta",
+      "allow_access": "Allow access",
+      "connect": "Connect",
+      "sync_settings": "sync settings",
+      "connection": "Connection",
+      "disconnect": "Disconnect"
+    }
+  },
+  "ctx.jsx": {
+    "cxNewTab": {
+      "tabs_coming_with_the_port": "Tabs — coming with the port"
+    },
+    "cxCopy": {
+      "link_copied": "Link copied"
+    },
+    "cxTrashTask": {
+      "moved_to_trash": "Moved to Trash"
+    },
+    "cxItems": {
+      "no_project": "No project",
+      "unpin": "Unpin",
+      "pin": "Pin",
+      "untitled": "Untitled",
+      "delete_anyway": "Delete anyway",
+      "delete": "Delete",
+      "mark_not_done": "Mark not done",
+      "mark_done": "Mark done",
+      "marked_not_done": "Marked not done",
+      "done": "Done",
+      "duplicated": "Duplicated",
+      "moved_into_more": "Moved into More",
+      "mark_not_kept_today": "Mark not kept today",
+      "mark_kept_today": "Mark kept today"
+    },
+    "CxProjectEdit": {
+      "colour_changed": "Colour changed",
+      "edit_project": "Edit project",
+      "save": "Save"
+    }
+  },
+  "doc-style.jsx": {
+    "DT_THEMES": {
+      "default": "Default",
+      "paper": "Paper",
+      "ink": "Ink",
+      "rose": "Rose",
+      "sage": "Sage",
+      "ocean": "Ocean",
+      "sand": "Sand",
+      "night": "Night"
+    },
+    "DtCover": {
+      "m": "M",
+      "220_a": "220 A",
+      "220_z": "220 Z",
+      "s_500": "S 500",
+      "s_800": "S 800",
+      "v220_h0_z": "V220 H0 Z"
+    },
+    "DC_PAGES": {
+      "white": "White",
+      "paper": "Paper",
+      "rose": "Rose",
+      "lilac": "Lilac",
+      "sage": "Sage",
+      "sky": "Sky",
+      "sand": "Sand",
+      "graphite": "Graphite",
+      "black": "Black"
+    },
+    "DC_TEXTS": {
+      "auto": "Auto",
+      "dark": "Dark",
+      "light": "Light",
+      "umber": "Umber",
+      "wine": "Wine",
+      "plum": "Plum",
+      "navy": "Navy",
+      "forest": "Forest"
+    },
+    "DC_BACKDROPS": {
+      "none": "None",
+      "sparkle": "Sparkle",
+      "dunes": "Dunes",
+      "mist": "Mist",
+      "dotted": "Dotted",
+      "marble": "Marble",
+      "meadow": "Meadow",
+      "ocean": "Ocean"
+    },
+    "DC_FONTS": {
+      "default": "Default",
+      "serif": "Serif",
+      "mono": "Mono",
+      "rounded": "Rounded"
+    },
+    "DC_PRESETS": {
+      "default": "Default",
+      "paper": "Paper",
+      "ink": "Ink",
+      "rose": "Rose",
+      "sage": "Sage",
+      "ocean": "Ocean",
+      "sand": "Sand",
+      "night": "Night",
+      "sparkles": "Sparkles",
+      "mist": "Mist"
+    },
+    "DC_SORTS": {
+      "name": "Name",
+      "last_viewed": "Last viewed",
+      "date_created": "Date created",
+      "date_updated": "Date updated"
+    },
+    "dcDirLabel": {
+      "a_to_z": "A to Z",
+      "newest_first": "Newest first",
+      "oldest_first": "Oldest first"
+    },
+    "DX_COLORS": {
+      "default": "Default",
+      "gray": "Gray",
+      "brown": "Brown",
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "sky": "Sky",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "purple": "Purple",
+      "pink": "Pink",
+      "rose": "Rose"
+    },
+    "DX_HLS": {
+      "yellow": "Yellow",
+      "orange": "Orange",
+      "red": "Red",
+      "pink": "Pink",
+      "purple": "Purple",
+      "blue": "Blue",
+      "green": "Green",
+      "gray": "Gray"
+    }
+  },
+  "docs-kit.jsx": {
+    "MiniBlock": {
+      "1fr": ", 1fr)",
+      "untitled": "Untitled",
+      "untitled_page": "Untitled page"
+    },
+    "MiniDoc": {
+      "untitled": "Untitled"
+    },
+    "DocThumb": {
+      "px_0": "px 0",
+      "px_0_0": "px 0 0"
+    }
+  },
+  "focus.jsx": {
+    "FC_LENGTHS": {
+      "custom": "Custom"
+    },
+    "FC_SOUNDS": {
+      "off": "Off",
+      "rain": "Rain",
+      "caf": "Café",
+      "white_noise": "White noise"
+    },
+    "fcFinish": {
+      "focus": "Focus",
+      "breaks_over_pick_up_where_you_left_off": "Break’s over — pick up where you left off."
+    },
+    "FocusWindow": {
+      "focus_session": "Focus session",
+      "focus": "Focus"
+    },
+    "FcSetup": {
+      "focus": "Focus",
+      "break_over": "Break over",
+      "focus_session": "Focus session",
+      "one_thing_one_stretch_of_time": "One thing, one stretch of time.",
+      "what_is_this_session_for": "What is this session for?",
+      "e_g_the_first_draft": "e.g. the first draft",
+      "length": "Length",
+      "minutes": "Minutes",
+      "pick_between_1_and_240_minutes": "Pick between 1 and 240 minutes.",
+      "choose_a_task": "Choose a task",
+      "task": "Task",
+      "no_project": "No project",
+      "nothing_open_a_session_can_still_run_on_": "Nothing open — a session can still run on its purpose alone.",
+      "ambient_sound": "Ambient sound",
+      "hide_other_tasks": "Hide other tasks",
+      "start": "Start"
+    },
+    "FcRun": {
+      "break": "Break",
+      "focus": "Focus",
+      "paused": "Paused",
+      "on_a_break": "On a break",
+      "in_focus": "In focus",
+      "session_ends": "session · ends",
+      "resume": "Resume",
+      "pause": "Pause",
+      "5_min": "5 min",
+      "stop": "Stop",
+      "ambient_sound_click_to_change": "Ambient sound — click to change",
+      "ambient_sound": "Ambient sound:",
+      "stand_up_drink_some_water_look_at_someth": "Stand up, drink some water, look at something far away."
+    },
+    "FcTaskCard": {
+      "subtasks": "Subtasks",
+      "notes": "Notes",
+      "what_you_found_what_is_left": "What you found, what is left…"
+    },
+    "FcEnd": {
+      "next_task": "Next task",
+      "nothing_else_open": "Nothing else open",
+      "take_a_5_min_break": "Take a 5-min break",
+      "starts_now_then_back_to_setup": "Starts now, then back to setup",
+      "done_for_now": "Done for now",
+      "close_and_get_back_to_the_day": "Close and get back to the day",
+      "under_a_minute": "Under a minute",
+      "session_complete": "Session complete",
+      "session_ended": "Session ended",
+      "session_today": "session today",
+      "sessions_today": "sessions today",
+      "focused_today": "focused today",
+      "day_in_a_row": "day in a row",
+      "days_in_a_row": "days in a row",
+      "what_next": "What next"
+    }
+  },
+  "import.jsx": {
+    "imIcs": {
+      "event": "Event"
+    },
+    "imPages": {
+      "untitled": "Untitled"
+    },
+    "imAddTasks": {
+      "no_tasks_found_in_that_file": "No tasks found in that file"
+    },
+    "needtImport": {
+      "no_events_in_the_next_30_days_in_that_fi": "No events in the next 30 days in that file",
+      "couldnt_read_that_file": "Couldn't read that file"
+    }
+  },
+  "mobile-nav.jsx": {
+    "mnCounts": {
+      "design_review": "Design review"
+    }
+  },
+  "mobile-v2-plates.jsx": {
+    "V2pNotes": {
+      "notes": "Notes",
+      "notes_for_the_day": "Notes for the day…"
+    },
+    "X": {
+      "moved_to_tomorrow": "Moved to tomorrow"
+    },
+    "V2pHome": {
+      "due_today": "Due today",
+      "all_done_for_today": "All done for today",
+      "see_tomorrow": "See tomorrow",
+      "done": "Done",
+      "today": "Today",
+      "week_36": "· week 36",
+      "overdue": "Overdue",
+      "next_up": "Next up",
+      "skip": "Skip",
+      "start_focus": "Start focus",
+      "a_clear_day_nothing_is_due_and_nothing_i": "A clear day. Nothing is due and nothing is waiting — pull down to add something.",
+      "move_to_today": "Move to today",
+      "inbox": "Inbox",
+      "habits": "Habits",
+      "tomorrow": "Tomorrow",
+      "done_today": "Done today"
+    },
+    "V2pWeek": {
+      "days_of_the_week": "Days of the week"
+    },
+    "V2pMonth": {
+      "september": "September"
+    },
+    "V2pCalendar": {
+      "your_events": "Your events",
+      "work_calendar": "Work calendar",
+      "task": "Task",
+      "overlaps": "Overlaps ·",
+      "view": "View",
+      "schedule": "Schedule",
+      "month": "Month",
+      "week": "Week",
+      "2026_tap_a_day": "2026 · tap a day",
+      "today": "Today",
+      "nothing_planned": "Nothing planned",
+      "no_time": "No time",
+      "a_free_day_pull_down_to_add_something_to": "A free day. Pull down to add something to it.",
+      "september": "September",
+      "previous_week": "Previous week",
+      "next_week": "Next week",
+      "now": "Now",
+      "next": "Next",
+      "first_up": "First up",
+      "earlier_today": "Earlier today",
+      "time": "Time",
+      "length": "Length",
+      "calendar": "Calendar",
+      "overlaps_2": "Overlaps"
+    },
+    "V2pScreens": {
+      "added_to_today": "Added to today",
+      "moved_to_trash": "Moved to Trash"
+    }
+  },
+  "nav-a.jsx": {
+    "NVA_WORD": {
+      "ask_needt": "Ask Needt"
+    },
+    "nvaStatus": {
+      "nothing_else_today": "Nothing else today",
+      "all_read": "All read",
+      "plans_with_your_calendar_and_tasks": "Plans with your calendar and tasks",
+      "pages_you_start_from": "Pages you start from",
+      "pages_others_shared_with_you": "Pages others shared with you",
+      "outlook_needs_reconnecting": "Outlook needs reconnecting",
+      "theme_hours_notifications": "Theme, hours, notifications"
+    },
+    "NvaSettings": {
+      "back_to_the_menu": "Back to the menu",
+      "settings": "Settings",
+      "m": "M",
+      "maksym": "Maksym",
+      "maksym_needt_app": "maksym@needt.app",
+      "appearance": "Appearance",
+      "theme": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "your_day": "Your day",
+      "working_hours": "Working hours",
+      "needt_plans_inside_them": "Needt plans inside them",
+      "week_starts_monday": "Week starts Monday",
+      "hide_done_in_calendar": "Hide done in calendar",
+      "notifications": "Notifications",
+      "starts_overdue_mail_that_needs_you": "Starts, overdue, mail that needs you",
+      "plan": "Plan",
+      "try_needt_pro": "Try Needt Pro",
+      "14_days_no_card": "14 days, no card",
+      "sign_out": "Sign out"
+    },
+    "NeedtNavA": {
+      "free": "Free",
+      "menu": "Menu",
+      "you_are_here": "You are here",
+      "m": "M",
+      "maksym": "Maksym",
+      "account_plan_and_sign_out": "Account, plan and sign out",
+      "every_place": "Every place",
+      "you_are_in": "— you are in",
+      "show_the_menu": "Show the menu",
+      "new_task": "New task",
+      "let_go_to_tuck_it_away": "Let go to tuck it away",
+      "pull_further_to_tuck_it_away": "Pull further to tuck it away"
+    }
+  },
+  "paywall-sheet.jsx": {
+    "PwNoteCard": {
+      "daily_note": "Daily note",
+      "tue_1_sep": "TUE · 1 SEP",
+      "shoot_day": "Shoot day",
+      "charge_the_flash": "Charge the flash",
+      "scout_kreis_4": "Scout Kreis 4",
+      "reply_to_tom": "Reply to Tom"
+    },
+    "PwDateCard": {
+      "sep": "SEP",
+      "tuesday": "Tuesday",
+      "14_00_shoot": "14:00 Shoot"
+    },
+    "PwMoodPrint": {
+      "moodboard": "Moodboard",
+      "a_moodboard": "A moodboard"
+    },
+    "PwPlans": {
+      "pro": "Pro",
+      "billing": "Billing",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "billed_monthly_cancel_any_time": "Billed monthly · cancel any time",
+      "billed": "Billed",
+      "yearly_2": "yearly ·",
+      "lifetime": "Lifetime",
+      "limited": "Limited",
+      "for_the_first": "For the first",
+      "plans": "Plans"
+    },
+    "PwFreeLine": {
+      "current_plan": "Current plan",
+      "free": "Free",
+      "yours_to_keep": ". Yours to keep."
+    },
+    "PwFeatures": {
+      "every_pro_plan_includes": "Every Pro plan includes"
+    },
+    "pwCtaFor": {
+      "one_payment_pro_for_good": "One payment · Pro for good"
+    },
+    "PwStatus": {
+      "youre_offline_checkout_needs_a_connectio": "You’re offline — checkout needs a connection. Your plan hasn’t changed.",
+      "checkout_couldnt_start": "Checkout couldn’t start.",
+      "check_your_connection_and_try_again_you_": "Check your connection and try again — you haven’t been charged.",
+      "retrying": "Retrying",
+      "retry": "Retry"
+    },
+    "PwFeatureLine": {
+      "unlock": "Unlock",
+      "with_pro": "with Pro"
+    },
+    "PwScene": {
+      "close": "Close",
+      "plan_my_day": "Plan my day",
+      "needt_pro": "Needt Pro",
+      "get": "Get",
+      "out_of_needt": "out of Needt",
+      "ai_planning_every_connection_and_the_the": "AI planning, every connection and the themes — free for",
+      "days_no_card_needed_then_back_to_free_un": "days, no card needed. Then back to Free unless you choose a plan."
+    },
+    "Paywall": {
+      "needt_pro": "Needt Pro"
+    },
+    "PwHost": {
+      "checkout_opens_here_prototype": "Checkout opens here — prototype"
+    }
+  },
+  "paywall.jsx": {
+    "_module": {
+      "when_the_trial_ends_you_go_back_to_free_": "When the trial ends you go back to Free unless you choose a plan — we’ll remind you 3 days before.",
+      "prices_in_usd_taxes_may_apply": "Prices in USD. Taxes may apply."
+    },
+    "needtPlanInfo": {
+      "no_card_on_file_you_go_back_to_free_when": "No card on file — you go back to Free when it ends unless you pick a plan.",
+      "trial": "Trial",
+      "pro_monthly": "Pro monthly",
+      "pro": "Pro",
+      "pro_yearly": "Pro yearly",
+      "lifetime_thank_you": "Lifetime · thank you",
+      "lifetime": "Lifetime",
+      "free": "Free",
+      "tasks_calendar_docs_and_one_mail_account": "Tasks, calendar, docs and one mail account."
+    },
+    "ProBadge": {
+      "pro_feature_locked": "Pro feature — locked",
+      "pro_feature": "Pro feature",
+      "pro": "PRO"
+    },
+    "ProUpsell": {
+      "try_pro_free": "Try Pro free",
+      "dismiss": "Dismiss"
+    },
+    "ProLimit": {
+      "free_includes": "· Free includes",
+      "upgrade_for_more": "Upgrade for more"
+    },
+    "PwPromoCard": {
+      "needt_pro_see_plans": "Needt Pro — see plans",
+      "needt": "Needt",
+      "pro": "Pro",
+      "try_pro_free_for": "Try Pro free for",
+      "days_no_card": "days — no card.",
+      "dismiss_needt_pro": "Dismiss Needt Pro"
+    }
+  },
+  "phone-docs.jsx": {
+    "PD_SUB": {
+      "by_name": "By name"
+    },
+    "pdSortLine": {
+      "by_name_z_to_a": "By name, Z to A"
+    },
+    "PD_TYPES": {
+      "text": "Text",
+      "heading": "Heading",
+      "list": "List",
+      "to_do": "To-do",
+      "quote": "Quote",
+      "callout": "Callout",
+      "code": "Code"
+    },
+    "PD_CONTENT": {
+      "task": "Task",
+      "to_do": "To-do",
+      "image": "Image",
+      "divider": "Divider",
+      "table": "Table",
+      "page_link": "Page link",
+      "date": "Date"
+    },
+    "PD_PH": {
+      "text": "Text",
+      "ask_needt": "Ask Needt"
+    },
+    "PD_COLORS": {
+      "default": "Default",
+      "gray": "Gray",
+      "brown": "Brown",
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "sky": "Sky",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "purple": "Purple",
+      "pink": "Pink",
+      "rose": "Rose"
+    },
+    "PdMiniBlock": {
+      "1fr": ", 1fr)",
+      "untitled": "Untitled",
+      "untitled_page": "Untitled page"
+    },
+    "PdMini": {
+      "untitled": "Untitled"
+    },
+    "PdMoveSheet": {
+      "no_project": "No project",
+      "move_to": "Move to",
+      "untitled": "Untitled",
+      "move_to_a_project": "Move to a project",
+      "project": "Project"
+    },
+    "PdStylePicker": {
+      "block_type": "Block type",
+      "text_style": "Text style",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strikethrough": "Strikethrough",
+      "code": "Code",
+      "colour": "Colour",
+      "highlight": "Highlight",
+      "this_block_has_no_text_to_style": "This block has no text to style."
+    },
+    "PdContentPicker": {
+      "add_content": "Add content"
+    },
+    "PdMorePicker": {
+      "more": "More"
+    },
+    "PdColorSheet": {
+      "none": "None",
+      "highlight": "Highlight",
+      "choose_a_color": "Choose a Color",
+      "page_colour_each_has_a_light_and_a_dark_": "Page colour — each has a Light and a Dark reading",
+      "behind_the_selected_words_or_the_whole_b": "Behind the selected words, or the whole block",
+      "colour_of_the_selected_words_or_the_whol": "Colour of the selected words, or the whole block",
+      "colour": "Colour",
+      "aa": "Aa"
+    },
+    "PD_BG": {
+      "none": "None",
+      "solid": "Solid",
+      "gradient": "Gradient",
+      "image": "Image"
+    },
+    "PdPageStyleSheet": {
+      "cover_added": "Cover added",
+      "page_style": "Page Style",
+      "presets": "Presets",
+      "aa": "Aa",
+      "cover": "Cover",
+      "none": "None",
+      "image": "Image",
+      "art": "Art",
+      "replace": "Replace",
+      "background": "Background",
+      "page_colour": "Page colour",
+      "backdrop_look": "Backdrop look",
+      "immersive": "Immersive",
+      "faded": "Faded",
+      "blur_image": "Blur image",
+      "default_font": "Default font"
+    },
+    "PdRemindSheet": {
+      "later_today": "Later today",
+      "today_18_00": "Today, 18:00",
+      "today_18_00_2": "Today 18:00",
+      "tomorrow": "Tomorrow",
+      "tomorrow_9_00": "Tomorrow 9:00",
+      "next_week": "Next week",
+      "monday_09_00": "Monday, 09:00",
+      "pick_a_date": "Pick a date…",
+      "remind_me": "Remind me",
+      "this_block": "This block",
+      "reminder_date": "Reminder date",
+      "when": "When"
+    },
+    "PdLinkSheet": {
+      "new_page": "New page",
+      "an_empty_page_linked_here": "An empty page, linked here",
+      "untitled": "Untitled",
+      "link_a_page": "Link a page",
+      "pages": "Pages"
+    },
+    "PdUrlSheet": {
+      "link": "Link",
+      "on_the_selected_words_or_the_whole_block": "On the selected words, or the whole block",
+      "paste_or_type_a_link": "Paste or type a link",
+      "link_address": "Link address",
+      "remove_link": "Remove link"
+    },
+    "PdKeyboard": {
+      "abc": "ABC"
+    },
+    "PdEd": {
+      "text": "Text"
+    },
+    "PdCell": {
+      "cell": "Cell"
+    },
+    "PdBlock": {
+      "done": "Done",
+      "task_today": "Task · Today",
+      "event": "Event",
+      "habit": "Habit",
+      "add_an_image": "Add an image",
+      "row": "Row",
+      "column": "Column",
+      "untitled": "Untitled",
+      "untitled_page": "Untitled page",
+      "screenshot": "Screenshot",
+      "move_the_friday_review_to_thursday_frida": "Move the Friday review to Thursday — Friday already holds two fixed events.",
+      "accept": "Accept",
+      "dismiss": "Dismiss",
+      "select_block": "Select block"
+    },
+    "PdDocReader": {
+      "suggestion_accepted": "Suggestion accepted",
+      "suggestion_dismissed": "Suggestion dismissed",
+      "link_copied": "Link copied",
+      "picture": "Picture",
+      "table": "Table",
+      "untitled": "Untitled",
+      "pinned": "Pinned",
+      "unpinned": "Unpinned",
+      "copy_link": "Copy link",
+      "page_style": "Page Style",
+      "share": "Share",
+      "move_to": "Move to…",
+      "unpin": "Unpin",
+      "pin": "Pin",
+      "duplicate_page": "Duplicate page",
+      "delete": "Delete",
+      "move_up": "Move up",
+      "move_down": "Move down",
+      "duplicate": "Duplicate",
+      "remind": "Remind",
+      "turn_into": "Turn into",
+      "only_for_text_blocks": "Only for text blocks",
+      "title": "Title",
+      "back_to": "Back to",
+      "docs": "Docs",
+      "more": "More",
+      "date": "Date",
+      "blocks": "Blocks",
+      "emoji": "Emoji",
+      "format_the_selected_words": "Format the selected words",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strikethrough": "Strikethrough",
+      "code": "Code",
+      "link": "Link",
+      "text_colour": "Text colour",
+      "highlight": "Highlight",
+      "formatting": "Formatting",
+      "style": "Style",
+      "aa": "Aa",
+      "add_content": "Add content",
+      "keyboard": "Keyboard",
+      "done": "Done",
+      "block_actions": "Block actions",
+      "content": "Content",
+      "actions": "Actions",
+      "content_2": "+ Content",
+      "page_actions": "Page actions",
+      "block_style": "Block style",
+      "goes_under_the_selected_block": "Goes under the selected block"
+    },
+    "PdCard": {
+      "pinned": "Pinned",
+      "untitled": "Untitled",
+      "from": "From"
+    },
+    "PdDocs": {
+      "untitled": "Untitled",
+      "search_docs_or_start_one": "Search docs or start one…",
+      "docs_by_any_word_in_their_title_enter_st": "Docs, by any word in their title. Enter starts a new one.",
+      "new_doc": "New doc",
+      "open": "Open",
+      "unpin": "Unpin",
+      "pin": "Pin",
+      "unpinned": "Unpinned",
+      "pinned": "Pinned",
+      "duplicate": "Duplicate",
+      "move_to": "Move to…",
+      "delete": "Delete",
+      "docs": "Docs",
+      "quick_open": "Quick Open",
+      "clear": "Clear",
+      "which_docs": "Which docs",
+      "recents": "Recents",
+      "shared": "Shared",
+      "from_template": "From template",
+      "nothing_matches": "Nothing matches",
+      "nothing_shared_yet": "Nothing shared yet",
+      "no_documents_yet": "No documents yet",
+      "try_another_word": "Try another word.",
+      "pages_others_share_with_you_show_up_here": "Pages others share with you show up here.",
+      "start_one_pages_you_write_on_the_desktop": "Start one — pages you write on the desktop show up here too.",
+      "sort_and_more": "Sort and more",
+      "sort_documents": "Sort documents",
+      "doc": "Doc",
+      "document_actions": "Document actions",
+      "new_from_template": "New from template",
+      "templates": "Templates",
+      "blank_page": "Blank page",
+      "start_from_nothing": "Start from nothing"
+    }
+  },
+  "phone-habits.jsx": {
+    "PhbTodayRow": {
+      "kept_today": "Kept today",
+      "week_done": "Week done",
+      "not_yet_today": "Not yet today",
+      "kept_today_tap_to_undo": "— kept today, tap to undo",
+      "mark_kept_today": "— mark kept today"
+    },
+    "PhbMonths": {
+      "of_the_last": "of the last",
+      "in_a_row": "in a row",
+      "the_last_months": "— the last months",
+      "today": "Today —",
+      "kept_tap_to_undo": "kept, tap to undo",
+      "tap_to_mark_kept": "tap to mark kept"
+    },
+    "PhbLeft": {
+      "left_today": "left today",
+      "days_left_in": "days left in"
+    },
+    "PhbNewSheet": {
+      "habit_updated": "Habit updated",
+      "edit_habit": "Edit habit",
+      "new_habit": "New habit",
+      "comes_back_every_day_a_missed_day_never_": "Comes back every day — a missed day never piles up",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create_habit": "Create habit",
+      "name": "Name",
+      "habit_name": "Habit name",
+      "time_optional": "Time · optional",
+      "days_per_week": "Days per week",
+      "project_its_colour": "Project · its colour",
+      "project": "Project",
+      "no_project": "No project"
+    },
+    "PhbHabits": {
+      "order_changed": "Order changed",
+      "kept_today": "Kept today",
+      "not_yet_today": "Not yet today",
+      "undo_today": "Undo today",
+      "mark_kept_today": "Mark kept today",
+      "edit": "Edit",
+      "name_time_days_project": "Name, time, days, project",
+      "move_up": "Move up",
+      "move_down": "Move down",
+      "archive": "Archive",
+      "its_days_stay_it_stops_coming_back": "Its days stay; it stops coming back",
+      "search_or_add_a_habit": "Search or add a habit…",
+      "habits_by_name_enter_makes_a_new_one": "Habits, by name. Enter makes a new one.",
+      "new_habit": "New habit",
+      "kept_today_2": "kept today",
+      "habits": "Habits",
+      "new": "New",
+      "no_habits_yet": "No habits yet",
+      "a_habit_comes_back_every_day_a_missed_da": "A habit comes back every day. A missed day stays empty — nothing piles up.",
+      "today": "Today",
+      "all_kept": "All kept ✓",
+      "show_fewer": "Show fewer",
+      "show_all": "Show all",
+      "the_last_months": "The last months",
+      "time_left": "Time left",
+      "a_missed_day_stays_empty_nothing_carries": "A missed day stays empty. Nothing carries over."
+    },
+    "PhbBoardCard": {
+      "open": "Open",
+      "from": "From",
+      "only_you": "Only you"
+    },
+    "PhbWall": {
+      "open": "Open"
+    },
+    "PhbPinterest": {
+      "pinterest": "Pinterest ·",
+      "pinterest_options": "Pinterest options",
+      "visible_only_to": "Visible only to",
+      "pins_are_read_from_their_account_and_nev": "Pins are read from their account and never copied into Needt.",
+      "needt_cant_reach_this_board": "Needt can't reach this board",
+      "pinterest_stopped_answering": "Pinterest stopped answering",
+      "nothing_was_stored_so_nothing_is_lost": "— nothing was stored, so nothing is lost.",
+      "reconnect": "Reconnect",
+      "syncing": "Syncing…",
+      "synced": "Synced",
+      "sync": "Sync"
+    },
+    "PhbBoardPage": {
+      "s_board_you_can": "'s board · you can",
+      "shared_with": "Shared with",
+      "anyone_with_the_link": "Anyone with the link",
+      "only_you": "Only you",
+      "search_this_board": "Search this board",
+      "titles_notes_colours_and_sites_on_this_b": "Titles, notes, colours and sites on this board.",
+      "moodboards": "Moodboards",
+      "add": "Add",
+      "share": "Share",
+      "people": "People",
+      "board_options": "Board options",
+      "nothing_on_this_board_yet": "Nothing on this board yet",
+      "photos_links_colours_and_notes_whatever_": "Photos, links, colours and notes — whatever you are looking at when it clicks.",
+      "add_a_reference": "Add a reference",
+      "pinterest": "Pinterest"
+    },
+    "PhbAddSheet": {
+      "custom": "Custom",
+      "photo": "Photo",
+      "link": "Link",
+      "colour": "Colour",
+      "note": "Note",
+      "pinterest_board": "Pinterest board",
+      "pinterest": "Pinterest",
+      "back": "Back",
+      "add_link": "Add link",
+      "add_colour": "Add colour",
+      "add_note": "Add note",
+      "paste_from_clipboard": "Paste from clipboard",
+      "colours": "Colours",
+      "hex": "Hex",
+      "type_something": "Type something…"
+    },
+    "PhbItemSheet": {
+      "reference": "Reference",
+      "colour": "Colour",
+      "pinterest_pin": "Pinterest pin",
+      "pins_stay_on_pinterest": "Pins stay on Pinterest",
+      "added": "Added",
+      "move": "Move",
+      "remove_from_board": "Remove from board",
+      "done": "Done",
+      "note": "Note",
+      "type_something": "Type something…",
+      "name": "Name",
+      "hex": "Hex",
+      "title": "Title",
+      "untitled": "Untitled",
+      "open": "Open",
+      "from": "From",
+      "why_this_one": "Why this one"
+    },
+    "PhbNameSheet": {
+      "board": "Board",
+      "cancel": "Cancel",
+      "save": "Save",
+      "name": "Name",
+      "untitled_board": "Untitled board"
+    },
+    "PhbShareSheet": {
+      "share": "Share",
+      "done": "Done",
+      "invite": "Invite",
+      "email": "Email",
+      "access": "Access",
+      "can_view": "Can view",
+      "can_edit": "Can edit",
+      "only": "Only",
+      "can_change_who_has_access": "can change who has access.",
+      "people": "People",
+      "owner": "Owner",
+      "you": "(you)",
+      "sees_the_board_adds_nothing": "Sees the board, adds nothing",
+      "adds_and_removes_references": "Adds and removes references",
+      "remove_from_board": "Remove from board",
+      "anyone_with_the_link": "Anyone with the link",
+      "can_view_not_edit": "Can view — not edit",
+      "off_only_the_people_above": "Off — only the people above",
+      "link_copied": "Link copied",
+      "copy_link": "Copy link",
+      "pinterest_pins_are_never_shared_people_s": "Pinterest pins are never shared — people see a plaque instead."
+    },
+    "PhbPinSheet": {
+      "pinterest": "Pinterest",
+      "pins_are_read_never_stored": "Pins are read, never stored"
+    },
+    "PhbBoards": {
+      "reference_removed": "Reference removed",
+      "move_to": "Move to…",
+      "no_other_board_to_move_to": "No other board to move to",
+      "order_changed": "Order changed",
+      "untitled_board": "Untitled board",
+      "new_board": "New board",
+      "rename_board": "Rename board",
+      "open": "Open",
+      "rename": "Rename",
+      "share": "Share…",
+      "people": "People",
+      "invite_roles_the_link": "Invite, roles, the link",
+      "who_is_on_this_board": "Who is on this board",
+      "pinterest_board": "Pinterest board…",
+      "connect_pinterest": "Connect Pinterest",
+      "show_a_boards_pins_here_never_stored": "Show a board's pins here — never stored",
+      "delete_board": "Delete board",
+      "kept_in_trash_for_30_days": "Kept in Trash for 30 days",
+      "leave_board": "Leave board",
+      "change_board": "Change board",
+      "disconnect_pinterest": "Disconnect Pinterest",
+      "pins_disappear_nothing_of_yours_is_lost": "Pins disappear; nothing of yours is lost",
+      "pinterest_disconnected": "Pinterest disconnected",
+      "open_and_edit": "Open and edit",
+      "move_to_board": "Move to board…",
+      "move_to_top": "Move to top",
+      "remove_from_board": "Remove from board",
+      "photo": "Photo",
+      "photos": "Photos",
+      "that_file_isnt_an_image_needt_can_read": "That file isn't an image Needt can read",
+      "search_or_add_a_board": "Search or add a board",
+      "boards_and_everything_on_them_titles_not": "Boards and everything on them — titles, notes, colours, sites. Enter starts a board.",
+      "moodboards": "Moodboards",
+      "new": "New",
+      "no_boards_yet": "No boards yet",
+      "a_board_keeps_photos_links_colours_and_n": "A board keeps photos, links, colours and notes side by side.",
+      "shared_with_you": "Shared with you",
+      "saved": "Saved",
+      "pinterest_board_linked": "Pinterest board linked"
+    }
+  },
+  "phone-kit.jsx": {
+    "pkDay": {
+      "anytime": "Anytime",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "added_to_inbox": "Added to Inbox",
+      "added_to_today": "Added to today"
+    },
+    "pkTaskPull": {
+      "done": "Done",
+      "overdue": "Overdue",
+      "inbox": "Inbox"
+    },
+    "PkRow": {
+      "done": "Done",
+      "tomorrow": "Tomorrow",
+      "mark_not_done": "Mark not done",
+      "mark_done": "Mark done"
+    },
+    "PkPullDown": {
+      "search_or_add": "Search or add…",
+      "search": "Search…",
+      "search_or_add_2": "Search or add",
+      "search_2": "Search",
+      "nothing_called_that_yet": "Nothing called that yet.",
+      "tasks_by_any_word_in_their_title_enter_a": "Tasks, by any word in their title. Enter adds it to today.",
+      "by_any_word": "By any word.",
+      "cancel": "Cancel",
+      "add": "Add “",
+      "add_to_today": "Add to today",
+      "let_go_to": "Let go to",
+      "pull_to": "Pull to"
+    },
+    "PkActions": {
+      "actions": "Actions"
+    }
+  },
+  "phone-mail.jsx": {
+    "pmlAcct": {
+      "outlook": "Outlook",
+      "gmail": "Gmail"
+    },
+    "pmlActions": {
+      "open": "Open",
+      "reply": "Reply",
+      "take_the_task_back": "Take the task back",
+      "the_thread_stays_the_task_goes": "The thread stays; the task goes",
+      "task_taken_back": "Task taken back",
+      "task_for_today": "Task for today",
+      "task_made_today": "Task made · today",
+      "task_for_later": "Task for later",
+      "no_date_in_inbox": "No date — in Inbox",
+      "task_made_for_later": "Task made for later",
+      "add_to_calendar": "Add to Calendar",
+      "tomorrow_10_00_30_min": "Tomorrow 10:00 · 30 min",
+      "added_to_calendar_tomorrow_10_00": "Added to Calendar — tomorrow 10:00",
+      "reply_all": "Reply all",
+      "forward": "Forward",
+      "mark_as_unread": "Mark as unread",
+      "mark_as_read": "Mark as read",
+      "marked_as_unread": "Marked as unread",
+      "marked_as_read": "Marked as read",
+      "archive": "Archive",
+      "archived": "Archived",
+      "move_to_trash": "Move to Trash",
+      "moved_to_trash": "Moved to Trash"
+    },
+    "PmlOutlook": {
+      "reconnecting_outlook": "Reconnecting Outlook…",
+      "outlook_disconnected": "Outlook disconnected",
+      "nothing_new_since_06_12": "Nothing new since 06:12",
+      "connecting": "Connecting",
+      "reconnect": "Reconnect"
+    },
+    "PmlRow": {
+      "draft": "Draft",
+      "to": "To",
+      "no_recipients": "No recipients",
+      "no_subject": "No subject",
+      "task": "Task",
+      "unread": "Unread",
+      "archive": "Archive",
+      "make_task": "Make task"
+    },
+    "PmlThread": {
+      "thread": "Thread",
+      "task_taken_back": "Task taken back",
+      "turn_this_email_into": "Turn this email into…",
+      "reply_all": "Reply all",
+      "move_to_trash": "Move to Trash",
+      "moved_to_trash": "Moved to Trash",
+      "to": "To",
+      "from": "From",
+      "forward": "Forward",
+      "more": "More",
+      "reply": "Reply",
+      "task_made_take_it_back": "Task made — take it back",
+      "make_a_task": "Make a task",
+      "task_made": "Task made",
+      "make_task": "Make task",
+      "no_subject": "No subject",
+      "forwarded": "Forwarded ·",
+      "task_made_find_it_in_tasks": "Task made — find it in Tasks",
+      "as_a_task": "As a task: “",
+      "outlook_is_disconnected_replies_wait_unt": "Outlook is disconnected — replies wait until it is back."
+    },
+    "PmlRecipients": {
+      "remove": "Remove",
+      "name_or_email": "Name or email",
+      "suggestions": "Suggestions"
+    },
+    "PML_CO_TITLE": {
+      "reply": "Reply",
+      "forward": "Forward",
+      "draft": "Draft",
+      "new_message": "New message"
+    },
+    "PmlComposer": {
+      "saved_to_drafts": "Saved to Drafts",
+      "draft_discarded": "Draft discarded",
+      "send_from": "Send from",
+      "from": "From",
+      "choose": "Choose",
+      "no_mail_account_connected": "No mail account connected",
+      "save_draft": "Save draft",
+      "send": "Send",
+      "to": "To",
+      "cc_bcc": "Cc / Bcc",
+      "cc": "Cc",
+      "bcc": "Bcc",
+      "subject": "Subject",
+      "type_something": "Type something…",
+      "message": "Message",
+      "forwarded": "Forwarded ·",
+      "remove": "Remove",
+      "attach": "Attach",
+      "discard": "Discard"
+    },
+    "PML_VIEWS": {
+      "needs_you": "Needs you",
+      "all": "All",
+      "made_into_tasks": "Made into tasks",
+      "sent": "Sent",
+      "drafts": "Drafts"
+    },
+    "X": {
+      "task_made_in_inbox": "Task made · in Inbox",
+      "archived": "Archived"
+    },
+    "PmlMailbox": {
+      "no_subject": "No subject",
+      "edit": "Edit",
+      "forward": "Forward",
+      "discard_draft": "Discard draft",
+      "move_to_trash": "Move to Trash",
+      "draft_discarded": "Draft discarded",
+      "moved_to_trash": "Moved to Trash",
+      "search": "Search",
+      "mail_by_sender_subject_or_any_word_in_it": "Mail, by sender, subject or any word in it.",
+      "all_read": "All read ✓",
+      "mailbox": "Mailbox",
+      "new_message": "New message",
+      "new": "New",
+      "show": "Show",
+      "read": "Read"
+    }
+  },
+  "phone-overlays.jsx": {
+    "POV_PRIO": {
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "POV_SCHED_HOURS": {
+      "work_hours": "Work hours",
+      "personal": "Personal",
+      "any_time": "Any time"
+    },
+    "PkTaskSheet": {
+      "hard": "Hard ·",
+      "fixed": "Fixed",
+      "auto": "Auto",
+      "no_project": "No project",
+      "saved": "Saved",
+      "reopen": "Reopen",
+      "mark_done": "Mark done",
+      "done": "Done",
+      "start_focus": "Start focus",
+      "task": "Task",
+      "mark_not_done": "Mark not done",
+      "name_it": "Name it",
+      "title": "Title",
+      "first_step": "First step",
+      "the_smallest_thing_that_counts": "The smallest thing that counts",
+      "overdue_this_was_due": "Overdue — this was due",
+      "move_it_or_let_it_go": ". Move it or let it go.",
+      "waiting_on": "Waiting on",
+      "date": "Date",
+      "no_date": "No date",
+      "time": "Time",
+      "auto_2": "· auto",
+      "any_time": "Any time",
+      "duration": "Duration",
+      "none": "None",
+      "project": "Project",
+      "priority": "Priority",
+      "labels": "Labels",
+      "scheduling": "Scheduling",
+      "placement": "Placement",
+      "min_work_block": "Min. work block",
+      "dont_split": "Don’t split",
+      "deadline": "Deadline",
+      "hours": "Hours",
+      "subtasks": "Subtasks",
+      "done_2": "Done:",
+      "add_a_subtask": "Add a subtask",
+      "notes": "Notes",
+      "add_a_note": "Add a note",
+      "attachments": "Attachments",
+      "from": "From",
+      "delete_task": "Delete task"
+    },
+    "PICK": {
+      "placement": "Placement",
+      "planned": "Planned",
+      "needt_may_move_it": "— Needt may move it",
+      "needt_finds_the_slot": "Needt finds the slot",
+      "auto": "Auto",
+      "stays_at": "Stays at",
+      "stays_where_you_put_it": "Stays where you put it",
+      "fixed": "Fixed",
+      "min_work_block": "Min. work block",
+      "never_shorter_than": "Never shorter than",
+      "one_sitting_in_one_piece": "One sitting, in one piece",
+      "dont_split": "Don’t split",
+      "deadline": "Deadline",
+      "no_deadline": "No deadline",
+      "hard_deadline": "Hard deadline",
+      "needt_never_plans_it_past_this_day": "Needt never plans it past this day",
+      "hours": "Hours"
+    },
+    "POV_PICK": {
+      "date": "Date",
+      "project": "Project",
+      "priority": "Priority"
+    },
+    "PkComposer": {
+      "add": "Add",
+      "new_task": "New task",
+      "at": "At",
+      "lands_on_today": "Lands on today",
+      "say_when_which_project_how_urgent_or_tap": "Say when, which project, how urgent — or tap below.",
+      "attachment": "Attachment",
+      "no": "No",
+      "remove": "Remove"
+    },
+    "PkAsk": {
+      "noted_ive_put_it_on_this_weeks_brief_so_": "Noted — I've put it on this week's brief so it's there when you open the desktop.",
+      "ask_needt": "Ask Needt",
+      "plans_with_your_calendar_and_tasks": "Plans with your calendar and tasks",
+      "ask_anything_about_your_day": "Ask anything about your day",
+      "send": "Send",
+      "ask_about_your_day_i_can_plan_the_aftern": "Ask about your day — I can plan the afternoon, find what's overdue, or draft a reply."
+    },
+    "PkSnack": {
+      "undo": "Undo"
+    },
+    "PkPaywall": {
+      "needt_pro": "Needt Pro"
+    },
+    "PkEventSheet": {
+      "done": "Done"
+    }
+  },
+  "phone-places.jsx": {
+    "PplDocSheet": {
+      "untitled": "Untitled",
+      "page": "Page",
+      "done": "Done"
+    },
+    "PplCalSync": {
+      "calendars": "Calendars",
+      "events_from_these_fill_your_day_and_need": "Events from these fill your day, and Needt plans tasks around them.",
+      "nothing_from": "Nothing from",
+      "shows_in_your_day": "shows in your day.",
+      "events": "Events",
+      "show_declined_events": "Show declined events",
+      "show_all_day_events": "Show all-day events",
+      "write_changes_back": "Write changes back",
+      "moving_an_event_in_needt_moves_it_in": "Moving an event in Needt moves it in",
+      "these_apply_to_every_calendar_you_connec": "These apply to every calendar you connect."
+    },
+    "PplCopy": {
+      "copy": "Copy"
+    },
+    "PplSetup": {
+      "hide": "Hide",
+      "reveal": "Reveal",
+      "api_key_copied": "API key copied",
+      "copy": "Copy",
+      "regenerate": "Regenerate",
+      "generate_api_key": "Generate API key",
+      "config_copied": "Config copied",
+      "connected_ask_it_about_your_day_to_try_i": "Connected — ask it about your day to try it.",
+      "needt_didnt_hear_from_it_yet_finish_the_": "Needt didn’t hear from it yet. Finish the last step, then try again."
+    },
+    "PplLink": {
+      "name": "Name",
+      "url": "URL",
+      "new_url_the_old_one_stopped_working": "New URL — the old one stopped working",
+      "new_url": "New URL",
+      "documents": "Documents",
+      "permission": "Permission",
+      "access": "Access",
+      "anyone_with_the_url_can_change_your": "Anyone with the URL can change your",
+      "docs_and_tasks": "docs and tasks",
+      "keep_it_secret": ". Keep it secret.",
+      "ai_bundle_downloaded": "AI bundle downloaded",
+      "download_ai_bundle": "Download AI bundle"
+    },
+    "PplConnections": {
+      "new_api_key_the_old_one_stopped_working": "New API key — the old one stopped working",
+      "api_key_created": "API key created",
+      "no_ai_tools_connected_yet": "No AI tools connected yet",
+      "nothing_connected_yet": "Nothing connected yet",
+      "connecting": "Connecting…",
+      "lost_access_reconnect_to_sync_again": "Lost access — reconnect to sync again",
+      "included_in_pro": "Included in Pro",
+      "free_1_mail_account": "Free: 1 mail account",
+      "connecting_2": "Connecting",
+      "reconnect": "Reconnect",
+      "sync_settings": "sync settings",
+      "sync": "Sync",
+      "upgrade": "Upgrade",
+      "connect": "Connect",
+      "beta": "Beta",
+      "needt_mcp": "Needt MCP",
+      "needs_reconnecting": "Needs reconnecting",
+      "search": "Search",
+      "any_app_or_ai_tool_by_name_pick_one_to_s": "Any app or AI tool by name. Pick one to see what it does and connect it.",
+      "connection_type": "Connection type",
+      "search_apps": "Search apps",
+      "search_apps_and_services": "Search apps and services",
+      "clear_search": "Clear search",
+      "categories": "Categories",
+      "needs_you": "Needs you",
+      "nothing_matches": "Nothing matches “",
+      "show_all": "Show all",
+      "bring_needt_into_your_ai_tools": "Bring Needt into your AI tools",
+      "your_tasks_calendar_and_notes_right_wher": "Your tasks, calendar and notes — right where you already ask questions.",
+      "try_pro_free_for_14_days": "Try Pro free for 14 days",
+      "see_plans": "See plans",
+      "use_your_needt_tasks_calendar_and_notes_": "— use your Needt tasks, calendar and notes in your favourite AI.",
+      "ai_tools": "AI tools",
+      "api_key": "API key",
+      "no_api_key_yet": "No API key yet",
+      "for_mcp_clients_that_cant_sign_in": "For MCP clients that can’t sign in",
+      "new": "New",
+      "create": "Create",
+      "connections": "Connections",
+      "sync_settings_2": "Sync settings ·",
+      "done": "Done",
+      "account": "Account",
+      "needt_mcp_maksym": "Needt MCP · maksym",
+      "lost_access": "Lost access",
+      "disconnect": "Disconnect",
+      "setup_steps": "Setup steps",
+      "syncing": "Syncing…",
+      "sync_now": "Sync now",
+      "status": "Status",
+      "connected": "Connected",
+      "not_connected": "Not connected",
+      "last_used": "Last used",
+      "last_synced": "Last synced",
+      "today": "Today",
+      "kind": "Kind",
+      "needt_can": "Needt can",
+      "calendars_and_events": "Calendars and events",
+      "needt_never_posts_or_deletes_anything_fo": "Needt never posts or deletes anything for you.",
+      "you_can_disconnect_any_time": "You can disconnect any time.",
+      "cancel": "Cancel",
+      "allow": "Allow",
+      "an_mcp_client": "an MCP client",
+      "setup": "Setup",
+      "any_app_that_speaks_mcp": "Any app that speaks MCP",
+      "reads_your_tasks_calendar_and_notes_thro": "reads your tasks, calendar and notes through Needt MCP",
+      "checking": "Checking…",
+      "try_again": "Try again",
+      "check_connection": "Check connection",
+      "connection": "Connection",
+      "revoke": "Revoke",
+      "revoke_2": "Revoke “",
+      "ai_tools_using_this_url_lose_access_righ": "AI tools using this URL lose access right away.",
+      "workflows_and_shortcuts_using_this_url_s": "Workflows and shortcuts using this URL stop working right away."
+    },
+    "PplLinkSection": {
+      "new": "New",
+      "none_yet": "— none yet."
+    },
+    "PplTemplates": {
+      "search_templates": "Search templates",
+      "templates_by_name_pick_one_to_preview_it": "Templates by name. Pick one to preview it.",
+      "preview": "Preview",
+      "use": "Use",
+      "templates": "Templates",
+      "to_start_from": "to start from",
+      "yours": "Yours",
+      "template": "Template",
+      "close": "Close",
+      "use_template": "Use template"
+    },
+    "PplShared": {
+      "search_shared_pages": "Search shared pages",
+      "by_title_or_by_who_shared_it": "By title, or by who shared it.",
+      "shared": "Shared",
+      "nothing_shared_yet": "Nothing shared yet",
+      "access_to": "Access to",
+      "when_someone_shares_a_page_with_you_it_s": "When someone shares a page with you, it shows up here.",
+      "shared_by": "Shared by",
+      "edited": "· edited",
+      "access": "Access",
+      "open": "Open",
+      "ask_to_edit": "Ask to edit",
+      "done": "Done",
+      "your_access": "Your access",
+      "can_view": "Can view",
+      "people": "People",
+      "owner": "Owner",
+      "maksym_you": "Maksym (you)",
+      "only": "Only",
+      "can_change_who_has_access": "can change who has access."
+    },
+    "G": {
+      "untitled": "Untitled",
+      "untitled_moodboard": "Untitled moodboard"
+    },
+    "PplTrash": {
+      "trash_emptied": "Trash emptied",
+      "restore": "Restore",
+      "back_to_moodboards": "Back to Moodboards",
+      "back_to_its_list": "Back to its list",
+      "back_to_docs": "Back to Docs",
+      "delete_forever": "Delete forever",
+      "you_can_undo_it_for_a_few_seconds": "You can undo it for a few seconds",
+      "search_trash": "Search Trash",
+      "anything_deleted_in_the_last_30_days_pic": "Anything deleted in the last 30 days. Pick it to restore it.",
+      "trash": "Trash",
+      "kept_30_days": "· kept 30 days",
+      "kept_for_30_days_then_gone_for_good": "Kept for 30 days, then gone for good",
+      "empty": "Empty",
+      "restore_all": "Restore all",
+      "delete": "Delete “",
+      "forever": "” forever",
+      "trash_is_empty_anything_you_delete_waits": "Trash is empty. Anything you delete waits here for 30 days.",
+      "empty_trash": "Empty trash?",
+      "forever_2": "” forever?",
+      "item_goes": "item goes",
+      "items_go": "items go",
+      "for_good_you_can_undo_it_for_a_few_secon": "for good. You can undo it for a few seconds.",
+      "gone_for_good_you_can_undo_it_for_a_few_": "Gone for good — you can undo it for a few seconds.",
+      "cancel": "Cancel",
+      "empty_trash_2": "Empty trash"
+    }
+  },
+  "phone-settings.jsx": {
+    "PS_ME": {
+      "maksym_k": "Maksym K."
+    },
+    "PsPicker": {
+      "choose": "Choose"
+    },
+    "PsProTag": {
+      "pro": "Pro"
+    },
+    "PS_PAGES": {
+      "account": "Account",
+      "plan_billing": "Plan & billing",
+      "general": "General",
+      "appearance": "Appearance",
+      "your_day": "Your day",
+      "tasks": "Tasks",
+      "focus": "Focus",
+      "notifications": "Notifications",
+      "menu": "Menu",
+      "sidebar": "Sidebar",
+      "data_privacy": "Data & privacy",
+      "shortcuts": "Shortcuts",
+      "about": "About"
+    },
+    "PS_ORDER_WORD": {
+      "shortest_first": "shortest first"
+    },
+    "PS_THEMES": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "time": "Time"
+    },
+    "psAccents": {
+      "blue": "Blue",
+      "pink": "Pink",
+      "mint": "Mint",
+      "violet": "Violet",
+      "amber": "Amber",
+      "graphite": "Graphite",
+      "aurora": "Aurora",
+      "sunset": "Sunset",
+      "lagoon": "Lagoon"
+    },
+    "psMenuPlaces": {
+      "home": "Home",
+      "calendar": "Calendar",
+      "tasks": "Tasks",
+      "docs": "Docs",
+      "mailbox": "Mailbox",
+      "habits": "Habits",
+      "boards": "Boards",
+      "projects": "Projects",
+      "ask_ai": "Ask AI"
+    },
+    "PsAccount": {
+      "profile": "Profile",
+      "name_visible_on_documents_you_share_by_l": "Name · visible on documents you share by link or email.",
+      "email_where_we_write_to_you_and_one_way_": "Email · where we write to you, and one way to sign in.",
+      "sign_in_methods": "Sign-in methods",
+      "password": "Password",
+      "last_changed_in_august": "Last changed in August.",
+      "change_password": "Change password",
+      "change": "Change",
+      "google": "Google",
+      "maksym_k_gmail_com": "maksym.k@gmail.com",
+      "disconnect_google": "Disconnect Google",
+      "disconnect": "Disconnect",
+      "apple": "Apple",
+      "not_set_up": "Not set up",
+      "connect_apple": "Connect Apple",
+      "connect": "Connect",
+      "devices": "Devices",
+      "this_mac": "This Mac",
+      "signed_in_since_12_august_now": "Signed in since 12 August · now",
+      "signed_in_since_3_september_yesterday": "Signed in since 3 September · yesterday",
+      "sign_out_the_iphone": "Sign out the iPhone",
+      "sign_out": "Sign out",
+      "teams": "Teams",
+      "share_projects_and_documents_with_the_pe": "Share projects and documents with the people you work with, inside your Needt.",
+      "soon": "Soon",
+      "danger_zone": "Danger zone",
+      "delete_account": "Delete account",
+      "your_tasks_documents_habits_and_connecti": "Your tasks, documents, habits and connections go at once. Export first under Data & privacy. This cannot be undone."
+    },
+    "PsPlan": {
+      "your_plan": "Your plan ·",
+      "trial_days_left": "trial days left",
+      "start_free_trial": "Start free trial",
+      "choose_a_plan": "Choose a plan",
+      "plans": "Plans",
+      "pro_monthly": "Pro Monthly",
+      "cancel_any_time": "Cancel any time",
+      "pro_yearly": "Pro Yearly",
+      "lifetime": "Lifetime",
+      "youre_one_of_the_first": "You're one of the first",
+      "every_pro_feature_now_and_later_no_renew": ". Every Pro feature, now and later — no renewals.",
+      "you_save": "You save",
+      "a_year_against_monthly": "a year against monthly.",
+      "switch_to_yearly_and_pay": "Switch to yearly and pay",
+      "a_year": "a year.",
+      "switch_to_yearly": "Switch to yearly",
+      "compare_plans": "Compare plans",
+      "invoices": "Invoices",
+      "invoices_open_on_needt_app_prototype": "Invoices open on needt.app (prototype)",
+      "included_in_your_plan": "Included in your plan",
+      "what_pro_unlocks": "What Pro unlocks",
+      "everything_marked_pro_across_needt": "Everything marked PRO across Needt.",
+      "each_one_is_marked_pro_where_it_lives_tr": "Each one is marked PRO where it lives. Try them all free for",
+      "included": "Included",
+      "prototype": "Prototype",
+      "preview_how_settings_looks_on_each_plan_": "Preview how Settings looks on each plan. Not part of the product.",
+      "plan_state": "Plan state",
+      "free": "Free",
+      "pro_trial_9_days_left": "Pro trial · 9 days left",
+      "pro_monthly_2": "Pro monthly",
+      "pro_yearly_2": "Pro yearly",
+      "troubleshooting": "Troubleshooting",
+      "billing_is_wrong": "Billing is wrong",
+      "read_what_to_check_before_writing_to_us": "Read what to check before writing to us.",
+      "opens_the_help_centre_prototype": "Opens the help centre (prototype)",
+      "report_a_billing_issue": "Report a billing issue",
+      "license_key": "License key",
+      "got_a_key_from_us_activate_it_here": "Got a key from us? Activate it here.",
+      "license_keys_activate_on_needt_app_proto": "License keys activate on needt.app (prototype)"
+    },
+    "PsGeneral": {
+      "links": "Links",
+      "open_document_links_in": "Open document links in",
+      "whether_needt_app_links_open_in_the_brow": "Whether needt.app links open in the browser or the app.",
+      "always_ask": "Always ask",
+      "browser": "Browser",
+      "desktop_app": "Desktop app",
+      "offline": "Offline",
+      "offline_mode": "Offline mode",
+      "view_and_edit_documents_and_tasks_while_": "View and edit documents and tasks while offline. Changes sync when you are back."
+    },
+    "PsAppearance": {
+      "pro": "— Pro",
+      "theme": "Theme",
+      "follows_the_sun_where_you_are_pale_at_da": "Follows the sun where you are: pale at dawn, Light by day, warm at golden hour, Dark after dusk.",
+      "follows_this_devices_light_or_dark_setti": "Follows this device's light or dark setting.",
+      "desktop_and_phone_use_the_same_theme": "Desktop and phone use the same theme.",
+      "accent_colour": "Accent colour",
+      "blue_is_yours_on_free_the_other_eight_co": "Blue is yours on Free. The other eight come with Pro.",
+      "fills_take_the_blend_text_and_rings_take": "Fills take the blend; text and rings take its middle.",
+      "selection_links_the_now_line_and_progres": "Selection, links, the now-line and progress.",
+      "unlock_every_accent": "Unlock every accent"
+    },
+    "PsDay": {
+      "plans_automatically": "Plans automatically",
+      "plans_when_you_ask": "Plans when you ask",
+      "working_hours": "Working hours",
+      "needt_only_plans_work_between_these_time": "Needt only plans work between these times.",
+      "day_starts": "Day starts",
+      "day_ends": "Day ends",
+      "week_starts": "Week starts",
+      "monday": "Monday",
+      "sunday": "Sunday",
+      "time_zone": "Time zone",
+      "cet_z_rich": "CET — Zürich",
+      "utc": "UTC",
+      "est_new_york": "EST — New York",
+      "calendar": "Calendar",
+      "week_shows_the_grid_agenda_lists_each_da": "Week shows the grid; Agenda lists each day's events and tasks in order.",
+      "opens_in": "Opens in",
+      "calendar_opens_in": "Calendar opens in",
+      "week": "Week",
+      "agenda": "Agenda",
+      "hide_done": "Hide done",
+      "finished_tasks_leave_the_calendar": "Finished tasks leave the calendar.",
+      "hide_done_in_calendar": "Hide done in calendar",
+      "planning_options": "Planning options",
+      "how_needt_fills_your_free_time": "How Needt fills your free time.",
+      "plan_automatically": "Plan automatically",
+      "tasks_without_a_time_are_placed_into_you": "Tasks without a time are placed into your free hours.",
+      "plan_my_day_puts_first": "Plan my day puts first",
+      "which_tasks_get_the_earliest_free_time": "Which tasks get the earliest free time.",
+      "nearest_deadline": "Nearest deadline",
+      "shortest_task": "Shortest task",
+      "same_project_together": "Same project together",
+      "keep_focus_blocks_free": "Keep focus blocks free",
+      "nothing_is_placed_inside_a_focus_session": "Nothing is placed inside a focus session.",
+      "shortest_work_block": "Shortest work block",
+      "a_task_is_never_split_into_pieces_shorte": "A task is never split into pieces shorter than this.",
+      "gap_between_tasks": "Gap between tasks",
+      "free_time_left_between_two_planned_tasks": "Free time left between two planned tasks.",
+      "plan_on_weekends": "Plan on weekends",
+      "off_keeps_saturday_and_sunday_empty": "Off keeps Saturday and Sunday empty."
+    },
+    "PsTasks": {
+      "no_project": "No project",
+      "new_tasks": "New tasks",
+      "default_estimate": "Default estimate",
+      "default_project": "Default project",
+      "display": "Display",
+      "show_subtasks": "Show subtasks",
+      "subtasks_show_as_rows_under_their_task_n": "Subtasks show as rows under their task, not folded away.",
+      "task_value": "Task value",
+      "shows_what_a_group_of_tasks_earns_you_on": "Shows what a group of tasks earns you once all of them are done."
+    },
+    "PsFocus": {
+      "session": "Session",
+      "length": "Length",
+      "break": "Break",
+      "start_sound": "Start sound",
+      "silent": "Silent",
+      "tick": "Tick",
+      "chime": "Chime",
+      "while_a_session_runs": "While a session runs",
+      "hide_notifications": "Hide notifications",
+      "sound_when_a_task_snaps": "Sound when a task snaps",
+      "a_short_click_as_a_dragged_task_lands_on": "A short click as a dragged task lands on the quarter hour.",
+      "animate_the_logo": "Animate the logo",
+      "the_needt_logo_moves_gently_during_a_ses": "The Needt logo moves gently during a session. Off keeps it still.",
+      "glow_at_the_edges": "Glow at the edges",
+      "the_screens_corners_glow_in_your_accent_": "The screen's corners glow in your accent while a session runs."
+    },
+    "PsAlerts": {
+      "starts_overdue_tasks_and_mail_that_needs": "Starts, overdue tasks and mail that needs you, on this phone.",
+      "notifications": "Notifications",
+      "daily_plan": "Daily plan",
+      "your_days_planned_tasks_and_events_sent_": "Your day's planned tasks and events, sent before the day starts.",
+      "notification": "Notification",
+      "daily_plan_notification": "Daily plan notification",
+      "email": "Email",
+      "daily_plan_email": "Daily plan email",
+      "time": "Time",
+      "overdue_tasks": "Overdue tasks",
+      "when_a_task_passes_its_deadline_and_has_": "When a task passes its deadline and has no time yet.",
+      "overdue_notification": "Overdue notification",
+      "weekly_review": "Weekly review",
+      "friday_after_your_last_planned_task_what": "Friday, after your last planned task — what got done and what carries over.",
+      "weekly_review_notification": "Weekly review notification"
+    },
+    "PsMenu": {
+      "the_pill_holds_three_take_one_out_first": "The pill holds three — take one out first",
+      "in_the_pill": "In the pill",
+      "pick": "Pick",
+      "more_the_pill_always_holds_three": "more — the pill always holds three.",
+      "everything_else_waits_in_the_menu_card_a": "Everything else waits in the menu card, a swipe up from the pill.",
+      "take": "Take",
+      "out_of_the_pill": "out of the pill",
+      "places": "Places"
+    },
+    "PsSidebar": {
+      "move": "Move",
+      "under_more": "under More",
+      "make": "Make",
+      "a_tile": "a tile",
+      "tiles": "Tiles",
+      "the_desktops_sidebar_shows_these_five_at": "The desktop's sidebar shows these five at the top; More is always the sixth.",
+      "under_more_2": "Under More"
+    },
+    "PsData": {
+      "export": "Export",
+      "everything_you_have_in_needt_is_yours_to": "Everything you have in Needt is yours to take with you.",
+      "tasks": "Tasks",
+      "every_task_with_its_project_estimate_and": "Every task with its project, estimate and dates.",
+      "tasks_export_prototype": "Tasks export — prototype",
+      "csv": "CSV",
+      "documents": "Documents",
+      "one_markdown_file_per_page": "One Markdown file per page.",
+      "documents_export_prototype": "Documents export — prototype",
+      "markdown": "Markdown",
+      "export_all": "Export all",
+      "tasks_documents_habits_boards_and_settin": "Tasks, documents, habits, boards and settings in one file.",
+      "full_export_prototype": "Full export — prototype",
+      "import": "Import",
+      "bring_in_your_work": "Bring in your work",
+      "markdown_notion_google_docs_a_calendar_f": "Markdown, Notion, Google Docs, a calendar file (.ics) or a CSV of tasks.",
+      "privacy": "Privacy",
+      "share_usage_data": "Share usage data",
+      "anonymous_counts_of_which_features_get_u": "Anonymous counts of which features get used. Never the content of your tasks, documents or mail.",
+      "this_device": "This device",
+      "download_everything_again": "Download everything again",
+      "clears_what_this_device_keeps_and_fetche": "Clears what this device keeps and fetches it fresh. Nothing is deleted.",
+      "downloading_again_prototype": "Downloading again — prototype",
+      "download": "Download",
+      "reset_prototype_data": "Reset prototype data",
+      "stars_trash_task_and_mail_changes_go_bac": "Stars, trash, task and mail changes go back to the demo. The menus reset too.",
+      "markdown_files": "Markdown files",
+      "notion_export": "Notion export",
+      "google_docs": "Google Docs",
+      "calendar_file_ics": "Calendar file (.ics)",
+      "csv_of_tasks": "CSV of tasks",
+      "reset_prototype_data_2": "Reset prototype data?",
+      "cancel": "Cancel",
+      "reset": "Reset",
+      "everything_you_changed_here_goes_back_to": "Everything you changed here goes back to the demo, on this device. The page reloads."
+    },
+    "PsAbout": {
+      "version": "Version",
+      "whats_new": "What's new",
+      "whats_new_opens_on_needt_app_prototype": "What's new — opens on needt.app (prototype)",
+      "help_centre": "Help centre",
+      "help_centre_opens_on_needt_app_prototype": "Help centre — opens on needt.app (prototype)",
+      "terms_and_privacy": "Terms and privacy",
+      "terms_and_privacy_open_on_needt_app_prot": "Terms and privacy — open on needt.app (prototype)"
+    },
+    "psDaySummary": {
+      "sunday": "Sunday",
+      "monday": "Monday"
+    },
+    "PsMain": {
+      "needt": "Needt",
+      "pro": "Pro",
+      "plan_my_day_the_time_theme_every_accent_": "Plan my day, the Time theme, every accent and connection.",
+      "14_days_free_no_card_needed": "14 days free · no card needed",
+      "choose_a_plan": "Choose a plan",
+      "try_pro_free": "Try Pro free",
+      "preferences": "Preferences",
+      "links_offline": "Links, offline",
+      "min_estimate": "-min estimate",
+      "min_sessions": "-min sessions",
+      "off_on_this_phone": "Off on this phone",
+      "daily_plan_at": "Daily plan at",
+      "on": "On",
+      "menus": "Menus",
+      "the_phones_pill_and_the_desktops_sidebar": "The phone's pill and the desktop's sidebar — set either one here.",
+      "five_tiles_and_more_on_the_desktop": "Five tiles and More, on the desktop",
+      "connections": "Connections",
+      "needs_reconnecting": "needs reconnecting",
+      "export_import_privacy": "Export, import, privacy",
+      "with_a_keyboard": "With a keyboard",
+      "needt_0_9": "Needt 0.9",
+      "sign_out": "Sign out"
+    },
+    "PsPage": {
+      "back_to_settings": "Back to Settings",
+      "settings": "Settings"
+    },
+    "PsSettings": {
+      "free": "Free",
+      "needt_pro_the_paywall_opens_here": "Needt Pro — the paywall opens here",
+      "signed_out_prototype": "Signed out — prototype",
+      "connections_is_in_the_menu": "Connections is in the menu",
+      "settings": "Settings"
+    }
+  },
+  "phone-tasks.jsx": {
+    "ptkDropWrite": {
+      "moved": "Moved"
+    },
+    "X": {
+      "moved_to_tomorrow": "Moved to tomorrow"
+    },
+    "PtkCapped": {
+      "show": "Show"
+    },
+    "PTK_TABS": {
+      "inbox": "Inbox",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "all": "All"
+    },
+    "PtkTasks": {
+      "tomorrow": "Tomorrow",
+      "inbox": "Inbox",
+      "today": "Today",
+      "no_project": "No project",
+      "done": "Done",
+      "which_tasks": "Which tasks",
+      "tasks": "Tasks",
+      "move_to_today": "Move to today"
+    },
+    "PtkProjectRow": {
+      "all_done": "All done",
+      "no_tasks_yet": "No tasks yet",
+      "done": "% done"
+    },
+    "PtkActions": {
+      "project_options": "Project options"
+    },
+    "PtkEditSheet": {
+      "edit_project": "Edit project",
+      "cancel": "Cancel",
+      "save": "Save",
+      "name": "Name",
+      "project_name": "Project name",
+      "a_project_with_this_name_exists": "A project with this name exists.",
+      "colour": "Colour"
+    },
+    "PtkProjectPage": {
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "no_date": "No date",
+      "this_projects_tasks_by_any_word_enter_ad": "This project's tasks, by any word. Enter adds one here.",
+      "projects": "Projects",
+      "project_options": "Project options",
+      "all_done": "all done",
+      "add_a_task_to": "Add a task to",
+      "add": "Add",
+      "done": "Done",
+      "nothing_in_this_project_yet_add_the_firs": "Nothing in this project yet — add the first task above.",
+      "all_done_here": "All done here ✓",
+      "edit_project": "Edit project",
+      "name_and_colour": "Name and colour",
+      "delete_project": "Delete project",
+      "open_task_moves": "open task moves",
+      "open_tasks_move": "open tasks move",
+      "to_no_project": "to No project",
+      "its_tasks_stay_with_no_project": "Its tasks stay, with no project",
+      "saved": "Saved"
+    },
+    "PtkProjects": {
+      "all_done": "All done",
+      "search_projects": "Search projects",
+      "projects_by_any_word_in_their_name": "Projects, by any word in their name.",
+      "projects": "Projects",
+      "no_projects_yet_projects_are_made_on_the": "No projects yet. Projects are made on the desktop for now — they show up here at once."
+    }
+  },
+  "places.jsx": {
+    "PlSceneHeader": {
+      "from": "From",
+      "open": "Open",
+      "untitled": "Untitled"
+    },
+    "PlHabitSheet": {
+      "habit_updated": "Habit updated",
+      "edit_habit": "Edit habit",
+      "new_habit": "New habit",
+      "comes_back_daily_never_piles_up": "Comes back daily, never piles up",
+      "name": "Name",
+      "time": "Time",
+      "optional": "· optional",
+      "days_per_week": "Days per week",
+      "project": "Project",
+      "no_project": "No project",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create_habit": "Create habit"
+    },
+    "PlHabitMenu": {
+      "rename": "Rename",
+      "archive": "Archive",
+      "more_for": "More for"
+    },
+    "HabitsScreen": {
+      "habits": "Habits",
+      "more_than": "More than",
+      "nothing_carries_over": "· nothing carries over",
+      "new_habit": "New habit",
+      "no_habits_yet": "No habits yet",
+      "pick_one_small_thing_to_do_every_day_it_": "Pick one small thing to do every day — it comes back daily and never piles up.",
+      "last_four_months": "Last four months",
+      "one_dot_a_day_coloured_kept_grey_missed_": "One dot a day. Coloured — kept, grey — missed, ring — still ahead."
+    },
+    "plFromTemplate": {
+      "untitled": "Untitled"
+    },
+    "TemplatesScreen": {
+      "templates": "Templates",
+      "to_start_from": "to start from",
+      "nothing_to_start_from_yet": "Nothing to start from yet",
+      "no_templates_yet": "No templates yet",
+      "templates_you_save_from_a_page_show_up_h": "Templates you save from a page show up here, ready to start from."
+    },
+    "plAgo": {
+      "just_now": "Just now"
+    },
+    "plTaskApi": {
+      "untitled": "Untitled"
+    },
+    "PlTrashRow": {
+      "restore": "Restore",
+      "delete_forever": "Delete forever"
+    },
+    "TrashScreen": {
+      "trash_emptied": "Trash emptied",
+      "trash": "Trash",
+      "pages_and_tasks_stay_here_for_30_days": "Pages and tasks stay here for 30 days",
+      "empty_trash": "Empty Trash",
+      "trash_is_empty": "Trash is empty",
+      "delete_a_page_or_a_task_it_lands_here_fi": "Delete a page or a task — it lands here first.",
+      "pages": "Pages",
+      "untitled": "Untitled",
+      "deleted": "Deleted",
+      "from": "· from",
+      "tasks": "Tasks",
+      "moodboards": "Moodboards",
+      "untitled_moodboard": "Untitled moodboard",
+      "deleted_forever": "Deleted forever"
+    },
+    "SHARED": {
+      "type_scale_proposal": "Type scale — proposal",
+      "chrome": "Chrome",
+      "13_12_nothing_else": "13 / 12, nothing else",
+      "documents": "Documents",
+      "15_body_17_headings": "15 body, 17 headings",
+      "factory_quote_round_2": "Factory quote — round 2",
+      "chf_9_40": "CHF 9.40",
+      "chf_21_00": "CHF 21.00",
+      "lead_time_5_weeks_from_sample_approval": "Lead time 5 weeks from sample approval.",
+      "launch_checklist": "Launch checklist",
+      "domain_renewed": "Domain renewed",
+      "shop_copy": "Shop copy",
+      "photos": "Photos"
+    },
+    "SharedScreen": {
+      "shared": "Shared",
+      "shared_with_me": "Shared with me",
+      "nothing_yet": "Nothing yet",
+      "nothing_shared_with_you_yet": "Nothing shared with you yet",
+      "when_someone_shares_a_page_with_you_it_s": "When someone shares a page with you, it shows up here.",
+      "go_to_documents": "Go to Documents"
+    },
+    "ME": {
+      "maksym": "Maksym"
+    },
+    "MB_PINS": {
+      "boxy_wool_overshirt": "Boxy wool overshirt",
+      "washed_black_denim": "Washed black denim",
+      "raw_hem_detail": "Raw hem detail",
+      "military_olive": "Military olive",
+      "back_print_placement": "Back print placement",
+      "utility_pocket": "Utility pocket",
+      "red_stitch_accent": "Red stitch accent",
+      "garment_dye_swatch": "Garment dye swatch",
+      "helmut_lang_aw98": "Helmut Lang AW98",
+      "bondage_strap": "Bondage strap",
+      "painter_jeans": "Painter jeans",
+      "astro_biker": "Astro biker",
+      "flight_liner": "Flight liner",
+      "archive_tag": "Archive tag",
+      "hard_flash_black_ground": "Hard flash, black ground",
+      "bounce_card": "Bounce card",
+      "blue_gel_spill": "Blue gel spill",
+      "ring_light_catch": "Ring light catch",
+      "window_light": "Window light",
+      "tungsten_warm": "Tungsten warm",
+      "shadow_play": "Shadow play"
+    },
+    "MoodboardsScreen": {
+      "fewer_pieces_heavier_fabric_every_look_n": "Fewer pieces, heavier fabric. Every look needs one thing that feels wrong.",
+      "lena": "Lena",
+      "untitled_moodboard": "Untitled moodboard",
+      "image": "Image",
+      "uploaded": "Uploaded",
+      "note": "Note",
+      "link_copied": "Link copied",
+      "moodboard_created": "Moodboard created",
+      "only_images_can_be_dropped_here": "Only images can be dropped here",
+      "couldnt_read_that_image": "Couldn't read that image",
+      "figma_link": "Figma link",
+      "link": "Link",
+      "paste_an_image_or_a_link_to_add_it": "Paste an image or a link to add it",
+      "upload_images": "Upload images",
+      "paste_a_link": "Paste a link",
+      "colour": "Colour",
+      "change_pinterest_board": "Change Pinterest board",
+      "connect_pinterest_board": "Connect Pinterest board",
+      "beta": "Beta",
+      "pins_live_on_your_board_with_pro": "Pins live on your board — with Pro",
+      "get_the_browser_extension": "Get the browser extension",
+      "moodboards": "Moodboards",
+      "private_only_you": "Private — only you",
+      "prototype_preview_what_invitees_see": "Prototype: preview what invitees see",
+      "exit_guest_view": "Exit guest view",
+      "view_as_guest": "View as guest",
+      "share": "Share",
+      "add": "Add",
+      "viewing_as_a_guest_with": "Viewing as a guest with",
+      "can_view": "Can view",
+      "this_is_what_people_you_invite_see": "— this is what people you invite see.",
+      "exit": "Exit",
+      "nothing_on_this_board_yet": "Nothing on this board yet.",
+      "start_this_board": "Start this board",
+      "collect_what_this_should_feel_like_pictu": "Collect what this should feel like — pictures, links, colours.",
+      "drop_images": "Drop images",
+      "drag_files_anywhere_on_the_board": "Drag files anywhere on the board",
+      "choose_files": "Choose files",
+      "paste_with_v": "Paste with ⌘V",
+      "an_image_or_any_link_figma_pinterest_a_s": "An image or any link — Figma, Pinterest, a shop",
+      "a_colour_a_note_or_a_pinterest_board": "A colour, a note, or a Pinterest board",
+      "more_ways": "More ways",
+      "drop_to_add": "Drop to add",
+      "new_moodboard": "New moodboard",
+      "more": "More",
+      "no_moodboards_yet": "No moodboards yet",
+      "collect_pictures_links_and_colours_for_w": "Collect pictures, links and colours for what something should feel like.",
+      "free_keeps_one_board_pro_adds_as_many_as": "Free keeps one board — Pro adds as many as you like.",
+      "pinterest": "Pinterest ·",
+      "open": "Open",
+      "delete_board": "Delete board",
+      "more_for": "More for",
+      "unlimited_moodboards": "Unlimited moodboards",
+      "free_keeps_one_board_pro_adds_as_many_as_2": "Free keeps one board. Pro adds as many as you need, sharing and live Pinterest boards.",
+      "try_pro_free": "Try Pro free"
+    },
+    "PinBeta": {
+      "beta": "Beta"
+    },
+    "PinBadge": {
+      "pinterest": "Pinterest",
+      "px_1_georgia_serif": "px/1 Georgia, serif",
+      "p": "P"
+    },
+    "Visual": {
+      "figma": "Figma"
+    },
+    "LinkSheet": {
+      "paste_a_link": "Paste a link",
+      "any_page_a_figma_file_a_pin_its_saved_as": "Any page, a Figma file, a Pin — it’s saved as a link",
+      "url": "URL",
+      "that_doesnt_look_like_a_link_try_https": "That doesn’t look like a link — try https://…",
+      "opens_in_figma_we_only_keep_the_link": "Opens in Figma · we only keep the link",
+      "cancel": "Cancel",
+      "add_link": "Add link"
+    },
+    "ColorSheet": {
+      "add_a_colour": "Add a colour",
+      "a_swatch_to_keep_next_to_your_references": "A swatch to keep next to your references",
+      "hex": "Hex",
+      "name": "Name",
+      "optional": "· optional",
+      "colour_name": "Colour name",
+      "use_six_hex_digits_like_8a8178": "Use six hex digits, like #8A8178.",
+      "cancel": "Cancel",
+      "add_colour": "Add colour"
+    },
+    "NoteSheet": {
+      "add_a_note": "Add a note",
+      "a_thought_that_belongs_with_the_pictures": "A thought that belongs with the pictures",
+      "to_add": "⌘↵ to add",
+      "cancel": "Cancel",
+      "add_note": "Add note"
+    },
+    "ShareSheet": {
+      "can_edit": "Can edit",
+      "can_view": "Can view",
+      "share_board": "Share board",
+      "share": "Share “",
+      "private_only_you_can_see_this_board": "Private — only you can see this board",
+      "shared_with": "Shared with",
+      "and_anyone_with_the_link": "and anyone with the link",
+      "email_address": "Email address",
+      "view": "View",
+      "edit": "Edit",
+      "invite": "Invite",
+      "enter_a_full_email_address": "Enter a full email address.",
+      "already_on_this_board": "Already on this board.",
+      "you": "(you)",
+      "owner": "Owner",
+      "role_for": "Role for",
+      "remove": "Remove",
+      "anyone_with_the_link": "Anyone with the link",
+      "can_view_no_sign_in_needed": "Can view · no sign-in needed",
+      "off_only_people_you_invite": "Off — only people you invite",
+      "copy_link": "Copy link",
+      "anyone_with_the_link_can_view": "Anyone with the link can view",
+      "link_sharing_off": "Link sharing off",
+      "done": "Done"
+    },
+    "PinterestSheet": {
+      "connect_pinterest": "Connect Pinterest",
+      "n": "N",
+      "needt_wants_to_see_your_boards_and_pins": "Needt wants to see your boards and Pins",
+      "signed_in_to_pinterest_as_teenx": "Signed in to Pinterest as teenx",
+      "see_your_public_and_secret_boards": "See your public and secret boards",
+      "see_your_pins_and_their_images": "See your Pins and their images",
+      "needt_cant_create_edit_or_delete_anythin": "Needt can’t create, edit or delete anything",
+      "pins_stay_on_pinterest_needt_shows_them_": "Pins stay on Pinterest — Needt shows them live and doesn’t copy them. You can disconnect any time.",
+      "cancel": "Cancel",
+      "connecting": "Connecting…",
+      "allow": "Allow",
+      "choose_a_board": "Choose a board",
+      "its_pins_will_show_on_this_moodboard_pin": "Its Pins will show on this moodboard · Pinterest is in beta",
+      "pins": "Pins"
+    },
+    "PinterestSection": {
+      "pinterest_board_visible_only_to_the_owne": "Pinterest board · visible only to the owner",
+      "pins_load_from_the_owners_pinterest_acco": "Pins load from the owner’s Pinterest account and aren’t shared.",
+      "open_on_pinterest": "Open on Pinterest",
+      "from_pinterest": "From Pinterest ·",
+      "not_syncing": "Not syncing",
+      "importing": "Importing…",
+      "synced": "Synced",
+      "refresh": "Refresh",
+      "pinterest_disconnected": "Pinterest disconnected",
+      "disconnect": "Disconnect",
+      "simulate_access_back": "Simulate access back",
+      "simulate_lost_access": "Simulate lost access",
+      "pinterest_section_menu": "Pinterest section menu",
+      "pinterest_access_ended_reconnect_to_see_": "Pinterest access ended — Reconnect to see these Pins",
+      "needt_never_kept_copies_so_nothing_shows": "Needt never kept copies, so nothing shows until you reconnect.",
+      "reconnect": "Reconnect",
+      "open_pin_on_pinterest": "Open Pin on Pinterest"
+    },
+    "ExtensionSheet": {
+      "save_to_needt_extension": "Save to Needt extension",
+      "save_from_any_website": "Save from any website",
+      "hover_an_image_press_save_to_needt_pick_": "Hover an image, press Save to Needt, pick a board",
+      "n": "N",
+      "save_to_needt": "Save to Needt",
+      "save_to_board": "Save to board",
+      "saves_the_image_and_where_it_came_from": "Saves the image and where it came from",
+      "into": "— into “",
+      "works_in_chrome_arc_and_edge": ". Works in Chrome, Arc and Edge.",
+      "not_now": "Not now",
+      "coming_soon": "Coming soon",
+      "add_to_chrome": "Add to Chrome"
+    },
+    "Detail": {
+      "uploaded": "Uploaded",
+      "colour": "Colour",
+      "note": "Note",
+      "reference": "Reference",
+      "close": "Close",
+      "opens_in_figma_link_only": "Opens in Figma · link only",
+      "open_in_figma": "Open in Figma",
+      "open_source": "Open source",
+      "copy_hex": "Copy hex",
+      "text": "Text",
+      "saved": "Saved",
+      "no_note": "No note",
+      "add_a_note": "Add a note",
+      "added": "Added",
+      "remove": "Remove",
+      "copy_link": "Copy link"
+    },
+    "Card": {
+      "open": "— open",
+      "open_2": "Open",
+      "opens_in_figma": "Opens in Figma",
+      "open_source": "Open source",
+      "edit_note": "Edit note",
+      "add_a_note": "Add a note",
+      "copy_link": "Copy link",
+      "copy_hex": "Copy hex",
+      "remove": "Remove",
+      "more": "More"
+    },
+    "BoardTitle": {
+      "click_to_rename": "— click to rename"
+    },
+    "MB_SORTS": {
+      "name": "Name",
+      "date_created": "Date created",
+      "date_updated": "Date updated"
+    },
+    "OWNER": {
+      "maksym": "Maksym"
+    },
+    "boards": {
+      "everything_all_at_once": "Everything, all at once",
+      "lena_hoffmann_w_thrich": "Lena Hoffmann-Wüthrich",
+      "alexandra_konstantinopoulou_vanderbilt": "Alexandra Konstantinopoulou-Vanderbilt",
+      "blitz_frontal_kein_aufheller_schatten_ha": "Blitz frontal, kein Aufheller — Schatten hart lassen, Hintergrund schwarz.",
+      "flash_straight_on_no_fill_and_keep_every": "Flash straight on, no fill, and keep every shadow hard — the background stays black even when the client asks twice."
+    },
+    "templates": {
+      "template": "Template"
+    },
+    "shared": {
+      "lena_hoffmann_w_thrich": "Lena Hoffmann-Wüthrich",
+      "alexandra_konstantinopoulou_vanderbilt": "Alexandra Konstantinopoulou-Vanderbilt"
+    }
+  },
+  "popovers.jsx": {
+    "Art": {
+      "ics": "ICS"
+    }
+  },
+  "scenes.jsx": {
+    "PxDots": {
+      "step": "Step",
+      "progress": "Progress"
+    }
+  },
+  "search.jsx": {
+    "actions": {
+      "new_task": "New task",
+      "new_doc": "New doc",
+      "go_to_calendar": "Go to Calendar",
+      "go_to_mailbox": "Go to Mailbox",
+      "go_to_today": "Go to Today",
+      "go_to_tasks": "Go to Tasks",
+      "go_to_projects": "Go to Projects",
+      "go_to_moodboards": "Go to Moodboards",
+      "go_to_documents": "Go to Documents",
+      "go_to_habits": "Go to Habits",
+      "go_to_templates": "Go to Templates",
+      "go_to_trash": "Go to Trash",
+      "toggle_sidebar": "Toggle sidebar",
+      "settings": "Settings"
+    },
+    "SearchPalette": {
+      "recent": "Recent",
+      "actions": "Actions",
+      "docs": "Docs",
+      "untitled": "Untitled",
+      "tasks": "Tasks",
+      "mailbox": "Mailbox",
+      "sent": "Sent",
+      "no_subject": "(no subject)",
+      "search": "Search",
+      "search_docs_tasks_mail_or_type_a_command": "Search docs, tasks, mail or type a command",
+      "no_results_for": "No results for “",
+      "try_fewer_letters_or_a_doc_task_or_sende": "Try fewer letters, or a doc, task or sender name.",
+      "move": "Move",
+      "open": "Open",
+      "docs_tasks_mail": "Docs, tasks, mail"
+    }
+  },
+  "settings-kit.jsx": {
+    "THEMES": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "time": "Time"
+    },
+    "ACCENTS": {
+      "blue": "Blue",
+      "pink": "Pink",
+      "mint": "Mint",
+      "violet": "Violet",
+      "amber": "Amber",
+      "graphite": "Graphite",
+      "aurora": "Aurora",
+      "sunset": "Sunset",
+      "lagoon": "Lagoon"
+    }
+  },
+  "sidebar-kit.jsx": {
+    "SK_PLACES": {
+      "home": "Home",
+      "your_day_as_a_page": "Your day as a page",
+      "calendar": "Calendar",
+      "events_and_placed_work": "Events and placed work",
+      "3m": "3m",
+      "tasks": "Tasks",
+      "inbox_today_upcoming": "Inbox, today, upcoming",
+      "docs": "Docs",
+      "pages_and_notes": "Pages and notes",
+      "mailbox": "Mailbox",
+      "what_is_waiting_on_you": "What is waiting on you",
+      "projects": "Projects",
+      "every_task_by_project": "Every task, by project",
+      "moodboards": "Moodboards",
+      "references_side_by_side": "References, side by side",
+      "habits": "Habits",
+      "what_comes_back_every_day": "What comes back every day",
+      "templates": "Templates",
+      "pages_you_start_from": "Pages you start from",
+      "shared": "Shared",
+      "pages_others_shared_with_you": "Pages others shared with you",
+      "trash": "Trash",
+      "kept_for_30_days": "Kept for 30 days"
+    },
+    "SK_SECTIONS": {
+      "pinned": "Pinned",
+      "projects": "Projects"
+    },
+    "SidebarToggle": {
+      "toggle_sidebar_visibility": "Toggle sidebar visibility • ⌘\\",
+      "toggle_sidebar": "Toggle sidebar",
+      "sidebar_options": "Sidebar options",
+      "exit_focus_mode": "Exit Focus Mode",
+      "enable_focus_mode": "Enable Focus Mode",
+      "customize_sidebar": "Customize Sidebar"
+    },
+    "CustomizeSidebar": {
+      "customize_sidebar": "Customize Sidebar",
+      "close": "Close",
+      "reorder_or_hide_places_and_sections_hidd": "Reorder or hide places and sections. Hidden places move into More.",
+      "places": "Places",
+      "as_tiles": "as tiles ·",
+      "in_more": "in More",
+      "sections": "Sections",
+      "reset_to_default": "Reset to default"
+    },
+    "SidebarSwitcher": {
+      "sidebar_content": "Sidebar content"
+    },
+    "DocPanelToggle": {
+      "hide": "Hide",
+      "show": "Show",
+      "the_side_panel": "the side panel • ⌘⌥\\",
+      "the_side_panel_2": "the side panel"
+    }
+  },
+  "states.jsx": {
+    "needtStates": {
+      "back_online": "Back online"
+    },
+    "_module": {
+      "untitled": "Untitled",
+      "ticked": "Ticked",
+      "edited": "Edited"
+    },
+    "stErrorText": {
+      "couldnt_load_your_calendar_google_calend": "Couldn't load your calendar — Google Calendar didn't answer.",
+      "couldnt_load_your_mail_gmail_didnt_answe": "Couldn't load your mail — Gmail didn't answer."
+    },
+    "stBannerSpecs": {
+      "payment_failed_update_your_card_to_keep_": "Payment failed — update your card to keep Pro",
+      "the_charge_on_5_oct_didnt_go_through_pro": "The charge on 5 Oct didn't go through. Pro stays on for 7 more days.",
+      "update_payment": "Update payment",
+      "new_mail_stopped_arriving_at_09_14_whats": "New mail stopped arriving at 09:14. What's here is still readable.",
+      "events_stopped_syncing_at_09_14_your_tas": "Events stopped syncing at 09:14. Your tasks still work.",
+      "reconnect": "Reconnect",
+      "this_doc_changed_on_your_iphone_2_min_ag": "This doc changed on your iPhone 2 min ago",
+      "both_versions_are_kept_until_you_choose": "Both versions are kept until you choose.",
+      "keep_both": "Keep both",
+      "untitled": "Untitled",
+      "kept_both_the_iphone_version_is_a_new_do": "Kept both — the iPhone version is a new doc",
+      "use_theirs": "Use theirs",
+      "using_the_iphone_version": "Using the iPhone version",
+      "use_mine": "Use mine",
+      "kept_your_version_the_iphone_will_update": "Kept your version — the iPhone will update",
+      "ai_paused_until_14_00": "AI paused until 14:00",
+      "plan_my_day_and_ask_needt_come_back_then": "Plan my day and Ask Needt come back then — your tasks and calendar still work.",
+      "ai_is_temporarily_unavailable_your_tasks": "AI is temporarily unavailable — your tasks and calendar still work",
+      "retry": "Retry",
+      "trial_ended_ai_planning_and_themes_are_n": "Trial ended — AI planning and themes are now read-only",
+      "everything_you_made_stays_yours_and_edit": "Everything you made stays yours and editable.",
+      "see_plans": "See plans",
+      "pro_trial_ends_in_3_days": "Pro trial ends in 3 days",
+      "upgrade": "Upgrade"
+    },
+    "StBanner": {
+      "see_changes": "See changes",
+      "dismiss": "Dismiss",
+      "iphone_2_min_ago": "iPhone · 2 min ago",
+      "vs_this_mac": "vs this Mac"
+    },
+    "StSkeleton": {
+      "loading": "Loading"
+    },
+    "StError": {
+      "retry": "Retry"
+    },
+    "StNoAccess": {
+      "lena_hoffmann": "Lena Hoffmann",
+      "you_dont_have_access_to": "You don't have access to “",
+      "launch_brief": "Launch brief",
+      "this": "This",
+      "was_shared_with_a_link_but_not_with_your": "was shared with a link, but not with your account.",
+      "owner": "Owner ·",
+      "request_sent": "Request sent —",
+      "will_get_an_email": "will get an email.",
+      "request_access": "Request access"
+    },
+    "StScreenLayer": {
+      "ss27_references": "SS27 references",
+      "launch_brief": "Launch brief"
+    },
+    "StOfflineIndicator": {
+      "changes_will_sync_when_youre_back_online": "changes will sync when you're back online",
+      "youre_offline_edits_still_save": "You're offline — edits still save",
+      "nothing_waiting": "Nothing waiting",
+      "you_can_keep_working": "You can keep working.",
+      "these_sync": "These sync",
+      "edits_sync": "Edits sync",
+      "on_their_own_when_youre_back_online": "on their own when you're back online."
+    },
+    "ST_ROWS": {
+      "loading": "Loading",
+      "content": "Content",
+      "load_error": "Load error",
+      "access": "Access",
+      "ok": "OK",
+      "shared_no_rights": "Shared, no rights",
+      "calendar_mailbox_revoked": "Calendar/Mailbox revoked",
+      "sync": "Sync",
+      "ai": "AI",
+      "limit_reached": "Limit reached",
+      "provider_down": "Provider down",
+      "account": "Account",
+      "pro": "Pro",
+      "trial_ending": "Trial ending",
+      "trial_ended": "Trial ended",
+      "payment_failed": "Payment failed"
+    },
+    "StSwitcher": {
+      "prototype_states": "Prototype states",
+      "states": "States",
+      "prototype_s": "prototype · ⌥S",
+      "reset": "Reset",
+      "applies_to": "Applies to",
+      "every_screen": "Every screen",
+      "only": "Only",
+      "network": "Network",
+      "online": "Online",
+      "offline": "Offline",
+      "pin_loading_dont_resolve_after_1_2_s": "Pin loading (don't resolve after 1.2 s)",
+      "prototype_states_s": "Prototype states (⌥S)"
+    }
+  },
+  "stores.jsx": {
+    "docs": {
+      "untitled": "Untitled",
+      "unpinned": "Unpinned",
+      "pinned": "Pinned",
+      "no_project": "No project",
+      "moved_to_trash": "Moved to Trash",
+      "deleted_forever": "Deleted forever"
+    },
+    "_module": {
+      "untitled": "Untitled",
+      "storage_full_image_kept_until_reload": "Storage full — image kept until reload"
+    },
+    "habitNew": {
+      "new_habit": "New habit"
+    },
+    "mailOutApi": {
+      "mail": "Mail",
+      "add_someone_to_send_to": "Add someone to send to.",
+      "connect_a_mail_account_to_send": "Connect a mail account to send."
+    },
+    "ToastLayer": {
+      "undo": "Undo"
+    },
+    "CONN_META": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "token_expired_last_sync_06_12": "Token expired · last sync 06:12",
+      "google_calendar": "Google Calendar",
+      "apple_calendar": "Apple Calendar",
+      "outlook_calendar": "Outlook Calendar",
+      "pinterest": "Pinterest",
+      "icloud_mail": "iCloud Mail",
+      "proton_mail": "Proton Mail",
+      "fastmail": "Fastmail",
+      "slack": "Slack",
+      "telegram": "Telegram",
+      "discord": "Discord",
+      "zoom": "Zoom",
+      "calendly": "Calendly",
+      "notion": "Notion",
+      "linear": "Linear",
+      "jira": "Jira",
+      "asana": "Asana",
+      "trello": "Trello",
+      "clickup": "ClickUp",
+      "todoist": "Todoist",
+      "obsidian": "Obsidian",
+      "evernote": "Evernote",
+      "google_drive": "Google Drive",
+      "dropbox": "Dropbox",
+      "icloud_drive": "iCloud Drive",
+      "onedrive": "OneDrive",
+      "box": "Box",
+      "github": "GitHub",
+      "figma": "Figma",
+      "canva": "Canva",
+      "miro": "Miro",
+      "spotify": "Spotify"
+    },
+    "makeLinkStore": {
+      "untitled": "Untitled"
+    },
+    "mcpLinks": {
+      "mcp_for_daily_notes_tasks": "MCP for Daily notes & tasks"
+    },
+    "apiLinks": {
+      "api_for_daily_notes_tasks": "API for Daily notes & tasks"
+    }
+  },
+  "task.jsx": {
+    "taskView": {
+      "your_events": "Your events",
+      "work_calendar": "Work calendar",
+      "inbox": "Inbox",
+      "event": "Event",
+      "calendar": "Calendar"
+    },
+    "TaskCheck": {
+      "mark_not_done": "Mark not done",
+      "mark_done": "Mark done"
+    },
+    "tkSourceIcon": {
+      "open_in_mailbox": "— open in Mailbox"
+    },
+    "tkCount": {
+      "parts_done": "parts done"
+    },
+    "tkValue": {
+      "chf": "CHF"
+    },
+    "TkRow": {
+      "all_day": "All day"
+    },
+    "TkCard": {
+      "inbox": "Inbox"
+    }
+  },
+  "topbar.jsx": {
+    "NOTES": {
+      "commented_on": "commented on",
+      "13_12_everywhere_in_chrome_agreed": "“13/12 everywhere in chrome, agreed.”",
+      "mentioned_you_in": "mentioned you in",
+      "maksym_can_you_confirm_the_moq": "“@Maksym can you confirm the MOQ?”",
+      "placed_3_tasks_into": "placed 3 tasks into",
+      "your_morning_had_2_h_free": "Your morning had 2 h free."
+    },
+    "REMINDERS": {
+      "confirm_the_print_proof": "Confirm the print proof",
+      "book_the_b1_exam_date": "Book the B1 exam date",
+      "call_the_tax_office_back": "Call the tax office back"
+    },
+    "Seg2": {
+      "1fr": ", 1fr)"
+    },
+    "EmptyNotes": {
+      "no_notifications_yet": "No notifications yet",
+      "youll_be_notified_here_when_someone_ment": "You'll be notified here when someone mentions you, comments on your page or Needt moves your day."
+    },
+    "NotesPanel": {
+      "reminder_resolved": "Reminder resolved",
+      "notifications": "Notifications",
+      "notification_options": "Notification options",
+      "new_reminder": "New reminder",
+      "mark_all_as_read": "Mark all as read",
+      "reload_notifications": "Reload notifications",
+      "up_to_date": "Up to date",
+      "clear_all": "Clear all",
+      "notifications_cleared": "Notifications cleared",
+      "activity": "Activity",
+      "reminders": "Reminders",
+      "in_progress": "In progress",
+      "nothing_waiting_press_to_add_one": "Nothing waiting. Press + to add one.",
+      "hide_resolved_reminders": "Hide Resolved Reminders",
+      "show_resolved_reminders": "Show Resolved Reminders"
+    },
+    "TB_HELP": {
+      "send_feedback": "Send feedback",
+      "whats_new": "What's new",
+      "frequently_asked_questions": "Frequently asked questions",
+      "report_a_problem": "Report a problem",
+      "keyboard_shortcuts": "Keyboard shortcuts",
+      "markdown_shortcuts": "Markdown shortcuts"
+    },
+    "WhatsNew": {
+      "home_is_a_page": "Home is a page",
+      "mailbox": "Mailbox",
+      "customize_the_sidebar": "Customize the sidebar",
+      "right_click_everywhere": "Right click everywhere",
+      "whats_new_in_needt": "What's new in Needt",
+      "6_october_2026": "6 October 2026",
+      "close": "Close",
+      "got_it": "Got it"
+    },
+    "TopIcons": {
+      "notifications": "Notifications",
+      "help": "Help"
+    }
+  },
+  "work.jsx": {
+    "NewProjectSheet": {
+      "new_project": "New project",
+      "project_name": "Project name",
+      "colour": "Colour",
+      "a_project_with_this_name_exists": "A project with this name exists.",
+      "cancel": "Cancel",
+      "create": "Create"
+    },
+    "ProjectCard": {
+      "open": "Open",
+      "tasks_to_do": "tasks to do",
+      "all_done": "All done",
+      "no_tasks_yet": "No tasks yet"
+    },
+    "WkMiniCard": {
+      "clear_filter": "Clear filter ·",
+      "show_only": "Show only",
+      "all_done": "All done",
+      "no_tasks_yet": "No tasks yet"
+    },
+    "WkProjectPage": {
+      "all_done": "All done",
+      "no_tasks_yet": "No tasks yet",
+      "task_was": "task was",
+      "tasks_were": "tasks were",
+      "due_before_today_move_or_let_go": "due before today — move or let go",
+      "done": "% done",
+      "project_options": "Project options",
+      "edit_project": "Edit project",
+      "open_tasks_move_to_no_project": "open tasks move to No project",
+      "delete_project": "Delete project",
+      "add_a_task_to": "Add a task to",
+      "enter_to_add": "Enter to add",
+      "these_were_due_before_today_move_them_or": "These were due before today — move them or let them go.",
+      "done_2": "Done",
+      "nothing_in_this_project_yet": "Nothing in this project yet",
+      "add_the_first_task_above_or_move_one_her": "Add the first task above, or move one here from its right-click menu.",
+      "add_task": "Add task"
+    },
+    "WorkScreen": {
+      "inbox": "Inbox",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "all_tasks": "All Tasks",
+      "tomorrow": "Tomorrow",
+      "new_project": "New project",
+      "new": "New",
+      "new_task": "New Task",
+      "lands_in_inbox": "Lands in Inbox",
+      "n": "N",
+      "new_project_2": "New Project",
+      "a_folder_with_its_own_colour": "A folder with its own colour",
+      "projects": "Projects",
+      "tasks": "Tasks",
+      "cards": "Cards",
+      "list": "List",
+      "clear_filter": "Clear filter",
+      "done": "Done",
+      "no_projects_yet": "No projects yet",
+      "a_project_groups_tasks_and_docs_under_on": "A project groups tasks and docs under one colour.",
+      "new_task_2": "New task"
+    },
+    "SETS": {
+      "launch_brief_for_the_september_release_s": "Launch brief for the September release — scope, open questions, owners, dates and every decision we still have to make before it ships",
+      "donaudampfschifffahrtsgesellschaftskapit": "Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen",
+      "unsorted": "Unsorted"
+    },
+    "edgeEvents": {
+      "ping": "Ping",
+      "quick_check_in": "Quick check-in",
+      "flea_market_weekend_all_day_every_stall_": "Flea market weekend — all day, every stall from the river to the station"
+    }
+  }
+}

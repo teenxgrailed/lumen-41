@@ -1,0 +1,114 @@
+/* ========================================================================
+   Needt design v3 — styles/phone-mail.css — VENDORED, DO NOT EDIT BY HAND.
+   Generated from docs/port on 2026-10-09; scoped under .needt-v3.
+   Regenerate with: npm run tokens:sync:v3
+   ======================================================================== */
+/* phone-mail — Plates (08.10.26). Mailbox on the phone kit (phone-mail.jsx).
+   Colours: --v2p-* / --pk-* and --pml-* (themes.css). Nothing moves at rest. */
+
+/* header: a compact "2 unread" under the title */
+.needt-v3 .pml-sub { display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
+.needt-v3 .pml-sub .pk-num { color: var(--v2p-ink); font-weight: 600; }
+
+/* Outlook down: one quiet raised line and one action */
+.needt-v3 .pml-banner { display: flex; align-items: center; gap: 12px; margin: -8px 0 18px; padding: 10px 10px 10px 16px; border-radius: 22px; background: var(--pml-banner); }
+.needt-v3 .pml-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.needt-v3 .pml-banner-title { font: 600 14px/19px var(--font-sans); letter-spacing: -0.01em; color: var(--v2p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .pml-banner-line { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .pml-banner .pk-btn.is-chip { background: var(--pml-banner-btn); }
+
+/* rows */
+.needt-v3 .pml-sec + .pml-sec { margin-top: 18px; }
+.needt-v3 .pml-avatar { flex: none; width: 40px; height: 40px; border-radius: 20px; display: grid; place-items: center; background: var(--pml-avatar); color: var(--v2p-ink-2);
+  font: 600 14px/1 var(--font-sans); letter-spacing: 0.01em; }
+.needt-v3 .pml-avatar.is-big { width: 44px; height: 44px; border-radius: 22px; font-size: 15px; }
+.needt-v3 .pml-from { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-from.is-unread { font-weight: 650; }
+.needt-v3 .pml-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-tag { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--v2p-ink); font-weight: 500; }
+.needt-v3 .pml-time { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.needt-v3 .pml-dot { flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--v2p-lav); }
+.needt-v3 .pml-sec .pk-row { gap: 14px; }
+
+/* the thread sheet */
+.needt-v3 .pml-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 22px 0; }
+.needt-v3 .pml-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .pml-head-from { font: 600 16px/21px var(--font-sans); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .pml-head-meta { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.needt-v3 .pml-sheet .pk-sheet-head { padding-top: 10px; }
+.needt-v3 .pml-sheet .pk-sheet-title { font-size: 22px; line-height: 27px; }
+.needt-v3 .pml-body { display: flex; flex-direction: column; gap: 10px; padding: 2px 0 6px; user-select: text; -webkit-user-select: text; }
+.needt-v3 .pml-para { margin: 0; font: 400 16px/24px var(--font-sans); letter-spacing: -0.01em; color: var(--v2p-ink); text-wrap: pretty; }
+.needt-v3 .pml-file { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: var(--v2p-raise); color: var(--v2p-ink-2);
+  font: 500 13px/1 var(--font-sans); }
+.needt-v3 .pml-as-task { display: flex; align-items: center; gap: 6px; margin: 14px 2px 10px; font: 400 13px/18px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pml-down { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font: 400 13px/18px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pml-sheet .pk-sheet-foot .pml-act-archive { flex: none; width: 54px; padding: 0; }
+
+/* wave 3: the three views as glass chips, forward */
+.needt-v3 .pml-views { margin: -6px -24px 14px; }
+.needt-v3 .pml-views .pk-chips-scroll { display: flex; gap: 8px; padding: 2px 24px 4px; }
+.needt-v3 .pml-view { flex: none; height: 38px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px; font: 500 14px/1 var(--font-sans); color: var(--v2p-ink-2); white-space: nowrap; }
+.needt-v3 .pml-view.is-on { background: var(--ppl-on); color: var(--ppl-on-ink); box-shadow: var(--ppl-on-edge); }
+.needt-v3 .pml-view-n { font-variant-numeric: tabular-nums; opacity: 0.7; }
+.needt-v3 .pml-view:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .pml-err { margin: -8px 4px 0; font: 400 13px/17px var(--font-sans); color: var(--v2p-alert); }
+.needt-v3 .pml-quote { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; }
+.needt-v3 .pml-quote-from { font: 500 13px/17px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pml-quote-text { font: 400 14px/20px var(--font-sans); color: var(--v2p-ink); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.needt-v3 .pml-sheet .pk-sheet-foot .pk-btn:not(.is-primary):not(.pml-act-archive) { flex: 1; }
+
+/* ── compose (09.10.26): New message / Reply / Forward / a draft — a full
+   height glass sheet; fields are calm lines on the glass, one group. ── */
+.needt-v3 .pml-draft { margin-right: 6px; color: var(--v2p-alert); font-weight: 500; }
+.needt-v3 .pml-co-fromline { align-items: center; }
+.needt-v3 .pml-co-fromline .pml-co-label { padding-top: 0; }
+.needt-v3 .pml-co-label { flex: none; width: 44px; font: 400 15px/20px var(--font-sans); color: var(--v2p-ink-2); }
+.needt-v3 .pml-co-from { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 36px; padding: 0 12px 0 14px; font: 500 15px/1 var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .pml-co-from.is-static { height: auto; padding: 0; font-weight: 400; color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-from-mail { min-width: 0; font-weight: 400; color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-from:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
+.needt-v3 .pml-co-form { display: flex; flex-direction: column; padding-top: 2px; }
+.needt-v3 .pml-co-field { position: relative; box-shadow: inset 0 -1px 0 var(--v2p-line); }
+.needt-v3 .pml-co-line { display: flex; align-items: flex-start; gap: 10px; min-height: 52px; padding: 8px 0; box-sizing: border-box; }
+.needt-v3 .pml-co-line .pml-co-label { padding-top: 8px; }
+.needt-v3 .pml-co-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.needt-v3 .pml-co-chip { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; height: 34px; padding: 0 4px 0 12px; border-radius: 17px; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge);
+  font: 500 15px/1 var(--font-sans); color: var(--v2p-ink); }
+.needt-v3 .pml-co-chip.is-bad { color: var(--v2p-alert); }
+.needt-v3 .pml-co-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-chip-x { flex: none; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 14px; background: transparent; color: var(--v2p-ink-2); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pml-co-chip-x:active { background: var(--v2p-raise); }
+.needt-v3 .pml-co-input,
+.needt-v3 .pml-co-subject { flex: 1 1 8px; min-width: 8px; height: 36px; padding: 0; border: 0; outline: none; background: transparent; font: 400 16px/22px var(--font-sans); letter-spacing: -0.01em; color: var(--v2p-ink);
+  user-select: text; -webkit-user-select: text; }
+.needt-v3 .pml-co-subject { width: 100%; height: 52px; font-weight: 600; font-size: 17px; }
+.needt-v3 .pml-co-input::placeholder,
+.needt-v3 .pml-co-subject::placeholder { color: var(--v2p-ink-3); }
+.needt-v3 .pml-co-input:focus-visible,
+.needt-v3 .pml-co-subject:focus-visible { outline: none; }
+.needt-v3 .pml-co-ccbtn { flex: none; margin-top: 2px; height: 32px; padding: 0 10px; border: 0; border-radius: 16px; background: transparent;
+  font: 500 14px/1 var(--font-sans); color: var(--v2p-ink-2); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pml-co-ccbtn:active { background: var(--v2p-raise); }
+.needt-v3 .pml-co-sug { display: flex; flex-direction: column; margin: 0 0 8px 54px; border-radius: 20px; background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); overflow: hidden; }
+.needt-v3 .pml-co-sug-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px 8px 10px; border: 0; background: transparent; text-align: left; color: inherit; font: inherit; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .pml-co-sug-row + .pml-co-sug-row { box-shadow: inset 0 1px 0 var(--v2p-line); }
+.needt-v3 .pml-co-sug-row:active { background: var(--v2p-raise); }
+.needt-v3 .pml-co-sug-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.needt-v3 .pml-co-sug-name { font: 500 15px/20px var(--font-sans); color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-sug-mail { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-text { margin-top: 10px; }
+.needt-v3 .pml-co-text .pk-field-input.is-multi { min-height: 180px; padding: 4px 0; border-radius: 0; background: transparent; font-size: 16px; line-height: 24px; }
+.needt-v3 .pml-co-text .pk-field-input:focus { box-shadow: none; }
+.needt-v3 .pml-co-form > .pml-quote { margin-top: 8px; }
+.needt-v3 .pml-co-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.needt-v3 .pml-co-file { align-self: auto; max-width: 100%; padding-right: 4px; }
+.needt-v3 .pml-co-file-name { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .pml-co-file-size { color: var(--v2p-ink-3); font-weight: 400; }
+.needt-v3 .pml-co-tools { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.needt-v3 .pml-co-tools .pk-btn.is-ghost { margin-left: auto; color: var(--v2p-alert); }
+.needt-v3 .pml-co .pk-sheet-foot .pk-btn { flex: 1; }
+.needt-v3 .pml-co-form .pml-err { margin: 12px 4px 0; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pml-co-chip-x,
+.needt-v3 .pml-co-ccbtn,
+.needt-v3 .pml-co-sug-row { transition: none; } }

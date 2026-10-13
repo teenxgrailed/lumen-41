@@ -1,0 +1,97 @@
+/* Elevation — ring first. Depth comes from a hairline ring, never from a
+   coloured surface and never from a glow. Controls are recessed (inset ring);
+   objects are raised (outer ring + thin layered shadow). */
+
+:root {
+  /* --shadow-inset-ring / --shadow-ring / --shadow-focus are declared in
+     colors.css, once per theme: a custom property holding var() is substituted
+     where it is declared, so a ring declared here would keep the light
+     foreground inside .dark. */
+
+  /* small raised object — avatar, space switcher: five thin layers, no spread */
+  --shadow-raised:
+    rgba(0, 0, 0, 0.05) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.04) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.02) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.01) 0 7px 2px 0,
+    rgba(0, 0, 0, 0.05) 0 0 0 1px;
+
+  /* popover, dropdown, dialog, floating action — deep, two blurs, ring */
+  --shadow-floating:
+    rgba(0, 0, 0, 0.06) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.24) 0 16px 40px -6px,
+    rgba(0, 0, 0, 0.1) 0 0 0 1px,
+    rgba(255, 255, 255, 0.03) 0 0 0 1px inset;
+
+  /* container that sits on the canvas — the calendar strip: six layers */
+  --shadow-container:
+    rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
+    rgba(0, 0, 0, 0.04) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.04) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.02) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.01) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.03) 0 0 0 1px;
+
+  /* the document sheet — two layers only */
+  --shadow-sheet:
+    rgba(0, 0, 0, 0.06) 0 0 0 1px,
+    rgba(0, 0, 0, 0.06) 0 1px 1px -0.5px;
+
+  /* the editor floating toolbar */
+  --shadow-toolbar:
+    rgba(0, 0, 0, 0.07) 0 2px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 8px 8px 0,
+    rgba(0, 0, 0, 0.04) 0 18px 11px 0,
+    rgba(0, 0, 0, 0.01) 0 32px 13px 0,
+    rgba(0, 0, 0, 0.03) 0 0 0 1px;
+
+  --overlay-scrim: rgba(0, 0, 0, 0.28);
+}
+
+.dark {
+  --shadow-floating:
+    rgba(0, 0, 0, 0.4) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.5) 0 16px 40px -6px,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  --overlay-scrim: rgba(0, 0, 0, 0.5);
+  /* The light stack's ring is black at 5%, which is invisible on a dark ground:
+     raised objects would lose their edge. Deepen the layers and switch the ring
+     to white. */
+  --shadow-raised:
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.22) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.16) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.1) 0 7px 2px 0,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  --shadow-container:
+    rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
+    rgba(0, 0, 0, 0.16) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.14) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.10) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.12) 0 0 0 1px;
+}
+
+.dim {
+  --shadow-floating:
+    rgba(0, 0, 0, 0.35) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.45) 0 16px 40px -6px,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  --overlay-scrim: rgba(0, 0, 0, 0.45);
+  /* The light stack's ring is black at 5%, which is invisible on a dark ground:
+     raised objects would lose their edge. Deepen the layers and switch the ring
+     to white. */
+  --shadow-raised:
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.22) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.16) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.1) 0 7px 2px 0,
+    rgba(255, 255, 255, 0.08) 0 0 0 1px;
+  --shadow-container:
+    rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
+    rgba(0, 0, 0, 0.16) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.14) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.10) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.12) 0 0 0 1px;
+}

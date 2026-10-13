@@ -29,10 +29,24 @@ export interface BriefChecklistItem {
 
 /**
  * Who wrote an object. Authorship without a byline: the text colour and the
- * margin mark carry it, never a label. `you` is silent (no mark at all);
- * every other id needs an entry in `BRIEF_AUTHORS`.
+ * margin mark carry it, never a label. `you` is silent — no mark at all.
+ *
+ * The named ids below are the ones with a colour of their own. The type does
+ * not stop there, because the list of tools a person can connect is not ours
+ * to close: anything else is an agent id, and it renders in the neutral agent
+ * ink with a mark, never silently as `you`. A connected tool whose text is
+ * indistinguishable from the person's own is the one outcome this whole
+ * mechanism exists to prevent.
  */
-export type BriefAuthorId = "you" | "needt" | "linear" | "github";
+export type KnownBriefAuthorId =
+  | "you"
+  | "needt"
+  | "agent"
+  | "linear"
+  | "github";
+
+/** A known author, or any connected tool's own id. */
+export type BriefAuthorId = KnownBriefAuthorId | (string & {});
 
 export interface BriefAuthorInfo {
   name: string;
@@ -42,16 +56,33 @@ export interface BriefAuthorInfo {
   mark: string;
 }
 
-export const BRIEF_AUTHORS: Readonly<Record<BriefAuthorId, BriefAuthorInfo>> =
-  Object.freeze({
-    you: { name: "You", color: "var(--text-primary)", mark: "var(--text-quaternary)" },
-    needt: { name: "Needt", color: "var(--accent)", mark: "var(--accent)" },
-    linear: { name: "Linear", color: "var(--info)", mark: "var(--info)" },
-    github: { name: "GitHub", color: "var(--success)", mark: "var(--success)" },
-  });
+export const BRIEF_AUTHORS: Readonly<
+  Record<KnownBriefAuthorId, BriefAuthorInfo>
+> = Object.freeze({
+  you: {
+    name: "You",
+    color: "var(--text-primary)",
+    mark: "var(--text-quaternary)",
+  },
+  needt: { name: "Needt", color: "var(--accent)", mark: "var(--accent)" },
+  /* Everything connected that is not one of the named tools. One ink for all
+     of them: the point is that it is not yours, not which one it is. */
+  agent: { name: "Agent", color: "var(--warning)", mark: "var(--warning)" },
+  linear: { name: "Linear", color: "var(--info)", mark: "var(--info)" },
+  github: { name: "GitHub", color: "var(--success)", mark: "var(--success)" },
+});
 
-export function briefAuthor(id: string): BriefAuthorInfo {
-  return (BRIEF_AUTHORS as Record<string, BriefAuthorInfo>)[id] ?? BRIEF_AUTHORS.you;
+/**
+ * The ink an author writes in.
+ *
+ * `name` is what a tool called itself when it connected, where we have it —
+ * an id is a poor label, but it is an honest one, and far better than
+ * borrowing the person's. Unknown ids never fall back to `you`.
+ */
+export function briefAuthor(id: string, name?: string): BriefAuthorInfo {
+  const known = (BRIEF_AUTHORS as Record<string, BriefAuthorInfo>)[id];
+  if (known) return known;
+  return { ...BRIEF_AUTHORS.agent, name: name?.trim() || id || "Agent" };
 }
 
 /**
@@ -125,7 +156,14 @@ export function briefBlank(
   id: string,
   at: { x: number; y: number }
 ): BriefObject {
-  const base: BriefObject = { id, kind, author: "you", x: at.x, y: at.y, w: 320 };
+  const base: BriefObject = {
+    id,
+    kind,
+    author: "you",
+    x: at.x,
+    y: at.y,
+    w: 320,
+  };
   switch (kind) {
     case "heading":
     case "text":
@@ -145,7 +183,12 @@ export function briefBlank(
     case "image":
       return { ...base, w: 268, h: 160 };
     case "drawing":
-      return { ...base, w: 268, h: 130, path: "M20 100 C 60 30, 120 110, 250 44" };
+      return {
+        ...base,
+        w: 268,
+        h: 130,
+        path: "M20 100 C 60 30, 120 110, 250 44",
+      };
     default:
       return base;
   }
