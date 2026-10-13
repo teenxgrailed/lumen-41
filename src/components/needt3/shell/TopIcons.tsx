@@ -5,6 +5,7 @@ import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   LuBell,
+  LuBug,
   LuCircleHelp,
   LuKeyboard,
   LuSparkles,
@@ -300,8 +301,23 @@ export function TopIcons() {
     shell.openWhatsNew();
   };
 
+  /* The prototype's menu (topbar.jsx TB_HELP) also has Send feedback,
+     Frequently asked questions and Markdown shortcuts. The prototype only
+     toasts "opens in the browser" for them; there is no page or route behind
+     any of the three yet, so they are not drawn. //todo: add them in the
+     prototype's order (feedback first, FAQ after What's new, Markdown last)
+     once the pages exist. */
   const help: [React.ReactNode, string, () => void, boolean, string?][] = [
     [<LuSparkles key="i" size={15} />, "What's new", openNews, !seenNew],
+    [
+      <LuBug key="i" size={15} />,
+      "Report a problem",
+      () => {
+        setWhich(null);
+        shell.openBug();
+      },
+      false,
+    ],
     [
       <LuKeyboard key="i" size={15} />,
       "Keyboard shortcuts",

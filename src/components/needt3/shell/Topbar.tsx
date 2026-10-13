@@ -61,7 +61,7 @@ function SidebarToggle() {
       ref={wrap}
       style={{ background: open ? "var(--fill-3)" : "transparent" }}
     >
-      <Tooltip label={"Toggle sidebar visibility • ⌘\\"} side="right">
+      <Tooltip label="Toggle sidebar visibility" keys="⌘\\" side="right">
         <button
           type="button"
           className="nx-press"
