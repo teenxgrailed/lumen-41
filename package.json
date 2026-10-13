@@ -1,5 +1,6 @@
 {
   "name": "needt",
+  "description": "Needt: Everything you're working on, in one place",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",

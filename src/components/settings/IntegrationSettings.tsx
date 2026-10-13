@@ -101,7 +101,7 @@ function IntegrationIcon({ item }: { item: CatalogItem }) {
     return (
       <span className="relative block h-8 w-8">
         <Image
-          src="/logo.svg"
+          src="/brand/needt-icon.svg"
           alt=""
           fill
           sizes="32px"
