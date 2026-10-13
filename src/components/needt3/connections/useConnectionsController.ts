@@ -28,6 +28,8 @@ import {
   disconnectKind,
   filterItems,
 } from "./derive";
+import type { AiToolId } from "./mcp";
+import { useMcpConnect } from "./useMcpConnect";
 
 export const TAB_KEY = "needt.connections.tab";
 
@@ -52,6 +54,7 @@ export function useConnectionsController() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<CnItem | null>(null);
   const [caldav, setCaldav] = useState(false);
+  const [setup, setSetup] = useState<AiToolId | null>(null);
 
   useEffect(() => {
     // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
@@ -85,6 +88,7 @@ export function useConnectionsController() {
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
+  const mcp = useMcpConnect(tab === "ai" && !locked && !!plan.data);
 
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
 
@@ -153,6 +157,9 @@ export function useConnectionsController() {
     connect,
     disconnect,
     caldavDone,
+    mcp,
+    setup,
+    setSetup,
   };
 }
 
