@@ -70,6 +70,7 @@ const QUEUE_NAMES = Object.freeze([
   "bug-report-sync",
   "reminders",
   "nudges",
+  "oauth-cleanup",
   "lifetime-checkout-reconciliation",
   "trials",
   "account-lifecycle",

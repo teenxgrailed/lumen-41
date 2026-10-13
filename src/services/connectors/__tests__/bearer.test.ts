@@ -16,7 +16,11 @@ import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => ({
-  prisma: { connectorSettings: { findUnique: jest.fn() } },
+  prisma: {
+    connectorSettings: { findUnique: jest.fn() },
+    // An unknown OAuth access token: the built-in resolver finds nothing.
+    oAuthToken: { findUnique: jest.fn().mockResolvedValue(null) },
+  },
 }));
 jest.mock("@/lib/auth/workspace-auth", () => ({
   ...jest.requireActual("@/lib/auth/workspace-auth"),
@@ -30,7 +34,7 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
 
 const findUnique = prisma.connectorSettings.findUnique as jest.Mock;
 const PERSONAL = "needt_personal-connector-token-value";
-const OAUTH = "ndt_oat_oauth-access-token-value";
+const OAUTH = "ext_other-kind-token-value";
 
 function request(authorization?: string, query = "") {
   return new NextRequest(`http://localhost/api/connect/tasks${query}`, {

@@ -195,7 +195,7 @@ describe("remote MCP endpoint", () => {
     );
     expect(missing.status).toBe(401);
     expect(missing.headers.get("www-authenticate")).toBe(
-      'Bearer resource_metadata="https://mcp.needt.app/.well-known/oauth-protected-resource/mcp", scope="needt.read needt.write mail.read"'
+      'Bearer resource_metadata="https://mcp.needt.app/.well-known/oauth-protected-resource/mcp", scope="needt.read needt.write"'
     );
 
     const wrong = await POST(
@@ -270,7 +270,7 @@ describe("remote MCP endpoint", () => {
     const response = await call("needt_create_task", { title: "x" });
     expect(response.status).toBe(403);
     expect(response.headers.get("www-authenticate")).toContain(
-      'error="insufficient_scope", scope="needt.write needt.read mail.read"'
+      'error="insufficient_scope", scope="needt.read needt.write"'
     );
     expect((await response.json()).error).toBe("insufficient_scope");
   });
@@ -281,7 +281,12 @@ describe("remote MCP endpoint", () => {
       kind: "oauth",
       scopes: ["needt.read", "needt.write"],
     });
-    expect((await call("needt_list", { type: "mail" })).status).toBe(403);
+    const mail = await call("needt_list", { type: "mail" });
+    expect(mail.status).toBe(403);
+    // Only a call about mail asks for mail.read.
+    expect(mail.headers.get("www-authenticate")).toContain(
+      'scope="needt.read needt.write mail.read"'
+    );
     expect((await call("needt_get", { type: "mail", id: "m1" })).status).toBe(
       403
     );
@@ -421,6 +426,31 @@ describe("remote MCP endpoint", () => {
     );
     expect(response.status).toBe(403);
     expect(authenticateBearer).not.toHaveBeenCalled();
+  });
+
+  it("needt_whoami shows an OAuth grant only its bound workspace", async () => {
+    jest.mocked(authenticateBearer).mockResolvedValue({
+      userId: "user-1",
+      kind: "oauth",
+      scopes: ["needt.read"],
+      workspaceId: "workspace-1",
+    });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: "user-1" });
+    (prisma.workspaceMember.findMany as jest.Mock).mockResolvedValue([
+      {
+        role: "OWNER",
+        workspace: { id: "workspace-1", name: "A", kind: "SHARED" },
+      },
+      {
+        role: "OWNER",
+        workspace: { id: "workspace-2", name: "B", kind: "SHARED" },
+      },
+    ]);
+    const response = await call("needt_whoami", {});
+    const body = JSON.parse((await response.json()).result.content[0].text);
+    expect(body.workspaces.map((w: { id: string }) => w.id)).toEqual([
+      "workspace-1",
+    ]);
   });
 
   it("needt_whoami reports the token, its scopes and the workspaces", async () => {

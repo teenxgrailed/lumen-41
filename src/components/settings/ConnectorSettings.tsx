@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 
 import { notify } from "@/lib/notifications";
 
+import { ConnectedAppsSettings } from "./ConnectedAppsSettings";
 import {
   SettingRow,
   SettingsAdvanced,
@@ -279,6 +280,8 @@ export function ConnectorSettings() {
           </div>
         </SettingRow>
       </SettingsAdvanced>
+
+      <ConnectedAppsSettings />
 
       <div className="mt-5 flex justify-end">
         <Button type="button" onClick={saveSettings} disabled={isSaving}>

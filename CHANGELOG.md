@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remote MCP: new write tools `needt_update_task`, `needt_complete_task`,
+  `needt_create_event`, `needt_create_page`, `needt_append_page` and
+  `needt_log_habit`, and `moodboard` in `needt_list`/`needt_get`. They use the
+  same task, page, habit and calendar services as the app, inside the
+  workspace the connection may act in.
+- Connect Needt to claude.ai, ChatGPT or Claude Code without pasting a token:
+  `https://mcp.needt.app/mcp` signs you in through Needt (OAuth 2.1 with
+  PKCE). You choose what the app may do — read, write, and mail as a
+  separate tick — and which workspace it is limited to; Settings ›
+  Connected apps lists every app and disconnects it at once.
 - The installed phone app now feels native: no pull-to-refresh or rubber-band
   bounce, no pinch or double-tap zoom, full-bleed under the notch and home
   indicator, and PNG home-screen icons for iOS. Disabling zoom reduces accessibility; this was a deliberate choice.

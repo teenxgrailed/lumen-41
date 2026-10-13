@@ -68,14 +68,26 @@ export function mcpResourceMetadata() {
   };
 }
 
-/** `WWW-Authenticate` for a request without a usable token. */
-export function bearerChallenge(): string {
-  return `Bearer resource_metadata="${mcpResourceMetadataUrl()}", scope="${MCP_SCOPES.join(" ")}"`;
+/** What a client is asked for by default: mail needs its own reason. */
+const CHALLENGE_SCOPES: McpScope[] = ["needt.read", "needt.write"];
+
+/** The challenge's scope list: the defaults plus what this call needs. */
+export function challengeScope(required: readonly string[] = []): string {
+  const wanted = new Set<string>([...CHALLENGE_SCOPES, ...required]);
+  return MCP_SCOPES.filter((scope) => wanted.has(scope)).join(" ");
 }
 
-/** `WWW-Authenticate` for a token that lacks a scope the call needs. */
+/** `WWW-Authenticate` for a request without a usable token. */
+export function bearerChallenge(): string {
+  return `Bearer resource_metadata="${mcpResourceMetadataUrl()}", scope="${challengeScope()}"`;
+}
+
+/**
+ * `WWW-Authenticate` for a token that lacks a scope the call needs. mail.read
+ * is only asked for when the call is about mail.
+ */
 export function insufficientScopeChallenge(
   required: readonly string[]
 ): string {
-  return `Bearer error="insufficient_scope", scope="${[...new Set([...required, ...MCP_SCOPES])].join(" ")}", resource_metadata="${mcpResourceMetadataUrl()}"`;
+  return `Bearer error="insufficient_scope", scope="${challengeScope(required)}", resource_metadata="${mcpResourceMetadataUrl()}"`;
 }

@@ -10,6 +10,7 @@ export const QUEUE_NAMES = {
   trials: "trials",
   accountLifecycle: "account-lifecycle",
   imports: "imports",
+  oauthCleanup: "oauth-cleanup",
 } as const;
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
@@ -49,6 +50,10 @@ export interface LifetimeCheckoutReconciliationJobData {
 }
 
 export interface TrialJobData {
+  kind: "sweep";
+}
+
+export interface OAuthCleanupJobData {
   kind: "sweep";
 }
 
