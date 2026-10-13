@@ -23,7 +23,9 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest
         .fn()
         .mockResolvedValue({ isActive: true, sessionVersion: 0 }),
+      updateMany: jest.fn(),
     },
+    systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
 }));
 jest.mock("@/lib/trials/trial-service", () => ({
@@ -63,6 +65,10 @@ describe("OAuth trial activation", () => {
     } as never);
 
     expect(token.sub).toBe("db-user-1");
+    // The re-authentication stamp goes by id, so an email-less account gets it.
+    expect(prisma.user.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "db-user-1" } })
+    );
     expect(markEmailVerifiedAndStartTrial).toHaveBeenCalledWith({
       userId: "db-user-1",
       email: "oauth@example.com",

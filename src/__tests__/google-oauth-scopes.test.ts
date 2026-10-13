@@ -7,21 +7,21 @@ jest.mock("next-auth/providers/google", () => {
   return jest.fn((opts: unknown) => ({ __mockGoogleOpts: opts }));
 });
 
-jest.mock("@/lib/auth", () => {
-  return {
-    getGoogleCredentials: jest
-      .fn()
-      .mockResolvedValue({ clientId: "id", clientSecret: "secret" }),
-    getOutlookCredentials: jest.fn().mockResolvedValue({
-      clientId: "id",
-      clientSecret: "secret",
-      tenantId: "common",
-    }),
-  };
-});
+// Sign-in reads its credentials from System Settings, then the environment
+// (sign-in-providers.ts): no settings row here, so the environment.
+jest.mock("@/lib/prisma", () => ({
+  prisma: { systemSettings: { findFirst: jest.fn().mockResolvedValue(null) } },
+}));
 
 describe("Google OAuth scopes in Auth Options", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
   it("keeps sign-in on non-sensitive identity scopes", async () => {
+    process.env.GOOGLE_CLIENT_ID = "id";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
     const options = await getAuthOptions();
 
     // Find our mocked provider object

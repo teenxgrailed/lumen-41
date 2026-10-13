@@ -1,4 +1,9 @@
-export { BrandIcon, brandGlyph, type BrandIconProps } from "./BrandIcon";
+export {
+  BrandIcon,
+  brandGlyph,
+  brandMonoGlyph,
+  type BrandIconProps,
+} from "./BrandIcon";
 export {
   BRAND_IDS,
   type BrandId,

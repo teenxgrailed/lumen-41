@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
+import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
   clearCredentialFailures,
@@ -45,9 +46,19 @@ interface AuthRouteContext {
 type AuthHandler = ReturnType<typeof NextAuth>;
 
 let handlerPromise: Promise<AuthHandler> | undefined;
+let handlerBuiltAt = 0;
+
+/* The handler is rebuilt every ten minutes so a sign-in provider configured in
+   System Settings appears without a restart, and Apple's signed client secret
+   (sign-in-providers.ts) never outlives its refresh. */
+const HANDLER_MAX_AGE_MS = 10 * 60 * 1000;
 
 async function getHandler(): Promise<AuthHandler> {
-  handlerPromise ??= getAuthOptions().then((options) => NextAuth(options));
+  const now = newDate().getTime();
+  if (!handlerPromise || now - handlerBuiltAt > HANDLER_MAX_AGE_MS) {
+    handlerBuiltAt = now;
+    handlerPromise = getAuthOptions().then((options) => NextAuth(options));
+  }
 
   try {
     return await handlerPromise;

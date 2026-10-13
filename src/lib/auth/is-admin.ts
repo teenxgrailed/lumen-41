@@ -39,8 +39,7 @@ export async function isAdmin(): Promise<boolean> {
       where: { email: session.user.email },
       select: { emailVerified: true, isActive: true, role: true },
     });
-    const verificationRequired =
-      await requiresEmailVerificationBeforeAccess();
+    const verificationRequired = await requiresEmailVerificationBeforeAccess();
     const isUserAdmin =
       user?.isActive === true &&
       user.role === "admin" &&

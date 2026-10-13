@@ -14,6 +14,10 @@ import { useSettingsStore } from "@/store/settings";
 
 import { SecretInput } from "./SecretInput";
 import { SettingRow, SettingsSection } from "./SettingsSection";
+import {
+  SIGN_IN_PROVIDER_BLOCKS,
+  SignInProviderSettings,
+} from "./SignInProviderSettings";
 import { saveSystemSettings } from "./system-settings-save";
 
 const LOG_SOURCE = "SystemSettings";
@@ -42,6 +46,11 @@ export function SystemSettings() {
           outlookClientId: data.outlookClientId,
           outlookClientSecret: data.outlookClientSecret,
           outlookTenantId: data.outlookTenantId,
+          ...Object.fromEntries(
+            SIGN_IN_PROVIDER_BLOCKS.flatMap((block) =>
+              block.fields.map((field) => [field.key, data[field.key]])
+            )
+          ),
           logLevel: data.logLevel,
           disableHomepage: data.disableHomepage,
           requireEmailVerificationBeforeAccess:
@@ -226,6 +235,12 @@ export function SystemSettings() {
             </div>
           </div>
         </SettingRow>
+
+        <SignInProviderSettings
+          system={system}
+          origin={origin}
+          onUpdate={handleUpdate}
+        />
 
         <SettingRow label="Homepage" description="Configure homepage behavior">
           <div className="space-y-2">

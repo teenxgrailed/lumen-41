@@ -12,7 +12,7 @@ import {
  * as plaintext until the provider-secrets backfill reaches them.
  *
  * Writes go through `sealSystemSettingsSecrets`; anything that hands a secret
- * to Google, Microsoft or Resend reads it through `openSystemSettingsSecrets`.
+ * to a sign-in provider or Resend reads it through `openSystemSettingsSecrets`.
  * API responses never carry the value either way: they show
  * `SECRET_MASK` (see `@/lib/api/public-records`).
  */
@@ -21,6 +21,12 @@ export const SYSTEM_SETTINGS_SECRET_FIELDS = [
   "googleClientSecret",
   "outlookClientSecret",
   "resendApiKey",
+  "applePrivateKey",
+  "githubClientSecret",
+  "discordClientSecret",
+  "twitterClientSecret",
+  "linkedinClientSecret",
+  "openaiSiwcClientSecret",
 ] as const satisfies ReadonlyArray<keyof SystemSettings>;
 
 type SecretField = (typeof SYSTEM_SETTINGS_SECRET_FIELDS)[number];

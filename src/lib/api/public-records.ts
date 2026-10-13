@@ -147,10 +147,19 @@ export function toPublicTaskProvider(
 // System settings
 // ---------------------------------------------------------------------------
 
-const SYSTEM_SETTINGS_SECRET_KEYS = [
+// Mirrors SYSTEM_SETTINGS_SECRET_FIELDS in `@/lib/system-settings-secrets`,
+// which this file cannot import: a client component imports this one and that
+// one pulls in node:crypto. `no-provider-secrets.test.ts` checks they agree.
+export const SYSTEM_SETTINGS_SECRET_KEYS = [
   "googleClientSecret",
   "outlookClientSecret",
   "resendApiKey",
+  "applePrivateKey",
+  "githubClientSecret",
+  "discordClientSecret",
+  "twitterClientSecret",
+  "linkedinClientSecret",
+  "openaiSiwcClientSecret",
 ] as const satisfies ReadonlyArray<keyof SystemSettings>;
 
 function maskSecret(value: string | null): string | null {
@@ -169,6 +178,20 @@ export function toPublicSystemSettings(settings: SystemSettings) {
     outlookClientId: settings.outlookClientId,
     outlookClientSecret: maskSecret(settings.outlookClientSecret),
     outlookTenantId: settings.outlookTenantId,
+    appleClientId: settings.appleClientId,
+    appleTeamId: settings.appleTeamId,
+    appleKeyId: settings.appleKeyId,
+    applePrivateKey: maskSecret(settings.applePrivateKey),
+    githubClientId: settings.githubClientId,
+    githubClientSecret: maskSecret(settings.githubClientSecret),
+    discordClientId: settings.discordClientId,
+    discordClientSecret: maskSecret(settings.discordClientSecret),
+    twitterClientId: settings.twitterClientId,
+    twitterClientSecret: maskSecret(settings.twitterClientSecret),
+    linkedinClientId: settings.linkedinClientId,
+    linkedinClientSecret: maskSecret(settings.linkedinClientSecret),
+    openaiSiwcClientId: settings.openaiSiwcClientId,
+    openaiSiwcClientSecret: maskSecret(settings.openaiSiwcClientSecret),
     logLevel: settings.logLevel,
     logRetention: settings.logRetention,
     logDestination: settings.logDestination,
