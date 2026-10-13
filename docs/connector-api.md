@@ -103,22 +103,24 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                  | Scope                                          | What it does                                                                                                        |
-| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`        | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                |
-| `needt_search`        | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                     |
-| `needt_list`          | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`     |
-| `needt_get`           | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                        |
-| `needt_create_task`   | `needt.write`                                  | `POST /api/connect/tasks`                                                                                           |
-| `needt_schedule`      | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                         |
-| `needt_reschedule`    | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                      |
-| `needt_control`       | `needt.write` (`needt.read` for `overview`)                                | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                           |
-| `needt_update_task`   | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId; other fields are refused |
-| `needt_complete_task` | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                              |
-| `needt_create_event`  | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                     |
-| `needt_create_page`   | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                |
-| `needt_append_page`   | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                |
-| `needt_log_habit`     | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                         |
+| Tool                     | Scope                                          | What it does                                                                                                                                   |
+| ------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`           | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                           |
+| `needt_search`           | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                |
+| `needt_list`             | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`                                |
+| `needt_get`              | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                   |
+| `needt_create_task`      | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered) and `dependsOnId`, so a task and its steps arrive in one call |
+| `needt_schedule`         | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                    |
+| `needt_reschedule`       | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                 |
+| `needt_control`          | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                      |
+| `needt_update_task`      | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId; other fields are refused        |
+| `needt_add_subtasks`     | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                |
+| `needt_complete_subtask` | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                             |
+| `needt_complete_task`    | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                         |
+| `needt_create_event`     | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                |
+| `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                           |
+| `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                           |
+| `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                    |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -153,12 +155,30 @@ curl -X POST http://localhost:3000/api/connect/tasks \
     "deadline": "2026-07-08T17:00:00.000Z",
     "priorityLevel": "HIGH",
     "energyRequired": "MEDIUM",
-    "contextTag": "resale-photos"
+    "contextTag": "resale-photos",
+    "projectId": "project_id",
+    "entry": "Open the first folder",
+    "subtasks": ["Cull the blurry shots", { "title": "Edit the keepers" }, "Upload"]
   }'
 ```
 
 The task is created as auto-scheduled and Needt immediately runs the deterministic scheduler.
-The response includes the task plus `scheduledBlocks` when the task is split into multiple chunks.
+The response includes the task plus `scheduledBlocks` when the task is split into multiple chunks, and its `parts` (the subtasks) in order.
+
+### Subtasks
+
+A task is the **closing step** of its own small chain: `entry` is the very first
+small step (about two minutes), `subtasks` are the steps in the order they are
+done (one level, up to 30, each up to 160 characters), and the task itself is
+finished last, once every subtask is done. In the app a project page draws them
+in that order with the task last. `dependsOnId` names the one existing open task
+this one cannot start before (it is refused when it would make a loop). There is
+no `parentId`: a subtask is a part of its task, not a task of its own.
+
+Agents (MCP tools, Ask Needt) are told to break any non-trivial work this way;
+`needt_get` with `type: task` returns the subtasks with their ids, and
+`needt_complete_subtask` ticks them. Needt does not close the task for the agent:
+when `allDone` is `true` the agent closes the task with `needt_complete_task`.
 
 ## Read Schedule
 
