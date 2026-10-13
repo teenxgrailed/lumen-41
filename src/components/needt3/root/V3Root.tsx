@@ -106,6 +106,25 @@ export function V3Root({
   const time = useTimeReading(theme === "time", scopeRef);
   const resolved = resolveTheme(theme, osDark, time);
 
+  const barColor =
+    resolved.vars["--background"] ??
+    (resolved.side === "dark" ? "#202022" : "#fcfdfe");
+  useEffect(() => {
+    // The status bar / PWA frame follow the chosen theme, not the OS scheme
+    // the static viewport metadata keys on (Time at dusk, Dark on a light OS).
+    const metas = Array.from(
+      document.head.querySelectorAll<HTMLMetaElement>(
+        'meta[name="theme-color"]'
+      )
+    );
+    const saved = metas.map((m) => m.getAttribute("content"));
+    metas.forEach((m) => m.setAttribute("content", barColor));
+    return () =>
+      metas.forEach((m, i) => {
+        if (saved[i] !== null) m.setAttribute("content", saved[i] as string);
+      });
+  }, [barColor]);
+
   return (
     <DesignV3Context.Provider value={true}>
       <div

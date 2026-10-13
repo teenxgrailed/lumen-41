@@ -1,0 +1,24 @@
+/* Design v3 — Time theme page background. HAND-WRITTEN correction;
+ * src/styles/v3/ is generated.
+ *
+ * themes.css re-declares --background on `.app` from a fixed base per side
+ * (#fcfdfe / #202022) so the ambient tint can mix into it. That shadows the
+ * Time engine's inline --background on the scope, so between full day and
+ * full night the page kept the stock Light/Dark base while every other token
+ * followed Time. Under Time the base is the engine's own --time-bg; at full
+ * day/night it writes nothing and the fallbacks are the stock bases.
+ */
+.needt-v3[data-drift="on"][data-theme="light"] .app {
+  --background: color-mix(
+    in srgb,
+    var(--dt-amb) var(--dt-amb-pct),
+    var(--time-bg, #fcfdfe)
+  );
+}
+.needt-v3[data-drift="on"][data-theme="dark"] .app {
+  --background: color-mix(
+    in srgb,
+    var(--dt-amb) var(--dt-amb-pct),
+    var(--time-bg, #202022)
+  );
+}
