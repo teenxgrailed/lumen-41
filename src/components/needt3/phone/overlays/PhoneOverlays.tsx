@@ -11,6 +11,7 @@ import { qk } from "@/lib/needt3/query-keys";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { useStartFocus } from "../../focus/useFocusController";
 import { StoreAsk } from "./Ask";
 import { StoreComposer } from "./Composer";
 import { StoreEventSheet, StoreNewEventSheet } from "./EventSheet";
@@ -30,18 +31,18 @@ function TaskHost() {
   const taskId = usePhoneOverlays((s) => s.taskId);
   const seed = usePhoneOverlays((s) => s.taskSeed);
   const close = usePhoneOverlays((s) => s.closeTask);
-  const setFocusOpen = useNeedt3Ui((s) => s.setFocusOpen);
+  const startFocus = useStartFocus();
   const fetched = useTask(taskId).data;
   const cached = taskId
     ? findListItem<V3Task>(qc, qk.tasks(), taskId)
     : undefined;
   const task = taskId ? (fetched ?? seed ?? cached ?? null) : null;
-  // //todo: "Start focus" opens the Focus window; what that is on the phone
-  // is the shell's decision (P2).
+  // "Start focus": 25 minutes on this task; the Focus sheet opens on its clock.
   const onFocus = useCallback(() => {
+    if (!task) return;
     close();
-    setFocusOpen(true);
-  }, [close, setFocusOpen]);
+    void startFocus(task);
+  }, [close, startFocus, task]);
   return (
     <PkTaskSheet task={task} open={!!task} onClose={close} onFocus={onFocus} />
   );

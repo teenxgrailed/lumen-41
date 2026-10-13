@@ -59,6 +59,11 @@ export const qk = {
   boards: () => [V3, "boards"] as const,
   board: (id: string) => [V3, "board", id] as const,
 
+  /** The one running Focus session (`GET /api/focus/session`), or none. */
+  focusSession: () => [V3, "focus", "session"] as const,
+  /** Today's minutes and the streak (`GET /api/focus`). */
+  focusStats: () => [V3, "focus", "stats"] as const,
+
   connections: () => [V3, "connections"] as const,
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
