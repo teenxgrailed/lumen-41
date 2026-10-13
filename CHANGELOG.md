@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connections: every connector said "Not set up on this server yet." The
+  catalog looked for credentials in the environment only (and for
+  `OUTLOOK_CLIENT_ID`, which nothing else reads), so a server configured in
+  System settings still reported nothing as set up, and the mailboxes claimed to
+  be ready regardless. Google and Microsoft now come from the same lookup as the
+  sign-in routes, a mailbox is ready when its calendar is, and the Composio apps
+  need `COMPOSIO_API_KEY`. The admin is told what to add; everyone else no
+  longer sees a connector the server cannot start (and Settings → Import does
+  the same for Notion and Todoist). What each connector needs:
+  `docs/operations/connectors-status.md`.
+- Connections: a refused Google or Outlook start (calendar or mailbox limit) is
+  now a notice instead of a raw JSON page, and cancelling on an app's consent
+  page no longer marks it connected.
+- Connect Apple / iCloud: rebuilt to the connect dialog. One title, a one-line
+  lead, four compact rows on the 105 / 32 form row, one outcome line, Test
+  connection · Cancel · Connect. It no longer shows a card inside the sheet,
+  required asterisks, stacked help text or a browser alert, and password
+  managers no longer draw over the fields.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

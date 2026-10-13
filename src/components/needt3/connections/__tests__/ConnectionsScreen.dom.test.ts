@@ -54,8 +54,8 @@ jest.mock("../../paywall", () => ({
       "PRO"
     ),
 }));
-jest.mock("@/components/settings/CalDAVAccountForm", () => ({
-  CalDAVAccountForm: () => null,
+jest.mock("@/components/needt3/connections/CalDavForm", () => ({
+  CalDavForm: () => null,
 }));
 jest.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn() }),
@@ -98,13 +98,20 @@ const ALL = CATALOG.length + 2;
 const idle = { status: "success", fetchStatus: "idle", error: null };
 let accountsData: unknown[] = [];
 let integrations: unknown[] = [];
+let viewerIsAdmin = false;
+let catalogRows: unknown[] | null = null;
 let planKind = "free";
 jest.mock("@/lib/needt3/hooks/catalog", () => ({
   useCatalog: () => ({
     ...idle,
-    data: { catalog: CATALOG, integrations },
+    data: {
+      catalog: catalogRows ?? CATALOG,
+      integrations,
+      isAdmin: viewerIsAdmin,
+    },
   }),
   connectToolkit: jest.fn(),
+  startOAuth: jest.fn(),
   disconnectCalendar: jest.fn(),
   disconnectMailbox: jest.fn(),
   disconnectToolkit: jest.fn(),
@@ -144,6 +151,8 @@ beforeEach(() => {
   openPaywall.mockReset();
   accountsData = [];
   integrations = [];
+  viewerIsAdmin = false;
+  catalogRows = null;
   planKind = "monthly";
   window.localStorage.clear();
   window.history.replaceState(null, "", "/");
@@ -488,5 +497,25 @@ describe("the grid is 3 / 2 / 1 columns", () => {
     });
     expect(page["max-width"]).toBe("1080px");
     expect(page.margin).toBe("0 auto");
+  });
+});
+
+describe("connectors this server cannot start", () => {
+  const unset = {
+    ...entry("todoist", "Todoist", "notes"),
+    configured: false,
+    requires: "COMPOSIO_API_KEY in the server environment",
+  };
+  it("are not drawn for a normal person, who could do nothing with them", () => {
+    catalogRows = [...CATALOG, unset];
+    render();
+    expect(cards()).not.toContain("todoist");
+    expect(cards()).toHaveLength(ALL);
+  });
+  it("are drawn for the admin, who can set them up", () => {
+    catalogRows = [...CATALOG, unset];
+    viewerIsAdmin = true;
+    render();
+    expect(cards()).toContain("todoist");
   });
 });

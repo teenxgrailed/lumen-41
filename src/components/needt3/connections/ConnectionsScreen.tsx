@@ -23,8 +23,6 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import { CalDAVAccountForm } from "@/components/settings/CalDAVAccountForm";
-
 import { priceStrings } from "@/lib/needt3/pricing";
 
 import { BrandIcon, brandIdFor } from "../brand";
@@ -35,6 +33,7 @@ import { ProBadge, openPaywall } from "../paywall";
 import { GlassCard, PxSky } from "../scenes";
 import { StScreen } from "../states/StScreen";
 import { type ScreenQuery, screenState } from "../states/status";
+import { CalDavForm } from "./CalDavForm";
 import {
   CATEGORY_LABEL,
   CHIP_LABEL,
@@ -45,6 +44,7 @@ import {
   pillOf,
 } from "./derive";
 import { mergeQueries } from "./query";
+import { strings } from "./strings";
 import type { ConnectionsController } from "./useConnectionsController";
 
 const P = priceStrings();
@@ -809,16 +809,13 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
       <Sheet
         open={caldav}
         onClose={() => setCaldav(false)}
-        title="Connect Apple / iCloud"
+        title={strings.caldavTitle}
         scrimClassName="nx-scrim cn-sheet-grid"
         className="nx-sheet cn-sheet-col"
-        style={{ width: 460 }}
+        style={{ width: 400 }}
       >
-        <span className="cn-sheet-title">Connect Apple / iCloud</span>
-        <CalDAVAccountForm
-          onSuccess={caldavDone}
-          onCancel={() => setCaldav(false)}
-        />
+        <span className="cn-sheet-title">{strings.caldavTitle}</span>
+        <CalDavForm onSuccess={caldavDone} onCancel={() => setCaldav(false)} />
       </Sheet>
     </>
   );

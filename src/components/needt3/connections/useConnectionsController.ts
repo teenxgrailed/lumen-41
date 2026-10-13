@@ -9,6 +9,7 @@ import {
   disconnectCalendar,
   disconnectMailbox,
   disconnectToolkit,
+  startOAuth,
   useCatalog,
 } from "@/lib/needt3/hooks/catalog";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -27,6 +28,7 @@ import {
   counts,
   disconnectKind,
   filterItems,
+  visibleItems,
 } from "./derive";
 
 export const TAB_KEY = "needt.connections.tab";
@@ -71,13 +73,17 @@ export function useConnectionsController() {
     }
   };
 
+  const isAdmin = !!catalog.data?.isAdmin;
   const items = useMemo(
     () =>
       catalog.data
-        ? buildItems(
-            catalog.data.catalog,
-            catalog.data.integrations,
-            accounts.data ?? []
+        ? visibleItems(
+            buildItems(
+              catalog.data.catalog,
+              catalog.data.integrations,
+              accounts.data ?? []
+            ),
+            !!catalog.data.isAdmin
           )
         : [],
     [catalog.data, accounts.data]
@@ -89,12 +95,14 @@ export function useConnectionsController() {
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
 
   const connect = async (item: CnItem) => {
-    const how = connectPlan(item);
+    const how = connectPlan(item, isAdmin);
     if (how.kind === "unavailable") return void notify.info(how.reason);
     if (how.kind === "caldav") return setCaldav(true);
-    if (how.kind === "navigate") return void window.location.assign(how.href);
     setBusy(item.key);
-    const r = await connectToolkit(how.toolkit);
+    const r =
+      how.kind === "navigate"
+        ? await startOAuth(how.href)
+        : await connectToolkit(how.toolkit);
     if (!r.ok) {
       notify.error(r.error);
       setBusy(null);
