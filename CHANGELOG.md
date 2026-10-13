@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Ask Needt (⌘J) now opens as a full-height panel docked on the right of the
+  window (a sheet over a scrim below 1100 px), as in the design: a context chip
+  for the task, doc or day it is looking at, a greeting by name, six suggestion
+  cards that follow that context, `/` commands, `@` mentions and ↑ to edit your
+  last line. Attachments are shown but disabled until the AI backend takes files.
+- Proactive nudges now reach the app: a painted-sky tip above the Ask pill
+  ("2 hours opened up … Fill it") shows what the nudge job noticed. Fill it runs
+  the scheduler (preview, then apply) and the notice that follows has Undo. The
+  nudge job also detects free stretches of two hours or more (new `FREE_TIME`
+  nudge, Pro). The bell lists the latest nudges, marks them read and has "Mark
+  all as read" and "Reload".
+- `GET /api/notifications?peek=1` reads nudges without marking them delivered;
+  `PATCH /api/notifications` accepts `{ "all": true }`.
+
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

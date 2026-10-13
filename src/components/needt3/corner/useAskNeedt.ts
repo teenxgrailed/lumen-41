@@ -60,7 +60,7 @@ export function useAskNeedt() {
   );
 
   const send = React.useCallback(
-    async (raw: string, confirmed = false) => {
+    async (raw: string, confirmed = false, shown?: string) => {
       const line = raw.trim();
       if (!line || abort.current) return;
       const at = newDate().getTime();
@@ -71,7 +71,7 @@ export function useAskNeedt() {
           .concat(
             confirmed
               ? [reply]
-              : [{ id: uid(), from: "you", text: line, at }, reply]
+              : [{ id: uid(), from: "you", text: shown ?? line, at }, reply]
           )
       );
       setPhase("thinking");
@@ -183,5 +183,22 @@ export function useAskNeedt() {
     setMessages([]);
   }, []);
 
-  return { messages, phase, send, stop, reset };
+  /**
+   * Take the last thing you said (and everything after it) back off the
+   * thread so it can be edited and sent again (↑ in an empty field). Nothing
+   * while a reply is on its way.
+   */
+  const messagesRef = React.useRef(messages);
+  messagesRef.current = messages;
+  const popLast = React.useCallback((): string | null => {
+    if (abort.current) return null;
+    const list = messagesRef.current;
+    let i = list.length - 1;
+    while (i >= 0 && list[i].from !== "you") i -= 1;
+    if (i < 0) return null;
+    setMessages(list.slice(0, i));
+    return list[i].text;
+  }, []);
+
+  return { messages, phase, send, stop, reset, popLast };
 }

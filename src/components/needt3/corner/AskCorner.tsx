@@ -1,14 +1,23 @@
 "use client";
 
-/* THE CORNER (v3) — Ask Needt, the notifications island, one element.
+/* THE CORNER (v3) — Ask Needt, the notifications island, the nudge tip.
  *
  * Bottom-right is the one place this product speaks from. Closed it is the
  * pill; when something happened it grows into the island and carries the
- * notice (Undo included); open it is the panel. Pill → island → panel is ONE
- * element: it is laid out at the largest size and the visible shape is a
- * clip-path anchored bottom-right (`cornerClip`), so the change of size is a
- * clip, never a width/height animation. The island is never a toast — no
- * second object arrives beside the pill.
+ * notice (Undo included). Pill → island is ONE element: it is laid out at the
+ * larger size and the visible shape is a clip-path anchored bottom-right
+ * (`cornerClip`), so the change of size is a clip, never a width/height
+ * animation. The island is never a toast — no second object arrives beside
+ * the pill.
+ *
+ * Open, Ask Needt is not in the corner any more: it is a full-height panel
+ * docked on the right (the shell's `data-chat-dock` slot, 360 px; a sheet over
+ * a scrim below 1100 px), portalled into the slot so the page reflows beside
+ * it. The pill steps away while it is open.
+ *
+ * The tip is what the nudge job noticed ("2 hours opened up"): a painted-sky
+ * card above the pill that never changes the pill's size. Its button does the
+ * real thing (the scheduler's preview → apply, with Undo through the island).
  *
  * Notices come from the `notify` facade (src/lib/notifications.ts) through
  * the bridge in needt/corner; this mounts the sink for the v3 frame, where the
@@ -17,8 +26,10 @@
  */
 import * as React from "react";
 
-import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
 
+import { createPortal } from "react-dom";
 import {
   LuCalendarCheck,
   LuCheck,
@@ -47,19 +58,39 @@ import {
   cornerClip,
   cornerFrame,
   cornerIsland,
-  cornerPanel,
 } from "@/lib/assistant-position";
+import { newDate } from "@/lib/date-utils";
+import {
+  useFillFreeTime,
+  useIncomingNudges,
+  useMarkNudgesRead,
+} from "@/lib/needt3/hooks/nudges";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useExit } from "../ctx/useExit";
+import { agentBusy } from "../cursor/hand";
 import { AiOrb } from "../orb/AiOrb";
+import { usePaywallStore } from "../paywall/store";
+import { useShellApi } from "../shell/ShellContext";
 import { ChatPanel } from "./ChatPanel";
+import { NudgeTip } from "./NudgeTip";
+import { useChatDock } from "./dock";
 import { hiddenLabel, islandHasRows, islandView, primaryAct } from "./island";
+import {
+  TIP_AUTO_MS,
+  TIP_MIN_LEFT_MS,
+  type TipNote,
+  mayShowTip,
+  noteFromNudge,
+  quietPlace,
+} from "./nudge-tip";
+import { firstName } from "./scope";
 import { useAskNeedt } from "./useAskNeedt";
+import { useAskScope } from "./useAskScope";
 
-/** The clip's travel; owner value (PORT §6: 0.42s rise-and-settle). */
-const MORPH_MS = 420;
+/** The dock card's exit (chat.css v3-chat-spring-out 200ms, +20ms slack). */
+const PANEL_EXIT_MS = 220;
 
 const KINDS: Record<
   NoticeKind,
@@ -82,17 +113,6 @@ function Sink() {
     return () => setNoticeSink(null);
   }, [api]);
   return null;
-}
-
-function useViewportHeight(): number {
-  const [vh, setVh] = React.useState(900);
-  React.useEffect(() => {
-    const read = () => setVh(window.innerHeight);
-    read();
-    window.addEventListener("resize", read);
-    return () => window.removeEventListener("resize", read);
-  }, []);
-  return vh;
 }
 
 function IslandRow({
@@ -156,7 +176,15 @@ function Corner() {
   const { notices, hold, release } = useNoticeStack();
   const { dismiss } = useNotify();
   const ask = useAskNeedt();
-  const vh = useViewportHeight();
+  const { narrow } = useShellApi();
+  const dock = useChatDock();
+  const asking = useAskScope();
+  const session = useSession();
+  const pathname = usePathname();
+  const settingsOpen = useNeedt3Ui((s) => s.settingsOpen);
+  const paletteOpen = useNeedt3Ui((s) => s.paletteOpen);
+  const composerOpen = useNeedt3Ui((s) => s.composerOpen);
+  const paywallOpen = usePaywallStore((s) => s.open);
   const [hovering, setHovering] = React.useState(false);
   /* Keyboard focus inside the island, kept apart from the mouse so a mouse
      leaving does not drop a held focus and a focus leaving does not drop a
@@ -164,7 +192,7 @@ function Corner() {
   const [focused, setFocused] = React.useState(false);
   /* A notice's question, waiting for the reply in flight to finish. */
   const [queued, setQueued] = React.useState<string | null>(null);
-  const [panelShown] = useExit(open, MORPH_MS);
+  const [panelShown, panelLeaving] = useExit(open, PANEL_EXIT_MS);
   const pillRef = React.useRef<HTMLButtonElement>(null);
   const islandRef = React.useRef<HTMLDivElement>(null);
   const refocus = React.useRef(false);
@@ -181,11 +209,111 @@ function Corner() {
 
   const pill = CORNER_PILL;
   const islandSize = cornerIsland(view.rows.length, !!counted);
-  const panel = cornerPanel(vh);
-  const frame = cornerFrame(pill, islandSize, panel);
-  const state = open ? "panel" : island ? "island" : "pill";
-  const shape =
-    state === "panel" ? panel : state === "island" ? islandSize : pill;
+  const frame = cornerFrame(pill, islandSize);
+  const state = island ? "island" : "pill";
+  const shape = state === "island" ? islandSize : pill;
+
+  /* ---- the nudge tip ---- */
+  const incoming = useIncomingNudges(true);
+  const markRead = useMarkNudgesRead();
+  const fillFreeTime = useFillFreeTime();
+  const [tip, setTip] = React.useState<TipNote | null>(null);
+  const [tipShown, tipLeaving] = useExit(tip !== null, 200);
+  const lastNote = React.useRef<TipNote | null>(null);
+  const tipRef = React.useRef<HTMLDivElement>(null);
+  const [tipHold, setTipHold] = React.useState(false);
+  const tipLeft = React.useRef(TIP_AUTO_MS);
+  const mountedAt = React.useRef(newDate().getTime());
+  const lastShownAt = React.useRef<number | null>(null);
+  const quiet =
+    quietPlace(pathname) ||
+    settingsOpen ||
+    paywallOpen ||
+    paletteOpen ||
+    composerOpen;
+  // Rare on purpose: not while the panel is open, a notice is speaking, a tip
+  // is already up, or the person is in a setup or money place.
+  const tipBlocked = open || island || tip !== null || quiet;
+  const queue = incoming.queue;
+  const dropIncoming = incoming.drop;
+
+  React.useEffect(() => {
+    if (!queue.length) return undefined;
+    const surface = () => {
+      const now = newDate().getTime();
+      const gate = {
+        now,
+        mountedAt: mountedAt.current,
+        lastShownAt: lastShownAt.current,
+        blocked: tipBlocked || agentBusy(),
+        queued: queue.length,
+      };
+      if (!mayShowTip(gate)) return false;
+      const next = queue[0];
+      dropIncoming(next.id);
+      lastShownAt.current = now;
+      lastNote.current = noteFromNudge(next);
+      setTip(lastNote.current);
+      return true;
+    };
+    if (surface()) return undefined;
+    const id = window.setInterval(() => {
+      if (surface()) window.clearInterval(id);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [queue, tipBlocked, dropIncoming]);
+
+  // Opening the panel is the end of the tip's errand.
+  React.useEffect(() => {
+    if (open && tip) {
+      void markRead(tip.id);
+      setTip(null);
+    }
+  }, [open, tip, markRead]);
+
+  // Auto-dismiss after TIP_AUTO_MS; hovering or focusing the card pauses it.
+  React.useEffect(() => {
+    tipLeft.current = TIP_AUTO_MS;
+    setTipHold(false);
+  }, [tip]);
+  React.useEffect(() => {
+    if (!tip || tipHold) return undefined;
+    const t0 = newDate().getTime();
+    const id = window.setTimeout(() => setTip(null), tipLeft.current);
+    return () => {
+      window.clearTimeout(id);
+      tipLeft.current = Math.max(
+        TIP_MIN_LEFT_MS,
+        tipLeft.current - (newDate().getTime() - t0)
+      );
+    };
+  }, [tip, tipHold]);
+
+  // The States pill and every scroll area lift clear of the tip while it is up.
+  React.useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!tipShown || tipLeaving || !tipRef.current) {
+      root.style.removeProperty("--chat-tip-lift");
+      return undefined;
+    }
+    root.style.setProperty(
+      "--chat-tip-lift",
+      `${Math.ceil(tipRef.current.offsetHeight + 12)}px`
+    );
+    return () => {
+      root.style.removeProperty("--chat-tip-lift");
+    };
+  }, [tipShown, tipLeaving, tip]);
+
+  const closeTip = (note: TipNote) => {
+    setTip(null);
+    void markRead(note.id);
+  };
+  const actTip = (note: TipNote) => {
+    closeTip(note);
+    if (note.act.kind === "fill") void fillFreeTime();
+    else router.push(note.act.href);
+  };
 
   function act(n: Notice, a: NoticeAct) {
     dismiss(n.id);
@@ -231,44 +359,116 @@ function Corner() {
 
   const urgent = view.rows.some((n) => n.kind === "risk" && !n.leaving);
 
+  /* Where the panel lives. Wide window: a 360 px column of the shell's main
+     row (the shell animates the slot's width). Narrow: a sheet on the right
+     over a scrim. Escape closes it and hands the focus back to the pill. */
+  const close = () => {
+    refocus.current = true;
+    setOpen(false);
+  };
+  const onPanelKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  };
+  const panel = (
+    <ChatPanel
+      messages={ask.messages}
+      phase={ask.phase}
+      scope={asking.scope}
+      scopes={asking.list}
+      onScope={asking.setPick}
+      name={firstName(session.data?.user?.name)}
+      onSend={(line, confirmed, shown) => void ask.send(line, confirmed, shown)}
+      onStop={ask.stop}
+      onNew={ask.reset}
+      onClose={() => setOpen(false)}
+      onPopLast={ask.popLast}
+    />
+  );
+  const panelFrame = narrow ? (
+    <>
+      <div
+        className={`chat-frame-layer chat-scrim${panelLeaving ? " is-leaving" : ""}`}
+        aria-hidden="true"
+        onMouseDown={() => setOpen(false)}
+      />
+      <div
+        className={`chat-box chat-sheet${panelLeaving ? " is-leaving" : ""}`}
+        role="dialog"
+        aria-label="Ask Needt"
+        data-chat-panel
+        data-assistant-avoid
+        inert={!open || undefined}
+        onKeyDown={onPanelKey}
+      >
+        {panel}
+      </div>
+    </>
+  ) : (
+    <div
+      className="chat-frame-panel"
+      data-chat-panel
+      data-assistant-avoid
+      role="complementary"
+      aria-label="Ask Needt"
+      inert={!open || undefined}
+      onKeyDown={onPanelKey}
+    >
+      <div
+        className={`chat-box chat-dock-card${panelLeaving ? " is-leaving" : ""}`}
+      >
+        {panel}
+      </div>
+    </div>
+  );
+
   return (
     <div
       className="chat-agent-anchor v3c-anchor"
       data-agent-anchor
       style={{ right: 20, width: frame.w, height: frame.h }}
     >
-      {(["pill", "island", "panel"] as const).map((s) => {
-        const size = s === "pill" ? pill : s === "island" ? islandSize : panel;
+      {tipShown && lastNote.current && !open && state === "pill" ? (
+        <NudgeTip
+          ref={tipRef}
+          note={lastNote.current}
+          leaving={tipLeaving}
+          onHold={setTipHold}
+          onAct={() => actTip(lastNote.current as TipNote)}
+          onDismiss={() => closeTip(lastNote.current as TipNote)}
+          onOpen={() => {
+            closeTip(lastNote.current as TipNote);
+            setOpen(true);
+          }}
+        />
+      ) : null}
+      {(["pill", "island"] as const).map((s) => {
+        const size = s === "pill" ? pill : islandSize;
         return (
           <span
             key={s}
             aria-hidden="true"
-            className={`v3c-shade is-${s}${state === s ? " is-on" : ""}`}
+            className={`v3c-shade is-${s}${!open && state === s ? " is-on" : ""}`}
             style={{ width: size.w, height: size.h, borderRadius: size.r }}
           />
         );
       })}
       <div
         className="chat-box v3c-shell"
-        data-corner={state}
+        data-corner={open ? "away" : state}
         data-assistant-avoid
         style={{
           width: frame.w,
           height: frame.h,
           clipPath: cornerClip(shape, frame),
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Escape" && open) {
-            e.preventDefault();
-            refocus.current = true;
-            setOpen(false);
-          }
-        }}
       >
         <div
-          className={`v3c-layer${state === "pill" ? " is-on" : ""}`}
+          className={`v3c-layer${state === "pill" && !open ? " is-on" : ""}`}
           style={{ width: pill.w, height: pill.h }}
-          inert={state !== "pill" || undefined}
+          inert={state !== "pill" || open || undefined}
         >
           <button
             ref={pillRef}
@@ -289,7 +489,7 @@ function Corner() {
           className={`v3c-layer v3c-island${state === "island" ? " is-on" : ""}`}
           style={{ width: islandSize.w, height: islandSize.h }}
           ref={islandRef}
-          inert={state !== "island" || undefined}
+          inert={state !== "island" || open || undefined}
           role="region"
           aria-label="Needt notifications"
           aria-live={urgent ? "assertive" : "polite"}
@@ -308,27 +508,8 @@ function Corner() {
             <IslandRow key={n.id} notice={n} onAct={act} onClose={dismiss} />
           ))}
         </div>
-
-        {panelShown ? (
-          <div
-            className={`v3c-layer v3c-panel${open ? " is-on" : ""}`}
-            style={{ width: panel.w, height: panel.h }}
-            inert={!open || undefined}
-            role="dialog"
-            aria-label="Ask Needt"
-            data-chat-panel
-          >
-            <ChatPanel
-              messages={ask.messages}
-              phase={ask.phase}
-              onSend={(line, confirmed) => void ask.send(line, confirmed)}
-              onStop={ask.stop}
-              onNew={ask.reset}
-              onClose={() => setOpen(false)}
-            />
-          </div>
-        ) : null}
       </div>
+      {panelShown && dock ? createPortal(panelFrame, dock) : null}
     </div>
   );
 }
