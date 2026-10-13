@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connections › AI tools is now real (Pro): one card per AI tool with numbered
+  setup steps, a one-click access token (shown once, ready-to-copy
+  `claude mcp add` command, rotating disconnects agents) and the apps signed in
+  through Needt MCP with Disconnect; desktop and phone. Claude, ChatGPT and
+  Perplexity stay "opens soon" until `NEXT_PUBLIC_MCP_OAUTH_URL` is set.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early
