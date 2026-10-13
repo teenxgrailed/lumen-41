@@ -13,6 +13,7 @@ const eslintConfig = [
   {
     ignores: [
       ".next/**",
+      "landing-site/**",
       ".codex/**",
       ".agents/**",
       "dist/**",

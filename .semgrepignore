@@ -1,0 +1,2 @@
+# Static marketing site (no build, no app code); owner-approved exclusion from app SAST.
+landing-site/
