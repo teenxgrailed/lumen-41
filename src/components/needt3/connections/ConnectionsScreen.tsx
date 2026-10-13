@@ -33,6 +33,8 @@ import { ProBadge, openPaywall } from "../paywall";
 import { GlassCard, PxSky } from "../scenes";
 import { StScreen } from "../states/StScreen";
 import { type ScreenQuery, screenState } from "../states/status";
+import { AiSetup } from "./AiSetup";
+import { AiToolsPanel } from "./AiToolsPanel";
 import { CalDavForm } from "./CalDavForm";
 import {
   CATEGORY_LABEL,
@@ -571,7 +573,10 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                     onKeyDown={onTabKey}
                   >
                     {TABS.map(([k, label]) => {
-                      const n = k === "apps" ? c.connected : 0;
+                      const n =
+                        k === "apps"
+                          ? c.connected
+                          : (ctl.mcp.apps?.length ?? 0);
                       const bad = k === "apps" ? status.names : [];
                       const badText = `${bad.join(", ")} ${bad.length === 1 ? "needs" : "need"} attention`;
                       return (
@@ -713,12 +718,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                     locked ? (
                       <AiPromo />
                     ) : (
-                      <GlassNote
-                        attr="data-cn-ai-soon"
-                        icon="link"
-                        title="No AI tools connected yet"
-                        line="Connecting Claude, ChatGPT and other AI clients comes with the access-link routes; nothing to set up here yet."
-                      />
+                      <AiToolsPanel c={ctl} />
                     )
                   ) : shown.length ? (
                     <div
@@ -801,6 +801,35 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 onClick={() => void disconnect(confirm)}
               >
                 Disconnect
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Sheet>
+      <Sheet
+        open={!!ctl.setup}
+        onClose={() => ctl.setSetup(null)}
+        title="Connect an AI tool"
+        scrimClassName="nx-scrim cn-sheet-grid"
+        className="nx-sheet cn-sheet-col"
+        style={{ width: 500 }}
+      >
+        {ctl.setup ? (
+          <>
+            <AiSetup id={ctl.setup} mcp={ctl.mcp} />
+            <div className="cn-setup-row-2">
+              <span className="cn-setup-el-2" />
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                data-cn-done={ctl.setup}
+                autoFocus
+                onClick={() => {
+                  ctl.setSetup(null);
+                  void ctl.mcp.reload();
+                }}
+              >
+                Done
               </button>
             </div>
           </>

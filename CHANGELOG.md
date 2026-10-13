@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connection · Cancel · Connect. It no longer shows a card inside the sheet,
   required asterisks, stacked help text or a browser alert, and password
   managers no longer draw over the fields.
+- Adding a task from the v3 quick-add no longer fails with "Could not create the task":
+  `POST /api/tasks` now opens the task as `todo` when the request names no status.
+- Connections › AI tools is now real (Pro): one card per AI tool with numbered
+  setup steps, a one-click access token (shown once, ready-to-copy
+  `claude mcp add` command, rotating disconnects agents) and the apps signed in
+  through Needt MCP with Disconnect; desktop and phone. Claude, ChatGPT and
+  Perplexity stay "opens soon" until `NEXT_PUBLIC_MCP_OAUTH_URL` is set.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early
