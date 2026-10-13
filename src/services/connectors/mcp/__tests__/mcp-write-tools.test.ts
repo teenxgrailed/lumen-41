@@ -37,6 +37,7 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
     .mockResolvedValue({ required: false, verified: true }),
 }));
 jest.mock("@/lib/auth/moodboard-auth", () => ({
+  ...jest.requireActual("@/lib/auth/moodboard-auth"),
   resolveMoodboardAccess: jest.fn(),
 }));
 jest.mock("@/services/connectors/webhooks", () => ({
