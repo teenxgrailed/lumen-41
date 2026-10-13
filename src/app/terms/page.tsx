@@ -1,23 +1,15 @@
 import type { Metadata } from "next";
 
-import { LegalDraft } from "@/components/legal/LegalDraft";
+import { LegalDocument } from "@/components/legal/LegalDocument";
+
+import { termsMarkdown } from "@/lib/legal/documents/terms";
 
 export const metadata: Metadata = {
-  title: "Terms draft | Needt",
-  description: "Needt terms of service awaiting owner and legal review.",
-  robots: { index: false, follow: false },
+  title: "Terms of Service | Needt",
+  description:
+    "The agreement between you and the operator of Needt: plans, payment, refunds, your content and acceptable use.",
 };
 
 export default function TermsPage() {
-  return (
-    <LegalDraft
-      title="Terms of Service"
-      summary="Needt will publish its Terms of Service here after owner and legal review."
-      requirements={[
-        "Legal entity name, registered address, and support contact",
-        "Service scope, account rules, billing terms, and cancellation process",
-        "Applicable law, dispute process, and effective date",
-      ]}
-    />
-  );
+  return <LegalDocument markdown={termsMarkdown()} />;
 }

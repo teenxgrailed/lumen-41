@@ -10,6 +10,27 @@ const LOG_SOURCE = "ops-retention";
 export const ACTION_LOG_RETENTION_DAYS = 30;
 
 /**
+ * How long a trial record outlives its account (Privacy Notice §3.7: "two
+ * years after the trial ended"). The record holds only a keyed hash.
+ */
+export const TRIAL_RECORD_RETENTION_DAYS = 730;
+
+/**
+ * Deletes trial records whose account is gone and whose trial ended more than
+ * two years ago. A record whose account still exists is kept with it.
+ */
+export async function pruneOrphanTrialGrants(now: Date = newDate()) {
+  const cutoff = addCalendarDays(now, -TRIAL_RECORD_RETENTION_DAYS);
+  const { count } = await prisma.trialGrant.deleteMany({
+    where: { userId: null, endsAt: { lt: cutoff } },
+  });
+  if (count) {
+    logger.info("Pruned trial records", { count }, LOG_SOURCE);
+  }
+  return count;
+}
+
+/**
  * Deletes action-log rows 30 days past their undo window, then runs older
  * than that with no actions left. Runs from the worker's hourly sweep.
  */

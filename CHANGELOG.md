@@ -166,6 +166,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and syncs them; before, the account had no calendars and the calendar stayed
   empty. A CalDAV fetch that fails no longer archives every event of the
   calendar, and events the server returns again come back.
+- Legal: `/privacy`, `/terms` and a new `/subprocessors` page now publish
+  the final Privacy Notice, Terms of Service and subprocessor list in place of
+  the draft placeholders. The operator's name, the EU representative, and the
+  effective date live in one module, `src/lib/legal/operator.ts`. Settings
+  links to all three documents.
+- Trial records whose account was deleted are removed two years after the
+  trial ended.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

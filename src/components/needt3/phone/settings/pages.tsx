@@ -427,6 +427,11 @@ export function AboutPage() {
         out
         onOpen={() => window.open("/privacy", "_blank")}
       />
+      <PsRow
+        title="Subprocessors"
+        out
+        onOpen={() => window.open("/subprocessors", "_blank")}
+      />
     </PsGroup>
   );
 }
