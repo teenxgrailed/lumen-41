@@ -20,7 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The installed phone app now feels native: no pull-to-refresh or rubber-band
   bounce, no pinch or double-tap zoom, full-bleed under the notch and home
   indicator, and PNG home-screen icons for iOS. Disabling zoom reduces accessibility; this was a deliberate choice.
-
+- The product line is now "Needt: Everything you're working on, in one place" in
+  the page title, link previews, the installed app name and the README.
+- The new Needt icon is now the browser tab icon, the home-screen icon (iOS and
+  Android, including a maskable one) and the push-notification icon.
 - More ways to sign in: Apple, GitHub, Sign in with ChatGPT, Discord, X and
   LinkedIn join Google and Microsoft. The sign-in and sign-up screens (desktop
   and phone) show Google, Apple and GitHub; "More ways to sign in" reveals the
