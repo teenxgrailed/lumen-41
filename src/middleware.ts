@@ -9,6 +9,9 @@ import { publicAppUrl } from "@/lib/public-url";
 // List of public routes that don't require authentication
 const publicRoutes = [
   "/.well-known/",
+  // OAuth endpoints answer clients, not browsers with a session; the
+  // consent page sends a signed-out person to sign-in itself.
+  "/oauth/",
   "/setup",
   "/api/setup/check",
   "/auth/signin",
@@ -20,6 +23,7 @@ const publicRoutes = [
   "/beta",
   "/terms",
   "/privacy",
+  "/subprocessors",
   "/p/",
   "/b/",
   "/style",

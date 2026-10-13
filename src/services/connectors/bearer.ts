@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { resolveAccessToken } from "@/services/oauth/grants";
+
 import {
   MCP_SCOPES,
   type McpScope,
+  challengeScope,
   insufficientScopeChallenge,
 } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +20,9 @@ import { hashConnectorToken } from "./auth-tokens";
  *
  * - `personal`: the `needt_…` connector token from Settings › Connectors.
  *   It acts for its owner with every scope and is not tied to a workspace.
- * - `oauth`: an access token issued to an OAuth client, with the scopes and
- *   the workspace the person consented to (issued by the authorization
- *   server; until it exists no such token can be presented).
+ * - `oauth`: an access token issued to an OAuth client
+ *   (`src/services/oauth`), with the scopes and the workspace the person
+ *   consented to, bound to the canonical MCP resource.
  */
 export interface BearerAuth {
   userId: string;
@@ -75,6 +78,8 @@ export async function authenticateBearer(
   if (!token) return null;
   const personal = await personalToken(token);
   if (personal) return personal;
+  const oauth = await resolveAccessToken(token);
+  if (oauth) return oauth;
   for (const resolve of resolvers) {
     const auth = await resolve(token);
     if (auth) return auth;
@@ -92,7 +97,7 @@ export function insufficientScopeResponse(required: readonly McpScope[]) {
     {
       error: "insufficient_scope",
       error_description: `This call needs the ${required.join(", ")} scope.`,
-      scope: [...new Set([...required, ...MCP_SCOPES])].join(" "),
+      scope: challengeScope(required),
     },
     {
       status: 403,

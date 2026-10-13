@@ -62,6 +62,35 @@ scope; search without `mail.read` simply leaves mail out.
 The same token rules apply to the `/api/connect/*` routes below: reads need
 `needt.read`, writes `needt.write`.
 
+### OAuth (claude.ai, ChatGPT, Claude Code)
+
+Add `https://mcp.needt.app/mcp` as a custom connector; the client finds
+everything else itself. The authorization server is the app,
+`https://use.needt.app` (RFC 8414 metadata at
+`/.well-known/oauth-authorization-server`):
+
+| Endpoint               | Notes                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /oauth/authorize` | Signs the person in if needed, then asks: client name, where it returns, scopes (mail is its own tick box), one workspace       |
+| `POST /oauth/token`    | `authorization_code` (PKCE S256 only) and `refresh_token`; form-encoded; `resource` must be `https://mcp.needt.app/mcp` exactly |
+| `POST /oauth/register` | RFC 7591 dynamic registration, public clients (`token_endpoint_auth_method: none`)                                              |
+| `POST /oauth/revoke`   | RFC 7009; revoking either token ends the whole grant                                                                            |
+
+- Clients are public (no secret). A client may also be identified by the
+  https URL of its client metadata document (CIMD): Needt fetches it over
+  https only, refusing private and loopback addresses (also after
+  redirects), with a timeout and a 64 KB cap, caches it for a day, and
+  checks `redirect_uri` against it.
+- Redirect URIs are https, or http on a loopback address; a loopback
+  redirect matches any port (native clients such as Claude Code).
+- Every authorization response carries `iss` (RFC 9207).
+- Codes live 60 seconds and work once; a replayed code revokes what it
+  produced. Access tokens live 1 hour, refresh tokens 30 days. Refresh
+  tokens rotate; presenting a rotated one revokes the whole grant.
+- Tokens are opaque and stored only as hashes. The person sees and
+  disconnects apps in Settings › Connected apps (`GET /api/oauth/connected-apps`,
+  `DELETE /api/oauth/connected-apps/:id`).
+
 ### Workspaces
 
 Every tool takes an optional `workspaceId` argument (OAuth clients cannot
@@ -74,19 +103,31 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                | Scope                                          | What it does                                                                                         |
-| ------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `needt_whoami`      | —                                              | The person, token kind, scopes, current workspace and all workspaces                                 |
-| `needt_search`      | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                      |
-| `needt_list`        | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail); `limit` ≤ 50, `cursor` |
-| `needt_get`         | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                         |
-| `needt_create_task` | `needt.write`                                  | `POST /api/connect/tasks`                                                                            |
-| `needt_schedule`    | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                          |
-| `needt_reschedule`  | `needt.write`                                  | `POST /api/connect/reschedule`                                                                       |
-| `needt_control`     | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`            |
+| Tool                  | Scope                                          | What it does                                                                                                        |
+| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`        | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                |
+| `needt_search`        | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                     |
+| `needt_list`          | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`     |
+| `needt_get`           | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                        |
+| `needt_create_task`   | `needt.write`                                  | `POST /api/connect/tasks`                                                                                           |
+| `needt_schedule`      | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                         |
+| `needt_reschedule`    | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                      |
+| `needt_control`       | `needt.write` (`needt.read` for `overview`)                                | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                           |
+| `needt_update_task`   | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId; other fields are refused |
+| `needt_complete_task` | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                              |
+| `needt_create_event`  | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                     |
+| `needt_create_page`   | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                |
+| `needt_append_page`   | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                |
+| `needt_log_habit`     | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                         |
 
-Write tools run the connector routes in-process with the caller's own token,
-so auth, workspace scoping and confirmation rules are the routes' own.
+`needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
+run the connector routes in-process with the caller's own token, so auth,
+workspace scoping and confirmation rules are the routes' own. The other write
+tools call the services the app's own routes use (task update, page write
+path, habit completion, local events) after resolving the workspace with an
+editor role, so validation, plan limits and side effects match the app. Pages
+and blocks written through MCP are marked as AI-authored. MCP calls are not
+metered as AI actions.
 
 ### Limits
 

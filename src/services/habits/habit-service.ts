@@ -13,6 +13,7 @@ import {
 } from "@/lib/date-utils";
 import {
   habitDateFromKey,
+  habitDateKey,
   habitDayKey,
   normalizeUserTimeZone,
 } from "@/lib/habit-completion-date";
@@ -159,14 +160,31 @@ export async function habitTodayKey(userId: string, now?: Date) {
   );
 }
 
+/** A habit day that is not a real calendar date, or lies in the future. */
+export class HabitCompletionDateError extends Error {}
+
 export async function setHabitCompletionToday(input: {
   userId: string;
   workspace: WorkspaceAccess;
   habitId: string;
   completed: boolean;
   now?: Date;
+  /** yyyy-MM-dd in the person's time zone; today when omitted. */
+  dateKey?: string;
 }) {
-  const dateKey = await habitTodayKey(input.userId, input.now);
+  const todayKey = await habitTodayKey(input.userId, input.now);
+  const dateKey = input.dateKey ?? todayKey;
+  const date = habitDateFromKey(dateKey);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateKey) ||
+    Number.isNaN(date.getTime()) ||
+    habitDateKey(date) !== dateKey
+  ) {
+    throw new HabitCompletionDateError("date must be a yyyy-MM-dd day");
+  }
+  if (dateKey > todayKey) {
+    throw new HabitCompletionDateError("A habit cannot be kept in the future");
+  }
   const result = await prisma.$transaction((transaction) =>
     setHabitCompletion(transaction, { ...input, dateKey })
   );

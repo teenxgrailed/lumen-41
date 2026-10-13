@@ -11,6 +11,7 @@ import {
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
+  OAuthCleanupJobData,
   QUEUE_NAMES,
   ReminderJobData,
   RescheduleJobData,
@@ -28,6 +29,7 @@ let nudgeQueue: Queue<NudgeJobData> | null = null;
 let lifetimeCheckoutReconciliationQueue: Queue<LifetimeCheckoutReconciliationJobData> | null =
   null;
 let trialQueue: Queue<TrialJobData> | null = null;
+let oauthCleanupQueue: Queue<OAuthCleanupJobData> | null = null;
 let accountLifecycleQueue: Queue<AccountLifecycleJobData> | null = null;
 let importQueue: Queue<ImportJobData> | null = null;
 
@@ -119,6 +121,14 @@ export function getTrialQueue(): Queue<TrialJobData> {
   return trialQueue;
 }
 
+export function getOAuthCleanupQueue(): Queue<OAuthCleanupJobData> {
+  oauthCleanupQueue ??= new Queue(QUEUE_NAMES.oauthCleanup, {
+    connection: getBullConnection(),
+    defaultJobOptions,
+  });
+  return oauthCleanupQueue;
+}
+
 export function getAccountLifecycleQueue(): Queue<AccountLifecycleJobData> {
   accountLifecycleQueue ??= new Queue(QUEUE_NAMES.accountLifecycle, {
     connection: getBullConnection(),
@@ -148,6 +158,7 @@ export async function closeQueues(): Promise<void> {
     nudgeQueue,
     lifetimeCheckoutReconciliationQueue,
     trialQueue,
+    oauthCleanupQueue,
     accountLifecycleQueue,
     importQueue,
   ].filter((queue): queue is Queue => queue !== null);
@@ -161,6 +172,7 @@ export async function closeQueues(): Promise<void> {
   nudgeQueue = null;
   lifetimeCheckoutReconciliationQueue = null;
   trialQueue = null;
+  oauthCleanupQueue = null;
   accountLifecycleQueue = null;
   importQueue = null;
 }
