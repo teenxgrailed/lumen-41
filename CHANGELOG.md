@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bug reports no longer default to a public GitHub repository: the GitHub copy is
+  sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early
   morning the background stayed Dark-grey while the controls followed Time.
 - Remote MCP: new write tools `needt_update_task`, `needt_complete_task`,
