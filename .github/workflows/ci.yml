@@ -388,7 +388,8 @@ jobs:
         continue-on-error: true
         env:
           NEEDT_VISUAL_PRODUCTION_SERVER: "1"
-        run: npm run test:visual -- --shard=${{ matrix.shard }} && npm run test:style -- --shard=${{ matrix.shard }}
+          SHARD: ${{ matrix.shard }}
+        run: npm run test:visual -- --shard="$SHARD" && npm run test:style -- --shard="$SHARD"
       - name: Generate Linux baseline candidates
         id: baseline-candidates
         if: needs.changes.outputs.ui == 'true' && steps.visual.outcome == 'failure'
@@ -421,7 +422,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require every visual shard
+        env:
+          RESULT: ${{ needs.visual-style-shard.result }}
         run: |
-          result="${{ needs.visual-style-shard.result }}"
+          result="$RESULT"
           echo "visual-style-shard: $result"
           [ "$result" = "success" ] || exit 1
