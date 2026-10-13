@@ -262,7 +262,7 @@ Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any 
 | Bug reports | Until you delete your account, or sooner if you ask us |
 | Support email | Two years after the conversation ends |
 
-**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription, revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
+**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription, revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, disconnect any apps you connected through Composio, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
 
 ---
 
