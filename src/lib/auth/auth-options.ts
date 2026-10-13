@@ -40,6 +40,9 @@ const LOG_SOURCE = "AuthOptions";
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 export const SESSION_UPDATE_AGE_SECONDS = 24 * 60 * 60;
 
+/** Where a brand-new account lands: first-run setup (the v3 onboarding). */
+export const NEW_ACCOUNT_PATH = "/setup";
+
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
   // Get credentials from database or environment variables
@@ -207,6 +210,11 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     pages: {
       signIn: "/auth/signin",
       error: "/auth/signin",
+      /* An OAuth return that just created the account goes to first-run
+         setup, as a credentials sign-up already does (V3SignInRoute). A
+         returning person never sees it: NextAuth only uses this when the
+         adapter created the user on this very callback. */
+      newUser: NEW_ACCOUNT_PATH,
     },
     debug: process.env.NODE_ENV === "development",
     session: {
