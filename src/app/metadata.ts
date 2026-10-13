@@ -22,13 +22,15 @@ export const metadata: Metadata = {
       { url: "/logo.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/logo.svg", type: "image/svg+xml", sizes: "64x64" },
     ],
-    apple: [{ url: "/logo.svg", type: "image/svg+xml", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F6F7FB" },
