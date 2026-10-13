@@ -6,6 +6,7 @@ import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import { checkBlocker } from "@/services/tasks/subtasks";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type {
   Prisma,
@@ -42,6 +43,10 @@ export interface TaskFieldPatch {
   energyRequired?: SchedulingEnergyLevel;
   status?: TaskStatus;
   projectId?: string | null;
+  /** The two-minute first step; null clears it. */
+  entry?: string | null;
+  /** The one open task this waits on; null clears it. */
+  dependsOnId?: string | null;
 }
 
 export type TaskUpdateResult =
@@ -127,6 +132,18 @@ export async function updateTaskFields(input: {
   if (patch.priorityLevel) updates.priorityLevel = patch.priorityLevel;
   if (patch.energyRequired) updates.energyRequired = patch.energyRequired;
   if (projectId !== undefined) updates.projectId = projectId;
+  if (patch.entry !== undefined) updates.entry = patch.entry?.trim() || null;
+  if (patch.dependsOnId !== undefined) {
+    if (patch.dependsOnId) {
+      const blocker = await checkBlocker(
+        { userId, workspace },
+        patch.dependsOnId,
+        taskId
+      );
+      if (!blocker.ok) return blocker;
+    }
+    updates.dependsOnId = patch.dependsOnId;
+  }
 
   const wasCompleted = task.status === TaskStatus.COMPLETED;
   const completing = patch.status === TaskStatus.COMPLETED && !wasCompleted;

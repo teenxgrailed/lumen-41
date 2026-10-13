@@ -1,3 +1,10 @@
+import {
+  MAX_SUBTASKS,
+  SUBTASK_GUIDANCE,
+  SUBTASK_TITLE_MAX,
+  entrySchema,
+  subtaskListSchema,
+} from "@/services/tasks/subtasks";
 import { z } from "zod";
 
 import { AIChatToolDefinition } from "./types";
@@ -32,13 +39,21 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
       priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
       dueDate: z.string().optional(),
       autoSchedule: z.boolean().optional(),
+      projectId: z.string().min(1).optional(),
+      entry: entrySchema.optional(),
+      subtasks: subtaskListSchema.optional(),
+      dependsOnId: z.string().min(1).optional(),
     }),
     definition: {
       name: "create_task",
-      description: "Create one planner task.",
+      description: `Create one planner task together with its subtasks in the same call. ${SUBTASK_GUIDANCE} The title is the closing step.`,
       parameters: jsonObject(
         {
-          title: { type: "string" },
+          title: {
+            type: "string",
+            description:
+              "The closing step: what is true once everything is done.",
+          },
           estimatedMinutes: { type: "number" },
           priority: {
             type: "string",
@@ -46,9 +61,70 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
           },
           dueDate: { type: "string" },
           autoSchedule: { type: "boolean" },
+          projectId: { type: "string", description: "An existing project id." },
+          entry: {
+            type: "string",
+            maxLength: SUBTASK_TITLE_MAX,
+            description: "The very first small step, about two minutes.",
+          },
+          subtasks: {
+            type: "array",
+            maxItems: MAX_SUBTASKS,
+            items: { type: "string", maxLength: SUBTASK_TITLE_MAX },
+            description:
+              "Steps in the order they are done, after the entry step and before this task.",
+          },
+          dependsOnId: {
+            type: "string",
+            description: "Id of an open task this one cannot start before.",
+          },
         },
         ["title"]
       ),
+    },
+  },
+  add_subtasks: {
+    schema: object({
+      ...taskRef,
+      subtasks: subtaskListSchema.min(1),
+    }),
+    definition: {
+      name: "add_subtasks",
+      description: `Add subtasks to an existing task by id or exact title, after the ones it already has. ${SUBTASK_GUIDANCE}`,
+      parameters: jsonObject(
+        {
+          taskId: { type: "string" },
+          titleQuery: { type: "string" },
+          subtasks: {
+            type: "array",
+            minItems: 1,
+            maxItems: MAX_SUBTASKS,
+            items: { type: "string", maxLength: SUBTASK_TITLE_MAX },
+            description: "Steps in the order they are done.",
+          },
+        },
+        ["subtasks"]
+      ),
+    },
+  },
+  complete_subtask: {
+    schema: object({
+      ...taskRef,
+      subtaskTitle: z.string().min(1).max(SUBTASK_TITLE_MAX).optional(),
+      subtaskId: z.string().min(1).optional(),
+      done: z.boolean().default(true),
+    }),
+    definition: {
+      name: "complete_subtask",
+      description:
+        "Tick a subtask of a task done (or not done with done: false), by subtask id or exact subtask title. When it was the last open subtask, say that the task itself is now the final step and offer to close it.",
+      parameters: jsonObject({
+        taskId: { type: "string" },
+        titleQuery: { type: "string" },
+        subtaskId: { type: "string" },
+        subtaskTitle: { type: "string" },
+        done: { type: "boolean" },
+      }),
     },
   },
   edit_task: {

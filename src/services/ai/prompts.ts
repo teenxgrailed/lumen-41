@@ -40,7 +40,7 @@ export function schedulePrompt(input: SchedulingContext): string {
 export function parsePrompt(text: string): string {
   return JSON.stringify({
     instruction:
-      "Return strict JSON only. Convert this brain dump into an array of structured tasks.",
+      "Return strict JSON only. Convert this brain dump into an array of structured tasks. A task that needs more than one step gets `entry` (the very first small step, about two minutes) and `subtasks` (short concrete steps in the order they are done); its title is the closing step, finished last. Do not split one job into several top-level tasks when its parts are steps of the same outcome.",
     schema: [
       {
         title: "string",
@@ -52,6 +52,8 @@ export function parsePrompt(text: string): string {
         priority: "LOW|MEDIUM|HIGH|URGENT",
         energyRequired: "LOW|MEDIUM|HIGH",
         contextTag: "optional string",
+        entry: "optional string, the first small step",
+        subtasks: "optional array of strings, in the order they are done",
       },
     ],
     text,

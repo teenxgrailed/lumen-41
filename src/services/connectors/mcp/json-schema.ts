@@ -60,11 +60,21 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
       enum: [...(schema.options as string[])],
     });
   }
-  if (schema instanceof z.ZodArray) {
+  if (schema instanceof z.ZodUnion) {
     return withDescription(schema, {
+      anyOf: (schema.options as z.ZodTypeAny[]).map((option) =>
+        zodToJsonSchema(option)
+      ),
+    });
+  }
+  if (schema instanceof z.ZodArray) {
+    const json: JsonSchema = {
       type: "array",
       items: zodToJsonSchema(schema.element),
-    });
+    };
+    if (schema._def.minLength) json.minItems = schema._def.minLength.value;
+    if (schema._def.maxLength) json.maxItems = schema._def.maxLength.value;
+    return withDescription(schema, json);
   }
   if (schema instanceof z.ZodObject) {
     const shape = schema.shape as Record<string, z.ZodTypeAny>;
