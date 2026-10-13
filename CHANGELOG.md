@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Focus window is built (new design): the sidebar pill, ⌘⇧F, Home's Start
+  focus and a task's Start focus open it — setup (purpose, 25/50/90/custom
+  length, task, ambient sound), the running clock with Pause, +5 min and Stop
+  (ending early takes two presses a few seconds apart), and the End view with
+  what next. The session lives on the server, so it survives a reload and the
+  window crossing to the phone layout; the pill shows the clock and ring, the
+  tab title shows the time left, and Start focus says "Focus started · 25 min
+  on “task”". On the phone it is a full sheet. Ambient sound and "Hide other
+  tasks" are remembered but do nothing yet.
 - Bug reports no longer default to a public GitHub repository: the GitHub copy is
   sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
 - The Time theme now colours the page background too: in the evening and early

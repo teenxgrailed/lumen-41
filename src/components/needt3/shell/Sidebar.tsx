@@ -28,6 +28,7 @@ import {
 } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { clockOf } from "@/lib/needt3/focus";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
@@ -43,6 +44,7 @@ import { useV3PortalContainer } from "../ctx/PortalScope";
 import { registerCtx } from "../ctx/registry";
 import { DocSwitch } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
+import { useFocusRun } from "../focus/useFocusController";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { AccountMenu } from "./AccountMenu";
@@ -515,26 +517,75 @@ function PinPop({
 }
 
 /* ---------- Focus: a pill that opens the Focus window ---------- */
+const RING_R = 11;
+const RING_C = 2 * Math.PI * RING_R;
+
+/** While a session runs the pill shows its clock and a progress ring; the
+ *  window (FocusHost) is the only place a session ends. */
 function FocusControl() {
   const focusOpen = useNeedt3Ui((s) => s.focusOpen);
   const setFocusOpen = useNeedt3Ui((s) => s.setFocusOpen);
-  //todo: running state (clock + ring) once the Focus window (S4) exposes
-  // its session; until then the pill is always idle.
+  const { run } = useFocusRun();
+  const clock = run ? clockOf(run) : "";
+  const state = run ? (run.paused ? "paused" : "live") : "idle";
+  const label = run
+    ? (run.paused ? "Focus paused · " : "Focus · ") +
+      clock +
+      (run.leftSec == null ? "" : " left") +
+      " — open"
+    : "Start a focus session";
   return (
-    <Tooltip label="Start a focus session" keys="⌘⇧F" side="top-start">
+    <Tooltip label={label} keys="⌘⇧F" side="top-start">
       <button
         type="button"
-        aria-label="Focus"
+        aria-label={
+          run
+            ? `Focus session, ${clock}${run.leftSec == null ? "" : " left"}${run.paused ? ", paused" : ""} — open`
+            : "Focus"
+        }
         aria-haspopup="dialog"
         aria-expanded={focusOpen}
-        data-sb-focus="idle"
-        className={`nx-press sb-focus sb-reveal${focusOpen ? " is-open" : ""}`}
+        data-sb-focus={state}
+        className={`nx-press sb-focus sb-reveal${
+          run ? ` is-live${run.paused ? " is-paused" : " focus-live"}` : ""
+        }${focusOpen ? " is-open" : ""}`}
         onClick={() => setFocusOpen(true)}
       >
         <span className="sb-focus-mark" aria-hidden="true">
-          <LuTarget size={16} />
+          {run ? (
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 26 26"
+              className="sb-focus-ring"
+            >
+              <circle
+                cx="13"
+                cy="13"
+                r={RING_R}
+                fill="none"
+                stroke="var(--fill-5)"
+                strokeWidth="2.4"
+              />
+              <circle
+                className="shell-focus-control-circle"
+                cx="13"
+                cy="13"
+                r={RING_R}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeDasharray={RING_C}
+                strokeDashoffset={RING_C * (1 - run.pct)}
+              />
+            </svg>
+          ) : null}
+          <LuTarget size={run ? 10 : 16} />
         </span>
-        <span className="sb-focus-label sb-reveal-label">Focus</span>
+        <span className="sb-focus-label sb-reveal-label">
+          {run ? clock : "Focus"}
+        </span>
       </button>
     </Tooltip>
   );
