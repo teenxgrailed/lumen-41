@@ -38,6 +38,7 @@ import {
 import { NeedtLockup } from "../wordmark";
 import {
   type AuthMode,
+  MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
   mailProblem,
   mailProblemText,
@@ -46,6 +47,7 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
+  splitSignInProviders,
   submitLabel,
   submitStep,
 } from "./auth-logic";
@@ -343,6 +345,13 @@ export function AuthScreen({
   } = useAuthSteps(steps);
   /* A password typed on the other face is already there. */
   const withPass = passAsked || pass.length > 0;
+  /* Google, Apple and GitHub show; the rest wait behind "More ways". */
+  const [moreWays, setMoreWays] = React.useState(false);
+  const { main: mainProviders, more: moreProviders } =
+    splitSignInProviders(providers);
+  const shownProviders = moreWays
+    ? [...mainProviders, ...moreProviders]
+    : mainProviders;
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [limited, setLimited] = React.useState(false);
@@ -650,10 +659,11 @@ export function AuthScreen({
       {providers.length ? (
         <>
           <div className="auth-stack-8">
-            {providers.map((p) => (
+            {shownProviders.map((p) => (
               <button
                 key={p.id}
                 type="button"
+                data-provider={p.id}
                 disabled={offline || providerBusy !== null}
                 onClick={() => onProvider?.(p.id)}
                 className="ax-btn ax-raised auth-oauth"
@@ -664,6 +674,16 @@ export function AuthScreen({
                 {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
               </button>
             ))}
+            {moreProviders.length && !moreWays ? (
+              <button
+                type="button"
+                className="ax-link auth-more-ways"
+                aria-expanded={false}
+                onClick={() => setMoreWays(true)}
+              >
+                {MORE_SIGN_IN_WAYS_LABEL}
+              </button>
+            ) : null}
           </div>
           <div className="auth-signin-row-2">
             <span className="auth-signin-el-2" />

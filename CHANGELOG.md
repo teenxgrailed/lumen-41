@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PKCE). You choose what the app may do — read, write, and mail as a
   separate tick — and which workspace it is limited to; Settings ›
   Connected apps lists every app and disconnects it at once.
+- The installed phone app now feels native: no pull-to-refresh or rubber-band
+  bounce, no pinch or double-tap zoom, full-bleed under the notch and home
+  indicator, and PNG home-screen icons for iOS. Disabling zoom reduces accessibility; this was a deliberate choice.
+
+- More ways to sign in: Apple, GitHub, Sign in with ChatGPT, Discord, X and
+  LinkedIn join Google and Microsoft. The sign-in and sign-up screens (desktop
+  and phone) show Google, Apple and GitHub; "More ways to sign in" reveals the
+  rest. A provider shows only once it is configured in System Settings
+  (secrets encrypted) or the environment. A provider sign-in joins an existing
+  account only on an email the provider verified; otherwise it is refused
+  with "sign in the way you did before", and X never joins an existing
+  account. Closed registration applies to every provider. Microsoft sign-in
+  no longer asks for calendar and task access (the Outlook connection does).
+  Owner setup: `docs/operations/sign-in-providers.md`.
+
 - Design v3 for everyone: a migration turns the `design_v3` flag on at a
   100 % rollout, so sign-in, sign-up and password recovery wear the v3
   screens for every visitor and every signed-in person lands in the v3 app.
@@ -161,6 +176,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and syncs them; before, the account had no calendars and the calendar stayed
   empty. A CalDAV fetch that fails no longer archives every event of the
   calendar, and events the server returns again come back.
+- Legal: `/privacy`, `/terms` and a new `/subprocessors` page now publish
+  the final Privacy Notice, Terms of Service and subprocessor list in place of
+  the draft placeholders. The operator's name, the EU representative, and the
+  effective date live in one module, `src/lib/legal/operator.ts`. Settings
+  links to all three documents.
+- Trial records whose account was deleted are removed two years after the
+  trial ended.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

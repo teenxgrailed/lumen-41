@@ -12,11 +12,15 @@ import type { IconType } from "react-icons";
 
 import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
+import {
+  SIGN_IN_PROVIDERS,
+  type SignInProviderId,
+} from "@/lib/auth/sign-in-provider-ids";
 import { logger } from "@/lib/logger";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
 
-import { brandGlyph } from "../brand";
+import { brandGlyph, brandMonoGlyph } from "../brand";
 import { PhoneAuth } from "../phone/auth";
 import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
@@ -31,14 +35,31 @@ import { useAuthSteps } from "./use-auth-fields";
 
 const LOG_SOURCE = "needt3-signin";
 
-type OAuthProviderId = "google" | "azure-ad";
-
-const OAUTH: Readonly<
-  Record<OAuthProviderId, { label: string; icon: IconType }>
-> = {
-  google: { label: "Google", icon: brandGlyph("google") },
-  "azure-ad": { label: "Microsoft", icon: brandGlyph("microsoft") },
+/* Each provider's mark: full colour where it reads on any button, one colour
+   (the button's text colour) where the brand allows its mark in black or
+   white. */
+const ICONS: Readonly<Record<SignInProviderId, IconType>> = {
+  google: brandGlyph("google"),
+  apple: brandMonoGlyph("apple"),
+  github: brandMonoGlyph("github"),
+  "azure-ad": brandGlyph("microsoft"),
+  openai: brandMonoGlyph("chatgpt"),
+  discord: brandMonoGlyph("discord"),
+  twitter: brandMonoGlyph("x"),
+  linkedin: brandGlyph("linkedin"),
 };
+
+/** The configured providers NextAuth reports, in our order, as buttons. */
+export function configuredSignInProviders(
+  available: Record<string, unknown> | null | undefined
+): AuthProvider[] {
+  if (!available) return [];
+  return SIGN_IN_PROVIDERS.filter((p) => available[p.id]).map((p) => ({
+    id: p.id,
+    label: p.label,
+    icon: ICONS[p.id],
+  }));
+}
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -108,11 +129,7 @@ export function V3SignInRoute({
     void getProviders()
       .then((available: Record<string, ClientSafeProvider> | null) => {
         if (!available) return;
-        setConfigured(
-          (Object.keys(OAUTH) as OAuthProviderId[])
-            .filter((id) => available[id])
-            .map((id) => ({ id, ...OAUTH[id] }))
-        );
+        setConfigured(configuredSignInProviders(available));
       })
       .catch((e: unknown) => {
         void logger.warn(

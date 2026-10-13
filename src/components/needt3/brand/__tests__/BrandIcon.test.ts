@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { newDateFromYMD } from "@/lib/date-utils";
 
-import { BrandIcon, brandGlyph } from "../BrandIcon";
+import { BrandIcon, brandGlyph, brandMonoGlyph } from "../BrandIcon";
 import { BRAND_ART } from "../data";
 import { BRAND_IDS } from "../ids";
 
@@ -86,6 +86,15 @@ describe("BrandIcon", () => {
       expect(html).toContain("<svg");
       expect(html).toContain("<path");
       expect(BRAND_ART[id].nodes.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("draws the one-colour sign-in marks in the button's text colour", () => {
+    for (const id of ["apple", "github", "x", "discord", "chatgpt"] as const) {
+      const html = renderToStaticMarkup(h(brandMonoGlyph(id), { size: 16 }));
+      expect(html).toContain("<path");
+      expect(html).toContain('fill="currentColor"');
+      expect(html).not.toContain('fill="#FFFFFF"');
     }
   });
 });

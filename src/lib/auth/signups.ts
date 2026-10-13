@@ -62,10 +62,11 @@ export async function isExistingOAuthUser(input: {
   if (linked) return true;
   const email = input.email?.trim();
   if (!email) return false;
-  // Exact match, as the Prisma adapter's getUserByEmail does: a case
-  // mismatch must refuse rather than let the adapter create a second user.
-  const user = await prisma.user.findUnique({
-    where: { email },
+  // Case-insensitive, as the adapter's getUserByEmail is
+  // (withCaseInsensitiveEmailLookup): both must find the same account. The
+  // email here is already one the provider verified (sign-in-providers.ts).
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
     select: { id: true },
   });
   return Boolean(user);

@@ -48,6 +48,7 @@ const ALIASES: Readonly<Record<string, BrandId>> = {
   googlegemini: "gemini",
   // Account and sign-in provider ids
   azuread: "microsoft",
+  twitter: "x",
   caldav: "ical",
 };
 

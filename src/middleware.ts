@@ -23,6 +23,7 @@ const publicRoutes = [
   "/beta",
   "/terms",
   "/privacy",
+  "/subprocessors",
   "/p/",
   "/b/",
   "/style",

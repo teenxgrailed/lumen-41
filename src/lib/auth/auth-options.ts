@@ -1,11 +1,12 @@
 import { NextAuthOptions } from "next-auth";
-import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
-import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
+import {
+  accountLinkingGate,
+  withCaseInsensitiveEmailLookup,
+} from "@/lib/auth/account-linking";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
@@ -13,11 +14,15 @@ import {
   enforceSessionVersion,
   issueSessionVersion,
 } from "@/lib/auth/session-version";
+import {
+  buildSignInProviders,
+  crossSiteCallbackCookies,
+  isProviderConfigured,
+  readSignInProviderConfig,
+} from "@/lib/auth/sign-in-providers";
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
-import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-oauth-scopes";
 import { logger } from "@/lib/logger";
-import { MICROSOFT_GRAPH_SCOPES } from "@/lib/outlook";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
 
@@ -45,9 +50,8 @@ export const NEW_ACCOUNT_PATH = "/setup";
 
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
-  // Get credentials from database or environment variables
-  const googleCredentials = await getGoogleCredentials();
-  const outlookCredentials = await getOutlookCredentials();
+  // Each provider's credentials: System Settings first, then the environment.
+  const providerConfig = await readSignInProviderConfig();
 
   const providers: NextAuthOptions["providers"] = [
     // Add credentials provider for email/password authentication
@@ -83,64 +87,37 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     }),
   ];
 
-  if (googleCredentials.clientId && googleCredentials.clientSecret) {
-    providers.unshift(
-      GoogleProvider({
-        clientId: googleCredentials.clientId,
-        clientSecret: googleCredentials.clientSecret,
-        authorization: {
-          params: {
-            scope: GOOGLE_SIGN_IN_SCOPES.join(" "),
-          },
-        },
-      })
-    );
-  }
-
-  if (
-    outlookCredentials.clientId &&
-    outlookCredentials.clientSecret &&
-    outlookCredentials.tenantId
-  ) {
-    providers.unshift(
-      AzureADProvider({
-        clientId: outlookCredentials.clientId,
-        clientSecret: outlookCredentials.clientSecret,
-        tenantId: outlookCredentials.tenantId,
-        authorization: {
-          params: {
-            scope: MICROSOFT_GRAPH_SCOPES.join(" "),
-          },
-        },
-      })
-    );
-  }
+  /* Third-party sign-in: only the providers that are configured. */
+  providers.unshift(...buildSignInProviders(providerConfig));
 
   return {
-    adapter: withEncryptedAccountTokens(
-      PrismaAdapter(prisma) as NonNullable<NextAuthOptions["adapter"]>
+    adapter: withCaseInsensitiveEmailLookup(
+      withEncryptedAccountTokens(
+        PrismaAdapter(prisma) as NonNullable<NextAuthOptions["adapter"]>
+      )
     ),
     // Add secret for production - required for security
     secret: authSecret(),
 
     providers,
     callbacks: {
-      async signIn({ user, account }) {
+      async signIn({ user, account, profile }) {
+        /* A provider identity joins an existing account only on an email
+           the provider verified (account-linking.ts); X never joins. */
+        const link = await accountLinkingGate({
+          provider: account?.provider,
+          providerAccountId: account?.providerAccountId,
+          profile: profile as Record<string, unknown> | undefined,
+        });
+        if (link !== true) return link;
         /* Registration is closed until launch: an OAuth return that would
-           create a user goes back to sign-in instead of into the adapter. */
-        const gate = await oauthSignInGate({
+           create a user goes back to sign-in instead of into the adapter.
+           The same gate covers every provider. */
+        return oauthSignInGate({
           provider: account?.provider,
           providerAccountId: account?.providerAccountId,
           email: user.email,
         });
-        if (gate !== true) return gate;
-        if (account?.provider !== "credentials" && user.email) {
-          await prisma.user.updateMany({
-            where: { email: user.email },
-            data: { lastAuthenticatedAt: newDate() },
-          });
-        }
-        return true;
       },
       // This branch's jwt supersedes main's: it keeps token.sub and the role
       // instead of early-returning a fresh token object that dropped both.
@@ -167,6 +144,14 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
         if (account) {
           token.expiresAt = account.expires_at;
           token.provider = account.provider;
+          if (account.type === "oauth" && user?.id) {
+            /* Fresh proof of identity for account re-authentication. By id:
+               an X account may have no email at all. */
+            await prisma.user.updateMany({
+              where: { id: user.id },
+              data: { lastAuthenticatedAt: newDate() },
+            });
+          }
           if (account.type === "oauth" && user?.id && user.email) {
             await markEmailVerifiedAndStartTrial({
               userId: user.id,
@@ -216,6 +201,11 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
          adapter created the user on this very callback. */
       newUser: NEW_ACCOUNT_PATH,
     },
+    /* Apple's form_post callback needs the PKCE, state and nonce cookies
+       sent cross-site; see crossSiteCallbackCookies. */
+    ...(isProviderConfigured("apple", providerConfig)
+      ? { cookies: crossSiteCallbackCookies(process.env.NEXTAUTH_URL) }
+      : {}),
     debug: process.env.NODE_ENV === "development",
     session: {
       strategy: "jwt",
