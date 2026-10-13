@@ -473,13 +473,48 @@
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
     min-height: 100dvh;
-    overscroll-behavior-x: none;
+    overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overscroll-behavior: none;
+    background-color: var(--surface-canvas);
+  }
+
+  /* Chrome is not text: no selection loupe or callout on taps. Content and
+     inputs stay selectable. */
+  button,
+  nav,
+  [role="tab"],
+  [role="tablist"],
+  [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* iOS zooms any focused field under 16px; phones only so desktop keeps
+     the 13px chrome scale. */
+  @media (max-width: 699px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select,
+    [contenteditable="true"] {
+      font-size: 16px;
+    }
   }
 
   button,
   a,
-  [role="button"] {
+  input,
+  select,
+  textarea,
+  label,
+  [role="button"],
+  [role="tab"] {
     touch-action: manipulation;
   }
 
