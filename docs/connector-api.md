@@ -10,6 +10,138 @@ Authorization: Bearer needt_...
 Content-Type: application/json
 ```
 
+## MCP (Claude Code, Claude Desktop, claude.ai, ChatGPT)
+
+Needt runs a remote MCP server (Streamable HTTP, stateless, JSON responses,
+POST only, protocol versions `2025-11-25`, `2025-06-18`, `2025-03-26`,
+`2024-11-05`). JSON-RPC batches are refused (`-32600`).
+
+| URL                             | Who uses it                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `https://mcp.needt.app/mcp`     | Canonical resource; OAuth clients (claude.ai, ChatGPT)   |
+| `https://use.needt.app/api/mcp` | Clients that send a personal `needt_…` token in a header |
+
+With a personal token:
+
+1. Settings -> Personal API -> Generate token (shown once; rotating it
+   disconnects every agent).
+2. Connect:
+
+```bash
+claude mcp add --transport http needt https://use.needt.app/api/mcp \
+  --header "Authorization: Bearer needt_REPLACE_ME"
+```
+
+Clients that only launch local processes can use the stdio bridge in `mcp/`.
+
+### Authorization
+
+A request without a usable token gets `401` with
+
+```http
+WWW-Authenticate: Bearer resource_metadata="https://mcp.needt.app/.well-known/oauth-protected-resource/mcp", scope="needt.read needt.write mail.read"
+```
+
+The metadata (RFC 9728) is served at
+`/.well-known/oauth-protected-resource` and
+`/.well-known/oauth-protected-resource/mcp` on both hosts. It names the
+resource `https://mcp.needt.app/mcp` and the authorization server
+`https://use.needt.app`.
+
+| Scope         | Allows                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `needt.read`  | Search, list and read tasks, projects, events, pages, habits                                                           |
+| `needt.write` | Create and change them, run the scheduler                                                                              |
+| `mail.read`   | Mail metadata (sender, subject, snippet, labels; never the body) in search, `needt_list`/`needt_get` with `type: mail` |
+
+A personal token carries all three and is not tied to a workspace. A call
+that needs a scope the token lacks gets `403` with
+`WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
+scope; search without `mail.read` simply leaves mail out.
+
+The same token rules apply to the `/api/connect/*` routes below: reads need
+`needt.read`, writes `needt.write`.
+
+### OAuth (claude.ai, ChatGPT, Claude Code)
+
+Add `https://mcp.needt.app/mcp` as a custom connector; the client finds
+everything else itself. The authorization server is the app,
+`https://use.needt.app` (RFC 8414 metadata at
+`/.well-known/oauth-authorization-server`):
+
+| Endpoint               | Notes                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /oauth/authorize` | Signs the person in if needed, then asks: client name, where it returns, scopes (mail is its own tick box), one workspace       |
+| `POST /oauth/token`    | `authorization_code` (PKCE S256 only) and `refresh_token`; form-encoded; `resource` must be `https://mcp.needt.app/mcp` exactly |
+| `POST /oauth/register` | RFC 7591 dynamic registration, public clients (`token_endpoint_auth_method: none`)                                              |
+| `POST /oauth/revoke`   | RFC 7009; revoking either token ends the whole grant                                                                            |
+
+- Clients are public (no secret). A client may also be identified by the
+  https URL of its client metadata document (CIMD): Needt fetches it over
+  https only, refusing private and loopback addresses (also after
+  redirects), with a timeout and a 64 KB cap, caches it for a day, and
+  checks `redirect_uri` against it.
+- Redirect URIs are https, or http on a loopback address; a loopback
+  redirect matches any port (native clients such as Claude Code).
+- Every authorization response carries `iss` (RFC 9207).
+- Codes live 60 seconds and work once; a replayed code revokes what it
+  produced. Access tokens live 1 hour, refresh tokens 30 days. Refresh
+  tokens rotate; presenting a rotated one revokes the whole grant.
+- Tokens are opaque and stored only as hashes. The person sees and
+  disconnects apps in Settings › Connected apps (`GET /api/oauth/connected-apps`,
+  `DELETE /api/oauth/connected-apps/:id`).
+
+### Workspaces
+
+Every tool takes an optional `workspaceId` argument (OAuth clients cannot
+send headers). Header clients can also send `x-workspace-id: <id>`.
+`needt_whoami` lists the person's workspaces. Without either, calls act in
+the personal workspace — or, for an OAuth grant, in the workspace chosen at
+consent; an OAuth grant cannot act in any other.
+
+### Tools
+
+Every tool carries `readOnlyHint` and `destructiveHint` annotations.
+
+| Tool                     | Scope                                          | What it does                                                                                                                                   |
+| ------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`           | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                           |
+| `needt_search`           | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                |
+| `needt_list`             | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`                                |
+| `needt_get`              | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                   |
+| `needt_create_task`      | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered) and `dependsOnId`, so a task and its steps arrive in one call |
+| `needt_schedule`         | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                    |
+| `needt_reschedule`       | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                 |
+| `needt_control`          | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                      |
+| `needt_update_task`      | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId; other fields are refused        |
+| `needt_add_subtasks`     | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                |
+| `needt_complete_subtask` | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                             |
+| `needt_complete_task`    | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                         |
+| `needt_create_event`     | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                |
+| `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                           |
+| `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                           |
+| `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                    |
+
+`needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
+run the connector routes in-process with the caller's own token, so auth,
+workspace scoping and confirmation rules are the routes' own. The other write
+tools call the services the app's own routes use (task update, page write
+path, habit completion, local events) after resolving the workspace with an
+editor role, so validation, plan limits and side effects match the app. Pages
+and blocks written through MCP are marked as AI-authored. MCP calls are not
+metered as AI actions.
+
+### Limits
+
+| Limit                   | Per minute |
+| ----------------------- | ---------- |
+| Every call, per person  | 120        |
+| Write tools, per person | 30         |
+| Every call, per IP      | 600        |
+
+The per-IP limit is generous because hosted clients share a few egress
+addresses. Over a limit the answer is `429` with `Retry-After`.
+
 ## Create Task
 
 ```bash
@@ -23,12 +155,30 @@ curl -X POST http://localhost:3000/api/connect/tasks \
     "deadline": "2026-07-08T17:00:00.000Z",
     "priorityLevel": "HIGH",
     "energyRequired": "MEDIUM",
-    "contextTag": "resale-photos"
+    "contextTag": "resale-photos",
+    "projectId": "project_id",
+    "entry": "Open the first folder",
+    "subtasks": ["Cull the blurry shots", { "title": "Edit the keepers" }, "Upload"]
   }'
 ```
 
 The task is created as auto-scheduled and Needt immediately runs the deterministic scheduler.
-The response includes the task plus `scheduledBlocks` when the task is split into multiple chunks.
+The response includes the task plus `scheduledBlocks` when the task is split into multiple chunks, and its `parts` (the subtasks) in order.
+
+### Subtasks
+
+A task is the **closing step** of its own small chain: `entry` is the very first
+small step (about two minutes), `subtasks` are the steps in the order they are
+done (one level, up to 30, each up to 160 characters), and the task itself is
+finished last, once every subtask is done. In the app a project page draws them
+in that order with the task last. `dependsOnId` names the one existing open task
+this one cannot start before (it is refused when it would make a loop). There is
+no `parentId`: a subtask is a part of its task, not a task of its own.
+
+Agents (MCP tools, Ask Needt) are told to break any non-trivial work this way;
+`needt_get` with `type: task` returns the subtasks with their ids, and
+`needt_complete_subtask` ticks them. Needt does not close the task for the agent:
+when `allDone` is `true` the agent closes the task with `needt_complete_task`.
 
 ## Read Schedule
 

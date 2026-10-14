@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { SharedFace } from "@/components/needt3/phone/places";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("shared");
 
 export const dynamic = "force-dynamic";
 

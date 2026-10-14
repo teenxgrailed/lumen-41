@@ -14,6 +14,16 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
+  // The application is private; only the landing on needt.app is indexable.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
+
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -67,6 +77,17 @@ const nextConfig = {
 
   async headers() {
     return [
+      {
+        // The OAuth consent page must never be framed (clickjacking).
+        source: "/oauth/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          // same-origin, not no-referrer: no-referrer makes Chrome send
+          // "Origin: null" on the consent POST, which the CSRF check refuses.
+          { key: "Referrer-Policy", value: "same-origin" },
+        ],
+      },
       {
         source: "/fonts/ds/:file*",
         headers: [

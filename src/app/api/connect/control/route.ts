@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  authenticateConnectorRequest,
   authenticateConnectorToken,
-  authorizeConnectorWorkspace,
 } from "@/services/connectors/auth";
+import { isConnectorControlAction } from "@/services/connectors/control-actions";
+import { createLocalEvent } from "@/services/connectors/local-events";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
-import { APP_NAME } from "@/lib/app-config";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -40,12 +41,16 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as Record<string, unknown>;
   const action = body.action;
-  const auth = await authorizeConnectorWorkspace(
+  if (!isConnectorControlAction(action)) {
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  }
+  // The shared check: scope for the role (a read-only grant cannot write)
+  // and an OAuth grant's bound workspace.
+  const auth = await authenticateConnectorRequest(
     request,
-    userId,
     action === "overview" ? WorkspaceRole.VIEWER : WorkspaceRole.EDITOR
   );
-  if ("response" in auth) return auth.response;
+  if (auth.response) return auth.response;
   const { workspace } = auth;
   const scope = workspaceDataScopeWhere(workspace, userId);
 
@@ -219,45 +224,23 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let feedId = typeof body.feedId === "string" ? body.feedId : undefined;
-    if (!feedId) {
-      const feed =
-        (await prisma.calendarFeed.findFirst({
-          where: { userId, type: "LOCAL" },
-          orderBy: { createdAt: "asc" },
-        })) ??
-        (await prisma.calendarFeed.create({
-          data: {
-            userId,
-            name: APP_NAME,
-            type: "LOCAL",
-            color: "#6366F1",
-            enabled: true,
-          },
-        }));
-      feedId = feed.id;
-    }
-    const ownedFeed = await prisma.calendarFeed.findFirst({
-      where: { id: feedId, userId },
+    const created = await createLocalEvent(userId, {
+      title: body.title,
+      start: body.start,
+      end: body.end,
+      allDay: body.allDay === true,
+      description:
+        typeof body.description === "string" ? body.description : null,
+      location: typeof body.location === "string" ? body.location : null,
+      feedId: typeof body.feedId === "string" ? body.feedId : undefined,
     });
-    if (!ownedFeed)
+    if (!created.ok) {
       return NextResponse.json(
-        { error: "Calendar not found" },
-        { status: 404 }
+        { error: created.error },
+        { status: created.status }
       );
-    const event = await prisma.calendarEvent.create({
-      data: {
-        feedId,
-        title: body.title.trim(),
-        start: newDate(body.start),
-        end: newDate(body.end),
-        description:
-          typeof body.description === "string" ? body.description : null,
-        location: typeof body.location === "string" ? body.location : null,
-        allDay: body.allDay === true,
-      },
-    });
-    return NextResponse.json(event, { status: 201 });
+    }
+    return NextResponse.json(created.event, { status: 201 });
   }
 
   if (action === "update_event") {

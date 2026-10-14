@@ -1,7 +1,7 @@
 # Needt
 
-Needt is an intelligent planner that combines tasks, calendars, documents, and
-focus sessions in one calm workspace. Its deterministic scheduler respects work
+Needt: Everything you're working on, in one place. It combines tasks,
+calendars, documents, mail, and focus sessions in one calm workspace. Its deterministic scheduler respects work
 hours, deadlines, dependencies, energy, and locked calendar blocks. Optional AI
 can help parse tasks or propose changes without becoming a hidden source of
 truth.

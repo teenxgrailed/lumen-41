@@ -43,18 +43,22 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
   await page.goto("/auth/signin");
 
   await expect(
-    page.getByText("Welcome back. Your day is where you left it.")
+    page.getByText("Sign in — your day is where you left it.")
   ).toBeVisible();
 
+  /* v3 asks for the address first; the password arrives under it. */
   const email = page.getByPlaceholder("you@example.com");
-  const password = page.getByPlaceholder("At least 8 characters");
+  const password = page.getByPlaceholder("Password", { exact: true });
+  const next = page.getByRole("button", { name: "Continue" });
 
   // The design's own refusals, both decided in the page.
+  await email.fill("nobody");
+  await next.click();
+  await expect(page.getByText("Include an @ in the address.")).toBeVisible();
+  await email.fill(VISUAL_TEST_EMAIL);
+  await next.click();
   await password.fill("short");
   await expect(page.getByText("Use at least 8 characters.")).toBeVisible();
-  await email.fill("nobody");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByText("Include an @ in the address.")).toBeVisible();
 
   /* A failed OAuth return arrives as a query parameter and has to be
      announced, not just drawn — `tests/onboarding.spec.ts` pins the role. */
@@ -65,6 +69,7 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
 
   await page.goto("/auth/signin");
   await email.fill(VISUAL_TEST_EMAIL);
+  await next.click();
   await password.fill(VISUAL_TEST_PASSWORD);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
@@ -83,8 +88,10 @@ test("Sign-up offers itself only where it is allowed", async ({ page }) => {
     route.fulfill({ json: { enabled: false } })
   );
   await page.goto("/auth/signin");
-  await expect(page.getByText("Welcome back.")).toBeVisible();
+  await expect(page.getByText("Sign in — your day")).toBeVisible();
   await expect(page.getByRole("button", { name: "Create one" })).toHaveCount(0);
+  // Closed registration points to the waitlist instead.
+  await expect(page.locator("[data-auth-waitlist]")).toBeVisible();
 
   await page.unroute("**/api/auth/public-signup");
   await page.route("**/api/auth/public-signup", (route) =>
@@ -93,7 +100,8 @@ test("Sign-up offers itself only where it is allowed", async ({ page }) => {
   await page.goto("/auth/signin");
   await page.getByRole("button", { name: "Create one" }).click();
 
-  await expect(page.getByPlaceholder("you@example.com")).toBeVisible();
+  await page.getByPlaceholder("you@example.com").fill("new@example.com");
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByPlaceholder("At least 8 characters")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Create account" })

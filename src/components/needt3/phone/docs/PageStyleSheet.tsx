@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { LuBan, LuImage, LuLock, LuUpload } from "react-icons/lu";
+import { LuBan, LuImage, LuLock, LuPalette, LuUpload } from "react-icons/lu";
 
 import type { V3Doc } from "@/lib/needt3/map";
 
@@ -16,6 +16,7 @@ import { DcCover, docsCopy } from "../../docs/DocParts";
 import { backdropVars } from "../../docs/backdrop";
 import { isProStyleValue } from "../../docs/pro-style";
 import {
+  COVER_ARTS,
   DOC_BACKDROPS,
   DOC_DEFAULT,
   DOC_FONTS,
@@ -23,6 +24,7 @@ import {
   DOC_PRESETS,
   type DocStyle,
   type TokenReader,
+  coverArtValue,
   pageOf,
   pageVars,
   presetOf,
@@ -124,8 +126,8 @@ const bgIcon = (k: BgKind) =>
  * opens. It writes the desktop Style panel's fields through `useStyleWrite`,
  * with the same Pro gates: a Gradient or Image backdrop, and every preset but
  * Default, are Pro; colour, cover and font are free.
- * Not offered, as on the desktop: the drawn cover arts (the editor draws the
- * cover as a picture URL) and Separator Style.
+ * Not offered, as on the desktop: Separator Style. The drawn cover arts are
+ * (None / Art / Image), stored as `art:<theme>` like the desktop's.
  */
 export function PageStyleSheet({
   doc,
@@ -235,25 +237,53 @@ export function PageStyleSheet({
 
           <section className="pd-ps-group">
             <span className="pd-ps-label">Cover</span>
-            <Seg<"none" | "image">
+            <Seg<"none" | "art" | "image">
               label="Cover"
               attr="data-pd-cover"
               value={cover}
               items={[
                 { id: "none", label: "None", icon: bgIcon("none") },
+                {
+                  id: "art",
+                  label: "Art",
+                  icon: <LuPalette size={16} aria-hidden />,
+                },
                 { id: "image", label: "Image", icon: bgIcon("image") },
               ]}
               onChange={(k) => {
                 if (k === "none") {
-                  if (cover === "image") {
+                  if (cover !== "none") {
                     w.set(
                       { cover: null },
                       docsCopy.DocumentScreen.cover_removed
                     );
                   }
+                } else if (k === "art") {
+                  if (cover !== "art")
+                    w.set({ cover: coverArtValue(COVER_ARTS[0]) });
                 } else if (cover !== "image") pickFile();
               }}
             />
+            {cover === "art" ? (
+              <div className="pd-ps-arts">
+                {COVER_ARTS.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    className={
+                      "pd-ps-art" +
+                      (s.cover === coverArtValue(a) ? " is-on" : "")
+                    }
+                    aria-pressed={s.cover === coverArtValue(a)}
+                    aria-label={`Cover ${a}`}
+                    data-pd-art={a}
+                    onClick={() => w.set({ cover: coverArtValue(a) })}
+                  >
+                    <DcCover cover={coverArtValue(a)} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {cover === "image" ? (
               <div className="pd-ps-cover-row">
                 <span className="pd-ps-cover-pic">

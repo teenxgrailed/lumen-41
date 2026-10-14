@@ -147,7 +147,8 @@ export function PublicPageView({ token }: { token: string }) {
     return () => source.close();
   }, [token, unavailableReason]);
 
-  if (unavailableReason) return <PublicPageUnavailable reason={unavailableReason} />;
+  if (unavailableReason)
+    return <PublicPageUnavailable reason={unavailableReason} />;
 
   if (!page) {
     return (
@@ -162,7 +163,8 @@ export function PublicPageView({ token }: { token: string }) {
 
   return (
     <main className="min-h-dvh bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      {page.coverUrl && (
+      {/* //todo: a drawn cover ("art:<theme>") is not drawn on the public page. */}
+      {page.coverUrl && !page.coverUrl.startsWith("art:") && (
         <div
           className="h-40 w-full bg-cover bg-center sm:h-56"
           style={{ backgroundImage: `url(${page.coverUrl})` }}

@@ -12,7 +12,7 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="needt-page-depth flex min-h-screen flex-col items-center justify-center p-4 text-center text-[var(--text-primary)]">
+    <div className="needt-page-depth flex min-h-dvh flex-col items-center justify-center p-4 text-center text-[var(--text-primary)]">
       <h1 className="mb-4 text-4xl font-bold">404 - Page Not Found</h1>
       <p className="mb-6">
         The page you&apos;re looking for doesn&apos;t exist or has been moved.

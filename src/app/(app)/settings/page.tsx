@@ -2,6 +2,9 @@ import { SettingsRedirect } from "@/components/needt3/settings/SettingsRedirect"
 import { SettingsRoute } from "@/components/needt/settings";
 
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("settings");
 
 export const dynamic = "force-dynamic";
 

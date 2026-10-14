@@ -95,6 +95,9 @@ const SPEC = {
   figma: ["Figma", "logos:figma", "#1E1E1E", 0.58],
   miro: ["Miro", "si:miro", "#FFD02F", 0.54, "#050038"],
   canva: ["Canva", "devicon:canva", W, 0.82],
+  /* Social sign-in */
+  x: ["X", "si:x", "#000000", 0.5, W],
+  linkedin: ["LinkedIn", "logos:linkedin-icon", W, 0.6],
   pinterest: ["Pinterest", "si:pinterest", "#E60023", 0.66, W],
   spotify: ["Spotify", "si:spotify", "#121212", 0.64, "#1ED760"],
   /* Developer */

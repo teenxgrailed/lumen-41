@@ -11,6 +11,196 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   push, OAuth, hosted AI, Sentry, collaboration, Redis, webhooks, cron — as
   configured or not, with a live check for Redis and the collaboration
   server and a button that sends one Sentry test event. Never a secret value.
+- Ask Needt works on the phone. The sheet no longer says it is not connected:
+  it talks to the same assistant as the desktop panel, with the same thread
+  (one conversation, kept when the window crosses 700 px), six suggestions that
+  follow what you are looking at (a doc, a task, the day), Thinking, streaming
+  and Stop, Confirm for actions it asks about, and the same reasons when the
+  plan or the monthly allowance does not cover it, with See plans on Free.
+  Attach is drawn and off.
+- No more dark flash on first paint for a Light choice (or a Time choice at
+  night, or System on a dark OS). The server reads the saved theme and accent
+  and renders the page in them, a pre-paint script settles System and Time,
+  and `color-scheme`, `theme-color` and the page behind the app follow the
+  theme from the first byte. Your choice is unchanged.
+
+- Ask Needt (⌘J) now opens as a full-height panel docked on the right of the
+  window (a sheet over a scrim below 1100 px), as in the design: a context chip
+  for the task, doc or day it is looking at, a greeting by name, six suggestion
+  cards that follow that context, `/` commands, `@` mentions and ↑ to edit your
+  last line. Attachments are shown but disabled until the AI backend takes files.
+- Proactive nudges now reach the app: a painted-sky tip above the Ask pill
+  ("2 hours opened up … Fill it") shows what the nudge job noticed. Fill it runs
+  the scheduler (preview, then apply) and the notice that follows has Undo. The
+  nudge job also detects free stretches of two hours or more (new `FREE_TIME`
+  nudge, Pro). The bell lists the latest nudges, marks them read and has "Mark
+  all as read" and "Reload".
+- `GET /api/notifications?peek=1` reads nudges without marking them delivered;
+  `PATCH /api/notifications` accepts `{ "all": true }`.
+
+- Connections: every connector said "Not set up on this server yet." The
+  catalog looked for credentials in the environment only (and for
+  `OUTLOOK_CLIENT_ID`, which nothing else reads), so a server configured in
+  System settings still reported nothing as set up, and the mailboxes claimed to
+  be ready regardless. Google and Microsoft now come from the same lookup as the
+  sign-in routes, a mailbox is ready when its calendar is, and the Composio apps
+  need `COMPOSIO_API_KEY`. The admin is told what to add; everyone else no
+  longer sees a connector the server cannot start (and Settings → Import does
+  the same for Notion and Todoist). What each connector needs:
+  `docs/operations/connectors-status.md`.
+- Connections: a refused Google or Outlook start (calendar or mailbox limit) is
+  now a notice instead of a raw JSON page, and cancelling on an app's consent
+  page no longer marks it connected.
+- Connect Apple / iCloud: rebuilt to the connect dialog. One title, a one-line
+  lead, four compact rows on the 105 / 32 form row, one outcome line, Test
+  connection · Cancel · Connect. It no longer shows a card inside the sheet,
+  required asterisks, stacked help text or a browser alert, and password
+  managers no longer draw over the fields.
+- Document rail, desktop: the left panel has the prototype's four tabs. Tasks in
+  this document lists every to-do in the page's text under the heading it sits
+  in, and every task the page links to; ticking a row ticks the box in the text,
+  a row scrolls to it, and completed ones are hidden until asked for. Files lists
+  what is attached to the page (pictures as a grid, the rest as rows with kind
+  and size), and the plus adds a file (10 MB at most).
+- Document covers: the Style panel (desktop) and Page Style (phone, None / Art /
+  Image) offer the eight drawn cover arts. An art is stored as `art:<theme>` in
+  the page's `coverUrl` and drawn from the theme's colours, in the document, the
+  Documents grid and the phone reader. The public page does not draw it yet.
+- Templates, desktop and phone: the six templates that come with Needt (Daily
+  note, Weekly review, Product drop, Meeting notes, Resale listing, Project
+  brief) are listed after your own, each with a miniature of its blocks. Use
+  makes a real page with the template's blocks and page colour through
+  `POST /api/pages` and `PUT /api/pages/:id/blocks`, opens it, and Undo sends it
+  to Trash. Page colours are free ones, so a template works on every plan.
+- Trash, desktop and phone: pages are listed (with Restore and Undo), and pages
+  and moodboards can be deleted for good, one at a time or with Empty Trash.
+  Both ask first in a dialog (a sheet on the phone) that says there is no Undo,
+  and Empty Trash says how many tasks stay (tasks still have no permanent
+  delete). New `DELETE /api/pages/:id?permanent=true` deletes a page that is
+  already in Trash; a live page is refused with 409.
+- Projects, desktop and phone: a task with subtasks is drawn as a chain. Its
+  first step is on top, the subtasks follow in the order they are done, and the
+  task itself comes last as the closing step ("Last step · 1 of 3 done"); a
+  hairline joins the checks. Ticking the last open subtask closes the task with
+  it in one write and one Undo. A task that waits on an open task comes after
+  it, says "Waits on ..." under its row, and on the phone cannot be swiped to
+  tomorrow or dragged to another day.
+- Ask Needt and Needt MCP break work into subtasks. `create_task` /
+  `needt_create_task` take `entry` (the first small step), `subtasks` in order,
+  `projectId` and `dependsOnId`, so a task and its steps arrive in one call;
+  new `add_subtasks` / `needt_add_subtasks` and `complete_subtask` /
+  `needt_complete_subtask` tools (the answer says when every subtask is done and
+  the task itself is the last step); `needt_update_task` also sets `entry` and
+  `dependsOnId` (loops refused); `needt_get` / `needt_list` return a task's
+  subtasks. The brain-dump parser and Quick add turn "entry" and "subtasks" into
+  the task's first step and subtasks. Tool descriptions and the assistant's
+  system prompt tell models to put the entry step first and the task last.
+  `docs/connector-api.md` lists the new tools and fields.
+- The "Add a task" line inside a project no longer draws two focus rings: one
+  ring, a quiet hover, a fade instead of a jump, "Enter to add" always in place
+  so the line does not reflow while you type, an IME candidate's Enter does not
+  add, Esc clears and leaves.
+- Task dialog: an empty Project chip reads "Project" instead of "+ Project";
+  the picker only chooses an existing project, and projects are made on
+  Projects.
+
+- The Focus window is built (new design): the sidebar pill, ⌘⇧F, Home's Start
+  focus and a task's Start focus open it — setup (purpose, 25/50/90/custom
+  length, task, ambient sound), the running clock with Pause, +5 min and Stop
+  (ending early takes two presses a few seconds apart), and the End view with
+  what next. The session lives on the server, so it survives a reload and the
+  window crossing to the phone layout; the pill shows the clock and ring, the
+  tab title shows the time left, and Start focus says "Focus started · 25 min
+  on “task”". On the phone it is a full sheet. Ambient sound and "Hide other
+  tasks" are remembered but do nothing yet.
+- The app has its own icon: the dark Needt tile in the browser tab, the
+  installed app, the home-screen touch icon and notifications, so an app tab is
+  told apart from a needt.app tab at a glance.
+- Browser tabs name the section you are in and nothing else: Home, Calendar,
+  Tasks, Docs, Mailbox, Projects, Moodboards, Habits, Templates, Shared, Trash,
+  Connections, Settings and so on. A document, moodboard or project shows its
+  own name.
+- Adding a task from the v3 quick-add no longer fails with "Could not create the task":
+  `POST /api/tasks` now opens the task as `todo` when the request names no status.
+- Connections › AI tools is now real (Pro): one card per AI tool with numbered
+  setup steps, a one-click access token (shown once, ready-to-copy
+  `claude mcp add` command, rotating disconnects agents) and the apps signed in
+  through Needt MCP with Disconnect; desktop and phone. Claude, ChatGPT and
+  Perplexity stay "opens soon" until `NEXT_PUBLIC_MCP_OAUTH_URL` is set.
+- Desktop shell: sidebar tiles, menu rows and other button-like links no longer
+  underline on hover or focus (keyboard focus keeps its ring). Tooltips are
+  Craft-style: they appear after about 0.6 s, open at once when you move to a
+  neighbouring one, fade in 120 ms, go away on press or scroll, and show the
+  shortcut at the right (for example "Toggle sidebar visibility" with the key
+  in a muted badge). The browser's own `title` tooltips in the shell use the
+  same look. The Help menu gains Report a problem (sends to the bug reports),
+  the Needt Pro card shows above the sidebar footer for Free accounts, and an
+  Import button (Notion, Todoist) appears beside Focus when imports are on.
+- Bug reports no longer default to a public GitHub repository: the GitHub copy is
+  sent only when both `GITHUB_BUG_REPORT_TOKEN` and `GITHUB_BUG_REPORT_REPO` are set.
+- The Time theme now colours the page background too: in the evening and early
+  morning the background stayed Dark-grey while the controls followed Time.
+- Remote MCP: new write tools `needt_update_task`, `needt_complete_task`,
+  `needt_create_event`, `needt_create_page`, `needt_append_page` and
+  `needt_log_habit`, and `moodboard` in `needt_list`/`needt_get`. They use the
+  same task, page, habit and calendar services as the app, inside the
+  workspace the connection may act in.
+- Connect Needt to claude.ai, ChatGPT or Claude Code without pasting a token:
+  `https://mcp.needt.app/mcp` signs you in through Needt (OAuth 2.1 with
+  PKCE). You choose what the app may do — read, write, and mail as a
+  separate tick — and which workspace it is limited to; Settings ›
+  Connected apps lists every app and disconnects it at once.
+- The installed phone app now feels native: no pull-to-refresh or rubber-band
+  bounce, no pinch or double-tap zoom, full-bleed under the notch and home
+  indicator, and PNG home-screen icons for iOS. Disabling zoom reduces accessibility; this was a deliberate choice.
+- The product line is now "Needt: Everything you're working on, in one place" in
+  the page title, link previews, the installed app name and the README.
+- The new Needt icon is now the browser tab icon, the home-screen icon (iOS and
+  Android, including a maskable one) and the push-notification icon.
+- More ways to sign in: Apple, GitHub, Sign in with ChatGPT, Discord, X and
+  LinkedIn join Google and Microsoft. The sign-in and sign-up screens (desktop
+  and phone) show Google, Apple and GitHub; "More ways to sign in" reveals the
+  rest. A provider shows only once it is configured in System Settings
+  (secrets encrypted) or the environment. A provider sign-in joins an existing
+  account only on an email the provider verified; otherwise it is refused
+  with "sign in the way you did before", and X never joins an existing
+  account. Closed registration applies to every provider. Microsoft sign-in
+  no longer asks for calendar and task access (the Outlook connection does).
+  Owner setup: `docs/operations/sign-in-providers.md`.
+
+- Design v3 for everyone: a migration turns the `design_v3` flag on at a
+  100 % rollout, so sign-in, sign-up and password recovery wear the v3
+  screens for every visitor and every signed-in person lands in the v3 app.
+  A brand-new account (credentials or OAuth) goes on to the v3 first-run
+  setup; people who already use Needt go straight to the app. A
+  `FeatureFlagOverride` set to false still keeps one person on the old design.
+- The pages the reset and confirmation mails open are v3 too, on desktop and
+  phone: "Set a new password" (same server rule and rate limits; a dead link
+  offers a new one) and "Confirm your email" (confirm on a press, then
+  continue to the app; an expired or used link sends a new one).
+  `/auth/reset-password` without a token opens sign-in on "Forgot your
+  password?".
+- Remote MCP: the server is ready for `https://mcp.needt.app/mcp` — the
+  host serves only `/mcp` and its OAuth protected-resource metadata, which
+  the `401` challenge now points at. Tokens carry scopes (`needt.read`,
+  `needt.write`, `mail.read`; a personal token has all three) and a call
+  without the scope it needs gets `403 insufficient_scope`. The connector
+  routes read the same tokens. New `needt_whoami` tool; every tool takes an
+  optional `workspaceId` and says whether it reads or writes. Protocol
+  `2025-11-25`; JSON-RPC batches are refused. Limits: 120 calls/min and 30
+  writes/min per person, 600 calls/min per IP.
+- Claude Code, Claude Desktop and other agents connect to Needt directly at
+  `/api/mcp` with the personal access token. They can search, list and read
+  tasks, projects, calendars, events, pages, habits and mail, and create and
+  change tasks, projects and events. Settings → Personal API shows the URL
+  and the one-line `claude mcp add` command. The local stdio server is now a
+  thin bridge to the same endpoint, so it gained the restore actions it was
+  missing.
+- The application at use.needt.app asks not to be indexed: `/robots.txt`
+  disallows everything and is readable without signing in, and every response
+  carries `X-Robots-Tag: noindex, nofollow`. The worker can ping an external
+  uptime monitor (`NEEDT_HEARTBEAT_URL`), and cookieless Umami analytics load
+  when `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is set at build time.
 - Moodboards (design v3) get the grid logic of the design on desktop and phone.
   A board is a grid of pictures, links, colours and notes: Add (Upload images,
   drop, paste a picture, a link or a hex with ⌘V, Colour, Note), a reference
@@ -122,6 +312,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and syncs them; before, the account had no calendars and the calendar stayed
   empty. A CalDAV fetch that fails no longer archives every event of the
   calendar, and events the server returns again come back.
+- Legal: `/privacy`, `/terms` and a new `/subprocessors` page now publish
+  the final Privacy Notice, Terms of Service and subprocessor list in place of
+  the draft placeholders. The operator's name, the EU representative, and the
+  effective date live in one module, `src/lib/legal/operator.ts`. Settings
+  links to all three documents.
+- Trial records whose account was deleted are removed two years after the
+  trial ended.
 
 - Operations and undo: task, project, schedule, mail-to-task and habit
   changes now have one registry (`src/services/ops`) with strict inputs and

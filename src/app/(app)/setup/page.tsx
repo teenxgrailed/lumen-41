@@ -7,12 +7,13 @@ import { SetupForm } from "@/components/setup/SetupForm";
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 import { checkSetupStatus } from "@/lib/setup-actions";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: `Setup ${APP_NAME}`,
+  title: SECTION_TITLES.setup,
   description: `Set up your ${APP_NAME} account`,
 };
 
@@ -33,7 +34,7 @@ export default async function SetupPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 text-foreground">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background p-4 text-foreground">
       <div className="mb-8 text-center">
         <h1 className="mb-2 text-4xl font-bold">{APP_NAME} Setup</h1>
         <p className="text-muted-foreground">

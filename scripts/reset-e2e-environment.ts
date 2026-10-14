@@ -6,8 +6,10 @@ import {
 /**
  * `NEEDT_DESIGN=v3 npm run test:visual …` runs the suite against the v3
  * frame: the visual user gets a `design_v3` override. Without the variable
- * nothing is written and the visual user sees the old design, which is what
- * the committed baselines are.
+ * nothing is written here, but since 20261012120000_design_v3_everyone the
+ * migrations themselves turn `design_v3` on for everybody, so every run sees
+ * v3. Baselines committed before that migration show the old design and are
+ * refreshed through the baseline workflow, not by this script.
  *
  * The visual user is created here (by email, the same upsert key the visual
  * global setup uses) because the reset above wipes the database first.

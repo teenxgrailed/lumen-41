@@ -114,6 +114,21 @@ export interface SystemSettings {
   outlookClientId?: string;
   outlookClientSecret?: string;
   outlookTenantId?: string;
+  /* Sign-in providers; the secrets arrive masked (SECRET_MASK). */
+  appleClientId?: string;
+  appleTeamId?: string;
+  appleKeyId?: string;
+  applePrivateKey?: string;
+  githubClientId?: string;
+  githubClientSecret?: string;
+  discordClientId?: string;
+  discordClientSecret?: string;
+  twitterClientId?: string;
+  twitterClientSecret?: string;
+  linkedinClientId?: string;
+  linkedinClientSecret?: string;
+  openaiSiwcClientId?: string;
+  openaiSiwcClientSecret?: string;
   logLevel: "none" | "debug";
   logRetention?: LogRetention; // Retention periods per log level
   logDestination?: string; // "db", "file", or "both"

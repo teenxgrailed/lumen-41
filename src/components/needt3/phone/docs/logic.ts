@@ -10,7 +10,7 @@ import type { V3Doc } from "@/lib/needt3/map";
 import { ageLabel } from "../../docs/labels";
 import { proStyleChanges } from "../../docs/pro-style";
 import { DOC_SORTS, type DocSort } from "../../docs/sort";
-import { type DocStyle, stylePatch } from "../../docs/style";
+import { type DocStyle, coverArtId, stylePatch } from "../../docs/style";
 
 /* ── the list ── */
 
@@ -138,10 +138,10 @@ export function bgChoice(
 
 /* ── Page Style: the Pro gate (the desktop's rule, ../../docs/pro-style) ── */
 
-/** The cover choices: pictures only (the editor draws `coverUrl` as a URL). */
-export type CoverKind = "none" | "image";
+/** The cover choices: none, one of the drawn arts (`art:<theme>`), or a picture. */
+export type CoverKind = "none" | "art" | "image";
 export const coverKind = (cover: string | null): CoverKind =>
-  cover ? "image" : "none";
+  cover ? (coverArtId(cover) ? "art" : "image") : "none";
 
 type StyledDoc = Pick<V3Doc, "coverUrl" | "style">;
 

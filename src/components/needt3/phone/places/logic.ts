@@ -13,6 +13,7 @@ import {
   chipOf,
   chipsOf,
 } from "../../connections/derive";
+import { aiSub } from "../../connections/mcp";
 import type { ConnectionsTab } from "../../connections/useConnectionsController";
 import { trashMeta } from "../../places/derive";
 
@@ -22,9 +23,10 @@ import { trashMeta } from "../../places/derive";
 export function connectionsSub(
   items: readonly CnItem[],
   tab: ConnectionsTab,
-  loaded: boolean
+  loaded: boolean,
+  aiApps = 0
 ) {
-  if (tab === "ai") return "No AI tools connected yet";
+  if (tab === "ai") return aiSub(aiApps);
   if (!loaded) return "";
   const issues = items.filter((i) => i.state === "disconnected");
   if (issues.length)
@@ -206,23 +208,29 @@ export function roleView(role: string | null | undefined): RoleView {
 /* ---------- trash ---------- */
 
 export interface TrashRowModel {
-  kind: "task" | "board";
+  kind: "page" | "task" | "board";
   id: string;
   title: string;
   meta: string;
 }
 export interface TrashSection {
-  id: "tasks" | "moodboards";
+  id: "pages" | "tasks" | "moodboards";
   label: string;
   glyph: string;
   rows: TrashRowModel[];
 }
 
 /**
- * Trash's sections: tasks, then moodboards (pages wait for a list route).
+ * Trash's sections: pages, tasks, then moodboards (the desktop's order).
  * Newest deletion first inside each.
  */
 export function trashSectionsOf(args: {
+  pages?: readonly {
+    id: string;
+    title: string;
+    trashedAt: string | null;
+    projectId: string | null;
+  }[];
   tasks: readonly {
     id: string;
     title: string;
@@ -236,20 +244,29 @@ export function trashSectionsOf(args: {
 }): TrashSection[] {
   const newest = <T extends { trashedAt: string | null }>(a: T, b: T) =>
     String(b.trashedAt).localeCompare(String(a.trashedAt));
-  const tasks = [...args.tasks].sort(newest).map((t): TrashRowModel => {
-    const from = args.projectName(t.projectId);
-    return {
-      kind: "task",
-      id: t.id,
-      title: t.title || "Untitled",
-      meta: trashMeta(
-        t.trashedAt!,
-        args.now,
-        args.timeZone,
-        from ? `from ${from}` : undefined
-      ),
+  const row =
+    (kind: "page" | "task") =>
+    (t: {
+      id: string;
+      title: string;
+      trashedAt: string | null;
+      projectId: string | null;
+    }): TrashRowModel => {
+      const from = args.projectName(t.projectId);
+      return {
+        kind,
+        id: t.id,
+        title: t.title || "Untitled",
+        meta: trashMeta(
+          t.trashedAt!,
+          args.now,
+          args.timeZone,
+          from ? `from ${from}` : undefined
+        ),
+      };
     };
-  });
+  const pages = [...(args.pages ?? [])].sort(newest).map(row("page"));
+  const tasks = [...args.tasks].sort(newest).map(row("task"));
   const boards = [...args.boards].sort(newest).map(
     (b): TrashRowModel => ({
       kind: "board",
@@ -259,6 +276,7 @@ export function trashSectionsOf(args: {
     })
   );
   return [
+    { id: "pages" as const, label: "Pages", glyph: "docs", rows: pages },
     { id: "tasks" as const, label: "Tasks", glyph: "tasks", rows: tasks },
     {
       id: "moodboards" as const,
@@ -273,7 +291,7 @@ export function trashSectionsOf(args: {
 export function trashSub(n: number) {
   return n
     ? `${n} ${n === 1 ? "item" : "items"} · kept 30 days`
-    : "Tasks and moodboards stay here for 30 days";
+    : "Pages, tasks and moodboards stay here for 30 days";
 }
 
 export function trashHits(sections: readonly TrashSection[], q: string) {

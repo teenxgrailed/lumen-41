@@ -7,9 +7,15 @@ import {
 import { z } from "zod";
 
 import { authenticateAccountRequest } from "@/lib/auth/account-request-auth";
+import {
+  SIGN_IN_PROVIDER_IDS,
+  type SignInProviderId,
+} from "@/lib/auth/sign-in-provider-ids";
 
 const requestSchema = z.object({
-  provider: z.enum(["google", "azure-ad"]),
+  provider: z.enum(
+    SIGN_IN_PROVIDER_IDS as [SignInProviderId, ...SignInProviderId[]]
+  ),
 });
 
 export async function POST(request: NextRequest) {

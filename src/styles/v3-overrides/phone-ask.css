@@ -1,0 +1,72 @@
+/* Design v3 phone — Ask Needt with a reply engine. HAND-WRITTEN additions to
+ * the vendored src/styles/v3/phone-overlays.css (.pov-ask-*), which is
+ * generated and has no rules for what a live thread needs: the New chat
+ * button, the Thinking line, a failed or stopped reply, the Confirm / See
+ * plans action, the Stop send state and the off Attach button. */
+.needt-v3 .pov-ask-head {
+  position: relative;
+}
+.needt-v3 .pov-ask-new {
+  margin-left: auto;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--pov-fill);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pov-ask-new:active {
+  transform: scale(0.94);
+  background: var(--pov-fill-2);
+}
+.needt-v3 .pov-ask-turn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.needt-v3 .pov-msg.is-failed {
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .pov-ask-think {
+  color: var(--v2p-ink-3);
+}
+.needt-v3 .pov-ask-action {
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--pov-fill);
+  color: var(--v2p-ink);
+  font: 500 15px/20px var(--font-sans);
+}
+.needt-v3 .pov-ask-action:active {
+  transform: scale(0.97);
+  background: var(--pov-fill-2);
+}
+.needt-v3 .pov-ask-field:has(.pov-ask-attach) {
+  padding-left: 4px;
+}
+.needt-v3 .pov-ask-attach {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: none;
+  color: var(--v2p-ink-3);
+}
+.needt-v3 .pov-ask-attach:disabled {
+  opacity: 0.45;
+}
+.needt-v3 .pov-ask-send.is-stop {
+  background: var(--pov-fill-2);
+  color: var(--v2p-ink);
+}

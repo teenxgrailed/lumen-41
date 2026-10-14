@@ -13,7 +13,10 @@ import {
 import { PATCH as patchTaskProvider } from "@/app/api/task-sync/providers/[id]/route";
 import { GET as getTaskProviders } from "@/app/api/task-sync/providers/route";
 
-import { SECRET_MASK } from "@/lib/api/public-records";
+import {
+  SECRET_MASK,
+  SYSTEM_SETTINGS_SECRET_KEYS,
+} from "@/lib/api/public-records";
 import { authenticateRequest, requireAdmin } from "@/lib/auth/api-auth";
 import { clearResendInstance } from "@/lib/email/resend";
 import {
@@ -25,6 +28,7 @@ import {
   decryptSecret,
   isEncryptedSecret,
 } from "@/lib/security/secret-encryption";
+import { SYSTEM_SETTINGS_SECRET_FIELDS } from "@/lib/system-settings-secrets";
 
 jest.mock("@/lib/auth/api-auth", () => ({
   authenticateRequest: jest.fn(),
@@ -105,6 +109,12 @@ const SECRET_VALUES = [
   "google-client-secret-value",
   "outlook-client-secret-value",
   "re_resend-api-key-value",
+  "apple-private-key-value",
+  "github-client-secret-value",
+  "discord-client-secret-value",
+  "twitter-client-secret-value",
+  "linkedin-client-secret-value",
+  "openai-siwc-client-secret-value",
 ];
 
 const mockAuthenticateRequest = jest.mocked(authenticateRequest);
@@ -184,6 +194,20 @@ const systemSettings = {
   outlookClientId: "outlook-client-id",
   outlookClientSecret: "outlook-client-secret-value",
   outlookTenantId: "common",
+  appleClientId: "app.needt.signin",
+  appleTeamId: "TEAM123456",
+  appleKeyId: "KEY1234567",
+  applePrivateKey: "apple-private-key-value",
+  githubClientId: "github-client-id",
+  githubClientSecret: "github-client-secret-value",
+  discordClientId: "discord-client-id",
+  discordClientSecret: "discord-client-secret-value",
+  twitterClientId: "twitter-client-id",
+  twitterClientSecret: "twitter-client-secret-value",
+  linkedinClientId: "linkedin-client-id",
+  linkedinClientSecret: "linkedin-client-secret-value",
+  openaiSiwcClientId: "oaiapp_client-id",
+  openaiSiwcClientSecret: "openai-siwc-client-secret-value",
   logLevel: "none",
   logRetention: null,
   logDestination: "db",
@@ -407,6 +431,73 @@ describe("API responses never carry provider secrets", () => {
       resendApiKey: SECRET_MASK,
       publicSignup: true,
     });
+  });
+
+  it("GET /api/system-settings masks every sign-in provider secret", async () => {
+    const { status, text, json } = await bodyOf(
+      await getSystemSettings(
+        new NextRequest("http://localhost/api/system-settings")
+      )
+    );
+
+    expect(status).toBe(200);
+    expectNoSecretValues(text);
+    expect(json).toMatchObject({
+      appleClientId: "app.needt.signin",
+      appleTeamId: "TEAM123456",
+      appleKeyId: "KEY1234567",
+      applePrivateKey: SECRET_MASK,
+      githubClientId: "github-client-id",
+      githubClientSecret: SECRET_MASK,
+      discordClientSecret: SECRET_MASK,
+      twitterClientSecret: SECRET_MASK,
+      linkedinClientSecret: SECRET_MASK,
+      openaiSiwcClientId: "oaiapp_client-id",
+      openaiSiwcClientSecret: SECRET_MASK,
+    });
+  });
+
+  it("the masked and the encrypted secret fields are the same list", () => {
+    expect([...SYSTEM_SETTINGS_SECRET_KEYS].sort()).toEqual(
+      [...SYSTEM_SETTINGS_SECRET_FIELDS].sort()
+    );
+  });
+
+  it("PATCH /api/system-settings stores a provider secret encrypted and never echoes it", async () => {
+    let written: Record<string, unknown> = {};
+    db.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) =>
+        callback({
+          systemSettings: {
+            findFirst: jest.fn().mockResolvedValue(systemSettings),
+            update: jest.fn().mockImplementation(({ data }) => {
+              written = data;
+              return { ...systemSettings, ...data };
+            }),
+          },
+        })
+    );
+
+    const { status, text, json } = await bodyOf(
+      await patchSystemSettings(
+        new NextRequest("http://localhost/api/system-settings", {
+          method: "PATCH",
+          body: JSON.stringify({
+            githubClientSecret: "fresh-github-secret",
+            applePrivateKey: SECRET_MASK,
+          }),
+        })
+      )
+    );
+
+    expect(status).toBe(200);
+    expect(written).not.toHaveProperty("applePrivateKey");
+    expect(isEncryptedSecret(written.githubClientSecret as string)).toBe(true);
+    expect(decryptSecret(written.githubClientSecret as string)).toBe(
+      "fresh-github-secret"
+    );
+    expect(text).not.toContain("fresh-github-secret");
+    expect(json).toMatchObject({ githubClientSecret: SECRET_MASK });
   });
 
   it("PATCH /api/system-settings keeps secrets when the mask is echoed back", async () => {

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getPage, updatePage } from "@/services/pages/page-service";
+import {
+  deletePageForever,
+  getPage,
+  updatePage,
+} from "@/services/pages/page-service";
 import { PageAccessRole, Prisma } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
@@ -113,6 +117,18 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   if ("response" in auth) return auth.response;
   const { id } = await params;
   try {
+    // `?permanent=true` deletes a page that is already in Trash for good.
+    if (request.nextUrl.searchParams.get("permanent") === "true") {
+      const outcome = await deletePageForever(auth, id);
+      if (outcome === "not-found")
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+      if (outcome === "not-trashed")
+        return NextResponse.json(
+          { error: "Only a page in Trash can be deleted for good" },
+          { status: 409 }
+        );
+      return NextResponse.json({ success: true });
+    }
     if (!(await resolvePageAccess(auth, id, PageAccessRole.FULL_ACCESS))) {
       return NextResponse.json(
         { error: "Page access denied" },

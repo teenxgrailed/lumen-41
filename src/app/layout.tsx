@@ -17,6 +17,9 @@ const FIGMA_CAPTURE_ENABLED =
   process.env.NODE_ENV !== "production" &&
   process.env.NEEDT_FIGMA_CAPTURE === "1";
 
+// Cookieless Umami analytics, inlined at build time; absent means off.
+const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim();
+
 export default function RootLayout({
   children,
 }: {
@@ -41,6 +44,16 @@ export default function RootLayout({
             id="figma-local-capture"
             src="https://mcp.figma.com/mcp/html-to-design/capture.js"
             strategy="afterInteractive"
+          />
+        ) : null}
+        {UMAMI_WEBSITE_ID ? (
+          <Script
+            id="umami-analytics"
+            src="https://stats.needt.app/script.js"
+            data-website-id={UMAMI_WEBSITE_ID}
+            data-do-not-track="true"
+            strategy="afterInteractive"
+            defer
           />
         ) : null}
       </head>

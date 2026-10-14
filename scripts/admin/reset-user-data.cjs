@@ -112,6 +112,8 @@ function buildPlan(userId, workspaceId) {
     ["AISettings", "aISettings", uid],
     ["AIOAuthConnection", "aIOAuthConnection", uid],
     ["AIOAuthState", "aIOAuthState", uid],
+    ["OAuthToken", "oAuthToken", uid],
+    ["OAuthAuthorizationCode", "oAuthAuthorizationCode", uid],
     ["ImportItemMap", "importItemMap", uid],
     ["ImportRun", "importRun", wsOnly],
 

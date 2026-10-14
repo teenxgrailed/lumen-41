@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { enqueueBugReportSync } from "@/lib/queue/enqueue";
 
 const LOG_SOURCE = "BugReportService";
-const DEFAULT_REPOSITORY = "teenxgrails/needt";
 
 interface BugAttachmentInput {
   fileName: string;
@@ -34,8 +33,10 @@ function clean(value: string | undefined, limit: number) {
 
 function githubConfig() {
   const token = process.env.GITHUB_BUG_REPORT_TOKEN?.trim();
-  const repository = process.env.GITHUB_BUG_REPORT_REPO?.trim() || DEFAULT_REPOSITORY;
-  return token ? { token, repository } : null;
+  const repository = process.env.GITHUB_BUG_REPORT_REPO?.trim();
+  // No default repository: a token without an explicit (private) repo must not
+  // send reports to a public one.
+  return token && repository ? { token, repository } : null;
 }
 
 function issueBody(report: {

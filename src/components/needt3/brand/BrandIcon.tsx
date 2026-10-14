@@ -88,16 +88,25 @@ function scope(name: string, value: string, prefix: string): string {
   );
 }
 
-function build(node: BrandNode, prefix: string, key: number): ReactNode {
+function build(
+  node: BrandNode,
+  prefix: string,
+  key: number,
+  mono = false
+): ReactNode {
   const [tag, attrs, children] = node;
   const props: Record<string, unknown> = { key };
   for (const [name, value] of Object.entries(attrs))
     props[name] =
-      typeof value === "string" ? scope(name, value, prefix) : value;
+      mono && name === "fill" && value !== "none"
+        ? "currentColor"
+        : typeof value === "string"
+          ? scope(name, value, prefix)
+          : value;
   return createElement(
     tag,
     props,
-    children?.map((child, i) => build(child, prefix, i))
+    children?.map((child, i) => build(child, prefix, i, mono))
   );
 }
 
@@ -105,16 +114,19 @@ function MarkSvg({
   id,
   width,
   height,
+  mono = false,
 }: {
   id: BrandArtId;
   width: number;
   height: number;
+  /** Every fill in the text colour: a one-colour mark on a plain button. */
+  mono?: boolean;
 }) {
   const art = BRAND_ART[id];
   const prefix = `bi${useId().replace(/[^a-zA-Z0-9]/g, "")}-`;
   const kids = useMemo(
-    () => art.nodes.map((n, i) => build(n, prefix, i)),
-    [art, prefix]
+    () => art.nodes.map((n, i) => build(n, prefix, i, mono)),
+    [art, prefix, mono]
   );
   return (
     <svg
@@ -308,14 +320,29 @@ export function BrandIcon({ id, size = 40, title, date }: BrandIconProps) {
 
 /**
  * A full-colour mark with no tile, for a button that already is the surface
- * (the sign-in buttons). Only for marks that read on any surface, which is
- * Google's and Microsoft's. Shaped as a react-icons component so a place that
- * takes an `IconType` takes this.
+ * (the sign-in buttons). Only for marks that read on any surface: Google's,
+ * Microsoft's and LinkedIn's. Shaped as a react-icons component so a place
+ * that takes an `IconType` takes this.
  */
-export function brandGlyph(id: "google" | "microsoft"): IconType {
+export function brandGlyph(id: "google" | "microsoft" | "linkedin"): IconType {
   function BrandGlyph({ size }: { size?: string | number }) {
     const [width, height] = fit(BRAND_ART[id].box, Number(size) || 16);
     return <MarkSvg id={id} width={width} height={height} />;
   }
   return BrandGlyph as IconType;
+}
+
+/**
+ * A one-colour mark with no tile, drawn in the button's text colour. For the
+ * brands whose guidelines allow their mark in black or white (Apple, GitHub,
+ * X, Discord, ChatGPT), so it reads on a light or a dark button alike.
+ */
+export function brandMonoGlyph(
+  id: "apple" | "github" | "x" | "discord" | "chatgpt"
+): IconType {
+  function BrandMonoGlyph({ size }: { size?: string | number }) {
+    const [width, height] = fit(BRAND_ART[id].box, Number(size) || 16);
+    return <MarkSvg id={id} width={width} height={height} mono />;
+  }
+  return BrandMonoGlyph as IconType;
 }

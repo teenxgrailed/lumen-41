@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
+import {
+  type RecurringCompletion,
+  planRecurringCompletion,
+  upsertRecurringOccurrence,
+} from "@/services/tasks/recurring-completion";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import {
   type Prisma,
@@ -10,7 +15,6 @@ import {
   TaskBusyStatus,
   WorkspaceRole,
 } from "@prisma/client";
-import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -303,10 +307,7 @@ export async function PUT(
       updates.completedAt = newDate();
     }
 
-    let recurringCompletion: {
-      occurrenceAt: Date;
-      completedAt: Date;
-    } | null = null;
+    let recurringCompletion: RecurringCompletion | null = null;
 
     // Completing the series row records an immutable occurrence snapshot and
     // advances only the future-facing master row.
@@ -316,50 +317,12 @@ export async function PUT(
       task.recurrenceRule
     ) {
       try {
-        // Normalize the recurrence rule to ensure compatibility with RRule
-        const standardRecurrenceRule = normalizeRecurrenceRule(
-          task.recurrenceRule
+        const plan = planRecurringCompletion(
+          task,
+          updates.completedAt ?? newDate()
         );
-
-        const rrule = RRule.fromString(standardRecurrenceRule!);
-
-        // For tasks, we only care about the date part
-        const baseDate = newDate(task.dueDate || newDate());
-        // Set to start of day in UTC
-        baseDate.setUTCHours(0, 0, 0, 0);
-
-        // Add one day to the base date to ensure we get the next occurrence
-        const searchDate = newDate(baseDate);
-        searchDate.setDate(searchDate.getDate() + 1);
-
-        // Get next occurrence and ensure it's just a date
-        const nextOccurrence = rrule.after(searchDate);
-        if (nextOccurrence) {
-          nextOccurrence.setUTCHours(0, 0, 0, 0);
-        }
-
-        const completedAt = updates.completedAt ?? newDate();
-        recurringCompletion = { occurrenceAt: baseDate, completedAt };
-
-        // Calculate the time delta between start date and due date (if both exist)
-        let nextStartDate = undefined;
-        if (nextOccurrence && task.startDate && task.dueDate) {
-          const startToDueDelta = Math.round(
-            (task.dueDate.getTime() - task.startDate.getTime()) /
-              (1000 * 60 * 60 * 24)
-          );
-          const calculatedStart = newDate(nextOccurrence);
-          calculatedStart.setDate(calculatedStart.getDate() - startToDueDelta);
-          nextStartDate = calculatedStart;
-        }
-
-        if (nextOccurrence) {
-          updates.dueDate = nextOccurrence;
-          updates.startDate = nextStartDate;
-          updates.status = TaskStatus.TODO;
-          updates.completedAt = null;
-          updates.lastCompletedDate = completedAt;
-        }
+        recurringCompletion = plan.completion;
+        if (plan.advance) Object.assign(updates, plan.advance);
       } catch (error) {
         logger.error(
           "Error handling task completion:",
@@ -454,52 +417,9 @@ export async function PUT(
 
     let updatedTask;
     if (recurringCompletion) {
+      const completion = recurringCompletion;
       updatedTask = await prisma.$transaction(async (transaction) => {
-        await transaction.task.upsert({
-          where: {
-            recurrenceMasterId_recurrenceInstanceAt: {
-              recurrenceMasterId: task.id,
-              recurrenceInstanceAt: recurringCompletion.occurrenceAt,
-            },
-          },
-          update: {},
-          create: {
-            title: task.title,
-            description: task.description,
-            status: TaskStatus.COMPLETED,
-            dueDate: recurringCompletion.occurrenceAt,
-            startDate: task.startDate,
-            duration: task.duration,
-            estimatedMinutes: task.estimatedMinutes,
-            estOptimistic: task.estOptimistic,
-            estLikely: task.estLikely,
-            estPessimistic: task.estPessimistic,
-            minChunkMinutes: task.minChunkMinutes,
-            maxChunkMinutes: task.maxChunkMinutes,
-            deadline: task.deadline,
-            hardDeadline: task.hardDeadline,
-            energyRequired: task.energyRequired,
-            priorityLevel: task.priorityLevel,
-            contextTag: task.contextTag,
-            priority: task.priority,
-            energyLevel: task.energyLevel,
-            preferredTime: task.preferredTime,
-            projectId: task.projectId,
-            workspaceId: task.workspaceId,
-            assigneeId: task.assigneeId,
-            busyStatus: task.busyStatus,
-            stageId: task.stageId,
-            scheduleId: task.scheduleId,
-            isRecurring: false,
-            recurrenceMasterId: task.id,
-            recurrenceInstanceAt: recurringCompletion.occurrenceAt,
-            completedAt: recurringCompletion.completedAt,
-            userId,
-            tags: {
-              connect: task.tags.map((tag) => ({ id: tag.id })),
-            },
-          },
-        });
+        await upsertRecurringOccurrence(transaction, task, completion, userId);
         return transaction.task.update(taskUpdate);
       });
     } else {

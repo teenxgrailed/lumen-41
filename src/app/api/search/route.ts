@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { searchWorkspace } from "@/services/search/workspace-search";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
-import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "global-search";
+
+const RESULT_LABEL = { task: "Task", project: "Project", event: "Event" };
+const RESULT_HREF = { task: "/tasks", project: "/tasks", event: "/calendar" };
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
@@ -12,68 +15,24 @@ export async function GET(request: NextRequest) {
 
   const q = new URL(request.url).searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ results: [] });
-  const scope = workspaceDataScopeWhere(auth.workspace, auth.userId);
 
-  const [tasks, projects, events] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        ...scope,
-        isArchived: false,
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      take: 6,
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.project.findMany({
-      where: {
-        ...scope,
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      take: 6,
-      orderBy: { updatedAt: "desc" },
-    }),
-    auth.workspace?.workspaceKind === "PERSONAL"
-      ? prisma.calendarEvent.findMany({
-          where: {
-            archivedAt: null,
-            feed: { userId: auth.userId, enabled: true },
-            OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { description: { contains: q, mode: "insensitive" } },
-            ],
-          },
-          take: 6,
-          orderBy: { start: "desc" },
-        })
-      : Promise.resolve([]),
-  ]);
+  const hits = await searchWorkspace({
+    userId: auth.userId,
+    workspace: auth.workspace,
+    query: q,
+    take: 6,
+    types: ["task", "project", "event"],
+  });
 
   return NextResponse.json({
-    results: [
-      ...tasks.map((task) => ({
-        id: task.id,
-        type: "Task",
-        title: task.title,
-        href: "/tasks",
-      })),
-      ...projects.map((project) => ({
-        id: project.id,
-        type: "Project",
-        title: project.name,
-        href: "/tasks",
-      })),
-      ...events.map((event) => ({
-        id: event.id,
-        type: "Event",
-        title: event.title,
-        href: "/calendar",
-      })),
-    ],
+    results: hits.map((hit) => {
+      const type = hit.type as keyof typeof RESULT_LABEL;
+      return {
+        id: hit.id,
+        type: RESULT_LABEL[type],
+        title: hit.title,
+        href: RESULT_HREF[type],
+      };
+    }),
   });
 }

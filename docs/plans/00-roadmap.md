@@ -1,185 +1,147 @@
 # 00 — Roadmap
 
-The one map. Every other plan in this folder is a chapter of it; this file says
-what is true today, what is left, and in what order.
+The one map: what is true today, what blocks launch, what comes after.
 
-**Rewritten 2026-09-15** against state verified that day: production health,
-the Coolify API (read-only token), `git` and `gh`. It replaces the 2026-08-27
-version, whose design section described a system that no longer exists.
+**Rewritten 2026-10-13.** Launch target: **2026-10-26**. It replaces the
+2026-09-15 version. "Checked" means checked on 2026-10-13 by the method in the
+table; "not checked" means no evidence was gathered and the line must not be
+read as true.
 
 ---
 
-## 1. Where things stand
+## 1. Where things stand (2026-10-13)
 
 ### Production
 
-| Service | State, 2026-09-15 | How checked |
+| Fact | State | How checked |
 | --- | --- | --- |
-| `use.needt.app` web | live, **`72eeef6`** since 2026-09-15 22:59 UTC, database ok | `/api/health` |
-| worker | live, same SHA `72eeef6` | `/api/health` → `workerBuildSha` |
-| `collaboration.use.needt.app` | HTTP 200 | curl |
-| `needt.app` landing | live, static, deployed from branch `landing`. Shows $6 / $60 / $79 (was $149), "first 100 people", "14 days · no card" | curl, Coolify |
-| `www.needt.app` | 301 to the apex | curl |
-| Postgres and Redis | running, healthy | Coolify API |
-| Database backups | daily, last success 2026-09-15; weekly, last success 2026-09-13; both to S3. **Never restored** | Coolify API |
-| Last deploy of any app | 2026-09-15: web, worker and collaboration all moved to `72eeef6`. Web crashed once at 22:33 UTC and restarted itself while worker and collaboration built in parallel; the whole host stopped answering HTTP for about 20 minutes | Coolify API, curl |
-| Coolify service `metamcp` | exited | Coolify API |
-
-Not checked on 2026-09-15: production environment variables, because the
-read-only token has no `read:sensitive`. P0.3's VAPID state is as last recorded
-on 2026-08-24.
+| `use.needt.app` web | `ok`, database `ok`, build `c17ce32` (= `origin/main` head) | `curl /api/health` |
+| Worker | same SHA `c17ce32` | `/api/health` → `workerBuildSha` |
+| Coolify apps | `need-worker`, `needt`, `needt-collaboration`, `needt-landing`: all `running:healthy` | Coolify MCP `list_applications` |
+| Postgres, Redis | `running:healthy` | Coolify MCP `list_databases` |
+| `needt.app` landing | HTTP 200, static v19 (#157, #161). `www` redirect and prices on the page: not checked | curl |
+| `/terms`, `/privacy` | published on `use.needt.app` (HTTP 200) via #146; `needt.app/terms` and `/privacy` return 301 to `/terms/` | curl |
+| New accounts | **closed**: `signups_open` is off, `/api/auth/public-signup` returns `{"enabled":false}`. Existing people sign in; everyone else goes to the waitlist (#105) | curl |
+| Checkout | `billing_checkout` has no readable state from outside (`/api/billing` needs a login). Code default: closed unless a `FeatureFlag` row turns it on (#102) | code, `src/lib/feature-flags-keys.ts` |
+| `design_v3` | on for everyone, new accounts start in setup (#143) | merged PR |
+| Remote MCP, personal-token path | `https://use.needt.app/api/mcp` answers (405 to a bare GET, as expected) | curl |
+| OAuth metadata | `https://use.needt.app/.well-known/oauth-authorization-server` returns 200 | curl |
+| Remote MCP, canonical host | **`mcp.needt.app` has no DNS record** (`dig` empty, curl fails). The OAuth resource is hard-coded to `https://mcp.needt.app/mcp` (`src/lib/mcp-config.ts`), so claude.ai cannot complete OAuth until DNS and a Coolify domain exist | `dig`, curl, code |
+| Backups | daily backup enabled (last update 2026-10-13 00:00 UTC), 14 kept locally, copied to S3; the weekly one is **disabled**. **No restore has ever been done** | Coolify MCP `list_database_backups` |
+| Sign-in providers | code merged (#152). Coolify has **no** env vars for Apple, GitHub, Discord, X, LinkedIn or ChatGPT. Values may instead sit in `/admin/system` (encrypted, shown masked); not checked | Coolify `list_env_keys` (names only); `docs/operations/sign-in-providers.md` |
+| Creem | the 2026-10-01 review was rejected because `/terms` and `/privacy` were placeholders. They are now published (#146). **Whether Creem has re-reviewed or approved is unknown.** Env keys `CREEM_API_KEY`, `CREEM_WEBHOOK_SECRET` and the three `CREEM_PRODUCT_*` exist in Coolify (names only; test or live mode unknown) | memory, Coolify key names |
+| Bug reports to GitHub | `GITHUB_BUG_REPORT_REPO` and `GITHUB_BUG_REPORT_TOKEN` not set. The code default repo is public, so a token must never be set without a private repo | Coolify key names, `docs/strategy/2026-10-13-legal-facts-verified.md` |
+| AI | `NEEDT_AI_API_KEY` set on web, **absent on the worker**; `NEEDT_AI_BASE_URL` absent (default OpenRouter) | Coolify key names |
 
 ### Code
 
 | Line | State |
 | --- | --- |
-| `origin/main` | `72eeef6` (2026-08-26), deployed to production on 2026-09-15. It carries billing hardening (#27), the `/admin/system` credentials screen (#26) and the Linux visual baselines (#21, #22) |
-| `codex/design-completion` | The design port, owned by Codex. Merge `ca2d034` contains `origin/main`; before this docs commit it was 26 commits ahead, 0 behind, with no tracked dirt |
-| Open PRs | #24 push config (audited, fails) · #29 design reference set · #30 T-4 answers · #31 D7 concepts · #32 React landing · #33 the previous roadmap |
+| `origin/main` | `c17ce32`. Since 2026-09-15: design v3 port complete and shipped (phone and desktop), ops registry and undoable action log (#135), imports framework + Todoist + Notion (#136, #141), OAuth 2.1 server for remote MCP (#138), sign-in providers (#152), legal pages (#146), waitlist and closed registration (#104, #105), privacy and security hardening (#106, #107, #108, #114–#116), static landing v19 (#157), PWA (#159), admin scripts `set-flag`, `wipe-database`, `reset-user-data`, `set-role` (#144, #147) |
+| Open PRs | #162 Time theme background · #160 new app icon · #117 draft, superseded by #146 (close) · #71 admin services status · #68 token motion layer · #67 design bundle import. #67 and #68 predate the port; decide per PR, none blocks launch |
 
-### The design
+### Decisions on record
 
-Replaced wholesale on 2026-09-11 by a Claude Design project. Authority, in
-order: `docs/handoff/PORT.md`, then
-`docs/handoff/design-reconciliation-2026-09-11.md`, then the vendored CSS.
-
-The port is mounted in place on the product routes: tokens stay scoped under
-`.needt-v2`, five themes share the data contract in `src/lib/needt/`, and the
-ported screens live in `src/components/needt/`. The temporary
-`/design-preview` route is retired. `/DESIGN.md`, `design-refs/`, Figma and
-Figma Make are history.
-
----
-
-## 2. Owner decisions, 2026-09-15
-
-| Question | Decision |
+| Source | Decision |
 | --- | --- |
-| Prices | Free $0 · Pro $7/month or $59/year · **Lifetime $149 once, forever, first 300 buyers, then it closes** |
-| Trial | Pro, 14 days, **no card**; afterwards the account drops to Free and keeps its data |
-| AI limits | Enforced but **never shown** to users. Pro and Lifetime get the same allowance; past it, AI slows down and suggests the user's own key |
-| "Demo" | Means the Free plan. There is no demo without an account |
-| Audience | One person's work and personal life, freelancers, small businesses, small teams |
-| Teams | Small teams through shared workspaces (the plan 02 model). Each member holds their own plan; no seat billing |
-| Old plans | This roadmap governs. Plans 03, 05, 09, 10 and 12a are archived to `docs/_old/` |
-
-The €9 / €180 / "20 months" figures in older landing drafts are wrong.
+| Memory, 2026-09-15 | Free $0, Pro $7/month or $59/year, Lifetime $149 (first 300), AI limits hidden and equal for Pro and Lifetime, 14-day no-card trial, "demo" = Free |
+| Memory, 2026-10-01 | Paid Lifetime is always granted (the 300 cap moves to checkout); AI metered in actions, cap 3000 |
+| Memory, 2026-10-10 | Free must be visibly limited; Free = at most 3 habits (#125, #126) |
+| Owner interview 2026-10-12 | Solo, bootstrapped, 10–20 h/week; $3–10k MRR within 12 months of launch; agent-centred AI; English only; design frozen; closed source; support answered by AI. Claude merges and deploys without asking, except money, public actions and legal |
 
 ---
 
-## 3. What is left
+## 2. Launch checklist (target 2026-10-26)
 
-### A — Design port
+Order inside each list is priority order.
 
-Owned by Codex. Steps and rules: [`docs/handoff/CODEX-NEXT.md`](../handoff/CODEX-NEXT.md).
+### Agents can do (no owner input)
 
-1. **Done:** commit the port in path-scoped commits.
-2. **Done:** merge `origin/main` as `ca2d034` and pass the merge gates.
-3. **Done in this commit:** apply the 2026-09-15 docs refresh, including this file.
-4. Widen the task id from `number` to `string` and delete `hashTaskId`.
-5. Apply the migration to the local container only. Never to Neon.
-6. Swap the screens in place, one per commit, deleting each old tree and the
-   legacy calendar implementation with the calendar tree.
+| # | Task | Done when |
+| --- | --- | --- |
+| A1 | **Restore drill plan** (`docs/operations-runbook.md`, "Backups and restore drill"). Download the newest daily backup from the S3 bucket, restore into a scratch database on a laptop or throw-away container, never on the prod host: `createdb needt_restore_drill`, `pg_restore --clean --if-exists --no-owner`, `prisma migrate status`, `select count(*)` on `User` and `Task`, `dropdb`. Record backup object, timestamp and counts in the runbook | counts match prod, entry added. Needs an S3 read key from the owner, see O8 |
+| A2 | Re-enable or consciously drop the disabled weekly backup (Coolify shows it `enabled:false`) | owner told which |
+| A3 | Give the worker `NEEDT_AI_API_KEY` if it runs AI jobs (it lacks the key today) | check `src/worker/` for AI calls first; if none, close the item |
+| A4 | Add `mcp.needt.app` to the app in Coolify and to the middleware host allow-list after the owner creates DNS (O2), then run the claude.ai connector flow end to end | `curl https://mcp.needt.app/.well-known/oauth-protected-resource` returns 200 and a claude.ai connector authorises |
+| A5 | Rehearse the launch switch on staging or locally with `scripts/admin/set-flag.cjs` (dry run first) | steps in section 3 verified |
+| A6 | Test purchase in Creem test mode against `/api/billing` with `billing_checkout` on (local), covering the withdrawal-consent checkbox flagged in legal item T6 | purchase, webhook and plan change observed |
+| A7 | Make legal-flag text fixes that need no lawyer: add the Composio disconnect to the deletion paragraph (P9), fill `DATAREP_CONTACT` once O5 returns | PR merged |
+| A8 | Close stale PRs: #117; decide #67, #68, #71 | list is short |
+| A9 | Merge #160 and #162 after review (cosmetic) | optional for launch |
+| A10 | Keep the browser E2E and visual baselines green on `main` (visual is sharded 4 ways, #158) | CI green on the launch SHA |
 
-### B — Blocking the first paying user
+### Owner must do
 
-Detail and verification steps live in
-[`12-remaining-work.md`](12-remaining-work.md). None of this runs in the port
-checkout: use a separate worktree from `origin/main`.
-
-| ID | Item | State, 2026-09-15 | Who |
+| # | Step (exact) | Why it blocks | Who unblocks next |
 | --- | --- | --- | --- |
-| — | Deploy `main` | **Done 2026-09-15**: web, worker and collaboration on `72eeef6` | — |
-| P0.1 | Google and Azure credentials screen | Deployed 2026-09-15; `/admin/system` is reachable. **Secrets still not entered** | owner |
-| P0.2 | Billing lifecycle spec, `tests/billing.spec.ts` | Lifecycle hardened in #27; spec not rechecked | agent |
-| P0.3 | Push reminders fail silently (VAPID) | Not rechecked; fix PR #24 was audited as failing | agent, owner for keys |
-| P0.4 | Account deletion and data export | **Missing.** No deletion route in `src/`; `src/app/api/export/` holds `tasks` only | agent |
-| P0.5 | One row per Creem subscription; refund and dispute events | Not started | agent |
-| **P0.6** | **14-day Pro trial without a card** | **Missing.** No trial logic in `src/`, yet the live landing promises it | agent; owner decides whether the landing line comes off until it ships |
-| **P0.7** | **Prices and hidden AI limits** | `src/lib/creem/config.ts` says $6 and $79; the Lifetime AI cap is 3000 against Pro's 300; AI counts are shown in four places; the live landing says $79 and "first 100". Whether the checkout enforces the 300 cap is not checked. Spec: [`13-pricing.md`](13-pricing.md) | agent for code and landing; owner for the Creem prices |
-| P1.2 | First run on a clean database, `tests/onboarding.spec.ts` | Waits on P0.1 | agent |
-| P1.3 | Close the stale handoffs | **Done 2026-09-15** | — |
-| P1.4 | Restore drill | Backups succeed; never restored | agent |
-| P1.5 | Legal copy | After P0.4 | owner |
-| P2 | Alerting, funnel signal, release rehearsal, Sentry | Not started | agent |
-
-Carried over from the handoffs closed on 2026-09-15:
-
-- Browser E2E journeys for the S11/T8 features — Saved Views, reschedule
-  preview, health journal. The release-boundary audit found only unit coverage.
-- `/mail` in the visual suite. The focused-splits handoff never saw that route
-  pass; confirm it against the Linux CI baselines.
-- **Builds must not run in parallel on the production host.** Deploying worker
-  and collaboration together on 2026-09-15 took the whole box off the network for
-  about 20 minutes and crashed web once — the same failure as 2026-08-23. Either
-  deploy one app at a time, or move builds to GitHub Actions (P2.3).
-
-### C — Landing
-
-- Copy for Claude Design: `landing/for-claude-design/CLAUDE-DESIGN-COPY-PROMPT.md`,
-  corrected on 2026-09-15 to the decisions in §2.
-- `download.html` in the Claude Design project claims native desktop apps and
-  local data. The repository has neither; the prompt carries the fix.
-- The live landing on branch `landing` changes its prices with P0.7.
-- PR #32, the React landing: its fate is an owner question, see §5.
-
-### D — Product backlog, after a stable production week
-
-- Plan 11: T-1 progress counter and part-cut, T-2 mini-entry, T-4 value-bearing
-  groups.
-- T-3 streaks is settled by the design: habits count kept days out of the last
-  14, never a streak.
+| O1 | **Creem**: open the Creem dashboard, check the status of the rejected review, and if needed resubmit with `https://use.needt.app/terms` and `/privacy` (now real pages). Confirm products Pro $7/month, Pro $59/year, Lifetime $149 exist in live mode and that the `CREEM_PRODUCT_*` ids in Coolify point to them | no payments without approval | O9, A6 |
+| O2 | **DNS for MCP**: at the DNS host for `needt.app` (Cloudflare) add `mcp` pointing to the same server as `use` (`A 95.216.213.174` or the CNAME the others use), then add `mcp.needt.app` as a domain on the `needt` app in Coolify | claude.ai OAuth cannot work without it. The personal-token path still works | A4 |
+| O3 | **Sign-in providers**: register apps with Apple, GitHub, Discord, X, LinkedIn, ChatGPT as in `docs/operations/sign-in-providers.md`, callback `https://use.needt.app/api/auth/callback/<id>`, and paste the values in `https://use.needt.app/admin/system`, section Sign-in providers. Only providers with all values show. Minimum for launch: Google (already works) plus GitHub; the rest can follow | a provider with no values is simply not drawn, so this is not a hard blocker | — |
+| O4 | **Gmail restricted-scope verification** (Google Cloud, OAuth consent screen, publishing status). Not checked. Until verified, mail connections for Gmail are limited to test users | mail connection for outsiders | — |
+| O5 | **DataRep**: the quote of 150 EUR is in; sign the contract, pay, and send the assigned contact to the agent for `DATAREP_CONTACT` in `src/lib/legal/operator.ts` | the privacy pages print interim wording until then | A7 |
+| O6 | **Console checks** from `docs/strategy/2026-10-13-legal-facts-verified.md` (that file is in the owner's checkout, not yet on `main`): R2 bucket location (P12), Resend region (P14), Sentry "Prevent Storing of IP Addresses" and region (P15), Docker and proxy log rotation at or below 30 days (P16), Hetzner location `hel1` (P11) | the published privacy text states these as facts | — |
+| O7 | **SQL checks on prod** (no DB access for agents): `select count(*) from "TrialGrant" where "emailKey" like '%@%'` must be 0; `select count(*) from "ConnectedAccount" where "accessToken" not like 'enc:v1:%'` must be 0 | the privacy text claims hashed trial emails and encrypted tokens | — |
+| O8 | Create a read-only key for the backup bucket and hand it to the agent for the restore drill, or run the drill commands in A1 yourself | backups have never been restored | A1 |
+| O9 | **Switch on launch day** (section 3) | — | — |
+| O10 | Decide GitHub bug reports: keep off (default; text must not promise GitHub copies) or create a private repo and set both `GITHUB_BUG_REPORT_REPO` and `GITHUB_BUG_REPORT_TOKEN` | public default repo would leak reports | — |
+| O11 | Approve the legal text with a lawyer, or accept the residual risk in writing: legal flags T2 (private person or sole proprietor), P6 (tax record retention), P17 (DPF or SCC per US vendor), P18, P19 | money and legal actions are owner-only | — |
 
 ---
 
-## 4. Order
+## 3. Launch-day switch
 
-1. **Now.** Open the design-port draft PR, then complete A4 and A5 against the
-   local container only. The owner may enter Google and Azure secrets at
-   `/admin/system`; agents do not touch them.
-2. **Next.** P0.7, P0.6, P0.4, P0.3 and P1.2, each in its own worktree from
-   `origin/main`. P0.2 is already covered by merged PR #27; revalidate rather
-   than duplicate it.
-3. **Then.** A6, one screen at a time, after its launch-blocker dependencies;
-   P0.5 and P1.4 remain separate workstreams.
-4. **Before telling anyone the product exists.** P1.5, P2, and the landing in C.
-5. **After a stable week.** D.
+Flags are rows in `FeatureFlag`, read on every check; no restart is needed. Run
+inside the production `needt` container (`/app`), dry run first:
 
----
+```bash
+node scripts/admin/set-flag.cjs --key billing_checkout --enabled true
+node scripts/admin/set-flag.cjs --key billing_checkout --enabled true --confirm
+node scripts/admin/set-flag.cjs --key signups_open --enabled true
+node scripts/admin/set-flag.cjs --key signups_open --enabled true --confirm
+```
 
-## 5. Only the owner
-
-- Enter the Google and Azure client secrets at `/admin/system`, then connect a
-  real calendar and watch events land in `CalendarEvent`.
-- Set the Creem products to Pro $7/month ($59/year) and Lifetime $149.
-  Confirm the Swiss-seller tax fields.
-- Approve the legal copy. Record the Google OAuth verification video (not a
-  launch blocker).
-- Decide the open PRs: close #29, #31 and #33 as superseded by the port and this
-  roadmap? #30 — its T-4 answers are already in `11-task-model.md` on the port
-  branch. #32 — keep the React landing, or replace it with the Claude Design one?
-- Decide `metamcp` on Coolify: delete or restart.
-- Decide people on tasks (holder, waits-on, faces): workspace members only, or
-  outside contacts too?
+Order: `billing_checkout` first (only after O1 is approved), then
+`signups_open`. `--enabled true` also sets rollout to 100, which
+`signups_open` requires. Rollback is the same command with `--enabled false`.
+Verify: `curl https://use.needt.app/api/auth/public-signup` returns
+`{"enabled":true}`. Then switch the landing waitlist form to a sign-up link (agent PR, task for the day before).
 
 ---
 
-## 6. Not authorized
+## 4. After launch, in this order
 
-Unchanged: no new AI scheduler, no seat billing, no cross-workspace views, no
-third-party document storage, no physical deletion of user content, no read
-receipts, no team snippets, no Notion-style automation, no portfolio management,
-no audio transcription, no new integrations.
+From the owner interview (`docs/strategy/2026-10-12-owner-interview.md`,
+12 Oct; that file is in the owner's checkout, not yet on `main`).
+
+1. **Remote MCP with the API**, finished (canonical host, directory listings).
+2. **Import from other tools**: Todoist and Notion exist (#136, #141); next GitHub and Linear, then Slack and Telegram.
+3. **Growth channels**, which matter more than features for the stated fear ("nobody comes"): build in public (brand and personal accounts on X, Threads, Instagram), MCP and integration directories, Product Hunt and communities, SEO. Public posts need an owner "yes".
+4. **Agent at the centre**: acts on its own with Undo; irreversible actions (mail, deletion) need confirmation. Metered in actions.
+5. **Native mobile app**, immediately after launch per the owner; the interview notes this is the costliest item at 10–20 h/week and should be decided on first-month numbers.
+6. **Design is frozen**: spot fixes only.
+7. **Review at launch + 3 months**, by number of payers, day-30 retention, and share of users who connect a second data source.
+
+Support is answered by AI; the owner sees the hard cases. Early users keep $7;
+newcomers will cost more after a year.
 
 ---
 
-## 7. Where things live
+## 5. Not authorized
+
+No seat billing, no cross-workspace views, no third-party document storage, no
+physical deletion of user content outside account deletion, no read receipts,
+no audio transcription, no new AI scheduler.
+
+---
+
+## 6. Where things live
 
 | Need | File |
 | --- | --- |
-| Launch blocker detail | [`12-remaining-work.md`](12-remaining-work.md) |
-| Prices, trial, AI limits | [`13-pricing.md`](13-pricing.md) |
-| Design port steps | [`docs/handoff/CODEX-NEXT.md`](../handoff/CODEX-NEXT.md) |
-| Design values, and why | `docs/handoff/PORT.md`, `docs/handoff/design-reconciliation-2026-09-11.md` |
-| Plan index | [`README.md`](README.md) |
-| Archived plans | `docs/_old/` |
+| Operations, backups, restore drill | `docs/operations-runbook.md` |
+| Sign-in provider setup | `docs/operations/sign-in-providers.md` |
+| Legal sources and DataRep value | `docs/legal/README.md`, `src/lib/legal/operator.ts` |
+| Remote MCP and connector API | `docs/connector-api.md`, `src/lib/mcp-config.ts` |
+| Prices, trial, AI limits | `docs/plans/13-pricing.md` |
+| Design rules | `docs/handoff/PORT.md` |
+| Flags | `src/lib/feature-flags-keys.ts`, `scripts/admin/set-flag.cjs` |

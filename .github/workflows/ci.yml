@@ -115,6 +115,7 @@ jobs:
           LIFETIME_CAP_INTEGRATION: "1"
           TRIAL_INTEGRATION: "1"
           PAGE_TRASH_INTEGRATION: "1"
+          OAUTH_INTEGRATION: "1"
       - run: npm run build:collaboration
       - run: npm run check:collaboration-runtime
 
@@ -328,10 +329,18 @@ jobs:
           git push --set-upstream origin "$TARGET_BRANCH"
           echo "Updated $changed_count CI-authoritative Linux baseline files." >> "$GITHUB_STEP_SUMMARY"
 
-  visual-style:
+  # Each shard has its own Postgres service and so its own database; the
+  # visual suites reset one shared fixture user, so shards must never share
+  # a database and workers stay at 1 inside a shard.
+  visual-style-shard:
+    name: visual-style-shard (${{ matrix.shard }})
     if: github.event_name != 'workflow_dispatch'
     needs: [changes, quality-gates]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
     services:
       postgres:
         image: mirror.gcr.io/library/postgres:16-alpine
@@ -363,6 +372,14 @@ jobs:
         run: npx playwright install --with-deps
       - if: needs.changes.outputs.ui == 'true'
         run: npx prisma generate && npx prisma migrate deploy
+      - name: Cache Next.js build
+        if: needs.changes.outputs.ui == 'true'
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'prisma/schema.prisma', 'next.config.js') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
       - name: Build visual test application
         if: needs.changes.outputs.ui == 'true'
         run: npm run build
@@ -372,7 +389,8 @@ jobs:
         continue-on-error: true
         env:
           NEEDT_VISUAL_PRODUCTION_SERVER: "1"
-        run: npm run test:visual && npm run test:style
+          SHARD: ${{ matrix.shard }}
+        run: npm run test:visual -- --shard="$SHARD" && npm run test:style -- --shard="$SHARD"
       - name: Generate Linux baseline candidates
         id: baseline-candidates
         if: needs.changes.outputs.ui == 'true' && steps.visual.outcome == 'failure'
@@ -384,7 +402,7 @@ jobs:
         if: always() && steps.visual.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-visual-report
+          name: playwright-visual-report-${{ strategy.job-index }}
           path: |
             playwright-report
             test-results
@@ -392,8 +410,22 @@ jobs:
         if: always() && steps.visual.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: visual-baseline-candidates
+          name: visual-baseline-candidates-${{ strategy.job-index }}
           path: tests/visual/*-snapshots
       - name: Enforce visual gate
         if: always() && steps.visual.outcome == 'failure'
         run: exit 1
+
+  # Single required check: branch protection keeps matching `visual-style`.
+  visual-style:
+    if: always() && github.event_name != 'workflow_dispatch'
+    needs: [visual-style-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every visual shard
+        env:
+          RESULT: ${{ needs.visual-style-shard.result }}
+        run: |
+          result="$RESULT"
+          echo "visual-style-shard: $result"
+          [ "$result" = "success" ] || exit 1

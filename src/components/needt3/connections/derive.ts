@@ -10,6 +10,8 @@ import type {
 } from "@/lib/needt3/hooks/catalog";
 import type { V3Connection } from "@/lib/needt3/hooks/connections";
 
+import { strings } from "./strings";
+
 export type CardState = "connected" | "disconnected" | "none";
 
 export interface CnItem extends CatalogEntry {
@@ -135,6 +137,12 @@ const MAIL_PROVIDER: Record<string, string> = {
   "outlook-mail": "outlook",
 };
 
+/** The calendar entry whose OAuth client a mailbox shares. */
+const CAL_SIBLING: Record<string, string> = {
+  gmail: "google-calendar",
+  "outlook-mail": "outlook-calendar",
+};
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
@@ -153,9 +161,21 @@ export function buildItems(
   // toolkit). Here it would read the same mailbox account and draw the same
   // card twice under one key, so the native mailbox entry stands for it.
   const mailSlugs = new Set(MAIL_ENTRIES.map((entry) => entry.slug));
+  // A mailbox signs in with the same Google / Microsoft client as the
+  // calendar of that provider, so it is set up exactly when that calendar is.
+  const mailEntries = MAIL_ENTRIES.map((entry): CatalogEntry => {
+    const sibling = catalog.find(
+      (c) => CAL_SIBLING[entry.slug] === c.slug && c.native
+    );
+    return {
+      ...entry,
+      configured: sibling?.configured ?? true,
+      requires: sibling?.requires,
+    };
+  });
   const entries = [
     ...catalog.filter((entry) => !mailSlugs.has(entry.slug)),
-    ...MAIL_ENTRIES,
+    ...mailEntries,
   ];
   return entries.flatMap((entry): CnItem[] => {
     const calProvider = CAL_PROVIDER[entry.slug];
@@ -249,6 +269,30 @@ export function counts(items: readonly CnItem[]) {
   };
 }
 
+/**
+ * Why a connector cannot start. The person who runs the server is told what to
+ * add; everyone else is told it is not there yet (nothing they can do).
+ */
+export function unavailableReason(
+  name: string,
+  requires: string | undefined,
+  admin: boolean
+) {
+  return admin && requires
+    ? strings.adminNeeds(name, requires)
+    : strings.notAvailable(name);
+}
+
+/**
+ * What the list draws. A connector this server cannot start is a dead control,
+ * so only an admin (who can fix it) sees it; the sign-in screen does the same
+ * with providers that have no credentials. One that is already connected stays
+ * whatever happens, so it can be reconnected or removed.
+ */
+export function visibleItems(items: readonly CnItem[], admin: boolean) {
+  return items.filter((i) => admin || i.configured || i.state !== "none");
+}
+
 export type ConnectPlan =
   | { kind: "navigate"; href: string }
   | { kind: "toolkit"; toolkit: string }
@@ -261,10 +305,15 @@ export type ConnectPlan =
  * everything else is a Composio toolkit. `Needt API` is not a connection.
  */
 export function connectPlan(
-  item: Pick<CnItem, "slug" | "configured" | "native">
+  item: Pick<CnItem, "slug" | "configured" | "native"> &
+    Partial<Pick<CnItem, "name" | "requires">>,
+  admin = false
 ): ConnectPlan {
   if (!item.configured)
-    return { kind: "unavailable", reason: "Not set up on this server yet." };
+    return {
+      kind: "unavailable",
+      reason: unavailableReason(item.name ?? item.slug, item.requires, admin),
+    };
   switch (item.slug) {
     case "google-calendar":
       return { kind: "navigate", href: "/api/calendar/google/auth" };

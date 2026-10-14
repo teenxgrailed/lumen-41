@@ -24,8 +24,8 @@ export type SettingsSection = string | null;
 export type DocTab = "insert" | "style" | "info";
 /** What the left rail shows while a document is open (prototype `sbMode`). */
 export type DocRailMode = "doc" | "app";
-/** The document rail's tab (prototype `DocPanel`: Contents, Find). */
-export type DocRailTab = "outline" | "find";
+/** The document rail's tab (prototype `DocPanel`: Contents, Tasks, Files, Find). */
+export type DocRailTab = "outline" | "tasks" | "files" | "find";
 /** One line of the document rail's Contents: the title, then the headings. */
 export interface DocOutlineRow {
   text: string;

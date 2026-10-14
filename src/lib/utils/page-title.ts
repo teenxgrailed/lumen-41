@@ -1,26 +1,21 @@
-import { APP_NAME } from "@/lib/app-config";
+import { SECTION_TITLES, type SectionKey } from "@/lib/needt3/section-titles";
 
-export const getTitleFromPathname = (pathname: string) => {
-  switch (pathname) {
-    case "/calendar":
-      return `Calendar | ${APP_NAME}`;
-    case "/tasks":
-      return `Tasks | ${APP_NAME}`;
-    case "/projects":
-      return `Projects | ${APP_NAME}`;
-    case "/focus":
-      return `Focus | ${APP_NAME}`;
-    case "/settings":
-      return `Settings | ${APP_NAME}`;
-    case "/setup":
-      return `Setup | ${APP_NAME}`;
-    case "/auth/signin":
-      return `Sign In | ${APP_NAME}`;
-    case "/auth/signup":
-      return `Sign Up | ${APP_NAME}`;
-    case "/auth/reset-password":
-      return `Reset Password | ${APP_NAME}`;
-    default:
-      return APP_NAME;
-  }
+const ROUTE_SECTIONS: Record<string, SectionKey> = {
+  "/calendar": "calendar",
+  "/tasks": "tasks",
+  "/projects": "projects",
+  "/focus": "focus",
+  "/settings": "settings",
+  "/setup": "setup",
+  "/auth/signin": "signIn",
+  "/auth/reset-password": "resetPassword",
+};
+
+/**
+ * The tab title of a section route: the section name alone. Null for any other
+ * path, so the title the server rendered (a document's own name, say) stays.
+ */
+export const getTitleFromPathname = (pathname: string): string | null => {
+  const section = ROUTE_SECTIONS[pathname];
+  return section ? SECTION_TITLES[section] : null;
 };

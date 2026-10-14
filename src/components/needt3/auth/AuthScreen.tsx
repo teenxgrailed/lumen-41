@@ -38,6 +38,7 @@ import {
 import { NeedtLockup } from "../wordmark";
 import {
   type AuthMode,
+  MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
   mailProblem,
   mailProblemText,
@@ -46,6 +47,7 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
+  splitSignInProviders,
   submitLabel,
   submitStep,
 } from "./auth-logic";
@@ -110,7 +112,13 @@ export interface AuthScreenProps {
   steps?: AuthSteps;
 }
 
-function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+export function Eye({
+  shown,
+  onToggle,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+}) {
   return (
     <button
       type="button"
@@ -124,7 +132,7 @@ function Eye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
   );
 }
 
-function Field({
+export function Field({
   value,
   onChange,
   placeholder,
@@ -254,6 +262,51 @@ function Collage() {
   );
 }
 
+/** The sky, the collage, the lockup and the frosted card every auth screen
+    on the desktop sits on. The reset-link and confirm-email routes use it too. */
+export function AuthFrame({
+  variant,
+  screen,
+  below,
+  foot,
+  children,
+}: React.PropsWithChildren<{
+  variant: "a" | "c";
+  /** `data-auth-screen`: which step is drawn. */
+  screen: string;
+  /** A line straight under the card (the offline note). */
+  below?: React.ReactNode;
+  foot?: React.ReactNode;
+}>) {
+  return (
+    <div
+      className="auth-enter"
+      data-auth-screen={screen}
+      style={{ position: "fixed", inset: 0, zIndex: 950 }}
+    >
+      <PxSky variant={variant}>
+        <Collage />
+        <div className="scroll-inner auth-signin-abs">
+          <div className="auth-signin-col">
+            <NeedtLockup />
+            <GlassCard
+              className="axs-card"
+              pad={0}
+              radius={24}
+              width="100%"
+              strong
+            >
+              {children}
+            </GlassCard>
+            {below}
+            {foot}
+          </div>
+        </div>
+      </PxSky>
+    </div>
+  );
+}
+
 export function AuthScreen({
   mode,
   onMode,
@@ -292,6 +345,13 @@ export function AuthScreen({
   } = useAuthSteps(steps);
   /* A password typed on the other face is already there. */
   const withPass = passAsked || pass.length > 0;
+  /* Google, Apple and GitHub show; the rest wait behind "More ways". */
+  const [moreWays, setMoreWays] = React.useState(false);
+  const { main: mainProviders, more: moreProviders } =
+    splitSignInProviders(providers);
+  const shownProviders = moreWays
+    ? [...mainProviders, ...moreProviders]
+    : mainProviders;
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [limited, setLimited] = React.useState(false);
@@ -455,31 +515,14 @@ export function AuthScreen({
     body: React.ReactNode,
     foot: React.ReactNode
   ) => (
-    <div
-      className="auth-enter"
-      data-auth-screen={screen}
-      style={{ position: "fixed", inset: 0, zIndex: 950 }}
+    <AuthFrame
+      variant={variant}
+      screen={screen}
+      below={offlineNote}
+      foot={foot}
     >
-      <PxSky variant={variant}>
-        <Collage />
-        <div className="scroll-inner auth-signin-abs">
-          <div className="auth-signin-col">
-            <NeedtLockup />
-            <GlassCard
-              className="axs-card"
-              pad={0}
-              radius={24}
-              width="100%"
-              strong
-            >
-              {body}
-            </GlassCard>
-            {offlineNote}
-            {foot}
-          </div>
-        </div>
-      </PxSky>
-    </div>
+      {body}
+    </AuthFrame>
   );
 
   if (recover) {
@@ -616,10 +659,11 @@ export function AuthScreen({
       {providers.length ? (
         <>
           <div className="auth-stack-8">
-            {providers.map((p) => (
+            {shownProviders.map((p) => (
               <button
                 key={p.id}
                 type="button"
+                data-provider={p.id}
                 disabled={offline || providerBusy !== null}
                 onClick={() => onProvider?.(p.id)}
                 className="ax-btn ax-raised auth-oauth"
@@ -630,6 +674,16 @@ export function AuthScreen({
                 {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
               </button>
             ))}
+            {moreProviders.length && !moreWays ? (
+              <button
+                type="button"
+                className="ax-link auth-more-ways"
+                aria-expanded={false}
+                onClick={() => setMoreWays(true)}
+              >
+                {MORE_SIGN_IN_WAYS_LABEL}
+              </button>
+            ) : null}
           </div>
           <div className="auth-signin-row-2">
             <span className="auth-signin-el-2" />

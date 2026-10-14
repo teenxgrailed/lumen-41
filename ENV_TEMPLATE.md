@@ -42,6 +42,22 @@ GOOGLE_CLIENT_SECRET=""
 AZURE_AD_CLIENT_ID=""
 AZURE_AD_CLIENT_SECRET=""
 AZURE_AD_TENANT_ID="common"
+# Sign-in providers (docs/operations/sign-in-providers.md). System Settings
+# values win over these. A provider shows on sign-in only when fully set.
+APPLE_CLIENT_ID=""
+APPLE_TEAM_ID=""
+APPLE_KEY_ID=""
+APPLE_PRIVATE_KEY=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+DISCORD_CLIENT_ID=""
+DISCORD_CLIENT_SECRET=""
+TWITTER_CLIENT_ID=""
+TWITTER_CLIENT_SECRET=""
+LINKEDIN_CLIENT_ID=""
+LINKEDIN_CLIENT_SECRET=""
+OPENAI_SIWC_CLIENT_ID=""
+OPENAI_SIWC_CLIENT_SECRET=""
 ```
 
 Google is needed for Google Calendar and Google Tasks. Azure AD is needed for Outlook Calendar and Microsoft task sync. These can also be configured from the in-app System Settings where supported.
@@ -176,3 +192,18 @@ runtime secrets/configuration on both web and worker. The server exposes the
 public key to authenticated clients; the private key never reaches the
 browser. Expired (`404`/`410`) subscriptions are pruned and email is used as a
 fallback. On iOS, Web Push requires Needt to be installed to the Home Screen.
+
+## Monitoring and Analytics (optional)
+
+```bash
+NEEDT_HEARTBEAT_URL=""
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=""
+```
+
+- `NEEDT_HEARTBEAT_URL` is read by the worker. When set, the worker sends a
+  `GET` to it on start and on every release-heartbeat tick, so an external
+  uptime monitor (a push/heartbeat check) notices a stopped worker. Failures
+  and timeouts (5s) are logged as warnings and never stop the worker.
+- `NEXT_PUBLIC_UMAMI_WEBSITE_ID` turns on cookieless Umami analytics from
+  `https://stats.needt.app`. Next.js inlines it during `npm run build`; in CI
+  it comes from the repository variable of the same name and may be empty.

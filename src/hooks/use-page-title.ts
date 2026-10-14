@@ -9,6 +9,6 @@ export function usePageTitle() {
 
   useEffect(() => {
     const title = getTitleFromPathname(pathname);
-    document.title = title;
+    if (title) document.title = title;
   }, [pathname]);
 }

@@ -53,6 +53,8 @@ export interface TaskProps {
   phase?: "strike" | "collapse" | "out";
   back?: boolean;
   hideProject?: boolean;
+  /** The first step is drawn elsewhere (a project's flow puts it on top). */
+  hideEntry?: boolean;
   compact?: boolean;
   stacked?: boolean;
   label?: string;
@@ -86,6 +88,7 @@ function TaskContent(props: TaskProps) {
     onOpen,
     dragProps,
     hideProject,
+    hideEntry,
     compact,
     stacked,
     phase,
@@ -444,7 +447,7 @@ function TaskContent(props: TaskProps) {
               hideProject={hideProject}
             />
           </div>
-          {v.entry && (!v.done || phase) ? (
+          {v.entry && !hideEntry && (!v.done || phase) ? (
             <div className="tk-entry">
               <FiArrowRight size={12} aria-hidden="true" />
               {v.entry}

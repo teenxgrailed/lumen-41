@@ -6,7 +6,7 @@ const OFFLINE_SCHEMA_VERSION = 2;
 const STORE_QUEUE = "mutationQueue";
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
-const STATIC_URLS = ["/manifest.webmanifest", "/logo.svg"];
+const STATIC_URLS = ["/manifest.webmanifest", "/icons/icon-192.png"];
 const SNAPSHOT_APIS = ["/api/tasks", "/api/connect/schedule"];
 const OFFLINE_MUTATIONS = [
   {
@@ -121,8 +121,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Needt", {
       body: data.body || "Your planner has an update.",
-      icon: "/logo.svg",
-      badge: "/logo.svg",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/favicon-32.png",
       data: data.url || "/focus",
     })
   );

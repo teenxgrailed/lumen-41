@@ -22,6 +22,12 @@ export interface ShellFrameProps {
    * when the UI changes.
    */
   hosts?: ReactNode;
+  /**
+   * The last child of the main row: the slot Ask Needt's panel docks into.
+   * Present at every width and in both UIs (0 px wide when nothing is docked),
+   * so the page's chain never changes when it appears.
+   */
+  dock?: ReactNode;
   /** Moving between two places swaps the page; one place's pages keep it. */
   placeKey: string;
   /** The desktop page's padding (Focus Mode widens it). */
@@ -55,6 +61,7 @@ export function ShellFrame({
   rail,
   overlays,
   hosts,
+  dock,
   placeKey,
   mainPadding,
   children,
@@ -89,6 +96,7 @@ export function ShellFrame({
                 {children}
               </div>
             </main>
+            {dock}
           </div>
           {overlays}
           {hosts}

@@ -13,8 +13,12 @@ import {
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
+import { cleanupOAuth } from "@/services/oauth/cleanup";
 import { collectOperationsHealth } from "@/services/operations/health";
-import { pruneAgentActionLog } from "@/services/ops/retention";
+import {
+  pruneAgentActionLog,
+  pruneOrphanTrialGrants,
+} from "@/services/ops/retention";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -22,6 +26,7 @@ import {
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
+import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
@@ -76,6 +81,7 @@ import {
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
+  getOAuthCleanupQueue,
   getReminderQueue,
   getTrialQueue,
   getWebhookRenewQueue,
@@ -88,6 +94,7 @@ import {
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
   NudgeJobData,
+  type OAuthCleanupJobData,
   QUEUE_NAMES,
   ReminderJobData,
   RescheduleJobData,
@@ -110,6 +117,7 @@ let workerHealthServer: Awaited<
 let releaseHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let releaseHeartbeatRefresh: Promise<void> | null = null;
 let releaseHeartbeatRedis: ReleaseHealthRedis | null = null;
+let externalHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -224,6 +232,10 @@ async function processLifetimeCheckoutReconciliation() {
   await reconcileLifetimeCheckoutReservations();
 }
 
+async function processOAuthCleanup() {
+  await cleanupOAuth();
+}
+
 async function processTrials() {
   try {
     await hashLegacyTrialEmailKeys();
@@ -250,6 +262,7 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await deleteExpiredReauthentications();
   await finalizeDueAccountDeletions();
   await pruneAgentActionLog();
+  await pruneOrphanTrialGrants();
 }
 
 async function processImport(job: Job<ImportJobData>) {
@@ -307,6 +320,11 @@ const workers = [
     connection,
     concurrency: 1,
   }),
+  new Worker<OAuthCleanupJobData>(
+    QUEUE_NAMES.oauthCleanup,
+    processOAuthCleanup,
+    { connection, concurrency: 1 }
+  ),
   new Worker<AccountLifecycleJobData>(
     QUEUE_NAMES.accountLifecycle,
     processAccountLifecycle,
@@ -379,6 +397,9 @@ export async function start(): Promise<void> {
     }, WORKER_RELEASE_HEARTBEAT_INTERVAL_MS);
     releaseHeartbeatInterval.unref();
   }
+  externalHeartbeatInterval = startExternalHeartbeat(
+    WORKER_RELEASE_HEARTBEAT_INTERVAL_MS
+  );
   await getWebhookRenewQueue().upsertJobScheduler(
     "calendar-webhook-renewal",
     { every: WEBHOOK_RENEW_INTERVAL_MS },
@@ -409,6 +430,11 @@ export async function start(): Promise<void> {
     "trial-lifecycle-sweep",
     { every: 60 * 60_000 },
     { name: "sweep-trials", data: { kind: "sweep" } }
+  );
+  await getOAuthCleanupQueue().upsertJobScheduler(
+    "oauth-cleanup-sweep",
+    { every: 60 * 60_000 },
+    { name: "sweep-oauth", data: { kind: "sweep" } }
   );
   await getAccountLifecycleQueue().upsertJobScheduler(
     "account-lifecycle-sweep",
@@ -449,6 +475,8 @@ async function shutdown(signal: string): Promise<void> {
   clearInterval(healthInterval);
   if (releaseHeartbeatInterval) clearInterval(releaseHeartbeatInterval);
   releaseHeartbeatInterval = null;
+  if (externalHeartbeatInterval) clearInterval(externalHeartbeatInterval);
+  externalHeartbeatInterval = null;
   if (releaseHeartbeatRedis) {
     const redis = releaseHeartbeatRedis;
     releaseHeartbeatRedis = null;

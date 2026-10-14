@@ -9,6 +9,7 @@ import {
   disconnectCalendar,
   disconnectMailbox,
   disconnectToolkit,
+  startOAuth,
   useCatalog,
 } from "@/lib/needt3/hooks/catalog";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -27,7 +28,10 @@ import {
   counts,
   disconnectKind,
   filterItems,
+  visibleItems,
 } from "./derive";
+import type { AiToolId } from "./mcp";
+import { useMcpConnect } from "./useMcpConnect";
 
 export const TAB_KEY = "needt.connections.tab";
 
@@ -52,6 +56,7 @@ export function useConnectionsController() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<CnItem | null>(null);
   const [caldav, setCaldav] = useState(false);
+  const [setup, setSetup] = useState<AiToolId | null>(null);
 
   useEffect(() => {
     // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
@@ -71,13 +76,17 @@ export function useConnectionsController() {
     }
   };
 
+  const isAdmin = !!catalog.data?.isAdmin;
   const items = useMemo(
     () =>
       catalog.data
-        ? buildItems(
-            catalog.data.catalog,
-            catalog.data.integrations,
-            accounts.data ?? []
+        ? visibleItems(
+            buildItems(
+              catalog.data.catalog,
+              catalog.data.integrations,
+              accounts.data ?? []
+            ),
+            !!catalog.data.isAdmin
           )
         : [],
     [catalog.data, accounts.data]
@@ -85,16 +94,19 @@ export function useConnectionsController() {
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
+  const mcp = useMcpConnect(tab === "ai" && !locked && !!plan.data);
 
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
 
   const connect = async (item: CnItem) => {
-    const how = connectPlan(item);
+    const how = connectPlan(item, isAdmin);
     if (how.kind === "unavailable") return void notify.info(how.reason);
     if (how.kind === "caldav") return setCaldav(true);
-    if (how.kind === "navigate") return void window.location.assign(how.href);
     setBusy(item.key);
-    const r = await connectToolkit(how.toolkit);
+    const r =
+      how.kind === "navigate"
+        ? await startOAuth(how.href)
+        : await connectToolkit(how.toolkit);
     if (!r.ok) {
       notify.error(r.error);
       setBusy(null);
@@ -153,6 +165,9 @@ export function useConnectionsController() {
     connect,
     disconnect,
     caldavDone,
+    mcp,
+    setup,
+    setSetup,
   };
 }
 

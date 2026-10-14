@@ -173,6 +173,38 @@ export async function restorePage(actor: PageActor, pageId: string) {
   return getPage(actor, pageId);
 }
 
+/**
+ * Deletes a trashed page for good. Needs the same access as trashing it
+ * (FULL_ACCESS), read with trashed rows included. A page that is not in the
+ * trash is refused: Delete forever is only offered from Trash. Blocks,
+ * revisions, comments, assets and grants go with the page; its children stay
+ * and move to the top level. Meeting-note proposals block a delete on their
+ * own, so they go first, in the same transaction.
+ */
+export async function deletePageForever(
+  actor: PageActor,
+  pageId: string
+): Promise<"deleted" | "not-found" | "not-trashed"> {
+  const access = await actorCanAccess(
+    actor,
+    pageId,
+    PageAccessRole.FULL_ACCESS,
+    { includeTrashed: true }
+  );
+  if (!access) return "not-found";
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, ...actorPageScope(actor) },
+    select: { id: true, trashedAt: true },
+  });
+  if (!page) return "not-found";
+  if (!page.trashedAt) return "not-trashed";
+  await prisma.$transaction([
+    prisma.meetingNoteProposal.deleteMany({ where: { pageId } }),
+    prisma.page.delete({ where: { id: pageId } }),
+  ]);
+  return "deleted";
+}
+
 async function assertOwnedParent(actor: PageActor, parentId?: string | null) {
   if (!parentId) return;
   const parent = await actorCanAccess(actor, parentId, PageAccessRole.EDITOR);
@@ -458,6 +490,48 @@ export async function getAiProposal(userId: string, proposalId: string) {
   });
 }
 
+/**
+ * Appends blocks after the page's last block through the page write path, so
+ * access, revision history, the collaboration document and the live-session
+ * guard apply. Accepts a page id or a page already read with its blocks.
+ * Returns null when the page is missing or the actor cannot edit it.
+ */
+export async function appendPageBlocks(
+  actor: PageActor,
+  target: string | NonNullable<Awaited<ReturnType<typeof getPage>>>,
+  blocks: PageBlockInput[],
+  createdBy: PageAuthor
+) {
+  const page =
+    typeof target === "string" ? await getPage(actor, target) : target;
+  if (!page) return null;
+  const last = page.blocks.reduce(
+    (max, block) => Math.max(max, block.position),
+    0
+  );
+  return writePageBlocks(
+    actor,
+    page.id,
+    [
+      ...page.blocks.map((block) => ({
+        id: block.id,
+        parentBlockId: block.parentBlockId,
+        type: block.type,
+        content: JSON.parse(JSON.stringify(block.content)),
+        position: block.position,
+        createdBy: block.createdBy,
+      })),
+      ...blocks.map((block, index) => ({
+        ...block,
+        position: last + (index + 1) * 1024,
+      })),
+    ],
+    createdBy,
+    page.documentFormatVersion === 2 ? 2 : 1,
+    page.contentRevision
+  );
+}
+
 export async function applyAiProposal(actor: PageActor, proposalId: string) {
   const userId = actorUserId(actor);
   const proposal = await getAiProposal(userId, proposalId);
@@ -513,27 +587,7 @@ export async function applyAiProposal(actor: PageActor, proposalId: string) {
     });
   }
   if (blocks.length > 0) {
-    await writePageBlocks(
-      actor,
-      page.id,
-      [
-        ...page.blocks.map((block) => ({
-          id: block.id,
-          parentBlockId: block.parentBlockId,
-          type: block.type,
-          content: JSON.parse(JSON.stringify(block.content)),
-          position: block.position,
-          createdBy: block.createdBy,
-        })),
-        ...blocks.map((block, index) => ({
-          ...block,
-          position: (page.blocks.at(-1)?.position ?? 0) + (index + 1) * 1024,
-        })),
-      ],
-      PageAuthor.AI,
-      page.documentFormatVersion === 2 ? 2 : 1,
-      page.contentRevision
-    );
+    await appendPageBlocks(actor, page, blocks, PageAuthor.AI);
   }
   return prisma.aiPageChangeProposal.update({
     where: { id: proposalId },

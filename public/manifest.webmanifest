@@ -1,8 +1,8 @@
 {
-  "name": "Needt",
+  "name": "Needt: Everything you're working on, in one place",
   "short_name": "Needt",
   "id": "/today",
-  "description": "Installable local-first planner with schedule, task, and focus support.",
+  "description": "Needt is the place you keep everything you're working on: calendars, tasks, documents, mail, boards and habits, in one place.",
   "start_url": "/today",
   "scope": "/",
   "display": "standalone",
@@ -16,10 +16,34 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/brand/needt-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "shortcuts": [

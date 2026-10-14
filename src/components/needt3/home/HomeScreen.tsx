@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { FiCalendar, FiPlus } from "react-icons/fi";
 
+import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import type {
@@ -122,8 +123,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, setAskOpen, setFocusOpen, openSettings } =
-    useNeedt3Ui();
+  const { setComposerOpen, setAskOpen, openSettings } = useNeedt3Ui();
+  const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
   // 700 px keeps all of it): tab, folds, Skip, the rows playing their exit and
@@ -321,10 +322,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   const startFocus = () => {
     if (!pick) return;
-    //todo: create a FocusSession (taskId, intention, 25 min) via
-    // /api/focus/session and only then say "Focus started"; for now the Focus
-    // window opens on its own setup and nothing claims a session began.
-    setFocusOpen(true);
+    // A 25-minute session on the task: the window opens on its clock and one
+    // notice says it began (useStartFocus). Nothing claims a start that failed.
+    void startFocusOn(pick.task);
   };
 
   const onHabit = (h: V3Habit, done: boolean) =>

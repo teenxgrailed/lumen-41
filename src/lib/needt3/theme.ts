@@ -299,12 +299,18 @@ function smooth(t: number) {
 }
 
 /** Inline overrides for one reading. The two pure readings write nothing. */
-function paletteVars(p: TimePalette, pure: boolean): Record<string, string> {
+export function paletteVars(
+  p: TimePalette,
+  pure: boolean
+): Record<string, string> {
   if (pure) return {};
   const r = hexRgb(p.raised);
   const dark = p.side === "dark";
   return {
     "--background": p.bg,
+    // The `.app` surface re-derives --background from the ambient mix; it
+    // reads this instead of the stock Light/Dark base (v3-overrides/theme-time.css).
+    "--time-bg": p.bg,
     "--surface-raised": p.raised,
     "--foreground": p.ink,
     "--foreground-rgb": hexRgb(p.ink).join(", "),
