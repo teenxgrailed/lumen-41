@@ -32,8 +32,8 @@ interface FocusWindowState {
   /** The task a break returns to once it is over. */
   breakAfter: string | null;
   draft: SetupDraft | null;
-  /** When the early Stop becomes allowed (epoch ms); null = not asked. */
-  exitReadyAt: number | null;
+  /** End session was pressed and is waiting for its one confirm. */
+  confirmEnd: boolean;
 
   patch: (p: Partial<Omit<FocusWindowState, "patch" | "reset">>) => void;
   reset: () => void;
@@ -45,7 +45,7 @@ const BLANK = {
   note: null,
   breakAfter: null,
   draft: null,
-  exitReadyAt: null,
+  confirmEnd: false,
 } satisfies Partial<FocusWindowState>;
 
 export const useFocusWindow = create<FocusWindowState>()((set) => ({

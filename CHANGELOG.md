@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apply, one Undo) instead of opening Ask, still a Pro action. The Streak
   card shows "n days closed", derived from the tasks. "Notes for the day"
   opens today's note, a private document created on first use.
+- Admin operations lists every external service — billing, email, alerts,
+  push, OAuth, hosted AI, Sentry, collaboration, Redis, webhooks, cron — as
+  configured or not, with a live check for Redis and the collaboration
+  server and a button that sends one Sentry test event. Never a secret value.
+- Focus can be ended early in one step. End session is always on the controls
+  (End break during a break); it asks once, "End now? 12 min focused so far.",
+  and ends at once. There is no 5-second lock any more: the server lets a
+  normal session go immediately (strict Pro modes keep their wait and say so),
+  Esc or Keep going backs out of the question, and the End view shows the
+  minutes actually focused. Minutes from sessions ended early now count in
+  "focused today", the week and the task's time; breaks never do; a session
+  found hours after its clock ran out is booked at its planned length. The
+  week's bars follow the person's own day, and starting while a session runs
+  answers 409 instead of 500.
 - Ask Needt works on the phone. The sheet no longer says it is not connected:
   it talks to the same assistant as the desktop panel, with the same thread
   (one conversation, kept when the window crosses 700 px), six suggestions that

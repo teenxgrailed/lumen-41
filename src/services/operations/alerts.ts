@@ -24,7 +24,7 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char] ?? char);
 }
 
-function alertRecipient(): string | null {
+export function alertRecipient(): string | null {
   return process.env.NEEDT_ALERT_EMAIL?.trim() || null;
 }
 

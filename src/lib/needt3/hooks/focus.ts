@@ -166,33 +166,34 @@ export function useFocusActions() {
       }
     }
 
-    /** The first press of an early Stop: the server starts its wait. */
-    async function requestStop(row: FocusRow): Promise<number | null> {
-      try {
-        const res = await post({ action: "request-stop", sessionId: row.id });
-        const readyAt = res.readyAt;
-        const waitSeconds = Number(res.waitSeconds);
-        if (typeof readyAt === "string") return newDate(readyAt).getTime();
-        return newDate().getTime() + (waitSeconds || 5) * 1000;
-      } catch (e) {
-        notify.error(refusal(e));
-        return null;
-      }
-    }
-
-    /** Ends the session. `completed` is the clock running out. */
+    /**
+     * Ends the session. `completed` is the clock running out. A normal session
+     * ends at once. A strict one (Pro: TIMEOUT) still has a server-side wait:
+     * the first press asks for it and says so, the next one, after it, ends.
+     */
     async function stop(row: FocusRow, completed: boolean): Promise<boolean> {
       try {
         await post({ action: "stop", sessionId: row.id, completed });
       } catch (e) {
-        // A session the other tab already ended is ended; anything else is not.
-        const wait =
-          e instanceof ApiError &&
-          (e.message === "EXIT_DELAY_ACTIVE" ||
-            e.message === "EXIT_DELAY_REQUIRED");
-        notify.error(
-          wait ? "Hold on a few seconds, then stop again." : refusal(e)
-        );
+        if (e instanceof ApiError && e.message === "EXIT_DELAY_REQUIRED") {
+          let wait = 5;
+          try {
+            const res = await post({
+              action: "request-stop",
+              sessionId: row.id,
+            });
+            wait = Number(res.waitSeconds) || wait;
+          } catch {
+            /* the message below still says what to do */
+          }
+          notify.info(
+            `This session has a stop delay. Press End session again in ${wait} s.`
+          );
+        } else if (e instanceof ApiError && e.message === "EXIT_DELAY_ACTIVE") {
+          notify.info("Hold on a few seconds, then end the session again.");
+        } else {
+          notify.error(refusal(e));
+        }
         void qc.invalidateQueries({ queryKey: key });
         return false;
       }
@@ -208,7 +209,6 @@ export function useFocusActions() {
       pause: (r: FocusRow) => toggle(r, true),
       resume: (r: FocusRow) => toggle(r, false),
       extend,
-      requestStop,
       stop,
     };
   }, [qc, key]);
