@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Admin operations lists every external service — billing, email, alerts,
+  push, OAuth, hosted AI, Sentry, collaboration, Redis, webhooks, cron — as
+  configured or not, with a live check for Redis and the collaboration
+  server and a button that sends one Sentry test event. Never a secret value.
 - Ask Needt works on the phone. The sheet no longer says it is not connected:
   it talks to the same assistant as the desktop panel, with the same thread
   (one conversation, kept when the window crosses 700 px), six suggestions that
