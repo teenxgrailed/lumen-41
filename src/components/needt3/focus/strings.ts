@@ -29,7 +29,11 @@ export const START_PILL = strings["Sidebar.jsx"].FocusControl;
 export const sessionLine = (dur: string, ends: string | null) =>
   ends ? `${dur} ${run.session_ends} ${ends}` : `${dur} session`;
 
-/* The early Stop asks the server for a few seconds' wait (the legacy rail's
-   rule, kept: ending early takes two presses). */
-export const stopWait = (s: number) => `Stop in ${s}`;
-export const stopNow = "End session";
+/* Ending early is one press and one confirm; no wait. */
+export const endSession = "End session";
+export const endBreak = "End break";
+export const keepGoing = "Keep going";
+/** "End now? 12 min focused so far." */
+export const endAsk = (focused: string) => `End now? ${focused} so far.`;
+export const focusedSoFar = (dur: string | null) =>
+  dur ? `${dur} focused` : "Under a minute focused";

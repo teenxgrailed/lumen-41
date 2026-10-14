@@ -17,11 +17,29 @@ import { TaskStatus } from "@/types/task";
 import { recomputeFocusStats } from "./focusStats";
 
 const LOG_SOURCE = "focusSession";
+/** Only the strict modes (TIMEOUT, Pro) make ending early wait. */
 const EXIT_DELAYS_SECONDS = [5, 10, 20] as const;
+
+/**
+ * How long an early end must wait after it is asked for. NORMAL never waits:
+ * the person is allowed to stop their own session, at once. TIMEOUT keeps its
+ * growing wait; DEEP_FOCUS is refused before this is asked.
+ */
+export function exitDelaySeconds(
+  strictness: FocusStrictnessMode,
+  attempt: number
+): number {
+  if (strictness === FocusStrictnessMode.NORMAL) return 0;
+  const i = Math.max(0, Math.min(attempt, EXIT_DELAYS_SECONDS.length - 1));
+  return EXIT_DELAYS_SECONDS[i];
+}
 
 export class FocusExitError extends Error {
   constructor(
-    public readonly code: "EXIT_DELAY_REQUIRED" | "EXIT_DELAY_ACTIVE" | "DEEP_FOCUS_LOCKED",
+    public readonly code:
+      | "EXIT_DELAY_REQUIRED"
+      | "EXIT_DELAY_ACTIVE"
+      | "DEEP_FOCUS_LOCKED",
     public readonly retryAfter?: number
   ) {
     super(code);
@@ -155,10 +173,7 @@ export async function requestEarlyExit(userId: string, sessionId: string) {
     session.exitAttemptCount,
     EXIT_DELAYS_SECONDS.length - 1
   );
-  const waitSeconds =
-    session.strictness === FocusStrictnessMode.NORMAL
-      ? EXIT_DELAYS_SECONDS[0]
-      : EXIT_DELAYS_SECONDS[attempt];
+  const waitSeconds = exitDelaySeconds(session.strictness, attempt);
   const requestedAt = newDate();
   const updated = await prisma.focusSession.update({
     where: { id: session.id },
@@ -195,29 +210,37 @@ export async function finalizeSession(input: {
     if (session.strictness === FocusStrictnessMode.DEEP_FOCUS) {
       throw new FocusExitError("DEEP_FOCUS_LOCKED");
     }
-    if (!session.stopRequestedAt) {
-      throw new FocusExitError("EXIT_DELAY_REQUIRED");
-    }
-    const delayIndex = Math.max(
-      0,
-      Math.min(session.exitAttemptCount - 1, EXIT_DELAYS_SECONDS.length - 1)
-    );
-    const delaySeconds =
-      session.strictness === FocusStrictnessMode.NORMAL
-        ? EXIT_DELAYS_SECONDS[0]
-        : EXIT_DELAYS_SECONDS[delayIndex];
-    const remaining = Math.ceil(
-      (session.stopRequestedAt.getTime() +
-        delaySeconds * 1000 -
-        newDate().getTime()) /
-        1000
-    );
-    if (remaining > 0) {
-      throw new FocusExitError("EXIT_DELAY_ACTIVE", remaining);
+    // NORMAL ends at once. A strict mode (TIMEOUT) asks first and waits.
+    if (session.strictness !== FocusStrictnessMode.NORMAL) {
+      if (!session.stopRequestedAt) {
+        throw new FocusExitError("EXIT_DELAY_REQUIRED");
+      }
+      const delaySeconds = exitDelaySeconds(
+        session.strictness,
+        session.exitAttemptCount - 1
+      );
+      const remaining = Math.ceil(
+        (session.stopRequestedAt.getTime() +
+          delaySeconds * 1000 -
+          newDate().getTime()) /
+          1000
+      );
+      if (remaining > 0) {
+        throw new FocusExitError("EXIT_DELAY_ACTIVE", remaining);
+      }
     }
   }
 
-  const endedAt = newDate();
+  let endedAt = newDate();
+  // A clock that ran out ends at its planned end, not whenever someone found it
+  // (a tab reopened hours later must not book hours of focus).
+  if (input.completed && session.plannedMinutes != null && !session.pausedAt) {
+    const dueAt = newDate(
+      session.startedAt.getTime() +
+        (session.plannedMinutes * 60 + session.pausedTotalSeconds) * 1000
+    );
+    if (dueAt.getTime() < endedAt.getTime()) endedAt = dueAt;
+  }
   // Fold any in-progress pause into the total so focused minutes are accurate.
   const pausedTotalSeconds = session.pausedAt
     ? session.pausedTotalSeconds +
@@ -249,7 +272,12 @@ export async function finalizeSession(input: {
     },
   });
 
-  if (session.taskId && input.completed && minutes > 0) {
+  // Time spent counts whether the clock ran out or the person stopped early.
+  if (
+    session.taskId &&
+    session.phase === FocusSessionPhase.FOCUS &&
+    minutes > 0
+  ) {
     await prisma.timeEntry.create({
       data: {
         taskId: session.taskId,

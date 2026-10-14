@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { collectOperationsHealth } from "@/services/operations/health";
+import { collectServiceReadiness } from "@/services/operations/readiness";
 
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
 
-  const [runs, health] = await Promise.all([
+  const [runs, health, services] = await Promise.all([
     prisma.schedulingRun.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
       },
     }),
     collectOperationsHealth(),
+    collectServiceReadiness(),
   ]);
   const lastSuccessfulBySource = Object.values(
     runs
@@ -37,5 +39,6 @@ export async function GET(request: NextRequest) {
     queues: health.queues,
     cronStates: health.cronStates,
     lastError: runs.find((run) => run.status === "FAILED") ?? null,
+    services,
   });
 }

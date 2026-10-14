@@ -125,6 +125,9 @@
 .needt-v3 .fc-box { flex: none; display: grid; place-items: center; width: 16px; height: 16px; box-sizing: border-box; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--text-quaternary); color: var(--background); }
 .needt-v3 .fc-part.is-done .fc-box { background: var(--success); box-shadow: none; }
 .needt-v3 .fc-part.is-done .fc-part-title { color: var(--text-muted); text-decoration: line-through; }
+.needt-v3 .fc-card-end { display: flex; flex-direction: column; gap: 12px; }
+.needt-v3 .fc-end-line { font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .fc-end-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .needt-v3 .fc-break-line { display: flex; align-items: center; gap: 10px; font: var(--type-ui); color: var(--text-secondary); }
 
 /* End: stats in one glass strip, three next steps. */
