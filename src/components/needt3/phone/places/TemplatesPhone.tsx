@@ -36,8 +36,10 @@ function PplCover() {
  * the controller: a page titled "<template> — <day>", a notice with Undo
  * (the page goes to Trash), and the page opens.
  *
- * //todo: the built-in set and a preview sheet (the list route sends no
- * blocks), "Yours" vs built-in sections.
+ * The person's own templates come first, then the set that comes with Needt
+ * (`list` is both; a built-in card says "Built in · N blocks").
+ * //todo: a preview sheet (the list route sends no blocks for saved
+ * templates), "Yours" vs built-in sections.
  */
 export function TemplatesPhone({ c }: { c: TemplatesController }) {
   const { templates, make, list, makePage } = c;

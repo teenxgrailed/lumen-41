@@ -64,9 +64,7 @@ describe("connectionsSub", () => {
         true
       )
     ).toBe("Outlook Mail, Gmail need reconnecting");
-    expect(connectionsSub([gcal, notion], "apps", true)).toBe(
-      "1 connected"
-    );
+    expect(connectionsSub([gcal, notion], "apps", true)).toBe("1 connected");
     expect(connectionsSub([notion], "apps", true)).toBe(
       "Nothing connected yet"
     );
@@ -258,6 +256,31 @@ describe("trash", () => {
     expect(s[0].rows[1].meta).toBe("Deleted 1 Oct · 20 days left");
     expect(s[1].rows[0].meta).toBe("Deleted Just now · 30 days left");
   });
+  it("pages come first, newest first, with their project", () => {
+    const pages = [
+      {
+        id: "g1",
+        title: "Brief",
+        trashedAt: "2026-10-09T09:00:00.000Z",
+        projectId: null,
+      },
+      {
+        id: "g2",
+        title: "",
+        trashedAt: "2026-10-11T09:00:00.000Z",
+        projectId: "p1",
+      },
+    ];
+    const s = trashSectionsOf({ ...args, pages, tasks, boards });
+    expect(s.map((x) => x.id)).toEqual(["pages", "tasks", "moodboards"]);
+    expect(s[0].rows.map((r) => [r.kind, r.id, r.title])).toEqual([
+      ["page", "g2", "Untitled"],
+      ["page", "g1", "Brief"],
+    ]);
+    expect(s[0].rows[0].meta).toBe(
+      "Deleted today \u00b7 from Home \u00b7 30 days left"
+    );
+  });
   it("a kind with nothing in it has no section", () => {
     expect(
       trashSectionsOf({ ...args, tasks: [], boards }).map((x) => x.id)
@@ -265,7 +288,9 @@ describe("trash", () => {
     expect(trashSectionsOf({ ...args, tasks: [], boards: [] })).toEqual([]);
   });
   it("the sub line counts, and keeps the 30-day promise while empty", () => {
-    expect(trashSub(0)).toBe("Tasks and moodboards stay here for 30 days");
+    expect(trashSub(0)).toBe(
+      "Pages, tasks and moodboards stay here for 30 days"
+    );
     expect(trashSub(1)).toBe("1 item · kept 30 days");
     expect(trashSub(3)).toBe("3 items · kept 30 days");
   });
