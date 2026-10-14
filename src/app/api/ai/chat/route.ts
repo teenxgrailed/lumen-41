@@ -39,6 +39,13 @@ import {
   createAiProposal,
   listAiReadablePages,
 } from "@/services/pages/page-service";
+import {
+  appendSubtasks,
+  checkBlocker,
+  normalizeSubtasks,
+  partsCreateData,
+  setSubtaskDone,
+} from "@/services/tasks/subtasks";
 import { FocusSessionMode, Prisma, WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -252,6 +259,34 @@ async function executeTool(
       const estimatedMinutes = numberArg(call.arguments, "estimatedMinutes");
       const dueDate = dateArg(call.arguments, "dueDate");
       const autoSchedule = booleanArg(call.arguments, "autoSchedule") ?? true;
+      const projectId = stringArg(call.arguments, "projectId");
+      if (
+        projectId &&
+        !(await prisma.project.findFirst({
+          where: { id: projectId, workspaceId, status: "active" },
+          select: { id: true },
+        }))
+      ) {
+        return {
+          text: "I could not find that project, so no task was created.",
+          toolName: "create_task",
+          requiresConfirm: false,
+        };
+      }
+      const dependsOnId = stringArg(call.arguments, "dependsOnId");
+      if (dependsOnId) {
+        const blocker = await checkBlocker({ userId, workspace }, dependsOnId);
+        if (!blocker.ok) {
+          return {
+            text: `${blocker.error}, so no task was created.`,
+            toolName: "create_task",
+            requiresConfirm: false,
+          };
+        }
+      }
+      const subtasks = normalizeSubtasks(
+        call.arguments.subtasks as Parameters<typeof normalizeSubtasks>[0]
+      );
       const task = await prisma.task.create({
         data: {
           userId,
@@ -259,6 +294,10 @@ async function executeTool(
           assigneeId: userId,
           title: title.slice(0, 160),
           status: "todo",
+          ...(projectId ? { projectId } : {}),
+          ...(dependsOnId ? { dependsOnId } : {}),
+          entry: stringArg(call.arguments, "entry"),
+          parts: partsCreateData(subtasks),
           isAutoScheduled: autoSchedule,
           autoScheduled: false,
           scheduleLocked: false,
@@ -286,11 +325,116 @@ async function executeTool(
       await publishAgentMutation(userId);
 
       return {
-        text: `Created task "${task.title}".`,
+        text: subtasks.length
+          ? `Created task "${task.title}" with ${subtasks.length} ${subtasks.length === 1 ? "subtask" : "subtasks"}.`
+          : `Created task "${task.title}".`,
         toolName: "create_task",
         toolPayload: jsonValue({
           taskId: task.id,
           title: task.title,
+          subtasks: subtasks.length,
+          href: taskHref(task.id),
+        }),
+        requiresConfirm: false,
+      };
+    }
+
+    case "add_subtasks": {
+      const task = await findTask(userId, workspace, call.arguments);
+      if (!task) {
+        return {
+          text: "I could not find that task to add subtasks to.",
+          toolName: "add_subtasks",
+          requiresConfirm: false,
+        };
+      }
+      const added = await appendSubtasks({
+        userId,
+        workspace,
+        taskId: task.id,
+        subtasks: normalizeSubtasks(
+          call.arguments.subtasks as Parameters<typeof normalizeSubtasks>[0]
+        ),
+      });
+      if (!added.ok) {
+        return {
+          text: added.error,
+          toolName: "add_subtasks",
+          requiresConfirm: false,
+        };
+      }
+      await publishAgentMutation(userId);
+      return {
+        text: `Added ${added.subtasks.length} ${added.subtasks.length === 1 ? "subtask" : "subtasks"} to "${task.title}".`,
+        toolName: "add_subtasks",
+        toolPayload: jsonValue({
+          taskId: task.id,
+          title: task.title,
+          subtasks: added.subtasks,
+          href: taskHref(task.id),
+        }),
+        requiresConfirm: false,
+      };
+    }
+
+    case "complete_subtask": {
+      const task = await findTask(userId, workspace, call.arguments);
+      if (!task) {
+        return {
+          text: "I could not find that task.",
+          toolName: "complete_subtask",
+          requiresConfirm: false,
+        };
+      }
+      const subtaskId = stringArg(call.arguments, "subtaskId");
+      const subtaskTitle = stringArg(call.arguments, "subtaskTitle");
+      const part = subtaskId
+        ? { id: subtaskId }
+        : subtaskTitle
+          ? await prisma.taskPart.findFirst({
+              where: {
+                taskId: task.id,
+                title: { equals: subtaskTitle, mode: "insensitive" },
+              },
+              orderBy: { position: "asc" },
+              select: { id: true },
+            })
+          : null;
+      if (!part) {
+        return {
+          text: `I could not find that subtask on "${task.title}".`,
+          toolName: "complete_subtask",
+          requiresConfirm: false,
+        };
+      }
+      const done = booleanArg(call.arguments, "done") ?? true;
+      const ticked = await setSubtaskDone({
+        userId,
+        workspace,
+        taskId: task.id,
+        subtaskId: part.id,
+        done,
+      });
+      if (!ticked.ok) {
+        return {
+          text: ticked.error,
+          toolName: "complete_subtask",
+          requiresConfirm: false,
+        };
+      }
+      await publishAgentMutation(userId);
+      return {
+        text:
+          done && ticked.allDone
+            ? `Ticked "${ticked.subtask.title}". Every subtask of "${task.title}" is done, so the task itself is the last step.`
+            : `${done ? "Ticked" : "Reopened"} "${ticked.subtask.title}" (${ticked.open} left).`,
+        toolName: "complete_subtask",
+        toolPayload: jsonValue({
+          taskId: task.id,
+          title: task.title,
+          subtask: ticked.subtask,
+          open: ticked.open,
+          allDone: ticked.allDone,
           href: taskHref(task.id),
         }),
         requiresConfirm: false,

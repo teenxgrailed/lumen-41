@@ -21,6 +21,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where that ink cannot be read on the page in the current theme (light text on
   the white page in Light, dark text on the grey page in Dark), the page uses Auto
   ink for that theme.
+- Projects, desktop and phone: a task with subtasks is drawn as a chain. Its
+  first step is on top, the subtasks follow in the order they are done, and the
+  task itself comes last as the closing step ("Last step · 1 of 3 done"); a
+  hairline joins the checks. Ticking the last open subtask closes the task with
+  it in one write and one Undo. A task that waits on an open task comes after
+  it, says "Waits on ..." under its row, and on the phone cannot be swiped to
+  tomorrow or dragged to another day.
+- Ask Needt and Needt MCP break work into subtasks. `create_task` /
+  `needt_create_task` take `entry` (the first small step), `subtasks` in order,
+  `projectId` and `dependsOnId`, so a task and its steps arrive in one call;
+  new `add_subtasks` / `needt_add_subtasks` and `complete_subtask` /
+  `needt_complete_subtask` tools (the answer says when every subtask is done and
+  the task itself is the last step); `needt_update_task` also sets `entry` and
+  `dependsOnId` (loops refused); `needt_get` / `needt_list` return a task's
+  subtasks. The brain-dump parser and Quick add turn "entry" and "subtasks" into
+  the task's first step and subtasks. Tool descriptions and the assistant's
+  system prompt tell models to put the entry step first and the task last.
+  `docs/connector-api.md` lists the new tools and fields.
+- The "Add a task" line inside a project no longer draws two focus rings: one
+  ring, a quiet hover, a fade instead of a jump, "Enter to add" always in place
+  so the line does not reflow while you type, an IME candidate's Enter does not
+  add, Esc clears and leaves.
+- Task dialog: an empty Project chip reads "Project" instead of "+ Project";
+  the picker only chooses an existing project, and projects are made on
+  Projects.
+
+- The Focus window is built (new design): the sidebar pill, ⌘⇧F, Home's Start
+  focus and a task's Start focus open it — setup (purpose, 25/50/90/custom
+  length, task, ambient sound), the running clock with Pause, +5 min and Stop
+  (ending early takes two presses a few seconds apart), and the End view with
+  what next. The session lives on the server, so it survives a reload and the
+  window crossing to the phone layout; the pill shows the clock and ring, the
+  tab title shows the time left, and Start focus says "Focus started · 25 min
+  on “task”". On the phone it is a full sheet. Ambient sound and "Hide other
+  tasks" are remembered but do nothing yet.
 - The app has its own icon: the dark Needt tile in the browser tab, the
   installed app, the home-screen touch icon and notifications, so an app tab is
   told apart from a needt.app tab at a glance.
