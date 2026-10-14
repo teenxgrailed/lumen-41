@@ -67,6 +67,7 @@ export const qk = {
   connections: () => [V3, "connections"] as const,
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
+  nudges: () => [V3, "nudges"] as const,
   shell: () => [V3, "shell"] as const,
   search: (q: string) => [V3, "search", q] as const,
 } as const;
