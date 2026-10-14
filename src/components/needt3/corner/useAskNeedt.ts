@@ -30,6 +30,8 @@ export interface AskMessage {
   confirm?: string;
   /** The reply failed before any text arrived. */
   failed?: boolean;
+  /** The plan does not include the agent (Free): the reply is the reason. */
+  upgrade?: boolean;
 }
 
 export type AskPhase = "idle" | "thinking" | "streaming";
@@ -92,13 +94,18 @@ export function useAskNeedt() {
         });
         if (!res.ok || !res.body) {
           let error = FAILED;
+          let upgrade = false;
           try {
-            const body = (await res.json()) as { error?: string };
+            const body = (await res.json()) as {
+              error?: string;
+              upgradeRequired?: boolean;
+            };
             if (body.error) error = body.error;
+            upgrade = body.upgradeRequired === true;
           } catch {
             /* not JSON: keep the stable fallback */
           }
-          patch(reply.id, { text: error, failed: true });
+          patch(reply.id, { text: error, failed: true, upgrade });
           return;
         }
         const reader = res.body.getReader();

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Ask Needt works on the phone. The sheet no longer says it is not connected:
+  it talks to the same assistant as the desktop panel, with the same thread
+  (one conversation, kept when the window crosses 700 px), six suggestions that
+  follow what you are looking at (a doc, a task, the day), Thinking, streaming
+  and Stop, Confirm for actions it asks about, and the same reasons when the
+  plan or the monthly allowance does not cover it, with See plans on Free.
+  Attach is drawn and off.
+- No more dark flash on first paint for a Light choice (or a Time choice at
+  night, or System on a dark OS). The server reads the saved theme and accent
+  and renders the page in them, a pre-paint script settles System and Time,
+  and `color-scheme`, `theme-color` and the page behind the app follow the
+  theme from the first byte. Your choice is unchanged.
+
 - Ask Needt (⌘J) now opens as a full-height panel docked on the right of the
   window (a sheet over a scrim below 1100 px), as in the design: a context chip
   for the task, doc or day it is looking at, a greeting by name, six suggestion
