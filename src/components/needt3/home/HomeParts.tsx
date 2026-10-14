@@ -353,6 +353,44 @@ export function NextUpNone({ closed }: { closed: boolean }) {
   );
 }
 
+/**
+ * STREAK ("n days closed"). A day is closed when everything due that day was;
+ * `dayStreak` derives the count from the tasks. A card with no run yet says
+ * how to start one instead of showing a zero.
+ */
+export function StreakCard({
+  n,
+  todayClosed,
+}: {
+  n: number;
+  todayClosed: boolean;
+}) {
+  return (
+    <Card
+      hue="var(--success)"
+      className="hd-card-streak hd-card-sm"
+      label="Streak"
+      title="A day counts as closed when everything due that day was closed."
+    >
+      <CardLabel text="Streak" />
+      <div className="hd-streak hd-card-foot">
+        <span className="hd-card-stack">
+          <span key={n} className="nx-swap hd-card-big" data-hd-streak={n}>
+            {n ? `${n} ${n === 1 ? "day" : "days"} closed` : "No streak yet"}
+          </span>
+          <span className="hd-card-sub hd-card-clip">
+            {todayClosed
+              ? "Today is in"
+              : n
+                ? "Close today to keep it"
+                : "Close a day to start one"}
+          </span>
+        </span>
+      </div>
+    </Card>
+  );
+}
+
 export interface HabitChip {
   habit: V3Habit;
   on: boolean;
@@ -514,6 +552,7 @@ export function PlanButton({
   onLocked,
   primary,
   small,
+  busy,
 }: {
   pro: ProState;
   canPlan: boolean;
@@ -521,6 +560,8 @@ export function PlanButton({
   onLocked: () => void;
   primary?: boolean;
   small?: boolean;
+  /** The plan is running: one at a time. */
+  busy?: boolean;
 }) {
   return (
     <button
@@ -528,7 +569,8 @@ export function PlanButton({
       data-agent-plan={primary ? "" : undefined}
       data-hd-plan={pro ? "on" : pro === false ? "locked" : "unknown"}
       className={`nx-btn nx-btn-secondary${small ? " nx-btn-sm" : ""}`}
-      disabled={pro === null || (pro && !canPlan)}
+      disabled={pro === null || (pro && !canPlan) || !!busy}
+      aria-busy={busy || undefined}
       onClick={pro ? onPlan : pro === false ? onLocked : undefined}
       title={
         pro === null
@@ -541,7 +583,7 @@ export function PlanButton({
       }
     >
       <LuWandSparkles size={small ? 14 : 15} aria-hidden />
-      Plan my day
+      {busy ? "Planning…" : "Plan my day"}
       <Pill pro={pro} />
     </button>
   );
@@ -929,5 +971,34 @@ export function WeekLoad({
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * NOTES FOR THE DAY (HomeToday.jsx `.hd-notes`). The prototype's line is
+ * decoration; here it opens the day's note, a document in the person's pages
+ * (`useDailyNote`), and says "Open today's note" once one exists.
+ */
+export function NotesLine({
+  has,
+  busy,
+  onOpen,
+}: {
+  has: boolean;
+  busy?: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <p className="hd-notes">
+      <button
+        type="button"
+        className="hd-notes-btn nx-focus"
+        data-hd-notes=""
+        disabled={busy}
+        onClick={onOpen}
+      >
+        {has ? "Open today\u2019s note" : "Notes for the day\u2026"}
+      </button>
+    </p>
   );
 }

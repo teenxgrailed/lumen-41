@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Settings → Account, desktop and phone: a Sign-in methods card lists how you
+  sign in (password and linked Google, Apple, GitHub, Microsoft, Discord, X,
+  LinkedIn, ChatGPT); the password row mails a reset link. Devices names this
+  device and when its session ends, and holds "Sign out of all devices".
+  Data & privacy exports tasks as CSV as well as JSON
+  (`GET /api/export/tasks?format=csv`); About shows the build.
+- Home, desktop and phone: Plan my day now runs the real scheduler (preview,
+  apply, one Undo) instead of opening Ask, still a Pro action. The Streak
+  card shows "n days closed", derived from the tasks. "Notes for the day"
+  opens today's note, a private document created on first use.
+
 - Projects, desktop and phone: a task with subtasks is drawn as a chain. Its
   first step is on top, the subtasks follow in the order they are done, and the
   task itself comes last as the closing step ("Last step · 1 of 3 done"); a

@@ -4,12 +4,20 @@ import { useRef, useState } from "react";
 
 import { signOut, useSession } from "next-auth/react";
 
-import { LuUsers } from "react-icons/lu";
+import { LuKey, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
 import { AccountSettings } from "@/components/settings/AccountSettings";
 
+import { notify } from "@/lib/notifications";
 import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
+import { BrandIcon, brandIdFor } from "../../brand";
+import {
+  deviceLine,
+  sendPasswordLink,
+  signInMethods,
+  useLinkedProviders,
+} from "../../settings/account-info";
 import {
   EVERYWHERE_COPY,
   useSignOutEverywhere,
@@ -42,16 +50,31 @@ export function useSignOut() {
  * the existing flow (re-authentication, then the queued deletion): the old
  * `AccountSettings` panel opens under the row, as it does on the desktop.
  *
- * //todo: edit name / email / avatar, password change, the Google and Apple
- * sign-in rows and the devices list have no route behind them (the desktop
- * lists the same gaps), so they are not drawn.
+ * Sign-in methods lists what is linked and the password row mails the
+ * existing reset link; Devices shows this device and signing out everywhere
+ * (the desktop's rows, `settings/account-info`).
+ *
+ * //todo: edit name / email / avatar, connecting or disconnecting a provider
+ * and a list of other devices have no route behind them (the desktop lists
+ * the same gaps), so they are not drawn.
  */
 export function AccountPage() {
   const session = useSession();
   const [deleting, setDeleting] = useState(false);
   const everywhere = useSignOutEverywhere();
   const leave = useSignOut();
+  const linked = useLinkedProviders();
+  const [mailing, setMailing] = useState(false);
   const user = session.data?.user;
+  const methods = signInMethods(linked ?? []);
+  const mailLink = async () => {
+    if (!user?.email || mailing) return;
+    setMailing(true);
+    const ok = await sendPasswordLink(user.email);
+    setMailing(false);
+    if (ok) notify.success(`We sent a link to ${user.email}.`);
+    else notify.error("Could not send the link. Try again in a moment.");
+  };
   const name = user?.name || user?.email?.split("@")[0] || "Account";
   return (
     <>
@@ -75,23 +98,49 @@ export function AccountPage() {
           desc="Email · where we write to you, and one way to sign in."
         />
       </PsGroup>
-      <PsGroup>
+      {methods.length ? (
+        <PsGroup title="Sign-in methods">
+          {methods.map((m) => (
+            <PsRow
+              key={m.id}
+              glyph={
+                m.id === "credentials" ? (
+                  <PsGlyph icon={<LuKey size={16} />} hue="var(--pk-violet)" />
+                ) : (
+                  <BrandIcon id={brandIdFor(m.id)} size={32} />
+                )
+              }
+              title={m.label}
+              desc={
+                m.id === "credentials"
+                  ? "Your email and a password."
+                  : `Signed in with ${m.label}`
+              }
+              {...(m.id === "credentials" && user?.email
+                ? {
+                    chevron: false as const,
+                    tone: "link" as const,
+                    onOpen: () => void mailLink(),
+                    value: mailing ? "Sending…" : "Change by email",
+                  }
+                : { value: "Connected" })}
+            />
+          ))}
+        </PsGroup>
+      ) : null}
+      <PsGroup title="Devices">
         <PsRow
           glyph={
-            <PsGlyph icon={<LuUsers size={16} />} hue="var(--pk-violet)" />
+            <PsGlyph
+              icon={<LuMonitorSmartphone size={16} />}
+              hue="var(--pk-violet)"
+            />
           }
-          title="Teams"
-          desc="Share projects and documents with the people you work with, inside your Needt."
-          value={<span className="ps-soon">Soon</span>}
-        />
-      </PsGroup>
-      <PsGroup>
-        <PsRow
-          title="Sign out"
-          tone="link"
-          chevron={false}
-          onOpen={() => void leave()}
-          data={{ "data-ps-signout": "" }}
+          title="This device"
+          desc={deviceLine(
+            typeof navigator === "undefined" ? null : navigator.userAgent,
+            session.data?.expires
+          )}
         />
         {everywhere.armed ? (
           <PsRow
@@ -130,6 +179,25 @@ export function AccountPage() {
             data={{ "data-ps-signout-all": "" }}
           />
         )}
+      </PsGroup>
+      <PsGroup>
+        <PsRow
+          glyph={
+            <PsGlyph icon={<LuUsers size={16} />} hue="var(--pk-violet)" />
+          }
+          title="Teams"
+          desc="Share projects and documents with the people you work with, inside your Needt."
+          value={<span className="ps-soon">Soon</span>}
+        />
+      </PsGroup>
+      <PsGroup>
+        <PsRow
+          title="Sign out"
+          tone="link"
+          chevron={false}
+          onOpen={() => void leave()}
+          data={{ "data-ps-signout": "" }}
+        />
       </PsGroup>
       <PsGroup title="Danger zone">
         <PsRow
