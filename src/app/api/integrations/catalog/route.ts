@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getIntegrationCatalog } from "@/services/integrations/catalog";
+
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
-import { getIntegrationCatalog } from "@/services/integrations/catalog";
 
 const LOG_SOURCE = "IntegrationCatalogAPI";
 
@@ -11,15 +12,31 @@ export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   try {
+    const viewer = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { role: true },
+    });
+    const isAdmin = viewer?.role === "admin";
     const [catalog, connections] = await Promise.all([
-      getIntegrationCatalog(),
+      getIntegrationCatalog({ admin: isAdmin }),
       prisma.externalIntegration.findMany({
         where: { userId: auth.userId },
-        select: { id: true, provider: true, toolkit: true, status: true, externalConnectionId: true },
+        select: {
+          id: true,
+          provider: true,
+          toolkit: true,
+          status: true,
+          externalConnectionId: true,
+        },
       }),
     ]);
-    return NextResponse.json({ catalog, connections });
+    return NextResponse.json({ catalog, connections, isAdmin });
   } catch (error) {
-    return routeErrorResponse(error, "Failed to load integration catalog", LOG_SOURCE, "Could not load integrations.");
+    return routeErrorResponse(
+      error,
+      "Failed to load integration catalog",
+      LOG_SOURCE,
+      "Could not load integrations."
+    );
   }
 }
