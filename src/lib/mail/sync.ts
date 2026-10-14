@@ -20,7 +20,6 @@ export async function syncMailAccount(accountId: string): Promise<void> {
     await persistMailMessages({
       accountId,
       ...result,
-      preserveArchived: account.provider === MailProvider.IMAP,
     });
   } catch (error) {
     await setMailAccountError(accountId);

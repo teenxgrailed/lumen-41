@@ -92,7 +92,7 @@ export function useTrashMail() {
 }
 
 /**
- * Archive at the provider. `read` also marks the message read in the same
+ * Archive in Needt only (the provider mailbox is never changed). `read` also marks the message read in the same
  * request (archiving reads it, as in the prototype). There is no un-archive
  * route, so no undo yet.
  */

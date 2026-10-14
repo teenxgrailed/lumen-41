@@ -13,11 +13,7 @@ const clients = new Map<string, ImapFlow>();
 export async function ensureImapIdleWatcher(accountId: string): Promise<void> {
   if (clients.has(accountId)) return;
   const account = await getMailAccountForSync(accountId);
-  if (
-    !account ||
-    account.provider !== "IMAP" ||
-    account.status !== "ACTIVE"
-  ) {
+  if (!account || account.provider !== "IMAP" || account.status !== "ACTIVE") {
     return;
   }
 

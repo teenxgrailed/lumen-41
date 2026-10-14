@@ -4,10 +4,7 @@ import { z } from "zod";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import {
-  createMailFocusedSplit,
-  listMailFocusedSplits,
-} from "@/lib/mail-db";
+import { createMailFocusedSplit, listMailFocusedSplits } from "@/lib/mail-db";
 
 const LOG_SOURCE = "MailFocusedSplitsAPI";
 

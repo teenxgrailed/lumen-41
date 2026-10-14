@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 
-import {
-  DELETE,
-} from "@/app/api/mail/focused-splits/[id]/route";
+import { DELETE } from "@/app/api/mail/focused-splits/[id]/route";
 import { GET, POST } from "@/app/api/mail/focused-splits/route";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import {
   createMailFocusedSplit,
@@ -38,9 +37,7 @@ describe("focused Mail split routes", () => {
     mockListMailFocusedSplits.mockResolvedValue([]);
 
     const response = assertResponse(
-      await GET(
-        new NextRequest("http://localhost/api/mail/focused-splits")
-      )
+      await GET(new NextRequest("http://localhost/api/mail/focused-splits"))
     );
 
     expect(response.status).toBe(200);
@@ -97,9 +94,12 @@ describe("focused Mail split routes", () => {
 
     const response = assertResponse(
       await DELETE(
-        new NextRequest("http://localhost/api/mail/focused-splits/split-other", {
-          method: "DELETE",
-        }),
+        new NextRequest(
+          "http://localhost/api/mail/focused-splits/split-other",
+          {
+            method: "DELETE",
+          }
+        ),
         { params: Promise.resolve({ id: "split-other" }) }
       )
     );
