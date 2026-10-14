@@ -195,27 +195,6 @@ export async function fetchGmailBody(
   return gmailBodyHtml(message.payload);
 }
 
-export async function mutateGmailMessage(
-  account: MailAccountWithConnection,
-  externalId: string,
-  action: { isRead?: boolean; archive?: boolean }
-) {
-  const token = await providerToken(account);
-  const addLabelIds: string[] = [];
-  const removeLabelIds: string[] = [];
-  if (action.isRead === true) removeLabelIds.push("UNREAD");
-  if (action.isRead === false) addLabelIds.push("UNREAD");
-  if (action.archive) removeLabelIds.push("INBOX");
-  await jsonRequest(
-    `${GMAIL_API}/messages/${encodeURIComponent(externalId)}/modify`,
-    token,
-    {
-      method: "POST",
-      body: JSON.stringify({ addLabelIds, removeLabelIds }),
-    }
-  );
-}
-
 const GRAPH_MESSAGE_SELECT = [
   "id",
   "conversationId",
@@ -277,28 +256,6 @@ export async function fetchOutlookBody(
         .replaceAll(">", "&gt;")
         .replaceAll("\n", "<br>")}</p>`
     : content;
-}
-
-export async function mutateOutlookMessage(
-  account: MailAccountWithConnection,
-  externalId: string,
-  action: { isRead?: boolean; archive?: boolean }
-) {
-  const token = await providerToken(account);
-  if (action.isRead !== undefined) {
-    await jsonRequest(
-      `${GRAPH_API}/messages/${encodeURIComponent(externalId)}`,
-      token,
-      { method: "PATCH", body: JSON.stringify({ isRead: action.isRead }) }
-    );
-  }
-  if (action.archive) {
-    await jsonRequest(
-      `${GRAPH_API}/messages/${encodeURIComponent(externalId)}/move`,
-      token,
-      { method: "POST", body: JSON.stringify({ destinationId: "archive" }) }
-    );
-  }
 }
 
 export function imapCredentials(account: MailAccountWithConnection) {
@@ -417,34 +374,6 @@ export async function fetchImapBody(
         includeBody: true,
       });
       return mapped.bodyHtml || "";
-    } finally {
-      lock.release();
-    }
-  });
-}
-
-export async function mutateImapMessage(
-  account: MailAccountWithConnection,
-  externalId: string,
-  action: { isRead?: boolean }
-) {
-  if (action.isRead === undefined) return;
-  await withImapClient(account, async (client) => {
-    const lock = await client.getMailboxLock("INBOX");
-    try {
-      if (action.isRead) {
-        await client.messageFlagsAdd(
-          Number(externalId),
-          ["\\Seen"],
-          { uid: true }
-        );
-      } else {
-        await client.messageFlagsRemove(
-          Number(externalId),
-          ["\\Seen"],
-          { uid: true }
-        );
-      }
     } finally {
       lock.release();
     }

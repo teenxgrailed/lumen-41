@@ -4,6 +4,7 @@ import { routeErrorResponse } from "@/lib/api/route-error";
 import { getOutlookCredentials } from "@/lib/auth";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
+import { OUTLOOK_MAIL_OAUTH_SCOPES } from "@/lib/mail/scopes";
 import { MICROSOFT_GRAPH_AUTH_ENDPOINTS } from "@/lib/outlook";
 
 const LOG_SOURCE = "OutlookMailOAuthStart";
@@ -33,15 +34,7 @@ export async function GET(request: NextRequest) {
       redirect_uri: redirectUrl,
       response_mode: "query",
       prompt: "consent",
-      scope: [
-        "openid",
-        "profile",
-        "email",
-        "offline_access",
-        "User.Read",
-        "Mail.Read",
-        "Mail.ReadWrite",
-      ].join(" "),
+      scope: OUTLOOK_MAIL_OAUTH_SCOPES.join(" "),
     });
     return NextResponse.redirect(
       `${MICROSOFT_GRAPH_AUTH_ENDPOINTS.auth}?${params}`

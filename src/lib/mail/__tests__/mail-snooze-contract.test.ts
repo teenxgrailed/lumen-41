@@ -19,12 +19,6 @@ describe("Mail snooze and reminder contract", () => {
   it("uses a workspace task reminder without forwarding snooze to providers", () => {
     expect(route).toContain("reminders: {");
     expect(route).toContain("TaskReminderKind.BEFORE_DEADLINE");
-    expect(route).toContain("providerAction");
-    expect(route).not.toContain(
-      "mutateGmailMessage(message.account, message.externalId, body)"
-    );
-    expect(route).not.toContain(
-      "mutateImapMessage(message.account, message.externalId, body)"
-    );
+    expect(route).not.toContain("mutate");
   });
 });
