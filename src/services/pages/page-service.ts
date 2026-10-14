@@ -173,6 +173,38 @@ export async function restorePage(actor: PageActor, pageId: string) {
   return getPage(actor, pageId);
 }
 
+/**
+ * Deletes a trashed page for good. Needs the same access as trashing it
+ * (FULL_ACCESS), read with trashed rows included. A page that is not in the
+ * trash is refused: Delete forever is only offered from Trash. Blocks,
+ * revisions, comments, assets and grants go with the page; its children stay
+ * and move to the top level. Meeting-note proposals block a delete on their
+ * own, so they go first, in the same transaction.
+ */
+export async function deletePageForever(
+  actor: PageActor,
+  pageId: string
+): Promise<"deleted" | "not-found" | "not-trashed"> {
+  const access = await actorCanAccess(
+    actor,
+    pageId,
+    PageAccessRole.FULL_ACCESS,
+    { includeTrashed: true }
+  );
+  if (!access) return "not-found";
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, ...actorPageScope(actor) },
+    select: { id: true, trashedAt: true },
+  });
+  if (!page) return "not-found";
+  if (!page.trashedAt) return "not-trashed";
+  await prisma.$transaction([
+    prisma.meetingNoteProposal.deleteMany({ where: { pageId } }),
+    prisma.page.delete({ where: { id: pageId } }),
+  ]);
+  return "deleted";
+}
+
 async function assertOwnedParent(actor: PageActor, parentId?: string | null) {
   if (!parentId) return;
   const parent = await actorCanAccess(actor, parentId, PageAccessRole.EDITOR);

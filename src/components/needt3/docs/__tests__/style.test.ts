@@ -1,6 +1,9 @@
 import {
+  COVER_ARTS,
   DOC_DEFAULT,
   contrast,
+  coverArtId,
+  coverArtValue,
   inkFor,
   pageVars,
   presetOf,
@@ -137,5 +140,39 @@ describe("ink", () => {
     });
     expect(pageVars(DOC_DEFAULT, () => "")).toEqual({});
     expect(rgbOf("#102030")).toBe("16, 32, 48");
+  });
+});
+
+describe("cover arts", () => {
+  it("offers the prototype's eight, stored as art:<id>", () => {
+    expect([...COVER_ARTS]).toEqual([
+      "rose",
+      "sand",
+      "sage",
+      "ocean",
+      "night",
+      "paper",
+      "ink",
+      "default",
+    ]);
+    expect(coverArtValue("rose")).toBe("art:rose");
+  });
+
+  it("reads an art id back, and nothing for a picture, nothing or an unknown art", () => {
+    for (const a of COVER_ARTS) expect(coverArtId(coverArtValue(a))).toBe(a);
+    expect(coverArtId("https://x.test/a.png")).toBeNull();
+    expect(coverArtId("data:image/png;base64,AA")).toBeNull();
+    expect(coverArtId("art:nope")).toBeNull();
+    expect(coverArtId(null)).toBeNull();
+  });
+
+  it("an art cover goes to coverUrl, not into the style", () => {
+    const doc = { coverUrl: null, style: { backdrop: "none" } };
+    const patch = stylePatch(doc, { cover: "art:ocean" });
+    expect(patch.coverUrl).toBe("art:ocean");
+    expect(patch.style).not.toHaveProperty("cover");
+    expect(styleOf({ coverUrl: "art:ocean", style: null }).cover).toBe(
+      "art:ocean"
+    );
   });
 });

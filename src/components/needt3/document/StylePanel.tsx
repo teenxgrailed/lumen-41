@@ -32,6 +32,7 @@ import {
 } from "../docs/DocParts";
 import { isProStyleValue } from "../docs/pro-style";
 import {
+  COVER_ARTS,
   DOC_BACKDROPS,
   DOC_DEFAULT,
   DOC_FONTS,
@@ -41,6 +42,8 @@ import {
   type DocStyle,
   type TokenReader,
   backdropName,
+  coverArtId,
+  coverArtValue,
   inkFor,
   pageOf,
   presetOf,
@@ -671,7 +674,13 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
           <DcRow
             label={copy.cover_image_2}
             row="cover"
-            sub={s.cover ? copy.your_picture : copy.none}
+            sub={
+              s.cover
+                ? coverArtId(s.cover)
+                  ? copy.drawn
+                  : copy.your_picture
+                : copy.none
+            }
             last
           >
             {s.cover ? (
@@ -701,9 +710,27 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
               <LuUpload size={15} aria-hidden />
               {copy.upload_a_picture}
             </button>
-            {/* //todo: the drawn cover arts ("art:<theme>") are not offered:
-                the editor (PageWorkspace) draws `coverUrl` as a picture URL,
-                so an art id would render as a broken image there. */}
+            {/* The drawn arts are stored as "art:<theme>" in coverUrl. The
+                document screen draws the cover itself (the editor's own is
+                hidden there), so only the public page needs to skip them. */}
+            <div className="docs-dc-style-panel-23">
+              {COVER_ARTS.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  className={
+                    "docs-dc-style-panel-24" +
+                    (s.cover === coverArtValue(a) ? " is-on" : "")
+                  }
+                  data-dc-cover-art={a}
+                  aria-label={`Cover ${a}`}
+                  aria-pressed={s.cover === coverArtValue(a)}
+                  onClick={() => set({ cover: coverArtValue(a) })}
+                >
+                  <DcCover cover={coverArtValue(a)} />
+                </button>
+              ))}
+            </div>
             {s.cover ? (
               <button
                 type="button"
