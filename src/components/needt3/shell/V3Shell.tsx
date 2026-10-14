@@ -16,6 +16,7 @@ import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { AskProvider } from "../corner/AskProvider";
 import { ChatDockContext } from "../corner/dock";
 import { CtxLayer } from "../ctx/CtxLayer";
 import { registerCtx } from "../ctx/registry";
@@ -333,21 +334,25 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
 
   return (
     <ShellContext.Provider value={api}>
-      <ChatDockContext.Provider value={chatDock}>
-        <ShellFrame
-          ui={ui}
-          top={phone || focusMode ? null : <Topbar />}
-          rail={phone ? null : rail}
-          overlays={phone ? <PhoneShell /> : desktopLayers}
-          hosts={<PermanentHosts />}
-          dock={dock}
-          // Keyed by place, so moving between two docs keeps the page.
-          placeKey={pathname?.split("/")[1] ?? ""}
-          mainPadding={focusMode ? "20px" : "0 20px 20px"}
-        >
-          {children}
-        </ShellFrame>
-      </ChatDockContext.Provider>
+      {/* Ask Needt's thread sits above the face switch: one conversation for
+          the docked panel and the phone sheet. */}
+      <AskProvider>
+        <ChatDockContext.Provider value={chatDock}>
+          <ShellFrame
+            ui={ui}
+            top={phone || focusMode ? null : <Topbar />}
+            rail={phone ? null : rail}
+            overlays={phone ? <PhoneShell /> : desktopLayers}
+            hosts={<PermanentHosts />}
+            dock={dock}
+            // Keyed by place, so moving between two docs keeps the page.
+            placeKey={pathname?.split("/")[1] ?? ""}
+            mainPadding={focusMode ? "20px" : "0 20px 20px"}
+          >
+            {children}
+          </ShellFrame>
+        </ChatDockContext.Provider>
+      </AskProvider>
     </ShellContext.Provider>
   );
 }
