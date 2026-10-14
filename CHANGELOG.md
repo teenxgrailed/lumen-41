@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Ask Needt works on the phone. The sheet no longer says it is not connected:
+  it talks to the same assistant as the desktop panel, with the same thread
+  (one conversation, kept when the window crosses 700 px), six suggestions that
+  follow what you are looking at (a doc, a task, the day), Thinking, streaming
+  and Stop, Confirm for actions it asks about, and the same reasons when the
+  plan or the monthly allowance does not cover it, with See plans on Free.
+  Attach is drawn and off.
+- No more dark flash on first paint for a Light choice (or a Time choice at
+  night, or System on a dark OS). The server reads the saved theme and accent
+  and renders the page in them, a pre-paint script settles System and Time,
+  and `color-scheme`, `theme-color` and the page behind the app follow the
+  theme from the first byte. Your choice is unchanged.
+
+- Ask Needt (⌘J) now opens as a full-height panel docked on the right of the
+  window (a sheet over a scrim below 1100 px), as in the design: a context chip
+  for the task, doc or day it is looking at, a greeting by name, six suggestion
+  cards that follow that context, `/` commands, `@` mentions and ↑ to edit your
+  last line. Attachments are shown but disabled until the AI backend takes files.
+- Proactive nudges now reach the app: a painted-sky tip above the Ask pill
+  ("2 hours opened up … Fill it") shows what the nudge job noticed. Fill it runs
+  the scheduler (preview, then apply) and the notice that follows has Undo. The
+  nudge job also detects free stretches of two hours or more (new `FREE_TIME`
+  nudge, Pro). The bell lists the latest nudges, marks them read and has "Mark
+  all as read" and "Reload".
+- `GET /api/notifications?peek=1` reads nudges without marking them delivered;
+  `PATCH /api/notifications` accepts `{ "all": true }`.
+
 - Connections: every connector said "Not set up on this server yet." The
   catalog looked for credentials in the environment only (and for
   `OUTLOOK_CLIENT_ID`, which nothing else reads), so a server configured in
