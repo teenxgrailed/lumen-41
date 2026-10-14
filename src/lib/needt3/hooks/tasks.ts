@@ -20,6 +20,7 @@ import {
 } from "@/lib/needt3/map";
 import { type TaskFilter, qk } from "@/lib/needt3/query-keys";
 import { serialByKey } from "@/lib/needt3/serial";
+import { tickClosesTask } from "@/lib/needt3/steps";
 
 import {
   dropListItem,
@@ -321,6 +322,45 @@ export function useTaskParts() {
       }),
     remove: (taskId: string, partId: string) =>
       m.mutateAsync({ op: "remove", taskId, partId }),
+  };
+}
+
+/**
+ * Tick (or untick) one step of a task. When it was the last open step of an
+ * open task, the task itself is the final step and closes with it
+ * (PORT.md: parts toggle inside the parent; SCREENS.md: the last part ticked
+ * closes the parent). Resolves to `{ closed, undo }`: one undo puts the task
+ * and the step back together. If closing the task fails, the step stays
+ * ticked and `closed` is false (the mutation has already told the person).
+ * Reopening a step never reopens or closes anything.
+ */
+export function useTickStep() {
+  const partsApi = useTaskParts();
+  const update = useUpdateTask();
+  return {
+    tick: async (
+      task: Pick<V3Task, "id" | "done" | "parts">,
+      part: Pick<V3TaskPart, "id" | "done">
+    ): Promise<{ closed: boolean; undo: () => Promise<void> }> => {
+      const closes = tickClosesTask(task, part.id);
+      const ticked = await partsApi.toggle(task.id, part);
+      if (!closes) return { closed: false, undo: ticked.undo };
+      try {
+        const closed = await update.mutateAsync({
+          id: task.id,
+          patch: { done: true },
+        });
+        return {
+          closed: true,
+          undo: async () => {
+            await closed.undo();
+            await ticked.undo();
+          },
+        };
+      } catch {
+        return { closed: false, undo: ticked.undo };
+      }
+    },
   };
 }
 

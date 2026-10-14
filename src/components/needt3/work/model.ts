@@ -19,6 +19,8 @@ import {
   taskDay,
 } from "@/lib/needt3/task-day";
 
+import { flowOrder } from "./flow";
+
 export type WorkTab = "inbox" | "today" | "upcoming" | "all";
 export type ProjectSort = "manual" | "name" | "open";
 /** A Tasks project filter: a project id, or "__none" for No project. */
@@ -278,7 +280,10 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
 
 type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
 
-/** The project page: open tasks grouped by when, and the Done list. */
+/**
+ * The project page: open tasks grouped by when, and the Done list. Inside a
+ * group a blocker comes before the task it blocks (`flowOrder`).
+ */
 export function projectGroups(
   projectId: string,
   tasks: readonly V3Task[],
@@ -304,22 +309,22 @@ export function projectGroups(
       key: "Overdue",
       title: "Overdue",
       tone: "late" as const,
-      tasks: sorted(of("Overdue"), byDay),
+      tasks: flowOrder(sorted(of("Overdue"), byDay)),
     },
     {
       key: "Today",
       title: "Today",
-      tasks: sorted(of("Today"), byTimeOn(today)),
+      tasks: flowOrder(sorted(of("Today"), byTimeOn(today))),
     },
     {
       key: "Upcoming",
       title: "Upcoming",
-      tasks: sorted(of("Upcoming"), byDay),
+      tasks: flowOrder(sorted(of("Upcoming"), byDay)),
     },
     {
       key: "No date",
       title: "No date",
-      tasks: of("No date"),
+      tasks: flowOrder(of("No date")),
     },
   ].filter((g) => g.tasks.length);
   return {

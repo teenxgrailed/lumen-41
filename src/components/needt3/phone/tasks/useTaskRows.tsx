@@ -33,10 +33,13 @@ export function useTaskRows({
   today,
   projects,
   hideProject,
+  blocked,
 }: {
   today: string;
   projects: readonly V3Project[];
   hideProject?: boolean;
+  /** Tasks waiting on an open task: they cannot be moved a day. */
+  blocked?: ReadonlySet<string>;
 }) {
   const update = useUpdateTask();
   const openTask = usePhoneOverlays((s) => s.openTask);
@@ -90,7 +93,7 @@ export function useTaskRows({
         phase={X.phase[t.id]}
         out={!!X.out[t.id]}
         canDone={!t.done}
-        canLater={!t.done && !isAhead(t, today)}
+        canLater={!t.done && !isAhead(t, today) && !blocked?.has(t.id)}
         onCheck={(x) => (x.done ? reopen(x) : exit(x, "check"))}
         onOpen={openTask}
         onSwipe={(side) => exit(t, side)}

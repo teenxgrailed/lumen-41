@@ -1,3 +1,5 @@
+import { SUBTASK_GUIDANCE } from "@/services/tasks/subtasks";
+
 import { APP_NAME } from "@/lib/app-config";
 
 import { RankedMemory, rankMemories } from "./memory";
@@ -25,6 +27,7 @@ export function assembleAgentSystemPrompt(input: {
     "Updates and deletes require explicit confirmation when the tool catalog marks them dangerous.",
     "Durable preferences may be remembered silently when useful. Never remember credentials, financial data, health data, message bodies, or other sensitive personal data.",
     "Mail access is read-only: never send, reply to, forward, archive, or delete mail.",
+    `Tasks can have subtasks. ${SUBTASK_GUIDANCE} Tick subtasks with complete_subtask; once the last one is done the task itself is the final step, so offer to close it.`,
   ].join(" ");
   const budget = Math.max(
     400,

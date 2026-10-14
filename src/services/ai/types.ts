@@ -63,6 +63,10 @@ export interface ParsedTask {
   priority?: SchedulingTaskPriority;
   energyRequired?: SchedulingEnergyLevel;
   contextTag?: string;
+  /** The very first small step; the title is the closing step. */
+  entry?: string;
+  /** Short steps in the order they are done. */
+  subtasks?: string[];
 }
 
 export type AIChatRole = "system" | "user" | "assistant";

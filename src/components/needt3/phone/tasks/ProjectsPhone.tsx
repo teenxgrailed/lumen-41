@@ -22,6 +22,8 @@ import { useCreateTask, useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { StScreen } from "../../states/StScreen";
+import { FlowItem, useFlowTick } from "../../work/FlowItem";
+import { blockedIds } from "../../work/flow";
 import { projectHue, projectStats } from "../../work/model";
 import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
@@ -241,17 +243,26 @@ function ProjectPageView({
   const create = useCreateTask();
   const updateProject = useUpdateProject();
   const archive = useArchiveProject();
-  const R = useTaskRows({ today, projects, hideProject: true });
+  const mine = useMemo(
+    () => tasks.filter((t) => t.projectId === p.id),
+    [tasks, p.id]
+  );
+  const held = useMemo(() => blockedIds(mine), [mine]);
+  const R = useTaskRows({ today, projects, hideProject: true, blocked: held });
+  const tick = useFlowTick((t, undo) =>
+    snack(`Closed “${t.title}” — every step was done`, undo)
+  );
+  const flowRow = (t: V3Task) => (
+    <FlowItem key={t.id} task={t} all={mine} touch onTick={tick}>
+      {R.row(t)}
+    </FlowItem>
+  );
   const fold = state.pageFold;
   const flip = state.flipPage;
   const { draft, setDraft } = state;
   const [menu, setMenu] = useState(false);
   const editing = state.editId === p.id;
 
-  const mine = useMemo(
-    () => tasks.filter((t) => t.projectId === p.id),
-    [tasks, p.id]
-  );
   const stats = projectStats(p.id, tasks, today);
   const { groups, done } = useMemo(
     () => projectGroups(p.id, tasks, today),
@@ -262,7 +273,18 @@ function ProjectPageView({
     .filter((t) => !R.busy[t.id])
     .reduce((n, t) => n + (t.estimatedMinutes || 0), 0);
   const specs = useMemo(() => projectSpecs(today), [today]);
-  const dz = usePkDrag({ specs, tasks: mine, busy: R.busy });
+  // a task waiting on an open one is not lifted, like one still leaving
+  const dz = usePkDrag({
+    specs,
+    tasks: mine,
+    busy: useMemo(
+      () => ({
+        ...R.busy,
+        ...Object.fromEntries([...held].map((id) => [id, 1])),
+      }),
+      [R.busy, held]
+    ),
+  });
 
   /* Add: a task of this project with no day yet (WkProjectPage's rule). */
   const addTitle = (title: string) => {
@@ -417,7 +439,7 @@ function ProjectPageView({
               >
                 {cappedRows(
                   g.tasks,
-                  R.row,
+                  flowRow,
                   !!state.more[g.key],
                   state.openMore(g.key)
                 )}
