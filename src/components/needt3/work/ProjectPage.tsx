@@ -18,6 +18,8 @@ import { notify } from "@/lib/notifications";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { Task } from "../task/Task";
+import { FlowItem, useFlowTick } from "./FlowItem";
+import { blockedIds, flowSteps } from "./flow";
 import {
   isOverdue,
   openLine,
@@ -134,16 +136,26 @@ export function ProjectPage({
       .catch(() => undefined);
   };
 
+  const tick = useFlowTick((t, undo) =>
+    notify.success(`Closed “${t.title}” — every step was done`, {
+      action: { label: "Undo", onClick: () => void undo() },
+    })
+  );
+  const mine = tasks.filter((t) => t.projectId === p.id);
+  const blocked = blockedIds(mine);
   const row = (t: V3Task) => (
-    <Task
-      key={t.id}
-      layout="row"
-      task={t}
-      today={today}
-      late={isOverdue(t, today)}
-      onOpen={onOpenTask}
-      hideProject
-    />
+    <FlowItem key={t.id} task={t} all={mine} onTick={tick}>
+      <Task
+        layout="row"
+        task={t}
+        today={today}
+        late={isOverdue(t, today)}
+        onOpen={onOpenTask}
+        hideProject
+        hideEntry={!t.done && !!flowSteps(t)}
+        className={blocked.has(t.id) ? "is-blocked" : undefined}
+      />
+    </FlowItem>
   );
   const list = (l: readonly V3Task[]) => (
     <div className="wk-list">
@@ -203,7 +215,11 @@ export function ProjectPage({
           />
         </span>
       </div>
-      <label className="wk-padd">
+      <label
+        className="wk-padd"
+        data-wk-padd
+        data-filled={draft.trim() ? "" : undefined}
+      >
         <span aria-hidden="true" className="wk-padd-plus">
           <LuPlus size={15} />
         </span>
@@ -213,7 +229,11 @@ export function ProjectPage({
           onChange={(e) => setDraft(e.target.value)}
           placeholder={`Add a task to ${p.name}`}
           aria-label={`Add a task to ${p.name}`}
+          autoComplete="off"
+          enterKeyHint="done"
           onKeyDown={(e) => {
+            // Enter inside an IME composition picks a candidate; it is not "add".
+            if (e.nativeEvent.isComposing) return;
             if (e.key === "Enter") {
               e.preventDefault();
               add();
@@ -225,7 +245,9 @@ export function ProjectPage({
           }}
           className="wk-padd-input"
         />
-        {draft.trim() ? <span className="wk-meta">Enter to add</span> : null}
+        <span aria-hidden="true" className="wk-meta wk-padd-hint">
+          Enter to add
+        </span>
       </label>
       {groups.map((g) => (
         <Fold

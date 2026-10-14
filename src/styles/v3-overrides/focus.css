@@ -1,0 +1,75 @@
+/* Design v3 - the Focus window (focus.jsx, styles/focus.css).
+ * HAND-WRITTEN, not vendored: src/styles/v3/focus.css is regenerated from the
+ * frozen prototype, so the port's additions live here and load after it.
+ *
+ * The prototype has no phone face for the window (its phone only says "Focus
+ * started" in a snack), so the phone sheet below is the port's: the same three
+ * views on the same sky, in the phone kit's full sheet, framed the way the
+ * phone paywall is. Only opacity and transform move.
+ */
+
+/* The line under the title is chrome type: 13, never 15. */
+.needt-v3 .fc-sub {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* The early Stop waits a few seconds: the button says so and sits quiet. */
+.needt-v3 .fc-ctl:disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Phone: a full sheet on the sky. */
+.needt-v3 .pk-sheet.pov-focus {
+  overflow: hidden;
+  background: var(--pov-paywall-ground);
+}
+.needt-v3 .pov-focus > .pk-sheet-grab {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 3;
+  margin-left: -18px;
+  background: var(--pov-paywall-grab);
+}
+.needt-v3 .pov-focus-body.pk-sheet-body {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.needt-v3 .fc-phone {
+  position: absolute;
+  inset: 0;
+}
+/* The sheet is the window: no second scrim, no rise of its own. */
+.needt-v3 .fc-phone .fc-view {
+  padding: 36px 18px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+.needt-v3 .fc-phone .fc-title {
+  font-size: 44px;
+}
+.needt-v3 .fc-phone .fc-run .fc-title {
+  font-size: 30px;
+}
+.needt-v3 .fc-phone .fc-end .fc-title {
+  font-size: 52px;
+}
+.needt-v3 .fc-phone .fc-clock {
+  font-size: 88px;
+}
+.needt-v3 .fc-phone .fc-tasks,
+.needt-v3 .fc-phone .fc-next {
+  grid-template-columns: minmax(0, 1fr);
+}
+.needt-v3 .fc-phone .fc-stats {
+  flex-wrap: wrap;
+}
+.needt-v3 .fc-phone .fc-round {
+  width: 36px;
+  height: 36px;
+}
+.needt-v3 .fc-phone .fc-start {
+  width: 100%;
+  justify-content: center;
+}
