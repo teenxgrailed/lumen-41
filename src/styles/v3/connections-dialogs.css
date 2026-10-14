@@ -1,0 +1,43 @@
+/* Connect dialogs on the Connections sheet shell (.cn-sheet-col): the form
+   inside a dialog, as one title, a 12px lead, rows on the one 105 / 32 form
+   geometry (.nt-row), one line for an outcome and a footer. Nothing here is a
+   card; the sheet is the surface. */
+.needt-v3 .cn-caldav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.needt-v3 .cn-caldav > .cn-meta {
+  text-wrap: pretty;
+}
+.needt-v3 .cn-caldav-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+.needt-v3 .cn-caldav-note > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--success);
+}
+.needt-v3 .cn-caldav-note.is-bad {
+  color: var(--destructive);
+}
+.needt-v3 .cn-caldav-note.is-bad > svg {
+  color: currentColor;
+}
+.needt-v3 .cn-caldav-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .cn-caldav-foot-gap {
+  flex: 1 1 auto;
+}
+.needt-v3 .cn-caldav-foot .nx-btn[disabled] {
+  opacity: 0.5;
+}
