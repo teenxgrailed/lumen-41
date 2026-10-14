@@ -4,12 +4,11 @@ import { useRef, useState } from "react";
 
 import { LuLock, LuSearch, LuX } from "react-icons/lu";
 
-import { CalDAVAccountForm } from "@/components/settings/CalDAVAccountForm";
-
 import { priceStrings } from "@/lib/needt3/pricing";
 
 import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
+import { CalDavForm } from "../../connections/CalDavForm";
 import {
   CATEGORY_LABEL,
   type CnItem,
@@ -17,6 +16,7 @@ import {
 } from "../../connections/derive";
 import { AI_META, appsFor, toolAvailable } from "../../connections/mcp";
 import { mergeQueries } from "../../connections/query";
+import { strings } from "../../connections/strings";
 import type { ConnectionsController } from "../../connections/useConnectionsController";
 import {
   PkButton,
@@ -482,12 +482,12 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         open={c.caldav}
         onClose={() => c.setCaldav(false)}
         detents={[0.92]}
-        title="Connect Apple / iCloud"
-        label="Connect Apple / iCloud"
+        title={strings.caldavTitle}
+        label={strings.caldavTitle}
         className="ppl-acct"
       >
         {c.caldav ? (
-          <CalDAVAccountForm
+          <CalDavForm
             onSuccess={c.caldavDone}
             onCancel={() => c.setCaldav(false)}
           />

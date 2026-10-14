@@ -26,8 +26,8 @@ import {
 
 // The desktop faces (also imported by Faces) read the flag from V3Root, which pulls in the whole frame.
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
-jest.mock("@/components/settings/CalDAVAccountForm", () => ({
-  CalDAVAccountForm: () => null,
+jest.mock("@/components/needt3/connections/CalDavForm", () => ({
+  CalDavForm: () => null,
 }));
 
 const push = jest.fn();
@@ -81,6 +81,7 @@ const disconnectCalendar = jest.fn();
 jest.mock("@/lib/needt3/hooks/catalog", () => ({
   useCatalog: () => catalogQ,
   connectToolkit: (...a: unknown[]) => connectToolkit(...a),
+  startOAuth: jest.fn(),
   disconnectToolkit: (...a: unknown[]) => disconnectToolkit(...a),
   disconnectCalendar: (...a: unknown[]) => disconnectCalendar(...a),
   disconnectMailbox: jest.fn(),

@@ -32,6 +32,8 @@ export interface CatalogEntry {
   native: boolean;
   /** The server has the credentials to start a connection. */
   configured: boolean;
+  /** What the server lacks, in words for an admin. Sent to admins only. */
+  requires?: string;
 }
 
 export interface IntegrationRow {
@@ -43,6 +45,8 @@ export interface IntegrationRow {
 export interface V3Catalog {
   catalog: CatalogEntry[];
   integrations: IntegrationRow[];
+  /** The viewer administers this server (so can add what is missing). */
+  isAdmin: boolean;
 }
 
 const CATALOG = [...qk.connections(), "catalog"] as const;
@@ -54,10 +58,12 @@ export function useCatalog() {
       const data = await fetchJson<{
         catalog: (Omit<CatalogEntry, "native"> & { native?: boolean })[];
         connections: IntegrationRow[];
+        isAdmin?: boolean;
       }>("/api/integrations/catalog");
       return {
         catalog: data.catalog.map((c) => ({ ...c, native: !!c.native })),
         integrations: data.connections ?? [],
+        isAdmin: !!data.isAdmin,
       };
     },
     staleTime: 60_000,
@@ -83,6 +89,40 @@ export async function connectToolkit(toolkit: string): Promise<Outcome> {
   } catch (error) {
     return { ok: false, error: message(error, "Could not connect") };
   }
+}
+
+/**
+ * Google / Outlook calendars and mailboxes start their own OAuth at a GET
+ * route that answers with a redirect to the provider. When the start is
+ * refused (calendar or mailbox limit, no credentials) it answers JSON, which a
+ * plain navigation would paint as a raw page. So the start is tried first with
+ * redirects held back: a redirect means go (the browser then follows it), any
+ * other answer is shown as a notice instead.
+ */
+export async function startOAuth(href: string): Promise<Outcome> {
+  try {
+    const res = await fetch(href, {
+      redirect: "manual",
+      credentials: "same-origin",
+    });
+    if (
+      res.type !== "opaqueredirect" &&
+      !(res.status >= 300 && res.status < 400)
+    ) {
+      const body = (await res.json().catch(() => null)) as {
+        error?: unknown;
+      } | null;
+      return {
+        ok: false,
+        error:
+          typeof body?.error === "string" ? body.error : "Could not connect",
+      };
+    }
+  } catch {
+    /* offline or blocked: let the browser try the page itself */
+  }
+  window.location.assign(href);
+  return { ok: true };
 }
 
 export async function disconnectToolkit(id: string): Promise<Outcome> {
