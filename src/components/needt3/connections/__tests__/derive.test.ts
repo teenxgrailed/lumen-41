@@ -16,6 +16,8 @@ import {
   filterItems,
   heroStatus,
   pillOf,
+  unavailableReason,
+  visibleItems,
 } from "../derive";
 
 const entry = (
@@ -300,6 +302,27 @@ describe("connectPlan", () => {
       connectPlan({ slug: "needt-api", configured: true, native: true }).kind
     ).toBe("unavailable");
   });
+  it("tells an admin what to add, and everyone else that it is not there yet", () => {
+    const item = {
+      slug: "notion",
+      name: "Notion",
+      configured: false,
+      native: false,
+      requires: "COMPOSIO_API_KEY in the server environment",
+    };
+    expect(connectPlan(item, true)).toEqual({
+      kind: "unavailable",
+      reason:
+        "Notion needs COMPOSIO_API_KEY in the server environment. Add it, then try again.",
+    });
+    expect(connectPlan(item, false)).toEqual({
+      kind: "unavailable",
+      reason: "Notion is not available yet.",
+    });
+    expect(unavailableReason("Notion", undefined, true)).toBe(
+      "Notion is not available yet."
+    );
+  });
   it("disconnect route by kind, pill, AI gate", () => {
     expect(disconnectKind({ kind: "calendar" })).toBe("calendar");
     expect(disconnectKind({ kind: "mail" })).toBe("mailbox");
@@ -311,5 +334,50 @@ describe("connectPlan", () => {
     expect(aiToolsLocked(undefined)).toBe(false);
     expect(aiToolsLocked(null)).toBe(false);
     expect(aiToolsLocked("trial")).toBe(false);
+  });
+});
+
+describe("what the server cannot start", () => {
+  const cat: CatalogEntry[] = [
+    entry("google-calendar", "Google Calendar", "calendar", {
+      native: true,
+      configured: false,
+      requires: "a Google client ID and secret",
+    }),
+    entry("outlook-calendar", "Outlook Calendar", "calendar", {
+      native: true,
+    }),
+    entry("icloud-calendar", "Apple / iCloud", "calendar", { native: true }),
+    entry("notion", "Notion", "notes", { configured: false }),
+  ];
+
+  it("a mailbox is set up exactly when the calendar of its provider is", () => {
+    const items = buildItems(cat, [], []);
+    const by = (slug: string) => items.find((i) => i.slug === slug)!;
+    expect(by("gmail")).toMatchObject({
+      configured: false,
+      requires: "a Google client ID and secret",
+    });
+    expect(by("outlook-mail").configured).toBe(true);
+  });
+
+  it("hides what cannot start from everyone but an admin", () => {
+    const items = buildItems(cat, [], []);
+    const slugs = (admin: boolean) =>
+      visibleItems(items, admin).map((i) => i.slug);
+    expect(slugs(false)).toEqual([
+      "outlook-calendar",
+      "icloud-calendar",
+      "outlook-mail",
+    ]);
+    expect(slugs(true)).toContain("notion");
+    expect(slugs(true)).toContain("gmail");
+  });
+
+  it("keeps a connected card whose server setup was removed", () => {
+    const items = buildItems(cat, [], [acct({})]);
+    expect(visibleItems(items, false).map((i) => i.slug)).toContain(
+      "google-calendar"
+    );
   });
 });
