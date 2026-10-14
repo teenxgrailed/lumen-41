@@ -39,6 +39,15 @@ import {
   searchWorkspace,
 } from "@/services/search/workspace-search";
 import {
+  SUBTASK_GUIDANCE,
+  appendSubtasks,
+  entrySchema,
+  normalizeSubtasks,
+  setSubtaskDone,
+  subtaskListSchema,
+  subtaskSelect,
+} from "@/services/tasks/subtasks";
+import {
   type TaskFieldPatch,
   updateTaskFields,
 } from "@/services/tasks/task-update";
@@ -190,6 +199,11 @@ const readAccess = (ctx: McpToolContext) =>
 const writeAccess = (ctx: McpToolContext) =>
   workspaceAccess(ctx, WorkspaceRole.EDITOR);
 
+/** A task's subtasks, in the order they are done. */
+const taskPartsInclude = {
+  parts: { orderBy: { position: "asc" as const }, select: subtaskSelect },
+};
+
 const LIST_TYPES = [
   "task",
   "project",
@@ -282,6 +296,7 @@ async function listRows(
             ...scope,
             ...(args.includeArchived ? {} : { isArchived: false }),
           },
+          include: taskPartsInclude,
           orderBy: order,
           take,
           ...cursorArgs(args.cursor),
@@ -403,7 +418,10 @@ async function getRow(
     case "task":
       return prisma.task.findFirst({
         where: { id, ...scope },
-        include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
+        include: {
+          scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+          ...taskPartsInclude,
+        },
       });
     case "project":
       return prisma.project.findFirst({ where: { id, ...scope } });
@@ -512,7 +530,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role).",
+      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -529,11 +547,13 @@ export const MCP_TOOLS: McpTool[] = [
   }),
   defineTool({
     name: "needt_create_task",
-    description:
-      "Create an auto-scheduled task. Needt runs the scheduler immediately and returns the task with its scheduled blocks.",
+    description: `Create an auto-scheduled task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z.object({
-      title: z.string().min(1),
+      title: z
+        .string()
+        .min(1)
+        .describe("The closing step: what is true once everything is done."),
       description: z.string().optional(),
       estimatedMinutes: z.number().int().min(1).optional(),
       deadline: z
@@ -543,6 +563,24 @@ export const MCP_TOOLS: McpTool[] = [
       priorityLevel: priority.optional(),
       energyRequired: energy.optional(),
       contextTag: z.string().optional(),
+      projectId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("An active project in this workspace."),
+      entry: entrySchema
+        .optional()
+        .describe("The very first small step, about two minutes."),
+      subtasks: subtaskListSchema
+        .optional()
+        .describe(
+          "Steps in the order they are done, after the entry step and before this task. Up to 30."
+        ),
+      dependsOnId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Id of an existing open task this one cannot start before."),
     }),
     invoke: (ctx, args) =>
       callRoute(ctx, createTaskPost, "/api/connect/tasks", "POST", args),
@@ -682,7 +720,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_update_task",
     description:
-      "Change a task: title, description, dueDate, estimatedMinutes, priority, energy, status or projectId. Only these fields are accepted. Needt re-runs the scheduler afterwards.",
+      "Change a task: title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry (its first step) or dependsOnId (the one open task it waits on). Only these fields are accepted. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z
       .object({
@@ -709,6 +747,18 @@ const WRITE_TOOLS: McpTool[] = [
           .nullable()
           .optional()
           .describe("Project in the same workspace; null removes it."),
+        entry: entrySchema
+          .nullable()
+          .optional()
+          .describe("The very first small step; null clears it."),
+        dependsOnId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe(
+            "Id of an open task this one waits on; null clears it. Loops are refused."
+          ),
       })
       .strict(),
     async invoke(ctx, args) {
@@ -726,7 +776,73 @@ const WRITE_TOOLS: McpTool[] = [
         energyRequired: args.energy,
         status: args.status,
         projectId: args.projectId,
+        entry: args.entry,
+        dependsOnId: args.dependsOnId,
       });
+    },
+  }),
+  defineTool({
+    name: "needt_add_subtasks",
+    description: `Add subtasks to an existing task, after the ones it already has. ${SUBTASK_GUIDANCE} Returns the new subtasks in order. Ticking them is needt_complete_subtask; the task itself is closed last with needt_complete_task.`,
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z
+      .object({
+        taskId: z.string().min(1).describe("Task id (the closing step)."),
+        subtasks: subtaskListSchema
+          .min(1)
+          .describe("Steps in the order they are done."),
+      })
+      .strict(),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      const result = await appendSubtasks({
+        userId: ctx.userId,
+        workspace: access.workspace,
+        taskId: args.taskId,
+        subtasks: normalizeSubtasks(args.subtasks),
+      });
+      return result.ok
+        ? toolResult({ subtasks: result.subtasks })
+        : toolError({ status: result.status, error: result.error });
+    },
+  }),
+  defineTool({
+    name: "needt_complete_subtask",
+    description:
+      "Tick a subtask done, or not done with done: false. Safe to repeat. The answer says allDone: true when no subtask is left open; then the task itself is the last step, so close it with needt_complete_task.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z
+      .object({
+        taskId: z.string().min(1).describe("Task id the subtask belongs to."),
+        subtaskId: z
+          .string()
+          .min(1)
+          .describe("Subtask id, from needt_get type task."),
+        done: z.boolean().default(true),
+      })
+      .strict(),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      const result = await setSubtaskDone({
+        userId: ctx.userId,
+        workspace: access.workspace,
+        taskId: args.taskId,
+        subtaskId: args.subtaskId,
+        done: args.done,
+      });
+      return result.ok
+        ? toolResult({
+            subtask: result.subtask,
+            open: result.open,
+            allDone: result.allDone,
+          })
+        : toolError({ status: result.status, error: result.error });
     },
   }),
   defineTool({

@@ -28,6 +28,8 @@ interface ParsedTask {
   priority?: SchedulingTaskPriority;
   energyRequired?: SchedulingEnergyLevel;
   contextTag?: string;
+  entry?: string;
+  subtasks?: string[];
 }
 
 /**
@@ -65,7 +67,8 @@ export default function QuickAddPage() {
       }
 
       for (const task of data.tasks) {
-        await createTask({
+        const created = await createTask({
+          ...(task.entry?.trim() ? { entry: task.entry.trim() } : {}),
           title: task.title,
           status: TaskStatus.TODO,
           estimatedMinutes: task.estimatedMinutes,
@@ -78,6 +81,18 @@ export default function QuickAddPage() {
           scheduleLocked: false,
           isRecurring: false,
         });
+        // The parser's steps become the task's subtasks, in order.
+        const steps = (task.subtasks ?? [])
+          .map((step) => (typeof step === "string" ? step.trim() : ""))
+          .filter(Boolean)
+          .slice(0, 30);
+        for (const [position, title] of steps.entries()) {
+          await fetch(`/api/tasks/${created.id}/parts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: title.slice(0, 160), position }),
+          }).catch(() => undefined);
+        }
       }
 
       setText("");

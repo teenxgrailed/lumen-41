@@ -445,6 +445,9 @@ export const PREF_DEFAULTS = {
   money: true,
   len: "50",
   brk: "10",
+  /** The Focus window's last choices (focus.jsx focusAmbient / focusHideOthers). */
+  focusAmbient: "off",
+  focusHideOthers: false,
   sound: "tick",
   hideAlerts: true,
   snapSound: false,
