@@ -4,10 +4,22 @@ export interface IntegrationCatalogItem {
   slug: string;
   name: string;
   description: string;
-  category: "calendar" | "tasks" | "notes" | "communication" | "files" | "developer" | "ai";
+  category:
+    | "calendar"
+    | "tasks"
+    | "notes"
+    | "communication"
+    | "files"
+    | "developer"
+    | "ai";
   iconUrl?: string;
   native?: boolean;
   configured: boolean;
+  /**
+   * What the server is missing when `configured` is false, in words an admin
+   * can act on. Only the catalog route sends it, and only to admins.
+   */
+  requires?: string;
 }
 
 export interface IntegrationConnectResult {
