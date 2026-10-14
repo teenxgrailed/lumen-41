@@ -1,0 +1,214 @@
+/* Design v3 — a project's flow, and the "Add a task" line.
+ *
+ * 1. FLOW. Inside a project a task is the CLOSING step of its own small chain:
+ *    its first step (`entry`) on top, its subtasks in the order they are done,
+ *    then the task itself, which is ticked last. A hairline rail joins the
+ *    checks so the order reads without a label. Greys only (one text colour at
+ *    a ladder alpha); the rail is --fill-5, the same hairline the calendar
+ *    uses. A task that waits on an open task says so under its row and keeps a
+ *    grey mark instead of a colour: blocked is a state, not an alarm.
+ *    Chrome type is 13 / 12 px on the desktop face (rule 2); the phone face
+ *    keeps its own 15 px row type. Markup: work/FlowItem.tsx.
+ * 2. ADD LINE. `.wk-padd` (v3/tasks.css) took the global
+ *    `*:focus-visible { box-shadow: var(--shadow-focus) }` on its inner input as
+ *    well as its own ring, so focusing it drew two rings, one inside the other,
+ *    and the border jumped from 1px to 1px + inset with no transition. One
+ *    field, one ring: the label owns it (hairline at rest, a step darker on
+ *    hover, the focus ring while the input has focus), the input draws none,
+ *    and every change is a 120ms box-shadow fade.
+ * 3. TASK DIALOG. An empty Project chip reads "Project", not "+ Project": the
+ *    picker only chooses an existing project, so the plus promised a thing
+ *    that is not there. (Projects are made on Projects.)
+ */
+
+/* ---- 1. flow ----------------------------------------------------------- */
+.needt-v3 .wk-flow {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .wk-steps {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .wk-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  padding-right: 8px;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .wk-step-mark {
+  flex: none;
+  width: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+}
+.needt-v3 .wk-step-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+.needt-v3 .wk-step.is-done .wk-step-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.needt-v3 .wk-step.is-entry .wk-step-text {
+  color: var(--text-tertiary);
+}
+.needt-v3 .wk-step-tag {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+/* The rail: from each check down to the next, and from the last step to the
+   closing task's check. Between checks only, so it never shows through one. */
+.needt-v3 .wk-step + .wk-step::before {
+  content: "";
+  position: absolute;
+  left: 7.5px;
+  top: -6px;
+  width: 1px;
+  height: 12px;
+  background: var(--fill-5);
+}
+.needt-v3 .wk-steps::after {
+  content: "";
+  position: absolute;
+  left: 7.5px;
+  bottom: -8px;
+  width: 1px;
+  height: 14px;
+  background: var(--fill-5);
+}
+.needt-v3 .wk-close,
+.needt-v3 .wk-wait {
+  padding: 0 0 4px 26px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .wk-wait::before {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 1px;
+  vertical-align: -1px;
+  background: var(--text-muted);
+}
+.needt-v3 .wk-flow.is-blocked .tk-desk-title,
+.needt-v3 .hd-row.is-blocked .tk-desk-title {
+  color: var(--text-secondary);
+}
+
+/* Phone face: 44px targets, the phone's own ink, text aligned with the row's. */
+.needt-v3 .wk-flow.is-touch .wk-steps::after,
+.needt-v3 .wk-flow.is-touch .wk-step + .wk-step::before {
+  display: none;
+}
+.needt-v3 .wk-flow.is-touch .wk-step {
+  min-height: 44px;
+  gap: 24px;
+  padding: 0 8px 0 6px;
+  font: 400 15px/20px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .wk-flow.is-touch .wk-step-mark {
+  width: 20px;
+}
+.needt-v3 .wk-flow.is-touch .wk-step.is-done .wk-step-text {
+  color: var(--v2p-ink-3);
+}
+.needt-v3 .wk-flow.is-touch .wk-step.is-entry .wk-step-text,
+.needt-v3 .wk-flow.is-touch .wk-step-tag {
+  color: var(--v2p-ink-3);
+}
+.needt-v3 .wk-flow.is-touch .wk-close,
+.needt-v3 .wk-flow.is-touch .wk-wait {
+  padding: 0 0 8px 50px;
+  font: 400 13px/17px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+
+/* ---- 2. the "Add a task" line ------------------------------------------- */
+.needt-v3 .wk-padd {
+  position: relative;
+  transition:
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+.needt-v3 .wk-padd:hover {
+  box-shadow: var(--fill-5) 0 0 0 1px;
+}
+.needt-v3 .wk-padd:focus-within {
+  box-shadow: var(--shadow-ring), var(--shadow-focus);
+}
+.needt-v3 .wk-padd .wk-padd-input:focus,
+.needt-v3 .wk-padd .wk-padd-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.needt-v3 .wk-padd-plus {
+  transition: color 120ms ease;
+}
+.needt-v3 .wk-padd:hover .wk-padd-plus,
+.needt-v3 .wk-padd:focus-within .wk-padd-plus {
+  color: var(--text-secondary);
+}
+.needt-v3 .wk-padd-input {
+  caret-color: var(--text-primary);
+}
+.needt-v3 .wk-padd-input::placeholder {
+  color: var(--text-muted);
+}
+/* The hint is always there and fades, so the line never reflows as you type. */
+.needt-v3 .wk-padd-hint {
+  flex: none;
+  opacity: 0;
+  transform: translateX(2px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  pointer-events: none;
+}
+.needt-v3 .wk-padd[data-filled] .wk-padd-hint {
+  opacity: 1;
+  transform: none;
+}
+/* Disabled: dim, no hover, no ring, the I-beam goes. */
+.needt-v3 .wk-padd:has(.wk-padd-input:disabled),
+.needt-v3 .wk-padd[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: var(--shadow-ring);
+}
+.needt-v3 .wk-padd:has(.wk-padd-input:disabled) .wk-padd-input {
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .wk-padd,
+  .needt-v3 .wk-padd-plus,
+  .needt-v3 .wk-padd-hint,
+  .needt-v3 .wk-step-text {
+    transition: none;
+  }
+}
+
+/* ---- 3. task dialog: no "+" on the Project chip --------------------------- */
+.needt-v3
+  .tdc-chip.is-empty[data-tdc-trigger="project"]
+  .tdc-chip-text::before {
+  content: none;
+}

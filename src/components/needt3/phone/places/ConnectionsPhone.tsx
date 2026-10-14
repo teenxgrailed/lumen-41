@@ -4,16 +4,19 @@ import { useRef, useState } from "react";
 
 import { LuLock, LuSearch, LuX } from "react-icons/lu";
 
-import { CalDAVAccountForm } from "@/components/settings/CalDAVAccountForm";
-
 import { priceStrings } from "@/lib/needt3/pricing";
 
+import { AiSetup } from "../../connections/AiSetup";
+import { visibleTools } from "../../connections/AiToolsPanel";
+import { CalDavForm } from "../../connections/CalDavForm";
 import {
   CATEGORY_LABEL,
   type CnItem,
   disconnectTitle,
 } from "../../connections/derive";
+import { AI_META, appsFor, toolAvailable } from "../../connections/mcp";
 import { mergeQueries } from "../../connections/query";
+import { strings } from "../../connections/strings";
 import type { ConnectionsController } from "../../connections/useConnectionsController";
 import {
   PkButton,
@@ -263,11 +266,65 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
       </PkButton>
     </PkGlass>
   ) : (
-    <PkEmpty
-      sky={false}
-      title="AI tools"
-      line="Connecting Claude, ChatGPT and other AI clients comes with the access-link routes; nothing to set up here yet."
-    />
+    <div className="ppl-list" data-ppl-ai-list="">
+      <span className="ppl-row-meta">
+        Needt MCP — use your tasks, calendar and notes in your favourite AI.
+      </span>
+      {visibleTools(c).map((id) => {
+        const ready = toolAvailable(id, c.mcp.oauthUrl);
+        const on = appsFor(id, c.mcp.apps ?? []).length > 0;
+        return (
+          <PplRow
+            key={id}
+            lead={<PplTile slug={id} />}
+            title={AI_META[id].label}
+            meta={
+              on
+                ? "Connected"
+                : ready
+                  ? AI_META[id].kind
+                  : "Sign-in link opens soon"
+            }
+            tone={on ? "on" : null}
+            action={
+              <PkButton
+                kind="chip"
+                disabled={!ready}
+                onClick={() => c.setSetup(id)}
+                data-ppl-ai-connect={id}
+              >
+                {on ? "Steps" : "Connect"}
+              </PkButton>
+            }
+            data={{ "data-ppl-ai": id }}
+          />
+        );
+      })}
+      {(c.mcp.apps ?? []).map((a) => (
+        <PplRow
+          key={a.id}
+          title={a.clientName}
+          meta={`Connected app · last used ${
+            a.lastUsedAt ? new Date(a.lastUsedAt).toLocaleDateString() : "never"
+          }`}
+          action={
+            <PkButton
+              kind="chip"
+              onClick={() => void c.mcp.disconnectApp(a)}
+              data-ppl-app-bye={a.id}
+            >
+              Disconnect
+            </PkButton>
+          }
+          data={{ "data-ppl-app": a.id }}
+        />
+      ))}
+      {!(c.mcp.apps ?? []).length ? (
+        <span className="ppl-row-meta" data-ppl-ai-empty="">
+          No AI tools connected yet. Pick one above and follow its steps.
+        </span>
+      ) : null}
+    </div>
   );
 
   const closeAcct = () => setAcctKey(null);
@@ -286,7 +343,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         screen="connections"
         title="Connections"
         glyph="connections"
-        sub={connectionsSub(c.items, c.tab, loaded)}
+        sub={connectionsSub(c.items, c.tab, loaded, c.mcp.apps?.length ?? 0)}
         head={tabs}
         onPull={{
           search: (q) => connectionHits(c.items, q),
@@ -397,17 +454,40 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         }
       />
 
+      <PkSheet
+        open={!!c.setup}
+        onClose={() => c.setSetup(null)}
+        detents={[0.92]}
+        title="Connect an AI tool"
+        label="Connect an AI tool"
+        className="ppl-acct"
+        footer={
+          <PkButton
+            kind="primary"
+            onClick={() => {
+              c.setSetup(null);
+              void c.mcp.reload();
+            }}
+            data-ppl-ai-done=""
+          >
+            Done
+          </PkButton>
+        }
+      >
+        {c.setup ? <AiSetup id={c.setup} mcp={c.mcp} /> : null}
+      </PkSheet>
+
       {/* Apple / iCloud takes a CalDAV login, as on the desktop */}
       <PkSheet
         open={c.caldav}
         onClose={() => c.setCaldav(false)}
         detents={[0.92]}
-        title="Connect Apple / iCloud"
-        label="Connect Apple / iCloud"
+        title={strings.caldavTitle}
+        label={strings.caldavTitle}
         className="ppl-acct"
       >
         {c.caldav ? (
-          <CalDAVAccountForm
+          <CalDavForm
             onSuccess={c.caldavDone}
             onCancel={() => c.setCaldav(false)}
           />

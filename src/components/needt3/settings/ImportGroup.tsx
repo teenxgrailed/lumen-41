@@ -11,6 +11,8 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
+import { useAdmin } from "@/hooks/use-admin";
+
 import { type ImportRunSummaryInput, importRunSummary } from "./derive";
 import { SBtn, SGroup, SRow } from "./kit";
 
@@ -35,18 +37,22 @@ const SOURCES: ReadonlyArray<{
   label: string;
   /** Shown before any import has run. */
   intro: string;
+  /** What the server needs for the consent screen (names only). */
+  needs: string;
 }> = [
   {
     id: "todoist",
     label: "Todoist",
     intro:
       "Projects, sections, tasks, labels and comments. Running it again updates what it brought in.",
+    needs: "TODOIST_CLIENT_ID and TODOIST_CLIENT_SECRET",
   },
   {
     id: "notion",
     label: "Notion",
     intro:
       "Pages and databases, with their pictures and files. You pick the pages in Notion; only those are imported. Running it again updates what changed.",
+    needs: "NOTION_CLIENT_ID and NOTION_CLIENT_SECRET",
   },
 ];
 
@@ -62,6 +68,7 @@ const isActive = (run?: ImportRun) =>
 export function ImportGroup() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<SourceId | null>(null);
+  const { isAdmin } = useAdmin();
   const state = useQuery({
     queryKey: qk.imports(),
     queryFn: () => fetchJson<ImportsState>("/api/imports"),
@@ -72,6 +79,16 @@ export function ImportGroup() {
   });
 
   if (!state.data?.enabled) return null;
+
+  // A source this server cannot start is a dead row. The admin sees it, with
+  // what to add; everyone else does not, unless it has already run.
+  const sources = SOURCES.filter(
+    (s) =>
+      isAdmin ||
+      state.data?.sources[s.id]?.configured ||
+      latest(state.data?.runs, s.id)
+  );
+  if (!sources.length) return null;
 
   const start = async (source: SourceId) => {
     setBusy(source);
@@ -109,7 +126,7 @@ export function ImportGroup() {
       title="Import"
       hint="Bring your work in from another tool. From Notion, you pick the pages in Notion itself, and only those are imported."
     >
-      {SOURCES.map((source) => {
+      {sources.map((source) => {
         const configured = !!state.data?.sources[source.id]?.configured;
         const last = latest(state.data?.runs, source.id);
         const active = isActive(last);
@@ -117,7 +134,7 @@ export function ImportGroup() {
           ? importRunSummary(last)
           : configured
             ? source.intro
-            : "Not set up on this server yet.";
+            : `Needs ${source.needs} on the server.`;
         const warnings =
           last && !active
             ? last.warnings.filter((w) => w.code !== "warnings_truncated")

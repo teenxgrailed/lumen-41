@@ -2,12 +2,13 @@
 
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
+import { FocusHost } from "../focus/FocusHost";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { SettingsSheet } from "../settings/SettingsSheet";
 
 /**
  * The hosts the UI opens through the store: the Settings sheet, the composer
- * and Ask (the corner layer). They are one fixed sibling in the frame, beside
+ * and Ask (the corner layer), and the Focus window (one controller, two faces). They are one fixed sibling in the frame, beside
  * the UI-dependent `overlays` slot, so the Settings sheet is the same instance
  * on the phone and on the desktop and is never remounted when the UI changes.
  * The Paywall host is the same kind of thing; it sits in `V3Root`, a sibling of
@@ -26,6 +27,8 @@ export function PermanentHosts() {
   return (
     <>
       <SettingsSheet />
+      {/* One instance for both UIs; the controller inside survives the swap. */}
+      <FocusHost />
       {ui === "phone" ? null : (
         <>
           <ComposerHost />

@@ -154,9 +154,39 @@ export function useTrashDoc() {
     inverse: (_qc, { id, trashed }) => ({ id, trashed: !trashed }),
     optimistic: (qc, { id, trashed }) => {
       if (trashed) dropListItem<V3Doc>(qc, DOCS, id);
+      else dropListItem<V3Doc>(qc, qk.trashedDocs(), id);
     },
     request: ({ id, trashed }) =>
       sendJson(`/api/pages/${id}`, "PATCH", { trashed }),
+  });
+}
+
+/** The pages in Trash (`GET /api/pages?trashed=true`), newest deletion first. */
+export function useTrashedDocs() {
+  return useQuery({
+    queryKey: qk.trashedDocs(),
+    queryFn: async () => {
+      const { pages } = await fetchJson<{ pages: ApiPage[] }>(
+        "/api/pages?trashed=true"
+      );
+      return pages
+        .map(docFromApi)
+        .filter((d) => d.trashedAt)
+        .sort((a, b) => String(b.trashedAt).localeCompare(String(a.trashedAt)));
+    },
+  });
+}
+
+/**
+ * Delete a page in Trash for good (`DELETE /api/pages/:id?permanent=true`).
+ * There is no way back, so there is no undo.
+ */
+export function useDeleteDocForever() {
+  return useUndoableMutation<{ id: string }, unknown>({
+    scope: qk.trash(),
+    label: "delete the document",
+    optimistic: (qc, { id }) => dropListItem<V3Doc>(qc, qk.trashedDocs(), id),
+    request: ({ id }) => sendJson(`/api/pages/${id}?permanent=true`, "DELETE"),
   });
 }
 

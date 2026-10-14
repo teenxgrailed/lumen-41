@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -9,17 +9,23 @@ import {
   LuArrowLeft,
   LuArrowUp,
   LuCaseSensitive,
+  LuCheck,
+  LuCircleCheck,
   LuFileText,
   LuFolder,
+  LuImage,
   LuLayoutTemplate,
   LuList,
+  LuPaperclip,
+  LuPlus,
   LuSearch,
 } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
+import { useAddPageFile, usePageFiles } from "@/lib/needt3/hooks/doc-files";
 import { useDoc, useDocs } from "@/lib/needt3/hooks/docs";
 
-import { useNeedt3Ui } from "@/store/needt3-ui";
+import { type DocRailTab, useNeedt3Ui } from "@/store/needt3-ui";
 
 import { DocThumb, docsCopy, useDocTokens } from "../docs/DocParts";
 import { ageLabel } from "../docs/labels";
@@ -27,6 +33,14 @@ import { Tooltip } from "../menu/Tooltip";
 import { useShellApi } from "../shell/ShellContext";
 import { useOpenDocId } from "./open-doc";
 import { EDITOR_SELECTOR, findRanges, scrollToOutline } from "./outline";
+import {
+  type DocTaskRow,
+  fileMeta,
+  isMedia,
+  taskItemAt,
+  tasksOf,
+  whereLabel,
+} from "./rail-data";
 
 const copy = docsCopy;
 
@@ -58,11 +72,262 @@ function GhostIcon({
   );
 }
 
-function PanelHead({ title }: { title: string }) {
+function PanelHead({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   return (
     <div className="docs-panel-head-1">
       <span className="docs-dc-row-4">{title}</span>
+      <span className="docs-panel-head-2">{children}</span>
     </div>
+  );
+}
+
+const SHEET_SELECTOR = "[data-doc-sheet]";
+
+/** Lines the prototype does not have (its Tasks and Files tabs show fixtures). */
+const RAIL = {
+  linked: "linked task",
+  nothing_attached:
+    "Nothing attached to this page yet. Add a file with the plus.",
+  could_not_load: "Could not load the files.",
+};
+
+/**
+ * Tasks in this document: every to-do in the page's text, under the heading
+ * it sits in, and every task the page links to. Ticking a row ticks the box in
+ * the text (the page is the one place a to-do lives); a row scrolls to it.
+ * Completed ones are hidden until asked for.
+ */
+function Tasks({ docKey }: { docKey: string }) {
+  const c = copy.PanelTasks;
+  const [rows, setRows] = useState<DocTaskRow[]>([]);
+  const [showDone, setShowDone] = useState(false);
+
+  useEffect(() => {
+    const sheet = document.querySelector(SHEET_SELECTOR);
+    let raf = 0;
+    let last = "";
+    const read = () => {
+      const next = tasksOf(sheet?.querySelector(".needt-page-editor") ?? null);
+      const key = JSON.stringify(next);
+      if (key === last) return;
+      last = key;
+      setRows(next);
+    };
+    read();
+    if (!sheet) return undefined;
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(read);
+    });
+    mo.observe(sheet, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["data-checked"],
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      mo.disconnect();
+    };
+  }, [docKey]);
+
+  const editor = () =>
+    document.querySelector(`${SHEET_SELECTOR} .needt-page-editor`);
+  const tick = (row: DocTaskRow) =>
+    taskItemAt(editor(), row.nth)
+      ?.querySelector<HTMLInputElement>('input[type="checkbox"]')
+      ?.click();
+  const show = (row: DocTaskRow) =>
+    taskItemAt(editor(), row.nth)?.scrollIntoView?.({
+      block: "center",
+      behavior: "smooth",
+    });
+
+  const shown = rows.filter((r) => showDone || !r.done);
+  const hiddenDone = rows.length - shown.length;
+  return (
+    <>
+      <PanelHead title={c.tasks}>
+        <GhostIcon
+          label={c.show_completed}
+          pressed={showDone}
+          onClick={() => setShowDone(!showDone)}
+        >
+          <LuCircleCheck size={14} />
+        </GhostIcon>
+      </PanelHead>
+      {shown.map((r, i) => {
+        const where = whereLabel(r);
+        return (
+          <div
+            key={`${r.kind}${r.nth}${i}`}
+            className="nav-row docs-panel-tasks-1"
+          >
+            {r.kind === "item" ? (
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={r.done}
+                aria-label={r.text}
+                className="nt-check docs-panel-tasks-2"
+                data-checked={r.done ? "true" : "false"}
+                onClick={() => tick(r)}
+              >
+                <span className="nt-check-box">
+                  {r.done ? <LuCheck size={12} aria-hidden /> : null}
+                </span>
+              </button>
+            ) : (
+              <span className="docs-panel-tasks-2" aria-hidden="true">
+                <LuCircleCheck size={16} />
+              </span>
+            )}
+            <span className="docs-doc-list-4">
+              {r.kind === "link" && r.href ? (
+                <a
+                  className={"docs-panel-tasks-3 docs-panel-tasks-s1"}
+                  href={r.href}
+                >
+                  {r.text}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={
+                    "docs-panel-tasks-3 docs-panel-tasks-s1" +
+                    (r.done ? " is-on" : "")
+                  }
+                  onClick={() => show(r)}
+                >
+                  {r.text}
+                </button>
+              )}
+              {where ? (
+                <span className="docs-panel-tasks-4">
+                  {where}
+                  {r.kind === "link" ? ` \u00b7 ${RAIL.linked}` : ""}
+                </span>
+              ) : null}
+            </span>
+          </div>
+        );
+      })}
+      {shown.length === 0 ? (
+        <p className="empty-hint doc-rail-hint">
+          {hiddenDone
+            ? `${hiddenDone} completed. Show them with the check above.`
+            : c.no_open_tasks_on_this_page_type_in_the_t}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Files: what is attached to this page, pictures as a grid and the rest as
+ * rows. The plus adds a file (10 MB at most); a row opens it.
+ */
+function Files({ id }: { id: string | null }) {
+  const c = copy.PanelFiles;
+  const files = usePageFiles(id);
+  const add = useAddPageFile(id);
+  const input = useRef<HTMLInputElement>(null);
+  const list = files.data ?? [];
+  const media = list.filter(isMedia);
+  const rest = list.filter((f) => !isMedia(f));
+  return (
+    <>
+      <PanelHead title={c.attachments}>
+        <GhostIcon
+          label={c.add_a_file}
+          disabled={!id || add.isPending}
+          onClick={() => input.current?.click()}
+        >
+          <LuPlus size={14} />
+        </GhostIcon>
+      </PanelHead>
+      <input
+        ref={input}
+        type="file"
+        hidden
+        data-doc-rail-file=""
+        onChange={(e) => {
+          const picked = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          picked.forEach((f) => add.mutate(f));
+        }}
+      />
+      {media.length ? (
+        <>
+          <span className="docs-panel-files-1">{c.media}</span>
+          <div className="docs-panel-files-2">
+            {media.map((f) => (
+              <a
+                key={f.id}
+                href={f.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="docs-files-thumb"
+                aria-label={f.name}
+                title={f.name}
+                style={{ overflow: "hidden", position: "relative" }}
+              >
+                <LuImage size={18} aria-hidden />
+                {/* eslint-disable-next-line @next/next/no-img-element -- the page's own attachment */}
+                <img
+                  src={f.url}
+                  alt=""
+                  loading="lazy"
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {rest.length ? (
+        <>
+          <span className="docs-panel-files-3">{c.files}</span>
+          {rest.map((f) => (
+            <a
+              key={f.id}
+              href={f.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="nav-row docs-panel-files-4"
+            >
+              <span className="docs-panel-files-5">
+                <LuPaperclip size={12} aria-hidden />
+              </span>
+              <span className="docs-panel-files-6">
+                <span className="docs-panel-files-7">{f.name}</span>
+                <span className="docs-dc-row-4">{fileMeta(f)}</span>
+              </span>
+            </a>
+          ))}
+        </>
+      ) : null}
+      {files.isSuccess && list.length === 0 ? (
+        <p className="empty-hint doc-rail-hint">{RAIL.nothing_attached}</p>
+      ) : null}
+      {files.isError ? (
+        <p className="empty-hint doc-rail-hint">{RAIL.could_not_load}</p>
+      ) : null}
+    </>
   );
 }
 
@@ -275,8 +540,8 @@ export function DocSwitch({ value }: { value: "doc" | "app" }) {
  * Opening a document trades the app's places for the document's own: the rail
  * becomes its control panel (prototype `DocPanel`) — what it is, what is in
  * it, how to move through it. The folder button at the foot hands it back.
- * Tasks and Files are not here: there is no list of a page's tasks or files
- * to show yet.
+ * Four tabs, as in the prototype: Contents, Tasks in this document, Files
+ * (what is attached to the page) and Find.
  */
 export function DocRail() {
   const router = useRouter();
@@ -294,8 +559,10 @@ export function DocRail() {
   const updated = doc
     ? ageLabel(doc.updatedAt, now).replace(/^Just now$/, c.just_now)
     : "";
-  const tabs: ["outline" | "find", ReactNode, string][] = [
+  const tabs: [DocRailTab, ReactNode, string][] = [
     ["outline", <LuList key="o" size={16} />, c.contents],
+    ["tasks", <LuCircleCheck key="t" size={16} />, c.tasks_in_this_document],
+    ["files", <LuPaperclip key="p" size={16} />, c.files],
     ["find", <LuSearch key="f" size={16} />, c.find_in_document],
   ];
   return (
@@ -352,7 +619,15 @@ export function DocRail() {
         ))}
       </span>
       <div className="scroll-inner docs-doc-panel-6">
-        {tab === "outline" ? <Outline /> : <Find docKey={id ?? ""} />}
+        {tab === "outline" ? (
+          <Outline />
+        ) : tab === "tasks" ? (
+          <Tasks docKey={id ?? ""} />
+        ) : tab === "files" ? (
+          <Files id={id} />
+        ) : (
+          <Find docKey={id ?? ""} />
+        )}
       </div>
       <DocSwitch value="doc" />
     </aside>

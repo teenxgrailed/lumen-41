@@ -11,6 +11,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type { V3Task } from "@/lib/needt3/map";
 
+import type { AskMessage } from "../../../corner/useAskNeedt";
 import { PkTheme } from "../../kit";
 import { PkAsk } from "../Ask";
 import { PkComposer } from "../Composer";
@@ -130,26 +131,133 @@ describe("PkComposer", () => {
 });
 
 describe("PkAsk", () => {
-  it("says so while there is no reply engine, and sends nothing", () => {
-    const out = html(h(PkAsk, { open: true, onClose: none }));
-    expect(out).toContain("isn’t connected");
-    expect(out).toContain("data-pov-ask-input");
-    expect(out).toMatch(
-      /pov-ask-input[^>]*disabled|disabled[^>]*pov-ask-input/
-    );
-    expect(out).not.toContain("Noted — I");
+  const base = {
+    open: true,
+    onClose: none,
+    messages: [],
+    phase: "idle" as const,
+    scope: { kind: "workspace" as const },
+    onSend: none,
+    onStop: none,
+    onNew: none,
+  };
+  const msg = (over: Partial<AskMessage>): AskMessage => ({
+    id: "m",
+    from: "needt",
+    text: "",
+    at: 0,
+    ...over,
   });
-  it("with an engine the field and the suggestions are live", () => {
+
+  it("opens on the six suggestions, live, and says nothing about not being connected", () => {
+    const out = html(h(PkAsk, base));
+    expect(out).not.toContain("isn’t connected");
+    expect(out.match(/data-pov-sugg=/g)).toHaveLength(6);
+    expect(out).toContain("Plan my day");
+    expect(out).toContain("Find free time this week");
+    expect(out).not.toMatch(/class="pov-sugg"[^>]*disabled/);
+    expect(out).not.toContain("Noted — I");
+    expect(out).not.toMatch(/pov-ask-input[^>]*disabled/);
+  });
+
+  it("the suggestions follow what it is looking at", () => {
+    const out = html(
+      h(PkAsk, { ...base, scope: { kind: "doc" as const, title: "Brief" } })
+    );
+    expect(out).toContain("Summarise this doc");
+    expect(out).toContain("I&#x27;m looking at");
+    expect(out.match(/data-pov-sugg=/g)).toHaveLength(6);
+  });
+
+  it("attach is drawn and off", () => {
+    const out = html(h(PkAsk, base));
+    expect(out).toMatch(
+      /data-pov-ask-attach[^>]*>|<button[^>]*disabled[^>]*pov-ask-attach/
+    );
+    expect(out).toMatch(/<button[^>]*pov-ask-attach[^>]*disabled/);
+  });
+
+  it("shows the thread and hides the suggestions once there is one", () => {
     const out = html(
       h(PkAsk, {
-        open: true,
-        onClose: none,
-        reply: () => Promise.resolve("ok"),
+        ...base,
+        messages: [
+          msg({ id: "a", from: "you", text: "What is overdue?" }),
+          msg({ id: "b", text: "Two tasks." }),
+        ],
       })
     );
-    expect(out).not.toContain("isn’t connected");
-    expect(out).toContain("Plan my afternoon");
-    expect(out).not.toMatch(/class="pov-sugg"[^>]*disabled/);
+    expect(out).toContain("What is overdue?");
+    expect(out).toContain("Two tasks.");
+    expect(out).not.toContain("data-pov-sugg");
+    expect(out).toContain("data-pov-ask-new");
+  });
+
+  it("thinks, then streams with a caret, and swaps Send for Stop", () => {
+    const thinking = html(
+      h(PkAsk, {
+        ...base,
+        phase: "thinking" as const,
+        messages: [msg({ id: "a", from: "you", text: "Hi" }), msg({ id: "b" })],
+      })
+    );
+    expect(thinking).toContain("Thinking…");
+    expect(thinking).toContain("data-pov-ask-stop");
+    const streaming = html(
+      h(PkAsk, {
+        ...base,
+        phase: "streaming" as const,
+        messages: [
+          msg({ id: "a", from: "you", text: "Hi" }),
+          msg({ id: "b", text: "Placing" }),
+        ],
+      })
+    );
+    expect(streaming).toContain("Placing");
+    expect(streaming).toContain("chat-caret");
+    expect(streaming).not.toContain("Thinking…");
+  });
+
+  it("a Free plan gets the reason and a way to the plans; Pro gets the reason only", () => {
+    const reason = "The AI agent is available on Needt Pro and Lifetime.";
+    const free = html(
+      h(PkAsk, {
+        ...base,
+        onUpgrade: none,
+        messages: [
+          msg({ id: "a", from: "you", text: "Plan my day" }),
+          msg({ id: "b", text: reason, failed: true, upgrade: true }),
+        ],
+      })
+    );
+    expect(free).toContain(reason);
+    expect(free).toContain("is-failed");
+    expect(free).toContain("data-pov-ask-plans");
+    const resting = html(
+      h(PkAsk, {
+        ...base,
+        onUpgrade: none,
+        messages: [
+          msg({ id: "a", from: "you", text: "Plan my day" }),
+          msg({ id: "b", text: "Needt AI is resting.", failed: true }),
+        ],
+      })
+    );
+    expect(resting).toContain("Needt AI is resting.");
+    expect(resting).not.toContain("data-pov-ask-plans");
+  });
+
+  it("an action the agent asked about waits for Confirm", () => {
+    const out = html(
+      h(PkAsk, {
+        ...base,
+        messages: [
+          msg({ id: "a", from: "you", text: "Archive it" }),
+          msg({ id: "b", text: "Archive this task?", confirm: "Archive it" }),
+        ],
+      })
+    );
+    expect(out).toContain("data-pov-ask-confirm");
   });
 });
 

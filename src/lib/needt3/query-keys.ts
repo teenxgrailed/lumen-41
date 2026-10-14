@@ -45,6 +45,10 @@ export const qk = {
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,
+  /** Pages in Trash (`GET /api/pages?trashed=true`); under `trash`, so a trash or restore refreshes it. */
+  trashedDocs: () => [V3, "trash", "docs"] as const,
+  /** The files attached to one page (`GET /api/pages/:id/assets`). */
+  pageAssets: (id: string) => [V3, "doc", id, "assets"] as const,
 
   habits: () => [V3, "habits"] as const,
   checkins: (range?: DateRange) =>
@@ -59,9 +63,15 @@ export const qk = {
   boards: () => [V3, "boards"] as const,
   board: (id: string) => [V3, "board", id] as const,
 
+  /** The one running Focus session (`GET /api/focus/session`), or none. */
+  focusSession: () => [V3, "focus", "session"] as const,
+  /** Today's minutes and the streak (`GET /api/focus`). */
+  focusStats: () => [V3, "focus", "stats"] as const,
+
   connections: () => [V3, "connections"] as const,
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
+  nudges: () => [V3, "nudges"] as const,
   shell: () => [V3, "shell"] as const,
   search: (q: string) => [V3, "search", q] as const,
 } as const;

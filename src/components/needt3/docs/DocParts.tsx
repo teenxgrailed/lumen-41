@@ -6,11 +6,13 @@ import type { PagePreviewBlock } from "@/lib/pages/page-preview";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { MiniRows } from "./DocMini";
+import { CoverArt } from "./CoverArt";
 import { backdropVars } from "./backdrop";
 import {
   type DocStyle,
   type StyledDoc,
   type TokenReader,
+  coverArtId,
   fontOf,
   isPictureCover,
   pageVars,
@@ -45,7 +47,7 @@ export function useDocTokens(): TokenReader {
   return read;
 }
 
-/** An uploaded cover picture; anything else draws nothing. */
+/** A cover: an uploaded picture or one of the drawn arts; anything else draws nothing. */
 export function DcCover({
   cover,
   style,
@@ -53,6 +55,8 @@ export function DcCover({
   cover: string | null;
   style?: CSSProperties;
 }) {
+  const art = coverArtId(cover);
+  if (art) return <CoverArt id={art} style={style} />;
   if (!isPictureCover(cover)) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- user-uploaded cover of any origin

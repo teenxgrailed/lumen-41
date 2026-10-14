@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateConnectorRequest } from "@/services/connectors/auth";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
+import {
+  checkBlocker,
+  entrySchema,
+  normalizeSubtasks,
+  partsCreateData,
+  subtaskListSchema,
+  subtaskSelect,
+} from "@/services/tasks/subtasks";
 import { WorkspaceRole } from "@prisma/client";
 
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -62,6 +70,59 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
+  const subtasks = subtaskListSchema.safeParse(body.subtasks ?? []);
+  if (!subtasks.success) {
+    return NextResponse.json(
+      { error: "subtasks must be up to 30 titles of 1-160 characters" },
+      { status: 400 }
+    );
+  }
+  const entry =
+    body.entry == null
+      ? { success: true as const, data: null }
+      : entrySchema.safeParse(body.entry);
+  if (!entry.success) {
+    return NextResponse.json(
+      { error: "entry must be one short step of 1-160 characters" },
+      { status: 400 }
+    );
+  }
+  if (body.projectId != null) {
+    const project =
+      typeof body.projectId === "string"
+        ? await prisma.project.findFirst({
+            where: {
+              id: body.projectId,
+              workspaceId: workspace.workspaceId,
+              status: "active",
+            },
+            select: { id: true },
+          })
+        : null;
+    if (!project) {
+      return NextResponse.json(
+        { error: "projectId is not an active project in this workspace" },
+        { status: 400 }
+      );
+    }
+  }
+  if (body.dependsOnId != null) {
+    const blocker =
+      typeof body.dependsOnId === "string"
+        ? await checkBlocker({ userId, workspace }, body.dependsOnId)
+        : ({
+            ok: false,
+            status: 400,
+            error: "dependsOnId must be a task id",
+          } as const);
+    if (!blocker.ok) {
+      return NextResponse.json(
+        { error: blocker.error },
+        { status: blocker.status }
+      );
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       userId,
@@ -87,6 +148,14 @@ export async function POST(request: NextRequest) {
         : "MEDIUM",
       contextTag:
         typeof body.contextTag === "string" ? body.contextTag.trim() : null,
+      ...(typeof body.projectId === "string"
+        ? { projectId: body.projectId }
+        : {}),
+      ...(typeof body.dependsOnId === "string"
+        ? { dependsOnId: body.dependsOnId }
+        : {}),
+      entry: entry.data,
+      parts: partsCreateData(normalizeSubtasks(subtasks.data)),
       isAutoScheduled: true,
       autoScheduled: true,
       scheduleLocked: false,
@@ -111,7 +180,10 @@ export async function POST(request: NextRequest) {
 
   const scheduledTask = await prisma.task.findFirst({
     where: { id: task.id, ...workspaceDataScopeWhere(workspace, userId) },
-    include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
+    include: {
+      scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+      parts: { orderBy: { position: "asc" }, select: subtaskSelect },
+    },
   });
 
   return NextResponse.json(scheduledTask || task, { status: 201 });

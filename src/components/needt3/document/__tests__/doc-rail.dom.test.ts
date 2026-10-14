@@ -43,6 +43,16 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   }),
 }));
 const mockThumb = jest.fn();
+let filesQ: { data?: unknown[]; isSuccess: boolean; isError: boolean } = {
+  data: [],
+  isSuccess: true,
+  isError: false,
+};
+const addFile = jest.fn();
+jest.mock("@/lib/needt3/hooks/doc-files", () => ({
+  usePageFiles: () => filesQ,
+  useAddPageFile: () => ({ mutate: (...a: unknown[]) => addFile(...a) }),
+}));
 jest.mock("../../docs/DocParts", () => ({
   docsCopy: jest.requireActual("../../docs/DocParts").docsCopy,
   useDocTokens: () => () => "",
@@ -58,6 +68,8 @@ const ui = () => useNeedt3Ui.getState();
 
 beforeEach(() => {
   push.mockClear();
+  addFile.mockClear();
+  filesQ = { data: [], isSuccess: true, isError: false };
   document.body.innerHTML = "";
   const sheet = document.createElement("article");
   sheet.setAttribute("data-doc-sheet", "");
@@ -181,5 +193,141 @@ describe("DocSwitch", () => {
     expect(ui().docRail).toBe("doc");
     act(() => tab("app").click());
     expect(ui().docRail).toBe("app");
+  });
+});
+
+describe("the four tabs", () => {
+  const tabs = () =>
+    Array.from(host.querySelectorAll<HTMLElement>('[role="tab"][title]'));
+
+  it("are Contents, Tasks in this document, Files and Find in document", () => {
+    act(() => root.render(h(DocRail)));
+    expect(tabs().map((t) => t.getAttribute("aria-label"))).toEqual([
+      "Contents",
+      "Tasks in this document",
+      "Files",
+      "Find in document",
+    ]);
+    expect(tabs()[0].getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("a tab swaps the panel", () => {
+    act(() => root.render(h(DocRail)));
+    act(() => tabs()[1].click());
+    expect(ui().docRailTab).toBe("tasks");
+    expect(host.textContent).toContain("No open tasks on this page");
+    act(() => tabs()[2].click());
+    expect(ui().docRailTab).toBe("files");
+    expect(host.textContent).toContain("Attachments");
+  });
+});
+
+describe("Tasks in this document", () => {
+  const todo = (text: string, checked: boolean) =>
+    `<li data-type="taskItem" data-checked="${checked}"><label><input type="checkbox"${
+      checked ? " checked" : ""
+    }></label><div><p>${text}</p></div></li>`;
+  const withTasks = () => {
+    document.querySelector(".needt-page-editor")!.innerHTML =
+      "<h2>Scope</h2>" +
+      `<ul data-type="taskList">${todo("Ship it", false)}${todo("Done thing", true)}</ul>`;
+  };
+
+  it("lists the open to-dos under their heading and hides the completed", () => {
+    withTasks();
+    ui().setDocRailTab("tasks");
+    act(() => root.render(h(DocRail)));
+    const rows = Array.from(host.querySelectorAll(".docs-panel-tasks-1"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("Ship it");
+    expect(rows[0].textContent).toContain("Scope");
+    expect(host.textContent).not.toContain("Done thing");
+  });
+
+  it("Show completed brings the ticked ones back", () => {
+    withTasks();
+    ui().setDocRailTab("tasks");
+    act(() => root.render(h(DocRail)));
+    const show = host.querySelector<HTMLElement>(
+      '[aria-label="Show completed"]'
+    )!;
+    act(() => show.click());
+    expect(host.textContent).toContain("Done thing");
+    expect(show.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("ticking a row ticks the box in the text", () => {
+    withTasks();
+    const box = document.querySelector<HTMLInputElement>(
+      'li[data-type="taskItem"] input'
+    )!;
+    const clicked = jest.fn();
+    box.addEventListener("click", clicked);
+    ui().setDocRailTab("tasks");
+    act(() => root.render(h(DocRail)));
+    act(() => host.querySelector<HTMLElement>('[role="checkbox"]')!.click());
+    expect(clicked).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows the page when a to-do is added", async () => {
+    ui().setDocRailTab("tasks");
+    act(() => root.render(h(DocRail)));
+    expect(host.querySelectorAll(".docs-panel-tasks-1")).toHaveLength(0);
+    await act(async () => {
+      withTasks();
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(host.querySelectorAll(".docs-panel-tasks-1")).toHaveLength(1);
+  });
+});
+
+describe("Files", () => {
+  const file = (id: string, name: string, mimeType: string, size: number) => ({
+    id,
+    name,
+    mimeType,
+    size,
+    createdAt: null,
+    url: `/api/pages/p1/assets/${id}`,
+  });
+
+  it("splits pictures from the rest and says kind and size", () => {
+    filesQ = {
+      isSuccess: true,
+      isError: false,
+      data: [
+        file("a1", "hero.png", "image/png", 3000),
+        file("a2", "sidebar-spec.pdf", "application/pdf", 240 * 1024),
+      ],
+    };
+    ui().setDocRailTab("files");
+    act(() => root.render(h(DocRail)));
+    expect(host.textContent).toContain("Media");
+    expect(host.querySelectorAll(".docs-files-thumb")).toHaveLength(1);
+    const row = host.querySelector<HTMLAnchorElement>(".docs-panel-files-4")!;
+    expect(row.textContent).toContain("sidebar-spec.pdf");
+    expect(row.textContent).toContain("PDF · 240 KB");
+    expect(row.getAttribute("href")).toBe("/api/pages/p1/assets/a2");
+  });
+
+  it("says so when nothing is attached, and when the list will not load", () => {
+    ui().setDocRailTab("files");
+    act(() => root.render(h(DocRail)));
+    expect(host.textContent).toContain("Nothing attached to this page yet");
+    filesQ = { isSuccess: false, isError: true };
+    act(() => root.render(h(DocRail)));
+    expect(host.textContent).toContain("Could not load the files");
+  });
+
+  it("the plus adds the chosen files", () => {
+    ui().setDocRailTab("files");
+    act(() => root.render(h(DocRail)));
+    const input = host.querySelector<HTMLInputElement>("[data-doc-rail-file]")!;
+    const f = new File(["x"], "notes.txt", { type: "text/plain" });
+    Object.defineProperty(input, "files", { value: [f], configurable: true });
+    act(() => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(addFile).toHaveBeenCalledWith(f);
   });
 });

@@ -107,7 +107,13 @@ jest.mock("@/lib/needt3/hooks/places", () => ({
     mutateAsync: (...a: unknown[]) => mutateAsync(...a),
     isPending: false,
   }),
+  useCreateFromBuiltin: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useSharedDocs: () => ({ ...idle, data: [] }),
+}));
+jest.mock("@/lib/needt3/hooks/docs", () => ({
+  useTrashedDocs: () => ({ ...idle, data: [] }),
+  useTrashDoc: () => ({ mutateAsync: jest.fn() }),
+  useDeleteDocForever: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({ useTimeZone: () => "UTC" }));
 const restore = jest.fn();

@@ -18,9 +18,8 @@ import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 
-import { useNeedt3Ui } from "@/store/needt3-ui";
-
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { useStartFocus } from "../../focus/useFocusController";
 import { hourAt } from "../../home/derive";
 import {
   PkButton,
@@ -69,7 +68,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const checkinsQuery = useCheckins();
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
-  const setFocusOpen = useNeedt3Ui((s) => s.setFocusOpen);
+  const startFocus = useStartFocus();
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   const {
@@ -265,10 +264,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               kind="primary"
               small
               icon={<LuTarget size={16} />}
-              //todo: start a FocusSession (taskId, 25 min) through
-              // /api/focus/session; for now the Focus window opens on its own
-              // setup, as on the desktop Home, and nothing claims a session began.
-              onClick={() => setFocusOpen(true)}
+              onClick={() => void startFocus(nu)}
             >
               {copy.V2pHome.start_focus}
             </PkButton>

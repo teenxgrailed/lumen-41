@@ -6,6 +6,9 @@ import { SystemSettings } from "@/components/settings/SystemSettings";
 import { UserManagement } from "@/components/settings/UserManagement";
 
 import { isAdmin } from "@/lib/auth/is-admin";
+import { sectionMetadata } from "@/lib/needt3/section-titles";
+
+export const metadata = sectionMetadata("system");
 
 export const dynamic = "force-dynamic";
 

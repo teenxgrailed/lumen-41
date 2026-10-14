@@ -2397,7 +2397,8 @@ export function PageWorkspace({
         </div>
       </div>
 
-      {page.coverUrl && (
+      {/* A drawn cover ("art:<theme>") is the document screen's to draw. */}
+      {page.coverUrl && !page.coverUrl.startsWith("art:") && (
         <button
           type="button"
           aria-label="Change cover"

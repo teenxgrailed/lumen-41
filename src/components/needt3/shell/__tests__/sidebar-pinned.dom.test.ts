@@ -7,6 +7,7 @@
  */
 import { act, createElement as h } from "react";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3Doc } from "@/lib/needt3/map";
@@ -48,6 +49,7 @@ jest.mock("@/lib/needt3/hooks/settings", () => ({
   useSetPref: () => jest.fn(),
 }));
 jest.mock("../AccountMenu", () => ({ AccountMenu: () => null }));
+jest.mock("../ImportMenu", () => ({ ImportMenu: () => null }));
 jest.mock("../PlaceGlyph", () => ({ PlaceGlyph: () => null }));
 jest.mock("../../document/DocRail", () => ({ DocSwitch: () => null }));
 jest.mock("../../ctx/PortalScope", () => ({
@@ -94,7 +96,19 @@ afterEach(() => {
 
 const mount = (list: V3Doc[]) => {
   docs = list;
-  act(() => root.render(h(Sidebar)));
+  act(() =>
+    root.render(
+      h(
+        QueryClientProvider,
+        {
+          client: new QueryClient({
+            defaultOptions: { queries: { retry: false, enabled: false } },
+          }),
+        },
+        h(Sidebar)
+      )
+    )
+  );
 };
 const row = (id: string) =>
   host.querySelector<HTMLElement>(`[data-ctx="doc"][data-ctx-id="${id}"]`);
