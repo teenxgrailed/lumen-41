@@ -1,8 +1,10 @@
 import { Prisma, ProactiveNudgeType } from "@prisma/client";
 
-import { formatInTimeZone } from "@/lib/date-utils";
+import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { canUseAdvancedNudges } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+
+import { describeGap, longestFreeGap } from "./free-time";
 
 type NudgeDraft = {
   taskId?: string;
@@ -24,6 +26,116 @@ function inQuietHours(
   return start < end
     ? time >= start && time < end
     : time >= start || time < end;
+}
+
+/** Work days from the settings string; unset or unreadable is Monday to Friday. */
+function workDaysOf(value: string | null | undefined): number[] {
+  if (!value) return [1, 2, 3, 4, 5];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (d): d is number => Number.isInteger(d) && d >= 0 && d <= 6
+        )
+      : [1, 2, 3, 4, 5];
+  } catch {
+    return [1, 2, 3, 4, 5];
+  }
+}
+
+/**
+ * "2 hours opened up": the longest stretch of what is left of today's work
+ * hours that no calendar event or placed task touches, while open tasks still
+ * have no time. Without those tasks "Fill it" would have nothing to place, so
+ * nothing is said.
+ */
+async function freeTimeDraft(
+  userId: string,
+  timeZone: string,
+  now: Date,
+  dayWindow: string
+): Promise<NudgeDraft | null> {
+  const settings = await prisma.autoScheduleSettings.findUnique({
+    where: { userId },
+    select: { workDays: true, workHourStart: true, workHourEnd: true },
+  });
+  if (!settings || settings.workHourEnd <= settings.workHourStart) return null;
+  const weekday = Number(formatInTimeZone(now, timeZone, "i")) % 7;
+  if (!workDaysOf(settings.workDays).includes(weekday)) return null;
+
+  const at = (hour: number) =>
+    fromZonedTime(
+      `${dayWindow}T${String(hour).padStart(2, "0")}:00:00`,
+      timeZone
+    ).getTime();
+  // Start on the next quarter hour: a gap that began a minute ago is not news.
+  const quarter = 15 * 60_000;
+  const from = Math.max(
+    at(settings.workHourStart),
+    Math.ceil(now.getTime() / quarter) * quarter
+  );
+  const window = { start: from, end: at(settings.workHourEnd) };
+  if (window.end <= window.start) return null;
+
+  const unplaced = await prisma.task.count({
+    where: {
+      userId,
+      isArchived: false,
+      status: { not: "completed" },
+      scheduledStart: null,
+    },
+  });
+  if (unplaced === 0) return null;
+
+  const [events, placed] = await Promise.all([
+    prisma.calendarEvent.findMany({
+      where: {
+        archivedAt: null,
+        allDay: false,
+        feed: { userId, enabled: true },
+        start: { lt: new Date(window.end) },
+        end: { gt: new Date(window.start) },
+      },
+      select: { start: true, end: true },
+      take: 200,
+    }),
+    prisma.task.findMany({
+      where: {
+        userId,
+        isArchived: false,
+        status: { not: "completed" },
+        scheduledStart: { lt: new Date(window.end) },
+        scheduledEnd: { gt: new Date(window.start) },
+      },
+      select: { scheduledStart: true, scheduledEnd: true },
+      take: 200,
+    }),
+  ]);
+  const busy = [
+    ...events.map((e) => ({ start: e.start.getTime(), end: e.end.getTime() })),
+    ...placed.flatMap((t) =>
+      t.scheduledStart && t.scheduledEnd
+        ? [
+            {
+              start: t.scheduledStart.getTime(),
+              end: t.scheduledEnd.getTime(),
+            },
+          ]
+        : []
+    ),
+  ];
+  const gap = longestFreeGap(window, busy);
+  if (!gap) return null;
+  const { range, hours } = describeGap(gap, (ms) =>
+    formatInTimeZone(new Date(ms), timeZone, "HH:mm")
+  );
+  return {
+    type: ProactiveNudgeType.FREE_TIME,
+    timeWindow: dayWindow,
+    title: `${hours} hours opened up`,
+    body: `${range} today is free, and ${unplaced} ${unplaced === 1 ? "task has" : "tasks have"} no time yet.`,
+    deepLink: "/today",
+  };
 }
 
 export async function generateProactiveNudges(now = new Date()) {
@@ -76,6 +188,8 @@ export async function generateProactiveNudges(now = new Date()) {
 
     const entitlement = await canUseAdvancedNudges(user.id);
     if (entitlement.allowed) {
+      const free = await freeTimeDraft(user.id, timeZone, now, dayWindow);
+      if (free) drafts.push(free);
       const tasks = await prisma.task.findMany({
         where: {
           userId: user.id,

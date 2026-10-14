@@ -299,7 +299,10 @@ function smooth(t: number) {
 }
 
 /** Inline overrides for one reading. The two pure readings write nothing. */
-function paletteVars(p: TimePalette, pure: boolean): Record<string, string> {
+export function paletteVars(
+  p: TimePalette,
+  pure: boolean
+): Record<string, string> {
   if (pure) return {};
   const r = hexRgb(p.raised);
   const dark = p.side === "dark";

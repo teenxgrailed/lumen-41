@@ -13,6 +13,7 @@ import { act, createElement as h } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
+import type { Look } from "@/lib/needt3/look-boot";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -67,6 +68,38 @@ jest.mock("../../composer/Composer", () => {
     },
   };
 });
+// The controller behind both Ask faces: counted, not run.
+jest.mock("../../corner/useAskNeedt", () => {
+  const React = jest.requireActual<typeof import("react")>("react");
+  const api = {
+    messages: [],
+    phase: "idle",
+    send: () => Promise.resolve(),
+    stop: () => {},
+    reset: () => {},
+    popLast: () => null,
+  };
+  return {
+    useAskNeedt() {
+      React.useEffect(() => {
+        const log = G.__hostLog!;
+        log.mounts["ask-controller"] = (log.mounts["ask-controller"] ?? 0) + 1;
+        return () => {
+          log.unmounts["ask-controller"] =
+            (log.unmounts["ask-controller"] ?? 0) + 1;
+        };
+      }, []);
+      return api;
+    },
+  };
+});
+jest.mock("../../corner/useAskScope", () => ({
+  useAskScope: () => ({
+    scope: { kind: "workspace" },
+    list: [],
+    setPick: () => {},
+  }),
+}));
 jest.mock("../../corner/CornerLayer", () => ({
   CornerLayer: stub("ask"),
 }));
@@ -125,7 +158,7 @@ const client = new QueryClient();
 let host: HTMLDivElement;
 let root: Root;
 
-const render = (ui: PhoneUi) =>
+const render = (ui: PhoneUi, initialLook?: Look) =>
   act(() =>
     root.render(
       h(
@@ -133,7 +166,7 @@ const render = (ui: PhoneUi) =>
         { client },
         h(
           V3Root,
-          { initialUi: ui, uiForced: true },
+          { initialUi: ui, uiForced: true, initialLook },
           h("section", { id: "page" })
         )
       )
@@ -251,5 +284,84 @@ describe("hosts", () => {
       expect(G.__hostLog!.unmounts[name] ?? 0).toBe(0);
     }
     expect(G.__hostLog!.unmounts["phone-shell"]).toBe(1);
+  });
+
+  it("one Ask controller above the face switch: crossing 700 px does not restart it", () => {
+    render("phone");
+    expect(G.__hostLog!.mounts["ask-controller"]).toBe(1);
+    render("desktop");
+    render("phone");
+    render("desktop");
+    expect(G.__hostLog!.mounts["ask-controller"]).toBe(1);
+    expect(G.__hostLog!.unmounts["ask-controller"] ?? 0).toBe(0);
+  });
+
+  describe("first paint", () => {
+    const osDark = (dark: boolean) =>
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: (query: string) => ({
+          matches: query.includes("prefers-color-scheme: dark") ? dark : false,
+          media: query,
+          addEventListener() {},
+          removeEventListener() {},
+        }),
+      });
+    const scope = () => host.querySelector<HTMLElement>(".needt-v3")!;
+    const look = (over: Partial<Look>): Look => ({
+      choice: "light",
+      accent: "blue",
+      side: "light",
+      palette: null,
+      ...over,
+    });
+
+    beforeEach(() => {
+      window.localStorage.clear();
+      document.cookie = "needt-look=; Max-Age=0; Path=/";
+      useNeedt3Ui.setState({ theme: "system", accent: "blue" });
+    });
+
+    it("a Light choice on a dark OS with nothing in localStorage is Light, not dark", () => {
+      osDark(true);
+      render("desktop", look({ choice: "light", accent: "pink" }));
+      expect(scope().getAttribute("data-theme")).toBe("light");
+      expect(scope().getAttribute("data-accent")).toBe("pink");
+      expect(useNeedt3Ui.getState().theme).toBe("light");
+      expect(document.cookie).toContain("needt-look=light.light.pink");
+      expect(document.documentElement.style.colorScheme).toBe("light");
+    });
+
+    it("the server's saved choice beats a stale localStorage copy", () => {
+      osDark(false);
+      useNeedt3Ui.setState({ theme: "dark" });
+      render("phone", look({ choice: "light" }));
+      expect(scope().getAttribute("data-theme")).toBe("light");
+      expect(useNeedt3Ui.getState().theme).toBe("light");
+    });
+
+    it("System follows the OS and the boot script sits first in the scope", () => {
+      osDark(true);
+      render("desktop", look({ choice: "system", side: null }));
+      expect(scope().getAttribute("data-theme")).toBe("dark");
+      const first = scope().firstElementChild as HTMLElement;
+      expect(first.tagName).toBe("SCRIPT");
+      expect(first.textContent).toContain("data-theme-choice");
+    });
+
+    it("Time wears its last palette until it has measured the sky", () => {
+      osDark(false);
+      render(
+        "desktop",
+        look({
+          choice: "time",
+          side: "dark",
+          palette: { bg: "#25222b", raised: "#312d38", ink: "#eeebf2" },
+        })
+      );
+      expect(scope().getAttribute("data-theme")).toBe("dark");
+      expect(scope().getAttribute("data-drift")).toBe("on");
+      expect(scope().style.getPropertyValue("--background")).toBe("#25222b");
+    });
   });
 });
