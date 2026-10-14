@@ -54,14 +54,13 @@ const STALE_MS = 60_000;
  * The running session as the clock sees it: the server's row and a `now`
  * that moves every second while the clock moves. One tick per reader, so the
  * sidebar pill and the window each keep their own and neither waits on the
- * other. `also` keeps the tick going for something else that counts seconds
- * (the early Stop's wait) while the session itself is paused.
+ * other.
  */
-export function useFocusRun(also = false) {
+export function useFocusRun() {
   const query = useFocusSession();
   const session = query.data ?? null;
   const [nowMs, setNowMs] = useState(() => newDate().getTime());
-  const ticking = !!session && (!session.pausedAt || also);
+  const ticking = !!session && !session.pausedAt;
   const id = session?.id;
   const pausedAt = session?.pausedAt;
   useEffect(() => {
@@ -117,7 +116,7 @@ export type FocusView = "setup" | "run" | "end";
  * Everything the Focus window keeps that must outlive a face swap, created
  * once by `FocusHost` above the desktop / phone switch and handed to either
  * face: the session (the server's, derived second by second), the form, the
- * End view, the early Stop's wait, the tab title, and what happens when the
+ * End view, the End session confirm, the tab title, and what happens when the
  * clock runs out. A face draws; it owns nothing.
  */
 export function useFocusController() {
@@ -130,8 +129,7 @@ export function useFocusController() {
   const setPref = useSetPref();
   const actions = useFocusActions();
   const ui = useFocusWindow();
-  const waiting = ui.exitReadyAt != null;
-  const { session, run, nowMs } = useFocusRun(waiting);
+  const { session, run, nowMs } = useFocusRun();
 
   const view: FocusView = run ? "run" : ui.summary ? "end" : "setup";
   const task = run ? taskOf(tasks, run) : null;
@@ -205,7 +203,7 @@ export function useFocusController() {
         useFocusWindow.getState().patch({ summary: null, note: null });
         return;
       }
-      useFocusWindow.getState().patch({ exitReadyAt: null });
+      useFocusWindow.getState().patch({ confirmEnd: false });
       if (quiet)
         notify.success(
           `Focus session ended · ${summary.minutes} min on “${title}”`
@@ -234,7 +232,7 @@ export function useFocusController() {
     const prev = wasRunning.current;
     wasRunning.current = runId ?? null;
     if (prev && !runId && prev !== endedHere.current) {
-      useFocusWindow.getState().patch({ exitReadyAt: null });
+      useFocusWindow.getState().patch({ confirmEnd: false });
       if (!live.current.ui.summary) useNeedt3Ui.getState().setFocusOpen(false);
     }
   }, [runId]);
@@ -265,7 +263,7 @@ export function useFocusController() {
     if (row) useFocusWindow.getState().reset();
   };
 
-  const rethink = () => useFocusWindow.getState().patch({ exitReadyAt: null });
+  const rethink = () => useFocusWindow.getState().patch({ confirmEnd: false });
   const togglePause = () => {
     if (!session || !run) return;
     rethink();
@@ -276,23 +274,24 @@ export function useFocusController() {
     rethink();
     void actions.extend(session, MORE_MINUTES);
   };
-  /** Ending early takes two presses, a few seconds apart (the server's rule). */
-  const stop = async () => {
-    if (!session || !run) return;
+  /**
+   * End session: the clock has run out, or it is a break, and it ends at once;
+   * a session with time left asks once ("End now? 12 min focused so far") and
+   * the confirm ends it. No wait, no second press (the server agrees: a normal
+   * session never holds an early end).
+   */
+  const stop = () => {
+    if (!session || !run) return undefined;
     if (run.due) return finish("complete");
-    const ready = useFocusWindow.getState().exitReadyAt;
-    if (ready == null) {
-      const at = await actions.requestStop(session);
-      if (at != null) useFocusWindow.getState().patch({ exitReadyAt: at });
-      return undefined;
-    }
-    if (newDate().getTime() < ready) return undefined;
-    return finish("stopped");
+    if (run.isBreak) return finish("stopped");
+    useFocusWindow.getState().patch({ confirmEnd: true });
+    return undefined;
   };
-  const stopIn =
-    ui.exitReadyAt == null
-      ? null
-      : Math.max(0, Math.ceil((ui.exitReadyAt - nowMs) / 1000));
+  const endNow = () => {
+    if (!session || !run) return undefined;
+    return finish(run.due ? "complete" : "stopped");
+  };
+  const keepGoing = () => rethink();
 
   const takeBreak = async () => {
     const w = useFocusWindow.getState();
@@ -315,6 +314,11 @@ export function useFocusController() {
   };
   /** Esc, the backdrop, ×, Minimise: a running session folds into the pill. */
   const close = () => {
+    // Esc backs out of the End session confirm before it folds the window.
+    if (view === "run" && useFocusWindow.getState().confirmEnd) {
+      rethink();
+      return;
+    }
     if (view === "end") useFocusWindow.getState().patch({ summary: null });
     setOpen(false);
   };
@@ -337,11 +341,12 @@ export function useFocusController() {
     hide,
     setHide,
     stats: stats.data ?? null,
-    stopIn,
     begin,
     togglePause,
     more,
     stop,
+    endNow,
+    keepGoing,
     takeBreak,
     pickNext,
     done,
