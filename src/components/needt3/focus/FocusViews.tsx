@@ -499,6 +499,40 @@ function FcTaskCard({ task }: { task: V3Task }) {
   );
 }
 
+/** End session's one confirm: takes the focus when it appears, so Enter ends
+ *  and Esc (the window's) keeps going. */
+function FcEndConfirm({
+  onEnd,
+  onKeep,
+}: {
+  onEnd: () => void;
+  onKeep: () => void;
+}) {
+  const end = useRef<HTMLButtonElement>(null);
+  useEffect(() => end.current?.focus({ preventScroll: true }), []);
+  return (
+    <>
+      <button
+        type="button"
+        ref={end}
+        className="nx-btn nx-btn-primary fc-ctl"
+        onClick={onEnd}
+        data-fc-end-confirm=""
+      >
+        {copy.endSession}
+      </button>
+      <button
+        type="button"
+        className="nx-btn nx-btn-secondary fc-ctl"
+        onClick={onKeep}
+        data-fc-end-cancel=""
+      >
+        {copy.keepGoing}
+      </button>
+    </>
+  );
+}
+
 function FcRun({ ctl }: { ctl: FocusController }) {
   const { run, task } = ctl;
   if (!run) return null;
@@ -516,12 +550,9 @@ function FcRun({ ctl }: { ctl: FocusController }) {
   const clock = clockOf(run);
   const ends = endsAt(run, ctl.nowMs, ctl.tz);
   const planned = run.plannedMinutes;
-  const stopLabel =
-    ctl.stopIn == null
-      ? copy.run.stop
-      : ctl.stopIn > 0
-        ? copy.stopWait(ctl.stopIn)
-        : copy.stopNow;
+  const stopLabel = run.isBreak ? copy.endBreak : copy.endSession;
+  const confirming = ctl.ui.confirmEnd && !run.isBreak;
+  const focusedMin = Math.round(run.elapsedSec / 60);
   return (
     <div className="fc-stack fc-run">
       <FcHead
@@ -588,7 +619,7 @@ function FcRun({ ctl }: { ctl: FocusController }) {
           type="button"
           className="nx-btn nx-btn-secondary fc-ctl"
           onClick={() => void ctl.stop()}
-          disabled={ctl.stopIn != null && ctl.stopIn > 0}
+          aria-expanded={confirming}
           data-fc-stop=""
         >
           <FcGlyph name="stop" size={13} />
@@ -606,6 +637,30 @@ function FcRun({ ctl }: { ctl: FocusController }) {
           {soundLabel(ctl.sound)}
         </button>
       </div>
+
+      {confirming ? (
+        <GlassCard
+          pad={0}
+          radius={20}
+          className="fc-card fc-card-end"
+          style={PAD_CARD}
+          data-fc-confirm=""
+          role="alertdialog"
+          aria-label={copy.endSession}
+        >
+          <span className="fc-end-line">
+            {copy.endAsk(
+              copy.focusedSoFar(focusedMin >= 1 ? cvDur(focusedMin) : null)
+            )}
+          </span>
+          <span className="fc-end-actions">
+            <FcEndConfirm
+              onEnd={() => void ctl.endNow()}
+              onKeep={ctl.keepGoing}
+            />
+          </span>
+        </GlassCard>
+      ) : null}
 
       {task && !run.isBreak ? (
         <FcTaskCard key={task.id} task={task} />

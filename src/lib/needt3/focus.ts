@@ -205,13 +205,17 @@ export function statsFromApi(body: {
   stats?: { currentStreak?: number } | null;
   weeklyReport?: {
     sessionsCompleted?: number;
+    sessionsFocused?: number;
     dailyMinutes?: { minutes: number }[];
   } | null;
 }): FocusStats {
   const days = body.weeklyReport?.dailyMinutes ?? [];
   return {
     minutesToday: days.length ? (days[days.length - 1]?.minutes ?? 0) : 0,
-    sessionsWeek: body.weeklyReport?.sessionsCompleted ?? 0,
+    sessionsWeek:
+      body.weeklyReport?.sessionsFocused ??
+      body.weeklyReport?.sessionsCompleted ??
+      0,
     streak: body.stats?.currentStreak ?? 0,
   };
 }

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  finalizeSession,
   ActiveFocusSessionError,
   FocusExitError,
   extendSession,
+  finalizeSession,
   getActiveSession,
   pauseSession,
-  resumeSession,
   requestEarlyExit,
+  resumeSession,
   startSession,
 } from "@/services/focus/focusSession";
 import {
@@ -19,8 +19,8 @@ import {
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import { logger } from "@/lib/logger";
 import { canUseAdvancedFocusModes } from "@/lib/entitlements";
+import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "focus-session-route";
 
@@ -93,8 +93,7 @@ export async function POST(request: NextRequest) {
             ? body.phase
             : FocusSessionPhase.FOCUS,
           strictness,
-          intention:
-            typeof body.intention === "string" ? body.intention : null,
+          intention: typeof body.intention === "string" ? body.intention : null,
         });
         return NextResponse.json({ session });
       }
@@ -117,7 +116,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ session });
       }
       case "extend": {
-        const minutes = Math.max(1, Math.min(60, Math.round(Number(body.minutes))));
+        const minutes = Math.max(
+          1,
+          Math.min(60, Math.round(Number(body.minutes)))
+        );
         const session = await extendSession(
           auth.userId,
           String(body.sessionId),
@@ -138,6 +140,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
   } catch (error) {
+    // A start while one is running is a conflict the client words itself.
+    if (error instanceof ActiveFocusSessionError) {
+      return NextResponse.json(
+        { error: "ACTIVE_FOCUS_SESSION" },
+        { status: 409 }
+      );
+    }
     if (error instanceof FocusExitError) {
       return NextResponse.json(
         { error: error.code, retryAfter: error.retryAfter ?? null },

@@ -42,12 +42,9 @@ test("A focus session started from the rail is the product's own", async ({
     timeout: 20_000,
   });
 
-  // Stopping from the rail ends it on the server too — two presses, because
-  // the product makes you ask for an early exit and wait.
+  // Stopping from the rail ends it on the server too. The rail still asks
+  // first and then ends; a normal session has no wait between the two.
   await page.getByRole("button", { name: /Wire check/ }).click();
-  await expect(page.getByRole("button", { name: /Ending/ })).toBeVisible({
-    timeout: 10_000,
-  });
   await expect(page.getByRole("button", { name: /Press to end/ })).toBeVisible({
     timeout: 15_000,
   });
