@@ -1,4 +1,5 @@
 import {
+  deletePageForever,
   getPage,
   listPages,
   restorePage,
@@ -87,6 +88,9 @@ describeIntegration("page trash and restore (real database)", () => {
   });
 
   afterAll(async () => {
+    await prisma.meetingNoteProposal.deleteMany({
+      where: { workspaceId: { startsWith: runId } },
+    });
     await prisma.page.deleteMany({ where: { id: { startsWith: runId } } });
     await prisma.workspace.deleteMany({ where: { id: { startsWith: runId } } });
     await prisma.user.deleteMany({ where: { id: { startsWith: runId } } });
@@ -178,5 +182,87 @@ describeIntegration("page trash and restore (real database)", () => {
     });
 
     expect(page?.title).toBe("Parent again");
+  });
+
+  it("deletes a trashed page for good, with what hangs on it, and frees its children", async () => {
+    await prisma.page.create({
+      data: {
+        id: id("doomed"),
+        userId: id("owner"),
+        workspaceId: id("ws"),
+        title: "Doomed",
+        blocks: {
+          create: { type: "PARAGRAPH", content: { text: "x" }, position: 1 },
+        },
+        assets: {
+          create: {
+            userId: id("owner"),
+            originalName: "b.png",
+            mimeType: "image/png",
+            size: 1,
+            bytes: Buffer.from([1]),
+          },
+        },
+      },
+    });
+    await prisma.page.create({
+      data: {
+        id: id("doomed-child"),
+        userId: id("owner"),
+        workspaceId: id("ws"),
+        parentId: id("doomed"),
+        title: "Survivor",
+      },
+    });
+    await prisma.meetingNoteProposal.create({
+      data: {
+        workspaceId: id("ws"),
+        pageId: id("doomed"),
+        summary: "s",
+        actions: [],
+        pageUpdatedAt: new Date(),
+      },
+    });
+
+    // Only a page that is already in Trash can be deleted for good.
+    await expect(deletePageForever(owner, id("doomed"))).resolves.toBe(
+      "not-trashed"
+    );
+    await updatePage(owner, id("doomed"), { trashed: true });
+    // A viewer and another workspace's owner may not.
+    await expect(deletePageForever(viewer, id("doomed"))).resolves.toBe(
+      "not-found"
+    );
+    await expect(deletePageForever(outsider, id("doomed"))).resolves.toBe(
+      "not-found"
+    );
+    await expect(
+      prisma.page.count({ where: { id: id("doomed") } })
+    ).resolves.toBe(1);
+
+    await expect(deletePageForever(owner, id("doomed"))).resolves.toBe(
+      "deleted"
+    );
+
+    await expect(
+      prisma.page.count({ where: { id: id("doomed") } })
+    ).resolves.toBe(0);
+    await expect(
+      prisma.pageBlock.count({ where: { pageId: id("doomed") } })
+    ).resolves.toBe(0);
+    await expect(
+      prisma.pageAsset.count({ where: { pageId: id("doomed") } })
+    ).resolves.toBe(0);
+    await expect(
+      prisma.meetingNoteProposal.count({ where: { pageId: id("doomed") } })
+    ).resolves.toBe(0);
+    const child = await prisma.page.findUniqueOrThrow({
+      where: { id: id("doomed-child") },
+      select: { parentId: true },
+    });
+    expect(child.parentId).toBeNull();
+    await expect(deletePageForever(owner, id("doomed"))).resolves.toBe(
+      "not-found"
+    );
   });
 });

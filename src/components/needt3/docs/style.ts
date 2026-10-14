@@ -336,3 +336,45 @@ export function pageVars(s: DocStyle, read: TokenReader) {
 /** Covers the page can draw: an uploaded picture by URL. */
 export const isPictureCover = (cover: string | null | undefined) =>
   !!cover && /^(data:|blob:|https?:|\/)/.test(cover);
+
+/**
+ * The drawn cover arts (doc-style.jsx `DC_COVER_ARTS`), in the order the Style
+ * panel offers them. A cover is stored as `art:<id>` in `coverUrl`, next to an
+ * uploaded picture's URL; the shape is drawn from the theme's five colours.
+ */
+export const COVER_ARTS = [
+  "rose",
+  "sand",
+  "sage",
+  "ocean",
+  "night",
+  "paper",
+  "ink",
+  "default",
+] as const;
+export type CoverArtId = (typeof COVER_ARTS)[number];
+
+/** What each art draws (`DT_THEMES[].motif`). */
+export const COVER_MOTIF: Record<CoverArtId, string> = {
+  default: "grid",
+  paper: "arches",
+  ink: "lines",
+  rose: "sun",
+  sage: "hills",
+  ocean: "waves",
+  sand: "dunes",
+  night: "stars",
+};
+
+/** `art:rose` to "rose"; null for a picture, nothing, or an art that is not offered. */
+export function coverArtId(
+  cover: string | null | undefined
+): CoverArtId | null {
+  const id = cover?.startsWith("art:") ? cover.slice(4) : "";
+  return (COVER_ARTS as readonly string[]).includes(id)
+    ? (id as CoverArtId)
+    : null;
+}
+
+/** The cover as a stored value. */
+export const coverArtValue = (id: CoverArtId) => `art:${id}`;

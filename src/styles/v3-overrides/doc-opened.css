@@ -399,6 +399,21 @@
   margin: 0;
   padding: 4px 6px;
 }
+/* Tasks and Files rows: a linked task, a file and a picture are links, but read
+ * as rows (ink, no underline); a to-do's title is a button that scrolls to it. */
+.needt-v3 .docs-doc-panel-6 a,
+.needt-v3 .docs-doc-panel-6 a:hover {
+  color: inherit;
+  text-decoration: none;
+}
+.needt-v3 .docs-doc-panel-6 .docs-panel-tasks-2 {
+  min-height: 0;
+}
+.needt-v3 .docs-doc-panel-6 button.docs-panel-tasks-3 {
+  padding: 0;
+  text-align: left;
+  cursor: default;
+}
 .needt-v3 ::highlight(doc-find) {
   background: var(--fill-accent-strong);
   color: inherit;
@@ -490,7 +505,9 @@
   color: var(--text-primary);
 }
 .needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"]:hover,
-.needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"][data-active] {
+.needt-v3
+  .needt-page-command-menu[data-doc-menu]
+  [role="menuitem"][data-active] {
   background: var(--fill-3);
 }
 .needt-v3 .needt-page-command-menu[data-doc-menu] [role="menuitem"] > svg {

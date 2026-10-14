@@ -95,10 +95,15 @@ jest.mock("@/lib/needt3/hooks/plan", () => ({ usePlan: () => planQ }));
 let templatesQ: Q<unknown>;
 let sharedQ: Q<unknown>;
 const mutateAsync = jest.fn();
+const builtinAsync = jest.fn();
 jest.mock("@/lib/needt3/hooks/places", () => ({
   useTemplates: () => templatesQ,
   useCreateFromTemplate: () => ({
     mutateAsync: (...a: unknown[]) => mutateAsync(...a),
+    isPending: false,
+  }),
+  useCreateFromBuiltin: () => ({
+    mutateAsync: (...a: unknown[]) => builtinAsync(...a),
     isPending: false,
   }),
   useSharedDocs: () => sharedQ,
@@ -109,8 +114,21 @@ jest.mock("@/lib/needt3/hooks/settings", () => ({
 
 let tasksQ: Q<unknown>;
 let boardsQ: Q<unknown>;
+let docsQ: Q<unknown>;
 const restoreTask = jest.fn();
 const trashBoardAsync = jest.fn();
+const trashDocAsync = jest.fn();
+const deleteDocAsync = jest.fn();
+const deleteBoardAsync = jest.fn();
+jest.mock("@/lib/needt3/hooks/docs", () => ({
+  useTrashedDocs: () => docsQ,
+  useTrashDoc: () => ({
+    mutateAsync: (...a: unknown[]) => trashDocAsync(...a),
+  }),
+  useDeleteDocForever: () => ({
+    mutateAsync: (...a: unknown[]) => deleteDocAsync(...a),
+  }),
+}));
 jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useTasks: () => tasksQ,
   useTrashTask: () => ({ restore: (...a: unknown[]) => restoreTask(...a) }),
@@ -120,7 +138,9 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
   useTrashBoard: () => ({
     mutateAsync: (...a: unknown[]) => trashBoardAsync(...a),
   }),
-  useDeleteBoardForever: () => ({ mutateAsync: jest.fn() }),
+  useDeleteBoardForever: () => ({
+    mutateAsync: (...a: unknown[]) => deleteBoardAsync(...a),
+  }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({ data: [{ id: "p1", name: "Home" }] }),
@@ -197,6 +217,16 @@ const seed = () => {
     { id: "b1", title: "Ideas", trashedAt: "2026-10-10T09:00:00.000Z" },
     { id: "b2", title: "Live", trashedAt: null },
   ]);
+  docsQ = ok([
+    {
+      id: "pg1",
+      title: "Brief",
+      trashedAt: "2026-10-12T09:00:00.000Z",
+      projectId: null,
+      coverUrl: null,
+      style: null,
+    },
+  ]);
 };
 
 class RO {
@@ -216,8 +246,12 @@ beforeEach(() => {
     disconnectToolkit,
     disconnectCalendar,
     mutateAsync,
+    builtinAsync,
     restoreTask,
     trashBoardAsync,
+    trashDocAsync,
+    deleteDocAsync,
+    deleteBoardAsync,
     notify.success,
     notify.error,
     notify.info,
@@ -442,15 +476,23 @@ describe("Templates", () => {
     let finish!: (v: unknown) => void;
     mutateAsync.mockReturnValue(new Promise((r) => (finish = r)));
     mount(TemplatesFace);
+    // the person's own first, then the set that comes with Needt
     expect($$(".ppl-card-title").map((e) => text(e))).toEqual([
       "Weekly review",
       "Trip",
+      "Daily note",
+      "Weekly review",
+      "Product drop",
+      "Meeting notes",
+      "Resale listing",
+      "Project brief",
     ]);
-    expect(text($(".pk-sub"))).toBe("2 to start from");
+    expect(text($(".pk-sub"))).toBe("8 to start from");
 
     click($('[data-ppl-use="Weekly review"]'));
     click($('[data-ppl-use="Weekly review"]'));
     click($('[data-ppl-use="Trip"]'));
+    expect(builtinAsync).not.toHaveBeenCalled();
     expect(mutateAsync).toHaveBeenCalledTimes(1);
     expect(mutateAsync.mock.calls[0][0]).toMatchObject({
       templateId: "t1",
@@ -467,6 +509,23 @@ describe("Templates", () => {
     expect(undo).toHaveBeenCalled();
   });
 
+  it("a built-in template makes a page through its own mutation", async () => {
+    const undo = jest.fn();
+    builtinAsync.mockResolvedValue({ result: { id: "pg7" }, undo });
+    mount(TemplatesFace);
+    click($('[data-ppl-use="Daily note"]'));
+    await flush();
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(builtinAsync).toHaveBeenCalledWith({
+      builtinId: "builtin:daily",
+      title: expect.stringMatching(/^Daily note — \d+ \w+$/),
+    });
+    expect(notify.success.mock.calls[0][0]).toBe("Created from “Daily note”");
+    expect(push).toHaveBeenCalledWith("/pages/pg7");
+    notify.success.mock.calls[0][1].action.onClick();
+    expect(undo).toHaveBeenCalled();
+  });
+
   it("a press that comes back empty opens nothing and frees the button", async () => {
     mutateAsync.mockResolvedValueOnce({ result: null, undo: jest.fn() });
     mount(TemplatesFace);
@@ -479,11 +538,12 @@ describe("Templates", () => {
     expect(push).toHaveBeenCalledWith("/pages/x");
   });
 
-  it("empty and error states", () => {
+  it("with none saved, the built-in set is still there; a failed load shows the error", () => {
     templatesQ = ok([]);
     mount(TemplatesFace);
-    expect(text($(".pk-empty"))).toContain("No templates yet");
-    expect(text($(".pk-sub"))).toBe("Nothing to start from yet");
+    expect($(".pk-empty")).toBeNull();
+    expect($$(".ppl-card-title")).toHaveLength(6);
+    expect(text($(".pk-sub"))).toBe("6 to start from");
     templatesQ = {
       status: "error",
       fetchStatus: "idle",
@@ -533,19 +593,23 @@ describe("Shared", () => {
 });
 
 describe("Trash", () => {
-  it("lists tasks and moodboards with the days left and the 30-day line", () => {
+  it("lists pages, tasks and moodboards with the days left and the 30-day line", () => {
     mount(TrashFace);
     expect($$(".pk-sec .pk-label").map((e) => text(e))).toEqual([
+      "Pages",
       "Tasks",
       "Moodboards",
     ]);
-    expect(rowTitles()).toEqual(["Old task", "Ideas"]);
+    expect(rowTitles()).toEqual(["Brief", "Old task", "Ideas"]);
     expect(text($('[data-ppl-trash="task:k1"] .ppl-row-meta'))).toMatch(
       /from Home · \d+ days? left$/
     );
-    expect(text($(".pk-sub"))).toBe("2 items · kept 30 days");
-    // only Restore is wired: no way to delete for good, and no Empty
-    expect(host.textContent).not.toMatch(/Delete forever|Empty/);
+    expect(text($(".pk-sub"))).toBe("3 items · kept 30 days");
+    // pages and moodboards can go for good; tasks cannot yet
+    expect($('[data-ppl-forever="pg1"]')).not.toBeNull();
+    expect($('[data-ppl-forever="b1"]')).not.toBeNull();
+    expect($('[data-ppl-forever="k1"]')).toBeNull();
+    expect($("[data-ppl-empty]")).not.toBeNull();
   });
 
   it("Restore writes once, even on a double tap, and offers Undo", async () => {
@@ -581,13 +645,64 @@ describe("Trash", () => {
     expect(notify.success.mock.calls[0][0]).toBe("Restored “Ideas”");
   });
 
+  it("a page restores with Undo", async () => {
+    const undo = jest.fn();
+    trashDocAsync.mockResolvedValue({ undo });
+    mount(TrashFace);
+    click($('[data-ppl-restore="page:pg1"]'));
+    await flush();
+    expect(trashDocAsync).toHaveBeenCalledWith({ id: "pg1", trashed: false });
+    expect(notify.success.mock.calls[0][0]).toBe("Restored “Brief”");
+    notify.success.mock.calls[0][1].action.onClick();
+    expect(undo).toHaveBeenCalled();
+  });
+
+  it("Delete forever asks first, says there is no Undo, then deletes once", async () => {
+    deleteDocAsync.mockResolvedValue({});
+    mount(TrashFace);
+    click($('[data-ppl-forever="pg1"]'));
+    // the first tap only opens the confirm
+    expect(deleteDocAsync).not.toHaveBeenCalled();
+    const sheet = $$(".pk-sheet-layer").find((l) =>
+      text(l.querySelector(".pk-sheet-title")).startsWith("Delete “Brief”")
+    )!;
+    expect(sheet.getAttribute("data-pk-sheet")).toBe("open");
+    expect(text(sheet)).toContain("can’t be undone");
+    click(sheet.querySelector("[data-ppl-confirm]"));
+    await flush();
+    expect(deleteDocAsync).toHaveBeenCalledTimes(1);
+    expect(deleteDocAsync).toHaveBeenCalledWith({ id: "pg1" });
+    expect(notify.success.mock.calls[0][0]).toBe("Deleted “Brief” for good");
+  });
+
+  it("Empty Trash names what goes and what stays, then deletes pages and moodboards", async () => {
+    deleteDocAsync.mockResolvedValue({});
+    deleteBoardAsync.mockResolvedValue({});
+    mount(TrashFace);
+    click($("[data-ppl-empty]"));
+    expect(deleteDocAsync).not.toHaveBeenCalled();
+    const sheet = $$(".pk-sheet-layer").find(
+      (l) => text(l.querySelector(".pk-sheet-title")) === "Empty Trash?"
+    )!;
+    expect(text(sheet)).toContain("1 page and 1 moodboard");
+    expect(text(sheet)).toContain("1 task stay in Trash");
+    click(sheet.querySelector("[data-ppl-confirm]"));
+    await flush();
+    expect(deleteDocAsync).toHaveBeenCalledWith({ id: "pg1" });
+    expect(deleteBoardAsync).toHaveBeenCalledWith({ id: "b1" });
+    expect(restoreTask).not.toHaveBeenCalled();
+    expect(notify.success.mock.calls[0][0]).toBe("Trash emptied");
+  });
+
   it("an empty Trash says where things land; a failed load offers Retry", () => {
     tasksQ = ok([]);
     boardsQ = ok([]);
+    docsQ = ok([]);
     mount(TrashFace);
     expect(text($(".pk-empty"))).toContain("Trash is empty");
+    expect($("[data-ppl-empty]")).toBeNull();
     expect(text($(".pk-sub"))).toBe(
-      "Tasks and moodboards stay here for 30 days"
+      "Pages, tasks and moodboards stay here for 30 days"
     );
     boardsQ = {
       status: "error",
