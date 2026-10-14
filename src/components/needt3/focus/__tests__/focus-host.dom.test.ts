@@ -4,7 +4,7 @@
  * The Focus window, mounted for real over a seeded cache and a fake server:
  * one controller above the desktop / phone switch, so the session, the clock,
  * the form and the End view all survive crossing 700 px; Start, Pause, +5,
- * the two-press early Stop, the clock running out, the tab title and the
+ * End session (one press, one confirm, no wait), the clock running out, the tab title and the
  * quick start's notice.
  */
 import { act, createElement as h } from "react";
@@ -73,6 +73,7 @@ interface Row {
 }
 
 let server: Row | null;
+let strictStop = false;
 let calls: { url: string; body: Record<string, unknown> | null }[];
 let host: HTMLDivElement;
 let root: Root;
@@ -123,6 +124,13 @@ function fakeFetch(url: string, init?: RequestInit) {
           })
         );
       case "stop":
+        if (strictStop)
+          return Promise.resolve({
+            ok: false,
+            status: 409,
+            statusText: "Conflict",
+            text: async () => JSON.stringify({ error: "EXIT_DELAY_REQUIRED" }),
+          });
         server = null;
         return Promise.resolve(reply({ session: {} }));
     }
@@ -144,6 +152,7 @@ beforeEach(() => {
   jest.useFakeTimers({ now: NOW });
   jest.clearAllMocks();
   server = null;
+  strictStop = false;
   calls = [];
   document.title = "Today | Needt";
   (globalThis as { fetch?: unknown }).fetch = jest.fn(fakeFetch);
@@ -345,26 +354,101 @@ describe("running", () => {
     expect(clock()).toBe("30:00");
   });
 
-  it("ends early in two presses, a few seconds apart", async () => {
+  it("End session is always on the controls and asks once, with the minutes so far", async () => {
     await begin();
-    await tick(2000);
-    await click("[data-fc-stop]");
-    expect(posts("request-stop")).toHaveLength(1);
-    expect(q("[data-fc-stop]")!.textContent).toContain("Stop in 5");
-    expect(q<HTMLButtonElement>("[data-fc-stop]")!.disabled).toBe(true);
-    expect(posts("stop")).toHaveLength(0);
-    await tick(5000);
+    await tick(90_000);
     expect(q("[data-fc-stop]")!.textContent).toContain("End session");
+    expect(q<HTMLButtonElement>("[data-fc-stop]")!.disabled).toBe(false);
     await click("[data-fc-stop]");
+    expect(posts("request-stop")).toHaveLength(0);
+    expect(posts("stop")).toHaveLength(0);
+    expect(q("[data-fc-confirm]")!.textContent).toContain(
+      "End now? 2 min focused so far."
+    );
+  });
+
+  it("ends early in one step: confirm, no wait, honest minutes", async () => {
+    await begin();
+    await tick(7 * 60 * 1000);
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+    expect(posts("request-stop")).toHaveLength(0);
     expect(posts("stop")).toHaveLength(1);
     expect(posts("stop")[0].body).toMatchObject({
       sessionId: "s1",
       completed: false,
     });
     expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("end");
-    expect(q(".fc-title")!.textContent).toBe("Under a minute");
+    expect(q(".px-kicker")!.textContent).toBe("Session ended");
+    expect(q(".fc-title")!.textContent).toBe("7 min");
     expect(document.title).toBe("Today | Needt");
     expect(q("[data-fc-stats]")!.textContent).toContain("42 min");
+    expect(qc.getQueryData(qk.focusSession())).toBeNull();
+  });
+
+  it("under a minute says so", async () => {
+    await begin();
+    await tick(2000);
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+    expect(q(".fc-title")!.textContent).toBe("Under a minute");
+    expect(document.title).toBe("Today | Needt");
+  });
+
+  it("Keep going and Esc back out of the confirm without ending or minimising", async () => {
+    await begin();
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-cancel]");
+    expect(q("[data-fc-confirm]")).toBeNull();
+    await click("[data-fc-stop]");
+    expect(q("[data-fc-confirm]")).not.toBeNull();
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(q("[data-fc-confirm]")).toBeNull();
+    expect(useNeedt3Ui.getState().focusOpen).toBe(true);
+    expect(posts("stop")).toHaveLength(0);
+    // a second Esc, with nothing to back out of, minimises
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(useNeedt3Ui.getState().focusOpen).toBe(false);
+  });
+
+  it("pausing, +5 or the face swap keep the session while the confirm is open", async () => {
+    await begin();
+    await click("[data-fc-stop]");
+    await click("[data-fc-pause]");
+    expect(q("[data-fc-confirm]")).toBeNull();
+    expect(posts("pause")).toHaveLength(1);
+    await click("[data-fc-stop]");
+    await mount("phone");
+    expect(q("[data-fc-confirm]")).not.toBeNull();
+    expect(posts("stop")).toHaveLength(0);
+  });
+
+  it("a paused session ends with the minutes before the pause", async () => {
+    await begin();
+    await tick(4 * 60 * 1000);
+    await click("[data-fc-pause]");
+    await tick(30 * 60 * 1000);
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+    expect(q(".fc-title")!.textContent).toBe("4 min");
+  });
+
+  it("a strict (Pro) session that still holds the stop says so and stays running", async () => {
+    await begin();
+    strictStop = true;
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+    expect(posts("stop")).toHaveLength(1);
+    expect(posts("request-stop")).toHaveLength(1);
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("run");
   });
 
   it("minimising folds the window away and the session goes on", async () => {
@@ -401,8 +485,7 @@ describe("the clock runs out", () => {
     await click("[data-fc-start]");
     await tick(1000);
     await click("[data-fc-stop]");
-    await tick(5000);
-    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
     await click("[data-fc-next='break']");
     expect(posts("start")[1].body).toMatchObject({
       phase: "SHORT_BREAK",
@@ -412,6 +495,22 @@ describe("the clock runs out", () => {
     await tick(5 * 60 * 1000 + 1000);
     expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("setup");
     expect(q(".fc-sub")!.textContent).toContain("Break’s over");
+  });
+
+  it("a break ends at once, without a confirm", async () => {
+    await mount();
+    await open();
+    await click("[data-fc-start]");
+    await tick(1000);
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+    await click("[data-fc-next='break']");
+    expect(q("[data-fc-stop]")!.textContent).toContain("End break");
+    await click("[data-fc-stop]");
+    expect(posts("stop")).toHaveLength(2);
+    expect(q("[data-fc-confirm]")).toBeNull();
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("setup");
+    expect(document.title).toBe("Today | Needt");
   });
 });
 
@@ -456,5 +555,49 @@ describe("a quick start", () => {
     expect(success).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith("A focus session is already running.");
     expect(useNeedt3Ui.getState().focusOpen).toBe(false);
+  });
+});
+
+describe("a reload in the middle of a session", () => {
+  const seed = (startedMinAgo: number, planned = 25) => {
+    server = {
+      id: "s9",
+      taskId: "t1",
+      intention: "Write the brief",
+      plannedMinutes: planned,
+      startedAt: new Date(NOW.getTime() - startedMinAgo * 60_000).toISOString(),
+      pausedAt: null,
+      pausedTotalSeconds: 0,
+      phase: "FOCUS",
+    };
+    qc.setQueryData(qk.focusSession(), server);
+  };
+
+  it("picks the clock up where the server has it, and ends early from there", async () => {
+    seed(10);
+    await mount();
+    await open();
+    expect(clock()).toBe("15:00");
+    expect(document.title).toBe("15:00 · Today | Needt");
+    await click("[data-fc-stop]");
+    expect(q("[data-fc-confirm]")!.textContent).toContain("10 min focused");
+    await click("[data-fc-end-confirm]");
+    expect(q(".fc-title")!.textContent).toBe("10 min");
+    expect(document.title).toBe("Today | Needt");
+  });
+
+  it("closes a session found long past its end quietly, with one notice", async () => {
+    seed(180);
+    await mount();
+    await tick(10);
+    expect(posts("stop")).toHaveLength(1);
+    expect(posts("stop")[0].body).toMatchObject({ completed: true });
+    expect(useNeedt3Ui.getState().focusOpen).toBe(false);
+    expect(success).toHaveBeenCalledTimes(1);
+    expect(success.mock.calls[0][0]).toBe(
+      "Focus session ended \u00b7 25 min on \u201cWrite the brief\u201d"
+    );
+    expect(document.title).toBe("Today | Needt");
+    expect(qc.getQueryData(qk.focusSession())).toBeNull();
   });
 });
