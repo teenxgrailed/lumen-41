@@ -45,6 +45,10 @@ export const qk = {
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,
+  /** Pages in Trash (`GET /api/pages?trashed=true`); under `trash`, so a trash or restore refreshes it. */
+  trashedDocs: () => [V3, "trash", "docs"] as const,
+  /** The files attached to one page (`GET /api/pages/:id/assets`). */
+  pageAssets: (id: string) => [V3, "doc", id, "assets"] as const,
 
   habits: () => [V3, "habits"] as const,
   checkins: (range?: DateRange) =>

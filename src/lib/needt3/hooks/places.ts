@@ -7,6 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { blocksOf, builtinTemplate } from "@/lib/needt3/builtin-templates";
 import { type ApiPage, type V3Doc, docFromApi } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 import { isSharedWithMe } from "@/lib/needt3/shared";
@@ -40,8 +41,9 @@ export function useTemplates() {
         description: t.description ?? null,
         updatedAt: t.updatedAt ?? null,
       })),
-    //todo: the built-in set (places.jsx `TEMPLATES`) has no server home;
-    // only saved templates are listed, and there is no "New template" flow.
+    // The built-in set (places.jsx `TEMPLATES`) lives in `builtin-templates.ts`
+    // and is made through `useCreateFromBuiltin`; this lists saved ones only.
+    //todo: there is no "New template" flow (a template is picked, not made, here).
   });
 }
 
@@ -75,6 +77,56 @@ export function useCreateFromTemplate() {
         { title: vars.title }
       );
       return docFromApi(page);
+    },
+  });
+}
+
+/**
+ * Make a page from a built-in template: `POST /api/pages` with the template's
+ * title and page colour, then `PUT /api/pages/:id/blocks` with its blocks.
+ * Two plain calls, so any client can do the same. If the blocks do not save,
+ * the empty page is sent to Trash again rather than left behind. Undo sends
+ * the page to Trash.
+ */
+export function useCreateFromBuiltin() {
+  return useUndoableMutation<
+    { builtinId: string; title: string } | { trashId: string },
+    V3Doc | null
+  >({
+    scope: qk.docs(),
+    label: "create the page",
+    inverseFromResult: true,
+    inverse: (_qc, vars, result) =>
+      "builtinId" in vars && result ? { trashId: result.id } : null,
+    optimistic: (qc, vars) => {
+      if ("trashId" in vars) dropListItem<V3Doc>(qc, qk.docs(), vars.trashId);
+    },
+    request: async (vars) => {
+      if ("trashId" in vars) {
+        await sendJson(`/api/pages/${vars.trashId}`, "PATCH", {
+          trashed: true,
+        });
+        return null;
+      }
+      const template = builtinTemplate(vars.builtinId);
+      if (!template) throw new Error("Unknown template");
+      const { page } = await sendJson<{ page: ApiPage }>("/api/pages", "POST", {
+        title: vars.title,
+        style: template.style,
+      });
+      try {
+        await sendJson(`/api/pages/${page.id}/blocks`, "PUT", {
+          blocks: blocksOf(template.body),
+        });
+      } catch (error) {
+        try {
+          await sendJson(`/api/pages/${page.id}`, "PATCH", { trashed: true });
+        } catch {
+          /* the page stays; the error below is the one to report */
+        }
+        throw error;
+      }
+      return docFromApi({ ...page, style: template.style });
     },
   });
 }

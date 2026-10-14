@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { newDate } from "@/lib/date-utils";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { registerCtx } from "../ctx/registry";
+import { DocThumb, useDocTokens } from "../docs/DocParts";
 import { Art } from "../menu/Art";
 import { StScreen } from "../states/StScreen";
 import { PlaceHeader } from "./PlaceHeader";
+import { TrashConfirm } from "./TrashConfirm";
 import { trashMeta, trashSections } from "./derive";
 import { mergeQueries } from "./query";
 import type { TrashController } from "./useTrashController";
@@ -19,7 +21,7 @@ function TrashRow({
   i,
   ctx,
   id,
-  icon,
+  thumb,
   title,
   meta,
   onRestore,
@@ -28,19 +30,13 @@ function TrashRow({
   i: number;
   ctx: string;
   id: string;
-  icon: "task" | "stack";
+  thumb: ReactNode;
   title: string;
   meta: string;
   onRestore: () => void;
-  /** Only where the server can delete for good (moodboards). */
+  /** Only where the server can delete for good (pages and moodboards). */
   onDeleteForever?: () => void;
 }) {
-  const [sure, setSure] = useState(false);
-  useEffect(() => {
-    if (!sure) return undefined;
-    const t = window.setTimeout(() => setSure(false), 4000);
-    return () => window.clearTimeout(t);
-  }, [sure]);
   return (
     <div
       className="nx-swap pl-trash-row"
@@ -48,9 +44,7 @@ function TrashRow({
       data-ctx-id={id}
       style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
     >
-      <span className="pl-trash-task" aria-hidden="true">
-        <Art name={icon} size={30} />
-      </span>
+      {thumb}
       <span className="pl-trash-col-3">
         <span className="pl-strong pl-trash-title" title={title}>
           {title}
@@ -67,36 +61,39 @@ function TrashRow({
         Restore
       </button>
       {onDeleteForever ? (
-        // Two steps, no dialog: the first click asks, the second deletes.
+        // The click opens a confirm (the dialog says there is no Undo).
         <button
           type="button"
-          className={"nx-btn " + (sure ? "nx-btn-danger" : "nx-btn-text")}
+          className="nx-btn nx-btn-danger"
           data-trash-forever=""
-          onClick={() => (sure ? onDeleteForever() : setSure(true))}
+          onClick={onDeleteForever}
         >
-          {sure ? "Delete for good?" : "Delete forever"}
+          Delete forever
         </button>
       ) : null}
-      {/* //todo: tasks' "Delete forever" and "Empty Trash" wait for a hard
-          delete on DELETE /api/tasks/:id (it archives) and the 30-day purge. */}
+      {/* //todo: tasks' "Delete forever" waits for a hard delete on
+          DELETE /api/tasks/:id (it archives). */}
     </div>
   );
 }
 
+const iconThumb = (icon: "task" | "stack") => (
+  <span className="pl-trash-task" aria-hidden="true">
+    <Art name={icon} size={30} />
+  </span>
+);
+
 /**
- * Trash (places.jsx `TrashScreen`): tasks and moodboards the person deleted,
- * each restorable and each showing how many of its 30 days are left. Trash is
- * separate from archive. Nothing purges after 30 days yet; the count is shown
- * so the promise is visible, the worker job is a follow-up.
- *
- * //todo: Pages. `GET /api/pages` hides trashed pages and there is no route
- * that lists them, and `PATCH /api/pages/:id { trashed: false }` cannot
- * restore one either (page access resolves only untrashed pages). Until both
- * exist the copy here promises tasks and moodboards only, not pages.
+ * Trash (places.jsx `TrashScreen`): pages, tasks and moodboards the person
+ * deleted, each restorable and each showing how many of its 30 days are left.
+ * Trash is separate from archive. Pages and moodboards can be deleted for good
+ * (one, or Empty Trash for all of them) after a confirm; tasks cannot yet.
+ * Nothing purges after 30 days yet; the count is shown so the promise is
+ * visible, the worker job is a follow-up.
  */
 const COPY = {
-  meta: "Tasks and moodboards stay here for 30 days",
-  emptyLine: "Delete a task or a moodboard \u2014 it lands here first.",
+  meta: "Pages, tasks and moodboards stay here for 30 days",
+  emptyLine: "Delete a page, a task or a moodboard \u2014 it lands here first.",
 };
 
 export function TrashScreen({ c }: { c: TrashController }) {
@@ -104,23 +101,34 @@ export function TrashScreen({ c }: { c: TrashController }) {
     timeZone,
     tasks,
     boards,
+    docs,
     dead,
     gone,
+    pages,
     projectName,
     restoreTask,
     restoreBoard,
-    deleteBoardForever,
+    restorePage,
+    setAsk,
   } = c;
 
+  const read = useDocTokens();
   const now = newDate();
   const { total, headings } = trashSections({
-    pages: 0, //todo: trashed pages, once a list mode and a restore route exist
+    pages: pages.length,
     tasks: dead.length,
     boards: gone.length,
   });
+  const canEmpty = pages.length + gone.length > 0;
 
   // Right-click on a row: Restore (the rows carry data-ctx / data-ctx-id).
   useEffect(() => {
+    const offPage = registerCtx("trash-page", ({ id }) => {
+      const p = pages.find((x) => x.id === id);
+      return p
+        ? [[{ label: "Restore", run: () => void restorePage(p.id, p.title) }]]
+        : null;
+    });
     const offTask = registerCtx("trash-task", ({ id }) => {
       const t = dead.find((x) => x.id === id);
       return t
@@ -134,18 +142,35 @@ export function TrashScreen({ c }: { c: TrashController }) {
         : null;
     });
     return () => {
+      offPage();
       offTask();
       offBoard();
     };
-    // restoreTask / restoreBoard only read stable mutation handles.
+    // The restore handlers only read stable mutation handles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dead, gone]);
+  }, [pages, dead, gone]);
 
   return (
     <div className="scroll-inner pl-page" data-v3-screen="trash">
-      <PlaceHeader art="trash" title={tr.trash} meta={COPY.meta} />
+      <PlaceHeader
+        art="trash"
+        title={tr.trash}
+        meta={COPY.meta}
+        actions={
+          canEmpty ? (
+            <button
+              type="button"
+              className="nx-btn nx-btn-danger"
+              data-trash-empty=""
+              onClick={() => setAsk({ kind: "all" })}
+            >
+              {tr.empty_trash}
+            </button>
+          ) : null
+        }
+      />
       <StScreen
-        query={mergeQueries([tasks, boards])}
+        query={mergeQueries([tasks, boards, docs])}
         kind="list"
         screen="trash"
       >
@@ -157,16 +182,41 @@ export function TrashScreen({ c }: { c: TrashController }) {
           </div>
         ) : (
           <div className="pl-trash-col-2">
+            {pages.length && headings ? (
+              <h2 className="pl-trash-h">{tr.pages}</h2>
+            ) : null}
+            {pages.map((p, i) => (
+              <TrashRow
+                key={p.id}
+                i={i}
+                ctx="trash-page"
+                id={p.id}
+                thumb={<DocThumb doc={p} read={read} w={30} h={38} />}
+                title={p.title || tr.untitled}
+                meta={trashMeta(
+                  p.trashedAt!,
+                  now,
+                  timeZone,
+                  projectName(p.projectId)
+                    ? `from ${projectName(p.projectId)}`
+                    : undefined
+                )}
+                onRestore={() => void restorePage(p.id, p.title)}
+                onDeleteForever={() =>
+                  setAsk({ kind: "page", id: p.id, title: p.title })
+                }
+              />
+            ))}
             {dead.length && (headings || !gone.length) ? (
               <h2 className="pl-trash-h">{tr.tasks}</h2>
             ) : null}
             {dead.map((t, i) => (
               <TrashRow
                 key={t.id}
-                i={i}
+                i={pages.length + i}
                 ctx="trash-task"
                 id={t.id}
-                icon="task"
+                thumb={iconThumb("task")}
                 title={t.title || tr.untitled}
                 meta={trashMeta(
                   t.trashedAt!,
@@ -185,19 +235,22 @@ export function TrashScreen({ c }: { c: TrashController }) {
             {gone.map((b, i) => (
               <TrashRow
                 key={b.id}
-                i={dead.length + i}
+                i={pages.length + dead.length + i}
                 ctx="trash"
                 id={b.id}
-                icon="stack"
+                thumb={iconThumb("stack")}
                 title={b.title || tr.untitled_moodboard}
                 meta={trashMeta(b.trashedAt!, now, timeZone)}
                 onRestore={() => void restoreBoard(b.id, b.title)}
-                onDeleteForever={() => void deleteBoardForever(b.id, b.title)}
+                onDeleteForever={() =>
+                  setAsk({ kind: "board", id: b.id, title: b.title })
+                }
               />
             ))}
           </div>
         )}
       </StScreen>
+      <TrashConfirm c={c} />
     </div>
   );
 }

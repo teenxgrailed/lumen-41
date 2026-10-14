@@ -17,6 +17,7 @@ import {
   templatePageTitle,
   templatesMeta,
   trashAgo,
+  trashAskText,
   trashDaysLeft,
   trashMeta,
   trashSections,
@@ -185,5 +186,31 @@ describe("trash", () => {
       true
     );
     expect(trashSections({ pages: 0, tasks: 0, boards: 0 }).total).toBe(0);
+  });
+});
+
+describe("trashAskText", () => {
+  it("a page or a moodboard: names it, says what goes and that there is no way back", () => {
+    const page = trashAskText({ kind: "page", title: "Brief" });
+    expect(page.title).toBe("Delete “Brief” for good?");
+    expect(page.body).toMatch(/can’t be undone/);
+    expect(page.confirm).toBe("Delete forever");
+    const board = trashAskText({ kind: "board", title: "" });
+    expect(board.title).toBe("Delete “Untitled moodboard” for good?");
+    expect(board.body).toMatch(/references, pictures/);
+  });
+
+  it("Empty Trash counts what goes and says what stays", () => {
+    const all = trashAskText({ kind: "all", pages: 2, boards: 1, tasks: 3 });
+    expect(all.title).toBe("Empty Trash?");
+    expect(all.body).toContain(
+      "2 pages and 1 moodboard will be deleted for good"
+    );
+    expect(all.body).toContain("can’t be undone");
+    expect(all.body).toContain("3 tasks stay in Trash");
+    expect(all.confirm).toBe("Empty Trash");
+    expect(
+      trashAskText({ kind: "all", pages: 1, boards: 0, tasks: 0 }).body
+    ).toBe("1 page will be deleted for good. This can’t be undone.");
   });
 });

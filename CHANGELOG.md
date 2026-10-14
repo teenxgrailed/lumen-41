@@ -25,6 +25,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connection · Cancel · Connect. It no longer shows a card inside the sheet,
   required asterisks, stacked help text or a browser alert, and password
   managers no longer draw over the fields.
+- Document rail, desktop: the left panel has the prototype's four tabs. Tasks in
+  this document lists every to-do in the page's text under the heading it sits
+  in, and every task the page links to; ticking a row ticks the box in the text,
+  a row scrolls to it, and completed ones are hidden until asked for. Files lists
+  what is attached to the page (pictures as a grid, the rest as rows with kind
+  and size), and the plus adds a file (10 MB at most).
+- Document covers: the Style panel (desktop) and Page Style (phone, None / Art /
+  Image) offer the eight drawn cover arts. An art is stored as `art:<theme>` in
+  the page's `coverUrl` and drawn from the theme's colours, in the document, the
+  Documents grid and the phone reader. The public page does not draw it yet.
+- Templates, desktop and phone: the six templates that come with Needt (Daily
+  note, Weekly review, Product drop, Meeting notes, Resale listing, Project
+  brief) are listed after your own, each with a miniature of its blocks. Use
+  makes a real page with the template's blocks and page colour through
+  `POST /api/pages` and `PUT /api/pages/:id/blocks`, opens it, and Undo sends it
+  to Trash. Page colours are free ones, so a template works on every plan.
+- Trash, desktop and phone: pages are listed (with Restore and Undo), and pages
+  and moodboards can be deleted for good, one at a time or with Empty Trash.
+  Both ask first in a dialog (a sheet on the phone) that says there is no Undo,
+  and Empty Trash says how many tasks stay (tasks still have no permanent
+  delete). New `DELETE /api/pages/:id?permanent=true` deletes a page that is
+  already in Trash; a live page is refused with 409.
 - Projects, desktop and phone: a task with subtasks is drawn as a chain. Its
   first step is on top, the subtasks follow in the order they are done, and the
   task itself comes last as the closing step ("Last step · 1 of 3 done"); a
