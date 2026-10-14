@@ -10,6 +10,10 @@
 .needt-v3 .v3c-anchor {
   pointer-events: none;
 }
+/* The nudge tip floats above the pill, outside the clipped shell. */
+.needt-v3 .v3c-anchor .chat-tip-anchor {
+  pointer-events: auto;
+}
 .needt-v3 .v3c-shell {
   position: absolute;
   right: 0;
@@ -38,8 +42,7 @@
 .needt-v3 .v3c-shade.is-pill {
   box-shadow: var(--shadow-raised);
 }
-.needt-v3 .v3c-shade.is-island,
-.needt-v3 .v3c-shade.is-panel {
+.needt-v3 .v3c-shade.is-island {
   box-shadow: var(--shadow-floating);
 }
 
@@ -56,10 +59,6 @@
   opacity: 1;
   pointer-events: auto;
   transition: opacity 150ms ease 120ms;
-}
-.needt-v3 .v3c-panel {
-  display: flex;
-  flex-direction: column;
 }
 .needt-v3 .v3c-island {
   display: flex;
