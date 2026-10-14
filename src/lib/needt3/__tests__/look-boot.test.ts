@@ -37,7 +37,9 @@ describe("the look cookie", () => {
     expect(
       parseLook("light.light.blue.25222b.312d38.eeebf2")?.palette
     ).toBeNull();
-    expect(parseLook("time.dark.blue.zzzzzz.312d38.eeebf2")?.palette).toBeNull();
+    expect(
+      parseLook("time.dark.blue.zzzzzz.312d38.eeebf2")?.palette
+    ).toBeNull();
   });
 
   it("drops junk instead of throwing", () => {
@@ -57,9 +59,12 @@ describe("the look cookie", () => {
 describe("mergeLook", () => {
   it("lets the saved choice win over the cookie", () => {
     const cookie = look({ choice: "dark", side: "dark", accent: "pink" });
-    expect(
-      mergeLook({ choice: "light", accent: "mint" }, cookie)
-    ).toEqual({ choice: "light", accent: "mint", side: null, palette: null });
+    expect(mergeLook({ choice: "light", accent: "mint" }, cookie)).toEqual({
+      choice: "light",
+      accent: "mint",
+      side: null,
+      palette: null,
+    });
   });
 
   it("keeps what the cookie knows when it is about the same choice", () => {
@@ -181,21 +186,25 @@ function boot(opts: {
 
 describe("LOOK_BOOT_SCRIPT", () => {
   it("follows the OS for System", () => {
-    expect(boot({ choice: "system", side: "light", osDark: true }).attrs[
-      "data-theme"
-    ]).toBe("dark");
-    expect(boot({ choice: "system", side: "dark", osDark: false }).attrs[
-      "data-theme"
-    ]).toBe("light");
+    expect(
+      boot({ choice: "system", side: "light", osDark: true }).attrs[
+        "data-theme"
+      ]
+    ).toBe("dark");
+    expect(
+      boot({ choice: "system", side: "dark", osDark: false }).attrs[
+        "data-theme"
+      ]
+    ).toBe("light");
   });
 
   it("leaves Light and Dark where the server put them", () => {
-    expect(boot({ choice: "light", side: "light", osDark: true }).attrs[
-      "data-theme"
-    ]).toBe("light");
-    expect(boot({ choice: "dark", side: "dark", osDark: false }).attrs[
-      "data-theme"
-    ]).toBe("dark");
+    expect(
+      boot({ choice: "light", side: "light", osDark: true }).attrs["data-theme"]
+    ).toBe("light");
+    expect(
+      boot({ choice: "dark", side: "dark", osDark: false }).attrs["data-theme"]
+    ).toBe("dark");
   });
 
   it("uses the clock for Time only when no past visit is known", () => {

@@ -1,5 +1,5 @@
-import { getServerSession } from "next-auth";
 import type { Viewport } from "next";
+import { getServerSession } from "next-auth";
 import { cookies, headers } from "next/headers";
 
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";

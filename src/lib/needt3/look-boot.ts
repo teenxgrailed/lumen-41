@@ -140,7 +140,9 @@ export function firstPaint(look: Look): FirstPaint {
     };
   }
   const side = look.side ?? "light";
-  const vars = look.palette ? paletteVars({ side, ...look.palette }, false) : {};
+  const vars = look.palette
+    ? paletteVars({ side, ...look.palette }, false)
+    : {};
   return { side, drift: true, vars, known: look.side !== null };
 }
 

@@ -73,6 +73,7 @@ import { agentBusy } from "../cursor/hand";
 import { AiOrb } from "../orb/AiOrb";
 import { usePaywallStore } from "../paywall/store";
 import { useShellApi } from "../shell/ShellContext";
+import { useAsk } from "./AskProvider";
 import { ChatPanel } from "./ChatPanel";
 import { NudgeTip } from "./NudgeTip";
 import { useChatDock } from "./dock";
@@ -86,8 +87,6 @@ import {
   quietPlace,
 } from "./nudge-tip";
 import { firstName } from "./scope";
-import { useAskNeedt } from "./useAskNeedt";
-import { useAskScope } from "./useAskScope";
 
 /** The dock card's exit (chat.css v3-chat-spring-out 200ms, +20ms slack). */
 const PANEL_EXIT_MS = 220;
@@ -175,10 +174,9 @@ function Corner() {
   const setOpen = useNeedt3Ui((s) => s.setAskOpen);
   const { notices, hold, release } = useNoticeStack();
   const { dismiss } = useNotify();
-  const ask = useAskNeedt();
+  const { ask, asking } = useAsk();
   const { narrow } = useShellApi();
   const dock = useChatDock();
-  const asking = useAskScope();
   const session = useSession();
   const pathname = usePathname();
   const settingsOpen = useNeedt3Ui((s) => s.settingsOpen);

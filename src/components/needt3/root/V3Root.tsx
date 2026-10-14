@@ -136,7 +136,9 @@ export function V3Root({
   // Time has no reading until its effect has read the palette tokens; until
   // then wear what the server painted rather than resolving to Light.
   const server =
-    initialLook && initialLook.choice === theme ? firstPaint(initialLook) : null;
+    initialLook && initialLook.choice === theme
+      ? firstPaint(initialLook)
+      : null;
   const waiting = !seeded || (theme === "time" && !time);
   const resolved =
     server && waiting && theme !== "system"

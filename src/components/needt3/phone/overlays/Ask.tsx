@@ -2,89 +2,102 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
-import { LuArrowUp, LuArrowUpRight, LuInfo } from "react-icons/lu";
-
-import { logger } from "@/lib/logger";
+import {
+  LuArrowUp,
+  LuArrowUpRight,
+  LuPaperclip,
+  LuSquare,
+  LuSquarePen,
+} from "react-icons/lu";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { StGlyph } from "../../states/StGlyph";
+import { useAsk } from "../../corner/AskProvider";
+import {
+  type AskScope,
+  SLASH_COMMANDS,
+  type Suggestion,
+  helloLine,
+  suggestionsFor,
+} from "../../corner/scope";
+import type { AskMessage, AskPhase } from "../../corner/useAskNeedt";
+import { AiOrb } from "../../orb/AiOrb";
 import { PkSheet, pkCx } from "../kit";
+import { usePhoneOverlays } from "./store";
 import { ask as copy } from "./strings";
-
-const LOG_SOURCE = "PhoneAsk";
-
-/**
- * The prototype's three suggestions (Mobile.jsx `MB_ASK`) were questions with
- * canned answers. The questions stay as prompts; the answers are not ported:
- * a reply comes from the engine or not at all.
- */
-const SUGGESTIONS = ["Plan my afternoon", "What’s overdue?"] as const;
-
-type Turn = readonly ["you" | "needt", string];
 
 export interface PkAskProps {
   open: boolean;
   onClose: () => void;
-  /**
-   * The reply engine: a question in, the answer out.
-   * //todo: wire `POST /api/ai/chat` (NDJSON stream with tool confirmations,
-   * `AIChatSurface.tsx`) behind a `useAskNeedt` hook in
-   * `src/lib/needt3/hooks`; T23 (the desktop Ask corner) needs the same one.
-   * Without it the sheet says so and nothing is sent or faked.
-   */
-  reply?: (question: string) => Promise<string>;
-}
-
-/** The AI orb, still (the animated `AiOrb` is not ported; nothing loops at rest). */
-function OrbStill() {
-  return <span className="pov-orb-still" aria-hidden="true" />;
+  /** The thread, newest last (`useAskNeedt`, shared with the desktop panel). */
+  messages: readonly AskMessage[];
+  phase: AskPhase;
+  /** What it is looking at; the six suggestions follow it. */
+  scope: AskScope;
+  /** `line` goes to the backend, `shown` is what the thread shows when it differs. */
+  onSend: (line: string, confirmed?: boolean, shown?: string) => void;
+  onStop: () => void;
+  onNew: () => void;
+  /** The plan does not include the agent: open the plans. */
+  onUpgrade?: () => void;
 }
 
 /**
- * Ask Needt on the phone (phone-overlays.jsx `PkAsk`): the orb, the
- * suggestions, one field at the bottom. The sheet is complete; the reply
- * engine is the //todo on `reply`.
+ * Ask Needt on the phone (phone-overlays.jsx `PkAsk`): the orb, the six
+ * suggestions, one field at the bottom. The conversation is the desktop
+ * panel's (`useAskNeedt` via `AskProvider`, POST /api/ai/chat): the same
+ * thread, the same confirmations, the same limit messages. Attach is drawn
+ * and off: the chat endpoint takes text only.
  */
-export function PkAsk({ open, onClose, reply }: PkAskProps) {
-  const [turns, setTurns] = useState<readonly Turn[]>([]);
+export function PkAsk({
+  open,
+  onClose,
+  messages,
+  phase,
+  scope,
+  onSend,
+  onStop,
+  onNew,
+  onUpgrade,
+}: PkAskProps) {
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
   const list = useRef<HTMLDivElement>(null);
-  const blocked = !reply;
+  const field = useRef<HTMLInputElement>(null);
+  const busy = phase !== "idle";
+  const last = messages[messages.length - 1];
 
   const send = useCallback(
-    async (text: string) => {
+    (text: string) => {
       const q = text.trim();
-      if (!q || !reply || busy) return;
+      if (!q || busy) return;
       setDraft("");
-      setBusy(true);
-      setTurns((m) => [...m, ["you", q]]);
-      try {
-        const a = await reply(q);
-        setTurns((m) => [...m, ["needt", a]]);
-      } catch (error) {
-        void logger.error(
-          "Ask Needt reply failed",
-          { error: error instanceof Error ? error.message : String(error) },
-          LOG_SOURCE
-        );
-      } finally {
-        setBusy(false);
-      }
+      onSend(q);
     },
-    [reply, busy]
+    [busy, onSend]
   );
 
+  const suggest = (s: Suggestion) => {
+    // A card whose line is a slash command asks for the rest of the sentence
+    // ("Summarise …") instead of sending the bare command.
+    const cmd = SLASH_COMMANDS.find((c) => c.cmd === s.say);
+    if (cmd?.fill.endsWith(" ")) {
+      setDraft(cmd.fill);
+      field.current?.focus();
+      return;
+    }
+    send(cmd ? cmd.fill : s.say);
+  };
+
+  // The newest line stays in view while it thinks and streams.
   useLayoutEffect(() => {
     const el = list.current?.closest(".pk-sheet-body");
-    if (el && turns.length) el.scrollTop = el.scrollHeight;
-  }, [turns.length]);
+    if (el && messages.length) el.scrollTop = el.scrollHeight;
+  }, [messages, phase]);
 
   const head = (
     <div className="pov-ask-head">
       <span className="pov-orb" aria-hidden="true">
-        <OrbStill />
+        <AiOrb size={44} active={busy} />
       </span>
       <span className="pov-ask-titles">
         <span className="pov-ask-title">{copy.ask_needt}</span>
@@ -92,6 +105,20 @@ export function PkAsk({ open, onClose, reply }: PkAskProps) {
           {copy.plans_with_your_calendar_and_tasks}
         </span>
       </span>
+      {messages.length ? (
+        <button
+          type="button"
+          className="pov-ask-new"
+          aria-label="New chat"
+          data-pov-ask-new=""
+          onClick={() => {
+            onNew();
+            setDraft("");
+          }}
+        >
+          <LuSquarePen size={18} />
+        </button>
+      ) : null}
     </div>
   );
   const footer = (
@@ -99,26 +126,48 @@ export function PkAsk({ open, onClose, reply }: PkAskProps) {
       className="pov-ask-field"
       onSubmit={(e) => {
         e.preventDefault();
-        void send(draft);
+        send(draft);
       }}
     >
+      <button
+        type="button"
+        className="pov-ask-attach"
+        aria-label="Attach (not available yet)"
+        disabled
+        data-pov-ask-attach=""
+      >
+        <LuPaperclip size={18} />
+      </button>
       <input
+        ref={field}
         className="pov-ask-input"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         placeholder={copy.ask_anything_about_your_day}
         aria-label={copy.ask_needt}
-        disabled={blocked}
+        enterKeyHint="send"
         data-pov-ask-input=""
       />
-      <button
-        type="submit"
-        className="pov-ask-send"
-        aria-label={copy.send}
-        disabled={blocked || busy || !draft.trim()}
-      >
-        <LuArrowUp size={18} />
-      </button>
+      {busy ? (
+        <button
+          type="button"
+          className="pov-ask-send is-stop"
+          aria-label="Stop"
+          data-pov-ask-stop=""
+          onClick={onStop}
+        >
+          <LuSquare size={14} />
+        </button>
+      ) : (
+        <button
+          type="submit"
+          className="pov-ask-send"
+          aria-label={copy.send}
+          disabled={!draft.trim()}
+        >
+          <LuArrowUp size={18} />
+        </button>
+      )}
     </form>
   );
 
@@ -133,34 +182,86 @@ export function PkAsk({ open, onClose, reply }: PkAskProps) {
       className="pov-ask"
       bodyClass="pov-ask-body"
     >
-      <div ref={list} className="pov-ask-list" data-pov-ask="">
-        {blocked ? (
-          <div className="pov-ask-note" role="status">
-            <StGlyph name="cloud-off" size={16} fallback={LuInfo} />
-            <span className="pov-ask-note-text">
-              <span>Ask Needt isn’t connected on the phone yet.</span>
-            </span>
-          </div>
-        ) : null}
+      <div
+        ref={list}
+        className="pov-ask-list"
+        data-pov-ask=""
+        aria-live="polite"
+      >
         <p className="pov-msg is-needt">
-          {copy.ask_about_your_day_i_can_plan_the_aftern}
+          {scope.kind === "doc" || scope.kind === "task"
+            ? helloLine(scope)
+            : copy.ask_about_your_day_i_can_plan_the_aftern}
         </p>
-        {turns.map(([who, text], i) => (
-          <p key={i} className={pkCx("pov-msg", `is-${who}`)}>
-            {text}
-          </p>
-        ))}
-        {turns.length ? null : (
+        {messages.map((m) => {
+          if (m.from === "you") {
+            return (
+              <p key={m.id} className="pov-msg is-you">
+                {m.text}
+              </p>
+            );
+          }
+          const live = busy && m === last;
+          if (live && phase === "thinking" && !m.text) {
+            return (
+              <p
+                key={m.id}
+                className="pov-msg is-needt pov-ask-think"
+                role="status"
+              >
+                Thinking…
+              </p>
+            );
+          }
+          return (
+            <div key={m.id} className="pov-ask-turn">
+              <p
+                className={pkCx(
+                  "pov-msg",
+                  "is-needt",
+                  (m.failed || m.stopped) && "is-failed"
+                )}
+              >
+                {m.text}
+                {live ? (
+                  <span className="chat-caret" aria-hidden="true" />
+                ) : null}
+              </p>
+              {m.confirm && !busy ? (
+                <button
+                  type="button"
+                  className="pov-ask-action"
+                  data-pov-ask-confirm=""
+                  onClick={() => onSend(m.confirm ?? "", true)}
+                >
+                  Confirm
+                </button>
+              ) : null}
+              {m.upgrade && onUpgrade ? (
+                <button
+                  type="button"
+                  className="pov-ask-action"
+                  data-pov-ask-plans=""
+                  onClick={onUpgrade}
+                >
+                  See plans
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+        {messages.length ? null : (
           <div className="pov-ask-sugg">
-            {SUGGESTIONS.map((q) => (
+            {suggestionsFor(scope).map((s) => (
               <button
-                key={q}
+                key={s.id}
                 type="button"
                 className="pov-sugg"
-                disabled={blocked || busy}
-                onClick={() => void send(q)}
+                data-pov-sugg={s.id}
+                disabled={busy}
+                onClick={() => suggest(s)}
               >
-                {q}
+                {s.title}
                 <LuArrowUpRight size={14} />
               </button>
             ))}
@@ -171,10 +272,27 @@ export function PkAsk({ open, onClose, reply }: PkAskProps) {
   );
 }
 
-/** Ask against the store flag (`askOpen`). */
-export function StoreAsk({ reply }: Pick<PkAskProps, "reply">) {
+/** Ask against the store flag (`askOpen`) and the shared controller. */
+export function StoreAsk() {
   const open = useNeedt3Ui((s) => s.askOpen);
   const setOpen = useNeedt3Ui((s) => s.setAskOpen);
   const close = useCallback(() => setOpen(false), [setOpen]);
-  return <PkAsk open={open} onClose={close} reply={reply} />;
+  const { ask, asking } = useAsk();
+  const upgrade = useCallback(() => {
+    setOpen(false);
+    usePhoneOverlays.getState().openPaywall("Ask Needt");
+  }, [setOpen]);
+  return (
+    <PkAsk
+      open={open}
+      onClose={close}
+      messages={ask.messages}
+      phase={ask.phase}
+      scope={asking.scope}
+      onSend={(line, confirmed, shown) => void ask.send(line, confirmed, shown)}
+      onStop={ask.stop}
+      onNew={ask.reset}
+      onUpgrade={upgrade}
+    />
+  );
 }
