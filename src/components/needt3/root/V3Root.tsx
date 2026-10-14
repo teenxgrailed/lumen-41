@@ -15,6 +15,13 @@ import "@/styles/v3-entry.css";
 
 import { newDate } from "@/lib/date-utils";
 import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
+import {
+  LOOK_BOOT_SCRIPT,
+  type Look,
+  barColorOf,
+  firstPaint,
+  writeLookCookie,
+} from "@/lib/needt3/look-boot";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import {
   type TimeReading,
@@ -92,23 +99,52 @@ export function V3Root({
   children,
   initialUi = "desktop",
   uiForced = false,
+  initialLook,
 }: PropsWithChildren<{
   /** The server's pick (`phoneUiFrom`); the first render, so hydration matches. */
   initialUi?: PhoneUi;
   /** The `needt-ui` cookie pinned `initialUi`: the width never overrides it. */
   uiForced?: boolean;
+  /**
+   * The saved theme and accent as the server read them. The first render
+   * wears these (so the HTML is already in the person's colours and hydration
+   * matches), then the store takes over, seeded with them.
+   */
+  initialLook?: Look;
 }>) {
   const ui = useResolvedPhoneUi(initialUi, uiForced);
   const scopeRef = useRef<HTMLDivElement>(null);
-  const theme = useNeedt3Ui((s) => s.theme);
-  const accent = useNeedt3Ui((s) => s.accent);
+  const storeTheme = useNeedt3Ui((s) => s.theme);
+  const storeAccent = useNeedt3Ui((s) => s.accent);
+  // Until the store has been seeded from the server's look, the persisted
+  // localStorage copy (possibly stale, or empty on a new device) is not worn.
+  const [seeded, setSeeded] = useState(!initialLook);
+  useEffect(() => {
+    if (initialLook) {
+      useNeedt3Ui
+        .getState()
+        .setLook({ theme: initialLook.choice, accent: initialLook.accent });
+    }
+    setSeeded(true);
+    // Once, on mount: the server's read is the starting point, not a feed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const theme = seeded || !initialLook ? storeTheme : initialLook.choice;
+  const accent = seeded || !initialLook ? storeAccent : initialLook.accent;
   const osDark = useOsDark();
   const time = useTimeReading(theme === "time", scopeRef);
-  const resolved = resolveTheme(theme, osDark, time);
+  // Time has no reading until its effect has read the palette tokens; until
+  // then wear what the server painted rather than resolving to Light.
+  const server =
+    initialLook && initialLook.choice === theme ? firstPaint(initialLook) : null;
+  const waiting = !seeded || (theme === "time" && !time);
+  const resolved =
+    server && waiting && theme !== "system"
+      ? server
+      : resolveTheme(theme, osDark, time);
+  const vars: Record<string, string> = resolved.vars;
 
-  const barColor =
-    resolved.vars["--background"] ??
-    (resolved.side === "dark" ? "#202022" : "#fcfdfe");
+  const barColor = barColorOf({ side: resolved.side, vars });
   useEffect(() => {
     // The status bar / PWA frame follow the chosen theme, not the OS scheme
     // the static viewport metadata keys on (Time at dusk, Dark on a light OS).
@@ -125,6 +161,48 @@ export function V3Root({
       });
   }, [barColor]);
 
+  // The page behind the scope (html, body) and the browser's own controls
+  // wear the theme too, so overscroll and the gap before CSS are not the
+  // static dark root. The boot script paints the first frame; this keeps it
+  // in step afterwards.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const before = [
+      html.style.backgroundColor,
+      html.style.colorScheme,
+      body.style.backgroundColor,
+    ];
+    html.style.backgroundColor = barColor;
+    html.style.colorScheme = resolved.side;
+    body.style.backgroundColor = barColor;
+    return () => {
+      html.style.backgroundColor = before[0];
+      html.style.colorScheme = before[1];
+      body.style.backgroundColor = before[2];
+    };
+  }, [barColor, resolved.side]);
+
+  // The browser's copy of the look: the next first byte (and generateViewport)
+  // start from how this one resolved.
+  const palette = time && !time.pure ? time.palette : null;
+  const paletteKey = palette
+    ? `${palette.bg}${palette.raised}${palette.ink}`
+    : "";
+  useEffect(() => {
+    if (!seeded) return;
+    writeLookCookie({
+      choice: theme,
+      accent,
+      side: resolved.side,
+      palette: palette
+        ? { bg: palette.bg, raised: palette.raised, ink: palette.ink }
+        : null,
+    });
+    // `palette` is keyed by its three colours.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeded, theme, accent, resolved.side, paletteKey]);
+
   return (
     <DesignV3Context.Provider value={true}>
       <div
@@ -138,9 +216,15 @@ export function V3Root({
         data-accent={accent}
         data-theme-choice={theme}
         data-ui={ui}
-        style={resolved.vars as CSSProperties}
+        data-time-known={server?.known ? "1" : undefined}
+        style={vars as CSSProperties}
         suppressHydrationWarning
       >
+        {/* First child: settles System and Time before anything below paints. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: LOOK_BOOT_SCRIPT }}
+          suppressHydrationWarning
+        />
         <PhoneUiProvider value={ui}>
           <V3Shell ui={ui}>{children}</V3Shell>
         </PhoneUiProvider>

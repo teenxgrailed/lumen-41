@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import type { Viewport } from "next";
 import { cookies, headers } from "next/headers";
 
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
@@ -8,13 +9,29 @@ import { V3Root } from "@/components/needt3/root/V3Root";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { isDesignV3 } from "@/lib/needt3/design-flag";
+import { viewportLook } from "@/lib/needt3/look-boot";
 import {
   PHONE_UI_COOKIE,
   parseUiCookie,
   phoneUiFrom,
 } from "@/lib/needt3/phone-ui";
+import { requestLook, requestLookCookie } from "@/lib/needt3/request-look";
+
+import { viewport as baseViewport } from "../metadata";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Browser chrome in the person's theme from the first byte: `color-scheme`
+ * (scrollbars, form controls, overscroll) and `theme-color` follow the look
+ * the `needt-look` cookie remembers, not only the OS scheme the static
+ * viewport keys on. No cookie yet (first visit on this device): the static
+ * answer stands and V3Root writes the cookie.
+ */
+export async function generateViewport(): Promise<Viewport> {
+  const look = await requestLookCookie();
+  return look ? { ...baseViewport, ...viewportLook(look) } : baseViewport;
+}
 
 export default async function AppLayout({
   children,
@@ -44,10 +61,14 @@ export default async function AppLayout({
       userAgent: reqHeaders.get("user-agent"),
       cookie: uiCookie,
     });
+    // The saved theme and accent, read here so the first byte of HTML wears
+    // them (V3Root's boot script settles System and Time before paint).
+    const initialLook = await requestLook(session.user.id);
     return (
       <EmailVerificationGate initialStatus={verification}>
         <V3Root
           initialUi={initialUi}
+          initialLook={initialLook}
           uiForced={parseUiCookie(uiCookie) !== null}
         >
           {children}
