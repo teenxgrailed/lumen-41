@@ -113,6 +113,13 @@ export function isNormalizedAssistantPosition(
  * the vendored chat.css values, which win over older briefs.
  */
 
+/**
+ * Ask Needt open on a wide window: the width of the column it docks into, at
+ * the right of the shell's main row (prototype App.jsx, `data-chat-dock`).
+ * Below SB_NARROW it is a sheet over a scrim and the column stays 0.
+ */
+export const CHAT_DOCK_W = 360;
+
 /** Inset of the corner from both window edges. */
 export const CORNER_GUTTER = 20;
 

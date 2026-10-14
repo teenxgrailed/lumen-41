@@ -2,16 +2,25 @@
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 
+import { useRouter } from "next/navigation";
+
 import { createPortal } from "react-dom";
 import {
   LuBell,
+  LuBellOff,
   LuBug,
   LuCircleHelp,
+  LuEllipsis,
   LuKeyboard,
+  LuRefreshCw,
   LuSparkles,
   LuX,
 } from "react-icons/lu";
 
+import { newDate } from "@/lib/date-utils";
+import { useMarkNudgesRead, useNudgeFeed } from "@/lib/needt3/hooks/nudges";
+
+import { agoLabel, safeHref } from "../corner/nudge-tip";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { Sheet } from "../ctx/Sheet";
 import { useExit } from "../ctx/useExit";
@@ -129,20 +138,78 @@ function EmptyNotes({ title, text }: { title: string; text: string }) {
 }
 
 /**
- * The bell. //todo: Activity and Reminders need a read-only feed
- * (`/api/notifications` marks rows delivered on read, so the bell must not
- * call it); until one exists both tabs show their empty state.
+ * The bell. Activity lists what Needt's nudge job noticed, read-only from
+ * `/api/notifications?peek=1`: pressing a row marks it read and goes to what
+ * it is about, "…" marks all read or reloads. //todo: Reminders have no
+ * backing store yet and show their empty state; mentions and comments are not
+ * notifications yet either.
  */
-function NotesPanel() {
+function NotesPanel({ close }: { close: () => void }) {
+  const router = useRouter();
   const [tab, setTab] = useState("activity");
+  const [more, setMore] = useState(false);
+  const feed = useNudgeFeed();
+  const markRead = useMarkNudgesRead();
+  const notes = feed.data ?? [];
+  const now = newDate().getTime();
+  const options: [React.ReactNode, string, () => void][] = [
+    [
+      <LuBellOff key="i" size={15} />,
+      "Mark all as read",
+      () => void markRead("all"),
+    ],
+    [
+      <LuRefreshCw key="i" size={15} />,
+      "Reload notifications",
+      () => void feed.refetch(),
+    ],
+  ];
   return (
     <div className="shell-notes-panel-stack">
       <header className="shell-notes-panel-row">
         <span className="shell-notes-panel-text">Notifications</span>
+        {tab === "activity" ? (
+          <button
+            type="button"
+            aria-label="Notification options"
+            aria-expanded={more}
+            className="tb-icon"
+            onClick={() => setMore(!more)}
+            style={{ ...iconBtn(more), marginLeft: "auto" }}
+          >
+            <LuEllipsis size={16} />
+          </button>
+        ) : null}
+        {more ? (
+          <div className="nx-pop is-right shell-notes-panel-pop" role="menu">
+            {options.map(([icon, label, run], k) => (
+              <button
+                key={label}
+                type="button"
+                role="menuitem"
+                className="nx-swap sk-row shell-notes-panel-sk-row"
+                onClick={() => {
+                  setMore(false);
+                  run();
+                }}
+                style={{
+                  animationDuration: "200ms",
+                  animationDelay: `${k * 25}ms`,
+                }}
+              >
+                <span className="shell-notes-panel-row-2">{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </header>
       <Seg2
         value={tab}
-        onChange={setTab}
+        onChange={(v) => {
+          setTab(v);
+          setMore(false);
+        }}
         options={[
           ["activity", "Activity"],
           ["reminders", "Reminders"],
@@ -150,10 +217,43 @@ function NotesPanel() {
       />
       <div key={tab} className="nx-swap shell-notes-panel-swap">
         {tab === "activity" ? (
-          <EmptyNotes
-            title="No notifications yet"
-            text="You'll be notified here when someone mentions you, comments on your page or Needt moves your day."
-          />
+          notes.length ? (
+            notes.map((n, k) => (
+              <button
+                key={n.id}
+                type="button"
+                data-nudge={n.type}
+                className="nx-swap sk-row shell-notes-panel-sk-row-2"
+                style={{ animationDelay: `${k * 35}ms`, textAlign: "left" }}
+                onClick={() => {
+                  void markRead(n.id);
+                  close();
+                  router.push(safeHref(n.deepLink));
+                }}
+              >
+                <Art name="task" size={28} />
+                <span className="shell-notes-panel-stack-2">
+                  <span className="shell-notes-panel-text-2">
+                    <b className="shell-notes-panel-b">Needt</b> {n.title}
+                  </span>
+                  <span className="shell-notes-panel-text-3">{n.body}</span>
+                  <span className="base-meta">
+                    {agoLabel(newDate(n.createdAt).getTime(), now)}
+                  </span>
+                </span>
+                <span
+                  className="shell-notes-panel-span"
+                  aria-hidden="true"
+                  style={{ transform: n.readAt ? "scale(0)" : "scale(1)" }}
+                />
+              </button>
+            ))
+          ) : (
+            <EmptyNotes
+              title="No notifications yet"
+              text="You'll be notified here when Needt moves your day, finds free time or sees something about to slip."
+            />
+          )
         ) : (
           <EmptyNotes
             title="No reminders"
@@ -262,6 +362,7 @@ function useAnchored(open: boolean) {
 /** Top right on every screen: the bell and the help mark. */
 export function TopIcons() {
   const shell = useShellApi();
+  const unread = (useNudgeFeed().data ?? []).some((n) => !n.readAt);
   const container = useV3PortalContainer();
   const [which, setWhich] = useState<"bell" | "help" | null>(null);
   const [seenNew, setSeenNew] = useState(true);
@@ -340,7 +441,7 @@ export function TopIcons() {
       style={iconBtn(which === "bell")}
     >
       <LuBell size={18} />
-      <Dot show={false} />
+      <Dot show={unread} />
     </button>
   );
   const helpBtn = (
@@ -384,7 +485,7 @@ export function TopIcons() {
               className={`nx-pop is-right${leavingBell ? " is-leaving" : ""}`}
               style={{ width: 360, padding: 16, ...panelBox, ...bellAt }}
             >
-              <NotesPanel />
+              <NotesPanel close={() => setWhich(null)} />
             </div>,
             container
           )

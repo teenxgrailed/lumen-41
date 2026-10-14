@@ -2887,6 +2887,7 @@ enum ProactiveNudgeType {
   OVERBOOKED_DAY
   MISSED_FOCUS
   DEADLINE_UNREACHABLE
+  FREE_TIME
 }
 
 enum BookingStatus {
