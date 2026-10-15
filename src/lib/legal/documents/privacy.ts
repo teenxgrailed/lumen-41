@@ -170,7 +170,7 @@ Needt's use and transfer to any other app of information received from Google AP
 | --- | --- | --- |
 | Sign in with Google | \`openid\`, \`email\`, \`profile\` | To create and sign in to your account |
 | Connect Google Calendar | \`https://www.googleapis.com/auth/calendar\`, \`https://www.googleapis.com/auth/calendar.events\`, \`https://www.googleapis.com/auth/userinfo.email\` | To list your calendars, sync their events, and create or change the events you manage in Needt |
-| Connect Gmail | \`https://www.googleapis.com/auth/gmail.readonly\`, \`https://www.googleapis.com/auth/gmail.modify\`, \`https://www.googleapis.com/auth/userinfo.email\` | To show your mail in Needt, and to mark messages read or unread and archive them when you do so in Needt |
+| Connect Gmail | \`https://www.googleapis.com/auth/gmail.readonly\`, \`https://www.googleapis.com/auth/userinfo.email\` | To show your mail in Needt. Needt never sends, changes or deletes anything in your mailbox; read and archived marks are kept in Needt only |
 
 Needt does not request Google Tasks access.
 

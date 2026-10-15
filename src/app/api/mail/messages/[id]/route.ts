@@ -12,9 +12,6 @@ import {
   fetchGmailBody,
   fetchImapBody,
   fetchOutlookBody,
-  mutateGmailMessage,
-  mutateImapMessage,
-  mutateOutlookMessage,
 } from "@/lib/mail/providers";
 import { sanitizeMailHtml } from "@/lib/mail/sanitize";
 import {
@@ -171,35 +168,8 @@ export async function PATCH(
       return NextResponse.json({ reminderTask: task }, { status: 201 });
     }
 
-    const providerAction = {
-      ...(body.isRead !== undefined && { isRead: body.isRead }),
-      ...(body.archive && { archive: true }),
-    };
-    if (
-      (body.isRead !== undefined || body.archive) &&
-      message.account.provider === MailProvider.GMAIL
-    ) {
-      await mutateGmailMessage(
-        message.account,
-        message.externalId,
-        providerAction
-      );
-    } else if (
-      (body.isRead !== undefined || body.archive) &&
-      message.account.provider === MailProvider.OUTLOOK
-    ) {
-      await mutateOutlookMessage(
-        message.account,
-        message.externalId,
-        providerAction
-      );
-    } else if (body.isRead !== undefined) {
-      await mutateImapMessage(
-        message.account,
-        message.externalId,
-        providerAction
-      );
-    }
+    // Mail is read-only: read and archive state live in Needt only. The
+    // provider mailbox is never changed.
     const updated = await updateMailMessage(auth.userId, id, {
       ...(body.isRead !== undefined && { isRead: body.isRead }),
       ...(body.archive && { isArchived: true }),

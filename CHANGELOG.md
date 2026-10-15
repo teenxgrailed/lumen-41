@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apply, one Undo) instead of opening Ask, still a Pro action. The Streak
   card shows "n days closed", derived from the tasks. "Notes for the day"
   opens today's note, a private document created on first use.
+- Mail is read-only. Connecting Gmail asks only for `gmail.readonly` and
+  Outlook only for `Mail.Read`; Needt no longer changes anything in a
+  mailbox. Marking read and archiving are kept in Needt only and survive
+  syncs. Accounts connected earlier keep working without reconnecting.
+
 - Admin operations lists every external service — billing, email, alerts,
   push, OAuth, hosted AI, Sentry, collaboration, Redis, webhooks, cron — as
   configured or not, with a live check for Redis and the collaboration

@@ -43,9 +43,6 @@ jest.mock("@/lib/mail/providers", () => ({
   fetchGmailBody: jest.fn(),
   fetchImapBody: jest.fn(),
   fetchOutlookBody: jest.fn(),
-  mutateGmailMessage: jest.fn(),
-  mutateImapMessage: jest.fn(),
-  mutateOutlookMessage: jest.fn(),
 }));
 jest.mock("@/lib/mail/sanitize", () => ({
   sanitizeMailHtml: (html: string) => ({ html, hasRemoteImages: false }),

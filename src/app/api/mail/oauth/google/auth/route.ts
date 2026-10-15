@@ -5,6 +5,7 @@ import { getGoogleCredentials } from "@/lib/auth";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
 import { createGoogleOAuthClient } from "@/lib/google";
+import { GMAIL_OAUTH_SCOPES } from "@/lib/mail/scopes";
 
 const LOG_SOURCE = "GoogleMailOAuthStart";
 
@@ -33,11 +34,7 @@ export async function GET(request: NextRequest) {
         access_type: "offline",
         include_granted_scopes: true,
         prompt: "consent",
-        scope: [
-          "https://www.googleapis.com/auth/userinfo.email",
-          "https://www.googleapis.com/auth/gmail.readonly",
-          "https://www.googleapis.com/auth/gmail.modify",
-        ],
+        scope: [...GMAIL_OAUTH_SCOPES],
       })
     );
   } catch (error) {
