@@ -23,7 +23,7 @@ import {
 
 import { newDate } from "@/lib/date-utils";
 import { useAddPageFile, usePageFiles } from "@/lib/needt3/hooks/doc-files";
-import { useDoc } from "@/lib/needt3/hooks/docs";
+import { useDoc, useDocs } from "@/lib/needt3/hooks/docs";
 
 import { type DocRailTab, useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -548,6 +548,9 @@ export function DocRail() {
   const shell = useShellApi();
   const id = useOpenDocId();
   const doc = useDoc(id).data;
+  // A single page comes without its first lines; the Docs list (already
+  // cached for the sidebar's Pinned) has them.
+  const preview = useDocs().data?.find((d) => d.id === id)?.preview;
   const read = useDocTokens();
   const tab = useNeedt3Ui((s) => s.docRailTab);
   const setTab = useNeedt3Ui((s) => s.setDocRailTab);
@@ -576,7 +579,14 @@ export function DocRail() {
         </GhostIcon>
       </div>
       <div className="docs-doc-panel-3">
-        {doc ? <DocThumb doc={doc} read={read} w={30} h={36} /> : null}
+        {doc ? (
+          <DocThumb
+            doc={{ ...doc, preview: doc.preview ?? preview }}
+            read={read}
+            w={30}
+            h={36}
+          />
+        ) : null}
         <span className="docs-doc-list-4">
           <span
             className={

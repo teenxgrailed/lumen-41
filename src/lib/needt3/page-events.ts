@@ -1,3 +1,5 @@
+import type { PagePreviewBlock } from "@/lib/pages/page-preview";
+
 /**
  * The editor (`PageWorkspace`) writes a page's title, icon, pin and cover to
  * the API itself. It announces each write with this window event, so the v3
@@ -19,6 +21,22 @@ export interface PagePatchedDetail {
 
 export function announcePagePatched(detail: PagePatchedDetail) {
   window.dispatchEvent(new CustomEvent(PAGE_PATCHED_EVENT, { detail }));
+}
+
+/**
+ * The editor tells the chrome what the first lines of the page now look like
+ * (after a pause in typing, and when the page is left), so the Docs grid, the
+ * Pinned faces and the rail thumb show the edit without a refetch.
+ */
+export const PAGE_PREVIEW_EVENT = "needt:page-preview";
+
+export interface PagePreviewDetail {
+  pageId: string;
+  preview: PagePreviewBlock[];
+}
+
+export function announcePagePreview(detail: PagePreviewDetail) {
+  window.dispatchEvent(new CustomEvent(PAGE_PREVIEW_EVENT, { detail }));
 }
 
 /** The fields of a patch the v3 document model carries. */

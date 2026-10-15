@@ -345,6 +345,9 @@ const tok = (read: TokenReader, name: string) => {
 
 /** WCAG AA for body text. */
 export const AA_TEXT = 4.5;
+/** Kept for the real-token test: the floor under which an asked ink is dropped. */
+export const MIN_ASKED_INK_CONTRAST = 3;
+
 /** WCAG AA for large text (headings, the title) and UI marks. */
 export const AA_LARGE = 3;
 

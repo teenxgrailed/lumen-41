@@ -223,4 +223,33 @@ describe("desktop Docs card miniature", () => {
     );
     expect(push).toHaveBeenCalledWith("/pages/open%20me");
   });
+
+  it("the list view draws each row's face with the page's title and first lines", () => {
+    mount([
+      doc("Buy-list", {
+        preview: [
+          { type: "todo", text: "Milk" },
+          { type: "todo", text: "Eggs", checked: true },
+        ],
+      }),
+      doc("Blank", { preview: [] }),
+    ]);
+    act(() =>
+      host
+        .querySelector<HTMLButtonElement>('button[aria-label="List"]')!
+        .click()
+    );
+    const rows = host.querySelectorAll<HTMLElement>(".docs-doc-list-2");
+    expect(rows).toHaveLength(2);
+    const mini = Array.from(rows)
+      .find((r) => r.textContent?.includes("Buy-list"))!
+      .querySelector("[data-docs-thumb-mini]")!;
+    expect(mini.textContent).toContain("Milk");
+    expect(mini.querySelectorAll(".docs-mini-todo.is-on")).toHaveLength(1);
+    // A blank page still shows its title on the face, not an empty sheet.
+    const blank = Array.from(rows)
+      .find((r) => r.getAttribute("data-ctx-id") === "Blank")!
+      .querySelector("[data-docs-thumb-mini]")!;
+    expect(blank.textContent).toBe("Blank");
+  });
 });
