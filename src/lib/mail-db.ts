@@ -104,7 +104,6 @@ export async function persistMailMessages(options: {
   messages: MailMessageSyncInput[];
   deletedExternalIds?: string[];
   cursor?: string | null;
-  preserveArchived?: boolean;
 }) {
   const cutoff = newDate();
   cutoff.setDate(cutoff.getDate() - MAIL_RETENTION_DAYS);
@@ -120,10 +119,11 @@ export async function persistMailMessages(options: {
         });
       }
       for (const message of options.messages) {
+        // Read and archived state belong to Needt: mail is read-only, so the
+        // provider copy is never changed and a sync must not undo local state.
         const messageUpdate = { ...message };
-        if (options.preserveArchived) {
-          Reflect.deleteProperty(messageUpdate, "isArchived");
-        }
+        Reflect.deleteProperty(messageUpdate, "isArchived");
+        Reflect.deleteProperty(messageUpdate, "isRead");
         await tx.mailMessage.upsert({
           where: {
             accountId_externalId: {
@@ -131,7 +131,7 @@ export async function persistMailMessages(options: {
               externalId: message.externalId,
             },
           },
-          update: options.preserveArchived ? messageUpdate : message,
+          update: messageUpdate,
           create: { ...message, accountId: options.accountId },
         });
       }
