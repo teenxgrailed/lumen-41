@@ -123,9 +123,11 @@ describe("ink", () => {
     expect(contrast("#f8e8ea", "#6b1f33")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("dark and light are taken as asked", () => {
-    expect(inkFor("#111111", "dark", read)).toBe("#1c1d20");
-    expect(inkFor("#ffffff", "light", read)).toBe("#f4f4f5");
+  it("dark and light are taken as asked when they read, and give way when they would not", () => {
+    expect(inkFor("#ffffff", "dark", read)).toBe("#1c1d20");
+    expect(inkFor("#111111", "light", read)).toBe("#f4f4f5");
+    expect(inkFor("#111111", "dark", read)).toBe("#f4f4f5");
+    expect(inkFor("#ffffff", "light", read)).toBe("#1c1d20");
   });
 
   it("pageVars builds both sides, and nothing before tokens load", () => {
@@ -138,7 +140,9 @@ describe("ink", () => {
       "--dt-head-l": "#6b1f33",
       "--dt-head-d": "#f2b8c6",
     });
-    expect(pageVars(DOC_DEFAULT, () => "")).toEqual({});
+    // No tokens at all: the shipped values stand in, so the card has a page
+    // and an ink from the first frame.
+    expect(pageVars(DOC_DEFAULT, () => "")["--dt-page-l"]).toBe("#ffffff");
     expect(rgbOf("#102030")).toBe("16, 32, 48");
   });
 });

@@ -593,3 +593,31 @@
   background: var(--accent);
   box-shadow: none;
 }
+
+/* ───────── touch: the page text is selectable, and its marks are tappable ─────────
+ * The phone shell turns selection off on chrome (buttons, nav, some scrollers);
+ * the page's own text, title and checklist must always select, and keep the
+ * system's selection menu. */
+.needt-v3 [data-doc-sheet] .needt-page-editor,
+.needt-v3 [data-doc-sheet] .needt-page-editor *,
+.needt-v3 [data-doc-sheet] [data-page-title] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor {
+  -webkit-touch-callout: default;
+}
+/* A checklist box is 16px on screen; on a touch screen its tap area is 44px
+ * (the label grows, the box stays where it was). */
+@media (pointer: coarse) {
+  .needt-v3
+    [data-doc-sheet]
+    .needt-page-editor
+    ul[data-type="taskList"]
+    li
+    > label {
+    box-sizing: content-box;
+    margin: -10px -6px -14px -14px;
+    padding: 14px 6px 14px 14px;
+  }
+}

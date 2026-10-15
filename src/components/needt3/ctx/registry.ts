@@ -21,6 +21,8 @@ export type CtxMenu = CtxRow[][];
 export type CtxResolver = (target: {
   el: HTMLElement | null;
   id: string | null;
+  /** The right-click itself, for a kind that reads where it landed. */
+  event?: MouseEvent;
 }) => CtxMenu | null;
 
 const registry = new Map<string, CtxResolver>();
@@ -34,10 +36,13 @@ export function registerCtx(kind: string, resolve: CtxResolver) {
 }
 
 /** The menu for a marked element; an unknown kind falls back to "app". */
-export function ctxMenuFor(el: HTMLElement | null): CtxMenu | null {
+export function ctxMenuFor(
+  el: HTMLElement | null,
+  event?: MouseEvent
+): CtxMenu | null {
   const kind = el?.getAttribute("data-ctx") ?? "app";
   const id = el?.getAttribute("data-ctx-id") ?? null;
-  const own = registry.get(kind)?.({ el, id });
+  const own = registry.get(kind)?.({ el, id, event });
   if (own && own.length) return own;
   return registry.get("app")?.({ el: null, id: null }) ?? null;
 }
