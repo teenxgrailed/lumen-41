@@ -131,10 +131,12 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
+import { previewOfDocument } from "@/lib/needt3/live-preview";
 import {
   PAGE_PATCHED_EVENT,
   type PagePatchedDetail,
   announcePagePatched,
+  announcePagePreview,
   docFieldsOf,
 } from "@/lib/needt3/page-events";
 import { notify } from "@/lib/notifications";
@@ -442,6 +444,15 @@ function decodeCollaborationState(value: string) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
+type Collaborator = { name: string; color: string };
+
+function sameCollaborators(a: Collaborator[], b: Collaborator[]) {
+  return (
+    a.length === b.length &&
+    a.every((x, i) => x.name === b[i].name && x.color === b[i].color)
+  );
+}
+
 function pageEditedLabel(value: string) {
   const edited = newDate(value);
   const today = newDate();
@@ -613,9 +624,13 @@ export function PageWorkspace({
                 : "connecting"
           ),
         onUnsyncedChanges: ({ number }) => acknowledgeCollaborationSync(number),
+        // Awareness "changes" on every caret move (the cursor is part of it),
+        // i.e. on every keystroke. The avatar strip only needs the people:
+        // keep the same array when they are the same, so typing does not
+        // re-render this whole component.
         onAwarenessChange: ({ states }) =>
-          setCollaborators(
-            states.flatMap((state) => {
+          setCollaborators((previous) => {
+            const next = states.flatMap((state) => {
               const user = state.user as
                 | { name?: unknown; color?: unknown }
                 | undefined;
@@ -623,8 +638,9 @@ export function PageWorkspace({
                 typeof user.color === "string"
                 ? [{ name: user.name, color: user.color }]
                 : [];
-            })
-          ),
+            });
+            return sameCollaborators(previous, next) ? previous : next;
+          }),
       }),
     [
       collaborationDocument,
@@ -782,9 +798,41 @@ export function PageWorkspace({
     };
   }, [documentFormatVersion, pageId]);
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
+  // The page's first lines, as the Docs grid, the Pinned faces and the rail
+  // thumb draw them, follow the text after a pause in typing and once more
+  // when the page is left (before the collaboration server has stored it).
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewEditor = useRef<Editor | null>(null);
+  const flushPreview = useCallback(() => {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = null;
+    const current = previewEditor.current;
+    previewEditor.current = null;
+    if (!inV3 || !current || current.isDestroyed) return;
+    announcePagePreview({
+      pageId,
+      preview: previewOfDocument(current.state.doc),
+    });
+  }, [inV3, pageId]);
+  const schedulePreview = useCallback(
+    (current: Editor) => {
+      if (!inV3) return;
+      previewEditor.current = current;
+      if (previewTimer.current) clearTimeout(previewTimer.current);
+      previewTimer.current = setTimeout(flushPreview, 500);
+    },
+    [flushPreview, inV3]
+  );
+  useEffect(() => flushPreview, [flushPreview]);
+
+  // The extension list and the editor props are built once per page. `useEditor`
+  // compares its options by reference on every render and calls
+  // `editor.setOptions` (a full view update) when anything differs; fresh
+  // arrays and objects here meant that every re-render of this component
+  // (a caret move announced by collaboration, a title keystroke, the save
+  // state) also re-applied the whole configuration to ProseMirror.
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         link: false,
@@ -810,42 +858,40 @@ export function PageWorkspace({
         user: { name: "Needt collaborator", color: "#4F46E5" },
       }),
     ],
-    content: "<p></p>",
-    editorProps: {
+    [collaborationDocument, collaborationProvider]
+  );
+  // The slash menu's keys read the latest render's state through a ref, so
+  // the props object itself never changes.
+  const editorKeyDown = useRef<(event: KeyboardEvent) => boolean>(() => false);
+  const editorProps = useMemo(
+    () => ({
       attributes: {
         class: "needt-page-editor min-h-[55vh] cursor-text pb-48 outline-none",
         "aria-label": "Page document",
       },
-      handleKeyDown: (_view, event) => {
-        if (slash && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-          event.preventDefault();
-          setSlashIndex((index) => {
-            const count = Math.max(1, filteredCommands.length);
-            return event.key === "ArrowDown"
-              ? (index + 1) % count
-              : (index - 1 + count) % count;
-          });
-          return true;
-        }
-        if (slash && event.key === "Enter" && filteredCommands[slashIndex]) {
-          event.preventDefault();
-          applyCommand(filteredCommands[slashIndex].id);
-          return true;
-        }
-        if (event.key === "Escape") setSlash(null);
-        return false;
-      },
-    },
+      handleKeyDown: (_view: unknown, event: KeyboardEvent) =>
+        editorKeyDown.current(event),
+    }),
+    []
+  );
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions,
+    content: "<p></p>",
+    editorProps,
     onUpdate: ({ editor: current, transaction }) => {
       if (!hydrated.current) return;
       ensureBlockIds(current);
       if (!collaborationConfiguredRef.current || !isChangeOrigin(transaction)) {
-        const document = current.getJSON();
-        autosave.current?.schedule(document);
+        // The whole page is serialised when the draft is written or saved
+        // (a pause after typing), not on every keystroke.
+        autosave.current?.schedule(() => current.getJSON());
         if (collaborationConfiguredRef.current) {
           collaborationDraftPendingRef.current = true;
         }
       }
+      schedulePreview(current);
 
       const { $from } = current.state.selection;
       const match = $from.parent.textContent.match(/^\/([^\s]*)$/);
@@ -875,6 +921,26 @@ export function PageWorkspace({
       `${command.label} ${command.keywords}`.toLowerCase().includes(slash.query)
     );
   }, [slash?.query]);
+
+  editorKeyDown.current = (event) => {
+    if (slash && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      event.preventDefault();
+      setSlashIndex((index) => {
+        const count = Math.max(1, filteredCommands.length);
+        return event.key === "ArrowDown"
+          ? (index + 1) % count
+          : (index - 1 + count) % count;
+      });
+      return true;
+    }
+    if (slash && event.key === "Enter" && filteredCommands[slashIndex]) {
+      event.preventDefault();
+      applyCommand(filteredCommands[slashIndex].id);
+      return true;
+    }
+    if (event.key === "Escape") setSlash(null);
+    return false;
+  };
 
   const startMobileLongPress = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!canEdit || event.pointerType !== "touch") return;
@@ -1114,6 +1180,21 @@ export function PageWorkspace({
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [saveState]);
+
+  // The recovery draft is written a moment after typing stops; when the tab
+  // is closed, reloaded or hidden in that moment, write it now.
+  useEffect(() => {
+    const keepDraft = () => autosave.current?.persistDraftNow();
+    const onHide = () => {
+      if (document.visibilityState === "hidden") keepDraft();
+    };
+    window.addEventListener("pagehide", keepDraft);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", keepDraft);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, []);
 
   useEffect(() => {
     const handleOffline = () => setSaveState("offline");

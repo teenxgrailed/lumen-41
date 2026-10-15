@@ -11,9 +11,13 @@ import { act, createElement as h } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
-import { usePageEditSync } from "../hooks/docs";
+import { useLivePreviews, usePageEditSync } from "../hooks/docs";
 import type { V3Doc } from "../map";
-import { announcePagePatched, docFieldsOf } from "../page-events";
+import {
+  announcePagePatched,
+  announcePagePreview,
+  docFieldsOf,
+} from "../page-events";
 import { qk } from "../query-keys";
 
 (
@@ -96,6 +100,73 @@ describe("usePageEditSync", () => {
     act(() => root.unmount());
     announcePagePatched({ pageId: "a", values: { title: "Late" } });
     expect(qc.getQueryData<V3Doc>(qk.doc("a"))?.title).toBe("Old");
+    root = createRoot(host);
+  });
+});
+
+describe("useLivePreviews", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+  let qc: QueryClient;
+  function Probe() {
+    useLivePreviews();
+    return null;
+  }
+  beforeEach(() => {
+    qc = new QueryClient();
+    qc.setQueryData(qk.doc("a"), doc("a", "Buy-list"));
+    qc.setQueryData(qk.docs("updated"), [
+      { ...doc("a", "Buy-list"), preview: [] },
+      { ...doc("b", "Other"), preview: [{ type: "p", text: "keep" }] },
+    ]);
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => root.render(h(QueryClientProvider, { client: qc }, h(Probe))));
+  });
+  afterEach(() => {
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it("puts the edited page's first lines in its document and in every list", () => {
+    const preview = [
+      { type: "todo", text: "Milk" },
+      { type: "todo", text: "Eggs", checked: true },
+    ] as const;
+    act(() => announcePagePreview({ pageId: "a", preview: [...preview] }));
+    expect(qc.getQueryData<V3Doc>(qk.doc("a"))?.preview).toEqual(preview);
+    const list = qc.getQueryData<V3Doc[]>(qk.docs("updated"))!;
+    expect(list[0].preview).toEqual(preview);
+    expect(list[1].preview).toEqual([{ type: "p", text: "keep" }]);
+  });
+
+  it("reads the lines defensively: unknown rows are dropped, junk is ignored", () => {
+    act(() =>
+      announcePagePreview({
+        pageId: "a",
+        preview: [
+          { type: "script", text: "x" },
+          { type: "p", text: "ok" },
+        ] as never,
+      })
+    );
+    expect(qc.getQueryData<V3Doc>(qk.doc("a"))?.preview).toEqual([
+      { type: "p", text: "ok" },
+    ]);
+    act(() => announcePagePreview({ pageId: "a", preview: "nope" as never }));
+    expect(qc.getQueryData<V3Doc>(qk.doc("a"))?.preview).toEqual([
+      { type: "p", text: "ok" },
+    ]);
+  });
+
+  it("stops listening when the shell goes", () => {
+    act(() => root.unmount());
+    announcePagePreview({
+      pageId: "a",
+      preview: [{ type: "p", text: "late" }],
+    });
+    expect(qc.getQueryData<V3Doc>(qk.doc("a"))?.preview).toBeUndefined();
     root = createRoot(host);
   });
 });
