@@ -867,6 +867,43 @@
   background: color-mix(in oklab, var(--doc-text-forest-lt) 30%, transparent);
 }
 
+/* ───────── print / Export as PDF: the sheet alone on the paper ─────────
+ * `printPage()` marks the frame `data-printing` for as long as the print
+ * dialog is up. Everything but the sheet is hidden; the boxes the sheet sits
+ * in stop clipping and scrolling so a long page flows onto as many sheets of
+ * paper as it needs. The page keeps its own style (colour, font, cover). */
+@media print {
+  .needt-v3[data-printing] * {
+    visibility: hidden !important;
+  }
+  .needt-v3[data-printing] [data-doc-sheet],
+  .needt-v3[data-printing] [data-doc-sheet] * {
+    visibility: visible !important;
+  }
+  .needt-v3[data-printing] :has([data-doc-sheet]) {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+  }
+  .needt-v3[data-printing] [data-doc-sheet] {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .needt-v3[data-printing] [data-doc-sheet] .needt-page-editor > * {
+    break-inside: avoid-page;
+  }
+}
+
 /* ───────── the rail (Contents, Find) ───────── */
 .needt-v3 .doc-rail-row-label {
   overflow: hidden;

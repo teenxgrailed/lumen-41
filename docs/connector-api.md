@@ -237,6 +237,43 @@ curl -X POST http://localhost:3000/api/connect/reschedule \
   -H "Authorization: Bearer needt_REPLACE_ME"
 ```
 
+## Export a page
+
+```
+GET /api/pages/:id/export?format=md
+```
+
+Returns the page as a Markdown file (`text/markdown; charset=utf-8`,
+`Content-Disposition: attachment`, `Cache-Control: no-store`): the title as the
+first heading, then the blocks.
+
+Like the rest of `/api/pages/*` it answers the signed-in session (the browser,
+or `curl` with the session cookie); it is not one of the bearer-token
+`/api/connect/*` routes.
+
+```bash
+curl -OJ "http://localhost:3000/api/pages/PAGE_ID/export?format=md" \
+  -H "Cookie: $NEEDT_SESSION_COOKIE"
+```
+
+- **Access** is the page's own: the same check as `GET /api/pages/:id`. Anyone
+  who can read the page can export it (a viewer included); a page the caller
+  cannot read answers `403 {"error":"Page access denied"}`, a missing or
+  trashed one `404 {"error":"Page not found"}`; no session is `401`.
+- **What comes out**: headings, paragraphs, bulleted, numbered and check lists
+  (nested), quotes, code (fenced, with its language), rules, images, tables
+  (GFM) and links. A Callout is a quote that starts with its icon, a Toggle is
+  `<details><summary>`, Columns are written one after another, a highlight is
+  `==text==`, an underline `<u>text</u>`; text colour is dropped and the words
+  stay. Files, images and page links are absolute addresses on this host
+  (`NEXTAUTH_URL`); a stored address that is not `http(s)`, `mailto:` or an app
+  path is written as plain text.
+- `format` defaults to `md`. `format=pdf` answers `400` and names the editor:
+  PDF is the browser's print of the open page (Page options, Export as PDF),
+  there is no server-side PDF. Any other value answers `400`.
+- The editor's **Export as Markdown** writes the same file from the text on
+  screen, unsaved edits included.
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The

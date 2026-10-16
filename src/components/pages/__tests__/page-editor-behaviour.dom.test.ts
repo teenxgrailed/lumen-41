@@ -550,3 +550,87 @@ describe("the selection bar: underline, text colour, highlight", () => {
     expect(marksOnSelection(editor)).not.toContain("textColor");
   });
 });
+
+describe("Export from Page options", () => {
+  const openOptions = async () => {
+    await act(async () => {
+      document
+        .querySelector<HTMLButtonElement>('[aria-label="Page options"]')!
+        .dispatchEvent(
+          new MouseEvent("pointerdown", { bubbles: true, button: 0 })
+        );
+      document
+        .querySelector<HTMLButtonElement>('[aria-label="Page options"]')!
+        .click();
+    });
+    await wait(30);
+  };
+  const item = (label: string) =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (b) => b.textContent?.trim() === label
+    );
+  const readBlob = (blob: Blob) =>
+    new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsText(blob);
+    });
+
+  it("downloads the page as Markdown, unsaved text included", async () => {
+    loaded = page([paragraph("blk-1", "Saved text")]);
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+      editor.commands.insertContent(" and typed text");
+    });
+    let blob: Blob | null = null;
+    URL.createObjectURL = jest.fn((b: Blob) => {
+      blob = b;
+      return "blob:x";
+    }) as never;
+    URL.revokeObjectURL = jest.fn();
+    const downloads: string[] = [];
+    jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloads.push(this.download);
+      });
+
+    await openOptions();
+    expect(item("Export as Markdown")).toBeDefined();
+    await act(async () => {
+      item("Export as Markdown")!.click();
+    });
+
+    expect(downloads).toEqual(["Notes.md"]);
+    expect(await readBlob(blob!)).toBe(
+      "# Notes\n\nSaved text and typed text\n"
+    );
+  });
+
+  it("opens the print dialog for the sheet alone, then lets the page back", async () => {
+    await mount();
+    const frame = document.createElement("div");
+    frame.className = "needt-v3";
+    const sheet = document.createElement("div");
+    sheet.setAttribute("data-doc-sheet", "");
+    frame.appendChild(sheet);
+    document.body.appendChild(frame);
+    const printing: boolean[] = [];
+    window.print = jest.fn(() => {
+      printing.push(frame.hasAttribute("data-printing"));
+    });
+
+    await openOptions();
+    await act(async () => {
+      item("Export as PDF")!.click();
+    });
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(printing).toEqual([true]);
+    expect(frame.hasAttribute("data-printing")).toBe(true);
+    window.dispatchEvent(new Event("afterprint"));
+    expect(frame.hasAttribute("data-printing")).toBe(false);
+    frame.remove();
+  });
+});

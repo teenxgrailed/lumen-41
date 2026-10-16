@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document export: Page options gets **Export as Markdown** (a `.md` download
+  of the page as it is on screen) and **Export as PDF** (the browser's print
+  with the page alone on the paper, in its own style). The same Markdown is
+  served by `GET /api/pages/:id/export?format=md` (same access as the page
+  itself; documented in `docs/connector-api.md`).
 - Document editor: the selection bar gets **Underline**, **Text colour** and
   **Highlight**. Colours are the document hues (Umber, Wine, Plum, Navy,
   Forest), stored by name and drawn in the reading that is legible on the page

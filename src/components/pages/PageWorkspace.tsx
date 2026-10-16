@@ -48,6 +48,7 @@ import {
   File,
   FilePlus,
   FileText,
+  Download,
   Folder,
   FolderKanban,
   GripVertical,
@@ -69,6 +70,7 @@ import {
   MoreHorizontal,
   Pilcrow,
   Plus,
+  Printer,
   Quote,
   Redo2,
   ShieldCheck,
@@ -93,6 +95,7 @@ import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { type ColorKind, PageColorRow } from "@/components/pages/PageColorRow";
+import { downloadMarkdown, printPage } from "@/components/pages/page-export";
 import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
 import { PageTableBar } from "@/components/pages/PageTableBar";
 import { pageContainerBlocks } from "@/components/pages/blocks";
@@ -2338,6 +2341,14 @@ export function PageWorkspace({
       </span>
     </>
   );
+  const exportMarkdown = () => {
+    if (!editor || !page) return;
+    downloadMarkdown(page.title, editor.getJSON() as JSONContent);
+  };
+  // PDF is the browser's print dialog ("Save as PDF"), the page alone on paper.
+  const exportPdf = () => {
+    if (!printPage()) window.print();
+  };
   const headMore = (
     <Popover>
       <PopoverTrigger asChild>
@@ -2446,6 +2457,22 @@ export function PageWorkspace({
         >
           <Link2 className="h-4 w-4 text-[var(--text-muted)]" />
           Backlinks
+        </button>
+        <button
+          type="button"
+          onClick={exportMarkdown}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <Download className="h-4 w-4 text-[var(--text-muted)]" />
+          Export as Markdown
+        </button>
+        <button
+          type="button"
+          onClick={exportPdf}
+          className="flex h-9 w-full items-center gap-2 rounded-[var(--control-radius)] px-2.5 text-[13px] hover:bg-[var(--menu-item-hover)]"
+        >
+          <Printer className="h-4 w-4 text-[var(--text-muted)]" />
+          Export as PDF
         </button>
         <button
           type="button"
