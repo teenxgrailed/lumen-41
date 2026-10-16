@@ -13,12 +13,21 @@ import {
   LuEllipsis,
   LuKeyboard,
   LuRefreshCw,
+  LuSettings,
   LuSparkles,
   LuX,
 } from "react-icons/lu";
 
-import { newDate } from "@/lib/date-utils";
-import { useMarkNudgesRead, useNudgeFeed } from "@/lib/needt3/hooks/nudges";
+import { isToday, newDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
+import {
+  type FeedItem,
+  fetchEarlier,
+  useMarkNotificationsRead,
+  useNotificationFeed,
+} from "@/lib/needt3/hooks/notifications";
+
+import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { agoLabel, safeHref } from "../corner/nudge-tip";
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -26,7 +35,11 @@ import { Sheet } from "../ctx/Sheet";
 import { useExit } from "../ctx/useExit";
 import { Art, type ArtName } from "../menu/Art";
 import { Tooltip } from "../menu/Tooltip";
+import { Avatar, initialsOf } from "./Avatar";
 import { useShellApi } from "./ShellContext";
+import { artFor, splitLead, whenLabel } from "./notes-format";
+
+const LOG_SOURCE = "v3-notes-panel";
 
 /* Background only when open, so .tb-icon:hover can show through. */
 const iconBtn = (on: boolean): CSSProperties => ({
@@ -138,20 +151,38 @@ function EmptyNotes({ title, text }: { title: string; text: string }) {
 }
 
 /**
- * The bell. Activity lists what Needt's nudge job noticed, read-only from
- * `/api/notifications?peek=1`: pressing a row marks it read and goes to what
- * it is about, "…" marks all read or reloads. //todo: Reminders have no
- * backing store yet and show their empty state; mentions and comments are not
- * notifications yet either.
+ * The bell: a read-only feed from `/api/notifications?feed=1` (see
+ * src/services/notifications/feed.ts for what feeds it). Activity is what
+ * happened; Reminders is what is about to. Pressing an activity row marks it
+ * read and goes to what it is about; "…" marks all read, reloads, or opens
+ * Settings → Notifications.
  */
-function NotesPanel({ close }: { close: () => void }) {
+export function NotesPanel({ close }: { close: () => void }) {
   const router = useRouter();
   const [tab, setTab] = useState("activity");
   const [more, setMore] = useState(false);
-  const feed = useNudgeFeed();
-  const markRead = useMarkNudgesRead();
-  const notes = feed.data ?? [];
-  const now = newDate().getTime();
+  const feed = useNotificationFeed("activity");
+  const reminders = useNotificationFeed("reminders", tab === "reminders");
+  const markRead = useMarkNotificationsRead();
+  const [earlier, setEarlier] = useState<FeedItem[]>([]);
+  const [cursor, setCursor] = useState<string | null | undefined>(undefined);
+  const notes = [...(feed.data?.items ?? []), ...earlier];
+  const next = cursor === undefined ? (feed.data?.nextBefore ?? null) : cursor;
+  const now = newDate();
+  const showEarlier = async () => {
+    if (!next) return;
+    try {
+      const page = await fetchEarlier(next);
+      setEarlier((l) => l.concat(page.items));
+      setCursor(page.nextBefore);
+    } catch (error) {
+      logger.warn(
+        "Could not load earlier notifications",
+        { error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
+      );
+    }
+  };
   const options: [React.ReactNode, string, () => void][] = [
     [
       <LuBellOff key="i" size={15} />,
@@ -161,25 +192,36 @@ function NotesPanel({ close }: { close: () => void }) {
     [
       <LuRefreshCw key="i" size={15} />,
       "Reload notifications",
-      () => void feed.refetch(),
+      () => {
+        setEarlier([]);
+        setCursor(undefined);
+        void feed.refetch();
+        if (tab === "reminders") void reminders.refetch();
+      },
+    ],
+    [
+      <LuSettings key="i" size={15} />,
+      "Notification settings",
+      () => {
+        close();
+        useNeedt3Ui.getState().openSettings("alerts");
+      },
     ],
   ];
   return (
     <div className="shell-notes-panel-stack">
       <header className="shell-notes-panel-row">
         <span className="shell-notes-panel-text">Notifications</span>
-        {tab === "activity" ? (
-          <button
-            type="button"
-            aria-label="Notification options"
-            aria-expanded={more}
-            className="tb-icon"
-            onClick={() => setMore(!more)}
-            style={{ ...iconBtn(more), marginLeft: "auto" }}
-          >
-            <LuEllipsis size={16} />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          aria-label="Notification options"
+          aria-expanded={more}
+          className="tb-icon"
+          onClick={() => setMore(!more)}
+          style={{ ...iconBtn(more), marginLeft: "auto" }}
+        >
+          <LuEllipsis size={16} />
+        </button>
         {more ? (
           <div className="nx-pop is-right shell-notes-panel-pop" role="menu">
             {options.map(([icon, label, run], k) => (
@@ -218,42 +260,114 @@ function NotesPanel({ close }: { close: () => void }) {
       <div key={tab} className="nx-swap shell-notes-panel-swap">
         {tab === "activity" ? (
           notes.length ? (
-            notes.map((n, k) => (
-              <button
-                key={n.id}
-                type="button"
-                data-nudge={n.type}
-                className="nx-swap sk-row shell-notes-panel-sk-row-2"
-                style={{ animationDelay: `${k * 35}ms`, textAlign: "left" }}
-                onClick={() => {
-                  void markRead(n.id);
-                  close();
-                  router.push(safeHref(n.deepLink));
-                }}
-              >
-                <Art name="task" size={28} />
-                <span className="shell-notes-panel-stack-2">
-                  <span className="shell-notes-panel-text-2">
-                    <b className="shell-notes-panel-b">Needt</b> {n.title}
-                  </span>
-                  <span className="shell-notes-panel-text-3">{n.body}</span>
-                  <span className="base-meta">
-                    {agoLabel(newDate(n.createdAt).getTime(), now)}
-                  </span>
-                </span>
-                <span
-                  className="shell-notes-panel-span"
-                  aria-hidden="true"
-                  style={{ transform: n.readAt ? "scale(0)" : "scale(1)" }}
-                />
-              </button>
-            ))
+            <>
+              {notes.map((n, k) => {
+                const { lead, rest } = splitLead(n);
+                return (
+                  <button
+                    key={n.key}
+                    type="button"
+                    data-kind={n.kind}
+                    data-unread={n.unread ? "true" : "false"}
+                    className="nx-swap sk-row shell-notes-panel-sk-row-2"
+                    style={{
+                      animationDelay: `${Math.min(k, 12) * 35}ms`,
+                      textAlign: "left",
+                    }}
+                    onClick={() => {
+                      if (n.unread) void markRead([n.key]);
+                      close();
+                      router.push(safeHref(n.link));
+                    }}
+                  >
+                    {n.actor ? (
+                      <Avatar
+                        initials={initialsOf(n.actor)}
+                        name={n.actor}
+                        size={28}
+                      />
+                    ) : (
+                      <Art name={artFor(n.kind)} size={28} />
+                    )}
+                    <span className="shell-notes-panel-stack-2">
+                      <span className="shell-notes-panel-text-2">
+                        {lead ? (
+                          <b className="shell-notes-panel-b">{lead}</b>
+                        ) : null}
+                        {rest}
+                      </span>
+                      {n.body ? (
+                        <span className="shell-notes-panel-text-3">
+                          {n.body}
+                        </span>
+                      ) : null}
+                      <span className="base-meta">
+                        {agoLabel(newDate(n.at).getTime(), now.getTime())}
+                      </span>
+                    </span>
+                    <span
+                      className="shell-notes-panel-span"
+                      aria-hidden="true"
+                      data-unread-dot={n.unread ? "true" : "false"}
+                      style={{ transform: n.unread ? "scale(1)" : "scale(0)" }}
+                    />
+                  </button>
+                );
+              })}
+              {next ? (
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-ghost shell-notes-panel-btn"
+                  onClick={() => void showEarlier()}
+                >
+                  Show earlier
+                </button>
+              ) : null}
+            </>
           ) : (
             <EmptyNotes
               title="No notifications yet"
               text="You'll be notified here when Needt moves your day, finds free time or sees something about to slip."
             />
           )
+        ) : reminders.data?.items.length ? (
+          <>
+            <span className="shell-notes-panel-span-2">Coming up</span>
+            {reminders.data.items.map((r, k) => (
+              <button
+                key={r.key}
+                type="button"
+                data-kind={r.kind}
+                className="nx-swap sk-row shell-notes-panel-sk-row-3"
+                style={{
+                  animationDuration: "220ms",
+                  animationDelay: `${Math.min(k, 12) * 30}ms`,
+                  textAlign: "left",
+                }}
+                onClick={() => {
+                  close();
+                  router.push(safeHref(r.link));
+                }}
+              >
+                <span className="base-stack shell-notes-panel-stack-3">
+                  <span className="shell-notes-panel-text-5">{r.title}</span>
+                  <span
+                    className="shell-notes-panel-text-6"
+                    style={{
+                      color:
+                        r.kind === "due" && newDate(r.at) < now
+                          ? "var(--destructive)"
+                          : isToday(newDate(r.at))
+                            ? "var(--accent)"
+                            : "var(--text-tertiary)",
+                    }}
+                  >
+                    {whenLabel(r, now)}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </>
         ) : (
           <EmptyNotes
             title="No reminders"
@@ -362,7 +476,8 @@ function useAnchored(open: boolean) {
 /** Top right on every screen: the bell and the help mark. */
 export function TopIcons() {
   const shell = useShellApi();
-  const unread = (useNudgeFeed().data ?? []).some((n) => !n.readAt);
+  const unreadCount = useNotificationFeed("activity").data?.unreadCount ?? 0;
+  const unread = unreadCount > 0;
   const container = useV3PortalContainer();
   const [which, setWhich] = useState<"bell" | "help" | null>(null);
   const [seenNew, setSeenNew] = useState(true);
@@ -434,7 +549,9 @@ export function TopIcons() {
   const bell = (
     <button
       type="button"
-      aria-label="Notifications"
+      aria-label={
+        unread ? `Notifications, ${unreadCount} unread` : "Notifications"
+      }
       aria-expanded={which === "bell"}
       className="nx-press tb-icon"
       onClick={() => setWhich(which === "bell" ? null : "bell")}
