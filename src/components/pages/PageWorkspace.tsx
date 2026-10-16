@@ -2088,6 +2088,12 @@ export function PageWorkspace({
     };
   });
   useEffect(() => () => flushRef.current(), [inChrome, pageId]);
+  // A reload or a closed tab unmounts nothing: send the typed title then too.
+  useEffect(() => {
+    const onPageHide = () => flushRef.current();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, []);
 
   if (!page) {
     return (
