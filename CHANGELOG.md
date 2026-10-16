@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Production deploys no longer stall while merges keep landing. A release used
-  to stand down unless its commit was still the head of main, and with a
-  25-minute build and merges every few minutes none ever deployed (production
-  sat at 4c9c2ee). Now the newest finished build deploys unless production
-  already runs it or a descendant: the deploy script pins the Coolify
-  application to the built commit first (needs the token's `write` ability;
-  without it, it deploys the head of main if its images are already in GHCR).
-
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.

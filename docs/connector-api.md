@@ -486,6 +486,80 @@ action log. Two undo calls for the same action never both apply: the second
 gets `already_undone`. Log entries are deleted 30 days after their undo
 window ends.
 
+## Notifications
+
+The feed behind the bell in the app, read-only, for your own tools. It is
+assembled from data Needt already keeps, so nothing needs to be turned on.
+
+```bash
+curl "http://localhost:3000/api/connect/notifications?group=activity&limit=20" \
+  -H "Authorization: Bearer needt_REPLACE_ME"
+```
+
+```json
+{
+  "items": [
+    {
+      "key": "comment:cm1",
+      "group": "activity",
+      "kind": "comment",
+      "actor": "Lena Fischer",
+      "title": "Lena Fischer commented on Design rules",
+      "body": "13/12 everywhere in chrome, agreed.",
+      "at": "2026-10-16T09:48:00.000Z",
+      "link": "/pages/PAGE_ID",
+      "unread": true
+    }
+  ],
+  "nextBefore": "2026-10-16T09:48:00.000Z",
+  "unreadCount": 3
+}
+```
+
+Query: `group` (`activity`, the default, or `reminders`), `limit` (1 to 100,
+default 30), `before` (an ISO time; pass the previous `nextBefore` for the
+next page). Activity is newest first and covers the last 30 days. Reminders
+is soonest first, in one page, and has no `nextBefore`.
+
+| `kind`         | Group     | Where it comes from                                           |
+| -------------- | --------- | ------------------------------------------------------------- |
+| `nudge`        | activity  | Needt's proactive nudges (overdue, overbooked day, free time) |
+| `notification` | activity  | Cards other parts of Needt write to the `Notification` table  |
+| `agent`        | activity  | Actions an agent or MCP client applied (the action log)       |
+| `comment`      | activity  | Others' comments on pages you own or were given access to     |
+| `share`        | activity  | Someone gave you access to a page                             |
+| `sync`         | activity  | A calendar that failed to sync and needs reconnecting         |
+| `import`       | activity  | A Todoist or Notion import that finished or failed            |
+| `reminder`     | reminders | A pending task reminder, with the time it fires in `at`       |
+| `due`          | reminders | A task due within two days or overdue (up to 14 days back)    |
+
+`key` is stable and is what the read call takes. `link` is a path in the
+app. `unreadCount` is the number of unread activity items in the window and
+is returned for both groups. Reminders are never unread. Agent actions,
+imports, reminders and due tasks are limited to the workspace you pick with
+`x-workspace-id` or `?workspaceId=`; nudges, comments, shares and calendar
+problems follow you across workspaces.
+
+Mark items read. Read state is yours alone and any role may set it:
+
+```bash
+curl -X POST http://localhost:3000/api/connect/notifications/read \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "keys": ["comment:cm1"] }'
+# or everything up to now: -d '{ "all": true }'
+```
+
+Returns `204`. `keys` takes 1 to 200 item keys; anything else is a `400`
+with `{ "error" }`. Marking all covers items that exist now; later ones are
+unread again.
+
+The app itself reads the same feed from `GET /api/notifications?feed=1` (same
+query) and marks with `POST /api/notifications/read`, using the signed-in
+session instead of a token. `GET /api/notifications` without `feed=1` is the
+older nudge delivery the corner tip uses; it marks what it returns as
+delivered, so do not poll it from a script.
+
 ## Webhooks
 
 Settings -> Connectors can send best-effort POSTs for:
