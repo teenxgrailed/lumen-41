@@ -207,37 +207,35 @@ const plural = (n: number, one: string, many: string) =>
 
 /**
  * The words of a Delete forever / Empty Trash confirm. A permanent delete has
- * no Undo, and the dialog says so; Empty Trash also says what it leaves (tasks
- * have no hard delete yet).
+ * no Undo, and the dialog says so.
  */
 export function trashAskText(
   ask:
-    | { kind: "page" | "board"; title: string }
+    | { kind: "page" | "board" | "task"; title: string }
     | { kind: "all"; pages: number; boards: number; tasks: number }
 ) {
   if (ask.kind !== "all") {
     const name =
-      ask.title || (ask.kind === "page" ? "Untitled" : "Untitled moodboard");
+      ask.title || (ask.kind === "board" ? "Untitled moodboard" : "Untitled");
     return {
       title: `Delete “${name}” for good?`,
       body:
         ask.kind === "page"
           ? "The page, its text, files and history are deleted. This can’t be undone."
-          : "The board, its references, pictures and people are deleted. This can’t be undone.",
+          : ask.kind === "task"
+            ? "The task, its steps, reminders and tracked time are deleted. This can’t be undone."
+            : "The board, its references, pictures and people are deleted. This can’t be undone.",
       confirm: "Delete forever",
     };
   }
   const parts = [
     ask.pages ? plural(ask.pages, "page", "pages") : null,
+    ask.tasks ? plural(ask.tasks, "task", "tasks") : null,
     ask.boards ? plural(ask.boards, "moodboard", "moodboards") : null,
   ].filter(Boolean);
   return {
     title: "Empty Trash?",
-    body:
-      `${parts.join(" and ")} will be deleted for good. This can’t be undone.` +
-      (ask.tasks
-        ? ` ${plural(ask.tasks, "task", "tasks")} stay in Trash: tasks can’t be deleted for good yet.`
-        : ""),
+    body: `${parts.join(", ").replace(/, ([^,]*)$/, " and $1")} will be deleted for good. This can’t be undone.`,
     confirm: "Empty Trash",
   };
 }
