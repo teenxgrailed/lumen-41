@@ -194,6 +194,7 @@ model User {
   shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
   moodboardAssets        MoodboardAsset[]
   notifications          Notification[]
+  notificationReads      NotificationRead[]
   accessLinks            AccessLink[]
   importRuns             ImportRun[]
   importItemMaps         ImportItemMap[]
@@ -3139,6 +3140,19 @@ model Notification {
 
   @@index([userId, dismissedAt, createdAt])
   @@index([entityKind, entityId])
+}
+
+/// Read state for the notification feed, which is assembled from existing
+/// tables on request. `key` names one feed item (for example `comment:<id>`);
+/// the key `*` holds "everything up to readAt is read".
+model NotificationRead {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  readAt DateTime @default(now())
+
+  @@unique([userId, key])
 }
 
 /// An MCP or API access link. Only a hash of the token is stored.

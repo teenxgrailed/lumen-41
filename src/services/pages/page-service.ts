@@ -198,11 +198,40 @@ export async function deletePageForever(
   });
   if (!page) return "not-found";
   if (!page.trashedAt) return "not-trashed";
+  await destroyPage(pageId);
+  return "deleted";
+}
+
+/** The delete itself, shared by Delete forever and the 30-day purge. */
+async function destroyPage(pageId: string) {
   await prisma.$transaction([
     prisma.meetingNoteProposal.deleteMany({ where: { pageId } }),
     prisma.page.delete({ where: { id: pageId } }),
   ]);
-  return "deleted";
+}
+
+/**
+ * The worker's 30-day purge: every page that has sat in Trash since before
+ * `cutoff` goes for good, by the same delete as Delete forever (no actor, no
+ * access check: the age is the authority). One page failing does not stop the
+ * rest. Returns how many were removed.
+ */
+export async function purgeTrashedPagesBefore(cutoff: Date) {
+  const due = await prisma.page.findMany({
+    where: { trashedAt: { not: null, lt: cutoff } },
+    select: { id: true },
+    take: 500,
+  });
+  let removed = 0;
+  for (const { id } of due) {
+    try {
+      await destroyPage(id);
+      removed += 1;
+    } catch {
+      /* gone already, or a constraint: the next sweep retries */
+    }
+  }
+  return removed;
 }
 
 async function assertOwnedParent(actor: PageActor, parentId?: string | null) {

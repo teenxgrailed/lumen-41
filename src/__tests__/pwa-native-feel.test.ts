@@ -2,6 +2,8 @@ import { metadata, viewport } from "@/app/metadata";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { BRAND_LINE } from "@/lib/brand";
+
 describe("PWA native feel", () => {
   it("locks zoom and goes edge to edge", () => {
     expect(viewport).toMatchObject({
@@ -26,6 +28,8 @@ describe("PWA native feel", () => {
     const m = JSON.parse(
       readFileSync(join(process.cwd(), "public/manifest.webmanifest"), "utf8")
     );
+    expect(m.name).toBe(BRAND_LINE);
+    expect(m.short_name).toBe("Needt");
     expect(m.display).toBe("standalone");
     expect(m.display_override[0]).toBe("standalone");
     expect(m.orientation).toBe("portrait-primary");
