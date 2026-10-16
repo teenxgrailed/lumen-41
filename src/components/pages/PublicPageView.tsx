@@ -13,6 +13,7 @@ import { FileText } from "lucide-react";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { pageContainerBlocks } from "@/components/pages/blocks";
+import { pageColorMarks } from "@/components/pages/marks";
 import { documentFromPageBlocks } from "@/components/pages/page-document";
 import type { PageBlock } from "@/components/pages/page-types";
 
@@ -97,6 +98,7 @@ export function PublicPageView({ token }: { token: string }) {
       TableKit.configure({ table: { resizable: false } }),
       BlockIdentity,
       ...pageContainerBlocks,
+      ...pageColorMarks,
       PageBlockNode,
     ],
   });

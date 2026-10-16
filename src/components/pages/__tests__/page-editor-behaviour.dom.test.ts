@@ -485,3 +485,68 @@ describe("the table bar", () => {
     expect(rows).toHaveLength(3);
   });
 });
+
+describe("the selection bar: underline, text colour, highlight", () => {
+  const bar = () => document.querySelector('[aria-label="Text formatting"]')!;
+  const click = async (el: Element | null) => {
+    await act(async () => {
+      (el as HTMLButtonElement).click();
+    });
+  };
+  const select = async () => {
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.insertContent("colour this word");
+      editor.commands.setTextSelection({ from: 8, to: 12 });
+    });
+    // The bubble menu shows after its own update delay.
+    await wait(400);
+    return editor;
+  };
+  const marksOnSelection = (editor: Editor) =>
+    JSON.stringify(
+      ((editor.getJSON() as JSONContent).content?.[0].content ?? []).map(
+        (n) => [n.text, n.marks?.map((m) => [m.type, m.attrs?.color])]
+      )
+    );
+
+  it("underlines the selection", async () => {
+    const editor = await select();
+    await click(bar().querySelector('[aria-label="Underline"]'));
+    expect(marksOnSelection(editor)).toContain('"underline"');
+  });
+
+  it("opens a swatch row of the document hues and sets a highlight", async () => {
+    const editor = await select();
+    expect(bar().querySelector('[role="group"]')).toBeNull();
+    await click(bar().querySelector('[aria-label="Highlight"]'));
+    const row = bar().querySelector('[role="group"][aria-label="Highlight"]');
+    expect(row).not.toBeNull();
+    const swatches = Array.from(row!.querySelectorAll("[data-swatch]")).map(
+      (el) => el.getAttribute("data-swatch")
+    );
+    expect(swatches).toEqual([
+      "none",
+      "umber",
+      "wine",
+      "plum",
+      "navy",
+      "forest",
+    ]);
+    await click(row!.querySelector('[data-swatch="wine"]'));
+    expect(marksOnSelection(editor)).toContain('["highlight","wine"]');
+    // The row closes once a colour is chosen.
+    expect(bar().querySelector('[role="group"]')).toBeNull();
+  });
+
+  it("sets and clears a text colour", async () => {
+    const editor = await select();
+    await click(bar().querySelector('[aria-label="Text colour"]'));
+    await click(bar().querySelector('[data-swatch="navy"]'));
+    expect(marksOnSelection(editor)).toContain('["textColor","navy"]');
+    await click(bar().querySelector('[aria-label="Text colour"]'));
+    await click(bar().querySelector('[data-swatch="none"]'));
+    expect(marksOnSelection(editor)).not.toContain("textColor");
+  });
+});

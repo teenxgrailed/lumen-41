@@ -9,6 +9,7 @@ import { BlockFlash } from "@/components/documents/BlockFlash";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { pageContainerBlocks } from "@/components/pages/blocks";
+import { pageColorMarks } from "@/components/pages/marks";
 
 /**
  * The editor's extension list, shared with server-side code that needs the
@@ -32,6 +33,7 @@ export const pageEditorExtensions = [
   BlockIdentity,
   BlockFlash,
   ...pageContainerBlocks,
+  ...pageColorMarks,
   PageBlockNode,
 ];
 

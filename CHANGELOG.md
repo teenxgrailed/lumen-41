@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document editor: the selection bar gets **Underline**, **Text colour** and
+  **Highlight**. Colours are the document hues (Umber, Wine, Plum, Navy,
+  Forest), stored by name and drawn in the reading that is legible on the page
+  (pale hues on a dark page); `==text==` and Mod+Shift+H highlight, and the phone
+  Format sheet has the same colours.
 - Document editor tables: a bar over the table while the caret is in it adds a
   row above or below, adds a column left or right, deletes the row, column or
   the whole table (the last row or column deletes the table), and switches the
