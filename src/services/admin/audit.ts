@@ -14,6 +14,7 @@ export type AdminAuditAction =
   | "user.revoke_plan"
   | "user.sign_out_everywhere"
   | "user.delete"
+  | "flag.update"
   | "promo.create"
   | "promo.deactivate";
 

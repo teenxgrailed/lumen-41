@@ -287,6 +287,9 @@
 .needt-v3 .admin-days {
   width: 72px;
 }
+.needt-v3 .admin-warning {
+  color: var(--destructive);
+}
 .needt-v3 .admin-section-title {
   margin: 0 0 8px;
   font: var(--type-ui-medium);
