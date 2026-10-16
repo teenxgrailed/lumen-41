@@ -66,7 +66,15 @@ import {
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
-import { REPEAT_CHOICES, repeatKey, repeatLabel } from "@/lib/needt3/repeat";
+import {
+  type CustomRepeat,
+  REPEAT_CHOICES,
+  WEEK_DAYS,
+  buildRule,
+  readCustom,
+  repeatKey,
+  repeatLabel,
+} from "@/lib/needt3/repeat";
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -75,6 +83,7 @@ import { TaskDialogCalendar } from "./TaskDialogCalendar";
 import {
   type ChipBox,
   TD_CHUNK,
+  TD_DOW,
   TD_DUR,
   TD_PRIO,
   chunkPatch,
@@ -237,6 +246,11 @@ export function TaskDialog({
   const addRef = useRef<HTMLInputElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  /* The custom-repeat editor, open while a draft is held. */
+  const [rep, setRep] = useState<CustomRepeat | null>(null);
+  useEffect(() => {
+    if (pop?.key !== "repeat") setRep(null);
+  }, [pop?.key]);
   const measureRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
   const [folded, setFolded] = useState<string[]>([]);
@@ -1007,6 +1021,93 @@ export function TaskDialog({
                   {current === c.key ? <LuCheck size={14} aria-hidden /> : null}
                 </button>
               ))}
+              {rep ? (
+                <div className="tdc-pop-dur" aria-label="Custom repeat">
+                  <div className="tdc-srow">
+                    <span className="tdc-srow-label">Every</span>
+                    <input
+                      type="number"
+                      className="tdc-num"
+                      min={1}
+                      max={99}
+                      aria-label="Every how many"
+                      value={rep.interval}
+                      onChange={(e) =>
+                        setRep({
+                          ...rep,
+                          interval: Number(e.target.value) || 1,
+                        })
+                      }
+                    />
+                    <span className="tdc-seg" role="group" aria-label="Unit">
+                      {(
+                        [
+                          ["DAILY", "day"],
+                          ["WEEKLY", "week"],
+                          ["MONTHLY", "month"],
+                        ] as const
+                      ).map(([freq, word]) => (
+                        <button
+                          key={freq}
+                          type="button"
+                          aria-pressed={rep.freq === freq}
+                          onClick={() => setRep({ ...rep, freq })}
+                        >
+                          {word}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                  {rep.freq === "WEEKLY" ? (
+                    <div className="tdc-dur-grid" role="group" aria-label="On">
+                      {WEEK_DAYS.map((d, i) => (
+                        <button
+                          key={d}
+                          type="button"
+                          className={`tdc-dur${rep.days.includes(d) ? " is-on" : ""}`}
+                          aria-pressed={rep.days.includes(d)}
+                          onClick={() =>
+                            setRep({
+                              ...rep,
+                              days: rep.days.includes(d)
+                                ? rep.days.filter((x) => x !== d)
+                                : [...rep.days, d],
+                            })
+                          }
+                        >
+                          {TD_DOW[i]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="nx-btn nx-btn-text nx-btn-sm tdc-pop-clear"
+                    onClick={() => {
+                      setPop(null);
+                      emit({ repeat: buildRule(rep) });
+                    }}
+                  >
+                    Repeat this way
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="tdc-opt"
+                  onClick={() =>
+                    setRep(
+                      readCustom(t.repeat) ?? {
+                        freq: "WEEKLY",
+                        interval: 1,
+                        days: [],
+                      }
+                    )
+                  }
+                >
+                  <span className="tdc-opt-text">Custom…</span>
+                </button>
+              )}
             </>
           )}
         </div>

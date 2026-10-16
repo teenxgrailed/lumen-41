@@ -404,6 +404,7 @@
 .needt-v3 .tdc-search input::placeholder { color: var(--text-muted); }
 .needt-v3 .tdc-empty { padding: 8px; font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .tdc-pop-clear { align-self: flex-start; margin-top: 2px; }
+.needt-v3 .tdc-num { width: 52px; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .needt-v3 .tdc-pop-date,
 .needt-v3 .tdc-pop-dur,
 .needt-v3 .tdc-pop-list { display: flex; flex-direction: column; gap: 6px; }
