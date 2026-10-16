@@ -27,7 +27,7 @@ import Collaboration, { isChangeOrigin } from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { TaskList } from "@tiptap/extension-list";
 import Placeholder from "@tiptap/extension-placeholder";
 import { TableKit } from "@tiptap/extension-table";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -45,10 +45,10 @@ import {
   ChevronLeft,
   Code2,
   Columns3,
+  Download,
   File,
   FilePlus,
   FileText,
-  Download,
   Folder,
   FolderKanban,
   GripVertical,
@@ -95,7 +95,6 @@ import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { type ColorKind, PageColorRow } from "@/components/pages/PageColorRow";
-import { downloadMarkdown, printPage } from "@/components/pages/page-export";
 import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
 import { PageTableBar } from "@/components/pages/PageTableBar";
 import { pageContainerBlocks } from "@/components/pages/blocks";
@@ -132,15 +131,25 @@ import {
   blockIdFromHash,
   blockInsertRange,
   linkAtSelection,
+  rankCommands,
   revealBlock,
   slashAtSelection,
 } from "@/components/pages/page-editor-logic";
+import { downloadMarkdown, printPage } from "@/components/pages/page-export";
 import {
   imageFilesFromTransfer,
   nameForPastedFile,
   uploadPageAsset,
 } from "@/components/pages/page-media";
 import type { PageDetail } from "@/components/pages/page-types";
+import { PhoneEditBar } from "@/components/pages/phone-bar/PhoneEditBar";
+import { TaskRemovalDialog } from "@/components/pages/task-items/TaskRemovalDialog";
+import { withTaskItem } from "@/components/pages/task-items/task-item-commands";
+import {
+  NeedtTaskItem,
+  onTaskItemsRemoved,
+} from "@/components/pages/task-items/task-item-extension";
+import { useDocTaskLinks } from "@/components/pages/task-items/useDocTaskLinks";
 import { useKeyboardLift } from "@/components/pages/use-keyboard-lift";
 import {
   BottomSheet,
@@ -191,6 +200,7 @@ type BasicCommand =
   | "bullet"
   | "ordered"
   | "checklist"
+  | "taskItem"
   | "quote"
   | "code"
   | "divider";
@@ -330,10 +340,17 @@ const COMMANDS: Array<{
     icon: CheckSquare,
   },
   {
-    id: "TASK_REFERENCE",
+    id: "taskItem",
     label: "Task",
-    hint: "Create and embed a workspace task",
-    keywords: "task todo action",
+    hint: "A to-do that is a real task, with a due date",
+    keywords: "task todo to-do action reminder due",
+    icon: CheckSquare,
+  },
+  {
+    id: "TASK_REFERENCE",
+    label: "Task link",
+    hint: "Create a task and embed it as a link",
+    keywords: "task link reference embed",
     icon: CheckSquare,
   },
   {
@@ -559,7 +576,10 @@ export function PageWorkspace({
     to: number;
     href: string;
   } | null>(null);
-  const [mobileFormatOpen, setMobileFormatOpen] = useState(false);
+  // The page's text is in the editor (the task items can be read).
+  const [docReady, setDocReady] = useState(false);
+  // Task items taken out of the page, waiting for Keep / Delete.
+  const [removedTasks, setRemovedTasks] = useState<string[]>([]);
   const [mobileInsertOpen, setMobileInsertOpen] = useState(false);
   const [mobileBlockHandle, setMobileBlockHandle] =
     useState<MobileBlockHandle | null>(null);
@@ -888,7 +908,7 @@ export function PageWorkspace({
         placeholder: "Write anything, or type / for commands…",
       }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      NeedtTaskItem.configure({ nested: true }),
       ImageExtension.configure({ allowBase64: false }),
       LinkExtension.configure({
         autolink: true,
@@ -995,10 +1015,55 @@ export function PageWorkspace({
 
   const filteredCommands = useMemo(() => {
     if (!slash?.query) return COMMANDS;
-    return COMMANDS.filter((command) =>
-      `${command.label} ${command.keywords}`.toLowerCase().includes(slash.query)
-    );
+    return rankCommands(COMMANDS, slash.query);
   }, [slash?.query]);
+
+  // Task items: a checklist item can be a real Needt task. The hook keeps the
+  // item and its task in step; taking an item out of the page asks what to do
+  // with its task.
+  const taskLinks = useDocTaskLinks({
+    editor,
+    pageId,
+    projectId:
+      (page as (PageDetail & { projectId?: string | null }) | null)
+        ?.projectId ?? null,
+    active: Boolean(editor && canEdit && page && docReady),
+  });
+  useEffect(() => {
+    if (!editor) return undefined;
+    return onTaskItemsRemoved(editor, (ids) => {
+      if (!hydrated.current) return;
+      setRemovedTasks((current) => [
+        ...current,
+        ...ids.filter((id) => !current.includes(id)),
+      ]);
+    });
+  }, [editor]);
+
+  // "Export as PDF" from a card menu opens the page as `?export=pdf`: once the
+  // text is in the editor the request is cleared from the address and the
+  // print dialog comes up (after a moment, so the fonts and the sheet are laid out).
+  const pdfTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (pdfTimer.current) clearTimeout(pdfTimer.current);
+    },
+    []
+  );
+  useEffect(() => {
+    if (!docReady || !page) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("export") !== "pdf") return;
+    url.searchParams.delete("export");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      url.pathname + url.search + url.hash
+    );
+    pdfTimer.current = setTimeout(() => {
+      if (!printPage()) window.print();
+    }, 700);
+  }, [docReady, page]);
 
   // Link on selected text (selection bar, Mod+K, "Link…" in the context menu).
   // With the caret in a link it edits that link; with nothing selected and no
@@ -1173,6 +1238,7 @@ export function PageWorkspace({
     if (!editor) return;
     let cancelled = false;
     hydrated.current = false;
+    setDocReady(false);
     void (async () => {
       const response = await fetch(`/api/pages/${pageId}`);
       if (!response.ok) {
@@ -1251,6 +1317,7 @@ export function PageWorkspace({
           }
           ensureBlockIds(editor);
           hydrated.current = true;
+          setDocReady(true);
           void collaborationSocket
             .connect()
             .catch(() => updateCollaborationStatus("disconnected"));
@@ -1279,6 +1346,7 @@ export function PageWorkspace({
       }
       ensureBlockIds(editor);
       hydrated.current = true;
+      setDocReady(true);
       updateCollaborationStatus("disconnected");
       if (localDraft) autosave.current?.schedule(editor.getJSON());
     })().catch(() => router.replace("/pages"));
@@ -2057,6 +2125,7 @@ export function PageWorkspace({
     else if (command === "bullet") chain.toggleBulletList().run();
     else if (command === "ordered") chain.toggleOrderedList().run();
     else if (command === "checklist") chain.toggleTaskList().run();
+    else if (command === "taskItem") withTaskItem(chain).run();
     else if (command === "quote") chain.toggleBlockquote().run();
     else if (command === "code") chain.toggleCodeBlock().run();
     else if (command === "divider") chain.setHorizontalRule().run();
@@ -3093,198 +3162,13 @@ export function PageWorkspace({
       </main>
 
       {canEdit && (
-        <div
-          data-assistant-avoid
-          data-page-toolbar={keyboardLift > 0 ? "keyboard" : "rest"}
-          // A tap here must not take focus from the page: the keyboard stays.
-          onMouseDown={(event) => event.preventDefault()}
-          className="fixed inset-x-0 z-30 flex h-12 items-center justify-around border-t border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 sm:hidden"
-          // Above the tab bar at rest; riding on the keyboard while it is up.
-          style={{
-            bottom:
-              keyboardLift > 0
-                ? `${keyboardLift}px`
-                : "calc(68px + env(safe-area-inset-bottom))",
-          }}
-          aria-label="Page editing actions"
-        >
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().undo().run()}
-            disabled={!editor?.can().undo()}
-            className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] text-[var(--text-secondary)] active:bg-[var(--surface-hover)] disabled:opacity-35"
-            aria-label="Undo"
-          >
-            <Undo2 className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileFormatOpen(true)}
-            className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] text-base font-semibold text-[var(--text-secondary)] active:bg-[var(--surface-hover)]"
-            aria-label="Format text"
-          >
-            Aa
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleTaskList().run()}
-            className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] text-[var(--text-secondary)] active:bg-[var(--surface-hover)]"
-            aria-label="Checklist"
-          >
-            <CheckSquare className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileInsertOpen(true)}
-            className="grid h-9 min-w-14 place-items-center rounded-full bg-[var(--button-primary-bg)] text-[var(--button-primary-fg)]"
-            aria-label="Insert block or attachment"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().redo().run()}
-            disabled={!editor?.can().redo()}
-            className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] text-[var(--text-secondary)] active:bg-[var(--surface-hover)] disabled:opacity-35"
-            aria-label="Redo"
-          >
-            <Redo2 className="h-5 w-5" />
-          </button>
-          {keyboardLift > 0 && (
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => editor?.commands.blur()}
-              className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] px-2 text-[13px] font-medium text-[var(--text-primary)] active:bg-[var(--surface-hover)]"
-              aria-label="Done editing"
-            >
-              Done
-            </button>
-          )}
-        </div>
+        <PhoneEditBar
+          editor={editor}
+          onCommand={(id) => applyCommand(id, false)}
+          onLink={openLinkDialog}
+          onInsert={() => setMobileInsertOpen(true)}
+        />
       )}
-
-      <BottomSheet open={mobileFormatOpen} onOpenChange={setMobileFormatOpen}>
-        <BottomSheetContent className="sm:hidden">
-          <BottomSheetTitle>Format</BottomSheetTitle>
-          <BottomSheetDescription className="mt-1">
-            Applies to the current block or selected text.
-          </BottomSheetDescription>
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            {COMMANDS.filter((command) =>
-              ["paragraph", "heading1", "heading2", "heading3"].includes(
-                command.id
-              )
-            ).map((command) => {
-              const Icon = command.icon;
-              return (
-                <button
-                  key={command.id}
-                  type="button"
-                  onClick={() => {
-                    applyCommand(command.id, false);
-                    setMobileFormatOpen(false);
-                  }}
-                  className="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-[var(--control-radius)] bg-[var(--surface-control)] text-xs"
-                >
-                  <Icon className="h-5 w-5 text-[var(--text-secondary)]" />
-                  {command.label.replace("Heading ", "H")}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {[
-              {
-                label: "Bold",
-                icon: Bold,
-                run: () => editor?.chain().focus().toggleBold().run(),
-              },
-              {
-                label: "Italic",
-                icon: Italic,
-                run: () => editor?.chain().focus().toggleItalic().run(),
-              },
-              {
-                label: "Strike",
-                icon: Strikethrough,
-                run: () => editor?.chain().focus().toggleStrike().run(),
-              },
-              {
-                label: "Code",
-                icon: Code2,
-                run: () => editor?.chain().focus().toggleCode().run(),
-              },
-              {
-                label: "Underline",
-                icon: UnderlineIcon,
-                run: () => editor?.chain().focus().toggleUnderline().run(),
-              },
-              {
-                label: "Link",
-                icon: Link2,
-                run: openLinkDialog,
-              },
-            ].map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={() => {
-                    action.run();
-                    setMobileFormatOpen(false);
-                  }}
-                  className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-[var(--control-radius)] border border-[var(--border-subtle)] text-xs"
-                >
-                  <Icon className="h-4 w-4" />
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
-          {editor && (
-            <div className="mt-3 space-y-2.5">
-              {(["text", "highlight"] as const).map((kind) => (
-                <div key={kind} className="flex items-center gap-3">
-                  <span className="w-20 flex-none text-xs text-[var(--text-muted)]">
-                    {kind === "text" ? "Text colour" : "Highlight"}
-                  </span>
-                  <PageColorRow
-                    editor={editor}
-                    kind={kind}
-                    onDone={() => setMobileFormatOpen(false)}
-                    className="flex-wrap gap-2.5"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {COMMANDS.filter((command) =>
-              ["bullet", "ordered", "checklist", "quote", "code"].includes(
-                command.id
-              )
-            ).map((command) => {
-              const Icon = command.icon;
-              return (
-                <button
-                  key={command.id}
-                  type="button"
-                  onClick={() => {
-                    applyCommand(command.id, false);
-                    setMobileFormatOpen(false);
-                  }}
-                  className="flex min-h-11 items-center gap-2.5 rounded-[var(--control-radius)] border border-[var(--border-subtle)] px-3 text-left text-sm"
-                >
-                  <Icon className="h-4 w-4 text-[var(--text-muted)]" />
-                  {command.label}
-                </button>
-              );
-            })}
-          </div>
-        </BottomSheetContent>
-      </BottomSheet>
 
       <BottomSheet open={mobileInsertOpen} onOpenChange={setMobileInsertOpen}>
         <BottomSheetContent className="sm:hidden">
@@ -3330,6 +3214,26 @@ export function PageWorkspace({
           </div>
         </BottomSheetContent>
       </BottomSheet>
+
+      <TaskRemovalDialog
+        titles={removedTasks.map((id) => taskLinks.title(id))}
+        onKeep={() => setRemovedTasks([])}
+        onDelete={() => {
+          const ids = removedTasks;
+          setRemovedTasks([]);
+          void taskLinks.trash(ids).then((ok) => {
+            if (ok) {
+              notify.success(
+                ids.length === 1
+                  ? "Task moved to Trash"
+                  : `${ids.length} tasks moved to Trash`
+              );
+            } else {
+              notify.error("Could not delete the task.");
+            }
+          });
+        }}
+      />
 
       <PageLinkDialog
         open={linkDialog !== null}

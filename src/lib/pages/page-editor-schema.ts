@@ -1,7 +1,7 @@
 import { getSchema } from "@tiptap/core";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -10,6 +10,7 @@ import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { pageContainerBlocks } from "@/components/pages/blocks";
 import { pageColorMarks } from "@/components/pages/marks";
+import { NeedtTaskItem } from "@/components/pages/task-items/task-item-extension";
 
 /**
  * The editor's extension list, shared with server-side code that needs the
@@ -22,7 +23,7 @@ export const pageEditorExtensions = [
     undoRedo: false,
   }),
   TaskList,
-  TaskItem.configure({ nested: true }),
+  NeedtTaskItem.configure({ nested: true }),
   ImageExtension.configure({ allowBase64: false }),
   LinkExtension.configure({
     autolink: true,

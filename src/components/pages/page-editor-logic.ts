@@ -156,3 +156,28 @@ export function blockInsertRange(
   }
   return { from: to, to, replace: false, atEnd: to >= doc.content.size };
 }
+
+/**
+ * The "/" menu's matches for what was typed after the slash: the entries whose
+ * name or keywords contain it, the ones named by it first (so "/task" lands on
+ * Task and not on Checklist, which only lists "task" as a keyword), then
+ * names that contain it, then keyword matches; each group keeps menu order.
+ */
+export function rankCommands<T extends { label: string; keywords: string }>(
+  commands: readonly T[],
+  query: string
+): T[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [...commands];
+  const rank = (c: T) => {
+    const label = c.label.toLowerCase();
+    if (label.startsWith(needle)) return 0;
+    if (label.includes(needle)) return 1;
+    return c.keywords.toLowerCase().includes(needle) ? 2 : 3;
+  };
+  return commands
+    .map((command, index) => ({ command, index, r: rank(command) }))
+    .filter((entry) => entry.r < 3)
+    .sort((a, b) => a.r - b.r || a.index - b.index)
+    .map((entry) => entry.command);
+}
