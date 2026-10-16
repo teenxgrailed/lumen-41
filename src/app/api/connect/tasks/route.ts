@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateConnectorRequest } from "@/services/connectors/auth";
+import { getPage } from "@/services/pages/page-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import {
   checkBlocker,
@@ -13,6 +14,7 @@ import {
 import { WorkspaceRole } from "@prisma/client";
 
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
+import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -41,11 +43,16 @@ export async function GET(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   const { userId, workspace } = auth;
+  // `?originPageId=<page id>`: the tasks that came from one page.
+  const originPageId = request.nextUrl.searchParams.get("originPageId");
 
   const tasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
       isArchived: false,
+      ...(originPageId
+        ? { originKind: DOC_ORIGIN, originId: originPageId }
+        : {}),
     },
     orderBy: [{ scheduledStart: "asc" }, { createdAt: "desc" }],
     include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
@@ -53,7 +60,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
-    tasks,
+    tasks: tasks.map(withOriginPageId),
   });
 }
 
@@ -106,6 +113,18 @@ export async function POST(request: NextRequest) {
       );
     }
   }
+  if (body.originPageId != null) {
+    const origin =
+      typeof body.originPageId === "string"
+        ? await getPage({ userId, workspace }, body.originPageId)
+        : null;
+    if (!origin) {
+      return NextResponse.json(
+        { error: "originPageId is not a page in this workspace" },
+        { status: 400 }
+      );
+    }
+  }
   if (body.dependsOnId != null) {
     const blocker =
       typeof body.dependsOnId === "string"
@@ -154,6 +173,9 @@ export async function POST(request: NextRequest) {
       ...(typeof body.dependsOnId === "string"
         ? { dependsOnId: body.dependsOnId }
         : {}),
+      ...(typeof body.originPageId === "string"
+        ? { originKind: DOC_ORIGIN, originId: body.originPageId }
+        : {}),
       entry: entry.data,
       parts: partsCreateData(normalizeSubtasks(subtasks.data)),
       isAutoScheduled: true,
@@ -186,5 +208,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(scheduledTask || task, { status: 201 });
+  return NextResponse.json(withOriginPageId(scheduledTask || task), {
+    status: 201,
+  });
 }

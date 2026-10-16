@@ -37,6 +37,8 @@ interface Q {
 }
 let query: Q;
 const mutateAsync = jest.fn();
+const updateDoc = jest.fn();
+const duplicateDoc = jest.fn();
 let creating = false;
 jest.mock("@/lib/needt3/hooks/docs", () => ({
   useDocs: () => query,
@@ -45,7 +47,10 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
     isPending: creating,
   }),
   useTrashDoc: () => ({ mutateAsync: jest.fn() }),
-  useUpdateDoc: () => ({ mutateAsync: jest.fn() }),
+  useDuplicateDoc: () => ({
+    mutateAsync: (...a: unknown[]) => duplicateDoc(...a),
+  }),
+  useUpdateDoc: () => ({ mutateAsync: (...a: unknown[]) => updateDoc(...a) }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
@@ -87,6 +92,8 @@ let root: Root;
 beforeEach(() => {
   push.mockClear();
   mutateAsync.mockReset();
+  updateDoc.mockReset().mockResolvedValue({ undo: jest.fn() });
+  duplicateDoc.mockReset().mockResolvedValue({ undo: jest.fn() });
   creating = false;
   window.localStorage.clear();
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RO;
@@ -468,5 +475,135 @@ describe("crossing 700 px (two faces, one controller)", () => {
     click($("[data-pd-new-tpl]"));
     expect(push).toHaveBeenCalledWith("/pages/a");
     expect(push).toHaveBeenCalledWith("/templates");
+  });
+});
+
+describe("Docs home: the long-press menu", () => {
+  const hold = (id: string) =>
+    act(() => {
+      $(`[data-pd-card='${id}']`).parentElement!.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true })
+      );
+    });
+  const acts = () =>
+    Array.from(host.querySelectorAll<HTMLElement>("[data-pd-act]")).map((e) =>
+      e.getAttribute("data-pd-act")
+    );
+  const row = (id: string) => $(`[data-pd-act='${id}']`);
+
+  it("offers the whole set in the shared order", () => {
+    query = ok(three());
+    mount();
+    hold("a");
+    expect(acts()).toEqual([
+      "open",
+      "rename",
+      "move",
+      "pin",
+      "duplicate",
+      "share",
+      "copy-link",
+      "trash",
+    ]);
+    expect(row("pin").textContent).toContain("Pin");
+    expect(row("trash").textContent).toContain("Move to Trash");
+  });
+
+  it("a pinned doc offers Unpin", () => {
+    query = ok(three());
+    mount();
+    hold("b");
+    expect(row("pin").textContent).toContain("Unpin");
+  });
+
+  it("Rename opens a field with the name and saves the new one", async () => {
+    query = ok(three());
+    mount();
+    hold("a");
+    click(row("rename"));
+    const input = $<HTMLInputElement>("[data-pd-rename] input");
+    expect(input.value).toBe("Alpha");
+    type(input, "  Alpha two ");
+    await act(async () => {
+      $("[data-pd-rename]").dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { title: "Alpha two" },
+    });
+  });
+
+  it("Move to project lists the projects and writes the chosen one", async () => {
+    query = ok(three());
+    mount();
+    hold("a");
+    click(row("move"));
+    const lists = host.querySelectorAll(".pk-acts");
+    const names = Array.from(
+      lists[lists.length - 1].querySelectorAll(".pk-act-label")
+    ).map((e) => e.textContent);
+    expect(names).toEqual(["No project", "Home"]);
+    await act(async () => {
+      (
+        Array.from(host.querySelectorAll<HTMLElement>(".pk-act")).find((b) =>
+          b.textContent?.includes("Home")
+        ) as HTMLElement
+      ).click();
+    });
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { projectId: "p1" },
+    });
+  });
+
+  it("Duplicate and Pin call the page API hooks", async () => {
+    query = ok(three());
+    mount();
+    hold("a");
+    await act(async () => {
+      (row("duplicate") as HTMLElement).click();
+    });
+    expect(duplicateDoc).toHaveBeenCalledWith({ id: "a" });
+    hold("a");
+    await act(async () => {
+      (row("pin") as HTMLElement).click();
+    });
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { isFavorite: true },
+    });
+  });
+});
+
+describe("Docs home: cards stay cheap", () => {
+  it("a picture cover loads lazily and decodes off the main thread", () => {
+    query = ok([doc("a", "Alpha", { coverUrl: "https://cdn.test/cover.png" })]);
+    mount();
+    const img = $<HTMLImageElement>("[data-pd-card='a'] img");
+    expect(img.getAttribute("loading")).toBe("lazy");
+    expect(img.getAttribute("decoding")).toBe("async");
+  });
+
+  it("the card draws its page, cover, style, star and project from the list row alone", () => {
+    query = ok([
+      doc("a", "Alpha", {
+        isFavorite: true,
+        projectId: "p1",
+        coverUrl: "art:dunes",
+        style: { page: "cream", backdrop: "mist", font: "serif" },
+        preview: [{ type: "p", text: "First line" }],
+      }),
+    ]);
+    mount();
+    const card = $("[data-pd-card='a']");
+    expect(card.querySelector(".pd-card-pic.has-bd")).not.toBeNull();
+    expect(card.querySelector(".pd-card-cover")).not.toBeNull();
+    expect(card.querySelector(".pd-pin")).not.toBeNull();
+    expect(card.querySelector(".pd-card-proj")?.textContent).toBe("Home");
+    expect(card.querySelector(".docs-mini-p, p")?.textContent).toContain(
+      "First line"
+    );
   });
 });
