@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The quick-add line writes the repeat it understood ("every friday" becomes a
+  weekly task that starts on the next Friday) and has an expand button: ⌘↵ or
+  the corner button adds the task and opens it in the full task dialog. Enter
+  still adds and stays.
 - Recurring tasks now work end to end. Completing one (in the app, through
   `PUT /api/tasks/:id`, the `task.complete` op or `needt_complete_task`) records
   that occurrence as a finished task and moves the same task to its next date,
