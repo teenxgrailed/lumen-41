@@ -74,6 +74,7 @@ import { AiOrb } from "../orb/AiOrb";
 import { usePaywallStore } from "../paywall/store";
 import { useShellApi } from "../shell/ShellContext";
 import { useAsk } from "./AskProvider";
+import { PANEL_EXIT_MS } from "./ChatDockSlot";
 import { ChatPanel } from "./ChatPanel";
 import { NudgeTip } from "./NudgeTip";
 import { useChatDock } from "./dock";
@@ -88,8 +89,12 @@ import {
 } from "./nudge-tip";
 import { firstName } from "./scope";
 
-/** The dock card's exit (chat.css v3-chat-spring-out 200ms, +20ms slack). */
-const PANEL_EXIT_MS = 220;
+/** The entrance is over: the layer hints and the glass header may come back. */
+function settle(e: React.AnimationEvent<HTMLElement>) {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove("is-opening");
+  }
+}
 
 const KINDS: Record<
   NoticeKind,
@@ -393,7 +398,8 @@ function Corner() {
         onMouseDown={() => setOpen(false)}
       />
       <div
-        className={`chat-box chat-sheet${panelLeaving ? " is-leaving" : ""}`}
+        className={`chat-box chat-sheet${panelLeaving ? " is-leaving" : " is-opening"}`}
+        onAnimationEnd={settle}
         role="dialog"
         aria-label="Ask Needt"
         data-chat-panel
@@ -415,7 +421,8 @@ function Corner() {
       onKeyDown={onPanelKey}
     >
       <div
-        className={`chat-box chat-dock-card${panelLeaving ? " is-leaving" : ""}`}
+        className={`chat-box chat-dock-card${panelLeaving ? " is-leaving" : " is-opening"}`}
+        onAnimationEnd={settle}
       >
         {panel}
       </div>
