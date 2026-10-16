@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The app host is no longer indexed by search engines: every response carries
+  `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
+  a robots noindex meta tag, and robots.txt lets crawlers reach the public
+  entry pages (sign-in, privacy, terms, subprocessors) so they can see it.
+
 - Document text is readable on every page style, in Light, Dark and Time: the
   ink now always clears 4.5:1 on the page (whatever Text colour was chosen),
   and a page whose colours could not be read yet no longer starts without a
