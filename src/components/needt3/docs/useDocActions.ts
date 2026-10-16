@@ -8,7 +8,7 @@ import {
 import type { V3Doc } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
-import { renameValue } from "./menu-model";
+import { exportHref, renameValue } from "./menu-model";
 
 export type DocSay = (
   text: string,
@@ -16,6 +16,9 @@ export type DocSay = (
 ) => void;
 
 export const docHref = (id: string) => `/pages/${encodeURIComponent(id)}`;
+
+/** The page opened with a request to print it: the editor owns "Export as PDF". */
+export const pdfHref = (id: string) => `${docHref(id)}?export=pdf`;
 
 const nameOf = (d: Pick<V3Doc, "title">) => d.title || "Untitled";
 
@@ -78,9 +81,9 @@ export function useDocActions(say: DocSay) {
 }
 
 /** Download a page as Markdown (`GET /api/pages/:id/export`). */
-export function downloadMarkdown(href: string) {
+export function downloadMarkdown(id: string) {
   const a = document.createElement("a");
-  a.href = href;
+  a.href = exportHref(id);
   a.rel = "noopener";
   document.body.appendChild(a);
   a.click();

@@ -9,6 +9,7 @@ import {
   LuArrowUp,
   LuCheck,
   LuCopy,
+  LuDownload,
   LuEllipsis,
   LuFileText,
   LuFolderInput,
@@ -16,6 +17,7 @@ import {
   LuLink,
   LuPencil,
   LuPlus,
+  LuPrinter,
   LuSearch,
   LuShare2,
   LuStar,
@@ -37,7 +39,12 @@ import {
   dirLabel,
   sortDocs,
 } from "../../docs/sort";
-import { docHref, useDocActions } from "../../docs/useDocActions";
+import {
+  docHref,
+  downloadMarkdown,
+  pdfHref,
+  useDocActions,
+} from "../../docs/useDocActions";
 import type { DocsController } from "../../docs/useDocsController";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { StSkeleton } from "../../states/StSkeleton";
@@ -167,8 +174,16 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
       hue: "var(--info)",
       run: act.copyLink,
     },
-    "export-md": { icon: null, run: () => undefined },
-    "export-pdf": { icon: null, run: () => undefined },
+    "export-md": {
+      icon: <LuDownload size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: (d) => downloadMarkdown(d.id),
+    },
+    "export-pdf": {
+      icon: <LuPrinter size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: (d) => router.push(pdfHref(d.id)),
+    },
     trash: {
       icon: <LuTrash2 size={18} aria-hidden />,
       run: act.trash,
@@ -178,14 +193,16 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
     ? {
         title: held.title || "Untitled",
         meta: ageLabel(held.updatedAt, now) || null,
-        actions: docActions(held, { phone: true }).map((spec) => ({
-          label: spec.label,
-          icon: ACTION_VIEW[spec.id].icon,
-          hue: ACTION_VIEW[spec.id].hue,
-          danger: spec.danger,
-          data: { "data-pd-act": spec.id },
-          onClick: () => ACTION_VIEW[spec.id].run(held),
-        })),
+        actions: docActions(held, { phone: true, canExport: true }).map(
+          (spec) => ({
+            label: spec.label,
+            icon: ACTION_VIEW[spec.id].icon,
+            hue: ACTION_VIEW[spec.id].hue,
+            danger: spec.danger,
+            data: { "data-pd-act": spec.id },
+            onClick: () => ACTION_VIEW[spec.id].run(held),
+          })
+        ),
       }
     : null;
 

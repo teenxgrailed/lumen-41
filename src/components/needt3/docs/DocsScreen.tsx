@@ -53,7 +53,12 @@ import {
   sortDocs,
 } from "./sort";
 import { type TokenReader, fontOf, pageVars, styleOf } from "./style";
-import { docHref, useDocActions } from "./useDocActions";
+import {
+  docHref,
+  downloadMarkdown,
+  pdfHref,
+  useDocActions,
+} from "./useDocActions";
 import type { DocsController, DocsView } from "./useDocsController";
 
 const copy = docsCopy;
@@ -438,6 +443,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
   }, [projects.data]);
 
   const open = (id: string) => router.push(docHref(id));
+  const openPdf = (id: string) => router.push(pdfHref(id));
   const newDoc = () => ctl.newDoc("");
 
   // Right-click on a card or a list row.
@@ -448,6 +454,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
     projects: projects.data ?? [],
     setRenaming,
     setSharing,
+    openPdf,
   });
   live.current = {
     docs: mine,
@@ -456,6 +463,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
     projects: projects.data ?? [],
     setRenaming,
     setSharing,
+    openPdf,
   };
   useEffect(
     () =>
@@ -484,10 +492,12 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
           duplicate: () => a.duplicate(d),
           share: () => ui.setSharing(d),
           "copy-link": () => a.copyLink(d),
+          "export-md": () => downloadMarkdown(d.id),
+          "export-pdf": () => ui.openPdf(d.id),
           trash: () => a.trash(d),
         };
         const groups: CtxRow[][] = [];
-        for (const spec of docActions(d, { phone: false })) {
+        for (const spec of docActions(d, { phone: false, canExport: true })) {
           (groups[spec.group] ??= []).push(
             spec.id === "move"
               ? { label: spec.label + "…", hint: "›", sub: move }

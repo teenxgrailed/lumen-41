@@ -503,6 +503,8 @@ describe("Docs home: the long-press menu", () => {
       "duplicate",
       "share",
       "copy-link",
+      "export-md",
+      "export-pdf",
       "trash",
     ]);
     expect(row("pin").textContent).toContain("Pin");

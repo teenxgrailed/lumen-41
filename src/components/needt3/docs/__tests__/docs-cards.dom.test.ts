@@ -280,7 +280,7 @@ describe("desktop Docs card menu (right-click)", () => {
     expect(labels(menu)).toEqual([
       ["Open", "Open in New Tab"],
       ["Rename", "Move to project…", "Pin", "Duplicate"],
-      ["Share…", "Copy link"],
+      ["Share…", "Copy link", "Export as Markdown", "Export as PDF"],
       ["Move to Trash"],
     ]);
     expect(menu![3][0].tone).toBe("danger");
