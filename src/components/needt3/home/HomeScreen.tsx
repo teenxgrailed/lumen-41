@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -18,7 +18,7 @@ import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { formatInTimeZone } from "@/lib/date-utils";
 import {
   addDays,
   habitDoneOn,
@@ -27,6 +27,7 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { useNow } from "@/lib/needt3/hooks/clock";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
@@ -43,6 +44,7 @@ import {
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { todayLine } from "@/lib/needt3/today";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -94,21 +96,11 @@ const BACK_MS = 320;
 
 type Tab = HomeTab;
 
-/** Re-render once a minute so the now line and "Was planned for" stay true. */
-function useNowMinute() {
-  const [now, setNow] = useState(() => newDate());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(newDate()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  return now;
-}
-
 function DesktopHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
-  const now = useNowMinute();
+  const now = useNow();
   const today = formatInTimeZone(now, tz, "yyyy-MM-dd");
   const [hh, mm] = formatInTimeZone(now, tz, "HH:mm").split(":");
   const nowHour = +hh + +mm / 60;
@@ -372,8 +364,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ["day", "Day", stats.left],
     ["week", "Week ahead", weekOpen],
   ];
-  const dateLine = formatInTimeZone(now, tz, "EEEE, d MMMM");
-  const weekNo = formatInTimeZone(now, tz, "I");
+  const { date: dateLine, week: weekNo } = todayLine(
+    now,
+    tz,
+    settings.data?.weekStartDay ?? "monday"
+  );
 
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">
