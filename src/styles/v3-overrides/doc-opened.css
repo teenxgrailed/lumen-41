@@ -812,6 +812,51 @@
   color: var(--accent);
 }
 
+/* the table bar: the selection bar's twin, over a table the caret is in */
+.needt-v3 [data-doc-sheet] .needt-table-bar {
+  gap: 1px;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3[data-theme="dark"] [data-doc-sheet] .needt-table-bar {
+  background: var(--surface-floating);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-secondary);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button[aria-pressed="true"] {
+  background: var(--fill-3);
+  color: var(--accent);
+}
+
+/* table columns resize by their border: the cursor and the handle say so */
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(th, td) {
+  position: relative;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor.resize-cursor {
+  cursor: col-resize;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: var(--text-tertiary);
+  pointer-events: none;
+}
+
 /* ───────── the "/" menu (prototype `docs-doc-slash-menu-*`) ───────── */
 .needt-v3 .needt-page-command-menu[data-doc-menu] {
   width: 300px;

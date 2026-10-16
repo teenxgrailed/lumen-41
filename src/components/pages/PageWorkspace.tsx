@@ -90,6 +90,7 @@ import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
+import { PageTableBar } from "@/components/pages/PageTableBar";
 import { pageContainerBlocks } from "@/components/pages/blocks";
 import {
   CONTAINER_CARET_OFFSET,
@@ -2926,6 +2927,8 @@ export function PageWorkspace({
             </BubbleMenu>
           )}
         </div>
+
+        {editor && canEdit && <PageTableBar editor={editor} />}
 
         {mobileBlockHandle && canEdit && (
           <button

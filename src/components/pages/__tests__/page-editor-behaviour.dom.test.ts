@@ -446,3 +446,42 @@ describe("a page saved with the old atoms", () => {
     );
   });
 });
+
+describe("the table bar", () => {
+  it("shows its actions while the caret is in a table and runs them", async () => {
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: true });
+      editor.commands.setTextSelection(3);
+    });
+    await wait(60);
+    const bar = document.querySelector('[aria-label="Table actions"]');
+    expect(bar).not.toBeNull();
+    const labels = Array.from(bar!.querySelectorAll("button")).map((b) =>
+      b.getAttribute("aria-label")
+    );
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        "Add row below",
+        "Add column right",
+        "Delete table",
+        "Header row",
+      ])
+    );
+    expect(
+      bar!
+        .querySelector('[data-table-action="headerRow"]')!
+        .getAttribute("aria-pressed")
+    ).toBe("true");
+    await act(async () => {
+      bar!
+        .querySelector<HTMLButtonElement>('[data-table-action="rowBelow"]')!
+        .click();
+    });
+    const rows = (editor.getJSON() as JSONContent).content?.find(
+      (n) => n.type === "table"
+    )?.content;
+    expect(rows).toHaveLength(3);
+  });
+});

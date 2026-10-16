@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document editor tables: a bar over the table while the caret is in it adds a
+  row above or below, adds a column left or right, deletes the row, column or
+  the whole table (the last row or column deletes the table), and switches the
+  header row and header column. Tab and Shift+Tab move between cells, and Tab in
+  the last cell adds a row. Column borders show the resize cursor and handle.
 - Document editor: **Toggle, Callout and Columns are real blocks.** A Toggle
   folds the blocks under its title (the arrow remembers open or closed on this
   device); a Callout has an icon and a colour (the document palette) and holds
