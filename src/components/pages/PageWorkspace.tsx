@@ -83,7 +83,9 @@ import {
   BlockIdentity,
   ensureBlockIds,
 } from "@/components/documents/BlockIdentity";
+import { askAbout, askNeedt } from "@/components/needt3/corner/ask-bridge";
 import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
+import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
@@ -98,11 +100,19 @@ import {
   type PageCommandId,
 } from "@/components/pages/page-commands";
 import {
+  blockAt,
+  buildEditorMenu,
+  deleteBlock,
+  duplicateBlock,
+  moveBlock,
+} from "@/components/pages/page-context-menu";
+import {
   documentFromPageBlocks,
   legacyPageHtml,
   pageBlocksFromDocument,
 } from "@/components/pages/page-document";
 import type { PageDetail } from "@/components/pages/page-types";
+import { useKeyboardLift } from "@/components/pages/use-keyboard-lift";
 import {
   BottomSheet,
   BottomSheetContent,
@@ -798,6 +808,8 @@ export function PageWorkspace({
     };
   }, [documentFormatVersion, pageId]);
 
+  const keyboardLift = useKeyboardLift();
+
   // The page's first lines, as the Docs grid, the Pinned faces and the rail
   // thumb draw them, follow the text after a pause in typing and once more
   // when the page is left (before the collaboration server has stored it).
@@ -869,6 +881,9 @@ export function PageWorkspace({
         class: "needt-page-editor min-h-[55vh] cursor-text pb-48 outline-none",
         "aria-label": "Page document",
       },
+      // Keep the caret clear of the toolbar and the keyboard while typing.
+      scrollMargin: { top: 96, bottom: 168, left: 0, right: 0 },
+      scrollThreshold: { top: 96, bottom: 168, left: 0, right: 0 },
       handleKeyDown: (_view: unknown, event: KeyboardEvent) =>
         editorKeyDown.current(event),
     }),
@@ -996,7 +1011,25 @@ export function PageWorkspace({
     const drag = mobileBlockDrag.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     event.preventDefault();
-    reorderMobileBlock(drag.blockId, mobileBlockTargetIndex(event.clientY));
+    if (Math.abs(event.clientY - drag.startY) < 6) {
+      // A tap on the grip is the phone's right-click: the block's menu.
+      const block = editor?.view.dom.querySelector<HTMLElement>(
+        `[data-block-id="${CSS.escape(drag.blockId)}"]`
+      );
+      if (block) {
+        const box = block.getBoundingClientRect();
+        block.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            clientX: box.left + Math.min(24, box.width / 2),
+            clientY: box.top + Math.min(12, box.height / 2),
+          })
+        );
+      }
+    } else {
+      reorderMobileBlock(drag.blockId, mobileBlockTargetIndex(event.clientY));
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -1899,6 +1932,110 @@ export function PageWorkspace({
     return () => window.removeEventListener(PAGE_TOOL_EVENT, on);
   }, [inV3, isDatabase, pageId]);
 
+  // Comments are read once so the context menu knows whether to offer one.
+  useEffect(() => {
+    if (!inV3 || isDatabase) return undefined;
+    let off = false;
+    void fetch(`/api/pages/${pageId}/comments`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { comments?: PageComment[] } | null) => {
+        if (!off && data?.comments) setComments(data.comments);
+      })
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [inV3, isDatabase, pageId]);
+
+  // The editor's own context menu (right-click; the browser's stays on
+  // Shift + right-click). The rows come from `page-context-menu`; the CtxLayer
+  // draws them, themed, inside the viewport, with arrows and Esc.
+  const menuLatest = useRef({ openTool, hasComments: false });
+  menuLatest.current = { openTool, hasComments: comments.length > 0 };
+  useEffect(() => {
+    if (!inV3 || isDatabase || !editor) return undefined;
+    return registerCtx("doc-editor", ({ event }) => {
+      if (!event || editor.isDestroyed) return null;
+      const { state, view } = editor;
+      const hit = view.posAtCoords({
+        left: event.clientX,
+        top: event.clientY,
+      });
+      const { from, to, empty } = state.selection;
+      const inside = !!hit && !empty && hit.pos >= from && hit.pos <= to;
+      if (!inside && hit) {
+        try {
+          editor.commands.setTextSelection(hit.pos);
+        } catch {
+          // An atom block (rule, image) takes no text caret; the block menu
+          // still works from its position.
+        }
+      }
+      const pos = inside ? from : (hit?.pos ?? from);
+      const block = blockAt(editor.state.doc, pos);
+      const selectedText = inside ? state.doc.textBetween(from, to, " ") : "";
+      const host = {
+        get state() {
+          return editor.state;
+        },
+        dispatch: view.dispatch.bind(view),
+      };
+      const run = (fn: () => void) => () => fn();
+      const copyText = (text: string) =>
+        void navigator.clipboard
+          ?.writeText(text)
+          .catch(() => notify.error("Could not copy."));
+      const mod = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+      return buildEditorMenu({
+        pos,
+        hasSelection: inside,
+        active: {},
+        canWrite: canEdit,
+        hasComments: menuLatest.current.hasComments,
+        mod,
+        cut: run(() => {
+          copyText(selectedText);
+          editor.chain().focus().deleteSelection().run();
+        }),
+        copy: run(() => copyText(selectedText)),
+        paste: run(() => {
+          void navigator.clipboard
+            ?.readText()
+            .then((text) => editor.chain().focus().insertContent(text).run())
+            .catch(() => notify.error(`Paste with ${mod}V instead.`));
+        }),
+        turnInto: (command) => commandRef.current(command, false),
+        mark: (mark) => {
+          const chain = editor.chain().focus();
+          if (mark === "bold") chain.toggleBold().run();
+          else if (mark === "italic") chain.toggleItalic().run();
+          else if (mark === "strike") chain.toggleStrike().run();
+          else chain.toggleCode().run();
+        },
+        link: () => commandRef.current("LINK", false),
+        ask: () =>
+          askNeedt(
+            askAbout(
+              inside ? selectedText : (block?.node.textContent ?? ""),
+              inside ? "selection" : "block"
+            )
+          ),
+        comment: () => void menuLatest.current.openTool("comments"),
+        duplicate: () => duplicateBlock(host, pos),
+        move: (dir) => moveBlock(host, pos, dir),
+        copyBlockLink: () => {
+          const id = block?.node.attrs.blockId;
+          const url = `${window.location.origin}/pages/${encodeURIComponent(pageId)}${id ? `#${id}` : ""}`;
+          void navigator.clipboard
+            ?.writeText(url)
+            .then(() => notify.success("Link copied"))
+            .catch(() => notify.error("Could not copy the link."));
+        },
+        remove: () => deleteBlock(host, pos),
+      });
+    });
+  }, [canEdit, editor, inV3, isDatabase, pageId]);
+
   // The v3 chrome (the Info tab's Pin) changes a field the editor also holds:
   // take it, so the star in "Page options" agrees. The editor's own
   // announcements (`from: "editor"`) are not echoed back.
@@ -2514,6 +2651,8 @@ export function PageWorkspace({
           )}
         </div>
         <div
+          data-ctx="doc-editor"
+          data-ctx-editor=""
           onClick={(event) => {
             if (event.target === event.currentTarget)
               editor?.commands.focus("end");
@@ -2640,6 +2779,7 @@ export function PageWorkspace({
                   {
                     "--page-command-top": `${slash.top}px`,
                     "--page-command-left": `${slash.left}px`,
+                    "--page-kb": `${keyboardLift}px`,
                   } as CSSProperties
                 }
               >
@@ -2685,7 +2825,17 @@ export function PageWorkspace({
       {canEdit && (
         <div
           data-assistant-avoid
-          className="fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-30 flex h-12 items-center justify-around border-t border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 sm:hidden"
+          data-page-toolbar={keyboardLift > 0 ? "keyboard" : "rest"}
+          // A tap here must not take focus from the page: the keyboard stays.
+          onMouseDown={(event) => event.preventDefault()}
+          className="fixed inset-x-0 z-30 flex h-12 items-center justify-around border-t border-[var(--border-subtle)] bg-[var(--surface-raised)] px-2 sm:hidden"
+          // Above the tab bar at rest; riding on the keyboard while it is up.
+          style={{
+            bottom:
+              keyboardLift > 0
+                ? `${keyboardLift}px`
+                : "calc(68px + env(safe-area-inset-bottom))",
+          }}
           aria-label="Page editing actions"
         >
           <button
@@ -2730,6 +2880,17 @@ export function PageWorkspace({
           >
             <Redo2 className="h-5 w-5" />
           </button>
+          {keyboardLift > 0 && (
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => editor?.commands.blur()}
+              className="grid h-11 min-w-11 place-items-center rounded-[var(--control-radius)] px-2 text-[13px] font-medium text-[var(--text-primary)] active:bg-[var(--surface-hover)]"
+              aria-label="Done editing"
+            >
+              Done
+            </button>
+          )}
         </div>
       )}
 

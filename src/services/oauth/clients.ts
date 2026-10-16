@@ -29,14 +29,21 @@ export class ClientError extends Error {
   }
 }
 
-const clientMetadata = z.object({
+export const clientMetadata = z.object({
   redirect_uris: z.array(z.string()).min(1).max(MAX_REDIRECT_URIS),
   client_name: z.string().trim().max(100).optional(),
   client_uri: z.string().url().optional(),
   logo_uri: z.string().url().optional(),
   token_endpoint_auth_method: z.literal("none").optional(),
+  // Clients list every grant they can use (Claude adds jwt-bearer). We only
+  // issue authorization_code + refresh_token, so extra grants are ignored, but
+  // a client that cannot do authorization_code cannot use this server at all.
   grant_types: z
-    .array(z.enum(["authorization_code", "refresh_token"]))
+    .array(z.string().max(200))
+    .max(10)
+    .refine((g) => g.includes("authorization_code"), {
+      message: "grant_types must include authorization_code",
+    })
     .optional(),
   response_types: z.array(z.literal("code")).optional(),
 });

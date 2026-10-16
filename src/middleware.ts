@@ -99,7 +99,7 @@ function mcpHostResponse(request: NextRequest): NextResponse {
   return NextResponse.json({ error: "not_found" }, { status: 404 });
 }
 
-export async function middleware(request: NextRequest) {
+async function handle(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   if (isMcpHostRequest(request)) {
@@ -181,6 +181,17 @@ export async function middleware(request: NextRequest) {
 
   // Continue with the request
   return NextResponse.next();
+}
+
+/**
+ * The app host is never indexed. The header is also set in next.config.js, but
+ * production responses were observed without it, so every response (redirects
+ * and rewrites included) gets it here as well.
+ */
+export async function middleware(request: NextRequest) {
+  const response = await handle(request);
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
 }
 
 // Only run middleware on specific paths
