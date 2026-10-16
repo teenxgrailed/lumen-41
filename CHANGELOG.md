@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Connections: "Sync now" on a connected calendar or mailbox (the card menu on
-  the desktop, the account sheet on the phone). It queues the worker's sync job
-  (`POST /api/accounts/:id/sync` for calendars, the existing
-  `POST /api/mail/sync` for mail) and says the sync started.
+- Opening the Ask panel on desktop no longer stutters. The page beside the
+  panel used to be re-laid-out on every frame of a 220 ms width animation
+  while the panel was also mounting, and the whole shell re-rendered on open.
+  Now the dock slot changes width in one step and reads the open flag itself,
+  the card enters with transform and opacity on its own layer (hinted only
+  while it moves, no glass blur in flight), and a long thread mounts its
+  latest lines first and the older ones after the entrance.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
@@ -29,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ink now always clears 4.5:1 on the page (whatever Text colour was chosen),
   and a page whose colours could not be read yet no longer starts without a
   page colour. A test checks every page x text colour x theme side.
+- Connections: "Sync now" on a connected calendar or mailbox (the card menu on
+  the desktop, the account sheet on the phone). It queues the worker's sync job
+  (`POST /api/accounts/:id/sync` for calendars, the existing
+  `POST /api/mail/sync` for mail) and says the sync started.
 - Right-click inside a document opens Needt's own menu: for selected text (Cut,
   Copy, Paste, Turn into, Bold, Italic, Link, Ask Needt about this, Comment when
   the page has comments) and for a block (Turn into, Duplicate, Move up/down,
