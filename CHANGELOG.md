@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page (same upload as the Image block). `/pages/<id>#<blockId>` now scrolls to
   and marks that block. Tables (and special blocks) keep a stable `blockId`
   between saves, and a table is stored as type `TABLE`.
+- Opening the Ask panel on desktop no longer stutters. The page beside the
+  panel used to be re-laid-out on every frame of a 220 ms width animation
+  while the panel was also mounting, and the whole shell re-rendered on open.
+  Now the dock slot changes width in one step and reads the open flag itself,
+  the card enters with transform and opacity on its own layer (hinted only
+  while it moves, no glass blur in flight), and a long thread mounts its
+  latest lines first and the older ones after the entrance.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.

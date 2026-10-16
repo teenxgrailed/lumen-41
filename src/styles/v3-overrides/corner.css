@@ -131,3 +131,26 @@
     animation: none;
   }
 }
+
+/* The docked Ask panel (and its narrow sheet) moves with transform and
+ * opacity on a layer of its own, and only while it moves: `.is-opening` is
+ * taken off by AskCorner when the entrance ends, `.is-leaving` is the exit.
+ * The glass header does not blur while the card is in flight (a blur over a
+ * moving layer is repainted every frame); it comes back at rest. */
+.needt-v3 .chat-dock-card.is-opening,
+.needt-v3 .chat-dock-card.is-leaving,
+.needt-v3 .chat-sheet.is-opening,
+.needt-v3 .chat-sheet.is-leaving {
+  will-change: transform, opacity;
+}
+.needt-v3 .chat-dock-card.is-opening .chat-head,
+.needt-v3 .chat-dock-card.is-leaving .chat-head,
+.needt-v3 .chat-sheet.is-opening .chat-head,
+.needt-v3 .chat-sheet.is-leaving .chat-head {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Older lines that arrive after the entrance are history, not news. */
+.needt-v3 .chat-msg.is-history {
+  animation: none;
+}
