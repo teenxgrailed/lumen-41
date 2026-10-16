@@ -4,6 +4,8 @@ import { type FormEvent, useState } from "react";
 
 import { FiAlertCircle, FiCheck } from "react-icons/fi";
 
+import { ICloudGuide } from "./ICloudGuide";
+import { explainCalDavFailure } from "./caldavErrors";
 import { strings } from "./strings";
 
 /** Tells 1Password, LastPass, Bitwarden and Chrome to stay out of the fields. */
@@ -86,8 +88,11 @@ export function CalDavForm({
     return { res, data: await readJson(res) };
   };
 
-  const fail = (data: { error?: unknown } | null) =>
-    typeof data?.error === "string" ? data.error : strings.caldavFailed;
+  const fail = (status: number, data: { error?: unknown } | null) =>
+    explainCalDavFailure(
+      status,
+      typeof data?.error === "string" ? data.error : undefined
+    );
 
   const test = async () => {
     if (missing) return setCheck({ kind: "bad", error: strings.caldavMissing });
@@ -102,10 +107,10 @@ export function CalDavForm({
                 ? data.calendars.length
                 : undefined,
             }
-          : { kind: "bad", error: fail(data) }
+          : { kind: "bad", error: fail(res.status, data) }
       );
     } catch {
-      setCheck({ kind: "bad", error: strings.caldavFailed });
+      setCheck({ kind: "bad", error: fail(0, null) });
     } finally {
       setBusy(null);
     }
@@ -119,9 +124,9 @@ export function CalDavForm({
     try {
       const { res, data } = await post("/api/calendar/caldav/auth");
       if (res.ok) return onSuccess();
-      setCheck({ kind: "bad", error: fail(data) });
+      setCheck({ kind: "bad", error: fail(res.status, data) });
     } catch {
-      setCheck({ kind: "bad", error: strings.caldavFailed });
+      setCheck({ kind: "bad", error: fail(0, null) });
     } finally {
       setBusy(null);
     }
@@ -134,9 +139,8 @@ export function CalDavForm({
       noValidate
       data-cn-caldav=""
     >
-      <span className="cn-meta">
-        {strings.caldavLead} {strings.caldavHelp}
-      </span>
+      <span className="cn-meta">{strings.caldavLead}</span>
+      <ICloudGuide />
       <div className="nt-form">
         <div className="nt-row">
           <label className="nt-row-label" htmlFor="cn-caldav-server">

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The Apple / iCloud connect dialog now walks through creating an app-specific
+  password step by step (with Apple's labels, a button that opens
+  account.apple.com, three schematic sketches and a "Not working?" list), and
+  failures say what to do: wrong password type, no calendars found, or iCloud
+  unreachable. Same steps in docs/help/connect-icloud.md.
+
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.
