@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Habits: a past day can be marked or unmarked
-  (`PUT/DELETE /api/habits/:id/completions/:date`, up to 400 days back). On the
-  phone each habit has a "Past days" panel with its last four months, and
-  streaks count past 14 days; on the desktop, pick one habit in "Last four
-  months" and click a past dot.
+- Opening the Ask panel on desktop no longer stutters. The page beside the
+  panel used to be re-laid-out on every frame of a 220 ms width animation
+  while the panel was also mounting, and the whole shell re-rendered on open.
+  Now the dock slot changes width in one step and reads the open flag itself,
+  the card enters with transform and opacity on its own layer (hinted only
+  while it moves, no glass blur in flight), and a long thread mounts its
+  latest lines first and the older ones after the entrance.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
@@ -54,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where that ink cannot be read on the page in the current theme (light text on
   the white page in Light, dark text on the grey page in Dark), the page uses Auto
   ink for that theme.
+- Habits: a past day can be marked or unmarked
+  (`PUT/DELETE /api/habits/:id/completions/:date`, up to 400 days back). On the
+  phone each habit has a "Past days" panel with its last four months, and
+  streaks count past 14 days; on the desktop, pick one habit in "Last four
+  months" and click a past dot.
 - Mail is read-only. Connecting Gmail asks only for `gmail.readonly` and
   Outlook only for `Mail.Read`; Needt no longer changes anything in a
   mailbox. Marking read and archiving are kept in Needt only and survive
