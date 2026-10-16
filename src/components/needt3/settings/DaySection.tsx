@@ -1,25 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { FiChevronRight } from "react-icons/fi";
 
 import { useSchedule, useUpdateSchedule } from "@/lib/needt3/hooks/account";
 import { useSettings, useUpdateSettings } from "@/lib/needt3/hooks/settings";
+import {
+  type WeekHours,
+  legacyFromWeek,
+  weekIsValid,
+} from "@/lib/work-week";
 
 import { useMark } from "./SettingsContext";
-import {
-  hourLabel,
-  hourOf,
-  minutes,
-  parseWorkDays,
-  planningSummary,
-  plansWeekends,
-  withWeekends,
-  workHourChoices,
-  workHoursValid,
-} from "./derive";
-import { SGroup, SRow, SSelect, V3Switch } from "./kit";
+import { WeekHoursRows } from "./WeekHoursRows";
+import { minutes, planningSummary, plansWeekends } from "./derive";
+import { SGroup, SRow, SSelect } from "./kit";
 
 const WEEK: readonly (readonly [string, string])[] = [
   ["monday", "Monday"],
@@ -45,6 +41,16 @@ export function zoneOptions(current: string) {
   return list.map((z) => [z, z.replace(/_/g, " ")] as const);
 }
 
+/** The single-range columns the week summarises, in their stored shapes. */
+function legacyStrings(week: WeekHours) {
+  const l = legacyFromWeek(week);
+  return {
+    workDays: JSON.stringify(l.workDays),
+    workHourStart: l.workHourStart,
+    workHourEnd: l.workHourEnd,
+  };
+}
+
 export function DaySection() {
   const mark = useMark();
   const settings = useSettings();
@@ -54,8 +60,9 @@ export function DaySection() {
   const [open, setOpen] = useState(false);
   const s = settings.data;
   const sch = schedule.data;
-  const days = useMemo(() => parseWorkDays(sch?.workDays), [sch?.workDays]);
-  const weekends = plansWeekends(days);
+  const weekends = plansWeekends(
+    (sch?.weekHours ?? []).filter((e) => e.on).map((e) => e.day)
+  );
 
   const save = (patch: Parameters<typeof update.mutateAsync>[0]) =>
     void update.mutateAsync(patch).then(mark);
@@ -67,12 +74,11 @@ export function DaySection() {
     if (!sch) return;
     void setSchedule.mutateAsync(patch).then(mark);
   };
-  const saveHours = (start: number, end: number) => {
-    if (!workHoursValid(start, end)) return;
-    saveSchedule({ workHourStart: start, workHourEnd: end });
+  const week = sch?.weekHours ?? [];
+  const saveWeek = (next: WeekHours) => {
+    if (!weekIsValid(next)) return;
+    saveSchedule({ weekHours: next, ...legacyStrings(next) });
   };
-  const start = sch?.workHourStart ?? 9;
-  const end = sch?.workHourEnd ?? 17;
 
   return (
     <>
@@ -80,32 +86,7 @@ export function DaySection() {
         title="Working hours"
         hint="Needt only plans work between these times."
       >
-        <SRow title="Day starts">
-          <SSelect
-            label="Day starts"
-            width={110}
-            value={hourLabel(start)}
-            options={workHourChoices("start", sch?.workHourStart, end)}
-            disabled={!sch}
-            onChange={(v) => {
-              const h = hourOf(v);
-              if (h !== null) saveHours(h, end);
-            }}
-          />
-        </SRow>
-        <SRow title="Day ends">
-          <SSelect
-            label="Day ends"
-            width={110}
-            value={hourLabel(end)}
-            options={workHourChoices("end", sch?.workHourEnd, start)}
-            disabled={!sch}
-            onChange={(v) => {
-              const h = hourOf(v);
-              if (h !== null) saveHours(start, h);
-            }}
-          />
-        </SRow>
+        <WeekHoursRows week={week} disabled={!sch} onChange={saveWeek} />
         <SRow title="Week starts">
           <SSelect
             label="Week starts"
@@ -172,21 +153,6 @@ export function DaySection() {
                 options={minutes([0, 5, 10, 15])}
                 disabled={!sch}
                 onChange={(v) => saveSchedule({ bufferMinutes: Number(v) })}
-              />
-            </SRow>
-            <SRow
-              title="Plan on weekends"
-              desc="Off keeps Saturday and Sunday empty."
-            >
-              <V3Switch
-                label="Plan on weekends"
-                checked={weekends}
-                disabled={!sch}
-                onChange={(on) =>
-                  saveSchedule({
-                    workDays: JSON.stringify(withWeekends(days, on)),
-                  })
-                }
               />
             </SRow>
             {/* //todo: Plan automatically, Plan my day puts first (Pro), Keep
