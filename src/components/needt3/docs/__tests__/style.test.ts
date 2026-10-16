@@ -123,9 +123,29 @@ describe("ink", () => {
     expect(contrast("#f8e8ea", "#6b1f33")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("dark and light are taken as asked", () => {
-    expect(inkFor("#111111", "dark", read)).toBe("#1c1d20");
-    expect(inkFor("#ffffff", "light", read)).toBe("#f4f4f5");
+  it("dark and light are taken as asked while they can be read", () => {
+    expect(inkFor("#ffffff", "dark", read)).toBe("#1c1d20");
+    expect(inkFor("#111111", "light", read)).toBe("#f4f4f5");
+    expect(inkFor("#f8e8ea", "dark", read)).toBe("#1c1d20");
+  });
+
+  it("dark or light that cannot be read on a reading of the page falls back to auto", () => {
+    // Dark text on the Dark reading of White, light text on its Light reading.
+    expect(inkFor("#1e1f22", "dark", read)).toBe("#f4f4f5");
+    expect(inkFor("#ffffff", "light", read)).toBe("#1c1d20");
+    expect(inkFor("#111111", "dark", read)).toBe("#f4f4f5");
+  });
+
+  it("no page, theme side or text choice ever draws ink under 3:1", () => {
+    for (const page of ["white", "black", "rose"] as const) {
+      for (const text of ["auto", "dark", "light", "wine"]) {
+        const v = pageVars({ ...DOC_DEFAULT, page, text }, read);
+        const l = `#${(v["--dt-head-l"] ?? "").replace("#", "")}`;
+        const d = `#${(v["--dt-head-d"] ?? "").replace("#", "")}`;
+        expect(contrast(v["--dt-page-l"], l)).toBeGreaterThanOrEqual(3);
+        expect(contrast(v["--dt-page-d"], d)).toBeGreaterThanOrEqual(3);
+      }
+    }
   });
 
   it("pageVars builds both sides, and nothing before tokens load", () => {

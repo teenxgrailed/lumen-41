@@ -42,6 +42,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { registerCtx } from "../ctx/registry";
+import { DocThumb, useDocTokens } from "../docs/DocParts";
 import { DocSwitch } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
 import { useFocusRun } from "../focus/useFocusController";
@@ -631,6 +632,7 @@ export function Sidebar() {
   const mailDown = down.filter((c) => c.kind === "mail");
 
   const pinned = (docs.data ?? []).filter((d) => d.isFavorite && !d.trashedAt);
+  const docRead = useDocTokens();
   const projectRows = (projects.data ?? [])
     .filter((p) => !p.archived)
     .slice()
@@ -901,7 +903,13 @@ export function Sidebar() {
                         href={`/pages/${encodeURIComponent(d.id)}`}
                         label={d.title || "Untitled"}
                         current={pathname === `/pages/${d.id}`}
-                        icon={<LuFileText size={16} />}
+                        icon={
+                          /* A pinned row wears the page's own face (ground +
+                             first lines), like the prototype's PinnedFace. */
+                          <span className="shell-pinned-face-grid">
+                            <DocThumb doc={d} read={docRead} w={14} h={18} />
+                          </span>
+                        }
                       />
                     </div>
                   ))

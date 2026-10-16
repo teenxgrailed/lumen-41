@@ -2,7 +2,10 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 
+import type { PagePreviewBlock } from "@/lib/pages/page-preview";
+
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
+import { MiniRows } from "./DocMini";
 import { CoverArt } from "./CoverArt";
 import { backdropVars } from "./backdrop";
 import {
@@ -185,14 +188,22 @@ export function DcMiniPage({
   );
 }
 
-/** A document's face smaller than a card (list rows, the share sheet). */
+/**
+ * A document's face smaller than a card (list rows, the rail, the pinned
+ * list): the page's ground and sheet with its title and first lines drawn
+ * at a fraction of their size (prototype `DocThumb` + `MiniDoc`).
+ */
 export function DocThumb({
   doc,
   read,
   w,
   h,
 }: {
-  doc: StyledDoc & { title: string };
+  doc: StyledDoc & {
+    title: string;
+    /** The page's first blocks; none draws the title alone. */
+    preview?: readonly PagePreviewBlock[];
+  };
   read: TokenReader;
   w: number;
   h: number;
@@ -201,6 +212,7 @@ export function DocThumb({
   const bd = s.backdrop !== "none";
   const pad = bd ? Math.max(2, Math.round(w / 9)) : 0;
   const ip = Math.round(w / 8);
+  const scale = (0.14 * w) / 30;
   return (
     <span
       aria-hidden="true"
@@ -228,6 +240,25 @@ export function DocThumb({
             <DcCover cover={s.cover} />
           </span>
         ) : null}
+        <span className="docs-doc-thumb-2" style={{ padding: ip }}>
+          <div
+            className="docs-mini-doc-1"
+            data-docs-thumb-mini=""
+            style={{
+              width: (w - 2 * pad - 2 * ip) / scale,
+              transform: `scale(${scale})`,
+            }}
+          >
+            <div
+              className={
+                "docs-mini-doc-2 docs-mini-doc-s1" + (doc.title ? " is-on" : "")
+              }
+            >
+              {doc.title || strings["DocsScreen.jsx"].DcMiniPage.untitled}
+            </div>
+            <MiniRows rows={doc.preview ?? []} />
+          </div>
+        </span>
       </span>
     </span>
   );

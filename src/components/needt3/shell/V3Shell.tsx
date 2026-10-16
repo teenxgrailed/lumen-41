@@ -11,6 +11,7 @@ import {
 
 import { usePathname, useRouter } from "next/navigation";
 
+import { useLivePreviews } from "@/lib/needt3/hooks/docs";
 import { CHAT_DOCK_W } from "@/lib/assistant-position";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
@@ -70,6 +71,8 @@ function useNarrow() {
  */
 export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const phone = ui === "phone";
+  // What the editor shows of a page's first lines reaches the lists at once.
+  useLivePreviews();
   const router = useRouter();
   const pathname = usePathname();
   const narrow = useNarrow();
