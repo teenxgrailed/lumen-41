@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connecting Needt from claude.ai works again: the sign-in page no longer
+  rejects a client that also lists grant types Needt does not issue (Claude
+  lists jwt-bearer), and only requires authorization_code.
 - Connecting Gmail or Outlook Mail no longer sends the browser to the
   container address (`0.0.0.0:3000`): the mail and integration callbacks and
   checkout build their URLs from `NEXTAUTH_URL`. A connected Gmail now shows as
