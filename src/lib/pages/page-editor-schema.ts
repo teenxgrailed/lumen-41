@@ -8,6 +8,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { BlockFlash } from "@/components/documents/BlockFlash";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
+import { pageContainerBlocks } from "@/components/pages/blocks";
 
 /**
  * The editor's extension list, shared with server-side code that needs the
@@ -30,6 +31,7 @@ export const pageEditorExtensions = [
   TableKit.configure({ table: { resizable: true } }),
   BlockIdentity,
   BlockFlash,
+  ...pageContainerBlocks,
   PageBlockNode,
 ];
 

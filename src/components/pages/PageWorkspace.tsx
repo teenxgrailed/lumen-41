@@ -90,6 +90,12 @@ import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
+import { pageContainerBlocks } from "@/components/pages/blocks";
+import {
+  CONTAINER_CARET_OFFSET,
+  type ContainerCommand,
+  containerBlockJson,
+} from "@/components/pages/blocks/templates";
 import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
 import {
   PageAutosave,
@@ -345,7 +351,7 @@ const COMMANDS: Array<{
   {
     id: "TOGGLE",
     label: "Toggle",
-    hint: "Add collapsible context",
+    hint: "Fold blocks under a title",
     keywords: "details disclosure",
     icon: MessageSquareQuote,
   },
@@ -401,8 +407,8 @@ const COMMANDS: Array<{
   {
     id: "COLUMNS",
     label: "Columns",
-    hint: "Split content into columns",
-    keywords: "layout",
+    hint: "Two or three side by side",
+    keywords: "layout split",
     icon: Columns3,
   },
   {
@@ -881,6 +887,7 @@ export function PageWorkspace({
       TableKit.configure({ table: { resizable: true } }),
       BlockIdentity,
       BlockFlash,
+      ...pageContainerBlocks,
       PageBlockNode,
       Collaboration.configure({ document: collaborationDocument }),
       CollaborationCaret.configure({
@@ -1951,16 +1958,44 @@ export function PageWorkspace({
     insertSpecial(pendingInsert, pendingValue);
   };
 
+  // Callout, Toggle and Columns are real blocks: they go in empty, with the
+  // caret in the first paragraph, and the slash text (if any) is removed.
+  const insertContainerBlock = (
+    command: ContainerCommand,
+    fromSlash: boolean
+  ) => {
+    if (!editor) return;
+    if (fromSlash) removeSlashText(editor).run();
+    const range = blockInsertRange(
+      editor.state.doc,
+      editor.state.selection.from
+    );
+    const content: JSONContent[] = [containerBlockJson(command)];
+    if (range.atEnd) content.push({ type: "paragraph" });
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: range.from, to: range.to }, content)
+      .setTextSelection(range.from + CONTAINER_CARET_OFFSET[command])
+      .run();
+    setSlash(null);
+  };
+
   const applyCommand = (command: PageCommand, fromSlash = true) => {
     if (!editor) return;
     if (
       command === "CALLOUT" ||
       command === "TOGGLE" ||
+      command === "COLUMNS"
+    ) {
+      insertContainerBlock(command, fromSlash);
+      return;
+    }
+    if (
       command === "LINK" ||
       command === "BOOKMARK" ||
       command === "IMAGE" ||
       command === "FILE" ||
-      command === "COLUMNS" ||
       command === "PAGE_MENTION" ||
       command === "TASK_REFERENCE" ||
       command === "PROJECT_REFERENCE" ||
@@ -1997,11 +2032,7 @@ export function PageWorkspace({
       setPendingInsert(command);
       setPendingFile(null);
       setPendingValue(
-        command === "DATE_MENTION"
-          ? newDate().toISOString().slice(0, 10)
-          : command === "COLUMNS"
-            ? "Two columns"
-            : ""
+        command === "DATE_MENTION" ? newDate().toISOString().slice(0, 10) : ""
       );
       return;
     }

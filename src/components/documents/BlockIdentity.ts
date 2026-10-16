@@ -20,6 +20,9 @@ export const IDENTITY_BLOCKS = [
   "horizontalRule",
   "image",
   "table",
+  "needtToggle",
+  "needtCallout",
+  "needtColumns",
 ];
 
 export const BlockIdentity = Extension.create({

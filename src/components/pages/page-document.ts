@@ -1,6 +1,7 @@
 import type { PageBlockType } from "@prisma/client";
 import type { JSONContent } from "@tiptap/react";
 
+import { upgradeLegacyNode } from "@/lib/pages/legacy-blocks";
 import { randomId } from "@/lib/uuid";
 
 import type { PageBlock } from "./page-types";
@@ -15,6 +16,9 @@ const NODE_TO_BLOCK: Record<string, PageBlockType> = {
   horizontalRule: "DIVIDER",
   image: "IMAGE",
   table: "TABLE",
+  needtToggle: "TOGGLE",
+  needtCallout: "CALLOUT",
+  needtColumns: "COLUMNS",
 };
 
 export function blockTypeForNode(node: JSONContent): PageBlockType {
@@ -46,9 +50,10 @@ export function documentFromPageBlocks(
       ) {
         const json = (block.content as { json?: unknown }).json;
         if (json && typeof json === "object") {
-          const node = structuredClone(json) as JSONContent;
-          node.attrs = { ...(node.attrs || {}), blockId: block.id };
-          return node;
+          const stored = structuredClone(json) as JSONContent;
+          stored.attrs = { ...(stored.attrs || {}), blockId: block.id };
+          // Callout, Toggle and Columns saved as old atoms are read as the real blocks.
+          return upgradeLegacyNode(stored);
         }
       }
       if (
