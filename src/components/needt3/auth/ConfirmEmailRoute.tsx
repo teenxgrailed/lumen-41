@@ -19,6 +19,7 @@ import {
   LuRefreshCw,
 } from "react-icons/lu";
 
+import { takePostAuthPath } from "@/lib/auth/post-auth-path";
 import { logger } from "@/lib/logger";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { useOnline } from "@/lib/needt3/use-online";
@@ -27,11 +28,11 @@ import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
 import { LinkButton, LinkFoot, LinkNote, LinkShell } from "./LinkFaces";
 import {
-  CONFIRMED_NEXT,
   CONFIRM_COPY,
   type ConfirmStep,
   type ResendOutcome,
   confirmOutcome,
+  confirmedNext,
   resendOutcome,
 } from "./link-logic";
 
@@ -127,7 +128,9 @@ export function V3ConfirmEmailRoute({
         face={face}
         primary
         icon={LuArrowRight}
-        onClick={() => window.location.assign(CONFIRMED_NEXT)}
+        onClick={() =>
+          window.location.assign(confirmedNext(takePostAuthPath()))
+        }
         data-auth-continue
       >
         Continue to Needt
