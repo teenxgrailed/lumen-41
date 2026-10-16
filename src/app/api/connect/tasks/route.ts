@@ -10,6 +10,10 @@ import {
   subtaskListSchema,
   subtaskSelect,
 } from "@/services/tasks/subtasks";
+import {
+  checkLabelsAndHours,
+  parseRepeatRule,
+} from "@/services/tasks/task-fields";
 import { WorkspaceRole } from "@prisma/client";
 
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -23,6 +27,10 @@ import {
 
 function isEnergy(value: unknown): value is SchedulingEnergyLevel {
   return value === "LOW" || value === "MEDIUM" || value === "HIGH";
+}
+
+function isNoPriority(value: unknown) {
+  return value === "NONE";
 }
 
 function isPriority(value: unknown): value is SchedulingTaskPriority {
@@ -123,6 +131,31 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  let recurrenceRule: string | null = null;
+  if (body.recurrenceRule != null) {
+    recurrenceRule = parseRepeatRule(body.recurrenceRule);
+    if (!recurrenceRule) {
+      return NextResponse.json(
+        { error: "recurrenceRule must be an RRULE such as FREQ=WEEKLY" },
+        { status: 400 }
+      );
+    }
+  }
+  const labelIds = body.labelIds ?? undefined;
+  const scheduleId =
+    typeof body.scheduleId === "string" && body.scheduleId
+      ? body.scheduleId
+      : undefined;
+  const checked = await checkLabelsAndHours({
+    userId,
+    schedulingUserId: userId,
+    tagIds: labelIds,
+    scheduleId,
+  });
+  if (!checked.ok) {
+    return NextResponse.json({ error: checked.error }, { status: 400 });
+  }
+
   const task = await prisma.task.create({
     data: {
       userId,
@@ -143,6 +176,11 @@ export async function POST(request: NextRequest) {
       priorityLevel: isPriority(body.priorityLevel)
         ? body.priorityLevel
         : "MEDIUM",
+      ...(isNoPriority(body.priorityLevel) ? { priority: "none" } : {}),
+      scheduleId: scheduleId ?? null,
+      ...(Array.isArray(labelIds) && labelIds.length
+        ? { tags: { connect: labelIds.map((id: string) => ({ id })) } }
+        : {}),
       energyRequired: isEnergy(body.energyRequired)
         ? body.energyRequired
         : "MEDIUM",
@@ -160,7 +198,8 @@ export async function POST(request: NextRequest) {
       autoScheduled: true,
       scheduleLocked: false,
       isFrozen: false,
-      isRecurring: false,
+      isRecurring: recurrenceRule !== null,
+      recurrenceRule,
       activities: {
         create: {
           workspaceId: workspace.workspaceId,

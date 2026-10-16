@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Tasks gain the fields the v3 task dialog needs, readable and writable through
+  the task API, the connector ops and the MCP tools: labels (`tagIds` /
+  `labelIds`), repeat (`recurrenceRule`, validated; the `isRecurring` flag now
+  follows it on `PUT /api/tasks/:id`), hours (`scheduleId`), "No priority"
+  (`priority: "none"` on the API, `NONE` in ops and MCP), `createdAt` in the
+  task view, and files: `GET`/`POST /api/tasks/:id/attachments` and
+  `GET`/`DELETE …/:attachmentId` (images and PDF, 4 MB, ten per task, bytes in
+  Postgres, served `nosniff`), plus `task.attach` / `task.detach` ops and the
+  `needt_attach_file` / `needt_remove_attachment` tools. Linking a label that
+  is not yours is refused.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.

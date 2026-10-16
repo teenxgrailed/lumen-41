@@ -557,7 +557,7 @@ function TaskSheetBody({
           <PovFact
             id="priority"
             label={copy.priority}
-            value={prioCopy[t.priority]}
+            value={t.priority === "none" ? copy.none : prioCopy[t.priority]}
             late={t.priority === "urgent"}
             open={fact === "priority"}
             onToggle={toggleFact("priority")}

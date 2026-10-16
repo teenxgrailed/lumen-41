@@ -60,6 +60,16 @@ export function touched(
   };
 }
 
+/** What a task view needs besides the row: its labels and its files (metadata only). */
+export const taskInclude = {
+  tags: { select: { id: true } },
+  attachments: {
+    where: { bytes: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, mimeType: true, size: true },
+  },
+} satisfies Prisma.TaskInclude;
+
 export async function findScopedTask(
   ctx: OpContext,
   taskId: string,
@@ -72,7 +82,7 @@ export async function findScopedTask(
       ...(options.includeArchived ? {} : { isArchived: false }),
     },
     include: {
-      tags: { select: { id: true } },
+      ...taskInclude,
       project: { select: { status: true } },
     },
   });
@@ -161,7 +171,19 @@ export function taskView(task: {
   isArchived: boolean;
   completedAt: Date | null;
   updatedAt: Date;
+  /** Legacy scale; "none" is "No priority". */
+  priority?: string | null;
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
+  scheduleId?: string | null;
+  createdAt?: Date;
   tags?: { id: string }[];
+  attachments?: {
+    id: string;
+    name: string;
+    mimeType: string | null;
+    size: number | null;
+  }[];
 }) {
   return {
     id: task.id,
@@ -170,7 +192,10 @@ export function taskView(task: {
     status: task.status,
     dueDate: iso(task.dueDate),
     deadline: iso(task.deadline),
-    priority: task.priorityLevel,
+    priority: task.priority === "none" ? "NONE" : task.priorityLevel,
+    recurrenceRule: task.isRecurring ? (task.recurrenceRule ?? null) : null,
+    scheduleId: task.scheduleId ?? null,
+    createdAt: task.createdAt ? task.createdAt.toISOString() : null,
     projectId: task.projectId,
     estimateMinutes: task.estimatedMinutes,
     scheduledStart: iso(task.scheduledStart),
@@ -178,6 +203,17 @@ export function taskView(task: {
     isArchived: task.isArchived,
     completedAt: iso(task.completedAt),
     tagIds: task.tags?.map((tag) => tag.id) ?? [],
+    ...(Array.isArray(task.attachments)
+      ? {
+          attachments: task.attachments.map((file) => ({
+            id: file.id,
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+            url: `/api/tasks/${task.id}/attachments/${file.id}`,
+          })),
+        }
+      : {}),
     updatedAt: task.updatedAt.toISOString(),
     href: `/tasks?taskId=${task.id}`,
   };

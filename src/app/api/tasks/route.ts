@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import { TaskBusyStatus, WorkspaceRole } from "@prisma/client";
 import { RRule } from "rrule";
@@ -155,6 +156,9 @@ export async function POST(request: NextRequest) {
           !(await isWorkspaceAssignee(workspaceId, assigneeId))))
     ) {
       return new NextResponse("Invalid workspace assignee", { status: 400 });
+    }
+    if (await hasForeignTagIds(userId, tagIds)) {
+      return new NextResponse("Invalid label", { status: 400 });
     }
     if (
       taskData.busyStatus !== undefined &&
