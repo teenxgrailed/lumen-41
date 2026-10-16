@@ -130,7 +130,11 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
   const step = (k: -1 | 1) =>
     setPicked(view === "month" ? stepMonth(day, k) : addDays(day, 7 * k));
-  const swipe = useSwipeStep(step);
+  // the arrows page a week; a swipe over the day moves to the next or the
+  // previous day (a month in the month grid), as Notion Calendar does
+  const swipe = useSwipeStep((k) =>
+    setPicked(view === "month" ? stepMonth(day, k) : addDays(day, k))
+  );
 
   const tap = (b: CalItem) => {
     if (!b.event) {

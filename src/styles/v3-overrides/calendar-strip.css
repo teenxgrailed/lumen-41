@@ -1,0 +1,101 @@
+/* Design v3 - the Week grid as an endless strip of day columns.
+ * HAND-WRITTEN, not vendored: src/styles/v3/calendar.css is generated from
+ * the prototype, whose week was seven fixed columns. Here one scroller holds
+ * both axes; the hour gutter sticks to its left edge and the day heads to its
+ * top. Columns are placed once with a transform (WeekView) and the browser
+ * scrolls them; nothing here animates on scroll. */
+
+/* The scroller is its own: `.scroll-inner` forces smooth scrolling, which
+   would turn every programmatic position (the opening day, a resize) into a
+   glide. WeekView asks for a glide where it wants one. */
+.needt-v3 .c2-wscroll {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: auto;
+}
+.needt-v3 .c2-wscroll::-webkit-scrollbar {
+  width: var(--scrollbar-w-inner);
+  height: 0;
+}
+.needt-v3 .c2-wscroll::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.needt-v3 .c2-wscroll:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.needt-v3 .c2-wcanvas {
+  position: relative;
+  padding-bottom: 72px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* Day heads: sticky to the top, each placed by a transform. */
+.needt-v3 .c2-whead {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  height: 48px;
+  background: var(--surface-raised);
+  box-shadow: var(--border) 0 -1px 0 0 inset;
+}
+.needt-v3 .c2-wcorner {
+  position: sticky;
+  left: 0;
+  z-index: 7;
+  display: block;
+  height: 48px;
+  background: var(--surface-raised);
+}
+.needt-v3 .c2-wheadcell {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+}
+
+/* The grid: hour gutter in flow and sticky, day columns absolute. */
+.needt-v3 .c2-wgrid {
+  position: relative;
+}
+.needt-v3 .c2-whours {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  height: 100%;
+  background: var(--surface-raised);
+}
+.needt-v3 .c2-wgrid .c2-daycol {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  box-sizing: border-box;
+  contain: layout style;
+}
+/* Hours outside working hours (and non-working days) sit on a quiet ground. */
+.needt-v3 .c2-off {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--fill-3);
+  pointer-events: none;
+}
+/* The hour lines: one repeating gradient per column (a line every 52px, the
+   vendored `.c2-hline` at 70%), so a column is a handful of nodes, not 30. */
+.needt-v3 .c2-hlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--border) 70%, transparent) 0,
+    color-mix(in srgb, var(--border) 70%, transparent) 1px,
+    transparent 1px,
+    transparent 52px
+  );
+}
