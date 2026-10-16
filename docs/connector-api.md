@@ -699,5 +699,16 @@ DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
   `GET /api/public/moodboards/:id/:token`. Turning it off, Trash or a wrong
   token answer `404`.
 
+## Public endpoints
+
+### `GET /api/lifetime-seats`
+
+No token. Returns `{ "sold": number, "total": 300 }`. `sold` is the same count
+the Lifetime cap uses (buyers plus open checkout holds), so the landing counter
+and the checkout never disagree; `total` is the cap constant. Cached in memory
+for 5 minutes and sent with `Cache-Control: public, max-age=300`. CORS:
+`https://needt.app` (plus `http://localhost:*` outside production), `GET` and
+`OPTIONS`, no credentials; a browser on another origin gets `403`.
+
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.

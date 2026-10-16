@@ -233,9 +233,14 @@ export async function isLifetimeCheckoutAvailable(userId: string) {
   return (await lifetimeAvailability(userId)).available;
 }
 
+/** Seats taken: buyers plus open checkout holds, the same count the cap uses. */
+export async function lifetimeSeatsSold() {
+  return Math.min(LIFETIME_BUYER_CAP, await countOccupiedLifetimeSlots());
+}
+
 /** Seats still open: the cap minus buyers and open checkout holds. */
 export async function lifetimeSeatsLeft() {
-  return Math.max(0, LIFETIME_BUYER_CAP - (await countOccupiedLifetimeSlots()));
+  return LIFETIME_BUYER_CAP - (await lifetimeSeatsSold());
 }
 
 export async function authorizeLifetimeCompletion(
