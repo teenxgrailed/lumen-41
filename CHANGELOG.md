@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Trash now keeps its 30-day promise: the worker deletes tasks, pages and
-  moodboards that have sat in Trash for 30 days. Tasks can be deleted for good
-  (`DELETE /api/tasks/:id?permanent=true`, Trash only), Empty Trash takes them
-  too, and the phone Trash has Restore all.
+- Opening the Ask panel on desktop no longer stutters. The page beside the
+  panel used to be re-laid-out on every frame of a 220 ms width animation
+  while the panel was also mounting, and the whole shell re-rendered on open.
+  Now the dock slot changes width in one step and reads the open flag itself,
+  the card enters with transform and opacity on its own layer (hinted only
+  while it moves, no glass blur in flight), and a long thread mounts its
+  latest lines first and the older ones after the entrance.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
@@ -45,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole editor and re-applied its configuration, and the word count read the
   page's text. The page is now written to the recovery draft and saved after a
   short pause (and on closing the tab), and the editor's configuration is built once.
+- Trash now keeps its 30-day promise: the worker deletes tasks, pages and
+  moodboards that have sat in Trash for 30 days. Tasks can be deleted for good
+  (`DELETE /api/tasks/:id?permanent=true`, Trash only), Empty Trash takes them
+  too, and the phone Trash has Restore all.
 - Document previews: pinned documents in the sidebar and the rows of the Docs
   list wear the page's face with its title and first lines (not a generic
   icon), and a document you just edited (a checklist, say) shows its lines in the
