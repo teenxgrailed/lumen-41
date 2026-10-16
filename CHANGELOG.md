@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Admin Flags (`/admin/flags`): every feature flag with an on/off switch and a
+  rollout percent, through `/api/admin/feature-flags` (new `GET` list; `PATCH`
+  now also creates the row for a flag the code reads but no migration made,
+  such as `billing_checkout`, and records the change in the audit log).
+  `billing_checkout` carries the warning "money: turn on only after Creem
+  approval" and asks before it is turned on.
+
 - Admin Users (`/admin/users`): search accounts by email and open one to see
   plan, trial end, created, last sign-in, role and connected provider names
   (never tokens). Each action asks first and is recorded in the new
