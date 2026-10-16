@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
+import { publicAppUrl } from "@/lib/public-url";
 import { composioProvider } from "@/services/integrations/composio-provider";
 
 const LOG_SOURCE = "IntegrationConnectAPI";
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!composioProvider.isConfigured()) {
       return NextResponse.json({ error: "Composio is not configured" }, { status: 503 });
     }
-    const callbackUrl = new URL("/api/integrations/callback", request.nextUrl.origin);
+    const callbackUrl = publicAppUrl("/api/integrations/callback", request);
     callbackUrl.searchParams.set("toolkit", body.toolkit);
     const result = await composioProvider.initiateConnection({
       userId: auth.userId,

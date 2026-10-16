@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connecting Gmail or Outlook Mail no longer sends the browser to the
+  container address (`0.0.0.0:3000`): the mail and integration callbacks and
+  checkout build their URLs from `NEXTAUTH_URL`. A connected Gmail now shows as
+  Connected on the Connections screen (the card looked for provider `google`
+  while the mailbox reports `gmail`), and returning to the Mailbox says the
+  account is connected.
 - The app host is no longer indexed by search engines: every response carries
   `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
   a robots noindex meta tag, and robots.txt lets crawlers reach the public
