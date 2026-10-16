@@ -53,9 +53,12 @@ export function useCheckins() {
     queryFn: async () => {
       const today = await fetchJson<{
         now: string;
+        today?: string;
         habits: { id: string; done: (0 | 1)[] }[];
       }>("/api/needt/today");
-      const end = formatInTimeZone(today.now, tz, "yyyy-MM-dd");
+      // The server's own day: the strip is counted in its zone, which is the
+      // browser's only once a zone is saved.
+      const end = today.today ?? formatInTimeZone(today.now, tz, "yyyy-MM-dd");
       // Streaks past fourteen days read `useCheckinHistory` (124 days).
       return today.habits.flatMap((h) => checkinsFromStrip(h.id, h.done, end));
     },
@@ -74,9 +77,10 @@ export function useCheckinHistory() {
     queryFn: async () => {
       const h = await fetchJson<{
         now: string;
+        today?: string;
         habits: { id: string; done: (0 | 1)[] }[];
       }>("/api/habits/history");
-      const end = formatInTimeZone(h.now, tz, "yyyy-MM-dd");
+      const end = h.today ?? formatInTimeZone(h.now, tz, "yyyy-MM-dd");
       return h.habits.flatMap((x) => checkinsFromStrip(x.id, x.done, end));
     },
   });
