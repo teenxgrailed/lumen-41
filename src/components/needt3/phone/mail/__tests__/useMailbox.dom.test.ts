@@ -56,6 +56,10 @@ jest.mock("@/lib/needt3/hooks/mail-accounts", () => ({
 jest.mock("@/lib/needt3/hooks/mail-sync", () => ({
   useMailSync: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
+jest.mock("@tanstack/react-query", () => ({
+  ...jest.requireActual("@tanstack/react-query"),
+  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+}));
 jest.mock("@/lib/needt3/hooks/events", () => ({
   useCreateEvent: () => jest.fn(),
 }));

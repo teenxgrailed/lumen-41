@@ -120,6 +120,7 @@ const restore = jest.fn();
 jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useTasks: () => ({ ...idle, data: [] }),
   useTrashTask: () => ({ restore: (...a: unknown[]) => restore(...a) }),
+  useDeleteTaskForever: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/boards", () => ({
   useBoards: () => ({ ...idle, data: [] }),

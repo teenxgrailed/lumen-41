@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { feedResponse } from "@/services/notifications/http";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +16,10 @@ const LOG_SOURCE = "notifications-route";
  */
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
-  if ("response" in auth) return auth.response;
+  if (auth.response) return auth.response;
+  if (request.nextUrl.searchParams.get("feed") === "1") {
+    return feedResponse(auth, request.nextUrl.searchParams);
+  }
   if (request.nextUrl.searchParams.get("peek") === "1") {
     const notifications = await prisma.proactiveNudge.findMany({
       where: { userId: auth.userId },

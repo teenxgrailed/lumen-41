@@ -7,28 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Admin Users (`/admin/users`): search accounts by email and open one to see
-  plan, trial end, created, last sign-in, role and connected provider names
-  (never tokens). Each action asks first and is recorded in the new
-  `AdminAuditLog` table (additive): make or remove admin, extend the trial,
-  grant or revoke Pro for N days or Lifetime as a free comp (stored in the
-  existing subscription row; Creem is never called), sign out of all devices,
-  and delete the account through the existing deletion service (type the email
-  to confirm). An admin cannot remove their own role or delete themselves.
-  `GET /api/admin/users`, `GET /api/admin/users/:id`,
-  `POST /api/admin/users/:id/actions`.
-
-- Admin Overview (`/admin`): users total and new in 7 days, active trials, Pro,
-  Lifetime and Free counts, waitlist size, and the app and worker build SHAs
-  (a warning when they differ). `GET /api/admin/overview` (admin only). Users
-  now carry a `createdAt` (additive column; older accounts are backfilled from
-  their trial start where there is one).
-- Admin panel: one `/admin` frame with a left nav (a row of tabs on a phone) in
-  the v3 design, shared by Integrations (`/admin/system`) and Operations
-  (`/admin/operations`). Inputs on the admin pages no longer render black on
-  the Light theme: the admin scope now maps the older shadcn tokens onto the
-  person's theme, so Light, Dark and Time all follow.
-
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
+- Opening the Ask panel on desktop no longer stutters. The page beside the
+  panel used to be re-laid-out on every frame of a 220 ms width animation
+  while the panel was also mounting, and the whole shell re-rendered on open.
+  Now the dock slot changes width in one step and reads the open flag itself,
+  the card enters with transform and opacity on its own layer (hinted only
+  while it moves, no glass blur in flight), and a long thread mounts its
+  latest lines first and the older ones after the entrance.
+- Connecting Needt from claude.ai works again: the sign-in page no longer
+  rejects a client that also lists grant types Needt does not issue (Claude
+  lists jwt-bearer), and only requires authorization_code.
+- Connecting Gmail or Outlook Mail no longer sends the browser to the
+  container address (`0.0.0.0:3000`): the mail and integration callbacks and
+  checkout build their URLs from `NEXTAUTH_URL`. A connected Gmail now shows as
+  Connected on the Connections screen (the card looked for provider `google`
+  while the mailbox reports `gmail`), and returning to the Mailbox says the
+  account is connected.
 - The app host is no longer indexed by search engines: every response carries
   `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
   a robots noindex meta tag, and robots.txt lets crawlers reach the public
@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole editor and re-applied its configuration, and the word count read the
   page's text. The page is now written to the recovery draft and saved after a
   short pause (and on closing the tab), and the editor's configuration is built once.
+- Trash now keeps its 30-day promise: the worker deletes tasks, pages and
+  moodboards that have sat in Trash for 30 days. Tasks can be deleted for good
+  (`DELETE /api/tasks/:id?permanent=true`, Trash only), Empty Trash takes them
+  too, and the phone Trash has Restore all.
 - Document previews: pinned documents in the sidebar and the rows of the Docs
   list wear the page's face with its title and first lines (not a generic
   icon), and a document you just edited (a checklist, say) shows its lines in the

@@ -5,6 +5,7 @@ import { ExternalIntegrationStatus } from "@prisma/client";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { publicAppUrl } from "@/lib/public-url";
 
 const LOG_SOURCE = "IntegrationCallbackAPI";
 
@@ -34,7 +35,5 @@ export async function GET(request: NextRequest) {
       LOG_SOURCE
     );
   }
-  return NextResponse.redirect(
-    new URL("/settings#integrations", request.nextUrl.origin)
-  );
+  return NextResponse.redirect(publicAppUrl("/settings#integrations", request));
 }

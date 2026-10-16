@@ -12,6 +12,7 @@ import {
   MSGraphUser,
   resolveOutlookAccountEmail,
 } from "@/lib/outlook";
+import { publicAppUrl } from "@/lib/public-url";
 import { enqueueMailSync, ensureMailSyncSchedule } from "@/lib/queue/enqueue";
 import { TokenManager } from "@/lib/token-manager";
 
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
     if (!entitlement.allowed) {
       return NextResponse.redirect(
-        new URL("/mail?error=mailbox-limit", request.url)
+        publicAppUrl("/mail?error=mailbox-limit", request)
       );
     }
     const connectionRef = await TokenManager.getInstance().storeTokens(
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
     await ensureMailSyncSchedule(account.id);
     await enqueueMailSync(account.id);
     return NextResponse.redirect(
-      new URL("/mail?connected=outlook", request.url)
+      publicAppUrl("/mail?connected=outlook", request)
     );
   } catch (error) {
     await logger.error(
@@ -86,6 +87,6 @@ export async function GET(request: NextRequest) {
       { error: error instanceof Error ? error.message : String(error) },
       LOG_SOURCE
     );
-    return NextResponse.redirect(new URL("/mail?error=outlook", request.url));
+    return NextResponse.redirect(publicAppUrl("/mail?error=outlook", request));
   }
 }

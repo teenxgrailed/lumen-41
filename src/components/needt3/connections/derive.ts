@@ -132,9 +132,10 @@ const CAL_PROVIDER: Record<string, string> = {
   "outlook-calendar": "outlook",
   "icloud-calendar": "caldav",
 };
-const MAIL_PROVIDER: Record<string, string> = {
-  gmail: "google",
-  "outlook-mail": "outlook",
+/** The mail account list reports GMAIL / OUTLOOK, lower-cased. */
+const MAIL_PROVIDER: Record<string, readonly string[]> = {
+  gmail: ["gmail", "google"],
+  "outlook-mail": ["outlook"],
 };
 
 /** The calendar entry whose OAuth client a mailbox shares. */
@@ -197,7 +198,9 @@ export function buildItems(
       const hits = accounts.filter(
         (a) =>
           a.kind === (calProvider ? "calendar" : "mail") &&
-          a.provider === (calProvider ?? mailProvider)
+          (calProvider
+            ? a.provider === calProvider
+            : (mailProvider ?? []).includes(a.provider))
       );
       if (!hits.length) return [base];
       return hits.map((hit) => ({

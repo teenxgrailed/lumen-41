@@ -18,6 +18,7 @@ import { collectOperationsHealth } from "@/services/operations/health";
 import {
   pruneAgentActionLog,
   pruneOrphanTrialGrants,
+  purgeExpiredTrash,
 } from "@/services/ops/retention";
 import {
   deliverTaskReminder,
@@ -263,6 +264,7 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await finalizeDueAccountDeletions();
   await pruneAgentActionLog();
   await pruneOrphanTrialGrants();
+  await purgeExpiredTrash();
 }
 
 async function processImport(job: Job<ImportJobData>) {

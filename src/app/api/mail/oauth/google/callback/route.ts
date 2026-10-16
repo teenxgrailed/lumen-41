@@ -8,6 +8,7 @@ import { canAddMailbox } from "@/lib/entitlements";
 import { createGoogleOAuthClient } from "@/lib/google";
 import { logger } from "@/lib/logger";
 import { createOAuthMailAccount } from "@/lib/mail-db";
+import { publicAppUrl } from "@/lib/public-url";
 import { enqueueMailSync, ensureMailSyncSchedule } from "@/lib/queue/enqueue";
 import { TokenManager } from "@/lib/token-manager";
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     });
     if (!entitlement.allowed) {
       return NextResponse.redirect(
-        new URL("/mail?error=mailbox-limit", request.url)
+        publicAppUrl("/mail?error=mailbox-limit", request)
       );
     }
     const connectionRef = await TokenManager.getInstance().storeTokens(
@@ -58,13 +59,15 @@ export async function GET(request: NextRequest) {
     });
     await ensureMailSyncSchedule(account.id);
     await enqueueMailSync(account.id);
-    return NextResponse.redirect(new URL("/mail?connected=gmail", request.url));
+    return NextResponse.redirect(
+      publicAppUrl("/mail?connected=gmail", request)
+    );
   } catch (error) {
     await logger.error(
       "Google mail OAuth failed",
       { error: error instanceof Error ? error.message : String(error) },
       LOG_SOURCE
     );
-    return NextResponse.redirect(new URL("/mail?error=google", request.url));
+    return NextResponse.redirect(publicAppUrl("/mail?error=google", request));
   }
 }

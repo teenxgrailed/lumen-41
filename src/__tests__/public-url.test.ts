@@ -30,8 +30,21 @@ describe("public URL helpers", () => {
     );
   });
 
+  it("uses forwarded headers before the internal request origin", () => {
+    delete process.env.NEXTAUTH_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const headers = new Headers({
+      "x-forwarded-host": "use.needt.app",
+      "x-forwarded-proto": "https",
+    });
+    expect(publicAppUrl("/mail", { ...request, headers }).toString()).toBe(
+      "https://use.needt.app/mail"
+    );
+  });
+
   it("falls back to the request origin when NEXTAUTH_URL is unavailable", () => {
     delete process.env.NEXTAUTH_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
 
     expect(publicRequestUrl(request).toString()).toBe(
       "http://0.0.0.0:3000/calendar?view=week"

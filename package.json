@@ -1,6 +1,6 @@
 {
   "name": "needt",
-  "description": "Needt: Everything you're working on, in one place",
+  "description": "Needt: AI Planner, Tasks, Docs",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "agent:context": "node scripts/agent-context.mjs",
+    "changelog:collect": "node scripts/changelog-collect.mjs",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/check-production-artifacts.mjs",
