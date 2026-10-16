@@ -112,7 +112,7 @@ function Trash({ over = {} as Partial<TrashController> }) {
 }
 
 describe("TrashScreen", () => {
-  it("lists pages first, with Restore on every row and Delete forever on pages and moodboards", () => {
+  it("lists pages first, with Restore and Delete forever on every row", () => {
     act(() => root.render(h(Trash, {})));
     expect($$(".pl-trash-h").map((e) => e.textContent)).toEqual([
       "Pages",
@@ -125,10 +125,10 @@ describe("TrashScreen", () => {
       "Ideas",
     ]);
     expect($$(".pl-trash-row")).toHaveLength(3);
-    expect($$("[data-trash-forever]")).toHaveLength(2);
+    expect($$("[data-trash-forever]")).toHaveLength(3);
     expect(
       $$(".pl-trash-row")[1].querySelector("[data-trash-forever]")
-    ).toBeNull();
+    ).not.toBeNull();
     expect($("[data-trash-empty]")?.textContent).toBe("Empty Trash");
   });
 
@@ -157,17 +157,28 @@ describe("TrashScreen", () => {
     });
   });
 
-  it("Empty Trash asks first, counts what goes and what stays, then runs for all", () => {
+  it("Delete forever on a task asks for that task", () => {
+    act(() => root.render(h(Trash, {})));
+    click($$("[data-trash-forever]")[1]);
+    expect(body().textContent).toContain("Delete “Old task” for good?");
+    click(body().querySelector("[data-trash-confirm]"));
+    expect(runAsk).toHaveBeenCalledWith({
+      kind: "task",
+      id: "k1",
+      title: "Old task",
+    });
+  });
+
+  it("Empty Trash asks first, counts what goes, then runs for all", () => {
     act(() => root.render(h(Trash, {})));
     click($("[data-trash-empty]"));
     expect(body().textContent).toContain("Empty Trash?");
-    expect(body().textContent).toContain("1 page and 1 moodboard");
-    expect(body().textContent).toContain("1 task stay in Trash");
+    expect(body().textContent).toContain("1 page, 1 task and 1 moodboard");
     click(body().querySelector("[data-trash-confirm]"));
     expect(runAsk).toHaveBeenCalledWith({ kind: "all" });
   });
 
-  it("tasks alone: nothing to empty, so no Empty Trash and no Delete forever", () => {
+  it("tasks alone: they can be emptied and deleted for good", () => {
     act(() =>
       root.render(
         h(Trash, {
@@ -179,8 +190,8 @@ describe("TrashScreen", () => {
         })
       )
     );
-    expect($("[data-trash-empty]")).toBeNull();
-    expect($$("[data-trash-forever]")).toHaveLength(0);
+    expect($("[data-trash-empty]")).not.toBeNull();
+    expect($$("[data-trash-forever]")).toHaveLength(1);
     // a lone Tasks list keeps its heading
     expect($$(".pl-trash-h").map((e) => e.textContent)).toEqual(["Tasks"]);
   });
