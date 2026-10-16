@@ -72,6 +72,9 @@ jobs:
   quality-gates:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     services:
       postgres:
         image: mirror.gcr.io/library/postgres:16-alpine
@@ -103,9 +106,12 @@ jobs:
           cache: npm
       - name: Warn when a PR edits CHANGELOG.md directly
         if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" 2>/dev/null | grep -qx 'CHANGELOG.md'; then
+          if gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' | grep -qx 'CHANGELOG.md'; then
             echo "::warning file=CHANGELOG.md::Do not edit CHANGELOG.md in a PR; add changelog.d/<slug>.md instead (see changelog.d/README.md)."
           fi
       - run: npm ci
