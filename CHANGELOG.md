@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Habits: a past day can be marked or unmarked
+  (`PUT/DELETE /api/habits/:id/completions/:date`, up to 400 days back). On the
+  phone each habit has a "Past days" panel with its last four months, and
+  streaks count past 14 days; on the desktop, pick one habit in "Last four
+  months" and click a past dot.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
