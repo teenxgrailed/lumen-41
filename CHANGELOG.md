@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Admin Overview (`/admin`): users total and new in 7 days, active trials, Pro,
+  Lifetime and Free counts, waitlist size, and the app and worker build SHAs
+  (a warning when they differ). `GET /api/admin/overview` (admin only). Users
+  now carry a `createdAt` (additive column; older accounts are backfilled from
+  their trial start where there is one).
 - Admin panel: one `/admin` frame with a left nav (a row of tabs on a phone) in
   the v3 design, shared by Integrations (`/admin/system`) and Operations
   (`/admin/operations`). Inputs on the admin pages no longer render black on
