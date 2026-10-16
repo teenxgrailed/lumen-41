@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { addDays } from "@/lib/needt3/derive";
 import { useCreateEvent } from "@/lib/needt3/hooks/events";
@@ -57,6 +59,29 @@ export function useMailbox() {
   const trashTask = useTrashTask();
   const createEvent = useCreateEvent();
   const sync = useMailSync();
+  const queryClient = useQueryClient();
+
+  // The OAuth callback returns to /mail?connected=gmail (or ?error=...):
+  // say what happened, refresh the account lists, drop the params.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const error = params.get("error");
+    if (!connected && !error) return;
+    if (connected === "gmail") notify.success(notices.connectedGmail);
+    else if (connected === "outlook") notify.success(notices.connectedOutlook);
+    else if (error === "mailbox-limit") notify.warning(notices.mailboxLimit);
+    else if (error) notify.error(notices.connectFailed);
+    void queryClient.invalidateQueries();
+    params.delete("connected");
+    params.delete("error");
+    const rest = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`
+    );
+  }, [queryClient]);
 
   const [tab, setTab] = useState<MailTab>("needs");
   const [openId, setOpenId] = useState<string | null>(null);

@@ -21,6 +21,10 @@ export const notices = {
   // not in the prototype
   taskTakenBack: "Task moved to Trash",
   syncing: "Syncing your mail…",
+  connectedGmail: "Gmail connected. Importing your mail…",
+  connectedOutlook: "Outlook connected. Importing your mail…",
+  connectFailed: "Could not connect the mailbox.",
+  mailboxLimit: "Your plan has no room for another mailbox.",
   nothingToSync: "There is no connected account to sync.",
   syncFailed: "Could not start the sync. Try again in a moment.",
 } as const;
