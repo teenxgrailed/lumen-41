@@ -125,6 +125,30 @@ export interface ChatPanelProps {
   onPopLast: () => string | null;
 }
 
+/** The messages mounted while the panel is still flying in; the rest follow. */
+export const OPEN_TAIL = 4;
+/** The dock card's entrance (chat.css v3-chat-spring-in 460ms) plus slack. */
+const OPEN_SETTLE_MS = 500;
+
+/**
+ * True once the panel's entrance is over. A long thread is not mounted
+ * during it: only the latest lines are, so the first frames of the motion are
+ * not spent on rows nobody can see yet. Reduced motion has no entrance.
+ */
+function useSettled(need: boolean): boolean {
+  const [done, setDone] = React.useState(false);
+  React.useEffect(() => {
+    if (!need || done) return undefined;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDone(true);
+      return undefined;
+    }
+    const t = window.setTimeout(() => setDone(true), OPEN_SETTLE_MS);
+    return () => window.clearTimeout(t);
+  }, [need, done]);
+  return !need || done;
+}
+
 export function ChatPanel({
   messages,
   phase,
@@ -152,6 +176,8 @@ export function ChatPanel({
   const busy = phase !== "idle";
   const last = messages[messages.length - 1];
   const empty = messages.length === 0;
+  const settled = useSettled(messages.length > OPEN_TAIL);
+  const hidden = settled ? 0 : Math.max(0, messages.length - OPEN_TAIL);
 
   const query = mentionQuery(draft);
   const mentionItems = useMentionItems(menuOff === draft ? null : query);
@@ -164,15 +190,23 @@ export function ChatPanel({
   const menuLen = menu === "slash" ? commands.length : mentionItems.length;
 
   React.useEffect(() => {
-    field.current?.focus();
+    // preventScroll: the card is mid-flight inside a clipped slot, and
+    // focus would otherwise scroll that slot to the field.
+    field.current?.focus({ preventScroll: true });
   }, []);
   React.useEffect(() => setMenuIdx(0), [draft]);
 
-  /* Keep the newest line in view while it thinks and streams. */
+  /* Keep the newest line in view while it thinks and streams. The read of
+     the height waits for the next frame, so a burst of tokens measures once
+     and the first mount does not force a layout inside the entrance. */
   React.useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, phase]);
+    if (!el || empty) return undefined;
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [messages, phase, empty, settled]);
 
   const clear = () => {
     setDraft("");
@@ -384,12 +418,13 @@ export function ChatPanel({
             </div>
           </div>
         ) : (
-          messages.map((m) => {
+          messages.slice(hidden).map((m, at) => {
+            const old = settled && at < messages.length - OPEN_TAIL;
             if (m.from === "you") {
               return (
                 <div
                   key={m.id}
-                  className="chat-msg is-you chat-msg-in"
+                  className={`chat-msg is-you chat-msg-in${old ? " is-history" : ""}`}
                   data-chat-msg="you"
                 >
                   <span className="chat-bubble-row">
@@ -402,7 +437,10 @@ export function ChatPanel({
             const live = busy && m === last;
             if (live && phase === "thinking" && !m.text) {
               return (
-                <div key={m.id} className="chat-msg is-ai chat-msg-in">
+                <div
+                  key={m.id}
+                  className={`chat-msg is-ai chat-msg-in${old ? " is-history" : ""}`}
+                >
                   <span className="chat-avatar">
                     <AiOrb size={22} active />
                   </span>
@@ -415,7 +453,7 @@ export function ChatPanel({
             return (
               <div
                 key={m.id}
-                className="chat-msg is-ai chat-msg-in"
+                className={`chat-msg is-ai chat-msg-in${old ? " is-history" : ""}`}
                 data-chat-msg="needt"
               >
                 <span className="chat-avatar">
