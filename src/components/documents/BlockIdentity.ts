@@ -3,7 +3,13 @@ import { Plugin } from "@tiptap/pm/state";
 
 import { randomId } from "@/lib/uuid";
 
-const IDENTITY_BLOCKS = [
+/**
+ * Top-level node types that carry a stable `blockId` (comments, block links
+ * and the API address blocks by it). Every name is a node in the page schema;
+ * `needtPageBlock` declares its own `blockId` attribute, so it is not listed.
+ * A test checks that each name here exists in the schema.
+ */
+export const IDENTITY_BLOCKS = [
   "paragraph",
   "heading",
   "bulletList",
@@ -13,8 +19,7 @@ const IDENTITY_BLOCKS = [
   "codeBlock",
   "horizontalRule",
   "image",
-  "taskReference",
-  "taskGroupReference",
+  "table",
 ];
 
 export const BlockIdentity = Extension.create({
@@ -46,9 +51,7 @@ export const BlockIdentity = Extension.create({
           newState.doc.forEach((node, offset) => {
             if (!node.type.spec.attrs?.blockId) return;
             const blockId =
-              typeof node.attrs.blockId === "string"
-                ? node.attrs.blockId
-                : "";
+              typeof node.attrs.blockId === "string" ? node.attrs.blockId : "";
             if (blockId && !seen.has(blockId)) {
               seen.add(blockId);
               return;

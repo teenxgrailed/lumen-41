@@ -152,6 +152,16 @@
   color: var(--text-disabled);
 }
 
+/* a block opened by its link (#blockId): ringed for a moment */
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-block-flash] {
+  border-radius: var(--radius-lg);
+  background: var(--fill-2);
+  box-shadow: 0 0 0 6px var(--fill-2);
+  transition:
+    background 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
 /* headings: one level in the prototype (600 20 / 26); the editor has three */
 .needt-v3 [data-doc-sheet] .needt-page-editor :is(h1, h2, h3) {
   margin-top: 24px;

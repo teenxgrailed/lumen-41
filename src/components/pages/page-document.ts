@@ -14,6 +14,7 @@ const NODE_TO_BLOCK: Record<string, PageBlockType> = {
   codeBlock: "CODE",
   horizontalRule: "DIVIDER",
   image: "IMAGE",
+  table: "TABLE",
 };
 
 export function blockTypeForNode(node: JSONContent): PageBlockType {

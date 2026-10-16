@@ -79,6 +79,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 
+import { BlockFlash } from "@/components/documents/BlockFlash";
 import {
   BlockIdentity,
   ensureBlockIds,
@@ -88,6 +89,7 @@ import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
+import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
 import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
 import {
   PageAutosave,
@@ -111,6 +113,18 @@ import {
   legacyPageHtml,
   pageBlocksFromDocument,
 } from "@/components/pages/page-document";
+import {
+  blockIdFromHash,
+  blockInsertRange,
+  linkAtSelection,
+  revealBlock,
+  slashAtSelection,
+} from "@/components/pages/page-editor-logic";
+import {
+  imageFilesFromTransfer,
+  nameForPastedFile,
+  uploadPageAsset,
+} from "@/components/pages/page-media";
 import type { PageDetail } from "@/components/pages/page-types";
 import { useKeyboardLift } from "@/components/pages/use-keyboard-lift";
 import {
@@ -442,11 +456,9 @@ const PAGE_PERMISSION_OPTIONS = [
 ];
 
 function removeSlashText(editor: Editor) {
-  const { $from } = editor.state.selection;
-  return editor
-    .chain()
-    .focus()
-    .deleteRange({ from: $from.start(), to: $from.end() });
+  const hit = slashAtSelection(editor);
+  const chain = editor.chain().focus();
+  return hit ? chain.deleteRange({ from: hit.from, to: hit.to }) : chain;
 }
 
 function decodeCollaborationState(value: string) {
@@ -525,6 +537,11 @@ export function PageWorkspace({
     left: number;
   } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [linkDialog, setLinkDialog] = useState<{
+    from: number;
+    to: number;
+    href: string;
+  } | null>(null);
   const [mobileFormatOpen, setMobileFormatOpen] = useState(false);
   const [mobileInsertOpen, setMobileInsertOpen] = useState(false);
   const [mobileBlockHandle, setMobileBlockHandle] =
@@ -863,6 +880,7 @@ export function PageWorkspace({
       }),
       TableKit.configure({ table: { resizable: true } }),
       BlockIdentity,
+      BlockFlash,
       PageBlockNode,
       Collaboration.configure({ document: collaborationDocument }),
       CollaborationCaret.configure({
@@ -875,6 +893,11 @@ export function PageWorkspace({
   // The slash menu's keys read the latest render's state through a ref, so
   // the props object itself never changes.
   const editorKeyDown = useRef<(event: KeyboardEvent) => boolean>(() => false);
+  // Pasted and dropped images: the handlers only hand the files over; the
+  // upload and the insert live in `insertImageFiles`, read through this ref.
+  const imageFiles = useRef<(files: File[], pos: number | null) => void>(
+    () => undefined
+  );
   const editorProps = useMemo(
     () => ({
       attributes: {
@@ -886,6 +909,31 @@ export function PageWorkspace({
       scrollThreshold: { top: 96, bottom: 168, left: 0, right: 0 },
       handleKeyDown: (_view: unknown, event: KeyboardEvent) =>
         editorKeyDown.current(event),
+      handlePaste: (_view: unknown, event: ClipboardEvent) => {
+        const files = imageFilesFromTransfer(event.clipboardData);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        imageFiles.current(files, null);
+        return true;
+      },
+      handleDrop: (
+        view: {
+          posAtCoords: (c: { left: number; top: number }) => {
+            pos: number;
+          } | null;
+        },
+        event: DragEvent
+      ) => {
+        const files = imageFilesFromTransfer(event.dataTransfer);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        const at = view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+        imageFiles.current(files, at ? at.pos : null);
+        return true;
+      },
     }),
     []
   );
@@ -908,25 +956,21 @@ export function PageWorkspace({
       }
       schedulePreview(current);
 
-      const { $from } = current.state.selection;
-      const match = $from.parent.textContent.match(/^\/([^\s]*)$/);
-      if (!match) {
+      const hit = slashAtSelection(current);
+      if (!hit) {
         setSlash(null);
         return;
       }
       const caret = current.view.coordsAtPos(current.state.selection.from);
       setSlash({
-        query: match[1].toLowerCase(),
+        query: hit.query.toLowerCase(),
         top: caret.bottom + 8,
         left: Math.max(8, Math.min(caret.left, window.innerWidth - 328)),
       });
       setSlashIndex(0);
     },
     onSelectionUpdate: ({ editor: current }) => {
-      if (
-        !/^\/([^\s]*)$/.test(current.state.selection.$from.parent.textContent)
-      )
-        setSlash(null);
+      if (!slashAtSelection(current)) setSlash(null);
     },
   });
 
@@ -936,6 +980,44 @@ export function PageWorkspace({
       `${command.label} ${command.keywords}`.toLowerCase().includes(slash.query)
     );
   }, [slash?.query]);
+
+  // Link on selected text (selection bar, Mod+K, "Link…" in the context menu).
+  // With the caret in a link it edits that link; with nothing selected and no
+  // link it is the old Link block.
+  const openLinkDialog = () => {
+    if (!editor || !canEdit) return;
+    const existing = linkAtSelection(editor);
+    if (existing) {
+      setLinkDialog(existing);
+      return;
+    }
+    const { from, to, empty } = editor.state.selection;
+    if (empty) {
+      commandRef.current("LINK", false);
+      return;
+    }
+    setLinkDialog({ from, to, href: "" });
+  };
+  const applyLink = (href: string) => {
+    if (!editor || !linkDialog) return;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: linkDialog.from, to: linkDialog.to })
+      .setLink({ href })
+      .run();
+    setLinkDialog(null);
+  };
+  const removeLink = () => {
+    if (!editor || !linkDialog) return;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: linkDialog.from, to: linkDialog.to })
+      .unsetLink()
+      .run();
+    setLinkDialog(null);
+  };
 
   editorKeyDown.current = (event) => {
     if (slash && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
@@ -948,9 +1030,30 @@ export function PageWorkspace({
       });
       return true;
     }
-    if (slash && event.key === "Enter" && filteredCommands[slashIndex]) {
+    if (slash && event.key === "Enter") {
+      if (filteredCommands[slashIndex]) {
+        event.preventDefault();
+        applyCommand(filteredCommands[slashIndex].id);
+        return true;
+      }
+      // Nothing matched: Enter is an ordinary Enter, the menu steps aside.
+      setSlash(null);
+      return false;
+    }
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.key.toLowerCase() === "k" &&
+      canEdit &&
+      editor &&
+      (!editor.state.selection.empty || editor.isActive("link"))
+    ) {
+      // Mod+K on text is a link (the shell's palette keeps Mod+K elsewhere,
+      // and in the editor when nothing is selected).
       event.preventDefault();
-      applyCommand(filteredCommands[slashIndex].id);
+      event.stopPropagation();
+      openLinkDialog();
       return true;
     }
     if (event.key === "Escape") setSlash(null);
@@ -1175,6 +1278,35 @@ export function PageWorkspace({
     router,
     updateCollaborationStatus,
   ]);
+
+  // "Copy link" gives /pages/<id>#<blockId>: open it, scroll to that block and
+  // mark it for a moment. The page loads (and, with collaboration, fills)
+  // after this runs, so the block is looked for until it appears.
+  useEffect(() => {
+    if (!editor) return undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let off = false;
+    const reveal = () => {
+      const id = blockIdFromHash(window.location.hash);
+      if (!id) return;
+      if (timer) clearTimeout(timer);
+      let tries = 0;
+      const attempt = () => {
+        if (off) return;
+        if (hydrated.current && revealBlock(editor, id)) return;
+        tries += 1;
+        if (tries < 30) timer = setTimeout(attempt, 150);
+      };
+      attempt();
+    };
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => {
+      off = true;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("hashchange", reveal);
+    };
+  }, [editor, pageId]);
 
   useEffect(() => {
     void fetch("/api/pages/metadata")
@@ -1691,32 +1823,52 @@ export function PageWorkspace({
     setSlash(null);
   };
 
+  // An image pasted or dropped into the page goes through the same upload as
+  // the Image dialog and becomes the same block.
+  const insertImageFiles = (files: File[], pos: number | null) => {
+    if (!editor || !canEdit) return;
+    const at = pos ?? editor.state.selection.to;
+    void (async () => {
+      try {
+        const assets = [];
+        for (const [index, file] of files.entries()) {
+          assets.push(
+            await uploadPageAsset(pageId, nameForPastedFile(file, index))
+          );
+        }
+        if (editor.isDestroyed) return;
+        const range = blockInsertRange(editor.state.doc, at);
+        const content: JSONContent[] = assets.map((asset) => ({
+          type: "needtPageBlock",
+          attrs: {
+            blockId: randomId(),
+            kind: "IMAGE",
+            data: JSON.stringify(asset),
+          },
+        }));
+        if (range.replace || range.atEnd) content.push({ type: "paragraph" });
+        editor
+          .chain()
+          .focus()
+          .insertContentAt({ from: range.from, to: range.to }, content)
+          .run();
+      } catch (error) {
+        notify.error(
+          error instanceof Error ? error.message : "Could not upload image"
+        );
+      }
+    })();
+  };
+  imageFiles.current = insertImageFiles;
+
   const submitSpecial = async () => {
     if (!pendingInsert) return;
     if (pendingInsert === "IMAGE" || pendingInsert === "FILE") {
       if (!pendingFile) return;
       setIsUploading(true);
       try {
-        const form = new FormData();
-        form.set("file", pendingFile);
-        const response = await fetch(`/api/pages/${pageId}/assets`, {
-          method: "POST",
-          body: form,
-        });
-        const data = (await response.json()) as {
-          asset?: { id: string; originalName: string; mimeType: string };
-          url?: string;
-          error?: string;
-        };
-        if (!response.ok || !data.asset || !data.url) {
-          throw new Error(data.error || "Upload failed");
-        }
-        insertSpecial(pendingInsert, data.url, {
-          url: data.url,
-          assetId: data.asset.id,
-          name: data.asset.originalName,
-          mimeType: data.asset.mimeType,
-        });
+        const asset = await uploadPageAsset(pageId, pendingFile);
+        insertSpecial(pendingInsert, asset.url, { ...asset });
       } catch (error) {
         notify.error(
           error instanceof Error ? error.message : "Could not upload asset"
@@ -1837,9 +1989,10 @@ export function PageWorkspace({
           .catch(() => setMentionPages([]));
         setPendingMentionId(null);
       }
-      const { $from, from } = editor.state.selection;
-      pendingRange.current = fromSlash
-        ? { from: $from.start(), to: $from.end() }
+      const { from } = editor.state.selection;
+      const hit = fromSlash ? slashAtSelection(editor) : null;
+      pendingRange.current = hit
+        ? { from: hit.from, to: hit.to }
         : { from, to: from };
       setPendingInsert(command);
       setPendingFile(null);
@@ -1950,6 +2103,10 @@ export function PageWorkspace({
   // The editor's own context menu (right-click; the browser's stays on
   // Shift + right-click). The rows come from `page-context-menu`; the CtxLayer
   // draws them, themed, inside the viewport, with arrows and Esc.
+  const openLinkDialogRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    openLinkDialogRef.current = openLinkDialog;
+  });
   const menuLatest = useRef({ openTool, hasComments: false });
   menuLatest.current = { openTool, hasComments: comments.length > 0 };
   useEffect(() => {
@@ -2012,7 +2169,7 @@ export function PageWorkspace({
           else if (mark === "strike") chain.toggleStrike().run();
           else chain.toggleCode().run();
         },
-        link: () => commandRef.current("LINK", false),
+        link: () => openLinkDialogRef.current(),
         ask: () =>
           askNeedt(
             askAbout(
@@ -2708,6 +2865,12 @@ export function PageWorkspace({
                     icon: Code2,
                     run: () => editor.chain().focus().toggleCode().run(),
                   },
+                  {
+                    label: "Link",
+                    active: editor.isActive("link"),
+                    icon: Link2,
+                    run: openLinkDialog,
+                  },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (
@@ -2761,7 +2924,6 @@ export function PageWorkspace({
         )}
 
         {slash &&
-          filteredCommands.length > 0 &&
           createPortal(
             <>
               <button
@@ -2787,6 +2949,14 @@ export function PageWorkspace({
                 <div className="px-2.5 pb-1.5 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
                   Blocks
                 </div>
+                {filteredCommands.length === 0 && (
+                  <p
+                    role="status"
+                    className="px-2.5 py-2 text-[13px] text-[var(--text-muted)]"
+                  >
+                    No blocks match
+                  </p>
+                )}
                 {filteredCommands.map((command, index) => {
                   const Icon = command.icon;
                   return (
@@ -2923,7 +3093,7 @@ export function PageWorkspace({
               );
             })}
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-5 gap-2">
             {[
               {
                 label: "Bold",
@@ -2944,6 +3114,11 @@ export function PageWorkspace({
                 label: "Code",
                 icon: Code2,
                 run: () => editor?.chain().focus().toggleCode().run(),
+              },
+              {
+                label: "Link",
+                icon: Link2,
+                run: openLinkDialog,
               },
             ].map((action) => {
               const Icon = action.icon;
@@ -3033,6 +3208,14 @@ export function PageWorkspace({
           </div>
         </BottomSheetContent>
       </BottomSheet>
+
+      <PageLinkDialog
+        open={linkDialog !== null}
+        initialHref={linkDialog?.href ?? ""}
+        onApply={applyLink}
+        onRemove={removeLink}
+        onClose={() => setLinkDialog(null)}
+      />
 
       <Dialog
         open={Boolean(pendingInsert)}

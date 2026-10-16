@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document editor, first pass: **Link** in the selection bar (and in the
+  context menu and the phone Format sheet) now links the selected text, with
+  **Mod+K**; the Link block is only used when nothing is selected. The `/` menu
+  opens at the start of any word, not only in an empty line, and says "No
+  blocks match" instead of vanishing. Images can be pasted or dropped into a
+  page (same upload as the Image block). `/pages/<id>#<blockId>` now scrolls to
+  and marks that block. Tables (and special blocks) keep a stable `blockId`
+  between saves, and a table is stored as type `TABLE`.
 - Connecting Gmail or Outlook Mail no longer sends the browser to the
   container address (`0.0.0.0:3000`): the mail and integration callbacks and
   checkout build their URLs from `NEXTAUTH_URL`. A connected Gmail now shows as
