@@ -139,6 +139,7 @@ export interface ApiTask {
   scheduleId?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  completedAt?: string | null;
   /** TaskPart rows, ordered by `position` (GET /api/tasks, /api/tasks/[id]). */
   parts?: ApiTaskPart[];
   /** Open TaskWait rows (`resolvedAt: null`). */
@@ -236,6 +237,8 @@ export interface V3Task {
   repeat: string | null;
   scheduleId: string | null;
   updatedAt: string | null;
+  /** "YYYY-MM-DDTHH:mm", local — when it was closed (absent until the server says). */
+  completedAt?: string | null;
   /** Parts in order; `[]` when the task has none. */
   parts: V3TaskPart[];
   /** Open waits; `[]` when the task waits on no one. */
@@ -283,6 +286,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     repeat: row.isRecurring ? (row.recurrenceRule ?? null) : null,
     scheduleId: row.scheduleId ?? null,
     updatedAt: row.updatedAt ?? null,
+    completedAt: isoToStamp(row.completedAt, tz),
     parts: [...(row.parts ?? [])]
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map(partFromApi),
@@ -292,7 +296,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
 
 /** Fields a v3 screen may write. `done` maps to `status`. */
 export type V3TaskPatch = Partial<
-  Omit<V3Task, "id" | "status" | "updatedAt" | "movedFrom" | "parts" | "waits">
+  Omit<V3Task, "id" | "status" | "updatedAt" | "completedAt" | "movedFrom" | "parts" | "waits">
 >;
 
 /**

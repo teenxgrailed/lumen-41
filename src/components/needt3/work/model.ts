@@ -13,6 +13,14 @@ import {
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import {
+  DEFAULT_TASK_VIEW,
+  type TaskViewSettings,
+  comparatorFor,
+  groupTasks,
+  overdueOnTop,
+  showsTask,
+} from "@/lib/needt3/task-view";
+import {
   hourOn,
   isOnToday,
   isOverdue as overdue,
@@ -127,8 +135,11 @@ export function workModel(opts: {
   filter?: ProjectFilter;
   /** Projects → List: no Inbox section, Done only from projects. */
   projectsOnly?: boolean;
+  /** The person's task view (`@/lib/needt3/task-view`); defaults to the old behaviour. */
+  view?: TaskViewSettings;
 }): WorkModel {
   const { projects, today, tab, projectsOnly } = opts;
+  const view = opts.view ?? DEFAULT_TASK_VIEW;
   const liveAll = opts.tasks.filter((t) => !t.noSlot && !t.trashedAt);
   const noneOpen = liveAll.some((t) => !t.projectId && !t.done);
   const ok = (k: string) =>
@@ -202,15 +213,31 @@ export function workModel(opts: {
         t.done && (!projectsOnly || (!!t.projectId && ids.has(t.projectId)))
     );
   }
+  const order = (key: string) =>
+    view.sort === "time"
+      ? key === "today"
+        ? byTimeOn(today)
+        : byTime
+      : comparatorFor(view.sort);
   sections = sections
     .map((s) => ({
       ...s,
       tasks: sorted(
         s.tasks.filter((t) => !t.done),
-        s.key === "today" ? byTimeOn(today) : byTime
+        order(s.key)
       ),
     }))
     .filter((s) => s.tasks.length);
+  // Group: by project or priority replaces the tab's own day sections; the
+  // tab still decides which tasks are in. Overdue on top applies to both.
+  if (view.group !== "date")
+    sections = groupTasks(
+      sections.flatMap((s) => s.tasks),
+      view.group,
+      view.sort,
+      projects
+    );
+  sections = overdueOnTop(sections, view.overdueFirst, today, view.sort);
 
   return {
     live,
@@ -222,7 +249,10 @@ export function workModel(opts: {
       all: null,
     },
     sections,
-    done: sorted(done, byTime),
+    done: sorted(
+      done.filter((t) => showsTask(t, view, today)),
+      byTime
+    ),
   };
 }
 
@@ -287,7 +317,8 @@ type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
 export function projectGroups(
   projectId: string,
   tasks: readonly V3Task[],
-  today: string
+  today: string,
+  view: TaskViewSettings = DEFAULT_TASK_VIEW
 ) {
   const mine = tasks.filter((t) => t.projectId === projectId);
   const open = mine.filter((t) => !t.done);
@@ -304,33 +335,48 @@ export function projectGroups(
     return "No date";
   };
   const of = (k: ProjectGroupKey) => open.filter((t) => groupOf(t) === k);
-  const groups: Section[] = [
+  // sort by time keeps the page's own orders (late by day, today by hour);
+  // priority and due day replace them inside every group
+  const by = <T extends WorkTask>(f: (a: T, b: T) => number) =>
+    view.sort === "time" ? f : comparatorFor(view.sort);
+  const base: Section[] = [
     {
       key: "Overdue",
       title: "Overdue",
       tone: "late" as const,
-      tasks: flowOrder(sorted(of("Overdue"), byDay)),
+      tasks: flowOrder(sorted(of("Overdue"), by(byDay))),
     },
     {
       key: "Today",
       title: "Today",
-      tasks: flowOrder(sorted(of("Today"), byTimeOn(today))),
+      tasks: flowOrder(sorted(of("Today"), by(byTimeOn(today)))),
     },
     {
       key: "Upcoming",
       title: "Upcoming",
-      tasks: flowOrder(sorted(of("Upcoming"), byDay)),
+      tasks: flowOrder(sorted(of("Upcoming"), by(byDay))),
     },
     {
       key: "No date",
       title: "No date",
-      tasks: flowOrder(of("No date")),
+      tasks: flowOrder(
+        view.sort === "time" ? of("No date") : sorted(of("No date"), by(byDay))
+      ),
     },
   ].filter((g) => g.tasks.length);
+  // Overdue on top: off, they sit with Today (or the first group) by the sort
+  const groups: Section[] = view.overdueFirst
+    ? base
+    : overdueOnTop(
+        base.map((g) => ({ ...g, key: g.key === "Overdue" ? "overdue" : g.key })),
+        false,
+        today,
+        view.sort
+      ).map((g) => ({ ...g, key: g.key === "today" ? "Today" : g.key }));
   return {
     groups,
     done: sorted(
-      mine.filter((t) => t.done),
+      mine.filter((t) => t.done && showsTask(t, view, today)),
       byTime
     ),
   };

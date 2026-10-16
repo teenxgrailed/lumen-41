@@ -18,6 +18,9 @@ import {
   useSettings,
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
+import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
+
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -117,6 +120,7 @@ function WorkScreenContent({
   const projectsQ = useProjects();
   const settings = useSettings();
   const setPref = useSetPref();
+  const taskView = useTaskView();
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
   const { params, setParam } = useTaskParam();
 
@@ -161,6 +165,7 @@ function WorkScreenContent({
     tab,
     filter: pf,
     projectsOnly: isProjects,
+    view: taskView,
   });
   const liveAll = tasks.filter((t) => !t.noSlot);
   const listOn = !isProjects || (pview === "list" && !projectId);
@@ -307,6 +312,7 @@ function WorkScreenContent({
             ))}
           </span>
         )}
+        {isProjects ? null : <TaskViewGear scope="tasks" />}
       </header>
       <ProjectSheet
         open={sheetOpen}
