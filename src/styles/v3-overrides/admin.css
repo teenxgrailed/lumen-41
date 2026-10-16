@@ -216,6 +216,98 @@
   white-space: nowrap;
 }
 
+/* --- Toolbar, facts, action rows -------------------------------------------
+ * One form-row geometry: text on the left, the control on the right, 32px
+ * controls, and a label that does not fit wraps instead of widening a column. */
+.needt-v3 .admin-toolbar {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+}
+.needt-v3 .admin-link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.needt-v3 .admin-link:hover {
+  text-decoration: underline;
+}
+.needt-v3 .admin-facts {
+  display: grid;
+  gap: 12px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  margin: 0;
+}
+.needt-v3 .admin-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.needt-v3 .admin-fact dd {
+  margin: 0;
+}
+.needt-v3 .admin-fact-value {
+  font: var(--type-ui);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .admin-rows {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+}
+.needt-v3 .admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .admin-row:first-child {
+  box-shadow: none;
+}
+.needt-v3 .admin-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.needt-v3 .admin-row-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-row-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .admin-days {
+  width: 72px;
+}
+.needt-v3 .admin-section-title {
+  margin: 0 0 8px;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .admin-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* --- Confirm dialog -------------------------------------------------------- */
 .needt-v3 .admin-confirm {
   display: flex;
