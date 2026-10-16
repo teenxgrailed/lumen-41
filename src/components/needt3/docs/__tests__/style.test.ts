@@ -158,7 +158,9 @@ describe("ink", () => {
       "--dt-head-l": "#6b1f33",
       "--dt-head-d": "#f2b8c6",
     });
-    expect(pageVars(DOC_DEFAULT, () => "")).toEqual({});
+    // No tokens at all: the shipped values stand in, so the card has a page
+    // and an ink from the first frame.
+    expect(pageVars(DOC_DEFAULT, () => "")["--dt-page-l"]).toBe("#ffffff");
     expect(rgbOf("#102030")).toBe("16, 32, 48");
   });
 });

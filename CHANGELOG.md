@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The app host is no longer indexed by search engines: every response carries
+  `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
+  a robots noindex meta tag, and robots.txt lets crawlers reach the public
+  entry pages (sign-in, privacy, terms, subprocessors) so they can see it.
+
+- Document text is readable on every page style, in Light, Dark and Time: the
+  ink now always clears 4.5:1 on the page (whatever Text colour was chosen),
+  and a page whose colours could not be read yet no longer starts without a
+  page colour. A test checks every page x text colour x theme side.
+- Right-click inside a document opens Needt's own menu: for selected text (Cut,
+  Copy, Paste, Turn into, Bold, Italic, Link, Ask Needt about this, Comment when
+  the page has comments) and for a block (Turn into, Duplicate, Move up/down,
+  Copy link, Delete). Shift + right-click still opens the browser's menu. On a
+  phone, tap the block's grip.
+- Documents on a phone: the editing toolbar rides on the keyboard (with Done),
+  the "/" block sheet sits above it, page text always selects, checklist boxes
+  have a 44px tap area, and the caret scrolls clear of the toolbar.
+
 - The AI tools tab no longer needs `NEXT_PUBLIC_MCP_OAUTH_URL`: the OAuth host defaults to `https://mcp.needt.app/mcp` (that variable is baked in by CI, not Coolify, so setting it in Coolify had no effect).
 - Documents no longer lag while you type. Three things ran on every keystroke:
   the whole page was turned into JSON and written to local storage, a
