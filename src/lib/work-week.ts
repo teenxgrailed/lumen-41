@@ -280,6 +280,33 @@ export function timeChoices(
   return list.includes(own) ? list : [...list, own].sort();
 }
 
+/** The single-range columns as the settings API stores them. */
+export function legacyColumns(week: WeekHours) {
+  const l = legacyFromWeek(week);
+  return {
+    workDays: JSON.stringify(l.workDays),
+    workHourStart: l.workHourStart,
+    workHourEnd: l.workHourEnd,
+  };
+}
+
+/** One line for a day: "09:00-13:00, 14:00-18:00" or "Off". */
+export function describeDay(entry: WeekDay): string {
+  return entry.on && entry.ranges.length > 0
+    ? entry.ranges.map((r) => `${r.start}-${r.end}`).join(", ")
+    : "Off";
+}
+
+export const DAY_NAMES: Record<number, string> = {
+  0: "Sunday",
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+};
+
 /** True when every range is valid and ranges on a day do not overlap. */
 export function weekIsValid(week: WeekHours): boolean {
   try {

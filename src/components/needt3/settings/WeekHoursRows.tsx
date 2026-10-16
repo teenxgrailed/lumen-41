@@ -12,6 +12,7 @@ import {
   setDayOn,
   setRange,
   timeChoices,
+  weekFromLegacy,
 } from "@/lib/work-week";
 
 import { SBtn, SRow, SSelect, V3Switch } from "./kit";
@@ -34,7 +35,7 @@ const pairs = (list: string[]) => list.map((t) => [t, t] as const);
  * inside the row; the control column is never widened.
  */
 export function WeekHoursRows({
-  week,
+  week: loaded,
   disabled,
   onChange,
 }: {
@@ -42,6 +43,8 @@ export function WeekHoursRows({
   disabled?: boolean;
   onChange: (next: WeekHours) => void;
 }) {
+  // Before the schedule loads the days show as off and cannot be edited.
+  const week = loaded.length ? loaded : weekFromLegacy([], 9, 17);
   const firstOn = WEEK_ORDER.find((d) => week.find((e) => e.day === d)?.on);
   return (
     <>

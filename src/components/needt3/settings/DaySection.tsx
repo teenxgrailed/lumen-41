@@ -6,11 +6,7 @@ import { FiChevronRight } from "react-icons/fi";
 
 import { useSchedule, useUpdateSchedule } from "@/lib/needt3/hooks/account";
 import { useSettings, useUpdateSettings } from "@/lib/needt3/hooks/settings";
-import {
-  type WeekHours,
-  legacyFromWeek,
-  weekIsValid,
-} from "@/lib/work-week";
+import { type WeekHours, legacyColumns, weekIsValid } from "@/lib/work-week";
 
 import { useMark } from "./SettingsContext";
 import { WeekHoursRows } from "./WeekHoursRows";
@@ -20,6 +16,10 @@ import { SGroup, SRow, SSelect } from "./kit";
 const WEEK: readonly (readonly [string, string])[] = [
   ["monday", "Monday"],
   ["sunday", "Sunday"],
+];
+const CLOCKS: readonly (readonly [string, string])[] = [
+  ["24h", "24-hour"],
+  ["12h", "12-hour"],
 ];
 const VIEWS: readonly (readonly [string, string])[] = [
   ["week", "Week"],
@@ -39,16 +39,6 @@ export function zoneOptions(current: string) {
   }
   const list = all.includes(current) ? all : [current, ...all];
   return list.map((z) => [z, z.replace(/_/g, " ")] as const);
-}
-
-/** The single-range columns the week summarises, in their stored shapes. */
-function legacyStrings(week: WeekHours) {
-  const l = legacyFromWeek(week);
-  return {
-    workDays: JSON.stringify(l.workDays),
-    workHourStart: l.workHourStart,
-    workHourEnd: l.workHourEnd,
-  };
 }
 
 export function DaySection() {
@@ -77,7 +67,7 @@ export function DaySection() {
   const week = sch?.weekHours ?? [];
   const saveWeek = (next: WeekHours) => {
     if (!weekIsValid(next)) return;
-    saveSchedule({ weekHours: next, ...legacyStrings(next) });
+    saveSchedule({ weekHours: next, ...legacyColumns(next) });
   };
 
   return (
@@ -108,6 +98,15 @@ export function DaySection() {
         </SRow>
       </SGroup>
       <SGroup title="Calendar">
+        <SRow title="Time format" desc="How times read on the calendar.">
+          <SSelect
+            label="Time format"
+            value={s?.timeFormat === "12h" ? "12h" : "24h"}
+            options={CLOCKS}
+            disabled={!s}
+            onChange={(v) => save({ timeFormat: v })}
+          />
+        </SRow>
         <SRow
           title="Calendar opens in"
           desc="Week shows the grid; Agenda lists each day's events and tasks in order."
