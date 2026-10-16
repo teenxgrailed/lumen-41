@@ -38,7 +38,7 @@ test("A failure from the product lands in the corner stack, and interrupts", asy
   await page.goto("/tasks");
   await page.getByRole("checkbox").first().click();
 
-  const stack = page.getByRole("region", { name: "Needt notifications" });
+  const stack = page.getByRole("region", { name: "Needt action notices" });
   await expect(stack).toBeVisible({ timeout: 20_000 });
   await expect(stack).toContainText("Could not update this task");
   await expect(stack).toHaveAttribute("aria-live", "assertive");
@@ -79,7 +79,7 @@ test("The corner's strip does not swallow the buttons behind it", async ({
   );
   await page.goto("/tasks");
   await page.getByRole("checkbox").first().click();
-  const stack = page.getByRole("region", { name: "Needt notifications" });
+  const stack = page.getByRole("region", { name: "Needt action notices" });
   await expect(stack).toBeVisible({ timeout: 20_000 });
   await stack.getByRole("button", { name: "Dismiss notification" }).click();
   await expect(stack).toBeHidden({ timeout: 10_000 });
