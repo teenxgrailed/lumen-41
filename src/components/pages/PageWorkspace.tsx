@@ -139,6 +139,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
+import { setProviderToken } from "@/lib/collaboration/provider-token";
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
 import { previewOfDocument } from "@/lib/needt3/live-preview";
@@ -1090,8 +1091,10 @@ export function PageWorkspace({
           );
           collaborationSocket.setConfiguration({ url: collaboration.url });
           let nextToken: string | null = collaboration.token;
-          collaborationProvider.setConfiguration({
-            token: async () => {
+          setProviderToken(
+            collaborationProvider,
+            collaborationSocket,
+            async () => {
               if (nextToken) {
                 const currentToken = nextToken;
                 nextToken = null;
@@ -1107,8 +1110,8 @@ export function PageWorkspace({
               const data =
                 (await refreshed.json()) as CollaborationTokenResponse;
               return data.token;
-            },
-          });
+            }
+          );
           collaborationProvider.attach();
           editor.commands.updateUser(collaboration.user);
           if (localDraft) {
@@ -2085,6 +2088,12 @@ export function PageWorkspace({
     };
   });
   useEffect(() => () => flushRef.current(), [inChrome, pageId]);
+  // A reload or a closed tab unmounts nothing: send the typed title then too.
+  useEffect(() => {
+    const onPageHide = () => flushRef.current();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, []);
 
   if (!page) {
     return (

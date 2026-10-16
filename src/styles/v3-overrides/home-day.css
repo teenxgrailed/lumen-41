@@ -1,0 +1,41 @@
+/* Design v3 — Home's day note line. The prototype draws "Notes for the day…"
+ * as plain italic text; here it is a button that opens the day's note (a
+ * document), so it keeps the text's look and only adds the target. */
+.needt-v3 .hd-notes-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-style: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.needt-v3 .hd-notes-btn:hover:not(:disabled) {
+  color: var(--text-tertiary);
+}
+.needt-v3 .hd-notes-btn:disabled {
+  cursor: progress;
+}
+
+/* Phone: the same line under the day's rows. */
+.needt-v3 .v2p-notes-btn {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-style: italic;
+  color: var(--text-disabled);
+  text-align: left;
+  cursor: pointer;
+}
+.needt-v3 .v2p-notes-btn:disabled {
+  cursor: progress;
+}
