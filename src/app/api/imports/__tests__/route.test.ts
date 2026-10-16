@@ -17,6 +17,12 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 import { enqueueImportRun } from "@/lib/queue/enqueue";
 
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: jest.fn(() => ({})),
+  ipRule: jest.fn(() => ({})),
+  enforceRateLimits: jest.fn().mockResolvedValue(null),
+  enforceByteBudget: jest.fn().mockResolvedValue(null),
+}));
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueImportRun: jest.fn() }));
