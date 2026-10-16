@@ -113,3 +113,19 @@
   --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
   --accent-contrast: #ffffff;
 }
+
+/* --- Plan: the promo code field ---------------------------------------------
+ * One 32px field beside its button, in the row's control slot. */
+.needt-v3 .settings-promo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.needt-v3 .settings-promo .nt-input {
+  width: 168px;
+  text-transform: uppercase;
+}
+.needt-v3 .settings-promo .nt-input::placeholder {
+  text-transform: none;
+}

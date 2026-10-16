@@ -12,6 +12,7 @@ import { notify } from "@/lib/notifications";
 import { PRO_FEATURES, failedPaymentLine } from "../../settings/PlanSection";
 import { isPro, planInfo, trialBarPct } from "../../settings/derive";
 import { PkButton } from "../kit";
+import { PromoCodeCard } from "./PromoCodeCard";
 import { PsGroup, PsProTag, PsRow, usePs } from "./parts";
 
 const P = priceStrings();
@@ -183,6 +184,7 @@ export function PlanPage() {
           ) : null}
         </PsGroup>
       )}
+      <PromoCodeCard />
       <PsGroup
         title={pro ? "Included in your plan" : "What Pro unlocks"}
         hint={

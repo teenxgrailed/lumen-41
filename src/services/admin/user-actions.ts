@@ -6,14 +6,17 @@ import {
   grantManualPlan,
   revokeManualPlan,
 } from "@/services/billing/manual-grant";
-import { AccountDeletionStatus, Prisma } from "@prisma/client";
+import {
+  TrialExtensionError,
+  extendTrialDays,
+} from "@/services/billing/trial-extension";
+import { AccountDeletionStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { revokeAllAccess } from "@/lib/auth/session-version";
-import { addCalendarDays, newDate } from "@/lib/date-utils";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { trialEmailKey } from "@/lib/trials/trial-service";
 
 import { recordAdminAudit } from "./audit";
 
@@ -111,59 +114,30 @@ async function setAdmin(actorId: string, targetId: string, admin: boolean) {
 
 async function extendTrial(actorId: string, targetId: string, days: number) {
   const target = await loadTarget(targetId);
-  if (!target.email) {
-    throw new AdminActionError(409, "This account has no email address.");
-  }
-  const email = target.email;
-  const now = newDate();
-  let endsAt: Date;
-  try {
-    endsAt = await prisma.$transaction(async (tx) => {
-      const grant = await tx.trialGrant.findUnique({
-        where: { userId: targetId },
-        select: { id: true, endsAt: true },
+  const endsAt = await prisma
+    .$transaction(async (tx) => {
+      const next = await extendTrialDays(tx, {
+        userId: targetId,
+        email: target.email,
+        days,
       });
-      let next: Date;
-      if (grant) {
-        next = addCalendarDays(grant.endsAt > now ? grant.endsAt : now, days);
-        await tx.trialGrant.update({
-          where: { id: grant.id },
-          data: { endsAt: next },
-        });
-      } else {
-        next = addCalendarDays(now, days);
-        await tx.trialGrant.create({
-          data: {
-            emailKey: trialEmailKey(email),
-            userId: targetId,
-            startedAt: now,
-            endsAt: next,
-          },
-        });
-      }
       await recordAdminAudit(
         {
           actorId,
           targetUserId: targetId,
           action: "user.extend_trial",
-          details: { email, days, endsAt: next.toISOString() },
+          details: { email: target.email, days, endsAt: next.toISOString() },
         },
         tx
       );
       return next;
+    })
+    .catch((error) => {
+      if (error instanceof TrialExtensionError) {
+        throw new AdminActionError(409, error.message);
+      }
+      throw error;
     });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      throw new AdminActionError(
-        409,
-        "This address has already used a trial under another account."
-      );
-    }
-    throw error;
-  }
   return { message: `Trial runs until ${endsAt.toISOString().slice(0, 10)}.` };
 }
 

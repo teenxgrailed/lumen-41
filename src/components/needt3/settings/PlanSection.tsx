@@ -15,6 +15,7 @@ import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
+import { PromoCodeRow } from "./PromoCodeRow";
 import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
 
@@ -245,6 +246,7 @@ export function PlanSection() {
           <span className="base-meta">{P.footnote}</span>
         </div>
       </SGroup>
+      <PromoCodeRow />
       <SGroup
         title={pro ? "Included in your plan" : "What Pro unlocks"}
         hint={
