@@ -9,7 +9,7 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
-import { ChatPanel, type ChatPanelProps } from "../ChatPanel";
+import { ChatPanel, type ChatPanelProps, OPEN_TAIL } from "../ChatPanel";
 
 const G = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 G.IS_REACT_ACT_ENVIRONMENT = true;
@@ -88,5 +88,81 @@ describe("Ask Needt panel", () => {
       false,
       "Break the task “Tank graphic” into steps"
     );
+  });
+
+  describe("opening", () => {
+    const thread = (n: number): ChatPanelProps["messages"] =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `m${i}`,
+        from: i % 2 ? "needt" : "you",
+        text: `line ${i}`,
+        at: 0,
+      })) as ChatPanelProps["messages"];
+    const ids = () =>
+      [...host.querySelectorAll(".chat-msg")].map((n) => n.textContent);
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: (q: string) => ({
+          matches: false,
+          media: q,
+          addEventListener() {},
+          removeEventListener() {},
+        }),
+      });
+    });
+    afterEach(() => jest.useRealTimers());
+
+    it("mounts only the latest lines while the panel flies in, the rest after", () => {
+      render({ messages: thread(12) });
+      expect(ids()).toHaveLength(OPEN_TAIL);
+      expect(ids()[OPEN_TAIL - 1]).toContain("line 11");
+      act(() => void jest.advanceTimersByTime(520));
+      expect(ids()).toHaveLength(12);
+      // the older ones arrive as history: they do not play the entrance
+      expect(host.querySelectorAll(".chat-msg.is-history")).toHaveLength(8);
+    });
+
+    it("a short thread mounts whole at once, with no later re-render", () => {
+      render({ messages: thread(OPEN_TAIL) });
+      expect(ids()).toHaveLength(OPEN_TAIL);
+      expect(host.querySelectorAll(".is-history")).toHaveLength(0);
+    });
+
+    it("reduced motion has no entrance to wait for", () => {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: (q: string) => ({
+          matches: true,
+          media: q,
+          addEventListener() {},
+          removeEventListener() {},
+        }),
+      });
+      render({ messages: thread(12) });
+      expect(ids()).toHaveLength(12);
+    });
+
+    it("scrolls to the newest line in the next frame, not during the render", () => {
+      const raf = jest
+        .spyOn(window, "requestAnimationFrame")
+        .mockImplementation((cb) => window.setTimeout(() => cb(0), 16));
+      render({ messages: thread(3) });
+      const box = host.querySelector<HTMLElement>("[data-chat-scroll]")!;
+      let top = 0;
+      Object.defineProperty(box, "scrollHeight", { value: 900 });
+      Object.defineProperty(box, "scrollTop", {
+        get: () => top,
+        set: (v: number) => {
+          top = v;
+        },
+      });
+      expect(top).toBe(0);
+      act(() => void jest.advanceTimersByTime(20));
+      expect(top).toBe(900);
+      raf.mockRestore();
+    });
   });
 });
