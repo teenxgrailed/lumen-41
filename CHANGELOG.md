@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connections: "Sync now" on a connected calendar or mailbox (the card menu on
+  the desktop, the account sheet on the phone). It queues the worker's sync job
+  (`POST /api/accounts/:id/sync` for calendars, the existing
+  `POST /api/mail/sync` for mail) and says the sync started.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.

@@ -78,6 +78,7 @@ let planQ: { data: { kind: string } | undefined };
 const connectToolkit = jest.fn();
 const disconnectToolkit = jest.fn();
 const disconnectCalendar = jest.fn();
+const syncAccountNow = jest.fn();
 jest.mock("@/lib/needt3/hooks/catalog", () => ({
   useCatalog: () => catalogQ,
   connectToolkit: (...a: unknown[]) => connectToolkit(...a),
@@ -85,6 +86,7 @@ jest.mock("@/lib/needt3/hooks/catalog", () => ({
   disconnectToolkit: (...a: unknown[]) => disconnectToolkit(...a),
   disconnectCalendar: (...a: unknown[]) => disconnectCalendar(...a),
   disconnectMailbox: jest.fn(),
+  syncAccountNow: (...a: unknown[]) => syncAccountNow(...a),
 }));
 jest.mock("@/lib/needt3/hooks/connections", () => ({
   useConnections: () => accountsQ,
@@ -378,6 +380,19 @@ describe("Connections", () => {
       "Google Calendar (me@x.com) disconnected"
     );
     expect(confirm.getAttribute("data-pk-sheet")).toBe("shut");
+    expect(sheetOf("Google Calendar")?.getAttribute("data-pk-sheet")).toBe(
+      "shut"
+    );
+  });
+
+  it("Sync now in the account sheet queues that account and closes the sheet", async () => {
+    syncAccountNow.mockResolvedValue({ ok: true, queued: 1 });
+    mount(ConnectionsFace);
+    click($('[data-ppl-conn="google-calendar"] .ppl-row-main'));
+    click($('[data-ppl-sync="google-calendar"]'));
+    await flush();
+    expect(syncAccountNow).toHaveBeenCalledWith("calendar", "cal-1");
+    expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
     expect(sheetOf("Google Calendar")?.getAttribute("data-pk-sheet")).toBe(
       "shut"
     );

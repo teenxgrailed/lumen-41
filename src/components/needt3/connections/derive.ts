@@ -340,6 +340,15 @@ export function connectPlan(
   }
 }
 
+/** A connected calendar or mailbox can be synced on request; apps cannot. */
+export function canSyncNow(item: Pick<CnItem, "kind" | "state" | "accountId">) {
+  return (
+    item.state === "connected" &&
+    (item.kind === "calendar" || item.kind === "mail") &&
+    !!item.accountId
+  );
+}
+
 /** How a native card disconnects. */
 export function disconnectKind(item: Pick<CnItem, "kind">) {
   return item.kind === "calendar"
