@@ -5,6 +5,18 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  /* The name inflates (v23): Exposure's EXPO axis runs to "fused" and back,
+     one letter after another — once after load, again on hover. */
+  $$(".brand-word").forEach((w) => {
+    if (w.dataset.split) return; w.dataset.split = "1";
+    w.innerHTML = [...w.textContent].map((c, i) => `<span class="bw-l" style="--i:${i}">${c}</span>`).join("");
+    const go = () => { if (calm) return; w.classList.remove("inflate"); void w.offsetWidth; w.classList.add("inflate"); };
+    const host = w.closest("a") || w;
+    host.addEventListener("pointerenter", go);
+    w.addEventListener("animationend", (e) => { if (e.target === w.lastElementChild) w.classList.remove("inflate"); });
+    if (w.closest(".nav")) setTimeout(go, 500);
+  });
+
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -48,6 +60,17 @@
   mountSkies();
 
 
+  /* Phones: the hero phone is a short real recording of the app (Today →
+     Every place → Calendar, Tasks, Docs). Loaded only on phones, played only
+     while on screen, and left as its poster under reduced motion. */
+  const hv = document.querySelector(".hero-vid");
+  if (hv && matchMedia("(max-width: 760px)").matches) {
+    if (calm) { hv.poster = hv.dataset.poster; } else {
+    hv.poster = hv.dataset.poster;
+    for (const [k, t] of [["mp4", "video/mp4"], ["webm", "video/webm"]]) { const so = document.createElement("source"); so.src = hv.dataset[k]; so.type = t; hv.appendChild(so); }
+    hv.preload = "auto"; hv.load();
+    new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? hv.play().catch(() => {}) : hv.pause()))).observe(hv);
+  } }
   /* Phones: a sticky "Try it free" once the hero is gone, hidden again at the final call. */
   const mc = document.querySelector(".m-cta");
   if (mc) {
@@ -272,10 +295,10 @@
   $$(".hb").forEach((b) => b.addEventListener("click", () => { b.classList.toggle("on"); streak.firstChild.textContent = $$(".hb.on").length; }));
 
   /* ── Integrations: real logos ──────────────────────── */
-  const A = [["gcal", "Google Calendar", "Calendar"], ["outlook", "Outlook Calendar", "Calendar"], ["icloud", "iCloud", "Calendar · CalDAV"], ["caldav", "CalDAV", "Any calendar server"], ["gmail", "Gmail", "Mail · read-only"]];
-  const B = [["outlook", "Outlook Mail", "Mail · read-only"], ["imap", "IMAP", "Any mailbox · read-only"], ["api", "Your API token", "Read & write your data"], ["webhooks", "Webhooks", "Push changes out"], ["claude", "Your AI key", "Claude, ChatGPT, Gemini"]];
-  const card = ([f, n, s]) => `<div class="int"><img src="assets/logos/${f}.svg" alt=""><span><b>${n}</b><small>${s}</small></span></div>`;
-  const row = (a) => { const one = a.concat(a).map(card).join(""); return one + one; };
+  const A = [["gcal", "Google Calendar", "Two-way sync", "integrations/google-calendar/"], ["gmail", "Gmail", "Any email → a task", "integrations/gmail/"], ["outlook", "Outlook", "Calendar & mail", "integrations/outlook-calendar/"], ["notion", "Notion", "Import pages & tasks", "integrations/notion/"], ["icloud", "iCloud Calendar", "CalDAV sync", "integrations/icloud-calendar/"], ["todoist", "Todoist", "Import projects", "integrations/todoist/"], ["caldav", "CalDAV", "Any calendar server", "integrations/"], ["imap", "IMAP", "Any mailbox", "integrations/"]];
+  const B = [["claude", "Claude", "Plans your day over MCP", "integrations/claude/"], ["chatgpt", "ChatGPT", "Tasks from chat", "integrations/chatgpt/"], ["cursor", "Cursor", "MCP in your editor", "resources/mcp/"], ["api", "API", "Read & write your data", "resources/api/"], ["claudecode", "Claude Code", "MCP from the terminal", "resources/mcp/"], ["gemini", "Gemini", "Over MCP", "resources/mcp/"], ["webhooks", "Webhooks", "Push changes out", "resources/api/"], ["raycast", "Raycast", "Quick add over MCP", "resources/mcp/"]];
+  const card = ([f, n, s, h]) => `<a class="int" href="${h}" draggable="false"><img src="assets/logos/${f}.svg" alt="" draggable="false"><span><b>${n}</b><small>${s}</small></span><i class="int-go" aria-hidden="true">→</i></a>`;
+  const row = (a) => { const one = a.map(card).join(""); return one + one; };
   $("#mq1").innerHTML = row(A); $("#mq2").innerHTML = row(B);
   /* Marquee: drifts on its own, and you can grab it and throw it either way. */
   (() => {
@@ -304,14 +327,17 @@
     }
     raf = requestAnimationFrame(frame);
     if (fine) { box.addEventListener("pointerenter", () => (hover = true)); box.addEventListener("pointerleave", () => (hover = false)); }
-    box.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, t: performance.now() }; vel = 0; box.classList.add("dragging"); box.setPointerCapture(e.pointerId); });
+    box.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, x0: e.clientX, t: performance.now(), id: e.pointerId, cap: false }; vel = 0; });
     box.addEventListener("pointermove", (e) => {
       if (!drag) return;
+      if (!drag.cap) { if (Math.abs(e.clientX - drag.x0) < 6) return; drag.cap = true; box.classList.add("dragging"); try { box.setPointerCapture(drag.id); } catch (_) {} }
       const dx = e.clientX - drag.x, now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
       rows.forEach((r) => { r.x += dx; wrap(r); });
       vel = vel * .6 + (dx / dt) * .4; drag.x = e.clientX; drag.t = now;
     });
-    const up = () => { if (!drag) return; drag = null; box.classList.remove("dragging"); };
+    let dragged = false;
+    box.addEventListener("click", (e) => { if (dragged) { e.preventDefault(); e.stopPropagation(); dragged = false; } }, true);
+    const up = () => { if (!drag) return; dragged = drag.cap; drag = null; box.classList.remove("dragging"); setTimeout(() => (dragged = false), 0); };
     box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
   })();
 
@@ -329,7 +355,7 @@
     /* --nt goes only to the two things that use it, not to the whole section
        (a custom property on #night restyled its whole subtree every frame). */
     const nts = nt.toFixed(3), vts = vt.toFixed(3);
-    if (nts !== lastNt) { lastNt = nts; if (shotD) shotD.style.setProperty("--nt", nts); }
+    if (nts !== lastNt) { lastNt = nts; if (shotD) shotD.parentElement.style.setProperty("--nt", nts); }
     if (vts !== lastVt) { lastVt = vts; veil.style.setProperty("--nt", vts); }
     /* Under a fully opaque veil the night sky has nothing to show: park it. */
     const ns = nightSky && nightSky.__sky; const park = vt < .02 && r.top > -10;
@@ -411,4 +437,32 @@
   };
   const onScroll = () => { onFold(); onTour(); onNight(); holdSkies(); };
   addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); onScroll();
+})();
+
+/* v24 — conversion events. Provider-agnostic: pushes to dataLayer and calls plausible()/umami if present.
+   Claude Code wires the real provider (see README "Analytics"). */
+(() => {
+  if (window.__needtTrack) return; window.__needtTrack = 1;
+  const send = window.needtTrack = window.needtTrack || ((ev, props = {}) => {
+    props.page = location.pathname;
+    try { (window.dataLayer = window.dataLayer || []).push({ event: ev, ...props }); } catch (_) {}
+    try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
+    try { if (window.umami && window.umami.track) window.umami.track(ev, props); } catch (_) {}
+  });
+  const plan = (h) => /checkout=lifetime/.test(h) ? "lifetime" : /checkout=pro-month/.test(h) ? "pro_month" : /checkout=pro/.test(h) ? "pro_year" : null;
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a, button"); if (!a) return;
+    const h = a.getAttribute("href") || "";
+    const where = a.closest(".nav, .mobile-menu, .m-cta") ? "nav" : a.closest("footer") ? "footer" : "body";
+    const p = plan(h);
+    if (p) return send("checkout_click", { plan: p, where });
+    if (a.classList.contains("js-trial")) return send("trial_click", { where });
+    if (a.classList.contains("js-signup")) return send("try_free_click", { where });
+    if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
+    if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
+    if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });
+  }, true);
+  document.addEventListener("submit", (e) => {
+    const f = e.target; if (f.matches && f.matches("[data-dx-notify]")) send("notify_submit", { app: (f.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
+  }, true);
 })();

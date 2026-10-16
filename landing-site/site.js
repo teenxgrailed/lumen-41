@@ -6,6 +6,18 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  /* The name inflates (v23): Exposure's EXPO axis runs to "fused" and back,
+     one letter after another — once after load, again on hover. */
+  $$(".brand-word").forEach((w) => {
+    if (w.dataset.split) return; w.dataset.split = "1";
+    w.innerHTML = [...w.textContent].map((c, i) => `<span class="bw-l" style="--i:${i}">${c}</span>`).join("");
+    const go = () => { if (calm) return; w.classList.remove("inflate"); void w.offsetWidth; w.classList.add("inflate"); };
+    const host = w.closest("a") || w;
+    host.addEventListener("pointerenter", go);
+    w.addEventListener("animationend", (e) => { if (e.target === w.lastElementChild) w.classList.remove("inflate"); });
+    if (w.closest(".nav")) setTimeout(go, 500);
+  });
+
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
   /* "Try it free" opens Pricing (v18): people see the plans, take the 14-day
@@ -120,6 +132,7 @@
       $$("button", bill).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
       bill.dataset.billing = v;
       $$("[data-month][data-year]").forEach((el) => (el.textContent = el.dataset[v]));
+      $$("[data-href-month][data-href-year]").forEach((el) => (el.href = el.dataset[v === "month" ? "hrefMonth" : "hrefYear"]));
     };
     $$("button", bill).forEach((b) => b.addEventListener("click", () => set(b.dataset.v)));
     set("year");
@@ -146,6 +159,37 @@
   plans.forEach((pl) => { pl.addEventListener("click", (e) => { if (e.target.closest("button")) { pick(pl); return; } pick(pl); });
     /* Enter/Space on the card picks it; on the Monthly/Yearly buttons inside it they stay the buttons' own. */
     pl.addEventListener("keydown", (e) => { if (e.target !== pl) return; if (e.key === " " || e.key === "Enter") { e.preventDefault(); pick(pl); } }); });
+
+  /* Download (v22): Mac and iPhone sections each carry a small "in the works"
+     bar — time from 1 Oct to 30 Nov — plus this visitor's own nudges from
+     "I want the … app" (shared between the two, kept in their browser). A
+     nudge also opens an optional email form and is sent to Umami when on. */
+  const soons = $$("[data-dx-soon]");
+  if (soons.length) {
+    const S = new Date(2026, 9, 1).getTime(), E = new Date(2026, 10, 30, 23, 59).getTime();
+    const base = Math.min(99, Math.max(0, (Date.now() - S) / (E - S)) * 100);
+    let boost = 0; try { boost = +localStorage.getItem("needt.dl.boost") || 0; } catch (e) {}
+    const show = () => soons.forEach((b) => { const t = Math.min(99, base + boost); $("[data-dx-fill]", b).style.width = base + "%"; const em = $("[data-dx-boost]", b); em.style.left = base + "%"; em.style.width = (t - base) + "%"; $("[data-dx-pct]", b).textContent = Math.round(t) + "%"; });
+    requestAnimationFrame(() => requestAnimationFrame(show));
+    soons.forEach((box) => {
+      const btn = $("[data-dx-want]", box), form = $("[data-dx-notify]", box);
+      btn.addEventListener("click", () => {
+        boost = Math.min(8, boost + (boost < 3 ? 1.5 : 0.6));
+        try { localStorage.setItem("needt.dl.boost", String(boost)); } catch (e) {}
+        show(); box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
+        $("[data-dx-label]", box).textContent = "You’re on the list"; form.hidden = false;
+        try { window.umami && window.umami.track("want-app", { app: btn.textContent.trim() }); } catch (e) {}
+      });
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault(); const msg = $("[data-dx-msg]", form), email = form.email.value.trim(); msg.textContent = "Saving…";
+        try {
+          const r = await fetch(window.NEEDT_WAITLIST || "https://use.needt.app/api/waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, source: "apps" }) });
+          if (!r.ok) throw new Error(r.status);
+          msg.textContent = "Done — one email, the day it’s out."; form.querySelector("button").disabled = true;
+        } catch (err) { msg.textContent = "Couldn’t save that right now — try again later."; }
+      });
+    });
+  }
 
   /* Docs: highlight the section in view in the side index */
   const toc = $$(".toc a[href^='#']");
@@ -223,4 +267,32 @@
   }
 
   }
+})();
+
+/* v24 — conversion events. Provider-agnostic: pushes to dataLayer and calls plausible()/umami if present.
+   Claude Code wires the real provider (see README "Analytics"). */
+(() => {
+  if (window.__needtTrack) return; window.__needtTrack = 1;
+  const send = window.needtTrack = window.needtTrack || ((ev, props = {}) => {
+    props.page = location.pathname;
+    try { (window.dataLayer = window.dataLayer || []).push({ event: ev, ...props }); } catch (_) {}
+    try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
+    try { if (window.umami && window.umami.track) window.umami.track(ev, props); } catch (_) {}
+  });
+  const plan = (h) => /checkout=lifetime/.test(h) ? "lifetime" : /checkout=pro-month/.test(h) ? "pro_month" : /checkout=pro/.test(h) ? "pro_year" : null;
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a, button"); if (!a) return;
+    const h = a.getAttribute("href") || "";
+    const where = a.closest(".nav, .mobile-menu, .m-cta") ? "nav" : a.closest("footer") ? "footer" : "body";
+    const p = plan(h);
+    if (p) return send("checkout_click", { plan: p, where });
+    if (a.classList.contains("js-trial")) return send("trial_click", { where });
+    if (a.classList.contains("js-signup")) return send("try_free_click", { where });
+    if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
+    if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
+    if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });
+  }, true);
+  document.addEventListener("submit", (e) => {
+    const f = e.target; if (f.matches && f.matches("[data-dx-notify]")) send("notify_submit", { app: (f.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
+  }, true);
 })();
