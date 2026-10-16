@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Trash now keeps its 30-day promise: the worker deletes tasks, pages and
+  moodboards that have sat in Trash for 30 days. Tasks can be deleted for good
+  (`DELETE /api/tasks/:id?permanent=true`, Trash only), Empty Trash takes them
+  too, and the phone Trash has Restore all.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
