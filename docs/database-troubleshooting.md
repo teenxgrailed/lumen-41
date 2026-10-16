@@ -260,7 +260,7 @@ DELETE FROM _prisma_migrations WHERE migration_name = '20250309034054_update_wai
 
 If you continue to experience issues, please:
 
-1. Check our [GitHub issues](https://github.com/dotnetfactory/fluid-calendar/issues) for similar problems
+1. Check our [GitHub issues](https://github.com/teenxgrails/needt/issues) for similar problems
 2. Provide detailed information when reporting issues:
    - Your Prisma version (`npx prisma -v`)
    - The exact error message

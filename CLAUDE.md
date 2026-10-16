@@ -79,7 +79,7 @@ Next.js 15 (App Router) · React 19 · TypeScript · Prisma + PostgreSQL · Next
 
 **Task scheduling engine** (`src/services/scheduling/`): `TaskSchedulingService` orchestrates auto-scheduling; `TimeSlotManager` enumerates candidate slots from work hours / buffers; `SlotScorer` ranks them; `CalendarServiceImpl` checks calendar availability. Tasks marked `isAutoScheduled` get `scheduledStart/End` and a `scheduleScore`.
 
-**Task sync** (`src/lib/task-sync/`): one-way sync from external task providers (Outlook, Google Tasks) into FluidCalendar using **selective field sync** - external-owned fields (title, status, due date, recurrence) are overwritten on each sync; local-owned fields (start date, duration, priority, energy level) are preserved. See `src/lib/task-sync/README.md`.
+**Task sync** (`src/lib/task-sync/`): one-way sync from external task providers (Outlook, Google Tasks) into Needt using **selective field sync** - external-owned fields (title, status, due date, recurrence) are overwritten on each sync; local-owned fields (start date, duration, priority, energy level) are preserved. See `src/lib/task-sync/README.md`.
 
 **Background work** uses the BullMQ worker in `src/worker/` for provider
 calendar sync, deterministic rescheduling, reminders, proactive nudges,
