@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const credentials = await getGoogleCredentials();
     if (!credentials.clientId || !credentials.clientSecret) {
       return NextResponse.json(
-        { error: "Google Mail is not configured." },
+        { error: "Gmail isn't available yet." },
         { status: 503 }
       );
     }
