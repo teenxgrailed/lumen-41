@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   // No template: inner pages already set "Page | Needt" themselves.
   title: { absolute: APP_TITLE },
   description: APP_DESCRIPTION,
+  robots: { index: false, follow: false },
   openGraph: {
     title: APP_TITLE,
     description: APP_DESCRIPTION,
