@@ -119,7 +119,6 @@ export function AccountPage() {
               {...(m.id === "credentials" && user?.email
                 ? {
                     chevron: false as const,
-                    tone: "link" as const,
                     onOpen: () => void mailLink(),
                     value: mailing ? "Sending…" : "Change by email",
                   }
