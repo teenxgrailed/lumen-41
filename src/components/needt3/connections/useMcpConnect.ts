@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { notify } from "@/lib/notifications";
 
-import { oauthUrlFromEnv, tokenUrl } from "./mcp";
+import { oauthUrl, tokenUrl } from "./mcp";
 
 export interface ConnectedApp {
   id: string;
@@ -87,7 +87,7 @@ export function useMcpConnect(enabled: boolean) {
     makeToken,
     disconnectApp,
     url: tokenUrl(origin),
-    oauthUrl: oauthUrlFromEnv(),
+    oauthUrl: oauthUrl(),
   };
 }
 
