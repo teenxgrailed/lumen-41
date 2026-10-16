@@ -1,6 +1,11 @@
 import type { OAuthClient } from "@prisma/client";
 
-import { type McpScope, mcpResource, oauthIssuer } from "@/lib/mcp-config";
+import {
+  type McpScope,
+  isMcpResource,
+  mcpResourceAliases,
+  oauthIssuer,
+} from "@/lib/mcp-config";
 
 import {
   ClientError,
@@ -100,8 +105,11 @@ export async function validateAuthorizationRequest(
   // Required (MCP authorization): a token is only ever minted for the
   // resource the client names, and it must be ours.
   const resource = params.get("resource");
-  if (resource !== mcpResource()) {
-    return fail("invalid_target", `resource must be ${mcpResource()}.`);
+  if (!isMcpResource(resource)) {
+    return fail(
+      "invalid_target",
+      `resource must be one of ${mcpResourceAliases().join(", ")}.`
+    );
   }
   const asked = parseScopes(params.get("scope"));
   if (asked === null) {
