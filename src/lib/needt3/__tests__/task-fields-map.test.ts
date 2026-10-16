@@ -1,5 +1,11 @@
 import { taskFromApi, taskPatchToApi } from "../map";
-import { REPEAT_CHOICES, repeatKey, repeatLabel } from "../repeat";
+import {
+  REPEAT_CHOICES,
+  buildRule,
+  readCustom,
+  repeatKey,
+  repeatLabel,
+} from "../repeat";
 
 const TZ = "Europe/Kyiv";
 const row = { id: "t1", title: "Write", status: "todo" };
@@ -115,8 +121,44 @@ describe("repeat choices", () => {
   it("keeps any other rule as custom", () => {
     expect(repeatKey("FREQ=WEEKLY;BYDAY=MO")).toBe("custom");
     expect(repeatKey("FREQ=DAILY;INTERVAL=2")).toBe("custom");
-    expect(repeatLabel("FREQ=DAILY;INTERVAL=2")).toBe("Custom");
+    expect(repeatLabel("FREQ=DAILY;INTERVAL=2")).toBe("Every 2 days");
+    expect(repeatLabel("FREQ=YEARLY")).toBe("Custom");
     expect(repeatLabel("FREQ=MONTHLY")).toBe("Every month");
     expect(repeatLabel(null)).toBeNull();
+  });
+});
+
+describe("custom repeat", () => {
+  it("builds a rule the preset logic and the server both read", () => {
+    expect(buildRule({ freq: "DAILY", interval: 1, days: [] })).toBe(
+      "FREQ=DAILY"
+    );
+    expect(buildRule({ freq: "WEEKLY", interval: 1, days: ["WE", "MO"] })).toBe(
+      "FREQ=WEEKLY;BYDAY=MO,WE"
+    );
+    expect(buildRule({ freq: "WEEKLY", interval: 2, days: [] })).toBe(
+      "FREQ=WEEKLY;INTERVAL=2"
+    );
+    expect(buildRule({ freq: "MONTHLY", interval: 0, days: ["MO"] })).toBe(
+      "FREQ=MONTHLY"
+    );
+    expect(buildRule({ freq: "DAILY", interval: 500, days: [] })).toBe(
+      "FREQ=DAILY;INTERVAL=99"
+    );
+  });
+
+  it("reads back what it wrote, and nothing it did not", () => {
+    const c = { freq: "WEEKLY" as const, interval: 2, days: ["TU" as const] };
+    expect(readCustom(buildRule(c))).toEqual(c);
+    expect(readCustom("FREQ=YEARLY")).toBeNull();
+    expect(readCustom("FREQ=WEEKLY;COUNT=3")).toBeNull();
+    expect(readCustom("FREQ=DAILY;BYDAY=MO")).toBeNull();
+  });
+
+  it("names days and intervals", () => {
+    expect(repeatLabel("FREQ=WEEKLY;BYDAY=MO,WE")).toBe("Mon, Wed");
+    expect(repeatLabel("FREQ=WEEKLY;INTERVAL=2;BYDAY=TU")).toBe(
+      "Every 2 weeks · Tue"
+    );
   });
 });
