@@ -7,9 +7,12 @@ import { createElement as h } from "react";
 
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { V3Board } from "@/lib/needt3/map";
+import { usePaywallStore } from "@/components/needt3/paywall/store";
 
-import { MoodboardsScreen } from "../MoodboardsScreen";
+import type { V3Board } from "@/lib/needt3/map";
+import { notify } from "@/lib/notifications";
+
+import { MoodboardsScreen, notifyBoardsBlocked } from "../MoodboardsScreen";
 import { FREE_BOARDS } from "../derive";
 import type { BoardsController } from "../useBoardsController";
 
@@ -120,5 +123,18 @@ describe("Moodboards grid", () => {
     expect(out).toContain("2 boards");
     expect(out).not.toContain("Free includes");
     expect(out).not.toContain("data-pro-upsell");
+  });
+});
+
+describe("the Free allowance notice", () => {
+  it("See plans opens the paywall, not the settings page", () => {
+    const info = jest.spyOn(notify, "info").mockImplementation(() => "");
+    notifyBoardsBlocked();
+    const opts = info.mock.calls[0][1] as { action: { onClick: () => void } };
+    usePaywallStore.getState().close();
+    opts.action.onClick();
+    expect(usePaywallStore.getState().open).toBe(true);
+    expect(usePaywallStore.getState().feature).toBe("Unlimited moodboards");
+    info.mockRestore();
   });
 });

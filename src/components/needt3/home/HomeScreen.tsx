@@ -46,6 +46,7 @@ import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { openPaywall } from "../paywall";
 import {
   Capped,
   DayClosed,
@@ -123,7 +124,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, setAskOpen, openSettings } = useNeedt3Ui();
+  const { setComposerOpen, setAskOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
@@ -200,7 +201,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
-  const upgrade = () => openSettings("billing");
+  const upgrade = (feature: string) => () => openPaywall(feature);
   const planDay = () => {
     //todo: the real planner (POST plan-day → /api/tasks/batch) is not wired;
     // Ask Needt is the fallback the prototype used too.
@@ -359,7 +360,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       pro={pro}
       canPlan={canPlan}
       onPlan={planDay}
-      onLocked={upgrade}
+      onLocked={upgrade("Plan my day")}
       primary={primary}
       small={small}
     />
@@ -627,7 +628,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   cap={cap}
                   pro={pro}
                   onCalendar={() => router.push("/calendar")}
-                  onUpgrade={upgrade}
+                  onUpgrade={upgrade("Week ahead")}
                 />
               ) : (
                 <Schedule

@@ -194,3 +194,16 @@ export function headerAccounts(
     };
   });
 }
+
+/**
+ * `/mail?message=<id>`: the id the command palette puts on a mail result. The
+ * id of a message in this list, or `null` (no param, or a message that is not
+ * in the inbox, which then just opens the list).
+ */
+export function messageFromSearch(
+  search: string,
+  threads: readonly Pick<V3MailThread, "id">[]
+): string | null {
+  const id = new URLSearchParams(search).get("message");
+  return id && threads.some((t) => t.id === id) ? id : null;
+}
