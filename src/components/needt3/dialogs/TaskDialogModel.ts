@@ -61,6 +61,21 @@ export function tdDayName(day: string | null | undefined, today: string) {
   return `${DOW_SHORT[weekday(day.slice(0, 10))]} ${dayLabel(day)}`;
 }
 
+/** "4 Sep": the day the task was made, in the person's zone. */
+export function tdCreated(iso: string | null | undefined, tz: string) {
+  if (!iso || Number.isNaN(Date.parse(iso))) return null;
+  return dayLabel(formatInTimeZone(iso, tz, "yyyy-MM-dd"));
+}
+
+/** Where a synced task came from, in the product's words. */
+export function tdProvider(from: string | null | undefined) {
+  if (!from) return null;
+  return (
+    { outlook: "Outlook", google: "Google Tasks", caldav: "CalDAV" }[from] ??
+    from
+  );
+}
+
 /** "just now", "12 min ago", "at 14:05" (today), else "4 Sep". */
 export function tdAgo(
   iso: string | null | undefined,
@@ -285,6 +300,8 @@ export function duplicateDraft(t: V3Task): V3TaskPatch & { title: string } {
     deadline: t.deadline,
     hardDeadline: t.hardDeadline,
     scheduleId: t.scheduleId,
+    labels: t.labels,
+    repeat: t.repeat,
   };
 }
 
