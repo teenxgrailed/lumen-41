@@ -402,3 +402,57 @@ describe("what the server cannot start", () => {
     );
   });
 });
+
+describe("Pinterest", () => {
+  const entry: CatalogEntry = {
+    slug: "pinterest",
+    name: "Pinterest",
+    description: "Import a board's Pins into a moodboard",
+    category: "creative",
+    native: true,
+    configured: true,
+  };
+
+  it("starts its own OAuth and disconnects through its own route", () => {
+    expect(connectPlan(entry)).toEqual({
+      kind: "navigate",
+      href: "/api/pinterest/authorize",
+    });
+    expect(disconnectKind({ kind: "app", slug: "pinterest" })).toBe(
+      "pinterest"
+    );
+    expect(chipOf(entry)).toBe("creative");
+  });
+
+  it("is hidden from non-admins until the server has credentials", () => {
+    const off = {
+      ...entry,
+      configured: false,
+      requires: "PINTEREST_CLIENT_ID",
+    };
+    const items = buildItems([off], [], []);
+    const slugs = (admin: boolean) =>
+      visibleItems(items, admin).map((i) => i.slug);
+    expect(slugs(false)).not.toContain("pinterest");
+    expect(slugs(true)).toContain("pinterest");
+    expect(connectPlan(off, true)).toMatchObject({
+      kind: "unavailable",
+      reason: expect.stringContaining("PINTEREST_CLIENT_ID"),
+    });
+  });
+
+  it("reads the grant row as connected, and an ended one as needing attention", () => {
+    const live = buildItems(
+      [entry],
+      [{ id: "p1", toolkit: "pinterest", status: "CONNECTED" }],
+      []
+    );
+    expect(live[0]).toMatchObject({ state: "connected", accountId: "p1" });
+    const dead = buildItems(
+      [entry],
+      [{ id: "p1", toolkit: "pinterest", status: "ERROR" }],
+      []
+    );
+    expect(dead[0].state).toBe("disconnected");
+  });
+});

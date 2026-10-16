@@ -18,7 +18,7 @@ import type { V3BoardItem } from "@/lib/needt3/hooks/boards";
 
 import { Sheet } from "../../ctx/Sheet";
 import { copyText, openUrl } from "./clipboard";
-import { isFigma, isWebUrl } from "./logic";
+import { isFigma, sourceUrlOf } from "./logic";
 import { FavBadge, Visual } from "./parts";
 
 /**
@@ -155,7 +155,7 @@ export function Detail({
           )}
           <span className="pl-share-sheet-col">
             <span className="pl-strong">{src}</span>
-            {isWebUrl(x.url) ? (
+            {sourceUrlOf(x) ? (
               <span className="pl-detail-text">
                 {isFigma(x)
                   ? "Opens in Figma · link only"
@@ -165,11 +165,11 @@ export function Detail({
               <span className="pl-meta">{(x.color ?? "").toUpperCase()}</span>
             ) : null}
           </span>
-          {isWebUrl(x.url) ? (
+          {sourceUrlOf(x) ? (
             <button
               type="button"
               className="nx-btn nx-btn-secondary nx-btn-sm mb-open-source"
-              onClick={() => openUrl(x.url as string)}
+              onClick={() => openUrl(sourceUrlOf(x) as string)}
             >
               {isFigma(x) ? "Open in Figma" : "Open source"}
               <LuArrowUpRight size={13} aria-hidden />
@@ -231,11 +231,11 @@ export function Detail({
             <LuTrash2 size={13} aria-hidden />
             Remove
           </button>
-          {isWebUrl(x.url) ? (
+          {sourceUrlOf(x) ? (
             <button
               type="button"
               className="nx-btn nx-btn-text nx-btn-sm"
-              onClick={() => void copyText(x.url as string)}
+              onClick={() => void copyText(sourceUrlOf(x) as string)}
             >
               <LuLink size={13} aria-hidden />
               Copy link

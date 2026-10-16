@@ -8,6 +8,7 @@ import {
   connectToolkit,
   disconnectCalendar,
   disconnectMailbox,
+  disconnectPinterest,
   disconnectToolkit,
   startOAuth,
   useCatalog,
@@ -121,7 +122,9 @@ export function useConnectionsController() {
         ? await disconnectCalendar(item.accountId)
         : kind === "mailbox"
           ? await disconnectMailbox(item.accountId)
-          : await disconnectToolkit(item.accountId);
+          : kind === "pinterest"
+            ? await disconnectPinterest()
+            : await disconnectToolkit(item.accountId);
     setBusy(null);
     setConfirm(null);
     if (!r.ok) return void notify.error(r.error);

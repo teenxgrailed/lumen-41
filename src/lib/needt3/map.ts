@@ -635,6 +635,7 @@ export interface ApiMoodboard {
   linkShare?: boolean;
   pinterestBoardId?: string | null;
   pinterestStatus?: string | null;
+  pinterestSync?: boolean;
   pinterestSyncedAt?: string | null;
   trashedAt?: string | null;
   /** Only the single-board route sends the caller's role. */
@@ -683,6 +684,8 @@ export interface V3Board {
   linkShare: boolean;
   pinterestBoardId: string | null;
   pinterestStatus: string | null;
+  /** The daily worker pass appends new Pins from the linked Pinterest board. */
+  pinterestSync: boolean;
   pinterestSyncedAt: string | null;
   trashedAt: string | null;
   /** The caller's role; null when the route did not send it (the list). */
@@ -736,6 +739,7 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
     linkShare: row.linkShare ?? false,
     pinterestBoardId: row.pinterestBoardId ?? null,
     pinterestStatus: row.pinterestStatus ?? null,
+    pinterestSync: row.pinterestSync ?? false,
     pinterestSyncedAt: row.pinterestSyncedAt ?? null,
     trashedAt: row.trashedAt ?? null,
     accessRole:

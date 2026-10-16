@@ -163,7 +163,7 @@ export interface ApiBoardItem {
   title?: string | null;
   ratio?: number | null;
   colorName?: string | null;
-  source?: { name?: string; domain?: string } | null;
+  source?: { name?: string; domain?: string; url?: string } | null;
   thumbnailUrl?: string | null;
   position?: number;
   createdAt?: string;
@@ -182,7 +182,7 @@ export interface V3BoardItem {
   title: string | null;
   ratio: number | null;
   colorName: string | null;
-  source: { name?: string; domain?: string } | null;
+  source: { name?: string; domain?: string; url?: string } | null;
   thumbnailUrl: string | null;
   position: number;
   createdAt: string | null;
@@ -217,7 +217,7 @@ export interface BoardItemDraft {
   title?: string | null;
   ratio?: number | null;
   colorName?: string | null;
-  source?: { name?: string; domain?: string } | null;
+  source?: { name?: string; domain?: string; url?: string } | null;
   thumbnailUrl?: string | null;
   position?: number;
 }

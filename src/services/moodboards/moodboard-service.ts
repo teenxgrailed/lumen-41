@@ -30,6 +30,7 @@ const moodboardSelect = {
   linkShare: true,
   pinterestBoardId: true,
   pinterestStatus: true,
+  pinterestSync: true,
   pinterestSyncedAt: true,
   trashedAt: true,
 } satisfies Prisma.MoodboardSelect;

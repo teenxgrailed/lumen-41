@@ -6,7 +6,7 @@ import { LuArrowUpRight, LuCopy, LuTrash2 } from "react-icons/lu";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { copyText } from "../../places/board/clipboard";
-import { isWebUrl } from "../../places/board/logic";
+import { isWebUrl, sourceUrlOf } from "../../places/board/logic";
 import { PkButton, PkField, PkSheet } from "../kit";
 import { TileFace } from "./Wall";
 import {
@@ -191,10 +191,10 @@ export function ItemSheet({
                 <span className="phb-kind-label">{src.name}</span>
                 <span className="phb-kind-hint">{src.domain}</span>
               </span>
-              {isWebUrl(it.url) ? (
+              {sourceUrlOf(it) ? (
                 <a
                   className="phb-open"
-                  href={it.url}
+                  href={sourceUrlOf(it) as string}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

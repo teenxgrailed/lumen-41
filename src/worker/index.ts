@@ -20,6 +20,7 @@ import {
   pruneOrphanTrialGrants,
   purgeExpiredTrash,
 } from "@/services/ops/retention";
+import { syncPinterestBoards } from "@/services/pinterest/import";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -265,6 +266,15 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   await pruneAgentActionLog();
   await pruneOrphanTrialGrants();
   await purgeExpiredTrash();
+  try {
+    await syncPinterestBoards();
+  } catch (error) {
+    await logger.error(
+      "Pinterest sync pass failed",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
 }
 
 async function processImport(job: Job<ImportJobData>) {

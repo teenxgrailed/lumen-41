@@ -46,7 +46,13 @@ import { isImageFile, linkDraft, linkFromUrl, normHex } from "./board/logic";
 import { BOARD_FULL_TEXT, BOARD_ITEM_LIMIT } from "./derive";
 
 /** The dialogs the desktop board page opens (the phone has its own sheets). */
-export type BoardSheet = "link" | "colour" | "note" | "share" | null;
+export type BoardSheet =
+  | "link"
+  | "colour"
+  | "note"
+  | "share"
+  | "pinterest"
+  | null;
 
 /** The place's list route; a board is one level under it. */
 export const BOARDS_PATH = "/moodboards";
