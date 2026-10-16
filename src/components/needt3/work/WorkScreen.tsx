@@ -7,6 +7,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LuChevronLeft, LuX } from "react-icons/lu";
 
 import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
+import {
+  CompletionScope,
+  useCompletion,
+} from "@/components/needt3/task/useCompletion";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import {
@@ -133,7 +137,11 @@ function WorkScreenContent({
 
   const prefs = settings.data?.prefs ?? {};
   const pview = prefs.projectsView === "list" ? "list" : "cards";
-  const tasks = tasksQ.data ?? EMPTY_TASKS;
+  // a ticked task still playing its exit reads as open (task/useCompletion)
+  const completion = useCompletion();
+  const { hold } = completion;
+  const rawTasks = tasksQ.data ?? EMPTY_TASKS;
+  const tasks = useMemo(() => hold(rawTasks), [hold, rawTasks]);
   const projects = useMemo(
     () =>
       projectsSorted(
@@ -244,7 +252,7 @@ function WorkScreenContent({
   ];
   const empty = WK_EMPTY[isProjects ? "projects" : tab];
 
-  return (
+  const content = (
     <div className="wk-screen">
       <header className="wk-head">
         {isProjects ? (
@@ -464,4 +472,5 @@ function WorkScreenContent({
       />
     </div>
   );
+  return <CompletionScope value={completion}>{content}</CompletionScope>;
 }

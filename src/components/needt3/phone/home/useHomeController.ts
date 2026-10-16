@@ -9,6 +9,7 @@ import { useToggleTask, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { useCompletion } from "../../task/useCompletion";
 import { usePkExit } from "../kit";
 import { snack } from "../overlays/snack";
 import { dayIn } from "../overlays/today";
@@ -49,7 +50,10 @@ export function useHomeController() {
 
   // the desktop face's
   const [tab, setTab] = useState<HomeTab>("day");
-  const [leaving, setLeaving] = useState<Record<string, HomePhase>>({});
+  // the shared completion (task/useCompletion): the rows' strike and fold, and
+  // the timers that end them, live here for the same reason as the rest
+  const completion = useCompletion();
+  const leaving: Record<string, HomePhase> = completion.phase;
   const [back, setBack] = useState<Record<string, boolean>>({});
   const closed = useRef<string[]>([]);
   const timers = useRef<Record<string, number[]>>({});
@@ -103,7 +107,7 @@ export function useHomeController() {
     tab,
     setTab,
     leaving,
-    setLeaving,
+    completion,
     back,
     setBack,
     closed,

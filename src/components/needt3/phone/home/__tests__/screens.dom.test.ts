@@ -176,10 +176,9 @@ const DeskHome = ({ ctl }: { ctl: HomeController }) =>
     Btn("late", String(!!ctl.fold.late), ctl.flip("late")),
     Btn("done", String(!!ctl.fold.done), ctl.flip("done")),
     Btn("skip", ctl.skipped.join(), () => ctl.setSkipped((x) => [...x, "x"])),
-    Btn("leaving", Object.keys(ctl.leaving).join(), () => {
-      ctl.setLeaving({ a: "strike" });
-      ctl.timers.current.a = [window.setTimeout(() => ctl.setLeaving({}), 50)];
-    })
+    Btn("leaving", Object.keys(ctl.leaving).join(), () =>
+      ctl.completion.check({ id: "a", done: false, title: "A" })
+    )
   );
 const DeskCal = ({ ctl }: { ctl: CalendarController }) =>
   h(
@@ -614,12 +613,21 @@ describe("two faces, one state (crossing 700 px)", () => {
 
   it("a desktop row's strike ends after the face is gone", () => {
     jest.useFakeTimers({ now: NOW });
+    // Completed tasks: hide, so the struck row folds and goes
+    client.setQueryData(qk.settings(), {
+      theme: "light",
+      defaultView: "week",
+      timeZone: "UTC",
+      weekStartDay: "monday",
+      timeFormat: "24h",
+      prefs: { taskView: { completed: "hide" } },
+    });
     mount(PhoneHome, "desktop");
     click(q("[data-d=leaving]"));
     expect(q("[data-d=leaving]").textContent).toBe("a");
     swap(PhoneHome, "phone"); // the desktop face unmounts mid-strike
     act(() => {
-      jest.advanceTimersByTime(100);
+      jest.advanceTimersByTime(1500);
     });
     swap(PhoneHome, "desktop");
     expect(q("[data-d=leaving]").textContent).toBe("");

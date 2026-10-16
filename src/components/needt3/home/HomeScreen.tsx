@@ -38,11 +38,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import {
-  useTasks,
-  useToggleTask,
-  useUpdateTask,
-} from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
@@ -89,9 +85,7 @@ import {
  * Day | Week ahead; a closed day says so once and points at tomorrow.
  */
 
-/** The strike plays, then the row collapses, then it is gone (ms). */
-const STRIKE_MS = 600;
-const GONE_MS = 870;
+/** A reopened row's return (ms); the strike and the fold are the shared completion's. */
 const BACK_MS = 320;
 
 type Tab = HomeTab;
@@ -122,7 +116,6 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const projects = useProjects();
   const settings = useSettings();
   const plan = usePlan();
-  const toggleTask = useToggleTask();
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
@@ -138,7 +131,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     fold,
     setFold,
     leaving,
-    setLeaving,
+    completion,
     back,
     setBack,
     skipped,
@@ -231,42 +224,30 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     });
 
   /**
-   * The check writes first, always; the row's exit is only the page catching
-   * up. Under reduced motion the row leaves at once.
+   * The check is the shared completion (task/useCompletion): the write goes
+   * first, always, with its Undo notice; the strike and the fold are only the
+   * page catching up. Here only what Home itself keeps: the closed order for
+   * "Undo last" and a reopened row's return.
    */
   const check = useCallback(
     (t: V3Task) => {
-      void toggleTask.toggle(t).catch(() => undefined);
       clearTimers(t.id);
+      completion.check(t);
       if (!t.done) {
         closed.current = closed.current.filter((x) => x !== t.id).concat(t.id);
-        if (reduced) return;
-        setLeaving((m) => ({ ...m, [t.id]: "strike" }));
-        timers.current[t.id] = [
-          window.setTimeout(
-            () =>
-              setLeaving((m) => (m[t.id] ? { ...m, [t.id]: "collapse" } : m)),
-            STRIKE_MS
-          ),
-          window.setTimeout(() => {
-            drop(setLeaving, t.id);
-            delete timers.current[t.id];
-          }, GONE_MS),
-        ];
-      } else {
-        closed.current = closed.current.filter((x) => x !== t.id);
-        drop(setLeaving, t.id);
-        if (reduced) return;
-        setBack((m) => ({ ...m, [t.id]: true }));
-        timers.current[t.id] = [
-          window.setTimeout(() => {
-            drop(setBack, t.id);
-            delete timers.current[t.id];
-          }, BACK_MS),
-        ];
+        return;
       }
+      closed.current = closed.current.filter((x) => x !== t.id);
+      if (reduced) return;
+      setBack((m) => ({ ...m, [t.id]: true }));
+      timers.current[t.id] = [
+        window.setTimeout(() => {
+          drop(setBack, t.id);
+          delete timers.current[t.id];
+        }, BACK_MS),
+      ];
     },
-    [toggleTask, reduced, clearTimers, closed, timers, setLeaving, setBack]
+    [completion, reduced, clearTimers, closed, timers, setBack]
   );
 
   const undoLast = () => {

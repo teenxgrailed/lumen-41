@@ -263,7 +263,11 @@ export function PkRow({
             (check === false ? null : (
               <button
                 type="button"
-                className={pkCx("pk-check", done && "is-on")}
+                className={pkCx(
+                  "pk-check",
+                  done && "is-on",
+                  phase === "check" && "is-ticking"
+                )}
                 aria-pressed={done}
                 aria-label={done ? "Mark not done" : "Mark done"}
                 onClick={(e) => {
