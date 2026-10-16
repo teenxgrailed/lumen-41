@@ -8,7 +8,6 @@ import { V3Root } from "@/components/needt3/root/V3Root";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
-import { isDesignV3 } from "@/lib/needt3/design-flag";
 import { viewportLook } from "@/lib/needt3/look-boot";
 import {
   PHONE_UI_COOKIE,
@@ -47,13 +46,12 @@ export default async function AppLayout({
     return <EmailVerificationGate initialStatus={verification} />;
   }
 
-  // design_v3 is off for everyone by default (rollout 0 %); the frame is
-  // reached only through a per-user override.
-  if (session?.user?.id && (await isDesignV3())) {
+  // A signed-in person always gets the frame; a stranger only reaches the
+  // bare sign-in, reset and setup screens below.
+  if (session?.user?.id) {
     // The server picks the phone UI for the first render: the needt-ui cookie,
     // else Sec-CH-UA-Mobile, else the user agent. After hydration the width
-    // takes over (700 px), unless the cookie pinned a side. Only read here, so
-    // the flag-off path below stays exactly as it was.
+    // takes over (700 px), unless the cookie pinned a side.
     const [reqHeaders, jar] = await Promise.all([headers(), cookies()]);
     const uiCookie = jar.get(PHONE_UI_COOKIE)?.value;
     const initialUi = phoneUiFrom({

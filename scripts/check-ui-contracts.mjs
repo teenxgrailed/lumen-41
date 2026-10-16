@@ -153,13 +153,6 @@ for (const retired of [
   forbidText(focusPath, retired, focus);
 }
 
-const todayPath = "src/components/needt/home/TodayRoute.tsx";
-const today = await source(todayPath);
-requireText(todayPath, 'className="needt-v2"', today);
-requireText(todayPath, "data-theme={theme}", today);
-requireText(todayPath, "sm:hidden", today);
-requireText(todayPath, "sm:flex", today);
-
 for (const retired of [
   "src/components/today/TodayView.tsx",
   "src/components/today/DayTimeline.tsx",
@@ -251,8 +244,7 @@ requireText(rootLayoutPath, "figma-local-capture", rootLayout);
 
 for (const aiUsagePath of [
   "src/components/ai/AIChatSurface.tsx",
-  "src/components/settings/AIAssistantSettings.tsx",
-  "src/components/settings/BillingSettings.tsx",
+  "src/components/needt3/settings/PlanSection.tsx",
 ]) {
   const contents = await source(aiUsagePath);
   for (const retired of [
@@ -269,12 +261,6 @@ for (const aiUsagePath of [
     contents
   );
 }
-
-const billingSettingsPath = "src/components/settings/BillingSettings.tsx";
-const billingSettings = await source(billingSettingsPath);
-requireText(billingSettingsPath, "Yearly · 29% off", billingSettings);
-requireText(billingSettingsPath, '"AI agent"', billingSettings);
-forbidText(billingSettingsPath, "2 months free", billingSettings);
 
 const packageJson = JSON.parse(await source("package.json"));
 if (packageJson.name !== "needt") {

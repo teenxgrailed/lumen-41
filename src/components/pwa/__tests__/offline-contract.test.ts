@@ -25,7 +25,7 @@ describe("offline privacy and replay contract", () => {
     for (const path of [
       "src/components/navigation/UserMenu.tsx",
       "src/components/settings/AccountSettings.tsx",
-      "src/components/needt/settings/SettingsRoute.tsx",
+      "src/components/needt3/settings/sign-out-everywhere.ts",
       "src/components/needt/shell/NeedtAppShell.tsx",
     ]) {
       const source = readFileSync(path, "utf8");

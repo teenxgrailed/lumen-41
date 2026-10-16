@@ -23,11 +23,9 @@ describe("hosted AI soft-limit UI contract", () => {
   });
 
   it("surfaces task-parsing notices in every visible consumer", () => {
-    // SmartPlanningPanel was this notice's third consumer. The design port
-    // removed the panel outright — AI assistance moved to the chat overlay
-    // and the action cursor — so there is no third surface to check.
+    // SmartPlanningPanel and the old AI settings page were this notice's other
+    // consumers; both are gone, so quick-add is the one surface left to check.
     for (const path of [
-      "src/components/settings/AIAssistantSettings.tsx",
       "src/app/(app)/quick-add/page.tsx",
     ]) {
       const consumer = readFileSync(join(process.cwd(), path), "utf8");
