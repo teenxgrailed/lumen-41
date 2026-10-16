@@ -1,4 +1,8 @@
-import { clientOrigin, isTrustedClientHost } from "@/services/oauth/clients";
+import {
+  clientMetadata,
+  clientOrigin,
+  isTrustedClientHost,
+} from "@/services/oauth/clients";
 import { grantedScopes } from "@/services/oauth/consent";
 import { parseScopes } from "@/services/oauth/constants";
 import { isCodeChallenge, verifyPkce } from "@/services/oauth/crypto";
@@ -386,5 +390,33 @@ describe("CIMD fetch SSRF protection", () => {
     await expect(
       safeFetchJson("https://big.example/meta.json", { deps: d })
     ).rejects.toThrow("too large");
+  });
+});
+
+describe("client metadata", () => {
+  // The document claude.ai serves at its CIMD client_id, 2026-10-16.
+  const claude = {
+    client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata",
+    client_name: "Claude",
+    client_uri: "https://claude.ai",
+    redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+    grant_types: [
+      "authorization_code",
+      "refresh_token",
+      "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    ],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+  };
+
+  it("accepts a client that also lists grants we do not issue", () => {
+    expect(clientMetadata.safeParse(claude).success).toBe(true);
+  });
+
+  it("rejects a client that cannot use authorization_code", () => {
+    expect(
+      clientMetadata.safeParse({ ...claude, grant_types: ["refresh_token"] })
+        .success
+    ).toBe(false);
   });
 });
