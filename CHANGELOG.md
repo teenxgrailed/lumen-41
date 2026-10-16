@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Connecting Needt from claude.ai works again: the sign-in page no longer
+  rejects a client that also lists grant types Needt does not issue (Claude
+  lists jwt-bearer), and only requires authorization_code.
 - The app host is no longer indexed by search engines: every response carries
   `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
   a robots noindex meta tag, and robots.txt lets crawlers reach the public
