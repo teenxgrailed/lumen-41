@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Admin Bug reports (`/admin/bugs`): a list over `/api/admin/bug-reports`,
+  newest first, with severity, status, who sent it, the build, a status filter
+  and the full report (steps, expected, actual, where, GitHub link) one click
+  away.
+
 - Promo codes. Admin (`/admin/promo`): create a code (a generate-random button),
   list, deactivate and see who used it. A code gives trial days, Pro days or
   Lifetime, with an optional use limit and expiry; the grant goes through the

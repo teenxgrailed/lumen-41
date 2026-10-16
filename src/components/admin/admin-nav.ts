@@ -15,6 +15,7 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/flags", label: "Flags" },
   { href: "/admin/promo", label: "Promo codes" },
+  { href: "/admin/bugs", label: "Bug reports" },
   { href: "/admin/system", label: "Integrations" },
   { href: "/admin/operations", label: "Operations" },
 ];
