@@ -151,7 +151,13 @@ type StyledDoc = Pick<V3Doc, "coverUrl" | "style">;
  * the paywall instead of writing, and the server refuses it too (403).
  */
 export function needsPro(doc: StyledDoc, patch: Partial<DocStyle>) {
-  return proStyleChanges(doc.style, stylePatch(doc, patch).style).length > 0;
+  const next = stylePatch(doc, patch);
+  return (
+    proStyleChanges(doc.style, next.style, {
+      before: doc.coverUrl,
+      after: next.coverUrl,
+    }).length > 0
+  );
 }
 
 /** True when the plan may write Pro style values: known, and not Free. */

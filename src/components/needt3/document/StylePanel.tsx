@@ -1,5 +1,16 @@
 "use client";
 
+//todo post-launch styles (decided: not before the 2026-10-26 launch). Free and
+//todo   Pro today: fonts and 3 page colours (White, Paper, Graphite) are free;
+//todo   backdrops, covers, the other page colours and presets are Pro
+//todo   (../docs/pro-style is the one rule; the pages API enforces it).
+//todo backdrop colour, gradient and photo: `backdrop` is a fixed list of 8
+//todo   drawings; Craft also has a flat colour, a two-colour gradient and a
+//todo   picture. DocStyle already carries `bdLook` (faded/immersive) and
+//todo   `bdBlur`, with no control for them in this panel.
+//todo block colours: a colour per block (Craft "Block colors", Block and Focus
+//todo   decorations); the highlight and text-colour marks only colour text.
+//todo Washi tape and Doodle separators: `separator` is line | dots | wave.
 import {
   type CSSProperties,
   type ReactNode,
@@ -287,10 +298,11 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
   const qc = useQueryClient();
   const plan = usePlan();
   const fileRef = useRef<HTMLInputElement>(null);
-  // Document themes (All Styles, Backdrop) are Pro; colour, text, cover and
-  // font stay free (the rule is ../docs/pro-style, which the API enforces). An
-  // unknown plan (still loading) counts as not Pro, so a free reader never
-  // gets a Pro style through the loading gap.
+  // Document themes (All Styles, Backdrop), covers and the page colours beyond
+  // the free three are Pro; the fonts, text colour and separator stay free
+  // (the rule is ../docs/pro-style, which the API enforces). An unknown plan
+  // (still loading) counts as not Pro, so a free reader never gets a Pro style
+  // through the loading gap.
   const pro = !!plan.data && plan.data.kind !== "free";
   const toPaywall = () => openPaywall(PRO_FEATURE);
   const s = styleOf(doc);
@@ -547,20 +559,26 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
               className="docs-dc-swatch-grid-1"
               style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}
             >
-              {DOC_PAGES.map((p) => (
-                <button
-                  className="docs-dc-style-panel-10"
-                  key={p.id}
-                  type="button"
-                  data-dc-swatch={p.id}
-                  title={p.name}
-                  aria-label={p.name}
-                  aria-pressed={s.page === p.id}
-                  onClick={() => set({ page: p.id })}
-                >
-                  <DcSplit l={read(p.l)} d={read(p.d)} size={32} />
-                </button>
-              ))}
+              {DOC_PAGES.map((p) => {
+                // Three page colours are free; the rest are Pro (a colour the
+                // page already has stays usable after a downgrade).
+                const locked = !pro && isProStyleValue("page", p.id);
+                return (
+                  <button
+                    className="docs-dc-style-panel-10"
+                    key={p.id}
+                    type="button"
+                    data-dc-swatch={p.id}
+                    {...(locked ? { "data-pro-locked": "" } : {})}
+                    title={locked ? `${p.name} (Pro)` : p.name}
+                    aria-label={locked ? `${p.name}, Pro` : p.name}
+                    aria-pressed={s.page === p.id}
+                    onClick={() => (locked ? toPaywall() : set({ page: p.id }))}
+                  >
+                    <DcSplit l={read(p.l)} d={read(p.d)} size={32} />
+                  </button>
+                );
+              })}
             </div>
             <span className="docs-dc-style-panel-11">
               {copy.each_colour_has_a_light_and_a_dark_readi}
@@ -679,8 +697,11 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
                 ? coverArtId(s.cover)
                   ? copy.drawn
                   : copy.your_picture
-                : copy.none
+                : pro
+                  ? copy.none
+                  : "Covers with Pro"
             }
+            badge={<ProPill locked={!pro} />}
             last
           >
             {s.cover ? (
@@ -702,9 +723,11 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
               type="button"
               className="nx-btn nx-btn-secondary"
               data-dc-cover-upload=""
+              {...(pro ? {} : { "data-pro-locked": "" })}
               onClick={() => {
                 close();
-                fileRef.current?.click();
+                if (pro) fileRef.current?.click();
+                else toPaywall();
               }}
             >
               <LuUpload size={15} aria-hidden />
@@ -723,9 +746,12 @@ export function StylePanel({ doc, read }: { doc: V3Doc; read: TokenReader }) {
                     (s.cover === coverArtValue(a) ? " is-on" : "")
                   }
                   data-dc-cover-art={a}
-                  aria-label={`Cover ${a}`}
+                  {...(pro ? {} : { "data-pro-locked": "" })}
+                  aria-label={pro ? `Cover ${a}` : `Cover ${a}, Pro`}
                   aria-pressed={s.cover === coverArtValue(a)}
-                  onClick={() => set({ cover: coverArtValue(a) })}
+                  onClick={() =>
+                    pro ? set({ cover: coverArtValue(a) }) : toPaywall()
+                  }
                 >
                   <DcCover cover={coverArtValue(a)} />
                 </button>

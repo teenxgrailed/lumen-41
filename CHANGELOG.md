@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Free and Pro document styles: all four fonts and three page colours (White,
+  Paper, Graphite) stay free; a backdrop, a cover (drawn art or your own
+  picture), the other page colours and every All Styles preset but Default are
+  Pro. The Style panel and the phone Page Style sheet mark them with a lock and
+  open the paywall, and the pages API refuses them on a free plan
+  (`UPGRADE_REQUIRED`, keys `backdrop`, `page`, `cover`). What a page already
+  has is kept after a downgrade, and a free plan can still remove a cover.
 - Document export: Page options gets **Export as Markdown** (a `.md` download
   of the page as it is on screen) and **Export as PDF** (the browser's print
   with the page alone on the paper, in its own style). The same Markdown is
