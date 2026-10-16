@@ -302,6 +302,25 @@
 .needt-v3 .admin-table-actions .admin-history {
   flex-basis: 100%;
 }
+.needt-v3 .admin-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--type-ui);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: default;
+}
+.needt-v3 .admin-link-button:hover {
+  text-decoration: underline;
+}
+.needt-v3 .admin-prewrap {
+  white-space: pre-wrap;
+}
+.needt-v3 .admin-bug-detail {
+  grid-template-columns: 1fr;
+  margin-top: 10px;
+}
 .needt-v3 .admin-warning {
   color: var(--destructive);
 }
