@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Docs, Trash, Moodboards, Templates and Shared keep their header, grids and
+  lists in the same content column as Tasks on wide windows; the Trash list
+  fills that column instead of stopping at two thirds.
+
 - Tasks, Projects and a project page now use one content width: task rows fill
   the same column as the header and the project tiles, with time, duration and
   project at the right edge instead of floating in the middle on wide windows.
