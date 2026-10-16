@@ -27,6 +27,9 @@ jest.mock("@/lib/needt3/hooks/account", () => ({
   openBillingPortal: jest.fn(async () => ({ ok: true })),
   startCheckout: jest.fn(async () => ({ ok: true })),
 }));
+jest.mock("@/lib/needt3/hooks/promo", () => ({
+  useRedeemPromo: () => jest.fn(),
+}));
 jest.mock("@/lib/notifications", () => ({ notify: { error: jest.fn() } }));
 jest.mock("../../ctx/PortalScope", () => ({
   useV3PortalContainer: () => null,

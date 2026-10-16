@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Promo codes. Admin (`/admin/promo`): create a code (a generate-random button),
+  list, deactivate and see who used it. A code gives trial days, Pro days or
+  Lifetime, with an optional use limit and expiry; the grant goes through the
+  same service as an admin's manual comp, so Creem is never called. People
+  enter a code under Settings -> Plan -> "Have a code?" (desktop and phone) or
+  call `POST /api/promo/redeem` (documented in `docs/connector-api.md`): signed
+  in, rate limited, one use per person per code, and the use limit holds under
+  races (a conditional increment inside one transaction). Additive tables
+  `PromoCode` and `PromoRedemption`.
+
 - Admin Flags (`/admin/flags`): every feature flag with an on/off switch and a
   rollout percent, through `/api/admin/feature-flags` (new `GET` list; `PATCH`
   now also creates the row for a flag the code reads but no migration made,

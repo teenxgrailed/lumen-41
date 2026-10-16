@@ -287,6 +287,21 @@
 .needt-v3 .admin-days {
   width: 72px;
 }
+.needt-v3 .admin-code {
+  width: 168px;
+  text-transform: uppercase;
+}
+.needt-v3 .admin-date {
+  width: 140px;
+}
+.needt-v3 .admin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.needt-v3 .admin-table-actions .admin-history {
+  flex-basis: 100%;
+}
 .needt-v3 .admin-warning {
   color: var(--destructive);
 }

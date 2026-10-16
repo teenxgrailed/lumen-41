@@ -96,6 +96,7 @@ model User {
   // Bumped to sign the person out everywhere: a session token carries the
   // version it was issued under and stops working once the two differ.
   sessionVersion         Int                       @default(0)
+  promoRedemptions       PromoRedemption[]
   dataExports            DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]
@@ -2423,7 +2424,7 @@ model SystemSettings {
   linkedinClientSecret                 String?
   openaiSiwcClientId                   String?
   openaiSiwcClientSecret               String?
-  logLevel                            String   @default("none") // none, debug, info, warn, error
+  logLevel                             String   @default("none") // none, debug, info, warn, error
   logRetention                         Json? // Retention periods per log level
   logDestination                       String   @default("db") // db, file, both
   publicSignup                         Boolean  @default(true) // Whether public signup is enabled
@@ -3315,4 +3316,38 @@ model AdminAuditLog {
 
   @@index([targetUserId, createdAt])
   @@index([createdAt])
+}
+
+// Promo codes: a code a person types to get a trial extension, Pro for N days
+// or Lifetime, applied through the same service as an admin's manual comp.
+// //todo: Creem discount-code kind (needs the owner's Creem account)
+model PromoCode {
+  id             String            @id @default(cuid())
+  // Stored upper-case; a redeem upper-cases what was typed before looking up.
+  code           String            @unique
+  // "trial_days" | "pro_days" | "lifetime"
+  kind           String
+  // Days for trial_days and pro_days; null for lifetime.
+  value          Int?
+  maxRedemptions Int?
+  redeemedCount  Int               @default(0)
+  expiresAt      DateTime?
+  active         Boolean           @default(true)
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  redemptions    PromoRedemption[]
+
+  @@index([createdAt])
+}
+
+model PromoRedemption {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeId    String
+  code      PromoCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, codeId])
+  @@index([codeId, createdAt])
 }

@@ -486,6 +486,43 @@ action log. Two undo calls for the same action never both apply: the second
 gets `already_undone`. Log entries are deleted 30 days after their undo
 window ends.
 
+## Promo codes
+
+`POST /api/promo/redeem` applies a promo code to the signed-in account. It
+uses the app's session (the cookie of a signed-in browser), not a connector
+token, because it changes the account's plan.
+
+```bash
+curl -X POST https://use.needt.app/api/promo/redeem \
+  -H "Content-Type: application/json" \
+  -H "Cookie: <your session cookie>" \
+  -d '{ "code": "K7M2P-9XQ4R" }'
+```
+
+Codes are case-insensitive. A code gives more trial days, Pro for N days, or
+Lifetime, and may have a use limit and an expiry date. A person can use a given
+code once. It is limited to 10 tries an hour per account and 30 per address.
+
+`200`:
+
+```json
+{ "kind": "pro_days", "message": "Pro for 30 days added, until 2026-11-15." }
+```
+
+Every refusal is `{ "error": "<sentence>", "code": "<CODE>" }`:
+
+| Status | `code`         | Meaning                                                          |
+| ------ | -------------- | ---------------------------------------------------------------- |
+| `400`  | `UNKNOWN`      | No code in the body                                              |
+| `404`  | `UNKNOWN`      | No such code                                                     |
+| `410`  | `EXPIRED`      | Past its date, or switched off                                   |
+| `409`  | `USED_UP`      | The use limit is reached                                         |
+| `409`  | `ALREADY_USED` | This account already used it                                     |
+| `409`  | `NOT_ELIGIBLE` | The account has a paid plan (or Lifetime) the code cannot change |
+| `429`  |                | Too many tries                                                   |
+
+A refused code is not spent. Promo codes never call the payment provider.
+
 ## Webhooks
 
 Settings -> Connectors can send best-effort POSTs for:
