@@ -1,3 +1,7 @@
+import { purgeTrashedMoodboardsBefore } from "@/services/moodboards/moodboard-service";
+import { purgeTrashedPagesBefore } from "@/services/pages/page-service";
+import { purgeTrashedTasksBefore } from "@/services/tasks/trash";
+
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +12,9 @@ const LOG_SOURCE = "ops-retention";
 
 /** How long an action is kept after it stops being undoable. */
 export const ACTION_LOG_RETENTION_DAYS = 30;
+
+/** How long a deleted task, page or moodboard waits in Trash (the screen says 30 days). */
+export const TRASH_RETENTION_DAYS = 30;
 
 /**
  * How long a trial record outlives its account (Privacy Notice §3.7: "two
@@ -78,4 +85,34 @@ export async function pruneAgentActionLog(now: Date = newDate()) {
     );
   }
   return { actions: actions.count, runs };
+}
+
+/**
+ * Deletes for good what has sat in Trash for 30 days: tasks, pages and
+ * moodboards, each by its own service's delete. A failure in one kind is
+ * logged and does not stop the others.
+ */
+export async function purgeExpiredTrash(now: Date = newDate()) {
+  const cutoff = addCalendarDays(now, -TRASH_RETENTION_DAYS);
+  const purged = { tasks: 0, pages: 0, boards: 0 };
+  const kinds: Array<[keyof typeof purged, (c: Date) => Promise<number>]> = [
+    ["tasks", purgeTrashedTasksBefore],
+    ["pages", purgeTrashedPagesBefore],
+    ["boards", purgeTrashedMoodboardsBefore],
+  ];
+  for (const [kind, run] of kinds) {
+    try {
+      purged[kind] = await run(cutoff);
+    } catch (error) {
+      logger.error(
+        "Trash purge failed",
+        { kind, error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
+      );
+    }
+  }
+  if (purged.tasks || purged.pages || purged.boards) {
+    logger.info("Purged expired Trash", purged, LOG_SOURCE);
+  }
+  return purged;
 }
