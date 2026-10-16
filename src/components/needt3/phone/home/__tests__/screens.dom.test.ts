@@ -446,12 +446,12 @@ describe("Calendar", () => {
 
   describe("sideways swipe", () => {
     const body = () => q<HTMLElement>(".v2p-swap");
-    it("pages a week on a clear swipe, from the last move", () => {
+    it("moves a day on a clear swipe, from the last move", () => {
       mount(PhoneCalendar);
       fire(body(), "pointerdown", { x: 300, y: 100 });
       fire(window, "pointermove", { x: 180, y: 104 });
       fire(window, "pointerup", { x: 0, y: 0 }); // the up event's own coordinates are not used
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
     });
     it("a cancel never pages", () => {
       mount(PhoneCalendar);
@@ -470,7 +470,7 @@ describe("Calendar", () => {
       expect(selected()).toBe(TODAY); // finger 2 paged nothing and ended nothing
       fire(window, "pointermove", { x: 150, y: 100, id: 1 });
       fire(window, "pointerup", { x: 150, y: 100, id: 1 });
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
     });
     it("a vertical drag is a scroll, not a swipe", () => {
       mount(PhoneCalendar);
@@ -483,8 +483,8 @@ describe("Calendar", () => {
       client.setQueryData(qk.tasks({}), [
         ...calTasks,
         task("next", {
-          dueDate: "2026-09-09",
-          scheduledStart: "2026-09-09T10:00",
+          dueDate: "2026-09-03",
+          scheduledStart: "2026-09-03T10:00",
           estimatedMinutes: 30,
         }),
       ]);
@@ -492,7 +492,7 @@ describe("Calendar", () => {
       fire(q("[data-v2p-tl=t1]"), "pointerdown", { x: 300, y: 100 });
       fire(window, "pointermove", { x: 150, y: 100 });
       fire(window, "pointerup", { x: 150, y: 100 });
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
       // the browser sends a click to what is under the finger now
       click(q("[data-v2p-plate=next]"));
       expect(usePhoneOverlays.getState().taskId).toBeNull();
