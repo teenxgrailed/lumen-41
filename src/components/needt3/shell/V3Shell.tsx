@@ -11,8 +11,8 @@ import {
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { useLivePreviews } from "@/lib/needt3/hooks/docs";
 import { CHAT_DOCK_W } from "@/lib/assistant-position";
+import { useLivePreviews } from "@/lib/needt3/hooks/docs";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -27,6 +27,7 @@ import { TitleTips } from "../menu/TitleTips";
 import { CommandPalette } from "../palette/CommandPalette";
 import { PhoneShell } from "../phone/shell/PhoneShell";
 import { ShellFrame } from "../root/ShellFrame";
+import { StatusBanners } from "../states/StBanner";
 import { BugSheet } from "./BugSheet";
 import { CustomizeSidebar } from "./CustomizeSidebar";
 import { KeySheet } from "./KeySheet";
@@ -343,7 +344,14 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
         <ChatDockContext.Provider value={chatDock}>
           <ShellFrame
             ui={ui}
-            top={phone || focusMode ? null : <Topbar />}
+            top={
+              phone || focusMode ? null : (
+                <>
+                  <Topbar />
+                  <StatusBanners screen={pathname?.split("/")[1] ?? ""} />
+                </>
+              )
+            }
             rail={phone ? null : rail}
             overlays={phone ? <PhoneShell /> : desktopLayers}
             hosts={<PermanentHosts />}

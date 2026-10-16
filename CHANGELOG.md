@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The desktop top bar now shows the offline pill, and status banners appear
+  under it: "Google Calendar / Gmail access was revoked" with Reconnect (when
+  every calendar of an account fails to sync, or a mailbox is in error),
+  "AI paused" when the monthly AI allowance is spent, and "AI is temporarily
+  unavailable" when no AI key is configured for the person or the server.
+  `GET /api/accounts` gains `needsReconnect`.
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
