@@ -3300,3 +3300,19 @@ model OAuthToken {
   @@index([userId, revokedAt])
   @@index([clientId])
 }
+
+// Admin panel: one row per change an admin made to another person's account.
+// No foreign keys on purpose: the row must outlive the account it records
+// (deleting an account is one of the actions), so both ids are plain text and
+// `details` carries the target's email at the time.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  targetUserId String?
+  action       String
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([createdAt])
+}

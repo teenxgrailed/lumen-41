@@ -12,6 +12,7 @@ export interface AdminNavItem {
 
 export const ADMIN_NAV: readonly AdminNavItem[] = [
   { href: "/admin", label: "Overview", exact: true },
+  { href: "/admin/users", label: "Users" },
   { href: "/admin/system", label: "Integrations" },
   { href: "/admin/operations", label: "Operations" },
 ];
