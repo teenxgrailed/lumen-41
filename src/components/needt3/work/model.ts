@@ -13,6 +13,12 @@ import {
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import {
+  hourOn,
+  isOnToday,
+  isOverdue as overdue,
+  taskDay,
+} from "@/lib/needt3/task-day";
+import {
   DEFAULT_TASK_VIEW,
   type TaskViewSettings,
   comparatorFor,
@@ -20,12 +26,6 @@ import {
   overdueOnTop,
   showsTask,
 } from "@/lib/needt3/task-view";
-import {
-  hourOn,
-  isOnToday,
-  isOverdue as overdue,
-  taskDay,
-} from "@/lib/needt3/task-day";
 
 import { flowOrder } from "./flow";
 
@@ -237,7 +237,10 @@ export function workModel(opts: {
       view.sort,
       projects
     );
-  sections = overdueOnTop(sections, view.overdueFirst, today, view.sort);
+  // by date the tab's own sections already put Overdue first (Today); lifting
+  // it out of the Inbox / day / project sections is for the other groupings
+  if (view.group !== "date" || !view.overdueFirst)
+    sections = overdueOnTop(sections, view.overdueFirst, today, view.sort);
 
   return {
     live,
@@ -368,7 +371,10 @@ export function projectGroups(
   const groups: Section[] = view.overdueFirst
     ? base
     : overdueOnTop(
-        base.map((g) => ({ ...g, key: g.key === "Overdue" ? "overdue" : g.key })),
+        base.map((g) => ({
+          ...g,
+          key: g.key === "Overdue" ? "overdue" : g.key,
+        })),
         false,
         today,
         view.sort

@@ -15,17 +15,17 @@ import {
 } from "@/lib/needt3/derive";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 import {
-  DEFAULT_TASK_VIEW,
-  type TaskViewSettings,
-  sortTasks,
-} from "@/lib/needt3/task-view";
-import {
   hourOn,
   isOverdue,
   overdueTasks,
   taskDay,
   todayTasks,
 } from "@/lib/needt3/task-day";
+import {
+  DEFAULT_TASK_VIEW,
+  type TaskViewSettings,
+  sortTasks,
+} from "@/lib/needt3/task-view";
 
 /** HomeToday.jsx HD_CAP: a section shows this many rows, then "Show all N". */
 export const HOME_CAP = 25;

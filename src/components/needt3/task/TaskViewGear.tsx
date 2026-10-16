@@ -8,9 +8,9 @@ import { FiSettings } from "react-icons/fi";
 import { useSetTaskView, useTaskView } from "@/lib/needt3/hooks/task-view";
 import type { CompletedMode, TaskViewSettings } from "@/lib/needt3/task-view";
 
+import { Seg2 } from "../calendar/Seg2";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
-import { Seg2 } from "../calendar/Seg2";
 import { V3Switch } from "../settings/kit";
 
 /** Which lists the gear sits on decides which options can change them. */
@@ -169,7 +169,11 @@ export function TaskViewGear({ scope }: { scope: TaskViewScope }) {
             className={`nx-pop is-right tv-pop${leaving ? " is-leaving" : ""}`}
             onOpenAutoFocus={(e) => e.preventDefault()}
           >
-            <TaskViewForm view={view} onChange={(p) => void set(p)} scope={scope} />
+            <TaskViewForm
+              view={view}
+              onChange={(p) => void set(p)}
+              scope={scope}
+            />
           </Popover.Content>
         </Popover.Portal>
       ) : null}

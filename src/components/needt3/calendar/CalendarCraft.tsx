@@ -23,7 +23,9 @@ import {
   useSettings,
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useToggleTask } from "@/lib/needt3/hooks/tasks";
+import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -34,6 +36,7 @@ import { CalendarFaces } from "../phone/calendar/CalendarFaces";
 import type { CalendarController } from "../phone/calendar/useCalendarController";
 import { useDesignV3 } from "../root/V3Root";
 import { StScreen } from "../states/StScreen";
+import { TaskViewGear } from "../task/TaskViewGear";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
 import { type WeekHandle, WeekView } from "./WeekView";
@@ -181,10 +184,16 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     () => new Set((calendars ?? []).map((c) => c.id)),
     [calendars]
   );
+  // the task view's Completed setting, on top of this screen's Hide done
+  const taskView = useTaskView();
+  const shownTasks = useMemo(
+    () => (tasksQuery.data ?? []).filter((t) => showsTask(t, taskView, today)),
+    [tasksQuery.data, taskView, today]
+  );
   const { timed, loose, doneHidden } = useMemo(
     () =>
       calendarItems({
-        tasks: tasksQuery.data ?? [],
+        tasks: shownTasks,
         events: eventsQuery.data ?? [],
         projects,
         calendarNames,
@@ -193,7 +202,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
         hideDone,
       }),
     [
-      tasksQuery.data,
+      shownTasks,
       eventsQuery.data,
       projects,
       calendarNames,
@@ -388,6 +397,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
             : spanLabel(agendaDays, false)}
         </span>
         <span className="c2-head-right">
+          <TaskViewGear scope="calendar" />
           <span className="c2-pager">
             {(
               [

@@ -38,13 +38,13 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { showsTask } from "@/lib/needt3/task-view";
 import {
   useTasks,
   useToggleTask,
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -379,26 +379,26 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const weekNo = formatInTimeZone(now, tz, "I");
 
   const lateFold = lateShown.length ? (
-      <Fold
-        title="Overdue"
-        tone="late"
-        count={late.length}
-        open={!fold.late}
-        onToggle={flip("late")}
-        note="These were due before today — move them or let them go."
-        action={
-          <button
-            type="button"
-            className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
-            onClick={() => void moveToToday()}
-          >
-            Move to today
-          </button>
-        }
-      >
-        <Capped list={lateShown} render={(t) => row(t, true)} />
-      </Fold>
-    ) : null;
+    <Fold
+      title="Overdue"
+      tone="late"
+      count={late.length}
+      open={!fold.late}
+      onToggle={flip("late")}
+      note="These were due before today — move them or let them go."
+      action={
+        <button
+          type="button"
+          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
+          onClick={() => void moveToToday()}
+        >
+          Move to today
+        </button>
+      }
+    >
+      <Capped list={lateShown} render={(t) => row(t, true)} />
+    </Fold>
+  ) : null;
 
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">

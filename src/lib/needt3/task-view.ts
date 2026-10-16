@@ -172,8 +172,10 @@ export function comparatorFor(sort: TaskSort) {
 }
 
 /** A sorted copy. */
-export const sortTasks = <T extends Orderable>(list: readonly T[], sort: TaskSort) =>
-  list.slice().sort(comparatorFor(sort));
+export const sortTasks = <T extends Orderable>(
+  list: readonly T[],
+  sort: TaskSort
+) => list.slice().sort(comparatorFor(sort));
 
 /* ---------- groups ---------- */
 
@@ -221,8 +223,7 @@ export function groupTasks<
             key: "none",
             title: "No project",
             tasks: tasks.filter(
-              (t) =>
-                !t.projectId || !projects.some((p) => p.id === t.projectId)
+              (t) => !t.projectId || !projects.some((p) => p.id === t.projectId)
             ),
           },
         ];
@@ -243,10 +244,7 @@ export function overdueOnTop<T extends Orderable & Pick<V3Task, "done">>(
   sort: TaskSort
 ): TaskGroupSection<T>[] {
   const late = (t: T) =>
-    isOverdue(
-      t as unknown as Parameters<typeof isOverdue>[0],
-      today
-    );
+    isOverdue(t as unknown as Parameters<typeof isOverdue>[0], today);
   const all = sections.flatMap((s) => s.tasks);
   const hadLate = sections.find((s) => s.key === "overdue");
   if (!first) {
@@ -255,7 +253,9 @@ export function overdueOnTop<T extends Orderable & Pick<V3Task, "done">>(
     const rest = sections.filter((s) => s.key !== "overdue");
     const home = rest.find((s) => s.key === "today") ?? rest[0];
     if (!home)
-      return [{ key: "today", title: "Today", tasks: sortTasks(hadLate.tasks, sort) }];
+      return [
+        { key: "today", title: "Today", tasks: sortTasks(hadLate.tasks, sort) },
+      ];
     return rest.map((s) =>
       s === home
         ? { ...s, tasks: sortTasks([...s.tasks, ...hadLate.tasks], sort) }

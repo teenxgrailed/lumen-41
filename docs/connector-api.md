@@ -579,6 +579,35 @@ Payload:
 }
 ```
 
+## Task view
+
+One setting says how every task list is drawn (Home, Tasks, project pages, the
+Calendar, the phone). It lives in the user settings, under `prefs.taskView`,
+and is read and written with `GET` / `PATCH /api/user-settings`:
+
+```bash
+curl -s https://needt.app/api/user-settings
+# → { "prefs": { "taskView": { "completed": "today", … } }, … }
+
+# `prefs` replaces the whole stored map: send it back with your change merged in
+curl -X PATCH -H "Content-Type: application/json" \
+  -d '{ "prefs": { "taskView": { "completed": "hide", "sort": "priority" } } }' \
+  https://needt.app/api/user-settings
+```
+
+| Key            | Values                        | Default | Meaning                                                                         |
+| -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
+| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
+| `subtasks`     | boolean                       | true    | Row detail: the parts count                                                     |
+| `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
+| `project`      | boolean                       | true    | Row detail: the project                                                         |
+| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
+| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)       |
+| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                  |
+
+Missing keys take their default; an unknown key or value is a `400`. "Until the
+end of the day" counts from the task's `completedAt`.
+
 ## Moodboard items
 
 A moodboard's references (the grid the board page and the phone wall draw).

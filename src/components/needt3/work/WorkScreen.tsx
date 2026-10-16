@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { LuChevronLeft, LuX } from "react-icons/lu";
 
+import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
+
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import {
   useArchiveProject,
@@ -18,8 +20,6 @@ import {
   useSettings,
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
-import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
-
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";

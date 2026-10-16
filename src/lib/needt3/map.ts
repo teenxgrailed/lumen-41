@@ -296,7 +296,16 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
 
 /** Fields a v3 screen may write. `done` maps to `status`. */
 export type V3TaskPatch = Partial<
-  Omit<V3Task, "id" | "status" | "updatedAt" | "completedAt" | "movedFrom" | "parts" | "waits">
+  Omit<
+    V3Task,
+    | "id"
+    | "status"
+    | "updatedAt"
+    | "completedAt"
+    | "movedFrom"
+    | "parts"
+    | "waits"
+  >
 >;
 
 /**
