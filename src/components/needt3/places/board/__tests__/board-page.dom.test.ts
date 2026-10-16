@@ -148,16 +148,13 @@ const click = (el: Element | null) =>
   });
 const flush = () => act(async () => void (await Promise.resolve()));
 
-function dragEvent(type: string) {
-  const e = new Event(type, { bubbles: true, cancelable: true });
-  Object.defineProperty(e, "dataTransfer", {
-    value: { effectAllowed: "", dropEffect: "", types: [], setData() {} },
-  });
-  return e;
-}
-const drag = (el: Element, type: string) =>
+/* The wall reorders with the shared sortable list: Space picks a card up, the
+ * arrows move it, Space drops it, Escape puts it back. */
+const key = (el: Element | null, k: string) =>
   act(() => {
-    el.dispatchEvent(dragEvent(type));
+    el?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })
+    );
   });
 
 function paste(
@@ -265,7 +262,7 @@ describe("the wall", () => {
     mount();
     expect(q(".mb-add")).toBeNull();
     expect(q(".mb-card-more")).toBeNull();
-    expect(q('[data-id="a"]')?.getAttribute("draggable")).toBe("false");
+    expect(q('[data-id="a"]')?.hasAttribute("data-sort-handle")).toBe(false);
   });
 
   it("View as guest hides what writes, and Exit brings it back", () => {
@@ -275,7 +272,7 @@ describe("the wall", () => {
     expect(q(".mb-add")).toBeNull();
     expect(q(".mb-share")).toBeNull();
     expect(q(".mb-guest-bar")).not.toBeNull();
-    expect(q('[data-id="a"]')?.getAttribute("draggable")).toBe("false");
+    expect(q('[data-id="a"]')?.hasAttribute("data-sort-handle")).toBe(false);
     click(q(".mb-guest-bar button"));
     expect(q(".mb-add")).not.toBeNull();
   });
@@ -284,7 +281,7 @@ describe("the wall", () => {
     mockItems = [item("a"), item("canvas:x", { fromCanvas: true })];
     mount();
     const tile = q('[data-id="canvas:x"]')!;
-    expect(tile.getAttribute("draggable")).toBe("false");
+    expect(tile.hasAttribute("data-sort-handle")).toBe(false);
     expect(tile.querySelector(".mb-card-more")).toBeNull();
     expect(q('[data-id="a"] .mb-card-more')).not.toBeNull();
   });
@@ -345,12 +342,14 @@ describe("paste", () => {
 });
 
 describe("drag to reorder", () => {
-  it("a drop on another reference commits the new order once", async () => {
+  it("a drop commits the new order once", async () => {
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="c"]')!, "dragenter");
-    drag(q('[data-id="c"]')!, "drop");
-    drag(q('[data-id="a"]')!, "dragend");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, "ArrowDown");
+    key(a, "ArrowDown");
+    expect(mockReorder).not.toHaveBeenCalled();
+    key(a, " ");
     await flush();
     expect(mockReorder).toHaveBeenCalledTimes(1);
     expect(mockReorder).toHaveBeenCalledWith({
@@ -363,24 +362,40 @@ describe("drag to reorder", () => {
     );
   });
 
-  it("a drag that ends without a drop (Esc, outside) commits nothing", async () => {
+  it("Escape puts the card back and commits nothing", async () => {
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="c"]')!, "dragenter");
-    drag(q('[data-id="a"]')!, "dragend");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, "ArrowDown");
+    key(a, "Escape");
     await flush();
     expect(mockReorder).not.toHaveBeenCalled();
+    expect(
+      [...host.querySelectorAll("[data-id]")].map((n) =>
+        n.getAttribute("data-id")
+      )
+    ).toEqual(["a", "b", "c"]);
   });
 
-  it("dropping a reference on itself, or on a canvas tile, changes nothing", async () => {
+  it("a card with no move (dropped where it was), or a canvas tile, changes nothing", async () => {
     mockItems = [item("a"), item("b"), item("canvas:x", { fromCanvas: true })];
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="a"]')!, "drop");
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="canvas:x"]')!, "drop");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, " ");
+    key(q('[data-id="canvas:x"]'), " ");
     await flush();
     expect(mockReorder).not.toHaveBeenCalled();
+    expect(q('[data-id="canvas:x"]')?.hasAttribute("data-sort-handle")).toBe(
+      false
+    );
+  });
+
+  it("Enter still opens the card", async () => {
+    mount();
+    key(q('[data-id="b"]'), "Enter");
+    await flush();
+    expect(doc("textarea[name=mb-detail-note]")).not.toBeNull();
   });
 });
 

@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Connecting Needt from claude.ai works again: the sign-in page no longer
   rejects a client that also lists grant types Needt does not issue (Claude
   lists jwt-bearer), and only requires authorization_code.
+- Reordering works the same everywhere on desktop: Customize Sidebar (Places
+  and Sections), subtasks in the task dialog and the moodboard wall now share
+  one sortable list. The row follows the pointer (transform only), the others
+  slide aside, it drops where the gap shows, text no longer selects while
+  dragging, the grip shows a grab cursor, and Space, the arrows and Space
+  again reorder from the keyboard with a spoken position. A failed save puts
+  the old order back.
 - Connecting Gmail or Outlook Mail no longer sends the browser to the
   container address (`0.0.0.0:3000`): the mail and integration callbacks and
   checkout build their URLs from `NEXTAUTH_URL`. A connected Gmail now shows as
