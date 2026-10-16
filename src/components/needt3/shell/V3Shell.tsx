@@ -11,13 +11,13 @@ import {
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { CHAT_DOCK_W } from "@/lib/assistant-position";
 import { useLivePreviews } from "@/lib/needt3/hooks/docs";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { AskProvider } from "../corner/AskProvider";
+import { ChatDockSlot } from "../corner/ChatDockSlot";
 import { ChatDockContext } from "../corner/dock";
 import { CtxLayer } from "../ctx/CtxLayer";
 import { registerCtx } from "../ctx/registry";
@@ -80,7 +80,6 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const sidebarOpen = useNeedt3Ui((s) => s.sidebarOpen);
   const paletteOpen = useNeedt3Ui((s) => s.paletteOpen);
   const docRail = useNeedt3Ui((s) => s.docRail);
-  const askOpen = useNeedt3Ui((s) => s.askOpen);
   const docId = useOpenDocId();
   // Ask Needt docks here (see corner/AskCorner): a column of the main row.
   const [chatDock, setChatDock] = useState<HTMLElement | null>(null);
@@ -311,29 +310,10 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
     </>
   );
 
-  /* The Ask Needt dock: 360 px wide while the panel is open on a wide window,
-     otherwise 0 (below 1100 the panel is a sheet over a scrim and the page
-     keeps its width; the phone draws its own Ask). The slot is always in the
-     row so opening it never moves the page's chain. */
-  const dockOpen = askOpen && !phone && !narrow;
+  /* The Ask Needt dock slot reads `askOpen` itself (corner/ChatDockSlot), so
+     the shell does not re-render when the panel opens or closes. */
   const dock = (
-    <div
-      ref={setChatDock}
-      data-chat-dock
-      style={
-        narrow || phone
-          ? { flex: "none", width: 0 }
-          : {
-              flex: "none",
-              display: "flex",
-              justifyContent: "flex-end",
-              overflow: "hidden",
-              backgroundColor: "var(--background)",
-              width: dockOpen ? CHAT_DOCK_W : 0,
-              transition: "width 220ms cubic-bezier(0.2, 0.9, 0.24, 1)",
-            }
-      }
-    />
+    <ChatDockSlot phone={phone} narrow={narrow} slotRef={setChatDock} />
   );
 
   return (
