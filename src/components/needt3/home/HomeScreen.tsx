@@ -8,6 +8,7 @@ import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
+import { openPaywall } from "@/components/needt3/paywall/store";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import type {
   HomeController,
@@ -130,7 +131,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, openSettings } = useNeedt3Ui();
+  const { setComposerOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
@@ -207,7 +208,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
-  const upgrade = () => openSettings("billing");
+  // A locked feature opens the Pro sheet, on what was asked for.
+  const upgradePlan = () => openPaywall("Plan my day");
+  const upgradeWeek = () => openPaywall("Week load");
   // Plan my day runs the real scheduler (preview, apply, one Undo); it is a
   // Pro action, so a Free person never reaches it (PlanButton opens the plans).
   const planDay = () => void planner.plan();
@@ -369,7 +372,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       pro={pro}
       canPlan={canPlan}
       onPlan={planDay}
-      onLocked={upgrade}
+      onLocked={upgradePlan}
       primary={primary}
       small={small}
       busy={planner.busy}
@@ -640,7 +643,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   cap={cap}
                   pro={pro}
                   onCalendar={() => router.push("/calendar")}
-                  onUpgrade={upgrade}
+                  onUpgrade={upgradeWeek}
                 />
               ) : (
                 <Schedule

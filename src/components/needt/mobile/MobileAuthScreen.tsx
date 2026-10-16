@@ -19,6 +19,8 @@ import { LuApple, LuChrome } from "react-icons/lu";
 
 import { ExposureWordmark as Wordmark } from "@/components/needt/wordmark";
 
+import { BRAND_LINE } from "@/lib/brand";
+
 import { Glyph } from "../shell/chrome";
 import { AUTH_BUTTON_HEIGHT } from "./mobile-logic";
 
@@ -132,9 +134,7 @@ export function MobileAuthScreen({
             textWrap: "pretty",
           }}
         >
-          {signup
-            ? "Everything you're working on, in one place."
-            : "Welcome back."}
+          {signup ? BRAND_LINE : "Welcome back."}
         </span>
       </div>
 

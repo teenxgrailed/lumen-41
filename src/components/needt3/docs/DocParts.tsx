@@ -31,18 +31,29 @@ const NO_TOKENS: TokenReader = () => "";
 export function useDocTokens(): TokenReader {
   const [read, setRead] = useState<TokenReader>(() => NO_TOKENS);
   useEffect(() => {
-    const el = document.querySelector(".needt-v3");
-    if (!el) return;
-    const css = getComputedStyle(el);
-    const memo = new Map<string, string>();
-    setRead(() => (name: string) => {
-      let v = memo.get(name);
-      if (v === undefined) {
-        v = css.getPropertyValue(name).trim();
-        memo.set(name, v);
+    let raf = 0;
+    const attach = () => {
+      const el = document.querySelector(".needt-v3");
+      // The scope is not painted yet: ask again next frame rather than leave
+      // the page on no tokens for good (pageVars falls back meanwhile).
+      if (!el) {
+        raf = requestAnimationFrame(attach);
+        return;
       }
-      return v;
-    });
+      const css = getComputedStyle(el);
+      const memo = new Map<string, string>();
+      setRead(() => (name: string) => {
+        let v = memo.get(name);
+        if (v === undefined) {
+          v = css.getPropertyValue(name).trim();
+          // An empty read is not remembered: the sheet may still be loading.
+          if (v) memo.set(name, v);
+        }
+        return v;
+      });
+    };
+    attach();
+    return () => cancelAnimationFrame(raf);
   }, []);
   return read;
 }

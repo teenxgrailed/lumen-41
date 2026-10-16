@@ -74,6 +74,8 @@ export const qk = {
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
   nudges: () => [V3, "nudges"] as const,
+  /** The bell's feed; under `nudges` so marking a nudge read refreshes it too. */
+  notifications: (group: string) => [V3, "nudges", "feed", group] as const,
   shell: () => [V3, "shell"] as const,
   search: (q: string) => [V3, "search", q] as const,
 } as const;

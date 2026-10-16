@@ -42,8 +42,21 @@ export interface NoticeAct {
   run?: () => void;
 }
 
+/**
+ * Where a notice is drawn.
+ *
+ * `toast` (the default) is a transient confirmation or status line: "Focus
+ * started", "Placed at 14:00", with an Undo. It is a compact inverted pill at
+ * the bottom centre of the window. `island` is the product speaking to you on
+ * its own initiative (the proactive AI nudges); it grows out of the Ask Needt
+ * pill in the bottom-right corner.
+ */
+export type NoticeSurface = "toast" | "island";
+
 /** What a caller hands to `notify`. */
 export interface NoticePayload {
+  /** Where it is drawn. Default `toast`. */
+  surface?: NoticeSurface;
   kind: NoticeKind;
   title: string;
   body: string;

@@ -19,9 +19,12 @@
  * card above the pill that never changes the pill's size. Its button does the
  * real thing (the scheduler's preview → apply, with Undo through the island).
  *
- * Notices come from the `notify` facade (src/lib/notifications.ts) through
- * the bridge in needt/corner; this mounts the sink for the v3 frame, where the
- * old AppShell's <NeedtNotices> does not exist. Hovering the island, focus
+ * Notices that ask for the island (`surface: "island"` on the `notify`
+ * facade, src/lib/notifications.ts: the proactive nudges) come through the
+ * bridge in needt/corner; this mounts that sink for the v3 frame, where the
+ * old AppShell's <NeedtNotices> does not exist. The transient action notices
+ * (what you did, with Undo) are not drawn here: they are the compact pill at
+ * the bottom centre (<ActionToasts>, mounted by PermanentHosts). Hovering the island, focus
  * inside it, or having the panel open holds the dismiss clocks.
  */
 import * as React from "react";
@@ -74,6 +77,7 @@ import { AiOrb } from "../orb/AiOrb";
 import { usePaywallStore } from "../paywall/store";
 import { useShellApi } from "../shell/ShellContext";
 import { useAsk } from "./AskProvider";
+import { PANEL_EXIT_MS } from "./ChatDockSlot";
 import { ChatPanel } from "./ChatPanel";
 import { NudgeTip } from "./NudgeTip";
 import { useChatDock } from "./dock";
@@ -88,8 +92,12 @@ import {
 } from "./nudge-tip";
 import { firstName } from "./scope";
 
-/** The dock card's exit (chat.css v3-chat-spring-out 200ms, +20ms slack). */
-const PANEL_EXIT_MS = 220;
+/** The entrance is over: the layer hints and the glass header may come back. */
+function settle(e: React.AnimationEvent<HTMLElement>) {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove("is-opening");
+  }
+}
 
 const KINDS: Record<
   NoticeKind,
@@ -108,8 +116,8 @@ const KINDS: Record<
 function Sink() {
   const api = useNotify();
   React.useEffect(() => {
-    setNoticeSink(api);
-    return () => setNoticeSink(null);
+    setNoticeSink(api, "island");
+    return () => setNoticeSink(null, "island");
   }, [api]);
   return null;
 }
@@ -393,7 +401,8 @@ function Corner() {
         onMouseDown={() => setOpen(false)}
       />
       <div
-        className={`chat-box chat-sheet${panelLeaving ? " is-leaving" : ""}`}
+        className={`chat-box chat-sheet${panelLeaving ? " is-leaving" : " is-opening"}`}
+        onAnimationEnd={settle}
         role="dialog"
         aria-label="Ask Needt"
         data-chat-panel
@@ -415,7 +424,8 @@ function Corner() {
       onKeyDown={onPanelKey}
     >
       <div
-        className={`chat-box chat-dock-card${panelLeaving ? " is-leaving" : ""}`}
+        className={`chat-box chat-dock-card${panelLeaving ? " is-leaving" : " is-opening"}`}
+        onAnimationEnd={settle}
       >
         {panel}
       </div>

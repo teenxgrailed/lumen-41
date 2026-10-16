@@ -45,21 +45,29 @@ export interface PaywallCta {
   sub: string;
   /** Why the button is off, shown in place of `sub`; null when it works. */
   blocked: string | null;
+  /**
+   * What the button does: `trial` starts the free trial (no card, no
+   * payment), `checkout` goes to the payment provider.
+   */
+  action: "trial" | "checkout";
 }
 
 type PlanFacts =
   | (Pick<V3Plan, "kind" | "configured" | "lifetimeAvailable"> &
-      Partial<Pick<V3Plan, "checkoutEnabled">>)
+      Partial<Pick<V3Plan, "checkoutEnabled" | "trialEligible">>)
   | null;
 
 /**
  * The call to action under the plan cards.
  *
- * The prototype's button started the trial on the spot. Here the trial is
- * granted by the server when the account's email is confirmed, so there is no
- * "start" to press: Pro buttons go to checkout and say so, and the trial is
- * described, not sold. Payments that are not configured turn the button off
- * and say why; nothing pretends to succeed.
+ * The prototype's button started the trial on the spot. Here the server
+ * grants the trial when the email is confirmed, so most people are already in
+ * it or past it. Someone on Free whom the server says can still have one
+ * (`trialEligible`) gets "Start 14-day free trial" for either Pro card, and it
+ * starts the trial: no card, no payment, so it works while checkout is closed.
+ * Everyone else's Pro buttons go to checkout and say so. Payments that are
+ * not configured turn the button off and say why; nothing pretends to
+ * succeed.
  */
 export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
   const kind = plan?.kind ?? "free";
@@ -68,7 +76,7 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
     (pick !== "lifetime" &&
       (kind === "monthly" || kind === "yearly") &&
       plan !== null);
-  const base =
+  const base: Omit<PaywallCta, "blocked" | "action"> =
     pick === "lifetime"
       ? {
           label: `Get Lifetime · ${PRICE.lifetime}`,
@@ -89,6 +97,7 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
       ...base,
       label: "Lifetime is yours",
       blocked: "Thank you — Pro for good.",
+      action: "checkout",
     };
   }
   if (owned) {
@@ -96,6 +105,16 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
       ...base,
       label: "Current plan",
       blocked: "This is the plan you are on.",
+      action: "checkout",
+    };
+  }
+  /* The trial costs nothing, so it does not wait for checkout to open. */
+  if (pick !== "lifetime" && kind === "free" && plan?.trialEligible === true) {
+    return {
+      label: PRICE.trialCta,
+      sub: PRICE.trialShort,
+      blocked: null,
+      action: "trial",
     };
   }
   /* Checkout is closed unless the server's `billing_checkout` switch says
@@ -104,6 +123,7 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
     return {
       ...base,
       blocked: "Checkout opens soon. Nothing is charged until it does.",
+      action: "checkout",
     };
   }
   if (pick === "lifetime" && plan && !plan.lifetimeAvailable) {
@@ -111,9 +131,10 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
       ...base,
       label: "Lifetime is closed",
       blocked: `All ${PRICE_CAP} Lifetime plans are taken.`,
+      action: "checkout",
     };
   }
-  return { ...base, blocked: null };
+  return { ...base, blocked: null, action: "checkout" };
 }
 
 /** The one-line summary of a plan for the account banner and Settings. */

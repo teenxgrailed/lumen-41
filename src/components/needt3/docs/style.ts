@@ -298,29 +298,77 @@ export function contrast(a: string, b: string) {
 }
 
 /**
- * Below this a page's ink cannot be read at all (WCAG's large-text floor).
- * A page carries a Light and a Dark reading, so "Dark text" that reads on the
- * Light reading of White is the same ink on a dark grey card in the Dark
- * theme. Dark / Light are taken as asked only while they stay legible.
+ * The themes.css document tokens, as shipped. `pageVars` falls back to these
+ * when a token cannot be read (before the first effect, or a scope that has
+ * not painted yet), so a styled page never starts with no ink or no page:
+ * without them the card lost its colour and its text fell through to whatever
+ * the surrounding app inherited. A test keeps this table equal to themes.css.
  */
+export const DOC_TOKEN_FALLBACK: Readonly<Record<string, string>> = {
+  "--doc-page-white-l": "#ffffff",
+  "--doc-page-white-d": "#2c2c2e",
+  "--doc-page-paper-l": "#faf6ee",
+  "--doc-page-paper-d": "#2d2a25",
+  "--doc-page-rose-l": "#fdf1ef",
+  "--doc-page-rose-d": "#352a2b",
+  "--doc-page-lilac-l": "#f5f1fd",
+  "--doc-page-lilac-d": "#2b283a",
+  "--doc-page-sage-l": "#f1f6ec",
+  "--doc-page-sage-d": "#262d25",
+  "--doc-page-sky-l": "#eef5fb",
+  "--doc-page-sky-d": "#222b34",
+  "--doc-page-sand-l": "#fbf3e3",
+  "--doc-page-sand-d": "#302a1f",
+  "--doc-page-graphite-l": "#2f3135",
+  "--doc-page-graphite-d": "#38393d",
+  "--doc-page-black-l": "#161618",
+  "--doc-page-black-d": "#131315",
+  "--doc-ink-dark": "#1c1d20",
+  "--doc-ink-light": "#f2f1ee",
+  "--doc-text-umber-dk": "#4a321c",
+  "--doc-text-umber-lt": "#efd6b4",
+  "--doc-text-wine-dk": "#7a1f2e",
+  "--doc-text-wine-lt": "#f6c1c8",
+  "--doc-text-plum-dk": "#4d2a6e",
+  "--doc-text-plum-lt": "#dcc8f6",
+  "--doc-text-navy-dk": "#173a63",
+  "--doc-text-navy-lt": "#b9d6f5",
+  "--doc-text-forest-dk": "#21492b",
+  "--doc-text-forest-lt": "#bfe2c0",
+};
+
+/** A token off the reader, or its shipped value when the reader has none. */
+const tok = (read: TokenReader, name: string) => {
+  const v = read(name);
+  return hexRgb(v) ? v.trim() : (DOC_TOKEN_FALLBACK[name] ?? "");
+};
+
+/** WCAG AA for body text. */
+export const AA_TEXT = 4.5;
+/** Kept for the real-token test: the floor under which an asked ink is dropped. */
 export const MIN_ASKED_INK_CONTRAST = 3;
 
+/** WCAG AA for large text (headings, the title) and UI marks. */
+export const AA_LARGE = 3;
+
 /**
- * The ink for a page colour: Dark / Light as asked, unless that ink cannot
- * be read on this reading of the page (then it falls back to Auto); Auto, or
- * a hue, takes whichever reading reads on the page, so text stays at or
- * above 4.5:1.
+ * The ink for a page colour: Dark / Light as asked; Auto, or a hue, takes
+ * whichever reading reads on the page. Whatever was asked for, the result
+ * clears 4.5:1 on the page: a choice that would not (Light on a pale page,
+ * Dark on a dark one, a hue that has no reading for that side) gives way to
+ * whichever of the two base inks reads better.
  */
 export function inkFor(pageHex: string, text: string, read: TokenReader) {
-  const dark = read("--doc-ink-dark");
-  const light = read("--doc-ink-light");
-  if (text === "dark" && contrast(pageHex, dark) >= MIN_ASKED_INK_CONTRAST)
-    return dark;
-  if (text === "light" && contrast(pageHex, light) >= MIN_ASKED_INK_CONTRAST)
-    return light;
+  const dark = tok(read, "--doc-ink-dark");
+  const light = tok(read, "--doc-ink-light");
   const darkPage = contrast(pageHex, light) > contrast(pageHex, dark);
   const t = DOC_TEXTS.find((x) => x.id === text);
-  if (t?.dk && t.lt) return read(darkPage ? t.lt : t.dk);
+  let ink: string;
+  if (text === "dark") ink = dark;
+  else if (text === "light") ink = light;
+  else if (t?.dk && t.lt) ink = tok(read, darkPage ? t.lt : t.dk);
+  else ink = darkPage ? light : dark;
+  if (contrast(pageHex, ink) >= AA_TEXT) return ink;
   return darkPage ? light : dark;
 }
 
@@ -330,8 +378,8 @@ export function inkFor(pageHex: string, text: string, read: TokenReader) {
  */
 export function pageVars(s: DocStyle, read: TokenReader) {
   const pg = pageOf(s.page);
-  const pl = read(pg.l);
-  const pd = read(pg.d);
+  const pl = tok(read, pg.l);
+  const pd = tok(read, pg.d);
   if (!pl || !pd) return {};
   const il = inkFor(pl, s.text, read);
   const id = inkFor(pd, s.text, read);
