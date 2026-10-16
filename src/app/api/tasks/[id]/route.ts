@@ -9,6 +9,7 @@ import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import { deleteTaskForever } from "@/services/tasks/trash";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import {
   type Prisma,
@@ -574,6 +575,23 @@ export async function DELETE(
     const userId = auth.userId;
 
     const { id } = await params;
+
+    // `?permanent=true` deletes a task that is already in Trash for good.
+    if (request.nextUrl.searchParams.get("permanent") === "true") {
+      const outcome = await deleteTaskForever(
+        id,
+        workspaceDataScopeWhere(auth.workspace, userId)
+      );
+      if (outcome === "not-found")
+        return new NextResponse("Task not found", { status: 404 });
+      if (outcome === "not-trashed")
+        return NextResponse.json(
+          { error: "Only a task in Trash can be deleted for good" },
+          { status: 409 }
+        );
+      return new NextResponse(null, { status: 204 });
+    }
+
     const task = await prisma.task.findUnique({
       where: {
         id,
