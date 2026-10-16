@@ -8,6 +8,7 @@ import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
+import { openPaywall } from "@/components/needt3/paywall/store";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import type {
   HomeController,
@@ -123,7 +124,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, setAskOpen, openSettings } = useNeedt3Ui();
+  const { setComposerOpen, setAskOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
@@ -200,7 +201,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
-  const upgrade = () => openSettings("billing");
+  // A locked feature opens the Pro sheet, on what was asked for.
+  const upgradePlan = () => openPaywall("Plan my day");
+  const upgradeWeek = () => openPaywall("Week load");
   const planDay = () => {
     //todo: the real planner (POST plan-day → /api/tasks/batch) is not wired;
     // Ask Needt is the fallback the prototype used too.
@@ -359,7 +362,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       pro={pro}
       canPlan={canPlan}
       onPlan={planDay}
-      onLocked={upgrade}
+      onLocked={upgradePlan}
       primary={primary}
       small={small}
     />
@@ -627,7 +630,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   cap={cap}
                   pro={pro}
                   onCalendar={() => router.push("/calendar")}
-                  onUpgrade={upgrade}
+                  onUpgrade={upgradeWeek}
                 />
               ) : (
                 <Schedule

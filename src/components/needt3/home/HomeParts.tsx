@@ -19,6 +19,7 @@ import { LuWandSparkles } from "react-icons/lu";
 
 import { Art } from "@/components/needt3/menu/Art";
 import { Tooltip } from "@/components/needt3/menu/Tooltip";
+import { lockedBadgeProps } from "@/components/needt3/paywall/Pro";
 import { Task } from "@/components/needt3/task/Task";
 import { TaskCheck } from "@/components/needt3/task/TaskCheck";
 
@@ -47,13 +48,21 @@ import {
  */
 export type ProState = boolean | null;
 
-export const Pill = ({ pro }: { pro: ProState }) => {
+export const Pill = ({
+  pro,
+  feature,
+}: {
+  pro: ProState;
+  /** Locked, the pill opens the Pro sheet on this feature. */
+  feature?: string;
+}) => {
   const locked = pro === false;
   return (
     <span
       className={`pro-badge is-sm${locked ? " is-locked" : ""}`}
       data-pro-badge={pro ? "on" : locked ? "locked" : "unknown"}
       aria-label={locked ? "Pro feature — locked" : "Pro feature"}
+      {...(locked ? lockedBadgeProps(feature) : {})}
     >
       {locked ? <FiLock size={8} aria-hidden /> : null}PRO
     </span>
@@ -542,7 +551,7 @@ export function PlanButton({
     >
       <LuWandSparkles size={small ? 14 : 15} aria-hidden />
       Plan my day
-      <Pill pro={pro} />
+      <Pill pro={pro} feature="Plan my day" />
     </button>
   );
 }
@@ -805,7 +814,7 @@ export function WeekLoad({
         <span className="hd-sched-heading">
           <span className="hd-panel-title hd-pro-title">
             Week load
-            <Pill pro={pro} />
+            <Pill pro={pro} feature="Week load" />
           </span>
           <span className="hd-meta-t hd-num">
             {pro

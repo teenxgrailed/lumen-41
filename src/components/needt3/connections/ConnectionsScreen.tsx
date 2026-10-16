@@ -597,7 +597,11 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                         >
                           {label}
                           {k === "ai" ? (
-                            <ProBadge size="sm" locked={locked} />
+                            <ProBadge
+                              size="sm"
+                              locked={locked}
+                              feature="AI tools"
+                            />
                           ) : null}
                           {n ? (
                             <span className="cn-count" data-cn-count={k}>
