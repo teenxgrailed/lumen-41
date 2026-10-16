@@ -472,8 +472,9 @@ describe("the AI tools tab", () => {
       "perplexity",
       "othermcp",
     ]);
+    // The OAuth host (mcp.needt.app) is live: the canonical URL is the default.
     expect(($("[data-cn-connect=claude]") as HTMLButtonElement).disabled).toBe(
-      true
+      false
     );
     expect(($("[data-cn-connect=cursor]") as HTMLButtonElement).disabled).toBe(
       false

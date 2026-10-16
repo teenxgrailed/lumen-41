@@ -1,8 +1,10 @@
 import {
   AI_TOOL_IDS,
+  MCP_OAUTH_URL,
   aiSub,
   appsFor,
   maskToken,
+  oauthUrl,
   oauthUrlFromEnv,
   richParts,
   stepData,
@@ -59,5 +61,11 @@ describe("mcp rules", () => {
     expect(appsFor("othermcp", apps)).toHaveLength(0);
     expect(aiSub(0)).toBe("No AI tools connected yet");
     expect(aiSub(2)).toBe("2 connected apps");
+  });
+
+  it("falls back to the canonical OAuth URL when the env is unset", () => {
+    expect(oauthUrl()).toBe(
+      process.env.NEXT_PUBLIC_MCP_OAUTH_URL?.trim() || MCP_OAUTH_URL
+    );
   });
 });

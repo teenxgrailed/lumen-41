@@ -67,6 +67,17 @@ export function oauthUrlFromEnv(
   return /^https:\/\//.test(v) ? v : null;
 }
 
+/**
+ * The canonical OAuth resource (DNS and the Coolify domain are live). The
+ * `NEXT_PUBLIC_*` value is baked in by CI's image build, not by Coolify, so it
+ * cannot be relied on to be set: fall back to the canonical URL.
+ */
+export const MCP_OAUTH_URL = "https://mcp.needt.app/mcp";
+
+export function oauthUrl(): string {
+  return oauthUrlFromEnv() ?? MCP_OAUTH_URL;
+}
+
 export function tokenUrl(origin: string) {
   return `${origin.replace(/\/$/, "")}/api/mcp`;
 }
