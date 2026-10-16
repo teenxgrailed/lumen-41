@@ -240,6 +240,7 @@ function buildPlan(userId, workspaceId) {
     ["AccessLink", "accessLink", uid],
     ["PushSubscription", "pushSubscription", uid],
     ["Notification", "notification", uid],
+    ["NotificationRead", "notificationRead", uid],
     ["Booking", "booking", any({ ownerId: userId }, { bookingPage: uid })],
     ["BookingPage", "bookingPage", uid],
     ["Tag", "tag", { userId, tasks: { none: { NOT: T } } }],

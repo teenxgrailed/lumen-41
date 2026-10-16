@@ -118,7 +118,7 @@ server-controlled through `src/lib/feature-flags.ts`.
 - **AI companion**: position math belongs in `src/lib/assistant-position.ts`; persist normalized coordinates and mark fixed controls that it must avoid with `data-assistant-avoid`.
 - **JSX text**: escape quotes/apostrophes as `&apos;` / `&quot;`.
 - Keep changes minimal and scoped; don't refactor unrelated code. Don't remove `//todo` comments; add them for deferred work.
-- Update `CHANGELOG.md` under `[unreleased]` as you make user-facing changes.
+- Changelog: do not edit `CHANGELOG.md` in a PR. Add `changelog.d/<short-slug>.md` (bullet lines) for user-facing changes; `npm run changelog:collect` merges the fragments into `[Unreleased]` at release. See `changelog.d/README.md`.
 
 ## Layout reference
 
