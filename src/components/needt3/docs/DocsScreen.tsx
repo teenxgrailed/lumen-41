@@ -26,22 +26,25 @@ import {
 } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
-import { useDocs, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
+import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { registerCtx } from "../ctx/registry";
+import { type CtxRow, registerCtx } from "../ctx/registry";
 import { useExit } from "../ctx/useExit";
+import { ShareSheet } from "../document/ShareSheet";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { StScreen } from "../states/StScreen";
 import { DocMiniature } from "./DocMini";
 import { DcCover, DocThumb, docsCopy, useDocTokens } from "./DocParts";
+import { RenameDocSheet } from "./RenameDocSheet";
 import { backdropVars } from "./backdrop";
 import { ageLabel } from "./labels";
+import { docActions } from "./menu-model";
 import {
   DOC_SORTS,
   type DocSort,
@@ -50,6 +53,7 @@ import {
   sortDocs,
 } from "./sort";
 import { type TokenReader, fontOf, pageVars, styleOf } from "./style";
+import { docHref, useDocActions } from "./useDocActions";
 import type { DocsController, DocsView } from "./useDocsController";
 
 const copy = docsCopy;
@@ -60,35 +64,12 @@ const VIEWS: [DocsView, ReactNode, string][] = [
   ["list", <LuList key="l" size={16} />, "List"],
 ];
 
-const docHref = (id: string) => `/pages/${encodeURIComponent(id)}`;
-
-/** Pin / unpin with Undo in the toast. */
-function usePin() {
-  const update = useUpdateDoc();
-  return (d: V3Doc) =>
-    void update
-      .mutateAsync({ id: d.id, patch: { isFavorite: !d.isFavorite } })
-      .then(({ undo }) =>
-        notify.success(d.isFavorite ? "Unpinned" : "Pinned", {
-          action: { label: "Undo", onClick: () => void undo() },
-        })
-      )
-      .catch(() => undefined);
-}
-
-/** Move to Trash with Undo in the toast. */
-function useTrash() {
-  const trash = useTrashDoc();
-  return (d: V3Doc) =>
-    void trash
-      .mutateAsync({ id: d.id, trashed: true })
-      .then(({ undo }) =>
-        notify.success(`“${d.title || "Untitled"}” moved to Trash`, {
-          action: { label: "Undo", onClick: () => void undo() },
-        })
-      )
-      .catch(() => undefined);
-}
+/** The desktop's notice: a toast whose one action is Undo. */
+const say = (text: string, undo?: () => void | Promise<unknown>) =>
+  void notify.success(
+    text,
+    undo ? { action: { label: "Undo", onClick: () => void undo() } } : undefined
+  );
 
 function DocMeta({
   doc,
@@ -429,8 +410,13 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
   const query = useDocs();
   const projects = useProjects();
   const read = useDocTokens();
-  const pin = usePin();
-  const trash = useTrash();
+  const act = useDocActions(say);
+  const pin = act.pin;
+  const [renaming, setRenaming] = useState<V3Doc | null>(null);
+  const [sharing, setSharing] = useState<V3Doc | null>(null);
+  const lastShared = useRef<V3Doc | null>(null);
+  if (sharing) lastShared.current = sharing;
+  const shareDoc = sharing ?? lastShared.current;
   const openSettings = useNeedt3Ui((s) => s.openSettings);
   // The sort and the create guard live above the face switch (DocsFace);
   // the stored sort is read after mount (no SSR mismatch).
@@ -455,38 +441,64 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
   const newDoc = () => ctl.newDoc("");
 
   // Right-click on a card or a list row.
-  const live = useRef({ docs: mine, pin, trash, open });
-  live.current = { docs: mine, pin, trash, open };
+  const live = useRef({
+    docs: mine,
+    act,
+    open,
+    projects: projects.data ?? [],
+    setRenaming,
+    setSharing,
+  });
+  live.current = {
+    docs: mine,
+    act,
+    open,
+    projects: projects.data ?? [],
+    setRenaming,
+    setSharing,
+  };
   useEffect(
     () =>
       registerCtx("doc-card", ({ id }) => {
-        const { docs, pin: p, trash: t, open: o } = live.current;
+        const { docs, act: a, open: o, projects: ps, ...ui } = live.current;
         const d = docs.find((x) => x.id === id);
         if (!d) return null;
-        return [
-          [
-            { label: "Open", run: () => o(d.id) },
-            {
-              label: "Open in New Tab",
-              run: () => void window.open(docHref(d.id), "_blank", "noopener"),
-            },
-          ],
-          [
-            {
-              label: d.isFavorite ? copy.DocCard.unpin : copy.DocCard.pin,
-              run: () => p(d),
-            },
-            {
-              label: "Copy link",
-              run: () =>
-                void navigator.clipboard
-                  ?.writeText(window.location.origin + docHref(d.id))
-                  .then(() => notify.success("Link copied"))
-                  .catch(() => undefined),
-            },
-          ],
-          [{ label: "Delete", tone: "danger", run: () => t(d) }],
+        const move: CtxRow[] = [
+          {
+            label: "No project",
+            hint: d.projectId ? undefined : "✓",
+            run: () => a.moveTo(d, null),
+          },
+          ...ps.map((p) => ({
+            label: p.name,
+            hint: d.projectId === p.id ? "✓" : undefined,
+            run: () => a.moveTo(d, p.id, p.name),
+          })),
         ];
+        const run: Record<string, () => void> = {
+          open: () => o(d.id),
+          "open-new-tab": () =>
+            void window.open(docHref(d.id), "_blank", "noopener"),
+          rename: () => ui.setRenaming(d),
+          pin: () => a.pin(d),
+          duplicate: () => a.duplicate(d),
+          share: () => ui.setSharing(d),
+          "copy-link": () => a.copyLink(d),
+          trash: () => a.trash(d),
+        };
+        const groups: CtxRow[][] = [];
+        for (const spec of docActions(d, { phone: false })) {
+          (groups[spec.group] ??= []).push(
+            spec.id === "move"
+              ? { label: spec.label + "…", hint: "›", sub: move }
+              : {
+                  label: spec.label,
+                  tone: spec.danger ? "danger" : undefined,
+                  run: run[spec.id],
+                }
+          );
+        }
+        return groups.filter(Boolean);
       }),
     []
   );
@@ -644,6 +656,19 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
           )}
         </div>
       </StScreen>
+      <RenameDocSheet
+        doc={renaming}
+        onSave={act.rename}
+        onClose={() => setRenaming(null)}
+      />
+      {shareDoc ? (
+        <ShareSheet
+          doc={shareDoc}
+          read={read}
+          open={!!sharing}
+          onClose={() => setSharing(null)}
+        />
+      ) : null}
     </div>
   );
 }

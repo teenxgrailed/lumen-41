@@ -11,6 +11,12 @@ import { getPlan } from "@/lib/entitlements";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { logger } from "@/lib/logger";
 import { parseV3Fields, taskV3FieldsSchema } from "@/lib/needt3/api-fields";
+import {
+  DOC_ORIGIN,
+  expandOriginPage,
+  withOriginPageId,
+} from "@/lib/needt3/origin-page";
+import { originPageRefusal } from "@/lib/needt3/origin-page-access";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
@@ -57,12 +63,15 @@ export async function GET(request: NextRequest) {
     const taskStartDate = searchParams.get("taskStartDate");
     const hideUpcomingTasks = searchParams.get("hideUpcomingTasks") === "true";
     const archived = searchParams.get("archived") === "true";
+    // Tasks that came from one page: `?originPageId=<page id>`.
+    const originPageId = searchParams.get("originPageId");
 
     const now = newDate();
     const tasks = await prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(auth.workspace, userId),
         isArchived: archived,
+        ...(originPageId && { originKind: DOC_ORIGIN, originId: originPageId }),
         ...(!archived && { AND: [activeProjectTaskWhere] }),
         ...(status.length > 0 && { status: { in: status } }),
         ...(energyLevel.length > 0 && { energyLevel: { in: energyLevel } }),
@@ -103,7 +112,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(tasks);
+    return NextResponse.json(tasks.map(withOriginPageId));
   } catch (error) {
     logger.error(
       "Error fetching tasks:",
@@ -143,7 +152,12 @@ export async function POST(request: NextRequest) {
     delete taskData.recurrenceInstanceAt;
     const v3 = parseV3Fields(taskV3FieldsSchema, taskData);
     if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
-    Object.assign(taskData, v3.data);
+    Object.assign(taskData, expandOriginPage(v3.data));
+    delete taskData.originPageId;
+    if (v3.data.originPageId) {
+      const refusal = await originPageRefusal(auth, v3.data.originPageId);
+      if (refusal) return refusal;
+    }
     const workspaceId = auth.workspace?.workspaceId;
     const assigneeId =
       requestedAssigneeId === undefined ? userId : requestedAssigneeId;
@@ -316,7 +330,7 @@ export async function POST(request: NextRequest) {
       schedulePushTaskBlock(schedulingUserId, task.id);
     }
 
-    return NextResponse.json(task);
+    return NextResponse.json(withOriginPageId(task));
   } catch (error) {
     logger.error(
       "Error creating task:",
