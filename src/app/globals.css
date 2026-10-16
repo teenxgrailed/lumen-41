@@ -2072,18 +2072,18 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   display: flex;
 }
 .needt-column {
-  flex: var(--live, var(--w, 1)) 1 0%;
+  flex: var(--w, 1) 1 0%;
   min-width: 0;
   padding: 0 0.5rem;
 }
 .needt-columns > .needt-column:nth-child(1) {
-  --live: var(--live-1);
+  flex: var(--live-1, var(--w, 1)) 1 0%;
 }
 .needt-columns > .needt-column:nth-child(2) {
-  --live: var(--live-2);
+  flex: var(--live-2, var(--w, 1)) 1 0%;
 }
 .needt-columns > .needt-column:nth-child(3) {
-  --live: var(--live-3);
+  flex: var(--live-3, var(--w, 1)) 1 0%;
 }
 .needt-columns-handles {
   position: absolute;
