@@ -298,14 +298,26 @@ export function contrast(a: string, b: string) {
 }
 
 /**
- * The ink for a page colour: Dark / Light as asked; Auto, or a hue, takes
- * whichever reading reads on the page, so text stays at or above 4.5:1.
+ * Below this a page's ink cannot be read at all (WCAG's large-text floor).
+ * A page carries a Light and a Dark reading, so "Dark text" that reads on the
+ * Light reading of White is the same ink on a dark grey card in the Dark
+ * theme. Dark / Light are taken as asked only while they stay legible.
+ */
+export const MIN_ASKED_INK_CONTRAST = 3;
+
+/**
+ * The ink for a page colour: Dark / Light as asked, unless that ink cannot
+ * be read on this reading of the page (then it falls back to Auto); Auto, or
+ * a hue, takes whichever reading reads on the page, so text stays at or
+ * above 4.5:1.
  */
 export function inkFor(pageHex: string, text: string, read: TokenReader) {
   const dark = read("--doc-ink-dark");
   const light = read("--doc-ink-light");
-  if (text === "dark") return dark;
-  if (text === "light") return light;
+  if (text === "dark" && contrast(pageHex, dark) >= MIN_ASKED_INK_CONTRAST)
+    return dark;
+  if (text === "light" && contrast(pageHex, light) >= MIN_ASKED_INK_CONTRAST)
+    return light;
   const darkPage = contrast(pageHex, light) > contrast(pageHex, dark);
   const t = DOC_TEXTS.find((x) => x.id === text);
   if (t?.dk && t.lt) return read(darkPage ? t.lt : t.dk);

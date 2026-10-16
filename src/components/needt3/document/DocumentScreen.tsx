@@ -39,11 +39,19 @@ import { StScreen } from "../states/StScreen";
 import { InsertPanel } from "./InsertPanel";
 import { ShareSheet } from "./ShareSheet";
 import { StylePanel } from "./StylePanel";
-import { NO_STATS, type PageStats, outlineOf, statsOf } from "./outline";
+import {
+  NO_STATS,
+  type PageStats,
+  outlineOf,
+  sameOutline,
+  statsOf,
+} from "./outline";
 import { inspectorTab, isPanelShortcut, useDocPanel } from "./panel";
 
 const copy = docsCopy;
 const NARROW = 900;
+/** Typing must pause this long before Contents and Numbers are re-read. */
+const OBSERVE_PAUSE_MS = 250;
 
 const num = (n: number) => n.toLocaleString("en-US");
 
@@ -312,10 +320,14 @@ export function DocumentScreen({
   useEffect(() => {
     const el = sheet;
     if (!el) return undefined;
-    let raf = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const read = () => {
+      timer = null;
       const editor = el.querySelector<HTMLElement>(".needt-page-editor");
-      useNeedt3Ui.getState().setDocOutline(outlineOf(editor, title));
+      const store = useNeedt3Ui.getState();
+      // Same headings, same array: the rail's Contents does not re-render.
+      const rows = outlineOf(editor, title);
+      if (!sameOutline(store.docOutline, rows)) store.setDocOutline(rows);
       setStats((prev) => {
         const next = statsOf(editor);
         return prev.words === next.words &&
@@ -325,15 +337,18 @@ export function DocumentScreen({
           : next;
       });
     };
+    // Every keystroke mutates the page, and reading the text for the word
+    // count (`innerText`) forces layout. Read once typing pauses; the numbers
+    // and the headings do not need to follow each letter.
     const soon = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(read);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(read, OBSERVE_PAUSE_MS);
     };
     read();
     const mo = new MutationObserver(soon);
     mo.observe(el, { childList: true, subtree: true, characterData: true });
     return () => {
-      cancelAnimationFrame(raf);
+      if (timer) clearTimeout(timer);
       mo.disconnect();
     };
   }, [sheet, title]);

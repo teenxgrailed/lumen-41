@@ -34,7 +34,15 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
       style: null,
     },
   }),
+  // The list the sidebar already holds: it carries the first lines.
+  useDocs: () => ({
+    data: [
+      { id: "other", preview: [{ type: "p", text: "not this" }] },
+      { id: "p1", preview: [{ type: "todo", text: "Milk" }] },
+    ],
+  }),
 }));
+const mockThumb = jest.fn();
 let filesQ: { data?: unknown[]; isSuccess: boolean; isError: boolean } = {
   data: [],
   isSuccess: true,
@@ -48,7 +56,10 @@ jest.mock("@/lib/needt3/hooks/doc-files", () => ({
 jest.mock("../../docs/DocParts", () => ({
   docsCopy: jest.requireActual("../../docs/DocParts").docsCopy,
   useDocTokens: () => () => "",
-  DocThumb: () => null,
+  DocThumb: (props: unknown) => {
+    mockThumb(props);
+    return null;
+  },
 }));
 
 let host: HTMLDivElement;
@@ -84,6 +95,16 @@ afterEach(() => {
 });
 
 describe("DocRail", () => {
+  it("draws the page's face with its first lines from the list", () => {
+    mockThumb.mockClear();
+    act(() => root.render(h(DocRail)));
+    const { doc } = mockThumb.mock.calls[0][0] as {
+      doc: { title: string; preview: unknown };
+    };
+    expect(doc.title).toBe("Launch brief");
+    expect(doc.preview).toEqual([{ type: "todo", text: "Milk" }]);
+  });
+
   it("shows the title and the published outline, indented by level", () => {
     act(() => root.render(h(DocRail)));
     expect(host.textContent).toContain("Updated");
