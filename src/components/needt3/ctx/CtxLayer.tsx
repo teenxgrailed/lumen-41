@@ -45,21 +45,28 @@ export function CtxLayer() {
     const scope = container.closest(".needt-v3");
     function onCtx(e: MouseEvent) {
       if (e.defaultPrevented) return;
+      // Shift + right-click is the way back to the browser's own menu.
+      if (e.shiftKey) return;
       const t = e.target as HTMLElement | null;
       if (!t || !scope?.contains(t)) return;
-      if (
-        t.closest(
-          "input, textarea, [contenteditable=''], [contenteditable='true']"
-        )
-      )
-        return;
+      const field = t.closest(
+        "input, textarea, [contenteditable=''], [contenteditable='true']"
+      );
+      if (field) {
+        // Text fields keep the browser's menu, except the document editor
+        // (data-ctx-editor), which has its own; and never on a touch
+        // long-press, where the browser's selection menu is the gesture.
+        const own = !!field.closest("[data-ctx-editor]");
+        const touch = (e as PointerEvent).pointerType === "touch";
+        if (!own || touch) return;
+      }
       const el = t.closest<HTMLElement>("[data-ctx]");
-      const groups = ctxMenuFor(el);
+      const groups = ctxMenuFor(el, e);
       if (!groups) return;
       e.preventDefault();
       const h = ctxHeight(groups);
-      const x = Math.min(e.clientX, window.innerWidth - 248);
-      const y = Math.min(e.clientY, window.innerHeight - h - 8);
+      const x = Math.max(8, Math.min(e.clientX, window.innerWidth - 248));
+      const y = Math.max(8, Math.min(e.clientY, window.innerHeight - h - 8));
       setMenu({ x, y, flip: y < e.clientY, menu: groups, key: Date.now() });
     }
     const shut = () => setMenu(null);
