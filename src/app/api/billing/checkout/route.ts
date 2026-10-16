@@ -18,6 +18,7 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { publicAppUrl } from "@/lib/public-url";
 import {
   accountRule,
   enforceRateLimits,
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL?.trim() ||
       process.env.NEXTAUTH_URL?.trim() ||
-      request.nextUrl.origin;
+      publicAppUrl("/", request).origin;
     const successUrl = new URL("/settings", appUrl);
     successUrl.searchParams.set("billing", "success");
     successUrl.hash = "billing";

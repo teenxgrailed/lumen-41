@@ -103,6 +103,27 @@ describe("buildItems", () => {
   });
 });
 
+describe("a Gmail mailbox as the mail API reports it", () => {
+  it("shows the Gmail card as connected with the account email", () => {
+    const items = buildItems(
+      [],
+      [],
+      [
+        acct({
+          kind: "mail",
+          provider: "gmail",
+          label: "me@gmail.com",
+          accountId: "m1",
+        }),
+      ]
+    );
+    expect(items.find((i) => i.slug === "gmail")).toMatchObject({
+      state: "connected",
+      account: "me@gmail.com",
+    });
+  });
+});
+
 describe("a mailbox the server catalog also lists", () => {
   it("is one card with one key, the native mailbox", () => {
     const items = buildItems(
