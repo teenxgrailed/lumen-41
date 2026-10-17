@@ -32,6 +32,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+import { setProviderToken } from "@/lib/collaboration/provider-token";
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
 
@@ -206,21 +207,19 @@ export function MoodboardWorkspace({ moodboardId }: { moodboardId: string }) {
       Y.applyUpdate(document, decodeState(collaboration.initialState));
       socket.setConfiguration({ url: collaboration.url });
       let nextToken: string | null = collaboration.token;
-      provider.setConfiguration({
-        token: async () => {
-          if (nextToken) {
-            const token = nextToken;
-            nextToken = null;
-            return token;
-          }
-          const refreshed = await fetch(
-            `/api/moodboards/${moodboardId}/collaboration-token`,
-            { method: "POST" }
-          );
-          if (!refreshed.ok)
-            throw new Error("Moodboard collaboration access denied");
-          return ((await refreshed.json()) as CollaborationTokenResponse).token;
-        },
+      setProviderToken(provider, socket, async () => {
+        if (nextToken) {
+          const token = nextToken;
+          nextToken = null;
+          return token;
+        }
+        const refreshed = await fetch(
+          `/api/moodboards/${moodboardId}/collaboration-token`,
+          { method: "POST" }
+        );
+        if (!refreshed.ok)
+          throw new Error("Moodboard collaboration access denied");
+        return ((await refreshed.json()) as CollaborationTokenResponse).token;
       });
       provider.setAwarenessField("user", collaboration.user);
       provider.attach();

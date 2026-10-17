@@ -75,6 +75,7 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/board-share", () => ({
   useSetBoardGrant: () => ({ mutateAsync: mockGrant, isPending: false }),
+  boardAccessKey: (id: string) => ["v3", "board", id, "access"],
   useBoardAccess: () => query(mockAccess),
 }));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
@@ -121,10 +122,11 @@ const item = (id: string, extra = {}) => ({
 
 let host: HTMLDivElement;
 let root: Root;
+let client: QueryClient;
 
 /* The controller reads the wall from the cache at the moment of a write. */
 const mount = () => {
-  const client = new QueryClient();
+  client = new QueryClient();
   client.setQueryData(["v3", "board", "b1", "items"], mockItems);
   return act(() =>
     root.render(
@@ -524,6 +526,18 @@ describe("Share", () => {
     expect(mockUpdate).toHaveBeenCalledWith({
       id: "b1",
       patch: { linkShare: true },
+    });
+  });
+
+  it("refreshes the dialog's access data once the link is switched, so it stops saying Private", async () => {
+    mockUpdate.mockResolvedValue({ result: undefined, undo: jest.fn() });
+    mount();
+    await openShare();
+    const invalidate = jest.spyOn(client, "invalidateQueries");
+    click(doc("[role=switch]"));
+    await flush();
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["v3", "board", "b1", "access"],
     });
   });
 

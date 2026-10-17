@@ -70,6 +70,30 @@ export function trialEmailKey(email: string): string {
     .digest("hex");
 }
 
+/**
+ * True when this account could still be given a trial: nobody, under this
+ * address or this account, has had one. A read, for the paywall's button; the
+ * grant itself is `startTrialForVerifiedUser`, which decides again inside its
+ * transaction.
+ */
+export async function isTrialAvailable(input: {
+  userId: string;
+  email: string;
+}): Promise<boolean> {
+  const emailKey = trialEmailKey(input.email);
+  const legacyEmailKey = normalizeTrialEmail(input.email);
+  const used = await prisma.trialGrant.findFirst({
+    where: {
+      OR: [
+        { userId: input.userId },
+        { emailKey: { in: [emailKey, legacyEmailKey] } },
+      ],
+    },
+    select: { id: true },
+  });
+  return !used;
+}
+
 export async function startTrialForVerifiedUser(
   tx: TrialTransaction,
   input: { userId: string; email: string; now?: Date }

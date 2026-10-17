@@ -17,6 +17,7 @@ import { StoreComposer } from "./Composer";
 import { StoreEventSheet, StoreNewEventSheet } from "./EventSheet";
 import { PkPaywall } from "./Paywall";
 import { PkTaskSheet } from "./TaskSheet";
+import { ScheduleSheet, useScheduleSheet } from "./schedule";
 import { usePhoneOverlays } from "./store";
 
 /** True from the first time `open` is true on: a sheet nobody opened costs nothing. */
@@ -87,6 +88,7 @@ export function PhoneOverlays() {
   const askOpen = useNeedt3Ui((s) => s.askOpen);
   const event = usePhoneOverlays((s) => s.event);
   const newEvent = usePhoneOverlays((s) => s.newEvent);
+  const scheduling = useScheduleSheet((s) => s.task);
   return (
     <>
       <Lazy open={composerOpen}>
@@ -96,6 +98,9 @@ export function PhoneOverlays() {
         <StoreAsk />
       </Lazy>
       <TaskHost />
+      <Lazy open={!!scheduling}>
+        <ScheduleSheet />
+      </Lazy>
       <PaywallHost />
       <Lazy open={!!event}>
         <StoreEventSheet />

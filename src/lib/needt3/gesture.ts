@@ -103,6 +103,45 @@ export function swipeRelease(
   return reason === "cancel" ? null : swipeCommit(dx, v, a, at);
 }
 
+/* ---------- row swipe, left: the actions behind the row ---------- */
+
+/** Two buttons (Schedule, Delete) of 84 px each. */
+export const ACTIONS_W = 168;
+/** Dragged this far left, a closed row settles open. */
+export const ACTIONS_SNAP_AT = 64;
+
+/**
+ * Where the row sits when its logical offset (the finger on top of where the
+ * row rested) is `raw` < 0: 1:1 to the width of the buttons, then a rubber
+ * band, so it never runs away from the finger and never past the screen.
+ */
+export function actionsOffset(raw: number, w = ACTIONS_W) {
+  const m = -raw;
+  return -(m <= w ? m : w + rubber(m - w, 48));
+}
+
+/** How far the buttons show, 0..1. */
+export function actionsReveal(raw: number, w = ACTIONS_W) {
+  return Math.min(1, Math.max(0, -raw) / w);
+}
+
+/**
+ * On release: whether the row rests open. A closed row opens past the snap
+ * point or on a flick left; an open row closes only when pulled back a clear
+ * way (so a small nudge does not shut it) or on a flick right. `v` is px/ms,
+ * negative to the left; the projection is 120 ms of that speed.
+ */
+export function actionsSettle(
+  raw: number,
+  v: number,
+  wasOpen: boolean,
+  w = ACTIONS_W,
+  snap = ACTIONS_SNAP_AT
+) {
+  const projected = raw + v * 120;
+  return wasOpen ? projected < -(w - 40) : projected <= -snap;
+}
+
 /* ---------- sheet ---------- */
 
 /** The offset below the open position for a drag: 1:1 down, rubber past the top. */

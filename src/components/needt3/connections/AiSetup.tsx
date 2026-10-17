@@ -17,7 +17,7 @@ async function copy(text: string, what: string) {
   }
 }
 
-function CopyRow({ value, what }: { value: string; what: string }) {
+export function CopyRow({ value, what }: { value: string; what: string }) {
   return (
     <div className="cn-copy-row-row">
       <span className="cn-url" title={value} data-cn-url="">
@@ -37,7 +37,7 @@ function CopyRow({ value, what }: { value: string; what: string }) {
 }
 
 /** The access token: one click makes it, shown once with Copy. */
-function TokenStep({ mcp }: { mcp: McpConnect }) {
+export function TokenStep({ mcp }: { mcp: McpConnect }) {
   return (
     <div className="cn-key-col">
       {mcp.token ? (
