@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { accountNeedsReconnect } from "@/lib/account-reconnect";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -25,6 +26,8 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            enabled: true,
+            error: true,
           },
         },
       },
@@ -38,7 +41,11 @@ export async function GET(request: NextRequest) {
         // Surface the CalDAV server URL so multiple CalDAV accounts that share a
         // username (now allowed, see #145) are distinguishable in the UI.
         caldavUrl: account.caldavUrl,
-        calendars: account.calendars,
+        calendars: account.calendars.map(({ id, name }) => ({ id, name })),
+        // Every calendar the account syncs failed on its last run: the sign-in
+        // was revoked or expired, the one thing a retry cannot fix. A single
+        // failing calendar is not enough (that is a calendar problem).
+        needsReconnect: accountNeedsReconnect(account.calendars),
       }))
     );
   } catch (error) {

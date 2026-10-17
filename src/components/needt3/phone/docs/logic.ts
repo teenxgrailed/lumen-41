@@ -151,7 +151,13 @@ type StyledDoc = Pick<V3Doc, "coverUrl" | "style">;
  * the paywall instead of writing, and the server refuses it too (403).
  */
 export function needsPro(doc: StyledDoc, patch: Partial<DocStyle>) {
-  return proStyleChanges(doc.style, stylePatch(doc, patch).style).length > 0;
+  const next = stylePatch(doc, patch);
+  return (
+    proStyleChanges(doc.style, next.style, {
+      before: doc.coverUrl,
+      after: next.coverUrl,
+    }).length > 0
+  );
 }
 
 /** True when the plan may write Pro style values: known, and not Free. */
@@ -211,11 +217,18 @@ export function scrollVars(
   };
 }
 
-/** The keyboard's height from the visual viewport (0 when it is not up). */
+/**
+ * The keyboard's height from the visual viewport (0 when it is not up).
+ * `vvOffsetTop` is clamped to what the keyboard leaves: iOS rubber-bands the
+ * visual viewport past it while the page is dragged, and the raw reading would
+ * swing the bar by that overshoot (the bar jumping as the page scrolls).
+ */
 export function keyboardLift(
   innerHeight: number,
   vvHeight: number,
   vvOffsetTop: number
 ) {
-  return Math.max(0, Math.round(innerHeight - vvHeight - vvOffsetTop));
+  const room = Math.max(0, innerHeight - vvHeight);
+  const top = Math.min(Math.max(0, vvOffsetTop), room);
+  return Math.max(0, Math.round(innerHeight - vvHeight - top));
 }

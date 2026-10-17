@@ -152,6 +152,16 @@
   color: var(--text-disabled);
 }
 
+/* a block opened by its link (#blockId): ringed for a moment */
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-block-flash] {
+  border-radius: var(--radius-lg);
+  background: var(--fill-2);
+  box-shadow: 0 0 0 6px var(--fill-2);
+  transition:
+    background 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
 /* headings: one level in the prototype (600 20 / 26); the editor has three */
 .needt-v3 [data-doc-sheet] .needt-page-editor :is(h1, h2, h3) {
   margin-top: 24px;
@@ -389,6 +399,532 @@
   box-shadow: none;
 }
 
+/* ───────── real blocks: Toggle, Callout, Columns ───────── */
+
+/* toggle: an arrow, a title line, the body folded under it */
+.needt-v3 [data-doc-sheet] .needt-toggle {
+  position: relative;
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-arrow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-arrow:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-arrow::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 5px;
+  background: currentColor;
+  transition: transform 0.15s ease;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E")
+    center / 14px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E")
+    center / 14px 14px no-repeat;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-toggle[data-open="true"]
+  > .needt-toggle-arrow::before {
+  transform: rotate(90deg);
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-content > * + * {
+  margin-top: 8px;
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-content > :first-child {
+  padding-left: 28px;
+}
+.needt-v3 [data-doc-sheet] .needt-toggle-content > :not(:first-child) {
+  margin-left: 28px;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-toggle[data-open="false"]
+  > .needt-toggle-content
+  > :not(:first-child) {
+  display: none;
+}
+/* callout: icon, colour, ordinary blocks */
+.needt-v3 [data-doc-sheet] .needt-callout {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: color-mix(
+    in oklab,
+    var(--dt-accent, var(--accent)) 14%,
+    transparent
+  );
+}
+.needt-v3 [data-doc-sheet] .needt-callout[data-color="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-dk) 16%, transparent);
+}
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet]
+  .needt-callout[data-color="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-lt) 18%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-callout[data-color="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-dk) 16%, transparent);
+}
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet]
+  .needt-callout[data-color="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-lt) 18%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-callout[data-color="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-dk) 16%, transparent);
+}
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet]
+  .needt-callout[data-color="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-lt) 18%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-callout[data-color="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-dk) 16%, transparent);
+}
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet]
+  .needt-callout[data-color="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-lt) 18%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-callout[data-color="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-dk) 16%, transparent);
+}
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet]
+  .needt-callout[data-color="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-lt) 18%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-callout-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: 400 16px/24px var(--font-sans);
+  text-align: center;
+}
+.needt-v3 [data-doc-sheet] button.needt-callout-icon:not(:disabled) {
+  cursor: pointer;
+}
+.needt-v3 [data-doc-sheet] button.needt-callout-icon:not(:disabled):hover {
+  background: var(--fill-3);
+}
+.needt-v3 [data-doc-sheet] .needt-callout-body {
+  flex: 1;
+  min-width: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-body > * + * {
+  margin-top: 8px;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu {
+  position: absolute;
+  z-index: 20;
+  top: 40px;
+  left: 8px;
+  display: grid;
+  gap: 8px;
+  width: 220px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3[data-theme="dark"] [data-doc-sheet] .needt-callout-menu {
+  background: var(--surface-floating);
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu[hidden] {
+  display: none;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu-icons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu-icons button {
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: 400 16px/32px var(--font-sans);
+  cursor: pointer;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu-icons button:hover {
+  background: var(--fill-3);
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu-colors {
+  display: flex;
+  gap: 6px;
+  padding: 2px 4px;
+}
+.needt-v3 [data-doc-sheet] .needt-callout-menu-colors button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  box-shadow: var(--shadow-inset-ring);
+  cursor: pointer;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-callout-menu-colors
+  button[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] [data-callout-color="umber"] {
+  background: var(--doc-text-umber-dk);
+}
+.needt-v3 [data-doc-sheet] [data-callout-color="wine"] {
+  background: var(--doc-text-wine-dk);
+}
+.needt-v3 [data-doc-sheet] [data-callout-color="plum"] {
+  background: var(--doc-text-plum-dk);
+}
+.needt-v3 [data-doc-sheet] [data-callout-color="navy"] {
+  background: var(--doc-text-navy-dk);
+}
+.needt-v3 [data-doc-sheet] [data-callout-color="forest"] {
+  background: var(--doc-text-forest-dk);
+}
+
+/* columns: a row of 2 or 3, widths are each column's share (--w) */
+.needt-v3 [data-doc-sheet] .needt-columns-wrap {
+  position: relative;
+}
+.needt-v3 [data-doc-sheet] .needt-columns {
+  display: flex;
+  align-items: stretch;
+}
+.needt-v3 [data-doc-sheet] .needt-column {
+  flex: var(--w, 1) 1 0%;
+  min-width: 0;
+  padding: 0 10px;
+}
+.needt-v3 [data-doc-sheet] .needt-columns > .needt-column:nth-child(1) {
+  flex: var(--live-1, var(--w, 1)) 1 0%;
+}
+.needt-v3 [data-doc-sheet] .needt-columns > .needt-column:nth-child(2) {
+  flex: var(--live-2, var(--w, 1)) 1 0%;
+}
+.needt-v3 [data-doc-sheet] .needt-columns > .needt-column:nth-child(3) {
+  flex: var(--live-3, var(--w, 1)) 1 0%;
+}
+.needt-v3 [data-doc-sheet] .needt-column:first-child {
+  padding-left: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-column:last-child {
+  padding-right: 0;
+}
+.needt-v3 [data-doc-sheet] .needt-column > * + * {
+  margin-top: 8px;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  margin-left: -8px;
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--border);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.needt-v3
+  [data-doc-sheet]
+  .needt-columns-wrap:hover
+  .needt-columns-handle::after,
+.needt-v3 [data-doc-sheet] .needt-columns-handle:focus-visible::after,
+.needt-v3 [data-doc-sheet] .needt-columns-handle:hover::after {
+  opacity: 1;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-bar {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-bar[hidden] {
+  display: none;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-wrap:hover .needt-columns-bar,
+.needt-v3 [data-doc-sheet] .needt-columns-wrap:focus-within .needt-columns-bar {
+  opacity: 1;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-bar button {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font: var(--type-meta);
+  cursor: pointer;
+}
+.needt-v3 [data-doc-sheet] .needt-columns-bar button[aria-pressed="true"] {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+@media (max-width: 640px) {
+  /* a phone has no room for side by side: the columns stack */
+  .needt-v3 [data-doc-sheet] .needt-columns {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .needt-v3 [data-doc-sheet] .needt-column,
+  .needt-v3 [data-doc-sheet] .needt-column:first-child,
+  .needt-v3 [data-doc-sheet] .needt-column:last-child {
+    flex: none;
+    padding: 0;
+  }
+  .needt-v3 [data-doc-sheet] .needt-columns-handles,
+  .needt-v3 [data-doc-sheet] .needt-columns-bar {
+    display: none;
+  }
+}
+
+/* ───────── highlight and text colour: the document hues ─────────
+ * Each hue has a deep and a pale reading (themes.css). A sheet whose ink is
+ * pale (a dark page) uses the pale one; `data-dc-ink-l|d` say which, for the
+ * Light and the Dark app theme. */
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl] {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--doc-ink-dark) 20%, transparent);
+  color: inherit;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="umber"] {
+  color: var(--doc-text-umber-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="umber"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="umber"] {
+  color: var(--doc-text-umber-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="umber"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="wine"] {
+  color: var(--doc-text-wine-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="wine"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="wine"] {
+  color: var(--doc-text-wine-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="wine"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="plum"] {
+  color: var(--doc-text-plum-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="plum"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="plum"] {
+  color: var(--doc-text-plum-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="plum"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="navy"] {
+  color: var(--doc-text-navy-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="navy"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="navy"] {
+  color: var(--doc-text-navy-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="navy"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="forest"] {
+  color: var(--doc-text-forest-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="forest"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="forest"] {
+  color: var(--doc-text-forest-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="forest"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-lt) 30%, transparent);
+}
+
+/* ───────── print / Export as PDF: the sheet alone on the paper ─────────
+ * `printPage()` marks the frame `data-printing` for as long as the print
+ * dialog is up. Everything but the sheet is hidden; the boxes the sheet sits
+ * in stop clipping and scrolling so a long page flows onto as many sheets of
+ * paper as it needs. The page keeps its own style (colour, font, cover). */
+@media print {
+  .needt-v3[data-printing] * {
+    visibility: hidden !important;
+  }
+  .needt-v3[data-printing] [data-doc-sheet],
+  .needt-v3[data-printing] [data-doc-sheet] * {
+    visibility: visible !important;
+  }
+  .needt-v3[data-printing] :has([data-doc-sheet]) {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+  }
+  .needt-v3[data-printing] [data-doc-sheet] {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .needt-v3[data-printing] [data-doc-sheet] .needt-page-editor > * {
+    break-inside: avoid-page;
+  }
+}
+
+/* a Pro swatch on Free (a page colour, a cover art): a small lock in its corner */
+.needt-v3 [data-dc-swatch][data-pro-locked],
+.needt-v3 [data-dc-cover-art][data-pro-locked] {
+  position: relative;
+}
+.needt-v3 [data-dc-swatch][data-pro-locked]::after,
+.needt-v3 [data-dc-cover-art][data-pro-locked]::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 12px;
+  height: 12px;
+  background: var(--text-primary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='11' width='16' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E")
+    center / 12px 12px no-repeat;
+  pointer-events: none;
+}
+
 /* ───────── the rail (Contents, Find) ───────── */
 .needt-v3 .doc-rail-row-label {
   overflow: hidden;
@@ -473,6 +1009,51 @@
   > button[aria-pressed="true"] {
   background: var(--fill-3);
   color: var(--accent);
+}
+
+/* the table bar: the selection bar's twin, over a table the caret is in */
+.needt-v3 [data-doc-sheet] .needt-table-bar {
+  gap: 1px;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3[data-theme="dark"] [data-doc-sheet] .needt-table-bar {
+  background: var(--surface-floating);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text-secondary);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-table-bar > button[aria-pressed="true"] {
+  background: var(--fill-3);
+  color: var(--accent);
+}
+
+/* table columns resize by their border: the cursor and the handle say so */
+.needt-v3 [data-doc-sheet] .needt-page-editor :is(th, td) {
+  position: relative;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor.resize-cursor {
+  cursor: col-resize;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: var(--text-tertiary);
+  pointer-events: none;
 }
 
 /* ───────── the "/" menu (prototype `docs-doc-slash-menu-*`) ───────── */

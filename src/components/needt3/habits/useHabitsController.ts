@@ -9,9 +9,11 @@ import { liveHabits } from "@/lib/needt3/derive";
 import { isUpgradeRequired } from "@/lib/needt3/hooks/core";
 import {
   useArchiveHabit,
+  useCheckinHistory,
   useCheckins,
   useCreateHabit,
   useHabits,
+  useToggleHabitDay,
   useToggleHabitToday,
   useUpdateHabit,
 } from "@/lib/needt3/hooks/habits";
@@ -66,7 +68,9 @@ export function useHabitsController(opts: HabitsControllerOptions) {
   const checkinsQuery = useCheckins();
   const projectsQuery = useProjects();
   const plan = usePlan();
+  const historyQuery = useCheckinHistory();
   const toggleToday = useToggleHabitToday();
+  const toggleDay = useToggleHabitDay();
   /* A plan refusal from the server is answered here (the paywall), so the
      mutation's generic "could not" notice stays quiet for it. */
   const createHabit = useCreateHabit({ quiet: isUpgradeRequired });
@@ -83,6 +87,8 @@ export function useHabitsController(opts: HabitsControllerOptions) {
 
   const list = liveHabits(habits.data ?? []);
   const checkins = checkinsQuery.data ?? [];
+  // The long read (124 days); until it arrives the cards' own fourteen.
+  const history = historyQuery.data ?? checkins;
   const projects = projectsQuery.data ?? [];
   const quota = habitQuota(plan.data?.kind, list.length);
   const kept = keptToday(list, checkins, today);
@@ -90,6 +96,13 @@ export function useHabitsController(opts: HabitsControllerOptions) {
 
   const tick = (h: V3Habit, done: boolean) =>
     toggleToday.mutate({ id: h.id, done });
+
+  /** Mark or unmark one past day. Today goes through `tick`. */
+  const tickDay = (h: V3Habit, date: string, done: boolean) => {
+    if (date > today) return;
+    if (date === today) return tick(h, done);
+    toggleDay.mutate({ id: h.id, date, done });
+  };
 
   /** A new habit past the Free allowance goes to the paywall, not the sheet. */
   const blocked = () => {
@@ -193,12 +206,16 @@ export function useHabitsController(opts: HabitsControllerOptions) {
     all,
     setAll,
     checkins,
+    history,
+    /** The long read has arrived, so streaks can count past fourteen days. */
+    historyReady: historyQuery.data !== undefined,
     projects,
     quota,
     kept,
     form,
     saving,
     tick,
+    tickDay,
     openNew,
     openEdit,
     closeForm,

@@ -330,8 +330,9 @@ describe("production migration tooling", () => {
     expect(runtimeShaCheck).toContain("workerBuildSha");
     expect(runtimeShaCheck).toContain("COLLABORATION_HEALTH_URL");
     expect(runtimeShaCheck).toContain(
-      "Object.values(lastSeen).every((sha) => sha === EXPECTED_SHA)"
+      "seen.every((sha) => sha !== null && sha === seen[0])"
     );
+    expect(runtimeShaCheck).toContain("isSameOrDescendant(seen[0])");
   });
 });
 
