@@ -66,11 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where that ink cannot be read on the page in the current theme (light text on
   the white page in Light, dark text on the grey page in Dark), the page uses Auto
   ink for that theme.
-- Habits: a past day can be marked or unmarked
-  (`PUT/DELETE /api/habits/:id/completions/:date`, up to 400 days back). On the
-  phone each habit has a "Past days" panel with its last four months, and
-  streaks count past 14 days; on the desktop, pick one habit in "Last four
-  months" and click a past dot.
 - Mail is read-only. Connecting Gmail asks only for `gmail.readonly` and
   Outlook only for `Mail.Read`; Needt no longer changes anything in a
   mailbox. Marking read and archiving are kept in Needt only and survive
