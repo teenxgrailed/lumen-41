@@ -14,7 +14,11 @@ import {
 } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
-import { useTasks, useTrashTask } from "@/lib/needt3/hooks/tasks";
+import {
+  useDeleteTaskForever,
+  useTasks,
+  useTrashTask,
+} from "@/lib/needt3/hooks/tasks";
 import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
@@ -23,19 +27,16 @@ const tr = strings["places.jsx"].TrashScreen;
 
 /** What a Delete forever dialog is asking about. */
 export type TrashAsk =
-  | { kind: "page" | "board"; id: string; title: string }
+  | { kind: "page" | "board" | "task"; id: string; title: string }
   | { kind: "all" };
 
 /**
  * Trash: what is in it (pages, tasks and moodboards the person deleted) and
- * the one Restore (with its notice and Undo). Pages and moodboards can also
+ * the one Restore (with its notice and Undo). Pages, tasks and moodboards can also
  * be deleted for good, one at a time or all at once (Empty Trash), after a
- * confirm that says there is no Undo. The route calls this once above its two
- * faces, so an open confirm survives the window crossing 700 px.
- *
- * //todo: tasks' Delete forever (and so Empty Trash for tasks) waits for a
- * hard delete on DELETE /api/tasks/:id (it archives), and nothing purges
- * after 30 days yet (the worker job).
+ * confirm that says there is no Undo; so can tasks (`?permanent=true`). The
+ * worker purges what has sat here 30 days. The route calls this once above its
+ * two faces, so an open confirm survives the window crossing 700 px.
  */
 export function useTrashController() {
   const timeZone = useTimeZone();
@@ -47,6 +48,7 @@ export function useTrashController() {
   const trashBoard = useTrashBoard();
   const trashDoc = useTrashDoc();
   const deleteBoard = useDeleteBoardForever();
+  const deleteTask = useDeleteTaskForever();
   const deleteDoc = useDeleteDocForever();
   const [ask, setAsk] = useState<TrashAsk | null>(null);
 
@@ -107,6 +109,15 @@ export function useTrashController() {
         /* the hook told the person and put the board back */
       }
     });
+  const deleteTaskForever = (id: string, title: string) =>
+    once(`task:${id}`, async () => {
+      try {
+        await deleteTask.mutateAsync({ id });
+        notify.success(`Deleted “${title || tr.untitled}” for good`);
+      } catch {
+        /* the hook told the person and put the task back */
+      }
+    });
   const deletePageForever = (id: string, title: string) =>
     once(`page:${id}`, async () => {
       try {
@@ -118,19 +129,34 @@ export function useTrashController() {
     });
 
   /**
-   * Every page and moodboard in Trash, for good. Tasks stay: the server has no
-   * hard delete for them. Each goes on its own, so a refusal on one does not
+   * Everything in Trash, for good. Each goes on its own, so a refusal on one does not
    * stop the rest; a failed write has already told the person.
    */
   const emptyTrash = () =>
     once("all", async () => {
       const jobs = [
         ...pages.map((p) => deleteDoc.mutateAsync({ id: p.id })),
+        ...dead.map((t) => deleteTask.mutateAsync({ id: t.id })),
         ...gone.map((b) => deleteBoard.mutateAsync({ id: b.id })),
       ];
       const done = await Promise.allSettled(jobs);
       if (done.some((r) => r.status === "fulfilled"))
         notify.success(tr.trash_emptied);
+    });
+
+  /** Put everything in Trash back (phone "Restore all"). One notice, no Undo stack. */
+  const restoreAll = () =>
+    once("restore-all", async () => {
+      const jobs = [
+        ...pages.map((p) => trashDoc.mutateAsync({ id: p.id, trashed: false })),
+        ...dead.map((t) => trashTask.restore(t.id)),
+        ...gone.map((b) =>
+          trashBoard.mutateAsync({ id: b.id, trashed: false })
+        ),
+      ];
+      const done = await Promise.allSettled(jobs);
+      const n = done.filter((r) => r.status === "fulfilled").length;
+      if (n) notify.success(`Restored ${n} ${n === 1 ? "item" : "items"}`);
     });
 
   /** Carry out a confirmed Delete forever / Empty Trash. */
@@ -139,7 +165,9 @@ export function useTrashController() {
       ? emptyTrash()
       : a.kind === "page"
         ? deletePageForever(a.id, a.title)
-        : deleteBoardForever(a.id, a.title);
+        : a.kind === "task"
+          ? deleteTaskForever(a.id, a.title)
+          : deleteBoardForever(a.id, a.title);
 
   /** What Empty Trash takes, and what it leaves. */
   const emptyCounts = {
@@ -162,6 +190,8 @@ export function useTrashController() {
     restorePage,
     deleteBoardForever,
     deletePageForever,
+    deleteTaskForever,
+    restoreAll,
     emptyCounts,
     runAsk,
     ask,

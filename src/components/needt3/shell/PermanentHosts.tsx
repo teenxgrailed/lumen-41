@@ -1,5 +1,7 @@
 "use client";
 
+import { ActionToasts } from "@/components/needt/corner/ActionToasts";
+
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
 import { FocusHost } from "../focus/FocusHost";
@@ -27,6 +29,9 @@ export function PermanentHosts() {
   return (
     <>
       <SettingsSheet />
+      {/* On the phone too: its snacks are the same notices, and nothing else
+          on the phone draws them. */}
+      <ActionToasts />
       {/* One instance for both UIs; the controller inside survives the swap. */}
       <FocusHost />
       {ui === "phone" ? null : (

@@ -149,6 +149,19 @@ export function useTrashTask() {
   };
 }
 
+/**
+ * Delete a task that is in Trash for good (`?permanent=true`). No Undo: the
+ * confirm says so.
+ */
+export function useDeleteTaskForever() {
+  return useUndoableMutation<{ id: string }, unknown>({
+    scope: TASKS,
+    label: "delete the task",
+    optimistic: (qc, { id }) => dropListItem<V3Task>(qc, TASKS, id),
+    request: ({ id }) => sendJson(`/api/tasks/${id}?permanent=true`, "DELETE"),
+  });
+}
+
 interface CreateVars {
   draft: V3TaskPatch & { title: string };
 }
