@@ -5,6 +5,10 @@ import {
   addTaskAttachment,
   deleteTaskAttachment,
 } from "@/services/tasks/attachments";
+import {
+  planRecurringCompletion,
+  upsertRecurringOccurrence,
+} from "@/services/tasks/recurring-completion";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type { Prisma } from "@prisma/client";
 import { RRule } from "rrule";
@@ -98,6 +102,8 @@ const restorableFields = z
     scheduledStart: isoOrNull,
     scheduledEnd: isoOrNull,
     scheduleLocked: z.boolean(),
+    startDate: isoOrNull,
+    lastCompletedDate: isoOrNull,
   })
   .partial()
   .strict();
@@ -112,6 +118,8 @@ const DATE_FIELDS = new Set([
   "archivedAt",
   "scheduledStart",
   "scheduledEnd",
+  "startDate",
+  "lastCompletedDate",
 ]);
 
 function pickRestorable(
@@ -479,6 +487,67 @@ export const taskUpdate = defineOp({
   },
 });
 
+/**
+ * Completing a series: the occurrence is recorded as its own finished task
+ * and the same task jumps to its next date, exactly as PUT /api/tasks/[id]
+ * does. A series with no next date is simply completed.
+ */
+async function completeOccurrence(
+  ctx: OpContext,
+  task: Awaited<ReturnType<typeof findScopedTask>>
+) {
+  const now = newDate();
+  let plan: ReturnType<typeof planRecurringCompletion>;
+  try {
+    plan = planRecurringCompletion(task, now);
+  } catch {
+    throw new OpError("INVALID_INPUT", "The task's repeat rule cannot be read");
+  }
+  const keys: (keyof RestorableFields)[] = [
+    "status",
+    "completedAt",
+    "dueDate",
+    "startDate",
+    "scheduledStart",
+    "scheduledEnd",
+    "lastCompletedDate",
+  ];
+  const fields = pickRestorable(task, keys);
+  await upsertRecurringOccurrence(ctx.tx, task, plan.completion, ctx.userId);
+  const data: Prisma.TaskUncheckedUpdateInput = plan.advance
+    ? { ...plan.advance }
+    : { status: "completed", completedAt: now };
+  const updated = await ctx.tx.task.update({
+    where: { id: task.id },
+    data: { ...data, ...activity(ctx, "UPDATED", task.workspaceId) },
+    include: taskInclude,
+  });
+  const schedulingUserId = task.assigneeId ?? ctx.userId;
+  return {
+    result: { task: taskView(updated), changed: true },
+    before: { fields },
+    inverse: {
+      op: "task.restore",
+      input: {
+        taskId: task.id,
+        fields,
+        removeOccurrenceAt: plan.completion.occurrenceAt.toISOString(),
+      },
+    },
+    touched: [touched("task", updated, task)],
+    afterCommit: [
+      () => schedulePushTaskBlock(schedulingUserId, task.id),
+      () =>
+        sendConnectorWebhook({
+          userId: ctx.userId,
+          event: "task.completed",
+          payload: { taskId: updated.id, title: updated.title },
+        }).then(() => undefined),
+      publishTasksUpdated(ctx.userId),
+    ],
+  };
+}
+
 export const taskComplete = defineOp({
   name: "task.complete",
   description:
@@ -492,12 +561,7 @@ export const taskComplete = defineOp({
       return { result: { task: taskView(task), changed: false } };
     }
     if (task.isRecurring && task.recurrenceRule) {
-      //todo: move series completion out of PUT /api/tasks/[id] into a
-      // service so this op can advance recurring tasks the same way.
-      throw new OpError(
-        "UNSUPPORTED",
-        "Recurring tasks cannot be completed through this operation yet"
-      );
+      return completeOccurrence(ctx, task);
     }
     const fields = pickRestorable(task, ["status", "completedAt"]);
     const updated = await ctx.tx.task.update({
@@ -726,6 +790,8 @@ export const taskRestore = defineOp({
       taskId,
       fields: restorableFields,
       tagIds: z.array(z.string()).optional(),
+      /** Undo of completing a series: drop the finished occurrence it made. */
+      removeOccurrenceAt: z.string().datetime({ offset: true }).optional(),
       blocks: z.array(blockSnapshot).optional(),
       blocksUserId: z.string().optional(),
     })
@@ -741,6 +807,14 @@ export const taskRestore = defineOp({
       : undefined;
     const currentTagIds = task.tags.map((tag) => tag.id);
 
+    if (input.removeOccurrenceAt) {
+      await ctx.tx.task.deleteMany({
+        where: {
+          recurrenceMasterId: task.id,
+          recurrenceInstanceAt: newDate(input.removeOccurrenceAt),
+        },
+      });
+    }
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: {
