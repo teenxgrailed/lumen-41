@@ -35,6 +35,10 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "setup/check/route.ts": "first-run probe, returns a boolean",
   "settings/homepage-disabled/route.ts": "returns one public boolean",
   "waitlist/route.ts": "public signup form, rate limited",
+  "lifetime-seats/route.ts":
+    "public landing counter: two integers, CORS-limited, cached",
+  "share-target/route.ts POST":
+    "PWA share_target fallback: redirects to /share with the text and link, saves nothing",
   "auth/[...nextauth]/route.ts": "NextAuth handler, rate limited",
   "auth/register/route.ts": "signup, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",
@@ -69,6 +73,8 @@ function routeFiles(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     if (name === "__tests__") continue;
+    // Names come from readdirSync on this repo's own route tree.
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const full = join(dir, name);
     if (statSync(full).isDirectory()) out.push(...routeFiles(full));
     else if (name === "route.ts" || name === "route.tsx") out.push(full);
@@ -104,10 +110,9 @@ function authenticatingHelpers(source: string): string[] {
 
 /** True when the handler authenticates itself or via an authenticating helper. */
 function authenticates(body: string, helpers: string[]): boolean {
-  return (
-    AUTH_CALL.test(body) ||
-    helpers.some((name) => new RegExp(`\\b${name}\\b`).test(body))
-  );
+  if (AUTH_CALL.test(body)) return true;
+  const words = new Set(body.match(/\w+/g) ?? []);
+  return helpers.some((name) => words.has(name));
 }
 
 describe("API route authentication coverage", () => {
