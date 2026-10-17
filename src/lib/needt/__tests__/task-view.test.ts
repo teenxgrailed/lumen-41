@@ -60,6 +60,7 @@ const baseRow: NeedtTaskRow = {
   availableFrom: null,
   postponedUntil: null,
   isArchived: false,
+  isSample: false,
   archivedAt: null,
   blockEventId: null,
   blockFeedId: null,

@@ -512,6 +512,8 @@ export interface ApiHabit {
   at?: string | null;
   quota?: number | null;
   archivedAt?: string | null;
+  /** A first-run example: not counted toward the Free habit limit. */
+  isSample?: boolean;
 }
 
 export interface V3Habit {
@@ -522,6 +524,7 @@ export interface V3Habit {
   icon: string | null;
   schedule: { time: string | null; perWeek: number | null };
   archivedAt: string | null;
+  isSample?: boolean;
 }
 
 export function habitFromApi(row: ApiHabit): V3Habit {
@@ -533,6 +536,7 @@ export function habitFromApi(row: ApiHabit): V3Habit {
     icon: row.icon ?? null,
     schedule: { time: row.at ?? null, perWeek: row.quota ?? null },
     archivedAt: row.archivedAt ?? null,
+    isSample: row.isSample === true,
   };
 }
 
