@@ -17,6 +17,7 @@ import { formatInTimeZone } from "@/lib/date-utils";
 import type { V3BoardItem } from "@/lib/needt3/hooks/boards";
 
 import { Sheet } from "../../ctx/Sheet";
+import { ItemComments } from "./ItemComments";
 import { copyText, openUrl } from "./clipboard";
 import { isFigma, sourceUrlOf } from "./logic";
 import { FavBadge, Visual } from "./parts";
@@ -28,6 +29,8 @@ import { FavBadge, Visual } from "./parts";
  * and change nothing.
  */
 export function Detail({
+  boardId,
+  canModerate,
   item,
   readOnly,
   tz,
@@ -35,6 +38,9 @@ export function Detail({
   onSave,
   onRemove,
 }: {
+  boardId: string;
+  /** Full access: may resolve or delete anyone's comment. */
+  canModerate: boolean;
   item: V3BoardItem | null;
   readOnly: boolean;
   tz: string;
@@ -216,6 +222,15 @@ export function Detail({
           />
         </label>
         {added ? <span className="pl-meta">Added {added}</span> : null}
+        {x.fromCanvas ? null : (
+          <ItemComments
+            boardId={boardId}
+            itemId={x.id}
+            canWrite={!readOnly}
+            canModerate={canModerate}
+            tz={tz}
+          />
+        )}
       </div>
       {!readOnly ? (
         <div className="pl-detail-row-4">
