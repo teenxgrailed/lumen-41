@@ -5,6 +5,7 @@ import {
   addTaskAttachment,
   deleteTaskAttachment,
 } from "@/services/tasks/attachments";
+import { deadlineForPatch } from "@/services/tasks/deadline";
 import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
@@ -373,7 +374,7 @@ export const taskCreate = defineOp({
 export const taskUpdate = defineOp({
   name: "task.update",
   description:
-    "Change a task's title, notes, due date, priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Undo writes the previous values back.",
+    "Change a task's title, notes, due date, deadline (follows the due date unless set), priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Undo writes the previous values back.",
   risk: "reversible",
   input: z
     .object({
@@ -381,6 +382,7 @@ export const taskUpdate = defineOp({
       title: z.string().trim().min(1).max(160).optional(),
       notes: z.string().max(20000).nullable().optional(),
       dueDate: dateInputSchema.nullable().optional(),
+      deadline: dateInputSchema.nullable().optional(),
       priority: priority.optional(),
       projectId: z.string().min(1).nullable().optional(),
       tagIds: z.array(z.string().min(1)).max(50).optional(),
@@ -409,11 +411,32 @@ export const taskUpdate = defineOp({
           : (sanitizeTaskDescriptionForStorage(input.notes) ?? null);
       keys.push("description");
     }
-    if (input.dueDate !== undefined) {
-      const due = input.dueDate ? newDate(input.dueDate) : null;
-      data.dueDate = due;
-      data.deadline = due;
-      keys.push("dueDate", "deadline");
+    if (input.dueDate !== undefined || input.deadline !== undefined) {
+      const due =
+        input.dueDate === undefined
+          ? undefined
+          : input.dueDate
+            ? newDate(input.dueDate)
+            : null;
+      const hard =
+        input.deadline === undefined
+          ? undefined
+          : input.deadline
+            ? newDate(input.deadline)
+            : null;
+      if (due !== undefined) {
+        data.dueDate = due;
+        keys.push("dueDate");
+      }
+      // An explicit deadline wins; a moved due date drags an equal one along.
+      const nextDeadline = deadlineForPatch(task, {
+        dueDate: due,
+        deadline: hard,
+      });
+      if (nextDeadline !== undefined) {
+        data.deadline = nextDeadline;
+        keys.push("deadline");
+      }
     }
     if (input.priority !== undefined) {
       if (input.priority === "NONE") {
