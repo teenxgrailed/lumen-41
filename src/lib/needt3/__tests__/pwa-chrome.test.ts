@@ -45,6 +45,14 @@ describe("the phone ground", () => {
     expect(read("src/styles/v3-entry.css")).toContain("phone-ground.css");
   });
 
+  it("no page gradient paints over the ground under the screen", () => {
+    // globals.css gives body `background-image: var(--page-background)`; an
+    // image covers background-color, so the phone rule must clear it.
+    const css = read("src/styles/v3-overrides/phone-ground.css");
+    const base = css.slice(0, css.indexOf('[data-theme="dark"]'));
+    expect(base).toContain("background-image: none !important");
+  });
+
   it("the manifest's splash and theme colour are the dark ground", () => {
     expect(manifest.background_color.toLowerCase()).toBe(PHONE_GROUND.dark);
     expect(manifest.theme_color.toLowerCase()).toBe(PHONE_GROUND.dark);
