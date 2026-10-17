@@ -164,6 +164,45 @@ describe("MCP task fields: priority none, repeat, labels, hours", () => {
     expect(written()).not.toHaveProperty("priorityLevel");
   });
 
+  describe("deadline", () => {
+    const old = new Date("2026-10-24T00:00:00.000Z");
+    const next = "2026-11-13T00:00:00.000Z";
+
+    it("moves an equal deadline along with the due date", async () => {
+      jest.mocked(prisma.task.findFirst).mockResolvedValue({
+        ...openTask,
+        dueDate: old,
+        deadline: new Date(old),
+      } as never);
+      await call("needt_update_task", { id: "task-1", dueDate: next });
+      expect(written()).toMatchObject({
+        dueDate: new Date(next),
+        deadline: new Date(next),
+      });
+    });
+
+    it("leaves a deadline that was set apart from the due date", async () => {
+      jest.mocked(prisma.task.findFirst).mockResolvedValue({
+        ...openTask,
+        dueDate: old,
+        deadline: new Date("2026-10-30T00:00:00.000Z"),
+      } as never);
+      await call("needt_update_task", { id: "task-1", dueDate: next });
+      expect(written()).not.toHaveProperty("deadline");
+    });
+
+    it("sets the deadline on its own", async () => {
+      jest.mocked(prisma.task.findFirst).mockResolvedValue({
+        ...openTask,
+        dueDate: old,
+        deadline: new Date(old),
+      } as never);
+      await call("needt_update_task", { id: "task-1", deadline: next });
+      expect(written()).toMatchObject({ deadline: new Date(next) });
+      expect(written()).not.toHaveProperty("dueDate");
+    });
+  });
+
   it("a real priority ends No priority", async () => {
     await call("needt_update_task", { id: "task-1", priority: "HIGH" });
     expect(written()).toMatchObject({ priorityLevel: "HIGH", priority: null });

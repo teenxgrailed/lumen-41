@@ -557,18 +557,16 @@ describe("MCP write tools", () => {
 
   describe("moodboards in needt_list and needt_get", () => {
     it("lists the workspace's boards", async () => {
-      jest
-        .mocked(prisma.moodboard.findMany)
-        .mockResolvedValue([
-          {
-            id: "board-1",
-            title: "Mood",
-            createdById: "user-1",
-            _count: { items: 2 },
-            items: [],
-            accessGrants: [],
-          },
-        ] as never);
+      jest.mocked(prisma.moodboard.findMany).mockResolvedValue([
+        {
+          id: "board-1",
+          title: "Mood",
+          createdById: "user-1",
+          _count: { items: 2 },
+          items: [],
+          accessGrants: [],
+        },
+      ] as never);
       const result = await call("needt_list", { type: "moodboard" });
       expect(result.payload.items).toEqual([
         expect.objectContaining({
