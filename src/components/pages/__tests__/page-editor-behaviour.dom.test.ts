@@ -13,6 +13,8 @@ import { type Root, createRoot } from "react-dom/client";
 
 import { V3PortalScope } from "@/components/needt3/ctx/PortalScope";
 
+import { LEGACY_PAGE_BLOCKS } from "@/lib/pages/__tests__/fixtures/legacy-blocks";
+
 import { PageWorkspace } from "../PageWorkspace";
 
 (
@@ -371,5 +373,76 @@ describe("opening a block by its link", () => {
     await mount();
     await wait(100);
     expect(host.querySelectorAll("[data-block-flash]")).toHaveLength(0);
+  });
+});
+
+describe("Callout, Toggle and Columns from the slash menu", () => {
+  it("Toggle goes in as a real toggle with the caret in its title", async () => {
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.insertContent("/toggle");
+    });
+    await key(editor, { key: "Enter" });
+    expect(host.querySelector(".needt-toggle")).not.toBeNull();
+    // No dialog asking for text first, and typing goes into the title.
+    expect(document.getElementById("page-block-value")).toBeNull();
+    await act(async () => {
+      editor.commands.insertContent("Details");
+    });
+    const first = (editor.getJSON() as JSONContent).content?.[0];
+    expect(first?.type).toBe("needtToggle");
+    expect(first?.content?.[0].content?.[0].text).toBe("Details");
+    // The toggle has an id like every other block.
+    expect(typeof first?.attrs?.blockId).toBe("string");
+  });
+
+  it("Callout and Columns go in empty and typeable", async () => {
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.insertContent("/callout");
+    });
+    await key(editor, { key: "Enter" });
+    await act(async () => {
+      editor.commands.insertContent("Heads up");
+    });
+    await act(async () => {
+      editor.commands.focus("end");
+      editor.commands.insertContent("/split");
+    });
+    await key(editor, { key: "Enter" });
+    await act(async () => {
+      editor.commands.insertContent("Left");
+    });
+    const types = (editor.getJSON() as JSONContent).content?.map((n) => n.type);
+    expect(types).toContain("needtCallout");
+    expect(types).toContain("needtColumns");
+    expect(editor.getText()).toContain("Heads up");
+    expect(editor.getText()).toContain("Left");
+    expect(host.querySelectorAll(".needt-column")).toHaveLength(2);
+  });
+});
+
+describe("a page saved with the old atoms", () => {
+  it("opens with editable Callout, Toggle and Columns", async () => {
+    loaded = page(LEGACY_PAGE_BLOCKS as never);
+    await mount();
+    const editor = editorOf();
+    expect(
+      host.querySelector(".needt-callout .needt-callout-body")?.textContent
+    ).toBe("Ship on the 26th");
+    expect(host.querySelector(".needt-toggle")).not.toBeNull();
+    expect(host.querySelectorAll(".needt-column")).toHaveLength(2);
+    // The link block, which was not part of this change, is still an atom.
+    expect(host.querySelector('[data-needt-page-block="LINK"]')).not.toBeNull();
+    // And the callout takes an edit.
+    await act(async () => {
+      editor.commands.setTextSelection(3);
+      editor.commands.insertContent("!");
+    });
+    expect(host.querySelector(".needt-callout-body")?.textContent).toContain(
+      "!"
+    );
   });
 });
