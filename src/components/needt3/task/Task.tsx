@@ -129,7 +129,10 @@ function TaskContent(props: TaskProps) {
   };
   // The steps under the row follow the task view's `subtasks` option; a
   // project page draws them itself and keeps only the count here.
-  const found = useTaskSteps(isTaskEvent(task) ? null : task);
+  const found = useTaskSteps(
+    isTaskEvent(task) ? null : task,
+    scope ? (t, undo) => scope.check(t, { undo }) : undefined
+  );
   const steps =
     found && hideSteps
       ? { ...found, mode: "count" as const, canFold: false }
