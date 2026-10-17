@@ -60,7 +60,6 @@ class RO {
 }
 
 const TODAY = dayIn(newDate(), browserTimeZone());
-const TOMORROW = addDays(TODAY, 1);
 const LATER = addDays(TODAY, 3);
 
 const task = (id: string, over: Partial<V3Task> = {}) =>
@@ -268,16 +267,32 @@ describe("PhoneTasks", () => {
     expect(puts[0].body).toMatchObject({ status: "completed" });
   });
 
-  it("a swipe left writes tomorrow, keeping nothing else", async () => {
+  it("a swipe left shows Schedule and Delete and writes nothing", async () => {
     mount();
     swipe("open", -140);
     fire(window, "pointerup", { x: -40, y: 12 });
     await settle();
+    expect(
+      [...host.querySelectorAll('[data-pk-row="open"] .pk-act')].map(
+        (b) => b.textContent
+      )
+    ).toEqual(["Schedule", "Delete"]);
+    expect(puts).toHaveLength(0);
+  });
+
+  it("Delete from the swipe moves the task to Trash, nothing else", async () => {
+    mount();
+    swipe("open", -140);
+    fire(window, "pointerup", { x: -40, y: 12 });
+    // a tap comes later than the swipe's own click-swallow window
+    jest.spyOn(performance, "now").mockReturnValue(performance.now() + 5000);
+    act(() => {
+      q<HTMLElement>('[data-pk-row="open"] .pk-act.is-delete').click();
+    });
+    await settle();
     expect(puts).toHaveLength(1);
-    // the wire carries an instant; the person's day is what it must read as
-    expect(isoToDay(String(puts[0].body.dueDate), browserTimeZone())).toBe(
-      TOMORROW
-    );
+    expect(puts[0].url).toBe("/api/tasks/open");
+    expect(puts[0].body).toHaveProperty("trashedAt");
     expect(puts[0].body).not.toHaveProperty("status");
   });
 
@@ -359,13 +374,9 @@ describe("PhoneTasks", () => {
     expect(puts).toHaveLength(0);
   });
 
-  it("Upcoming: a task already after today cannot be sent to tomorrow, but can be done", async () => {
+  it("Upcoming: a task already after today can be done by a swipe right", async () => {
     mount();
     act(() => q<HTMLElement>("[data-ptk-tab=upcoming]").click());
-    swipe("soon", -140);
-    fire(window, "pointerup", { x: -40, y: 12 });
-    await settle();
-    expect(puts).toHaveLength(0);
     swipe("soon", 140);
     fire(window, "pointerup", { x: 240, y: 12 });
     await settle();

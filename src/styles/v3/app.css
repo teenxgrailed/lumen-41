@@ -1147,3 +1147,6 @@
 .needt-v3 .sb-focus.is-live .sb-focus-label { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; }
 
 .needt-v3 .sb-focus.is-live .sb-focus-mark svg:not(.sb-focus-ring) { width: 12px; height: 12px; }
+
+/* the status banners sit under the top bar, inset to the page's own gutter */
+.needt-v3 .st-banners { margin-inline: 20px; }

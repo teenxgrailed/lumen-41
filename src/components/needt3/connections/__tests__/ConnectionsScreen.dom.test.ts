@@ -14,6 +14,8 @@ import { join } from "path";
 import postcss from "postcss";
 import { type Root, createRoot } from "react-dom/client";
 
+import { notify } from "@/lib/notifications";
+
 import { V3PortalScope } from "../../ctx/PortalScope";
 import { ConnectionsScreen } from "../ConnectionsScreen";
 import { useConnectionsController } from "../useConnectionsController";
@@ -95,6 +97,7 @@ const CATALOG = [
 // The two mailboxes the screen adds beside the server catalogue.
 const ALL = CATALOG.length + 2;
 
+const syncAccountNow = jest.fn();
 const idle = { status: "success", fetchStatus: "idle", error: null };
 let accountsData: unknown[] = [];
 let integrations: unknown[] = [];
@@ -115,6 +118,7 @@ jest.mock("@/lib/needt3/hooks/catalog", () => ({
   disconnectCalendar: jest.fn(),
   disconnectMailbox: jest.fn(),
   disconnectToolkit: jest.fn(),
+  syncAccountNow: (...a: unknown[]) => syncAccountNow(...a),
 }));
 jest.mock("@/lib/needt3/hooks/connections", () => ({
   useConnections: () => ({ ...idle, data: accountsData }),
@@ -435,6 +439,27 @@ describe("the cards", () => {
     expect(menu.querySelector("[data-cn-disconnect]")?.textContent).toBe(
       "Disconnect…"
     );
+  });
+  it("Sync now in the menu queues that calendar account's sync and says it started", async () => {
+    syncAccountNow.mockResolvedValue({ ok: true, queued: 2 });
+    accountsData = [acct({})];
+    render();
+    click($("[data-cn-more='google-calendar']"));
+    const item = document.querySelector("[data-cn-sync]") as HTMLElement;
+    expect(item.textContent).toContain("Sync now");
+    click(item);
+    await flush();
+    expect(syncAccountNow).toHaveBeenCalledWith("calendar", "a1");
+    expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
+  });
+  it("a sync that cannot start shows the reason", async () => {
+    syncAccountNow.mockResolvedValue({ ok: false, error: "Not configured" });
+    accountsData = [acct({})];
+    render();
+    click($("[data-cn-more='google-calendar']"));
+    click(document.querySelector("[data-cn-sync]"));
+    await flush();
+    expect(notify.error).toHaveBeenCalledWith("Not configured");
   });
 });
 

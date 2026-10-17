@@ -1,14 +1,18 @@
 import { NextRequest } from "next/server";
 
+import { GET } from "@/app/api/needt/calendar/route";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
-import { GET } from "@/app/api/needt/calendar/route";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
 import { prismaDataSource } from "@/lib/needt/prisma-source";
 import { prisma } from "@/lib/prisma";
+import { ensureDefaultWorkSchedule } from "@/lib/work-schedules";
 
 jest.mock("@/lib/auth/api-auth");
+jest.mock("@/lib/work-schedules", () => ({
+  ensureDefaultWorkSchedule: jest.fn(),
+}));
 jest.mock("@/lib/needt/prisma-source");
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -42,6 +46,11 @@ describe("Needt Calendar API", () => {
       workingHoursEnd: "17:45",
     } as never);
     jest.mocked(prisma.flexibleHoursOverride.findMany).mockResolvedValue([]);
+    jest.mocked(ensureDefaultWorkSchedule).mockResolvedValue({
+      windows: [
+        { dayOfWeek: 1, startTime: "08:30", endTime: "17:45", sortOrder: 0 },
+      ],
+    } as never);
   });
 
   it("reads entries through the authorized workspace source", async () => {
@@ -50,9 +59,11 @@ describe("Needt Calendar API", () => {
       getProjects: jest.fn().mockResolvedValue([{ id: "project-1" }]),
       getCalendars: jest.fn().mockResolvedValue({ work: { name: "Work" } }),
     };
-    jest.mocked(prismaDataSource).mockReturnValue(
-      source as unknown as ReturnType<typeof prismaDataSource>
-    );
+    jest
+      .mocked(prismaDataSource)
+      .mockReturnValue(
+        source as unknown as ReturnType<typeof prismaDataSource>
+      );
 
     const request = new NextRequest(
       "http://localhost/api/needt/calendar?start=2026-09-01T00:00:00.000Z&end=2026-10-01T00:00:00.000Z",

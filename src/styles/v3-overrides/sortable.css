@@ -1,0 +1,86 @@
+/* Design v3 - the shared sortable list (components/needt3/sortable).
+ * HAND-WRITTEN. Only transform moves; the grip says grab, a dragged row
+ * says grabbing, and nothing selects while a drag runs.
+ */
+
+.needt-v3 .nx-sort-item {
+  position: relative;
+}
+
+/* The grip: grab, and the browser leaves the touch to the drag. */
+.needt-v3 [data-sort-handle] {
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.needt-v3 [data-sort-handle]:active {
+  cursor: grabbing;
+}
+.needt-v3 [data-sort-handle]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* A row held by the hand (pointer) or by the keyboard sits above the rest. */
+.needt-v3 .nx-sort-item.is-dragging,
+.needt-v3 .nx-sort-item.is-lifted {
+  z-index: 3;
+  cursor: grabbing;
+}
+.needt-v3 .nx-sort-item.is-dragging {
+  will-change: transform;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  border-radius: var(--radius-md);
+}
+.needt-v3 .nx-sort-item.is-lifted {
+  background: var(--fill-3);
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .nx-sort-item {
+    transition: none !important;
+  }
+}
+
+/* While a drag runs: no text selection, one cursor. */
+html.nx-sorting,
+html.nx-sorting * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  cursor: grabbing !important;
+}
+
+/* Customize Sidebar: the grip is the handle, the row is not. */
+.needt-v3 .shell-sk-list-row {
+  cursor: default;
+}
+.needt-v3 .nx-sort-grip {
+  align-self: stretch;
+  align-items: center;
+  padding: 0 4px;
+  margin-left: -4px;
+}
+
+/* Subtasks: the grip shows on hover; the keyboard reaches it too. */
+.needt-v3 .tdc-grip:focus-visible,
+.needt-v3 .tdc-sub .tdc-grip[aria-pressed="true"] {
+  opacity: 1;
+}
+
+/* Moodboard cards: the whole card is the grip. No native image/text drag,
+ * and a finger on a card still scrolls (a touch drag needs a short hold). */
+.needt-v3 .mb-card {
+  -webkit-user-drag: none;
+}
+.needt-v3 .mb-card[data-sort-handle] {
+  touch-action: auto;
+}
+.needt-v3 .mb-card.nx-sort-item.is-dragging {
+  opacity: 0.9;
+  background: transparent;
+  box-shadow: none;
+}

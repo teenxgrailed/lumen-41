@@ -4,6 +4,12 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { removeAllTaskBlocks } from "@/lib/task-block-push";
+import { parseWeek } from "@/lib/work-week";
+import {
+  loadWeekHours,
+  saveWeekHours,
+  weekAfterLegacyWrite,
+} from "@/lib/work-week-server";
 
 const LOG_SOURCE = "AutoScheduleSettingsAPI";
 
@@ -28,7 +34,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(settings);
+    // Per-day hours live on the default work schedule; the columns above are
+    // the whole-week summary kept for older readers.
+    const weekHours = await loadWeekHours(userId);
+    return NextResponse.json({ ...settings, weekHours });
   } catch (error) {
     logger.error(
       "Failed to fetch auto schedule settings",
@@ -51,7 +60,23 @@ export async function PATCH(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const updates = await request.json();
+    const { weekHours: rawWeek, ...updates } = (await request.json()) as Record<
+      string,
+      unknown
+    >;
+    let week: ReturnType<typeof parseWeek> | null = null;
+    if (rawWeek !== undefined) {
+      try {
+        week = parseWeek(rawWeek);
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : "Invalid weekHours",
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     // Load existing settings to detect push disable transition
     const existingSettings = await prisma.autoScheduleSettings.findUnique({
@@ -69,6 +94,21 @@ export async function PATCH(request: NextRequest) {
         ...updates,
       },
     });
+
+    if (week) {
+      await saveWeekHours(userId, week);
+    } else if (
+      "workDays" in updates ||
+      "workHourStart" in updates ||
+      "workHourEnd" in updates
+    ) {
+      const next = weekAfterLegacyWrite(
+        await loadWeekHours(userId),
+        existingSettings,
+        settings
+      );
+      if (next) await saveWeekHours(userId, next);
+    }
 
     // If push transitions from enabled to disabled, remove all pushed events
     if (
@@ -92,7 +132,10 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(settings);
+    return NextResponse.json({
+      ...(await prisma.autoScheduleSettings.findUnique({ where: { userId } })),
+      weekHours: await loadWeekHours(userId),
+    });
   } catch (error) {
     logger.error(
       "Failed to update auto schedule settings",

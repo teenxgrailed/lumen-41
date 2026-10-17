@@ -22,6 +22,11 @@ const CHILDREN: Record<
       foreignKey: "taskId",
       orderBy: "chunkIndex",
     },
+    attachments: {
+      model: "taskAttachment",
+      foreignKey: "taskId",
+      orderBy: "createdAt",
+    },
   },
 };
 const HAS_UPDATED_AT = new Set(["task", "project", "habit", "scheduledBlock"]);
@@ -64,6 +69,8 @@ export function createFakePrisma() {
     userSettings: [],
     connectorSettings: [],
     taskReminder: [],
+    taskAttachment: [],
+    workSchedule: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
