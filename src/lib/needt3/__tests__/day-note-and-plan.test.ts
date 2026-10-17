@@ -1,7 +1,7 @@
 import { buildLabel, shortBuildSha } from "@/lib/build-info";
 
 import { dailyNoteTitle, findDailyNote } from "../hooks/daily-note";
-import { planMessage, planOutcome } from "../hooks/plan-day";
+import { planDetail } from "../hooks/plan-day";
 
 describe("dailyNoteTitle", () => {
   it("names the day in words", () => {
@@ -26,18 +26,22 @@ describe("findDailyNote", () => {
   });
 });
 
-describe("planOutcome", () => {
-  it("counts the tasks that got a time and the ones that did not fit", () => {
-    const o = planOutcome([
-      { taskId: "1", toStart: "2026-10-14T09:00:00.000Z" },
-      { taskId: "2", toStart: "2026-10-14T10:00:00.000Z" },
-      { taskId: "3", toStart: null },
-    ]);
-    expect(o).toEqual({ placed: 2, unplaced: 1 });
-    expect(planMessage(o)).toBe("Placed 2 tasks in your day");
-    expect(planMessage({ placed: 1, unplaced: 0 })).toBe(
-      "Placed 1 task in your day"
+describe("planDetail", () => {
+  const item = (n: number) => ({
+    taskId: String(n),
+    title: `Task ${n}`,
+    day: "Today",
+    time: `0${n}:00–0${n}:30`,
+    moved: false,
+  });
+  it("lists the first placements and counts the rest", () => {
+    expect(planDetail([item(1), item(2)])).toBe(
+      "Today 01:00–01:30 Task 1 · Today 02:00–02:30 Task 2"
     );
+    expect(planDetail([item(1), item(2), item(3), item(4), item(5)])).toBe(
+      "Today 01:00–01:30 Task 1 · Today 02:00–02:30 Task 2 · Today 03:00–03:30 Task 3 · +2 more"
+    );
+    expect(planDetail([])).toBe("");
   });
 });
 

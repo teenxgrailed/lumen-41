@@ -11,6 +11,8 @@ export interface PlanLimits {
   boards: number | null;
   mailboxes: number | null;
   aiAgent: boolean;
+  /** "Plan my day": the scheduler run with its summary and one Undo. */
+  planMyDay: boolean;
   focusStats: boolean;
   advancedFocusModes: boolean;
   remindersPerTask: number | null;
@@ -27,6 +29,7 @@ export const PLAN_LIMITS = {
     boards: 1,
     mailboxes: 0,
     aiAgent: false,
+    planMyDay: false,
     focusStats: false,
     advancedFocusModes: false,
     remindersPerTask: 1,
@@ -40,6 +43,7 @@ export const PLAN_LIMITS = {
     boards: null,
     mailboxes: 3,
     aiAgent: true,
+    planMyDay: true,
     focusStats: true,
     advancedFocusModes: true,
     remindersPerTask: null,
@@ -53,6 +57,7 @@ export const PLAN_LIMITS = {
     boards: null,
     mailboxes: 3,
     aiAgent: true,
+    planMyDay: true,
     focusStats: true,
     advancedFocusModes: true,
     remindersPerTask: null,

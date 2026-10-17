@@ -7,7 +7,10 @@ import {
   seedTask,
   taskRow,
 } from "@/services/ops/__tests__/harness";
+import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { WorkspaceRole } from "@prisma/client";
+
+import { canPlanMyDay } from "@/lib/entitlements";
 
 import type { AgentStreamEvent } from "../agent/events";
 import { runAgentTurn, runConfirmedToolCall } from "../agent/loop";
@@ -37,6 +40,7 @@ jest.mock("@/services/time-tracking/timeEntries", () => ({
 }));
 jest.mock("@/lib/entitlements", () => ({
   getPlan: jest.fn().mockResolvedValue("PRO"),
+  canPlanMyDay: jest.fn().mockResolvedValue({ allowed: true }),
 }));
 jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUser: jest.fn(),
@@ -57,6 +61,8 @@ const workspaceAuth = require("@/lib/auth/workspace-auth");
 let db = mockState.db;
 
 beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(scheduleAllTasksForUser).mockReset();
   mockState.db = createFakePrisma();
   db = mockState.db;
   workspaceAuth.resolveWorkspaceAccess.mockImplementation(
@@ -308,5 +314,49 @@ describe("agent loop: tool calls are ops, and ops are undoable", () => {
     expect(db.tables.calendarEvent).toHaveLength(1);
     await undoRun(result.runId!, OWNER_ID, "user");
     expect(db.tables.calendarEvent[0].archivedAt).not.toBeNull();
+  });
+
+  it("plan_day is one undoable action that says where tasks went", async () => {
+    const task = await seedTask(db, {
+      title: "Taxes",
+      isAutoScheduled: true,
+      estimatedMinutes: 60,
+    });
+    jest.mocked(scheduleAllTasksForUser).mockImplementation(async () => {
+      await (
+        db.client as { task: { update: (a: unknown) => Promise<unknown> } }
+      ).task.update({
+        where: { id: task.id },
+        data: {
+          scheduledStart: new Date("2026-10-21T09:00:00.000Z"),
+          scheduledEnd: new Date("2026-10-21T10:00:00.000Z"),
+        },
+      });
+      return [];
+    });
+    const { ai, requests } = scripted([
+      [call("p", "plan_day", {})],
+      [say("Planned.")],
+    ]);
+    const result = await turn(ai).run();
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].label).toBe("Placed 1 task");
+    const toolMessage = requests[1].messages.at(-1) as { content: string };
+    expect(JSON.parse(toolMessage.content).placed[0]).toMatchObject({
+      title: "Taxes",
+      moved: false,
+    });
+    await undoRun(result.runId!, OWNER_ID, "user");
+    expect(taskRow(db, task.id as string).scheduledStart).toBeNull();
+  });
+
+  it("plan_day is refused on Free", async () => {
+    jest
+      .mocked(canPlanMyDay)
+      .mockResolvedValueOnce({ allowed: false } as never);
+    const { ai } = scripted([[call("p", "plan_day", {})], [say("No.")]]);
+    const result = await turn(ai).run();
+    expect(result.actions).toHaveLength(0);
+    expect(scheduleAllTasksForUser).not.toHaveBeenCalled();
   });
 });
