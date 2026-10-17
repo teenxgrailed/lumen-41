@@ -20,6 +20,8 @@ const publicRoutes = [
   "/auth/error",
   "/api/auth/register",
   "/api/waitlist",
+  // Public seat counter for the landing page; read-only, cached, CORS-limited.
+  "/api/lifetime-seats",
   "/beta",
   "/terms",
   "/privacy",
