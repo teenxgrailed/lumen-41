@@ -187,12 +187,14 @@ function HabitMonths({
   checkins,
   today,
   onTick,
+  onTickDay,
 }: {
   list: readonly V3Habit[];
   projects: readonly V3Project[];
   checkins: readonly Checkin[];
   today: string;
   onTick: (h: V3Habit, done: boolean) => void;
+  onTickDay: (h: V3Habit, date: string, done: boolean) => void;
 }) {
   const [pickId, setPickId] = useState<string | null>(null);
   const picked = list.find((h) => h.id === pickId) ?? null;
@@ -264,13 +266,19 @@ function HabitMonths({
                         ? "var(--accent)"
                         : `color-mix(in oklab, var(--accent) ${Math.round(35 + d.ratio * 55)}%, transparent)`)
                     : null;
+                // With one habit picked, any past day can be marked or unmarked.
+                const pastTap =
+                  picked && d.kind !== "ahead" && !d.today
+                    ? () => onTickDay(picked, d.date, d.kind !== "on")
+                    : undefined;
                 return (
                   <span
                     key={d.day}
-                    title={label}
+                    title={pastTap ? `${label} · click to change` : label}
                     aria-label={label}
-                    onClick={d.today ? tickToday : undefined}
-                    className={`hb-dot is-${d.kind}${d.today ? " is-today" : ""}`}
+                    onClick={d.today ? tickToday : pastTap}
+                    data-hb-day={pastTap ? d.date : undefined}
+                    className={`hb-dot is-${d.kind}${d.today ? " is-today" : ""}${pastTap ? " is-tappable" : ""}`}
                     style={fill ? { background: fill } : undefined}
                   />
                 );
@@ -632,6 +640,7 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
                 </span>
                 <span className="pl-habits-text">
                   {pl.HabitsScreen.one_dot_a_day_coloured_kept_grey_missed_}
+                  {" Pick one habit to mark or unmark a past day."}
                 </span>
                 <HabitMonths
                   list={list}
@@ -641,6 +650,7 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
                   checkins={history.data ?? checkins}
                   today={today}
                   onTick={ctl.tick}
+                  onTickDay={ctl.tickDay}
                 />
               </section>
               <div className="pl-habits-side">

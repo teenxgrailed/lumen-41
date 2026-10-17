@@ -520,7 +520,12 @@ describe("remote MCP endpoint", () => {
     const response = await call("needt_list", { type: "task", limit: 10 });
     const body = await response.json();
     expect(JSON.parse(body.result.content[0].text).items).toEqual([
-      { id: "task-1", title: "Mine", workspaceId: "workspace-1" },
+      {
+        id: "task-1",
+        title: "Mine",
+        workspaceId: "workspace-1",
+        originPageId: null,
+      },
     ]);
     const args = (prisma.task.findMany as jest.Mock).mock.calls[0][0];
     expect(args.where).toMatchObject({ workspaceId: "workspace-1" });
@@ -529,5 +534,41 @@ describe("remote MCP endpoint", () => {
     const tooMany = await call("needt_list", { type: "task", limit: 500 });
     const tooManyBody = await tooMany.json();
     expect(tooManyBody.result.isError).toBe(true);
+  });
+
+  it("needt_list filters tasks by originPageId and shows it on each row", async () => {
+    (prisma.task.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "task-2",
+        title: "From a doc",
+        originKind: "doc",
+        originId: "page-9",
+      },
+    ]);
+    const response = await call("needt_list", {
+      type: "task",
+      originPageId: "page-9",
+    });
+    const body = await response.json();
+    const items = JSON.parse(body.result.content[0].text).items;
+    expect(items[0].originPageId).toBe("page-9");
+    const args = (prisma.task.findMany as jest.Mock).mock.calls.at(-1)[0];
+    expect(args.where).toMatchObject({
+      originKind: "doc",
+      originId: "page-9",
+    });
+  });
+
+  it("advertises originPageId on create, update and list", async () => {
+    const list = await POST(
+      rpc({ jsonrpc: "2.0", id: 3, method: "tools/list" })
+    );
+    const { result } = await list.json();
+    const props = (name: string) =>
+      result.tools.find((t: { name: string }) => t.name === name).inputSchema
+        .properties;
+    expect(props("needt_create_task").originPageId).toBeDefined();
+    expect(props("needt_update_task").originPageId).toBeDefined();
+    expect(props("needt_list").originPageId).toBeDefined();
   });
 });

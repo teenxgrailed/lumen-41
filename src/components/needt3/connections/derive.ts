@@ -300,12 +300,13 @@ export type ConnectPlan =
   | { kind: "navigate"; href: string }
   | { kind: "toolkit"; toolkit: string }
   | { kind: "caldav" }
+  | { kind: "api" }
   | { kind: "unavailable"; reason: string };
 
 /**
  * What "Connect" / "Reconnect" does. Google and Outlook calendars and both
  * mailboxes start their own OAuth; Apple / iCloud takes a CalDAV login;
- * everything else is a Composio toolkit. `Needt API` is not a connection.
+ * everything else is a Composio toolkit. `Needt API` opens the place that makes an access token.
  */
 export function connectPlan(
   item: Pick<CnItem, "slug" | "configured" | "native"> &
@@ -329,15 +330,21 @@ export function connectPlan(
     case "icloud-calendar":
       return { kind: "caldav" };
     case "needt-api":
-      return {
-        kind: "unavailable",
-        reason: "API links are not available in the new design yet.",
-      };
+      return { kind: "api" };
     default:
       return item.native
         ? { kind: "unavailable", reason: "Not available yet." }
         : { kind: "toolkit", toolkit: item.slug };
   }
+}
+
+/** A connected calendar or mailbox can be synced on request; apps cannot. */
+export function canSyncNow(item: Pick<CnItem, "kind" | "state" | "accountId">) {
+  return (
+    item.state === "connected" &&
+    (item.kind === "calendar" || item.kind === "mail") &&
+    !!item.accountId
+  );
 }
 
 /** How a native card disconnects. */

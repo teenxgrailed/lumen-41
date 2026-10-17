@@ -5,8 +5,8 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import type { PagePreviewBlock } from "@/lib/pages/page-preview";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
-import { MiniRows } from "./DocMini";
 import { CoverArt } from "./CoverArt";
+import { MiniRows } from "./DocMini";
 import { backdropVars } from "./backdrop";
 import {
   type DocStyle,
@@ -74,6 +74,8 @@ export function DcCover({
     <img
       src={cover!}
       alt=""
+      loading="lazy"
+      decoding="async"
       draggable={false}
       className="docs-fill docs-cover-img"
       style={style}

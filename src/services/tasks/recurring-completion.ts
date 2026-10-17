@@ -18,13 +18,22 @@ export interface RecurringCompletion {
  * rule cannot be parsed.
  */
 export function planRecurringCompletion(
-  task: Pick<Task, "recurrenceRule" | "dueDate" | "startDate">,
+  task: Pick<
+    Task,
+    | "recurrenceRule"
+    | "dueDate"
+    | "startDate"
+    | "scheduledStart"
+    | "scheduledEnd"
+  >,
   completedAt: Date
 ): {
   completion: RecurringCompletion;
   advance: {
     dueDate: Date;
     startDate: Date | undefined;
+    scheduledStart: Date | null | undefined;
+    scheduledEnd: Date | null | undefined;
     status: TaskStatus;
     completedAt: null;
     lastCompletedDate: Date;
@@ -32,37 +41,54 @@ export function planRecurringCompletion(
 } {
   // Normalize the recurrence rule to ensure compatibility with RRule
   const standardRecurrenceRule = normalizeRecurrenceRule(task.recurrenceRule!);
-  const rrule = RRule.fromString(standardRecurrenceRule!);
+  const options = RRule.parseString(standardRecurrenceRule!);
 
   // For tasks, we only care about the date part
   const baseDate = newDate(task.dueDate || newDate());
   baseDate.setUTCHours(0, 0, 0, 0);
 
-  // Add one day to the base date to ensure we get the next occurrence
-  const searchDate = newDate(baseDate);
-  searchDate.setDate(searchDate.getDate() + 1);
+  // The series is anchored on the occurrence being completed. Without an
+  // anchor rrule would use "now", and "every week" or "every month" would
+  // follow the weekday or day of the month of the moment someone ticks it.
+  options.dtstart = options.dtstart ?? baseDate;
+  const rrule = new RRule(options);
 
-  const nextOccurrence = rrule.after(searchDate);
+  // The next date after both the occurrence and today, so ticking a task that
+  // is weeks overdue lands it on a coming date, not on another past one.
+  const today = newDate(completedAt);
+  today.setUTCHours(0, 0, 0, 0);
+  const from = today.getTime() > baseDate.getTime() ? today : baseDate;
+
+  const nextOccurrence = rrule.after(from, false);
   if (nextOccurrence) nextOccurrence.setUTCHours(0, 0, 0, 0);
 
   const completion = { occurrenceAt: baseDate, completedAt };
   if (!nextOccurrence) return { completion, advance: null };
 
+  const dayMs = 1000 * 60 * 60 * 24;
   // Keep the distance between start date and due date on the next occurrence.
   let nextStartDate: Date | undefined;
   if (task.startDate && task.dueDate) {
     const startToDueDelta = Math.round(
-      (task.dueDate.getTime() - task.startDate.getTime()) /
-        (1000 * 60 * 60 * 24)
+      (task.dueDate.getTime() - task.startDate.getTime()) / dayMs
     );
     nextStartDate = newDate(nextOccurrence);
     nextStartDate.setDate(nextStartDate.getDate() - startToDueDelta);
   }
+  // A placed task moves to the new date at the same time of day; the
+  // scheduler keeps or re-plans it from there.
+  const shift = Math.round(
+    (nextOccurrence.getTime() - baseDate.getTime()) / dayMs
+  );
+  const move = (at: Date | null) =>
+    at ? newDate(at.getTime() + shift * dayMs) : at;
   return {
     completion,
     advance: {
       dueDate: nextOccurrence,
       startDate: nextStartDate,
+      scheduledStart: move(task.scheduledStart ?? null),
+      scheduledEnd: move(task.scheduledEnd ?? null),
       status: TaskStatus.TODO,
       completedAt: null,
       lastCompletedDate: completedAt,

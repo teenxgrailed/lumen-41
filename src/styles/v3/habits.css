@@ -40,6 +40,8 @@
 .needt-v3 .hb-dot.is-ahead { background: transparent; box-shadow: inset 0 0 0 1.5px var(--hb-dot-ring); }
 .needt-v3 .hb-dot.is-today { cursor: pointer; box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary); }
 .needt-v3 .hb-dot.is-today:hover { transform: scale(1.15); }
+.needt-v3 .hb-dot.is-tappable { cursor: pointer; }
+.needt-v3 .hb-dot.is-tappable:hover { transform: scale(1.15); }
 .needt-v3 .hb-months-sum { font: var(--type-ui); color: var(--text-tertiary); }
 .needt-v3 .hb-months-sum b { font-size: 22px; line-height: 1; font-weight: 600; color: var(--text-primary); margin-right: 3px; }
 @container (max-width: 520px) { .needt-v3 .hb-month-dots { grid-template-columns: repeat(10, 12px); gap: 8px 9px; } .needt-v3 .hb-dot { width: 12px; height: 12px; } .needt-v3 .hb-month { grid-template-columns: 40px minmax(0, 1fr); } }

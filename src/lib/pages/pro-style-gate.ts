@@ -9,18 +9,23 @@ import { getPlan } from "@/lib/entitlements";
 type StyleField = Record<string, unknown> | null | undefined;
 
 /**
- * The refusal for a page write that sets a Pro-only style value on a free
- * plan, or `null` when the write may go ahead. Same shape and status as the
+ * The refusal for a page write that sets a Pro-only style value (a backdrop, a
+ * cover, a page colour beyond the free three) on a free plan, or `null` when the write may go ahead. Same shape and status as the
  * other plan gates (`UPGRADE_REQUIRED`, 403). The plan is read only when the
  * write actually moves a Pro key, so ordinary style edits cost no query.
  */
 export async function proStyleRefusal(
   userId: string,
   before: StyleField,
-  after: StyleField
+  after: StyleField,
+  cover?: { before?: string | null; after?: string | null }
 ): Promise<NextResponse | null> {
-  if (after === undefined) return null;
-  const keys = proStyleChanges(before, after);
+  if (after === undefined && cover?.after === undefined) return null;
+  const keys = proStyleChanges(
+    before,
+    after === undefined ? before : after,
+    cover
+  );
   if (keys.length === 0) return null;
   const plan = await getPlan(userId);
   if (plan !== SubscriptionPlan.FREE) return null;

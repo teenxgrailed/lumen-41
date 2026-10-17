@@ -9,6 +9,7 @@ import {
   moveOverdue,
 } from "@/lib/needt3/day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import {
   useCreateTask,
   useTasks,
@@ -100,9 +101,10 @@ function TasksBody({
   const create = useCreateTask();
 
   const R = useTaskRows({ today, projects });
+  const taskView = useTaskView();
   const m = useMemo(
-    () => ptkModel({ tasks, projects, today, tab }),
-    [tasks, projects, today, tab]
+    () => ptkModel({ tasks, projects, today, tab, view: taskView }),
+    [tasks, projects, today, tab, taskView]
   );
   const specs = useMemo(
     () => ptkSpecs(tab, m.sections, projects, today),

@@ -125,11 +125,21 @@ export function aiExhausted(plan: V3Plan | undefined) {
   );
 }
 
-export type BannerIcon = "card" | "clock" | "lock" | "sparkles";
-export type BannerAction = "update-payment" | "see-plans" | "upgrade";
+export type BannerIcon =
+  | "card"
+  | "clock"
+  | "lock"
+  | "sparkles"
+  | "calendar-x"
+  | "cloud-off";
+export type BannerAction =
+  | "update-payment"
+  | "see-plans"
+  | "upgrade"
+  | "reconnect";
 
 export interface BannerSpec {
-  id: "payment" | "ai" | "trial";
+  id: "payment" | "revoked" | "ai" | "trial";
   tone: "neutral" | "attention";
   icon: BannerIcon;
   title: string;
@@ -137,14 +147,54 @@ export interface BannerSpec {
   action?: { kind: BannerAction; label: string };
 }
 
+/** What the banners read besides the plan; both come from real reads. */
+export interface BannerSignals {
+  /** Connections in the needs-reconnect state (calendar or mail). */
+  connections?: readonly {
+    kind: "calendar" | "mail" | "integration";
+    provider: string;
+    state: "connected" | "disconnected" | "error";
+  }[];
+  /** Nothing can answer an AI request (no hosted key, no key of their own). */
+  aiDown?: boolean;
+}
+
+const CONNECTION_NAME: Record<string, string> = {
+  google: "Google Calendar",
+  outlook: "Outlook Calendar",
+  caldav: "Your calendar",
+  gmail: "Gmail",
+};
+
+/** The connection the revoked banner names on this screen, if any. */
+export function revokedConnection(
+  screen: string | undefined,
+  connections: BannerSignals["connections"]
+) {
+  if (screen !== "calendar" && screen !== "mail" && screen !== "today")
+    return null;
+  const kind = screen === "mail" ? "mail" : "calendar";
+  const hit = (connections ?? []).find(
+    (c) => c.kind === kind && c.state !== "connected"
+  );
+  if (!hit) return null;
+  const name =
+    kind === "mail" && hit.provider === "outlook"
+      ? "Outlook Mail"
+      : (CONNECTION_NAME[hit.provider] ??
+        (kind === "mail" ? "Your mailbox" : "Your calendar"));
+  return { kind, name } as const;
+}
+
 /**
  * states.jsx `stBannerSpecs`, limited to the states that have real data.
- * Order follows the prototype: payment, (revoked), (conflict), AI, trial.
+ * Order follows the prototype: payment, revoked, (conflict), AI, trial.
  */
 export function bannerSpecs(
   plan: V3Plan | undefined,
   screen: string | undefined,
-  now: number
+  now: number,
+  signals: BannerSignals = {}
 ): BannerSpec[] {
   const out: BannerSpec[] = [];
   const account = accountState(plan, now);
@@ -159,8 +209,20 @@ export function bannerSpecs(
       title: specCopy.payment_failed_update_your_card_to_keep_,
       action: { kind: "update-payment", label: specCopy.update_payment },
     });
-  // //todo "Google Calendar/Gmail access was revoked" banner: needs a
-  // connection-health source in the v3 hooks (S1); not rendered until then.
+  const revoked = revokedConnection(screen, signals.connections);
+  if (revoked)
+    // No "stopped arriving at 09:14": the sync state carries no timestamp.
+    out.push({
+      id: "revoked",
+      tone: "attention",
+      icon: "calendar-x",
+      title: `${revoked.name} access was revoked`,
+      body:
+        revoked.kind === "mail"
+          ? "New mail stopped arriving. What’s here is still readable."
+          : "Events stopped syncing. Your tasks still work.",
+      action: { kind: "reconnect", label: "Reconnect" },
+    });
   // //todo doc conflict banner: needs a revision-conflict source (T14).
   if (screen === "today" && aiExhausted(plan))
     // //todo the prototype says "AI paused until 14:00"; no reset time is
@@ -171,8 +233,16 @@ export function bannerSpecs(
       icon: "clock",
       title: "AI paused — your tasks and calendar still work",
     });
-  // //todo AI provider-down banner ("AI is temporarily unavailable"): no
-  // service-health source exists; never infer it from a billing error.
+  // "AI is temporarily unavailable" reads the one operator switch there is
+  // (no hosted key and no key of their own); never infer it from an error.
+  if (screen === "today" && signals.aiDown && !aiExhausted(plan))
+    out.push({
+      id: "ai",
+      tone: "neutral",
+      icon: "cloud-off",
+      title:
+        "AI is temporarily unavailable — your tasks and calendar still work",
+    });
   if (account === "trial-ended")
     out.push({
       id: "trial",

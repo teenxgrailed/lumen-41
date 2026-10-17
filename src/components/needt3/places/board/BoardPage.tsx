@@ -34,6 +34,8 @@ import { notify } from "@/lib/notifications";
 
 import { Art } from "../../menu/Art";
 import { RichMenu, type RichMenuItem } from "../../menu/RichMenu";
+import { SortableItem, SortableList } from "../../sortable/Sortable";
+import { useSortableList } from "../../sortable/useSortableList";
 import { StScreen } from "../../states/StScreen";
 import { PlaceHeader } from "../PlaceHeader";
 import { mergeQueries } from "../query";
@@ -116,23 +118,16 @@ function BoardTitle({
 
 /* ---------- one reference in the wall ---------- */
 
-interface DragState {
-  id: string | null;
-  over: string | null;
-}
-
 function Card({
   it,
   i,
   n,
   guest,
-  drag,
   canDrag,
   onOpen,
   onRemove,
   onEditNote,
   onTop,
-  dragApi,
 }: {
   it: V3BoardItem;
   /** Index among the board's own references (-1 for a tile from the old canvas). */
@@ -140,21 +135,13 @@ function Card({
   /** Index in the wall, for the entry stagger. */
   n: number;
   guest: boolean;
-  drag: DragState;
   canDrag: boolean;
   onOpen: (id: string) => void;
   onRemove: (it: V3BoardItem) => void;
   onEditNote: (id: string) => void;
   onTop: (id: string) => void;
-  dragApi: {
-    start: (id: string) => void;
-    hover: (id: string) => void;
-    drop: (id: string) => void;
-    end: () => void;
-  };
 }) {
   const writable = !guest && !it.fromCanvas;
-  const over = drag.over === it.id && drag.id && drag.id !== it.id;
   const name = it.title || it.colorName || it.kind;
   const items: RichMenuItem[] = [
     {
@@ -185,51 +172,20 @@ function Card({
     { sep: true },
     { art: "trash", title: "Remove", onClick: () => onRemove(it) },
   ].filter(Boolean) as RichMenuItem[];
-  return (
-    <figure
-      className={`nx-swap mb-card mb-item mb-kind-${it.kind}${
-        drag.id === it.id ? " is-dragging" : ""
-      }${over ? " is-over" : ""} pl-card-col`}
-      data-id={it.id}
-      draggable={canDrag && writable}
-      tabIndex={0}
-      role="button"
-      aria-label={`${name} — open`}
-      onClick={() => onOpen(it.id)}
-      onKeyDown={(e: KeyboardEvent) => {
-        if (e.target === e.currentTarget && e.key === "Enter") onOpen(it.id);
-      }}
-      onDragStart={(e: DragEvent) => {
-        e.dataTransfer.effectAllowed = "move";
-        try {
-          e.dataTransfer.setData("text/x-mb-item", it.id);
-        } catch {
-          /* some browsers refuse custom types */
-        }
-        dragApi.start(it.id);
-      }}
-      onDragEnter={(e: DragEvent) => {
-        if (drag.id && !it.fromCanvas) {
-          e.preventDefault();
-          dragApi.hover(it.id);
-        }
-      }}
-      onDragOver={(e: DragEvent) => {
-        if (drag.id && !it.fromCanvas) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-        }
-      }}
-      onDrop={(e: DragEvent) => {
-        if (drag.id && !it.fromCanvas) {
-          e.preventDefault();
-          e.stopPropagation();
-          dragApi.drop(it.id);
-        }
-      }}
-      onDragEnd={() => dragApi.end()}
-      style={{ animationDelay: `${Math.min(n, 12) * 30}ms` }}
-    >
+  const sortable = canDrag && writable;
+  const figureProps = {
+    "data-id": it.id,
+    tabIndex: 0,
+    role: "button",
+    "aria-label": `${name} — open`,
+    onClick: () => onOpen(it.id),
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.target === e.currentTarget && e.key === "Enter") onOpen(it.id);
+    },
+    style: { animationDelay: `${Math.min(n, 12) * 30}ms` },
+  } as const;
+  const body = (
+    <>
       <span className="pl-card-el">
         <Visual it={it} />
         <span className="mb-bar" onClick={(e) => e.stopPropagation()}>
@@ -278,6 +234,26 @@ function Card({
           {it.text}
         </figcaption>
       ) : null}
+    </>
+  );
+  // A reference you can move wears the shared sortable row: the whole card is
+  // the grip, a drag starts after a few pixels, Space and the arrows move it.
+  return sortable ? (
+    <SortableItem
+      id={it.id}
+      as="figure"
+      self
+      className={`nx-swap mb-card mb-item mb-kind-${it.kind} pl-card-col`}
+      {...figureProps}
+    >
+      {() => body}
+    </SortableItem>
+  ) : (
+    <figure
+      className={`nx-swap mb-card mb-item mb-kind-${it.kind} pl-card-col`}
+      {...figureProps}
+    >
+      {body}
     </figure>
   );
 }
@@ -299,7 +275,6 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [dropOn, setDropOn] = useState(false);
   const depth = useRef(0);
-  const [drag, setDrag] = useState<DragState>({ id: null, over: null });
 
   const listed = (boards.data ?? []).find((b) => b.id === id);
   const b = board.data
@@ -395,20 +370,17 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
       }
     : {};
 
-  // Dragging a reference inside the wall: only a drop onto another reference
-  // changes the order; a drag that ends anywhere else (Esc, outside) does not.
-  const dragApi = {
-    start: (cardId: string) => setDrag({ id: cardId, over: null }),
-    hover: (cardId: string) => setDrag((d) => ({ ...d, over: cardId })),
-    drop: (targetId: string) => {
-      const from = drag.id;
-      setDrag({ id: null, over: null });
-      if (!from || from === targetId) return;
-      const to = own.findIndex((x) => x.id === targetId);
-      if (to >= 0) void ctl.moveItemTo(id, from, to);
+  // Dragging a reference inside the wall (the shared sortable list): only a
+  // drop onto another reference changes the order; Esc leaves it as it was.
+  const sort = useSortableList({
+    items: own,
+    axis: "grid",
+    grab: "item",
+    label: (x) => x.title || x.colorName || x.kind,
+    onReorder: async (order) => {
+      if (!(await ctl.reorder(id, order))) throw new Error("not saved");
     },
-    end: () => setDrag({ id: null, over: null }),
-  };
+  });
   const pickImages = () => fileInput.current?.click();
   const addItems: RichMenuItem[] = [
     { art: "import", title: "Upload images", onClick: pickImages },
@@ -581,25 +553,27 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
       <StScreen query={query} kind="grid" screen="moodboards" title={title}>
         {items.length ? (
           <div key={id} className="mb-grid pl-mb-box-2" data-mb-wall="">
-            {items.map((it, n) => (
-              <Card
-                key={it.id}
-                it={it}
-                n={n}
-                i={own.findIndex((x) => x.id === it.id)}
-                guest={!writing}
-                drag={drag}
-                canDrag={writing && own.length > 1}
-                dragApi={dragApi}
-                onOpen={ctl.openDetail}
-                onEditNote={ctl.openDetail}
-                onTop={(cardId) => void ctl.moveToTop(id, cardId)}
-                onRemove={(x) => {
-                  ctl.closeDetail();
-                  void ctl.removeReference(id, x);
-                }}
-              />
-            ))}
+            <SortableList ctl={sort}>
+              {[...sort.ordered, ...items.filter((x) => x.fromCanvas)].map(
+                (it, n) => (
+                  <Card
+                    key={it.id}
+                    it={it}
+                    n={n}
+                    i={own.findIndex((x) => x.id === it.id)}
+                    guest={!writing}
+                    canDrag={writing && own.length > 1}
+                    onOpen={ctl.openDetail}
+                    onEditNote={ctl.openDetail}
+                    onTop={(cardId) => void ctl.moveToTop(id, cardId)}
+                    onRemove={(x) => {
+                      ctl.closeDetail();
+                      void ctl.removeReference(id, x);
+                    }}
+                  />
+                )
+              )}
+            </SortableList>
           </div>
         ) : !writing ? (
           <p className="pl-line">Nothing on this board yet.</p>
