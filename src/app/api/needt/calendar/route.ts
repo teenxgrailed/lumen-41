@@ -6,6 +6,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { prismaDataSource } from "@/lib/needt/prisma-source";
 import { prisma } from "@/lib/prisma";
+import { ensureDefaultWorkSchedule } from "@/lib/work-schedules";
 
 const LOG_SOURCE = "NeedtCalendarAPI";
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" } as const;
@@ -61,21 +62,48 @@ export async function GET(request: NextRequest) {
     userSettings,
     calendarSettings,
     flexibleHours,
-  ] =
-    await Promise.all([
-      source.getCalendarEntries(range.start, range.end),
-      source.getProjects(),
-      source.getCalendars(),
-      prisma.userSettings.findUnique({ where: { userId: auth.userId } }),
-      prisma.calendarSettings.findUnique({ where: { userId: auth.userId } }),
-      prisma.flexibleHoursOverride.findMany({
-        where: {
-          userId: auth.userId,
-          date: { gte: range.start, lte: range.end },
-        },
-        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      }),
-    ]);
+    workSchedule,
+  ] = await Promise.all([
+    source.getCalendarEntries(range.start, range.end),
+    source.getProjects(),
+    source.getCalendars(),
+    prisma.userSettings.findUnique({ where: { userId: auth.userId } }),
+    prisma.calendarSettings.findUnique({ where: { userId: auth.userId } }),
+    prisma.flexibleHoursOverride.findMany({
+      where: {
+        userId: auth.userId,
+        date: { gte: range.start, lte: range.end },
+      },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+    }),
+    ensureDefaultWorkSchedule(prisma, auth.userId),
+  ]);
+
+  // Shading follows the default schedule's per-day windows; the start of the
+  // earliest day still positions the first scroll.
+  const workWindows = workSchedule.windows
+    .slice()
+    .sort(
+      (a, b) =>
+        a.dayOfWeek - b.dayOfWeek ||
+        a.sortOrder - b.sortOrder ||
+        a.startTime.localeCompare(b.startTime)
+    )
+    .map((window) => ({
+      dayOfWeek: window.dayOfWeek,
+      startTime: window.startTime,
+      endTime: window.endTime,
+    }));
+  const firstStart = workWindows.length
+    ? workWindows
+        .map((window) => window.startTime)
+        .reduce((a, b) => (a < b ? a : b))
+    : undefined;
+  const lastEnd = workWindows.length
+    ? workWindows
+        .map((window) => window.endTime)
+        .reduce((a, b) => (a > b ? a : b))
+    : undefined;
 
   return NextResponse.json(
     {
@@ -88,8 +116,9 @@ export async function GET(request: NextRequest) {
       options: {
         use24Hour: userSettings?.timeFormat === "24h",
         weekStart: userSettings?.weekStartDay === "sunday" ? "sun" : "mon",
-        workStart: hourOf(calendarSettings?.workingHoursStart, 9),
-        workEnd: hourOf(calendarSettings?.workingHoursEnd, 17),
+        workStart: hourOf(firstStart ?? calendarSettings?.workingHoursStart, 9),
+        workEnd: hourOf(lastEnd ?? calendarSettings?.workingHoursEnd, 17),
+        workWindows,
         flexibleHours: flexibleHours.map((override) => ({
           date: override.date.toISOString().slice(0, 10),
           kind: override.kind,

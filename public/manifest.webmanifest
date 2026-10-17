@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#0E0E10",
-  "theme_color": "#0E0E10",
+  "background_color": "#141416",
+  "theme_color": "#141416",
   "orientation": "portrait-primary",
   "lang": "en",
   "dir": "ltr",
@@ -48,24 +48,59 @@
   ],
   "shortcuts": [
     {
+      "name": "New task",
+      "short_name": "New task",
+      "description": "Add a task",
+      "url": "/today?launch=new-task",
+      "icons": [
+        {
+          "src": "/icons/shortcut-new-task.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
       "name": "Today",
+      "short_name": "Today",
+      "description": "Open today's plan",
       "url": "/today",
-      "description": "Open today's plan"
+      "icons": [
+        {
+          "src": "/icons/shortcut-today.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
-      "name": "Calendar",
-      "url": "/calendar",
-      "description": "Open today's schedule"
-    },
-    {
-      "name": "Focus",
-      "url": "/focus",
-      "description": "Start a focus session"
-    },
-    {
-      "name": "Tasks",
-      "url": "/tasks",
-      "description": "Open open tasks"
+      "name": "Ask Needt",
+      "short_name": "Ask",
+      "description": "Ask Needt anything about your plan",
+      "url": "/today?launch=ask",
+      "icons": [
+        {
+          "src": "/icons/shortcut-ask.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/api/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "application/pdf", "text/plain"]
+        }
+      ]
+    }
+  }
 }

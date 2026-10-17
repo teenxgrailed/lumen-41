@@ -8,6 +8,11 @@ import { prismaDataSource } from "@/lib/needt/prisma-source";
 
 jest.mock("@/lib/auth/api-auth");
 jest.mock("@/lib/needt/prisma-source");
+// The route asks for the person's day; that reads the database, which the
+// deploy gates (no DATABASE_URL) do not have.
+jest.mock("@/services/habits/habit-service", () => ({
+  habitTodayKey: jest.fn().mockResolvedValue("2026-10-17"),
+}));
 
 const workspace = {
   enabled: true,

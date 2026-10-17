@@ -35,7 +35,16 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
   ...jest.requireActual("@/lib/needt3/hooks/tasks"),
   useToggleTask: () => ({ toggle, mutateAsync }),
   useUpdateTask: () => ({ mutateAsync }),
+  useTrashTask: () => ({
+    trash: (id: string) =>
+      mutateAsync({ id, patch: { trashedAt: new Date().toISOString() } }),
+  }),
   useCreateTask: () => ({ mutateAsync }),
+}));
+
+const push = jest.fn();
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
 }));
 
 // StScreen's module reaches V3Root, which imports the CSS entry
@@ -176,10 +185,9 @@ const DeskHome = ({ ctl }: { ctl: HomeController }) =>
     Btn("late", String(!!ctl.fold.late), ctl.flip("late")),
     Btn("done", String(!!ctl.fold.done), ctl.flip("done")),
     Btn("skip", ctl.skipped.join(), () => ctl.setSkipped((x) => [...x, "x"])),
-    Btn("leaving", Object.keys(ctl.leaving).join(), () => {
-      ctl.setLeaving({ a: "strike" });
-      ctl.timers.current.a = [window.setTimeout(() => ctl.setLeaving({}), 50)];
-    })
+    Btn("leaving", Object.keys(ctl.leaving).join(), () =>
+      ctl.completion.check({ id: "a", done: false, title: "A" })
+    )
   );
 const DeskCal = ({ ctl }: { ctl: CalendarController }) =>
   h(
@@ -331,19 +339,33 @@ describe("Home", () => {
     expect(toggle).not.toHaveBeenCalled();
   });
 
-  it("a swipe left sends the task to tomorrow, keeping its hour", async () => {
+  it("a swipe left shows Schedule and Delete and writes nothing yet", async () => {
     mount(PhoneHome);
     const open = q<HTMLElement>('[data-pk-row="pm"] .pk-row-open');
     fire(open, "pointerdown", { x: 300, y: 10 });
     fire(window, "pointermove", { x: 150, y: 12 });
     fire(window, "pointerup", { x: 150, y: 12 });
     await flush();
+    expect(qa('[data-pk-row="pm"] .pk-act').map((b) => b.textContent)).toEqual([
+      "Schedule",
+      "Delete",
+    ]);
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("Delete from the swipe moves the task to Trash", async () => {
+    mount(PhoneHome);
+    const open = q<HTMLElement>('[data-pk-row="pm"] .pk-row-open');
+    fire(open, "pointerdown", { x: 300, y: 10 });
+    fire(window, "pointermove", { x: 150, y: 12 });
+    fire(window, "pointerup", { x: 150, y: 12 });
+    // a tap comes later than the swipe's own click-swallow window
+    jest.spyOn(performance, "now").mockReturnValue(performance.now() + 5000);
+    click(q('[data-pk-row="pm"] .pk-act.is-delete'));
+    await flush();
     expect(mutateAsync).toHaveBeenCalledWith({
       id: "pm",
-      patch: expect.objectContaining({
-        dueDate: "2026-09-03",
-        scheduledStart: "2026-09-03T14:30",
-      }),
+      patch: { trashedAt: expect.any(String) },
     });
   });
 
@@ -385,6 +407,33 @@ describe("Home", () => {
     client.setQueryData(qk.tasks({}), []);
     mount(PhoneHome);
     expect(host.textContent).toContain("A clear day.");
+  });
+
+  it("Notes for the day opens today's note once it exists", async () => {
+    client.setQueryData(qk.dailyNote(TODAY), true);
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            pages: [{ id: "note1", title: "Daily note · 2 September 2026" }],
+          }),
+        url,
+      })
+    );
+    await mount(PhoneHome);
+    const line = q<HTMLButtonElement>("[data-v2p-notes]");
+    expect(line.textContent).toBe("Open today’s note");
+    await click(line);
+    await flush();
+    expect(push).toHaveBeenCalledWith("/pages/note1");
+  });
+
+  it("the line says Notes for the day before there is a note", async () => {
+    client.setQueryData(qk.dailyNote(TODAY), false);
+    await mount(PhoneHome);
+    expect(q("[data-v2p-notes]").textContent).toBe("Notes for the day…");
   });
 });
 
@@ -446,12 +495,12 @@ describe("Calendar", () => {
 
   describe("sideways swipe", () => {
     const body = () => q<HTMLElement>(".v2p-swap");
-    it("pages a week on a clear swipe, from the last move", () => {
+    it("moves a day on a clear swipe, from the last move", () => {
       mount(PhoneCalendar);
       fire(body(), "pointerdown", { x: 300, y: 100 });
       fire(window, "pointermove", { x: 180, y: 104 });
       fire(window, "pointerup", { x: 0, y: 0 }); // the up event's own coordinates are not used
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
     });
     it("a cancel never pages", () => {
       mount(PhoneCalendar);
@@ -470,7 +519,7 @@ describe("Calendar", () => {
       expect(selected()).toBe(TODAY); // finger 2 paged nothing and ended nothing
       fire(window, "pointermove", { x: 150, y: 100, id: 1 });
       fire(window, "pointerup", { x: 150, y: 100, id: 1 });
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
     });
     it("a vertical drag is a scroll, not a swipe", () => {
       mount(PhoneCalendar);
@@ -483,8 +532,8 @@ describe("Calendar", () => {
       client.setQueryData(qk.tasks({}), [
         ...calTasks,
         task("next", {
-          dueDate: "2026-09-09",
-          scheduledStart: "2026-09-09T10:00",
+          dueDate: "2026-09-03",
+          scheduledStart: "2026-09-03T10:00",
           estimatedMinutes: 30,
         }),
       ]);
@@ -492,7 +541,7 @@ describe("Calendar", () => {
       fire(q("[data-v2p-tl=t1]"), "pointerdown", { x: 300, y: 100 });
       fire(window, "pointermove", { x: 150, y: 100 });
       fire(window, "pointerup", { x: 150, y: 100 });
-      expect(selected()).toBe("2026-09-09");
+      expect(selected()).toBe("2026-09-03");
       // the browser sends a click to what is under the finger now
       click(q("[data-v2p-plate=next]"));
       expect(usePhoneOverlays.getState().taskId).toBeNull();
@@ -614,12 +663,21 @@ describe("two faces, one state (crossing 700 px)", () => {
 
   it("a desktop row's strike ends after the face is gone", () => {
     jest.useFakeTimers({ now: NOW });
+    // Completed tasks: hide, so the struck row folds and goes
+    client.setQueryData(qk.settings(), {
+      theme: "light",
+      defaultView: "week",
+      timeZone: "UTC",
+      weekStartDay: "monday",
+      timeFormat: "24h",
+      prefs: { taskView: { completed: "hide" } },
+    });
     mount(PhoneHome, "desktop");
     click(q("[data-d=leaving]"));
     expect(q("[data-d=leaving]").textContent).toBe("a");
     swap(PhoneHome, "phone"); // the desktop face unmounts mid-strike
     act(() => {
-      jest.advanceTimersByTime(100);
+      jest.advanceTimersByTime(1500);
     });
     swap(PhoneHome, "desktop");
     expect(q("[data-d=leaving]").textContent).toBe("");

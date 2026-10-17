@@ -17,6 +17,14 @@ import {
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { isOnToday, taskDay } from "@/lib/needt3/task-day";
+import {
+  DEFAULT_TASK_VIEW,
+  type TaskViewSettings,
+  comparatorFor,
+  groupTasks,
+  overdueOnTop,
+  showsTask,
+} from "@/lib/needt3/task-view";
 
 import {
   UPCOMING_DAYS,
@@ -94,8 +102,11 @@ export function ptkModel(opts: {
   projects: readonly V3Project[];
   today: string;
   tab: PtkTab;
+  /** The person's task view; defaults to the old behaviour. */
+  view?: TaskViewSettings;
 }): PtkModel {
   const { projects, today, tab } = opts;
+  const view = opts.view ?? DEFAULT_TASK_VIEW;
   const live = opts.tasks.filter(pickable);
   const last = addDays(today, UPCOMING_DAYS);
   const dayOf = (t: V3Task) => taskDay(t, today);
@@ -152,21 +163,35 @@ export function ptkModel(opts: {
       },
     ];
   }
+  const order = (key: string) =>
+    view.sort === "time"
+      ? key === "today"
+        ? byTimeOn(today)
+        : byDay
+      : comparatorFor(view.sort);
   sections = sections
     .map((s) => ({
       ...s,
-      tasks: s.tasks
-        .filter((t) => !t.done)
-        .sort(s.key === "today" ? byTimeOn(today) : byDay),
+      tasks: s.tasks.filter((t) => !t.done).sort(order(s.key)),
     }))
     .filter((s) => s.tasks.length);
+  // the desktop's rules: Group by project / priority, Overdue on top
+  if (view.group !== "date")
+    sections = groupTasks(
+      sections.flatMap((s) => s.tasks),
+      view.group,
+      view.sort,
+      projects
+    );
+  if (view.group !== "date" || !view.overdueFirst)
+    sections = overdueOnTop(sections, view.overdueFirst, today, view.sort);
 
   const open = (l: readonly V3Task[]) => l.filter((t) => !t.done).length;
   return {
     live,
     scope,
     sections,
-    done: scope.filter((t) => t.done).sort(byTime),
+    done: scope.filter((t) => t.done && showsTask(t, view, today)).sort(byTime),
     counts: {
       inbox: open(inbox),
       today: open(todayL),

@@ -15,6 +15,7 @@ export const PAGE_COMMAND_IDS = [
   "bullet",
   "ordered",
   "checklist",
+  "taskItem",
   "quote",
   "code",
   "divider",

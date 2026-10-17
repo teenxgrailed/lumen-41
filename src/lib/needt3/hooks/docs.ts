@@ -19,7 +19,9 @@ import {
 } from "@/lib/needt3/page-events";
 import { type DocsSort, qk } from "@/lib/needt3/query-keys";
 
+import { type SourceBlock, copyTitle, duplicateBlocks } from "../duplicate-doc";
 import {
+  ApiError,
   dropListItem,
   fetchJson,
   findListItem,
@@ -222,6 +224,82 @@ export function useCreateDoc() {
         (await sendJson<{ page: ApiPage }>("/api/pages", "POST", vars.draft))
           .page
       );
+    },
+  });
+}
+
+type DuplicateVars = { id: string } | { trashId: string };
+
+/**
+ * Duplicate a document with the plain page API: `GET /api/pages/:id`, then
+ * `POST /api/pages` (title, icon, style, project) and `PUT .../blocks` for the
+ * body, then the cover. The copy is a new page next to the original; ticking
+ * and task links are not carried over (see `duplicate-doc`). If the blocks do
+ * not save, the empty copy goes to Trash rather than stay behind. Undo sends
+ * the copy to Trash.
+ */
+export function useDuplicateDoc() {
+  return useUndoableMutation<DuplicateVars, V3Doc | null>({
+    scope: DOCS,
+    label: "duplicate the document",
+    inverseFromResult: true,
+    inverse: (_qc, vars, result) =>
+      "id" in vars && result ? { trashId: result.id } : null,
+    optimistic: (qc, vars) => {
+      if ("trashId" in vars) dropListItem<V3Doc>(qc, DOCS, vars.trashId);
+    },
+    request: async (vars) => {
+      if ("trashId" in vars) {
+        await sendJson(`/api/pages/${vars.trashId}`, "PATCH", {
+          trashed: true,
+        });
+        return null;
+      }
+      const { page: source } = await fetchJson<{
+        page: ApiPage & { parentId?: string | null; blocks?: SourceBlock[] };
+      }>(`/api/pages/${vars.id}`);
+      const draft = {
+        title: copyTitle(source.title),
+        icon: source.icon ?? undefined,
+        parentId: source.parentId ?? undefined,
+        projectId: source.projectId ?? undefined,
+      };
+      let created: ApiPage;
+      try {
+        created = (
+          await sendJson<{ page: ApiPage }>("/api/pages", "POST", {
+            ...draft,
+            ...(source.style ? { style: source.style } : {}),
+          })
+        ).page;
+      } catch (error) {
+        // A Pro look on a page whose owner is no longer Pro: the copy keeps
+        // the words and drops the look rather than fail.
+        if (!(error instanceof ApiError) || error.status !== 403) throw error;
+        created = (
+          await sendJson<{ page: ApiPage }>("/api/pages", "POST", draft)
+        ).page;
+      }
+      try {
+        await sendJson(`/api/pages/${created.id}/blocks`, "PUT", {
+          blocks: duplicateBlocks(source.blocks ?? []),
+        });
+        if (source.coverUrl) {
+          await sendJson(`/api/pages/${created.id}`, "PATCH", {
+            coverUrl: source.coverUrl,
+          });
+        }
+      } catch (error) {
+        try {
+          await sendJson(`/api/pages/${created.id}`, "PATCH", {
+            trashed: true,
+          });
+        } catch {
+          /* the copy stays; the error below is the one to report */
+        }
+        throw error;
+      }
+      return docFromApi({ ...created, coverUrl: source.coverUrl });
     },
   });
 }
