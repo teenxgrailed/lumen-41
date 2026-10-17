@@ -24,6 +24,7 @@ export const SECTION_TITLES = {
   chat: "Chat",
   focus: "Focus",
   quickAdd: "Quick add",
+  share: "Share",
   operations: "Operations",
   adminOverview: "Overview",
   adminUsers: "Users",

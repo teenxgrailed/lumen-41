@@ -35,6 +35,7 @@ import { StScreen } from "../states/StScreen";
 import { type ScreenQuery, screenState } from "../states/status";
 import { AiSetup } from "./AiSetup";
 import { AiToolsPanel } from "./AiToolsPanel";
+import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
 import {
   CATEGORY_LABEL,
@@ -830,6 +831,35 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 autoFocus
                 onClick={() => {
                   ctl.setSetup(null);
+                  void ctl.mcp.reload();
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Sheet>
+      <Sheet
+        open={ctl.api}
+        onClose={() => ctl.setApi(false)}
+        title={strings.apiTitle}
+        scrimClassName="nx-scrim cn-sheet-grid"
+        className="nx-sheet cn-sheet-col"
+        style={{ width: 500 }}
+      >
+        {ctl.api ? (
+          <>
+            <ApiAccess mcp={ctl.mcp} />
+            <div className="cn-setup-row-2">
+              <span className="cn-setup-el-2" />
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                data-cn-api-done=""
+                autoFocus
+                onClick={() => {
+                  ctl.setApi(false);
                   void ctl.mcp.reload();
                 }}
               >

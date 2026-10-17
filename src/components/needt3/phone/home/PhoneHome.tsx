@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { LuCheck, LuTarget } from "react-icons/lu";
 
-import { formatInTimeZone } from "@/lib/date-utils";
 import { clock, durLabel } from "@/lib/needt3/day";
 import { habitColor, habitDoneOn, liveHabits } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
@@ -17,9 +16,10 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
@@ -37,6 +37,7 @@ import {
   pkDotSweep,
   pkReduced,
 } from "../kit";
+import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { usePhoneClock } from "./clock";
@@ -66,6 +67,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const dailyNote = useDailyNote(today);
   const tz = useTimeZone();
+  const weekStartDay = useSettings().data?.weekStartDay ?? "monday";
   const tasksQuery = useTasks();
   const projects = useProjects().data;
   const habitsQuery = useHabits();
@@ -151,6 +153,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     const p = project(t.projectId, projects ?? []);
     return p ? { name: p.name, color: p.color } : null;
   };
+  const actionsOf = useTaskActions(X.exit);
   const row = (t: V3Task, o: { late?: boolean; tomorrow?: boolean } = {}) => (
     <PkTaskRow
       key={t.id}
@@ -161,6 +164,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       out={!!X.out[t.id]}
       canDone={!t.done}
       canLater={!t.done && !o.tomorrow}
+      actions={t.done ? undefined : actionsOf(t)}
       onCheck={check}
       onOpen={openTask}
       onSwipe={(side) => X.exit(t, side)}
@@ -169,8 +173,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const ready = hasContent(tasksQuery);
   const nuAt = nu ? hourAt(nu, today) : null;
-  const d = formatInTimeZone(now, tz, "EEEE, d MMMM");
-  const week = formatInTimeZone(now, tz, "I");
+  const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
   const head = !ready ? null : v.allDone ? (
@@ -220,7 +223,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       screen="home"
       glyph="home"
       title={copy.V2pHome.today}
-      sub={`${d} · week ${week}`}
+      sub={dateLine}
       head={head}
       onPull={ready ? pull : undefined}
     >
