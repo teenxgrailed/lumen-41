@@ -237,7 +237,10 @@ export function useUndoableMutation<V, R>(opts: UndoableMutationOptions<V, R>) {
     ]
   );
 
-  return useMutation<Undoable<R>, Error, V>({ mutationFn: run });
+  /* No retry: `run` has already reverted the cache and told the person when it
+     fails, so the app-wide `mutations.retry` would replay the whole thing — a
+     second write, a second revert, a second "Could not ..." card. */
+  return useMutation<Undoable<R>, Error, V>({ mutationFn: run, retry: false });
 }
 
 /** Patch every cached list under `prefix` whose items have an `id`. */

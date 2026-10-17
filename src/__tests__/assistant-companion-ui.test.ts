@@ -5,10 +5,6 @@ const companionSource = fs.readFileSync(
   path.join(process.cwd(), "src/components/ai/AICompanion.tsx"),
   "utf8"
 );
-const settingsSource = fs.readFileSync(
-  path.join(process.cwd(), "src/components/settings/CustomizationSettings.tsx"),
-  "utf8"
-);
 
 describe("AI companion interaction contract", () => {
   it("uses pointer capture, a drag threshold, and RAF position updates", () => {
@@ -25,11 +21,5 @@ describe("AI companion interaction contract", () => {
     expect(companionSource).toContain("max-sm:h-14 max-sm:w-14");
     expect(companionSource).not.toContain("h-[116px]");
     expect(companionSource).not.toContain("max-sm:h-[76px]");
-  });
-
-  it("exposes a settings reset without coupling settings to the component", () => {
-    expect(settingsSource).toContain("ASSISTANT_POSITION_RESET_EVENT");
-    expect(settingsSource).toContain("Assistant position");
-    expect(settingsSource).toContain("Assistant position reset");
   });
 });

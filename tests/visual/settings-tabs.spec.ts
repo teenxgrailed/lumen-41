@@ -64,7 +64,7 @@ async function prepareSettings(page: import("@playwright/test").Page) {
       body: JSON.stringify({ hostedAvailable: true, hasApiKey: false }),
     });
   });
-  await signInVisualUser(page, { design: "v3" });
+  await signInVisualUser(page);
   const themeResponse = await page.request.patch("/api/user-settings", {
     data: { theme: "dark" },
   });
@@ -174,7 +174,7 @@ test("Billing renders the failed-payment recovery path", async ({ page }) => {
       }),
     });
   });
-  await signInVisualUser(page, { design: "v3" });
+  await signInVisualUser(page);
   await page.goto("/settings#billing", { waitUntil: "domcontentloaded" });
 
   const failedPaymentAlert = page

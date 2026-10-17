@@ -1,7 +1,5 @@
-import { ConfirmEmailForm } from "@/components/auth/ConfirmEmailForm";
 import { V3ConfirmEmailRoute } from "@/components/needt3/auth/ConfirmEmailRoute";
 
-import { isAuthDesignV3 } from "@/lib/needt3/auth-design";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
@@ -17,15 +15,11 @@ export default async function ConfirmEmailPage({
   searchParams: Promise<{ email?: string; token?: string }>;
 }) {
   const { email = "", token = "" } = await searchParams;
-  // Same rule as sign-in: v3 once design_v3 is on for everyone.
-  if (await isAuthDesignV3(false)) {
-    return (
-      <V3ConfirmEmailRoute
-        email={email}
-        token={token}
-        {...await requestPhoneUi()}
-      />
-    );
-  }
-  return <ConfirmEmailForm email={email} token={token} />;
+  return (
+    <V3ConfirmEmailRoute
+      email={email}
+      token={token}
+      {...await requestPhoneUi()}
+    />
+  );
 }

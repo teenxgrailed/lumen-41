@@ -6,7 +6,6 @@ import { PageWorkspace } from "@/components/pages/PageWorkspace";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { isFeatureEnabled } from "@/lib/feature-flags";
-import { isDesignV3 } from "@/lib/needt3/design-flag";
 import { documentTabTitle } from "@/lib/needt3/item-titles";
 
 export async function generateMetadata({
@@ -33,10 +32,7 @@ export default async function PagePage({
   const editor = (
     <PageWorkspace pageId={id} documentFormatVersion={editorV2 ? 2 : 1} />
   );
-  // design_v3: the same editor, inside the v3 document chrome (the phone's
-  // reader on a phone, the desktop's document screen otherwise).
-  if (await isDesignV3()) {
-    return <DocumentFace pageId={id}>{editor}</DocumentFace>;
-  }
-  return editor;
+  // The editor sits inside the document chrome (the phone's reader on a
+  // phone, the desktop's document screen otherwise).
+  return <DocumentFace pageId={id}>{editor}</DocumentFace>;
 }

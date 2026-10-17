@@ -1,295 +1,165 @@
-import { encode } from "next-auth/jwt";
-
 import { type Page, expect, test } from "@playwright/test";
-import { existsSync } from "node:fs";
+import { SubscriptionPlan } from "@prisma/client";
 
-if (!process.env.NEXTAUTH_SECRET && existsSync(".env.local")) {
-  process.loadEnvFile(".env.local");
-}
+import { prisma } from "@/lib/prisma";
 
-async function authenticate(page: Page) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  expect(secret, "NEXTAUTH_SECRET is required for settings E2E").toBeTruthy();
-  const token = await encode({
-    secret: secret!,
-    maxAge: 60 * 60,
-    token: {
-      sub: "settings-e2e-user",
-      name: "Settings Owner",
-      email: "settings-e2e@needt.local",
-      role: "admin",
-    },
+import { createV3User, signInAs } from "./helpers/v3-user";
+
+/*
+ * Settings on the v3 screens, against the real API and database. Settings is
+ * a sheet over Today: `/settings#section` and `/settings?section=...` open it
+ * on that section and leave the address on /today. Nothing in it is saved with
+ * a button.
+ */
+
+const settings = (page: Page) => page.getByRole("dialog", { name: "Settings" });
+const rail = (page: Page) =>
+  page.getByRole("navigation", { name: "Settings sections" });
+
+/** The open section's title in the sheet's header. */
+const title = (page: Page, name: string) =>
+  settings(page).getByRole("banner").getByRole("heading", { name, level: 2 });
+
+/** The switch input is visually hidden; a person presses its track. */
+const track = (page: Page, name: string) =>
+  page.locator("label.nt-switch").filter({
+    has: page.getByRole("switch", { name }),
   });
-  await page.context().addCookies([
-    {
-      name: "next-auth.session-token",
-      value: token,
-      url: process.env.TEST_BASE_URL ?? "http://localhost:3000",
-      httpOnly: true,
-      sameSite: "Lax",
-    },
-  ]);
-}
 
-const usage = {
-  allowed: true,
-  limit: null,
-  used: 0,
-  remaining: null,
-  upgradeRequired: false,
-  plan: "PRO",
-};
+/** The transient "what you did" pill at the bottom centre. */
+const notices = (page: Page) =>
+  page.getByRole("region", { name: "Needt action notices" });
 
-async function mockSettings(page: Page) {
-  await page.route("**/api/**", async (route) => {
-    const request = route.request();
-    const { pathname } = new URL(request.url());
-    if (pathname === "/api/auth/session") {
-      return route.fulfill({
-        json: {
-          user: {
-            id: "settings-e2e-user",
-            name: "Settings Owner",
-            email: "settings-e2e@needt.local",
-            role: "admin",
-          },
-          expires: "2026-09-25T00:00:00.000Z",
-        },
-      });
-    }
-    if (pathname === "/api/workspaces") {
-      return route.fulfill({
-        json: {
-          workspaces: [
-            {
-              role: "OWNER",
-              workspace: {
-                id: "settings-workspace",
-                name: "Personal",
-                kind: "PERSONAL",
-                createdAt: "2026-09-01T00:00:00.000Z",
-              },
-            },
-          ],
-        },
-      });
-    }
-    if (["/api/tasks", "/api/tags", "/api/projects"].includes(pathname)) {
-      return route.fulfill({ json: [] });
-    }
-    if (pathname === "/api/user-settings") {
-      return route.fulfill({
-        json: {
-          theme: "paper",
-          defaultView: "week",
-          timeZone: "Europe/Zurich",
-          secondaryTimeZone: null,
-          weekStartDay: "monday",
-          timeFormat: "24h",
-        },
-      });
-    }
-    if (pathname === "/api/calendar-settings") {
-      return route.fulfill({
-        json: {
-          defaultCalendarId: null,
-          workingHoursEnabled: true,
-          workingHoursStart: "09:00",
-          workingHoursEnd: "17:00",
-          workingHoursDays: "[1,2,3,4,5]",
-          defaultDuration: 60,
-          defaultColor: "#6366F1",
-          defaultReminder: 30,
-          refreshInterval: 5,
-        },
-      });
-    }
-    if (pathname === "/api/notification-settings") {
-      return route.fulfill({
-        json: {
-          emailNotifications: true,
-          dailyEmailEnabled: true,
-          eventInvites: true,
-          eventUpdates: true,
-          eventCancellations: true,
-          eventReminders: true,
-          defaultReminderTiming: "[30]",
-        },
-      });
-    }
-    if (pathname === "/api/integration-settings") {
-      return route.fulfill({
-        json: {
-          googleCalendarEnabled: true,
-          googleCalendarAutoSync: true,
-          googleCalendarInterval: 5,
-          outlookCalendarEnabled: true,
-          outlookCalendarAutoSync: true,
-          outlookCalendarInterval: 5,
-        },
-      });
-    }
-    if (pathname === "/api/data-settings") {
-      return route.fulfill({
-        json: { autoBackup: true, backupInterval: 7, retainDataFor: 365 },
-      });
-    }
-    if (pathname === "/api/auto-schedule-settings") {
-      return route.fulfill({
-        json: {
-          workDays: "[1,2,3,4,5]",
-          workHourStart: 9,
-          workHourEnd: 18,
-          selectedCalendars: "[]",
-          bufferMinutes: 15,
-          highEnergyStart: 9,
-          highEnergyEnd: 12,
-          mediumEnergyStart: 13,
-          mediumEnergyEnd: 15,
-          lowEnergyStart: 15,
-          lowEnergyEnd: 18,
-          groupByProject: false,
-        },
-      });
-    }
-    if (pathname === "/api/system-settings") {
-      return route.fulfill({
-        json: { logLevel: "none", logDestination: "db" },
-      });
-    }
-    if (pathname === "/api/accounts") {
-      return route.fulfill({ json: [] });
-    }
-    if (pathname === "/api/customization") {
-      return route.fulfill({ json: {} });
-    }
-    if (pathname === "/api/onboarding") {
-      return route.fulfill({
-        json: {
-          steps: [
-            { id: "account", complete: true },
-            { id: "calendar", complete: true },
-            { id: "workspace", complete: true },
-            { id: "task", complete: true },
-          ],
-        },
-      });
-    }
-    if (pathname === "/api/billing") {
-      return route.fulfill({
-        json: {
-          configured: true,
-          plan: "PRO",
-          isTrial: true,
-          trialEndsAt: "2026-10-08T00:00:00.000Z",
-          status: "ACTIVE",
-          interval: null,
-          currentPeriodEnd: null,
-          cancelAtPeriodEnd: false,
-          canManageBilling: false,
-          usage: {
-            calendars: usage,
-            autoScheduledTasks: usage,
-            boards: usage,
-            mailboxes: usage,
-            aiActions: {
-              used: 17,
-              limit: 20,
-              remaining: 3,
-              allowed: true,
-              plan: "PRO",
-            },
-          },
-        },
-      });
-    }
-    if (pathname === "/api/connector-settings") {
-      return route.fulfill({
-        json: {
-          hasToken: false,
-          tokenPreview: null,
-          webhookUrl: null,
-          webhookSchedule: false,
-          webhookTaskComplete: false,
-        },
-      });
-    }
-    if (pathname === "/api/ai-settings") {
-      return route.fulfill({
-        json: {
-          provider: "NONE",
-          hasApiKey: false,
-          customUrl: null,
-          model: null,
-          soulPreset: "business",
-          allowParseTasks: true,
-          allowReorder: false,
-          allowSuggestEnergy: true,
-          allowFullAuto: false,
-          requestTimeoutSeconds: 20,
-          usage: { used: 17, limit: 20, remaining: 3, allowed: true },
-          oauth: { available: false, connected: false, expiresAt: null },
-        },
-      });
-    }
-    if (pathname === "/api/ai/memories") {
-      return route.fulfill({ json: { memories: [] } });
-    }
-    if (request.method() !== "GET") {
-      return route.fulfill({ json: {} });
-    }
-    return route.fulfill({ json: {} });
-  });
-}
-
-test("Settings keeps real account billing behind the ported navigation", async ({
+test("Settings: a link opens its section, and the rail walks to billing with the real prices", async ({
   page,
 }) => {
-  await authenticate(page);
-  await mockSettings(page);
+  const user = await createV3User("settings-nav", {
+    plan: SubscriptionPlan.FREE,
+  });
+  await signInAs(page, user);
 
-  await page.goto("/settings#theme");
-  await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
-  await page
-    .getByRole("navigation", { name: "Settings sections" })
-    .getByRole("button", { name: "Account" })
-    .click();
+  await page.goto("/settings#appearance");
+  await expect(title(page, "Appearance")).toBeVisible();
+  // The sheet sits over Today; the address does not stay on /settings.
+  await expect(page).toHaveURL(/\/today$/);
 
-  await expect(page).toHaveURL(/#account$/);
+  await rail(page).getByRole("button", { name: "Plan & billing" }).click();
+  await expect(title(page, "Plan & billing")).toBeVisible();
+  await expect(settings(page).getByText("Your plan · Free")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Account", exact: true })
+    settings(page).getByRole("button", { name: /Pro Monthly\s*\$7 \/ month/ })
   ).toBeVisible();
-  await expect(page.getByText("Trial", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Pro trial ends/)).toBeVisible();
-  await expect(page.getByText("$7/month", { exact: true })).toBeVisible();
-  await expect(page.getByText("$149 once", { exact: true })).toBeVisible();
-  await expect(page.getByText("Hosted AI actions this month")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Yearly · 29% off" }).click();
-  await expect(page.getByText("$59/year", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("$4.92/month billed annually", { exact: true })
+    settings(page).getByRole("button", {
+      name: /Pro Yearly\s*\$59 \/ year\s*\$4\.92\/mo/,
+    })
+  ).toBeVisible();
+  await expect(
+    settings(page).getByRole("button", { name: /Lifetime\s*\$149 one-time/ })
+  ).toBeVisible();
+  // Hosted AI is not metered on this screen.
+  await expect(settings(page).getByText(/\d+\/\d+ actions left/)).toHaveCount(
+    0
+  );
+
+  await rail(page).getByRole("button", { name: "Account" }).click();
+  await expect(title(page, "Account")).toBeVisible();
+  await expect(
+    settings(page).locator("#settings-panel").getByText(user.email)
   ).toBeVisible();
 });
 
+test("Settings: the 14-day trial starts from Plan & billing and the plan says so", async ({
+  page,
+}) => {
+  const user = await createV3User("settings-trial", {
+    plan: SubscriptionPlan.FREE,
+  });
+  await signInAs(page, user);
+
+  await page.goto("/settings?section=billing");
+  await expect(title(page, "Plan & billing")).toBeVisible();
+  await settings(page)
+    .getByRole("button", { name: "Start 14-day free trial" })
+    .click();
+
+  await expect(notices(page)).toContainText(
+    "Your 14-day Pro trial has started"
+  );
+  await expect(settings(page).getByText("Your plan · Pro trial")).toBeVisible();
+  await expect(
+    settings(page).getByText(/days left of your trial/)
+  ).toBeVisible();
+  await expect(
+    settings(page).getByRole("button", { name: "Start 14-day free trial" })
+  ).toHaveCount(0);
+  expect(await prisma.trialGrant.count({ where: { userId: user.id } })).toBe(1);
+});
+
+test("Settings: a switch saves on its own and is still set after a reload", async ({
+  page,
+}) => {
+  const user = await createV3User("settings-toggle");
+  await signInAs(page, user);
+  const stored = async () =>
+    (
+      (await prisma.userSettings.findUnique({ where: { userId: user.id } }))
+        ?.prefs as Record<string, unknown> | null
+    )?.parts;
+
+  await page.goto("/settings?section=tasks");
+  await expect(title(page, "Tasks")).toBeVisible();
+  const subtasks = page.getByRole("switch", { name: "Show subtasks" });
+  await expect(subtasks).toBeChecked();
+
+  await track(page, "Show subtasks").click();
+  await expect(subtasks).not.toBeChecked();
+  await expect.poll(stored).toBe(false);
+
+  await page.goto("/settings#tasks");
+  await expect(title(page, "Tasks")).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Show subtasks" })
+  ).not.toBeChecked();
+
+  // And back: the saved value is the one the person changes, not a default.
+  await track(page, "Show subtasks").click();
+  await expect.poll(stored).toBe(true);
+});
+
 for (const width of [360, 390]) {
-  test(`Settings changes sections without horizontal overflow at ${width}px`, async ({
+  test(`Settings: the phone lists sections and opens one without horizontal overflow at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
-    await authenticate(page);
-    await mockSettings(page);
+    const user = await createV3User(`settings-phone-${width}`);
+    await signInAs(page, user);
 
-    await page.goto("/settings#theme");
-    await page.getByRole("combobox", { name: "Settings section" }).click();
-    await page.getByRole("option", { name: "Data" }).click();
-    await expect(page).toHaveURL(/#data$/);
-    await expect(page.getByRole("heading", { name: "Data" })).toBeVisible();
-    await expect(page.getByText("Personal API", { exact: true })).toBeVisible();
+    await page.goto("/settings#data");
+    await expect(settings(page).getByText("Data & privacy")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Provider", exact: true })
+      settings(page).getByText(
+        "Every task with its project, estimate and dates."
+      )
     ).toBeVisible();
-    await expect(page.getByText(/\d+\/\d+ actions left/)).toHaveCount(0);
+    await expect(
+      settings(page).getByRole("link", { name: "CSV" })
+    ).toBeVisible();
+    await expect(
+      settings(page).getByRole("switch", { name: "Share usage data" })
+    ).toBeVisible();
+
+    // Back to the list of sections, then into another one.
+    await settings(page)
+      .getByRole("button", { name: "Back to Settings" })
+      .click();
+    await settings(page)
+      .getByRole("button", { name: /^Appearance/ })
+      .click();
+    await expect(
+      settings(page).getByRole("button", { name: "Dark", exact: true })
+    ).toHaveAttribute("aria-pressed", "true");
+
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth

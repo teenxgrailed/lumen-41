@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 
 import { signInVisualUser } from "./helpers";
 
+/* This drives the database's view switcher and grouping controls, which the desktop and tablet
+ * faces draw. The phone (< 700 px) reads a page in its own face (phone/docs):
+ * the editor sits under its floating bar and the database has no view
+ * switcher, so these steps do not exist there. The phone face has its own
+ * tests (src/components/needt3/phone/docs/__tests__). */
+test.skip(
+  ({ viewport }) => (viewport?.width ?? 0) < 700,
+  "The phone has its own document face."
+);
+
 test("Page database views share editable records, filters, sorting and grouping", async ({
   page,
 }) => {

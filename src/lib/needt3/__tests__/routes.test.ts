@@ -38,17 +38,17 @@ describe("next.config redirects", () => {
 });
 
 describe("missingRouteFace", () => {
-  it("flag off: always the root not-found (unchanged)", () => {
+  it("signed out: always the root not-found", () => {
     expect(missingRouteFace(["nope"], false)).toBe("root");
     expect(missingRouteFace(["a", "b"], false)).toBe("root");
   });
 
-  it("flag on: the v3 face inside the shell", () => {
+  it("signed in: the face inside the shell", () => {
     expect(missingRouteFace(["nope"], true)).toBe("v3");
     expect(missingRouteFace(["projects", "x", "y"], true)).toBe("v3");
   });
 
-  it("API and file-like paths keep the root 404 even with the flag on", () => {
+  it("API and file-like paths keep the root 404 even when signed in", () => {
     expect(missingRouteFace(["api", "nope"], true)).toBe("root");
     expect(missingRouteFace(["robots.txt"], true)).toBe("root");
     expect(missingRouteFace(["img", "logo.png"], true)).toBe("root");

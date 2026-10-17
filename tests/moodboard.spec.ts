@@ -1,102 +1,107 @@
-import { encode } from "next-auth/jwt";
-
 import { type Page, expect, test } from "@playwright/test";
-import { existsSync } from "node:fs";
 
-if (!process.env.NEXTAUTH_SECRET && existsSync(".env.local")) {
-  process.loadEnvFile(".env.local");
-}
+import { prisma } from "@/lib/prisma";
 
-const moodboardId = "moodboard-e2e";
-const moodboard = {
-  id: moodboardId,
-  title: "Launch direction",
-  createdById: "moodboard-owner",
-  updatedAt: "2026-08-08T10:00:00.000Z",
-  accessRole: "FULL_ACCESS",
-};
+import { createV3User, signInAs } from "./helpers/v3-user";
 
-async function authenticate(page: Page) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  expect(secret, "NEXTAUTH_SECRET is required for Moodboard E2E").toBeTruthy();
-  const token = await encode({
-    secret: secret!,
-    maxAge: 60 * 60,
-    token: { sub: "moodboard-owner", email: "moodboard@needt.local" },
-  });
-  await page.context().addCookies([
-    {
-      name: "next-auth.session-token",
-      value: token,
-      url: process.env.TEST_BASE_URL ?? "http://localhost:3000",
-      httpOnly: true,
-      sameSite: "Lax",
-    },
-  ]);
-}
+/*
+ * Moodboards on the v3 screens, against the real API and database: make a
+ * board, name it, add a note and a colour to it, and find all of it after a
+ * reload. The grid is the board; the old canvas lives behind `?view=canvas`.
+ */
 
-async function mockMoodboardApi(page: Page) {
-  await page.route("**/api/**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname === `/api/moodboards/${moodboardId}`) {
-      await route.fulfill({ json: { moodboard } });
-      return;
-    }
-    if (url.pathname === `/api/moodboards/${moodboardId}/collaboration-token`) {
-      await route.fulfill({ status: 503, json: { error: "Unavailable" } });
-      return;
-    }
-    if (url.pathname === `/api/moodboards/${moodboardId}/snapshots`) {
-      await route.fulfill({ json: { snapshots: [] } });
-      return;
-    }
-    await route.fulfill({ json: {} });
-  });
-}
+/** The transient "what you did" pill at the bottom centre. */
+const notices = (page: Page) =>
+  page.getByRole("region", { name: "Needt action notices" });
 
-test("Moodboard provides a canvas and all export formats", async ({ page }) => {
-  await authenticate(page);
-  await mockMoodboardApi(page);
-  await page.goto(`/moodboards/${moodboardId}`, {
-    waitUntil: "domcontentloaded",
-  });
+test("Moodboard: a new board takes a name and a note, and keeps both after a reload", async ({
+  page,
+}) => {
+  const user = await createV3User("moodboard");
+  await signInAs(page, user);
 
-  await expect(page.getByText("Launch direction")).toBeVisible();
-  await expect(page.locator(".excalidraw")).toBeVisible();
-  for (const name of [
-    "Export moodboard",
-    "Export SVG",
-    "Export Excalidraw file",
-  ]) {
-    const download = page.waitForEvent("download");
-    await page.getByRole("button", { name }).click();
-    await download;
-  }
-});
+  await page.goto("/moodboards");
+  await expect(page.getByText("No moodboards yet")).toBeVisible();
+  await page.getByRole("button", { name: "New moodboard" }).first().click();
+  await page.waitForURL(/\/moodboards\/[^/]+$/);
+  const id = page.url().split("/").pop() as string;
+  await expect(notices(page)).toContainText("Moodboard created");
 
-test("Moodboard toolbar stays reachable at 360 px", async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 800 });
-  await authenticate(page);
-  await mockMoodboardApi(page);
-  await page.goto(`/moodboards/${moodboardId}`, {
-    waitUntil: "domcontentloaded",
-  });
-
-  for (const name of [
-    "Open version history",
-    "Export moodboard",
-    "Export SVG",
-    "Export Excalidraw file",
-  ]) {
-    const bounds = await page.getByRole("button", { name }).boundingBox();
-    expect(bounds).not.toBeNull();
-    expect(bounds!.width).toBeGreaterThanOrEqual(44);
-    expect(bounds!.height).toBeGreaterThanOrEqual(44);
-  }
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth
+  // Name it: the title is the rename field.
+  await page.getByRole("button", { name: "Untitled moodboard" }).click();
+  await page
+    .getByRole("textbox", { name: "Board name" })
+    .fill("Launch direction");
+  await page.getByRole("textbox", { name: "Board name" }).press("Enter");
+  await expect
+    .poll(
+      async () => (await prisma.moodboard.findUnique({ where: { id } }))?.title
     )
-  ).toBe(true);
+    .toBe("Launch direction");
+
+  // Add → Note.
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Note/ }).click();
+  await page
+    .getByRole("textbox", { name: "Note" })
+    .fill("Warm, quiet, lots of air");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(page.getByText("Warm, quiet, lots of air")).toBeVisible();
+  await expect
+    .poll(() => prisma.moodboardItem.count({ where: { moodboardId: id } }))
+    .toBe(1);
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Launch direction" })
+  ).toBeVisible();
+  await expect(page.getByText("Warm, quiet, lots of air")).toBeVisible();
+  await expect(page.getByText("1 reference")).toBeVisible();
 });
+
+for (const width of [360, 390]) {
+  test(`Moodboard: the phone makes a board and adds a note without horizontal overflow at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    const user = await createV3User(`moodboard-phone-${width}`);
+    await signInAs(page, user);
+
+    await page.goto("/moodboards");
+    await expect(page.getByText("No boards yet")).toBeVisible();
+    await page.getByRole("button", { name: "New board" }).last().click();
+    await page.getByRole("textbox", { name: "Name" }).fill("Launch direction");
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.waitForURL(/\/moodboards\/[^/]+$/);
+    const id = page.url().split("/").pop() as string;
+    await expect(
+      page.getByRole("heading", { name: "Launch direction" })
+    ).toBeVisible();
+
+    // The controls the board offers are all on screen and answer a press.
+    for (const name of ["Add", "Share", "Board options"]) {
+      const box = await page
+        .getByRole("button", { name, exact: true })
+        .boundingBox();
+      expect(box, `${name} should be laid out`).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    }
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("menuitem", { name: /^Note/ }).click();
+    await page
+      .getByRole("textbox", { name: "Note" })
+      .fill("Warm, quiet, lots of air");
+    await page.getByRole("button", { name: "Add note" }).click();
+    await expect(page.getByText("Warm, quiet, lots of air")).toBeVisible();
+    await expect
+      .poll(() => prisma.moodboardItem.count({ where: { moodboardId: id } }))
+      .toBe(1);
+
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth
+      )
+    ).toBe(true);
+  });
+}

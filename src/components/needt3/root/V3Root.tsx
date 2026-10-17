@@ -41,8 +41,8 @@ import { PwaBridge } from "./PwaBridge";
 import { PhoneUiProvider, useResolvedPhoneUi } from "./phone-ui-context";
 
 /**
- * True inside the v3 frame. The flag is read once per request on the server
- * (`isDesignV3`) and arrives here through the layout; client code asks this
+ * True inside the v3 frame. The layout decides once per request on the server
+ * (signed in or not) and the answer arrives here; client code asks this
  * context and never fetches flags.
  */
 const DesignV3Context = createContext(false);

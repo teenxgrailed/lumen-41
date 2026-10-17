@@ -6,7 +6,6 @@ import { SetupForm } from "@/components/setup/SetupForm";
 
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
-import { isDesignV3 } from "@/lib/needt3/design-flag";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 import { checkSetupStatus } from "@/lib/setup-actions";
 
@@ -18,10 +17,10 @@ export const metadata = {
 };
 
 export default async function SetupPage() {
-  // Design v3: a signed-in person with the flag on gets first-run setup (the
-  // five onboarding steps). Everyone else keeps the admin account form below.
+  // A signed-in person gets first-run setup (the five onboarding steps).
+  // Everyone else keeps the admin account form below.
   const session = await getServerSession(await getAuthOptions());
-  if (session?.user?.id && (await isDesignV3())) {
+  if (session?.user?.id) {
     return <OnboardingScreen />;
   }
 
