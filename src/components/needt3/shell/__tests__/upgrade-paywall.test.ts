@@ -18,8 +18,8 @@ describe("Upgrade opens the paywall", () => {
 
   it("Home's locked Plan my day and Week ahead load", () => {
     const src = read("home", "HomeScreen.tsx");
-    expect(src).toContain('onLocked={upgrade("Plan my day")}');
-    expect(src).toContain('onUpgrade={upgrade("Week ahead")}');
+    expect(src).toContain('openPaywall("Plan my day")');
+    expect(src).toContain('openPaywall("Week load")');
     expect(src).not.toContain('openSettings("billing")');
   });
 
