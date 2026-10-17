@@ -14,7 +14,8 @@ import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
-import { taskView } from "../task/view";
+import { StepsBlock, useTaskSteps } from "../task/TaskSteps";
+import { isTaskEvent, taskView } from "../task/view";
 import { type CalItem, type CalTimed, canEditEvent } from "./blocks";
 import { c2End, c2Time } from "./layout";
 
@@ -84,6 +85,7 @@ export function Peek({
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(b.title);
   useEffect(() => setVal(b.title), [b.title]);
+  const steps = useTaskSteps(isTaskEvent(b.entry) ? null : b.entry);
   const { right, left } = sideOf(rect, PEEK_W);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -156,6 +158,7 @@ export function Peek({
         />
         {where}
       </div>
+      {steps ? <StepsBlock steps={steps} badge /> : null}
       <div className="c2-peek-acts">
         {b.event ? (
           // only the person's own, non-recurring local event is editable;

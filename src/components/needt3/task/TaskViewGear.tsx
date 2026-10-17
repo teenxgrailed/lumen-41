@@ -6,7 +6,11 @@ import * as Popover from "@radix-ui/react-popover";
 import { FiSettings } from "react-icons/fi";
 
 import { useSetTaskView, useTaskView } from "@/lib/needt3/hooks/task-view";
-import type { CompletedMode, TaskViewSettings } from "@/lib/needt3/task-view";
+import type {
+  CompletedMode,
+  SubtaskMode,
+  TaskViewSettings,
+} from "@/lib/needt3/task-view";
 
 import { Seg2 } from "../calendar/Seg2";
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -20,6 +24,12 @@ const COMPLETED_HINT: Record<CompletedMode, string> = {
   hide: "A ticked task leaves the lists at once.",
   today: "A ticked task stays until the end of the day.",
   always: "A ticked task stays in the lists.",
+};
+
+const SUBTASK_HINT: Record<SubtaskMode, string> = {
+  next: "Next step + expand: the next step under the title, a tap on 0/3 unfolds the rest.",
+  all: "All steps open: every step is listed under the title.",
+  count: "Count only: just 0/3.",
 };
 
 function Row({
@@ -80,11 +90,17 @@ export function TaskViewForm({
           ]}
         />
       </Row>
-      <Toggle
-        label="Subtasks"
-        on={view.subtasks}
-        onChange={(subtasks) => onChange({ subtasks })}
-      />
+      <Row label="Subtasks" hint={SUBTASK_HINT[view.subtasks]}>
+        <Seg2
+          value={view.subtasks}
+          onChange={(v) => onChange({ subtasks: v as SubtaskMode })}
+          options={[
+            ["next", "Next step"],
+            ["all", "All steps"],
+            ["count", "Count"],
+          ]}
+        />
+      </Row>
       <Toggle
         label="Duration"
         on={view.duration}

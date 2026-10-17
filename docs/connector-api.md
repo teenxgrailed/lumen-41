@@ -635,7 +635,7 @@ curl -X PATCH -H "Content-Type: application/json" \
 | Key            | Values                        | Default | Meaning                                                                         |
 | -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
 | `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
-| `subtasks`     | boolean                       | true    | Row detail: the parts count                                                     |
+| `subtasks`     | `next`, `all`, `count`        | next    | Row detail: the next step under the title with a tap to unfold the rest / every step open / just the count (`0/3`). The first version stored a boolean: `true` reads as `next`, `false` as `count` |
 | `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
 | `project`      | boolean                       | true    | Row detail: the project                                                         |
 | `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
@@ -644,6 +644,10 @@ curl -X PATCH -H "Content-Type: application/json" \
 
 Missing keys take their default; an unknown key or value is a `400`. "Until the
 end of the day" counts from the task's `completedAt`.
+
+Steps are numbered by position: the task's `entry` (its first two-minute step),
+when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
+step in a list is the same write as `needt_complete_subtask`.
 
 ## Moodboard items
 
