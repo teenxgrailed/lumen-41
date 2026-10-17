@@ -16,6 +16,8 @@ jest.mock("@/lib/prisma", () => ({
     agentAction: { findMany: jest.fn() },
     pageComment: { findMany: jest.fn() },
     pageAccessGrant: { findMany: jest.fn() },
+    moodboardAccessGrant: { findMany: jest.fn() },
+    moodboardItemComment: { findMany: jest.fn() },
     calendarFeed: { findMany: jest.fn() },
     importRun: { findMany: jest.fn() },
     taskReminder: { findMany: jest.fn() },
@@ -58,6 +60,8 @@ beforeEach(() => {
     "agentAction",
     "pageComment",
     "pageAccessGrant",
+    "moodboardAccessGrant",
+    "moodboardItemComment",
     "calendarFeed",
     "importRun",
     "taskReminder",
@@ -69,6 +73,62 @@ beforeEach(() => {
 });
 
 describe("getNotificationFeed (activity)", () => {
+  it("tells the board's owner and earlier commenters about a comment", async () => {
+    db.moodboardItemComment.findMany.mockResolvedValue([
+      {
+        id: "mc1",
+        moodboardId: "m9",
+        body: "Love the grain",
+        createdAt: at(15),
+        author: { name: "Lena Fischer" },
+        item: { moodboard: { title: "SS27 drop" } },
+      },
+    ]);
+    const page = await getNotificationFeed({
+      userId: "u1",
+      group: "activity",
+      now,
+    });
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        key: "boardcomment:mc1",
+        kind: "comment",
+        title: "Lena Fischer commented on SS27 drop",
+        body: "Love the grain",
+        link: "/moodboards/m9",
+      }),
+    ]);
+    const where = db.moodboardItemComment.findMany.mock.calls[0][0].where;
+    // Never your own comment, and only boards you can still open.
+    expect(where.authorId).toEqual({ not: "u1" });
+    expect(where.item.moodboard.trashedAt).toBeNull();
+  });
+
+  it("tells a person a moodboard was shared with them", async () => {
+    db.moodboardAccessGrant.findMany.mockResolvedValue([
+      {
+        id: "mg1",
+        moodboardId: "m9",
+        createdAt: at(30),
+        grantedBy: { name: "Anna Keller" },
+        moodboard: { title: "SS27 drop" },
+      },
+    ]);
+    const page = await getNotificationFeed({
+      userId: "u1",
+      group: "activity",
+      now,
+    });
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        key: "boardshare:mg1",
+        kind: "share",
+        title: "Anna Keller shared SS27 drop with you",
+        link: "/moodboards/m9",
+      }),
+    ]);
+  });
+
   it("merges every source newest first and shapes the rows", async () => {
     db.proactiveNudge.findMany.mockResolvedValue([
       {
@@ -198,6 +258,8 @@ describe("getNotificationFeed (activity)", () => {
       "agentAction",
       "pageComment",
       "pageAccessGrant",
+      "moodboardAccessGrant",
+      "moodboardItemComment",
       "calendarFeed",
       "importRun",
       "notificationRead",

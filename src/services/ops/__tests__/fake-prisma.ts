@@ -29,7 +29,14 @@ const CHILDREN: Record<
     },
   },
 };
-const HAS_UPDATED_AT = new Set(["task", "project", "habit", "scheduledBlock"]);
+const HAS_UPDATED_AT = new Set([
+  "task",
+  "project",
+  "habit",
+  "scheduledBlock",
+  "calendarEvent",
+  "page",
+]);
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -71,6 +78,9 @@ export function createFakePrisma() {
     taskReminder: [],
     taskAttachment: [],
     workSchedule: [],
+    calendarEvent: [],
+    calendarFeed: [],
+    page: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -264,6 +274,14 @@ export function createFakePrisma() {
           description: null,
           color: null,
           icon: null,
+        });
+      }
+      if (model === "calendarEvent") {
+        Object.assign(base, {
+          description: null,
+          location: null,
+          allDay: false,
+          archivedAt: null,
         });
       }
       if (model === "agentAction") {

@@ -256,7 +256,10 @@ function WorkScreenContent({
     <div className="wk-screen">
       <header className="wk-head">
         {isProjects ? (
-          <PageAddButton label="New project" onClick={openNew} />
+          // a project's own page has its "Add a task" row: no second add here
+          projectId ? null : (
+            <PageAddButton label="New project" onClick={openNew} />
+          )
         ) : (
           <PageAddButton
             label="New"

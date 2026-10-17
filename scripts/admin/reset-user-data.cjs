@@ -216,6 +216,11 @@ function buildPlan(userId, workspaceId) {
     ["Board", "board", B],
 
     // Moodboards
+    [
+      "MoodboardItemComment",
+      "moodboardItemComment",
+      wsOnly === NOTHING ? NOTHING : { item: viaWs("moodboard") },
+    ],
     ["MoodboardItem", "moodboardItem", viaWs("moodboard")],
     ["MoodboardAsset", "moodboardAsset", viaWs("moodboard")],
     ["MoodboardSnapshot", "moodboardSnapshot", viaWs("moodboard")],

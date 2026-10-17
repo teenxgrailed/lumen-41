@@ -14,7 +14,7 @@ import { CHAT_DOCK_W } from "@/lib/assistant-position";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { ChatDockSlot, PANEL_EXIT_MS } from "../ChatDockSlot";
+import { ChatDockSlot } from "../ChatDockSlot";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -66,13 +66,23 @@ describe("ChatDockSlot", () => {
     expect(slot().style.willChange).toBe("");
   });
 
-  it("gives the width back only after the card has left", () => {
+  it("gives the width back at once and stops clipping, so the card can leave over the page", () => {
     act(() => root.render(h(Shell)));
     ask(true);
+    expect(slot().style.overflow).toBe("hidden");
     ask(false);
-    expect(slot().style.width).toBe(`${CHAT_DOCK_W}px`);
-    act(() => void jest.advanceTimersByTime(PANEL_EXIT_MS + 10));
     expect(slot().style.width).toBe("0px");
+    expect(slot().style.overflow).toBe("visible");
+  });
+
+  it("tells the row which way it moved, in the same commit", () => {
+    act(() => root.render(h("div", { className: "shell-app-row" }, h(Shell))));
+    const row = host.querySelector<HTMLElement>(".shell-app-row")!;
+    expect(row.dataset.motion).toBeUndefined();
+    ask(true);
+    expect(row.dataset.motion).toBe("dock-in");
+    ask(false);
+    expect(row.dataset.motion).toBe("dock-out");
   });
 
   it("stays 0 on the phone and below 1100 px (the panel is a sheet there)", () => {
@@ -88,7 +98,6 @@ describe("ChatDockSlot", () => {
     const before = shellRenders;
     ask(true);
     ask(false);
-    act(() => void jest.advanceTimersByTime(PANEL_EXIT_MS + 10));
     expect(shellRenders).toBe(before);
   });
 });

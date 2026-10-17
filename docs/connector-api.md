@@ -635,7 +635,7 @@ curl -X PATCH -H "Content-Type: application/json" \
 | Key            | Values                        | Default | Meaning                                                                         |
 | -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
 | `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
-| `subtasks`     | boolean                       | true    | Row detail: the parts count                                                     |
+| `subtasks`     | `next`, `all`, `count`        | next    | Row detail: the next step under the title with a tap to unfold the rest / every step open / just the count (`0/3`). The first version stored a boolean: `true` reads as `next`, `false` as `count` |
 | `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
 | `project`      | boolean                       | true    | Row detail: the project                                                         |
 | `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
@@ -644,6 +644,10 @@ curl -X PATCH -H "Content-Type: application/json" \
 
 Missing keys take their default; an unknown key or value is a `400`. "Until the
 end of the day" counts from the task's `completedAt`.
+
+Steps are numbered by position: the task's `entry` (its first two-minute step),
+when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
+step in a list is the same write as `needt_complete_subtask`.
 
 ## Moodboard items
 
@@ -712,6 +716,28 @@ returns at most 500. Responses carry `{ "item": {...} }` (list: `{ "items": [...
 with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
 `DELETE` answers `204`.
 
+### Comments on a reference
+
+```http
+GET    /api/moodboards/:id/items/:itemId/comments
+POST   /api/moodboards/:id/items/:itemId/comments            { "body": "..." }
+PATCH  /api/moodboards/:id/items/:itemId/comments/:commentId { "resolved": true }
+DELETE /api/moodboards/:id/items/:itemId/comments/:commentId
+```
+
+Same session and workspace rules as the items. A viewer reads; an editor
+(and above) posts; the comment's author, or someone with full access, resolves,
+reopens and deletes. There is no separate commenter role: writing a comment
+needs editor access, as it does for page comments. `body` is 1 to 4,000
+characters after trimming; anything else in the body is a `400`. A board in
+Trash is read-only (`409`). The list is open comments first, then resolved,
+oldest first within each, at most 500; each comment carries `id`, `itemId`,
+`moodboardId`, `authorId`, `author { name, email, image }`, `body`,
+`resolvedAt` and `createdAt`. Responses are `{ "comments": [...] }` and
+`{ "comment": {...} }` (`201` on create); `DELETE` answers `204`. Deleting the
+reference deletes its comments. The board's owner, and anyone who commented on
+the board before, gets a "commented on <board>" card in their notifications.
+
 ### Reorder, pictures, sorting, sharing
 
 ```http
@@ -764,6 +790,51 @@ DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
   `shareToken` on `GET /api/moodboards/:id`, for full access) and
   `GET /api/public/moodboards/:id/:token`. Turning it off, Trash or a wrong
   token answer `404`.
+
+## First-run examples
+
+New accounts finish setup on Today with a sample day. Every object it creates
+(one project, six tasks, a "Start here" document, one habit) carries
+`isSample: true` in the database. Examples never count toward a plan limit:
+`GET /api/habits` lists the sample habit, but Free's three-habit allowance
+skips it, and the examples are never auto-scheduled.
+
+```http
+GET    /api/connect/onboarding/sample   # needt.read
+POST   /api/connect/onboarding/sample   # needt.write
+DELETE /api/connect/onboarding/sample   # needt.write
+```
+
+The same three routes exist under `/api/onboarding/sample` for the signed-in
+session (the app uses those). Writes need the Editor role in the workspace.
+
+- `GET` answers `{ "present": true, "counts": { "tasks": 6, "projects": 1, "pages": 1, "habits": 1 } }`.
+  `present` is false once there is nothing left to clear.
+- `POST` creates the sample day in one transaction. Body, all optional:
+  `{ "uses": ["study", "personal"], "timeZone": "Europe/Berlin" }`. `uses` takes
+  `work`, `study`, `personal` and `side`; **the first entry picks the sample**
+  (default `work`) and each use is a different day. `timeZone` defaults to the
+  saved setting. Answers `201` with
+  `{ "created": true, "use": "study", "projectId": "…", "pageId": "…", "counts": { … } }`.
+  It runs once per account: a repeat call, a call after `DELETE`, and a call by
+  any account that existed before the feature all answer `200` with
+  `{ "created": false, … }` and change nothing. An unknown `uses` entry or
+  field answers `400`.
+- `DELETE` removes every example still on the account, and only those:
+  `{ "removed": { "tasks": 6, "projects": 1, "pages": 1, "habits": 1 } }`. A
+  task you added yourself to the sample project stays and leaves the project.
+  Safe to repeat. In the app it is the "Clear examples" button on Today and
+  under Settings, Data.
+
+```bash
+curl -X POST http://localhost:3000/api/connect/onboarding/sample \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "uses": ["side"] }'
+
+curl -X DELETE http://localhost:3000/api/connect/onboarding/sample \
+  -H "Authorization: Bearer needt_REPLACE_ME"
+```
 
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.

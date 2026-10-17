@@ -97,7 +97,9 @@ afterEach(() => {
 });
 
 const btn = (label: string) =>
-  barHost.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+  document.body.querySelector<HTMLButtonElement>(
+    `button[aria-label="${label}"]`
+  )!;
 const press = (el: Element) =>
   act(() => {
     (el as HTMLElement).click();
@@ -124,20 +126,20 @@ const settle = () =>
 describe("the bar", () => {
   it("is the page's editing actions, scrolls as one strip, and hides the keyboard button at rest", () => {
     make([para("Hello")]);
-    const bar = barHost.querySelector<HTMLElement>(
+    const bar = document.body.querySelector<HTMLElement>(
       "[aria-label='Page editing actions']"
     )!;
     expect(bar.hasAttribute("data-assistant-avoid")).toBe(true);
     expect(bar.dataset.kb).toBe("rest");
     expect(
-      barHost.querySelector("[role='toolbar'][aria-label='Formatting']")
+      document.body.querySelector("[role='toolbar'][aria-label='Formatting']")
     ).not.toBeNull();
     expect(btn("Hide keyboard")).not.toBeNull();
   });
 
   it("never takes focus from the page (mousedown is cancelled)", () => {
     make([para("Hello")]);
-    const bar = barHost.querySelector<HTMLElement>(
+    const bar = document.body.querySelector<HTMLElement>(
       "[aria-label='Page editing actions']"
     )!;
     const event = new MouseEvent("mousedown", {
@@ -151,7 +153,9 @@ describe("the bar", () => {
   it("holds the whole set, in a stable order", () => {
     make([para("Hello")]);
     const names = Array.from(
-      barHost.querySelectorAll<HTMLButtonElement>("[role='toolbar'] button")
+      document.body.querySelectorAll<HTMLButtonElement>(
+        "[role='toolbar'] button"
+      )
     ).map((b) => b.getAttribute("aria-label"));
     expect(names).toEqual([
       "Block type",
@@ -202,12 +206,12 @@ describe("formatting", () => {
     make([para("Hello")]);
     selectAll();
     press(btn("Colour and highlight"));
-    const panel = barHost.querySelector("[data-panel='color']")!;
+    const panel = document.body.querySelector("[data-panel='color']")!;
     expect(panel.querySelector("[aria-label='Text colour']")).not.toBeNull();
     expect(panel.querySelector("[aria-label='Highlight']")).not.toBeNull();
     // A second press puts it away.
     press(btn("Colour and highlight"));
-    expect(barHost.querySelector("[data-panel]")).toBeNull();
+    expect(document.body.querySelector("[data-panel]")).toBeNull();
   });
 });
 
@@ -225,7 +229,7 @@ describe("block type", () => {
     await settle();
     expect(btn("Block type").textContent).toContain("Heading 2");
     press(btn("Block type"));
-    const menu = barHost.querySelector(
+    const menu = document.body.querySelector(
       "[role='menu'][aria-label='Block type']"
     )!;
     const items = Array.from(menu.querySelectorAll("button")).map(
@@ -256,19 +260,19 @@ describe("block type", () => {
   it("choosing a type runs the page's command and closes the menu", () => {
     make([para("body")]);
     press(btn("Block type"));
-    press(barHost.querySelector("[data-block='taskItem']")!);
+    press(document.body.querySelector("[data-block='taskItem']")!);
     expect(onCommand).toHaveBeenCalledWith("taskItem");
-    expect(barHost.querySelector("[role='menu']")).toBeNull();
+    expect(document.body.querySelector("[role='menu']")).toBeNull();
   });
 
   it("a tap outside the bar closes the menu", () => {
     make([para("body")]);
     press(btn("Block type"));
-    expect(barHost.querySelector("[role='menu']")).not.toBeNull();
+    expect(document.body.querySelector("[role='menu']")).not.toBeNull();
     act(() => {
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
-    expect(barHost.querySelector("[role='menu']")).toBeNull();
+    expect(document.body.querySelector("[role='menu']")).toBeNull();
   });
 });
 

@@ -2,7 +2,13 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
-import { endOfDay, newDate, startOfDay } from "@/lib/date-utils";
+import {
+  endOfDay,
+  formatInTimeZone,
+  newDate,
+  startOfDay,
+} from "@/lib/date-utils";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
 
 import { listAgentMemories, touchMemories } from "./memory";
@@ -111,10 +117,20 @@ export async function buildAgentPromptForUser(
     listAgentMemories(userId, workspace.workspaceId),
     getTodayScheduleSummary(userId, workspace),
   ]);
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  const timeZone = normalizeUserTimeZone(settings?.timeZone);
+  const now = newDate();
   const result = assembleAgentSystemPrompt({
     soulPreset,
     memories,
     scheduleSummary: schedule.summary,
+    agent: {
+      now: `${formatInTimeZone(now, timeZone, "EEEE yyyy-MM-dd HH:mm")}`,
+      timeZone,
+    },
   });
   await touchMemories(userId, workspace.workspaceId, result.usedMemoryIds);
   return result.prompt;

@@ -20,12 +20,17 @@ export const TASK_VIEW_PREF = "taskView";
 export type CompletedMode = "hide" | "today" | "always";
 export type TaskSort = "time" | "priority" | "due";
 export type TaskGroup = "date" | "project" | "priority";
+/**
+ * What a row shows of its subtasks: the next step under the title with a tap
+ * to unfold the rest, every step open, or just the 0/3 count.
+ */
+export type SubtaskMode = "next" | "all" | "count";
 
 export interface TaskViewSettings {
   /** hide at once / keep until the end of the day / always keep. */
   completed: CompletedMode;
   /** Row details. */
-  subtasks: boolean;
+  subtasks: SubtaskMode;
   duration: boolean;
   project: boolean;
   sort: TaskSort;
@@ -37,7 +42,7 @@ export interface TaskViewSettings {
 /** What every list did before the setting existed. */
 export const DEFAULT_TASK_VIEW: TaskViewSettings = {
   completed: "always",
-  subtasks: true,
+  subtasks: "next",
   duration: true,
   project: true,
   sort: "time",
@@ -50,6 +55,7 @@ export const COMPLETED_MODES: readonly CompletedMode[] = [
   "today",
   "always",
 ];
+export const SUBTASK_MODES: readonly SubtaskMode[] = ["next", "all", "count"];
 export const TASK_SORTS: readonly TaskSort[] = ["time", "priority", "due"];
 export const TASK_GROUPS: readonly TaskGroup[] = [
   "date",
@@ -65,6 +71,17 @@ const pick = <T extends string>(
 const flag = (v: unknown, fallback: boolean) =>
   typeof v === "boolean" ? v : fallback;
 
+/**
+ * The subtasks option. The first version stored a boolean: `true` is the
+ * default view, `false` (the count was all it showed) is "count".
+ */
+const subtaskMode = (v: unknown, fallback: SubtaskMode): SubtaskMode =>
+  v === true
+    ? "next"
+    : v === false
+      ? "count"
+      : pick(v, SUBTASK_MODES, fallback);
+
 /** A stored value → settings; anything unknown or malformed falls to its default. */
 export function readTaskView(stored: unknown): TaskViewSettings {
   const o =
@@ -74,7 +91,7 @@ export function readTaskView(stored: unknown): TaskViewSettings {
   const d = DEFAULT_TASK_VIEW;
   return {
     completed: pick(o.completed, COMPLETED_MODES, d.completed),
-    subtasks: flag(o.subtasks, d.subtasks),
+    subtasks: subtaskMode(o.subtasks, d.subtasks),
     duration: flag(o.duration, d.duration),
     project: flag(o.project, d.project),
     sort: pick(o.sort, TASK_SORTS, d.sort),
@@ -103,7 +120,14 @@ export function taskViewError(stored: unknown): string | undefined {
   for (const [k, all] of enums)
     if (k in o && !all.includes(o[k] as string))
       return `taskView.${k} must be one of ${all.join(", ")}`;
-  for (const k of ["subtasks", "duration", "project", "overdueFirst"])
+  // a boolean from the first version is still accepted and read as above
+  if (
+    "subtasks" in o &&
+    typeof o.subtasks !== "boolean" &&
+    !SUBTASK_MODES.includes(o.subtasks as SubtaskMode)
+  )
+    return `taskView.subtasks must be one of ${SUBTASK_MODES.join(", ")}`;
+  for (const k of ["duration", "project", "overdueFirst"])
     if (k in o && typeof o[k] !== "boolean")
       return `taskView.${k} must be a boolean`;
   const known = new Set(Object.keys(DEFAULT_TASK_VIEW));

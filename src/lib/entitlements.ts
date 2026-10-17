@@ -92,14 +92,17 @@ export async function canCreateBoard(userId: string): Promise<LimitStatus> {
 }
 
 /**
- * Free keeps three active habits (owner decision 2026-10-10). Archived habits
+ * Free keeps three active habits (owner decision 2026-10-10). First-run examples
+ * (`isSample`) and archived habits
  * do not count, and habits above the limit after a downgrade stay editable:
  * only creating or restoring one more is refused.
  */
 export async function canCreateHabit(userId: string): Promise<LimitStatus> {
   const [plan, used] = await Promise.all([
     getPlan(userId),
-    prisma.habit.count({ where: { userId, archivedAt: null } }),
+    prisma.habit.count({
+      where: { userId, archivedAt: null, isSample: false },
+    }),
   ]);
   return limitStatus(plan, PLAN_LIMITS[plan].habits, used);
 }
@@ -113,6 +116,7 @@ export async function canAutoScheduleMore(
     prisma.task.count({
       where: {
         userId,
+        isSample: false,
         lastScheduled: {
           gte: startOfMonth(now),
           lte: endOfMonth(now),
@@ -165,6 +169,15 @@ export async function canUseAiAgent(userId: string) {
     limit: PLAN_LIMITS[plan].aiAgent ? 1 : 0,
     used: PLAN_LIMITS[plan].aiAgent ? 1 : 0,
     upgradeRequired: !PLAN_LIMITS[plan].aiAgent,
+    plan,
+  };
+}
+
+export async function canPlanMyDay(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].planMyDay,
+    upgradeRequired: !PLAN_LIMITS[plan].planMyDay,
     plan,
   };
 }

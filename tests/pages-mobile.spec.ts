@@ -111,18 +111,45 @@ for (const viewport of viewports) {
     const firstBlock = page.locator('[data-block-id="mobile-one"]');
     const firstBounds = await firstBlock.boundingBox();
     expect(firstBounds).not.toBeNull();
-    const point = {
+    // The grip opens from a long press in the gutter left of the text, never
+    // from one on the text (that is how a word is selected).
+    const textPoint = {
       clientX: firstBounds!.x + 20,
       clientY: firstBounds!.y + firstBounds!.height / 2,
     };
-
     await firstBlock.dispatchEvent("pointerdown", {
+      ...textPoint,
+      isPrimary: true,
+      pointerId: 9,
+      pointerType: "touch",
+    });
+    await page.waitForTimeout(380);
+    await expect(page.getByRole("button", { name: "Drag block" })).toHaveCount(
+      0
+    );
+    await firstBlock.dispatchEvent("pointerup", {
+      ...textPoint,
+      isPrimary: true,
+      pointerId: 9,
+      pointerType: "touch",
+    });
+    const editorLeft = (await page.locator(".ProseMirror").boundingBox())!.x;
+    const gutter = page
+      .locator("main")
+      .filter({ has: page.locator(".ProseMirror") })
+      .first();
+    const point = {
+      clientX: editorLeft - 10,
+      clientY: firstBounds!.y + firstBounds!.height / 2,
+    };
+
+    await gutter.dispatchEvent("pointerdown", {
       ...point,
       isPrimary: true,
       pointerId: 10,
       pointerType: "touch",
     });
-    await firstBlock.dispatchEvent("pointermove", {
+    await gutter.dispatchEvent("pointermove", {
       clientX: point.clientX,
       clientY: point.clientY + 20,
       isPrimary: true,
@@ -133,14 +160,14 @@ for (const viewport of viewports) {
     await expect(page.getByRole("button", { name: "Drag block" })).toHaveCount(
       0
     );
-    await firstBlock.dispatchEvent("pointerup", {
+    await gutter.dispatchEvent("pointerup", {
       ...point,
       isPrimary: true,
       pointerId: 10,
       pointerType: "touch",
     });
 
-    await firstBlock.dispatchEvent("pointerdown", {
+    await gutter.dispatchEvent("pointerdown", {
       ...point,
       isPrimary: true,
       pointerId: 11,
@@ -149,7 +176,7 @@ for (const viewport of viewports) {
     await page.waitForTimeout(380);
     const dragHandle = page.getByRole("button", { name: "Drag block" });
     await expect(dragHandle).toBeVisible();
-    await firstBlock.dispatchEvent("pointerup", {
+    await gutter.dispatchEvent("pointerup", {
       ...point,
       isPrimary: true,
       pointerId: 11,
@@ -197,6 +224,8 @@ for (const viewport of viewports) {
       .toEqual(["Second mobile block", "First mobile block"]);
 
     const selectionBlock = page.locator('[data-block-id="mobile-two"]');
+    // The bar belongs to the focused editor: focus it first.
+    await selectionBlock.click();
     const selectionBounds = await selectionBlock.evaluate((element) => {
       const range = document.createRange();
       range.selectNodeContents(element);

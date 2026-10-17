@@ -42,6 +42,7 @@ import { newDate } from "@/lib/date-utils";
 
 import { useExit } from "../ctx/useExit";
 import { AiOrb } from "../orb/AiOrb";
+import { AskActivity, AskText } from "./AskActivity";
 import {
   type AskScope,
   type Mention,
@@ -123,6 +124,9 @@ export interface ChatPanelProps {
   onClose: () => void;
   /** Takes your last line back off the thread; returns it. */
   onPopLast: () => string | null;
+  /** Undo one thing Ask did, or everything one reply did. */
+  onUndo?: (messageId: string, actionId: string) => void;
+  onUndoAll?: (messageId: string, runId: string) => void;
 }
 
 /** The messages mounted while the panel is still flying in; the rest follow. */
@@ -161,6 +165,8 @@ export function ChatPanel({
   onNew,
   onClose,
   onPopLast,
+  onUndo,
+  onUndoAll,
 }: ChatPanelProps) {
   const [draft, setDraft] = React.useState("");
   const [chips, setChips] = React.useState<Mention[]>([]);
@@ -445,7 +451,12 @@ export function ChatPanel({
                     <AiOrb size={22} active />
                   </span>
                   <span className="chat-think-body" role="status">
-                    <span className="chat-think-now">Thinking…</span>
+                    <span className="chat-think-now">
+                      {(m.tools ?? [])
+                        .filter((t) => t.status === "running")
+                        .at(-1)?.label ?? "Thinking"}
+                      …
+                    </span>
                   </span>
                 </div>
               );
@@ -463,11 +474,19 @@ export function ChatPanel({
                   <span
                     className={`chat-ai-text${m.stopped || m.failed ? " is-stopped" : ""}`}
                   >
-                    {m.text}
+                    <AskText text={m.text} />
                     {live ? (
                       <span className="chat-caret" aria-hidden="true" />
                     ) : null}
                   </span>
+                  {onUndo && onUndoAll ? (
+                    <AskActivity
+                      message={m}
+                      busy={live}
+                      onUndo={onUndo}
+                      onUndoAll={onUndoAll}
+                    />
+                  ) : null}
                   {m.confirm && !busy ? (
                     <span className="chat-follow">
                       <button

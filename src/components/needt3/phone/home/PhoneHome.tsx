@@ -25,6 +25,7 @@ import { todayLine } from "@/lib/needt3/today";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { hourAt } from "../../home/derive";
+import { SampleBanner } from "../../home/SampleBanner";
 import {
   PkButton,
   PkEmpty,
@@ -230,6 +231,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       onPull={ready ? pull : undefined}
     >
       <PhoneState query={tasksQuery} screen="today" />
+      <SampleBanner />
       {ready && nu ? (
         <PkSkyPlate className="v2p-next" data-v2p-next={nu.id} key={nu.id}>
           <div className="v2p-next-top">

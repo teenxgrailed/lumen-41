@@ -950,10 +950,8 @@
   text-align: left;
   cursor: default;
 }
-.needt-v3 ::highlight(doc-find) {
-  background: var(--fill-accent-strong);
-  color: inherit;
-}
+/* ::highlight(doc-find) is injected by DocRail (Find): Turbopack's CSS parser
+   (next dev --turbopack) rejects the pseudo-element in a stylesheet. */
 
 /* ───────── the inspector ───────── */
 .needt-v3 .doc-insert-btn {

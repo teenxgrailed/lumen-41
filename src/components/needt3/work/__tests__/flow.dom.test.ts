@@ -296,6 +296,13 @@ describe("The Add a task line · desktop", () => {
       );
     });
 
+  it('is the project page\'s only add-task control: no "+" in the header', () => {
+    render("desktop");
+    expect(host.querySelectorAll(".wk-padd-input")).toHaveLength(1);
+    expect(host.querySelector("[data-wk-back]")).not.toBeNull();
+    expect(host.querySelector("[data-page-add]")).toBeNull();
+  });
+
   it("always carries its hint, so typing never reflows the line", () => {
     render("desktop");
     const hint = q(".wk-padd-hint");

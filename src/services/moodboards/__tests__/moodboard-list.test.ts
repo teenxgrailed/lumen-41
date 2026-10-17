@@ -48,14 +48,14 @@ const row = (id: string, title: string, extra = {}) => ({
 describe("listMoodboards", () => {
   beforeEach(() => prisma.moodboard.findMany.mockReset());
 
-  it("asks for the count and the first three references in wall order, in one query", async () => {
+  it("asks for the count and the first four references in wall order (the phone cover draws four, the desktop collage three), in one query", async () => {
     prisma.moodboard.findMany.mockResolvedValue([]);
     await listMoodboards(actor);
     expect(prisma.moodboard.findMany).toHaveBeenCalledTimes(1);
     const args = prisma.moodboard.findMany.mock.calls[0][0];
     expect(args.where).toEqual({ workspaceId: "w1", archivedAt: null });
     expect(args.select._count).toEqual({ select: { items: true } });
-    expect(args.select.items.take).toBe(3);
+    expect(args.select.items.take).toBe(4);
     expect(args.select.items.orderBy).toEqual([
       { position: "asc" },
       { createdAt: "asc" },

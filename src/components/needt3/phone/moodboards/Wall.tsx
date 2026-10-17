@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 
 import { LuLink, LuText } from "react-icons/lu";
 
+import { hostOf } from "../../places/board/logic";
 import { pkCx } from "../kit";
 import { type PhoneBoardItem, itemName, wallColumns } from "./model";
 import { useWallReorder } from "./useWallReorder";
@@ -166,6 +167,23 @@ export function Wall({
   );
 }
 
+const CELL_HUES = [
+  "var(--hue-orange)",
+  "var(--hue-blue)",
+  "var(--hue-green)",
+  "var(--hue-violet)",
+  "var(--hue-yellow)",
+  "var(--hue-pink)",
+];
+
+/** mbmHue: the same site always gets the same hue. */
+function cellHue(domain: string | null) {
+  let h = 0;
+  const s = domain ?? "";
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return CELL_HUES[Math.abs(h) % CELL_HUES.length];
+}
+
 /** A board card's cover: four cells of its first references (MbmCover). */
 export function BoardCover({
   items,
@@ -201,7 +219,11 @@ export function BoardCover({
           );
         if (it.kind === "link")
           return (
-            <span key={k} className="mb-cell-3">
+            <span
+              key={k}
+              className="mb-cell-3"
+              style={{ "--hue": cellHue(hostOf(it.url)) } as CSSProperties}
+            >
               <LuLink size={16} aria-hidden />
             </span>
           );

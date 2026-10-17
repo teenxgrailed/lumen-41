@@ -18,7 +18,42 @@ export interface ChatToken {
   value?: string;
 }
 
-export type ChatEvent = ChatMeta | ChatToken;
+/** A tool the agent is running or has run (progress, then its outcome). */
+export interface ChatTool {
+  type: "tool";
+  id: string;
+  name: string;
+  label: string;
+  status: "running" | "done" | "error";
+  href?: string;
+}
+
+export interface ChatAction {
+  actionId: string;
+  label: string;
+  href?: string;
+  undoable: boolean;
+}
+
+export interface ChatSource {
+  type: string;
+  id: string;
+  title: string;
+  href: string;
+}
+
+/** Closes an agent turn: what it did (undoable) and what it read. */
+export interface ChatDone {
+  type: "done";
+  runId: string | null;
+  actions: ChatAction[];
+  sources: ChatSource[];
+  requiresConfirm: boolean;
+  changed: boolean;
+  taskId: string | null;
+}
+
+export type ChatEvent = ChatMeta | ChatToken | ChatTool | ChatDone;
 
 /** Split complete lines off `buffer`; the unfinished tail comes back as `rest`. */
 export function readLines(buffer: string): {
@@ -32,7 +67,13 @@ export function readLines(buffer: string): {
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line) as ChatEvent;
-      if (parsed && (parsed.type === "meta" || parsed.type === "token")) {
+      if (
+        parsed &&
+        (parsed.type === "meta" ||
+          parsed.type === "token" ||
+          parsed.type === "tool" ||
+          parsed.type === "done")
+      ) {
         events.push(parsed);
       }
     } catch {

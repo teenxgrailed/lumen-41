@@ -100,16 +100,30 @@ describe("TaskViewForm", () => {
     ]);
   });
 
+  it("offers the three subtask views and reports the pick", () => {
+    const changes = mount("tasks");
+    const seg = (name: string) =>
+      [...host.querySelectorAll("button")].find(
+        (b) => b.textContent === name
+      ) as HTMLButtonElement;
+    act(() => seg("All steps").click());
+    act(() => seg("Count").click());
+    act(() => seg("Next step").click());
+    expect(changes).toEqual([
+      { subtasks: "all" },
+      { subtasks: "count" },
+      { subtasks: "next" },
+    ]);
+  });
+
   it("reports each switch", () => {
     const changes = mount("tasks");
     const sw = (label: string) =>
       host.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement;
-    act(() => sw("Subtasks").click());
     act(() => sw("Duration").click());
     act(() => sw("Project").click());
     act(() => sw("Overdue first").click());
     expect(changes).toEqual([
-      { subtasks: false },
       { duration: false },
       { project: false },
       { overdueFirst: false },

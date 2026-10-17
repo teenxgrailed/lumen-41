@@ -11,7 +11,6 @@ import { act, createElement as h, createElement as mockH } from "react";
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import postcss from "postcss";
 import { type Root, createRoot } from "react-dom/client";
 
 import type { V3Doc } from "@/lib/needt3/map";
@@ -640,51 +639,25 @@ describe("Share: the invite field's error", () => {
   });
 });
 
-describe("the dock and the editor's action bar", () => {
-  // The rules come from the shipped stylesheet, so a renamed class fails here.
-  const css = readFileSync(
-    join(process.cwd(), "src/styles/v3-overrides/docs.css"),
-    "utf8"
-  );
-  const rules = () => {
-    const out: { sel: string; body: string }[] = [];
-    postcss.parse(css).walkRules((r) => {
-      if (r.selector.includes('[aria-label="Page editing actions"]')) {
-        out.push({
-          sel: r.selector.replace(/^\.needt-v3\s+/, ""),
-          body: r.toString(),
-        });
-      }
-    });
-    return out;
-  };
+describe("the editor's action bar", () => {
+  const read = (path: string) =>
+    readFileSync(join(process.cwd(), path), "utf8");
 
-  it("reserves the pill's height plus the safe area under the bar while the reader is open", () => {
-    mount();
-    const bar = $("[aria-label='Page editing actions']");
-    const [rest, typing] = rules();
-    expect(bar.matches(rest.sel)).toBe(true);
-    expect(rest.body).toMatch(
-      /bottom:\s*calc\(84px \+ env\(safe-area-inset-bottom/
-    );
-    // 84 clears the pill (64 tall at 10 px) with a gap
-    expect(84).toBeGreaterThan(10 + 64);
-    // not typing: the keyboard rule does not apply yet
-    expect(bar.matches(typing.sel)).toBe(false);
+  it("is not positioned from the reader's stylesheet: the reader's transform would make it fixed to the reader", () => {
+    const css = read("src/styles/v3-overrides/docs.css");
+    expect(css).not.toMatch(/\[aria-label="Page editing actions"\]\s*\{/);
   });
 
-  it("rides on the keyboard while typing, and the reserve goes with the reader", () => {
-    mount();
-    const bar = $("[aria-label='Page editing actions']");
-    const [, typing] = rules();
-    act(() => $<HTMLInputElement>("input[data-editor-field]").focus());
-    expect(bar.matches(typing.sel)).toBe(true);
-    expect(typing.body).toMatch(/bottom:\s*var\(--pd-kb/);
-    act(() => root.unmount());
-    expect(document.querySelector(".pd-reader")).toBeNull();
-    expect(
-      host.querySelector("[aria-label='Page editing actions']")
-    ).toBeNull();
-    root = createRoot(host);
+  it("is fixed to the bottom of the screen and hidden until the editor has focus", () => {
+    const css = read("src/app/globals.css");
+    const rule = css.slice(
+      css.indexOf(".needt-page-bar {"),
+      css.indexOf("}", css.indexOf(".needt-page-bar {"))
+    );
+    expect(rule).toContain("position: fixed");
+    expect(rule).toMatch(/bottom:\s*0;/);
+    expect(css).toMatch(
+      /\.needt-page-bar\[data-shown="false"\]\s*\{[^}]*visibility:\s*hidden/
+    );
   });
 });

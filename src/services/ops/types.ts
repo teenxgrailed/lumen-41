@@ -47,6 +47,8 @@ export const TOUCHED_MODELS = [
   "project",
   "habit",
   "scheduledBlock",
+  "event",
+  "page",
 ] as const;
 export type TouchedModel = (typeof TOUCHED_MODELS)[number];
 

@@ -154,6 +154,17 @@ export function luminance(hex: string): number {
 }
 
 /** A stable hue (0–359) for a domain or an email, for badges and avatars. */
+/** The site a reference points at, without `www.` (the prototype's `source.domain`). */
+export function hostOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return /\./.test(host) ? host : null;
+  } catch {
+    return null;
+  }
+}
+
 export function hueOf(s: string | null | undefined): number {
   let h = 0;
   const str = s || "";
