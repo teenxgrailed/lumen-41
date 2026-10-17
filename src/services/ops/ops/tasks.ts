@@ -10,6 +10,13 @@ import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import {
+  checkBlocker,
+  entrySchema,
+  normalizeSubtasks,
+  partsCreateData,
+  subtaskListSchema,
+} from "@/services/tasks/subtasks";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type { Prisma } from "@prisma/client";
 import { RRule } from "rrule";
@@ -301,10 +308,21 @@ export const taskCreate = defineOp({
       recurrenceRule: recurrenceRule.optional(),
       scheduleId: z.string().min(1).optional(),
       autoSchedule: z.boolean().default(true),
+      entry: entrySchema.optional(),
+      subtasks: subtaskListSchema.optional(),
+      dependsOnId: z.string().min(1).optional(),
     })
     .strict(),
   async run(ctx, input) {
     if (input.projectId) await assertProjectUsable(ctx, input.projectId);
+    if (input.dependsOnId) {
+      const blocker = await checkBlocker(
+        { userId: ctx.userId, workspace: ctx.workspace },
+        input.dependsOnId
+      );
+      if (!blocker.ok) throw new OpError("INVALID_INPUT", blocker.error);
+    }
+    const subtasks = normalizeSubtasks(input.subtasks);
     if (input.tagIds) await assertTagsOwned(ctx, input.tagIds);
     if (input.scheduleId)
       await assertScheduleOwned(ctx, input.scheduleId, ctx.userId);
@@ -329,6 +347,9 @@ export const taskCreate = defineOp({
         recurrenceRule: rule,
         scheduleId: input.scheduleId,
         projectId: input.projectId,
+        ...(input.dependsOnId ? { dependsOnId: input.dependsOnId } : {}),
+        entry: input.entry ?? null,
+        parts: partsCreateData(subtasks),
         estimatedMinutes: input.estimateMinutes,
         duration: input.estimateMinutes,
         dueDate: due,

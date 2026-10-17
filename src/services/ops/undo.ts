@@ -73,7 +73,11 @@ async function currentVersion(
         ? await tx.project.findUnique({ where: { id }, select })
         : model === "habit"
           ? await tx.habit.findUnique({ where: { id }, select })
-          : await tx.scheduledBlock.findUnique({ where: { id }, select });
+          : model === "event"
+            ? await tx.calendarEvent.findUnique({ where: { id }, select })
+            : model === "page"
+              ? await tx.page.findUnique({ where: { id }, select })
+              : await tx.scheduledBlock.findUnique({ where: { id }, select });
   return row?.updatedAt.toISOString() ?? null;
 }
 
