@@ -5,6 +5,7 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
 
+import { BlockFlash } from "@/components/documents/BlockFlash";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 
@@ -28,6 +29,7 @@ export const pageEditorExtensions = [
   }),
   TableKit.configure({ table: { resizable: true } }),
   BlockIdentity,
+  BlockFlash,
   PageBlockNode,
 ];
 
