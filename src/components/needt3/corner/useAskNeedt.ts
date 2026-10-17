@@ -16,7 +16,13 @@ import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 
 import { runAgent } from "../cursor/hand";
-import { changedData, readLines, touchedTaskId } from "./stream";
+import {
+  type ChatAction,
+  type ChatSource,
+  changedData,
+  readLines,
+  touchedTaskId,
+} from "./stream";
 
 const LOG_SOURCE = "needt3-ask";
 
@@ -32,6 +38,25 @@ export interface AskMessage {
   failed?: boolean;
   /** The plan does not include the agent (Free): the reply is the reason. */
   upgrade?: boolean;
+  /** Tool progress, in order: one line each while it runs, then its outcome. */
+  tools?: AskTool[];
+  /** What the agent changed this turn; each can be undone. */
+  actions?: AskAction[];
+  /** The run the actions belong to ("Undo all"). */
+  runId?: string | null;
+  /** The objects the answer read. */
+  sources?: ChatSource[];
+}
+
+export interface AskTool {
+  id: string;
+  name: string;
+  label: string;
+  status: "running" | "done" | "error";
+}
+
+export interface AskAction extends ChatAction {
+  state: "applied" | "undone" | "conflict" | "failed";
 }
 
 export type AskPhase = "idle" | "thinking" | "streaming";
@@ -81,6 +106,27 @@ export function useAskNeedt() {
       abort.current = ctl;
       let text = "";
       let confirm = false;
+      const tools: AskTool[] = [];
+      /** Refetch, let the row paint, then point the hand at it. */
+      const showChange = (task: string | null, tool: string) => {
+        void (async () => {
+          await qc.invalidateQueries({ queryKey: ["v3"] });
+          if (!task) return;
+          await new Promise((r) => window.requestAnimationFrame(r));
+          const target = `[data-task="${CSS.escape(task)}"]`;
+          if (!document.querySelector(target)) return;
+          await runAgent({
+            label: tool || "agent",
+            steps: [
+              {
+                target,
+                act: { kind: "rest" },
+                say: tool.replace(/_/g, " "),
+              },
+            ],
+          });
+        })();
+      };
       try {
         const res = await fetch("/api/ai/chat", {
           method: "POST",
@@ -123,28 +169,36 @@ export function useAskNeedt() {
                 event.conversationId ?? conversation.current;
               confirm = !!event.requiresConfirm;
               if (changedData(event)) {
-                const task = touchedTaskId(event);
-                const tool = event.toolName ?? "";
                 // The hand points at the row the tool touched, so the row has
-                // to be on screen first: refetch, let it paint, then look.
-                void (async () => {
-                  await qc.invalidateQueries({ queryKey: ["v3"] });
-                  if (!task) return;
-                  await new Promise((r) => window.requestAnimationFrame(r));
-                  const target = `[data-task="${CSS.escape(task)}"]`;
-                  if (!document.querySelector(target)) return;
-                  await runAgent({
-                    label: tool || "agent",
-                    steps: [
-                      {
-                        target,
-                        act: { kind: "rest" },
-                        say: tool.replace(/_/g, " "),
-                      },
-                    ],
-                  });
-                })();
+                // to be on screen first.
+                showChange(touchedTaskId(event), event.toolName ?? "");
               }
+              continue;
+            }
+            if (event.type === "tool") {
+              const at = tools.findIndex((t) => t.id === event.id);
+              const next: AskTool = {
+                id: event.id,
+                name: event.name,
+                label: event.label,
+                status: event.status,
+              };
+              if (at >= 0) tools[at] = next;
+              else tools.push(next);
+              patch(reply.id, { tools: [...tools] });
+              continue;
+            }
+            if (event.type === "done") {
+              confirm = event.requiresConfirm;
+              patch(reply.id, {
+                runId: event.runId,
+                actions: event.actions.map((a) => ({
+                  ...a,
+                  state: "applied" as const,
+                })),
+                sources: event.sources,
+              });
+              if (event.changed) showChange(event.taskId, "agent");
               continue;
             }
             text += event.value ?? "";
@@ -184,6 +238,69 @@ export function useAskNeedt() {
 
   const stop = React.useCallback(() => abort.current?.abort(), []);
 
+  const setActionState = React.useCallback(
+    (messageId: string, ids: "all" | string, state: AskAction["state"]) =>
+      setMessages((list) =>
+        list.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                actions: m.actions?.map((a) =>
+                  (ids === "all" && a.state === "applied") || a.actionId === ids
+                    ? { ...a, state }
+                    : a
+                ),
+              }
+            : m
+        )
+      ),
+    []
+  );
+
+  /** Undo one thing the agent did (POST /api/agent/actions/:id/undo). */
+  const undo = React.useCallback(
+    async (messageId: string, actionId: string) => {
+      try {
+        const res = await fetch(`/api/agent/actions/${actionId}/undo`, {
+          method: "POST",
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          status?: string;
+        };
+        const ok = res.ok && body.status !== "not_undoable";
+        setActionState(
+          messageId,
+          actionId,
+          ok ? "undone" : res.status === 409 ? "conflict" : "failed"
+        );
+        if (ok) await qc.invalidateQueries({ queryKey: ["v3"] });
+      } catch {
+        setActionState(messageId, actionId, "failed");
+      }
+    },
+    [qc, setActionState]
+  );
+
+  /** Undo everything this turn did, newest first (POST /api/agent/runs/:id/undo). */
+  const undoAll = React.useCallback(
+    async (messageId: string, runId: string) => {
+      try {
+        const res = await fetch(`/api/agent/runs/${runId}/undo`, {
+          method: "POST",
+        });
+        setActionState(
+          messageId,
+          "all",
+          res.ok ? "undone" : res.status === 409 ? "conflict" : "failed"
+        );
+        await qc.invalidateQueries({ queryKey: ["v3"] });
+      } catch {
+        setActionState(messageId, "all", "failed");
+      }
+    },
+    [qc, setActionState]
+  );
+
   const reset = React.useCallback(() => {
     abort.current?.abort();
     conversation.current = null;
@@ -207,5 +324,5 @@ export function useAskNeedt() {
     return list[i].text;
   }, []);
 
-  return { messages, phase, send, stop, reset, popLast };
+  return { messages, phase, send, stop, reset, popLast, undo, undoAll };
 }

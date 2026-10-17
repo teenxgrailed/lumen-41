@@ -12,6 +12,7 @@ import { UNDO_WINDOW_DAYS } from "./constants";
 import { OpError } from "./errors";
 import { toJson } from "./helpers";
 import { zodToJsonSchema } from "./json-schema";
+import { eventPageOps } from "./ops/events-pages";
 import { mailHabitOps } from "./ops/mail-habits";
 import { projectOps } from "./ops/projects";
 import { scheduleOps } from "./ops/schedule";
@@ -42,6 +43,7 @@ for (const op of [
   ...projectOps,
   ...scheduleOps,
   ...mailHabitOps,
+  ...eventPageOps,
 ] as OpDefinition[]) {
   if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
   registry.set(op.name, op);

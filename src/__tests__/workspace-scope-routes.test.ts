@@ -147,7 +147,9 @@ describe("workspace-scoped API surfaces", () => {
   });
 
   it("keeps AI task/project lookups and schedule tokens workspace-bound", () => {
-    const chat = readFileSync("src/app/api/ai/chat/route.ts", "utf8");
+    const chat =
+      readFileSync("src/app/api/ai/chat/route.ts", "utf8") +
+      readFileSync("src/services/ai/agent/legacy-tools.ts", "utf8");
     const preview = readFileSync(
       "src/services/ai/reschedule-preview.ts",
       "utf8"
