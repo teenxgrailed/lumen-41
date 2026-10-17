@@ -160,9 +160,9 @@ a[aria-disabled="true"] { cursor: default; }
    canvas never draws more than a screen, and the clouds sit still behind
    moving content (a free parallax). */
 .sky-wrap { position: absolute; inset: 0; pointer-events: none; }
-.sky-wrap .sky[data-sky="lavender"] { background: linear-gradient(180deg, #a9b1db 0%, #c7c9e6 55%, #ece6ea 100%); }
-.sky-wrap .sky[data-sky="night"] { background: linear-gradient(180deg, #121126 0%, #24223f 70%, #3a3760 100%); }
-.sky-wrap .sky { position: sticky !important; top: 0; height: 100vh; width: 100%; overflow: hidden; pointer-events: auto; }
+.sky-wrap .sky[data-sky="lavender"] { background: linear-gradient(180deg, #b4bbdc 0%, #c7c9e6 55%, #ece6ea 100%); }
+.sky-wrap .sky[data-sky="night"] { background: linear-gradient(180deg, #19172d 0%, #24223f 60%, #5f5a82 100%); }
+.sky-wrap .sky { position: sticky !important; top: 0; height: 100vh; height: 100lvh; width: 100%; overflow: hidden; pointer-events: auto; }
 /* Soft section edges: paper-coloured fades laid over the sky (cheaper than a mask). */
 .hero::after, .ai::before, .ai::after { content: ""; position: absolute; left: 0; right: 0; height: 160px; pointer-events: none; z-index: 1; }
 .hero::after { bottom: 0; background: linear-gradient(to bottom, rgba(255,255,255,0), #fff); }
@@ -647,3 +647,15 @@ a.int { color: inherit; text-decoration: none; -webkit-user-drag: none; }
 .int-legend a:hover { background: #efece6; }
 .int-legend .mi .g { width: 22px; height: 22px; }
 @media (max-width: 640px) { .int-legend { display: grid; grid-template-columns: 1fr 1fr; } .int-legend a { font-size: 13px; padding: 10px 12px; } }
+
+/* ── v26.1 · edge to edge on iPhone ─────────────────────
+   Safari tints its status bar, toolbar and overscroll from the page, and it
+   samples the flat CSS colour of a sticky/fixed box at the edge, not the sky
+   canvas drawn on top of it. So (1) the CSS gradients above start and end on the
+   exact pixels the canvas draws (hero top #b4bbdc, night top #19172d, night
+   bottom #5f5a82), (2) html carries the colour that shows in overscroll, and
+   site.js/app.js keep it and <meta name="theme-color"> in step with whatever is
+   under the top edge, (3) the footer clears the home-indicator area. */
+html { background: #b4bbdc; }
+html:has(.phero.plain) { background: var(--paper); }
+.foot { padding-bottom: env(safe-area-inset-bottom, 0px); }
