@@ -40,6 +40,7 @@ import {
 import { haptic } from "@/lib/needt3/haptics";
 import type { V3Task } from "@/lib/needt3/map";
 
+import { PhoneStepsSlot } from "../../task/TaskSteps";
 import { PkSweep } from "./Material";
 import { type EndReason, frameWriter, pkTrack } from "./pointer";
 import { usePkPlate } from "./theme";
@@ -102,6 +103,8 @@ export interface PkRowProps {
   laterIcon?: ReactNode;
   /** `false` drops the check ring (event rows). */
   check?: boolean;
+  /** Under the row, outside the swipe layer (a task's steps). */
+  below?: ReactNode;
 }
 
 /**
@@ -136,6 +139,7 @@ export function PkRow({
   doneIcon,
   laterIcon,
   check,
+  below,
 }: PkRowProps) {
   const plate = usePkPlate();
   const wrap = useRef<HTMLDivElement>(null);
@@ -461,6 +465,7 @@ export function PkRow({
           {action ? <span className="pk-row-act">{action}</span> : null}
         </div>
       </div>
+      {below}
     </div>
   );
 }
@@ -481,6 +486,8 @@ export interface PkTaskRowProps {
   actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */
   hideProject?: boolean;
+  /** A project page draws the steps itself: the row keeps only its count. */
+  hideSteps?: boolean;
   action?: ReactNode;
 }
 
@@ -503,6 +510,7 @@ export function PkTaskRow({
   onSwipe,
   actions,
   hideProject,
+  hideSteps,
   action,
 }: PkTaskRowProps) {
   const h = hourAt(t);
@@ -551,6 +559,7 @@ export function PkTaskRow({
       onOpen={onOpen ? () => onOpen(t) : undefined}
       onSwipe={onSwipe}
       actions={actions}
+      below={<PhoneStepsSlot task={t} hideSteps={hideSteps} />}
     />
   );
 }

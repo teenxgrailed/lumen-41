@@ -249,7 +249,13 @@ function ProjectPageView({
     [tasks, p.id]
   );
   const held = useMemo(() => blockedIds(mine), [mine]);
-  const R = useTaskRows({ today, projects, hideProject: true, blocked: held });
+  const R = useTaskRows({
+    today,
+    projects,
+    hideProject: true,
+    flow: true,
+    blocked: held,
+  });
   const tick = useFlowTick((t, undo) =>
     snack(`Closed “${t.title}” — every step was done`, undo)
   );

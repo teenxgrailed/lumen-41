@@ -155,6 +155,7 @@ export function ProjectPage({
         onOpen={onOpenTask}
         hideProject
         hideEntry={!t.done && !!flowSteps(t)}
+        hideSteps={!t.done && !!flowSteps(t)}
         className={blocked.has(t.id) ? "is-blocked" : undefined}
       />
     </FlowItem>

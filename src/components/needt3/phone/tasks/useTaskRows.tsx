@@ -6,6 +6,7 @@ import { laterPatch } from "@/lib/needt3/day";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
+import { flowSteps } from "../../work/flow";
 import { isOverdue } from "../../work/model";
 import { PkTaskRow, usePkExit } from "../kit";
 import { useTaskActions, useTrashWithUndo } from "../overlays/schedule";
@@ -35,11 +36,14 @@ export function useTaskRows({
   today,
   projects,
   hideProject,
+  flow,
   blocked,
 }: {
   today: string;
   projects: readonly V3Project[];
   hideProject?: boolean;
+  /** The page draws the steps of its open tasks itself (a project's flow). */
+  flow?: boolean;
   /** Tasks waiting on an open task: they cannot be moved a day. */
   blocked?: ReadonlySet<string>;
 }) {
@@ -95,6 +99,7 @@ export function useTaskRows({
         t={t}
         project={p ? { name: p.name, color: p.color } : null}
         hideProject={hideProject}
+        hideSteps={flow && !t.done && !!flowSteps(t)}
         late={isOverdue(t, today)}
         phase={X.phase[t.id]}
         out={!!X.out[t.id]}

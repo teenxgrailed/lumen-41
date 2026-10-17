@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { FiFileText, FiMail, FiMessageSquare } from "react-icons/fi";
 
-import { PartRing } from "./PartRing";
 import type { TaskView } from "./view";
 
 export function SourceChip({
@@ -52,18 +51,6 @@ export function SourceChip({
       <Icon size={12} aria-hidden="true" />
     </span>
   );
-}
-
-export function PartCount({ view }: { view: TaskView }) {
-  return view.parts ? (
-    <span
-      className="tk-count"
-      title={`${view.parts.done} of ${view.parts.total} parts done`}
-    >
-      <PartRing {...view.parts} />
-      {view.parts.done}/{view.parts.total}
-    </span>
-  ) : null;
 }
 
 export function TaskValue({ view }: { view: TaskView }) {
