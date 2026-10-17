@@ -7,35 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- The quick-add line writes the repeat it understood ("every friday" becomes a
-  weekly task that starts on the next Friday) and has an expand button: ⌘↵ or
-  the corner button adds the task and opens it in the full task dialog. Enter
-  still adds and stays.
-- Recurring tasks now work end to end. Completing one (in the app, through
-  `PUT /api/tasks/:id`, the `task.complete` op or `needt_complete_task`) records
-  that occurrence as a finished task and moves the same task to its next date,
-  keeping its time of day. The series is anchored on the task's own date, so
-  "every week" no longer follows the weekday you happen to tick it on, "every
-  day" no longer skips a day, and ticking an overdue task lands it on a coming
-  date. The Repeat chip gains Custom: every N days, weeks or months, on chosen
-  weekdays. `task.complete` no longer refuses recurring tasks, and Undo puts the
-  date back and removes the recorded occurrence.
-- The task dialog and the phone task sheet now have Labels, Repeat, Hours (your
-  work schedules, shown once you have two or more), a "No priority" choice and
-  Attachments (images and PDF, 4 MB each, ten per task). The dialog also shows
-  when the task was created, and its Start focus button on the first step
-  starts a focus session on it. A task synced from Outlook or Google Tasks
-  shows its title and repeat read-only, since the next sync overwrites them.
-- Tasks gain the fields the v3 task dialog needs, readable and writable through
-  the task API, the connector ops and the MCP tools: labels (`tagIds` /
-  `labelIds`), repeat (`recurrenceRule`, validated; the `isRecurring` flag now
-  follows it on `PUT /api/tasks/:id`), hours (`scheduleId`), "No priority"
-  (`priority: "none"` on the API, `NONE` in ops and MCP), `createdAt` in the
-  task view, and files: `GET`/`POST /api/tasks/:id/attachments` and
-  `GET`/`DELETE …/:attachmentId` (images and PDF, 4 MB, ten per task, bytes in
-  Postgres, served `nosniff`), plus `task.attach` / `task.detach` ops and the
-  `needt_attach_file` / `needt_remove_attachment` tools. Linking a label that
-  is not yours is refused.
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.

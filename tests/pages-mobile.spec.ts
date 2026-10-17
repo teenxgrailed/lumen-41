@@ -209,9 +209,10 @@ for (const viewport of viewports) {
     });
     if (viewport.width < 640) {
       await expect(page.getByLabel("Page editing actions")).toBeVisible();
-      await page.getByRole("button", { name: "Format text" }).click();
-      await expect(page.getByRole("heading", { name: "Format" })).toBeVisible();
-      await page.getByRole("button", { name: "Bold" }).click();
+      await page
+        .getByLabel("Page editing actions")
+        .getByRole("button", { name: "Bold" })
+        .click();
       await expect(selectionBlock.locator("strong")).toContainText(
         "Second mobile block"
       );

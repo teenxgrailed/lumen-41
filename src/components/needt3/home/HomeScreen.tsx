@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
+import { openPaywall } from "@/components/needt3/paywall/store";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import type {
   HomeController,
@@ -17,7 +18,7 @@ import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { formatInTimeZone } from "@/lib/date-utils";
 import {
   addDays,
   habitDoneOn,
@@ -26,6 +27,8 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { useNow } from "@/lib/needt3/hooks/clock";
+import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
@@ -34,6 +37,7 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { usePlan } from "@/lib/needt3/hooks/plan";
+import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
@@ -42,6 +46,7 @@ import {
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { todayLine } from "@/lib/needt3/today";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -56,10 +61,12 @@ import {
   InboxCard,
   NextUpCard,
   NextUpNone,
+  NotesLine,
   PlanButton,
   type ProState,
   ProgressCard,
   Schedule,
+  StreakCard,
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
@@ -67,6 +74,7 @@ import {
   capacityFrom,
   dayState,
   dayStats,
+  dayStreak,
   dur,
   nextUpNote,
   pickNextUp,
@@ -93,21 +101,11 @@ const BACK_MS = 320;
 
 type Tab = HomeTab;
 
-/** Re-render once a minute so the now line and "Was planned for" stay true. */
-function useNowMinute() {
-  const [now, setNow] = useState(() => newDate());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(newDate()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  return now;
-}
-
 function DesktopHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
-  const now = useNowMinute();
+  const now = useNow();
   const today = formatInTimeZone(now, tz, "yyyy-MM-dd");
   const [hh, mm] = formatInTimeZone(now, tz, "HH:mm").split(":");
   const nowHour = +hh + +mm / 60;
@@ -119,11 +117,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const projects = useProjects();
   const settings = useSettings();
   const plan = usePlan();
+  const planner = usePlanDay();
+  const dailyNote = useDailyNote(today);
   const toggleTask = useToggleTask();
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, setAskOpen, openSettings } = useNeedt3Ui();
+  const { setComposerOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
@@ -200,12 +200,17 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
-  const upgrade = () => openSettings("billing");
-  const planDay = () => {
-    //todo: the real planner (POST plan-day → /api/tasks/batch) is not wired;
-    // Ask Needt is the fallback the prototype used too.
-    setAskOpen(true);
+  // A locked feature opens the Pro sheet, on what was asked for.
+  const upgradePlan = () => openPaywall("Plan my day");
+  const upgradeWeek = () => openPaywall("Week load");
+  // Plan my day runs the real scheduler (preview, apply, one Undo); it is a
+  // Pro action, so a Free person never reaches it (PlanButton opens the plans).
+  const planDay = () => void planner.plan();
+  const openNote = async () => {
+    const id = await dailyNote.open();
+    if (id) router.push(`/pages/${id}`);
   };
+  const streak = dayStreak(allTasks, today);
 
   const clearTimers = useCallback(
     (id: string) => {
@@ -359,9 +364,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       pro={pro}
       canPlan={canPlan}
       onPlan={planDay}
-      onLocked={upgrade}
+      onLocked={upgradePlan}
       primary={primary}
       small={small}
+      busy={planner.busy}
     />
   );
 
@@ -369,8 +375,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ["day", "Day", stats.left],
     ["week", "Week ahead", weekOpen],
   ];
-  const dateLine = formatInTimeZone(now, tz, "EEEE, d MMMM");
-  const weekNo = formatInTimeZone(now, tz, "I");
+  const { date: dateLine, week: weekNo } = todayLine(
+    now,
+    tz,
+    settings.data?.weekStartDay ?? "monday"
+  );
 
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">
@@ -488,8 +497,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     closed={closedDay}
                     empty={stats.total === 0}
                   />
-                  {/* //todo: the Streak card ("n days closed") needs ClosedDay
-                      rows, which nothing writes yet (01-data-map §6). */}
+                  <StreakCard n={streak.n} todayClosed={streak.todayClosed} />
                   <HabitsCard chips={chips} onToggle={onHabit} />
                 </>
               )}
@@ -609,8 +617,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                       <Capped list={doneToday} render={(t) => row(t)} />
                     </Fold>
                   ) : null}
-                  {/* //todo: the "Notes for the day…" line is a placeholder in
-                      the prototype too; it needs a daily note to write to. */}
+                  <NotesLine
+                    has={dailyNote.exists}
+                    busy={dailyNote.busy}
+                    onOpen={() => void openNote()}
+                  />
                 </>
               )}
             </div>
@@ -627,7 +638,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   cap={cap}
                   pro={pro}
                   onCalendar={() => router.push("/calendar")}
-                  onUpgrade={upgrade}
+                  onUpgrade={upgradeWeek}
                 />
               ) : (
                 <Schedule

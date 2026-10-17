@@ -10,6 +10,7 @@ import {
   type CheckoutChoice,
   openBillingPortal,
   startCheckout,
+  startTrial,
 } from "@/lib/needt3/hooks/account";
 import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
@@ -54,9 +55,10 @@ export function failedPaymentLine(
  *
  * Checkout is `POST /api/billing/checkout`. While the Creem review blocks
  * it the server answers "Billing is not configured." and the buttons say so.
- * //todo: Starting the 14-day trial: the grant is made at sign-up
- * (trial-service.ts); there is no route to start one later, so no "Start
- * trial" button. Invoices open the Creem portal.
+ * The 14-day trial is granted when the email is confirmed
+ * (trial-service.ts); a Free account that has not had one (`trialEligible`)
+ * gets "Start 14-day free trial" here and in the Pro sheet, which calls
+ * `POST /api/billing/trial`. Invoices open the Creem portal.
  */
 export function PlanSection() {
   const plan = usePlan();
@@ -74,6 +76,21 @@ export function PlanSection() {
     setError(null);
     const r = await startCheckout(choice);
     if (!r.ok) setError(r.error);
+    setBusy(null);
+  };
+  const trial = async () => {
+    setBusy("trial");
+    setError(null);
+    const r = await startTrial();
+    if (r.ok) {
+      await plan.refetch();
+      notify.success(`Your ${P.trialDays}-day Pro trial has started`, {
+        description: "No card needed.",
+      });
+    } else {
+      setError(r.error);
+      void plan.refetch();
+    }
     setBusy(null);
   };
   const portal = async () => {
@@ -205,6 +222,16 @@ export function PlanSection() {
               {P.saveAmount} a year.
             </span>
           ) : null}
+          {kind === "free" && b?.trialEligible ? (
+            <span
+              className="settings-grid-3 is-one"
+              data-settings-start-trial=""
+            >
+              <SBtn disabled={busy !== null} onClick={() => void trial()}>
+                {busy === "trial" ? "Starting your trial…" : P.trialCta}
+              </SBtn>
+            </span>
+          ) : null}
           {kind === "free" || kind === "trial" ? (
             <span className="settings-trial-terms" data-settings-trial-terms>
               {P.trialTerms}
@@ -259,7 +286,7 @@ export function PlanSection() {
             title={
               <span className="settings-pro-title">
                 {title}
-                <ProPill locked={!pro} />
+                <ProPill locked={!pro} feature={title} />
               </span>
             }
             desc={desc}

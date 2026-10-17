@@ -142,11 +142,28 @@ describe("Page Style: the Pro gate", () => {
   it("a backdrop on a page without one needs Pro", () => {
     expect(needsPro(doc(), { backdrop: "mist" })).toBe(true);
   });
-  it("colour, font, look and blur are free", () => {
-    expect(needsPro(doc(), { page: "rose" })).toBe(false);
+  it("fonts, text colour, look, blur and three page colours are free", () => {
     expect(needsPro(doc(), { font: "serif" })).toBe(false);
+    expect(needsPro(doc(), { font: "mono" })).toBe(false);
+    expect(needsPro(doc(), { font: "rounded" })).toBe(false);
     expect(needsPro(doc(), { text: "umber" })).toBe(false);
-    expect(needsPro(doc(), { cover: "https://x/y.jpg" })).toBe(false);
+    for (const page of ["white", "paper", "graphite"]) {
+      expect(needsPro(doc(), { page })).toBe(false);
+    }
+  });
+  it("the other page colours and any cover need Pro", () => {
+    for (const page of ["rose", "lilac", "sage", "sky", "sand", "black"]) {
+      expect(needsPro(doc(), { page })).toBe(true);
+    }
+    expect(needsPro(doc(), { cover: "https://x/y.jpg" })).toBe(true);
+    expect(needsPro(doc(), { cover: "art:rose" })).toBe(true);
+  });
+  it("removing a cover, or keeping the one a page has, is free", () => {
+    const d = doc({ coverUrl: "art:rose" });
+    expect(needsPro(d, { cover: null })).toBe(false);
+    expect(needsPro(d, { font: "serif" })).toBe(false);
+    expect(needsPro(d, { cover: "art:rose" })).toBe(false);
+    expect(needsPro(d, { cover: "art:sand" })).toBe(true);
   });
   it("keeping the backdrop a page already has is not a change", () => {
     const d = doc({ style: { backdrop: "dunes", page: "white" } });
