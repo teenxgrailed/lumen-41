@@ -8,6 +8,7 @@ import { WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { publicAppUrl } from "@/lib/public-url";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "ImportsAPI";
 
@@ -28,6 +29,13 @@ export async function POST(request: NextRequest) {
     requiredRole: WorkspaceRole.EDITOR,
   });
   if ("response" in auth) return auth.response;
+  // An import queues a long job against someone else's API; a handful an hour
+  // is plenty for a person and stops a script from queueing thousands.
+  const limited = await enforceRateLimits(
+    [accountRule(auth.userId, "imports:start:account", 10, 60 * 60)],
+    { route: "/api/imports", userId: auth.userId }
+  );
+  if (limited) return limited;
   const body = await request.json().catch(() => null);
   return startImportResponse({
     userId: auth.userId,
