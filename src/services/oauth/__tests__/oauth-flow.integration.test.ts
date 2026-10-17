@@ -320,7 +320,8 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
     for (const resource of [
       "https://mcp.needt.app/mcp/",
       "https://MCP.needt.app/mcp",
-      "https://use.needt.app/api/mcp",
+      "https://use.needt.app/api/mcp/",
+      "https://evil.example/api/mcp",
     ]) {
       const { code } = codeOf(await consent(clientId));
       expect(await exchange(clientId, code, { resource })).toMatchObject({
