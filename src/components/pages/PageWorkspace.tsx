@@ -282,7 +282,15 @@ type CollaborationTokenResponse = {
   user: { name: string; color: string };
 };
 type AiAction = "rewrite" | "summarize" | "critique";
-type MobileBlockHandle = { blockId: string; top: number; left: number };
+/** Viewport coordinates: the grip is fixed in the gutter left of the text. */
+type MobileBlockHandle = {
+  blockId: string;
+  top: number;
+  left: number;
+  width: number;
+};
+/** The strip left of the text column where a long press means "this block". */
+const BLOCK_GUTTER_PX = 36;
 
 const COMMANDS: Array<{
   id: PageCommand;
@@ -734,15 +742,17 @@ export function PageWorkspace({
 
   const revealMobileBlockHandle = (element: HTMLElement) => {
     const blockId = element.dataset.blockId;
-    const host = hostRef.current;
-    if (!blockId || !host || !editor) return;
+    if (!blockId || !editor) return;
     const blockBounds = element.getBoundingClientRect();
-    const hostBounds = host.getBoundingClientRect();
     const editorBounds = editor.view.dom.getBoundingClientRect();
+    // The grip lives in the gutter, never over the text: as wide as the
+    // gutter allows (20 to 32 px), ending just before the first letter.
+    const width = Math.min(32, Math.max(20, editorBounds.left - 4));
     setMobileBlockHandle({
       blockId,
-      top: blockBounds.top - hostBounds.top + blockBounds.height / 2 - 22,
-      left: Math.max(0, editorBounds.left - hostBounds.left - 44),
+      top: blockBounds.top + blockBounds.height / 2 - 22,
+      left: Math.max(2, editorBounds.left - width - 2),
+      width,
     });
     setMobileBlockDragOffset(0);
   };
@@ -1145,11 +1155,35 @@ export function PageWorkspace({
     return false;
   };
 
-  const startMobileLongPress = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!canEdit || event.pointerType !== "touch") return;
-    const block = topLevelBlockElement(event.target);
-    if (!block?.dataset.blockId) return;
+  // A long press in the gutter left of the text opens the block's grip. A
+  // press on the text never does: that is how a word is selected, and the grip
+  // used to land on the words being selected. Any other touch puts an open
+  // grip away. Native listeners: the gutter is outside the editor's element,
+  // so no React handler of the editor reaches it.
+  const longPressDown = useRef<(event: PointerEvent) => void>(() => undefined);
+  longPressDown.current = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-mobile-block-handle]")) return;
+    setMobileBlockHandle(null);
     clearLongPress();
+    if (!canEdit || !editor || editor.isDestroyed) return;
+    const dom = editor.view.dom;
+    // Only the containers around the editor: not the text, not an overlay.
+    if (target === dom || !target.contains(dom)) return;
+    const box = dom.getBoundingClientRect();
+    if (
+      event.clientX >= box.left ||
+      event.clientX < box.left - BLOCK_GUTTER_PX ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom
+    ) {
+      return;
+    }
+    const at = document.elementFromPoint(box.left + 2, event.clientY);
+    const block = topLevelBlockElement(at);
+    if (!block?.dataset.blockId) return;
     longPressStart.current = { x: event.clientX, y: event.clientY };
     longPressTimer.current = setTimeout(() => {
       revealMobileBlockHandle(block);
@@ -1157,13 +1191,43 @@ export function PageWorkspace({
     }, 350);
   };
 
-  const moveMobileLongPress = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveMobileLongPress = (event: PointerEvent) => {
     const start = longPressStart.current;
     if (!start) return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) {
       clearLongPress();
     }
   };
+
+  useEffect(() => {
+    const down = (event: PointerEvent) => longPressDown.current(event);
+    const move = (event: PointerEvent) => moveMobileLongPress(event);
+    const end = () => clearLongPress();
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("pointermove", move, true);
+    document.addEventListener("pointerup", end, true);
+    document.addEventListener("pointercancel", end, true);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", end, true);
+      document.removeEventListener("pointercancel", end, true);
+    };
+    // The handlers read through refs; they are registered once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Typing or selecting puts the grip away: it is never over live text.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const hide = () => setMobileBlockHandle(null);
+    editor.on("selectionUpdate", hide);
+    editor.on("update", hide);
+    return () => {
+      editor.off("selectionUpdate", hide);
+      editor.off("update", hide);
+    };
+  }, [editor]);
 
   const startMobileBlockDrag = (
     event: ReactPointerEvent<HTMLButtonElement>
@@ -2959,10 +3023,6 @@ export function PageWorkspace({
             if (event.target === event.currentTarget)
               editor?.commands.focus("end");
           }}
-          onPointerDown={startMobileLongPress}
-          onPointerMove={moveMobileLongPress}
-          onPointerUp={clearLongPress}
-          onPointerCancel={clearLongPress}
         >
           <EditorContent editor={editor} />
           {editor && canEdit && (
@@ -3078,10 +3138,12 @@ export function PageWorkspace({
           <button
             type="button"
             aria-label="Drag block"
-            className="absolute z-20 flex h-11 w-11 touch-none items-center justify-center rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]"
+            data-mobile-block-handle=""
+            className="fixed z-20 flex h-11 touch-none items-center justify-center rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]"
             style={{
               top: mobileBlockHandle.top + mobileBlockDragOffset,
               left: mobileBlockHandle.left,
+              width: mobileBlockHandle.width,
             }}
             onPointerDown={startMobileBlockDrag}
             onPointerMove={moveMobileBlockDrag}
@@ -3097,7 +3159,7 @@ export function PageWorkspace({
               }
             }}
           >
-            <GripVertical className="h-5 w-5" />
+            <GripVertical className="h-4 w-4" />
           </button>
         )}
 

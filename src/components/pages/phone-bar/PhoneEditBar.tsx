@@ -18,7 +18,9 @@ import {
   Underline as UnderlineIcon,
   Undo2,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 
+import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { PageColorRow } from "@/components/pages/PageColorRow";
 
 import { cn } from "@/lib/utils";
@@ -26,13 +28,20 @@ import { cn } from "@/lib/utils";
 import {
   BLOCK_MENU,
   type BlockTypeId,
+  barInset,
   blockLabel,
   blockTypeOf,
   canIndent,
   caretFacts,
+  caretScrollDelta,
   indent,
+  scrollParentOf,
   trackKeyboard,
 } from "./bar-logic";
+
+/** How long a blur may last before the bar goes away (a tap on the bar blurs
+ *  and refocuses within a frame or two; a real blur outlasts this). */
+const BLUR_GRACE_MS = 140;
 
 function Btn({
   label,
@@ -79,11 +88,15 @@ const Sep = () => (
  * indent and outdent, undo and redo, Insert, and a button that puts the
  * keyboard away. The row scrolls sideways when the phone is narrow.
  *
- * It sits above the dock at rest and on the keyboard while it is up, both
- * from CSS: this only writes the keyboard's height to a custom property from
- * the visual viewport (`trackKeyboard`), straight to the element, so it
- * follows in the same frame and does not jump while the page scrolls. Taps
- * never take focus from the page, so the keyboard stays.
+ * It is portalled out of the page (to the app's portal layer, else the body),
+ * so no transformed ancestor (the reader's slide) becomes its containing
+ * block, and laid out `position: fixed; bottom: 0`. It shows only while the
+ * editor has focus; then `trackKeyboard` writes a `translateY` of the
+ * keyboard's height from the visual viewport straight to the element, so it
+ * sits on the keyboard in the same frame and does not jump while the page
+ * scrolls. While it shows, the page's scroll area gets bottom padding of the
+ * keyboard plus the bar, and the caret line is kept above the bar. Taps never
+ * take focus from the page, so the keyboard stays.
  */
 export function PhoneEditBar({
   editor,
@@ -98,12 +111,116 @@ export function PhoneEditBar({
   onInsert: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const layer = useV3PortalContainer();
+  const [target, setTarget] = useState<HTMLElement | null>(null);
   const [panel, setPanel] = useState<"blocks" | "color" | null>(null);
+  const [focused, setFocused] = useState(false);
+  const shown = focused || panel !== null;
+  // Where the bar rides: the app's portal layer (it carries the theme), else
+  // the body. Neither sits under a transformed ancestor.
+  useEffect(() => {
+    setTarget(layer ?? document.body);
+  }, [layer]);
+
+  // The bar belongs to the focused editor: it goes with the keyboard.
+  useEffect(() => {
+    if (!editor) return undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const on = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      setFocused(true);
+    };
+    const off = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setFocused(false), BLUR_GRACE_MS);
+    };
+    setFocused(editor.isFocused);
+    editor.on("focus", on);
+    editor.on("blur", off);
+    return () => {
+      if (timer) clearTimeout(timer);
+      editor.off("focus", on);
+      editor.off("blur", off);
+    };
+  }, [editor]);
+
+  // The keyboard's height, and what the page's scroll area does about it.
+  const lift = useRef(0);
+  const sync = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !target) return undefined;
+    return trackKeyboard(el, (next) => {
+      lift.current = next;
+      sync.current();
+    });
+  }, [target]);
 
   useEffect(() => {
     const el = root.current;
-    return el ? trackKeyboard(el) : undefined;
-  }, []);
+    if (!editor || !el || !shown || !target || editor.isDestroyed)
+      return undefined;
+    const scroller = scrollParentOf(editor.view.dom);
+    const style = scroller?.style;
+    const before = style
+      ? { pad: style.paddingBottom, scroll: style.scrollPaddingBottom }
+      : null;
+    // The caret line must never sit under the bar (or the keyboard under it).
+    const keepCaret = () => {
+      if (editor.isDestroyed || !editor.isFocused) return;
+      const vv = window.visualViewport;
+      let caret: { top: number; bottom: number };
+      try {
+        caret = editor.view.coordsAtPos(editor.state.selection.head);
+      } catch {
+        return;
+      }
+      const delta = caretScrollDelta({
+        caretTop: caret.top,
+        caretBottom: caret.bottom,
+        viewTop: Math.max(
+          scroller?.getBoundingClientRect().top ?? 0,
+          vv?.offsetTop ?? 0
+        ),
+        viewBottom: el.getBoundingClientRect().top,
+        margin: 20,
+      });
+      if (delta === 0) return;
+      if (scroller) scroller.scrollTop += delta;
+      else window.scrollBy(0, delta);
+    };
+    const apply = () => {
+      const inset = barInset(lift.current, el.offsetHeight);
+      if (style) {
+        style.paddingBottom = `${inset}px`;
+        style.scrollPaddingBottom = `${inset + 20}px`;
+      }
+      keepCaret();
+    };
+    sync.current = apply;
+    apply();
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(keepCaret);
+    };
+    editor.on("selectionUpdate", later);
+    editor.on("update", later);
+    // The keyboard finishes opening after the focus: look again once it has.
+    const settle = setTimeout(apply, 350);
+    return () => {
+      sync.current = () => undefined;
+      cancelAnimationFrame(frame);
+      clearTimeout(settle);
+      editor.off("selectionUpdate", later);
+      editor.off("update", later);
+      if (style && before) {
+        style.paddingBottom = before.pad;
+        style.scrollPaddingBottom = before.scroll;
+      }
+    };
+  }, [editor, shown, target, panel]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -142,10 +259,13 @@ export function PhoneEditBar({
     else chain.toggleStrike().run();
   };
 
-  return (
+  if (!target) return null;
+  return createPortal(
     <div
       ref={root}
       data-assistant-avoid
+      data-shown={shown ? "true" : "false"}
+      inert={!shown}
       data-kb="rest"
       data-page-toolbar=""
       aria-label="Page editing actions"
@@ -296,6 +416,7 @@ export function PhoneEditBar({
           <ChevronDown className="h-5 w-5" aria-hidden />
         </button>
       </div>
-    </div>
+    </div>,
+    target
   );
 }

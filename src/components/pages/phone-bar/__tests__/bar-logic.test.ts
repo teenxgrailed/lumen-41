@@ -7,11 +7,41 @@ import {
   KEYBOARD_MIN,
   KEYBOARD_STAY,
   NO_KEYBOARD,
+  barInset,
   barOffset,
+  barTransform,
   blockLabel,
   blockTypeOf,
+  caretScrollDelta,
   trackKeyboard,
 } from "../bar-logic";
+
+describe("what the bar does about the keyboard", () => {
+  it("lifts by the keyboard's height, never below the bottom", () => {
+    expect(barTransform(336)).toBe("translate3d(0, -336px, 0)");
+    expect(barTransform(0)).toBe("translate3d(0, 0px, 0)");
+    expect(barTransform(-5)).toBe("translate3d(0, 0px, 0)");
+  });
+
+  it("pads the scroll area by the keyboard plus the bar", () => {
+    expect(barInset(336, 48)).toBe(384);
+    expect(barInset(0, 0)).toBe(48);
+    expect(barInset(336, 300)).toBe(636); // a panel open above the row
+  });
+
+  it("scrolls a caret out from under the bar, and back from under the top", () => {
+    const base = { viewTop: 100, viewBottom: 500, margin: 20 };
+    expect(caretScrollDelta({ ...base, caretTop: 300, caretBottom: 320 })).toBe(
+      0
+    );
+    expect(caretScrollDelta({ ...base, caretTop: 480, caretBottom: 500 })).toBe(
+      20
+    );
+    expect(caretScrollDelta({ ...base, caretTop: 90, caretBottom: 110 })).toBe(
+      -30
+    );
+  });
+});
 
 const facts = (over: Partial<CaretFacts> = {}): CaretFacts => ({
   heading: null,
