@@ -41,7 +41,7 @@ export const useSetupStore = create<SetupStore>()(
         }),
     }),
     {
-      name: "fluid-calendar-setup-storage",
+      name: "needt-setup-storage",
     }
   )
 );

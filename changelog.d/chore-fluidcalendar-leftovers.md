@@ -1,0 +1,6 @@
+- Removed the last FluidCalendar leftovers: the Help link now points at
+  Needt, the setup store's storage key is `needt-setup-storage` (the setup
+  checklist state resets once), and the dead upstream publish workflow is
+  gone. LICENSE and NOTICE keep the fork's MIT attribution.
+- Import tasks from CalDAV servers (Baikal, Nextcloud, Fastmail, etc.): a connected CalDAV account's task collections (calendars that expose `VTODO`) can be mapped to a project and their tasks imported into Needt. Import is one-way for now - title, description, due/start dates, status, priority, and recurrence are read from the server, and an external-owned field cleared upstream (e.g. a completed task reopened) is cleared locally too so the import mirrors the server (#144)
+- Fixed CalDAV events created or updated in Needt appearing at the wrong time in other calendar clients (Thunderbird, Home Assistant) when their timezone differs from the server's. Timed events are now serialized with an explicit timezone (`DTSTART;TZID=<zone>` plus a generated `VTIMEZONE`, falling back to UTC `Z` when no timezone is known) instead of floating local time, so recurring events also keep their wall-clock time across DST and the `TZ` environment-variable workaround is no longer needed (#135)
