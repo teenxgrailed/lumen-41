@@ -92,6 +92,8 @@ import {
 import { askAbout, askNeedt } from "@/components/needt3/corner/ask-bridge";
 import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { registerCtx } from "@/components/needt3/ctx/registry";
+import { otherPeers } from "@/components/needt3/sync/presence";
+import { setSyncSource } from "@/components/needt3/sync/sync-source";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { type ColorKind, PageColorRow } from "@/components/pages/PageColorRow";
@@ -661,6 +663,10 @@ export function PageWorkspace({
   const [collaborators, setCollaborators] = useState<
     Array<{ name: string; color: string }>
   >([]);
+  // Who you are in the room, set once the token arrives (see `collaborators`).
+  const selfCollaboratorRef = useRef<{ name: string; color: string } | null>(
+    null
+  );
   const collaborationDocument = useMemo(
     () => new Y.Doc({ guid: `page:${pageId}` }),
     [pageId]
@@ -695,15 +701,11 @@ export function PageWorkspace({
         // re-render this whole component.
         onAwarenessChange: ({ states }) =>
           setCollaborators((previous) => {
-            const next = states.flatMap((state) => {
-              const user = state.user as
-                | { name?: unknown; color?: unknown }
-                | undefined;
-              return typeof user?.name === "string" &&
-                typeof user.color === "string"
-                ? [{ name: user.name, color: user.color }]
-                : [];
-            });
+            const next = otherPeers(
+              states,
+              collaborationDocument.clientID,
+              selfCollaboratorRef.current
+            );
             return sameCollaborators(previous, next) ? previous : next;
           }),
       }),
@@ -715,6 +717,27 @@ export function PageWorkspace({
       updateCollaborationStatus,
     ]
   );
+
+  // The shared sync status in the top bar reads this page's save queue and
+  // collaboration provider. "Draft kept" is not saved: it surfaces as an error.
+  useEffect(() => {
+    const configured = collaborationConfiguredRef.current;
+    setSyncSource(`page:${pageId}`, {
+      save: saveState,
+      collab: configured
+        ? collaborationStatus === "connected"
+          ? "synced"
+          : collaborationStatus === "connecting"
+            ? "connecting"
+            : "local"
+        : undefined,
+      retry: () => {
+        autosave.current?.retryWhenOnline();
+        void collaborationProvider.connect().catch(() => undefined);
+      },
+    });
+  }, [pageId, saveState, collaborationStatus, collaborationProvider]);
+  useEffect(() => () => setSyncSource(`page:${pageId}`, null), [pageId]);
 
   const clearLongPress = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
@@ -1272,6 +1295,7 @@ export function PageWorkspace({
           const collaboration =
             (await tokenResponse.json()) as CollaborationTokenResponse;
           collaborationConfiguredRef.current = true;
+          selfCollaboratorRef.current = collaboration.user;
           autosave.current?.setWriteAuthority("collaboration-offline");
           Y.applyUpdate(
             collaborationDocument,
@@ -2379,44 +2403,54 @@ export function PageWorkspace({
   // the save state, "Page options") are drawn in the top bar (`doc-head-slot`);
   // Back, the title and Share are the chrome's (the rail's back arrow, the
   // breadcrumb, the Share sheet). Everywhere else the header is as it was.
+  // Only other people: your own caret is not shown to you, so an empty room
+  // draws nothing.
+  const headPeers = collaborators.length ? (
+    <div
+      className="items-center -space-x-1 flex"
+      aria-label={`${collaborators.length} other ${collaborators.length === 1 ? "person" : "people"} here`}
+      data-doc-peers=""
+    >
+      {collaborators.slice(0, 3).map((collaborator, index) => (
+        <span
+          key={`${collaborator.name}-${index}`}
+          className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
+          style={{ backgroundColor: collaborator.color }}
+          title={collaborator.name}
+        />
+      ))}
+    </div>
+  ) : null;
+  // The old header keeps its own save word; the v3 chrome shows the shared
+  // SyncStatus in the top bar instead.
   const headStatus = (
     <>
-      <div
-        className="hidden items-center -space-x-1 sm:flex"
-        aria-label={`${collaborators.length} active collaborators`}
-      >
-        {collaborators.slice(0, 3).map((collaborator, index) => (
-          <span
-            key={`${collaborator.name}-${index}`}
-            className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
-            style={{ backgroundColor: collaborator.color }}
-            title={collaborator.name}
-          />
-        ))}
-      </div>
-      <span
-        className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
-        aria-live="polite"
-      >
+      {headPeers}
+      {inChrome ? null : (
         <span
-          data-collab={inV3 ? collaborationStatus : undefined}
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            collaborationStatus === "connected"
-              ? "bg-emerald-500"
-              : collaborationStatus === "connecting"
-                ? "bg-amber-500"
-                : "bg-[var(--text-disabled)]"
-          )}
-        />
-        {saveState === "saving"
-          ? "Saving…"
-          : saveState === "offline"
-            ? "Draft kept"
-            : saveState === "failed"
+          className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
+          aria-live="polite"
+        >
+          <span
+            data-collab={inV3 ? collaborationStatus : undefined}
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              collaborationStatus === "connected"
+                ? "bg-emerald-500"
+                : collaborationStatus === "connecting"
+                  ? "bg-amber-500"
+                  : "bg-[var(--text-disabled)]"
+            )}
+          />
+          {saveState === "saving"
+            ? "Saving…"
+            : saveState === "offline"
               ? "Draft kept"
-              : "Saved"}
-      </span>
+              : saveState === "failed"
+                ? "Draft kept"
+                : "Saved"}
+        </span>
+      )}
     </>
   );
   const exportMarkdown = () => {
