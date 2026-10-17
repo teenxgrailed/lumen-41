@@ -30,6 +30,8 @@ import {
   Share2,
 } from "lucide-react";
 
+import { otherPeers } from "@/components/needt3/sync/presence";
+import { setSyncSource } from "@/components/needt3/sync/sync-source";
 import { Button } from "@/components/ui/button";
 
 import { setProviderToken } from "@/lib/collaboration/provider-token";
@@ -141,17 +143,7 @@ export function MoodboardWorkspace({ moodboardId }: { moodboardId: string }) {
                 : "connecting"
           ),
         onAwarenessChange: ({ states }) =>
-          setCollaborators(
-            states.flatMap((state) => {
-              const user = state.user as
-                | { name?: unknown; color?: unknown }
-                | undefined;
-              return typeof user?.name === "string" &&
-                typeof user.color === "string"
-                ? [{ name: user.name, color: user.color }]
-                : [];
-            })
-          ),
+          setCollaborators(otherPeers(states, document.clientID, null)),
       }),
     [document, moodboardId, socket]
   );
@@ -233,6 +225,25 @@ export function MoodboardWorkspace({ moodboardId }: { moodboardId: string }) {
   }, [applyScene, document, moodboardId, provider, router, socket]);
 
   useEffect(() => () => provider.destroy(), [provider]);
+  // The top bar's shared sync status reads this board's provider.
+  useEffect(() => {
+    setSyncSource(`board:${moodboardId}`, {
+      collab:
+        status === "connected"
+          ? "synced"
+          : status === "connecting"
+            ? "connecting"
+            : "local",
+      retry: () => {
+        setStatus("connecting");
+        void socket.connect().catch(() => setStatus("disconnected"));
+      },
+    });
+  }, [moodboardId, socket, status]);
+  useEffect(
+    () => () => setSyncSource(`board:${moodboardId}`, null),
+    [moodboardId]
+  );
   useEffect(
     () => () => {
       socket.destroy();
@@ -335,13 +346,6 @@ export function MoodboardWorkspace({ moodboardId }: { moodboardId: string }) {
             </span>
           ))}
         </div>
-        <span className="hidden text-xs text-[var(--text-muted)] sm:inline">
-          {status === "connected"
-            ? "Live"
-            : status === "connecting"
-              ? "Connecting"
-              : "Offline"}
-        </span>
         {canManage && (
           <Button
             aria-label="Open version history"
