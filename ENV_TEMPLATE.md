@@ -198,7 +198,16 @@ fallback. On iOS, Web Push requires Needt to be installed to the Home Screen.
 ```bash
 NEEDT_HEARTBEAT_URL=""
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=""
+UMAMI_HOST=""
+UMAMI_LANDING_WEBSITE_ID=""
 ```
+
+- `UMAMI_HOST` (for example `https://stats.needt.app`) and
+  `UMAMI_LANDING_WEBSITE_ID` (the needt.app site's id in Umami) are read at
+  runtime by the Creem webhook. When both are set, a completed checkout sends
+  one server-side `purchase` event `{ plan: pro_year | pro_month | lifetime }`
+  to `POST {UMAMI_HOST}/api/send`, so the landing funnel ends in a payment. No
+  personal data is sent; a missing value skips it, a failure is only logged.
 
 - `NEEDT_HEARTBEAT_URL` is read by the worker. When set, the worker sends a
   `GET` to it on start and on every release-heartbeat tick, so an external

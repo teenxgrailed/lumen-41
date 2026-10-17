@@ -62,6 +62,8 @@ afterEach(() => {
   host.remove();
 });
 
+const revokes = () =>
+  fetchMock.mock.calls.filter((c) => c[0] === "/api/account/sessions/revoke");
 const q = (sel: string) => host.querySelector<HTMLElement>(sel);
 const click = async (el: Element | null) => {
   expect(el).not.toBeNull();
@@ -81,7 +83,7 @@ it("draws the row; the first click only asks", async () => {
   await mount();
   expect(host.textContent).toContain("Sign out of all devices");
   await click(q("[data-settings-signout-all]"));
-  expect(fetchMock).not.toHaveBeenCalled();
+  expect(revokes()).toHaveLength(0);
   expect(host.textContent).toContain("this one too");
   // Cancel goes back without a request
   const cancel = Array.from(host.querySelectorAll("button")).find(
@@ -89,14 +91,14 @@ it("draws the row; the first click only asks", async () => {
   );
   await click(cancel ?? null);
   expect(q("[data-settings-signout-all-confirm]")).toBeNull();
-  expect(fetchMock).not.toHaveBeenCalled();
+  expect(revokes()).toHaveLength(0);
 });
 
 it("confirm revokes every session, then signs out", async () => {
   await mount();
   await click(q("[data-settings-signout-all]"));
   await click(q("[data-settings-signout-all-confirm]"));
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(revokes()).toHaveLength(1);
   expect(fetchMock).toHaveBeenCalledWith("/api/account/sessions/revoke", {
     method: "POST",
   });

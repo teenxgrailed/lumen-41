@@ -63,6 +63,19 @@ export function confirmOutcome(
 /** Where a confirmed address goes next: Settings says it, once. */
 export const CONFIRMED_NEXT = "/settings?emailVerification=verified";
 
+/**
+ * Where "Continue to Needt" goes: the deep link sign-up interrupted (a buy
+ * link, say) when one was remembered, else Settings. A remembered Settings
+ * link still carries the "Email confirmed" notice.
+ */
+export function confirmedNext(remembered: string | null): string {
+  if (!remembered) return CONFIRMED_NEXT;
+  if (!remembered.startsWith("/settings")) return remembered;
+  const url = new URL(remembered, "https://needt.invalid");
+  url.searchParams.set("emailVerification", "verified");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 /** The resend answer: the server says the same whether or not the address
     has an account, so "sent" is all it can mean. */
 export type ResendOutcome = "sent" | "limited" | "error";

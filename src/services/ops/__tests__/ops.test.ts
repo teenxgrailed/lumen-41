@@ -172,15 +172,50 @@ describe("reversible ops: the stored inverse restores the prior state", () => {
     });
   });
 
-  it("task.complete refuses recurring series instead of half-completing them", async () => {
+  it("task.complete on a series records the occurrence and moves the same task to its next date; undo puts it back", async () => {
+    const due = new Date("2026-10-12T00:00:00.000Z");
     const task = await seedTask(db, {
       isRecurring: true,
-      recurrenceRule: "FREQ=DAILY",
+      recurrenceRule: "FREQ=WEEKLY;BYDAY=MO,WE",
+      dueDate: due,
+      scheduledStart: new Date("2026-10-12T09:00:00.000Z"),
+      scheduledEnd: new Date("2026-10-12T10:00:00.000Z"),
     });
-    await expect(
-      runOp("task.complete", { taskId: task.id }, opts())
-    ).rejects.toMatchObject({ code: "UNSUPPORTED" });
-    expect(db.tables.agentAction).toHaveLength(0);
+    jest.useFakeTimers({ now: new Date("2026-10-12T08:00:00.000Z") });
+    try {
+      const done = await runOp<{ task: { status: string; dueDate: string } }>(
+        "task.complete",
+        { taskId: task.id },
+        opts()
+      );
+      expect(done.undoable).toBe(true);
+      expect(done.result.task).toMatchObject({
+        status: "todo",
+        dueDate: "2026-10-14T00:00:00.000Z",
+      });
+      const row = taskRow(db, task.id);
+      expect(row.completedAt).toBeNull();
+      expect((row.scheduledStart as Date).toISOString()).toBe(
+        "2026-10-14T09:00:00.000Z"
+      );
+      const finished = db.tables.task.filter(
+        (r) => r.recurrenceMasterId === task.id
+      );
+      expect(finished).toHaveLength(1);
+      expect(finished[0]).toMatchObject({ status: "completed" });
+
+      await undoAction(done.actionId!, OWNER_ID);
+      expect(
+        db.tables.task.filter((r) => r.recurrenceMasterId === task.id)
+      ).toHaveLength(0);
+      const back = taskRow(db, task.id);
+      expect((back.dueDate as Date).toISOString()).toBe(due.toISOString());
+      expect((back.scheduledStart as Date).toISOString()).toBe(
+        "2026-10-12T09:00:00.000Z"
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("task.uncomplete is undone back to completed with the original timestamp", async () => {

@@ -65,14 +65,19 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         { status: 403 }
       );
     }
-    if (v3.data.style !== undefined) {
+    const writesCover =
+      body.coverUrl === null || typeof body.coverUrl === "string";
+    if (v3.data.style !== undefined || writesCover) {
       const current = await getPage(auth, id);
       if (!current)
         return NextResponse.json({ error: "Page not found" }, { status: 404 });
       const refusal = await proStyleRefusal(
         auth.userId,
         current.style as Record<string, unknown> | null,
-        v3.data.style
+        v3.data.style,
+        writesCover
+          ? { before: current.coverUrl, after: body.coverUrl }
+          : undefined
       );
       if (refusal) return refusal;
     }

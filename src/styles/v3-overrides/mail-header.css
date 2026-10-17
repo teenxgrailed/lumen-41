@@ -4,16 +4,19 @@
  * The prototype's header can send, so its Sent / Drafts tabs always work. The
  * product's mail is read-only at the provider (owner, 2026-10-09) and the sync
  * stores no Sent or Drafts view, so those two tabs are drawn but held (the
- * disabled look every .nx-btn already has), and an account chip that is not
+ * text-disabled rung of the ladder), and an account chip that is not
  * connected is a link to Connections. Nothing here adds a colour or a shadow.
  */
 .needt-v3 .ml-tab.is-held {
-  opacity: 0.4;
+  /* The lowest rung of the text ladder, not a stacked opacity: the one text
+     colour at its disabled alpha, so the held tabs sit well below the live
+     ones and stay on the ladder. */
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 .needt-v3 .ml-tab.is-held:hover {
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--text-disabled);
 }
 .needt-v3 a.ml-acct.is-link {
   text-decoration: none;

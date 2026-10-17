@@ -78,7 +78,11 @@ interface UpdateVars {
 
 function applyLocal(t: V3Task, patch: V3TaskPatch): V3Task {
   const next = { ...t, ...patch } as V3Task;
-  if ("done" in patch) next.status = patch.done ? "completed" : "todo";
+  if ("done" in patch) {
+    next.status = patch.done ? "completed" : "todo";
+    // the server's stamp arrives with its answer; until then "closed just now"
+    next.completedAt = null;
+  }
   return next;
 }
 

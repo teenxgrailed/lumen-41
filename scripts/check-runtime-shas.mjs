@@ -1,3 +1,8 @@
+import { execFileSync } from "node:child_process";
+
+// Services must agree with each other and run DEPLOY_SHA or a descendant of
+// it. A descendant is legitimate: the unpinned fallback deploys the head of
+// main, and a newer release may land while this one waits.
 const EXPECTED_SHA = process.env.DEPLOY_SHA;
 const POLL_INTERVAL_MS = Number(
   process.env.RUNTIME_SHA_POLL_INTERVAL_MS ?? 10_000
@@ -37,6 +42,18 @@ function observedSha(value) {
     : null;
 }
 
+function isSameOrDescendant(sha) {
+  if (sha === EXPECTED_SHA) return true;
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", EXPECTED_SHA, sha], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const deadline = Date.now() + TIMEOUT_MS;
 let lastSeen = {};
 while (Date.now() < deadline) {
@@ -49,9 +66,13 @@ while (Date.now() < deadline) {
     worker: observedSha(webHealth?.workerBuildSha),
     collaboration: observedSha(collaborationHealth?.buildSha),
   };
-  if (Object.values(lastSeen).every((sha) => sha === EXPECTED_SHA)) {
+  const seen = Object.values(lastSeen);
+  if (
+    seen.every((sha) => sha !== null && sha === seen[0]) &&
+    isSameOrDescendant(seen[0])
+  ) {
     process.stdout.write(
-      `All Needt services are healthy at ${EXPECTED_SHA}.\n`
+      `All Needt services are healthy at ${seen[0]} (release ${EXPECTED_SHA}).\n`
     );
     process.exit(0);
   }

@@ -1,0 +1,87 @@
+/* Swipe left on a task row: Schedule and Delete behind the row.
+ *
+ * The row rests open at -168 px (two 84 px buttons). Only `transform` and
+ * `opacity` change while the finger moves (PkRow writes them once per frame),
+ * so the gesture stays on the compositor. The buttons are grey (Schedule) and
+ * the alert red (Delete); the accent is not used as a fill. Swipe right keeps
+ * the plate reveal of phone-kit.css. */
+.needt-v3 .pk-actions {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 0;
+  width: 168px;
+  display: flex;
+  border-radius: 22px;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: calc(0.35 + var(--pk-k, 0) * 0.65);
+  /* hidden only after the row has slid back over it */
+  transition: visibility 0s linear 0.4s;
+}
+.needt-v3 .pk-rw[data-pk-side="actions"] .pk-actions,
+.needt-v3 .pk-rw.is-open .pk-actions,
+.needt-v3 .pk-rw.is-thrown .pk-actions {
+  visibility: visible;
+  transition-delay: 0s;
+}
+.needt-v3 .pk-act {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: 500 13px/1 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--v2p-ink);
+  background: var(--v2p-raise-2);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.needt-v3 .pk-act.is-delete {
+  background: var(--v2p-alert);
+  color: #fff;
+}
+.needt-v3 .pk-act:active {
+  filter: brightness(0.92);
+}
+.needt-v3 .pk-act:focus-visible {
+  outline: 2px solid var(--v2p-lav);
+  outline-offset: -3px;
+}
+.needt-v3[data-theme="dark"] .pk-act.is-delete,
+.needt-v3[data-theme="dim"] .pk-act.is-delete {
+  color: #2a0d0e;
+}
+
+/* Schedule sheet */
+.needt-v3 .pk-schedule {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+.needt-v3 .pk-schedule-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 22px;
+  background: var(--v2p-raise);
+  font: 500 13px/1 var(--font-sans);
+  color: var(--v2p-ink);
+}
+.needt-v3 .pk-schedule-pick input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  color-scheme: inherit;
+}

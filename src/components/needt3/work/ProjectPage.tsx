@@ -11,6 +11,7 @@ import {
   LuPlus,
 } from "react-icons/lu";
 
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useCreateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -114,7 +115,8 @@ export function ProjectPage({
 }) {
   const hue = projectHue(p);
   const s = projectStats(p.id, tasks, today);
-  const { groups, done } = projectGroups(p.id, tasks, today);
+  const view = useTaskView();
+  const { groups, done } = projectGroups(p.id, tasks, today, view);
   const flip = onFold;
   const setDraft = onDraft;
   const addRef = useRef<HTMLInputElement>(null);

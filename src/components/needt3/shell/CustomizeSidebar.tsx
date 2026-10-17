@@ -1,16 +1,16 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
-
 import { LuCheck, LuGripVertical, LuX } from "react-icons/lu";
 
 import { Sheet } from "../ctx/Sheet";
 import { Art, type ArtName } from "../menu/Art";
+import { SortableItem, SortableList } from "../sortable/Sortable";
+import { useSortableList } from "../sortable/useSortableList";
 import {
   DEFAULT_PREFS,
   PLACES,
   SECTIONS,
-  moveRow,
+  orderRows,
   placeById,
   toggleRow,
 } from "./places";
@@ -39,84 +39,65 @@ function Check({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-/** Drag to reorder: the list reorders live under the cursor and every row
- *  slides to its new place (FLIP, 200 ms). */
+/** Drag the grip to reorder (the shared sortable list): the row follows the
+ *  pointer, the others slide away, Space and the arrows do the same. */
 function List({
   rows,
   label,
   art,
   onToggle,
-  onMove,
+  onOrder,
 }: {
   rows: { id: string; on: boolean }[];
   label: (id: string) => string;
   art?: (id: string) => ArtName;
   onToggle: (id: string) => void;
-  onMove: (from: string, to: string) => void;
+  onOrder: (order: string[]) => Promise<unknown>;
 }) {
-  const refs = useRef<Record<string, HTMLDivElement | null>>({});
-  const last = useRef<Record<string, number>>({});
-  const [drag, setDrag] = useState<string | null>(null);
-  useLayoutEffect(() => {
-    const reduced = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    rows.forEach((r) => {
-      const el = refs.current[r.id];
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      const was = last.current[r.id];
-      if (!reduced && was != null && was !== top) {
-        el.style.transition = "none";
-        el.style.transform = `translateY(${was - top}px)`;
-        requestAnimationFrame(() => {
-          el.style.transition = "transform 200ms var(--nx-ease)";
-          el.style.transform = "";
-        });
-      }
-      last.current[r.id] = top;
-    });
+  const ctl = useSortableList({
+    items: rows,
+    label: (r) => label(r.id),
+    onReorder: onOrder,
   });
   return (
-    <div className="shell-sk-list-stack">
-      {rows.map((r, i) => (
-        <div
-          className="shell-sk-list-row"
-          key={r.id}
-          ref={(el) => {
-            refs.current[r.id] = el;
-          }}
-          draggable
-          onDragStart={(e) => {
-            setDrag(r.id);
-            e.dataTransfer.effectAllowed = "move";
-          }}
-          onDragEnd={() => setDrag(null)}
-          onDragOver={(e) => {
-            e.preventDefault();
-            if (drag && drag !== r.id) onMove(drag, r.id);
-          }}
-          style={{ opacity: drag === r.id ? 0.5 : 1 }}
-        >
-          <span className="shell-sk-list-row-2">
-            <LuGripVertical size={16} />
-          </span>
-          {art ? <Art name={art(r.id)} size={22} /> : null}
-          <span
-            className="shell-sk-list-text"
-            style={{
-              color: r.on ? "var(--text-primary)" : "var(--text-tertiary)",
-            }}
+    <SortableList ctl={ctl}>
+      <div className="shell-sk-list-stack">
+        {ctl.ordered.map((r, i) => (
+          <SortableItem
+            key={r.id}
+            id={r.id}
+            label={label(r.id)}
+            className="shell-sk-list-row"
           >
-            {label(r.id)}
-          </span>
-          <Check on={r.on} onClick={() => onToggle(r.id)} />
-          {i < rows.length - 1 ? (
-            <span className="shell-sk-list-layer" aria-hidden="true" />
-          ) : null}
-        </div>
-      ))}
-    </div>
+            {({ handleProps }) => (
+              <>
+                <span
+                  {...handleProps}
+                  className="shell-sk-list-row-2 nx-sort-grip"
+                >
+                  <LuGripVertical size={16} />
+                </span>
+                {art ? <Art name={art(r.id)} size={22} /> : null}
+                <span
+                  className="shell-sk-list-text"
+                  style={{
+                    color: r.on
+                      ? "var(--text-primary)"
+                      : "var(--text-tertiary)",
+                  }}
+                >
+                  {label(r.id)}
+                </span>
+                <Check on={r.on} onClick={() => onToggle(r.id)} />
+                {i < ctl.ordered.length - 1 ? (
+                  <span className="shell-sk-list-layer" aria-hidden="true" />
+                ) : null}
+              </>
+            )}
+          </SortableItem>
+        ))}
+      </div>
+    </SortableList>
   );
 }
 
@@ -163,14 +144,18 @@ export function CustomizeSidebar({
         label={(id) => placeById(id)?.label ?? id}
         art={(id) => placeById(id)?.art ?? "page"}
         onToggle={(id) => void setPrefs((s) => toggleRow(s, "places", id))}
-        onMove={(a, b) => void setPrefs((s) => moveRow(s, "places", a, b))}
+        onOrder={(order) =>
+          setPrefs((s) => orderRows(s, "places", order), { rethrow: true })
+        }
       />
       <span className="shell-customize-sidebar-text-4">Sections</span>
       <List
         rows={prefs.sections}
         label={(id) => SECTIONS.find((s) => s.id === id)?.label ?? id}
         onToggle={(id) => void setPrefs((s) => toggleRow(s, "sections", id))}
-        onMove={(a, b) => void setPrefs((s) => moveRow(s, "sections", a, b))}
+        onOrder={(order) =>
+          setPrefs((s) => orderRows(s, "sections", order), { rethrow: true })
+        }
       />
       <button
         className="shell-customize-sidebar-button"

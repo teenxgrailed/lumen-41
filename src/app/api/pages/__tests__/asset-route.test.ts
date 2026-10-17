@@ -6,6 +6,12 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
 import { prisma } from "@/lib/prisma";
 
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: jest.fn(() => ({})),
+  ipRule: jest.fn(() => ({})),
+  enforceRateLimits: jest.fn().mockResolvedValue(null),
+  enforceByteBudget: jest.fn().mockResolvedValue(null),
+}));
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/auth/page-auth", () => ({ resolvePageAccess: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
