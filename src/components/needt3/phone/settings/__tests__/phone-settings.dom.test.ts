@@ -348,11 +348,12 @@ describe("the list and its pages", () => {
 describe("nothing is written before the source has loaded", () => {
   it("Your day: the hours, the week, Hide done and the planning rows are off", async () => {
     await mount("day");
-    const start = q('[data-ps-pick="start"]')!;
-    expect(start.getAttribute("aria-disabled")).toBe("true");
-    expect(start.tagName).toBe("DIV");
-    await tap(start);
+    const monday = q('[data-ps-day="1"] .ps-row')!;
+    expect(monday.getAttribute("aria-disabled")).toBe("true");
+    expect(monday.tagName).toBe("DIV");
+    await tap(monday);
     expect(q("[data-ps-picker]")).toBeNull();
+    expect(q('[data-ps-pick="1-0-start"]')).toBeNull();
     expect(sw("Hide done in calendar")?.disabled).toBe(true);
     await tap(sw("Hide done in calendar"));
     for (const b of all<HTMLButtonElement>("[data-ps-seg]"))
@@ -422,16 +423,68 @@ describe("writes once loaded, through the desktop's rules", () => {
     });
   });
 
-  it("working hours go to the schedule, start and end together", async () => {
+  it("a day's hours change alone; the other days are written back as they were", async () => {
     await mount("day");
-    await tap(q('[data-ps-pick="start"]'));
+    await tap(q('[data-ps-day="3"] .ps-row'));
+    await tap(q('[data-ps-pick="3-0-start"]'));
     expect(q("[data-ps-picker]")).not.toBeNull();
     // 17:00 would end the day where it starts: the list keeps start before end
     expect(q('[data-ps-option="17:00"]')).toBeNull();
     await tap(q('[data-ps-option="08:00"]'));
     const w = writes.filter((x) => x.url === URLS.schedule);
     expect(w).toHaveLength(1);
-    expect(w[0].body).toEqual({ workHourStart: 8, workHourEnd: 17 });
+    const body = w[0].body as {
+      weekHours: { day: number; on: boolean; ranges: unknown[] }[];
+      workDays: string;
+      workHourStart: number;
+      workHourEnd: number;
+    };
+    const day = (n: number) => body.weekHours.find((d) => d.day === n)!;
+    expect(day(3).ranges).toEqual([{ start: "08:00", end: "17:00" }]);
+    for (const n of [1, 2, 4, 5])
+      expect(day(n).ranges).toEqual([{ start: "09:00", end: "17:00" }]);
+    expect(day(6).on).toBe(false);
+    expect(day(0).on).toBe(false);
+    expect(body.workDays).toBe("[1,2,3,4,5]");
+    expect(body.workHourStart).toBe(8);
+    expect(body.workHourEnd).toBe(17);
+  });
+
+  it("a break adds a second range to that day only", async () => {
+    await mount("day");
+    await tap(q('[data-ps-day="2"] .ps-row'));
+    await tap(q('[data-ps-add-range="2"]'));
+    const w = writes.filter((x) => x.url === URLS.schedule);
+    expect(w).toHaveLength(1);
+    const hours = (
+      w[0].body as { weekHours: { day: number; ranges: unknown[] }[] }
+    ).weekHours;
+    expect(hours.find((d) => d.day === 2)!.ranges).toHaveLength(2);
+    expect(hours.find((d) => d.day === 1)!.ranges).toHaveLength(1);
+  });
+
+  it("turning a weekend day on writes the week with the weekdays untouched", async () => {
+    await mount("day");
+    await tap(q('[data-ps-day="6"] .ps-row'));
+    await tap(sw("Saturday is a working day"));
+    const w = writes.filter((x) => x.url === URLS.schedule);
+    expect(w).toHaveLength(1);
+    const body = w[0].body as {
+      weekHours: { day: number; on: boolean; ranges: unknown[] }[];
+      workDays: string;
+    };
+    expect(body.workDays).toBe("[1,2,3,4,5,6]");
+    expect(body.weekHours.find((d) => d.day === 6)!.on).toBe(true);
+    for (const n of [1, 2, 3, 4, 5])
+      expect(body.weekHours.find((d) => d.day === n)!.ranges).toEqual([
+        { start: "09:00", end: "17:00" },
+      ]);
+  });
+
+  it("the time format is a settings column", async () => {
+    await mount("day");
+    await tap(q('button[role="radio"][data-ps-seg="12h"]'));
+    expect(settingsWrites()[0].body).toEqual({ timeFormat: "12h" });
   });
 
   it("the week start and the calendar view are settings columns", async () => {
@@ -450,14 +503,13 @@ describe("writes once loaded, through the desktop's rules", () => {
     });
   });
 
-  it("Planning options fold open; weekends rebuild the weekday list from what loaded", async () => {
+  it("Planning options fold open to the gap between tasks", async () => {
     await mount("day");
-    expect(sw("Plan on weekends")).toBeNull();
+    expect(q("[data-ps-adv]")).not.toBeNull();
     await tap(q("[data-ps-adv]"));
-    await tap(sw("Plan on weekends"));
+    expect(sw("Plan on weekends")).toBeNull();
     const w = writes.filter((x) => x.url === URLS.schedule);
-    expect(w).toHaveLength(1);
-    expect(w[0].body).toEqual({ workDays: "[0,1,2,3,4,5,6]" });
+    expect(w).toHaveLength(0);
   });
 
   it("an alert switch patches the notification columns", async () => {

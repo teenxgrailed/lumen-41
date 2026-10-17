@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeWorkScheduleInput } from "@/lib/work-schedules";
+import { windowsToWeek } from "@/lib/work-week";
+import { mirrorLegacyColumns } from "@/lib/work-week-server";
 
 const LOG_SOURCE = "WorkScheduleAPI";
 
@@ -34,7 +36,7 @@ export async function PATCH(
         });
       }
       await tx.workScheduleWindow.deleteMany({ where: { scheduleId: id } });
-      return tx.workSchedule.update({
+      const saved = await tx.workSchedule.update({
         where: { id },
         data: {
           name: input.name,
@@ -44,6 +46,15 @@ export async function PATCH(
         },
         include: { windows: true, _count: { select: { tasks: true } } },
       });
+      // The default schedule also feeds the single-range columns.
+      if (saved.isDefault) {
+        await mirrorLegacyColumns(
+          tx,
+          auth.userId,
+          windowsToWeek(saved.windows)
+        );
+      }
+      return saved;
     });
 
     return NextResponse.json({ schedule });

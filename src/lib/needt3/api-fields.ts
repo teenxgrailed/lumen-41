@@ -66,6 +66,7 @@ export const moodboardV3FieldsSchema = z.object({
 });
 
 export const userSettingsV3FieldsSchema = z.object({
+  timeFormat: z.enum(["12h", "24h"]).optional(),
   prefs: jsonObjectSchema.optional(),
 });
 
