@@ -9,6 +9,7 @@
 @import "../styles/needt-ds-tokens.css";
 @import "../styles/needt-themes.css";
 @import "../styles/needt-motion.css";
+@import "../styles/needt-action-toasts.css";
 @import "../styles/needt-fonts.css";
 
 @font-face {
@@ -1841,6 +1842,126 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   color: var(--text-muted);
   text-decoration: line-through;
 }
+/* A task item (a checklist item that is a real Needt task) carries a date
+ * chip at its right end. The date input lies over the chip, invisible, so a
+ * tap opens the phone's own picker; an empty chip shows on hover, on focus,
+ * and always on touch screens (no hover there). */
+.needt-page-editor ul[data-type="taskList"] li > .needt-task-meta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 0.1rem;
+}
+.needt-page-editor ul[data-type="taskList"] li > .needt-task-meta[hidden] {
+  display: none;
+}
+.needt-page-editor .needt-task-due {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.needt-page-editor .needt-task-due.is-empty {
+  border-style: dashed;
+  color: var(--text-muted);
+  opacity: 0;
+}
+.needt-page-editor li:hover > .needt-task-meta .needt-task-due.is-empty,
+.needt-page-editor li:focus-within > .needt-task-meta .needt-task-due.is-empty {
+  opacity: 1;
+}
+@media (hover: none) {
+  .needt-page-editor .needt-task-due.is-empty {
+    opacity: 0.7;
+  }
+}
+.needt-page-editor li[data-checked="true"] > .needt-task-meta {
+  opacity: 0.6;
+}
+.needt-page-editor .needt-task-due-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  /* 16px: iOS zooms the page into any smaller input it focuses. */
+  font-size: 16px;
+}
+.needt-page-editor .needt-task-due-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.needt-page-editor .needt-task-due-clear[hidden] {
+  display: none;
+}
+/* The phone editing bar (PhoneEditBar): above the dock at rest, on the keyboard
+ * while it is up. --page-kb is written from the visual viewport by the bar
+ * itself; the v3 reader overrides the rest offset and the typing offset in
+ * v3-overrides/docs.css. */
+.needt-page-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+}
+.needt-page-bar[data-kb="open"] {
+  bottom: var(--page-kb, 0px);
+}
+.needt-page-bar-row {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+.needt-page-bar-strip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.needt-page-bar-strip::-webkit-scrollbar {
+  display: none;
+}
+.needt-page-bar[data-kb="rest"] .needt-page-bar-done {
+  display: none;
+}
+.needt-page-bar-panel {
+  max-height: min(46dvh, 320px);
+  overflow-y: auto;
+}
+@media (min-width: 640px) {
+  .needt-page-bar {
+    display: none;
+  }
+}
 .needt-page-editor blockquote {
   border-left: 3px solid var(--border-control);
   padding-left: 1rem;
@@ -2002,6 +2123,105 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 }
 .needt-page-special-block-link:hover {
   text-decoration: underline;
+}
+/* Toggle, Callout and Columns outside the v3 frame: structure only. The v3
+ * document draws them in src/styles/v3-overrides/doc-opened.css. */
+.needt-toggle {
+  position: relative;
+}
+.needt-toggle-arrow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.needt-toggle-arrow::before {
+  content: "\25B8";
+}
+.needt-toggle[data-open="true"] > .needt-toggle-arrow::before {
+  content: "\25BE";
+}
+.needt-toggle-content > :first-child {
+  padding-left: 1.75rem;
+}
+.needt-toggle-content > :not(:first-child) {
+  margin-left: 1.75rem;
+}
+.needt-toggle[data-open="false"] > .needt-toggle-content > :not(:first-child) {
+  display: none;
+}
+.needt-callout {
+  position: relative;
+  display: flex;
+  gap: 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  padding: 0.65rem 0.75rem;
+}
+.needt-callout-icon {
+  flex: none;
+  border: 0;
+  background: transparent;
+}
+.needt-callout-body {
+  flex: 1;
+  min-width: 0;
+}
+.needt-callout-menu[hidden] {
+  display: none;
+}
+.needt-callout-menu {
+  position: absolute;
+  z-index: 20;
+  top: 2.5rem;
+  left: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  padding: 0.5rem;
+}
+.needt-columns-wrap {
+  position: relative;
+}
+.needt-columns {
+  display: flex;
+}
+.needt-column {
+  flex: var(--w, 1) 1 0%;
+  min-width: 0;
+  padding: 0 0.5rem;
+}
+.needt-columns > .needt-column:nth-child(1) {
+  flex: var(--live-1, var(--w, 1)) 1 0%;
+}
+.needt-columns > .needt-column:nth-child(2) {
+  flex: var(--live-2, var(--w, 1)) 1 0%;
+}
+.needt-columns > .needt-column:nth-child(3) {
+  flex: var(--live-3, var(--w, 1)) 1 0%;
+}
+.needt-columns-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.needt-columns-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1rem;
+  margin-left: -0.5rem;
+  cursor: col-resize;
+  pointer-events: auto;
+}
+.needt-columns-bar[hidden] {
+  display: none;
 }
 .needt-page-special-block--image {
   display: block;

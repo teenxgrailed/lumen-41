@@ -84,6 +84,7 @@ describe("keep list", () => {
     for (const table of [
       "Waitlist",
       "PendingWaitlist",
+      "AppWaitlist",
       "FeatureFlag",
       "SystemSettings",
       "BetaSettings",
