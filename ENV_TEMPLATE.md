@@ -129,6 +129,12 @@ choose among the hosts that already satisfy the no-retention requirement; a
 slug that does not exist would refuse every request, so verify a value against
 a live key before relying on it.
 
+To call Z.ai (Zhipu) directly instead, set
+`NEEDT_AI_BASE_URL="https://api.z.ai/api/paas/v4"` and
+`NEEDT_AI_MODEL="glm-5.3-flash"`. That host is outside the US and the EU and
+must be added to the subprocessor list and the Privacy policy first; see
+`docs/operations/ai-provider.md`.
+
 A key the user brings themselves is never metered, never capped and never
 slowed, and it is honoured on every plan including Free.
 
