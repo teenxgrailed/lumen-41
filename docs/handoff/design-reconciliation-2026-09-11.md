@@ -243,3 +243,12 @@ Both were found by porting and are fixed only in the code:
    broke across two lines inside a block.
 2. Seventeen motion rules target class names no component wears, so menus,
    dialogs and scrims never animated.
+
+## Owner ruling, 2026-10-14: action notices
+
+Transient action, Undo and status notices ("Focus started · 25 min on …",
+"Placed at 14:00 · 3 Sep [Undo]") are a compact pill at the bottom centre,
+inverted against the page (the prototype's `ToastLayer`: `--text-primary` fill,
+`--background` ink), per the owner's mockups. This overrides PORT.md §6 for
+that kind of notice only. The growing island in the Ask Needt corner is
+unchanged and still carries the product's own nudges (`surface: "island"`).

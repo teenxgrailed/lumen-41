@@ -42,6 +42,8 @@ export const qk = {
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,
+  /** Whether the day's note exists (`useDailyNote`). */
+  dailyNote: (day: string) => [V3, "daily-note", day] as const,
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,
@@ -72,6 +74,8 @@ export const qk = {
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
   nudges: () => [V3, "nudges"] as const,
+  /** The bell's feed; under `nudges` so marking a nudge read refreshes it too. */
+  notifications: (group: string) => [V3, "nudges", "feed", group] as const,
   shell: () => [V3, "shell"] as const,
   search: (q: string) => [V3, "search", q] as const,
 } as const;

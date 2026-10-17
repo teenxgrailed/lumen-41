@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Document editor, first pass: **Link** in the selection bar (and in the
-  context menu and the phone Format sheet) now links the selected text, with
-  **Mod+K**; the Link block is only used when nothing is selected. The `/` menu
-  opens at the start of any word, not only in an empty line, and says "No
-  blocks match" instead of vanishing. Images can be pasted or dropped into a
-  page (same upload as the Image block). `/pages/<id>#<blockId>` now scrolls to
-  and marks that block. Tables (and special blocks) keep a stable `blockId`
-  between saves, and a table is stored as type `TABLE`.
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.

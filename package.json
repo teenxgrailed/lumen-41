@@ -9,6 +9,7 @@
   },
   "scripts": {
     "agent:context": "node scripts/agent-context.mjs",
+    "changelog:collect": "node scripts/changelog-collect.mjs",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/check-production-artifacts.mjs",
