@@ -4,9 +4,12 @@ import { newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
+import { DEFAULT_HOSTED_AI_MODEL, resolveHostedAiEndpoint } from "./endpoint";
 import { AIProviderUsage } from "./types";
 
-export const DEFAULT_HOSTED_AI_MODEL = "z-ai/glm-5.3-flash";
+export { DEFAULT_HOSTED_AI_MODEL };
+
+const HOSTED_ENDPOINT = resolveHostedAiEndpoint(process.env);
 
 export const HOSTED_AI_CONFIG = {
   monthlyActionCaps: {
@@ -20,9 +23,10 @@ export const HOSTED_AI_CONFIG = {
     LIFETIME: Number(process.env.NEEDT_AI_LIFETIME_ACTION_CAP || 300),
   },
   ceilingMultiplier: Number(process.env.NEEDT_AI_CEILING_MULTIPLIER || 2),
-  baseUrl:
-    process.env.NEEDT_AI_BASE_URL?.trim() || "https://openrouter.ai/api/v1",
-  model: process.env.NEEDT_AI_MODEL?.trim() || DEFAULT_HOSTED_AI_MODEL,
+  baseUrl: HOSTED_ENDPOINT.baseUrl,
+  model: HOSTED_ENDPOINT.model,
+  /** Which kind of host `baseUrl` is; gateway routing only exists on OpenRouter. */
+  hostKind: HOSTED_ENDPOINT.kind,
 } as const;
 
 /**
@@ -90,8 +94,12 @@ export const NON_US_EU_PROVIDERS = [
  * configuration.
  */
 export function hostedAiRoutingBody(
-  model: string = HOSTED_AI_CONFIG.model
+  model: string = HOSTED_AI_CONFIG.model,
+  hostKind: string = HOSTED_AI_CONFIG.hostKind
 ): Record<string, unknown> {
+  // `provider` is an OpenRouter field. Another host (Z.ai directly) has no
+  // such routing, and must not be sent options it would ignore or reject.
+  if (hostKind !== "openrouter") return {};
   const configured = (process.env.NEEDT_AI_GATEWAY_PROVIDERS ?? "")
     .split(",")
     .map((entry) => entry.trim())
