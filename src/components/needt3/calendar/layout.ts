@@ -500,7 +500,10 @@ export function spanLabel(days: readonly CalDay[], withWeek: boolean) {
   const a = days[0];
   const b = days[days.length - 1];
   const range = `${a.n} ${a.mo} – ${b.n} ${b.mo}`;
-  return withWeek ? `${range} · week ${isoWeek(a.date)}` : range;
+  // the number of the week's middle day: a Sunday-first week (11-17 Oct) is
+  // the same week as the Monday-first one (12-18 Oct), as on the Home header
+  const mid = days[Math.min(3, days.length - 1)];
+  return withWeek ? `${range} · week ${isoWeek(mid.date)}` : range;
 }
 
 /**

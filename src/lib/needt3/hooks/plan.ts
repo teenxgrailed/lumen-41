@@ -23,6 +23,8 @@ export interface ApiBilling {
   lifetimeLeft?: number | null;
   /** The `billing_checkout` switch; absent means checkout is closed. */
   checkoutEnabled?: boolean;
+  /** Free, address confirmed, and no trial yet under it: "Start trial" works. */
+  trialEligible?: boolean;
 }
 
 export type V3PlanKind = "free" | "trial" | "monthly" | "yearly" | "lifetime";

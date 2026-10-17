@@ -12,11 +12,15 @@ jest.mock("@/lib/security/rate-limit", () => ({
   enforceRateLimits: jest.fn(),
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { waitlist: { create: jest.fn(), updateMany: jest.fn() } },
+  prisma: {
+    waitlist: { create: jest.fn(), updateMany: jest.fn() },
+    appWaitlist: { create: jest.fn() },
+  },
 }));
 
 const create = jest.mocked(prisma.waitlist.create);
 const updateMany = jest.mocked(prisma.waitlist.updateMany);
+const appCreate = jest.mocked(prisma.appWaitlist.create);
 
 function post(body: unknown, origin: string | null = "https://needt.app") {
   const headers: Record<string, string> = {
@@ -54,6 +58,7 @@ beforeEach(() => {
   jest.mocked(enforceRateLimits).mockResolvedValue(null);
   create.mockResolvedValue({} as never);
   updateMany.mockResolvedValue({ count: 0 } as never);
+  appCreate.mockResolvedValue({} as never);
 });
 
 describe("POST /api/waitlist", () => {
@@ -211,5 +216,91 @@ describe("OPTIONS /api/waitlist", () => {
     const response = OPTIONS(preflight("https://needt.app.evil.example"));
     expect(response.status).toBe(403);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+});
+
+describe("POST /api/waitlist with an app (download form)", () => {
+  const body = { email: "Person@Example.com", app: "mac", source: "download" };
+
+  it("stores one AppWaitlist row and answers { ok: true }", async () => {
+    const response = await POST(post(body));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(appCreate).toHaveBeenCalledWith({
+      data: { email: "person@example.com", app: "mac", source: "download" },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("accepts iphone", async () => {
+    const response = await POST(post({ ...body, app: "iphone" }));
+    expect(response.status).toBe(200);
+  });
+
+  it("refuses an unknown app", async () => {
+    for (const app of ["android", "", 3, null]) {
+      const response = await POST(post({ ...body, app }));
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({ error: "invalid_app" });
+    }
+    expect(appCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses an invalid email", async () => {
+    const response = await POST(post({ ...body, email: "nope" }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_email" });
+  });
+
+  it("answers a repeat (email, app) with 200 and no second row", async () => {
+    appCreate.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["email", "app"] },
+      })
+    );
+
+    const response = await POST(post(body));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("answers 500 when the database fails otherwise", async () => {
+    appCreate.mockRejectedValue(new Error("db down"));
+    const response = await POST(post(body));
+    expect(response.status).toBe(500);
+  });
+
+  it("rate limits by IP at 10 per minute", async () => {
+    await POST(post(body));
+    const { ipRule } = jest.requireMock("@/lib/security/rate-limit");
+    expect(ipRule).toHaveBeenCalledWith(
+      expect.anything(),
+      "waitlist-app:ip",
+      10,
+      60
+    );
+
+    jest
+      .mocked(enforceRateLimits)
+      .mockResolvedValue(
+        NextResponse.json({ error: "Too many attempts." }, { status: 429 })
+      );
+    appCreate.mockClear();
+    const limited = await POST(post(body));
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://needt.app"
+    );
+    expect(appCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a browser on another origin", async () => {
+    const response = await POST(post(body, "https://evil.example"));
+    expect(response.status).toBe(403);
+    expect(appCreate).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@
 
 import { FiChevronRight, FiExternalLink } from "react-icons/fi";
 
+import { currentBuildLabel } from "@/lib/build-info";
+
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useShellApi } from "../shell/ShellContext";
@@ -10,14 +12,15 @@ import { SGroup, SRow } from "./kit";
 /**
  * What's new opens the sidebar's WhatsNew panel (Settings leaves first, as
  * the sheet sinks); Terms and Privacy open the pages.
- * //todo: Version (no build number is exposed to the client) and the Help
- * centre (no URL yet).
+ * Version is the build SHA baked in at release (`lib/build-info`).
+ * //todo: the Help centre (no URL yet).
  */
 export function AboutSection() {
   const shell = useShellApi();
   const close = useNeedt3Ui((s) => s.closeSettings);
   return (
     <SGroup>
+      <SRow title="Version" desc={`Needt · ${currentBuildLabel()}`} />
       <SRow
         title="What's new"
         onClick={() => {

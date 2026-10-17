@@ -4,10 +4,17 @@
  */
 export const strings = {
   /** Normal people: nothing they can do about it. */
-  notAvailable: (name: string) => `${name} is not available yet.`,
+  notAvailable: (name: string) => `${name} isn't available yet.`,
   /** The admin: what to add. */
   adminNeeds: (name: string, requires: string) =>
     `${name} needs ${requires}. Add it, then try again.`,
+
+  // Needt API tile
+  apiTitle: "Needt API",
+  apiLead:
+    "Read and write your Needt data from scripts and other tools with a personal access token.",
+  apiMcpUrl: "MCP server URL",
+  apiDocs: "Connector API docs",
 
   // Apple / iCloud (CalDAV) connect dialog
   caldavTitle: "Connect Apple / iCloud",
