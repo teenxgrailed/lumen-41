@@ -7,44 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Free and Pro document styles: all four fonts and three page colours (White,
-  Paper, Graphite) stay free; a backdrop, a cover (drawn art or your own
-  picture), the other page colours and every All Styles preset but Default are
-  Pro. The Style panel and the phone Page Style sheet mark them with a lock and
-  open the paywall, and the pages API refuses them on a free plan
-  (`UPGRADE_REQUIRED`, keys `backdrop`, `page`, `cover`). What a page already
-  has is kept after a downgrade, and a free plan can still remove a cover.
-- Document export: Page options gets **Export as Markdown** (a `.md` download
-  of the page as it is on screen) and **Export as PDF** (the browser's print
-  with the page alone on the paper, in its own style). The same Markdown is
-  served by `GET /api/pages/:id/export?format=md` (same access as the page
-  itself; documented in `docs/connector-api.md`).
-- Document editor: the selection bar gets **Underline**, **Text colour** and
-  **Highlight**. Colours are the document hues (Umber, Wine, Plum, Navy,
-  Forest), stored by name and drawn in the reading that is legible on the page
-  (pale hues on a dark page); `==text==` and Mod+Shift+H highlight, and the phone
-  Format sheet has the same colours.
-- Document editor tables: a bar over the table while the caret is in it adds a
-  row above or below, adds a column left or right, deletes the row, column or
-  the whole table (the last row or column deletes the table), and switches the
-  header row and header column. Tab and Shift+Tab move between cells, and Tab in
-  the last cell adds a row. Column borders show the resize cursor and handle.
-- Document editor: **Toggle, Callout and Columns are real blocks.** A Toggle
-  folds the blocks under its title (the arrow remembers open or closed on this
-  device); a Callout has an icon and a colour (the document palette) and holds
-  any blocks; Columns are two or three side by side, resizable by their divider
-  (arrow keys work too) and stacked on a phone. They go in empty from `/` with
-  the caret inside, instead of asking for text in a dialog. Pages saved with the
-  old, uneditable Callout/Toggle/Columns blocks open as the new blocks (text
-  kept) and are rewritten in the new shape on the next save.
-- Document editor, first pass: **Link** in the selection bar (and in the
-  context menu and the phone Format sheet) now links the selected text, with
-  **Mod+K**; the Link block is only used when nothing is selected. The `/` menu
-  opens at the start of any word, not only in an empty line, and says "No
-  blocks match" instead of vanishing. Images can be pasted or dropped into a
-  page (same upload as the Image block). `/pages/<id>#<blockId>` now scrolls to
-  and marks that block. Tables (and special blocks) keep a stable `blockId`
-  between saves, and a table is stored as type `TABLE`.
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.
@@ -86,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole editor and re-applied its configuration, and the word count read the
   page's text. The page is now written to the recovery draft and saved after a
   short pause (and on closing the tab), and the editor's configuration is built once.
+- Trash now keeps its 30-day promise: the worker deletes tasks, pages and
+  moodboards that have sat in Trash for 30 days. Tasks can be deleted for good
+  (`DELETE /api/tasks/:id?permanent=true`, Trash only), Empty Trash takes them
+  too, and the phone Trash has Restore all.
 - Document previews: pinned documents in the sidebar and the rows of the Docs
   list wear the page's face with its title and first lines (not a generic
   icon), and a document you just edited (a checklist, say) shows its lines in the

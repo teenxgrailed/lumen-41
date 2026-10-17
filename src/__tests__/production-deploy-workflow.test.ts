@@ -124,23 +124,39 @@ describe("production deployment workflow", () => {
     expect(dockerfile).toContain("ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID");
   });
 
-  it("deploys through one script that needs only deploy rights", () => {
+  it("deploys through one script that pins the exact commit when it can", () => {
     expect(
       workflow.match(/\.\/scripts\/coolify-deploy-image\.sh/g)
     ).toHaveLength(3);
     expect(workflow).not.toContain("trigger-coolify-deploy.sh");
     expect(deployScript).toContain("Authorization: Bearer $COOLIFY_TOKEN");
-    expect(deployScript).toContain("/api/v1/deploy?uuid=");
+    expect(deployScript).toContain("/deploy?uuid=");
     // Coolify 4.3 answers only POST here; GET returned 405 on 2026-10-08.
-    expect(deployScript).toContain("request POST");
-    expect(deployScript.indexOf("request POST")).toBeLessThan(
-      deployScript.indexOf("request GET")
+    expect(deployScript.indexOf("call POST")).toBeLessThan(
+      deployScript.indexOf("call GET")
     );
     expect(deployScript).toContain("exit 1");
-    // Changing a resource's configuration needs the token's `write`
-    // ability, which the release token does not have (HTTP 403 on
-    // 2026-10-08).
-    expect(deployScript).not.toContain("PATCH");
+    // Pinning needs the token's `write` ability (HTTP 403 without it on
+    // 2026-10-08); then the script falls back to the head of main's images.
+    expect(deployScript).toContain("git_commit_sha");
+    expect(deployScript).toContain("401 | 403)");
+    expect(deployScript).toContain("image_exists");
+  });
+
+  it("deploys the newest finished build instead of standing down behind main", () => {
+    expect(workflow).not.toContain("release-is-current");
+    expect(workflow.match(/\.\/scripts\/release-is-needed\.sh/g)).toHaveLength(
+      2
+    );
+    // The decision reads history, so both deploy checkouts are full.
+    expect(job("deploy-web")).toContain("fetch-depth: 0");
+    expect(job("deploy-runtimes")).toContain("fetch-depth: 0");
+    expect(job("deploy-web")).toContain(
+      "steps.needed.outputs.needed == 'true'"
+    );
+    const rule = readFileSync("scripts/release-is-needed.sh", "utf8");
+    expect(rule).toContain('git merge-base --is-ancestor "$DEPLOY_SHA"');
+    expect(rule).not.toContain("ls-remote");
   });
 
   it("continues to a repair deploy when the previous web health is unavailable", () => {

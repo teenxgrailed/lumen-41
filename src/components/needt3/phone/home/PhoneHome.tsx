@@ -2,21 +2,24 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
+import { useRouter } from "next/navigation";
+
 import { LuCheck, LuTarget } from "react-icons/lu";
 
-import { formatInTimeZone } from "@/lib/date-utils";
 import { clock, durLabel } from "@/lib/needt3/day";
 import { habitColor, habitDoneOn, liveHabits } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
+import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import {
   useCheckins,
   useHabits,
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
@@ -34,6 +37,7 @@ import {
   pkDotSweep,
   pkReduced,
 } from "../kit";
+import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { usePhoneClock } from "./clock";
@@ -54,14 +58,16 @@ const none = () => undefined;
  *
  * The data is the desktop Home's (`useTasks`, `useHabits`, …); the day's rules
  * are `lib/needt3/day.ts` through `homeView`.
- * //todo: "Notes for the day" is not drawn. The prototype keeps it in the
- * browser; the account's daily note is a rich document (`/api/daily-agenda`,
- * the desktop Home leaves it as a //todo too), and a plain field here would
- * overwrite it.
+ * "Notes for the day" is the desktop's line: it opens today's note, a
+ * document in the person's pages (`useDailyNote`). The prototype keeps a plain
+ * field in the browser; that would be a second copy of the day's notes.
  */
 export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const { today, now } = usePhoneClock();
+  const router = useRouter();
+  const dailyNote = useDailyNote(today);
   const tz = useTimeZone();
+  const weekStartDay = useSettings().data?.weekStartDay ?? "monday";
   const tasksQuery = useTasks();
   const projects = useProjects().data;
   const habitsQuery = useHabits();
@@ -138,10 +144,16 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const pull = useTaskPull(all, today);
 
+  const openNote = async () => {
+    const id = await dailyNote.open();
+    if (id) router.push(`/pages/${id}`);
+  };
+
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
     return p ? { name: p.name, color: p.color } : null;
   };
+  const actionsOf = useTaskActions(X.exit);
   const row = (t: V3Task, o: { late?: boolean; tomorrow?: boolean } = {}) => (
     <PkTaskRow
       key={t.id}
@@ -152,6 +164,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       out={!!X.out[t.id]}
       canDone={!t.done}
       canLater={!t.done && !o.tomorrow}
+      actions={t.done ? undefined : actionsOf(t)}
       onCheck={check}
       onOpen={openTask}
       onSwipe={(side) => X.exit(t, side)}
@@ -160,8 +173,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const ready = hasContent(tasksQuery);
   const nuAt = nu ? hourAt(nu, today) : null;
-  const d = formatInTimeZone(now, tz, "EEEE, d MMMM");
-  const week = formatInTimeZone(now, tz, "I");
+  const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
   const head = !ready ? null : v.allDone ? (
@@ -211,7 +223,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       screen="home"
       glyph="home"
       title={copy.V2pHome.today}
-      sub={`${d} · week ${week}`}
+      sub={dateLine}
       head={head}
       onPull={ready ? pull : undefined}
     >
@@ -367,6 +379,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
+          <button
+            type="button"
+            className="v2p-notes v2p-notes-btn"
+            data-v2p-notes=""
+            disabled={dailyNote.busy}
+            onClick={() => void openNote()}
+          >
+            {dailyNote.exists
+              ? "Open today\u2019s note"
+              : copy.V2pNotes.notes_for_the_day}
+          </button>
         </div>
       ) : null}
     </PkScreen>

@@ -92,6 +92,53 @@ describe("homeView", () => {
   });
 });
 
+describe("All done for today", () => {
+  const closedDay = [task("a", { done: true }), task("b", { done: true })];
+
+  it("is not said while an Inbox task is still open", () => {
+    const v = homeView([...closedDay, task("inbox", { dueDate: null })], TODAY);
+    expect(v.dayClosed).toBe(true);
+    expect(v.inboxRows.map((t) => t.id)).toEqual(["inbox"]);
+    expect(v.allDone).toBe(false);
+  });
+
+  it("is not said while a task is overdue", () => {
+    const v = homeView(
+      [...closedDay, task("late", { dueDate: "2026-09-01" })],
+      TODAY
+    );
+    expect(v.allDone).toBe(false);
+  });
+
+  it("is said once the Inbox task is closed too", () => {
+    const v = homeView(
+      [...closedDay, task("inbox", { dueDate: null, done: true })],
+      TODAY
+    );
+    expect(v.allDone).toBe(true);
+  });
+
+  it("an open task for tomorrow does not undo it", () => {
+    const v = homeView(
+      [...closedDay, task("tom", { dueDate: "2026-09-03" })],
+      TODAY
+    );
+    expect(v.allDone).toBe(true);
+  });
+
+  it("whenever it is said, no row is listed under today", () => {
+    for (const extra of [
+      [],
+      [task("inbox", { dueDate: null })],
+      [task("l", { dueDate: "2026-08-01" })],
+    ]) {
+      const v = homeView([...closedDay, ...extra], TODAY);
+      if (v.allDone)
+        expect(v.lateRows.length + v.inboxRows.length + v.parts.length).toBe(0);
+    }
+  });
+});
+
 describe("nextUpWhy", () => {
   it("overdue: since when, and how many more", () => {
     const a = task("a", { dueDate: "2026-09-01" });

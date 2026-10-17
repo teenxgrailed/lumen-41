@@ -42,7 +42,10 @@ export interface HomeView {
   parts: ReturnType<typeof parts<V3Task>>;
   inboxRows: V3Task[];
   tomorrowRows: V3Task[];
-  /** The day is closed and nothing is on the plate: "All done for today". */
+  /**
+   * The day is closed, nothing is on the plate and no overdue or Inbox row is
+   * listed: "All done for today".
+   */
   allDone: boolean;
   /** Nothing at all to show: a clear day. */
   empty: boolean;
@@ -83,6 +86,9 @@ export function homeView(
   const lateRows = notNu(sec.late);
   const inboxRows = notNu(sec.inbox);
   const tomorrowRows = openOf(sec.next);
+  // "All done" is true only when no row is listed under today: no overdue, no
+  // open Inbox task either (the Inbox section is drawn on Home).
+  const openRest = openOf(sec.late).length + openOf(sec.inbox).length;
   const dayClosed = day.length > 0 && !left.length;
   return {
     sec,
@@ -97,7 +103,7 @@ export function homeView(
     parts: parts(notNu(day), today),
     inboxRows,
     tomorrowRows,
-    allDone: dayClosed && !nu,
+    allDone: dayClosed && !nu && !openRest,
     empty:
       !day.length &&
       !openOf(sec.late).length &&
