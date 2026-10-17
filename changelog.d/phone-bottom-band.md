@@ -1,0 +1,1 @@
+- The lighter band under the phone bottom bar in the installed app is gone: the page gradient no longer paints over the screen ground in the safe area.

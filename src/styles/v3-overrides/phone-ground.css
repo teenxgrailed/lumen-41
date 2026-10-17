@@ -12,6 +12,12 @@
 html:has(.needt-v3[data-ui="phone"]),
 html:has(.needt-v3[data-ui="phone"]) body {
   background-color: #f6f6f3 !important;
+  /* The cause of the band PR #234 left: globals.css paints `body` (and so the
+   * canvas) with `background-image: var(--page-background)`, an opaque
+   * gradient of the desktop canvas colour. An image paints over the colour, so
+   * whatever the screen does not cover (the safe-area strip under the floating
+   * bar) showed the desktop canvas, lighter than the ground. */
+  background-image: none !important;
 }
 html:has(.needt-v3[data-ui="phone"][data-theme="dark"]),
 html:has(.needt-v3[data-ui="phone"][data-theme="dark"]) body,
