@@ -38,10 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ink now always clears 4.5:1 on the page (whatever Text colour was chosen),
   and a page whose colours could not be read yet no longer starts without a
   page colour. A test checks every page x text colour x theme side.
-- Connections: "Sync now" on a connected calendar or mailbox (the card menu on
-  the desktop, the account sheet on the phone). It queues the worker's sync job
-  (`POST /api/accounts/:id/sync` for calendars, the existing
-  `POST /api/mail/sync` for mail) and says the sync started.
 - Right-click inside a document opens Needt's own menu: for selected text (Cut,
   Copy, Paste, Turn into, Bold, Italic, Link, Ask Needt about this, Comment when
   the page has comments) and for a block (Turn into, Duplicate, Move up/down,
