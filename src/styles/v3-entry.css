@@ -29,6 +29,7 @@
 @import "./v3-overrides/phone-ask.css";
 @import "./v3-overrides/task-view.css";
 @import "./v3-overrides/calendar-strip.css";
+@import "./v3-overrides/task-complete.css";
 @import "./v3-overrides/sortable.css";
 @import "./v3-overrides/admin.css";
 @import "./v3-overrides/phone-ground.css";

@@ -24,7 +24,7 @@ import {
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks, useToggleTask } from "@/lib/needt3/hooks/tasks";
+import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
 
@@ -37,6 +37,7 @@ import type { CalendarController } from "../phone/calendar/useCalendarController
 import { useDesignV3 } from "../root/V3Root";
 import { StScreen } from "../states/StScreen";
 import { TaskViewGear } from "../task/TaskViewGear";
+import { CompletionScope, useCompletion } from "../task/useCompletion";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
 import { type WeekHandle, WeekView } from "./WeekView";
@@ -186,9 +187,13 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   );
   // the task view's Completed setting, on top of this screen's Hide done
   const taskView = useTaskView();
+  // a ticked task still playing its exit stays on the grid until it is done
+  const completion = useCompletion();
+  const { hold } = completion;
   const shownTasks = useMemo(
-    () => (tasksQuery.data ?? []).filter((t) => showsTask(t, taskView, today)),
-    [tasksQuery.data, taskView, today]
+    () =>
+      hold(tasksQuery.data ?? []).filter((t) => showsTask(t, taskView, today)),
+    [tasksQuery.data, hold, taskView, today]
   );
   const { timed, loose, doneHidden } = useMemo(
     () =>
@@ -223,7 +228,6 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const shownDays = new Set(agendaDays.map((d) => d.date));
   const visible = timed.filter((b) => shownDays.has(b.date));
 
-  const toggle = useToggleTask();
   const updateEvent = useUpdateEvent();
   const lifecycle = useEventLifecycle();
   const createEvent = useCreateEvent();
@@ -238,18 +242,9 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     (id: string) => router.push(`/tasks?task=${encodeURIComponent(id)}`),
     [router]
   );
-  const onDone = (b: CalItem) => {
-    const was = !!b.done;
-    void toggle
-      .toggle({ id: b.id, done: was })
-      .then(({ undo }) =>
-        undoable(
-          was ? `Reopened ${quote(b.title)}` : `Done · ${quote(b.title)}`,
-          undo
-        )
-      )
-      .catch(ignore);
-  };
+  // the shared completion: the pop, the strike, the fold and the Undo notice
+  const onDone = (b: CalItem) =>
+    completion.check({ id: b.id, done: !!b.done, title: b.title });
   const onRename = (b: CalItem, title: string) => {
     //todo: PATCH /api/events/[id] writes the local copy only; until it writes
     // back to the provider, synced events are read-only here (canEditEvent).
@@ -357,7 +352,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   };
 
   const pagerLabel = view === "days" ? "days" : narrow ? "days" : "week";
-  return (
+  const content = (
     <div className="c2-stack">
       <header className="c2-head">
         <RichMenu
@@ -496,4 +491,5 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       </StScreen>
     </div>
   );
+  return <CompletionScope value={completion}>{content}</CompletionScope>;
 }
