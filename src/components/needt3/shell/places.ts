@@ -294,6 +294,24 @@ export function moveRow(
     : { ...prefs, sections: reorder(prefs.sections) };
 }
 
+/** Put the rows of `key` in this order (every id; unknown ids are ignored). */
+export function orderRows(
+  prefs: SidebarPrefs,
+  key: "places" | "sections",
+  order: readonly string[]
+): SidebarPrefs {
+  const sort = <T extends { id: string }>(list: T[]) => {
+    const rank = new Map(order.map((id, i) => [id, i]));
+    return list
+      .map((x, i) => [x, rank.get(x.id) ?? order.length + i] as const)
+      .sort((a, b) => a[1] - b[1])
+      .map(([x]) => x);
+  };
+  return key === "places"
+    ? { ...prefs, places: sort(prefs.places) }
+    : { ...prefs, sections: sort(prefs.sections) };
+}
+
 export function foldSection(prefs: SidebarPrefs, id: SectionId): SidebarPrefs {
   const collapsed = { ...prefs.collapsed };
   if (collapsed[id]) delete collapsed[id];

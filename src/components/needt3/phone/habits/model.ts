@@ -133,8 +133,8 @@ export interface HistoryDot {
 
 /**
  * The habit's last fourteen days as dots, oldest first, today last (PhbMonths).
- * The API returns only the fourteen-day strip, so this is the whole history
- * there is; the prototype's four months of dots are not drawn.
+ * The four months live in the "Past days" panel under each habit, which can
+ * mark or unmark a day.
  */
 export function historyDots(
   habitId: string,
@@ -154,14 +154,15 @@ export function historyDots(
   });
 }
 
-/** The streak as it should be drawn: "14+" when it fills the window we can see. */
+/** The streak as it should be drawn: "14+" when it fills the window we can see (`window` is 124 once the long history has loaded). */
 export function streakFigure(
   habitId: string,
   checkins: readonly Checkin[],
-  today: string
+  today: string,
+  window = HABIT_WINDOW
 ) {
   const n = habitStreak(habitId, checkins, today);
-  return { n, text: n >= HABIT_WINDOW ? `${n}+` : String(n) };
+  return { n, text: n >= window ? `${n}+` : String(n) };
 }
 
 export function streakLabel(n: number) {

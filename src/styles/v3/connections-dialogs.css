@@ -41,3 +41,62 @@
 .needt-v3 .cn-caldav-foot .nx-btn[disabled] {
   opacity: 0.5;
 }
+
+/* Apple app-password guide: numbered steps, three schematic sketches, notes. */
+.needt-v3 .cn-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  font: var(--type-meta);
+  color: var(--text-secondary);
+}
+.needt-v3 .cn-guide-title {
+  font: var(--type-meta-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .cn-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+.needt-v3 .cn-guide-steps > li {
+  padding-left: 2px;
+  text-wrap: pretty;
+}
+.needt-v3 .cn-guide-steps > li::marker {
+  color: var(--text-tertiary);
+}
+.needt-v3 .cn-guide-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 0;
+  text-decoration: none;
+}
+.needt-v3 .cn-guide-art {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin-top: 8px;
+}
+.needt-v3 .cn-guide-trouble > summary {
+  cursor: default;
+  color: var(--text-tertiary);
+}
+.needt-v3 .cn-guide-trouble > ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .cn-guide-link {
+  align-self: flex-start;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

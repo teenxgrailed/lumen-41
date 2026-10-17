@@ -211,14 +211,11 @@ if (companionStylesStart < 0 || companionStylesEnd < 0) {
   }
 }
 
-const pageWorkspacePath = "src/components/pages/PageWorkspace.tsx";
-const pageWorkspace = await source(pageWorkspacePath);
-requireText(pageWorkspacePath, "data-assistant-avoid", pageWorkspace);
-requireText(
-  pageWorkspacePath,
-  "h-12 items-center justify-around",
-  pageWorkspace
-);
+// The phone editing bar lives in PhoneEditBar (it replaced the fixed
+// h-12 strip in PageWorkspace); the AI companion must still avoid it.
+const phoneEditBarPath = "src/components/pages/phone-bar/PhoneEditBar.tsx";
+const phoneEditBar = await source(phoneEditBarPath);
+requireText(phoneEditBarPath, "data-assistant-avoid", phoneEditBar);
 
 const appNavPath = "src/components/navigation/AppNav.tsx";
 const appNav = await source(appNavPath);

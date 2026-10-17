@@ -373,6 +373,15 @@ export function inkFor(pageHex: string, text: string, read: TokenReader) {
 }
 
 /**
+ * Whether the ink on a page is the pale reading ("lt", a dark page) or the
+ * deep one ("dk"). Marks that carry a hue (highlight, text colour) read this
+ * off the sheet to pick the reading that is legible on it.
+ */
+export function inkTone(inkHex: string | undefined): "lt" | "dk" {
+  return inkHex && hexRgb(inkHex) && luminance(inkHex) > 0.4 ? "lt" : "dk";
+}
+
+/**
  * The inline half of a styled page; themes.css (`.dt-themed`) picks the
  * Light or Dark pair and rebuilds the grey ladder from the ink.
  */

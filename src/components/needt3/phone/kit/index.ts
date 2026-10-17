@@ -28,6 +28,7 @@ export {
   PkRow,
   PkTaskRow,
   usePkExit,
+  type PkRowActions,
   type PkRowProps,
   type PkTaskRowProps,
 } from "./Row";

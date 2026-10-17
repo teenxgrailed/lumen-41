@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
+    # The merge queue builds gh-readonly-queue/* branches and reports through
+    # merge_group below; a push run on the same commit would only duplicate it.
+    branches-ignore:
+      - "gh-readonly-queue/**"
   pull_request:
+  merge_group:
   workflow_dispatch:
     inputs:
       target_branch:
@@ -33,10 +38,13 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      ui: ${{ steps.filter.outputs.ui }}
+      # A merge-queue group is the last gate before main: run the visual
+      # suites in full instead of diffing paths against a queue base.
+      ui: ${{ github.event_name == 'merge_group' && 'true' || steps.filter.outputs.ui }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
+        if: github.event_name != 'merge_group'
         id: filter
         with:
           filters: |

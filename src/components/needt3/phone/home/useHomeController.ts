@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { newDate } from "@/lib/date-utils";
 import { laterPatch } from "@/lib/needt3/day";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
-import { useToggleTask, useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import {
+  useToggleTask,
+  useTrashTask,
+  useUpdateTask,
+} from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
@@ -39,6 +43,7 @@ export function useHomeController() {
   tzRef.current = tz;
   const toggleTask = useToggleTask();
   const updateTask = useUpdateTask();
+  const trashTask = useTrashTask();
 
   const [fold, setFold] = useState<HomeFold>({
     done: true,
@@ -85,7 +90,11 @@ export function useHomeController() {
             .then(({ undo }) =>
               snack(strings["mobile-v2-plates.jsx"].X.moved_to_tomorrow, undo)
             )
-        : toggleTask.toggle(t);
+        : kind === "trash"
+          ? trashTask
+              .trash(t.id)
+              .then(({ undo }) => snack("Moved to Trash", undo))
+          : toggleTask.toggle(t);
     void run.catch(none).finally(() => hide(t.id, false));
   });
 

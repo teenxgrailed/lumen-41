@@ -38,6 +38,8 @@ export const taskV3FieldsSchema = z.object({
   trashedAt: isoDateTime.nullable().optional(),
   originKind: z.enum(ORIGIN_KINDS).nullable().optional(),
   originId: nullableShort(200).optional(),
+  /** The page the task came from: shorthand for originKind "doc" + originId. */
+  originPageId: nullableShort(200).optional(),
   originQuote: nullableShort(2000).optional(),
   splitAllowed: z.boolean().optional(),
 });
@@ -66,6 +68,7 @@ export const moodboardV3FieldsSchema = z.object({
 });
 
 export const userSettingsV3FieldsSchema = z.object({
+  timeFormat: z.enum(["12h", "24h"]).optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
   // present it must be a valid one, so a bad write is a 400, not a stored typo
   prefs: jsonObjectSchema
