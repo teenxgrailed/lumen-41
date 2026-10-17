@@ -45,6 +45,7 @@ const CONFIRM_PHRASE = "delete everything except the waitlist";
 /**
  * Tables that are never emptied:
  *   Waitlist, PendingWaitlist   the launch waitlist and unverified sign-ups
+ *   AppWaitlist                 per-app (phone, desktop...) launch waitlists
  *   FeatureFlag                 global flags (design_v3, signups_open, ...);
  *                               per-user FeatureFlagOverride rows ARE emptied
  *   SystemSettings              admin-saved OAuth client ids/secrets, Resend key
@@ -54,6 +55,7 @@ const CONFIRM_PHRASE = "delete everything except the waitlist";
 const KEEP_TABLES = Object.freeze([
   "Waitlist",
   "PendingWaitlist",
+  "AppWaitlist",
   "FeatureFlag",
   "SystemSettings",
   "BetaSettings",

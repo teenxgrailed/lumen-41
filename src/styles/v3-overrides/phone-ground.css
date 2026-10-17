@@ -1,0 +1,21 @@
+/* The page behind the phone screen is the screen's own ground.
+ *
+ * The screen is `position: fixed` on `--v2p-ground`, but `html` and `body`
+ * were painted with the desktop page colour (look-boot SIDE_BG, #202022 in
+ * dark). Anything the screen does not cover - the home-indicator strip under
+ * the floating bar in an installed PWA, the overscroll bounce, the gap while
+ * the viewport resizes - showed that lighter colour. On the phone UI the page
+ * wears the ground, whichever theme is active. The hex values are
+ * `--v2p-ground` of themes.css and PHONE_GROUND of look-boot.ts; a test holds
+ * the three together. `!important` beats the inline colour the boot script
+ * writes for the desktop page. */
+html:has(.needt-v3[data-ui="phone"]),
+html:has(.needt-v3[data-ui="phone"]) body {
+  background-color: #f6f6f3 !important;
+}
+html:has(.needt-v3[data-ui="phone"][data-theme="dark"]),
+html:has(.needt-v3[data-ui="phone"][data-theme="dark"]) body,
+html:has(.needt-v3[data-ui="phone"][data-theme="dim"]),
+html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
+  background-color: #141416 !important;
+}

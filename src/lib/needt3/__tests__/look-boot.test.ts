@@ -1,6 +1,8 @@
 import {
   LOOK_BOOT_SCRIPT,
   type Look,
+  PHONE_GROUND,
+  PHONE_MEDIA,
   SIDE_BG,
   barColorOf,
   encodeLook,
@@ -117,13 +119,20 @@ describe("firstPaint", () => {
 
 describe("browser chrome", () => {
   it("states the colour scheme and bar colour of a fixed theme", () => {
+    // on a phone the bar is the screen's ground; elsewhere the page colour
     expect(viewportLook(look({ choice: "dark" }))).toEqual({
       colorScheme: "dark",
-      themeColor: SIDE_BG.dark,
+      themeColor: [
+        { media: PHONE_MEDIA, color: PHONE_GROUND.dark },
+        { color: SIDE_BG.dark },
+      ],
     });
     expect(viewportLook(look({ choice: "light" }))).toEqual({
       colorScheme: "light",
-      themeColor: SIDE_BG.light,
+      themeColor: [
+        { media: PHONE_MEDIA, color: PHONE_GROUND.light },
+        { color: SIDE_BG.light },
+      ],
     });
   });
 
@@ -131,6 +140,14 @@ describe("browser chrome", () => {
     const v = viewportLook(look({ choice: "system", side: null }));
     expect(v.colorScheme).toBe("light dark");
     expect(v.themeColor).toEqual([
+      {
+        media: `(prefers-color-scheme: light) and ${PHONE_MEDIA}`,
+        color: PHONE_GROUND.light,
+      },
+      {
+        media: `(prefers-color-scheme: dark) and ${PHONE_MEDIA}`,
+        color: PHONE_GROUND.dark,
+      },
       { media: "(prefers-color-scheme: light)", color: SIDE_BG.light },
       { media: "(prefers-color-scheme: dark)", color: SIDE_BG.dark },
     ]);
@@ -138,7 +155,10 @@ describe("browser chrome", () => {
 
   it("uses Time's background for the bar", () => {
     const l = look({ choice: "time", side: "dark", palette: PALETTE });
-    expect(viewportLook(l).themeColor).toBe(PALETTE.bg);
+    expect(viewportLook(l).themeColor).toEqual([
+      { media: PHONE_MEDIA, color: PHONE_GROUND.dark },
+      { color: PALETTE.bg },
+    ]);
     expect(barColorOf(firstPaint(l))).toBe(PALETTE.bg);
   });
 });

@@ -19,8 +19,34 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { isTrialAvailable } from "@/lib/trials/trial-service";
 
 const LOG_SOURCE = "BillingAPI";
+
+/**
+ * Whether "Start 14-day free trial" can work: a confirmed address, a Free
+ * account, and nobody (under this address or this account) who has had one.
+ * Unknown counts as no: the button must not promise what it cannot do.
+ */
+async function trialEligibility(input: {
+  userId: string;
+  plan: string;
+  subscriptionPlan: string | null;
+  email: string | null;
+}): Promise<boolean> {
+  if (!input.email) return false;
+  if (input.plan !== "FREE" || input.subscriptionPlan === "PRO") return false;
+  try {
+    return await isTrialAvailable({ userId: input.userId, email: input.email });
+  } catch (error) {
+    logger.warn(
+      "Could not read trial eligibility",
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      LOG_SOURCE
+    );
+    return false;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +66,7 @@ export async function GET(request: NextRequest) {
       aiUsage,
       lifetime,
       checkoutEnabled,
+      account,
     ] = await Promise.all([
       prisma.subscription.findUnique({
         where: { userId: auth.userId },
@@ -66,7 +93,18 @@ export async function GET(request: NextRequest) {
       getHostedAiUsage(auth.userId),
       lifetimeAvailability(auth.userId),
       isFeatureEnabled(BILLING_CHECKOUT, auth.userId),
+      prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { email: true, emailVerified: true },
+      }),
     ]);
+
+    const trialEligible = await trialEligibility({
+      userId: auth.userId,
+      plan,
+      subscriptionPlan: subscription?.plan ?? null,
+      email: account?.emailVerified ? (account.email ?? null) : null,
+    });
 
     return NextResponse.json({
       configured: isCreemConfigured(),
@@ -85,6 +123,7 @@ export async function GET(request: NextRequest) {
       lifetimeAvailable: lifetime.available,
       lifetimeLeft: lifetime.left,
       checkoutEnabled,
+      trialEligible,
       usage: {
         calendars,
         autoScheduledTasks,

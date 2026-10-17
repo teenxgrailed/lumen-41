@@ -2,14 +2,18 @@
 
 import {
   type HTMLAttributes,
+  type Ref,
+  memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
-import type { ProjectLike } from "@/lib/needt3/derive";
+import { type ProjectLike, weekday } from "@/lib/needt3/derive";
 
 import { useExit } from "../ctx/useExit";
 import type { DragProps } from "../drag/useDrag";
@@ -19,11 +23,11 @@ import {
   C2_CAP,
   C2_H,
   C2_MIN_H,
-  type CalDay,
   type Placed,
   c2Place,
   c2PosStyle,
   c2Time,
+  calDay,
   slotAt,
 } from "./layout";
 import {
@@ -35,8 +39,28 @@ import {
   anchorOf,
   useSlot,
 } from "./popovers";
+import {
+  STRIP_SPAN,
+  type WorkHours,
+  columnWidth,
+  drawnRange,
+  glidePlan,
+  jumpGoal,
+  nearestIndex,
+  nowScrollTop,
+  offHours,
+  offsetOf,
+  stripDate,
+  stripIndex,
+} from "./strip";
 
-const GUTTER = 56;
+export const GUTTER = 56;
+/** The grid is the whole day: 00:00 to 24:00. */
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const GRID_H = 24 * C2_H;
+/** How long a still scroller waits before settling onto a day column. */
+const SETTLE_MS = 110;
+const NONE: readonly CalTimed[] = [];
 
 export interface Draft {
   date: string;
@@ -67,7 +91,7 @@ function DraftBlock({
     const el = ref.current;
     if (!el) return;
     el.focus({ preventScroll: true });
-    el.scrollIntoView({ block: "nearest" });
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [d.date, d.at]);
   const finish = (keep: boolean) => {
     if (done.current) return;
@@ -200,14 +224,26 @@ function Block({
   );
 }
 
+/** What the parent can ask of the strip. */
+export interface WeekHandle {
+  /** Glide `days` days from where the strip is heading (or stands). */
+  jump: (days: number) => void;
+  /** Glide to a day, which becomes the first column. */
+  goTo: (date: string) => void;
+}
+
 export interface WeekViewProps {
-  days: readonly CalDay[];
-  blocks: readonly CalTimed[];
-  today: string;
+  /** Columns in view: 7, or 3 on a narrow window. */
+  n: number;
+  /** The day that is the first column when the view opens. */
+  initial: string;
+  /** Timed blocks by day ("YYYY-MM-DD"). */
+  blocks: ReadonlyMap<string, readonly CalTimed[]>;
   /** The clock's decimal hour today, for the now line. */
   nowHour: number | null;
-  start: number;
-  end: number;
+  today: string;
+  /** Hours the person works; the rest of the grid is shaded. */
+  work?: WorkHours | null;
   projects?: readonly ProjectLike[];
   draft: Draft | null;
   onSlot: (date: string, at: number) => void;
@@ -218,16 +254,182 @@ export interface WeekViewProps {
   onRename: (b: CalItem, title: string) => void;
   onDelete: (b: CalItem) => void;
   dragProps?: DragProps;
+  /** The first column in view changed (also once on mount). */
+  onFirst?: (date: string) => void;
+  /** The strip came to rest on a day column. */
+  onSettle?: (date: string) => void;
+  handle?: Ref<WeekHandle>;
 }
 
-/** Week (and 3-day) grid: seven columns by the hour ($P/calendar2.jsx `WeekView`). */
-export function WeekView({
-  days,
-  blocks,
-  today,
+const calm = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+interface ColumnProps {
+  date: string;
+  x: number;
+  w: number;
+  isToday: boolean;
+  mine: readonly CalTimed[];
+  draft: Draft | null;
+  nowHour: number | null;
+  work?: WorkHours | null;
+  peekId: string | null;
+  hover: Hover;
+  dragProps?: DragProps;
+  onSlot: (date: string, at: number) => void;
+  onSave: (title: string) => void;
+  onCancel: () => void;
+  onMore: ReturnType<typeof useSlot>["open"];
+  moreKey: string | null;
+}
+
+/** One day: its off-hours shading, hour lines, blocks and now line. */
+const DayColumn = memo(function DayColumn({
+  date,
+  x,
+  w,
+  isToday,
+  mine,
+  draft,
   nowHour,
-  start,
-  end,
+  work,
+  peekId,
+  hover,
+  dragProps,
+  onSlot,
+  onSave,
+  onCancel,
+  onMore,
+  moreKey,
+}: ColumnProps) {
+  const off = useMemo(() => offHours(weekday(date), work), [date, work]);
+  const laid = useMemo(() => {
+    const list: CalTimed[] = [...mine];
+    if (draft)
+      list.push({
+        id: "__draft",
+        date,
+        at: draft.at,
+        len: 60,
+        title: "",
+        draft: true,
+        entry: {
+          kind: "event",
+          id: "__draft",
+          title: "",
+          startAt: "",
+          endAt: "",
+        },
+      } as DraftBlock);
+    return c2Place(list, w, C2_CAP);
+  }, [mine, draft, date, w]);
+  return (
+    /* Each day column is a drop target (data-drop="timeline"): a task dropped
+       here takes this day and the 15-min slot under the hand; its new block
+       (data-drag-id) is where it lands. */
+    <div
+      data-c2-day={date}
+      data-drop="timeline"
+      data-date={date}
+      data-start={0}
+      data-hour-h={C2_H}
+      data-offset="0"
+      onClick={(e) => {
+        if ((e.target as Element).closest("[data-c2-block]")) return;
+        const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+        onSlot(date, slotAt(y, 0, 24));
+      }}
+      className={`c2-daycol${isToday ? " is-today" : ""}`}
+      style={{ width: w, transform: `translate3d(${x}px,0,0)` }}
+    >
+      {off.map(([a, b]) => (
+        <span
+          key={a}
+          aria-hidden="true"
+          className="c2-off"
+          style={{ top: a * C2_H, height: (b - a) * C2_H }}
+        />
+      ))}
+      {/* the 24 hour lines are one gradient, not 24 nodes per column */}
+      <span aria-hidden="true" className="c2-hlines" />
+      {laid.placed.map((pos) =>
+        pos.b.draft && draft ? (
+          <DraftBlock
+            key={`draft-${draft.key}`}
+            d={draft}
+            pos={pos}
+            start={0}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+        ) : (
+          <Block
+            key={pos.b.id}
+            b={pos.b}
+            pos={pos}
+            start={0}
+            hover={hover}
+            peek={peekId === pos.b.id}
+            dragProps={dragProps}
+          />
+        )
+      )}
+      {laid.more.map((m) => (
+        <MoreChip
+          key={m.key}
+          m={m}
+          onPick={onMore}
+          on={moreKey === m.key}
+          style={{ left: m.left, width: m.width, top: m.at * C2_H + 2 }}
+        />
+      ))}
+      {isToday && nowHour != null ? (
+        <span
+          aria-hidden="true"
+          className="c2-now"
+          style={{ top: nowHour * C2_H }}
+        >
+          <span className="c2-now-dot" />
+        </span>
+      ) : null}
+    </div>
+  );
+});
+
+/** The block a peek is on, looked up fresh so a rename shows. */
+function findBlock(
+  blocks: ReadonlyMap<string, readonly CalTimed[]>,
+  id: string
+) {
+  for (const list of blocks.values()) {
+    const hit = list.find((b) => b.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * The week grid: an endless strip of day columns, all 24 hours, scrolled
+ * sideways a day at a time ($P/calendar2.jsx `WeekView`, then Notion
+ * Calendar's feel).
+ *
+ * One scroller holds both axes; the hour gutter and the day heads stick to
+ * its edges. Columns are placed once with a transform and never move while
+ * the strip scrolls (the browser scrolls them on the compositor); a scroll
+ * handler reads `scrollLeft` once a frame and only when the first visible
+ * day changes does React draw different columns. A scroller that stops
+ * between two days settles onto the nearest one. The grid never calls
+ * `getBoundingClientRect` on scroll, and observes its container once
+ * (PORT.md §8), never a card.
+ */
+export function WeekView({
+  n,
+  initial,
+  blocks,
+  nowHour,
+  today,
+  work,
   projects,
   draft,
   onSlot,
@@ -238,13 +440,25 @@ export function WeekView({
   onRename,
   onDelete,
   dragProps,
+  onFirst,
+  onSettle,
+  handle,
 }: WeekViewProps) {
-  const N = days.length;
-  const hours: number[] = [];
-  for (let h = start; h < end; h++) hours.push(h);
+  /* The strip's index 0 is fixed on the first render: days are counted from
+     here, so a later "today" never shifts a column. */
+  const origin = useRef(initial);
   const scroller = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const [colW, setColW] = useState(0);
+  const colRef = useRef(0);
+  const firstRef = useRef(stripIndex(origin.current, initial));
+  const [first, setFirst] = useState(firstRef.current);
+  const goal = useRef<number | null>(null);
+  const frame = useRef(0);
+  const idle = useRef(0);
+  const pressed = useRef(false);
+  const cbs = useRef({ onFirst, onSettle, onOpen, onSlot, onSave, onCancel });
+  cbs.current = { onFirst, onSettle, onOpen, onSlot, onSave, onCancel };
+
   const [peek, setPeek] = useState<{ id: string; rect: Anchor } | null>(null);
   const last = useRef(peek);
   if (peek) last.current = peek;
@@ -255,14 +469,17 @@ export function WeekView({
   const peekRef = useRef(peek);
   peekRef.current = peek;
 
-  const clear = () => {
+  const clear = useCallback(() => {
     window.clearTimeout(tOpen.current);
     window.clearTimeout(tClose.current);
-  };
-  const show = (b: CalItem, el: HTMLElement) => {
-    clear();
-    setPeek({ id: b.id, rect: anchorOf(el) });
-  };
+  }, []);
+  const show = useCallback(
+    (b: CalItem, el: HTMLElement) => {
+      clear();
+      setPeek({ id: b.id, rect: anchorOf(el) });
+    },
+    [clear]
+  );
   const close = useCallback((refocus: boolean) => {
     window.clearTimeout(tOpen.current);
     window.clearTimeout(tClose.current);
@@ -279,31 +496,35 @@ export function WeekView({
       }
     }
   }, []);
-  const hover: Hover = {
-    open: onOpen,
-    enter: (b, el) => {
-      clear();
-      const cur = peekRef.current;
-      if (cur && cur.id === b.id) return;
-      tOpen.current = window.setTimeout(() => show(b, el), cur ? 120 : 350);
-    },
-    leave: () => {
-      clear();
-      tClose.current = window.setTimeout(() => setPeek(null), 150);
-    },
-    click: (b, el) => show(b, el),
-    focus: (b, el) => {
-      if (quiet.current) return;
-      let fv = false;
-      try {
-        fv = el.matches(":focus-visible");
-      } catch {
-        /* old engines */
-      }
-      if (fv) show(b, el);
-    },
-  };
-  useEffect(() => () => clear(), []);
+  /* One stable object: the columns are memoised on it. */
+  const hover = useMemo<Hover>(
+    () => ({
+      open: (id) => cbs.current.onOpen?.(id),
+      enter: (b, el) => {
+        clear();
+        const cur = peekRef.current;
+        if (cur && cur.id === b.id) return;
+        tOpen.current = window.setTimeout(() => show(b, el), cur ? 120 : 350);
+      },
+      leave: () => {
+        clear();
+        tClose.current = window.setTimeout(() => setPeek(null), 150);
+      },
+      click: (b, el) => show(b, el),
+      focus: (b, el) => {
+        if (quiet.current) return;
+        let fv = false;
+        try {
+          fv = el.matches(":focus-visible");
+        } catch {
+          /* old engines */
+        }
+        if (fv) show(b, el);
+      },
+    }),
+    [clear, show]
+  );
+  useEffect(() => () => clear(), [clear]);
   const peekId = peek?.id ?? null;
   useEffect(() => {
     if (!peekId) return undefined;
@@ -336,28 +557,144 @@ export function WeekView({
       window.removeEventListener("resize", sc);
     };
   }, [peekId, close]);
-  useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = (8.5 - start) * C2_H;
-    // first paint only: paging keeps the person's scroll
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  /* ---- the strip ---- */
+  const place = useCallback((i: number) => {
+    firstRef.current = i;
+    setFirst(i);
+    cbs.current.onFirst?.(stripDate(origin.current, i));
   }, []);
-  /* One ResizeObserver on the grid container (PORT.md §5.3), never one per
-     block; its entry carries the width, so nothing is measured by hand. */
+
+  /* Measure on mount and let the one observer keep it. The first measure also
+     sets the opening position: the day to open on, and now a third down. */
+  const ready = useRef(false);
   useLayoutEffect(() => {
-    const el = gridRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(([entry]) => {
-      const w = Math.max(0, (entry.contentRect.width - GUTTER) / N);
-      setColW((cur) => (Math.abs(cur - w) < 0.5 ? cur : w));
-    });
+    const el = scroller.current;
+    if (!el) return undefined;
+    const apply = (viewport: number) => {
+      const w = columnWidth(viewport, GUTTER, n);
+      if (Math.abs(w - colRef.current) < 0.5) return;
+      colRef.current = w;
+      setColW(w);
+      if (!ready.current) {
+        ready.current = true;
+        el.scrollTop = nowScrollTop(
+          nowHour ?? 8.5,
+          C2_H,
+          el.clientHeight,
+          GRID_H
+        );
+        cbs.current.onFirst?.(stripDate(origin.current, firstRef.current));
+      }
+    };
+    apply(el.clientWidth);
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(([entry]) => apply(entry.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [N]);
+    // nowHour only seeds the first scroll; later minutes must not re-run it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n]);
 
-  const pb =
-    shown && last.current
-      ? (blocks.find((x) => x.id === last.current?.id) ?? null)
-      : null;
+  /* Keep the same first day when the width (or the column count) changes.
+     After the commit: only then is the canvas as wide as `colW` says, and a
+     scroll offset past the old width would be clamped. */
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el || colW <= 0) return;
+    el.style.scrollBehavior = "auto";
+    el.scrollLeft = offsetOf(firstRef.current, colW);
+    el.style.scrollBehavior = "";
+  }, [colW]);
+
+  const settle = useCallback(() => {
+    const el = scroller.current;
+    const w = colRef.current;
+    if (!el || w <= 0) return;
+    if (pressed.current) {
+      idle.current = window.setTimeout(settle, SETTLE_MS);
+      return;
+    }
+    const i = nearestIndex(el.scrollLeft, w);
+    const want = offsetOf(i, w);
+    if (Math.abs(want - el.scrollLeft) > 1.5) {
+      el.scrollTo({ left: want, behavior: calm() ? "auto" : "smooth" });
+      return;
+    }
+    goal.current = null;
+    if (i !== firstRef.current) place(i);
+    cbs.current.onSettle?.(stripDate(origin.current, i));
+  }, [place]);
+
+  const onScroll = useCallback(() => {
+    if (!frame.current)
+      frame.current = window.requestAnimationFrame(() => {
+        frame.current = 0;
+        const el = scroller.current;
+        if (!el || colRef.current <= 0) return;
+        const i = nearestIndex(el.scrollLeft, colRef.current);
+        if (i !== firstRef.current) place(i);
+      });
+    window.clearTimeout(idle.current);
+    idle.current = window.setTimeout(settle, SETTLE_MS);
+  }, [place, settle]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(frame.current);
+      window.clearTimeout(idle.current);
+    },
+    []
+  );
+
+  /* A finger or the scrollbar thumb holds the strip: do not settle under it. */
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return undefined;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === "touch" || e.target === el) pressed.current = true;
+    };
+    const up = () => {
+      if (!pressed.current) return;
+      pressed.current = false;
+      window.clearTimeout(idle.current);
+      idle.current = window.setTimeout(settle, SETTLE_MS);
+    };
+    el.addEventListener("pointerdown", down, { passive: true });
+    window.addEventListener("pointerup", up, { passive: true });
+    window.addEventListener("pointercancel", up, { passive: true });
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [settle]);
+
+  const glideTo = useCallback((i: number) => {
+    const el = scroller.current;
+    const w = colRef.current;
+    if (!el || w <= 0) return;
+    goal.current = i;
+    const plan = glidePlan(nearestIndex(el.scrollLeft, w), i);
+    const quick = calm();
+    if (plan.jumpTo != null || quick) {
+      el.style.scrollBehavior = "auto";
+      el.scrollLeft = offsetOf(plan.jumpTo ?? i, w);
+      el.style.scrollBehavior = "";
+    }
+    if (!quick) el.scrollTo({ left: offsetOf(i, w), behavior: "smooth" });
+  }, []);
+
+  useImperativeHandle(
+    handle,
+    () => ({
+      jump: (days) => glideTo(jumpGoal(goal.current ?? firstRef.current, days)),
+      goTo: (date) => glideTo(stripIndex(origin.current, date)),
+    }),
+    [glideTo]
+  );
+
+  const pb = shown && last.current ? findBlock(blocks, last.current.id) : null;
   const sl = useSlot();
   /* A row in the slot list opens like the block would: a task its dialog,
      an event its peek. */
@@ -370,139 +707,79 @@ export function WeekView({
       setPeek({ id: b.id, rect: r });
     }
   };
-  const cols = `${GUTTER}px repeat(${N}, minmax(0, 1fr))`;
+
+  const range = drawnRange(first, n);
+  const drawn: number[] = [];
+  if (colW > 0) for (let i = range.from; i <= range.to; i++) drawn.push(i);
+  const stable = useMemo(
+    () => ({
+      onSlot: (d: string, at: number) => cbs.current.onSlot(d, at),
+      onSave: (t: string) => cbs.current.onSave(t),
+      onCancel: () => cbs.current.onCancel(),
+    }),
+    []
+  );
 
   return (
-    <div className="c2-week">
-      <div className="c2-week-head" style={{ gridTemplateColumns: cols }}>
-        <span />
-        {days.map((d) => (
-          <div
-            key={d.date}
-            className={`c2-dayhead${d.date === today ? " is-today" : ""}`}
-          >
-            <span className="c2-dayhead-wd">{d.wd}</span>
-            <span className="c2-dayhead-n">{d.n}</span>
-          </div>
-        ))}
-      </div>
-      <div ref={scroller} className="scroll-inner c2-week-scroll">
+    <div className="c2-week" data-c2-strip="">
+      <div ref={scroller} className="c2-wscroll" onScroll={onScroll}>
         <div
-          ref={gridRef}
-          className="c2-week-grid"
-          style={{
-            gridTemplateColumns: cols,
-            height: (end - start) * C2_H,
-          }}
+          className="c2-wcanvas"
+          style={{ width: GUTTER + colW * 2 * STRIP_SPAN }}
         >
-          <div className="c2-rel">
-            {hours.map((h) => (
-              <span
-                key={h}
-                className="c2-hour"
-                style={{ top: (h - start) * C2_H - 7 }}
-              >
-                {h === start ? "" : `${String(h).padStart(2, "0")}:00`}
-              </span>
-            ))}
+          <div className="c2-whead">
+            <span className="c2-wcorner" style={{ width: GUTTER }} />
+            {drawn.map((i) => {
+              const date = stripDate(origin.current, i);
+              const d = calDay(date);
+              return (
+                <div
+                  key={date}
+                  className={`c2-dayhead c2-wheadcell${date === today ? " is-today" : ""}`}
+                  style={{
+                    width: colW,
+                    transform: `translate3d(${GUTTER + i * colW}px,0,0)`,
+                  }}
+                >
+                  <span className="c2-dayhead-wd">{d.wd}</span>
+                  <span className="c2-dayhead-n">{d.n}</span>
+                </div>
+              );
+            })}
           </div>
-          {days.map((d) => {
-            const mine: CalTimed[] = blocks.filter((b) => b.date === d.date);
-            if (draft && draft.date === d.date)
-              mine.push({
-                id: "__draft",
-                date: d.date,
-                at: draft.at,
-                len: 60,
-                title: "",
-                draft: true,
-                entry: {
-                  kind: "event",
-                  id: "__draft",
-                  title: "",
-                  startAt: "",
-                  endAt: "",
-                },
-              } as DraftBlock);
-            const laid = c2Place(mine, colW, C2_CAP);
-            return (
-              /* Each day column is a drop target (data-drop="timeline"): a
-                 task dropped here takes this day and the 15-min slot under
-                 the hand; its new block (data-drag-id) is where it lands. */
-              <div
-                key={d.date}
-                data-c2-day={d.date}
-                data-drop="timeline"
-                data-date={d.date}
-                data-start={start}
-                data-hour-h={C2_H}
-                data-offset="0"
-                onClick={(e) => {
-                  if ((e.target as Element).closest("[data-c2-block]")) return;
-                  const y =
-                    e.clientY - e.currentTarget.getBoundingClientRect().top;
-                  onSlot(d.date, slotAt(y, start, end));
-                }}
-                className={`c2-daycol${d.date === today ? " is-today" : d.weekend ? " is-weekend" : ""}`}
-              >
-                {hours.map((h) => (
-                  <span
-                    key={h}
-                    aria-hidden="true"
-                    className="c2-hline"
-                    style={{ top: (h - start) * C2_H }}
-                  />
-                ))}
-                {laid.placed.map((pos) =>
-                  pos.b.draft && draft ? (
-                    <DraftBlock
-                      key={`draft-${draft.key}`}
-                      d={draft}
-                      pos={pos}
-                      start={start}
-                      onSave={onSave}
-                      onCancel={onCancel}
-                    />
-                  ) : (
-                    <Block
-                      key={pos.b.id}
-                      b={pos.b}
-                      pos={pos}
-                      start={start}
-                      hover={hover}
-                      peek={!!peek && peek.id === pos.b.id}
-                      dragProps={dragProps}
-                    />
-                  )
-                )}
-                {laid.more.map((m) => (
-                  <MoreChip
-                    key={m.key}
-                    m={m}
-                    onPick={sl.open}
-                    on={!!sl.slot && !sl.leaving && sl.slot.m.key === m.key}
-                    style={{
-                      left: m.left,
-                      width: m.width,
-                      top: (m.at - start) * C2_H + 2,
-                    }}
-                  />
-                ))}
-                {d.date === today &&
-                nowHour != null &&
-                nowHour >= start &&
-                nowHour <= end ? (
-                  <span
-                    aria-hidden="true"
-                    className="c2-now"
-                    style={{ top: (nowHour - start) * C2_H }}
-                  >
-                    <span className="c2-now-dot" />
-                  </span>
-                ) : null}
-              </div>
-            );
-          })}
+          <div className="c2-wgrid" style={{ height: GRID_H }}>
+            <div className="c2-whours" style={{ width: GUTTER }}>
+              {HOURS.map((h) => (
+                <span key={h} className="c2-hour" style={{ top: h * C2_H - 7 }}>
+                  {h === 0 ? "" : `${String(h).padStart(2, "0")}:00`}
+                </span>
+              ))}
+            </div>
+            {drawn.map((i) => {
+              const date = stripDate(origin.current, i);
+              return (
+                <DayColumn
+                  key={date}
+                  date={date}
+                  x={GUTTER + i * colW}
+                  w={colW}
+                  isToday={date === today}
+                  mine={blocks.get(date) ?? NONE}
+                  draft={draft && draft.date === date ? draft : null}
+                  nowHour={date === today ? nowHour : null}
+                  work={work}
+                  peekId={peekId}
+                  hover={hover}
+                  dragProps={dragProps}
+                  onSlot={stable.onSlot}
+                  onSave={stable.onSave}
+                  onCancel={stable.onCancel}
+                  onMore={sl.open}
+                  moreKey={sl.slot && !sl.leaving ? sl.slot.m.key : null}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
       {sl.slot ? (

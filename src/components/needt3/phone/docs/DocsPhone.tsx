@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -8,31 +8,43 @@ import {
   LuArrowDown,
   LuArrowUp,
   LuCheck,
+  LuCopy,
+  LuDownload,
   LuEllipsis,
   LuFileText,
+  LuFolderInput,
   LuLayoutTemplate,
   LuLink,
+  LuPencil,
   LuPlus,
+  LuPrinter,
   LuSearch,
+  LuShare2,
   LuStar,
   LuTrash2,
   LuX,
 } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
-import { useDocs, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
+import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
-import { notify } from "@/lib/notifications";
 
 import { useDocTokens } from "../../docs/DocParts";
 import { ageLabel } from "../../docs/labels";
+import { type DocActionId, docActions } from "../../docs/menu-model";
 import {
   DOC_SORTS,
   type DocSortKey,
   dirLabel,
   sortDocs,
 } from "../../docs/sort";
+import {
+  docHref,
+  downloadMarkdown,
+  pdfHref,
+  useDocActions,
+} from "../../docs/useDocActions";
 import type { DocsController } from "../../docs/useDocsController";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { StSkeleton } from "../../states/StSkeleton";
@@ -43,39 +55,10 @@ import { PkScreen } from "../kit/Screen";
 import { snack } from "../overlays/snack";
 import { usePhoneCover } from "../shell/cover";
 import { DocCard } from "./DocCard";
+import { MoveSheet, RenameSheet } from "./DocSheets";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
+import { ShareSheetPhone } from "./ShareSheetPhone";
 import { docsSub, matchDocs, pullHits } from "./logic";
-
-const docHref = (id: string) => `/pages/${encodeURIComponent(id)}`;
-
-/**
- * Pin / unpin, Delete (to Trash) and Copy link, each with the desktop's words
- * and an Undo in the snack. (Duplicate and Move to… are not offered: the
- * desktop port has no flow for them yet, see the handoff.)
- */
-function useDocActions() {
-  const update = useUpdateDoc();
-  const trash = useTrashDoc();
-  return {
-    pin: (d: V3Doc) =>
-      void update
-        .mutateAsync({ id: d.id, patch: { isFavorite: !d.isFavorite } })
-        .then(({ undo }) => snack(d.isFavorite ? "Unpinned" : "Pinned", undo))
-        .catch(() => undefined),
-    trash: (d: V3Doc) =>
-      void trash
-        .mutateAsync({ id: d.id, trashed: true })
-        .then(({ undo }) =>
-          snack(`“${d.title || "Untitled"}” moved to Trash`, undo)
-        )
-        .catch(() => undefined),
-    copyLink: (d: V3Doc) =>
-      void navigator.clipboard
-        ?.writeText(window.location.origin + docHref(d.id))
-        .then(() => snack("Link copied"))
-        .catch(() => notify.error("Could not copy the link.")),
-  };
-}
 
 /**
  * Docs on the phone (phone-docs.jsx `PdDocs` 1588): the large "Docs" title,
@@ -89,7 +72,7 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
   const query = useDocs();
   const projects = useProjects();
   const read = useDocTokens();
-  const act = useDocActions();
+  const act = useDocActions(snack);
   // The sort, Quick Open words and the create guard live above the face
   // switch (useDocsController); the stored sort is read after mount and again
   // whenever this face comes back.
@@ -97,10 +80,18 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
   useEffect(() => refreshSort(), [refreshSort]);
   const [menu, setMenu] = useState(false);
   const [held, setHeld] = useState<V3Doc | null>(null);
+  // The sheets a row of the long-press menu opens next.
+  const [renaming, setRenaming] = useState<V3Doc | null>(null);
+  const [moving, setMoving] = useState<V3Doc | null>(null);
+  const [sharing, setSharing] = useState<V3Doc | null>(null);
+  // Kept after it closes so the sheet can slide away over its own page.
+  const lastShared = useRef<V3Doc | null>(null);
+  if (sharing) lastShared.current = sharing;
+  const shareDoc = sharing ?? lastShared.current;
   const now = newDate().getTime();
 
   // The menu and the sheet cover the screen: menu A steps down while they are up.
-  usePhoneCover(menu || !!held);
+  usePhoneCover(menu || !!held || !!renaming || !!moving || !!sharing);
 
   const mine = useMemo(
     () => (query.data ?? []).filter((d) => !d.trashedAt),
@@ -143,36 +134,75 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
     }),
   ];
 
+  const ACTION_VIEW: Record<
+    DocActionId,
+    { icon: ReactNode; hue?: string; run: (d: V3Doc) => void }
+  > = {
+    open: {
+      icon: <LuFileText size={18} aria-hidden />,
+      hue: "var(--success)",
+      run: (d) => open(d.id),
+    },
+    "open-new-tab": { icon: null, run: () => undefined },
+    rename: {
+      icon: <LuPencil size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: setRenaming,
+    },
+    move: {
+      icon: <LuFolderInput size={18} aria-hidden />,
+      hue: "var(--pk-violet)",
+      run: setMoving,
+    },
+    pin: {
+      icon: <LuStar size={18} aria-hidden />,
+      hue: "var(--pk-violet)",
+      run: act.pin,
+    },
+    duplicate: {
+      icon: <LuCopy size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: act.duplicate,
+    },
+    share: {
+      icon: <LuShare2 size={18} aria-hidden />,
+      hue: "var(--success)",
+      run: setSharing,
+    },
+    "copy-link": {
+      icon: <LuLink size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: act.copyLink,
+    },
+    "export-md": {
+      icon: <LuDownload size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: (d) => downloadMarkdown(d.id),
+    },
+    "export-pdf": {
+      icon: <LuPrinter size={18} aria-hidden />,
+      hue: "var(--info)",
+      run: (d) => router.push(pdfHref(d.id)),
+    },
+    trash: {
+      icon: <LuTrash2 size={18} aria-hidden />,
+      run: act.trash,
+    },
+  };
   const acts: PkActs | null = held
     ? {
         title: held.title || "Untitled",
         meta: ageLabel(held.updatedAt, now) || null,
-        actions: [
-          {
-            label: "Open",
-            icon: <LuFileText size={18} aria-hidden />,
-            hue: "var(--success)",
-            onClick: () => open(held.id),
-          },
-          {
-            label: held.isFavorite ? "Unpin" : "Pin",
-            icon: <LuStar size={18} aria-hidden />,
-            hue: "var(--pk-violet)",
-            onClick: () => act.pin(held),
-          },
-          {
-            label: "Copy link",
-            icon: <LuLink size={18} aria-hidden />,
-            hue: "var(--info)",
-            onClick: () => act.copyLink(held),
-          },
-          {
-            label: "Delete",
-            icon: <LuTrash2 size={18} aria-hidden />,
-            danger: true,
-            onClick: () => act.trash(held),
-          },
-        ],
+        actions: docActions(held, { phone: true, canExport: true }).map(
+          (spec) => ({
+            label: spec.label,
+            icon: ACTION_VIEW[spec.id].icon,
+            hue: ACTION_VIEW[spec.id].hue,
+            danger: spec.danger,
+            data: { "data-pd-act": spec.id },
+            onClick: () => ACTION_VIEW[spec.id].run(held),
+          })
+        ),
       }
     : null;
 
@@ -315,6 +345,24 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
         label="Sort documents"
       />
       <PkActions acts={acts} onClose={() => setHeld(null)} />
+      <RenameSheet
+        doc={renaming}
+        onSave={act.rename}
+        onClose={() => setRenaming(null)}
+      />
+      <MoveSheet
+        doc={moving}
+        projects={projects.data ?? []}
+        onPick={act.moveTo}
+        onClose={() => setMoving(null)}
+      />
+      {shareDoc ? (
+        <ShareSheetPhone
+          doc={shareDoc}
+          open={!!sharing}
+          onClose={() => setSharing(null)}
+        />
+      ) : null}
     </div>
   );
 }
