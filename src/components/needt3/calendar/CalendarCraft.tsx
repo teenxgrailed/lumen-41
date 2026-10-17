@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -9,6 +9,7 @@ import { LuPlus } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { addDays, addMinutes, hhmm, hourOf, stamp } from "@/lib/needt3/derive";
+import { useSchedule } from "@/lib/needt3/hooks/account";
 import {
   useCalendars,
   useCreateEvent,
@@ -35,14 +36,16 @@ import { useDesignV3 } from "../root/V3Root";
 import { StScreen } from "../states/StScreen";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
-import { WeekView } from "./WeekView";
+import { type WeekHandle, WeekView } from "./WeekView";
 import {
   type CalItem,
+  type CalTimed,
   calendarItems,
   canEditEvent,
   hideDoneTitle,
 } from "./blocks";
-import { daySpan, freeSlot, hourBounds, spanLabel, weekStart } from "./layout";
+import { daySpan, freeSlot, spanLabel, weekStart } from "./layout";
+import { workHoursOf } from "./strip";
 
 type View = "week" | "days";
 /** Under this width the week grid shows three days (tablet, 07.10.26). */
@@ -152,18 +155,22 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   /* What is on screen: a week (or three days from a day when narrow) and the
      Agenda's own span, both paged. */
   const thisWeek = weekStart(today, weekStartDay);
-  const weekDays = narrow
-    ? daySpan(narrowFrom ?? today, 3)
-    : daySpan(weekFrom ?? thisWeek, 7);
   const agendaDays = daySpan(agendaFrom ?? today, n);
-  const days = view === "week" ? weekDays : agendaDays;
-  const range = {
-    from: days[0].date,
-    to: addDays(days[days.length - 1].date, 1),
-  };
+  /* The Week is an endless strip (WeekView): it opens on the saved day, else
+     this week (today when narrow), and reports the first day in view as it
+     scrolls so the header can say which days those are. */
+  const weekHandle = useRef<WeekHandle>(null);
+  const weekOpen = narrow ? (narrowFrom ?? today) : (weekFrom ?? thisWeek);
+  const [seen, setSeen] = useState<string | null>(null);
+  const stripN = narrow ? 3 : 7;
+  const weekDays = daySpan(seen ?? weekOpen, stripN);
 
   const tasksQuery = useTasks();
-  const eventsQuery = useEvents(range);
+  // `GET /api/events` has no range filter: the whole list is read once and
+  // each day's blocks are cut from it in memory, so scrolling never refetches.
+  const eventsQuery = useEvents();
+  const schedule = useSchedule().data;
+  const work = useMemo(() => workHoursOf(schedule), [schedule]);
   const projects = useProjects().data;
   const calendars = useCalendars().data;
   const calendarNames = useMemo(
@@ -195,9 +202,17 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       hideDone,
     ]
   );
-  const shownDays = new Set(days.map((d) => d.date));
+  const byDate = useMemo(() => {
+    const m = new Map<string, CalTimed[]>();
+    for (const b of timed) {
+      const list = m.get(b.date);
+      if (list) list.push(b);
+      else m.set(b.date, [b]);
+    }
+    return m;
+  }, [timed]);
+  const shownDays = new Set(agendaDays.map((d) => d.date));
   const visible = timed.filter((b) => shownDays.has(b.date));
-  const bounds = hourBounds(visible);
 
   const toggle = useToggleTask();
   const updateEvent = useUpdateEvent();
@@ -262,16 +277,18 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     setViewLocal("week");
     setWeekFrom(null);
     setNarrowFrom(null);
+    weekHandle.current?.goTo(narrow ? today : thisWeek);
     setDraft({
       date: today,
-      at: freeSlot(timed, today, hour, bounds.end),
+      at: freeSlot(timed, today, hour, 24),
       key: newDate().getTime(),
     });
   }, [
     today,
+    thisWeek,
+    narrow,
     timed,
     hour,
-    bounds.end,
     setViewLocal,
     setWeekFrom,
     setNarrowFrom,
@@ -291,14 +308,16 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       setAgendaFrom(addDays(agendaDays[0].date, dir * n));
       return;
     }
-    if (narrow) setNarrowFrom(addDays(weekDays[0].date, dir * 3));
-    else setWeekFrom(addDays(weekDays[0].date, dir * 7));
+    weekHandle.current?.jump(dir * stripN);
   };
   const goToday = () => {
     setWeekFrom(null);
     setNarrowFrom(null);
     setAgendaFrom(null);
+    weekHandle.current?.goTo(narrow ? today : thisWeek);
   };
+  const settled = (date: string) =>
+    narrow ? setNarrowFrom(date) : setWeekFrom(date);
 
   const carried = drag?.drag
     ? (tasksQuery.data ?? []).find((t) => t.id === drag.drag?.item.id)
@@ -428,12 +447,15 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
         <div key={view} className="nx-swap c2-body">
           {view === "week" ? (
             <WeekView
-              days={weekDays}
-              blocks={visible}
+              handle={weekHandle}
+              n={stripN}
+              initial={weekOpen}
+              blocks={byDate}
               today={today}
               nowHour={hour}
-              start={bounds.start}
-              end={bounds.end}
+              work={work}
+              onFirst={setSeen}
+              onSettle={settled}
               projects={projects}
               draft={draft}
               onSlot={onSlot}
