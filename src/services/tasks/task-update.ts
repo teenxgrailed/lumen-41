@@ -7,6 +7,7 @@ import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import { deadlineForPatch } from "@/services/tasks/deadline";
 import { checkBlocker } from "@/services/tasks/subtasks";
 import {
   checkLabelsAndHours,
@@ -44,6 +45,11 @@ export interface TaskFieldPatch {
   title?: string;
   description?: string | null;
   dueDate?: Date | null;
+  /**
+   * The hard date the scheduler must beat. When omitted, a changed `dueDate`
+   * moves it along if the two were equal before.
+   */
+  deadline?: Date | null;
   estimatedMinutes?: number | null;
   priorityLevel?: SchedulingTaskPriority;
   /** "No priority" (the legacy `priority` column reads "none"). */
@@ -159,6 +165,8 @@ export async function updateTaskFields(input: {
       sanitizeTaskDescriptionForStorage(patch.description) ?? null;
   }
   if (patch.dueDate !== undefined) updates.dueDate = patch.dueDate;
+  const nextDeadline = deadlineForPatch(task, patch);
+  if (nextDeadline !== undefined) updates.deadline = nextDeadline;
   if (patch.estimatedMinutes !== undefined) {
     updates.estimatedMinutes = patch.estimatedMinutes;
     updates.duration = patch.estimatedMinutes;
