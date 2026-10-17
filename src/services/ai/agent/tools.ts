@@ -1,6 +1,19 @@
 import { planMyDay } from "@/services/ai/plan-day";
+import {
+  RETRIEVAL_TYPES,
+  type RetrievalType,
+  fetchObject,
+  hrefFor,
+  searchData,
+} from "@/services/ai/retrieval";
 import { OpError, runOp } from "@/services/ops";
+import {
+  nextDayKey,
+  startOfZonedDay,
+  userTimeZone,
+} from "@/services/ops/helpers";
 import type { PageActor } from "@/services/pages/page-service";
+import { WorkspaceKind } from "@prisma/client";
 import { z } from "zod";
 
 import {
@@ -674,6 +687,120 @@ async function listHabits(ctx: AgentToolContext) {
 
 const READ_TOOLS: AgentTool[] = [
   {
+    name: "search",
+    kind: "read",
+    progress: "Searching your data",
+    description:
+      "Search everything the user keeps by text: tasks, projects, calendar events, pages (titles and text), habits, moodboards and mail (sender, subject, date only). Returns type, id, title, a snippet and a link per hit. Search first, then call get for the one or two you need. Use list_tasks or list_events to browse by status or date instead.",
+    schema: z
+      .object({
+        query: z.string().min(1).max(200),
+        types: z.array(z.enum(RETRIEVAL_TYPES)).max(7).optional(),
+        limit: z.number().int().min(1).max(15).optional(),
+      })
+      .strict(),
+    async run(ctx, args) {
+      const hits = await searchData({
+        userId: ctx.userId,
+        workspace: ctx.workspace,
+        query: String(args.query),
+        types: args.types as RetrievalType[] | undefined,
+        limit: args.limit as number | undefined,
+      });
+      return {
+        ok: true,
+        summary: `Found ${hits.length} ${hits.length === 1 ? "match" : "matches"}`,
+        modelText: modelJson({ hits }),
+        changed: false,
+      };
+    },
+  },
+  {
+    name: "get",
+    kind: "read",
+    progress: "Reading",
+    description:
+      "Read one object by type and id (from search or a list): a task with its subtasks, a project, an event, a page with its text, a habit, a moodboard, or a mail message's metadata. Mail bodies are read with get_message.",
+    schema: z
+      .object({ type: z.enum(RETRIEVAL_TYPES), id: z.string().min(1) })
+      .strict(),
+    async run(ctx, args) {
+      const found = await fetchObject({
+        userId: ctx.userId,
+        workspace: ctx.workspace,
+        type: args.type as RetrievalType,
+        id: String(args.id),
+      });
+      if (!found) return failure(`${String(args.type)} not found.`);
+      return {
+        ok: true,
+        summary: `Read ${quote(found.title)}`,
+        modelText: modelJson({ ...found.data, href: found.href }),
+        sources: [
+          {
+            type: found.type,
+            id: found.id,
+            title: found.title,
+            href: found.href,
+          },
+        ],
+        changed: false,
+      };
+    },
+  },
+  {
+    name: "list_events",
+    kind: "read",
+    progress: "Looking at your calendar",
+    description:
+      "Calendar events between two dates (inclusive, YYYY-MM-DD, the user's time zone), oldest first. Personal workspace only.",
+    schema: z.object({ from: day, to: day }).strict(),
+    async run(ctx, args) {
+      if (ctx.workspace.workspaceKind !== WorkspaceKind.PERSONAL) {
+        return failure("Calendar events are personal.");
+      }
+      const timeZone = await userTimeZone(prisma, ctx.userId);
+      const start = startOfZonedDay(String(args.from), timeZone);
+      const end = startOfZonedDay(nextDayKey(String(args.to)), timeZone);
+      if (end <= start) return failure("`to` must not be before `from`.");
+      const events = await prisma.calendarEvent.findMany({
+        where: {
+          archivedAt: null,
+          feed: { userId: ctx.userId, enabled: true },
+          start: { lt: end },
+          end: { gt: start },
+        },
+        orderBy: { start: "asc" },
+        take: 50,
+        select: {
+          id: true,
+          title: true,
+          start: true,
+          end: true,
+          allDay: true,
+          location: true,
+        },
+      });
+      return {
+        ok: true,
+        summary: `Read ${events.length} ${events.length === 1 ? "event" : "events"}`,
+        modelText: modelJson({
+          timeZone,
+          events: events.map((event) => ({
+            id: event.id,
+            title: event.title,
+            start: event.start.toISOString(),
+            end: event.end.toISOString(),
+            allDay: event.allDay || undefined,
+            location: event.location ?? undefined,
+            href: hrefFor("event", event.id),
+          })),
+        }),
+        changed: false,
+      };
+    },
+  },
+  {
     name: "list_tasks",
     kind: "read",
     progress: "Looking at your tasks",
@@ -700,12 +827,6 @@ const READ_TOOLS: AgentTool[] = [
         ok: true,
         summary: `Read ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`,
         modelText: modelJson({ tasks }),
-        sources: tasks.map((task) => ({
-          type: "task",
-          id: task.id,
-          title: task.title,
-          href: task.href ?? `/tasks?taskId=${task.id}`,
-        })),
         changed: false,
       };
     },
@@ -743,12 +864,6 @@ const READ_TOOLS: AgentTool[] = [
         ok: true,
         summary: `Read ${habits.length} habits`,
         modelText: modelJson({ habits }),
-        sources: habits.map((habit) => ({
-          type: "habit",
-          id: habit.id,
-          title: habit.title,
-          href: "/habits",
-        })),
         changed: false,
       };
     },
