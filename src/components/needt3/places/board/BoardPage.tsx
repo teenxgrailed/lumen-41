@@ -22,6 +22,7 @@ import {
 } from "react-icons/lu";
 
 import { ProBadge } from "@/components/needt3/paywall/Pro";
+import { openPaywall } from "@/components/needt3/paywall/store";
 
 import {
   type V3BoardItem,
@@ -29,6 +30,8 @@ import {
   useBoardItems,
   useBoards,
 } from "@/lib/needt3/hooks/boards";
+import { useCatalog } from "@/lib/needt3/hooks/catalog";
+import { usePinterestStatus } from "@/lib/needt3/hooks/pinterest";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { notify } from "@/lib/notifications";
 
@@ -42,6 +45,7 @@ import { mergeQueries } from "../query";
 import type { BoardsController } from "../useBoardsController";
 import { AddDialogs } from "./AddDialogs";
 import { Detail } from "./Detail";
+import { PinterestDialog } from "./PinterestDialog";
 import { ShareDialog } from "./ShareDialog";
 import { copyText, openUrl } from "./clipboard";
 import {
@@ -50,10 +54,10 @@ import {
   isFieldTarget,
   isFigma,
   isPrivateBoard,
-  isWebUrl,
   personName,
   referencesLabel,
   sourceLabel,
+  sourceUrlOf,
 } from "./logic";
 import { Avatars, FavBadge, Visual } from "./parts";
 
@@ -149,11 +153,11 @@ function Card({
       title: it.kind === "note" || it.text ? "Edit note" : "Add a note",
       onClick: () => onEditNote(it.id),
     },
-    isWebUrl(it.url)
+    sourceUrlOf(it)
       ? {
           art: "page",
           title: "Copy link",
-          onClick: () => void copyText(it.url as string),
+          onClick: () => void copyText(sourceUrlOf(it) as string),
         }
       : it.kind === "color" && it.color
         ? {
@@ -191,13 +195,13 @@ function Card({
         <span className="mb-bar" onClick={(e) => e.stopPropagation()}>
           {it.kind === "link" ? <FavBadge it={it} size={14} /> : null}
           <span className="pl-pinterest-section-el-3">{sourceLabel(it)}</span>
-          {isWebUrl(it.url) ? (
+          {sourceUrlOf(it) ? (
             <button
               type="button"
               aria-label={`Open ${sourceLabel(it)}`}
               title={isFigma(it) ? "Opens in Figma" : "Open source"}
               className="mb-bar-btn"
-              onClick={() => openUrl(it.url as string)}
+              onClick={() => openUrl(sourceUrlOf(it) as string)}
             >
               <LuArrowUpRight size={13} aria-hidden />
             </button>
@@ -272,6 +276,8 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
   const board = useBoard(id);
   const itemsQuery = useBoardItems(id);
   const tz = useTimeZone();
+  const pinterest = usePinterestStatus();
+  const catalog = useCatalog();
   const fileInput = useRef<HTMLInputElement>(null);
   const [dropOn, setDropOn] = useState(false);
   const depth = useRef(0);
@@ -382,6 +388,34 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
     },
   });
   const pickImages = () => fileInput.current?.click();
+  // Pinterest (Pro): not set up on this server -> only an admin sees a hint;
+  // Free -> the paywall; otherwise the import dialog.
+  const pin = pinterest.data;
+  const linked = b?.pinterestBoardId ?? null;
+  const pinterestRows: RichMenuItem[] =
+    !pin || (!pin.configured && !catalog.data?.isAdmin)
+      ? []
+      : [
+          { sep: true },
+          !pin.configured
+            ? {
+                art: "stack",
+                title: "Import from Pinterest",
+                badge: <span className="pl-meta">Not set up</span>,
+                disabled: true,
+              }
+            : {
+                art: "stack",
+                title: linked
+                  ? "Change Pinterest board"
+                  : "Import from Pinterest",
+                badge: <ProBadge size="sm" locked={!pin.pro} />,
+                onClick: () =>
+                  pin.pro
+                    ? ctl.openSheet("pinterest")
+                    : openPaywall("Pinterest boards"),
+              },
+        ];
   const addItems: RichMenuItem[] = [
     { art: "import", title: "Upload images", onClick: pickImages },
     {
@@ -393,18 +427,7 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
     { art: "tune", title: "Colour", onClick: () => ctl.openSheet("colour") },
     { art: "doc", title: "Note", onClick: () => ctl.openSheet("note") },
     { sep: true },
-    // Pinterest has no connection behind it: the row says so and does nothing.
-    {
-      art: "stack",
-      title: "Connect Pinterest board",
-      badge: (
-        <>
-          <ProBadge size="sm" />
-          <span className="pl-meta">Coming soon</span>
-        </>
-      ),
-      disabled: true,
-    },
+    ...pinterestRows,
   ];
 
   const query = mergeQueries([board, itemsQuery]);
@@ -670,6 +693,13 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
         onLink={(url) => ctl.addLink(id, url)}
         onColour={(hex, name) => ctl.addColour(id, hex, name)}
         onNote={(text) => ctl.addNote(id, text)}
+      />
+      <PinterestDialog
+        open={ctl.sheet === "pinterest"}
+        moodboardId={id}
+        linkedBoardId={linked}
+        syncing={!!b?.pinterestSync}
+        onClose={ctl.closeSheet}
       />
       <ShareDialog
         boardId={id}

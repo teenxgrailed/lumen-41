@@ -30,6 +30,8 @@ const mockInfo = jest.fn();
 let mockRole: string;
 let mockItems: unknown[];
 let mockAccess: Record<string, unknown>;
+let mockPin: Record<string, unknown> | undefined;
+let mockAdmin = false;
 
 const query = (data: unknown) => ({
   data,
@@ -80,6 +82,20 @@ jest.mock("@/lib/needt3/hooks/board-share", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => query({ kind: "monthly" }),
+}));
+jest.mock("@/lib/needt3/hooks/pinterest", () => ({
+  usePinterestStatus: () => query(mockPin),
+  usePinterestBoards: () => query([]),
+  usePinterestImport: () => ({
+    importBoard: jest.fn(),
+    setKeepInSync: jest.fn(),
+  }),
+  pinterestFailure: () => ({ kind: "other", message: "x" }),
+  connectPinterest: jest.fn(),
+}));
+jest.mock("@/lib/needt3/hooks/catalog", () => ({
+  useCatalog: () =>
+    query({ isAdmin: mockAdmin, catalog: [], integrations: [] }),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
@@ -175,6 +191,14 @@ function paste(
 }
 
 beforeEach(() => {
+  mockPin = {
+    configured: true,
+    pro: true,
+    connected: false,
+    needsReconnect: false,
+    username: null,
+  };
+  mockAdmin = false;
   jest.useFakeTimers();
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RO;
   Object.defineProperty(window, "matchMedia", {
@@ -235,28 +259,43 @@ afterEach(() => {
 });
 
 describe("the wall", () => {
-  it("draws every reference, with Add for an editor and the Pinterest row as Coming soon", async () => {
+  async function addMenuText() {
     mount();
-    expect(q('[data-id="a"]')).not.toBeNull();
-    expect(q('[data-id="c"]')).not.toBeNull();
     act(() => {
       q(".mb-add")?.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
       );
     });
     await flush();
-    const text = doc("[role=menu]")?.textContent ?? "";
+    return doc("[role=menu]")?.textContent ?? "";
+  }
+
+  it("draws every reference, with Add for an editor and a working Pinterest import row", async () => {
+    const text = await addMenuText();
+    expect(q('[data-id="a"]')).not.toBeNull();
+    expect(q('[data-id="c"]')).not.toBeNull();
     expect(text).toContain("Upload images");
     expect(text).toContain("Paste a link");
-    expect(text).toContain("Connect Pinterest board");
+    expect(text).toContain("Import from Pinterest");
     expect(text).toContain("PRO");
-    expect(text).toContain("Coming soon");
+    expect(text).not.toContain("Coming soon");
     const row = [...document.querySelectorAll("[role=menuitem]")].find((e) =>
       e.textContent?.includes("Pinterest")
     );
-    expect(
-      row?.getAttribute("aria-disabled") ?? row?.getAttribute("data-disabled")
-    ).not.toBeNull();
+    expect(row?.getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  it("hides the Pinterest row where the server has no Pinterest app", async () => {
+    mockPin = { ...mockPin, configured: false };
+    expect(await addMenuText()).not.toContain("Pinterest");
+  });
+
+  it("tells an admin Pinterest needs credentials, disabled", async () => {
+    mockPin = { ...mockPin, configured: false };
+    mockAdmin = true;
+    const text = await addMenuText();
+    expect(text).toContain("Import from Pinterest");
+    expect(text).toContain("Not set up");
   });
 
   it("a viewer reads: no Add, no menus, nothing draggable", () => {

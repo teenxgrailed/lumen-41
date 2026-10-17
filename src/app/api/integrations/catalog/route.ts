@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       select: { role: true },
     });
     const isAdmin = viewer?.role === "admin";
-    const [catalog, connections] = await Promise.all([
+    const [catalog, connections, pinterest] = await Promise.all([
       getIntegrationCatalog({ admin: isAdmin }),
       prisma.externalIntegration.findMany({
         where: { userId: auth.userId },
@@ -29,7 +29,21 @@ export async function GET(request: NextRequest) {
           externalConnectionId: true,
         },
       }),
+      prisma.pinterestConnection.findUnique({
+        where: { userId: auth.userId },
+        select: { id: true, status: true },
+      }),
     ]);
+    // Pinterest keeps its own grant; the card reads it as one more connection.
+    if (pinterest) {
+      connections.push({
+        id: pinterest.id,
+        provider: "pinterest",
+        toolkit: "pinterest",
+        status: pinterest.status === "CONNECTED" ? "CONNECTED" : "ERROR",
+        externalConnectionId: pinterest.id,
+      });
+    }
     return NextResponse.json({ catalog, connections, isAdmin });
   } catch (error) {
     return routeErrorResponse(

@@ -69,6 +69,7 @@ export function AddSheet({
   onClose,
   onSave,
   onPhoto,
+  pinterest,
 }: {
   ask: AddAsk | null;
   saving: boolean;
@@ -77,6 +78,11 @@ export function AddSheet({
   onSave: () => void;
   /** Opens the file picker (it must run inside the tap) and closes the sheet. */
   onPhoto: () => void;
+  /**
+   * The Pinterest row: absent (not set up, nobody to tell), "unset" (an admin
+   * is told it needs credentials), "locked" (Free: the paywall) or "ready".
+   */
+  pinterest?: { mode: "unset" | "locked" | "ready"; onPick: () => void };
 }) {
   /* The last ask stays drawn while the sheet slides away. */
   const last = useRef<AddAsk | null>(null);
@@ -160,27 +166,33 @@ export function AddSheet({
               </span>
             </PkGlass>
           ))}
-          {/* Pinterest has no connection behind it yet: the row says so. */}
-          <PkGlass
-            as="button"
-            className="phb-kind"
-            role="menuitem"
-            aria-disabled="true"
-            disabled
-            data-phb-kind="pinterest"
-          >
-            <PkHueTile
-              icon={<LuLink size={20} aria-hidden />}
-              hue="var(--brand-pinterest)"
-              size={44}
-            />
-            <span className="phb-kind-text">
-              <span className="phb-kind-label">
-                Pinterest <ProBadge size="sm" />
+          {pinterest ? (
+            <PkGlass
+              as="button"
+              className="phb-kind"
+              role="menuitem"
+              disabled={pinterest.mode === "unset"}
+              onClick={pinterest.onPick}
+              data-phb-kind="pinterest"
+            >
+              <PkHueTile
+                icon={<LuLink size={20} aria-hidden />}
+                hue="var(--brand-pinterest)"
+                size={44}
+              />
+              <span className="phb-kind-text">
+                <span className="phb-kind-label">
+                  Pinterest{" "}
+                  <ProBadge size="sm" locked={pinterest.mode === "locked"} />
+                </span>
+                <span className="phb-kind-hint">
+                  {pinterest.mode === "unset"
+                    ? "Not set up on this server"
+                    : "Import a board’s Pins"}
+                </span>
               </span>
-              <span className="phb-kind-hint">Coming soon</span>
-            </span>
-          </PkGlass>
+            </PkGlass>
+          ) : null}
         </div>
       ) : a.step === "link" ? (
         <div className="phb-form">

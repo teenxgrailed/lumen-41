@@ -161,6 +161,7 @@ model User {
   pageFormSubmissions    PageFormSubmission[]
   bugReports             BugReport[]
   externalIntegrations   ExternalIntegration[]
+  pinterestConnection    PinterestConnection?
   schedulingRuns         SchedulingRun[]
   idempotencyRecords     IdempotencyRecord[]
   creemWebhookEvents     CreemWebhookEvent[]
@@ -1805,6 +1806,12 @@ model Moodboard {
   pinterestBoardId   String?
   pinterestStatus    String?
   pinterestSyncedAt  DateTime?
+  /// "Keep in sync": the daily worker pass appends new Pins; it never deletes.
+  pinterestSync          Boolean                      @default(false)
+  /// Whose Pinterest grant the sync reads with.
+  pinterestConnectedById String?
+  /// Pin ids already imported, so a Pin the person removed is not added back.
+  pinterestSeen          String[]                     @default([])
   trashedAt          DateTime?
   items              MoodboardItem[]
   assets             MoodboardAsset[]
@@ -1948,6 +1955,24 @@ model ExternalIntegration {
 
   @@unique([userId, provider, toolkit, externalConnectionId], map: "ExternalIntegration_userId_provider_toolkit_externalConnectionI")
   @@index([userId, provider, status])
+}
+
+/// A person's Pinterest grant (boards:read, pins:read). One per user. Both
+/// tokens are stored encrypted (enc:v1); the refresh token is continuous.
+model PinterestConnection {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username         String?
+  accessToken      String
+  refreshToken     String?
+  accessExpiresAt  DateTime
+  refreshExpiresAt DateTime?
+  scope            String?
+  /// CONNECTED, or ERROR once Pinterest refused the tokens (reconnect to fix).
+  status           String    @default("CONNECTED")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model EnergyProfileWindow {

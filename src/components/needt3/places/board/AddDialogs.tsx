@@ -311,7 +311,7 @@ export function AddDialogs({
   onColour,
   onNote,
 }: {
-  sheet: "link" | "colour" | "note" | "share" | null;
+  sheet: "link" | "colour" | "note" | "share" | "pinterest" | null;
   saving: boolean;
   onClose: () => void;
   onLink: (url: string) => Promise<boolean>;

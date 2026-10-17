@@ -22,7 +22,8 @@ export type CatalogCategory =
   | "communication"
   | "files"
   | "developer"
-  | "ai";
+  | "ai"
+  | "creative";
 
 export interface CatalogEntry {
   slug: string;
@@ -138,6 +139,16 @@ export async function disconnectToolkit(id: string): Promise<Outcome> {
 export async function disconnectCalendar(accountId: string): Promise<Outcome> {
   try {
     await sendJson("/api/accounts", "DELETE", { accountId });
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: message(error, "Could not disconnect") };
+  }
+}
+
+/** The Pinterest grant (`POST /api/pinterest/disconnect`); imported pictures stay. */
+export async function disconnectPinterest(): Promise<Outcome> {
+  try {
+    await sendJson("/api/pinterest/disconnect", "POST", {});
     return { ok: true };
   } catch (error) {
     return { ok: false, error: message(error, "Could not disconnect") };

@@ -105,6 +105,13 @@ const sourceSchema = z
   .object({
     name: z.string().trim().max(120).optional(),
     domain: z.string().trim().max(253).optional(),
+    /** Where the reference came from (a Pinterest Pin's page); http(s) only. */
+    url: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine((v) => /^https?:\/\//i.test(v), "Use an http(s) URL")
+      .optional(),
   })
   .strict();
 
@@ -206,9 +213,11 @@ function publicSource(source: Prisma.JsonValue | null) {
     return null;
   }
   const record = source as Record<string, unknown>;
-  const out: { name?: string; domain?: string } = {};
+  const out: { name?: string; domain?: string; url?: string } = {};
   if (typeof record.name === "string") out.name = record.name;
   if (typeof record.domain === "string") out.domain = record.domain;
+  if (typeof record.url === "string" && /^https?:\/\//i.test(record.url))
+    out.url = record.url;
   return out;
 }
 
@@ -741,6 +750,8 @@ export async function createMoodboardImage(
     title?: string | null;
     ratio?: number | null;
     position?: number;
+    /** Where the picture came from (a Pinterest Pin). */
+    origin?: { name?: string; domain?: string; url?: string } | null;
   }
 ) {
   await requireBoard(actor, moodboardId, MoodboardAccessRole.EDITOR);
@@ -806,6 +817,7 @@ export async function createMoodboardImage(
         url: assetPath(moodboardId, asset.id),
         title: input.title?.trim().slice(0, 240) || null,
         ratio,
+        ...(input.origin ? { source: input.origin } : {}),
         position: at,
       },
       select: itemSelect,

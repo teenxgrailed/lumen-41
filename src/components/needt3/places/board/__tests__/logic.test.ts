@@ -11,10 +11,12 @@ import {
   luminance,
   normHex,
   normUrl,
+  pinterestResultLine,
   publicBoardUrl,
   ratioOf,
   shareSubline,
   sourceLabel,
+  sourceUrlOf,
   titleFromFile,
 } from "../logic";
 
@@ -262,5 +264,37 @@ describe("labels", () => {
       "#AABBCC"
     );
     expect(sourceLabel({ ...it0, kind: "note" })).toBe("Note");
+  });
+});
+
+describe("Pinterest references", () => {
+  it("opens a picture's origin Pin when the picture has no web address", () => {
+    const pin = {
+      url: "/api/moodboards/b/assets/a",
+      source: { url: "https://www.pinterest.com/pin/1/" },
+    };
+    expect(sourceUrlOf(pin)).toBe("https://www.pinterest.com/pin/1/");
+    expect(sourceUrlOf({ url: "https://x.test/a", source: null })).toBe(
+      "https://x.test/a"
+    );
+    expect(
+      sourceUrlOf({ url: "/api/x", source: { url: "javascript:alert(1)" } })
+    ).toBeNull();
+  });
+
+  it("sums an import up in one line", () => {
+    const r = { imported: 1, skipped: 0, failed: 0, full: false };
+    expect(pinterestResultLine(r, "Shoot")).toBe("Imported 1 Pin from Shoot");
+    expect(
+      pinterestResultLine({ ...r, imported: 0, skipped: 3 }, "Shoot")
+    ).toBe("Nothing new in Shoot");
+    expect(
+      pinterestResultLine(
+        { imported: 5, skipped: 0, failed: 2, full: true },
+        "Shoot"
+      )
+    ).toBe(
+      "Imported 5 Pins from Shoot · 2 could not be copied, the board is full"
+    );
   });
 });

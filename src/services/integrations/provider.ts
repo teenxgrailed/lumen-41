@@ -11,7 +11,8 @@ export interface IntegrationCatalogItem {
     | "communication"
     | "files"
     | "developer"
-    | "ai";
+    | "ai"
+    | "creative";
   iconUrl?: string;
   native?: boolean;
   configured: boolean;

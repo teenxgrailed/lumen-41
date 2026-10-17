@@ -1,3 +1,5 @@
+import { getPinterestOAuthConfig } from "@/services/pinterest/client";
+
 import { getGoogleCredentials, getOutlookCredentials } from "@/lib/auth";
 
 import { composioProvider } from "./composio-provider";
@@ -10,6 +12,8 @@ export const REQUIRES = {
   outlook:
     "a Microsoft client ID and secret (System settings, or AZURE_AD_CLIENT_ID and AZURE_AD_CLIENT_SECRET)",
   composio: "COMPOSIO_API_KEY in the server environment",
+  pinterest:
+    "PINTEREST_CLIENT_ID and PINTEREST_CLIENT_SECRET in the server environment",
 } as const;
 
 /**
@@ -26,6 +30,7 @@ async function nativeIntegrations(): Promise<IntegrationCatalogItem[]> {
   ]);
   const googleOk = Boolean(google?.clientId && google?.clientSecret);
   const outlookOk = Boolean(outlook?.clientId && outlook?.clientSecret);
+  const pinterestOk = getPinterestOAuthConfig() !== null;
   return [
     {
       slug: "google-calendar",
@@ -54,6 +59,15 @@ async function nativeIntegrations(): Promise<IntegrationCatalogItem[]> {
       configured: true,
     },
     {
+      slug: "pinterest",
+      name: "Pinterest",
+      description: "Import a board's Pins into a moodboard",
+      category: "creative",
+      native: true,
+      configured: pinterestOk,
+      requires: pinterestOk ? undefined : REQUIRES.pinterest,
+    },
+    {
       slug: "needt-api",
       name: "Needt API",
       description: "Connect scripts and personal automations",
@@ -77,10 +91,12 @@ export async function getIntegrationCatalog(
   ]);
   const all: IntegrationCatalogItem[] = [
     ...native,
-    ...toolkits.map((item) => ({
-      ...item,
-      requires: item.configured ? undefined : REQUIRES.composio,
-    })),
+    ...toolkits
+      .filter((item) => item.slug !== "pinterest")
+      .map((item) => ({
+        ...item,
+        requires: item.configured ? undefined : REQUIRES.composio,
+      })),
   ];
   if (options.admin) return all;
   return all.map((item) => {

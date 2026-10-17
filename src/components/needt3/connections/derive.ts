@@ -37,6 +37,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   files: "Files",
   developer: "Developer",
   ai: "AI",
+  creative: "Creative",
 };
 
 /**
@@ -85,6 +86,7 @@ const CHIP_OF_CATEGORY: Record<CatalogCategory, ChipId> = {
   developer: "work",
   ai: "work",
   files: "files",
+  creative: "creative",
 };
 
 const CHIP_OF_SLUG: Record<string, ChipId> = {
@@ -329,6 +331,8 @@ export function connectPlan(
       return { kind: "navigate", href: "/api/mail/oauth/outlook/auth" };
     case "icloud-calendar":
       return { kind: "caldav" };
+    case "pinterest":
+      return { kind: "navigate", href: "/api/pinterest/authorize" };
     case "needt-api":
       return { kind: "api" };
     default:
@@ -348,12 +352,14 @@ export function canSyncNow(item: Pick<CnItem, "kind" | "state" | "accountId">) {
 }
 
 /** How a native card disconnects. */
-export function disconnectKind(item: Pick<CnItem, "kind">) {
+export function disconnectKind(item: Pick<CnItem, "kind"> & { slug?: string }) {
   return item.kind === "calendar"
     ? "calendar"
     : item.kind === "mail"
       ? "mailbox"
-      : "toolkit";
+      : item.slug === "pinterest"
+        ? "pinterest"
+        : "toolkit";
 }
 
 export function pillOf(state: CardState, busy: boolean) {

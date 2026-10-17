@@ -21,11 +21,14 @@ import {
 
 import { useBoardAccess } from "@/lib/needt3/hooks/board-share";
 import { useBoard, useBoardItems, useBoards } from "@/lib/needt3/hooks/boards";
+import { useCatalog } from "@/lib/needt3/hooks/catalog";
+import { usePinterestStatus } from "@/lib/needt3/hooks/pinterest";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { openPaywall } from "../../paywall/store";
 import { copyText, openUrl } from "../../places/board/clipboard";
-import { canManage, isWebUrl } from "../../places/board/logic";
+import { canManage, sourceUrlOf } from "../../places/board/logic";
 import { canEditBoard } from "../../places/derive";
 import type { BoardsController } from "../../places/useBoardsController";
 import {
@@ -41,6 +44,7 @@ import { PlaceState } from "../place-state/PlaceState";
 import { AddSheet } from "./AddSheet";
 import { ItemSheet } from "./ItemSheet";
 import { NameSheet } from "./NameSheet";
+import { PinterestSheet } from "./PinterestSheet";
 import { ShareSheet } from "./ShareSheet";
 import { Wall } from "./Wall";
 import {
@@ -80,6 +84,9 @@ export function PhoneBoardPage({
   const { data: session } = useSession();
   const access = useBoardAccess(id);
   const fileInput = useRef<HTMLInputElement>(null);
+  const pin = usePinterestStatus().data;
+  const isAdmin = !!useCatalog().data?.isAdmin;
+  const [pinOpen, setPinOpen] = useState(false);
   const [acts, setActs] = useState<PkActs | null>(null);
   const one = useBoard(id);
   const listed = (boards.data ?? []).find((x) => x.id === id && !x.trashedAt);
@@ -152,7 +159,7 @@ export function PhoneBoardPage({
 
   /** The long-press menu of one tile. */
   const itemActs = (it: PhoneBoardItem) => {
-    const web = it.kind === "link" && isWebUrl(it.url);
+    const web = sourceUrlOf(it);
     const first = items.find((x) => !x.fromCanvas);
     setActs({
       title: itemName(it),
@@ -179,7 +186,7 @@ export function PhoneBoardPage({
               label: `Open ${it.source?.domain || "link"}`,
               icon: <LuArrowUpRight size={18} aria-hidden />,
               hue: "var(--info)",
-              onClick: () => openUrl(it.url as string),
+              onClick: () => openUrl(web as string),
             }
           : null,
         it.kind === "color" && it.color
@@ -388,6 +395,25 @@ export function PhoneBoardPage({
           pickPhotos();
           ctl.closeAdd();
         }}
+        pinterest={
+          !pin || (!pin.configured && !isAdmin)
+            ? undefined
+            : {
+                mode: !pin.configured ? "unset" : pin.pro ? "ready" : "locked",
+                onPick: () => {
+                  ctl.closeAdd();
+                  if (pin.pro) setPinOpen(true);
+                  else openPaywall("Pinterest boards");
+                },
+              }
+        }
+      />
+      <PinterestSheet
+        open={pinOpen}
+        moodboardId={id}
+        linkedBoardId={b?.pinterestBoardId ?? null}
+        syncing={!!b?.pinterestSync}
+        onClose={() => setPinOpen(false)}
       />
       <ItemSheet
         item={open}
