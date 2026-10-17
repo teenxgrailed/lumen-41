@@ -48,12 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   have a 44px tap area, and the caret scrolls clear of the toolbar.
 
 - The AI tools tab no longer needs `NEXT_PUBLIC_MCP_OAUTH_URL`: the OAuth host defaults to `https://mcp.needt.app/mcp` (that variable is baked in by CI, not Coolify, so setting it in Coolify had no effect).
-- The desktop top bar now shows the offline pill, and status banners appear
-  under it: "Google Calendar / Gmail access was revoked" with Reconnect (when
-  every calendar of an account fails to sync, or a mailbox is in error),
-  "AI paused" when the monthly AI allowance is spent, and "AI is temporarily
-  unavailable" when no AI key is configured for the person or the server.
-  `GET /api/accounts` gains `needsReconnect`.
 - Documents no longer lag while you type. Three things ran on every keystroke:
   the whole page was turned into JSON and written to local storage, a
   collaborator's caret move (which fires on each of your keystrokes) re-rendered
