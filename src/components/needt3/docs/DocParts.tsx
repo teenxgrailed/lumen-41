@@ -74,6 +74,8 @@ export function DcCover({
     <img
       src={cover!}
       alt=""
+      loading="lazy"
+      decoding="async"
       draggable={false}
       className="docs-fill docs-cover-img"
       style={style}

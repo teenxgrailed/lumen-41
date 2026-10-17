@@ -136,7 +136,7 @@ test("Pages supports workspace entities, tables, and version history", async ({
   await expect(document).toBeVisible();
   await document.click();
   await page.keyboard.type("/task");
-  await page.getByRole("menuitem", { name: /Task/ }).click();
+  await page.getByRole("menuitem", { name: /Task link/ }).click();
   await page
     .getByRole("textbox", { name: "Task title" })
     .fill("Publish workspace guide");

@@ -1842,6 +1842,126 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   color: var(--text-muted);
   text-decoration: line-through;
 }
+/* A task item (a checklist item that is a real Needt task) carries a date
+ * chip at its right end. The date input lies over the chip, invisible, so a
+ * tap opens the phone's own picker; an empty chip shows on hover, on focus,
+ * and always on touch screens (no hover there). */
+.needt-page-editor ul[data-type="taskList"] li > .needt-task-meta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 0.1rem;
+}
+.needt-page-editor ul[data-type="taskList"] li > .needt-task-meta[hidden] {
+  display: none;
+}
+.needt-page-editor .needt-task-due {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.needt-page-editor .needt-task-due.is-empty {
+  border-style: dashed;
+  color: var(--text-muted);
+  opacity: 0;
+}
+.needt-page-editor li:hover > .needt-task-meta .needt-task-due.is-empty,
+.needt-page-editor li:focus-within > .needt-task-meta .needt-task-due.is-empty {
+  opacity: 1;
+}
+@media (hover: none) {
+  .needt-page-editor .needt-task-due.is-empty {
+    opacity: 0.7;
+  }
+}
+.needt-page-editor li[data-checked="true"] > .needt-task-meta {
+  opacity: 0.6;
+}
+.needt-page-editor .needt-task-due-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  /* 16px: iOS zooms the page into any smaller input it focuses. */
+  font-size: 16px;
+}
+.needt-page-editor .needt-task-due-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.needt-page-editor .needt-task-due-clear[hidden] {
+  display: none;
+}
+/* The phone editing bar (PhoneEditBar): above the dock at rest, on the keyboard
+ * while it is up. --page-kb is written from the visual viewport by the bar
+ * itself; the v3 reader overrides the rest offset and the typing offset in
+ * v3-overrides/docs.css. */
+.needt-page-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+}
+.needt-page-bar[data-kb="open"] {
+  bottom: var(--page-kb, 0px);
+}
+.needt-page-bar-row {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}
+.needt-page-bar-strip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.needt-page-bar-strip::-webkit-scrollbar {
+  display: none;
+}
+.needt-page-bar[data-kb="rest"] .needt-page-bar-done {
+  display: none;
+}
+.needt-page-bar-panel {
+  max-height: min(46dvh, 320px);
+  overflow-y: auto;
+}
+@media (min-width: 640px) {
+  .needt-page-bar {
+    display: none;
+  }
+}
 .needt-page-editor blockquote {
   border-left: 3px solid var(--border-control);
   padding-left: 1rem;
