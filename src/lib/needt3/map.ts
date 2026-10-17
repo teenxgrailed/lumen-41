@@ -152,6 +152,7 @@ export interface ApiTask {
   skipSync?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  completedAt?: string | null;
   /** Files on the task, without their bytes (GET /api/tasks, /api/tasks/[id]). */
   attachments?: ApiTaskAttachment[];
   /** TaskPart rows, ordered by `position` (GET /api/tasks, /api/tasks/[id]). */
@@ -313,6 +314,8 @@ export interface V3Task {
   /** ISO instant the task was made. */
   createdAt: string | null;
   updatedAt: string | null;
+  /** "YYYY-MM-DDTHH:mm", local — when it was closed (absent until the server says). */
+  completedAt?: string | null;
   /** Parts in order; `[]` when the task has none. */
   parts: V3TaskPart[];
   /** Open waits; `[]` when the task waits on no one. */
@@ -370,6 +373,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
         : null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+    completedAt: isoToStamp(row.completedAt, tz),
     parts: [...(row.parts ?? [])]
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map(partFromApi),
@@ -385,6 +389,7 @@ export type V3TaskPatch = Partial<
     | "status"
     | "createdAt"
     | "updatedAt"
+    | "completedAt"
     | "movedFrom"
     | "parts"
     | "waits"

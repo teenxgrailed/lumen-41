@@ -21,6 +21,11 @@ import {
   taskDay,
   todayTasks,
 } from "@/lib/needt3/task-day";
+import {
+  DEFAULT_TASK_VIEW,
+  type TaskViewSettings,
+  sortTasks,
+} from "@/lib/needt3/task-view";
 
 /** HomeToday.jsx HD_CAP: a section shows this many rows, then "Show all N". */
 export const HOME_CAP = 25;
@@ -95,12 +100,23 @@ export interface HomeSplit {
 }
 
 /** Sorts live tasks into the three groups Home draws. `noSlot` tasks stay out. */
-export function splitHome(tasks: readonly V3Task[], today: string): HomeSplit {
+export function splitHome(
+  tasks: readonly V3Task[],
+  today: string,
+  view: Pick<TaskViewSettings, "sort"> = DEFAULT_TASK_VIEW
+): HomeSplit {
   const live = tasks.filter((t) => !t.trashedAt && !t.noSlot);
   const late = overdueTasks(live, today);
   const day = todayTasks(live, today);
   const inbox = live.filter((t) => !t.done && !dayOf(t, today) && !t.isFixed);
-  return { late, day, inbox };
+  // Time is Home's own order (late oldest first, the day by hour); priority
+  // and due day reorder every list, and the day's parts keep that order.
+  if (view.sort === "time") return { late, day, inbox };
+  return {
+    late: sortTasks(late, view.sort),
+    day: sortTasks(day, view.sort),
+    inbox: sortTasks(inbox, view.sort),
+  };
 }
 
 export interface DayStats {

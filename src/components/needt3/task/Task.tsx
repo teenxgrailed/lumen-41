@@ -15,6 +15,7 @@ import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 
 import { TaskCheck } from "./TaskCheck";
@@ -87,7 +88,6 @@ function TaskContent(props: TaskProps) {
     onToggle,
     onOpen,
     dragProps,
-    hideProject,
     hideEntry,
     compact,
     stacked,
@@ -109,7 +109,16 @@ function TaskContent(props: TaskProps) {
   const [hot, setHot] = useState(false);
   const [focused, setFocused] = useState(false);
   const today = props.today ?? formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-  const v = taskView(task, props.projects ?? projectsQuery.data, today);
+  const details = useTaskView();
+  // Row details are one setting for every list: what a row shows of its
+  // parts, its length and its project
+  const hideProject = props.hideProject || !details.project;
+  const shown = taskView(task, props.projects ?? projectsQuery.data, today);
+  const v = {
+    ...shown,
+    parts: details.subtasks ? shown.parts : null,
+    minutes: details.duration ? shown.minutes : null,
+  };
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
@@ -280,7 +289,7 @@ function TaskContent(props: TaskProps) {
                 <span>{v.time}</span>
               ) : null}
               {v.minutes ? <span>{v.dur}</span> : null}
-              {v.projectName ? (
+              {v.projectName && !hideProject ? (
                 <span className="tk-card-proj">
                   <span
                     aria-hidden="true"
@@ -405,7 +414,11 @@ function TaskContent(props: TaskProps) {
                   style={{ background: hue }}
                 />
                 <span className="tk-clip">
-                  {v.event ? v.calendarName : v.projectName || "Inbox"}
+                  {v.event
+                    ? v.calendarName
+                    : hideProject
+                      ? "Task"
+                      : v.projectName || "Inbox"}
                 </span>
               </span>
             </span>

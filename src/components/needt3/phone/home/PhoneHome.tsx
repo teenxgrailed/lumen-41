@@ -17,6 +17,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
@@ -90,14 +91,15 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const all = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
 
+  const taskView = useTaskView();
   const v = useMemo(
     () =>
       homeView(
         all.filter((t) => !gone[t.id]),
         today,
-        { skipped, busy: { ...X.phase, ...gone } }
+        { skipped, busy: { ...X.phase, ...gone }, view: taskView }
       ),
-    [all, today, skipped, X.phase, gone]
+    [all, today, skipped, X.phase, gone, taskView]
   );
   const { next: N } = v;
   const nu = N.nu;

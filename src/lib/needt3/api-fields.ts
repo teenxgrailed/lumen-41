@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { newDate } from "@/lib/date-utils";
 
+import { TASK_VIEW_PREF, taskViewError } from "./task-view";
+
 /**
  * Zod schemas for the fields the design v3 port added (migrations
  * 20261009100000…120000, docs/port/01-data-map.md). Existing routes keep their
@@ -67,7 +69,15 @@ export const moodboardV3FieldsSchema = z.object({
 
 export const userSettingsV3FieldsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]).optional(),
-  prefs: jsonObjectSchema.optional(),
+  // `prefs.taskView` is the one task-list view setting (task-view.ts); when
+  // present it must be a valid one, so a bad write is a 400, not a stored typo
+  prefs: jsonObjectSchema
+    .superRefine((value, ctx) => {
+      if (!(TASK_VIEW_PREF in value)) return;
+      const message = taskViewError(value[TASK_VIEW_PREF]);
+      if (message) ctx.addIssue({ code: "custom", message });
+    })
+    .optional(),
 });
 
 export const notificationSettingsV3FieldsSchema = z.object({

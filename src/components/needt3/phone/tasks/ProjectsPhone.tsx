@@ -18,6 +18,7 @@ import {
   useProjects,
   useUpdateProject,
 } from "@/lib/needt3/hooks/projects";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useCreateTask, useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
@@ -264,9 +265,10 @@ function ProjectPageView({
   const editing = state.editId === p.id;
 
   const stats = projectStats(p.id, tasks, today);
+  const view = useTaskView();
   const { groups, done } = useMemo(
-    () => projectGroups(p.id, tasks, today),
-    [p.id, tasks, today]
+    () => projectGroups(p.id, tasks, today, view),
+    [p.id, tasks, today, view]
   );
   const open = mine.filter((t) => !t.done);
   const left = open

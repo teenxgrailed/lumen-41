@@ -16,6 +16,7 @@ import type {
 } from "@/components/needt3/phone/home/useHomeController";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
+import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { formatInTimeZone } from "@/lib/date-utils";
@@ -40,12 +41,14 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import {
   useTasks,
   useToggleTask,
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
 import { notify } from "@/lib/notifications";
 
@@ -146,9 +149,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const taskView = useTaskView();
   const { late, day, inbox } = useMemo(
-    () => splitHome(allTasks, today),
-    [allTasks, today]
+    () => splitHome(allTasks, today, taskView),
+    [allTasks, today, taskView]
   );
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
 
@@ -160,7 +164,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const stats = dayStats(day);
   const state = dayState(day, late.length, leavingIds);
   const closedDay = state === "closed";
-  const doneToday = day.filter((t) => t.done && !leaving[t.id]);
+  const doneToday = day.filter(
+    (t) => t.done && !leaving[t.id] && showsTask(t, taskView, today)
+  );
   const sections = closedDay ? [] : sectionsOf(day, shown, today);
   const lateShown = late.filter(shown);
   const inboxShown = inbox.filter(shown);
@@ -381,6 +387,28 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     settings.data?.weekStartDay ?? "monday"
   );
 
+  const lateFold = lateShown.length ? (
+    <Fold
+      title="Overdue"
+      tone="late"
+      count={late.length}
+      open={!fold.late}
+      onToggle={flip("late")}
+      note="These were due before today — move them or let them go."
+      action={
+        <button
+          type="button"
+          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
+          onClick={() => void moveToToday()}
+        >
+          Move to today
+        </button>
+      }
+    >
+      <Capped list={lateShown} render={(t) => row(t, true)} />
+    </Fold>
+  ) : null;
+
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">
       <header className="hd-head">
@@ -441,6 +469,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
             ))}
           </span>
           {planButton(false, true)}
+          <TaskViewGear scope="home" />
         </span>
       </header>
 
@@ -550,27 +579,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     <EmptyDay onNew={newTask} plan={planButton()} />
                   ) : null}
 
-                  {lateShown.length ? (
-                    <Fold
-                      title="Overdue"
-                      tone="late"
-                      count={late.length}
-                      open={!fold.late}
-                      onToggle={flip("late")}
-                      note="These were due before today — move them or let them go."
-                      action={
-                        <button
-                          type="button"
-                          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
-                          onClick={() => void moveToToday()}
-                        >
-                          Move to today
-                        </button>
-                      }
-                    >
-                      <Capped list={lateShown} render={(t) => row(t, true)} />
-                    </Fold>
-                  ) : null}
+                  {taskView.overdueFirst ? lateFold : null}
 
                   {sections.map(([name, list]) => (
                     <Fold
@@ -595,6 +604,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                       <Capped list={list} render={(t) => row(t)} />
                     </Fold>
                   ))}
+
+                  {taskView.overdueFirst ? null : lateFold}
 
                   {!closedDay && state !== "empty" ? (
                     <button
