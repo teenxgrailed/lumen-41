@@ -141,6 +141,7 @@ const RANK: Record<V3Priority, number> = {
   high: 1,
   medium: 2,
   low: 3,
+  none: 4,
 };
 
 type Orderable = Pick<V3Task, "dueDate" | "scheduledStart"> &
@@ -191,6 +192,7 @@ export const PRIORITY_TITLES: Record<V3Priority, string> = {
   high: "High",
   medium: "Medium",
   low: "Low",
+  none: "No priority",
 };
 
 /**

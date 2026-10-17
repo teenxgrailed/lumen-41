@@ -49,6 +49,10 @@ const base: V3Task = {
   repeat: null,
   scheduleId: null,
   updatedAt: null,
+  createdAt: null,
+  labels: [],
+  attachments: [],
+  syncedFrom: null,
   parts: [],
   waits: [],
 };
