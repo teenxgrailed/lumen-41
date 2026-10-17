@@ -159,6 +159,47 @@ describe("reversible ops: the stored inverse restores the prior state", () => {
     expect((restored.deadline as Date).toISOString()).toBe(due.toISOString());
   });
 
+  it("task.update moves an equal deadline with the due date, and undo restores both", async () => {
+    const due = new Date("2026-10-24T00:00:00.000Z");
+    const task = await seedTask(db, { dueDate: due, deadline: due });
+    const moved = await runOp(
+      "task.update",
+      { taskId: task.id, dueDate: "2026-11-13" },
+      opts()
+    );
+    const row = taskRow(db, task.id);
+    expect((row.deadline as Date).toISOString()).toBe(
+      (row.dueDate as Date).toISOString()
+    );
+    expect((row.deadline as Date).getTime()).toBeGreaterThan(due.getTime());
+    await undoAction(moved.actionId!, OWNER_ID);
+    const back = taskRow(db, task.id);
+    expect((back.deadline as Date).toISOString()).toBe(due.toISOString());
+    expect((back.dueDate as Date).toISOString()).toBe(due.toISOString());
+  });
+
+  it("task.update keeps a separate deadline unless it is given", async () => {
+    const due = new Date("2026-10-24T00:00:00.000Z");
+    const hard = new Date("2026-10-30T00:00:00.000Z");
+    const task = await seedTask(db, { dueDate: due, deadline: hard });
+    await runOp(
+      "task.update",
+      { taskId: task.id, dueDate: "2026-11-13" },
+      opts()
+    );
+    expect((taskRow(db, task.id).deadline as Date).toISOString()).toBe(
+      hard.toISOString()
+    );
+    await runOp(
+      "task.update",
+      { taskId: task.id, deadline: "2026-12-01" },
+      opts()
+    );
+    expect(
+      (taskRow(db, task.id).deadline as Date).toISOString().slice(0, 10)
+    ).toBe("2026-12-01");
+  });
+
   it("task.complete is undone back to the previous open status", async () => {
     const task = await seedTask(db, { status: "in_progress" });
     const done = await runOp("task.complete", { taskId: task.id }, opts());
