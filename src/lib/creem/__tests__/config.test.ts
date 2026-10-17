@@ -1,4 +1,4 @@
-import { formatBillingPrice, NEEDT_PRICING } from "../config";
+import { NEEDT_PRICING, formatBillingPrice } from "../config";
 
 describe("Needt pricing catalog", () => {
   it("keeps the approved public prices", () => {

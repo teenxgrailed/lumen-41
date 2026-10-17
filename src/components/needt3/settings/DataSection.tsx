@@ -17,8 +17,10 @@ import { SBtn, SGroup, SRow, V3Switch } from "./kit";
  * Data & privacy. Export tasks and the full export use the routes the old
  * Settings uses; the rest of the prototype's rows have nothing behind them.
  * Import from Todoist and Notion sits behind the `imports` flag (ImportGroup).
- * //todo: Tasks as CSV (the route sends JSON), Documents as Markdown, the
- * rest of the Import menu (Markdown, Google Docs, .ics, CSV: import.jsx).
+ * Tasks download as CSV or JSON (`/api/export/tasks`).
+ * //todo: Documents as Markdown (no per-page export route yet; Export all has
+ * them), the rest of the Import menu (Markdown, Google Docs, .ics, CSV:
+ * import.jsx).
  */
 export function DataSection() {
   const mark = useMark();
@@ -50,6 +52,15 @@ export function DataSection() {
           title="Tasks"
           desc="Every task with its project, estimate and dates."
         >
+          <a
+            className="nx-btn nx-btn-secondary"
+            href="/api/export/tasks?includeCompleted=true&format=csv"
+            download="needt-tasks.csv"
+            data-settings-export-csv=""
+          >
+            <FiDownload size={14} aria-hidden />
+            CSV
+          </a>
           <a
             className="nx-btn nx-btn-secondary"
             href="/api/export/tasks?includeCompleted=true"

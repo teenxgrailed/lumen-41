@@ -57,6 +57,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         for (const notification of data.notifications) {
           notify.info(notification.title, {
+            // Server nudges are the product speaking up on its own: the
+            // island, not the action toast.
+            surface: "island",
             description: notification.body,
             action: {
               label: "Open",

@@ -204,9 +204,13 @@ jobs:
     needs: [changes, images]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     env:
       COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       WEB_UUID: ${{ secrets.COOLIFY_WEB_UUID }}
       WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
       DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
@@ -214,47 +218,50 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ needs.changes.outputs.sha }}
+          # release-is-needed.sh compares commits with git merge-base.
+          fetch-depth: 0
       - name: Validate production deployment configuration
         run: |
           : "${COOLIFY_API_URL:?COOLIFY_API_URL is required}"
           : "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
           : "${WEB_UUID:?COOLIFY_WEB_UUID is required}"
           : "${WEB_HEALTH_URL:?NEEDT_PRODUCTION_HEALTH_URL is required}"
-      # Coolify deploys the current head of main, not the commit this run
-      # built. When two merges land close together, the older run would ask
-      # Coolify for an image the newer run has not pushed yet, and the pull
-      # fails. The newer run deploys its own commit, so the older one stands
-      # down instead of failing.
-      - name: Check this release is still the head of main
-        id: head
-        run: ./scripts/release-is-current.sh || true
+      # Releases are not serialised against merges, so a finished build is
+      # usually not the head of main any more. It deploys anyway, unless
+      # production already runs it or a descendant, so the newest finished
+      # build always ships and an older one never rolls a newer one back.
+      - name: Check production still needs this release
+        id: needed
+        run: ./scripts/release-is-needed.sh "$WEB_HEALTH_URL" buildSha
       # Web goes first: its entrypoint applies the database migrations the
       # worker and collaboration images of the same release expect.
       - name: Deploy the web image
-        if: ${{ steps.head.outputs.current == 'true' }}
-        run: ./scripts/coolify-deploy-image.sh "$WEB_UUID"
-      - name: Wait for the exact web SHA and database health
-        if: ${{ steps.head.outputs.current == 'true' }}
+        id: deploy
+        if: ${{ steps.needed.outputs.needed == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$WEB_UUID" web
+      - name: Wait for the web SHA and database health
+        if: ${{ steps.deploy.outputs.deployed == 'true' }}
         run: |
           # Pulling and restarting a prebuilt image takes a minute or two;
-          # ten minutes keeps a slow pull from reading as a failure.
+          # ten minutes keeps a slow pull from reading as a failure. The
+          # pinned deploy serves exactly DEPLOY_SHA; a descendant is also
+          # fine (the unpinned fallback deploys the head of main).
           for attempt in $(seq 1 60); do
             response=$(curl --fail --silent --show-error --max-time 30 "$WEB_HEALTH_URL" || true)
             healthy_sha=$(printf '%s' "$response" | jq -r \
               'if .ok == true and .db == "ok" then (.buildSha // "") else "" end' \
               2>/dev/null || true)
-            if [ "$healthy_sha" = "$DEPLOY_SHA" ]; then
-              echo "Production web is healthy at $DEPLOY_SHA"
-              exit 0
-            fi
-            if ! ./scripts/release-is-current.sh >/dev/null; then
-              echo "A newer commit reached main while waiting; its release takes over."
+            if [ "$healthy_sha" = "$DEPLOY_SHA" ] ||
+              { [[ "$healthy_sha" =~ ^[0-9a-f]{40}$ ]] &&
+                git cat-file -e "$healthy_sha^{commit}" 2>/dev/null &&
+                git merge-base --is-ancestor "$DEPLOY_SHA" "$healthy_sha"; }; then
+              echo "Production web is healthy at $healthy_sha (release $DEPLOY_SHA)"
               exit 0
             fi
             echo "Waiting for production web SHA (attempt $attempt/60)"
             sleep 10
           done
-          echo "Production web did not reach expected SHA $DEPLOY_SHA" >&2
+          echo "Production web did not reach $DEPLOY_SHA or a descendant" >&2
           exit 1
       - name: Record rollback instructions
         if: ${{ failure() }}
@@ -273,9 +280,13 @@ jobs:
     needs: [changes, images, deploy-web]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     env:
       COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       WORKER_UUID: ${{ secrets.COOLIFY_WORKER_UUID }}
       COLLABORATION_UUID: ${{ secrets.COOLIFY_COLLABORATION_UUID }}
       WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
@@ -285,6 +296,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ needs.changes.outputs.sha }}
+          # release-is-needed.sh compares commits with git merge-base.
+          fetch-depth: 0
       - name: Verify checked-out release commit
         run: test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -298,17 +311,22 @@ jobs:
           : "${COLLABORATION_UUID:?COOLIFY_COLLABORATION_UUID is required}"
           : "${WEB_HEALTH_URL:?NEEDT_PRODUCTION_HEALTH_URL is required}"
           : "${COLLABORATION_HEALTH_URL:?NEEDT_PRODUCTION_COLLABORATION_HEALTH_URL is required}"
-      - name: Check this release is still the head of main
-        id: head
-        run: ./scripts/release-is-current.sh || true
+      - name: Check production still needs this release
+        id: needed
+        run: >-
+          ./scripts/release-is-needed.sh
+          "$WEB_HEALTH_URL" workerBuildSha
+          "$COLLABORATION_HEALTH_URL" buildSha
       - name: Deploy the worker image
-        if: ${{ steps.head.outputs.current == 'true' }}
-        run: ./scripts/coolify-deploy-image.sh "$WORKER_UUID"
+        id: worker
+        if: ${{ steps.needed.outputs.needed == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$WORKER_UUID" worker
       - name: Deploy the collaboration image
-        if: ${{ steps.head.outputs.current == 'true' }}
-        run: ./scripts/coolify-deploy-image.sh "$COLLABORATION_UUID"
+        id: collaboration
+        if: ${{ steps.needed.outputs.needed == 'true' }}
+        run: ./scripts/coolify-deploy-image.sh "$COLLABORATION_UUID" collaboration
       - name: Wait for all runtime SHAs
-        if: ${{ steps.head.outputs.current == 'true' }}
+        if: ${{ steps.worker.outputs.deployed == 'true' || steps.collaboration.outputs.deployed == 'true' }}
         env:
           RUNTIME_SHA_TIMEOUT_MS: "600000"
           RUNTIME_SHA_POLL_INTERVAL_MS: "10000"

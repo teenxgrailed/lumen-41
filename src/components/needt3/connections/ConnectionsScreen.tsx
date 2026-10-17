@@ -35,11 +35,13 @@ import { StScreen } from "../states/StScreen";
 import { type ScreenQuery, screenState } from "../states/status";
 import { AiSetup } from "./AiSetup";
 import { AiToolsPanel } from "./AiToolsPanel";
+import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
 import {
   CATEGORY_LABEL,
   CHIP_LABEL,
   type CnItem,
+  canSyncNow,
   chipsOf,
   disconnectTitle,
   heroStatus,
@@ -111,9 +113,11 @@ function Pill({ state, busy }: { state: CnItem["state"]; busy: boolean }) {
 function CardMenu({
   item,
   onDisconnect,
+  onSync,
 }: {
   item: CnItem;
   onDisconnect: () => void;
+  onSync: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState<{
@@ -125,16 +129,17 @@ function CardMenu({
   const pop = useRef<HTMLDivElement>(null);
   const container = useV3PortalContainer();
   const [shown, leaving] = useExit(open, 130);
+  const rows = canSyncNow(item) ? 2 : 1;
   useLayoutEffect(() => {
     if (!open || !btn.current) return;
     const r = btn.current.getBoundingClientRect();
-    const h = 12 + 34;
+    const h = 12 + 34 * rows;
     setAt(
       r.bottom + 6 + h > window.innerHeight - 8
         ? { right: window.innerWidth - r.right, top: r.top - 6 - h, flip: true }
         : { right: window.innerWidth - r.right, top: r.bottom + 6, flip: false }
     );
-  }, [open]);
+  }, [open, rows]);
   useEffect(() => {
     if (!open) return undefined;
     const away = (e: MouseEvent) => {
@@ -181,8 +186,25 @@ function CardMenu({
                 top: at.top,
               }}
             >
-              {/* //todo: Sync now and Sync settings (declined / all-day / write
-                  back) need per-provider sync routes in the new design. */}
+              {/* //todo: Sync settings (declined / all-day / write back) need
+                  per-provider settings routes in the new design. */}
+              {canSyncNow(item) ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="cn-mi"
+                  data-cn-sync={item.slug}
+                  onClick={() => {
+                    setOpen(false);
+                    onSync();
+                  }}
+                >
+                  <span className="cn-menu-row">
+                    <FiRefreshCw size={15} aria-hidden />
+                  </span>
+                  Sync now
+                </button>
+              ) : null}
               <button
                 type="button"
                 role="menuitem"
@@ -212,12 +234,14 @@ function Card({
   busy,
   onConnect,
   onDisconnect,
+  onSync,
 }: {
   item: CnItem;
   i: number;
   busy: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
+  onSync: () => void;
 }) {
   const on = item.state === "connected";
   const down = item.state === "disconnected";
@@ -247,7 +271,7 @@ function Card({
           </span>
         </span>
         {on && !busy ? (
-          <CardMenu item={item} onDisconnect={onDisconnect} />
+          <CardMenu item={item} onDisconnect={onDisconnect} onSync={onSync} />
         ) : null}
       </div>
       <p className="cn-c-gives">{item.description}</p>
@@ -304,8 +328,7 @@ function Card({
  * `CnAiPromo`). Both buttons go to the paywall.
  *
  * //todo: the prototype's three benefit lines ("Your own MCP and API links",
- * …) promise the MCP / API connections, which need the `AccessLink` routes
- * (migration M2); they are left out until those exist.
+ * …) are not drawn yet.
  */
 function AiPromo() {
   return (
@@ -415,11 +438,8 @@ function GlassNote({
  * Category chips are the prototype's six, our categories mapped onto them
  * (`chipOf` in derive.ts).
  *
- * //todo: the AI tools tab (Claude, ChatGPT, Cursor… setup steps) and the MCP /
- * API links need the `AccessLink` routes (migration M2, no routes yet): Pro
- * sees a note, Free sees the lock panel the prototype shows.
- * //todo: the consent sheet's scope list, Sync now / Sync settings, Beta and
- * Pro marks on single cards, screen memory (`needt.cnState`).
+ * //todo: the consent sheet's scope list, Sync settings, Beta and Pro marks
+ * on single cards, screen memory (`needt.cnState`).
  * //todo: the prototype's Free mail cap ("Free: 1 mail account", Upgrade on the
  * other mail cards) is not drawn: the product's Free plan has no mailboxes at
  * all (PLAN_LIMITS), so the pill would state a rule that does not exist.
@@ -447,6 +467,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
     locked,
     connect,
     disconnect,
+    syncNow,
     caldavDone,
   } = ctl;
 
@@ -597,7 +618,11 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                         >
                           {label}
                           {k === "ai" ? (
-                            <ProBadge size="sm" locked={locked} />
+                            <ProBadge
+                              size="sm"
+                              locked={locked}
+                              feature="AI tools"
+                            />
                           ) : null}
                           {n ? (
                             <span className="cn-count" data-cn-count={k}>
@@ -734,6 +759,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                           busy={busy === item.key}
                           onConnect={() => void connect(item)}
                           onDisconnect={() => setConfirm(item)}
+                          onSync={() => void syncNow(item)}
                         />
                       ))}
                     </div>
@@ -826,6 +852,35 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 autoFocus
                 onClick={() => {
                   ctl.setSetup(null);
+                  void ctl.mcp.reload();
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Sheet>
+      <Sheet
+        open={ctl.api}
+        onClose={() => ctl.setApi(false)}
+        title={strings.apiTitle}
+        scrimClassName="nx-scrim cn-sheet-grid"
+        className="nx-sheet cn-sheet-col"
+        style={{ width: 500 }}
+      >
+        {ctl.api ? (
+          <>
+            <ApiAccess mcp={ctl.mcp} />
+            <div className="cn-setup-row-2">
+              <span className="cn-setup-el-2" />
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                data-cn-api-done=""
+                autoFocus
+                onClick={() => {
+                  ctl.setApi(false);
                   void ctl.mcp.reload();
                 }}
               >

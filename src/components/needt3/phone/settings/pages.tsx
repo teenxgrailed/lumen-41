@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import { LuDownload } from "react-icons/lu";
 
+import { currentBuildLabel } from "@/lib/build-info";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -302,8 +303,8 @@ export function AlertsPage() {
 
 /**
  * Data & privacy. Export tasks and the full export use the routes the desktop
- * uses. //todo: Tasks as CSV, Documents as Markdown, Import and "Download
- * everything again" have nothing behind them on the desktop either.
+ * uses (Tasks as CSV or JSON). //todo: Documents as Markdown, Import and
+ * "Download everything again" have nothing behind them on the desktop either.
  */
 export function DataPage() {
   const mark = useMark();
@@ -339,14 +340,25 @@ export function DataPage() {
           title="Tasks"
           desc="Every task with its project, estimate and dates."
           control={
-            <a
-              className="pk-btn is-chip"
-              href="/api/export/tasks?includeCompleted=true"
-              download="needt-tasks.json"
-            >
-              <LuDownload size={14} aria-hidden />
-              <span className="pk-btn-cut">JSON</span>
-            </a>
+            <>
+              <a
+                className="pk-btn is-chip"
+                href="/api/export/tasks?includeCompleted=true&format=csv"
+                download="needt-tasks.csv"
+                data-ps-export-csv=""
+              >
+                <LuDownload size={14} aria-hidden />
+                <span className="pk-btn-cut">CSV</span>
+              </a>
+              <a
+                className="pk-btn is-chip"
+                href="/api/export/tasks?includeCompleted=true"
+                download="needt-tasks.json"
+              >
+                <LuDownload size={14} aria-hidden />
+                <span className="pk-btn-cut">JSON</span>
+              </a>
+            </>
           }
         />
         <PsRow
@@ -415,12 +427,14 @@ export function KeysPage() {
 }
 
 /**
- * //todo: Version (no build number is exposed to the client), What's new and
- * the Help centre are missing on the desktop too.
+ * The build is the SHA baked in at release (`lib/build-info`).
+ * //todo: What's new and the Help centre (no URL yet) are missing on the
+ * desktop too.
  */
 export function AboutPage() {
   return (
     <PsGroup>
+      <PsRow title="Version" value={currentBuildLabel()} />
       <PsRow title="Terms" out onOpen={() => window.open("/terms", "_blank")} />
       <PsRow
         title="Privacy"

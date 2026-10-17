@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { clientId, clientSecret } = await getOutlookCredentials();
     if (!clientId || !clientSecret) {
       return NextResponse.json(
-        { error: "Outlook Mail is not configured." },
+        { error: "Outlook Mail isn't available yet." },
         { status: 503 }
       );
     }

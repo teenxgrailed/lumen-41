@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { NextRequest } from "next/server";
 
+import AdminLayout from "@/app/(app)/admin/layout";
 import AdminSystemPage from "@/app/(app)/admin/system/page";
 import { middleware } from "@/middleware";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -23,6 +24,11 @@ jest.mock("next/link", () => ({
   __esModule: true,
   default: ({ children, href }: { children: ReactNode; href: string }) =>
     mockCreateElement("a", { href }, children),
+}));
+
+jest.mock("@/components/admin/AdminShell", () => ({
+  AdminShell: ({ children }: { children: ReactNode }) =>
+    mockCreateElement("div", { "data-testid": "admin-shell" }, children),
 }));
 
 jest.mock("@/components/settings/SystemSettings", () => ({
@@ -87,7 +93,9 @@ describe("admin system settings page", () => {
   });
 
   async function renderPage() {
-    return renderToStaticMarkup(await AdminSystemPage());
+    return renderToStaticMarkup(
+      await AdminLayout({ children: AdminSystemPage() })
+    );
   }
 
   it("renders the system credential form for an active admin", async () => {
@@ -104,7 +112,7 @@ describe("admin system settings page", () => {
 
     expect(markup).toContain('data-testid="admin-system-form"');
     expect(markup).toContain('data-testid="system-settings-sentinel"');
-    expect(markup).not.toContain("admin-system-access-denied");
+    expect(markup).not.toContain("admin-access-denied");
   });
 
   it("renders access denied instead of the form for a non-admin", async () => {
@@ -115,9 +123,9 @@ describe("admin system settings page", () => {
 
     const markup = await renderPage();
 
-    expect(markup).toContain('data-testid="admin-system-access-denied"');
+    expect(markup).toContain('data-testid="admin-access-denied"');
     expect(markup).toContain(
-      "You do not have permission to access system settings."
+      "You do not have permission to open the admin panel."
     );
     expect(markup).not.toContain('data-testid="admin-system-form"');
     expect(markup).not.toContain('data-testid="system-settings-sentinel"');
@@ -138,7 +146,7 @@ describe("admin system settings page", () => {
 
     const markup = await renderPage();
 
-    expect(markup).toContain('data-testid="admin-system-access-denied"');
+    expect(markup).toContain('data-testid="admin-access-denied"');
     expect(markup).not.toContain('data-testid="admin-system-form"');
   });
 
@@ -150,7 +158,7 @@ describe("admin system settings page", () => {
 
     const markup = await renderPage();
 
-    expect(markup).toContain('data-testid="admin-system-access-denied"');
+    expect(markup).toContain('data-testid="admin-access-denied"');
     expect(markup).not.toContain('data-testid="admin-system-form"');
     expect(markup).not.toContain('data-testid="system-settings-sentinel"');
   });
