@@ -69,6 +69,12 @@ describe("DocTopRight", () => {
     expect(after.every(([a, b]) => a === last[0] && b === last[1])).toBe(true);
   });
 
+  it("never draws your own avatar: presence is the editor's, for others only", () => {
+    render();
+    expect(host.querySelector('[aria-label="Maks"]')).toBeNull();
+    expect(host.querySelector(".raised")).toBeNull();
+  });
+
   it("shows Insert and Share on a text page, only Share on a database", () => {
     render(false);
     expect(host.querySelector("[data-doc-insert-btn]")).not.toBeNull();

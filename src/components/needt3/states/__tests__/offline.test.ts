@@ -1,9 +1,10 @@
 /** @jest-environment jsdom */
 import { act, createElement } from "react";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 
-import { StOfflineIndicator } from "../StOfflineIndicator";
+import { SyncStatus } from "../../sync/SyncStatus";
 
 let mockUser: string | null = "first";
 let mockWorkspace = "workspace-a";
@@ -39,7 +40,13 @@ describe("offline count from the established scoped service-worker protocol", ()
     const root = createRoot(host);
     const render = async () => {
       await act(async () => {
-        root.render(createElement(StOfflineIndicator));
+        root.render(
+          createElement(
+            QueryClientProvider,
+            { client: new QueryClient() },
+            createElement(SyncStatus)
+          )
+        );
       });
     };
     const send = async (count: unknown, scopeKey?: string) => {

@@ -773,7 +773,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_update_task",
     description:
-      "Change a task: title, description, dueDate, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+      "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z
       .object({
@@ -783,7 +783,15 @@ const WRITE_TOOLS: McpTool[] = [
         dueDate: isoDate
           .nullable()
           .optional()
-          .describe("ISO 8601; null clears it."),
+          .describe(
+            "ISO 8601; null clears it. Moves the deadline too when the two were equal."
+          ),
+        deadline: isoDate
+          .nullable()
+          .optional()
+          .describe(
+            "ISO 8601 hard deadline the scheduler must beat; null clears it. Set it only to make it differ from dueDate."
+          ),
         estimatedMinutes: z
           .number()
           .int()
@@ -836,10 +844,16 @@ const WRITE_TOOLS: McpTool[] = [
       if (dueDate && Number.isNaN(dueDate.getTime())) {
         return toolError({ status: 400, error: "dueDate must be ISO 8601" });
       }
+      const deadline =
+        args.deadline == null ? args.deadline : newDate(args.deadline);
+      if (deadline && Number.isNaN(deadline.getTime())) {
+        return toolError({ status: 400, error: "deadline must be ISO 8601" });
+      }
       return updateTask(ctx, args.id, {
         title: args.title,
         description: args.description,
         dueDate,
+        deadline,
         estimatedMinutes: args.estimatedMinutes,
         ...(args.priority === "NONE"
           ? { noPriority: true }

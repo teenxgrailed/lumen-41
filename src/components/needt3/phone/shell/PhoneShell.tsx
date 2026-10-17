@@ -11,6 +11,7 @@ import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { planPill } from "../../shell/AccountMenu";
+import { SyncStatus } from "../../sync/SyncStatus";
 import { pkDotSweep } from "../kit/Material";
 import { usePkSide } from "../kit/theme";
 import { Menu } from "../menu/Menu";
@@ -132,6 +133,7 @@ export function PhoneShell() {
         onSettings={onSettings}
         onMoving={onMoving}
       />
+      {away ? null : <SyncStatus placement="phone" />}
       <PhoneOverlays />
     </>
   );
