@@ -88,6 +88,12 @@ export interface WorkHours {
   /** First and last working hour, 0–24 (end exclusive). */
   start: number;
   end: number;
+  /**
+   * Per-weekday working ranges in hours ([from, to) each, at most two a day).
+   * When present it wins over `days`/`start`/`end`; a weekday with no entry
+   * is a day off.
+   */
+  byDay?: Readonly<Record<number, readonly (readonly [number, number])[]>>;
 }
 
 /** Hour spans of a day that are outside working hours: [from, to) each. */
@@ -96,6 +102,18 @@ export function offHours(
   hours: WorkHours | null | undefined
 ): [number, number][] {
   if (!hours) return [];
+  if (hours.byDay) {
+    const ranges = hours.byDay[weekdayOf] ?? [];
+    if (ranges.length === 0) return [[0, 24]];
+    const spans: [number, number][] = [];
+    let cursor = 0;
+    for (const [from, to] of [...ranges].sort((a, b) => a[0] - b[0])) {
+      if (from > cursor) spans.push([cursor, Math.min(from, 24)]);
+      cursor = Math.max(cursor, to);
+    }
+    if (cursor < 24) spans.push([cursor, 24]);
+    return spans.filter(([a, b]) => b > a);
+  }
   if (!hours.days.includes(weekdayOf)) return [[0, 24]];
   const spans: [number, number][] = [];
   if (hours.start > 0) spans.push([0, Math.min(hours.start, 24)]);
@@ -103,10 +121,31 @@ export function offHours(
   return spans.filter(([a, b]) => b > a);
 }
 
-/** The schedule row (`workDays` is a JSON string of weekday numbers) → WorkHours. */
+const hoursOfTime = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return Number.isFinite(h) && Number.isFinite(m) ? h + m / 60 : NaN;
+};
+
+/**
+ * The schedule row → WorkHours. `weekHours` (the per-day windows, one entry
+ * per weekday) is used when any day has a usable range; otherwise the
+ * single-range `workDays`/`workHourStart`/`workHourEnd` fields apply
+ * (`workDays` is a JSON string of weekday numbers).
+ */
 export function workHoursOf(
   row:
-    | { workDays: string; workHourStart: number; workHourEnd: number }
+    | {
+        workDays: string;
+        workHourStart: number;
+        workHourEnd: number;
+        weekHours?:
+          | readonly {
+              day: number;
+              on: boolean;
+              ranges: readonly { start: string; end: string }[];
+            }[]
+          | null;
+      }
     | null
     | undefined
 ): WorkHours | null {
@@ -123,5 +162,22 @@ export function workHoursOf(
   }
   const start = Math.min(Math.max(row.workHourStart, 0), 24);
   const end = Math.min(Math.max(row.workHourEnd, 0), 24);
-  return { days, start, end: end > start ? end : 24 };
+  const legacy = { days, start, end: end > start ? end : 24 };
+
+  const byDay: Record<number, [number, number][]> = {};
+  let any = false;
+  for (const entry of row.weekHours ?? []) {
+    if (!entry.on) continue;
+    const ranges = entry.ranges
+      .map((r): [number, number] => [
+        Math.max(0, hoursOfTime(r.start)),
+        Math.min(24, hoursOfTime(r.end)),
+      ])
+      .filter(([a, b]) => b > a)
+      .sort((a, b) => a[0] - b[0]);
+    if (ranges.length === 0) continue;
+    byDay[entry.day] = ranges;
+    any = true;
+  }
+  return any ? { ...legacy, byDay } : legacy;
 }
