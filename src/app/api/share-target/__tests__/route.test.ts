@@ -13,6 +13,16 @@ function post(fields: Record<string, string>) {
 }
 
 describe("POST /api/share-target (no service worker in control)", () => {
+  // The redirect is built from NEXTAUTH_URL when it is set (CI sets it).
+  const previousUrl = process.env.NEXTAUTH_URL;
+  beforeAll(() => {
+    process.env.NEXTAUTH_URL = "https://app.needt.test";
+  });
+  afterAll(() => {
+    if (previousUrl === undefined) delete process.env.NEXTAUTH_URL;
+    else process.env.NEXTAUTH_URL = previousUrl;
+  });
+
   it("answers a share with a 303 to the Share page, a GET", async () => {
     const res = await POST(
       post({ title: "Trip", text: "Dates", url: "https://example.com/trip" })
