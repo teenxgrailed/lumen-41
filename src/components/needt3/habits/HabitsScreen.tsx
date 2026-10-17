@@ -545,7 +545,7 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
   // once over); Pro reads the count and what the screen promises.
   const meta = !pro ? (
     <ProLimit
-      used={list.length}
+      used={list.filter((h) => !h.isSample).length}
       max={FREE_HABITS}
       noun="habits"
       feature={`${pl.HabitsScreen.more_than} ${FREE_HABITS} habits`}

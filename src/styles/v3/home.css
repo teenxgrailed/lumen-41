@@ -215,3 +215,14 @@
 .needt-v3 .hd-load-lock { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; padding: 10px 6px 0; box-shadow: var(--border) 0 1px 0 0 inset; }
 .needt-v3 .hd-load-lock-line { flex: 1 1 auto; min-width: 0; font: var(--type-meta); color: var(--text-secondary); text-wrap: pretty; }
 .needt-v3 .hd-upsell { margin: 0 0 14px; }
+
+/* First-run sample day: a quiet row on the canvas ground, fill 3, one button.
+   13px title, 12px line, no solid accent; wraps under the words on a phone. */
+.needt-v3 .hd-sample { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 6px 4px 12px 26px; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--fill-3); }
+.needt-v3 .hd-sample-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .hd-sample-title { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .hd-sample-sub { font: var(--type-meta); color: var(--text-tertiary); text-wrap: pretty; }
+.needt-v3 .hd-sample-clear { flex: none; }
+@media (max-width: 700px) {
+  .needt-v3 .hd-sample { margin: 0 0 12px; }
+}

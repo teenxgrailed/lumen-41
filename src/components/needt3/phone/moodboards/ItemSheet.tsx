@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { LuArrowUpRight, LuCopy, LuTrash2 } from "react-icons/lu";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { ItemComments } from "../../places/board/ItemComments";
 import { copyText } from "../../places/board/clipboard";
 import { isWebUrl, sourceUrlOf } from "../../places/board/logic";
 import { PkButton, PkField, PkSheet } from "../kit";
@@ -29,6 +30,8 @@ const t = strings["phone-habits.jsx"];
 export function ItemSheet({
   item,
   board,
+  boardId,
+  canModerate,
   tz,
   saving,
   canEdit,
@@ -38,6 +41,9 @@ export function ItemSheet({
 }: {
   item: PhoneBoardItem | null;
   board: string;
+  boardId: string;
+  /** Full access: may resolve or delete anyone's comment. */
+  canModerate: boolean;
   tz: string;
   saving: boolean;
   /** EDITOR and above. */
@@ -242,6 +248,16 @@ export function ItemSheet({
               Copy link
             </PkButton>
           ) : null}
+          {it.fromCanvas ? null : (
+            <ItemComments
+              boardId={boardId}
+              itemId={it.id}
+              canWrite={edit}
+              canModerate={canModerate}
+              tz={tz}
+              phone
+            />
+          )}
         </div>
       ) : null}
     </PkSheet>

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FiDownload } from "react-icons/fi";
 
 import { sendJson } from "@/lib/needt3/hooks/core";
+import { useClearSample, useSampleStatus } from "@/lib/needt3/hooks/sample";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { notify } from "@/lib/notifications";
 
@@ -27,6 +28,8 @@ export function DataSection() {
   const settings = useSettings();
   const setPref = useSetPref();
   const [busy, setBusy] = useState<"all" | null>(null);
+  const sample = useSampleStatus();
+  const clearSample = useClearSample();
 
   const requestAll = async () => {
     setBusy("all");
@@ -83,6 +86,21 @@ export function DataSection() {
           </SBtn>
         </SRow>
       </SGroup>
+      {sample.data?.present ? (
+        <SGroup title="Examples">
+          <SRow
+            title="Clear examples"
+            desc="Removes the sample project, tasks, document and habit from your first day. Anything you made yourself stays."
+          >
+            <SBtn
+              disabled={clearSample.isPending}
+              onClick={() => clearSample.mutate()}
+            >
+              Clear examples
+            </SBtn>
+          </SRow>
+        </SGroup>
+      ) : null}
       <ImportGroup />
       <SGroup title="Privacy">
         <SRow

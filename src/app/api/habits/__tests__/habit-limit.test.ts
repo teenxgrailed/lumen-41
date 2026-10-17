@@ -120,7 +120,7 @@ describe("POST /api/habits", () => {
 
     expect(response.status).toBe(201);
     expect(db.habit.count).toHaveBeenCalledWith({
-      where: { userId: "user-1", archivedAt: null },
+      where: { userId: "user-1", archivedAt: null, isSample: false },
     });
   });
 

@@ -92,6 +92,8 @@ import {
 import { askAbout, askNeedt } from "@/components/needt3/corner/ask-bridge";
 import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { registerCtx } from "@/components/needt3/ctx/registry";
+import { otherPeers } from "@/components/needt3/sync/presence";
+import { setSyncSource } from "@/components/needt3/sync/sync-source";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { type ColorKind, PageColorRow } from "@/components/pages/PageColorRow";
@@ -282,7 +284,15 @@ type CollaborationTokenResponse = {
   user: { name: string; color: string };
 };
 type AiAction = "rewrite" | "summarize" | "critique";
-type MobileBlockHandle = { blockId: string; top: number; left: number };
+/** Viewport coordinates: the grip is fixed in the gutter left of the text. */
+type MobileBlockHandle = {
+  blockId: string;
+  top: number;
+  left: number;
+  width: number;
+};
+/** The strip left of the text column where a long press means "this block". */
+const BLOCK_GUTTER_PX = 36;
 
 const COMMANDS: Array<{
   id: PageCommand;
@@ -661,6 +671,10 @@ export function PageWorkspace({
   const [collaborators, setCollaborators] = useState<
     Array<{ name: string; color: string }>
   >([]);
+  // Who you are in the room, set once the token arrives (see `collaborators`).
+  const selfCollaboratorRef = useRef<{ name: string; color: string } | null>(
+    null
+  );
   const collaborationDocument = useMemo(
     () => new Y.Doc({ guid: `page:${pageId}` }),
     [pageId]
@@ -695,15 +709,11 @@ export function PageWorkspace({
         // re-render this whole component.
         onAwarenessChange: ({ states }) =>
           setCollaborators((previous) => {
-            const next = states.flatMap((state) => {
-              const user = state.user as
-                | { name?: unknown; color?: unknown }
-                | undefined;
-              return typeof user?.name === "string" &&
-                typeof user.color === "string"
-                ? [{ name: user.name, color: user.color }]
-                : [];
-            });
+            const next = otherPeers(
+              states,
+              collaborationDocument.clientID,
+              selfCollaboratorRef.current
+            );
             return sameCollaborators(previous, next) ? previous : next;
           }),
       }),
@@ -715,6 +725,27 @@ export function PageWorkspace({
       updateCollaborationStatus,
     ]
   );
+
+  // The shared sync status in the top bar reads this page's save queue and
+  // collaboration provider. "Draft kept" is not saved: it surfaces as an error.
+  useEffect(() => {
+    const configured = collaborationConfiguredRef.current;
+    setSyncSource(`page:${pageId}`, {
+      save: saveState,
+      collab: configured
+        ? collaborationStatus === "connected"
+          ? "synced"
+          : collaborationStatus === "connecting"
+            ? "connecting"
+            : "local"
+        : undefined,
+      retry: () => {
+        autosave.current?.retryWhenOnline();
+        void collaborationProvider.connect().catch(() => undefined);
+      },
+    });
+  }, [pageId, saveState, collaborationStatus, collaborationProvider]);
+  useEffect(() => () => setSyncSource(`page:${pageId}`, null), [pageId]);
 
   const clearLongPress = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
@@ -734,15 +765,17 @@ export function PageWorkspace({
 
   const revealMobileBlockHandle = (element: HTMLElement) => {
     const blockId = element.dataset.blockId;
-    const host = hostRef.current;
-    if (!blockId || !host || !editor) return;
+    if (!blockId || !editor) return;
     const blockBounds = element.getBoundingClientRect();
-    const hostBounds = host.getBoundingClientRect();
     const editorBounds = editor.view.dom.getBoundingClientRect();
+    // The grip lives in the gutter, never over the text: as wide as the
+    // gutter allows (20 to 32 px), ending just before the first letter.
+    const width = Math.min(32, Math.max(20, editorBounds.left - 4));
     setMobileBlockHandle({
       blockId,
-      top: blockBounds.top - hostBounds.top + blockBounds.height / 2 - 22,
-      left: Math.max(0, editorBounds.left - hostBounds.left - 44),
+      top: blockBounds.top + blockBounds.height / 2 - 22,
+      left: Math.max(2, editorBounds.left - width - 2),
+      width,
     });
     setMobileBlockDragOffset(0);
   };
@@ -1145,11 +1178,35 @@ export function PageWorkspace({
     return false;
   };
 
-  const startMobileLongPress = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!canEdit || event.pointerType !== "touch") return;
-    const block = topLevelBlockElement(event.target);
-    if (!block?.dataset.blockId) return;
+  // A long press in the gutter left of the text opens the block's grip. A
+  // press on the text never does: that is how a word is selected, and the grip
+  // used to land on the words being selected. Any other touch puts an open
+  // grip away. Native listeners: the gutter is outside the editor's element,
+  // so no React handler of the editor reaches it.
+  const longPressDown = useRef<(event: PointerEvent) => void>(() => undefined);
+  longPressDown.current = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-mobile-block-handle]")) return;
+    setMobileBlockHandle(null);
     clearLongPress();
+    if (!canEdit || !editor || editor.isDestroyed) return;
+    const dom = editor.view.dom;
+    // Only the containers around the editor: not the text, not an overlay.
+    if (target === dom || !target.contains(dom)) return;
+    const box = dom.getBoundingClientRect();
+    if (
+      event.clientX >= box.left ||
+      event.clientX < box.left - BLOCK_GUTTER_PX ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom
+    ) {
+      return;
+    }
+    const at = document.elementFromPoint(box.left + 2, event.clientY);
+    const block = topLevelBlockElement(at);
+    if (!block?.dataset.blockId) return;
     longPressStart.current = { x: event.clientX, y: event.clientY };
     longPressTimer.current = setTimeout(() => {
       revealMobileBlockHandle(block);
@@ -1157,13 +1214,43 @@ export function PageWorkspace({
     }, 350);
   };
 
-  const moveMobileLongPress = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const moveMobileLongPress = (event: PointerEvent) => {
     const start = longPressStart.current;
     if (!start) return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) {
       clearLongPress();
     }
   };
+
+  useEffect(() => {
+    const down = (event: PointerEvent) => longPressDown.current(event);
+    const move = (event: PointerEvent) => moveMobileLongPress(event);
+    const end = () => clearLongPress();
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("pointermove", move, true);
+    document.addEventListener("pointerup", end, true);
+    document.addEventListener("pointercancel", end, true);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", end, true);
+      document.removeEventListener("pointercancel", end, true);
+    };
+    // The handlers read through refs; they are registered once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Typing or selecting puts the grip away: it is never over live text.
+  useEffect(() => {
+    if (!editor) return undefined;
+    const hide = () => setMobileBlockHandle(null);
+    editor.on("selectionUpdate", hide);
+    editor.on("update", hide);
+    return () => {
+      editor.off("selectionUpdate", hide);
+      editor.off("update", hide);
+    };
+  }, [editor]);
 
   const startMobileBlockDrag = (
     event: ReactPointerEvent<HTMLButtonElement>
@@ -1272,6 +1359,7 @@ export function PageWorkspace({
           const collaboration =
             (await tokenResponse.json()) as CollaborationTokenResponse;
           collaborationConfiguredRef.current = true;
+          selfCollaboratorRef.current = collaboration.user;
           autosave.current?.setWriteAuthority("collaboration-offline");
           Y.applyUpdate(
             collaborationDocument,
@@ -2379,44 +2467,54 @@ export function PageWorkspace({
   // the save state, "Page options") are drawn in the top bar (`doc-head-slot`);
   // Back, the title and Share are the chrome's (the rail's back arrow, the
   // breadcrumb, the Share sheet). Everywhere else the header is as it was.
+  // Only other people: your own caret is not shown to you, so an empty room
+  // draws nothing.
+  const headPeers = collaborators.length ? (
+    <div
+      className="items-center -space-x-1 flex"
+      aria-label={`${collaborators.length} other ${collaborators.length === 1 ? "person" : "people"} here`}
+      data-doc-peers=""
+    >
+      {collaborators.slice(0, 3).map((collaborator, index) => (
+        <span
+          key={`${collaborator.name}-${index}`}
+          className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
+          style={{ backgroundColor: collaborator.color }}
+          title={collaborator.name}
+        />
+      ))}
+    </div>
+  ) : null;
+  // The old header keeps its own save word; the v3 chrome shows the shared
+  // SyncStatus in the top bar instead.
   const headStatus = (
     <>
-      <div
-        className="hidden items-center -space-x-1 sm:flex"
-        aria-label={`${collaborators.length} active collaborators`}
-      >
-        {collaborators.slice(0, 3).map((collaborator, index) => (
-          <span
-            key={`${collaborator.name}-${index}`}
-            className="h-5 w-5 rounded-full border-2 border-[var(--surface-canvas)]"
-            style={{ backgroundColor: collaborator.color }}
-            title={collaborator.name}
-          />
-        ))}
-      </div>
-      <span
-        className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
-        aria-live="polite"
-      >
+      {headPeers}
+      {inChrome ? null : (
         <span
-          data-collab={inV3 ? collaborationStatus : undefined}
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            collaborationStatus === "connected"
-              ? "bg-emerald-500"
-              : collaborationStatus === "connecting"
-                ? "bg-amber-500"
-                : "bg-[var(--text-disabled)]"
-          )}
-        />
-        {saveState === "saving"
-          ? "Saving…"
-          : saveState === "offline"
-            ? "Draft kept"
-            : saveState === "failed"
+          className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]"
+          aria-live="polite"
+        >
+          <span
+            data-collab={inV3 ? collaborationStatus : undefined}
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              collaborationStatus === "connected"
+                ? "bg-emerald-500"
+                : collaborationStatus === "connecting"
+                  ? "bg-amber-500"
+                  : "bg-[var(--text-disabled)]"
+            )}
+          />
+          {saveState === "saving"
+            ? "Saving…"
+            : saveState === "offline"
               ? "Draft kept"
-              : "Saved"}
-      </span>
+              : saveState === "failed"
+                ? "Draft kept"
+                : "Saved"}
+        </span>
+      )}
     </>
   );
   const exportMarkdown = () => {
@@ -2959,10 +3057,6 @@ export function PageWorkspace({
             if (event.target === event.currentTarget)
               editor?.commands.focus("end");
           }}
-          onPointerDown={startMobileLongPress}
-          onPointerMove={moveMobileLongPress}
-          onPointerUp={clearLongPress}
-          onPointerCancel={clearLongPress}
         >
           <EditorContent editor={editor} />
           {editor && canEdit && (
@@ -3078,10 +3172,12 @@ export function PageWorkspace({
           <button
             type="button"
             aria-label="Drag block"
-            className="absolute z-20 flex h-11 w-11 touch-none items-center justify-center rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]"
+            data-mobile-block-handle=""
+            className="fixed z-20 flex h-11 touch-none items-center justify-center rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] text-[var(--text-muted)]"
             style={{
               top: mobileBlockHandle.top + mobileBlockDragOffset,
               left: mobileBlockHandle.left,
+              width: mobileBlockHandle.width,
             }}
             onPointerDown={startMobileBlockDrag}
             onPointerMove={moveMobileBlockDrag}
@@ -3097,7 +3193,7 @@ export function PageWorkspace({
               }
             }}
           >
-            <GripVertical className="h-5 w-5" />
+            <GripVertical className="h-4 w-4" />
           </button>
         )}
 

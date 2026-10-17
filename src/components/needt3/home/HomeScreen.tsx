@@ -69,6 +69,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { SampleBanner } from "./SampleBanner";
 import {
   capacityFrom,
   dayState,
@@ -456,6 +457,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
+          <SampleBanner />
           {closedDay ? (
             <DayClosed
               count={day.length}

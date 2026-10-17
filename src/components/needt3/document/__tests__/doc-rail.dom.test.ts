@@ -95,6 +95,14 @@ afterEach(() => {
 });
 
 describe("DocRail", () => {
+  it("has only the back arrow in its header: the sidebar toggle is the top bar's", () => {
+    act(() => root.render(h(DocRail)));
+    const header = host.querySelectorAll(".docs-doc-panel-2 button");
+    expect(header).toHaveLength(1);
+    expect(header[0].getAttribute("aria-label")).toBe("Back to Documents");
+    expect(host.querySelector('[aria-label="Hide panel"]')).toBeNull();
+  });
+
   it("draws the page's face with its first lines from the list", () => {
     mockThumb.mockClear();
     act(() => root.render(h(DocRail)));

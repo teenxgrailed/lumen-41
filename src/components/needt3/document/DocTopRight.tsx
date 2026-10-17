@@ -1,7 +1,5 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-
 import { LuPanelRight, LuPlus, LuUsers } from "react-icons/lu";
 
 import { setDocHeadSlot } from "@/components/pages/doc-head-slot";
@@ -10,7 +8,6 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { docsCopy } from "../docs/DocParts";
 import { Tooltip } from "../menu/Tooltip";
-import { Avatar, initialsOf } from "../shell/Avatar";
 import { useDocPanel } from "./panel";
 
 const copy = docsCopy;
@@ -23,30 +20,22 @@ const setMoreSlot = (el: HTMLElement | null) => setDocHeadSlot("more", el);
 
 /**
  * The top bar's right side while a document is open (prototype `DocTopRight`):
- * who you are, Insert (opens the inspector on its Insert tab, or closes it
- * when that tab is already up) and Share. The editor's own save state and
- * "Page options" menu are drawn into the two slots at either end (see
+ * who else is here (never you), Insert (opens the inspector on its Insert tab,
+ * or closes it when that tab is already up) and Share. Save state is the
+ * shared SyncStatus in the bar; the editor draws the other people into the
+ * first slot and its "Page options" menu into the last (see
  * `pages/doc-head-slot`).
  */
 export function DocTopRight({ isDatabase = false }: { isDatabase?: boolean }) {
-  const session = useSession();
   const [panelOpen, setPanelOpen] = useDocPanel();
   const tab = useNeedt3Ui((s) => s.docTab);
   const setTab = useNeedt3Ui((s) => s.setDocTab);
   const shareOpen = useNeedt3Ui((s) => s.docShareOpen);
   const setShare = useNeedt3Ui((s) => s.setDocShareOpen);
-  const user = session.data?.user;
-  const name = user?.name || user?.email?.split("@")[0] || "Account";
   const insertOn = panelOpen && tab === "insert";
   return (
     <>
       <span ref={setStatusSlot} className="base-row doc-head-slot" />
-      <Avatar
-        initials={initialsOf(name)}
-        name={name}
-        size={28}
-        src={user?.image}
-      />
       {isDatabase ? null : (
         <button
           type="button"

@@ -418,6 +418,8 @@ export function PhoneBoardPage({
       <ItemSheet
         item={open}
         board={b?.title || UNTITLED_BOARD}
+        boardId={id}
+        canModerate={owner}
         tz={tz}
         saving={ctl.saving}
         canEdit={canEdit}

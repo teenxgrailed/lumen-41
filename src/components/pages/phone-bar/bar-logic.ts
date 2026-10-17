@@ -49,15 +49,65 @@ export function barOffset(
   return open ? { lift, open: true } : NO_KEYBOARD;
 }
 
+/** The bar's own row (px); a panel opened above it adds to this. */
+export const BAR_ROW_PX = 48;
+
+/** The bar's transform for a keyboard `lift`: it rides on the keyboard. */
+export const barTransform = (lift: number) =>
+  `translate3d(0, ${lift > 0 ? -lift : 0}px, 0)`;
+
 /**
- * Writes the keyboard's height to `--page-kb` on `el` (and `data-kb`) as the
- * visual viewport moves, with no React state in between: the bar follows in
- * the same frame as the event. Returns the cleanup.
+ * How far to scroll so the caret line sits clear of the bar: positive moves
+ * the content up (the caret is under the bar), negative down (under the top
+ * edge). Coordinates are viewport ones. The bottom wins when the band is
+ * smaller than the line.
  */
-export function trackKeyboard(el: HTMLElement): () => void {
+export function caretScrollDelta(input: {
+  caretTop: number;
+  caretBottom: number;
+  viewTop: number;
+  viewBottom: number;
+  margin?: number;
+}): number {
+  const { caretTop, caretBottom, viewTop, viewBottom, margin = 16 } = input;
+  if (caretBottom > viewBottom - margin)
+    return Math.round(caretBottom - (viewBottom - margin));
+  if (caretTop < viewTop + margin)
+    return Math.round(caretTop - (viewTop + margin));
+  return 0;
+}
+
+/** The padding the scroll area needs so its last line clears the bar. */
+export const barInset = (lift: number, barHeight: number) =>
+  Math.max(0, Math.round(lift)) + Math.max(barHeight, BAR_ROW_PX);
+
+/** The nearest ancestor that scrolls vertically, or null (the window does). */
+export function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p);
+    if (overflowY === "auto" || overflowY === "scroll") return p;
+  }
+  return null;
+}
+
+/**
+ * Keeps the bar on the keyboard as the visual viewport moves. The bar is
+ * `position: fixed; bottom: 0` (laid out against the layout viewport, which
+ * iOS does not shrink for the keyboard), so what moves it is the transform
+ * written here: `-(innerHeight - vv.height - vv.offsetTop)`, through
+ * `barOffset`'s guards. It also writes `--page-kb` and `data-kb`. Written
+ * straight from the event (no React state, so no frame of lag) and read again
+ * one frame later, because iOS reports the final geometry once the keyboard
+ * has settled. `onChange` hears each new lift. Returns the cleanup.
+ */
+export function trackKeyboard(
+  el: HTMLElement,
+  onChange?: (lift: number) => void
+): () => void {
   const vv = window.visualViewport;
   if (!vv) return () => undefined;
   let last: BarOffset = { lift: -1, open: false };
+  let frame = 0;
   const apply = () => {
     const next = barOffset(
       {
@@ -71,17 +121,26 @@ export function trackKeyboard(el: HTMLElement): () => void {
     if (next.lift === last.lift && next.open === last.open) return;
     last = next;
     el.style.setProperty("--page-kb", `${next.lift}px`);
+    el.style.transform = barTransform(next.lift);
     el.dataset.kb = next.open ? "open" : "rest";
+    onChange?.(next.lift);
+  };
+  const onEvent = () => {
+    apply();
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(apply);
   };
   apply();
-  vv.addEventListener("resize", apply);
-  vv.addEventListener("scroll", apply);
-  window.addEventListener("orientationchange", apply);
+  vv.addEventListener("resize", onEvent);
+  vv.addEventListener("scroll", onEvent);
+  window.addEventListener("orientationchange", onEvent);
   return () => {
-    vv.removeEventListener("resize", apply);
-    vv.removeEventListener("scroll", apply);
-    window.removeEventListener("orientationchange", apply);
+    cancelAnimationFrame(frame);
+    vv.removeEventListener("resize", onEvent);
+    vv.removeEventListener("scroll", onEvent);
+    window.removeEventListener("orientationchange", onEvent);
     el.style.removeProperty("--page-kb");
+    el.style.removeProperty("transform");
     delete el.dataset.kb;
   };
 }

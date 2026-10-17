@@ -85,14 +85,14 @@ describe("reading the setting", () => {
       readTaskView({
         completed: "hide",
         sort: "banana",
-        subtasks: false,
+        subtasks: "count",
         duration: "yes",
         group: "priority",
       })
     ).toEqual({
       ...DEFAULT_TASK_VIEW,
       completed: "hide",
-      subtasks: false,
+      subtasks: "count",
       group: "priority",
     });
   });
@@ -118,6 +118,31 @@ describe("what the API accepts", () => {
     expect(taskViewError({ sort: "random" })).toMatch(/sort/);
     expect(taskViewError({ duration: "no" })).toMatch(/duration/);
     expect(taskViewError({ colour: "red" })).toMatch(/colour/);
+  });
+});
+
+describe("Subtasks option", () => {
+  it("defaults to the next step", () => {
+    expect(DEFAULT_TASK_VIEW.subtasks).toBe("next");
+    expect(readTaskView({}).subtasks).toBe("next");
+  });
+
+  it("reads each mode", () => {
+    for (const subtasks of ["next", "all", "count"] as const)
+      expect(readTaskView({ subtasks }).subtasks).toBe(subtasks);
+    expect(readTaskView({ subtasks: "wide" }).subtasks).toBe("next");
+  });
+
+  it("migrates the old on/off: off is count only, on is the default", () => {
+    expect(readTaskView({ subtasks: false }).subtasks).toBe("count");
+    expect(readTaskView({ subtasks: true }).subtasks).toBe("next");
+  });
+
+  it("validates writes", () => {
+    for (const subtasks of ["next", "all", "count", true, false])
+      expect(taskViewError({ subtasks })).toBeUndefined();
+    expect(taskViewError({ subtasks: "open" })).toMatch(/subtasks/);
+    expect(taskViewError({ subtasks: 3 })).toMatch(/subtasks/);
   });
 });
 

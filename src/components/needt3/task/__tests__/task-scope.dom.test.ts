@@ -175,8 +175,10 @@ describe("row details", () => {
     mount("row", scope({}));
     expect(host.textContent).not.toContain("Launch");
 
+    // the old boolean `false` reads as "count only": the count stays
     set({ subtasks: false });
     mount("row", scope({}));
-    expect(host.querySelector(".tk-count")).toBeNull();
+    expect(host.querySelector(".tk-count")).not.toBeNull();
+    expect(host.querySelector("[data-steps]")).toBeNull();
   });
 });

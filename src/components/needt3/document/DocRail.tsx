@@ -14,7 +14,6 @@ import {
   LuFileText,
   LuFolder,
   LuImage,
-  LuLayoutTemplate,
   LuList,
   LuPaperclip,
   LuPlus,
@@ -30,7 +29,6 @@ import { type DocRailTab, useNeedt3Ui } from "@/store/needt3-ui";
 import { DocThumb, docsCopy, useDocTokens } from "../docs/DocParts";
 import { ageLabel } from "../docs/labels";
 import { Tooltip } from "../menu/Tooltip";
-import { useShellApi } from "../shell/ShellContext";
 import { useOpenDocId } from "./open-doc";
 import { EDITOR_SELECTOR, findRanges, scrollToOutline } from "./outline";
 import {
@@ -368,6 +366,20 @@ function Outline() {
 }
 
 const HIGHLIGHT = "doc-find";
+const HIGHLIGHT_STYLE_ID = "doc-find-highlight-style";
+
+/**
+ * The match colour. It lives here, not in doc-opened.css: Turbopack's CSS
+ * parser (`next dev --turbopack`) does not accept `::highlight()` in a
+ * stylesheet. Same rule, same behaviour.
+ */
+function ensureHighlightStyle() {
+  if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = HIGHLIGHT_STYLE_ID;
+  style.textContent = `.needt-v3 ::highlight(${HIGHLIGHT}) { background: var(--fill-accent-strong); color: inherit; }`;
+  document.head.appendChild(style);
+}
 
 /** Find in the page itself: a count, previous and next, every match marked. */
 function Find({ docKey }: { docKey: string }) {
@@ -405,6 +417,7 @@ function Find({ docKey }: { docKey: string }) {
   useEffect(() => {
     const reg = typeof CSS !== "undefined" ? CSS.highlights : undefined;
     if (!reg || typeof Highlight === "undefined") return undefined;
+    ensureHighlightStyle();
     if (n) reg.set(HIGHLIGHT, new Highlight(...ranges));
     else reg.delete(HIGHLIGHT);
     return () => {
@@ -545,7 +558,6 @@ export function DocSwitch({ value }: { value: "doc" | "app" }) {
  */
 export function DocRail() {
   const router = useRouter();
-  const shell = useShellApi();
   const id = useOpenDocId();
   const doc = useDoc(id).data;
   // A single page comes without its first lines; the Docs list (already
@@ -573,9 +585,6 @@ export function DocRail() {
           onClick={() => router.push("/pages")}
         >
           <LuArrowLeft size={16} />
-        </GhostIcon>
-        <GhostIcon label={c.hide_panel} onClick={shell.toggleSidebar}>
-          <LuLayoutTemplate size={16} />
         </GhostIcon>
       </div>
       <div className="docs-doc-panel-3">

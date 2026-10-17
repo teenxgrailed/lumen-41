@@ -32,6 +32,7 @@ import { BugSheet } from "./BugSheet";
 import { CustomizeSidebar } from "./CustomizeSidebar";
 import { KeySheet } from "./KeySheet";
 import { PermanentHosts } from "./PermanentHosts";
+import { RailColumn } from "./RailColumn";
 import { type ShellApi, ShellContext } from "./ShellContext";
 import { Sidebar } from "./Sidebar";
 import { WhatsNew } from "./TopIcons";
@@ -77,7 +78,6 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const router = useRouter();
   const pathname = usePathname();
   const narrow = useNarrow();
-  const sidebarOpen = useNeedt3Ui((s) => s.sidebarOpen);
   const paletteOpen = useNeedt3Ui((s) => s.paletteOpen);
   const docRail = useNeedt3Ui((s) => s.docRail);
   const docId = useOpenDocId();
@@ -222,9 +222,7 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
       {docPanel ? <DocRail /> : <Sidebar />}
     </div>
   );
-  const hidden = !sidebarOpen || focusMode;
   const floatOpen = float && !focusMode;
-  const ease = "cubic-bezier(.2,.8,.2,1)";
 
   /* The rail: the floating rail's scrim, the rail itself, the Focus Mode exit.
      Desktop only; they sit before the page in its row. */
@@ -255,28 +253,10 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
           {railContent}
         </div>
       ) : (
-        /* Hide/show: the column's width runs 300 → 0 and the page
-           reflows, while the rail inside fades and slides 12px left. */
-        <div
-          className={`shell-app-row-2 sb-shell${hidden ? " is-hidden" : ""}`}
-          aria-hidden={hidden || undefined}
-          inert={hidden || undefined}
-          style={{ width: hidden ? 0 : "var(--sidebar-w)" }}
-        >
-          <div
-            className="sb-rail shell-app-rail"
-            style={{
-              opacity: hidden ? 0 : 1,
-              transform: hidden ? "translateX(-12px)" : "none",
-              pointerEvents: hidden ? "none" : "auto",
-              transition: hidden
-                ? `opacity 180ms ease, transform 260ms ${ease}`
-                : `opacity 220ms ease 40ms, transform 260ms ${ease}`,
-            }}
-          >
-            {railContent}
-          </div>
-        </div>
+        /* Hide/show: the column's width changes in one step and the page
+           slides (shell-motion.css); the rail fades and slides 12px left. It
+           reads the store itself, so the shell does not re-render. */
+        <RailColumn focusMode={focusMode}>{railContent}</RailColumn>
       )}
       {focusMode ? (
         <button
