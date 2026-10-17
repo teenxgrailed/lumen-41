@@ -56,6 +56,7 @@ function makeDb(opts: { seededAt?: Date | null; timeZone?: string } = {}) {
         return { count: rows.length };
       },
     },
+    meetingNoteProposal: { deleteMany: async () => ({ count: 0 }) },
     userSettings: {
       findUnique: async () =>
         opts.timeZone ? { timeZone: opts.timeZone } : null,

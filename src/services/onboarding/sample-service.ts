@@ -266,6 +266,11 @@ export async function clearSampleData(
     const removedHabits = await tx.habit.deleteMany({
       where: { userId, isSample: true },
     });
+    // The one child that refuses to cascade: a meeting-note proposal made on
+    // an example document.
+    await tx.meetingNoteProposal.deleteMany({
+      where: { page: { userId, isSample: true } },
+    });
     const pages = await tx.page.deleteMany({
       where: { userId, isSample: true },
     });
