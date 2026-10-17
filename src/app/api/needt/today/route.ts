@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { habitTodayKey } from "@/services/habits/habit-service";
 import { WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -31,6 +32,10 @@ export async function GET(request: NextRequest) {
     {
       workspaceId: auth.workspace.workspaceId,
       now: now.toISOString(),
+      // The day each habit strip ends on, in the zone the server counts in
+      // (the saved one, else UTC), so a client in another zone decodes the
+      // strip onto the same days the write landed on.
+      today: await habitTodayKey(auth.userId, now),
       tasks,
       projects,
       habits,

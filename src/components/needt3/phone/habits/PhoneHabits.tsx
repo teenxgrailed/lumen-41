@@ -15,7 +15,12 @@ import { type Checkin, habitColor } from "@/lib/needt3/derive";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
-import { PER_WEEK_CHOICES, timeLeft } from "../../habits/derive";
+import {
+  MONTH_SHORT,
+  PER_WEEK_CHOICES,
+  monthRows,
+  timeLeft,
+} from "../../habits/derive";
 import type { HabitsController } from "../../habits/useHabitsController";
 import {
   PkActions,
@@ -37,6 +42,7 @@ import { usePhoneOverlays } from "../overlays/store";
 import { PlaceState } from "../place-state/PlaceState";
 import {
   HABITS_PAYWALL_FEATURE,
+  HABIT_WINDOW,
   type HabitForm,
   checkHabitForm,
   clockFacts,
@@ -49,6 +55,9 @@ import {
 } from "./model";
 
 const t = strings["phone-habits.jsx"];
+
+/** What `GET /api/habits/history` sends by default: the four months. */
+const HISTORY_DAYS = 124;
 
 const hueOf = (h: V3Habit, projects: readonly V3Project[]) =>
   habitColor(h, projects) || "var(--phb-none)";
@@ -108,23 +117,75 @@ function HabitRow({
   );
 }
 
+/* ── A habit's last four months: a dot a day, any past day can be tapped ── */
+function PastDays({
+  h,
+  checkins,
+  today,
+  onTickDay,
+}: {
+  h: V3Habit;
+  checkins: readonly Checkin[];
+  today: string;
+  onTickDay: (h: V3Habit, date: string, done: boolean) => void;
+}) {
+  const rows = monthRows(today, [h.id], checkins);
+  return (
+    <div className="phb-past" data-phb-past={h.id}>
+      {rows.map((r) => (
+        <div key={r.key} className="phb-past-month">
+          <span className="phb-month-name">
+            {MONTH_SHORT[r.month].toUpperCase()}
+          </span>
+          <span className="phb-past-dots">
+            {r.dots.map((d) => {
+              if (d.kind === "ahead")
+                return <span key={d.date} className="phb-pd is-ahead" />;
+              const on = d.kind === "on";
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  className={pkCx("phb-pd", on && "is-on")}
+                  aria-pressed={on}
+                  aria-label={`${d.day} ${MONTH_SHORT[r.month]} — ${
+                    on ? "kept, tap to undo" : "tap to mark kept"
+                  }`}
+                  data-phb-day={d.date}
+                  onClick={() => onTickDay(h, d.date, !on)}
+                />
+              );
+            })}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── The last fourteen days as dots; today is the one you can tap ── */
 function HabitHistory({
   h,
   hue,
   checkins,
   today,
+  window,
   onTick,
+  onTickDay,
 }: {
   h: V3Habit;
   hue: string;
   checkins: readonly Checkin[];
   today: string;
+  /** How many days the checkins reach back (14 until the long read lands). */
+  window: number;
   onTick: (h: V3Habit, done: boolean) => void;
+  onTickDay: (h: V3Habit, date: string, done: boolean) => void;
 }) {
+  const [past, setPast] = useState(false);
   const dots = historyDots(h.id, checkins, today);
   const kept = dots.filter((d) => d.kind === "on").length;
-  const streak = streakFigure(h.id, checkins, today);
+  const streak = streakFigure(h.id, checkins, today, window);
   return (
     <div
       className="phb-habit"
@@ -185,6 +246,23 @@ function HabitHistory({
           </span>
         </span>
       </div>
+      <PkButton
+        kind="inline"
+        className="phb-past-toggle"
+        aria-expanded={past}
+        onClick={() => setPast((v) => !v)}
+        data-phb-past-toggle={h.id}
+      >
+        {past ? "Hide past days" : "Past days"}
+      </PkButton>
+      {past ? (
+        <PastDays
+          h={h}
+          checkins={checkins}
+          today={today}
+          onTickDay={onTickDay}
+        />
+      ) : null}
     </div>
   );
 }
@@ -380,9 +458,11 @@ function HabitSheet({
  * it opens the paywall sheet. State is the controller's
  * (`useHabitsController`, held above the face switch).
  *
+ * "Past days" under each habit opens its last four months, where a past day
+ * can be marked or unmarked.
+ *
  * //todo: hold-to-reorder and Move up / Down: habits have no order column or
- * route. //todo: "The last months": the API returns only the 14-day strip.
- * //todo: tick a past day: only /completions/today exists (data map §6).
+ * route.
  */
 export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
   const sc = useRef<HTMLElement | null>(null);
@@ -571,9 +651,11 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
                     key={h.id}
                     h={h}
                     hue={hueOf(h, projects)}
-                    checkins={checkins}
+                    checkins={ctl.history}
                     today={today}
+                    window={ctl.historyReady ? HISTORY_DAYS : HABIT_WINDOW}
                     onTick={ctl.tick}
+                    onTickDay={ctl.tickDay}
                   />
                 ))}
               </PkSection>

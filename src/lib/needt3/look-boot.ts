@@ -10,6 +10,7 @@
  * right colours, and so is `generateViewport`, which cannot reach the DB
  * cheaply. Pure and client-safe: no DOM at import time, no server imports.
  */
+import { PHONE_MEDIA_QUERY } from "@/lib/needt3/phone-ui";
 import {
   type AccentId,
   DEFAULT_ACCENT,
@@ -29,6 +30,20 @@ export const SIDE_BG: Record<ThemeSide, string> = {
   light: "#fcfdfe",
   dark: "#202022",
 };
+
+/**
+ * The phone's ground (`--v2p-ground`, themes.css): what the screen is painted
+ * with. The page behind it (`html`, `body`, the status and home-indicator
+ * areas, the browser's bar) must be this colour, not `SIDE_BG`, or a lighter
+ * strip shows under the floating bar. A test holds it equal to the CSS.
+ */
+export const PHONE_GROUND: Record<ThemeSide, string> = {
+  light: "#f6f6f3",
+  dark: "#141416",
+};
+
+/** Viewports narrower than the phone UI's breakpoint. */
+export const PHONE_MEDIA = PHONE_MEDIA_QUERY;
 
 /** Time's current bg / raised / ink, bare hex. Absent at full day and night. */
 export interface LookPalette {
@@ -153,7 +168,7 @@ export function barColorOf(paint: Pick<FirstPaint, "side" | "vars">): string {
 
 export interface ViewportLook {
   colorScheme: "light" | "dark" | "light dark";
-  themeColor: string | Array<{ media: string; color: string }>;
+  themeColor: Array<{ media?: string; color: string }>;
 }
 
 /** What `generateViewport` tells the browser chrome before any script runs. */
@@ -163,12 +178,26 @@ export function viewportLook(look: Look): ViewportLook {
     return {
       colorScheme: "light dark",
       themeColor: [
+        {
+          media: `(prefers-color-scheme: light) and ${PHONE_MEDIA}`,
+          color: PHONE_GROUND.light,
+        },
+        {
+          media: `(prefers-color-scheme: dark) and ${PHONE_MEDIA}`,
+          color: PHONE_GROUND.dark,
+        },
         { media: "(prefers-color-scheme: light)", color: SIDE_BG.light },
         { media: "(prefers-color-scheme: dark)", color: SIDE_BG.dark },
       ],
     };
   }
-  return { colorScheme: paint.side, themeColor: barColorOf(paint) };
+  return {
+    colorScheme: paint.side,
+    themeColor: [
+      { media: PHONE_MEDIA, color: PHONE_GROUND[paint.side] },
+      { color: barColorOf(paint) },
+    ],
+  };
 }
 
 /**

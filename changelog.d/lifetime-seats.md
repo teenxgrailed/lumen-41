@@ -1,0 +1,1 @@
+- A public seat counter for the Lifetime plan (`GET /api/lifetime-seats`) feeds the landing page.

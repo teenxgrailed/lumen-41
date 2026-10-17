@@ -14,6 +14,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { qk } from "@/lib/needt3/query-keys";
+import { type WeekHours, weekFromLegacy } from "@/lib/work-week";
 
 import { fetchJson, sendJson, useUndoableMutation } from "./core";
 
@@ -24,6 +25,19 @@ export interface V3Schedule {
   workHourStart: number;
   workHourEnd: number;
   bufferMinutes: number;
+  /** Each weekday's own hours (0 = Sunday); the fields above summarise it. */
+  weekHours: WeekHours;
+}
+
+function daysOf(raw: string): number[] {
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v)
+      ? v.filter((n): n is number => Number.isInteger(n) && n >= 0 && n <= 6)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 const SCHEDULE = [...qk.settings(), "schedule"] as const;
@@ -35,11 +49,17 @@ export function useSchedule() {
       const row = await fetchJson<Partial<V3Schedule>>(
         "/api/auto-schedule-settings"
       );
+      const workDays = row.workDays ?? "[1,2,3,4,5]";
+      const workHourStart = row.workHourStart ?? 9;
+      const workHourEnd = row.workHourEnd ?? 17;
       return {
-        workDays: row.workDays ?? "[1,2,3,4,5]",
-        workHourStart: row.workHourStart ?? 9,
-        workHourEnd: row.workHourEnd ?? 17,
+        workDays,
+        workHourStart,
+        workHourEnd,
         bufferMinutes: row.bufferMinutes ?? 15,
+        weekHours:
+          row.weekHours ??
+          weekFromLegacy(daysOf(workDays), workHourStart, workHourEnd),
       };
     },
     staleTime: 5 * 60_000,
@@ -60,9 +80,25 @@ export function useUpdateSchedule() {
       return back;
     },
     optimistic: (client, patch) =>
-      client.setQueryData<V3Schedule>(SCHEDULE, (cur) =>
-        cur ? { ...cur, ...patch } : cur
-      ),
+      client.setQueryData<V3Schedule>(SCHEDULE, (cur) => {
+        if (!cur) return cur;
+        const next = { ...cur, ...patch };
+        // A single-range write reaches every working day on the server; show
+        // the same week here until the next read.
+        if (
+          !patch.weekHours &&
+          (patch.workHourStart !== undefined ||
+            patch.workHourEnd !== undefined ||
+            patch.workDays !== undefined)
+        ) {
+          next.weekHours = weekFromLegacy(
+            daysOf(next.workDays),
+            next.workHourStart,
+            next.workHourEnd
+          );
+        }
+        return next;
+      }),
     request: (patch) => sendJson("/api/auto-schedule-settings", "PATCH", patch),
   });
 }
@@ -147,6 +183,26 @@ export async function startCheckout(
       ok: false,
       error:
         error instanceof Error ? error.message : "Could not start checkout.",
+    };
+  }
+}
+
+/**
+ * Start the free trial (`POST /api/billing/trial`): no card, no payment. The
+ * server answers 409 when this address has had one, and the sentence it sends
+ * is the one to show.
+ */
+export async function startTrial(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  try {
+    await sendJson("/api/billing/trial", "POST");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not start the trial.",
     };
   }
 }

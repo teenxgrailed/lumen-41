@@ -8,10 +8,12 @@ import { priceStrings } from "@/lib/needt3/pricing";
 
 import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
+import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
 import {
   CATEGORY_LABEL,
   type CnItem,
+  canSyncNow,
   disconnectTitle,
 } from "../../connections/derive";
 import { AI_META, appsFor, toolAvailable } from "../../connections/mcp";
@@ -60,9 +62,10 @@ function useLast<T>(value: T | null) {
  * does), and Disconnect after a confirm. A tap or hold on a row opens the
  * account sheet.
  *
- * //todo: Sync now and the calendar sync settings, the consent sheet's scope
- * list, brand marks, the AI tools' setup guides and the MCP / API connections
- * (the desktop has none of them wired either: no routes yet).
+ * A connected calendar or mailbox also has "Sync now" in its sheet.
+ *
+ * //todo: the calendar sync settings, the consent sheet's scope list, brand
+ * marks.
  */
 export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
@@ -375,14 +378,28 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         }
         footer={
           !A ? null : A.state === "connected" ? (
-            <PkButton
-              className="ppl-danger-q"
-              disabled={aBusy}
-              onClick={() => c.setConfirm(A)}
-              data-ppl-disconnect={A.slug}
-            >
-              Disconnect
-            </PkButton>
+            <>
+              {canSyncNow(A) ? (
+                <PkButton
+                  disabled={aBusy}
+                  onClick={() => {
+                    closeAcct();
+                    void c.syncNow(A);
+                  }}
+                  data-ppl-sync={A.slug}
+                >
+                  Sync now
+                </PkButton>
+              ) : null}
+              <PkButton
+                className="ppl-danger-q"
+                disabled={aBusy}
+                onClick={() => c.setConfirm(A)}
+                data-ppl-disconnect={A.slug}
+              >
+                Disconnect
+              </PkButton>
+            </>
           ) : (
             <PkButton
               kind="primary"
@@ -475,6 +492,29 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         }
       >
         {c.setup ? <AiSetup id={c.setup} mcp={c.mcp} /> : null}
+      </PkSheet>
+
+      <PkSheet
+        open={c.api}
+        onClose={() => c.setApi(false)}
+        detents={[0.92]}
+        title={strings.apiTitle}
+        label={strings.apiTitle}
+        className="ppl-acct"
+        footer={
+          <PkButton
+            kind="primary"
+            onClick={() => {
+              c.setApi(false);
+              void c.mcp.reload();
+            }}
+            data-ppl-api-done=""
+          >
+            Done
+          </PkButton>
+        }
+      >
+        {c.api ? <ApiAccess mcp={c.mcp} /> : null}
       </PkSheet>
 
       {/* Apple / iCloud takes a CalDAV login, as on the desktop */}

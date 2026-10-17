@@ -32,6 +32,11 @@ export const qk = {
     filter ? ([V3, "tasks", filter] as const) : ([V3, "tasks"] as const),
   task: (id: string) => [V3, "task", id] as const,
 
+  /** The person's labels (`GET /api/tags`). */
+  labels: () => [V3, "labels"] as const,
+  /** The person's work schedules (`GET /api/work-schedules`), for a task's Hours. */
+  workSchedules: () => [V3, "work-schedules"] as const,
+
   projects: () => [V3, "projects"] as const,
   imports: () => [V3, "imports"] as const,
   project: (id: string) => [V3, "project", id] as const,
@@ -42,6 +47,8 @@ export const qk = {
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,
+  /** Whether the day's note exists (`useDailyNote`). */
+  dailyNote: (day: string) => [V3, "daily-note", day] as const,
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,
@@ -71,7 +78,10 @@ export const qk = {
   connections: () => [V3, "connections"] as const,
   settings: () => [V3, "settings"] as const,
   plan: () => [V3, "plan"] as const,
+  aiAvailability: () => [V3, "ai-availability"] as const,
   nudges: () => [V3, "nudges"] as const,
+  /** The bell's feed; under `nudges` so marking a nudge read refreshes it too. */
+  notifications: (group: string) => [V3, "nudges", "feed", group] as const,
   shell: () => [V3, "shell"] as const,
   search: (q: string) => [V3, "search", q] as const,
 } as const;

@@ -28,7 +28,15 @@ export const PageBlockNode = Node.create({
 
   addAttributes() {
     return {
-      blockId: { default: null },
+      blockId: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          element.getAttribute("data-block-id"),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          attributes.blockId
+            ? { "data-block-id": String(attributes.blockId) }
+            : {},
+      },
       kind: { default: "CALLOUT" },
       data: { default: "{}" },
     };

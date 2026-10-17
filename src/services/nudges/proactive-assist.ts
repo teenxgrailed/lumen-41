@@ -3,6 +3,8 @@ import { Prisma, ProactiveNudgeType } from "@prisma/client";
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { canUseAdvancedNudges } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import { type WeekHours } from "@/lib/work-week";
+import { loadWeekHours } from "@/lib/work-week-server";
 
 import { describeGap, longestFreeGap } from "./free-time";
 
@@ -28,19 +30,31 @@ function inQuietHours(
     : time >= start || time < end;
 }
 
-/** Work days from the settings string; unset or unreadable is Monday to Friday. */
-function workDaysOf(value: string | null | undefined): number[] {
-  if (!value) return [1, 2, 3, 4, 5];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter(
-          (d): d is number => Number.isInteger(d) && d >= 0 && d <= 6
-        )
-      : [1, 2, 3, 4, 5];
-  } catch {
-    return [1, 2, 3, 4, 5];
-  }
+/**
+ * What is left of today's working ranges (epoch ms), from that weekday's own
+ * hours: a day that is off has none, a split day has two. Starts on the next
+ * quarter hour, since a gap that began a minute ago is not news.
+ */
+export function remainingWorkWindows(
+  week: WeekHours,
+  weekday: number,
+  dayWindow: string,
+  timeZone: string,
+  now: Date
+): Array<{ start: number; end: number }> {
+  const entry = week.find((day) => day.day === weekday);
+  if (!entry?.on) return [];
+  const quarter = 15 * 60_000;
+  const from = Math.ceil(now.getTime() / quarter) * quarter;
+  return entry.ranges
+    .map((range) => ({
+      start: Math.max(
+        fromZonedTime(`${dayWindow}T${range.start}:00`, timeZone).getTime(),
+        from
+      ),
+      end: fromZonedTime(`${dayWindow}T${range.end}:00`, timeZone).getTime(),
+    }))
+    .filter((window) => window.end > window.start);
 }
 
 /**
@@ -55,27 +69,19 @@ async function freeTimeDraft(
   now: Date,
   dayWindow: string
 ): Promise<NudgeDraft | null> {
-  const settings = await prisma.autoScheduleSettings.findUnique({
-    where: { userId },
-    select: { workDays: true, workHourStart: true, workHourEnd: true },
-  });
-  if (!settings || settings.workHourEnd <= settings.workHourStart) return null;
   const weekday = Number(formatInTimeZone(now, timeZone, "i")) % 7;
-  if (!workDaysOf(settings.workDays).includes(weekday)) return null;
-
-  const at = (hour: number) =>
-    fromZonedTime(
-      `${dayWindow}T${String(hour).padStart(2, "0")}:00:00`,
-      timeZone
-    ).getTime();
-  // Start on the next quarter hour: a gap that began a minute ago is not news.
-  const quarter = 15 * 60_000;
-  const from = Math.max(
-    at(settings.workHourStart),
-    Math.ceil(now.getTime() / quarter) * quarter
+  const windows = remainingWorkWindows(
+    await loadWeekHours(userId),
+    weekday,
+    dayWindow,
+    timeZone,
+    now
   );
-  const window = { start: from, end: at(settings.workHourEnd) };
-  if (window.end <= window.start) return null;
+  if (windows.length === 0) return null;
+  const window = {
+    start: Math.min(...windows.map((w) => w.start)),
+    end: Math.max(...windows.map((w) => w.end)),
+  };
 
   const unplaced = await prisma.task.count({
     where: {
@@ -124,7 +130,12 @@ async function freeTimeDraft(
         : []
     ),
   ];
-  const gap = longestFreeGap(window, busy);
+  // The longest gap across the day's ranges, so a lunch break is not "free".
+  const gap =
+    windows
+      .map((w) => longestFreeGap(w, busy))
+      .filter((g): g is NonNullable<typeof g> => g !== null)
+      .sort((a, b) => b.end - b.start - (a.end - a.start))[0] ?? null;
   if (!gap) return null;
   const { range, hours } = describeGap(gap, (ms) =>
     formatInTimeZone(new Date(ms), timeZone, "HH:mm")
