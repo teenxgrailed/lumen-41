@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { NeedtPicker } from "@/components/ui/needt-picker";
 
 import {
   useAddBoardItem,
@@ -32,6 +33,7 @@ const KIND_LABEL: Record<ShareKind, string> = {
   board: "Moodboard item",
 };
 const NEW_BOARD = "__new";
+const NO_PROJECT = "__none";
 
 /**
  * The Share to Needt sheet: what another app shared, saved as a Task, a Doc or
@@ -273,35 +275,36 @@ function Sheet() {
         {kind === "board" ? (
           <label className="mt-3 block text-[12px] text-[var(--text-muted)]">
             Moodboard
-            <select
+            <NeedtPicker
               value={boardId || NEW_BOARD}
-              onChange={(e) => setBoardId(e.target.value)}
-              className="mt-1 h-10 w-full rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-transparent px-2 text-[13px] text-[var(--text-primary)]"
-            >
-              <option value={NEW_BOARD}>New moodboard</option>
-              {boards.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.title || "Untitled"}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: NEW_BOARD, label: "New moodboard" },
+                ...boards.map((b) => ({
+                  value: b.id,
+                  label: b.title || "Untitled",
+                })),
+              ]}
+              onValueChange={(v) => setBoardId(v)}
+              ariaLabel="Moodboard"
+              triggerVariant="field"
+              className="mt-1 w-full"
+            />
           </label>
         ) : null}
 
         <label className="mt-3 block text-[12px] text-[var(--text-muted)]">
           Project
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="mt-1 h-10 w-full rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-transparent px-2 text-[13px] text-[var(--text-primary)]"
-          >
-            <option value="">No project</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <NeedtPicker
+            value={projectId || NO_PROJECT}
+            options={[
+              { value: NO_PROJECT, label: "No project" },
+              ...projects.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+            onValueChange={(v) => setProjectId(v === NO_PROJECT ? "" : v)}
+            ariaLabel="Project"
+            triggerVariant="field"
+            className="mt-1 w-full"
+          />
         </label>
 
         <div className="mt-4 flex justify-end gap-2">
