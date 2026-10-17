@@ -726,6 +726,147 @@
   }
 }
 
+/* ───────── highlight and text colour: the document hues ─────────
+ * Each hue has a deep and a pale reading (themes.css). A sheet whose ink is
+ * pale (a dark page) uses the pale one; `data-dc-ink-l|d` say which, for the
+ * Light and the Dark app theme. */
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl] {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--doc-ink-dark) 20%, transparent);
+  color: inherit;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="umber"] {
+  color: var(--doc-text-umber-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="umber"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="umber"] {
+  color: var(--doc-text-umber-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="umber"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="umber"] {
+  background: color-mix(in oklab, var(--doc-text-umber-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="wine"] {
+  color: var(--doc-text-wine-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="wine"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="wine"] {
+  color: var(--doc-text-wine-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="wine"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="wine"] {
+  background: color-mix(in oklab, var(--doc-text-wine-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="plum"] {
+  color: var(--doc-text-plum-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="plum"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="plum"] {
+  color: var(--doc-text-plum-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="plum"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="plum"] {
+  background: color-mix(in oklab, var(--doc-text-plum-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="navy"] {
+  color: var(--doc-text-navy-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="navy"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="navy"] {
+  color: var(--doc-text-navy-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="navy"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="navy"] {
+  background: color-mix(in oklab, var(--doc-text-navy-lt) 30%, transparent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor [data-tc="forest"] {
+  color: var(--doc-text-forest-dk);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor mark[data-hl="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-dk) 28%, transparent);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  [data-tc="forest"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  [data-tc="forest"] {
+  color: var(--doc-text-forest-lt);
+}
+.needt-v3:not([data-theme="dark"])
+  [data-doc-sheet][data-dc-ink-l="lt"]
+  .needt-page-editor
+  mark[data-hl="forest"],
+.needt-v3[data-theme="dark"]
+  [data-doc-sheet][data-dc-ink-d="lt"]
+  .needt-page-editor
+  mark[data-hl="forest"] {
+  background: color-mix(in oklab, var(--doc-text-forest-lt) 30%, transparent);
+}
+
 /* ───────── the rail (Contents, Find) ───────── */
 .needt-v3 .doc-rail-row-label {
   overflow: hidden;

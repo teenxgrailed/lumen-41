@@ -35,6 +35,7 @@ import { Editor, EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import {
+  Baseline,
   Bell,
   Bold,
   Bookmark,
@@ -53,6 +54,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Highlighter,
   History,
   Image,
   Italic,
@@ -75,6 +77,7 @@ import {
   Strikethrough,
   Table2,
   Tag,
+  Underline as UnderlineIcon,
   Undo2,
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -89,6 +92,7 @@ import { useV3PortalContainer } from "@/components/needt3/ctx/PortalScope";
 import { registerCtx } from "@/components/needt3/ctx/registry";
 import { DatabaseWorkspace } from "@/components/pages/DatabaseWorkspace";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
+import { type ColorKind, PageColorRow } from "@/components/pages/PageColorRow";
 import { PageLinkDialog } from "@/components/pages/PageLinkDialog";
 import { PageTableBar } from "@/components/pages/PageTableBar";
 import { pageContainerBlocks } from "@/components/pages/blocks";
@@ -98,6 +102,7 @@ import {
   containerBlockJson,
 } from "@/components/pages/blocks/templates";
 import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
+import { pageColorMarks } from "@/components/pages/marks";
 import {
   PageAutosave,
   type PageSaveState,
@@ -545,6 +550,8 @@ export function PageWorkspace({
     left: number;
   } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  // Which swatch row the selection bar is showing under its buttons.
+  const [colorRow, setColorRow] = useState<ColorKind | null>(null);
   const [linkDialog, setLinkDialog] = useState<{
     from: number;
     to: number;
@@ -890,6 +897,7 @@ export function PageWorkspace({
       BlockIdentity,
       BlockFlash,
       ...pageContainerBlocks,
+      ...pageColorMarks,
       PageBlockNode,
       Collaboration.configure({ document: collaborationDocument }),
       CollaborationCaret.configure({
@@ -2878,7 +2886,7 @@ export function PageWorkspace({
               }}
             >
               <div
-                className="needt-overlay-depth hidden items-center gap-0.5 rounded-[var(--control-radius)] border border-[var(--popover-border)] p-1 sm:flex"
+                className="needt-overlay-depth hidden flex-wrap items-center gap-0.5 rounded-[var(--control-radius)] border border-[var(--popover-border)] p-1 sm:flex"
                 aria-label="Text formatting"
               >
                 {[
@@ -2907,10 +2915,33 @@ export function PageWorkspace({
                     run: () => editor.chain().focus().toggleCode().run(),
                   },
                   {
+                    label: "Underline",
+                    active: editor.isActive("underline"),
+                    icon: UnderlineIcon,
+                    run: () => editor.chain().focus().toggleUnderline().run(),
+                  },
+                  {
                     label: "Link",
                     active: editor.isActive("link"),
                     icon: Link2,
                     run: openLinkDialog,
+                  },
+                  {
+                    label: "Text colour",
+                    active: editor.isActive("textColor") || colorRow === "text",
+                    icon: Baseline,
+                    run: () =>
+                      setColorRow((row) => (row === "text" ? null : "text")),
+                  },
+                  {
+                    label: "Highlight",
+                    active:
+                      editor.isActive("highlight") || colorRow === "highlight",
+                    icon: Highlighter,
+                    run: () =>
+                      setColorRow((row) =>
+                        row === "highlight" ? null : "highlight"
+                      ),
                   },
                 ].map((action) => {
                   const Icon = action.icon;
@@ -2932,6 +2963,14 @@ export function PageWorkspace({
                     </button>
                   );
                 })}
+                {colorRow && (
+                  <PageColorRow
+                    editor={editor}
+                    kind={colorRow}
+                    onDone={() => setColorRow(null)}
+                    className="w-full px-1.5 pb-1 pt-1"
+                  />
+                )}
               </div>
             </BubbleMenu>
           )}
@@ -3136,7 +3175,7 @@ export function PageWorkspace({
               );
             })}
           </div>
-          <div className="mt-3 grid grid-cols-5 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             {[
               {
                 label: "Bold",
@@ -3157,6 +3196,11 @@ export function PageWorkspace({
                 label: "Code",
                 icon: Code2,
                 run: () => editor?.chain().focus().toggleCode().run(),
+              },
+              {
+                label: "Underline",
+                icon: UnderlineIcon,
+                run: () => editor?.chain().focus().toggleUnderline().run(),
               },
               {
                 label: "Link",
@@ -3181,6 +3225,23 @@ export function PageWorkspace({
               );
             })}
           </div>
+          {editor && (
+            <div className="mt-3 space-y-2.5">
+              {(["text", "highlight"] as const).map((kind) => (
+                <div key={kind} className="flex items-center gap-3">
+                  <span className="w-20 flex-none text-xs text-[var(--text-muted)]">
+                    {kind === "text" ? "Text colour" : "Highlight"}
+                  </span>
+                  <PageColorRow
+                    editor={editor}
+                    kind={kind}
+                    onDone={() => setMobileFormatOpen(false)}
+                    className="flex-wrap gap-2.5"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           <div className="mt-3 grid grid-cols-2 gap-2">
             {COMMANDS.filter((command) =>
               ["bullet", "ordered", "checklist", "quote", "code"].includes(
