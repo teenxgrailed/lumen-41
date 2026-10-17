@@ -205,6 +205,11 @@ export const WEEK_OPTIONS: readonly (readonly [string, string])[] = [
   ["sunday", "Sunday"],
 ];
 
+export const CLOCK_OPTIONS: readonly (readonly [string, string])[] = [
+  ["24h", "24-hour"],
+  ["12h", "12-hour"],
+];
+
 export const VIEW_OPTIONS: readonly (readonly [string, string])[] = [
   ["week", "Week"],
   ["days", "Agenda"],

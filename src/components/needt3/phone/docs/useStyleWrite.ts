@@ -105,6 +105,11 @@ export function useStyleWrite(doc: V3Doc) {
   const cover = useCallback(
     (file: File | null | undefined) => {
       if (!file) return;
+      // A cover is Pro: a free plan is stopped before the upload starts.
+      if (!pro) {
+        toPaywall();
+        return;
+      }
       void uploadCover(doc.id, file)
         // Patch over the document as it is when the upload lands, not as it
         // was when the file was picked: style edits made meanwhile survive.
@@ -118,8 +123,8 @@ export function useStyleWrite(doc: V3Doc) {
         )
         .catch(() => notify.error("Could not upload the picture."));
     },
-    [doc, qc, write]
+    [doc, pro, qc, toPaywall, write]
   );
 
-  return { pro, set, preset, cover };
+  return { pro, set, preset, cover, toPaywall };
 }

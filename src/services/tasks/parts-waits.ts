@@ -34,6 +34,18 @@ export const partsWaitsInclude = {
       waitingOnUser: { select: { id: true, name: true, image: true } },
     },
   },
+  // Metadata only: the bytes are read from /api/tasks/:id/attachments/:id.
+  attachments: {
+    where: { bytes: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      mimeType: true,
+      size: true,
+      createdAt: true,
+    },
+  },
 } satisfies Prisma.TaskInclude;
 
 export const partSelect = partsWaitsInclude.parts.select;

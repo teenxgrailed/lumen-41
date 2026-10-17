@@ -106,7 +106,13 @@ builds web (`production` target), worker and collaboration from the root
 resource builds `docker/runtime/<app>.Dockerfile`, a single
 `FROM ghcr.io/teenxgrails/needt-<app>:${SOURCE_COMMIT}`, so its "build" is a
 pull of the image CI pushed for that exact commit;
-`scripts/coolify-deploy-image.sh` only asks for the deploy. Building there used to cost ~17
+`scripts/coolify-deploy-image.sh` first pins the application's `git_commit_sha`
+to the release SHA (Coolify API `PATCH /applications/{uuid}`, token ability
+`write`), then asks for the deploy. `scripts/release-is-needed.sh` skips a
+release only when production already runs that SHA or a descendant, so merges
+landing during a 25-minute build never starve deploys. Without `write` the
+script falls back to the head of main and deploys only if its images already
+exist in GHCR; the token should have `read`, `write` and `deploy`. Building there used to cost ~17
 minutes of CPU per merge on the same four cores as Postgres, and two outages
 when builds overlapped.
 

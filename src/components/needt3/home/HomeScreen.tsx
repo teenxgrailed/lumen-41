@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { FiCalendar, FiPlus } from "react-icons/fi";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
+import { openPaywall } from "@/components/needt3/paywall/store";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
 import type {
   HomeController,
@@ -15,9 +16,10 @@ import type {
 } from "@/components/needt3/phone/home/useHomeController";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
+import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { formatInTimeZone } from "@/lib/date-utils";
 import {
   addDays,
   habitDoneOn,
@@ -26,6 +28,8 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { useNow } from "@/lib/needt3/hooks/clock";
+import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
@@ -34,19 +38,18 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { usePlan } from "@/lib/needt3/hooks/plan";
+import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
-import {
-  useTasks,
-  useToggleTask,
-  useUpdateTask,
-} from "@/lib/needt3/hooks/tasks";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { showsTask } from "@/lib/needt3/task-view";
+import { todayLine } from "@/lib/needt3/today";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { openPaywall } from "../paywall";
 import {
   Capped,
   DayClosed,
@@ -57,10 +60,12 @@ import {
   InboxCard,
   NextUpCard,
   NextUpNone,
+  NotesLine,
   PlanButton,
   type ProState,
   ProgressCard,
   Schedule,
+  StreakCard,
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
@@ -68,6 +73,7 @@ import {
   capacityFrom,
   dayState,
   dayStats,
+  dayStreak,
   dur,
   nextUpNote,
   pickNextUp,
@@ -87,28 +93,16 @@ import {
  * Day | Week ahead; a closed day says so once and points at tomorrow.
  */
 
-/** The strike plays, then the row collapses, then it is gone (ms). */
-const STRIKE_MS = 600;
-const GONE_MS = 870;
+/** A reopened row's return (ms); the strike and the fold are the shared completion's. */
 const BACK_MS = 320;
 
 type Tab = HomeTab;
-
-/** Re-render once a minute so the now line and "Was planned for" stay true. */
-function useNowMinute() {
-  const [now, setNow] = useState(() => newDate());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(newDate()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  return now;
-}
 
 function DesktopHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
-  const now = useNowMinute();
+  const now = useNow();
   const today = formatInTimeZone(now, tz, "yyyy-MM-dd");
   const [hh, mm] = formatInTimeZone(now, tz, "HH:mm").split(":");
   const nowHour = +hh + +mm / 60;
@@ -120,11 +114,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const projects = useProjects();
   const settings = useSettings();
   const plan = usePlan();
-  const toggleTask = useToggleTask();
+  const planner = usePlanDay();
+  const dailyNote = useDailyNote(today);
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const createDoc = useCreateDoc();
-  const { setComposerOpen, setAskOpen } = useNeedt3Ui();
+  const { setComposerOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
 
   // The route's controller (created above the face switch, so a resize across
@@ -136,7 +131,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     fold,
     setFold,
     leaving,
-    setLeaving,
+    completion,
     back,
     setBack,
     skipped,
@@ -147,9 +142,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const taskView = useTaskView();
   const { late, day, inbox } = useMemo(
-    () => splitHome(allTasks, today),
-    [allTasks, today]
+    () => splitHome(allTasks, today, taskView),
+    [allTasks, today, taskView]
   );
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
 
@@ -161,7 +157,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const stats = dayStats(day);
   const state = dayState(day, late.length, leavingIds);
   const closedDay = state === "closed";
-  const doneToday = day.filter((t) => t.done && !leaving[t.id]);
+  const doneToday = day.filter(
+    (t) => t.done && !leaving[t.id] && showsTask(t, taskView, today)
+  );
   const sections = closedDay ? [] : sectionsOf(day, shown, today);
   const lateShown = late.filter(shown);
   const inboxShown = inbox.filter(shown);
@@ -201,12 +199,17 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
-  const upgrade = (feature: string) => () => openPaywall(feature);
-  const planDay = () => {
-    //todo: the real planner (POST plan-day → /api/tasks/batch) is not wired;
-    // Ask Needt is the fallback the prototype used too.
-    setAskOpen(true);
+  // A locked feature opens the Pro sheet, on what was asked for.
+  const upgradePlan = () => openPaywall("Plan my day");
+  const upgradeWeek = () => openPaywall("Week load");
+  // Plan my day runs the real scheduler (preview, apply, one Undo); it is a
+  // Pro action, so a Free person never reaches it (PlanButton opens the plans).
+  const planDay = () => void planner.plan();
+  const openNote = async () => {
+    const id = await dailyNote.open();
+    if (id) router.push(`/pages/${id}`);
   };
+  const streak = dayStreak(allTasks, today);
 
   const clearTimers = useCallback(
     (id: string) => {
@@ -226,42 +229,30 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     });
 
   /**
-   * The check writes first, always; the row's exit is only the page catching
-   * up. Under reduced motion the row leaves at once.
+   * The check is the shared completion (task/useCompletion): the write goes
+   * first, always, with its Undo notice; the strike and the fold are only the
+   * page catching up. Here only what Home itself keeps: the closed order for
+   * "Undo last" and a reopened row's return.
    */
   const check = useCallback(
     (t: V3Task) => {
-      void toggleTask.toggle(t).catch(() => undefined);
       clearTimers(t.id);
+      completion.check(t);
       if (!t.done) {
         closed.current = closed.current.filter((x) => x !== t.id).concat(t.id);
-        if (reduced) return;
-        setLeaving((m) => ({ ...m, [t.id]: "strike" }));
-        timers.current[t.id] = [
-          window.setTimeout(
-            () =>
-              setLeaving((m) => (m[t.id] ? { ...m, [t.id]: "collapse" } : m)),
-            STRIKE_MS
-          ),
-          window.setTimeout(() => {
-            drop(setLeaving, t.id);
-            delete timers.current[t.id];
-          }, GONE_MS),
-        ];
-      } else {
-        closed.current = closed.current.filter((x) => x !== t.id);
-        drop(setLeaving, t.id);
-        if (reduced) return;
-        setBack((m) => ({ ...m, [t.id]: true }));
-        timers.current[t.id] = [
-          window.setTimeout(() => {
-            drop(setBack, t.id);
-            delete timers.current[t.id];
-          }, BACK_MS),
-        ];
+        return;
       }
+      closed.current = closed.current.filter((x) => x !== t.id);
+      if (reduced) return;
+      setBack((m) => ({ ...m, [t.id]: true }));
+      timers.current[t.id] = [
+        window.setTimeout(() => {
+          drop(setBack, t.id);
+          delete timers.current[t.id];
+        }, BACK_MS),
+      ];
     },
-    [toggleTask, reduced, clearTimers, closed, timers, setLeaving, setBack]
+    [completion, reduced, clearTimers, closed, timers, setBack]
   );
 
   const undoLast = () => {
@@ -360,9 +351,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       pro={pro}
       canPlan={canPlan}
       onPlan={planDay}
-      onLocked={upgrade("Plan my day")}
+      onLocked={upgradePlan}
       primary={primary}
       small={small}
+      busy={planner.busy}
     />
   );
 
@@ -370,8 +362,33 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ["day", "Day", stats.left],
     ["week", "Week ahead", weekOpen],
   ];
-  const dateLine = formatInTimeZone(now, tz, "EEEE, d MMMM");
-  const weekNo = formatInTimeZone(now, tz, "I");
+  const { date: dateLine, week: weekNo } = todayLine(
+    now,
+    tz,
+    settings.data?.weekStartDay ?? "monday"
+  );
+
+  const lateFold = lateShown.length ? (
+    <Fold
+      title="Overdue"
+      tone="late"
+      count={late.length}
+      open={!fold.late}
+      onToggle={flip("late")}
+      note="These were due before today — move them or let them go."
+      action={
+        <button
+          type="button"
+          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
+          onClick={() => void moveToToday()}
+        >
+          Move to today
+        </button>
+      }
+    >
+      <Capped list={lateShown} render={(t) => row(t, true)} />
+    </Fold>
+  ) : null;
 
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">
@@ -433,6 +450,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
             ))}
           </span>
           {planButton(false, true)}
+          <TaskViewGear scope="home" />
         </span>
       </header>
 
@@ -489,8 +507,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     closed={closedDay}
                     empty={stats.total === 0}
                   />
-                  {/* //todo: the Streak card ("n days closed") needs ClosedDay
-                      rows, which nothing writes yet (01-data-map §6). */}
+                  <StreakCard n={streak.n} todayClosed={streak.todayClosed} />
                   <HabitsCard chips={chips} onToggle={onHabit} />
                 </>
               )}
@@ -543,27 +560,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     <EmptyDay onNew={newTask} plan={planButton()} />
                   ) : null}
 
-                  {lateShown.length ? (
-                    <Fold
-                      title="Overdue"
-                      tone="late"
-                      count={late.length}
-                      open={!fold.late}
-                      onToggle={flip("late")}
-                      note="These were due before today — move them or let them go."
-                      action={
-                        <button
-                          type="button"
-                          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
-                          onClick={() => void moveToToday()}
-                        >
-                          Move to today
-                        </button>
-                      }
-                    >
-                      <Capped list={lateShown} render={(t) => row(t, true)} />
-                    </Fold>
-                  ) : null}
+                  {taskView.overdueFirst ? lateFold : null}
 
                   {sections.map(([name, list]) => (
                     <Fold
@@ -589,6 +586,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     </Fold>
                   ))}
 
+                  {taskView.overdueFirst ? null : lateFold}
+
                   {!closedDay && state !== "empty" ? (
                     <button
                       type="button"
@@ -610,8 +609,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                       <Capped list={doneToday} render={(t) => row(t)} />
                     </Fold>
                   ) : null}
-                  {/* //todo: the "Notes for the day…" line is a placeholder in
-                      the prototype too; it needs a daily note to write to. */}
+                  <NotesLine
+                    has={dailyNote.exists}
+                    busy={dailyNote.busy}
+                    onOpen={() => void openNote()}
+                  />
                 </>
               )}
             </div>
@@ -628,7 +630,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   cap={cap}
                   pro={pro}
                   onCalendar={() => router.push("/calendar")}
-                  onUpgrade={upgrade("Week ahead")}
+                  onUpgrade={upgradeWeek}
                 />
               ) : (
                 <Schedule

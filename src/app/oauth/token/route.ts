@@ -26,7 +26,7 @@ const LOG_SOURCE = "OAuthToken";
 /**
  * Token endpoint (OAuth 2.1): authorization_code with PKCE S256, and
  * refresh_token with rotation. Public clients only; the client is named by
- * client_id. `resource` must be the canonical MCP resource.
+ * client_id. `resource` must be the canonical MCP resource or its /api/mcp alias.
  */
 export async function POST(request: NextRequest) {
   const limited = await enforceRateLimits(

@@ -53,6 +53,9 @@ describe("GET /api/habits/history", () => {
     const body = await res.json();
     expect(res.headers.get("Cache-Control")).toContain("no-store");
     expect(body.days).toBe(124);
+    // the strips end on the server's own day, so a client in another zone
+    // decodes them onto the days the write landed on
+    expect(body.today).toBe(newDate().toISOString().slice(0, 10));
     expect(body.habits).toHaveLength(1);
     expect(body.habits[0].done).toHaveLength(124);
     expect(body.habits[0].done.every((d: number) => d === 0)).toBe(true);

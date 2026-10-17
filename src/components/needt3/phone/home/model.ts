@@ -18,6 +18,11 @@ import {
 import { addDays, dayLabel, moveDay } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 import { isOverdue } from "@/lib/needt3/task-day";
+import {
+  DEFAULT_TASK_VIEW,
+  type TaskViewSettings,
+  showsTask,
+} from "@/lib/needt3/task-view";
 
 import { dayOf, hourAt, splitHome } from "../../home/derive";
 
@@ -42,7 +47,10 @@ export interface HomeView {
   parts: ReturnType<typeof parts<V3Task>>;
   inboxRows: V3Task[];
   tomorrowRows: V3Task[];
-  /** The day is closed and nothing is on the plate: "All done for today". */
+  /**
+   * The day is closed, nothing is on the plate and no overdue or Inbox row is
+   * listed: "All done for today".
+   */
   allDone: boolean;
   /** Nothing at all to show: a clear day. */
   empty: boolean;
@@ -60,11 +68,14 @@ export function homeView(
   opts: {
     skipped?: readonly string[];
     busy?: Readonly<Record<string, unknown>>;
+    /** The person's task view: sort, and which closed tasks are kept. */
+    view?: TaskViewSettings;
   } = {}
 ): HomeView {
   const busy = opts.busy ?? {};
   const live = tasks.filter((t) => !t.trashedAt);
-  const split = splitHome(live, today);
+  const view = opts.view ?? DEFAULT_TASK_VIEW;
+  const split = splitHome(live, today, view);
   const tomorrow = addDays(today, 1);
   const sec: DaySections<V3Task> = {
     ...split,
@@ -73,7 +84,7 @@ export function homeView(
   const day = sec.day;
   // Only today's own closed tasks are "Done today": a task with no day that
   // was closed last month is not.
-  const doneToday = day.filter((t) => t.done);
+  const doneToday = day.filter((t) => t.done && showsTask(t, view, today));
   const left = openOf(day);
   const next = nextUp(sec, { skipped: opts.skipped, busy });
   const nu = next.nu;
@@ -83,6 +94,9 @@ export function homeView(
   const lateRows = notNu(sec.late);
   const inboxRows = notNu(sec.inbox);
   const tomorrowRows = openOf(sec.next);
+  // "All done" is true only when no row is listed under today: no overdue, no
+  // open Inbox task either (the Inbox section is drawn on Home).
+  const openRest = openOf(sec.late).length + openOf(sec.inbox).length;
   const dayClosed = day.length > 0 && !left.length;
   return {
     sec,
@@ -97,7 +111,7 @@ export function homeView(
     parts: parts(notNu(day), today),
     inboxRows,
     tomorrowRows,
-    allDone: dayClosed && !nu,
+    allDone: dayClosed && !nu && !openRest,
     empty:
       !day.length &&
       !openOf(sec.late).length &&

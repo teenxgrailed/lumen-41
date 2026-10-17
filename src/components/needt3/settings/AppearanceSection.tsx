@@ -256,7 +256,9 @@ export function AppearanceSection({
                 </span>
                 <span className="settings-theme-tile-span-3">
                   {label}
-                  {id === "time" ? <ProPill locked={locked} /> : null}
+                  {id === "time" ? (
+                    <ProPill locked={locked} feature="Time theme" />
+                  ) : null}
                 </span>
               </button>
             );

@@ -1,6 +1,17 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import {
+  TASK_ATTACHMENT_MAX_BYTES,
+  TaskAttachmentError,
+  addTaskAttachment,
+  deleteTaskAttachment,
+} from "@/services/tasks/attachments";
+import {
+  planRecurringCompletion,
+  upsertRecurringOccurrence,
+} from "@/services/tasks/recurring-completion";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type { Prisma } from "@prisma/client";
+import { RRule } from "rrule";
 import { z } from "zod";
 
 import { newDate } from "@/lib/date-utils";
@@ -8,6 +19,7 @@ import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
 import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
+import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { OpError } from "../errors";
 import {
@@ -21,6 +33,7 @@ import {
   moveInstantToDay,
   publishTasksUpdated,
   startOfZonedDay,
+  taskInclude,
   taskView,
   touched,
   userTimeZone,
@@ -29,7 +42,26 @@ import { defineOp } from "../types";
 import type { OpContext } from "../types";
 
 const taskId = z.string().min(1);
-const priority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
+/** NONE is "No priority"; it is stored in the legacy `priority` column. */
+const priority = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]);
+const levelPriority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
+/** An RRULE such as FREQ=WEEKLY;BYDAY=MO. Parsed, not just shaped. */
+const recurrenceRule = z
+  .string()
+  .trim()
+  .min(1)
+  .max(500)
+  .refine(
+    (value) => {
+      try {
+        RRule.fromString(normalizeRecurrenceRule(value) ?? "");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Expected an RRULE such as FREQ=WEEKLY;BYDAY=MO" }
+  );
 const estimate = z.number().int().min(5).max(1440);
 const OPEN_STATUSES = ["todo", "in_progress"] as const;
 
@@ -56,7 +88,11 @@ const restorableFields = z
     status: z.string(),
     dueDate: isoOrNull,
     deadline: isoOrNull,
-    priorityLevel: priority,
+    priorityLevel: levelPriority,
+    priority: z.string().nullable(),
+    isRecurring: z.boolean(),
+    recurrenceRule: z.string().nullable(),
+    scheduleId: z.string().nullable(),
     projectId: z.string().nullable(),
     estimatedMinutes: z.number().int().nullable(),
     duration: z.number().int().nullable(),
@@ -66,6 +102,8 @@ const restorableFields = z
     scheduledStart: isoOrNull,
     scheduledEnd: isoOrNull,
     scheduleLocked: z.boolean(),
+    startDate: isoOrNull,
+    lastCompletedDate: isoOrNull,
   })
   .partial()
   .strict();
@@ -80,6 +118,8 @@ const DATE_FIELDS = new Set([
   "archivedAt",
   "scheduledStart",
   "scheduledEnd",
+  "startDate",
+  "lastCompletedDate",
 ]);
 
 function pickRestorable(
@@ -169,6 +209,19 @@ async function assertTagsOwned(ctx: OpContext, tagIds: string[]) {
   }
 }
 
+/** Hours: a schedule the task's planner owns, as PUT /api/tasks/[id] checks it. */
+async function assertScheduleOwned(
+  ctx: OpContext,
+  scheduleId: string,
+  userId: string
+) {
+  const schedule = await ctx.tx.workSchedule.findFirst({
+    where: { id: scheduleId, userId },
+    select: { id: true },
+  });
+  if (!schedule) throw new OpError("INVALID_INPUT", "Unknown work schedule");
+}
+
 async function assertProjectUsable(ctx: OpContext, projectId: string) {
   const project = await findScopedProject(ctx, projectId);
   if (project.status === "archived") {
@@ -209,7 +262,7 @@ export const taskList = defineOp({
       },
       orderBy: [{ scheduledStart: "asc" }, { dueDate: "asc" }, { id: "asc" }],
       take: input.limit,
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     return { result: { tasks: tasks.map(taskView) } };
   },
@@ -244,12 +297,19 @@ export const taskCreate = defineOp({
       projectId: z.string().min(1).optional(),
       tagIds: z.array(z.string().min(1)).max(50).optional(),
       estimateMinutes: estimate.optional(),
+      recurrenceRule: recurrenceRule.optional(),
+      scheduleId: z.string().min(1).optional(),
       autoSchedule: z.boolean().default(true),
     })
     .strict(),
   async run(ctx, input) {
     if (input.projectId) await assertProjectUsable(ctx, input.projectId);
     if (input.tagIds) await assertTagsOwned(ctx, input.tagIds);
+    if (input.scheduleId)
+      await assertScheduleOwned(ctx, input.scheduleId, ctx.userId);
+    const rule = input.recurrenceRule
+      ? normalizeRecurrenceRule(input.recurrenceRule)
+      : undefined;
     const due = input.dueDate ? newDate(input.dueDate) : undefined;
     const task = await ctx.tx.task.create({
       data: {
@@ -259,7 +319,14 @@ export const taskCreate = defineOp({
         title: input.title,
         description: sanitizeTaskDescriptionForStorage(input.notes),
         status: "todo",
-        priorityLevel: input.priority ?? "MEDIUM",
+        priorityLevel:
+          input.priority && input.priority !== "NONE"
+            ? input.priority
+            : "MEDIUM",
+        ...(input.priority === "NONE" ? { priority: "none" } : {}),
+        isRecurring: !!rule,
+        recurrenceRule: rule,
+        scheduleId: input.scheduleId,
         projectId: input.projectId,
         estimatedMinutes: input.estimateMinutes,
         duration: input.estimateMinutes,
@@ -282,7 +349,7 @@ export const taskCreate = defineOp({
           },
         },
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     // Same default reminders as POST /api/tasks.
     await ctx.tx.taskReminder.createMany({
@@ -306,7 +373,7 @@ export const taskCreate = defineOp({
 export const taskUpdate = defineOp({
   name: "task.update",
   description:
-    "Change a task's title, notes, due date, priority, project, tags, or estimate. Undo writes the previous values back.",
+    "Change a task's title, notes, due date, priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Undo writes the previous values back.",
   risk: "reversible",
   input: z
     .object({
@@ -318,6 +385,8 @@ export const taskUpdate = defineOp({
       projectId: z.string().min(1).nullable().optional(),
       tagIds: z.array(z.string().min(1)).max(50).optional(),
       estimateMinutes: estimate.nullable().optional(),
+      recurrenceRule: recurrenceRule.nullable().optional(),
+      scheduleId: z.string().min(1).nullable().optional(),
     })
     .strict()
     .refine((value) => Object.keys(value).length > 1, {
@@ -347,8 +416,33 @@ export const taskUpdate = defineOp({
       keys.push("dueDate", "deadline");
     }
     if (input.priority !== undefined) {
-      data.priorityLevel = input.priority;
-      keys.push("priorityLevel");
+      if (input.priority === "NONE") {
+        data.priority = "none";
+        keys.push("priority");
+      } else {
+        data.priorityLevel = input.priority;
+        // Picking a real priority ends "No priority".
+        data.priority = null;
+        keys.push("priorityLevel", "priority");
+      }
+    }
+    if (input.recurrenceRule !== undefined) {
+      const rule = input.recurrenceRule
+        ? normalizeRecurrenceRule(input.recurrenceRule)
+        : null;
+      data.recurrenceRule = rule;
+      data.isRecurring = !!rule;
+      keys.push("recurrenceRule", "isRecurring");
+    }
+    if (input.scheduleId !== undefined) {
+      if (input.scheduleId)
+        await assertScheduleOwned(
+          ctx,
+          input.scheduleId,
+          task.assigneeId ?? ctx.userId
+        );
+      data.scheduleId = input.scheduleId;
+      keys.push("scheduleId");
     }
     if (input.projectId !== undefined) {
       if (input.projectId) await assertProjectUsable(ctx, input.projectId);
@@ -373,7 +467,7 @@ export const taskUpdate = defineOp({
           : {}),
         ...activity(ctx, "UPDATED", task.workspaceId),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
 
     return {
@@ -393,6 +487,67 @@ export const taskUpdate = defineOp({
   },
 });
 
+/**
+ * Completing a series: the occurrence is recorded as its own finished task
+ * and the same task jumps to its next date, exactly as PUT /api/tasks/[id]
+ * does. A series with no next date is simply completed.
+ */
+async function completeOccurrence(
+  ctx: OpContext,
+  task: Awaited<ReturnType<typeof findScopedTask>>
+) {
+  const now = newDate();
+  let plan: ReturnType<typeof planRecurringCompletion>;
+  try {
+    plan = planRecurringCompletion(task, now);
+  } catch {
+    throw new OpError("INVALID_INPUT", "The task's repeat rule cannot be read");
+  }
+  const keys: (keyof RestorableFields)[] = [
+    "status",
+    "completedAt",
+    "dueDate",
+    "startDate",
+    "scheduledStart",
+    "scheduledEnd",
+    "lastCompletedDate",
+  ];
+  const fields = pickRestorable(task, keys);
+  await upsertRecurringOccurrence(ctx.tx, task, plan.completion, ctx.userId);
+  const data: Prisma.TaskUncheckedUpdateInput = plan.advance
+    ? { ...plan.advance }
+    : { status: "completed", completedAt: now };
+  const updated = await ctx.tx.task.update({
+    where: { id: task.id },
+    data: { ...data, ...activity(ctx, "UPDATED", task.workspaceId) },
+    include: taskInclude,
+  });
+  const schedulingUserId = task.assigneeId ?? ctx.userId;
+  return {
+    result: { task: taskView(updated), changed: true },
+    before: { fields },
+    inverse: {
+      op: "task.restore",
+      input: {
+        taskId: task.id,
+        fields,
+        removeOccurrenceAt: plan.completion.occurrenceAt.toISOString(),
+      },
+    },
+    touched: [touched("task", updated, task)],
+    afterCommit: [
+      () => schedulePushTaskBlock(schedulingUserId, task.id),
+      () =>
+        sendConnectorWebhook({
+          userId: ctx.userId,
+          event: "task.completed",
+          payload: { taskId: updated.id, title: updated.title },
+        }).then(() => undefined),
+      publishTasksUpdated(ctx.userId),
+    ],
+  };
+}
+
 export const taskComplete = defineOp({
   name: "task.complete",
   description:
@@ -406,12 +561,7 @@ export const taskComplete = defineOp({
       return { result: { task: taskView(task), changed: false } };
     }
     if (task.isRecurring && task.recurrenceRule) {
-      //todo: move series completion out of PUT /api/tasks/[id] into a
-      // service so this op can advance recurring tasks the same way.
-      throw new OpError(
-        "UNSUPPORTED",
-        "Recurring tasks cannot be completed through this operation yet"
-      );
+      return completeOccurrence(ctx, task);
     }
     const fields = pickRestorable(task, ["status", "completedAt"]);
     const updated = await ctx.tx.task.update({
@@ -421,7 +571,7 @@ export const taskComplete = defineOp({
         completedAt: newDate(),
         ...activity(ctx, "UPDATED", task.workspaceId),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     const schedulingUserId = task.assigneeId ?? ctx.userId;
     return {
@@ -464,7 +614,7 @@ export const taskUncomplete = defineOp({
         completedAt: null,
         ...activity(ctx, "UPDATED", task.workspaceId),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     return {
       result: { task: taskView(updated), changed: true },
@@ -508,7 +658,7 @@ export const taskArchive = defineOp({
         scheduleLocked: false,
         ...activity(ctx, "ARCHIVED", task.workspaceId),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     // Same scope as DELETE /api/tasks/[id]: only the scheduling user's blocks.
     await ctx.tx.scheduledBlock.deleteMany({
@@ -554,7 +704,7 @@ export const taskUnarchive = defineOp({
         archivedAt: null,
         ...activity(ctx, "UPDATED", task.workspaceId),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     return {
       result: { task: taskView(updated), changed: true },
@@ -597,7 +747,7 @@ export const taskMoveToDay = defineOp({
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: { ...data, ...activity(ctx, "UPDATED", task.workspaceId) },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     if (shiftMs && blocks.length) {
       await replaceBlocks(
@@ -640,6 +790,8 @@ export const taskRestore = defineOp({
       taskId,
       fields: restorableFields,
       tagIds: z.array(z.string()).optional(),
+      /** Undo of completing a series: drop the finished occurrence it made. */
+      removeOccurrenceAt: z.string().datetime({ offset: true }).optional(),
       blocks: z.array(blockSnapshot).optional(),
       blocksUserId: z.string().optional(),
     })
@@ -655,6 +807,14 @@ export const taskRestore = defineOp({
       : undefined;
     const currentTagIds = task.tags.map((tag) => tag.id);
 
+    if (input.removeOccurrenceAt) {
+      await ctx.tx.task.deleteMany({
+        where: {
+          recurrenceMasterId: task.id,
+          recurrenceInstanceAt: newDate(input.removeOccurrenceAt),
+        },
+      });
+    }
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: {
@@ -663,7 +823,7 @@ export const taskRestore = defineOp({
           ? { tags: { set: input.tagIds.map((id) => ({ id })) } }
           : {}),
       },
-      include: { tags: { select: { id: true } } },
+      include: taskInclude,
     });
     if (input.blocks) {
       await replaceBlocks(ctx, task.id, input.blocks, input.blocksUserId);
@@ -691,6 +851,93 @@ export const taskRestore = defineOp({
   },
 });
 
+/** Base64 of a 4 MB file is a third longer. */
+const ATTACHMENT_BASE64_MAX =
+  Math.ceil((TASK_ATTACHMENT_MAX_BYTES * 4) / 3) + 8;
+
+async function removeAttachment(
+  ctx: OpContext,
+  input: { taskId: string; attachmentId: string }
+) {
+  const task = await findScopedTask(ctx, input.taskId);
+  assertProjectActive(task);
+  try {
+    await deleteTaskAttachment(task.id, input.attachmentId, ctx.tx);
+  } catch (error) {
+    if (error instanceof TaskAttachmentError)
+      throw new OpError("NOT_FOUND", error.message);
+    throw error;
+  }
+  return { result: { removed: input.attachmentId } };
+}
+
+export const taskAttach = defineOp({
+  name: "task.attach",
+  description:
+    "Attach a file to a task: an image (JPEG, PNG, WebP, GIF) or a PDF, up to 4 MB, ten per task. contentBase64 holds the file's bytes; the type is read from them. Undo removes it.",
+  risk: "reversible",
+  input: z
+    .object({
+      taskId,
+      name: z.string().trim().min(1).max(240),
+      contentBase64: z.string().min(1).max(ATTACHMENT_BASE64_MAX),
+    })
+    .strict(),
+  async run(ctx, input) {
+    const task = await findScopedTask(ctx, input.taskId);
+    assertProjectActive(task);
+    let attachment;
+    try {
+      attachment = await addTaskAttachment(
+        {
+          taskId: task.id,
+          userId: ctx.userId,
+          name: input.name,
+          bytes: Buffer.from(input.contentBase64, "base64"),
+        },
+        ctx.tx
+      );
+    } catch (error) {
+      if (error instanceof TaskAttachmentError)
+        throw new OpError("INVALID_INPUT", error.message);
+      throw error;
+    }
+    return {
+      result: { attachment },
+      inverse: {
+        op: "task.attachment_remove",
+        input: { taskId: task.id, attachmentId: attachment.id },
+      },
+      afterCommit: [publishTasksUpdated(ctx.userId)],
+    };
+  },
+});
+
+export const taskDetach = defineOp({
+  name: "task.detach",
+  description:
+    "Remove a file from a task. The file's bytes are deleted and cannot be restored.",
+  risk: "irreversible",
+  input: z.object({ taskId, attachmentId: z.string().min(1) }).strict(),
+  async run(ctx, input) {
+    const out = await removeAttachment(ctx, input);
+    return { ...out, afterCommit: [publishTasksUpdated(ctx.userId)] };
+  },
+});
+
+/** Inverse-only: undoes `task.attach`. */
+export const taskAttachmentRemove = defineOp({
+  name: "task.attachment_remove",
+  description: "Remove a just-added attachment. Used only by undo.",
+  risk: "reversible",
+  internal: true,
+  input: z.object({ taskId, attachmentId: z.string().min(1) }).strict(),
+  async run(ctx, input) {
+    const out = await removeAttachment(ctx, input);
+    return { ...out, afterCommit: [publishTasksUpdated(ctx.userId)] };
+  },
+});
+
 export const taskOps = [
   taskList,
   taskGet,
@@ -702,4 +949,7 @@ export const taskOps = [
   taskUnarchive,
   taskMoveToDay,
   taskRestore,
+  taskAttach,
+  taskDetach,
+  taskAttachmentRemove,
 ];

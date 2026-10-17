@@ -26,17 +26,23 @@ export function useIsPro(): boolean {
   return data ? isPro(data.kind) : true;
 }
 
-/** The black "PRO" pill; `locked` adds the lock glyph. */
+/** The black "PRO" pill; `locked` adds the lock glyph and, being a locked
+ *  feature, makes the pill itself a way into the paywall (on `feature`). It is
+ *  a span with a button role, not a button: it sits inside rows that are
+ *  buttons already. */
 export function ProBadge({
   size,
   locked,
   className,
   title,
+  feature,
 }: {
   size?: "sm" | "md";
   locked?: boolean;
   className?: string;
   title?: string;
+  /** What the sheet says it is unlocking ("Unlock Plan my day with Pro"). */
+  feature?: string;
 }) {
   const sm = size === "sm";
   return (
@@ -50,10 +56,30 @@ export function ProBadge({
       data-pro-badge={locked ? "locked" : "on"}
       title={title}
       aria-label={locked ? "Pro feature — locked" : "Pro feature"}
+      {...(locked ? lockedBadgeProps(feature) : {})}
     >
       {locked ? <LuLock size={sm ? 8 : 9} /> : null}PRO
     </span>
   );
+}
+
+/** What makes a locked PRO pill open the paywall, by hand or by keyboard. */
+export function lockedBadgeProps(feature?: string) {
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      openPaywall(feature);
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        openPaywall(feature);
+      }
+    },
+  };
 }
 
 /** Free: children plus a locked PRO, any click opens the paywall on `feature`.

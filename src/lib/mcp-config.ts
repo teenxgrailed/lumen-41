@@ -33,6 +33,25 @@ export function mcpResource(): string {
   return cleanUrl(process.env.MCP_RESOURCE_URL, DEFAULT_RESOURCE);
 }
 
+/**
+ * Every URL that names the one protected resource: the canonical identifier
+ * plus the older `<NEXTAUTH_URL origin>/api/mcp` that people already added as
+ * a connector. Tokens issued for either work at both endpoints. Metadata and
+ * challenges only ever advertise the canonical one.
+ */
+export function mcpResourceAliases(): string[] {
+  const appOrigin = new URL(cleanUrl(process.env.NEXTAUTH_URL, DEFAULT_ISSUER))
+    .origin;
+  return Array.from(new Set([mcpResource(), `${appOrigin}/api/mcp`]));
+}
+
+/** Whether `resource` is the canonical resource or an alias of it, exactly. */
+export function isMcpResource(resource: string | null | undefined): boolean {
+  return (
+    typeof resource === "string" && mcpResourceAliases().includes(resource)
+  );
+}
+
 /** The host that serves only MCP (`mcp.needt.app`). */
 export function mcpHost(): string {
   return new URL(mcpResource()).host;
