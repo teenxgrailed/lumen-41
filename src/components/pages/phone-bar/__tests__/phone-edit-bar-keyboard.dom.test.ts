@@ -165,7 +165,11 @@ describe("the bar on the keyboard", () => {
     expect(bar().dataset.shown).toBe("true");
     expect(bar().hasAttribute("inert")).toBe(false);
     act(() => void editor.commands.blur());
-    await wait(220);
+    // The bar hides after a short grace period; poll instead of betting on
+    // one fixed delay, which a loaded CI runner can overrun.
+    for (let i = 0; i < 40 && bar().dataset.shown !== "false"; i += 1) {
+      await wait(50);
+    }
     expect(bar().dataset.shown).toBe("false");
   });
 
