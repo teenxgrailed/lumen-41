@@ -712,3 +712,20 @@ for 5 minutes and sent with `Cache-Control: public, max-age=300`. CORS:
 
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.
+
+## Public endpoints
+
+These need no token. They are called from the landing page at `https://needt.app`
+(CORS: that origin, plus `http://localhost:*` outside production; no
+credentials).
+
+### `POST /api/waitlist`
+
+Body `{ "email": "...", "app": "mac" | "iphone", "source": "download" }`.
+
+- `200 { "ok": true }` on success, and again for a repeat of the same
+  `(email, app)`; a repeat adds no second row (table `AppWaitlist`).
+- `400 { "error": "invalid_email" | "invalid_app" | "invalid_request" }`.
+- `429` past 10 requests per minute per IP; `403` for a browser on another origin.
+- Without `app` the old body (`{ email, ref?, source?, company? }`) still adds
+  the address to the main waitlist, as before.
