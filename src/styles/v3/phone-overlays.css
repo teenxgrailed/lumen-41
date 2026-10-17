@@ -106,6 +106,8 @@
 .needt-v3 .pov-file { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px; border-radius: 16px; background: var(--pov-fill); color: var(--v2p-ink); font: 400 15px/20px var(--font-sans); }
 .needt-v3 .pov-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .needt-v3 .pov-file-size { flex: none; font: 400 13px/16px var(--font-sans); color: var(--v2p-ink-2); font-variant-numeric: tabular-nums; }
+.needt-v3 .pov-file-remove { flex: none; display: grid; place-items: center; width: 32px; height: 32px; margin-right: -8px; border: 0; border-radius: 10px; background: transparent; color: var(--v2p-ink-2); }
+.needt-v3 a.pov-file-name { color: inherit; text-decoration: none; }
 .needt-v3 .pov-delete-row { display: flex; justify-content: center; padding: 26px 0 0; }
 .needt-v3 .pov-delete.pk-btn.is-ghost { color: var(--v2p-ink-2); }
 .needt-v3 .pov-delete.pk-btn.is-ghost:active { color: var(--v2p-alert); }

@@ -30,7 +30,12 @@ import {
 
 export type V3StageId = "todo" | "doing" | "review" | "done";
 export type DbTaskStage = "TODO" | "DOING" | "REVIEW" | "DONE";
-export type V3Priority = "urgent" | "high" | "medium" | "low";
+/**
+ * "none" is "No priority": it lives in the legacy `Task.priority` column
+ * ("none", which the scheduler's scorer already reads as no priority) while
+ * `priorityLevel`, which is required, keeps its last real value.
+ */
+export type V3Priority = "none" | "urgent" | "high" | "medium" | "low";
 export type DbPriority = "URGENT" | "HIGH" | "MEDIUM" | "LOW";
 export type V3OriginKind = "mail" | "doc" | "chat";
 
@@ -46,7 +51,7 @@ const STAGE_FROM_DB: Record<DbTaskStage, V3StageId> = {
   REVIEW: "review",
   DONE: "done",
 };
-const PRIORITY_TO_DB: Record<V3Priority, DbPriority> = {
+const PRIORITY_TO_DB: Record<Exclude<V3Priority, "none">, DbPriority> = {
   urgent: "URGENT",
   high: "HIGH",
   medium: "MEDIUM",
@@ -63,7 +68,8 @@ export const stageToDb = (s: V3StageId | null | undefined) =>
   s ? STAGE_TO_DB[s] : null;
 export const stageFromDb = (s: string | null | undefined): V3StageId | null =>
   s && s in STAGE_FROM_DB ? STAGE_FROM_DB[s as DbTaskStage] : null;
-export const priorityToDb = (p: V3Priority) => PRIORITY_TO_DB[p];
+export const priorityToDb = (p: Exclude<V3Priority, "none">) =>
+  PRIORITY_TO_DB[p];
 export const priorityFromDb = (p: string | null | undefined): V3Priority =>
   p && p in PRIORITY_FROM_DB ? PRIORITY_FROM_DB[p as DbPriority] : "medium";
 
@@ -137,12 +143,70 @@ export interface ApiTask {
   isRecurring?: boolean;
   recurrenceRule?: string | null;
   scheduleId?: string | null;
+  /** Legacy scale; "none" is how a task says it has no priority. */
+  priority?: string | null;
+  tags?: ApiTag[] | null;
+  /** Set on tasks that arrive from Outlook, Google Tasks or CalDAV. */
+  source?: string | null;
+  externalTaskId?: string | null;
+  skipSync?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  completedAt?: string | null;
+  /** Files on the task, without their bytes (GET /api/tasks, /api/tasks/[id]). */
+  attachments?: ApiTaskAttachment[];
   /** TaskPart rows, ordered by `position` (GET /api/tasks, /api/tasks/[id]). */
   parts?: ApiTaskPart[];
   /** Open TaskWait rows (`resolvedAt: null`). */
   waits?: ApiTaskWait[];
+}
+
+export interface ApiTag {
+  id: string;
+  name: string;
+  color?: string | null;
+}
+
+export interface ApiTaskAttachment {
+  id: string;
+  name: string;
+  mimeType?: string | null;
+  size?: number | null;
+  createdAt?: string;
+}
+
+/** A label on a task (a `Tag`). */
+export interface V3Label {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+/** A file on a task (`TaskAttachment`). */
+export interface V3Attachment {
+  id: string;
+  name: string;
+  mimeType: string | null;
+  size: number | null;
+  /** Where the bytes are read from. */
+  url: string;
+}
+
+export function labelFromApi(row: ApiTag): V3Label {
+  return { id: row.id, name: row.name, color: row.color ?? null };
+}
+
+export function attachmentFromApi(
+  taskId: string,
+  row: ApiTaskAttachment
+): V3Attachment {
+  return {
+    id: row.id,
+    name: row.name,
+    mimeType: row.mimeType ?? null,
+    size: row.size ?? null,
+    url: `/api/tasks/${taskId}/attachments/${row.id}`,
+  };
 }
 
 export interface ApiTaskPart {
@@ -233,9 +297,25 @@ export interface V3Task {
   movedFrom: string | null;
   trashedAt: string | null;
   source: V3TaskSource | null;
+  /** RRULE text of the series (`Task.recurrenceRule`), null when it does not repeat. */
   repeat: string | null;
+  /** The work schedule ("Hours") the task is planned in; null = the default. */
   scheduleId: string | null;
+  /** Labels (`Task.tags`). */
+  labels: V3Label[];
+  /** Files on the task; `[]` when it has none. */
+  attachments: V3Attachment[];
+  /**
+   * The provider a task arrived from ("outlook", "google", "caldav"), or null
+   * for a task made in Needt. Title and repeat belong to the provider and are
+   * overwritten on each sync (src/lib/task-sync/README.md).
+   */
+  syncedFrom: string | null;
+  /** ISO instant the task was made. */
+  createdAt: string | null;
   updatedAt: string | null;
+  /** "YYYY-MM-DDTHH:mm", local — when it was closed (absent until the server says). */
+  completedAt?: string | null;
   /** Parts in order; `[]` when the task has none. */
   parts: V3TaskPart[];
   /** Open waits; `[]` when the task waits on no one. */
@@ -265,7 +345,8 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     splitAllowed: row.splitAllowed ?? true,
     deadline: isoToDay(row.deadline, tz),
     hardDeadline: row.hardDeadline ?? false,
-    priority: priorityFromDb(row.priorityLevel),
+    priority:
+      row.priority === "none" ? "none" : priorityFromDb(row.priorityLevel),
     holder: row.assigneeId ?? null,
     blockedBy: row.dependsOnId ?? null,
     value: fromCents(row.valueCents),
@@ -282,7 +363,17 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
       : null,
     repeat: row.isRecurring ? (row.recurrenceRule ?? null) : null,
     scheduleId: row.scheduleId ?? null,
+    labels: (row.tags ?? []).map(labelFromApi),
+    attachments: (row.attachments ?? []).map((a) =>
+      attachmentFromApi(row.id, a)
+    ),
+    syncedFrom:
+      row.externalTaskId && row.source && !row.skipSync
+        ? row.source.toLowerCase()
+        : null,
+    createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+    completedAt: isoToStamp(row.completedAt, tz),
     parts: [...(row.parts ?? [])]
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map(partFromApi),
@@ -292,7 +383,19 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
 
 /** Fields a v3 screen may write. `done` maps to `status`. */
 export type V3TaskPatch = Partial<
-  Omit<V3Task, "id" | "status" | "updatedAt" | "movedFrom" | "parts" | "waits">
+  Omit<
+    V3Task,
+    | "id"
+    | "status"
+    | "createdAt"
+    | "updatedAt"
+    | "completedAt"
+    | "movedFrom"
+    | "parts"
+    | "waits"
+    | "attachments"
+    | "syncedFrom"
+  >
 >;
 
 /**
@@ -324,8 +427,14 @@ export function taskPatchToApi(
   if (has("splitAllowed")) out.splitAllowed = patch.splitAllowed;
   if (has("deadline")) out.deadline = localToIso(patch.deadline, tz);
   if (has("hardDeadline")) out.hardDeadline = patch.hardDeadline;
-  if (has("priority") && patch.priority)
-    out.priorityLevel = priorityToDb(patch.priority);
+  if (has("priority") && patch.priority) {
+    if (patch.priority === "none") out.priority = "none";
+    else {
+      out.priorityLevel = priorityToDb(patch.priority);
+      // Picking a real priority ends "No priority".
+      out.priority = null;
+    }
+  }
   if (has("holder")) out.assigneeId = patch.holder;
   if (has("blockedBy")) out.dependsOnId = patch.blockedBy;
   if (has("value")) out.valueCents = toCents(patch.value);
@@ -337,7 +446,11 @@ export function taskPatchToApi(
     out.originId = patch.source?.id ?? null;
     out.originQuote = patch.source?.quote ?? null;
   }
-  if (has("repeat")) out.recurrenceRule = patch.repeat;
+  if (has("repeat")) {
+    out.recurrenceRule = patch.repeat || null;
+    out.isRecurring = !!patch.repeat;
+  }
+  if (has("labels")) out.tagIds = (patch.labels ?? []).map((l) => l.id);
   if (has("scheduleId")) out.scheduleId = patch.scheduleId;
   return out;
 }
@@ -635,6 +748,7 @@ export interface ApiMoodboard {
   linkShare?: boolean;
   pinterestBoardId?: string | null;
   pinterestStatus?: string | null;
+  pinterestSync?: boolean;
   pinterestSyncedAt?: string | null;
   trashedAt?: string | null;
   /** Only the single-board route sends the caller's role. */
@@ -683,6 +797,8 @@ export interface V3Board {
   linkShare: boolean;
   pinterestBoardId: string | null;
   pinterestStatus: string | null;
+  /** The daily worker pass appends new Pins from the linked Pinterest board. */
+  pinterestSync: boolean;
   pinterestSyncedAt: string | null;
   trashedAt: string | null;
   /** The caller's role; null when the route did not send it (the list). */
@@ -736,6 +852,7 @@ export function boardFromApi(row: ApiMoodboard): V3Board {
     linkShare: row.linkShare ?? false,
     pinterestBoardId: row.pinterestBoardId ?? null,
     pinterestStatus: row.pinterestStatus ?? null,
+    pinterestSync: row.pinterestSync ?? false,
     pinterestSyncedAt: row.pinterestSyncedAt ?? null,
     trashedAt: row.trashedAt ?? null,
     accessRole:

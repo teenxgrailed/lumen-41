@@ -90,6 +90,9 @@ model User {
   hue                    String?
   initials               String?
   lastAuthenticatedAt    DateTime?
+  // When the account was created. Null for accounts that predate the column
+  // and had no trial grant to date them by; new rows get the insert time.
+  createdAt              DateTime?                 @default(now())
   // Bumped to sign the person out everywhere: a session token carries the
   // version it was issued under and stops working once the two differ.
   sessionVersion         Int                       @default(0)
@@ -158,6 +161,7 @@ model User {
   pageFormSubmissions    PageFormSubmission[]
   bugReports             BugReport[]
   externalIntegrations   ExternalIntegration[]
+  pinterestConnection    PinterestConnection?
   schedulingRuns         SchedulingRun[]
   idempotencyRecords     IdempotencyRecord[]
   creemWebhookEvents     CreemWebhookEvent[]
@@ -194,6 +198,7 @@ model User {
   shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
   moodboardAssets        MoodboardAsset[]
   notifications          Notification[]
+  notificationReads      NotificationRead[]
   accessLinks            AccessLink[]
   importRuns             ImportRun[]
   importItemMaps         ImportItemMap[]
@@ -1801,6 +1806,12 @@ model Moodboard {
   pinterestBoardId   String?
   pinterestStatus    String?
   pinterestSyncedAt  DateTime?
+  /// "Keep in sync": the daily worker pass appends new Pins; it never deletes.
+  pinterestSync          Boolean                      @default(false)
+  /// Whose Pinterest grant the sync reads with.
+  pinterestConnectedById String?
+  /// Pin ids already imported, so a Pin the person removed is not added back.
+  pinterestSeen          String[]                     @default([])
   trashedAt          DateTime?
   items              MoodboardItem[]
   assets             MoodboardAsset[]
@@ -1944,6 +1955,24 @@ model ExternalIntegration {
 
   @@unique([userId, provider, toolkit, externalConnectionId], map: "ExternalIntegration_userId_provider_toolkit_externalConnectionI")
   @@index([userId, provider, status])
+}
+
+/// A person's Pinterest grant (boards:read, pins:read). One per user. Both
+/// tokens are stored encrypted (enc:v1); the refresh token is continuous.
+model PinterestConnection {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username         String?
+  accessToken      String
+  refreshToken     String?
+  accessExpiresAt  DateTime
+  refreshExpiresAt DateTime?
+  scope            String?
+  /// CONNECTED, or ERROR once Pinterest refused the tokens (reconnect to fix).
+  status           String    @default("CONNECTED")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model EnergyProfileWindow {
@@ -2458,6 +2487,18 @@ model PendingWaitlist {
 
   @@index([verificationToken])
   @@index([email])
+}
+
+/// Download-form sign-ups from the landing page: one row per (email, app).
+model AppWaitlist {
+  id        String   @id @default(cuid())
+  email     String
+  app       String // mac | iphone
+  source    String   @default("download")
+  createdAt DateTime @default(now())
+
+  @@unique([email, app])
+  @@index([createdAt])
 }
 
 model Waitlist {
@@ -3141,6 +3182,19 @@ model Notification {
   @@index([entityKind, entityId])
 }
 
+/// Read state for the notification feed, which is assembled from existing
+/// tables on request. `key` names one feed item (for example `comment:<id>`);
+/// the key `*` holds "everything up to readAt is read".
+model NotificationRead {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  readAt DateTime @default(now())
+
+  @@unique([userId, key])
+}
+
 /// An MCP or API access link. Only a hash of the token is stored.
 model AccessLink {
   id           String    @id @default(cuid())
@@ -3296,4 +3350,20 @@ model OAuthToken {
   @@index([familyId])
   @@index([userId, revokedAt])
   @@index([clientId])
+}
+
+// Admin panel: one row per change an admin made to another person's account.
+// No foreign keys on purpose: the row must outlive the account it records
+// (deleting an account is one of the actions), so both ids are plain text and
+// `details` carries the target's email at the time.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  targetUserId String?
+  action       String
+  details      Json?
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([createdAt])
 }

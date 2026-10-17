@@ -1,0 +1,24 @@
+/* Design v3 - the task view gear and its popover. HAND-WRITTEN.
+ * One form-row geometry (the design system's .nt-row: 105px label column,
+ * 32px rows), 13/12px type, and the accent only on marks (the switch knob). */
+.needt-v3 .tv-gear {
+  width: 32px;
+  padding: 0;
+  color: var(--text-secondary);
+}
+.needt-v3 .tv-pop {
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 340px;
+  padding: 12px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  outline: none;
+}
+.needt-v3 .tv-form {
+  gap: var(--form-row-gap);
+}
+.needt-v3 .tv-form .shell-seg2-grid {
+  width: 100%;
+}

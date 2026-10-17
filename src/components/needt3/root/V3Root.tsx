@@ -37,6 +37,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 // (an import sorter cannot reorder them past it from there).
 import { PaywallHost } from "../paywall/PaywallHost";
 import { V3Shell } from "../shell/V3Shell";
+import { PwaBridge } from "./PwaBridge";
 import { PhoneUiProvider, useResolvedPhoneUi } from "./phone-ui-context";
 
 /**
@@ -232,6 +233,7 @@ export function V3Root({
         </PhoneUiProvider>
         {/* Permanent: a sibling of the shell, so no UI change reaches it. */}
         <PaywallHost />
+        <PwaBridge />
       </div>
     </DesignV3Context.Provider>
   );

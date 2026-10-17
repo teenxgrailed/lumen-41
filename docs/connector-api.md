@@ -103,24 +103,24 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                     | Scope                                          | What it does                                                                                                                                   |
-| ------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`           | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                           |
-| `needt_search`           | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                |
-| `needt_list`             | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`                                |
-| `needt_get`              | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                   |
-| `needt_create_task`      | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered) and `dependsOnId`, so a task and its steps arrive in one call |
-| `needt_schedule`         | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                    |
-| `needt_reschedule`       | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                 |
-| `needt_control`          | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                      |
-| `needt_update_task`      | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId; other fields are refused        |
-| `needt_add_subtasks`     | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                |
-| `needt_complete_subtask` | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                             |
-| `needt_complete_task`    | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                         |
-| `needt_create_event`     | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                |
-| `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                           |
-| `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                           |
-| `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                    |
+| Tool                     | Scope                                          | What it does                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`           | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                   |
+| `needt_search`           | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                        |
+| `needt_list`             | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                |
+| `needt_get`              | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                           |
+| `needt_create_task`      | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
+| `needt_schedule`         | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                            |
+| `needt_reschedule`       | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                         |
+| `needt_control`          | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                              |
+| `needt_update_task`      | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId, originPageId; other fields are refused                                  |
+| `needt_add_subtasks`     | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                        |
+| `needt_complete_subtask` | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                     |
+| `needt_complete_task`    | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                 |
+| `needt_create_event`     | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                        |
+| `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                   |
+| `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                   |
+| `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                            |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -236,6 +236,43 @@ Response:
 curl -X POST http://localhost:3000/api/connect/reschedule \
   -H "Authorization: Bearer needt_REPLACE_ME"
 ```
+
+## Export a page
+
+```
+GET /api/pages/:id/export?format=md
+```
+
+Returns the page as a Markdown file (`text/markdown; charset=utf-8`,
+`Content-Disposition: attachment`, `Cache-Control: no-store`): the title as the
+first heading, then the blocks.
+
+Like the rest of `/api/pages/*` it answers the signed-in session (the browser,
+or `curl` with the session cookie); it is not one of the bearer-token
+`/api/connect/*` routes.
+
+```bash
+curl -OJ "http://localhost:3000/api/pages/PAGE_ID/export?format=md" \
+  -H "Cookie: $NEEDT_SESSION_COOKIE"
+```
+
+- **Access** is the page's own: the same check as `GET /api/pages/:id`. Anyone
+  who can read the page can export it (a viewer included); a page the caller
+  cannot read answers `403 {"error":"Page access denied"}`, a missing or
+  trashed one `404 {"error":"Page not found"}`; no session is `401`.
+- **What comes out**: headings, paragraphs, bulleted, numbered and check lists
+  (nested), quotes, code (fenced, with its language), rules, images, tables
+  (GFM) and links. A Callout is a quote that starts with its icon, a Toggle is
+  `<details><summary>`, Columns are written one after another, a highlight is
+  `==text==`, an underline `<u>text</u>`; text colour is dropped and the words
+  stay. Files, images and page links are absolute addresses on this host
+  (`NEXTAUTH_URL`); a stored address that is not `http(s)`, `mailto:` or an app
+  path is written as plain text.
+- `format` defaults to `md`. `format=pdf` answers `400` and names the editor:
+  PDF is the browser's print of the open page (Page options, Export as PDF),
+  there is no server-side PDF. Any other value answers `400`.
+- The editor's **Export as Markdown** writes the same file from the text on
+  screen, unsaved edits included.
 
 ## Imports
 
@@ -486,6 +523,80 @@ action log. Two undo calls for the same action never both apply: the second
 gets `already_undone`. Log entries are deleted 30 days after their undo
 window ends.
 
+## Notifications
+
+The feed behind the bell in the app, read-only, for your own tools. It is
+assembled from data Needt already keeps, so nothing needs to be turned on.
+
+```bash
+curl "http://localhost:3000/api/connect/notifications?group=activity&limit=20" \
+  -H "Authorization: Bearer needt_REPLACE_ME"
+```
+
+```json
+{
+  "items": [
+    {
+      "key": "comment:cm1",
+      "group": "activity",
+      "kind": "comment",
+      "actor": "Lena Fischer",
+      "title": "Lena Fischer commented on Design rules",
+      "body": "13/12 everywhere in chrome, agreed.",
+      "at": "2026-10-16T09:48:00.000Z",
+      "link": "/pages/PAGE_ID",
+      "unread": true
+    }
+  ],
+  "nextBefore": "2026-10-16T09:48:00.000Z",
+  "unreadCount": 3
+}
+```
+
+Query: `group` (`activity`, the default, or `reminders`), `limit` (1 to 100,
+default 30), `before` (an ISO time; pass the previous `nextBefore` for the
+next page). Activity is newest first and covers the last 30 days. Reminders
+is soonest first, in one page, and has no `nextBefore`.
+
+| `kind`         | Group     | Where it comes from                                           |
+| -------------- | --------- | ------------------------------------------------------------- |
+| `nudge`        | activity  | Needt's proactive nudges (overdue, overbooked day, free time) |
+| `notification` | activity  | Cards other parts of Needt write to the `Notification` table  |
+| `agent`        | activity  | Actions an agent or MCP client applied (the action log)       |
+| `comment`      | activity  | Others' comments on pages you own or were given access to     |
+| `share`        | activity  | Someone gave you access to a page                             |
+| `sync`         | activity  | A calendar that failed to sync and needs reconnecting         |
+| `import`       | activity  | A Todoist or Notion import that finished or failed            |
+| `reminder`     | reminders | A pending task reminder, with the time it fires in `at`       |
+| `due`          | reminders | A task due within two days or overdue (up to 14 days back)    |
+
+`key` is stable and is what the read call takes. `link` is a path in the
+app. `unreadCount` is the number of unread activity items in the window and
+is returned for both groups. Reminders are never unread. Agent actions,
+imports, reminders and due tasks are limited to the workspace you pick with
+`x-workspace-id` or `?workspaceId=`; nudges, comments, shares and calendar
+problems follow you across workspaces.
+
+Mark items read. Read state is yours alone and any role may set it:
+
+```bash
+curl -X POST http://localhost:3000/api/connect/notifications/read \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "keys": ["comment:cm1"] }'
+# or everything up to now: -d '{ "all": true }'
+```
+
+Returns `204`. `keys` takes 1 to 200 item keys; anything else is a `400`
+with `{ "error" }`. Marking all covers items that exist now; later ones are
+unread again.
+
+The app itself reads the same feed from `GET /api/notifications?feed=1` (same
+query) and marks with `POST /api/notifications/read`, using the signed-in
+session instead of a token. `GET /api/notifications` without `feed=1` is the
+older nudge delivery the corner tip uses; it marks what it returns as
+delivered, so do not poll it from a script.
+
 ## Webhooks
 
 Settings -> Connectors can send best-effort POSTs for:
@@ -504,6 +615,35 @@ Payload:
   }
 }
 ```
+
+## Task view
+
+One setting says how every task list is drawn (Home, Tasks, project pages, the
+Calendar, the phone). It lives in the user settings, under `prefs.taskView`,
+and is read and written with `GET` / `PATCH /api/user-settings`:
+
+```bash
+curl -s https://needt.app/api/user-settings
+# → { "prefs": { "taskView": { "completed": "today", … } }, … }
+
+# `prefs` replaces the whole stored map: send it back with your change merged in
+curl -X PATCH -H "Content-Type: application/json" \
+  -d '{ "prefs": { "taskView": { "completed": "hide", "sort": "priority" } } }' \
+  https://needt.app/api/user-settings
+```
+
+| Key            | Values                        | Default | Meaning                                                                         |
+| -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
+| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
+| `subtasks`     | boolean                       | true    | Row detail: the parts count                                                     |
+| `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
+| `project`      | boolean                       | true    | Row detail: the project                                                         |
+| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
+| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)       |
+| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                  |
+
+Missing keys take their default; an unknown key or value is a `400`. "Until the
+end of the day" counts from the task's `completedAt`.
 
 ## Moodboard items
 
@@ -627,3 +767,29 @@ DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
 
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.
+
+## Public endpoints
+
+These need no token. They are called from the landing page at `https://needt.app`
+(CORS: that origin, plus `http://localhost:*` outside production; no
+credentials).
+
+### `POST /api/waitlist`
+
+Body `{ "email": "...", "app": "mac" | "iphone", "source": "download" }`.
+
+- `200 { "ok": true }` on success, and again for a repeat of the same
+  `(email, app)`; a repeat adds no second row (table `AppWaitlist`).
+- `400 { "error": "invalid_email" | "invalid_app" | "invalid_request" }`.
+- `429` past 10 requests per minute per IP; `403` for a browser on another origin.
+- Without `app` the old body (`{ email, ref?, source?, company? }`) still adds
+  the address to the main waitlist, as before.
+
+### `GET /api/lifetime-seats`
+
+No token. Returns `{ "sold": number, "total": 300 }`. `sold` is the same count
+the Lifetime cap uses (buyers plus open checkout holds), so the landing counter
+and the checkout never disagree; `total` is the cap constant. Cached in memory
+for 5 minutes and sent with `Cache-Control: public, max-age=300`. CORS:
+`https://needt.app` (plus `http://localhost:*` outside production), `GET` and
+`OPTIONS`, no credentials; a browser on another origin gets `403`.

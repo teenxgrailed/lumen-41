@@ -200,14 +200,21 @@ describe("trashAskText", () => {
     expect(board.body).toMatch(/references, pictures/);
   });
 
-  it("Empty Trash counts what goes and says what stays", () => {
+  it("a task: names it and says its steps and time go too", () => {
+    const task = trashAskText({ kind: "task", title: "" });
+    expect(task.title).toBe("Delete “Untitled” for good?");
+    expect(task.body).toMatch(/steps, reminders and tracked time/);
+    expect(task.body).toMatch(/can’t be undone/);
+  });
+
+  it("Empty Trash counts everything that goes, tasks included", () => {
     const all = trashAskText({ kind: "all", pages: 2, boards: 1, tasks: 3 });
     expect(all.title).toBe("Empty Trash?");
     expect(all.body).toContain(
-      "2 pages and 1 moodboard will be deleted for good"
+      "2 pages, 3 tasks and 1 moodboard will be deleted for good"
     );
     expect(all.body).toContain("can’t be undone");
-    expect(all.body).toContain("3 tasks stay in Trash");
+    expect(all.body).not.toContain("stay in Trash");
     expect(all.confirm).toBe("Empty Trash");
     expect(
       trashAskText({ kind: "all", pages: 1, boards: 0, tasks: 0 }).body

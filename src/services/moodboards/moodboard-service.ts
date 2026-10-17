@@ -30,6 +30,7 @@ const moodboardSelect = {
   linkShare: true,
   pinterestBoardId: true,
   pinterestStatus: true,
+  pinterestSync: true,
   pinterestSyncedAt: true,
   trashedAt: true,
 } satisfies Prisma.MoodboardSelect;
@@ -394,6 +395,18 @@ export async function deleteMoodboardForever(
     where: { id: moodboardId, ...workspace, trashedAt: { not: null } },
   });
   return count ? ("deleted" as const) : ("not_in_trash" as const);
+}
+
+/**
+ * The worker's 30-day purge: every moodboard in Trash since before `cutoff`
+ * goes for good, the same delete as Delete forever (the age is the authority,
+ * so there is no actor). Returns how many were removed.
+ */
+export async function purgeTrashedMoodboardsBefore(cutoff: Date) {
+  const { count } = await prisma.moodboard.deleteMany({
+    where: { trashedAt: { not: null, lt: cutoff } },
+  });
+  return count;
 }
 
 export async function updateMoodboard(

@@ -1,0 +1,47 @@
+/* One content width per screen.
+ *
+ * The vendored sheets cap Tasks/Projects at 1240 px (.wk-screen) but cap the
+ * lists inside it at 820 px, so on a wide window the header and the project
+ * tiles span the screen while the rows stop two thirds of the way, leaving the
+ * time / duration / project columns floating in the middle. A list now fills
+ * the screen column: the title cell (.tk-desk-body, flex: 1) grows and the
+ * meta cells (.tk-dmeta) sit on the right edge, under the tabs above.
+ * Screens that put a rail next to their list (Home) keep the list cap on
+ * purpose: the rail takes the rest of the width there.
+ */
+:root {
+  --v3-content-max: 1240px;
+}
+
+.needt-v3 .wk-screen {
+  max-width: var(--v3-content-max);
+}
+
+.needt-v3 .wk-list,
+.needt-v3 .wk-ppage,
+.needt-v3 .wk-empty {
+  max-width: none;
+}
+
+/* The head and the tabs end at the screen edge; the list ends there too. */
+.needt-v3 .wk-scroll {
+  padding-right: 0;
+}
+
+/* Places (Trash, Moodboards, Templates, Shared) and Docs share the same
+ * left-aligned content column as Tasks: header, banner, grids and lists end
+ * at the same right edge instead of stretching to the window on wide screens.
+ * The scroll container itself stays full width so its scrollbar sits at the
+ * window edge. Trash's list was capped at 820 px; it now fills the column. */
+.needt-v3 .pl-page > * {
+  max-width: var(--v3-content-max);
+}
+
+.needt-v3 .pl-trash-col-2 {
+  max-width: none;
+}
+
+.needt-v3 [data-v3-screen="docs"] {
+  width: 100%;
+  max-width: calc(var(--v3-content-max) + 64px); /* + the px-8 gutters */
+}

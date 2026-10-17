@@ -319,3 +319,29 @@ export function publicBoardUrl(
     ? `${origin}/b/${encodeURIComponent(boardId)}/${encodeURIComponent(token)}`
     : null;
 }
+
+/* ---------- Pinterest ---------- */
+
+/** "Imported 12 Pins from Moodboard" and what was left out, in one line. */
+export function pinterestResultLine(
+  r: { imported: number; skipped: number; failed: number; full: boolean },
+  boardName: string
+): string {
+  const head = r.imported
+    ? `Imported ${r.imported} ${r.imported === 1 ? "Pin" : "Pins"} from ${boardName}`
+    : `Nothing new in ${boardName}`;
+  const tail = [
+    r.failed ? `${r.failed} could not be copied` : "",
+    r.full ? "the board is full" : "",
+  ].filter(Boolean);
+  return tail.length ? `${head} · ${tail.join(", ")}` : head;
+}
+
+/**
+ * The address that opens the reference's source: its own web address, else the
+ * page it came from (a picture imported from a Pinterest Pin keeps the Pin).
+ */
+export const sourceUrlOf = (
+  it: Pick<V3BoardItem, "url" | "source">
+): string | null =>
+  isWebUrl(it.url) ? it.url : isWebUrl(it.source?.url) ? it.source.url : null;

@@ -100,6 +100,70 @@ describe("banner selection", () => {
   });
 });
 
+describe("connection and AI-availability banners", () => {
+  const cal = (state: "connected" | "error") => ({
+    kind: "calendar" as const,
+    provider: "google",
+    state,
+  });
+  const mail = (state: "connected" | "error") => ({
+    kind: "mail" as const,
+    provider: "gmail",
+    state,
+  });
+
+  it("names the revoked calendar on Calendar and Home, the mailbox on Mail", () => {
+    const signals = { connections: [cal("error"), mail("error")] };
+    expect(bannerSpecs(base, "calendar", now, signals)[0]).toMatchObject({
+      id: "revoked",
+      tone: "attention",
+      title: "Google Calendar access was revoked",
+      action: { kind: "reconnect" },
+    });
+    expect(bannerSpecs(base, "today", now, signals)[0].title).toBe(
+      "Google Calendar access was revoked"
+    );
+    expect(bannerSpecs(base, "mail", now, signals)[0].title).toBe(
+      "Gmail access was revoked"
+    );
+  });
+
+  it("stays quiet when the connection is fine or on other screens", () => {
+    expect(
+      bannerSpecs(base, "calendar", now, { connections: [cal("connected")] })
+    ).toEqual([]);
+    expect(
+      bannerSpecs(base, "tasks", now, { connections: [cal("error")] })
+    ).toEqual([]);
+    // a broken mailbox does not show on Calendar
+    expect(
+      bannerSpecs(base, "calendar", now, { connections: [mail("error")] })
+    ).toEqual([]);
+  });
+
+  it("orders payment before revoked", () => {
+    const failed = { ...base, paymentFailed: true } as V3Plan;
+    expect(
+      bannerSpecs(failed, "calendar", now, {
+        connections: [cal("error")],
+      }).map((b) => b.id)
+    ).toEqual(["payment", "revoked"]);
+  });
+
+  it("says AI is unavailable on Home only, and never beside the limit banner", () => {
+    expect(bannerSpecs(base, "today", now, { aiDown: true })[0]).toMatchObject({
+      id: "ai",
+      icon: "cloud-off",
+      title:
+        "AI is temporarily unavailable — your tasks and calendar still work",
+    });
+    expect(bannerSpecs(base, "tasks", now, { aiDown: true })).toEqual([]);
+    const both = bannerSpecs(withAi(true), "today", now, { aiDown: true });
+    expect(both).toHaveLength(1);
+    expect(both[0].title).toMatch(/AI paused/);
+  });
+});
+
 describe("locks", () => {
   it("locks Pro controls after the trial and AI planning when paused", () => {
     expect(lockRules(ended, now).map(([selector]) => selector)).toEqual([

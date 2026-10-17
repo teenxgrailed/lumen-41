@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { moveId, sameOrder } from "@/lib/needt3/board-order";
 import {
   type BoardPerson,
+  boardAccessKey,
   useSetBoardGrant,
 } from "@/lib/needt3/hooks/board-share";
 import {
@@ -46,7 +47,13 @@ import { isImageFile, linkDraft, linkFromUrl, normHex } from "./board/logic";
 import { BOARD_FULL_TEXT, BOARD_ITEM_LIMIT } from "./derive";
 
 /** The dialogs the desktop board page opens (the phone has its own sheets). */
-export type BoardSheet = "link" | "colour" | "note" | "share" | null;
+export type BoardSheet =
+  | "link"
+  | "colour"
+  | "note"
+  | "share"
+  | "pinterest"
+  | null;
 
 /** The place's list route; a board is one level under it. */
 export const BOARDS_PATH = "/moodboards";
@@ -459,6 +466,9 @@ export function useBoardsController(opts: BoardsControllerOptions) {
   const setLinkShare = async (boardId: string, on: boolean) => {
     try {
       await update.mutateAsync({ id: boardId, patch: { linkShare: on } });
+      // The Share dialog reads linkShare from the access query first; it only
+      // refetches on open, so without this it keeps saying "Private".
+      void qc.invalidateQueries({ queryKey: boardAccessKey(boardId) });
       notify.success(on ? "Anyone with the link can view" : "Link sharing off");
       return true;
     } catch {

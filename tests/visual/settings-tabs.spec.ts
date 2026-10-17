@@ -53,6 +53,17 @@ async function prepareSettings(page: import("@playwright/test").Page) {
     localStorage.setItem("needt-visit-count", "0");
   });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  // The Settings sheet opens over Today. CI has no hosted AI key, so Today's
+  // "AI is temporarily unavailable" banner would show in some tab screenshots
+  // and not others depending on when the read resolves. These shots are about
+  // Settings, so AI is always available here.
+  await page.route("**/api/ai-settings", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ hostedAvailable: true, hasApiKey: false }),
+    });
+  });
   await signInVisualUser(page);
   const themeResponse = await page.request.patch("/api/user-settings", {
     data: { theme: "dark" },

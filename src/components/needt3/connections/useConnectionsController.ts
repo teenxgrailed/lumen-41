@@ -8,8 +8,10 @@ import {
   connectToolkit,
   disconnectCalendar,
   disconnectMailbox,
+  disconnectPinterest,
   disconnectToolkit,
   startOAuth,
+  syncAccountNow,
   useCatalog,
 } from "@/lib/needt3/hooks/catalog";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -24,6 +26,7 @@ import {
   type Show,
   aiToolsLocked,
   buildItems,
+  canSyncNow,
   connectPlan,
   counts,
   disconnectKind,
@@ -56,6 +59,7 @@ export function useConnectionsController() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<CnItem | null>(null);
   const [caldav, setCaldav] = useState(false);
+  const [api, setApi] = useState(false);
   const [setup, setSetup] = useState<AiToolId | null>(null);
 
   useEffect(() => {
@@ -94,7 +98,7 @@ export function useConnectionsController() {
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
-  const mcp = useMcpConnect(tab === "ai" && !locked && !!plan.data);
+  const mcp = useMcpConnect(api || (tab === "ai" && !locked && !!plan.data));
 
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
 
@@ -102,6 +106,7 @@ export function useConnectionsController() {
     const how = connectPlan(item, isAdmin);
     if (how.kind === "unavailable") return void notify.info(how.reason);
     if (how.kind === "caldav") return setCaldav(true);
+    if (how.kind === "api") return setApi(true);
     setBusy(item.key);
     const r =
       how.kind === "navigate"
@@ -121,7 +126,9 @@ export function useConnectionsController() {
         ? await disconnectCalendar(item.accountId)
         : kind === "mailbox"
           ? await disconnectMailbox(item.accountId)
-          : await disconnectToolkit(item.accountId);
+          : kind === "pinterest"
+            ? await disconnectPinterest()
+            : await disconnectToolkit(item.accountId);
     setBusy(null);
     setConfirm(null);
     if (!r.ok) return void notify.error(r.error);
@@ -131,6 +138,25 @@ export function useConnectionsController() {
         : `${item.name} disconnected`
     );
     await refresh();
+  };
+
+  /**
+   * Sync now: queue the worker's sync for a connected calendar or mailbox,
+   * say so, and read the connections again a few seconds on, when the job has
+   * run. The notice says "started": the job is queued, not finished.
+   */
+  const syncNow = async (item: CnItem) => {
+    if (!canSyncNow(item) || !item.accountId) return;
+    const kind = item.kind === "mail" ? "mail" : "calendar";
+    const r = await syncAccountNow(kind, item.accountId);
+    if (!r.ok) return void notify.error(r.error);
+    if (!r.queued) return void notify.info("Nothing to sync yet.");
+    notify.success(`Syncing ${item.name}…`);
+    window.setTimeout(() => {
+      void refresh();
+      void qc.invalidateQueries({ queryKey: qk.events() });
+      void qc.invalidateQueries({ queryKey: qk.mail() });
+    }, 5000);
   };
 
   /** Apple / iCloud connected: close the form, say so, reload the list. */
@@ -158,12 +184,15 @@ export function useConnectionsController() {
     setConfirm,
     caldav,
     setCaldav,
+    api,
+    setApi,
     items,
     shown,
     counts: c,
     locked,
     connect,
     disconnect,
+    syncNow,
     caldavDone,
     mcp,
     setup,

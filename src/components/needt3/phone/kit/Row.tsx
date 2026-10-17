@@ -9,14 +9,25 @@ import {
   useState,
 } from "react";
 
-import { LuArrowRight, LuCheck, LuPaperclip } from "react-icons/lu";
+import {
+  LuArrowRight,
+  LuCalendar,
+  LuCheck,
+  LuPaperclip,
+  LuTrash2,
+} from "react-icons/lu";
 
 import { clock, durLabel } from "@/lib/needt3/day";
 import { dueLabel, at as hourAt } from "@/lib/needt3/derive";
 import {
+  ACTIONS_SNAP_AT,
+  ACTIONS_W,
   SWIPE_AT,
   type Sample,
   type SwipeSide,
+  actionsOffset,
+  actionsReveal,
+  actionsSettle,
   axisOf,
   pushSample,
   sideOf,
@@ -26,6 +37,7 @@ import {
   swipeReveal,
   velocity,
 } from "@/lib/needt3/gesture";
+import { haptic } from "@/lib/needt3/haptics";
 import type { V3Task } from "@/lib/needt3/map";
 
 import { PkSweep } from "./Material";
@@ -33,15 +45,30 @@ import { type EndReason, frameWriter, pkTrack } from "./pointer";
 import { usePkPlate } from "./theme";
 import { pkCx, pkReduced } from "./util";
 
+/** A row that opens one swipe left was opened: the others shut. */
+const OPENED = "pk-row-opened";
+
 interface Drag {
   id: number;
   x0: number;
   y0: number;
   kind: "swipe" | "none" | null;
   armed: SwipeSide | null;
+  /** Past the point where a closed row would settle open. */
+  snap: boolean;
+  /** Where the row rested when the finger came down: 0, or -ACTIONS_W. */
+  base: number;
+  /** The row's logical offset: where it rested plus the finger's travel. */
+  raw: number;
   s: Sample[];
   dx: number;
   off: () => void;
+}
+
+/** The buttons behind a row, revealed by a swipe left. */
+export interface PkRowActions {
+  onSchedule?: () => void;
+  onDelete?: () => void;
 }
 
 export interface PkRowProps {
@@ -56,7 +83,7 @@ export interface PkRowProps {
   done?: boolean;
   late?: boolean;
   /** The exit in steps: the check shows, or the row is thrown off the edge. */
-  phase?: "check" | "done" | "later";
+  phase?: "check" | "done" | "later" | "trash";
   /** Folds the row shut. */
   out?: boolean;
   canDone?: boolean;
@@ -64,6 +91,11 @@ export interface PkRowProps {
   onCheck?: () => void;
   onOpen?: () => void;
   onSwipe?: (side: SwipeSide) => void;
+  /**
+   * Swipe left shows these buttons (Schedule, Delete) and the row rests open,
+   * instead of throwing the row off the edge as "later".
+   */
+  actions?: PkRowActions;
   doneLabel?: string;
   laterLabel?: string;
   doneIcon?: ReactNode;
@@ -98,6 +130,7 @@ export function PkRow({
   onCheck,
   onOpen,
   onSwipe,
+  actions,
   doneLabel,
   laterLabel,
   doneIcon,
@@ -111,9 +144,16 @@ export function PkRow({
   const ended = useRef(Number.NEGATIVE_INFINITY);
   const frame = useRef(frameWriter());
   const [armed, setArmed] = useState<SwipeSide | null>(null);
+  const [open, setOpen] = useState(false);
+  const [thrown, setThrown] = useState(false);
+  const openRef = useRef(false);
   const done = !!doneIn || phase === "check";
-  const allow = { canDone, canLater };
-  const swipes = !!onSwipe && (canDone || canLater);
+  const leftActions = !!(actions && (actions.onSchedule || actions.onDelete));
+  const allow = {
+    canDone: !!canDone && !!onSwipe,
+    canLater: leftActions ? false : canLater,
+  };
+  const swipes = leftActions || (!!onSwipe && (canDone || canLater));
 
   useEffect(() => {
     const w = frame.current;
@@ -123,7 +163,7 @@ export function PkRow({
     };
   }, []);
 
-  const set = (x: number, k: number, side: SwipeSide | null) => {
+  const set = (x: number, k: number, side: SwipeSide | "actions" | null) => {
     if (row.current)
       row.current.style.transform = x
         ? `translate3d(${x.toFixed(1)}px,0,0)`
@@ -133,6 +173,38 @@ export function PkRow({
       wrap.current.setAttribute("data-pk-side", side ?? "");
     }
   };
+
+  /** The row rests open (the buttons show) or shut. */
+  const rest = (on: boolean) => {
+    const was = openRef.current;
+    openRef.current = on;
+    setOpen(on);
+    set(on ? -ACTIONS_W : 0, on ? 1 : 0, on ? "actions" : null);
+    if (on && !was)
+      window.dispatchEvent(new CustomEvent(OPENED, { detail: id }));
+  };
+
+  // An open row shuts on a touch anywhere else, on a scroll, and when another
+  // row opens.
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e: Event) => {
+      if (!wrap.current?.contains(e.target as Node)) rest(false);
+    };
+    const other = (e: Event) => {
+      if ((e as CustomEvent).detail !== id) rest(false);
+    };
+    const scrolled = () => rest(false);
+    document.addEventListener("pointerdown", outside, true);
+    window.addEventListener(OPENED, other);
+    window.addEventListener("scroll", scrolled, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      window.removeEventListener(OPENED, other);
+      window.removeEventListener("scroll", scrolled, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, id]);
 
   const move = (e: PointerEvent) => {
     const d = G.current;
@@ -149,13 +221,32 @@ export function PkRow({
     if (d.kind !== "swipe") return;
     if (e.cancelable) e.preventDefault();
     d.dx = dx;
+    const raw = d.base + dx;
+    d.raw = raw;
+    if (leftActions && raw < 0) {
+      frame.current.schedule(() =>
+        set(actionsOffset(raw), actionsReveal(raw), "actions")
+      );
+      const snap = raw <= -ACTIONS_SNAP_AT;
+      if (snap !== d.snap) {
+        d.snap = snap;
+        if (snap && !openRef.current) haptic("tick");
+      }
+      if (d.armed) {
+        d.armed = null;
+        setArmed(null);
+      }
+      return;
+    }
+    d.snap = false;
     frame.current.schedule(() =>
-      set(swipeOffset(dx, allow), swipeReveal(dx, allow), sideOf(dx))
+      set(swipeOffset(raw, allow), swipeReveal(raw, allow), sideOf(raw))
     );
-    const next = swipeArmed(dx, allow);
+    const next = swipeArmed(raw, allow);
     if (next !== d.armed) {
       d.armed = next;
       setArmed(next);
+      if (next) haptic("tick");
     }
   };
 
@@ -170,18 +261,31 @@ export function PkRow({
     // The last move's offset decides, not the up event's own coordinates; a
     // cancel (a real pointercancel, or a hold that took the finger) commits
     // nothing and the row goes home.
-    const dx = d.dx;
-    const side = swipeRelease(reason, dx, velocity(d.s), allow);
+    const raw = d.raw;
     setArmed(null);
+    if (leftActions && raw < 0) {
+      // Rests where it settles: open past the snap point or on a flick left,
+      // else shut. A cancel keeps what it was.
+      rest(
+        reason === "cancel"
+          ? openRef.current
+          : actionsSettle(raw, velocity(d.s), openRef.current)
+      );
+      return;
+    }
+    const side = swipeRelease(reason, raw, velocity(d.s), allow);
     if (!side) {
-      set(0, 0, null);
+      rest(false);
       return;
     }
     // Thrown: off the edge, then the parent folds the row away and commits.
-    wrap.current?.classList.add("is-thrown");
+    openRef.current = false;
+    setOpen(false);
+    setThrown(true);
+    haptic("success");
     wrap.current?.style.setProperty("--pk-k", "1");
     if (row.current)
-      row.current.style.transform = `translate3d(${(dx < 0 ? -1 : 1) * 112}%,0,0)`;
+      row.current.style.transform = `translate3d(${(raw < 0 ? -1 : 1) * 112}%,0,0)`;
     onSwipe?.(side);
   };
 
@@ -192,12 +296,16 @@ export function PkRow({
     // the check ring, a lead's own button and the action stay taps
     const b = (e.target as HTMLElement).closest?.("button, a, input, textarea");
     if (b && !b.classList.contains("pk-row-open")) return;
+    const base = openRef.current ? -ACTIONS_W : 0;
     const d: Drag = {
       id: e.pointerId,
       x0: e.clientX,
       y0: e.clientY,
       kind: null,
       armed: null,
+      snap: false,
+      base,
+      raw: base,
       s: [[performance.now(), e.clientX]],
       dx: 0,
       off: () => undefined,
@@ -206,10 +314,32 @@ export function PkRow({
     d.off = pkTrack(move, end, e.pointerId);
   };
 
+  /** Schedule: shut the row, then the parent opens its date picker. */
+  const schedule = () => {
+    rest(false);
+    actions?.onSchedule?.();
+  };
+  /** Delete: the row leaves off the edge; the parent folds it and trashes it. */
+  const remove = () => {
+    openRef.current = false;
+    setOpen(false);
+    setThrown(true);
+    haptic("success");
+    wrap.current?.style.setProperty("--pk-k", "1");
+    if (row.current) row.current.style.transform = "translate3d(-112%,0,0)";
+    actions?.onDelete?.();
+  };
+
   // a swipe is not a tap
   const click = (e: React.MouseEvent) => {
     if (performance.now() - ended.current < 300) {
       e.preventDefault();
+      return;
+    }
+    // a tap on a row that rests open shuts it instead of opening the task
+    if (openRef.current) {
+      e.preventDefault();
+      rest(false);
       return;
     }
     onOpen?.();
@@ -228,7 +358,13 @@ export function PkRow({
   return (
     <div
       ref={wrap}
-      className={pkCx("pk-rw", out && "is-out", armed && "is-armed")}
+      className={pkCx(
+        "pk-rw",
+        out && "is-out",
+        armed && "is-armed",
+        open && "is-open",
+        thrown && "is-thrown"
+      )}
       data-pk-row={id}
     >
       <div className="pk-rw-in">
@@ -241,12 +377,41 @@ export function PkRow({
               </span>
               <span className="pk-reveal-word">{doneLabel ?? "Done"}</span>
             </div>
-            <div className="pk-reveal is-later" aria-hidden="true">
-              <span className="pk-reveal-word">{laterLabel ?? "Tomorrow"}</span>
-              <span className="pk-reveal-mark">
-                {laterIcon ?? <LuArrowRight size={18} />}
-              </span>
-            </div>
+            {leftActions ? (
+              <div className="pk-actions" aria-hidden={!open}>
+                {actions?.onSchedule ? (
+                  <button
+                    type="button"
+                    className="pk-act is-schedule"
+                    tabIndex={open ? 0 : -1}
+                    onClick={schedule}
+                  >
+                    <LuCalendar size={18} aria-hidden="true" />
+                    <span>Schedule</span>
+                  </button>
+                ) : null}
+                {actions?.onDelete ? (
+                  <button
+                    type="button"
+                    className="pk-act is-delete"
+                    tabIndex={open ? 0 : -1}
+                    onClick={remove}
+                  >
+                    <LuTrash2 size={18} aria-hidden="true" />
+                    <span>Delete</span>
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="pk-reveal is-later" aria-hidden="true">
+                <span className="pk-reveal-word">
+                  {laterLabel ?? "Tomorrow"}
+                </span>
+                <span className="pk-reveal-mark">
+                  {laterIcon ?? <LuArrowRight size={18} />}
+                </span>
+              </div>
+            )}
           </>
         ) : null}
         <div
@@ -263,11 +428,16 @@ export function PkRow({
             (check === false ? null : (
               <button
                 type="button"
-                className={pkCx("pk-check", done && "is-on")}
+                className={pkCx(
+                  "pk-check",
+                  done && "is-on",
+                  phase === "check" && "is-ticking"
+                )}
                 aria-pressed={done}
                 aria-label={done ? "Mark not done" : "Mark done"}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (!done) haptic("success");
                   onCheck?.();
                 }}
               >
@@ -307,6 +477,8 @@ export interface PkTaskRowProps {
   onCheck?: (t: V3Task) => void;
   onOpen?: (t: V3Task) => void;
   onSwipe?: (side: SwipeSide) => void;
+  /** Swipe left shows Schedule / Delete (see `PkRowActions`). */
+  actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */
   hideProject?: boolean;
   action?: ReactNode;
@@ -329,6 +501,7 @@ export function PkTaskRow({
   onCheck,
   onOpen,
   onSwipe,
+  actions,
   hideProject,
   action,
 }: PkTaskRowProps) {
@@ -377,6 +550,7 @@ export function PkTaskRow({
       onCheck={() => onCheck?.(t)}
       onOpen={onOpen ? () => onOpen(t) : undefined}
       onSwipe={onSwipe}
+      actions={actions}
     />
   );
 }
@@ -402,7 +576,7 @@ const HOLD_THROWN = 190;
 // the fade-and-clip of a removed row (opacity + clip-path, motion.css)
 const FOLD_MS = 180;
 
-type ExitKind = "check" | "done" | "later";
+type ExitKind = "check" | "done" | "later" | "trash";
 
 function without<V>(m: Record<string, V>, key: string) {
   const n = { ...m };

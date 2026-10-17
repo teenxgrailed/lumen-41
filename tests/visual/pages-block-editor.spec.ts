@@ -118,10 +118,8 @@ test("Page blocks reconcile by stable ID and slash commands create canonical blo
   await page.keyboard.type("/call");
   await expect(page.getByRole("menu", { name: "Page commands" })).toBeVisible();
   await page.getByRole("menuitem", { name: /Callout/ }).click();
-  await page
-    .getByRole("textbox", { name: "Callout text" })
-    .fill("Important context");
-  await page.getByRole("button", { name: "Add block" }).click();
+  // A callout is a real block: it goes in empty, with the caret inside.
+  await page.keyboard.type("Important context");
   await expect(document).toContainText("Important context");
   await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible({

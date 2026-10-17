@@ -196,7 +196,7 @@ export function UserMenu() {
         )}
         <DropdownMenuItem asChild>
           <a
-            href="https://github.com/dotnetfactory/fluid-calendar"
+            href="https://github.com/teenxgrails/needt/issues"
             target="_blank"
             rel="noreferrer"
             className="cursor-pointer"

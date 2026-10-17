@@ -5,6 +5,7 @@ import { V3SignInRoute } from "@/components/needt3/auth/SignInRoute";
 
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
@@ -24,11 +25,12 @@ export default async function SignInPage({
   const authOptions = await getAuthOptions();
   const session = await getServerSession(authOptions);
 
-  if (session) {
-    redirect("/calendar");
-  }
-
   const { callbackUrl, error } = await searchParams;
+
+  if (session) {
+    // Already signed in: go where the link was going, not always Calendar.
+    redirect(safeCallbackPath(callbackUrl));
+  }
 
   // The screen draws its own sky and scope. The phone gets its own face; the
   // server picks it for the first render the way the signed-in frame does

@@ -15,10 +15,12 @@ import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 
 import { TaskCheck } from "./TaskCheck";
 import { DeskMeta, LineMeta, PartCount, TaskValue } from "./chips";
+import { useCompletionScope } from "./useCompletion";
 import { type TaskEntry, isTaskEvent, taskView } from "./view";
 
 export type { TaskEntry, TaskEvent, TaskView } from "./view";
@@ -87,11 +89,10 @@ function TaskContent(props: TaskProps) {
     onToggle,
     onOpen,
     dragProps,
-    hideProject,
     hideEntry,
     compact,
     stacked,
-    phase,
+    phase: phaseProp,
     back,
     label,
     note,
@@ -103,13 +104,26 @@ function TaskContent(props: TaskProps) {
     style,
     className = "",
   } = props;
+  // inside a screen's <CompletionScope> a row takes its exit and its check
+  // from the screen: the one shared completion (useCompletion)
+  const scope = useCompletionScope();
+  const phase = phaseProp ?? scope?.phase[task.id];
   const projectsQuery = useProjects();
   const tz = useTimeZone();
   const toggleTask = useToggleTask();
   const [hot, setHot] = useState(false);
   const [focused, setFocused] = useState(false);
   const today = props.today ?? formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-  const v = taskView(task, props.projects ?? projectsQuery.data, today);
+  const details = useTaskView();
+  // Row details are one setting for every list: what a row shows of its
+  // parts, its length and its project
+  const hideProject = props.hideProject || !details.project;
+  const shown = taskView(task, props.projects ?? projectsQuery.data, today);
+  const v = {
+    ...shown,
+    parts: details.subtasks ? shown.parts : null,
+    minutes: details.duration ? shown.minutes : null,
+  };
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
@@ -136,7 +150,9 @@ function TaskContent(props: TaskProps) {
     ? () => onToggle(task.id)
     : isTaskEvent(task)
       ? undefined
-      : () => void toggleTask.toggle(task).catch(() => undefined);
+      : scope
+        ? () => scope.check(task)
+        : () => void toggleTask.toggle(task).catch(() => undefined);
   const check = (
     <TaskCheck key={task.id} on={v.done || !!phase} onClick={toggle} />
   );
@@ -169,7 +185,8 @@ function TaskContent(props: TaskProps) {
         {...identity}
         {...openProps}
         {...events}
-        className={`tk-block ${className}`}
+        className={`tk-block${phase ? " is-striking" : ""} ${className}`}
+        data-complete={phase}
         style={{
           padding: `${(short ? 2 : 5) + pt}px 6px 2px 9px`,
           background: v.event
@@ -178,8 +195,13 @@ function TaskContent(props: TaskProps) {
               : "var(--fill-4)"
             : `color-mix(in oklch, ${hue} ${lit ? 22 : 14}%, var(--surface-raised))`,
           boxShadow: shadow,
-          opacity: v.done ? 0.5 : 1,
-          transform: lit ? "translateY(-1px)" : "none",
+          opacity: phase === "collapse" ? 0 : v.done || phase ? 0.5 : 1,
+          transform:
+            phase === "collapse"
+              ? "scale(0.94)"
+              : lit
+                ? "translateY(-1px)"
+                : "none",
           ...style,
         }}
       >
@@ -280,7 +302,7 @@ function TaskContent(props: TaskProps) {
                 <span>{v.time}</span>
               ) : null}
               {v.minutes ? <span>{v.dur}</span> : null}
-              {v.projectName ? (
+              {v.projectName && !hideProject ? (
                 <span className="tk-card-proj">
                   <span
                     aria-hidden="true"
@@ -313,7 +335,8 @@ function TaskContent(props: TaskProps) {
       <div
         {...identity}
         {...openProps}
-        className={`mb-row tk-touch ${className}`}
+        className={`mb-row tk-touch${phase ? " is-striking" : ""} ${className}`}
+        data-complete={phase}
         style={{ opacity: phase === "out" ? 0 : 1, ...style }}
       >
         <span className="tk-touch-check">
@@ -326,9 +349,7 @@ function TaskContent(props: TaskProps) {
         </span>
         <span className="tk-touch-body">
           <span className="tk-touch-line">
-            <span
-              className={`tk-touch-title${v.done || phase ? " is-done" : ""}`}
-            >
+            <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
               {v.title}
             </span>
             <PartCount view={v} />
@@ -343,7 +364,8 @@ function TaskContent(props: TaskProps) {
       <div
         {...identity}
         {...openProps}
-        className={`tk-mini ${className}`}
+        className={`tk-mini${phase ? " is-striking" : ""} ${className}`}
+        data-complete={phase}
         style={style}
       >
         {check}
@@ -363,7 +385,8 @@ function TaskContent(props: TaskProps) {
       <div
         {...identity}
         {...openProps}
-        className={`tk-agenda${hot ? " is-hot" : ""}${v.done ? " is-done" : ""} ${className}`}
+        className={`tk-agenda${hot ? " is-hot" : ""}${v.done ? " is-done" : ""}${phase ? " is-striking" : ""} ${className}`}
+        data-complete={phase}
         onMouseEnter={() => setHot(true)}
         onMouseLeave={() => setHot(false)}
         style={style}
@@ -405,7 +428,11 @@ function TaskContent(props: TaskProps) {
                   style={{ background: hue }}
                 />
                 <span className="tk-clip">
-                  {v.event ? v.calendarName : v.projectName || "Inbox"}
+                  {v.event
+                    ? v.calendarName
+                    : hideProject
+                      ? "Task"
+                      : v.projectName || "Inbox"}
                 </span>
               </span>
             </span>
@@ -416,6 +443,7 @@ function TaskContent(props: TaskProps) {
   return (
     <div
       className={`hd-row${phase === "collapse" ? " is-collapsing" : ""}${phase ? " is-striking" : ""}${back ? " nx-swap" : ""} ${className}`}
+      data-complete={phase}
       style={style}
     >
       <div>

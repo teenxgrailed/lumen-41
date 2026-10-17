@@ -13,6 +13,11 @@ import {
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import {
+  accountRule,
+  enforceRateLimits,
+  ipRule,
+} from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "ai-parse-tasks-api";
 
@@ -20,6 +25,15 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
+
+    const limited = await enforceRateLimits(
+      [
+        ipRule(request, "ai-parse-tasks:ip", 60, 60),
+        accountRule(auth.userId, "ai-parse-tasks:account", 30, 60),
+      ],
+      { route: "/api/ai/parse-tasks", userId: auth.userId }
+    );
+    if (limited) return limited;
 
     const body = await request.json();
     const text = typeof body.text === "string" ? body.text : "";

@@ -78,6 +78,7 @@ let planQ: { data: { kind: string } | undefined };
 const connectToolkit = jest.fn();
 const disconnectToolkit = jest.fn();
 const disconnectCalendar = jest.fn();
+const syncAccountNow = jest.fn();
 jest.mock("@/lib/needt3/hooks/catalog", () => ({
   useCatalog: () => catalogQ,
   connectToolkit: (...a: unknown[]) => connectToolkit(...a),
@@ -85,6 +86,7 @@ jest.mock("@/lib/needt3/hooks/catalog", () => ({
   disconnectToolkit: (...a: unknown[]) => disconnectToolkit(...a),
   disconnectCalendar: (...a: unknown[]) => disconnectCalendar(...a),
   disconnectMailbox: jest.fn(),
+  syncAccountNow: (...a: unknown[]) => syncAccountNow(...a),
 }));
 jest.mock("@/lib/needt3/hooks/connections", () => ({
   useConnections: () => accountsQ,
@@ -120,6 +122,7 @@ const trashBoardAsync = jest.fn();
 const trashDocAsync = jest.fn();
 const deleteDocAsync = jest.fn();
 const deleteBoardAsync = jest.fn();
+const deleteTaskAsync = jest.fn();
 jest.mock("@/lib/needt3/hooks/docs", () => ({
   useTrashedDocs: () => docsQ,
   useTrashDoc: () => ({
@@ -132,6 +135,9 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
 jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useTasks: () => tasksQ,
   useTrashTask: () => ({ restore: (...a: unknown[]) => restoreTask(...a) }),
+  useDeleteTaskForever: () => ({
+    mutateAsync: (...a: unknown[]) => deleteTaskAsync(...a),
+  }),
 }));
 jest.mock("@/lib/needt3/hooks/boards", () => ({
   useBoards: () => boardsQ,
@@ -383,6 +389,19 @@ describe("Connections", () => {
     );
   });
 
+  it("Sync now in the account sheet queues that account and closes the sheet", async () => {
+    syncAccountNow.mockResolvedValue({ ok: true, queued: 1 });
+    mount(ConnectionsFace);
+    click($('[data-ppl-conn="google-calendar"] .ppl-row-main'));
+    click($('[data-ppl-sync="google-calendar"]'));
+    await flush();
+    expect(syncAccountNow).toHaveBeenCalledWith("calendar", "cal-1");
+    expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
+    expect(sheetOf("Google Calendar")?.getAttribute("data-pk-sheet")).toBe(
+      "shut"
+    );
+  });
+
   it("a failed disconnect keeps the data and says why", async () => {
     disconnectCalendar.mockResolvedValue({
       ok: false,
@@ -605,11 +624,12 @@ describe("Trash", () => {
       /from Home · \d+ days? left$/
     );
     expect(text($(".pk-sub"))).toBe("3 items · kept 30 days");
-    // pages and moodboards can go for good; tasks cannot yet
+    // every kind can go for good
     expect($('[data-ppl-forever="pg1"]')).not.toBeNull();
     expect($('[data-ppl-forever="b1"]')).not.toBeNull();
-    expect($('[data-ppl-forever="k1"]')).toBeNull();
+    expect($('[data-ppl-forever="k1"]')).not.toBeNull();
     expect($("[data-ppl-empty]")).not.toBeNull();
+    expect($("[data-ppl-restore-all]")).not.toBeNull();
   });
 
   it("Restore writes once, even on a double tap, and offers Undo", async () => {
@@ -675,21 +695,50 @@ describe("Trash", () => {
     expect(notify.success.mock.calls[0][0]).toBe("Deleted “Brief” for good");
   });
 
-  it("Empty Trash names what goes and what stays, then deletes pages and moodboards", async () => {
+  it("Delete forever on a task asks first, then deletes that task", async () => {
+    deleteTaskAsync.mockResolvedValue({});
+    mount(TrashFace);
+    click($('[data-ppl-forever="k1"]'));
+    expect(deleteTaskAsync).not.toHaveBeenCalled();
+    const sheet = $$(".pk-sheet-layer").find((l) =>
+      text(l.querySelector(".pk-sheet-title")).startsWith("Delete “Old task”")
+    )!;
+    click(sheet.querySelector("[data-ppl-confirm]"));
+    await flush();
+    expect(deleteTaskAsync).toHaveBeenCalledWith({ id: "k1" });
+    expect(notify.success.mock.calls[0][0]).toBe("Deleted “Old task” for good");
+  });
+
+  it("Restore all puts back every page, task and moodboard, with one notice", async () => {
+    trashDocAsync.mockResolvedValue({});
+    trashBoardAsync.mockResolvedValue({});
+    restoreTask.mockResolvedValue({});
+    mount(TrashFace);
+    click($("[data-ppl-restore-all]"));
+    await flush();
+    expect(trashDocAsync).toHaveBeenCalledWith({ id: "pg1", trashed: false });
+    expect(trashBoardAsync).toHaveBeenCalledWith({ id: "b1", trashed: false });
+    expect(restoreTask).toHaveBeenCalledWith("k1");
+    expect(notify.success).toHaveBeenCalledTimes(1);
+    expect(notify.success.mock.calls[0][0]).toBe("Restored 3 items");
+  });
+
+  it("Empty Trash names what goes, then deletes pages, tasks and moodboards", async () => {
     deleteDocAsync.mockResolvedValue({});
     deleteBoardAsync.mockResolvedValue({});
+    deleteTaskAsync.mockResolvedValue({});
     mount(TrashFace);
     click($("[data-ppl-empty]"));
     expect(deleteDocAsync).not.toHaveBeenCalled();
     const sheet = $$(".pk-sheet-layer").find(
       (l) => text(l.querySelector(".pk-sheet-title")) === "Empty Trash?"
     )!;
-    expect(text(sheet)).toContain("1 page and 1 moodboard");
-    expect(text(sheet)).toContain("1 task stay in Trash");
+    expect(text(sheet)).toContain("1 page, 1 task and 1 moodboard");
     click(sheet.querySelector("[data-ppl-confirm]"));
     await flush();
     expect(deleteDocAsync).toHaveBeenCalledWith({ id: "pg1" });
     expect(deleteBoardAsync).toHaveBeenCalledWith({ id: "b1" });
+    expect(deleteTaskAsync).toHaveBeenCalledWith({ id: "k1" });
     expect(restoreTask).not.toHaveBeenCalled();
     expect(notify.success.mock.calls[0][0]).toBe("Trash emptied");
   });

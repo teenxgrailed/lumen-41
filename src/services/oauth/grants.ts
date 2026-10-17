@@ -3,7 +3,11 @@ import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 
 import { newDate } from "@/lib/date-utils";
-import { type McpScope, mcpResource } from "@/lib/mcp-config";
+import {
+  type McpScope,
+  isMcpResource,
+  mcpResourceAliases,
+} from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -44,12 +48,12 @@ export interface TokenResponse {
   scope: string;
 }
 
-/** `resource` must be the canonical MCP resource, byte for byte. */
+/** `resource` must be the canonical MCP resource or its alias, byte for byte. */
 export function checkResource(resource: string | null | undefined) {
-  if (resource !== mcpResource()) {
+  if (!isMcpResource(resource)) {
     throw new OAuthError(
       "invalid_target",
-      `resource must be ${mcpResource()}.`
+      `resource must be one of ${mcpResourceAliases().join(", ")}.`
     );
   }
 }
@@ -332,7 +336,7 @@ export async function resolveAccessToken(
     stored.type !== "access" ||
     stored.revokedAt ||
     stored.expiresAt.getTime() <= now.getTime() ||
-    stored.resource !== mcpResource()
+    !isMcpResource(stored.resource)
   ) {
     return null;
   }

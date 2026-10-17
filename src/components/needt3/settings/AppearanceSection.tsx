@@ -192,8 +192,8 @@ function TimeNow({ palettes }: { palettes: TimePalettes | null }) {
 export function AppearanceSection({
   onUpgrade,
 }: {
-  /** Opens the Plan section: a locked choice sends the person there. */
-  onUpgrade: () => void;
+  /** Opens the paywall on the locked feature (a theme or an accent). */
+  onUpgrade: (feature?: string) => void;
 }) {
   const mark = useMark();
   const theme = useNeedt3Ui((s) => s.theme);
@@ -208,12 +208,12 @@ export function AppearanceSection({
   const pro = isPro(kind);
 
   const pickTheme = (id: ThemeChoice) => {
-    if (themeLocked(id, kind)) return onUpgrade();
+    if (themeLocked(id, kind)) return onUpgrade("Time theme");
     setLook({ theme: id });
     void update.mutateAsync({ theme: id }).then(mark);
   };
   const pickAccent = (id: AccentId) => {
-    if (accentLocked(id, kind)) return onUpgrade();
+    if (accentLocked(id, kind)) return onUpgrade("Accent colours");
     // The accent lives in prefs; before they load a write is refused, so
     // the pick would show and then not survive a reload.
     if (!settings.data) return;
@@ -256,7 +256,9 @@ export function AppearanceSection({
                 </span>
                 <span className="settings-theme-tile-span-3">
                   {label}
-                  {id === "time" ? <ProPill locked={locked} /> : null}
+                  {id === "time" ? (
+                    <ProPill locked={locked} feature="Time theme" />
+                  ) : null}
                 </span>
               </button>
             );
@@ -324,7 +326,7 @@ export function AppearanceSection({
               <button
                 type="button"
                 className="pro-limit-up"
-                onClick={onUpgrade}
+                onClick={() => onUpgrade("Accent colours")}
               >
                 Upgrade
               </button>

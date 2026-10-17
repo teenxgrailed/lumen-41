@@ -30,6 +30,8 @@ const mockInfo = jest.fn();
 let mockRole: string;
 let mockItems: unknown[];
 let mockAccess: Record<string, unknown>;
+let mockPin: Record<string, unknown> | undefined;
+let mockAdmin = false;
 
 const query = (data: unknown) => ({
   data,
@@ -75,10 +77,25 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/board-share", () => ({
   useSetBoardGrant: () => ({ mutateAsync: mockGrant, isPending: false }),
+  boardAccessKey: (id: string) => ["v3", "board", id, "access"],
   useBoardAccess: () => query(mockAccess),
 }));
 jest.mock("@/lib/needt3/hooks/plan", () => ({
   usePlan: () => query({ kind: "monthly" }),
+}));
+jest.mock("@/lib/needt3/hooks/pinterest", () => ({
+  usePinterestStatus: () => query(mockPin),
+  usePinterestBoards: () => query([]),
+  usePinterestImport: () => ({
+    importBoard: jest.fn(),
+    setKeepInSync: jest.fn(),
+  }),
+  pinterestFailure: () => ({ kind: "other", message: "x" }),
+  connectPinterest: jest.fn(),
+}));
+jest.mock("@/lib/needt3/hooks/catalog", () => ({
+  useCatalog: () =>
+    query({ isAdmin: mockAdmin, catalog: [], integrations: [] }),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
@@ -121,10 +138,11 @@ const item = (id: string, extra = {}) => ({
 
 let host: HTMLDivElement;
 let root: Root;
+let client: QueryClient;
 
 /* The controller reads the wall from the cache at the moment of a write. */
 const mount = () => {
-  const client = new QueryClient();
+  client = new QueryClient();
   client.setQueryData(["v3", "board", "b1", "items"], mockItems);
   return act(() =>
     root.render(
@@ -148,16 +166,13 @@ const click = (el: Element | null) =>
   });
 const flush = () => act(async () => void (await Promise.resolve()));
 
-function dragEvent(type: string) {
-  const e = new Event(type, { bubbles: true, cancelable: true });
-  Object.defineProperty(e, "dataTransfer", {
-    value: { effectAllowed: "", dropEffect: "", types: [], setData() {} },
-  });
-  return e;
-}
-const drag = (el: Element, type: string) =>
+/* The wall reorders with the shared sortable list: Space picks a card up, the
+ * arrows move it, Space drops it, Escape puts it back. */
+const key = (el: Element | null, k: string) =>
   act(() => {
-    el.dispatchEvent(dragEvent(type));
+    el?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })
+    );
   });
 
 function paste(
@@ -176,6 +191,14 @@ function paste(
 }
 
 beforeEach(() => {
+  mockPin = {
+    configured: true,
+    pro: true,
+    connected: false,
+    needsReconnect: false,
+    username: null,
+  };
+  mockAdmin = false;
   jest.useFakeTimers();
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RO;
   Object.defineProperty(window, "matchMedia", {
@@ -236,28 +259,43 @@ afterEach(() => {
 });
 
 describe("the wall", () => {
-  it("draws every reference, with Add for an editor and the Pinterest row as Coming soon", async () => {
+  async function addMenuText() {
     mount();
-    expect(q('[data-id="a"]')).not.toBeNull();
-    expect(q('[data-id="c"]')).not.toBeNull();
     act(() => {
       q(".mb-add")?.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
       );
     });
     await flush();
-    const text = doc("[role=menu]")?.textContent ?? "";
+    return doc("[role=menu]")?.textContent ?? "";
+  }
+
+  it("draws every reference, with Add for an editor and a working Pinterest import row", async () => {
+    const text = await addMenuText();
+    expect(q('[data-id="a"]')).not.toBeNull();
+    expect(q('[data-id="c"]')).not.toBeNull();
     expect(text).toContain("Upload images");
     expect(text).toContain("Paste a link");
-    expect(text).toContain("Connect Pinterest board");
+    expect(text).toContain("Import from Pinterest");
     expect(text).toContain("PRO");
-    expect(text).toContain("Coming soon");
+    expect(text).not.toContain("Coming soon");
     const row = [...document.querySelectorAll("[role=menuitem]")].find((e) =>
       e.textContent?.includes("Pinterest")
     );
-    expect(
-      row?.getAttribute("aria-disabled") ?? row?.getAttribute("data-disabled")
-    ).not.toBeNull();
+    expect(row?.getAttribute("aria-disabled")).not.toBe("true");
+  });
+
+  it("hides the Pinterest row where the server has no Pinterest app", async () => {
+    mockPin = { ...mockPin, configured: false };
+    expect(await addMenuText()).not.toContain("Pinterest");
+  });
+
+  it("tells an admin Pinterest needs credentials, disabled", async () => {
+    mockPin = { ...mockPin, configured: false };
+    mockAdmin = true;
+    const text = await addMenuText();
+    expect(text).toContain("Import from Pinterest");
+    expect(text).toContain("Not set up");
   });
 
   it("a viewer reads: no Add, no menus, nothing draggable", () => {
@@ -265,7 +303,7 @@ describe("the wall", () => {
     mount();
     expect(q(".mb-add")).toBeNull();
     expect(q(".mb-card-more")).toBeNull();
-    expect(q('[data-id="a"]')?.getAttribute("draggable")).toBe("false");
+    expect(q('[data-id="a"]')?.hasAttribute("data-sort-handle")).toBe(false);
   });
 
   it("View as guest hides what writes, and Exit brings it back", () => {
@@ -275,7 +313,7 @@ describe("the wall", () => {
     expect(q(".mb-add")).toBeNull();
     expect(q(".mb-share")).toBeNull();
     expect(q(".mb-guest-bar")).not.toBeNull();
-    expect(q('[data-id="a"]')?.getAttribute("draggable")).toBe("false");
+    expect(q('[data-id="a"]')?.hasAttribute("data-sort-handle")).toBe(false);
     click(q(".mb-guest-bar button"));
     expect(q(".mb-add")).not.toBeNull();
   });
@@ -284,7 +322,7 @@ describe("the wall", () => {
     mockItems = [item("a"), item("canvas:x", { fromCanvas: true })];
     mount();
     const tile = q('[data-id="canvas:x"]')!;
-    expect(tile.getAttribute("draggable")).toBe("false");
+    expect(tile.hasAttribute("data-sort-handle")).toBe(false);
     expect(tile.querySelector(".mb-card-more")).toBeNull();
     expect(q('[data-id="a"] .mb-card-more')).not.toBeNull();
   });
@@ -345,12 +383,14 @@ describe("paste", () => {
 });
 
 describe("drag to reorder", () => {
-  it("a drop on another reference commits the new order once", async () => {
+  it("a drop commits the new order once", async () => {
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="c"]')!, "dragenter");
-    drag(q('[data-id="c"]')!, "drop");
-    drag(q('[data-id="a"]')!, "dragend");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, "ArrowDown");
+    key(a, "ArrowDown");
+    expect(mockReorder).not.toHaveBeenCalled();
+    key(a, " ");
     await flush();
     expect(mockReorder).toHaveBeenCalledTimes(1);
     expect(mockReorder).toHaveBeenCalledWith({
@@ -363,24 +403,40 @@ describe("drag to reorder", () => {
     );
   });
 
-  it("a drag that ends without a drop (Esc, outside) commits nothing", async () => {
+  it("Escape puts the card back and commits nothing", async () => {
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="c"]')!, "dragenter");
-    drag(q('[data-id="a"]')!, "dragend");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, "ArrowDown");
+    key(a, "Escape");
     await flush();
     expect(mockReorder).not.toHaveBeenCalled();
+    expect(
+      [...host.querySelectorAll("[data-id]")].map((n) =>
+        n.getAttribute("data-id")
+      )
+    ).toEqual(["a", "b", "c"]);
   });
 
-  it("dropping a reference on itself, or on a canvas tile, changes nothing", async () => {
+  it("a card with no move (dropped where it was), or a canvas tile, changes nothing", async () => {
     mockItems = [item("a"), item("b"), item("canvas:x", { fromCanvas: true })];
     mount();
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="a"]')!, "drop");
-    drag(q('[data-id="a"]')!, "dragstart");
-    drag(q('[data-id="canvas:x"]')!, "drop");
+    const a = q('[data-id="a"]')!;
+    key(a, " ");
+    key(a, " ");
+    key(q('[data-id="canvas:x"]'), " ");
     await flush();
     expect(mockReorder).not.toHaveBeenCalled();
+    expect(q('[data-id="canvas:x"]')?.hasAttribute("data-sort-handle")).toBe(
+      false
+    );
+  });
+
+  it("Enter still opens the card", async () => {
+    mount();
+    key(q('[data-id="b"]'), "Enter");
+    await flush();
+    expect(doc("textarea[name=mb-detail-note]")).not.toBeNull();
   });
 });
 
@@ -524,6 +580,18 @@ describe("Share", () => {
     expect(mockUpdate).toHaveBeenCalledWith({
       id: "b1",
       patch: { linkShare: true },
+    });
+  });
+
+  it("refreshes the dialog's access data once the link is switched, so it stops saying Private", async () => {
+    mockUpdate.mockResolvedValue({ result: undefined, undo: jest.fn() });
+    mount();
+    await openShare();
+    const invalidate = jest.spyOn(client, "invalidateQueries");
+    click(doc("[role=switch]"));
+    await flush();
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["v3", "board", "b1", "access"],
     });
   });
 

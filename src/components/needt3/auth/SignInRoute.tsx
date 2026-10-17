@@ -13,6 +13,10 @@ import type { IconType } from "react-icons";
 import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
 import {
+  rememberPostAuthPath,
+  takePostAuthPath,
+} from "@/lib/auth/post-auth-path";
+import {
   SIGN_IN_PROVIDERS,
   type SignInProviderId,
 } from "@/lib/auth/sign-in-provider-ids";
@@ -121,8 +125,17 @@ export function V3SignInRoute({
   const leave = React.useCallback(() => {
     if (leaving.current) return;
     leaving.current = true;
+    // A returning person is going where the link went; only a new account
+    // still has setup and confirmation ahead of it.
+    if (dest.current !== "/setup") takePostAuthPath();
     window.location.href = dest.current;
   }, []);
+
+  /* A deep link (a buy link from the landing) survives the detours that drop
+     the callbackUrl: an OAuth sign-up, first-run setup, email confirmation. */
+  React.useEffect(() => {
+    rememberPostAuthPath(callbackUrl);
+  }, [callbackUrl]);
 
   React.useEffect(() => {
     void fetchPublicSignup().then(setAllowSignup);

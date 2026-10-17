@@ -78,7 +78,11 @@ interface UpdateVars {
 
 function applyLocal(t: V3Task, patch: V3TaskPatch): V3Task {
   const next = { ...t, ...patch } as V3Task;
-  if ("done" in patch) next.status = patch.done ? "completed" : "todo";
+  if ("done" in patch) {
+    next.status = patch.done ? "completed" : "todo";
+    // the server's stamp arrives with its answer; until then "closed just now"
+    next.completedAt = null;
+  }
   return next;
 }
 
@@ -147,6 +151,19 @@ export function useTrashTask() {
     restore: (id: string) =>
       update.mutateAsync({ id, patch: { trashedAt: null } }),
   };
+}
+
+/**
+ * Delete a task that is in Trash for good (`?permanent=true`). No Undo: the
+ * confirm says so.
+ */
+export function useDeleteTaskForever() {
+  return useUndoableMutation<{ id: string }, unknown>({
+    scope: TASKS,
+    label: "delete the task",
+    optimistic: (qc, { id }) => dropListItem<V3Task>(qc, TASKS, id),
+    request: ({ id }) => sendJson(`/api/tasks/${id}?permanent=true`, "DELETE"),
+  });
 }
 
 interface CreateVars {
