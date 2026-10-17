@@ -47,7 +47,7 @@
  *     membership, including other users' workspaces).
  *   Admin/operator data: FeatureFlag, FeatureFlagOverride, BugReport,
  *     BugReportAttachment, SystemSettings, BetaSettings, Log, Waitlist,
- *     PendingWaitlist, CronState (global row; pendingUserIds is a queue hint).
+ *     PendingWaitlist, AppWaitlist, CronState (global row; pendingUserIds is a queue hint).
  *   Rows the user wrote on OTHER people's things: tasks, projects, pages,
  *     boards, moodboards, templates in SHARED workspaces; PageComment,
  *     PageRevision, PageFormSubmission, PageAccessGrant, MoodboardAccessGrant

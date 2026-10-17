@@ -426,6 +426,7 @@ export function PkField({
   multiline,
   rows,
   grow,
+  readOnly,
   className,
   inputProps,
 }: {
@@ -437,6 +438,8 @@ export function PkField({
   multiline?: boolean;
   rows?: number;
   grow?: boolean;
+  /** Shown, selectable, not editable (a title a provider owns). */
+  readOnly?: boolean;
   className?: string;
   inputProps?: Omit<
     InputHTMLAttributes<HTMLInputElement>,
@@ -470,6 +473,7 @@ export function PkField({
           value={value}
           placeholder={placeholder}
           className={cls}
+          readOnly={readOnly}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
@@ -478,6 +482,7 @@ export function PkField({
           value={value}
           placeholder={placeholder}
           className={cls}
+          readOnly={readOnly}
           {...inputProps}
           onChange={(e) => onChange(e.target.value)}
         />

@@ -431,3 +431,48 @@ export function weekTotals(days: readonly WeekDay[]): WeekTotals {
     cap: days.reduce((s, d) => s + d.cap, 0),
   };
 }
+
+/** How far back the Streak card looks (days). */
+export const STREAK_LOOKBACK = 180;
+
+/** Days with nothing due that the streak steps over before it ends. */
+export const STREAK_QUIET_DAYS = 7;
+
+export interface DayStreak {
+  /** Closed days in a row up to yesterday, plus today once it is closed. */
+  n: number;
+  todayClosed: boolean;
+}
+
+/**
+ * The Streak card ("n days closed", HomeToday.jsx HdStreakCard). A day counts
+ * as closed when everything due that day was closed; a day with nothing due
+ * neither adds nor breaks (up to a week of them), and today is still open so it cannot break it, it
+ * only joins once nothing due today is left. Derived from the tasks, never
+ * stored (01-data-map §6 would write ClosedDay rows from a worker later).
+ */
+export function dayStreak(
+  tasks: readonly Pick<V3Task, "dueDate" | "done">[],
+  today: string
+): DayStreak {
+  const byDay = new Map<string, boolean>();
+  for (const t of tasks) {
+    if (!t.dueDate) continue;
+    byDay.set(t.dueDate, (byDay.get(t.dueDate) ?? true) && t.done);
+  }
+  let n = 0;
+  let quiet = 0;
+  for (let i = 1; i <= STREAK_LOOKBACK; i++) {
+    const closed = byDay.get(addDays(today, -i));
+    if (closed === undefined) {
+      // a long stretch with nothing due is a stop, not a pause
+      if (++quiet > STREAK_QUIET_DAYS) break;
+      continue;
+    }
+    quiet = 0;
+    if (!closed) break;
+    n++;
+  }
+  const todayClosed = byDay.get(today) === true;
+  return { n: n + (todayClosed ? 1 : 0), todayClosed };
+}

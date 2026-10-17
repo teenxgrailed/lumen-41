@@ -31,6 +31,7 @@ import { ageLabel } from "../docs/labels";
 import {
   type TokenReader,
   fontOf,
+  inkTone,
   pageVars,
   styleOf,
   stylePatch,
@@ -366,9 +367,10 @@ export function DocumentScreen({
       .catch(() => undefined);
   };
 
+  const docVars = pageVars(s, read);
   const sheetVars = {
     fontFamily: font.css,
-    ...pageVars(s, read),
+    ...docVars,
     ...(s.font !== "sans" ? { "--font-sans": font.css } : null),
   } as CSSProperties;
 
@@ -414,6 +416,8 @@ export function DocumentScreen({
                 data-doc-sheet=""
                 data-dc-font={s.font}
                 data-dc-sep={s.separator}
+                data-dc-ink-l={inkTone(docVars["--dt-head-l"])}
+                data-dc-ink-d={inkTone(docVars["--dt-head-d"])}
                 data-has-cover={s.cover ? "" : undefined}
                 className={
                   "dt-themed dc-card docs-sheet" +

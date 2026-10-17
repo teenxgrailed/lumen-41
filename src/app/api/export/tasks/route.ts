@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
+import { tasksToCsv } from "@/lib/export/tasks-csv";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -87,6 +88,26 @@ export async function GET(request: NextRequest) {
       },
       LOG_SOURCE
     );
+
+    // ?format=csv: one row per task for a spreadsheet. JSON stays the default
+    // and the lossless one.
+    if (request.nextUrl.searchParams.get("format") === "csv") {
+      return new NextResponse(
+        tasksToCsv(
+          exportData.tasks.map((task) => ({
+            ...task,
+            estimatedMinutes: task.estimatedMinutes ?? task.duration,
+          }))
+        ),
+        {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": 'attachment; filename="needt-tasks.csv"',
+            "Cache-Control": "no-store",
+          },
+        }
+      );
+    }
 
     return NextResponse.json(exportData);
   } catch (error) {

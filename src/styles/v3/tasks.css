@@ -344,6 +344,8 @@
 .needt-v3 .tdc-file { display: inline-flex; align-items: center; gap: 6px; height: 28px; max-width: 240px; padding: 0 2px 0 10px; border-radius: 9px; background: var(--fill-2);
   font: var(--type-meta); color: var(--text-secondary); }
 .needt-v3 .tdc-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 a.tdc-file-name { color: inherit; text-decoration: none; }
+.needt-v3 a.tdc-file-name:hover { color: var(--text-primary); }
 .needt-v3 .tdc-file .tdc-icon-btn { width: 22px; height: 22px; border-radius: 6px; }
 
 /* Scheduling — inline section behind ⋯ → Scheduling…. */
@@ -402,6 +404,7 @@
 .needt-v3 .tdc-search input::placeholder { color: var(--text-muted); }
 .needt-v3 .tdc-empty { padding: 8px; font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .tdc-pop-clear { align-self: flex-start; margin-top: 2px; }
+.needt-v3 .tdc-num { width: 52px; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--fill-3); font: var(--type-ui); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .needt-v3 .tdc-pop-date,
 .needt-v3 .tdc-pop-dur,
 .needt-v3 .tdc-pop-list { display: flex; flex-direction: column; gap: 6px; }

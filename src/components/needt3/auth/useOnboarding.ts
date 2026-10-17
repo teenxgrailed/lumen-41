@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 
 import { useQueryClient } from "@tanstack/react-query";
 
+import { takePostAuthPath } from "@/lib/auth/post-auth-path";
 import { logger } from "@/lib/logger";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { browserTimeZone, fetchJson, sendJson } from "@/lib/needt3/hooks/core";
@@ -255,7 +256,8 @@ export function useOnboarding({
     } catch {
       /* Home still opens; setup can be shown again */
     }
-    router.push("/today");
+    // A buy link that sent this person to sign up goes on where it was going.
+    router.push(takePostAuthPath() ?? "/today");
   }
 
   function connect(href: string) {
