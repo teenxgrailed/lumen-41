@@ -30,7 +30,13 @@ import {
   tabList,
   withPending,
 } from "../phone/mail/model";
-import { type MailTab, groupByDay, madeTasks, tabCounts } from "./derive";
+import {
+  type MailTab,
+  groupByDay,
+  madeTasks,
+  messageFromSearch,
+  tabCounts,
+} from "./derive";
 import { notices } from "./strings";
 
 /**
@@ -153,6 +159,23 @@ export function useMailbox() {
     },
     [markRead, once]
   );
+
+  // The palette's mail result lands on /mail?message=<id>: open that message
+  // once the inbox is there, then drop the param so a reload does not reopen it.
+  useEffect(() => {
+    const id = messageFromSearch(window.location.search, live);
+    const m = id ? live.find((t) => t.id === id) : undefined;
+    if (!m) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("message");
+    const rest = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`
+    );
+    open(m);
+  }, [live, open]);
 
   const archive = useCallback(
     (m: V3MailThread) =>

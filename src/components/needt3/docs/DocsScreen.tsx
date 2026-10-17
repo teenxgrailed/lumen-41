@@ -391,13 +391,9 @@ function PageAddButton({ onNewDoc }: { onNewDoc: () => void }) {
           sub: c.start_something_new,
           onClick: onNewDoc,
         },
-        //todo: New Folder needs a v3 folder flow (PageFolder exists, no v3 UI).
-        {
-          art: "folder",
-          title: c.new_folder,
-          sub: c.keep_things_tidy,
-          disabled: true,
-        },
+        //todo: New Folder is hidden: it needs a v3 folder flow (PageFolder
+        // exists, no v3 UI). Add `{ art: "folder", title: c.new_folder,
+        // sub: c.keep_things_tidy, onClick }` back with that flow.
         {
           art: "template",
           title: c.from_template,

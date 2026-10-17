@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 
 import { ProLimit, ProUpsell, useIsPro } from "@/components/needt3/paywall/Pro";
+import { openPaywall } from "@/components/needt3/paywall/store";
 
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
@@ -59,7 +60,7 @@ const writeSort = (sort: BoardSort) => {
   }
 };
 
-const upgrade = () => window.location.assign("/settings#billing");
+const upgrade = () => openPaywall(mb.unlimited_moodboards);
 
 /** The desktop's notice when a new board is refused by the Free allowance. */
 export function notifyBoardsBlocked() {
