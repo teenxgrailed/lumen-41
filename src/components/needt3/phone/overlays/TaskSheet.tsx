@@ -9,10 +9,12 @@ import {
   LuChevronRight,
   LuClock,
   LuDownload,
+  LuPaperclip,
   LuPlus,
   LuRotateCcw,
   LuTarget,
   LuTrash2,
+  LuX,
 } from "react-icons/lu";
 
 import { clock } from "@/lib/needt3/day";
@@ -20,12 +22,19 @@ import { addDays, at as hourAt } from "@/lib/needt3/derive";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import {
+  useLabels,
+  useTaskAttachments,
+  useWorkSchedules,
+} from "@/lib/needt3/hooks/task-extras";
+import {
   useTask,
   useTaskParts,
   useTrashTask,
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import { REPEAT_CHOICES, repeatKey, repeatLabel } from "@/lib/needt3/repeat";
+import { notify } from "@/lib/notifications";
 
 import { PkButton, PkField, PkGlass, PkSheet, pkCx } from "../kit";
 import { PovFact, PovOpt, PovPickRow } from "./parts";
@@ -56,12 +65,21 @@ import {
   noDayPatch,
   placementPatch,
   scheduleSummary,
+  sizeWords,
   timeWords,
 } from "./taskModel";
 import { usePkToday } from "./today";
 import { useAutosave } from "./useAutosave";
 
-type SchedPick = "placement" | "chunk" | "deadline";
+type SchedPick = "placement" | "chunk" | "deadline" | "hours";
+
+/** Not in the prototype's extracted strings (its phone sheet has no Repeat). */
+const REPEAT = "Repeat";
+const SYNCED_FROM: Record<string, string> = {
+  outlook: "Outlook",
+  google: "Google Tasks",
+  caldav: "CalDAV",
+};
 
 export interface PkTaskSheetProps {
   /** The task as the screen has it; the sheet follows the cache from there. */
@@ -78,11 +96,10 @@ export interface PkTaskSheetProps {
  * flashes; words wait for a pause); the footer's Done and Delete come back
  * through Undo. Owner-decided sections kept: First step and Scheduling.
  *
- * Not drawn, with the reason:
- * //todo Labels: a task has no label column.
- * //todo Hours (work / personal / any): there is no field for it on a task
- *   (`scheduleId` picks a schedule, and no hook lists them for the phone yet).
- * //todo Attachments: `TaskAttachment` (migration M2) has no route.
+ * Labels, Repeat, Hours (the person's work schedules, a row under Scheduling
+ * once there are two or more), "None" priority and Attachments are drawn from
+ * the task row. A task that arrived from Outlook or Google Tasks keeps its
+ * title and repeat there, so those two are read-only.
  */
 export function PkTaskSheet({
   task,
@@ -126,6 +143,10 @@ function TaskSheetBody({
   const projects = useProjects().data ?? [];
   const settings = useSettings().data;
   const setPref = useSetPref();
+  const allLabels = useLabels().data ?? [];
+  const schedules = useWorkSchedules().data ?? [];
+  const attach = useTaskAttachments(task.id);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [saved, setSaved] = useState(0);
   const savedTimer = useRef(0);
@@ -182,6 +203,15 @@ function TaskSheetBody({
   const wait = t.waits[0] ?? null;
   const project = projects.find((p) => p.id === t.projectId) ?? null;
   const schedOpen = settings?.prefs?.taskSchedOpen === true;
+  const provider = t.syncedFrom
+    ? (SYNCED_FROM[t.syncedFrom] ?? t.syncedFrom)
+    : null;
+  const labels = t.labels;
+  const defaultHours = schedules.find((s) => s.isDefault) ?? schedules[0];
+  const hoursName = t.scheduleId
+    ? (schedules.find((s) => s.id === t.scheduleId)?.name ?? null)
+    : null;
+  const repeatCurrent = repeatKey(t.repeat);
 
   const addPart = () => {
     const v = newPart.trim();
@@ -279,6 +309,25 @@ function TaskSheetBody({
               data={{ "data-pov-pick-opt": String(c) }}
             >
               {c ? `${c} min` : pickCopy.dont_split}
+            </PovPickRow>
+          ))}
+        </>
+      ),
+    },
+    hours: {
+      title: pickCopy.hours,
+      body: (
+        <>
+          {schedules.map((s) => (
+            <PovPickRow
+              key={s.id}
+              on={(t.scheduleId ?? defaultHours?.id) === s.id}
+              onClick={() =>
+                choose({ scheduleId: s.id === defaultHours?.id ? null : s.id })
+              }
+              data={{ "data-pov-pick-opt": s.id }}
+            >
+              {s.name}
             </PovPickRow>
           ))}
         </>
@@ -433,6 +482,7 @@ function TaskSheetBody({
             value={title.value}
             placeholder={copy.name_it}
             onChange={title.change}
+            readOnly={!!provider}
           />
         </div>
         <div className="pov-step" data-pov-step="">
@@ -571,6 +621,66 @@ function TaskSheetBody({
                 {label}
               </PovOpt>
             ))}
+            <PovOpt
+              on={t.priority === "none"}
+              onClick={() => void edit({ priority: "none" })}
+            >
+              {copy.none}
+            </PovOpt>
+          </PovFact>
+          <PovFact
+            id="labels"
+            label={copy.labels}
+            value={
+              labels.length ? labels.map((l) => l.name).join(", ") : copy.none
+            }
+            muted={!labels.length}
+            open={fact === "labels"}
+            onToggle={toggleFact("labels")}
+          >
+            {allLabels.map((l) => {
+              const on = labels.some((x) => x.id === l.id);
+              return (
+                <PovOpt
+                  key={l.id}
+                  hue={l.color ?? "var(--text-muted)"}
+                  on={on}
+                  onClick={() =>
+                    void edit({
+                      labels: on
+                        ? labels.filter((x) => x.id !== l.id)
+                        : [...labels, l],
+                    })
+                  }
+                >
+                  {l.name}
+                </PovOpt>
+              );
+            })}
+          </PovFact>
+          <PovFact
+            id="repeat"
+            label={REPEAT}
+            value={repeatLabel(t.repeat) ?? copy.none}
+            muted={!t.repeat}
+            open={fact === "repeat"}
+            onToggle={toggleFact("repeat")}
+          >
+            {provider ? (
+              <p className="pov-quiet-line">
+                {provider} sets this; it changes there.
+              </p>
+            ) : (
+              REPEAT_CHOICES.map((c) => (
+                <PovOpt
+                  key={c.label}
+                  on={repeatCurrent === c.key}
+                  onClick={() => void edit({ repeat: c.rule })}
+                >
+                  {c.label}
+                </PovOpt>
+              ))
+            )}
           </PovFact>
         </div>
 
@@ -591,7 +701,7 @@ function TaskSheetBody({
               <span className="pov-sched-title">{copy.scheduling}</span>
               {schedOpen ? null : (
                 <span className="pov-sched-sum">
-                  {scheduleSummary(t, today)}
+                  {scheduleSummary(t, today, hoursName)}
                 </span>
               )}
             </span>
@@ -623,6 +733,15 @@ function TaskSheetBody({
                   : copy.none,
                 !t.deadline
               )}
+              {schedules.length > 1
+                ? schedRow(
+                    "hours",
+                    copy.hours,
+                    schedules.find(
+                      (s) => s.id === (t.scheduleId ?? defaultHours?.id)
+                    )?.name ?? copy.none
+                  )
+                : null}
             </div>
           ) : null}
         </PkGlass>
@@ -684,6 +803,70 @@ function TaskSheetBody({
             placeholder={copy.add_a_note}
             onChange={notes.change}
           />
+        </section>
+
+        <section className="pov-block" data-pov-attachments="">
+          <div className="pov-block-head">
+            <span className="pk-label">{copy.attachments}</span>
+            {t.attachments.length ? (
+              <span className="pov-count">{t.attachments.length}</span>
+            ) : null}
+          </div>
+          {t.attachments.length ? (
+            <div className="pov-files">
+              {t.attachments.map((f) => (
+                <div key={f.id} className="pov-file">
+                  <LuPaperclip size={14} aria-hidden="true" />
+                  <a
+                    className="pov-file-name"
+                    href={f.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {f.name}
+                  </a>
+                  <span className="pov-file-size">{sizeWords(f.size)}</span>
+                  <button
+                    type="button"
+                    className="pov-file-remove"
+                    aria-label={`Remove ${f.name}`}
+                    onClick={() => attach.remove.mutate(f.id)}
+                  >
+                    <LuX size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            hidden
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              void (async () => {
+                for (const f of picked) {
+                  if (f.size > 4 * 1024 * 1024) {
+                    notify.error(`“${f.name}” is over 4 MB.`);
+                    continue;
+                  }
+                  await attach.add.mutateAsync(f).catch(() => undefined);
+                }
+              })();
+            }}
+          />
+          <PkButton
+            kind="quiet"
+            icon={<LuPaperclip size={18} />}
+            disabled={attach.add.isPending}
+            onClick={() => fileRef.current?.click()}
+            data-pov-attach=""
+          >
+            Attach
+          </PkButton>
         </section>
 
         {t.source ? (
