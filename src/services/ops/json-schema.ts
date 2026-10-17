@@ -7,6 +7,13 @@ type JsonSchema = Record<string, unknown>;
  * ops use; anything else is reported as an open schema rather than guessed.
  */
 export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
+  const out = convert(schema);
+  return schema.description && !("description" in out)
+    ? { ...out, description: schema.description }
+    : out;
+}
+
+function convert(schema: z.ZodTypeAny): JsonSchema {
   const def = schema._def as { typeName: z.ZodFirstPartyTypeKind };
   switch (def.typeName) {
     case z.ZodFirstPartyTypeKind.ZodObject: {

@@ -98,12 +98,48 @@ export interface AIChatRequest {
   tools?: AIChatToolDefinition[];
 }
 
+/** One tool call the model made, as the next request must echo it. */
+export interface AgentToolCallRef {
+  id: string;
+  name: string;
+  /** The raw JSON string the model produced. */
+  arguments: string;
+}
+
+/** The conversation inside one agent turn, tool results included. */
+export type AgentMessage =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; toolCalls?: AgentToolCallRef[] }
+  | { role: "tool"; toolCallId: string; content: string };
+
+export interface AgentTurnRequest {
+  systemPrompt: string;
+  messages: AgentMessage[];
+  tools: AIChatToolDefinition[];
+}
+
+/** What a streamed model turn produces: words as they come, then tool calls. */
+export type AgentTurnEvent =
+  | { type: "text"; value: string }
+  | {
+      type: "tool_call";
+      id: string;
+      name: string;
+      arguments: Record<string, unknown>;
+      rawArguments: string;
+    };
+
 export interface SchedulerAI {
   name: string;
   suggestSchedule(input: SchedulingContext): Promise<AISuggestion>;
   parseTasks(text: string): Promise<ParsedTask[]>;
   selectChatTool?(input: AIChatRequest): Promise<AIChatToolCall | null>;
   streamChat?(input: AIChatRequest): AsyncGenerator<string>;
+  /**
+   * One streamed model turn with tools. Providers that implement it run the
+   * multi-step agent; the rest keep the single-tool path.
+   */
+  streamTurn?(input: AgentTurnRequest): AsyncGenerator<AgentTurnEvent>;
 }
 
 export interface SchedulerAIConfig {

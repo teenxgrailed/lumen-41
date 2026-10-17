@@ -391,6 +391,8 @@ function Corner() {
       onNew={ask.reset}
       onClose={() => setOpen(false)}
       onPopLast={ask.popLast}
+      onUndo={(id, actionId) => void ask.undo(id, actionId)}
+      onUndoAll={(id, runId) => void ask.undoAll(id, runId)}
     />
   );
   const panelFrame = narrow ? (

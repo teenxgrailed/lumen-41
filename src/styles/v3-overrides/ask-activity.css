@@ -1,0 +1,100 @@
+/* What Ask did: the running line, the list of changes with Undo, and the
+ * objects an answer read. HAND-WRITTEN; the vendored chat.css has no rules
+ * for a thread that acts. Chrome type is 12px / 13px, greys are the one text
+ * colour at its ladder alphas, and nothing here is a solid accent fill. */
+.needt-v3 .ask-act-running {
+  display: block;
+  margin-top: 6px;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .ask-act-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .ask-act-row,
+.needt-v3 .ask-act-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+}
+.needt-v3 .ask-act-all {
+  justify-content: flex-end;
+}
+.needt-v3 .ask-act-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-quaternary);
+}
+.needt-v3 .ask-act-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ask-act-label.is-undone {
+  color: var(--text-quaternary);
+  text-decoration: line-through;
+}
+.needt-v3 .ask-act-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--text-quaternary);
+  text-underline-offset: 2px;
+}
+.needt-v3 .ask-act-link:hover {
+  color: var(--text-primary);
+}
+.needt-v3 .ask-act-state {
+  flex: none;
+  color: var(--text-quaternary);
+}
+.needt-v3 .ask-act-undo {
+  flex: none;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+  cursor: default;
+}
+.needt-v3 .ask-act-undo:hover:not(:disabled) {
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+.needt-v3 .ask-act-undo:disabled {
+  opacity: 0.5;
+}
+.needt-v3 .ask-act-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 8px;
+}
+.needt-v3 .ask-act-source {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  font: 400 12px/20px var(--font-sans);
+  color: var(--text-secondary);
+}
+.needt-v3 .ask-act-source:hover {
+  color: var(--text-primary);
+}
