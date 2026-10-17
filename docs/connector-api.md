@@ -765,6 +765,51 @@ DELETE /api/moodboards/:id/permissions    { "userId": "<your own id>" }
   `GET /api/public/moodboards/:id/:token`. Turning it off, Trash or a wrong
   token answer `404`.
 
+## First-run examples
+
+New accounts finish setup on Today with a sample day. Every object it creates
+(one project, six tasks, a "Start here" document, one habit) carries
+`isSample: true` in the database. Examples never count toward a plan limit:
+`GET /api/habits` lists the sample habit, but Free's three-habit allowance
+skips it, and the examples are never auto-scheduled.
+
+```http
+GET    /api/connect/onboarding/sample   # needt.read
+POST   /api/connect/onboarding/sample   # needt.write
+DELETE /api/connect/onboarding/sample   # needt.write
+```
+
+The same three routes exist under `/api/onboarding/sample` for the signed-in
+session (the app uses those). Writes need the Editor role in the workspace.
+
+- `GET` answers `{ "present": true, "counts": { "tasks": 6, "projects": 1, "pages": 1, "habits": 1 } }`.
+  `present` is false once there is nothing left to clear.
+- `POST` creates the sample day in one transaction. Body, all optional:
+  `{ "uses": ["study", "personal"], "timeZone": "Europe/Berlin" }`. `uses` takes
+  `work`, `study`, `personal` and `side`; **the first entry picks the sample**
+  (default `work`) and each use is a different day. `timeZone` defaults to the
+  saved setting. Answers `201` with
+  `{ "created": true, "use": "study", "projectId": "…", "pageId": "…", "counts": { … } }`.
+  It runs once per account: a repeat call, a call after `DELETE`, and a call by
+  any account that existed before the feature all answer `200` with
+  `{ "created": false, … }` and change nothing. An unknown `uses` entry or
+  field answers `400`.
+- `DELETE` removes every example still on the account, and only those:
+  `{ "removed": { "tasks": 6, "projects": 1, "pages": 1, "habits": 1 } }`. A
+  task you added yourself to the sample project stays and leaves the project.
+  Safe to repeat. In the app it is the "Clear examples" button on Today and
+  under Settings, Data.
+
+```bash
+curl -X POST http://localhost:3000/api/connect/onboarding/sample \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "uses": ["side"] }'
+
+curl -X DELETE http://localhost:3000/api/connect/onboarding/sample \
+  -H "Authorization: Bearer needt_REPLACE_ME"
+```
+
 This API is private and user-scoped. A token can access only its owner's data;
 it is not an unauthenticated public integration platform.
 

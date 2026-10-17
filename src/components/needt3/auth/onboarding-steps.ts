@@ -1,58 +1,62 @@
 /**
- * Onboarding as a pure state machine (prototype AuthScreen.jsx: STEPS,
- * OnboardingScreen, ObSidebarGame). Five steps, no view step: the start view
- * is chosen for the person (Calendar opens on Week).
+ * Onboarding as a pure state machine (owner-approved flow, 2026-10-17). Three
+ * short steps and an optional fourth, then Today with a sample day:
  *
- *   use      what Needt is for: any mix of Work / Personal / Side business
- *   setup    connect a calendar (skippable) + working hours + time zone
- *   sidebar  "Make your sidebar": five tiles and More; swap places in
- *   first    the first task
- *   placed   where it went
+ *   use       what Needt is for: Work / Study / Personal / Side project. Any
+ *             mix, in the order picked: the FIRST pick drives the sample day
+ *   calendar  Google, iCloud or Outlook; skippable; only providers the server
+ *             has keys for are shown (iCloud needs none)
+ *   hours     the per-day working hours of Settings, prefilled Mon-Fri 9-17,
+ *             and the time zone
+ *   import    Todoist / Notion, only when the server can run them
+ *
+ * The sidebar game below is no longer a step; its helpers stay because the
+ * sidebar tiles are still arranged with them elsewhere.
  */
-export const STEP_IDS = ["use", "setup", "sidebar", "first", "placed"] as const;
+export const STEP_IDS = ["use", "calendar", "hours", "import"] as const;
 export type StepId = (typeof STEP_IDS)[number];
 
 export const STEPS: ReadonlyArray<readonly [StepId, string, string]> = [
   [
     "use",
     "What you use it for",
-    "Pick all that fit — it only changes what Needt suggests first.",
+    "Pick what fits. The first one you pick decides the sample day you start with.",
   ],
   [
-    "setup",
-    "Calendar and hours",
-    "Needt plans tasks around your events, inside the hours you work.",
+    "calendar",
+    "Your calendar",
+    "Needt plans tasks around your events. You can connect one later from Settings.",
   ],
   [
-    "sidebar",
-    "Your sidebar",
-    "Six tiles sit at the top of the sidebar. Swap in the places you’ll open most — the rest wait under More.",
+    "hours",
+    "Your working hours",
+    "Needt only places work inside these hours. Change them any day in Settings.",
   ],
   [
-    "first",
-    "Your first task",
-    "Type it the way you’d say it — Needt reads the day, length and project from the words.",
-  ],
-  [
-    "placed",
-    "Where it went",
-    "Nothing is locked: drag it, or let Needt move it when your day changes.",
+    "import",
+    "Bring your work",
+    "Already keep tasks or notes somewhere else? Import them now, or any time from Settings.",
   ],
 ];
 
 /** Which sky layout each step stands on. */
 export const STEP_SKY: Record<StepId, "a" | "b" | "c" | "d"> = {
   use: "a",
-  setup: "c",
-  sidebar: "a",
-  first: "b",
-  placed: "d",
+  calendar: "c",
+  hours: "b",
+  import: "d",
 };
 
-export const stepIndex = (id: string): number => STEP_IDS.indexOf(id as StepId);
+/** The steps shown: Import only when the server can run an importer. */
+export function stepsFor(showImport: boolean): StepId[] {
+  return STEP_IDS.filter((id) => id !== "import" || showImport);
+}
 
-export function clampStep(n: number): number {
-  return Math.max(0, Math.min(STEP_IDS.length - 1, Math.round(n) || 0));
+export const stepIndex = (id: string, ids: readonly string[] = STEP_IDS) =>
+  ids.indexOf(id);
+
+export function clampStep(n: number, count: number = STEP_IDS.length): number {
+  return Math.max(0, Math.min(count - 1, Math.round(n) || 0));
 }
 
 /** The first working hour is 05:00, the last 23:00 (the schema stores whole hours). */
@@ -71,19 +75,18 @@ export function badHours(start: number, end: number): boolean {
 export interface GoInput {
   from: number;
   to: number;
-  start: number;
-  end: number;
-  /** A first task exists (the "placed" step needs it). */
-  hasFirst: boolean;
+  /** How many steps are shown. */
+  count: number;
 }
 
-/** Where a Back / Continue / dot press lands, or null when it is refused. */
-export function goTo(i: GoInput): number | null {
-  const to = clampStep(i.to);
-  if (to === stepIndex("placed") && !i.hasFirst) return null;
-  if (to > i.from && STEP_IDS[i.from] === "setup" && badHours(i.start, i.end))
-    return null;
-  return to;
+/** Where a Back / Continue / dot press lands. */
+export function goTo(i: GoInput): number {
+  return clampStep(i.to, i.count);
+}
+
+/** Which of the four uses a person picked, in the order they picked them. */
+export function toggleUse(list: readonly string[], id: string): string[] {
+  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 }
 
 /* ── The sidebar game ─────────────────────────────────────────────────────── */
@@ -168,47 +171,6 @@ export function swapSay(
 
 /** The scheduler's own default when a person has no row yet (9–17). */
 export const DEFAULT_HOURS = { start: 9, end: 17 } as const;
-
-export interface HoursState {
-  /** The saved row came back; until then the shown hours are only defaults. */
-  loaded: boolean;
-  start: number;
-  end: number;
-  savedStart: number;
-  savedEnd: number;
-}
-
-/**
- * The working-hours PATCH body, or null when nothing should be sent: the
- * saved row never loaded (defaults would overwrite real hours), nothing
- * changed, or the hours are invalid.
- */
-export function hoursPatch(
-  h: HoursState
-): { workHourStart: number; workHourEnd: number } | null {
-  if (!h.loaded) return null;
-  if (h.start === h.savedStart && h.end === h.savedEnd) return null;
-  if (badHours(h.start, h.end)) return null;
-  return { workHourStart: h.start, workHourEnd: h.end };
-}
-
-/**
- * Steps whose choices are written when moving forward from `from` to `to`:
- * only the ones the person actually stood on. Jumping ahead with the dots
- * does not save a step that was never shown.
- */
-export function stepsToSave(
-  from: number,
-  to: number,
-  visited: ReadonlySet<string>
-): StepId[] {
-  const out: StepId[] = [];
-  for (let k = from; k < to; k++) {
-    const id = STEP_IDS[k];
-    if (id && visited.has(id)) out.push(id);
-  }
-  return out;
-}
 
 /** Zones that mean "never chosen": the schema default and its alias. */
 const UNSET_ZONES = new Set(["UTC", "Etc/UTC"]);

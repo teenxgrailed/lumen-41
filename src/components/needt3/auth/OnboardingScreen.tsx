@@ -1,27 +1,18 @@
 "use client";
 
-/* ONBOARDING (prototype OnboardingScreen, owner-approved 08.10.26): five steps
-   that end in the product doing its one trick. Everything a step decides is
-   written when you leave it, through the same APIs the rest of the app uses:
-     use      -> settings prefs.uses
-     setup    -> auto-schedule settings (working hours), settings.timeZone
-     sidebar  -> settings prefs.sidebarTiles (every place id, in order)
-     first    -> a real task (POST /api/tasks), left for the scheduler
-     finish   -> prefs.onboarded = true, then Home
-   Skip saves nothing further and goes Home. Nothing here creates an account
-   or enters a credential.
-
-   Not ported, and why: the real Composer inside step 4 (it belongs to the
-   composer lane; a plain field with the same Enter-to-add stands in), the
-   prototype's parser and first-slot planner (the server's scheduler owns
-   placement; step 5 shows what it returned), half-hour working hours (the
-   schema stores whole hours), and the in-flow calendar OAuth mock (connecting
-   leaves for the provider's own consent screen). */
+/* ONBOARDING (owner-approved flow, 2026-10-17): three short steps and an
+   optional fourth, then Today with a sample day.
+     use       -> settings prefs.uses (in the order picked; the first drives
+                  the sample day)
+     calendar  -> leaves for the provider's own consent screen, or skip
+     hours     -> Settings' per-day editor (saved as it is edited) + time zone
+     import    -> Todoist / Notion, only when this server can run them
+     finish    -> POST /api/onboarding/sample, prefs.onboarded = true, Today
+   Skip saves nothing further, creates no sample, and goes to Today.
+   Nothing here creates an account or enters a credential. */
 import * as React from "react";
 
-import { LuArrowLeft, LuCheck, LuSparkles } from "react-icons/lu";
-
-import { NeedtPicker } from "@/components/ui/needt-picker";
+import { LuArrowLeft, LuCheck } from "react-icons/lu";
 
 import { useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
@@ -29,6 +20,7 @@ import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { BrandIcon, type BrandId, brandIdForConnection } from "../brand";
+import { ICloudGuide } from "../connections/ICloudGuide";
 import { Art, type ArtName } from "../menu/Art";
 import { PhoneSetup } from "../phone/auth";
 import { usePhoneUi } from "../root/phone-ui-context";
@@ -41,57 +33,33 @@ import {
   PxDots,
   PxSky,
 } from "../scenes";
-import { PLACES } from "../shell/places";
 import { NeedtLockup } from "../wordmark";
-import { SidebarGame } from "./SidebarGame";
-import { CALS, USES } from "./onboarding-data";
-import { STEPS, STEP_IDS, STEP_SKY } from "./onboarding-steps";
+import { HoursStep } from "./HoursStep";
+import { USES } from "./onboarding-data";
+import { STEP_SKY } from "./onboarding-steps";
 import { type Onboarding, useOnboarding } from "./useOnboarding";
 
-const HEAD: Record<(typeof STEP_IDS)[number], React.ReactNode> = {
+const HEAD: Record<string, React.ReactNode> = {
   use: (
     <>
       What will you use Needt <em>for</em>?
     </>
   ),
-  setup: (
+  calendar: (
     <>
-      Your calendar and <em>hours</em>
+      Connect your <em>calendar</em>
     </>
   ),
-  sidebar: (
+  hours: (
     <>
-      Make your <em>sidebar</em>
+      Your working <em>hours</em>
     </>
   ),
-  first: (
+  import: (
     <>
-      Your first <em>task</em>
+      Bring your <em>work</em> along
     </>
   ),
-  placed: (
-    <>
-      Here’s where Needt <em>put</em> it
-    </>
-  ),
-};
-
-const USE_ROWS: Record<
-  string,
-  ReadonlyArray<readonly [string, string | null]>
-> = {
-  work: [
-    ["Draft the launch brief", "Work"],
-    ["Reply to Tom", "Mailbox"],
-  ],
-  personal: [
-    ["Pick up the prints", "Errand"],
-    ["Call mum", null],
-  ],
-  side: [
-    ["List the boots on Ricardo", "Side"],
-    ["Ship order #2041", "Side"],
-  ],
 };
 
 function Row({
@@ -164,41 +132,6 @@ function Row({
   );
 }
 
-function Select({
-  value,
-  options,
-  onChange,
-  label,
-  invalid,
-  wide,
-}: {
-  value: string;
-  options: ReadonlyArray<readonly [string, string]>;
-  onChange: (v: string) => void;
-  label: string;
-  invalid?: boolean;
-  wide?: boolean;
-}) {
-  /* The one product picker (check:ui-contracts retires a bare select). */
-  return (
-    <span
-      className={
-        "auth-select" +
-        (wide ? " is-wide" : "") +
-        (invalid ? " is-invalid" : "")
-      }
-    >
-      <NeedtPicker
-        value={value}
-        options={options.map(([v, l]) => ({ value: v, label: l }))}
-        onValueChange={onChange}
-        ariaLabel={label}
-        triggerVariant="field"
-      />
-    </span>
-  );
-}
-
 function ThemeSwitch() {
   const theme = useNeedt3Ui((s) => s.theme);
   const setTheme = useNeedt3Ui((s) => s.setTheme);
@@ -231,15 +164,7 @@ function ThemeSwitch() {
 }
 
 /** Glass cards of the product beside the headline, per step. */
-function StepArt({
-  id,
-  uses,
-  hours,
-}: {
-  id: string;
-  uses: string[];
-  hours: string;
-}) {
+function StepArt({ id }: { id: string }) {
   const pin = (
     at: React.CSSProperties,
     delay: number,
@@ -252,90 +177,44 @@ function StepArt({
       {child}
     </span>
   );
-  if (id === "sidebar") return null;
   if (id === "use") {
-    const picked = uses.length ? uses : ["work"];
-    const rows = picked.flatMap((u) => USE_ROWS[u] ?? []).slice(0, 4);
     return (
       <div className="axs-art" aria-hidden="true">
         {pin(
           { left: 0, top: 10 },
           60,
-          <GlassCard
-            width={262}
-            caption={`Inbox · ${rows.length}`}
-            pad={10}
-            radius={20}
-          >
+          <GlassCard width={262} caption="Today" pad={10} radius={20}>
             <span className="auth-stack-6">
-              {rows.map(([t, c]) => (
-                <PwMiniTask key={t} title={t} chip={c} />
-              ))}
+              <PwMiniTask title="Write the one-page brief" chip="90 min" />
+              <PwMiniTask title="Pick up the dry cleaning" chip="25 min" />
             </span>
           </GlassCard>
         )}
         {pin(
           { left: 190, top: 196 },
           140,
-          <GlassCard width={238} caption="Habit · day 6" pad={10} radius={20}>
-            <PwMiniHabit title="Shoot one roll" streak="6 days" />
+          <GlassCard width={238} caption="Habit" pad={10} radius={20}>
+            <PwMiniHabit title="Walk for twenty minutes" streak="5 a week" />
           </GlassCard>
         )}
       </div>
     );
   }
-  if (id === "setup") {
+  if (id === "calendar") {
     return (
       <div className="axs-art" aria-hidden="true">
         {pin({ left: 0, top: 10 }, 60, <PwDateCard width={118} />)}
         {pin(
           { left: 134, top: 40 },
           120,
-          <GlassCard
-            width={250}
-            pad={10}
-            radius={20}
-            caption={`Tue · your hours ${hours}`}
-          >
+          <GlassCard width={250} pad={10} radius={20} caption="Tuesday">
             <span className="auth-stack-6">
-              <PwMiniEvent
-                time="08:00"
-                title="Coffee · Kreis 5"
-                hue="var(--demo-hue-green)"
-              />
               <PwMiniEvent time="09:30" title="Standup" hue="var(--hue-blue)" />
               <PwMiniEvent
                 time="12:00"
-                title="Lunch with Ana"
+                title="Lunch"
                 hue="var(--demo-hue-gray)"
               />
-              <PwMiniEvent
-                time="14:00"
-                title="Shoot · Kreis 4"
-                hue="var(--demo-hue-orange)"
-              />
-            </span>
-          </GlassCard>
-        )}
-      </div>
-    );
-  }
-  if (id === "first") {
-    return (
-      <div className="axs-art" aria-hidden="true">
-        {pin(
-          { left: 0, top: 16 },
-          60,
-          <GlassCard
-            width={292}
-            caption="Needt reads the words"
-            pad={10}
-            radius={20}
-          >
-            <span className="auth-stack-6">
-              <PwMiniTask title="Plan the week" chip="30 min" />
-              <PwMiniTask title="Pay the rent" chip="by Friday" />
-              <PwMiniTask title="Draft the brief" chip="Work" />
             </span>
           </GlassCard>
         )}
@@ -352,8 +231,7 @@ function StepArt({
 export function OnboardingScreen({ startAt }: { startAt?: string | null }) {
   const ui = usePhoneUi();
   /* One controller above the face switch: a resize across 700px swaps the face
-     and keeps the step, the typed values and the first task (no second
-     create), and the third step saves the list of the face on screen. */
+     and keeps the step and the picks. */
   const ob = useOnboarding({ startAt, ui });
   if (ui === "phone") return <PhoneSetup ob={ob} />;
   return <DesktopOnboarding ob={ob} />;
@@ -364,37 +242,28 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
     i,
     dir,
     id,
+    ids,
+    count,
     step,
     online,
     ready,
     uses,
-    setUses,
-    start,
-    setStart,
-    end,
-    setEnd,
-    bad,
-    tz,
-    setTz,
-    zoneOptions,
+    toggleUse,
     skipCal,
     setSkipCal,
-    tiles,
-    setTiles,
-    title,
-    setTitle,
-    first,
-    adding,
+    guide,
+    setGuide,
+    calendars,
+    importSources,
+    canContinue,
     planning,
     connected,
-    hours,
-    hourOpts,
     go,
-    skipTiles,
-    addTask,
     finish,
     connect,
+    startImport,
   } = ob;
+  const last = i === count - 1;
 
   return (
     <div
@@ -407,11 +276,11 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
           <div className="auth-onboarding-row">
             <NeedtLockup small />
             <PxDots
-              count={STEPS.length}
+              count={count}
               index={i}
               onPick={ready ? (n) => void go(n) : undefined}
               label="Setup"
-              names={STEPS.map((s) => s[1])}
+              names={ids.map((k) => k)}
               className="auth-onboarding-text"
             />
             <ThemeSwitch />
@@ -436,7 +305,7 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
               }
             >
               <span className="px-kicker auth-onboarding-el" data-px-calm>
-                Step {i + 1} of {STEPS.length}
+                Step {i + 1} of {count}
               </span>
               <h1
                 className="px-display px-on-sky axs-h auth-onboarding-text-2"
@@ -447,7 +316,7 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
               <p className="px-on-sky auth-onboarding-text-3" data-px-calm>
                 {step[2]}
               </p>
-              <StepArt id={id} uses={uses} hours={hours} />
+              <StepArt id={id} />
             </div>
 
             <GlassCard
@@ -469,7 +338,7 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                   {id === "use" ? (
                     <>
                       <span className="px-kicker auth-onboarding-el-2">
-                        Pick any · one or more
+                        Pick one, or more · the first sets your sample day
                       </span>
                       <div
                         className="auth-stack-8"
@@ -485,31 +354,25 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                             multi
                             on={uses.includes(uid)}
                             delay={60 + n * 40}
-                            onClick={() =>
-                              setUses((l) =>
-                                l.includes(uid)
-                                  ? l.filter((x) => x !== uid)
-                                  : [...l, uid]
-                              )
-                            }
+                            onClick={() => toggleUse(uid)}
                           />
                         ))}
                       </div>
                       {!uses.length ? (
                         <span className="auth-ob-hint">
-                          Nothing picked is fine too — Needt starts neutral.
+                          Pick at least one to continue.
                         </span>
                       ) : null}
                     </>
                   ) : null}
 
-                  {id === "setup" ? (
+                  {id === "calendar" ? (
                     <>
                       <span className="px-kicker auth-onboarding-el-2">
-                        Calendar · connect one, or skip
+                        Connect one, or skip
                       </span>
                       <div className="auth-stack-6">
-                        {CALS.map((c, n) => {
+                        {calendars.map((c, n) => {
                           const on = connected.has(c.provider);
                           return (
                             <Row
@@ -523,13 +386,30 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                               })}
                               title={c.title}
                               sub={on ? "Connected" : c.sub}
-                              on={on}
-                              disabled={on || !c.href || !online}
+                              on={on || (c.id === "apple" && guide)}
+                              disabled={on || !online}
                               delay={60 + n * 40}
-                              onClick={() => c.href && connect(c.href)}
+                              onClick={() =>
+                                c.id === "apple"
+                                  ? setGuide((v) => !v)
+                                  : c.href && connect(c.href)
+                              }
                             />
                           );
                         })}
+                        {guide ? (
+                          <div data-ob-icloud-guide="">
+                            <ICloudGuide />
+                            <button
+                              type="button"
+                              className="nx-btn nx-btn-secondary"
+                              data-ob-icloud-open=""
+                              onClick={() => connect("/connections")}
+                            >
+                              I have the password, open the form
+                            </button>
+                          </div>
+                        ) : null}
                         <Row
                           compact
                           art="later"
@@ -552,105 +432,31 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                           </p>
                         ) : null}
                       </div>
-                      <span className="px-kicker auth-onboarding-el-2 auth-ob-gap">
-                        Working hours
+                    </>
+                  ) : null}
+
+                  {id === "hours" ? <HoursStep ob={ob} /> : null}
+
+                  {id === "import" ? (
+                    <>
+                      <span className="px-kicker auth-onboarding-el-2">
+                        Optional · you leave for their sign-in and come back
                       </span>
-                      <div
-                        className="auth-ob-hours nx-swap"
-                        style={{ animationDelay: "220ms" }}
-                      >
-                        <div className="auth-ob-line">
-                          <span className="auth-ob-label">Day</span>
-                          <Select
-                            label="Day starts"
-                            value={String(start)}
-                            options={hourOpts}
-                            onChange={(v) => setStart(Number(v))}
+                      <div className="auth-stack-6">
+                        {importSources.map((s, n) => (
+                          <Row
+                            key={s.id}
+                            compact
+                            brand={s.id}
+                            title={s.label}
+                            sub={s.sub}
+                            on={false}
+                            disabled={!online}
+                            delay={60 + n * 40}
+                            onClick={() => startImport(s.id)}
                           />
-                          <span className="auth-ob-to">to</span>
-                          <Select
-                            label="Day ends"
-                            value={String(end)}
-                            invalid={bad}
-                            options={hourOpts}
-                            onChange={(v) => setEnd(Number(v))}
-                          />
-                        </div>
-                        {bad ? (
-                          <span className="auth-error-text">
-                            The day has to end at least an hour after it starts.
-                          </span>
-                        ) : null}
-                        <div className="auth-ob-line">
-                          <span className="auth-ob-label">Time zone</span>
-                          <Select
-                            wide
-                            label="Time zone"
-                            value={tz || zoneOptions[0][0]}
-                            options={zoneOptions}
-                            onChange={setTz}
-                          />
-                        </div>
-                        <span className="auth-ob-hint">
-                          Needt only places work inside these hours.
-                        </span>
+                        ))}
                       </div>
-                    </>
-                  ) : null}
-
-                  {id === "sidebar" ? (
-                    <SidebarGame order={tiles} onOrder={setTiles} />
-                  ) : null}
-
-                  {id === "first" ? (
-                    <>
-                      <span className="px-kicker auth-onboarding-el-2">
-                        New task
-                      </span>
-                      <input
-                        className="auth-field-input"
-                        style={{
-                          boxShadow: "var(--shadow-ring)",
-                          padding: "0 14px",
-                        }}
-                        value={title}
-                        autoFocus
-                        placeholder="Plan the week"
-                        aria-label="Task title"
-                        data-ob-composer
-                        onChange={(e) => setTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") void addTask();
-                        }}
-                      />
-                      <span className="auth-ob-hint">
-                        Press Enter to add it — Needt finds it a free slot in
-                        your hours.
-                      </span>
-                    </>
-                  ) : null}
-
-                  {id === "placed" && first ? (
-                    <>
-                      <span className="px-kicker auth-onboarding-el-2">
-                        Your first task · your hours {hours}
-                      </span>
-                      <PwMiniTask
-                        title={first.title}
-                        chip={
-                          first.estimatedMinutes
-                            ? `${first.estimatedMinutes} min`
-                            : null
-                        }
-                      />
-                      <p className="auth-ob-why" data-ob-reason>
-                        <LuSparkles size={14} />
-                        <span>
-                          {first.scheduledStart
-                            ? `Needt placed it for ${first.scheduledStart.replace("T", " ")}, inside your hours.`
-                            : "Needt places it in your first free slot inside these hours as soon as it has your calendar. You will see it on Home."}
-                        </span>
-                      </p>
                     </>
                   ) : null}
                 </div>
@@ -668,71 +474,19 @@ function DesktopOnboarding({ ob }: { ob: Onboarding }) {
                     </button>
                   ) : null}
                   <span className="auth-onboarding-text-10" />
-                  {id === "sidebar" ? (
-                    <>
-                      <button
-                        type="button"
-                        className="nx-btn nx-btn-text"
-                        data-ob-sb-reset
-                        disabled={
-                          tiles.join() === PLACES.map((p) => p.id).join()
-                        }
-                        onClick={() => setTiles(PLACES.map((p) => p.id))}
-                      >
-                        Reset
-                      </button>
-                      <button
-                        type="button"
-                        className="nx-btn nx-btn-text"
-                        data-ob-sb-skip
-                        onClick={skipTiles}
-                      >
-                        Skip
-                      </button>
-                    </>
-                  ) : null}
-                  {id === "first" ? (
-                    <>
-                      <button
-                        type="button"
-                        className="nx-btn nx-btn-text"
-                        data-ob-skip-task
-                        disabled={!ready}
-                        onClick={() => void finish()}
-                      >
-                        Skip — open Needt
-                      </button>
-                      <button
-                        type="button"
-                        className="nx-btn nx-btn-primary axs-go"
-                        data-axs-next
-                        disabled={!title.trim() || adding || !online}
-                        onClick={() => void addTask()}
-                      >
-                        {adding ? "Adding…" : "Add task"}
-                      </button>
-                    </>
-                  ) : id === "placed" ? (
-                    <button
-                      type="button"
-                      className="nx-btn nx-btn-primary axs-go"
-                      data-axs-next
-                      disabled={!ready}
-                      onClick={() => void finish()}
-                    >
-                      {planning ? "Opening…" : "Open my day"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="nx-btn nx-btn-primary axs-go"
-                      data-axs-next
-                      disabled={!ready || (id === "setup" && bad)}
-                      onClick={() => void go(i + 1)}
-                    >
-                      Continue
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="nx-btn nx-btn-primary axs-go"
+                    data-axs-next
+                    disabled={!canContinue || planning}
+                    onClick={() => (last ? void finish() : void go(i + 1))}
+                  >
+                    {last
+                      ? planning
+                        ? "Opening…"
+                        : "Open my day"
+                      : "Continue"}
+                  </button>
                 </div>
               </div>
             </GlassCard>

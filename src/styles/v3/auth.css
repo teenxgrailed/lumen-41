@@ -241,3 +241,6 @@
 }
 .needt-v3 .ob-sb { display: flex; flex-direction: column; }
 .needt-v3 .ob-sb > .auth-ob-hint { margin-top: 8px; }
+
+/* Setup, hours step: Settings' per-day rows inside the glass card / paper. */
+.needt-v3 .auth-ob-weekrows { display: flex; flex-direction: column; gap: 8px; }
