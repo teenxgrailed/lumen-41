@@ -235,6 +235,7 @@ function buildPlan(userId, workspaceId) {
     ["MailAccount", "mailAccount", uid],
     ["MailFocusedSplit", "mailFocusedSplit", uid],
     ["ConnectedAccount", "connectedAccount", uid],
+    ["PinterestConnection", "pinterestConnection", uid],
     ["ExternalIntegration", "externalIntegration", uid],
     ["ConnectorSettings", "connectorSettings", uid],
     ["AccessLink", "accessLink", uid],
