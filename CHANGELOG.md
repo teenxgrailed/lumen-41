@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Adding Needt to claude.ai or ChatGPT with the older URL
-  `https://use.needt.app/api/mcp` now works: OAuth accepts it as an alias of
-  `https://mcp.needt.app/mcp`, and tokens issued for either URL work at both
-  endpoints. Any other resource is still refused.
 - The notifications bell now shows real activity: what Needt or a connected
   agent did, comments and shares on your pages, a calendar that needs
   reconnecting, finished imports and nudges, with unread dots and Mark all as
