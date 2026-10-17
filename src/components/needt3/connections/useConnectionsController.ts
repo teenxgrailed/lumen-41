@@ -10,6 +10,7 @@ import {
   disconnectMailbox,
   disconnectToolkit,
   startOAuth,
+  syncAccountNow,
   useCatalog,
 } from "@/lib/needt3/hooks/catalog";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -24,6 +25,7 @@ import {
   type Show,
   aiToolsLocked,
   buildItems,
+  canSyncNow,
   connectPlan,
   counts,
   disconnectKind,
@@ -135,6 +137,25 @@ export function useConnectionsController() {
     await refresh();
   };
 
+  /**
+   * Sync now: queue the worker's sync for a connected calendar or mailbox,
+   * say so, and read the connections again a few seconds on, when the job has
+   * run. The notice says "started": the job is queued, not finished.
+   */
+  const syncNow = async (item: CnItem) => {
+    if (!canSyncNow(item) || !item.accountId) return;
+    const kind = item.kind === "mail" ? "mail" : "calendar";
+    const r = await syncAccountNow(kind, item.accountId);
+    if (!r.ok) return void notify.error(r.error);
+    if (!r.queued) return void notify.info("Nothing to sync yet.");
+    notify.success(`Syncing ${item.name}…`);
+    window.setTimeout(() => {
+      void refresh();
+      void qc.invalidateQueries({ queryKey: qk.events() });
+      void qc.invalidateQueries({ queryKey: qk.mail() });
+    }, 5000);
+  };
+
   /** Apple / iCloud connected: close the form, say so, reload the list. */
   const caldavDone = () => {
     setCaldav(false);
@@ -168,6 +189,7 @@ export function useConnectionsController() {
     locked,
     connect,
     disconnect,
+    syncNow,
     caldavDone,
     mcp,
     setup,
