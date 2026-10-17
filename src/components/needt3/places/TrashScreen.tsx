@@ -71,8 +71,6 @@ function TrashRow({
           Delete forever
         </button>
       ) : null}
-      {/* //todo: tasks' "Delete forever" waits for a hard delete on
-          DELETE /api/tasks/:id (it archives). */}
     </div>
   );
 }
@@ -87,7 +85,7 @@ const iconThumb = (icon: "task" | "stack") => (
  * Trash (places.jsx `TrashScreen`): pages, tasks and moodboards the person
  * deleted, each restorable and each showing how many of its 30 days are left.
  * Trash is separate from archive. Pages and moodboards can be deleted for good
- * (one, or Empty Trash for all of them) after a confirm; tasks cannot yet.
+ * (one, or Empty Trash for all of them) after a confirm.
  * Nothing purges after 30 days yet; the count is shown so the promise is
  * visible, the worker job is a follow-up.
  */
@@ -119,7 +117,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
     tasks: dead.length,
     boards: gone.length,
   });
-  const canEmpty = pages.length + gone.length > 0;
+  const canEmpty = pages.length + dead.length + gone.length > 0;
 
   // Right-click on a row: Restore (the rows carry data-ctx / data-ctx-id).
   useEffect(() => {
@@ -227,6 +225,9 @@ export function TrashScreen({ c }: { c: TrashController }) {
                     : undefined
                 )}
                 onRestore={() => void restoreTask(t.id, t.title)}
+                onDeleteForever={() =>
+                  setAsk({ kind: "task", id: t.id, title: t.title })
+                }
               />
             ))}
             {gone.length && headings ? (

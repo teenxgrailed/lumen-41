@@ -56,6 +56,7 @@ export function useConnectionsController() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<CnItem | null>(null);
   const [caldav, setCaldav] = useState(false);
+  const [api, setApi] = useState(false);
   const [setup, setSetup] = useState<AiToolId | null>(null);
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export function useConnectionsController() {
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
-  const mcp = useMcpConnect(tab === "ai" && !locked && !!plan.data);
+  const mcp = useMcpConnect(api || (tab === "ai" && !locked && !!plan.data));
 
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
 
@@ -102,6 +103,7 @@ export function useConnectionsController() {
     const how = connectPlan(item, isAdmin);
     if (how.kind === "unavailable") return void notify.info(how.reason);
     if (how.kind === "caldav") return setCaldav(true);
+    if (how.kind === "api") return setApi(true);
     setBusy(item.key);
     const r =
       how.kind === "navigate"
@@ -158,6 +160,8 @@ export function useConnectionsController() {
     setConfirm,
     caldav,
     setCaldav,
+    api,
+    setApi,
     items,
     shown,
     counts: c,
