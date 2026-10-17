@@ -11,6 +11,7 @@
 @import "./v3-overrides/type.css";
 @import "./v3-overrides/docs.css";
 @import "./v3-overrides/corner.css";
+@import "./v3-overrides/shell-motion.css";
 @import "./v3-overrides/scenes.css";
 @import "./v3-overrides/paywall.css";
 @import "./v3-overrides/auth-sky.css";
