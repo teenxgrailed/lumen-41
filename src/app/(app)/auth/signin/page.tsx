@@ -6,6 +6,7 @@ import { SignInRoute } from "@/components/needt/auth/SignInRoute";
 
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { isAuthDesignV3 } from "@/lib/needt3/auth-design";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
@@ -26,11 +27,12 @@ export default async function SignInPage({
   const authOptions = await getAuthOptions();
   const session = await getServerSession(authOptions);
 
-  if (session) {
-    redirect("/calendar");
-  }
-
   const { callbackUrl, error } = await searchParams;
+
+  if (session) {
+    // Already signed in: go where the link was going, not always Calendar.
+    redirect(safeCallbackPath(callbackUrl));
+  }
 
   // The v3 screen draws its own sky and scope. A stranger sees it only once
   // design_v3 is on for everyone (see isAuthDesignV3); until then, the old one.

@@ -24,6 +24,7 @@ import { HabitsRoute } from "../HabitsRoute";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockToggle = jest.fn();
+const mockToggleDay = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockArchive = jest.fn();
@@ -45,6 +46,7 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
   // the desktop screen's "Last four months" read; nothing to draw from here
   useCheckinHistory: () => query(undefined),
   useToggleHabitToday: () => ({ mutate: mockToggle }),
+  useToggleHabitDay: () => ({ mutate: mockToggleDay }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
   useUpdateHabit: () => ({ mutateAsync: mockUpdate }),
   useArchiveHabit: () => ({ mutateAsync: mockArchive }),
@@ -142,6 +144,7 @@ beforeEach(() => {
     .mockImplementation(() => null);
   client = new QueryClient();
   mockToggle.mockReset();
+  mockToggleDay.mockReset();
   mockCreate.mockReset();
   mockUpdate.mockReset();
   mockArchive.mockReset();
@@ -208,6 +211,27 @@ describe("the Free allowance", () => {
     click(q("[data-phb-new]"));
     expect(usePhoneOverlays.getState().paywall).toBe(false);
     expect(doc("#phb-name")).not.toBeNull();
+  });
+});
+
+describe("past days", () => {
+  it("Past days opens the four months, and a tap marks that day, not today", () => {
+    render("phone");
+    expect(q("[data-phb-past]")).toBeNull();
+    click(q('[data-phb-past-toggle="a"]'));
+    expect(q("[data-phb-past]")).not.toBeNull();
+    const first = q("[data-phb-day]")!;
+    click(first);
+    expect(mockToggle).not.toHaveBeenCalled();
+    expect(mockToggleDay).toHaveBeenCalledTimes(1);
+    expect(mockToggleDay).toHaveBeenCalledWith({
+      id: "a",
+      date: first.getAttribute("data-phb-day"),
+      done: true,
+    });
+    expect(first.getAttribute("data-phb-day")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    click(q('[data-phb-past-toggle="a"]'));
+    expect(q("[data-phb-past]")).toBeNull();
   });
 });
 

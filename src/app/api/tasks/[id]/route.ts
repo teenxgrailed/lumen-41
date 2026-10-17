@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
+import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import {
   type RecurringCompletion,
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import { deleteTaskForever } from "@/services/tasks/trash";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import {
   type Prisma,
@@ -15,6 +17,7 @@ import {
   TaskBusyStatus,
   WorkspaceRole,
 } from "@prisma/client";
+import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -22,6 +25,8 @@ import { newDate } from "@/lib/date-utils";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { logger } from "@/lib/logger";
 import { parseV3Fields, taskV3FieldsSchema } from "@/lib/needt3/api-fields";
+import { expandOriginPage, withOriginPageId } from "@/lib/needt3/origin-page";
+import { originPageRefusal } from "@/lib/needt3/origin-page-access";
 import { prisma } from "@/lib/prisma";
 import {
   claimOfflineMutation,
@@ -78,7 +83,7 @@ export async function GET(
       return new NextResponse("Task not found", { status: 404 });
     }
 
-    return NextResponse.json(task);
+    return NextResponse.json(withOriginPageId(task));
   } catch (error) {
     logger.error(
       "Error fetching task:",
@@ -169,12 +174,18 @@ export async function PUT(
     // them through the task (they have their own routes).
     delete updates.parts;
     delete updates.waits;
+    delete updates.attachments;
     delete updates.archivedAt;
     delete updates.recurrenceMasterId;
     delete updates.recurrenceInstanceAt;
     const v3 = parseV3Fields(taskV3FieldsSchema, updates);
     if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
-    Object.assign(updates, v3.data);
+    Object.assign(updates, expandOriginPage(v3.data));
+    delete updates.originPageId;
+    if (v3.data.originPageId) {
+      const refusal = await originPageRefusal(auth, v3.data.originPageId);
+      if (refusal) return refusal;
+    }
     const workspaceId = task.workspaceId ?? auth.workspace?.workspaceId;
     if (
       requestedAssigneeId !== undefined &&
@@ -193,6 +204,9 @@ export async function PUT(
           }))))
     ) {
       return new NextResponse("Invalid workspace assignee", { status: 400 });
+    }
+    if (await hasForeignTagIds(userId, tagIds)) {
+      return new NextResponse("Invalid label", { status: 400 });
     }
     if (
       updates.busyStatus !== undefined &&
@@ -337,9 +351,19 @@ export async function PUT(
       }
     }
 
-    // Normalize recurrence rule if it exists in updates
+    // Normalize and validate the recurrence rule. Writing the rule alone is
+    // enough: the flag follows it unless the caller set the flag itself.
     if (updates.recurrenceRule) {
-      updates.recurrenceRule = normalizeRecurrenceRule(updates.recurrenceRule);
+      const rule = normalizeRecurrenceRule(updates.recurrenceRule);
+      try {
+        RRule.fromString(rule ?? "");
+      } catch {
+        return new NextResponse("Invalid recurrence rule", { status: 400 });
+      }
+      updates.recurrenceRule = rule;
+    }
+    if ("recurrenceRule" in updates && !("isRecurring" in updates)) {
+      updates.isRecurring = !!updates.recurrenceRule;
     }
 
     // Find the project's task mapping if it exists
@@ -412,6 +436,7 @@ export async function PUT(
         tags: true,
         project: true,
         scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+        ...partsWaitsInclude,
       },
     };
 
@@ -476,6 +501,7 @@ export async function PUT(
             tags: true,
             project: true,
             scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+            ...partsWaitsInclude,
           },
         })) ?? updatedTask;
     }
@@ -526,7 +552,7 @@ export async function PUT(
     }
 
     await completeOfflineMutation(offlineRecordId);
-    return NextResponse.json(updatedTask);
+    return NextResponse.json(withOriginPageId(updatedTask));
   } catch (error) {
     await failOfflineMutation(offlineRecordId);
     logger.error(
@@ -556,6 +582,23 @@ export async function DELETE(
     const userId = auth.userId;
 
     const { id } = await params;
+
+    // `?permanent=true` deletes a task that is already in Trash for good.
+    if (request.nextUrl.searchParams.get("permanent") === "true") {
+      const outcome = await deleteTaskForever(
+        id,
+        workspaceDataScopeWhere(auth.workspace, userId)
+      );
+      if (outcome === "not-found")
+        return new NextResponse("Task not found", { status: 404 });
+      if (outcome === "not-trashed")
+        return NextResponse.json(
+          { error: "Only a task in Trash can be deleted for good" },
+          { status: 409 }
+        );
+      return new NextResponse(null, { status: 204 });
+    }
+
     const task = await prisma.task.findUnique({
       where: {
         id,

@@ -405,14 +405,55 @@ describe("Page Style", () => {
     expect(usePhoneOverlays.getState().paywall).toBe("Document themes");
   });
 
-  it("Solid asks for the page colour, which is free", () => {
+  it("Solid asks for the page colour; three are free, the rest open the paywall", () => {
     openStyle();
     click($("[data-pd-bg='solid']"));
     expect(update).toHaveBeenCalledTimes(1);
     expect($("[data-pd-colors='page']")).not.toBeNull();
+    click($("[data-pd-swatch='paper']"));
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls[1][0].patch.style.page).toBe("paper");
+    // The Pro colours are marked and stop at the paywall.
+    expect($("[data-pd-swatch='rose']").hasAttribute("data-pro-locked")).toBe(
+      true
+    );
+    expect(
+      $("[data-pd-swatch='graphite']").hasAttribute("data-pro-locked")
+    ).toBe(false);
     click($("[data-pd-swatch='rose']"));
     expect(update).toHaveBeenCalledTimes(2);
+    expect(usePhoneOverlays.getState().paywall).toBe("Document themes");
+  });
+
+  it("every page colour is open to Pro", () => {
+    plan = { kind: "monthly" };
+    openStyle();
+    click($("[data-pd-bg='solid']"));
+    click($("[data-pd-swatch='rose']"));
     expect(update.mock.calls[1][0].patch.style.page).toBe("rose");
+    expect($("[data-pd-swatch='rose']").hasAttribute("data-pro-locked")).toBe(
+      false
+    );
+  });
+
+  it("a cover is Pro: Art and Image are marked and open the paywall on Free", () => {
+    openStyle();
+    expect($("[data-pd-cover='art']").hasAttribute("data-pro-locked")).toBe(
+      true
+    );
+    expect($("[data-pd-cover='image']").hasAttribute("data-pro-locked")).toBe(
+      true
+    );
+    click($("[data-pd-cover='art']"));
+    expect(update).not.toHaveBeenCalled();
+    expect(usePhoneOverlays.getState().paywall).toBe("Document themes");
+  });
+
+  it("Pro can pick a cover art", () => {
+    plan = { kind: "monthly" };
+    openStyle();
+    click($("[data-pd-cover='art']"));
+    expect(update.mock.calls[0][0].patch.coverUrl).toMatch(/^art:/);
   });
 
   it("the backdrop's look and blur appear only with a backdrop", () => {

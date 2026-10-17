@@ -8,6 +8,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 
 import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
+import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
 import {
   CATEGORY_LABEL,
@@ -491,6 +492,29 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         }
       >
         {c.setup ? <AiSetup id={c.setup} mcp={c.mcp} /> : null}
+      </PkSheet>
+
+      <PkSheet
+        open={c.api}
+        onClose={() => c.setApi(false)}
+        detents={[0.92]}
+        title={strings.apiTitle}
+        label={strings.apiTitle}
+        className="ppl-acct"
+        footer={
+          <PkButton
+            kind="primary"
+            onClick={() => {
+              c.setApi(false);
+              void c.mcp.reload();
+            }}
+            data-ppl-api-done=""
+          >
+            Done
+          </PkButton>
+        }
+      >
+        {c.api ? <ApiAccess mcp={c.mcp} /> : null}
       </PkSheet>
 
       {/* Apple / iCloud takes a CalDAV login, as on the desktop */}
