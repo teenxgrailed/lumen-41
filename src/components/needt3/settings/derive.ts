@@ -5,6 +5,7 @@
  */
 import { calendarConnectionNotice } from "@/lib/calendar-connection-status";
 import { formatShortDate, newDate } from "@/lib/date-utils";
+import type { CheckoutChoice } from "@/lib/needt3/hooks/account";
 import type { AccentId, ThemeChoice, TimeReading } from "@/lib/needt3/theme";
 
 export type SectionId =
@@ -110,6 +111,51 @@ export function sectionFromHash(hash: string | null | undefined) {
   return HASH_ALIASES[key] ?? null;
 }
 
+/** `?checkout=` values the landing links to, and the choice each one starts. */
+export const CHECKOUT_LINKS = {
+  "pro-year": { plan: "pro", interval: "year" },
+  "pro-month": { plan: "pro", interval: "month" },
+  lifetime: { plan: "lifetime" },
+} as const satisfies Record<string, CheckoutChoice>;
+
+/**
+ * `/settings?section=billing&checkout=pro-year`: the checkout a deep link asks
+ * for, or null (no param, or one we do not know, which is ignored).
+ */
+export function checkoutFromSearch(
+  search: string | URLSearchParams | null | undefined
+): CheckoutChoice | null {
+  const q = new URLSearchParams(search ?? "");
+  const key = q.get("checkout")?.trim().toLowerCase() ?? "";
+  return Object.prototype.hasOwnProperty.call(CHECKOUT_LINKS, key)
+    ? CHECKOUT_LINKS[key as keyof typeof CHECKOUT_LINKS]
+    : null;
+}
+
+/**
+ * The same URL with `checkout` removed, so a reload does not start another
+ * checkout. Everything else in the query and the hash is kept.
+ */
+export function withoutCheckoutParam(url: string): string {
+  const u = new URL(url, "https://needt.invalid");
+  u.searchParams.delete("checkout");
+  return `${u.pathname}${u.search}${u.hash}`;
+}
+
+/**
+ * The Settings section a link names: `#plan` / `#billing` in the hash, else
+ * `?section=billing`. The hash wins when both are present.
+ */
+export function settingsSectionFromUrl(
+  hash: string | null | undefined,
+  search: string | URLSearchParams | null | undefined
+): SectionId | null {
+  return (
+    sectionFromHash(hash) ??
+    sectionFromHash(new URLSearchParams(search ?? "").get("section"))
+  );
+}
+
 /** Old anchors that now live on another screen, not in the sheet. */
 const HASH_SCREENS: Record<string, string> = {
   calendars: "/connections",
@@ -133,13 +179,14 @@ export type SettingsRedirectTarget =
  * sheet over Today at the matching section.
  */
 export function settingsRedirectTarget(
-  hash: string | null | undefined
+  hash: string | null | undefined,
+  search?: string | URLSearchParams | null
 ): SettingsRedirectTarget {
   const key = (hash ?? "").replace(/^#/, "").trim().toLowerCase();
   const href = HASH_SCREENS[key];
   return href
     ? { kind: "screen", href }
-    : { kind: "sheet", section: sectionFromHash(key) };
+    : { kind: "sheet", section: settingsSectionFromUrl(key, search) };
 }
 
 export interface SettingsNotice {
