@@ -14,7 +14,6 @@ import {
   LuFileText,
   LuFolder,
   LuImage,
-  LuLayoutTemplate,
   LuList,
   LuPaperclip,
   LuPlus,
@@ -30,7 +29,6 @@ import { type DocRailTab, useNeedt3Ui } from "@/store/needt3-ui";
 import { DocThumb, docsCopy, useDocTokens } from "../docs/DocParts";
 import { ageLabel } from "../docs/labels";
 import { Tooltip } from "../menu/Tooltip";
-import { useShellApi } from "../shell/ShellContext";
 import { useOpenDocId } from "./open-doc";
 import { EDITOR_SELECTOR, findRanges, scrollToOutline } from "./outline";
 import {
@@ -545,7 +543,6 @@ export function DocSwitch({ value }: { value: "doc" | "app" }) {
  */
 export function DocRail() {
   const router = useRouter();
-  const shell = useShellApi();
   const id = useOpenDocId();
   const doc = useDoc(id).data;
   // A single page comes without its first lines; the Docs list (already
@@ -573,9 +570,6 @@ export function DocRail() {
           onClick={() => router.push("/pages")}
         >
           <LuArrowLeft size={16} />
-        </GhostIcon>
-        <GhostIcon label={c.hide_panel} onClick={shell.toggleSidebar}>
-          <LuLayoutTemplate size={16} />
         </GhostIcon>
       </div>
       <div className="docs-doc-panel-3">

@@ -1087,6 +1087,27 @@
 .needt-v3 .st-queue-at { flex: none; font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .st-pop-foot { padding: 8px 10px 6px; margin-top: 4px; box-shadow: var(--border) 0 1px 0 0 inset; font: var(--type-meta); color: var(--text-tertiary); text-wrap: pretty; }
 
+/* The one sync status: a dot and a word. The dot is the mark; no fill. */
+.needt-v3 .sync-status-row { position: relative; display: inline-flex; }
+.needt-v3 .sync-status-row.is-phone { position: fixed; z-index: 30; top: calc(env(safe-area-inset-top, 0px) + 10px); right: 14px; }
+.needt-v3 .sync-status { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 9px; background: transparent; cursor: default; white-space: nowrap; color: var(--text-tertiary); font: var(--type-meta-medium); transition: background-color 140ms ease, color 140ms ease; }
+.needt-v3 .sync-status:hover,
+.needt-v3 .sync-status[aria-expanded="true"] { background: var(--fill-4); color: var(--text-secondary); }
+.needt-v3 .sync-status-dot { flex: none; width: 6px; height: 6px; border-radius: 3px; background: var(--text-quaternary); transition: background-color 140ms ease; }
+.needt-v3 .sync-status[data-sync-status="saved"] .sync-status-dot { background: var(--success); }
+.needt-v3 .sync-status[data-sync-status="syncing"] .sync-status-dot { background: var(--accent); }
+.needt-v3 .sync-status[data-sync-status="offline"] .sync-status-dot { background: var(--text-tertiary); }
+.needt-v3 .sync-status[data-sync-status="error"] { color: var(--destructive); }
+.needt-v3 .sync-status[data-sync-status="error"] .sync-status-dot { background: var(--destructive); }
+.needt-v3 .sync-status-word { max-width: 240px; overflow: hidden; text-overflow: ellipsis; transition: max-width 240ms ease, opacity 240ms ease; }
+.needt-v3 .sync-status[data-sync-quiet] { gap: 0; }
+.needt-v3 .sync-status[data-sync-quiet] .sync-status-word { max-width: 0; opacity: 0; }
+.needt-v3 .sync-status-pop { width: 280px; }
+.needt-v3 .sync-status-lines { display: flex; flex-direction: column; gap: 4px; padding: 0 10px 8px; font: var(--type-meta); color: var(--text-secondary); text-wrap: pretty; }
+.needt-v3 .sync-status-muted { color: var(--text-tertiary); }
+.needt-v3 .sync-status-actions { display: flex; justify-content: flex-end; padding: 0 10px 8px; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .sync-status-word { transition: none; } }
+
 .needt-v3 [data-st-lock] { opacity: .4 !important; cursor: not-allowed !important; }
 .needt-v3 [data-st-lock] * { pointer-events: none; }
 .needt-v3 .st-locktip { position: fixed; z-index: 1400; display: inline-flex; align-items: center; gap: 6px; width: max-content; max-width: 280px; padding: 6px 10px; border-radius: 9px; pointer-events: none;
