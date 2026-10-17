@@ -218,6 +218,21 @@ describe("PageWorkspace inside the v3 frame", () => {
     root = createRoot(host);
   });
 
+  it("sends a title still unsent when the tab is reloaded or closed", async () => {
+    await mount(true);
+    await type(title(), "Typed, then reloaded");
+    expect(patchCalls()).toHaveLength(0);
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    const sent = patchCalls();
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0].body!)).toEqual({
+      title: "Typed, then reloaded",
+    });
+    expect(sent[0].keepalive).toBe(true);
+  });
+
   it("does not send a title that was already written on blur", async () => {
     await mount(true);
     await type(title(), "Written");

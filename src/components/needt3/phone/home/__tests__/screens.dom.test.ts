@@ -42,6 +42,11 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useCreateTask: () => ({ mutateAsync }),
 }));
 
+const push = jest.fn();
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
+
 // StScreen's module reaches V3Root, which imports the CSS entry
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
 
@@ -403,6 +408,33 @@ describe("Home", () => {
     client.setQueryData(qk.tasks({}), []);
     mount(PhoneHome);
     expect(host.textContent).toContain("A clear day.");
+  });
+
+  it("Notes for the day opens today's note once it exists", async () => {
+    client.setQueryData(qk.dailyNote(TODAY), true);
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            pages: [{ id: "note1", title: "Daily note · 2 September 2026" }],
+          }),
+        url,
+      })
+    );
+    await mount(PhoneHome);
+    const line = q<HTMLButtonElement>("[data-v2p-notes]");
+    expect(line.textContent).toBe("Open today’s note");
+    await click(line);
+    await flush();
+    expect(push).toHaveBeenCalledWith("/pages/note1");
+  });
+
+  it("the line says Notes for the day before there is a note", async () => {
+    client.setQueryData(qk.dailyNote(TODAY), false);
+    await mount(PhoneHome);
+    expect(q("[data-v2p-notes]").textContent).toBe("Notes for the day…");
   });
 });
 

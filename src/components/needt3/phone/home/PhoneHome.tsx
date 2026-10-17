@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
+import { useRouter } from "next/navigation";
+
 import { LuCheck, LuTarget } from "react-icons/lu";
 
 import { clock, durLabel } from "@/lib/needt3/day";
 import { habitColor, habitDoneOn, liveHabits } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
+import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import {
   useCheckins,
   useHabits,
@@ -55,13 +58,14 @@ const none = () => undefined;
  *
  * The data is the desktop Home's (`useTasks`, `useHabits`, …); the day's rules
  * are `lib/needt3/day.ts` through `homeView`.
- * //todo: "Notes for the day" is not drawn. The prototype keeps it in the
- * browser; the account's daily note is a rich document (`/api/daily-agenda`,
- * the desktop Home leaves it as a //todo too), and a plain field here would
- * overwrite it.
+ * "Notes for the day" is the desktop's line: it opens today's note, a
+ * document in the person's pages (`useDailyNote`). The prototype keeps a plain
+ * field in the browser; that would be a second copy of the day's notes.
  */
 export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const { today, now } = usePhoneClock();
+  const router = useRouter();
+  const dailyNote = useDailyNote(today);
   const tz = useTimeZone();
   const weekStartDay = useSettings().data?.weekStartDay ?? "monday";
   const tasksQuery = useTasks();
@@ -139,6 +143,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   };
 
   const pull = useTaskPull(all, today);
+
+  const openNote = async () => {
+    const id = await dailyNote.open();
+    if (id) router.push(`/pages/${id}`);
+  };
 
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
@@ -370,6 +379,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
+          <button
+            type="button"
+            className="v2p-notes v2p-notes-btn"
+            data-v2p-notes=""
+            disabled={dailyNote.busy}
+            onClick={() => void openNote()}
+          >
+            {dailyNote.exists
+              ? "Open today\u2019s note"
+              : copy.V2pNotes.notes_for_the_day}
+          </button>
         </div>
       ) : null}
     </PkScreen>

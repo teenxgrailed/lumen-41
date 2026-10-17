@@ -315,13 +315,15 @@ describe("connectPlan", () => {
       connectPlan({ slug: "notion", configured: true, native: false })
     ).toEqual({ kind: "toolkit", toolkit: "notion" });
   });
-  it("is unavailable when the server cannot, and for the API card", () => {
+  it("is unavailable when the server cannot", () => {
     expect(
       connectPlan({ slug: "notion", configured: false, native: false }).kind
     ).toBe("unavailable");
+  });
+  it("opens the API access sheet for the Needt API tile", () => {
     expect(
-      connectPlan({ slug: "needt-api", configured: true, native: true }).kind
-    ).toBe("unavailable");
+      connectPlan({ slug: "needt-api", configured: true, native: true })
+    ).toEqual({ kind: "api" });
   });
   it("tells an admin what to add, and everyone else that it is not there yet", () => {
     const item = {
@@ -338,10 +340,10 @@ describe("connectPlan", () => {
     });
     expect(connectPlan(item, false)).toEqual({
       kind: "unavailable",
-      reason: "Notion is not available yet.",
+      reason: "Notion isn't available yet.",
     });
     expect(unavailableReason("Notion", undefined, true)).toBe(
-      "Notion is not available yet."
+      "Notion isn't available yet."
     );
   });
   it("disconnect route by kind, pill, AI gate", () => {
