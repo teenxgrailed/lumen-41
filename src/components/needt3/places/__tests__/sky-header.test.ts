@@ -189,6 +189,26 @@ describe("PlCollage", () => {
     expect(out).toContain('data-pl-collage="0"');
   });
 
+  it("tints a link that has no picture by its site, the same site the same tint", () => {
+    const link = (url: string | null) =>
+      tileFill({
+        id: "l",
+        kind: "link",
+        url,
+        color: null,
+        text: null,
+        thumbnailUrl: null,
+      });
+    expect(link("https://www.figma.com/file/1")).toContain(
+      "color-mix(in oklch"
+    );
+    expect(link("https://www.figma.com/file/1")).toBe(
+      link("https://figma.com/other")
+    );
+    expect(link("https://figma.com")).not.toBe(link("https://example.org"));
+    expect(link(null)).toBe("var(--fill-2)");
+  });
+
   it("paints a picture, a swatch, or a plain fill, never an unchecked colour", () => {
     expect(
       tileFill({

@@ -3,6 +3,7 @@ import type { ArtName } from "../menu/Art";
 
 export const USES: ReadonlyArray<readonly [string, string, string, ArtName]> = [
   ["work", "Work", "Projects, meetings and the tasks between them", "work"],
+  ["study", "Study", "Courses, reading and deadlines you plan around", "later"],
   [
     "personal",
     "Personal",
@@ -11,13 +12,13 @@ export const USES: ReadonlyArray<readonly [string, string, string, ArtName]> = [
   ],
   [
     "side",
-    "Side business",
-    "Listings, orders and the work around a second income",
+    "Side project",
+    "Something of your own, built in the gaps of the week",
     "stack",
   ],
 ];
 
-/** Calendars with a real connect flow today. Apple (CalDAV) needs its own form. */
+/** Calendars with a real connect flow. iCloud (CalDAV) has no OAuth screen: it opens the Connections form, with the guide shown first. */
 export const CALS: ReadonlyArray<{
   id: string;
   provider: string;
@@ -25,6 +26,8 @@ export const CALS: ReadonlyArray<{
   sub: string;
   art: ArtName;
   href: string | null;
+  /** Needs keys on the server before it is shown; null = always available. */
+  needs: "google" | "outlook" | null;
 }> = [
   {
     id: "google",
@@ -33,14 +36,16 @@ export const CALS: ReadonlyArray<{
     sub: "Two-way sync with your Google account",
     art: "event",
     href: "/api/calendar/google/auth",
+    needs: "google",
   },
   {
     id: "apple",
     provider: "caldav",
-    title: "Apple Calendar",
-    sub: "iCloud calendars — connect from Settings",
+    title: "iCloud Calendar",
+    sub: "iCloud, with an app-specific password",
     art: "calendarfile",
-    href: null,
+    href: "/connections",
+    needs: null,
   },
   {
     id: "outlook",
@@ -49,5 +54,6 @@ export const CALS: ReadonlyArray<{
     sub: "Microsoft 365 or Outlook.com",
     art: "mail",
     href: "/api/calendar/outlook/auth",
+    needs: "outlook",
   },
 ];

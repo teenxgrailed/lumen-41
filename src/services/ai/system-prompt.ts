@@ -15,6 +15,8 @@ export function assembleAgentSystemPrompt(input: {
   memories: RankedMemory[];
   scheduleSummary: string;
   tokenBudget?: number;
+  /** Set for the tool-calling agent: how to act, answer and cite. */
+  agent?: { now: string; timeZone: string };
 }) {
   const tone =
     input.soulPreset === "coach"
@@ -29,12 +31,26 @@ export function assembleAgentSystemPrompt(input: {
     "Mail access is read-only: never send, reply to, forward, archive, or delete mail.",
     `Tasks can have subtasks. ${SUBTASK_GUIDANCE} Tick subtasks with complete_subtask; once the last one is done the task itself is the final step, so offer to close it.`,
   ].join(" ");
+  const agentRules = input.agent
+    ? [
+        `Now: ${input.agent.now} (${input.agent.timeZone}). Resolve "today", "tomorrow" and weekdays against it, and pass dates as YYYY-MM-DD or ISO.`,
+        "Reply in one to three short sentences. No preamble, no recap of the request.",
+        "Look before you act: search or list first, and use ids from tool results, never guessed ones. Fetch details only for what you need.",
+        "After acting, say in one line what changed; the app shows Undo. Never claim a change the tool result does not confirm.",
+        "When you mention a task, event, page, habit or message from a tool result, link it as [title](href) using the href the tool returned.",
+        "Deleting asks the person first; just call the tool and the app asks.",
+      ].join(" ")
+    : "";
   const budget = Math.max(
     400,
     input.tokenBudget ?? DEFAULT_AGENT_PROMPT_BUDGET
   );
   const parts = [base];
   let used = estimatedTokens(base);
+  if (agentRules) {
+    parts.push(agentRules);
+    used += estimatedTokens(agentRules);
+  }
   const usedMemoryIds: string[] = [];
 
   if (input.scheduleSummary) {

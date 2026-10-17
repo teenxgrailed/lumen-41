@@ -8,6 +8,9 @@ import {
   AIChatToolDefinition,
   AIProviderUsage,
   AISuggestion,
+  AgentMessage,
+  AgentTurnEvent,
+  AgentTurnRequest,
   ParsedTask,
   SchedulerAI,
   SchedulerAIConfig,
@@ -426,6 +429,92 @@ export class OpenAIProvider implements SchedulerAI {
     };
   }
 
+  /**
+   * One streamed turn with tools (OpenAI-compatible, which includes Z.ai and
+   * OpenRouter). Text is yielded as it arrives; tool calls are assembled from
+   * their argument fragments and yielded once the stream ends. Reasoning
+   * deltas (`reasoning_content`) are never shown.
+   */
+  async *streamTurn(input: AgentTurnRequest): AsyncGenerator<AgentTurnEvent> {
+    if (!this.config.apiKey) {
+      throw new Error(`${this.name} API key is not configured`);
+    }
+    const baseUrl = (
+      this.config.baseUrl || "https://api.openai.com/v1"
+    ).replace(/\/$/, "");
+    const zai = aiHostKind(baseUrl) === "zai";
+    const response = await fetchWithTimeout(
+      `${baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({
+          ...(this.config.extraBody ?? {}),
+          model: this.config.model || this.defaultModel,
+          max_tokens: this.config.maxTokens,
+          temperature: 0.2,
+          stream: true,
+          ...(zai ? { tool_stream: true } : {}),
+          ...(this.config.onUsage && !zai
+            ? { stream_options: { include_usage: true } }
+            : {}),
+          ...(input.tools.length
+            ? { tools: openAITools(input.tools), tool_choice: "auto" }
+            : {}),
+          messages: openAIAgentMessages(input.systemPrompt, input.messages),
+        }),
+      },
+      this.config.timeoutMs
+    );
+    if (!response.ok) {
+      throw new Error(`${this.name} agent request failed: ${response.status}`);
+    }
+
+    const calls = new Map<number, { id: string; name: string; args: string }>();
+    let usage: AIProviderUsage | null = null;
+    for await (const payload of parseSseJson(response)) {
+      usage = openAIUsage(payload) || usage;
+      const choices = Array.isArray(payload.choices) ? payload.choices : [];
+      const delta = asRecord(asRecord(choices[0])?.delta);
+      if (typeof delta?.content === "string" && delta.content) {
+        yield { type: "text", value: delta.content };
+      }
+      const fragments = Array.isArray(delta?.tool_calls)
+        ? delta.tool_calls
+        : [];
+      for (const raw of fragments) {
+        const fragment = asRecord(raw);
+        if (!fragment) continue;
+        const index =
+          typeof fragment.index === "number" ? fragment.index : calls.size;
+        const fn = asRecord(fragment.function);
+        const entry = calls.get(index) ?? { id: "", name: "", args: "" };
+        if (typeof fragment.id === "string" && fragment.id) {
+          entry.id = fragment.id;
+        }
+        if (typeof fn?.name === "string") entry.name += fn.name;
+        if (typeof fn?.arguments === "string") entry.args += fn.arguments;
+        calls.set(index, entry);
+      }
+    }
+    await reportUsage(this.config, usage);
+    for (const [index, call] of [...calls.entries()].sort(
+      (a, b) => a[0] - b[0]
+    )) {
+      if (!call.name) continue;
+      yield {
+        type: "tool_call",
+        id: call.id || `call_${index}`,
+        name: call.name,
+        arguments: parseToolArguments(call.args),
+        rawArguments: call.args || "{}",
+      };
+    }
+  }
+
   async *streamChat(input: AIChatRequest): AsyncGenerator<string> {
     if (!this.config.apiKey) {
       throw new Error(`${this.name} API key is not configured`);
@@ -480,6 +569,36 @@ export class OpenAIProvider implements SchedulerAI {
     }
     await reportUsage(this.config, usage);
   }
+}
+
+function openAIAgentMessages(
+  systemPrompt: string,
+  messages: AgentMessage[]
+): Record<string, unknown>[] {
+  return [
+    { role: "system", content: systemPrompt },
+    ...messages.map((message) => {
+      if (message.role === "tool") {
+        return {
+          role: "tool",
+          tool_call_id: message.toolCallId,
+          content: message.content,
+        };
+      }
+      if (message.role === "assistant" && message.toolCalls?.length) {
+        return {
+          role: "assistant",
+          content: message.content || null,
+          tool_calls: message.toolCalls.map((call) => ({
+            id: call.id,
+            type: "function",
+            function: { name: call.name, arguments: call.arguments },
+          })),
+        };
+      }
+      return { role: message.role, content: message.content };
+    }),
+  ];
 }
 
 export class CustomProvider implements SchedulerAI {

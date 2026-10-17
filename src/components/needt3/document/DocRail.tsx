@@ -366,6 +366,20 @@ function Outline() {
 }
 
 const HIGHLIGHT = "doc-find";
+const HIGHLIGHT_STYLE_ID = "doc-find-highlight-style";
+
+/**
+ * The match colour. It lives here, not in doc-opened.css: Turbopack's CSS
+ * parser (`next dev --turbopack`) does not accept `::highlight()` in a
+ * stylesheet. Same rule, same behaviour.
+ */
+function ensureHighlightStyle() {
+  if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = HIGHLIGHT_STYLE_ID;
+  style.textContent = `.needt-v3 ::highlight(${HIGHLIGHT}) { background: var(--fill-accent-strong); color: inherit; }`;
+  document.head.appendChild(style);
+}
 
 /** Find in the page itself: a count, previous and next, every match marked. */
 function Find({ docKey }: { docKey: string }) {
@@ -403,6 +417,7 @@ function Find({ docKey }: { docKey: string }) {
   useEffect(() => {
     const reg = typeof CSS !== "undefined" ? CSS.highlights : undefined;
     if (!reg || typeof Highlight === "undefined") return undefined;
+    ensureHighlightStyle();
     if (n) reg.set(HIGHLIGHT, new Highlight(...ranges));
     else reg.delete(HIGHLIGHT);
     return () => {

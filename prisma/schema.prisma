@@ -93,6 +93,11 @@ model User {
   // When the account was created. Null for accounts that predate the column
   // and had no trial grant to date them by; new rows get the insert time.
   createdAt              DateTime?                 @default(now())
+  // When the first-run examples were created for this account (or, for an
+  // account that predates them, the migration that added the column). Set
+  // once, in the transaction that creates them, so it stays set after
+  // "Clear examples" and they are never created twice.
+  sampleSeededAt         DateTime?
   // Bumped to sign the person out everywhere: a session token carries the
   // version it was issued under and stops working once the two differ.
   sessionVersion         Int                       @default(0)
@@ -151,6 +156,7 @@ model User {
   aiPageProposals        AiPageChangeProposal[]
   pageAssets             PageAsset[]
   pageComments           PageComment[]
+  moodboardItemComments  MoodboardItemComment[]
   pageAccessGrants       PageAccessGrant[]         @relation("PageAccessGrantee")
   pageAccessGrantsGiven  PageAccessGrant[]         @relation("PageAccessGrantor")
   pagePublications       PagePublication[]         @relation("PagePublicationPublisher")
@@ -547,6 +553,9 @@ model Project {
   workspaceId String?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
+  // First-run example; see Task.isSample.
+  isSample Boolean @default(false)
+
   // Metadata
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -875,6 +884,10 @@ model Task {
   projectBlockersTargeted ProjectBlocker[] @relation("ProjectBlockerTargetTask")
   projectBlockersAsSource ProjectBlocker[] @relation("ProjectBlockerSourceTask")
 
+  // First-run example (src/services/onboarding): removed by "Clear examples",
+  // never counted against a plan limit.
+  isSample Boolean @default(false)
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1020,6 +1033,8 @@ model Habit {
   archivedAt               DateTime?
   tasks                    Task[]
   completions              HabitCompletion[]
+  // First-run example; see Task.isSample. Never counts toward the Free limit.
+  isSample                 Boolean                @default(false)
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @updatedAt
   color                    String? // Own colour; null = the project's.
@@ -1470,6 +1485,8 @@ model Page {
   collaborationState    PageCollaborationState?
   collaborationSessions PageCollaborationSession[]
   publication           PagePublication?
+  // First-run example; see Task.isSample.
+  isSample              Boolean                    @default(false)
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
   // Design v3: document style (backdrop, page, text, font, ...) and its project.
@@ -3139,8 +3156,30 @@ model MoodboardItem {
   position     Float     @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  comments     MoodboardItemComment[]
 
   @@index([moodboardId, position])
+}
+
+/// A comment on one reference of a moodboard grid (the PageComment pattern).
+/// Read with viewer access, written with editor access; the author or full
+/// access may resolve or delete it. Deleting the reference deletes its comments.
+model MoodboardItemComment {
+  id          String        @id @default(cuid())
+  itemId      String
+  item        MoodboardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  /// Denormalised so the feed and the access check never join through the item.
+  moodboardId String
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body        String
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([itemId, createdAt])
+  @@index([moodboardId, createdAt])
+  @@index([authorId])
 }
 
 /// A picture uploaded to a moodboard's grid. The bytes live in the row (as

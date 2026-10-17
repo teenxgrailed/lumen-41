@@ -7,14 +7,14 @@ import {
   clampStep,
   goTo,
   hhmm,
-  hoursPatch,
   startOrder,
   startZone,
   stepIndex,
-  stepsToSave,
+  stepsFor,
   swapEffect,
   swapSay,
   swapTiles,
+  toggleUse,
   zoneChoices,
 } from "../onboarding-steps";
 
@@ -30,15 +30,17 @@ const ALL = [
 ];
 
 describe("steps", () => {
-  it("are five, with no view step", () => {
-    expect(STEP_IDS).toEqual(["use", "setup", "sidebar", "first", "placed"]);
-    expect(STEP_IDS).not.toContain("view");
+  it("are three, with an optional import", () => {
+    expect(STEP_IDS).toEqual(["use", "calendar", "hours", "import"]);
+    expect(stepsFor(false)).toEqual(["use", "calendar", "hours"]);
+    expect(stepsFor(true)).toEqual(STEP_IDS);
   });
   it("clamps into range", () => {
     expect(clampStep(-3)).toBe(0);
-    expect(clampStep(99)).toBe(4);
+    expect(clampStep(99, 3)).toBe(2);
     expect(clampStep(Number.NaN)).toBe(0);
-    expect(stepIndex("first")).toBe(3);
+    expect(stepIndex("hours")).toBe(2);
+    expect(stepIndex("import", stepsFor(false))).toBe(-1);
   });
 });
 
@@ -49,20 +51,30 @@ describe("hours", () => {
     expect(badHours(18, 9)).toBe(true);
     expect(hhmm(7)).toBe("07:00");
   });
+  it("default to the server's 9-17", () => {
+    expect(DEFAULT_HOURS).toEqual({ start: 9, end: 17 });
+  });
 });
 
 describe("moving between steps", () => {
-  const base = { from: 1, start: 9, end: 18, hasFirst: false };
-  it("refuses to leave setup forward with impossible hours", () => {
-    expect(goTo({ ...base, to: 2, start: 18, end: 9 })).toBeNull();
-    expect(goTo({ ...base, to: 0, start: 18, end: 9 })).toBe(0);
+  it("stays inside the steps that are shown", () => {
+    expect(goTo({ from: 0, to: 1, count: 3 })).toBe(1);
+    expect(goTo({ from: 2, to: 3, count: 3 })).toBe(2);
+    expect(goTo({ from: 1, to: -1, count: 3 })).toBe(0);
   });
-  it("shows where it went only once a task exists", () => {
-    expect(goTo({ ...base, from: 3, to: 4 })).toBeNull();
-    expect(goTo({ ...base, from: 3, to: 4, hasFirst: true })).toBe(4);
-  });
-  it("moves freely otherwise", () => {
-    expect(goTo({ ...base, from: 0, to: 1 })).toBe(1);
+});
+
+describe("the uses", () => {
+  it("keep the order they were picked in: the first one drives the sample", () => {
+    let l: string[] = [];
+    for (const u of ["study", "work", "side"]) l = toggleUse(l, u);
+    expect(l).toEqual(["study", "work", "side"]);
+    expect(toggleUse(l, "study")).toEqual(["work", "side"]);
+    expect(toggleUse(toggleUse(l, "study"), "study")).toEqual([
+      "work",
+      "side",
+      "study",
+    ]);
   });
 });
 
@@ -132,48 +144,6 @@ describe("the saved tile list", () => {
       "moodboards",
       "habits",
     ]);
-  });
-});
-
-describe("working hours save rule", () => {
-  const base = { loaded: true, start: 9, end: 17, savedStart: 9, savedEnd: 17 };
-
-  it("defaults to the server's 9–17", () => {
-    expect(DEFAULT_HOURS).toEqual({ start: 9, end: 17 });
-  });
-
-  it("writes nothing before the saved hours have loaded", () => {
-    expect(hoursPatch({ ...base, loaded: false, end: 18 })).toBeNull();
-  });
-
-  it("writes nothing when the hours did not change", () => {
-    expect(hoursPatch(base)).toBeNull();
-  });
-
-  it("writes changed, valid hours", () => {
-    expect(hoursPatch({ ...base, start: 8 })).toEqual({
-      workHourStart: 8,
-      workHourEnd: 17,
-    });
-  });
-
-  it("never writes invalid hours", () => {
-    expect(hoursPatch({ ...base, start: 17, end: 17 })).toBeNull();
-  });
-});
-
-describe("steps saved on the way forward", () => {
-  it("saves only steps the person stood on", () => {
-    expect(stepsToSave(0, 3, new Set(["use"]))).toEqual(["use"]);
-    expect(stepsToSave(0, 3, new Set(["use", "setup", "sidebar"]))).toEqual([
-      "use",
-      "setup",
-      "sidebar",
-    ]);
-  });
-
-  it("saves nothing going back", () => {
-    expect(stepsToSave(3, 1, new Set(STEP_IDS))).toEqual([]);
   });
 });
 

@@ -57,7 +57,8 @@ function scope(actor: MoodboardActor) {
  * of one items request per board. Only what a tile needs; a long note's text
  * is cut so the list stays small.
  */
-export const MOODBOARD_PREVIEW_COUNT = 3;
+/** The phone cover draws four cells (MbmCover); the desktop collage uses the first three. */
+export const MOODBOARD_PREVIEW_COUNT = 4;
 const PREVIEW_TEXT_MAX = 120;
 
 const previewSelect = {

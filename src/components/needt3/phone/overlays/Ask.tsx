@@ -12,6 +12,7 @@ import {
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { AskActivity, AskText } from "../../corner/AskActivity";
 import { useAsk } from "../../corner/AskProvider";
 import {
   type AskScope,
@@ -40,6 +41,9 @@ export interface PkAskProps {
   onNew: () => void;
   /** The plan does not include the agent: open the plans. */
   onUpgrade?: () => void;
+  /** Undo one thing Ask did, or everything one reply did. */
+  onUndo?: (messageId: string, actionId: string) => void;
+  onUndoAll?: (messageId: string, runId: string) => void;
 }
 
 /**
@@ -59,6 +63,8 @@ export function PkAsk({
   onStop,
   onNew,
   onUpgrade,
+  onUndo,
+  onUndoAll,
 }: PkAskProps) {
   const [draft, setDraft] = useState("");
   const list = useRef<HTMLDivElement>(null);
@@ -222,11 +228,19 @@ export function PkAsk({
                   (m.failed || m.stopped) && "is-failed"
                 )}
               >
-                {m.text}
+                <AskText text={m.text} />
                 {live ? (
                   <span className="chat-caret" aria-hidden="true" />
                 ) : null}
               </p>
+              {onUndo && onUndoAll ? (
+                <AskActivity
+                  message={m}
+                  busy={live}
+                  onUndo={onUndo}
+                  onUndoAll={onUndoAll}
+                />
+              ) : null}
               {m.confirm && !busy ? (
                 <button
                   type="button"
@@ -293,6 +307,8 @@ export function StoreAsk() {
       onStop={ask.stop}
       onNew={ask.reset}
       onUpgrade={upgrade}
+      onUndo={(id, actionId) => void ask.undo(id, actionId)}
+      onUndoAll={(id, runId) => void ask.undoAll(id, runId)}
     />
   );
 }

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     where: {
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
       isArchived: false,
+      isSample: false,
     },
   });
 

@@ -19,7 +19,8 @@ import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 
 import { TaskCheck } from "./TaskCheck";
-import { DeskMeta, LineMeta, PartCount, TaskValue } from "./chips";
+import { StepsBlock, StepsCount, useTaskSteps } from "./TaskSteps";
+import { DeskMeta, LineMeta, TaskValue } from "./chips";
 import { useCompletionScope } from "./useCompletion";
 import { type TaskEntry, isTaskEvent, taskView } from "./view";
 
@@ -57,6 +58,8 @@ export interface TaskProps {
   hideProject?: boolean;
   /** The first step is drawn elsewhere (a project's flow puts it on top). */
   hideEntry?: boolean;
+  /** The steps are drawn elsewhere (a project's flow): the row keeps its count only. */
+  hideSteps?: boolean;
   compact?: boolean;
   stacked?: boolean;
   label?: string;
@@ -90,6 +93,7 @@ function TaskContent(props: TaskProps) {
     onOpen,
     dragProps,
     hideEntry,
+    hideSteps,
     compact,
     stacked,
     phase: phaseProp,
@@ -121,9 +125,18 @@ function TaskContent(props: TaskProps) {
   const shown = taskView(task, props.projects ?? projectsQuery.data, today);
   const v = {
     ...shown,
-    parts: details.subtasks ? shown.parts : null,
     minutes: details.duration ? shown.minutes : null,
   };
+  // The steps under the row follow the task view's `subtasks` option; a
+  // project page draws them itself and keeps only the count here.
+  const found = useTaskSteps(
+    isTaskEvent(task) ? null : task,
+    scope ? (t, undo) => scope.check(t, { undo }) : undefined
+  );
+  const steps =
+    found && hideSteps
+      ? { ...found, mode: "count" as const, canFold: false }
+      : found;
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
@@ -352,10 +365,11 @@ function TaskContent(props: TaskProps) {
             <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
               {v.title}
             </span>
-            <PartCount view={v} />
+            {steps ? <StepsCount steps={steps} /> : null}
             <TaskValue view={v} />
           </span>
           <LineMeta view={v} late={late} hideProject={hideProject} />
+          {steps ? <StepsBlock steps={steps} touch /> : null}
         </span>
       </div>
     );
@@ -465,7 +479,7 @@ function TaskContent(props: TaskProps) {
               >
                 {v.title}
               </span>
-              <PartCount view={v} />
+              {steps ? <StepsCount steps={steps} /> : null}
               <TaskValue view={v} />
             </span>
             <DeskMeta
@@ -475,7 +489,11 @@ function TaskContent(props: TaskProps) {
               hideProject={hideProject}
             />
           </div>
-          {v.entry && !hideEntry && (!v.done || phase) ? (
+          {steps ? <StepsBlock steps={steps} /> : null}
+          {v.entry &&
+          !hideEntry &&
+          (!steps || steps.mode === "count") &&
+          (!v.done || phase) ? (
             <div className="tk-entry">
               <FiArrowRight size={12} aria-hidden="true" />
               {v.entry}

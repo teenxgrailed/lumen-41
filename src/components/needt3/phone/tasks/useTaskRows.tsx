@@ -6,6 +6,7 @@ import { laterPatch } from "@/lib/needt3/day";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
+import { flowSteps } from "../../work/flow";
 import { isOverdue } from "../../work/model";
 import { PkTaskRow, usePkExit } from "../kit";
 import { useTaskActions, useTrashWithUndo } from "../overlays/schedule";
@@ -35,11 +36,14 @@ export function useTaskRows({
   today,
   projects,
   hideProject,
+  flow,
   blocked,
 }: {
   today: string;
   projects: readonly V3Project[];
   hideProject?: boolean;
+  /** The page draws the steps of its open tasks itself (a project's flow). */
+  flow?: boolean;
   /** Tasks waiting on an open task: they cannot be moved a day. */
   blocked?: ReadonlySet<string>;
 }) {
@@ -52,6 +56,9 @@ export function useTaskRows({
   // route change) the timers are dropped, so the write is made then instead of
   // being lost.
   const pending = useRef(new Map<string, { t: V3Task; kind: ExitKind }>());
+  // the undo of a last step ticked to close its task: it rides on the task's
+  // own Undo so one tap puts both back
+  const stepUndo = useRef(new Map<string, () => Promise<void>>());
   const write = (t: V3Task, kind: ExitKind) => {
     pending.current.delete(t.id);
     if (kind === "trash") {
@@ -62,7 +69,14 @@ export function useTaskRows({
         .then(({ undo }) => snack(SAY.tomorrow, undo), none);
     } else {
       // The hook has told the person and put the old fields back on a failure.
-      update.mutateAsync({ id: t.id, patch: { done: true } }).catch(none);
+      const alsoUndo = stepUndo.current.get(t.id);
+      stepUndo.current.delete(t.id);
+      update
+        .mutateAsync({ id: t.id, patch: { done: true } })
+        .then(({ undo }) => {
+          if (alsoUndo)
+            snack(`Done · “${t.title}”`, () => undo().then(alsoUndo));
+        }, none);
     }
   };
   const writeRef = useRef(write);
@@ -86,6 +100,12 @@ export function useTaskRows({
     [update]
   );
 
+  /** The last step was ticked: the task leaves as its own check would, then closes. */
+  const closeWithStep = (t: V3Task, undo: () => Promise<void>) => {
+    stepUndo.current.set(t.id, undo);
+    exit(t, "check");
+  };
+
   const actionsOf = useTaskActions(exit);
   const row = (t: V3Task): ReactNode => {
     const p = hideProject ? null : projectOf(t.projectId, projects);
@@ -95,6 +115,7 @@ export function useTaskRows({
         t={t}
         project={p ? { name: p.name, color: p.color } : null}
         hideProject={hideProject}
+        hideSteps={flow && !t.done && !!flowSteps(t)}
         late={isOverdue(t, today)}
         phase={X.phase[t.id]}
         out={!!X.out[t.id]}
@@ -104,6 +125,7 @@ export function useTaskRows({
         onCheck={(x) => (x.done ? reopen(x) : exit(x, "check"))}
         onOpen={openTask}
         onSwipe={(side) => exit(t, side)}
+        onStepClose={(_, undo) => closeWithStep(t, undo)}
       />
     );
   };

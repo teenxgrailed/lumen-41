@@ -163,3 +163,71 @@ describe("working hours", () => {
     expect(workHoursOf(undefined)).toBeNull();
   });
 });
+
+describe("per-day working hours", () => {
+  const week = [
+    { day: 0, on: false, ranges: [] },
+    {
+      day: 1,
+      on: true,
+      ranges: [
+        { start: "09:00", end: "13:00" },
+        { start: "14:00", end: "18:00" },
+      ],
+    },
+    { day: 2, on: true, ranges: [{ start: "10:00", end: "16:30" }] },
+    { day: 3, on: true, ranges: [{ start: "00:00", end: "24:00" }] },
+  ];
+  const row = {
+    workDays: "[1,2,3,4,5]",
+    workHourStart: 9,
+    workHourEnd: 17,
+    weekHours: week,
+  };
+
+  it("shades outside each day's own ranges and the lunch break", () => {
+    const hours = workHoursOf(row);
+    expect(offHours(1, hours)).toEqual([
+      [0, 9],
+      [13, 14],
+      [18, 24],
+    ]);
+    expect(offHours(2, hours)).toEqual([
+      [0, 10],
+      [16.5, 24],
+    ]);
+  });
+
+  it("shades days off fully, even ones the old fields call working days", () => {
+    const hours = workHoursOf(row);
+    expect(offHours(0, hours)).toEqual([[0, 24]]);
+    expect(offHours(4, hours)).toEqual([[0, 24]]);
+  });
+
+  it("shades nothing on a day worked round the clock", () => {
+    expect(offHours(3, workHoursOf(row))).toEqual([]);
+  });
+
+  it("falls back to the old fields when there are no windows", () => {
+    for (const weekHours of [undefined, null, [], [week[0]]]) {
+      const hours = workHoursOf({ ...row, weekHours });
+      expect(hours?.byDay).toBeUndefined();
+      expect(offHours(3, hours)).toEqual([
+        [0, 9],
+        [17, 24],
+      ]);
+      expect(offHours(6, hours)).toEqual([[0, 24]]);
+    }
+  });
+
+  it("ignores unusable ranges", () => {
+    const hours = workHoursOf({
+      ...row,
+      weekHours: [
+        { day: 1, on: true, ranges: [{ start: "xx", end: "10:00" }] },
+        { day: 2, on: true, ranges: [{ start: "12:00", end: "11:00" }] },
+      ],
+    });
+    expect(hours?.byDay).toBeUndefined();
+  });
+});

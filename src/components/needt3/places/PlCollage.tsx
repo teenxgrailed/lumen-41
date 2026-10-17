@@ -6,6 +6,8 @@ import { LuImage } from "react-icons/lu";
 
 import type { V3BoardPreview } from "@/lib/needt3/map";
 
+import { hostOf, hueOf } from "./board/logic";
+
 const HEX = /^#[0-9a-f]{3,8}$/i;
 
 /** What one tile is painted with (places.jsx `Collage`); a plain fill when it has no picture. */
@@ -14,6 +16,10 @@ export function tileFill(x: V3BoardPreview): string {
   if (picture)
     return `center / cover no-repeat url(${JSON.stringify(picture)})`;
   if (x.kind === "color" && x.color && HEX.test(x.color)) return x.color;
+  // The prototype tints a link with no picture by its site, like the tile on the board.
+  const host = x.kind === "link" ? hostOf(x.url) : null;
+  if (host)
+    return `color-mix(in oklch, oklch(0.68 0.11 ${hueOf(host)}) 34%, var(--surface-raised))`;
   return "var(--fill-2)";
 }
 

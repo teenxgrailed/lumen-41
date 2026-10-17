@@ -94,6 +94,40 @@
 .needt-v3 .tk-desk-title.is-crossed { text-decoration: line-through; }
 .needt-v3 .tk-entry { display: flex; align-items: center; gap: 6px; padding: 0 0 4px 26px; font: var(--type-ui); color: var(--text-tertiary); }
 
+/* Steps under a row: the next step, and the list that unfolds (TaskSteps).
+   The fold is grid rows, like a row's own; reduced motion drops it. */
+.needt-v3 .tk-count-btn { padding: 0 4px; margin: 0 -4px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; transition: background-color var(--transition-hover); }
+.needt-v3 .tk-count-btn:hover { background: var(--fill-3); }
+.needt-v3 .tk-count-chev { transition: transform 200ms var(--nx-ease); }
+.needt-v3 .tk-count-btn.is-open .tk-count-chev { transform: rotate(180deg); }
+.needt-v3 .tk-steps { padding: 0 0 4px 26px; }
+.needt-v3 .tk-steps.is-touch { padding: 2px 0 0; }
+.needt-v3 .tk-step-next { font: var(--type-ui); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .tk-steps-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 240ms var(--nx-ease), opacity 160ms ease; }
+.needt-v3 .tk-steps-fold.is-open { grid-template-rows: 1fr; opacity: 1; }
+.needt-v3 .tk-steps-list { list-style: none; margin: 0; padding: 0; min-height: 0; overflow: hidden; }
+.needt-v3 .tk-step { display: flex; align-items: center; gap: 10px; min-height: 28px; font: var(--type-ui); color: var(--text-secondary); }
+.needt-v3 .tk-steps.is-touch .tk-step { min-height: 34px; }
+.needt-v3 .tk-step-mark { flex: none; width: 20px; display: grid; place-items: center; color: var(--text-tertiary); }
+.needt-v3 .tk-step-fixed { width: 16px; height: 16px; border-radius: 5px; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--fill-5); }
+.needt-v3 .tk-step-fixed.is-on { background: var(--text-primary); color: var(--background); box-shadow: none; }
+.needt-v3 .tk-step-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 160ms ease; }
+.needt-v3 .tk-step.is-done .tk-step-text { color: var(--text-muted); text-decoration: line-through; }
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .tk-steps-fold, .needt-v3 .tk-count-chev { transition: none; }
+}
+
+/* Steps on a phone row (PkTaskRow): under the row, aligned with its title; the
+   row's hairline moves below them. The count carries the fold tap. */
+.needt-v3 .pk-rw:has(> .tk-steps) .pk-row { box-shadow: none; min-height: 58px; }
+.needt-v3 .pk-rw > .tk-steps.has-badge { padding: 0 2px 8px 50px; background: var(--v2p-ground); box-shadow: inset 0 -1px 0 var(--v2p-line); }
+.needt-v3 .pk-rw .tk-steps-head { margin-top: -8px; }
+.needt-v3 .c2-peek .tk-steps { padding: 6px 0 0; }
+.needt-v3 .tk-steps-head { display: flex; align-items: center; gap: 10px; min-height: 22px; }
+.needt-v3 .tk-steps-head .tk-step-next { flex: 1 1 auto; min-width: 0; }
+.needt-v3 .tk-steps-head .tk-count { flex: none; }
+.needt-v3 .tk-steps-head .tk-count-btn { min-height: 32px; padding: 0 8px; margin: 0 -8px 0 0; }
+
 /* Card · preview (Mail's "Make a task" result). */
 .needt-v3 .tk-prev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--fill-3); cursor: default; }
 .needt-v3 .tk-prev-title { font: 500 14px/18px var(--font-sans); color: var(--text-primary); text-decoration: none; }

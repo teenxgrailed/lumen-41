@@ -1,0 +1,3 @@
+- Editing a document on iPhone: the formatting bar now sits directly on the keyboard (it used to stay behind it), shows only while the page has focus, and the line you type is kept above it.
+- The block grip no longer appears over the words you are selecting: a long press in the left gutter opens it, and typing or selecting puts it away.
+- The darker strip under the bar in a document is gone: the bar no longer floats above a reserved dock gap.

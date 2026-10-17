@@ -13,7 +13,7 @@ import { type Root, createRoot } from "react-dom/client";
 
 import { HOLD_MS } from "@/lib/needt3/gesture";
 
-import { Wall } from "../Wall";
+import { BoardCover, Wall } from "../Wall";
 import { type PhoneBoardItem } from "../model";
 
 (
@@ -300,5 +300,42 @@ describe("hold to lift", () => {
     fire("pointerup", { x: 150, y: 50 });
     await wait(0);
     expect(onOrder).toHaveBeenCalledWith(["b", "a"]);
+  });
+});
+
+describe("BoardCover", () => {
+  it("gives a link cell the hue of its site, and fills four cells", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const cover = (url: string) =>
+      act(() => {
+        root.render(
+          h(BoardCover, {
+            items: [
+              {
+                kind: "link",
+                url,
+                thumbnailUrl: null,
+                color: null,
+                text: null,
+              },
+            ],
+          })
+        );
+      });
+    cover("https://www.figma.com/file/1");
+    const cells = host.querySelectorAll(".mbm-cover-1 > span");
+    expect(cells).toHaveLength(4);
+    const first = (host.querySelector(".mb-cell-3") as HTMLElement).style;
+    expect(first.getPropertyValue("--hue")).toMatch(/^var\(--hue-/);
+    cover("https://figma.com/other");
+    expect(
+      (host.querySelector(".mb-cell-3") as HTMLElement).style.getPropertyValue(
+        "--hue"
+      )
+    ).toBe(first.getPropertyValue("--hue"));
+    act(() => root.unmount());
+    host.remove();
   });
 });
