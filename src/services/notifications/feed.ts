@@ -155,95 +155,121 @@ async function activityCandidates(
     trashedAt: null,
     OR: [{ userId }, { accessGrants: { some: { userId } } }],
   };
-  const [nudges, cards, actions, comments, shares, feeds, imports] =
-    await Promise.all([
-      prisma.proactiveNudge.findMany({
-        where: { userId, createdAt: { gte: since } },
-        orderBy: { createdAt: "desc" },
-        take: FEED_SOURCE_CAP,
-      }),
-      prisma.notification.findMany({
-        where: { userId, dismissedAt: null, createdAt: { gte: since } },
-        orderBy: { createdAt: "desc" },
-        take: FEED_SOURCE_CAP,
-      }),
-      prisma.agentAction.findMany({
-        where: {
-          userId,
-          ...workspaceOnly(scope),
-          actor: { in: ["agent", "mcp"] },
-          status: "applied",
-          createdAt: { gte: since },
-        },
-        orderBy: { createdAt: "desc" },
-        take: FEED_SOURCE_CAP,
-        select: {
-          id: true,
-          op: true,
-          input: true,
-          actor: true,
-          createdAt: true,
-        },
-      }),
-      prisma.pageComment.findMany({
-        where: {
-          userId: { not: userId },
-          createdAt: { gte: since },
-          page: pageAccess,
-        },
-        orderBy: { createdAt: "desc" },
-        take: FEED_SOURCE_CAP,
-        select: {
-          id: true,
-          body: true,
-          createdAt: true,
-          pageId: true,
-          user: { select: { name: true } },
-          page: { select: { title: true } },
-        },
-      }),
-      prisma.pageAccessGrant.findMany({
-        where: {
-          userId,
-          grantedById: { not: null },
-          createdAt: { gte: since },
-          page: { trashedAt: null },
-          NOT: { grantedById: userId },
-        },
-        orderBy: { createdAt: "desc" },
-        take: FEED_SOURCE_CAP,
-        select: {
-          id: true,
-          pageId: true,
-          createdAt: true,
-          grantedBy: { select: { name: true } },
-          page: { select: { title: true } },
-        },
-      }),
-      prisma.calendarFeed.findMany({
-        where: { userId, enabled: true, error: { not: null } },
-        orderBy: { updatedAt: "desc" },
-        take: FEED_SOURCE_CAP,
-        select: { id: true, name: true, error: true, updatedAt: true },
-      }),
-      prisma.importRun.findMany({
-        where: {
-          userId,
-          ...workspaceOnly(scope),
-          status: { in: ["done", "failed"] },
-          finishedAt: { gte: since },
-        },
-        orderBy: { finishedAt: "desc" },
-        take: FEED_SOURCE_CAP,
-        select: {
-          id: true,
-          source: true,
-          status: true,
-          counts: true,
-          finishedAt: true,
-        },
-      }),
-    ]);
+  const [
+    nudges,
+    cards,
+    actions,
+    comments,
+    shares,
+    boardShares,
+    feeds,
+    imports,
+  ] = await Promise.all([
+    prisma.proactiveNudge.findMany({
+      where: { userId, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+    }),
+    prisma.notification.findMany({
+      where: { userId, dismissedAt: null, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+    }),
+    prisma.agentAction.findMany({
+      where: {
+        userId,
+        ...workspaceOnly(scope),
+        actor: { in: ["agent", "mcp"] },
+        status: "applied",
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        op: true,
+        input: true,
+        actor: true,
+        createdAt: true,
+      },
+    }),
+    prisma.pageComment.findMany({
+      where: {
+        userId: { not: userId },
+        createdAt: { gte: since },
+        page: pageAccess,
+      },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        pageId: true,
+        user: { select: { name: true } },
+        page: { select: { title: true } },
+      },
+    }),
+    prisma.pageAccessGrant.findMany({
+      where: {
+        userId,
+        grantedById: { not: null },
+        createdAt: { gte: since },
+        page: { trashedAt: null },
+        NOT: { grantedById: userId },
+      },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        pageId: true,
+        createdAt: true,
+        grantedBy: { select: { name: true } },
+        page: { select: { title: true } },
+      },
+    }),
+    prisma.moodboardAccessGrant.findMany({
+      where: {
+        userId,
+        grantedById: { not: null },
+        createdAt: { gte: since },
+        moodboard: { trashedAt: null, archivedAt: null },
+        NOT: { grantedById: userId },
+      },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        moodboardId: true,
+        createdAt: true,
+        grantedBy: { select: { name: true } },
+        moodboard: { select: { title: true } },
+      },
+    }),
+    prisma.calendarFeed.findMany({
+      where: { userId, enabled: true, error: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: { id: true, name: true, error: true, updatedAt: true },
+    }),
+    prisma.importRun.findMany({
+      where: {
+        userId,
+        ...workspaceOnly(scope),
+        status: { in: ["done", "failed"] },
+        finishedAt: { gte: since },
+      },
+      orderBy: { finishedAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        source: true,
+        status: true,
+        counts: true,
+        finishedAt: true,
+      },
+    }),
+  ]);
 
   const out: Candidate[] = [];
   for (const n of nudges) {
@@ -308,6 +334,19 @@ async function activityCandidates(
       body: null,
       at: s.createdAt.toISOString(),
       link: `/pages/${encodeURIComponent(s.pageId)}`,
+    });
+  }
+  for (const s of boardShares) {
+    const who = s.grantedBy?.name ?? "Someone";
+    out.push({
+      key: `boardshare:${s.id}`,
+      group: "activity",
+      kind: "share",
+      actor: who,
+      title: `${who} shared ${s.moodboard.title} with you`,
+      body: null,
+      at: s.createdAt.toISOString(),
+      link: `/moodboards/${encodeURIComponent(s.moodboardId)}`,
     });
   }
   for (const f of feeds) {
