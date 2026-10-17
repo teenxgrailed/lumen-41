@@ -26,6 +26,8 @@ const LOG_SOURCE = "WaitlistAPI";
 const LANDING_ORIGINS = new Set(["https://needt.app", "https://www.needt.app"]);
 const DEV_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const MAX_BODY_BYTES = 2_048;
+const APP_TARGETS = ["mac", "iphone"] as const;
+const appSchema = z.enum(APP_TARGETS);
 
 const waitlistSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
@@ -33,6 +35,8 @@ const waitlistSchema = z.object({
   ref: z.string().trim().max(64).optional(),
   /** Where the sign-up came from. Accepted for the contract; not stored. */
   source: z.string().trim().max(64).optional(),
+  /** Download form: which app the address wants. Present means AppWaitlist. */
+  app: z.unknown().optional(),
   /** Honeypot. People leave it empty; a filled one gets a quiet success. */
   company: z.string().max(256).optional(),
 });
@@ -107,6 +111,42 @@ async function addToWaitlist(email: string, ref: string | null) {
   throw new Error("Could not allocate a waitlist referral code");
 }
 
+async function addToAppWaitlist(
+  request: NextRequest,
+  origin: string | null,
+  email: string,
+  app: (typeof APP_TARGETS)[number],
+  source: string | undefined
+) {
+  const limited = await enforceRateLimits(
+    [ipRule(request, "waitlist-app:ip", 10, 60)],
+    { route: request.nextUrl.pathname }
+  );
+  if (limited) {
+    for (const [key, value] of Object.entries(corsHeaders(origin))) {
+      limited.headers.set(key, value);
+    }
+    return limited;
+  }
+  try {
+    await prisma.appWaitlist.create({
+      data: { email, app, source: source || "download" },
+    });
+    logger.info("App waitlist entry added", { app }, LOG_SOURCE);
+  } catch (error) {
+    // A repeat of (email, app) is a success with no second row.
+    if (!isUniqueViolationOn(error, "email")) {
+      logger.error(
+        "Failed to add an app waitlist entry",
+        { error: error instanceof Error ? error.message : "Unknown error" },
+        LOG_SOURCE
+      );
+      return json({ error: "unavailable" }, 500, origin);
+    }
+  }
+  return json({ ok: true }, 200, origin);
+}
+
 export async function POST(request: NextRequest) {
   const hasOrigin = request.headers.has("origin");
   const origin = allowedOrigin(request);
@@ -148,9 +188,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { email, ref, company } = parsed.data;
+  const { email, ref, company, app, source } = parsed.data;
   if (company && company.trim() !== "") {
     return json({ ok: true }, 200, origin);
+  }
+
+  if (app !== undefined) {
+    const target = appSchema.safeParse(app);
+    if (!target.success) return json({ error: "invalid_app" }, 400, origin);
+    return addToAppWaitlist(request, origin, email, target.data, source);
   }
 
   const limited = await enforceRateLimits(

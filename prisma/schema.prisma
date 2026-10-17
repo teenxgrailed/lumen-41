@@ -2464,6 +2464,18 @@ model PendingWaitlist {
   @@index([email])
 }
 
+/// Download-form sign-ups from the landing page: one row per (email, app).
+model AppWaitlist {
+  id        String   @id @default(cuid())
+  email     String
+  app       String // mac | iphone
+  source    String   @default("download")
+  createdAt DateTime @default(now())
+
+  @@unique([email, app])
+  @@index([createdAt])
+}
+
 model Waitlist {
   id                        String    @id @default(cuid())
   email                     String    @unique

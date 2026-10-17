@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = "needt-static-v5";
+const STATIC_CACHE_NAME = "needt-static-v6";
 const PRIVATE_CACHE_PREFIX = "needt-private-v5:";
 const DB_NAME = "needt-offline-v2";
 const DB_VERSION = 2;
@@ -7,6 +7,10 @@ const STORE_QUEUE = "mutationQueue";
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
 const STATIC_URLS = ["/manifest.webmanifest", "/icons/icon-192.png"];
+// What a share sheet handed over (Web Share Target): kept here, in the private
+// cache family so sign-out clears it, until the Share page has saved it.
+const SHARE_CACHE_NAME = `${PRIVATE_CACHE_PREFIX}share`;
+const SHARE_PATH = "/api/share-target";
 const SNAPSHOT_APIS = ["/api/tasks", "/api/connect/schedule"];
 const OFFLINE_MUTATIONS = [
   {
@@ -55,6 +59,11 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (request.method === "POST" && url.pathname === SHARE_PATH) {
+    event.respondWith(receiveShare(request));
+    return;
+  }
 
   if (request.method === "GET" && request.mode === "navigate") {
     event.respondWith(networkFirstPrivate(request));
@@ -209,7 +218,9 @@ async function cacheFirstStatic(request) {
 async function networkFirstPrivate(request) {
   const cacheName = privateCacheName("pages");
   try {
-    const response = await fetch(request);
+    // "no-cache": the HTML of a page is never taken from the browser's own
+    // HTTP cache without asking the server; the copy below is only for offline.
+    const response = await fetch(request, { cache: "no-cache" });
     if (response.ok && cacheName) {
       const cache = await caches.open(cacheName);
       await cache.put(request, response.clone());
@@ -228,10 +239,53 @@ async function networkFirstPrivate(request) {
   }
 }
 
+// A share arrives as a POST with the title, text, link and files. The service
+// worker keeps the files (a redirect cannot carry them) and sends the person
+// to the Share page, a normal GET that signs in first when it has to.
+async function receiveShare(request) {
+  const id = crypto.randomUUID();
+  const params = new URLSearchParams({ stash: id });
+  try {
+    const form = await request.formData();
+    for (const key of ["title", "text", "url"]) {
+      const value = form.get(key);
+      if (typeof value === "string" && value) {
+        params.set(key, value.slice(0, 2000));
+      }
+    }
+    const files = form
+      .getAll("files")
+      .filter((file) => typeof file !== "string" && file.size > 0);
+    const cache = await caches.open(SHARE_CACHE_NAME);
+    await Promise.all(
+      files.slice(0, 10).map((file, index) =>
+        cache.put(
+          `/__share/${id}/${index}`,
+          new Response(file, {
+            headers: {
+              "content-type": file.type || "application/octet-stream",
+              "x-needt-name": encodeURIComponent(file.name || `file-${index}`),
+            },
+          })
+        )
+      )
+    );
+    if (files.length) params.set("files", String(Math.min(files.length, 10)));
+  } catch {
+    params.delete("stash");
+  }
+  return Response.redirect(
+    new URL(`/share?${params.toString()}`, self.location.origin).href,
+    303
+  );
+}
+
 async function snapshotFirst(request) {
   const key = scopedKey(request.url);
   try {
-    const response = await fetch(request);
+    // today's tasks come from the server on every request; the snapshot is
+    // read only when the network is gone
+    const response = await fetch(request, { cache: "no-store" });
     if (response.ok && key) {
       const body = await response.clone().text();
       await putSnapshot(key, body, response.headers.get("content-type"));
