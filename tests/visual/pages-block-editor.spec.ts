@@ -131,8 +131,10 @@ test("Page blocks reconcile by stable ID and slash commands create canonical blo
   // A callout is a real block: it goes in empty, with the caret inside.
   await page.keyboard.type("Important context");
   await expect(document).toContainText("Important context");
-  await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible({
+  // The top bar's one sync status: it says it is syncing, then that it is saved.
+  const sync = page.locator("[data-sync-status]");
+  await expect(sync).toHaveAttribute("data-sync-status", "syncing");
+  await expect(sync).toHaveAttribute("data-sync-status", "saved", {
     timeout: 10_000,
   });
 
