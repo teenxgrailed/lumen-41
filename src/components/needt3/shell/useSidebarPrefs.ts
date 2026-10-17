@@ -18,19 +18,25 @@ import { type SidebarPrefs, prefsFromSettings } from "./places";
  */
 export function useSidebarPrefs(): [
   SidebarPrefs,
-  (next: (prefs: SidebarPrefs) => SidebarPrefs) => Promise<unknown>,
+  (
+    next: (prefs: SidebarPrefs) => SidebarPrefs,
+    opts?: { rethrow?: boolean }
+  ) => Promise<unknown>,
 ] {
   const qc = useQueryClient();
   const settings = useSettings();
   const setPref = useSetPref();
   const prefs = prefsFromSettings(settings.data?.prefs);
-  const update = (next: (p: SidebarPrefs) => SidebarPrefs) => {
+  const update = (
+    next: (p: SidebarPrefs) => SidebarPrefs,
+    opts?: { rethrow?: boolean }
+  ) => {
     const cur = qc.getQueryData<V3Settings>(qk.settings());
     // prefs is written whole: never write before the stored map is known.
     if (!cur) return Promise.resolve(undefined);
-    return setPref("sidebar", next(prefsFromSettings(cur.prefs))).catch(
-      () => undefined
-    );
+    const saved = setPref("sidebar", next(prefsFromSettings(cur.prefs)));
+    // A drag reorder wants to hear a rejection (it puts the old order back).
+    return opts?.rethrow ? saved : saved.catch(() => undefined);
   };
   return [prefs, update];
 }

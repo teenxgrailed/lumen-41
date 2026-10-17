@@ -9,6 +9,7 @@ import {
   inTab,
   initials,
   madeTasks,
+  messageFromSearch,
   providerLabel,
   providerLink,
   tabCounts,
@@ -243,5 +244,18 @@ describe("headerAccounts", () => {
       { id: "a4", provider: "IMAP", address: "me@host.ch", status: "ACTIVE" },
     ]);
     expect(chips[0].label).toBe("me@host.ch");
+  });
+});
+
+describe("messageFromSearch", () => {
+  const list = [{ id: "m1" }, { id: "m2" }];
+  it("returns the id of a message that is in the list", () => {
+    expect(messageFromSearch("?message=m2", list)).toBe("m2");
+    expect(messageFromSearch("?x=1&message=m1", list)).toBe("m1");
+  });
+  it("is null with no param or a message that is not there", () => {
+    expect(messageFromSearch("", list)).toBeNull();
+    expect(messageFromSearch("?message=zz", list)).toBeNull();
+    expect(messageFromSearch("?message=m1", [])).toBeNull();
   });
 });

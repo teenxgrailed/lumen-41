@@ -52,6 +52,19 @@ const task = {
   priority: "high",
   source: null,
   trashedAt: null,
+  labels: [{ id: "l1", name: "Errand", color: null }],
+  attachments: [
+    {
+      id: "f1",
+      name: "invoice.pdf",
+      mimeType: "application/pdf",
+      size: 2_500_000,
+      url: "/api/tasks/t1/attachments/f1",
+    },
+  ],
+  repeat: "FREQ=WEEKLY",
+  scheduleId: null,
+  syncedFrom: null,
   parts: [
     { id: "p1", title: "Find the number", done: true },
     { id: "p2", title: "Ring", done: false },
@@ -83,14 +96,43 @@ describe("PkTaskSheet", () => {
   });
 
   it("draws the facts, the parts count and the wait", () => {
-    for (const f of ["date", "time", "duration", "project", "priority"])
+    for (const f of [
+      "date",
+      "time",
+      "duration",
+      "project",
+      "priority",
+      "labels",
+      "repeat",
+    ])
       expect(out).toContain(`data-pov-fact="${f}"`);
-    expect(out).not.toContain('data-pov-fact="labels"');
     expect(out).toContain("1 of 2");
     expect(out).toContain("Waiting on");
     expect(out).toContain("Anna for the invoice");
     expect(out).toContain("Delete task");
     expect(out).toContain("Start focus");
+  });
+
+  it("shows the labels, the repeat and the files on the task", () => {
+    expect(out).toContain("Errand");
+    expect(out).toContain("Every week");
+    expect(out).toContain('data-pov-attachments=""');
+    expect(out).toContain("invoice.pdf");
+    expect(out).toContain("2.4 MB");
+    expect(out).toContain('href="/api/tasks/t1/attachments/f1"');
+    expect(out).toContain("data-pov-attach");
+  });
+
+  it("keeps the title and the repeat read-only for a task synced from Outlook", () => {
+    const synced = html(
+      h(PkTaskSheet, {
+        task: { ...task, syncedFrom: "outlook" } as V3Task,
+        open: true,
+        onClose: none,
+      })
+    );
+    expect(synced).toMatch(/<textarea[^>]*id="pov-title-t1"[^>]*readonly/i);
+    expect(out).not.toMatch(/<textarea[^>]*readonly/i);
   });
 
   it("nothing is mounted until it has been opened", () => {

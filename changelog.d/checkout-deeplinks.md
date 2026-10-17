@@ -1,0 +1,1 @@
+- Buy links from the landing page (`/settings?section=billing&checkout=pro-year|pro-month|lifetime`) open Plan & billing and start that checkout; signing in or signing up on the way brings you back to the same link.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { LuChevronDown } from "react-icons/lu";
 
@@ -10,31 +10,23 @@ import {
   useSettings,
   useUpdateSettings,
 } from "@/lib/needt3/hooks/settings";
+import { type WeekHours, legacyColumns, weekIsValid } from "@/lib/work-week";
 
 import { zoneOptions } from "../../settings/DaySection";
 import { useMark } from "../../settings/SettingsContext";
-import {
-  hourLabel,
-  hourOf,
-  minutes,
-  parseWorkDays,
-  planningSummary,
-  plansWeekends,
-  withWeekends,
-  workHourChoices,
-  workHoursValid,
-} from "../../settings/derive";
+import { minutes, planningSummary, plansWeekends } from "../../settings/derive";
 import { pkCx } from "../kit";
-import { VIEW_OPTIONS, WEEK_OPTIONS } from "./model";
+import { WeekRows } from "./WeekRows";
+import { CLOCK_OPTIONS, VIEW_OPTIONS, WEEK_OPTIONS } from "./model";
 import { PsGroup, PsPick, PsRow, PsSeg, PsSwitch } from "./parts";
 
 const noop = () => undefined;
 
 /**
  * Your day. The desktop's rules, unchanged:
- *   - working hours are written only once the schedule has loaded (the
- *     weekday list is rebuilt from what was read, so an unloaded write would
- *     drop every weekday), and only when start is before end;
+ *   - working hours are per weekday (a switch and up to two ranges each) and
+ *     are written only once the schedule has loaded, as the whole week, so a
+ *     change to one day leaves the others as they were;
  *   - week start, zone and the calendar's view are `UserSettings` columns, off
  *     until settings load;
  *   - Hide done is the calendar's own `prefs.calHideDone`, merged into the
@@ -54,8 +46,8 @@ export function DayPage() {
   const [open, setOpen] = useState(false);
   const s = settings.data;
   const sch = schedule.data;
-  const days = useMemo(() => parseWorkDays(sch?.workDays), [sch?.workDays]);
-  const weekends = plansWeekends(days);
+  const week = sch?.weekHours ?? [];
+  const weekends = plansWeekends(week.filter((e) => e.on).map((e) => e.day));
 
   const save = (patch: Parameters<typeof update.mutateAsync>[0]) =>
     void update.mutateAsync(patch).then(mark).catch(noop);
@@ -65,12 +57,10 @@ export function DayPage() {
     if (!sch) return;
     void setSchedule.mutateAsync(patch).then(mark).catch(noop);
   };
-  const saveHours = (start: number, end: number) => {
-    if (!workHoursValid(start, end)) return;
-    saveSchedule({ workHourStart: start, workHourEnd: end });
+  const saveWeek = (next: WeekHours) => {
+    if (!weekIsValid(next)) return;
+    saveSchedule({ weekHours: next, ...legacyColumns(next) });
   };
-  const start = sch?.workHourStart ?? 9;
-  const end = sch?.workHourEnd ?? 17;
   const hideDone = s?.prefs.calHideDone === true;
 
   return (
@@ -79,28 +69,7 @@ export function DayPage() {
         title="Working hours"
         hint="Needt only plans work between these times."
       >
-        <PsPick
-          title="Day starts"
-          value={hourLabel(start)}
-          options={workHourChoices("start", sch?.workHourStart, end)}
-          disabled={!sch}
-          onChange={(v) => {
-            const h = hourOf(v);
-            if (h !== null) saveHours(h, end);
-          }}
-          data={{ "data-ps-pick": "start" }}
-        />
-        <PsPick
-          title="Day ends"
-          value={hourLabel(end)}
-          options={workHourChoices("end", sch?.workHourEnd, start)}
-          disabled={!sch}
-          onChange={(v) => {
-            const h = hourOf(v);
-            if (h !== null) saveHours(start, h);
-          }}
-          data={{ "data-ps-pick": "end" }}
-        />
+        <WeekRows week={week} disabled={!sch} onChange={saveWeek} />
         <PsRow
           title="Week starts"
           control={
@@ -134,6 +103,18 @@ export function DayPage() {
               options={VIEW_OPTIONS}
               disabled={!s}
               onChange={(v) => save({ defaultView: v })}
+            />
+          }
+        />
+        <PsRow
+          title="Time format"
+          control={
+            <PsSeg
+              label="Time format"
+              value={s?.timeFormat === "12h" ? "12h" : "24h"}
+              options={CLOCK_OPTIONS}
+              disabled={!s}
+              onChange={(v) => save({ timeFormat: v })}
             />
           }
         />
@@ -184,22 +165,6 @@ export function DayPage() {
               options={minutes([0, 5, 10, 15])}
               disabled={!sch}
               onChange={(v) => saveSchedule({ bufferMinutes: Number(v) })}
-            />
-            <PsRow
-              title="Plan on weekends"
-              desc="Off keeps Saturday and Sunday empty."
-              control={
-                <PsSwitch
-                  label="Plan on weekends"
-                  on={weekends}
-                  disabled={!sch}
-                  onChange={(on) =>
-                    saveSchedule({
-                      workDays: JSON.stringify(withWeekends(days, on)),
-                    })
-                  }
-                />
-              }
             />
           </>
         ) : null}

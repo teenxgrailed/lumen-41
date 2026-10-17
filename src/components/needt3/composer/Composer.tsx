@@ -25,6 +25,8 @@ import {
   useState,
 } from "react";
 
+import { useRouter } from "next/navigation";
+
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   LuAlignLeft,
@@ -41,6 +43,7 @@ import {
   LuFolder,
   LuHourglass,
   LuListPlus,
+  LuMaximize2,
   LuRepeat,
   LuSun,
   LuSunrise,
@@ -464,6 +467,7 @@ export function Composer({ open, onClose }: ComposerProps) {
   const input = useRef<HTMLInputElement>(null);
   const foot = useRef<HTMLDivElement>(null);
 
+  const router = useRouter();
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
   const parts = useTaskParts();
@@ -516,7 +520,12 @@ export function Composer({ open, onClose }: ComposerProps) {
 
   const facetOf = (k: PickKind): ComposerFacet | null => p[k];
 
-  async function create(parse: ComposerParse, as: CoKind, said: string | null) {
+  /** Makes what the line said; for a task, its id (so it can be opened). */
+  async function create(
+    parse: ComposerParse,
+    as: CoKind,
+    said: string | null
+  ): Promise<string | null> {
     const draft = composerDraft(parse, newDate(), as, said);
     const undoable = (msg: string, undo: () => Promise<void>) =>
       notify.success(msg, {
@@ -552,18 +561,33 @@ export function Composer({ open, onClose }: ComposerProps) {
           } catch {
             // The parts hook has told the person; the task stays.
           }
+          return result.id;
         }
       }
     } catch {
       // The hook has already told the person and put the cache back.
     }
+    return null;
   }
 
-  function commit() {
+  /** Enter adds and stays; ⌘↵ (or the expand button) adds a task and opens it in full. */
+  function commit(openAfter = false) {
     const line = text.trim();
     if (!line) return;
     const parse = composerParse(line, newDate(), projects);
-    void create(parse, type ?? parse.kind, note);
+    const as = type ?? parse.kind;
+    const made = create(parse, as, note);
+    if (openAfter && as === "task") {
+      void made.then((id) => {
+        if (id) router.push(`/tasks?task=${encodeURIComponent(id)}`);
+      });
+      setText("");
+      setType(null);
+      setNote(null);
+      setMenu(null);
+      onClose();
+      return;
+    }
     /* What was made lifts off the sheet and fades upward; the sheet stays.
        Under reduced motion nothing flies. */
     if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
@@ -730,7 +754,7 @@ export function Composer({ open, onClose }: ComposerProps) {
                     if (e.key === "Enter" && !e.shiftKey) {
                       if (e.nativeEvent.isComposing) return;
                       e.preventDefault();
-                      commit();
+                      commit(e.metaKey || e.ctrlKey);
                     }
                   }}
                 />
@@ -835,6 +859,19 @@ export function Composer({ open, onClose }: ComposerProps) {
                 </button>
               </Tooltip>
               <span className="shell-composer-row-2">
+                {kind === "task" ? (
+                  <Tooltip label="Open as a full task · ⌘↵" side="top">
+                    <button
+                      type="button"
+                      className="cmp-btn cmp-icon"
+                      aria-label="Open as a full task"
+                      disabled={!text.trim()}
+                      onClick={() => commit(true)}
+                    >
+                      <LuMaximize2 size={15} />
+                    </button>
+                  </Tooltip>
+                ) : null}
                 <button
                   type="button"
                   className="nx-btn nx-btn-text"
@@ -846,7 +883,7 @@ export function Composer({ open, onClose }: ComposerProps) {
                   type="button"
                   className="nx-btn nx-btn-primary cmp-go"
                   disabled={!text.trim()}
-                  onClick={commit}
+                  onClick={() => commit()}
                 >
                   {kind === "event"
                     ? T.add_event

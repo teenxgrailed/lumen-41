@@ -164,3 +164,30 @@ export async function disconnectMailbox(id: string): Promise<Outcome> {
     return { ok: false, error: message(error, "Could not disconnect") };
   }
 }
+
+/**
+ * "Sync now" for one account: the worker's sync job is queued and the answer
+ * is how many jobs went in (`queued`), not whether they finished. A calendar
+ * account queues each of its calendars (`POST /api/accounts/:id/sync`); a
+ * mailbox queues its mail sync (`POST /api/mail/sync`).
+ */
+export async function syncAccountNow(
+  kind: "calendar" | "mail",
+  accountId: string
+): Promise<{ ok: true; queued: number } | { ok: false; error: string }> {
+  try {
+    const r =
+      kind === "calendar"
+        ? await sendJson<{ queued: number }>(
+            `/api/accounts/${accountId}/sync`,
+            "POST",
+            {}
+          )
+        : await sendJson<{ queued: number }>("/api/mail/sync", "POST", {
+            accountId,
+          });
+    return { ok: true, queued: r.queued };
+  } catch (error) {
+    return { ok: false, error: message(error, "Could not start the sync") };
+  }
+}

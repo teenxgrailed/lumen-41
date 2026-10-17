@@ -8,6 +8,7 @@ import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { isOverdue } from "../../work/model";
 import { PkTaskRow, usePkExit } from "../kit";
+import { useTaskActions, useTrashWithUndo } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { isAhead, projectOf } from "./model";
@@ -15,11 +16,12 @@ import { SAY } from "./strings";
 
 const none = () => undefined;
 
-type ExitKind = "check" | "done" | "later";
+type ExitKind = "check" | "done" | "later" | "trash";
 
 /**
  * The rows both screens draw, with their exits (usePtkRows): swipe right or
- * the check = done, swipe left = tomorrow, a tap opens the task sheet.
+ * the check = done, swipe left shows Schedule and Delete, a tap opens the task
+ * sheet.
  *
  * A row leaves in steps (`usePkExit`: the check shows or the row is thrown off
  * the edge, then it folds shut) and only then is the change written, through
@@ -42,6 +44,7 @@ export function useTaskRows({
   blocked?: ReadonlySet<string>;
 }) {
   const update = useUpdateTask();
+  const trash = useTrashWithUndo();
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   // Rows whose exit is playing and whose write has not gone out yet. The exit
@@ -51,7 +54,9 @@ export function useTaskRows({
   const pending = useRef(new Map<string, { t: V3Task; kind: ExitKind }>());
   const write = (t: V3Task, kind: ExitKind) => {
     pending.current.delete(t.id);
-    if (kind === "later") {
+    if (kind === "trash") {
+      void trash(t);
+    } else if (kind === "later") {
       update
         .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
         .then(({ undo }) => snack(SAY.tomorrow, undo), none);
@@ -81,6 +86,7 @@ export function useTaskRows({
     [update]
   );
 
+  const actionsOf = useTaskActions(exit);
   const row = (t: V3Task): ReactNode => {
     const p = hideProject ? null : projectOf(t.projectId, projects);
     return (
@@ -94,6 +100,7 @@ export function useTaskRows({
         out={!!X.out[t.id]}
         canDone={!t.done}
         canLater={!t.done && !isAhead(t, today) && !blocked?.has(t.id)}
+        actions={t.done ? undefined : actionsOf(t)}
         onCheck={(x) => (x.done ? reopen(x) : exit(x, "check"))}
         onOpen={openTask}
         onSwipe={(side) => exit(t, side)}

@@ -18,6 +18,12 @@ import { enqueueImportRun } from "@/lib/queue/enqueue";
  * person owns a personal workspace and is only a VIEWER of "shared-ws".
  */
 
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: jest.fn(() => ({})),
+  ipRule: jest.fn(() => ({})),
+  enforceRateLimits: jest.fn().mockResolvedValue(null),
+  enforceByteBudget: jest.fn().mockResolvedValue(null),
+}));
 jest.mock("next-auth/jwt", () => ({
   getToken: jest.fn().mockResolvedValue({ sub: "user-1" }),
 }));

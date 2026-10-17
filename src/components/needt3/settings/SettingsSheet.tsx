@@ -36,6 +36,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import { openPaywall } from "../paywall";
 import type { MenuPlaceId } from "../phone/menu/places";
 import { PhoneSettings } from "../phone/settings/PhoneSettings";
 import { usePhoneUi } from "../root/phone-ui-context";
@@ -107,9 +108,7 @@ function Body({ section }: { section: SectionId }) {
       return <GeneralSection />;
     case "appearance":
       return (
-        <AppearanceSection
-          onUpgrade={() => useNeedt3Ui.getState().openSettings("plan")}
-        />
+        <AppearanceSection onUpgrade={(feature) => openPaywall(feature)} />
       );
     case "day":
       return <DaySection />;

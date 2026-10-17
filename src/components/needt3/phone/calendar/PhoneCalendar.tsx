@@ -9,8 +9,10 @@ import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings } from "@/lib/needt3/hooks/settings";
+import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
+import { showsTask } from "@/lib/needt3/task-view";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import {
@@ -99,7 +101,11 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     () => new Set((calendars ?? []).map((c) => c.id)),
     [calendars]
   );
-  const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const taskView = useTaskView();
+  const tasks = useMemo(
+    () => (tasksQuery.data ?? []).filter((t) => showsTask(t, taskView, today)),
+    [tasksQuery.data, taskView, today]
+  );
   const { timed, loose } = useMemo(
     () =>
       calendarItems({
@@ -130,7 +136,11 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
   const step = (k: -1 | 1) =>
     setPicked(view === "month" ? stepMonth(day, k) : addDays(day, 7 * k));
-  const swipe = useSwipeStep(step);
+  // the arrows page a week; a swipe over the day moves to the next or the
+  // previous day (a month in the month grid), as Notion Calendar does
+  const swipe = useSwipeStep((k) =>
+    setPicked(view === "month" ? stepMonth(day, k) : addDays(day, k))
+  );
 
   const tap = (b: CalItem) => {
     if (!b.event) {

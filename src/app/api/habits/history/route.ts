@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     {
       now: now.toISOString(),
+      // The day the strips end on, in the zone the server wrote them in.
+      today: window[window.length - 1],
       days,
       habits: rows.map((row) => {
         const kept = new Set(row.completions.map((c) => habitDateKey(c.date)));

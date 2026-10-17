@@ -28,6 +28,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { openPaywall } from "../paywall";
 import { planInfo } from "../settings/derive";
 import { Avatar, initialsOf } from "./Avatar";
 
@@ -316,8 +317,7 @@ export function AccountMenu() {
                     role="menuitem"
                     data-acct-nav=""
                     className="nx-btn nx-btn-primary nx-btn-sm sb-acct-plan-btn"
-                    //todo: open the paywall sheet (S1 paywall) once it exists.
-                    onClick={run(() => openSettings("plan"))}
+                    onClick={run(() => openPaywall())}
                   >
                     <LuSparkles size={14} />
                     Upgrade

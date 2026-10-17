@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
 
+import { AdminPage } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 
 interface OperationsSnapshot {
@@ -75,7 +76,7 @@ function ServicesSection({ services }: { services: ServiceReadiness[] }) {
   };
 
   return (
-    <section className="needt-panel-depth rounded-xl border border-[var(--border-subtle)] p-4">
+    <section className="admin-card p-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-[13px] font-medium">Services</h2>
         <Button
@@ -151,24 +152,17 @@ export default function OperationsPage() {
   }, []);
 
   return (
-    <main className="needt-page-depth min-h-dvh px-5 py-8 sm:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
-              Admin
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold">Operations</h1>
-          </div>
-          <Button variant="outline" onClick={() => void load()}>
-            Refresh
-          </Button>
-        </header>
-        {error && (
-          <div className="needt-panel-depth rounded-xl border border-[var(--border-subtle)] p-4 text-sm">
-            {error}
-          </div>
-        )}
+    <AdminPage
+      title="Operations"
+      lead="Queues, cron jobs and service readiness. Refreshes every 15 seconds."
+      actions={
+        <Button variant="outline" onClick={() => void load()}>
+          Refresh
+        </Button>
+      }
+    >
+      <div className="admin-stack">
+        {error && <div className="admin-card p-4 text-sm">{error}</div>}
         {snapshot && (
           <>
             {snapshot.services && (
@@ -179,10 +173,7 @@ export default function OperationsPage() {
                 const warning =
                   queue.waiting > 100 || queue.oldestWaitingAgeMs > 120_000;
                 return (
-                  <article
-                    key={queue.name}
-                    className="needt-panel-depth rounded-xl border border-[var(--border-subtle)] p-4"
-                  >
+                  <article key={queue.name} className="admin-card p-4">
                     <div className="flex items-center justify-between">
                       <h2 className="font-medium">{queue.name}</h2>
                       {warning ? (
@@ -213,7 +204,7 @@ export default function OperationsPage() {
                 );
               })}
             </section>
-            <section className="needt-panel-depth rounded-xl border border-[var(--border-subtle)] p-4">
+            <section className="admin-card p-4">
               <h2 className="flex items-center gap-2 font-medium">
                 <Activity className="h-4 w-4" /> Cron health
               </h2>
@@ -236,6 +227,6 @@ export default function OperationsPage() {
           </>
         )}
       </div>
-    </main>
+    </AdminPage>
   );
 }

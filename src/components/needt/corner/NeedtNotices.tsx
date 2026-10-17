@@ -1,6 +1,9 @@
 "use client";
 
-/* THE PRODUCT'S NOTIFICATIONS, in the corner the design speaks from.
+/* THE PRODUCT'S NOTIFICATIONS. Two surfaces: the stack in the corner the
+ * design speaks from carries what the product says on its own (`island`
+ * notices); the action toasts, a compact pill at the bottom centre, carry
+ * everything you did and its Undo (`toast`, the default).
  *
  * `NeedtCorner` composes the stack with `ChatCorner`, the design's chat pill.
  * The application already has a companion and a chat overlay of its own in
@@ -15,6 +18,7 @@
 import * as React from "react";
 
 import { useResolvedTheme } from "../use-resolved-theme";
+import { ActionToasts } from "./ActionToasts";
 import { NotificationStack } from "./NotificationStack";
 import { setNoticeSink } from "./bridge";
 import { NeedtNoticeProvider, useNotify } from "./notices";
@@ -23,8 +27,8 @@ import { NeedtNoticeProvider, useNotify } from "./notices";
 function Sink() {
   const api = useNotify();
   React.useEffect(() => {
-    setNoticeSink(api);
-    return () => setNoticeSink(null);
+    setNoticeSink(api, "island");
+    return () => setNoticeSink(null, "island");
   }, [api]);
   return null;
 }
@@ -62,6 +66,8 @@ export function NeedtNotices() {
         }}
       >
         <NotificationStack />
+        {/* Fixed to the viewport, not to the strip: the toasts are centred. */}
+        <ActionToasts />
       </div>
     </NeedtNoticeProvider>
   );

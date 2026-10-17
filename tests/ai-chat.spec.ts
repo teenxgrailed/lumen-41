@@ -54,7 +54,7 @@ async function mockChat(page: Page) {
 
   await page.addInitScript(() => {
     localStorage.setItem(
-      "fluid-calendar-setup-storage",
+      "needt-setup-storage",
       JSON.stringify({
         state: {
           hasChecked: true,
