@@ -1,3 +1,4 @@
+import { aiHostKind } from "./endpoint";
 import { parseTasksFallback } from "./fallback-parser";
 import { extractProviderText, parseStrictJson } from "./json";
 import { parsePrompt, schedulePrompt } from "./prompts";
@@ -447,7 +448,8 @@ export class OpenAIProvider implements SchedulerAI {
           max_tokens: this.config.maxTokens,
           temperature: 0.2,
           stream: true,
-          ...(this.config.onUsage
+          // Z.ai reports usage on its own; OpenAI-style hosts need asking.
+          ...(this.config.onUsage && aiHostKind(baseUrl) !== "zai"
             ? { stream_options: { include_usage: true } }
             : {}),
           messages: [
