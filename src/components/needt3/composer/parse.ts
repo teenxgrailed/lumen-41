@@ -26,7 +26,7 @@ import {
 } from "@/components/needt/composer/co-parse";
 
 import { toLocalDateKey } from "@/lib/date-utils";
-import { addMinutes, hhmm } from "@/lib/needt3/derive";
+import { addDays, addMinutes, hhmm, weekday } from "@/lib/needt3/derive";
 import type { V3Priority, V3Project, V3TaskPatch } from "@/lib/needt3/map";
 
 export type { CoFacetKind, CoKind, CoMark };
@@ -48,6 +48,26 @@ export interface ComposerMinutes extends ComposerFacet {
 
 export interface ComposerRepeat extends ComposerFacet {
   readonly cadence: CoCadence;
+  /** 0–6, Sunday first, when the line named a day ("every friday"). */
+  readonly weekday: number | null;
+}
+
+const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
+
+/** The RRULE a spoken cadence stands for ("every friday" → FREQ=WEEKLY;BYDAY=FR). */
+export function repeatRule(r: Pick<ComposerRepeat, "cadence" | "weekday">) {
+  switch (r.cadence) {
+    case "day":
+      return "FREQ=DAILY";
+    case "month":
+      return "FREQ=MONTHLY";
+    case "weekday":
+      return r.weekday != null
+        ? `FREQ=WEEKLY;BYDAY=${BYDAY[r.weekday]}`
+        : "FREQ=WEEKLY";
+    default:
+      return "FREQ=WEEKLY";
+  }
 }
 
 export interface ComposerPriority extends ComposerFacet {
@@ -327,6 +347,7 @@ export function composerParse(
           label: f.repeat.label,
           span: f.repeat.span,
           cadence: f.repeat.cadence,
+          weekday: f.repeat.weekday,
         }
       : null,
     priority,
@@ -410,7 +431,7 @@ export function composerDraft(
   if (kind === "doc") return { kind, doc: { title: p.title, projectId } };
 
   //todo: monthly habits — the habit API counts per week only, so a monthly
-  // cadence is a task (its repeat has no v3 write path yet either).
+  // cadence is a task, which repeats monthly.
   if (kind === "habit" && p.repeat?.cadence === "month")
     return composerDraft(p, now, "task", note);
 
@@ -434,7 +455,12 @@ export function composerDraft(
   const est =
     p.duration?.minutes ??
     (kind === "event" ? EVENT_DEFAULT_LENGTH : DEFAULT_ESTIMATE);
-  const day = p.date?.day ?? today;
+  // "every friday" starts on the next Friday unless a day was said.
+  const day =
+    p.date?.day ??
+    (kind === "task" && p.repeat?.weekday != null
+      ? addDays(today, (p.repeat.weekday - weekday(today) + 7) % 7)
+      : today);
   if (kind === "event") {
     const startAt = `${day}T${timed}`;
     return {
@@ -463,8 +489,10 @@ export function composerDraft(
     task.auto = false;
   }
   if (p.priority) task.priority = p.priority.level;
+  if (p.repeat) task.repeat = repeatRule(p.repeat);
   const text = note?.trim();
   if (text) task.notes = text;
-  //todo: a task's repeat and labels have no v3 write path yet.
+  //todo: labels are not parsed from the line (the vocabulary has none); they
+  // are picked in the task dialog.
   return { kind, task, parts: [...p.parts] };
 }
