@@ -13,6 +13,8 @@ import { type Root, createRoot } from "react-dom/client";
 import type { V3Doc } from "@/lib/needt3/map";
 import type { PagePreviewBlock } from "@/lib/pages/page-preview";
 
+import { V3PortalScope } from "../../ctx/PortalScope";
+import { type CtxMenu, ctxMenuFor } from "../../ctx/registry";
 import { DocsFace } from "../../phone/docs/Faces";
 import { PhoneUiProvider } from "../../root/phone-ui-context";
 
@@ -30,6 +32,7 @@ jest.mock("next/navigation", () => ({
 
 let data: V3Doc[] = [];
 const updateDoc = jest.fn();
+const duplicateDoc = jest.fn();
 jest.mock("@/lib/needt3/hooks/docs", () => ({
   useDocs: () => ({
     status: "success",
@@ -40,6 +43,9 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   }),
   useCreateDoc: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useTrashDoc: () => ({ mutateAsync: jest.fn() }),
+  useDuplicateDoc: () => ({
+    mutateAsync: (...a: unknown[]) => duplicateDoc(...a),
+  }),
   useUpdateDoc: () => ({ mutateAsync: (...a: unknown[]) => updateDoc(...a) }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
@@ -85,6 +91,8 @@ beforeEach(() => {
   push.mockClear();
   updateDoc.mockReset();
   updateDoc.mockResolvedValue({ undo: jest.fn() });
+  duplicateDoc.mockReset();
+  duplicateDoc.mockResolvedValue({ undo: jest.fn() });
   window.localStorage.clear();
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -111,7 +119,15 @@ afterEach(() => {
 
 const mount = (docs: V3Doc[]) => {
   data = docs;
-  act(() => root.render(h(PhoneUiProvider, { value: "desktop" }, h(DocsFace))));
+  act(() =>
+    root.render(
+      h(
+        PhoneUiProvider,
+        { value: "desktop" },
+        h(V3PortalScope, null, h(DocsFace))
+      )
+    )
+  );
 };
 const card = (id: string) =>
   host.querySelector<HTMLElement>(`.docs-card[data-ctx-id="${id}"]`)!;
@@ -251,5 +267,74 @@ describe("desktop Docs card miniature", () => {
       .find((r) => r.getAttribute("data-ctx-id") === "Blank")!
       .querySelector("[data-docs-thumb-mini]")!;
     expect(blank.textContent).toBe("Blank");
+  });
+});
+
+describe("desktop Docs card menu (right-click)", () => {
+  const labels = (menu: CtxMenu | null) =>
+    (menu ?? []).map((g) => g.map((r) => r.label));
+
+  it("has the shared set: Rename, Move to project…, Pin, Duplicate, Share…, Copy link, Move to Trash", () => {
+    mount([doc("a", { title: "Alpha" })]);
+    const menu = ctxMenuFor(card("a"));
+    expect(labels(menu)).toEqual([
+      ["Open", "Open in New Tab"],
+      ["Rename", "Move to project…", "Pin", "Duplicate"],
+      ["Share…", "Copy link", "Export as Markdown", "Export as PDF"],
+      ["Move to Trash"],
+    ]);
+    expect(menu![3][0].tone).toBe("danger");
+  });
+
+  it("Move to project… carries the projects and ticks the current one", () => {
+    mount([doc("a", { title: "Alpha", projectId: "ops" })]);
+    const move = ctxMenuFor(card("a"))![1][1];
+    expect(move.hint).toBe("›");
+    expect(move.sub?.map((r) => [r.label, r.hint])).toEqual([
+      ["No project", undefined],
+      ["Operations", "✓"],
+    ]);
+    act(() => move.sub![0].run!());
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { projectId: null },
+    });
+  });
+
+  it("Duplicate and Pin go through the page API hooks", async () => {
+    mount([doc("a", { title: "Alpha" })]);
+    const menu = ctxMenuFor(card("a"))!;
+    await act(async () => menu[1][3].run!());
+    expect(duplicateDoc).toHaveBeenCalledWith({ id: "a" });
+    await act(async () => menu[1][2].run!());
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { isFavorite: true },
+    });
+  });
+
+  it("Rename opens the sheet with the name and writes the new one", async () => {
+    mount([doc("a", { title: "Alpha" })]);
+    act(() => ctxMenuFor(card("a"))![1][0].run!());
+    const input =
+      document.querySelector<HTMLInputElement>(".docs-rename-input")!;
+    expect(input.value).toBe("Alpha");
+    act(() => {
+      const set = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )!.set!;
+      set.call(input, "Alpha 2");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      input.form!.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true })
+      );
+    });
+    expect(updateDoc).toHaveBeenCalledWith({
+      id: "a",
+      patch: { title: "Alpha 2" },
+    });
   });
 });

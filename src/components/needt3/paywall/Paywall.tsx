@@ -8,13 +8,16 @@
    includes. Prices come from `priceStrings()` (the one NEEDT_PRICING module);
    nothing here is a literal.
 
-   Payments: the button goes to `POST /api/billing/checkout` and follows the
-   URL it returns. Nothing pretends to succeed: when checkout is not
+   The button: for a Free account that can still have a trial it says "Start
+   14-day free trial" and starts it (`POST /api/billing/trial`, no card).
+   Otherwise it goes to `POST /api/billing/checkout` and follows the URL it
+   returns. Nothing pretends to succeed: when checkout is not
    configured, or the server's `billing_checkout` switch is off, the button
    is off and says checkout opens soon; when it fails the sheet says
    "Checkout couldn't start" with a Retry. */
 import { useEffect, useRef, useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LuCheck,
   LuCircleAlert,
@@ -24,6 +27,7 @@ import {
 } from "react-icons/lu";
 
 import { logger } from "@/lib/logger";
+import { startTrial } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import {
@@ -36,7 +40,9 @@ import {
   proIncludes,
 } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
+import { qk } from "@/lib/needt3/query-keys";
 import { useOnline } from "@/lib/needt3/use-online";
+import { notify } from "@/lib/notifications";
 
 import {
   GlassCard,
@@ -273,12 +279,17 @@ export function Paywall({
 }: PaywallProps) {
   const D = priceStrings();
   const { data: plan } = usePlan();
+  const qc = useQueryClient();
   const online = useOnline();
   const [pick, setPick] = useState<PaywallPick>(paywallPick(cycle));
   const [leaving, setLeaving] = useState(false);
   const [shown, setShown] = useState(open);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  /* What failed, so the sheet names the right thing. */
+  const [failedWhat, setFailedWhat] = useState<"trial" | "checkout">(
+    "checkout"
+  );
 
   /* Mounted on open, kept for the 170 ms exit, then unmounted. */
   useEffect(() => {
@@ -324,10 +335,45 @@ export function Paywall({
   /* Off until the plan (and with it the checkout switch) has loaded. */
   const off = !online || !plan || cta.blocked !== null || busy;
 
+  /* "Start 14-day free trial": no card and no payment, so it works while
+     checkout is closed. The server decides who may have one. */
+  async function trial() {
+    setBusy(true);
+    setFailed(null);
+    const started = await startTrial();
+    if (!started.ok) {
+      void logger.warn(
+        "Trial did not start",
+        { error: started.error },
+        LOG_SOURCE
+      );
+      setFailedWhat("trial");
+      setFailed(started.error);
+      setBusy(false);
+      // The server may have said the trial is already used: read the plan
+      // again so the button stops offering it.
+      void qc.invalidateQueries({ queryKey: qk.plan() });
+      return;
+    }
+    await qc.invalidateQueries({ queryKey: qk.plan() });
+    notify.success(`Your ${D.trialDays}-day Pro trial has started`, {
+      description: "No card needed.",
+    });
+    setBusy(false);
+    onClose();
+  }
+
+  function go() {
+    if (off) return;
+    if (cta.action === "trial") void trial();
+    else void checkout();
+  }
+
   async function checkout() {
     if (off) return;
     setBusy(true);
     setFailed(null);
+    setFailedWhat("checkout");
     try {
       const { url } = await sendJson<{ url?: string }>(
         "/api/billing/checkout",
@@ -389,9 +435,13 @@ export function Paywall({
               className="pw-btn is-primary pw-btn-lg"
               data-pw-cta={pick}
               disabled={off}
-              onClick={() => void checkout()}
+              onClick={go}
             >
-              {busy ? "Opening checkout…" : cta.label}
+              {busy
+                ? cta.action === "trial"
+                  ? "Starting your trial…"
+                  : "Opening checkout…"
+                : cta.label}
             </button>
             {!online ? (
               <div
@@ -409,14 +459,23 @@ export function Paywall({
               <div className="pw-state is-error" role="alert" data-pw-error>
                 <LuCircleAlert size={14} />
                 <span className="pw-state-t">
-                  <b>Checkout couldn’t start.</b> Check your connection and try
-                  again — you haven’t been charged.
+                  {failedWhat === "trial" ? (
+                    <>
+                      <b>The trial couldn’t start.</b> {failed} Nothing has been
+                      charged.
+                    </>
+                  ) : (
+                    <>
+                      <b>Checkout couldn’t start.</b> Check your connection and
+                      try again — you haven’t been charged.
+                    </>
+                  )}
                 </span>
                 <button
                   type="button"
                   className="pw-btn is-secondary pw-state-btn"
                   data-pw-retry
-                  onClick={() => void checkout()}
+                  onClick={go}
                 >
                   Retry
                 </button>
