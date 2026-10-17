@@ -10,6 +10,7 @@ import { act, createElement as h } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
 import { CalDavForm, normaliseServerUrl } from "../CalDavForm";
+import { explainCalDavFailure } from "../caldavErrors";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -94,6 +95,57 @@ describe("the form", () => {
   });
 });
 
+describe("the guide", () => {
+  it("lists the five steps with Apple's labels, in order", () => {
+    const steps = [...host.querySelectorAll("ol > [data-cn-guide-step]")].map(
+      (li) => li.textContent ?? ""
+    );
+    expect(steps).toHaveLength(5);
+    expect(steps[0]).toContain("account.apple.com");
+    expect(steps[1]).toContain("Sign-In and Security");
+    expect(steps[1]).toContain("App-Specific Passwords");
+    expect(steps[2]).toContain("Generate an app-specific password");
+    expect(steps[3]).toContain("xxxx-xxxx-xxxx-xxxx");
+    expect($("ol").tagName).toBe("OL");
+  });
+
+  it("opens account.apple.com in a new tab, safely", () => {
+    const a = $<HTMLAnchorElement>("[data-cn-guide-open]");
+    expect(a.getAttribute("href")).toBe("https://account.apple.com");
+    expect(a.getAttribute("target")).toBe("_blank");
+    expect(a.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("says it can be revoked and what Needt reads", () => {
+    expect(host.textContent).toContain("revoke the password at any time");
+    expect($("[data-cn-guide-reads]").textContent).toContain(
+      "reads your calendars"
+    );
+  });
+
+  it("has three labelled sketches, each small, with no external image", () => {
+    const svgs = [...host.querySelectorAll("svg.cn-guide-art")];
+    expect(svgs).toHaveLength(3);
+    for (const svg of svgs) {
+      expect(svg.getAttribute("role")).toBe("img");
+      expect(svg.getAttribute("aria-label")).toBeTruthy();
+      expect(svg.outerHTML.length).toBeLessThan(6 * 1024);
+      expect(svg.querySelector("image")).toBeNull();
+    }
+  });
+});
+
+describe("explainCalDavFailure", () => {
+  it("falls back to a generic line when nothing is known", () => {
+    expect(explainCalDavFailure(500)).toBe(
+      "Could not reach the CalDAV server."
+    );
+    expect(explainCalDavFailure(403, "Calendar limit reached.")).toBe(
+      "Calendar limit reached."
+    );
+  });
+});
+
 describe("test connection", () => {
   it("asks for the missing fields before it calls anything", () => {
     click($("[data-cn-caldav-test]"));
@@ -120,13 +172,57 @@ describe("test connection", () => {
     );
   });
 
-  it("shows the server's reason when it fails", async () => {
+  it("shows the server's reason when it is not one we map", async () => {
     fill();
-    reply(401, { success: false, error: "Wrong app password." });
+    reply(400, { success: false, error: "Check the path." });
     click($("[data-cn-caldav-test]"));
     await flush();
-    expect($("[data-cn-caldav-note]").textContent).toBe("Wrong app password.");
+    expect($("[data-cn-caldav-note]").textContent).toBe("Check the path.");
     expect($("[data-cn-caldav-note]").getAttribute("role")).toBe("alert");
+  });
+
+  it("maps 401 to the app-specific password message", async () => {
+    fill();
+    reply(401, {
+      error:
+        "Failed to authenticate with CalDAV server. Please check your credentials.",
+    });
+    click($("[data-cn-caldav-test]"));
+    await flush();
+    expect($("[data-cn-caldav-note]").textContent).toMatch(
+      /^Use an app-specific password, not your Apple ID password\./
+    );
+  });
+
+  it("maps a network failure, thrown or 502, to a connection message", async () => {
+    fill();
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    click($("[data-cn-caldav-test]"));
+    await flush();
+    expect($("[data-cn-caldav-note]").textContent).toBe(
+      "Could not reach iCloud. Check your connection and try again."
+    );
+    reply(502, {
+      error: "Could not connect to the CalDAV server. Please check",
+    });
+    click($("[data-cn-caldav-test]"));
+    await flush();
+    expect($("[data-cn-caldav-note]").textContent).toContain(
+      "Could not reach iCloud"
+    );
+  });
+
+  it("maps 404 to no calendars found", async () => {
+    fill();
+    reply(404, {
+      error:
+        "Could not find any calendars. Please check the server URL and path.",
+    });
+    click($("[data-cn-caldav-test]"));
+    await flush();
+    expect($("[data-cn-caldav-note]").textContent).toMatch(
+      /^No calendars found\./
+    );
   });
 
   it("forgets the outcome as soon as a field changes", async () => {

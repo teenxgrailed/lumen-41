@@ -124,8 +124,8 @@ const bgIcon = (k: BgKind) =>
  * Background, the backdrop's look and blur, and the default font, in one sheet
  * with detents 0.62 / 0.94, plus the page-colour sheet that Background > Solid
  * opens. It writes the desktop Style panel's fields through `useStyleWrite`,
- * with the same Pro gates: a Gradient or Image backdrop, and every preset but
- * Default, are Pro; colour, cover and font are free.
+ * with the same Pro gates: a Gradient or Image backdrop, a cover, the page
+ * colours beyond the free three, and every preset but Default, are Pro.
  * Not offered, as on the desktop: Separator Style. The drawn cover arts are
  * (None / Art / Image), stored as `art:<theme>` like the desktop's.
  */
@@ -247,8 +247,14 @@ export function PageStyleSheet({
                   id: "art",
                   label: "Art",
                   icon: <LuPalette size={16} aria-hidden />,
+                  locked: !w.pro,
                 },
-                { id: "image", label: "Image", icon: bgIcon("image") },
+                {
+                  id: "image",
+                  label: "Image",
+                  icon: bgIcon("image"),
+                  locked: !w.pro,
+                },
               ]}
               onChange={(k) => {
                 if (k === "none") {
@@ -261,7 +267,11 @@ export function PageStyleSheet({
                 } else if (k === "art") {
                   if (cover !== "art")
                     w.set({ cover: coverArtValue(COVER_ARTS[0]) });
-                } else if (cover !== "image") pickFile();
+                } else if (cover !== "image") {
+                  // A cover is Pro: say so before the file picker opens.
+                  if (w.pro) pickFile();
+                  else w.toPaywall();
+                }
               }}
             />
             {cover === "art" ? (
@@ -431,9 +441,16 @@ export function PageStyleSheet({
               type="button"
               role="radio"
               aria-checked={s.page === p.id}
-              aria-label={p.name}
+              aria-label={
+                !w.pro && isProStyleValue("page", p.id)
+                  ? `${p.name}, Pro`
+                  : p.name
+              }
               className={pkCx("pd-swatch", s.page === p.id && "is-on")}
               data-pd-swatch={p.id}
+              {...(!w.pro && isProStyleValue("page", p.id)
+                ? { "data-pro-locked": "" }
+                : {})}
               onClick={() => w.set({ page: p.id })}
             >
               <span
@@ -445,7 +462,16 @@ export function PageStyleSheet({
                   } as CSSProperties
                 }
               />
-              <span className="pd-swatch-name">{p.name}</span>
+              <span className="pd-swatch-name">
+                {p.name}
+                {!w.pro && isProStyleValue("page", p.id) ? (
+                  <LuLock
+                    size={10}
+                    aria-hidden
+                    style={{ marginLeft: 4, verticalAlign: "-1px" }}
+                  />
+                ) : null}
+              </span>
             </button>
           ))}
         </div>

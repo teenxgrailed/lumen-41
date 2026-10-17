@@ -53,10 +53,13 @@ export function useCheckins() {
     queryFn: async () => {
       const today = await fetchJson<{
         now: string;
+        today?: string;
         habits: { id: string; done: (0 | 1)[] }[];
       }>("/api/needt/today");
-      const end = formatInTimeZone(today.now, tz, "yyyy-MM-dd");
-      //todo: streaks past fourteen days need a longer history route.
+      // The server's own day: the strip is counted in its zone, which is the
+      // browser's only once a zone is saved.
+      const end = today.today ?? formatInTimeZone(today.now, tz, "yyyy-MM-dd");
+      // Streaks past fourteen days read `useCheckinHistory` (124 days).
       return today.habits.flatMap((h) => checkinsFromStrip(h.id, h.done, end));
     },
   });
@@ -74,9 +77,10 @@ export function useCheckinHistory() {
     queryFn: async () => {
       const h = await fetchJson<{
         now: string;
+        today?: string;
         habits: { id: string; done: (0 | 1)[] }[];
       }>("/api/habits/history");
-      const end = formatInTimeZone(h.now, tz, "yyyy-MM-dd");
+      const end = h.today ?? formatInTimeZone(h.now, tz, "yyyy-MM-dd");
       return h.habits.flatMap((x) => checkinsFromStrip(x.id, x.done, end));
     },
   });
@@ -108,8 +112,35 @@ export function useUpdateHabit() {
 }
 
 /**
- * Tick or untick today. `PUT/DELETE /api/habits/[id]/completions/today` is
- * the only write the API has; a past day cannot be ticked yet.
+ * Mark or unmark one past (or the current) day:
+ * `PUT/DELETE /api/habits/[id]/completions/[date]`. Undo flips it back. The
+ * server refuses the future and a day over 400 days back.
+ */
+export function useToggleHabitDay() {
+  return useUndoableMutation<
+    { id: string; date: string; done: boolean },
+    unknown
+  >({
+    scope: CHECKINS,
+    label: "update the habit",
+    inverse: (_qc, { id, date, done }) => ({ id, date, done: !done }),
+    optimistic: (qc, { id, date, done }) => {
+      for (const key of [CHECKINS, HISTORY])
+        qc.setQueryData<Checkin[]>(key, (list) =>
+          list ? setCheckin(list, id, date, done) : list
+        );
+    },
+    request: ({ id, date, done }) =>
+      sendJson(
+        `/api/habits/${id}/completions/${date}`,
+        done ? "PUT" : "DELETE"
+      ),
+  });
+}
+
+/**
+ * Tick or untick today (`PUT/DELETE /api/habits/[id]/completions/today`);
+ * any other day goes through `useToggleHabitDay`.
  */
 export function useToggleHabitToday() {
   const tz = useTimeZone();

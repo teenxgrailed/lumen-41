@@ -7,14 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Working hours are now set per weekday in Settings > Your day: each day has
-  its own switch and hours, and a second range for a lunch break (for example
-  9:00-13:00 and 14:00-18:00). The calendar shading, auto-scheduling, capacity
-  and free-time nudges all follow the per-day hours. The phone settings have
-  the same per-day editor. The "Plan on weekends" switch is gone: Saturday and
-  Sunday are ordinary days now, and people who had weekends on keep them.
-- New setting: Time format (12-hour or 24-hour) under Calendar, on desktop and
-  phone. The calendar already read it; there was no control for it.
+- The notifications bell now shows real activity: what Needt or a connected
+  agent did, comments and shares on your pages, a calendar that needs
+  reconnecting, finished imports and nudges, with unread dots and Mark all as
+  read. Reminders lists upcoming task reminders and due or overdue tasks. The
+  same feed is available at `GET /api/connect/notifications` for connector
+  tokens.
 - Opening the Ask panel on desktop no longer stutters. The page beside the
   panel used to be re-laid-out on every frame of a 220 ms width animation
   while the panel was also mounting, and the whole shell re-rendered on open.

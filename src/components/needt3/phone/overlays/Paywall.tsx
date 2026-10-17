@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LuCheck,
   LuCircleAlert,
@@ -17,10 +18,13 @@ import {
   LuX,
 } from "react-icons/lu";
 
+import { startTrial } from "@/lib/needt3/hooks/account";
 import { ApiError, sendJson } from "@/lib/needt3/hooks/core";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { freeIncludes, proIncludes } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
+import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
 
 import { PxSky } from "../../scenes";
 import { PkButton, PkGlass, PkSheet, pkCx } from "../kit";
@@ -96,8 +100,18 @@ function useCheckout() {
       setBusy(false);
     }
   }, []);
+  /* "Start 14-day free trial": no card, no payment. The server's own sentence
+     is shown when it refuses. */
+  const trial = useCallback(async (): Promise<boolean> => {
+    setBusy(true);
+    setError(null);
+    const started = await startTrial();
+    if (!started.ok) setError({ text: started.error });
+    setBusy(false);
+    return started.ok;
+  }, []);
   const clear = useCallback(() => setError(null), []);
-  return { busy, error, start, clear };
+  return { busy, error, start, trial, clear };
 }
 
 function Status({
@@ -166,6 +180,7 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
   const plan = usePlan().data;
   const online = useOnline();
   const checkout = useCheckout();
+  const qc = useQueryClient();
   const [picked, setPicked] = useState<PwPick>(pickOf(cycle));
   // the sky runs while the sheet is open or sliding away, not while it is put away
   const [sky, setSky] = useState(open);
@@ -210,6 +225,18 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
 
   const go = () => {
     if (off) return;
+    if (cta.action === "trial") {
+      void checkout.trial().then(async (started) => {
+        // Read the plan again either way: a refusal means it is not offered.
+        await qc.invalidateQueries({ queryKey: qk.plan() });
+        if (!started) return;
+        notify.success(`Your ${p.trialDays}-day Pro trial has started`, {
+          description: "No card needed.",
+        });
+        onClose();
+      });
+      return;
+    }
     void checkout.start(pick);
   };
 
@@ -421,7 +448,11 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
               disabled={off}
               onClick={go}
             >
-              {checkout.busy ? "Opening checkout…" : cta.label}
+              {checkout.busy
+                ? cta.action === "trial"
+                  ? "Starting your trial…"
+                  : "Opening checkout…"
+                : cta.label}
             </PkButton>
             <span className="pw-go-sub" data-pw-cta-sub="">
               {cta.blocked ?? cta.sub}

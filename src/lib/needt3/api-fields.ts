@@ -36,6 +36,8 @@ export const taskV3FieldsSchema = z.object({
   trashedAt: isoDateTime.nullable().optional(),
   originKind: z.enum(ORIGIN_KINDS).nullable().optional(),
   originId: nullableShort(200).optional(),
+  /** The page the task came from: shorthand for originKind "doc" + originId. */
+  originPageId: nullableShort(200).optional(),
   originQuote: nullableShort(2000).optional(),
   splitAllowed: z.boolean().optional(),
 });

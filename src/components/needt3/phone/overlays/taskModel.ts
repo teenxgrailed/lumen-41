@@ -77,8 +77,20 @@ export function dayIsOn(t: Pick<T, "dueDate">, n: number, today: string) {
   return !!t.dueDate && t.dueDate === addDays(today, n) && t.dueDate >= today;
 }
 
+/** 3_400 → "3 KB", 1_500_000 → "1.4 MB". */
+export function sizeWords(bytes: number | null | undefined): string {
+  if (bytes == null || bytes < 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 /** The folded Scheduling card's one line. */
-export function scheduleSummary(t: T, today: string): string {
+export function scheduleSummary(
+  t: T,
+  today: string,
+  hoursName?: string | null
+): string {
   const at = timeWords(t);
   const deadline = t.deadline ? dueWords(t.deadline, today) : null;
   return [
@@ -87,6 +99,7 @@ export function scheduleSummary(t: T, today: string): string {
     deadline
       ? `${t.hardDeadline ? "hard deadline" : "deadline"} ${deadline}`
       : null,
+    hoursName ? hoursName.toLowerCase() : null,
   ]
     .filter(Boolean)
     .join(" · ");

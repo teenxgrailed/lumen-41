@@ -187,6 +187,26 @@ export async function startCheckout(
   }
 }
 
+/**
+ * Start the free trial (`POST /api/billing/trial`): no card, no payment. The
+ * server answers 409 when this address has had one, and the sentence it sends
+ * is the one to show.
+ */
+export async function startTrial(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  try {
+    await sendJson("/api/billing/trial", "POST");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not start the trial.",
+    };
+  }
+}
+
 /** Open the billing portal (`POST /api/billing/portal`): invoices, card, cancel. */
 export async function openBillingPortal(): Promise<
   { ok: true } | { ok: false; error: string }

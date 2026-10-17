@@ -1,0 +1,372 @@
+/* Design v3 - the admin panel. HAND-WRITTEN, not vendored.
+ * Loaded last (v3-entry.css). Scoped under .needt-v3 .admin-shell; the
+ * vendored styles/v3/** stays as generated. Chrome type is 13px and 12px.
+ */
+
+/* --- Legacy tokens, read through the person's theme -------------------------
+ * The admin pages still render shadcn parts (Input, Button, Select) and a few
+ * older panels. Those read tokens the v3 frame never defines (--surface-input,
+ * --input-bg, --border-subtle ...), so they fell through to :root, which is
+ * the dark palette of globals.css: an input drew near-black on the Light
+ * theme. `--input-bg: var(--surface-input)` is resolved on :root, so
+ * redefining --surface-input down here is not enough; every token that was
+ * derived from it is repeated too. Each maps onto the v3 ladder, so Light,
+ * Dark and Time all follow. */
+.needt-v3 .admin-shell {
+  --surface-canvas: var(--background);
+  --surface-panel: var(--surface-raised);
+  --surface-input: var(--fill-2);
+  --surface-control: var(--fill-3);
+  --surface-control-hover: var(--fill-4);
+  --surface-hover: var(--fill-4);
+  --border-subtle: var(--border);
+  --border-control: rgba(var(--foreground-rgb), 0.14);
+  --control-bg: var(--surface-control);
+  --control-bg-hover: var(--surface-control-hover);
+  --control-border: var(--border-control);
+  --control-fg: var(--text-primary);
+  --control-fg-muted: var(--text-secondary);
+  --input-bg: var(--surface-input);
+  --input-border: var(--border-control);
+  --input-border-focus: rgba(var(--accent-rgb), 0.55);
+  --button-secondary-bg: var(--surface-control);
+  --button-secondary-bg-hover: var(--surface-control-hover);
+  --button-secondary-border: var(--border-control);
+  --menu-bg: var(--surface-raised);
+  --menu-border: var(--border-control);
+  --menu-item-hover: var(--surface-hover);
+  --popover-bg: var(--surface-raised);
+  --popover-border: var(--border-control);
+  /* Tailwind's shadcn colours are hsl(var(--x)); give them triplets. */
+  --muted-foreground: 210 6% 40%;
+  --foreground: 210 8% 11%;
+  --primary: 222 80% 52%;
+  color: var(--text-primary);
+}
+.needt-v3[data-theme="dark"] .admin-shell {
+  --muted-foreground: 210 6% 66%;
+  --foreground: 210 10% 92%;
+  --primary: 222 90% 70%;
+}
+
+/* --- Frame ----------------------------------------------------------------- */
+.needt-v3 .admin-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  min-height: 0;
+  height: 100%;
+  font: var(--type-ui);
+}
+.needt-v3 .admin-nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 176px;
+  padding-top: 20px;
+}
+.needt-v3 .admin-nav-eyebrow {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  padding: 0 10px;
+}
+.needt-v3 .admin-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.needt-v3 .admin-nav-item {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-lg);
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.needt-v3 .admin-nav-item:hover {
+  background: var(--fill-3);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.needt-v3 .admin-nav-item.is-current {
+  background: var(--fill-4);
+  color: var(--text-primary);
+  font: var(--type-ui-medium);
+}
+.needt-v3 .admin-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 4px 40px 0;
+}
+
+/* --- Page ------------------------------------------------------------------ */
+.needt-v3 .admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 960px;
+}
+.needt-v3 .admin-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.needt-v3 .admin-title {
+  margin: 0;
+  font: var(--type-page-title);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-lead,
+.needt-v3 .admin-meta {
+  margin: 4px 0 0;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .admin-meta {
+  margin: 0;
+}
+.needt-v3 .admin-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.needt-v3 .admin-note {
+  margin: 0;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .admin-note.is-danger {
+  color: var(--destructive);
+}
+.needt-v3 .admin-card {
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  padding: 16px;
+}
+.needt-v3 .admin-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.needt-v3 .admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  padding: 14px 16px;
+}
+.needt-v3 .admin-stat-label {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .admin-stat-value {
+  font: var(--type-page-title);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tables ---------------------------------------------------------------- */
+.needt-v3 .admin-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+}
+.needt-v3 .admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  white-space: nowrap;
+}
+.needt-v3 .admin-table td {
+  padding: 8px 12px;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+  vertical-align: top;
+}
+.needt-v3 .admin-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--fill-4);
+  font: var(--type-meta);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* --- Toolbar, facts, action rows -------------------------------------------
+ * One form-row geometry: text on the left, the control on the right, 32px
+ * controls, and a label that does not fit wraps instead of widening a column. */
+.needt-v3 .admin-toolbar {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+}
+.needt-v3 .admin-link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.needt-v3 .admin-link:hover {
+  text-decoration: underline;
+}
+.needt-v3 .admin-facts {
+  display: grid;
+  gap: 12px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  margin: 0;
+}
+.needt-v3 .admin-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.needt-v3 .admin-fact dd {
+  margin: 0;
+}
+.needt-v3 .admin-fact-value {
+  font: var(--type-ui);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .admin-rows {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+}
+.needt-v3 .admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .admin-row:first-child {
+  box-shadow: none;
+}
+.needt-v3 .admin-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.needt-v3 .admin-row-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-row-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .admin-days {
+  width: 72px;
+}
+.needt-v3 .admin-section-title {
+  margin: 0 0 8px;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .admin-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* --- Confirm dialog -------------------------------------------------------- */
+.needt-v3 .admin-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+}
+.needt-v3 .admin-confirm-title {
+  margin: 0;
+  font: var(--type-page-title);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-confirm-body {
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 .admin-confirm-type {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .admin-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* --- Phone ----------------------------------------------------------------- */
+@media (max-width: 760px) {
+  .needt-v3 .admin-shell {
+    flex-direction: column;
+    gap: 0;
+    padding: 0 16px;
+  }
+  .needt-v3 .admin-nav {
+    width: 100%;
+    padding-top: 12px;
+    gap: 4px;
+  }
+  .needt-v3 .admin-nav-eyebrow {
+    padding: 0;
+  }
+  .needt-v3 .admin-nav-list {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .needt-v3 .admin-main {
+    width: 100%;
+    padding: 16px 0 40px;
+  }
+  .needt-v3 .admin-page-head {
+    align-items: flex-start;
+  }
+  .needt-v3 .admin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
