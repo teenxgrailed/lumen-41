@@ -436,3 +436,9 @@
 .needt-v3 .pd-url-input:focus-visible { box-shadow: inset 0 0 0 1.5px var(--v2p-lav); }
 .needt-v3 .pd-url-acts { display: flex; justify-content: flex-end; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { .needt-v3 .pd-bubble { animation: none; } }
+/* Rename from the long-press sheet: the field and Save under the title. */
+.needt-v3 .pd-rename { display: flex; flex-direction: column; gap: 12px; padding: 4px 16px 16px; }
+/* The page picture of a card below the fold skips layout and paint until it
+   scrolls near (the frame, shadow and title stay, so nothing shifts). It sits
+   inside .pd-card-pic's own overflow clip, so paint containment costs nothing. */
+.needt-v3 .pd-card-page { content-visibility: auto; contain-intrinsic-size: auto 150px; }

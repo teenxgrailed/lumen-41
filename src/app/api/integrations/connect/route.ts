@@ -1,11 +1,13 @@
-import { ExternalIntegrationStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+
+import { REQUIRES } from "@/services/integrations/catalog";
+import { composioProvider } from "@/services/integrations/composio-provider";
+import { ExternalIntegrationStatus } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 import { publicAppUrl } from "@/lib/public-url";
-import { composioProvider } from "@/services/integrations/composio-provider";
 
 const LOG_SOURCE = "IntegrationConnectAPI";
 
@@ -15,10 +17,31 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     if (typeof body.toolkit !== "string") {
-      return NextResponse.json({ error: "Toolkit is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Toolkit is required" },
+        { status: 400 }
+      );
     }
     if (!composioProvider.isConfigured()) {
-      return NextResponse.json({ error: "Composio is not configured" }, { status: 503 });
+      // What to add on the server is for an admin only; everyone else just
+      // learns the app is not there yet. No environment name leaves here.
+      const viewer = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { role: true },
+      });
+      const app = (await composioProvider.listCatalog()).find(
+        (item) => item.slug === body.toolkit
+      );
+      const name = app?.name ?? "This app";
+      return NextResponse.json(
+        {
+          error:
+            viewer?.role === "admin"
+              ? `${name} needs ${REQUIRES.composio}. Add it, then try again.`
+              : `${name} isn't available yet.`,
+        },
+        { status: 503 }
+      );
     }
     const callbackUrl = publicAppUrl("/api/integrations/callback", request);
     callbackUrl.searchParams.set("toolkit", body.toolkit);
@@ -48,6 +71,11 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    return routeErrorResponse(error, "Failed to start integration connection", LOG_SOURCE, "Could not connect integration.");
+    return routeErrorResponse(
+      error,
+      "Failed to start integration connection",
+      LOG_SOURCE,
+      "Could not connect integration."
+    );
   }
 }

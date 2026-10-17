@@ -2,9 +2,14 @@
  *
  * Every surface in this product calls this facade and nothing else, which is
  * what made it possible to change where messages appear without touching any
- * of the two hundred-odd places that raise one. They now go to the design's
- * notification stack in the bottom-right corner — the one place this product
- * speaks from — instead of to Sonner.
+ * of the two hundred-odd places that raise one. They go to one of two places
+ * instead of to Sonner:
+ *
+ *   toast (default)  a compact inverted pill at the bottom centre — a thing
+ *                    you did and its Undo, or a status line.
+ *   island           the Ask Needt corner, bottom-right — the product speaking
+ *                    on its own initiative (proactive AI nudges). Pass
+ *                    `surface: "island"`.
  *
  * The five levels here are log levels; the stack's `kind` is what happened.
  * They do not line up one to one, and forcing a seventh kind into the design
@@ -18,11 +23,11 @@
  * raises a sticky notice that the caller's own `dismiss(id)` later takes
  * away, which is exactly how the two callers already use it.
  */
-import {
-  dropNotice,
-  raiseNotice,
-} from "@/components/needt/corner/bridge";
-import type { NoticeKind } from "@/components/needt/corner/types";
+import { dropNotice, raiseNotice } from "@/components/needt/corner/bridge";
+import type {
+  NoticeKind,
+  NoticeSurface,
+} from "@/components/needt/corner/types";
 
 export type NotificationOptions = {
   /** The line under the title. */
@@ -35,6 +40,11 @@ export type NotificationOptions = {
   /** One button on the notice. The stack dismisses the card before running
    * it, the same as it does for its own acts. */
   action?: { label: string; onClick: () => void };
+  /**
+   * Where it is drawn: `toast` (default, bottom centre) for what you did and
+   * its Undo; `island` for the product speaking up unprompted.
+   */
+  surface?: NoticeSurface;
   /** Accepted and ignored: the stack draws one card, one way. */
   id?: string | number;
   className?: string;
@@ -50,6 +60,7 @@ function raise(
 ): string {
   return raiseNotice({
     kind,
+    surface: options?.surface,
     title: message,
     body: options?.description ?? "",
     key: options?.dedupeKey,

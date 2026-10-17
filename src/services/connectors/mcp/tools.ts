@@ -63,6 +63,7 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { listMailMessages } from "@/lib/mail-db";
 import type { McpScope } from "@/lib/mcp-config";
+import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
 
 import { TaskStatus } from "@/types/task";
@@ -289,6 +290,7 @@ async function listRows(
     includeArchived?: boolean;
     from?: string;
     to?: string;
+    originPageId?: string;
   }
 ) {
   const { userId } = ctx;
@@ -300,16 +302,21 @@ async function listRows(
   switch (type) {
     case "task":
       return page(
-        await prisma.task.findMany({
-          where: {
-            ...scope,
-            ...(args.includeArchived ? {} : { isArchived: false }),
-          },
-          include: taskPartsInclude,
-          orderBy: order,
-          take,
-          ...cursorArgs(args.cursor),
-        }),
+        (
+          await prisma.task.findMany({
+            where: {
+              ...scope,
+              ...(args.includeArchived ? {} : { isArchived: false }),
+              ...(args.originPageId
+                ? { originKind: DOC_ORIGIN, originId: args.originPageId }
+                : {}),
+            },
+            include: taskPartsInclude,
+            orderBy: order,
+            take,
+            ...cursorArgs(args.cursor),
+          })
+        ).map(withOriginPageId),
         args.limit
       );
     case "project":
@@ -424,14 +431,16 @@ async function getRow(
   const { userId } = ctx;
   const scope = workspaceDataScopeWhere(workspace, userId);
   switch (type) {
-    case "task":
-      return prisma.task.findFirst({
+    case "task": {
+      const task = await prisma.task.findFirst({
         where: { id, ...scope },
         include: {
           scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
           ...taskPartsInclude,
         },
       });
+      return task && withOriginPageId(task);
+    }
     case "project":
       return prisma.project.findFirst({ where: { id, ...scope } });
     case "event":
@@ -541,6 +550,13 @@ export const MCP_TOOLS: McpTool[] = [
         .string()
         .optional()
         .describe("Events only: ISO 8601 upper bound on event start."),
+      originPageId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Tasks only: the ones that came from this page (a to-do ticked in a document)."
+        ),
     }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
@@ -611,6 +627,13 @@ export const MCP_TOOLS: McpTool[] = [
         .min(1)
         .optional()
         .describe("Id of an existing open task this one cannot start before."),
+      originPageId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "A page in this workspace the task came from; the page's to-do and the task then tick together."
+        ),
     }),
     invoke: (ctx, args) =>
       callRoute(ctx, createTaskPost, "/api/connect/tasks", "POST", args),
@@ -750,7 +773,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_update_task",
     description:
-      "Change a task: title, description, dueDate, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+      "Change a task: title, description, dueDate, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z
       .object({
@@ -799,6 +822,12 @@ const WRITE_TOOLS: McpTool[] = [
           .describe(
             "Id of an open task this one waits on; null clears it. Loops are refused."
           ),
+        originPageId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe("The page the task came from; null detaches it."),
       })
       .strict(),
     async invoke(ctx, args) {
@@ -823,6 +852,7 @@ const WRITE_TOOLS: McpTool[] = [
         projectId: args.projectId,
         entry: args.entry,
         dependsOnId: args.dependsOnId,
+        originPageId: args.originPageId,
       });
     },
   }),
