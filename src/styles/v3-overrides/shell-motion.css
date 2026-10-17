@@ -1,0 +1,63 @@
+/* Design v3 — the page beside the rail and the Ask dock. HAND-WRITTEN.
+ *
+ * The prototype animates the rail's column (260ms) and the dock's column
+ * (220ms) in width, so the page reflows on every frame: in the app that
+ * re-runs every ResizeObserver in the calendar and the lists, and it stutters.
+ * Here each column changes width once, in the commit that toggles it, and the
+ * page plays the same motion with a transform or clip, started by
+ * `data-motion` on the row (shell/row-motion.ts, written from a layout effect
+ * in the same frame as the new width).
+ *
+ *  rail-out  the page's left edge slides from the rail's edge to the window
+ *            edge, over the rail, which fades beneath it
+ *  rail-in   the same, reversed
+ *  dock-out  the page is revealed from its old right edge to the new one
+ *  dock-in   nothing: the card springs into the room that is already there
+ *
+ * Reduced motion and "animations off" shorten every duration to 1ms
+ * (base.css, globals.css), so nothing here needs its own switch.
+ */
+.needt-v3 .shell-app-row {
+  /* The page hangs 300px past the window while it slides. */
+  overflow-x: clip;
+}
+.needt-v3 .shell-app-row-2.sb-shell:not(.sb-float) {
+  /* No width transition (shell.css, app.css): one step, then the page moves.
+     No clip either: the rail stays under the page while it is crossed. */
+  transition: none;
+  overflow: visible;
+  position: relative;
+  z-index: 0;
+}
+.needt-v3 .shell-app-stack {
+  z-index: 1;
+}
+.needt-v3 .chat-dock-slot {
+  position: relative;
+  z-index: 2;
+}
+
+.needt-v3 .shell-app-row[data-motion="rail-out"] > .shell-app-stack {
+  animation: v3-page-rail-out 260ms var(--nx-ease) backwards;
+}
+.needt-v3 .shell-app-row[data-motion="rail-in"] > .shell-app-stack {
+  animation: v3-page-rail-in 260ms var(--nx-ease) backwards;
+}
+.needt-v3 .shell-app-row[data-motion="dock-out"] > .shell-app-stack {
+  animation: v3-page-dock-out 220ms cubic-bezier(0.2, 0.9, 0.24, 1) backwards;
+}
+@keyframes v3-page-rail-out {
+  from {
+    transform: translateX(var(--sidebar-w));
+  }
+}
+@keyframes v3-page-rail-in {
+  from {
+    transform: translateX(calc(var(--sidebar-w) * -1));
+  }
+}
+@keyframes v3-page-dock-out {
+  from {
+    clip-path: inset(0 360px 0 0);
+  }
+}
