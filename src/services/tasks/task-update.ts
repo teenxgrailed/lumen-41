@@ -8,6 +8,10 @@ import {
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
 import { checkBlocker } from "@/services/tasks/subtasks";
+import {
+  checkLabelsAndHours,
+  parseRepeatRule,
+} from "@/services/tasks/task-fields";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type {
   Prisma,
@@ -42,6 +46,14 @@ export interface TaskFieldPatch {
   dueDate?: Date | null;
   estimatedMinutes?: number | null;
   priorityLevel?: SchedulingTaskPriority;
+  /** "No priority" (the legacy `priority` column reads "none"). */
+  noPriority?: boolean;
+  /** An RRULE, e.g. FREQ=WEEKLY;BYDAY=MO; null stops the repeat. */
+  recurrenceRule?: string | null;
+  /** The whole set of labels (Tag ids); the person's own. */
+  tagIds?: string[];
+  /** The work schedule ("Hours"); null = the default one. */
+  scheduleId?: string | null;
   energyRequired?: SchedulingEnergyLevel;
   status?: TaskStatus;
   projectId?: string | null;
@@ -118,6 +130,24 @@ export async function updateTaskFields(input: {
     }
   }
 
+  const checked = await checkLabelsAndHours({
+    userId,
+    schedulingUserId: task.assigneeId ?? userId,
+    tagIds: patch.tagIds,
+    scheduleId: patch.scheduleId,
+  });
+  if (!checked.ok) return { ok: false, status: 400, error: checked.error };
+  let repeat: string | null | undefined;
+  if (patch.recurrenceRule !== undefined) {
+    repeat =
+      patch.recurrenceRule === null
+        ? null
+        : parseRepeatRule(patch.recurrenceRule);
+    if (repeat === null && patch.recurrenceRule !== null) {
+      return { ok: false, status: 400, error: "Invalid recurrence rule" };
+    }
+  }
+
   const updates: Prisma.TaskUncheckedUpdateInput = {};
   if (patch.title !== undefined) {
     const title = patch.title.trim();
@@ -133,7 +163,20 @@ export async function updateTaskFields(input: {
     updates.estimatedMinutes = patch.estimatedMinutes;
     updates.duration = patch.estimatedMinutes;
   }
-  if (patch.priorityLevel) updates.priorityLevel = patch.priorityLevel;
+  if (patch.noPriority) updates.priority = "none";
+  else if (patch.priorityLevel) {
+    updates.priorityLevel = patch.priorityLevel;
+    // Picking a real priority ends "No priority".
+    updates.priority = null;
+  }
+  if (repeat !== undefined) {
+    updates.recurrenceRule = repeat;
+    updates.isRecurring = repeat !== null;
+  }
+  if (patch.tagIds) {
+    updates.tags = { set: patch.tagIds.map((id) => ({ id })) };
+  }
+  if (patch.scheduleId !== undefined) updates.scheduleId = patch.scheduleId;
   if (patch.energyRequired) updates.energyRequired = patch.energyRequired;
   if (projectId !== undefined) updates.projectId = projectId;
   if (patch.entry !== undefined) updates.entry = patch.entry?.trim() || null;

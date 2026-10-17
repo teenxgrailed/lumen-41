@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { POST as controlPost } from "@/app/api/connect/control/route";
+import { POST as opsPost } from "@/app/api/connect/ops/[name]/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
 import {
   GET as scheduleGet,
@@ -203,6 +204,14 @@ const writeAccess = (ctx: McpToolContext) =>
 /** A task's subtasks, in the order they are done. */
 const taskPartsInclude = {
   parts: { orderBy: { position: "asc" as const }, select: subtaskSelect },
+  // Labels, and files without their bytes (read the bytes in the app or at
+  // /api/tasks/:id/attachments/:attachmentId).
+  tags: { select: { id: true, name: true, color: true } },
+  attachments: {
+    where: { bytes: { not: null } },
+    orderBy: { createdAt: "asc" as const },
+    select: { id: true, name: true, mimeType: true, size: true },
+  },
 };
 
 const LIST_TYPES = [
@@ -459,8 +468,20 @@ async function getRow(
   }
 }
 
-const priority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
+/** NONE is "No priority". */
+const priorityOrNone = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]);
 const energy = z.enum(["LOW", "MEDIUM", "HIGH"]);
+const repeatRule = z
+  .string()
+  .min(1)
+  .max(500)
+  .describe(
+    "RRULE text, e.g. FREQ=DAILY, FREQ=WEEKLY;BYDAY=MO,WE or FREQ=MONTHLY."
+  );
+const labelIds = z
+  .array(z.string().min(1))
+  .max(50)
+  .describe("Label ids (your own tags); the task ends up with exactly these.");
 
 /** The single MCP tool catalogue. The stdio bridge has no list of its own. */
 export const MCP_TOOLS: McpTool[] = [
@@ -576,7 +597,16 @@ export const MCP_TOOLS: McpTool[] = [
         .string()
         .optional()
         .describe("ISO 8601 deadline, also used as due date."),
-      priorityLevel: priority.optional(),
+      priorityLevel: priorityOrNone
+        .optional()
+        .describe("NONE leaves the task without a priority."),
+      recurrenceRule: repeatRule.optional(),
+      labelIds: labelIds.optional(),
+      scheduleId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Hours: the id of one of your work schedules."),
       energyRequired: energy.optional(),
       contextTag: z.string().optional(),
       projectId: z
@@ -743,7 +773,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_update_task",
     description:
-      "Change a task: title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on) or originPageId (the page it came from). Only these fields are accepted. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+      "Change a task: title, description, dueDate, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z
       .object({
@@ -761,7 +791,17 @@ const WRITE_TOOLS: McpTool[] = [
           .max(24 * 60)
           .nullable()
           .optional(),
-        priority: priority.optional(),
+        priority: priorityOrNone.optional(),
+        recurrenceRule: repeatRule.nullable().optional(),
+        labelIds: labelIds.optional(),
+        scheduleId: z
+          .string()
+          .min(1)
+          .nullable()
+          .optional()
+          .describe(
+            "Hours: one of your work schedule ids; null = the default."
+          ),
         energy: energy.optional(),
         status: taskStatus.optional(),
         projectId: z
@@ -801,7 +841,12 @@ const WRITE_TOOLS: McpTool[] = [
         description: args.description,
         dueDate,
         estimatedMinutes: args.estimatedMinutes,
-        priorityLevel: args.priority,
+        ...(args.priority === "NONE"
+          ? { noPriority: true }
+          : { priorityLevel: args.priority }),
+        recurrenceRule: args.recurrenceRule,
+        tagIds: args.labelIds,
+        scheduleId: args.scheduleId,
         energyRequired: args.energy,
         status: args.status,
         projectId: args.projectId,
@@ -809,6 +854,59 @@ const WRITE_TOOLS: McpTool[] = [
         dependsOnId: args.dependsOnId,
         originPageId: args.originPageId,
       });
+    },
+  }),
+  defineTool({
+    name: "needt_attach_file",
+    description:
+      "Attach a file to a task: an image (JPEG, PNG, WebP, GIF) or a PDF, up to 4 MB, ten per task. contentBase64 holds the file's bytes; the type is read from them, not from the name. The undo id comes back in the answer.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z
+      .object({
+        taskId: z.string().min(1),
+        name: z.string().min(1).max(240).describe("File name to show."),
+        contentBase64: z.string().min(1),
+      })
+      .strict(),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, { params: Promise.resolve({ name: "task.attach" }) }),
+        "/api/connect/ops/task.attach",
+        "POST",
+        args
+      ),
+  }),
+  defineTool({
+    name: "needt_remove_attachment",
+    description:
+      "Remove a file from a task. The file is deleted and cannot be brought back, so it needs confirm: true. Attachment ids are in needt_get type task.",
+    annotations: { readOnlyHint: false, destructiveHint: true },
+    input: z
+      .object({
+        taskId: z.string().min(1),
+        attachmentId: z.string().min(1),
+        confirm: z.boolean().optional(),
+      })
+      .strict(),
+    invoke: (ctx, args) => {
+      if (args.confirm !== true) {
+        return Promise.resolve(
+          toolError({
+            status: 400,
+            error: "Removing a file cannot be undone. Pass confirm: true.",
+          })
+        );
+      }
+      return callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, { params: Promise.resolve({ name: "task.detach" }) }),
+        "/api/connect/ops/task.detach",
+        "POST",
+        { taskId: args.taskId, attachmentId: args.attachmentId }
+      );
     },
   }),
   defineTool({

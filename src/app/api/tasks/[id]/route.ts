@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
+import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import {
   type RecurringCompletion,
@@ -16,6 +17,7 @@ import {
   TaskBusyStatus,
   WorkspaceRole,
 } from "@prisma/client";
+import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -172,6 +174,7 @@ export async function PUT(
     // them through the task (they have their own routes).
     delete updates.parts;
     delete updates.waits;
+    delete updates.attachments;
     delete updates.archivedAt;
     delete updates.recurrenceMasterId;
     delete updates.recurrenceInstanceAt;
@@ -201,6 +204,9 @@ export async function PUT(
           }))))
     ) {
       return new NextResponse("Invalid workspace assignee", { status: 400 });
+    }
+    if (await hasForeignTagIds(userId, tagIds)) {
+      return new NextResponse("Invalid label", { status: 400 });
     }
     if (
       updates.busyStatus !== undefined &&
@@ -345,9 +351,19 @@ export async function PUT(
       }
     }
 
-    // Normalize recurrence rule if it exists in updates
+    // Normalize and validate the recurrence rule. Writing the rule alone is
+    // enough: the flag follows it unless the caller set the flag itself.
     if (updates.recurrenceRule) {
-      updates.recurrenceRule = normalizeRecurrenceRule(updates.recurrenceRule);
+      const rule = normalizeRecurrenceRule(updates.recurrenceRule);
+      try {
+        RRule.fromString(rule ?? "");
+      } catch {
+        return new NextResponse("Invalid recurrence rule", { status: 400 });
+      }
+      updates.recurrenceRule = rule;
+    }
+    if ("recurrenceRule" in updates && !("isRecurring" in updates)) {
+      updates.isRecurring = !!updates.recurrenceRule;
     }
 
     // Find the project's task mapping if it exists
@@ -420,6 +436,7 @@ export async function PUT(
         tags: true,
         project: true,
         scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+        ...partsWaitsInclude,
       },
     };
 
@@ -484,6 +501,7 @@ export async function PUT(
             tags: true,
             project: true,
             scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+            ...partsWaitsInclude,
           },
         })) ?? updatedTask;
     }

@@ -51,7 +51,7 @@ export interface ComposerRepeat extends ComposerFacet {
 }
 
 export interface ComposerPriority extends ComposerFacet {
-  readonly level: V3Priority;
+  readonly level: Exclude<V3Priority, "none">;
 }
 
 export interface ComposerProject extends ComposerFacet {
@@ -96,13 +96,13 @@ export function composerVocabulary(
 
 /* ── The shorthands ─────────────────────────────────────────────────────── */
 
-const WORDS_TO_LEVEL: Readonly<Record<string, V3Priority>> = {
+const WORDS_TO_LEVEL: Readonly<Record<string, Exclude<V3Priority, "none">>> = {
   urgent: "urgent",
   important: "high",
   whenever: "low",
 };
 
-const SIGIL_TO_LEVEL: Readonly<Record<string, V3Priority>> = {
+const SIGIL_TO_LEVEL: Readonly<Record<string, Exclude<V3Priority, "none">>> = {
   urgent: "urgent",
   asap: "urgent",
   "1": "urgent",
@@ -117,7 +117,7 @@ const SIGIL_TO_LEVEL: Readonly<Record<string, V3Priority>> = {
   "4": "low",
 };
 
-const LEVEL_LABEL: Readonly<Record<V3Priority, string>> = {
+const LEVEL_LABEL: Readonly<Record<Exclude<V3Priority, "none">, string>> = {
   urgent: "Urgent",
   high: "High",
   medium: "Medium",
