@@ -169,6 +169,15 @@ export async function canUseAiAgent(userId: string) {
   };
 }
 
+export async function canPlanMyDay(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].planMyDay,
+    upgradeRequired: !PLAN_LIMITS[plan].planMyDay,
+    plan,
+  };
+}
+
 export async function canViewFocusStats(userId: string) {
   const plan = await getPlan(userId);
   return {

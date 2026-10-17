@@ -1,3 +1,4 @@
+import { planMyDay } from "@/services/ai/plan-day";
 import { OpError, runOp } from "@/services/ops";
 import type { PageActor } from "@/services/pages/page-service";
 import { z } from "zod";
@@ -6,6 +7,7 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
+import { canPlanMyDay } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
 import { zodToJsonSchema } from "../../ops/json-schema";
@@ -543,6 +545,58 @@ const WRITE_TOOLS: AgentTool[] = [
         result: result.page,
         href: result.page.href,
       });
+    },
+  },
+  {
+    name: "plan_day",
+    kind: "write",
+    progress: "Planning your day",
+    description:
+      "Plan my day: place the open tasks that have no time yet into free slots, using the calendar's events, the working hours with their breaks, due dates, priority, estimates and dependencies. One undoable action. Returns where each task went and what did not fit. Pro plan.",
+    schema: z.object({}).strict(),
+    async run(ctx) {
+      const entitlement = await canPlanMyDay(ctx.userId);
+      if (!entitlement.allowed) {
+        return failure("Plan my day is available on Needt Pro and Lifetime.");
+      }
+      const result = await planMyDay({
+        userId: ctx.userId,
+        workspace: ctx.workspace,
+        actor: "agent",
+        runId: await ctx.runId(),
+      });
+      const changed = result.items.length > 0;
+      return {
+        ok: true,
+        summary: result.headline,
+        modelText: modelJson({
+          ok: true,
+          summary: result.headline,
+          placed: result.items.slice(0, 30).map((item) => ({
+            id: item.taskId,
+            title: item.title,
+            day: item.day,
+            time: item.time,
+            moved: item.moved,
+            href: `/tasks?taskId=${item.taskId}`,
+          })),
+          didNotFit: result.unplaced.map((task) => ({
+            id: task.taskId,
+            title: task.title,
+          })),
+        }),
+        ...(result.actionId
+          ? {
+              action: {
+                actionId: result.actionId,
+                label: result.headline,
+                href: "/calendar",
+                undoable: result.undoable,
+              },
+            }
+          : {}),
+        changed,
+      };
     },
   },
   {
