@@ -30,10 +30,9 @@ type Kind = "page" | "task" | "board";
  * days are left and a Restore button (notice with Undo). A page or a moodboard
  * also has "Delete forever", and the header has "Empty Trash": both open a
  * confirm sheet that says there is no Undo (the same words as the desktop's
- * dialog). Nothing purges after 30 days yet; the line is shown so the promise
- * is.
- * //todo: Restore all, tasks' Delete forever and the hold menu wait for a hard
- * delete on DELETE /api/tasks/:id and the worker's 30-day purge.
+ * dialog); a task has it too. The worker purges what has sat 30 days, and
+ * "Restore all" in the header puts everything back.
+ * //todo: the hold menu.
  */
 export function TrashPhone({ c }: { c: TrashController }) {
   const {
@@ -48,6 +47,7 @@ export function TrashPhone({ c }: { c: TrashController }) {
     restoreTask,
     restoreBoard,
     restorePage,
+    restoreAll,
     ask,
     setAsk,
     runAsk,
@@ -62,7 +62,7 @@ export function TrashPhone({ c }: { c: TrashController }) {
     timeZone,
   });
   const total = pages.length + dead.length + gone.length;
-  const canEmpty = pages.length + gone.length > 0;
+  const canEmpty = total > 0;
   const titleOf = (kind: Kind, id: string) =>
     (kind === "page" ? pages : kind === "task" ? dead : gone).find(
       (x) => x.id === id
@@ -106,14 +106,24 @@ export function TrashPhone({ c }: { c: TrashController }) {
       sub={trashSub(total)}
       right={
         canEmpty ? (
-          <PkButton
-            kind="quiet"
-            small
-            data-ppl-empty=""
-            onClick={() => setAsk({ kind: "all" })}
-          >
-            {tr.empty_trash}
-          </PkButton>
+          <>
+            <PkButton
+              kind="quiet"
+              small
+              data-ppl-restore-all=""
+              onClick={() => void restoreAll()}
+            >
+              Restore all
+            </PkButton>
+            <PkButton
+              kind="quiet"
+              small
+              data-ppl-empty=""
+              onClick={() => setAsk({ kind: "all" })}
+            >
+              {tr.empty_trash}
+            </PkButton>
+          </>
         ) : null
       }
       onPull={{
@@ -158,22 +168,20 @@ export function TrashPhone({ c }: { c: TrashController }) {
                   data={{ "data-ppl-trash": `${r.kind}:${r.id}` }}
                   action={
                     <>
-                      {r.kind !== "task" ? (
-                        <PkButton
-                          kind="ghost"
-                          small
-                          icon={<LuTrash2 size={16} aria-hidden />}
-                          aria-label={`Delete “${r.title}” forever`}
-                          onClick={() =>
-                            setAsk({
-                              kind: r.kind as "page" | "board",
-                              id: r.id,
-                              title: titleOf(r.kind, r.id),
-                            })
-                          }
-                          data-ppl-forever={r.id}
-                        />
-                      ) : null}
+                      <PkButton
+                        kind="ghost"
+                        small
+                        icon={<LuTrash2 size={16} aria-hidden />}
+                        aria-label={`Delete “${r.title}” forever`}
+                        onClick={() =>
+                          setAsk({
+                            kind: r.kind,
+                            id: r.id,
+                            title: titleOf(r.kind, r.id),
+                          })
+                        }
+                        data-ppl-forever={r.id}
+                      />
                       <PkButton
                         kind="primary"
                         small

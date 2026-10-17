@@ -7,6 +7,7 @@ import {
   moreAlign,
   moreIsWide,
   moveRow,
+  orderRows,
   placeForPath,
   prefsFromSettings,
   prefsFromTiles,
@@ -118,5 +119,22 @@ describe("sidebar layout", () => {
     expect(placeForPath("/projects/p1")).toBe("projects");
     expect(placeForPath("/tasksx")).toBeNull();
     expect(placeForPath("/connections")).toBeNull();
+  });
+});
+
+describe("orderRows", () => {
+  it("applies a full id order to places or sections, leaving the other list alone", () => {
+    const rev = ids(DEFAULT_PREFS.places).reverse();
+    const next = orderRows(DEFAULT_PREFS, "places", rev);
+    expect(ids(next.places)).toEqual(rev);
+    expect(next.sections).toEqual(DEFAULT_PREFS.sections);
+    const sec = orderRows(DEFAULT_PREFS, "sections", ["projects", "starred"]);
+    expect(ids(sec.sections)).toEqual(["projects", "starred"]);
+  });
+
+  it("keeps rows the order does not name, after the named ones", () => {
+    const next = orderRows(DEFAULT_PREFS, "places", ["mail"]);
+    expect(next.places[0].id).toBe("mail");
+    expect(next.places).toHaveLength(DEFAULT_PREFS.places.length);
   });
 });

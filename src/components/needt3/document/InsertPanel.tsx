@@ -77,6 +77,11 @@ export const INSERT_GROUPS: {
         label: "Checklist",
         icon: <LuListChecks size={15} />,
       },
+      {
+        command: "taskItem",
+        label: "Task",
+        icon: <LuCircleCheck size={15} />,
+      },
       { command: "quote", label: "Quote", icon: <LuQuote size={15} /> },
       {
         command: "CALLOUT",
@@ -106,7 +111,7 @@ export const INSERT_GROUPS: {
     rows: [
       {
         command: "TASK_REFERENCE",
-        label: "Task",
+        label: "Task link",
         icon: <LuCircleCheck size={15} />,
       },
       {

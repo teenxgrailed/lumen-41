@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   LuArchive,
   LuArrowRight,
+  LuBan,
   LuCalendar,
   LuCalendarClock,
   LuCalendarDays,
@@ -29,14 +30,18 @@ import {
   LuGripVertical,
   LuHourglass,
   LuLink,
+  LuPaperclip,
   LuPlus,
+  LuRepeat,
   LuSearch,
   LuSun,
   LuSunrise,
+  LuTag,
   LuTrash2,
   LuX,
 } from "react-icons/lu";
 
+import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -47,6 +52,12 @@ import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
+  useCreateLabel,
+  useLabels,
+  useTaskAttachments,
+  useWorkSchedules,
+} from "@/lib/needt3/hooks/task-extras";
+import {
   useCreateTask,
   useTask,
   useTaskParts,
@@ -55,14 +66,26 @@ import {
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
+import {
+  type CustomRepeat,
+  REPEAT_CHOICES,
+  WEEK_DAYS,
+  buildRule,
+  readCustom,
+  repeatKey,
+  repeatLabel,
+} from "@/lib/needt3/repeat";
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useDesignV3 } from "../root/V3Root";
+import { SortableItem, SortableList } from "../sortable/Sortable";
+import { useSortableList } from "../sortable/useSortableList";
 import { TaskDialogCalendar } from "./TaskDialogCalendar";
 import {
   type ChipBox,
   TD_CHUNK,
+  TD_DOW,
   TD_DUR,
   TD_PRIO,
   chunkPatch,
@@ -73,13 +96,14 @@ import {
   fixedPatch,
   foldChips,
   isSchedDefault,
-  moveItem,
   nextMonday,
   placementHint,
   schedSummary,
   tdAgo,
+  tdCreated,
   tdDayName,
   tdDur,
+  tdProvider,
   timePatch,
 } from "./TaskDialogModel";
 
@@ -91,6 +115,8 @@ type PopKey =
   | "duration"
   | "project"
   | "priority"
+  | "labels"
+  | "repeat"
   | "deadline"
   | "more";
 interface Pop {
@@ -195,6 +221,11 @@ export function TaskDialog({
   const createDoc = useCreateDoc();
   const events = useEventLifecycle();
   const calendars = useCalendars();
+  const allLabels = useLabels().data ?? [];
+  const createLabel = useCreateLabel();
+  const schedules = useWorkSchedules().data ?? [];
+  const attach = useTaskAttachments(t.id);
+  const startFocus = useStartFocus();
 
   const [title, setTitle] = useState(t.title);
   const [notes, setNotes] = useState(t.notes ?? "");
@@ -204,7 +235,6 @@ export function TaskDialog({
   const [q, setQ] = useState("");
   const [addText, setAddText] = useState("");
   const [partText, setPartText] = useState<Record<string, string>>({});
-  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
   const [subTick, setSubTick] = useState<string | null>(null);
   const [schedOpen, setSchedOpen] = useSchedOpen();
   const [flash, setFlash] = useState(0);
@@ -215,6 +245,12 @@ export function TaskDialog({
   const popRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  /* The custom-repeat editor, open while a draft is held. */
+  const [rep, setRep] = useState<CustomRepeat | null>(null);
+  useEffect(() => {
+    if (pop?.key !== "repeat") setRep(null);
+  }, [pop?.key]);
   const measureRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
   const [folded, setFolded] = useState<string[]>([]);
@@ -340,9 +376,24 @@ export function TaskDialog({
   const proj = project(t.projectId, projects);
   const late = !t.done && !!t.dueDate && t.dueDate < today;
   const prioLabel = TD_PRIO.find((p) => p[0] === t.priority)?.[1] ?? null;
+  /* A task that arrived from a provider keeps its title and repeat there:
+     each sync overwrites them (src/lib/task-sync/README.md). */
+  const provider = tdProvider(t.syncedFrom);
+  const labels = t.labels ?? [];
+  const labelText = labels.length
+    ? labels[0].name + (labels.length > 1 ? ` +${labels.length - 1}` : "")
+    : null;
+  const repeatText = repeatLabel(t.repeat);
+  const defaultHours = schedules.find((s) => s.isDefault) ?? schedules[0];
+  const hoursName = t.scheduleId
+    ? (schedules.find((s) => s.id === t.scheduleId)?.name ?? null)
+    : null;
+  const files = t.attachments ?? [];
+  const created = tdCreated(t.createdAt, tz);
   const tparts = t.parts ?? [];
   const closed = tparts.filter((p) => p.done).length;
   const firstOpen = tparts.find((p) => !p.done);
+  const wayIn = entry.trim() || firstOpen?.title || null;
   const schedDefault = isSchedDefault(t);
   const inProgress =
     !t.done && (t.status === "in_progress" || t.Stage === "doing");
@@ -381,8 +432,21 @@ export function TaskDialog({
       danger: t.priority === "urgent",
       title: t.priority === "urgent" ? "Urgent priority" : "Priority",
     },
-    //todo Labels (Task.tags via tagIds), Repeat (needs map.ts to write
-    // isRecurring with recurrenceRule) and Who (workspace members) chips.
+    {
+      k: "labels",
+      glyph: <LuTag size={13} aria-hidden />,
+      value: labelText,
+      empty: "Labels",
+      title: labels.length ? labels.map((l) => l.name).join(", ") : "Labels",
+    },
+    {
+      k: "repeat",
+      glyph: <LuRepeat size={13} aria-hidden />,
+      value: repeatText,
+      empty: "Repeat",
+      title: provider ? `Repeat is set in ${provider}` : "Repeat",
+    },
+    //todo Who (workspace members) chip.
   ];
   const chipSig = chipDefs.map((c) => `${c.k}:${c.value ?? ""}`).join("|");
   /* Chip row: one line, always; chips that don't fit fold into "+N". */
@@ -416,6 +480,7 @@ export function TaskDialog({
 
   /* ── edits ── */
   const editTitle = (v: string) => {
+    if (provider) return;
     setTitle(v);
     if (v.trim()) later({ title: v });
   };
@@ -594,13 +659,16 @@ export function TaskDialog({
     if (!v.trim()) void parts.remove(t.id, id).catch(() => undefined);
     else void parts.update(t.id, id, { title: v }).catch(() => undefined);
   };
-  const reorder = (from: number, to: number) => {
-    const next = moveItem(tparts, from, to);
-    next.forEach((p, i) => {
-      if (tparts[i]?.id !== p.id)
-        void parts.update(t.id, p.id, { position: i }).catch(() => undefined);
-    });
-  };
+  const sortParts = useSortableList({
+    items: tparts,
+    label: (p) => p.title || "subtask",
+    onReorder: (order) =>
+      Promise.all(
+        order.flatMap((id, i) =>
+          tparts[i]?.id === id ? [] : [parts.update(t.id, id, { position: i })]
+        )
+      ),
+  });
 
   /* ── popover bodies ── */
   const ql = q.trim().toLowerCase();
@@ -823,9 +891,231 @@ export function TaskDialog({
               {t.priority === k ? <LuCheck size={14} aria-hidden /> : null}
             </button>
           ))}
-          {/* //todo "No priority": priorityLevel is required on the v3 map. */}
+          <button
+            type="button"
+            className={`tdc-opt${t.priority === "none" ? " is-on" : ""}`}
+            onClick={() => {
+              setPop(null);
+              emit({ priority: "none" });
+            }}
+          >
+            <span className="tdc-flag">
+              <LuBan size={14} aria-hidden />
+            </span>
+            <span className="tdc-opt-text">No priority</span>
+            {t.priority === "none" ? <LuCheck size={14} aria-hidden /> : null}
+          </button>
         </div>
       );
+    if (pop.key === "labels") {
+      const hits = allLabels.filter(
+        (l) => !ql || l.name.toLowerCase().includes(ql)
+      );
+      const exact = allLabels.some((l) => l.name.toLowerCase() === ql);
+      const on = new Set(labels.map((l) => l.id));
+      const toggle = (l: (typeof allLabels)[number]) =>
+        emit({
+          labels: on.has(l.id)
+            ? labels.filter((x) => x.id !== l.id)
+            : [...labels, l],
+        });
+      const make = async () => {
+        const name = q.trim();
+        if (!name) return;
+        const hit = allLabels.find((l) => l.name.toLowerCase() === ql);
+        if (hit) {
+          if (!on.has(hit.id)) toggle(hit);
+          setQ("");
+          return;
+        }
+        const made = await createLabel(name);
+        if (made) emit({ labels: [...labels, made] });
+        setQ("");
+      };
+      return (
+        <div className="tdc-pop-list">
+          <label className="tdc-search">
+            <LuSearch size={13} aria-hidden />
+            <input
+              autoFocus
+              placeholder="Find or make a label"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && q.trim()) {
+                  e.preventDefault();
+                  void make();
+                }
+              }}
+            />
+          </label>
+          <div className="tdc-list">
+            {hits.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={on.has(l.id)}
+                className={`tdc-opt${on.has(l.id) ? " is-on" : ""}`}
+                onClick={() => toggle(l)}
+              >
+                <span
+                  className="tdc-dot"
+                  aria-hidden="true"
+                  style={
+                    {
+                      "--tdc-hue": l.color || "var(--text-quaternary)",
+                    } as CSSProperties
+                  }
+                />
+                <span className="tdc-opt-text">{l.name}</span>
+                {on.has(l.id) ? <LuCheck size={14} aria-hidden /> : null}
+              </button>
+            ))}
+            {ql && !exact ? (
+              <button
+                type="button"
+                className="tdc-opt"
+                onClick={() => void make()}
+              >
+                <span className="tdc-flag">
+                  <LuPlus size={14} aria-hidden />
+                </span>
+                <span className="tdc-opt-text">Make “{q.trim()}”</span>
+              </button>
+            ) : null}
+            {!ql && !hits.length ? (
+              <span className="tdc-empty">
+                No labels yet — type a name to make one
+              </span>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+    if (pop.key === "repeat") {
+      const current = repeatKey(t.repeat);
+      return (
+        <div className="tdc-list">
+          {provider ? (
+            <span className="tdc-empty">
+              {repeatText ?? "Does not repeat"} · set in {provider}, it changes
+              there
+            </span>
+          ) : (
+            <>
+              {current === "custom" ? (
+                <span className="tdc-opt is-on" aria-current="true">
+                  <span className="tdc-opt-text">Custom</span>
+                  <LuCheck size={14} aria-hidden />
+                </span>
+              ) : null}
+              {REPEAT_CHOICES.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  className={`tdc-opt${current === c.key ? " is-on" : ""}`}
+                  onClick={() => {
+                    setPop(null);
+                    emit({ repeat: c.rule });
+                  }}
+                >
+                  <span className="tdc-opt-text">{c.label}</span>
+                  {current === c.key ? <LuCheck size={14} aria-hidden /> : null}
+                </button>
+              ))}
+              {rep ? (
+                <div className="tdc-pop-dur" aria-label="Custom repeat">
+                  <div className="tdc-srow">
+                    <span className="tdc-srow-label">Every</span>
+                    <input
+                      type="number"
+                      className="tdc-num"
+                      min={1}
+                      max={99}
+                      aria-label="Every how many"
+                      value={rep.interval}
+                      onChange={(e) =>
+                        setRep({
+                          ...rep,
+                          interval: Number(e.target.value) || 1,
+                        })
+                      }
+                    />
+                    <span className="tdc-seg" role="group" aria-label="Unit">
+                      {(
+                        [
+                          ["DAILY", "day"],
+                          ["WEEKLY", "week"],
+                          ["MONTHLY", "month"],
+                        ] as const
+                      ).map(([freq, word]) => (
+                        <button
+                          key={freq}
+                          type="button"
+                          aria-pressed={rep.freq === freq}
+                          onClick={() => setRep({ ...rep, freq })}
+                        >
+                          {word}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                  {rep.freq === "WEEKLY" ? (
+                    <div className="tdc-dur-grid" role="group" aria-label="On">
+                      {WEEK_DAYS.map((d, i) => (
+                        <button
+                          key={d}
+                          type="button"
+                          className={`tdc-dur${rep.days.includes(d) ? " is-on" : ""}`}
+                          aria-pressed={rep.days.includes(d)}
+                          onClick={() =>
+                            setRep({
+                              ...rep,
+                              days: rep.days.includes(d)
+                                ? rep.days.filter((x) => x !== d)
+                                : [...rep.days, d],
+                            })
+                          }
+                        >
+                          {TD_DOW[i]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="nx-btn nx-btn-text nx-btn-sm tdc-pop-clear"
+                    onClick={() => {
+                      setPop(null);
+                      emit({ repeat: buildRule(rep) });
+                    }}
+                  >
+                    Repeat this way
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="tdc-opt"
+                  onClick={() =>
+                    setRep(
+                      readCustom(t.repeat) ?? {
+                        freq: "WEEKLY",
+                        interval: 1,
+                        days: [],
+                      }
+                    )
+                  }
+                >
+                  <span className="tdc-opt-text">Custom…</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
     if (pop.key === "more")
       return (
         <div className="tdc-list" role="menu">
@@ -945,6 +1235,10 @@ export function TaskDialog({
                 value={title}
                 placeholder="Name it"
                 aria-label="Title"
+                readOnly={!!provider}
+                title={
+                  provider ? `The title comes from ${provider}` : undefined
+                }
                 onChange={(e) => editTitle(e.target.value.replace(/\n/g, " "))}
                 onBlur={commitTitle}
                 onKeyDown={(e) => {
@@ -1085,7 +1379,9 @@ export function TaskDialog({
                 title="Scheduling"
               >
                 <LuCalendarClock size={13} aria-hidden />
-                <span className="tdc-sum-text">{schedSummary(t)}</span>
+                <span className="tdc-sum-text">
+                  {schedSummary(t, hoursName)}
+                </span>
               </button>
             ) : null}
 
@@ -1167,8 +1463,30 @@ export function TaskDialog({
                       </span>
                     </button>
                   </div>
-                  {/* //todo Hours (work / personal / any → Task.scheduleId):
-                      needs a work-schedules hook and query key from S1. */}
+                  {schedules.length > 1 ? (
+                    <div className="tdc-srow">
+                      <span className="tdc-srow-label">Hours</span>
+                      <span className="tdc-seg" role="group" aria-label="Hours">
+                        {schedules.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            aria-pressed={
+                              (t.scheduleId ?? defaultHours?.id) === s.id
+                            }
+                            onClick={() =>
+                              emit({
+                                scheduleId:
+                                  s.id === defaultHours?.id ? null : s.id,
+                              })
+                            }
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -1190,93 +1508,81 @@ export function TaskDialog({
                     <PartsRing done={closed} total={tparts.length} />
                   </div>
                 ) : null}
-                {tparts.map((p, i) => {
-                  const dropCls =
-                    drag && drag.over === i && drag.from !== i
-                      ? drag.from < i
-                        ? " is-drop-after"
-                        : " is-drop-before"
-                      : "";
-                  return (
-                    <div
+                <SortableList ctl={sortParts}>
+                  {sortParts.ordered.map((p) => (
+                    <SortableItem
                       key={p.id}
-                      className={`tdc-sub${dropCls}${drag?.from === i ? " is-dragging" : ""}`}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", String(i));
-                        setDrag({ from: i, over: i });
-                      }}
-                      onDragOver={(e) => {
-                        if (!drag) return;
-                        e.preventDefault();
-                        if (drag.over !== i)
-                          setDrag({ from: drag.from, over: i });
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (!drag) return;
-                        const f = drag.from;
-                        setDrag(null);
-                        if (f !== i) reorder(f, i);
-                      }}
-                      onDragEnd={() => setDrag(null)}
+                      id={p.id}
+                      className="tdc-sub"
+                      label={p.title || "subtask"}
                     >
-                      <span className="tdc-grip" aria-hidden="true">
-                        <LuGripVertical size={13} />
-                      </span>
-                      <button
-                        type="button"
-                        className={`tdc-sub-check${p.done ? " is-on" : ""}${p.done && subTick === p.id ? " is-ticking" : ""}`}
-                        role="checkbox"
-                        aria-checked={p.done}
-                        aria-label={p.done ? "Reopen subtask" : "Tick subtask"}
-                        onClick={() => {
-                          setSubTick(p.done ? null : p.id);
-                          void parts.toggle(t.id, p).catch(() => undefined);
-                        }}
-                      >
-                        {p.done ? <LuCheck size={11} aria-hidden /> : null}
-                      </button>
-                      <input
-                        className={`tdc-sub-title${p.done ? " is-done" : ""}`}
-                        value={partTitle(p.id, p.title)}
-                        placeholder="Subtask"
-                        aria-label="Subtask"
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setPartText((m) => ({ ...m, [p.id]: v }));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                            addRef.current?.focus();
-                          } else if (
-                            e.key === "Backspace" &&
-                            !partTitle(p.id, p.title)
-                          ) {
-                            e.preventDefault();
-                            void parts
-                              .remove(t.id, p.id)
-                              .catch(() => undefined);
-                          }
-                        }}
-                        onBlur={() => commitPart(p.id, p.title)}
-                      />
-                      <button
-                        type="button"
-                        className="tdc-icon-btn tdc-sub-del"
-                        aria-label="Remove subtask"
-                        onClick={() =>
-                          void parts.remove(t.id, p.id).catch(() => undefined)
-                        }
-                      >
-                        <LuX size={13} aria-hidden />
-                      </button>
-                    </div>
-                  );
-                })}
+                      {({ handleProps }) => (
+                        <>
+                          <span {...handleProps} className="tdc-grip">
+                            <LuGripVertical size={13} />
+                          </span>
+                          <button
+                            type="button"
+                            className={`tdc-sub-check${p.done ? " is-on" : ""}${p.done && subTick === p.id ? " is-ticking" : ""}`}
+                            role="checkbox"
+                            aria-checked={p.done}
+                            aria-label={
+                              p.done ? "Reopen subtask" : "Tick subtask"
+                            }
+                            onClick={() => {
+                              setSubTick(p.done ? null : p.id);
+                              void parts.toggle(t.id, p).catch(() => undefined);
+                            }}
+                          >
+                            {p.done ? <LuCheck size={11} aria-hidden /> : null}
+                          </button>
+                          <input
+                            className={`tdc-sub-title${p.done ? " is-done" : ""}`}
+                            value={partTitle(p.id, p.title)}
+                            placeholder="Subtask"
+                            aria-label="Subtask"
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPartText((m) => ({ ...m, [p.id]: v }));
+                            }}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === "Enter" &&
+                                !e.metaKey &&
+                                !e.ctrlKey
+                              ) {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                                addRef.current?.focus();
+                              } else if (
+                                e.key === "Backspace" &&
+                                !partTitle(p.id, p.title)
+                              ) {
+                                e.preventDefault();
+                                void parts
+                                  .remove(t.id, p.id)
+                                  .catch(() => undefined);
+                              }
+                            }}
+                            onBlur={() => commitPart(p.id, p.title)}
+                          />
+                          <button
+                            type="button"
+                            className="tdc-icon-btn tdc-sub-del"
+                            aria-label="Remove subtask"
+                            onClick={() =>
+                              void parts
+                                .remove(t.id, p.id)
+                                .catch(() => undefined)
+                            }
+                          >
+                            <LuX size={13} aria-hidden />
+                          </button>
+                        </>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableList>
                 <label className="tdc-sub tdc-sub-add">
                   <span className="tdc-grip" aria-hidden="true" />
                   <span className="tdc-sub-plus" aria-hidden="true">
@@ -1321,19 +1627,95 @@ export function TaskDialog({
                   onChange={(e) => editEntry(e.target.value)}
                   onBlur={flush}
                 />
-                {/* //todo "Start focus" on the first step: the Focus window
-                    (S4) has no way yet to take an intention and a task. */}
-                <span className="tdc-step-cost">2 min</span>
+                {wayIn && !t.done ? (
+                  <button
+                    type="button"
+                    className="nx-btn nx-btn-text nx-btn-sm tdc-step-go"
+                    title="Start a focus session on the first step"
+                    onClick={() => {
+                      flush();
+                      void startFocus(
+                        { id: t.id, title: wayIn },
+                        t.estimatedMinutes ?? undefined
+                      ).then((row) => {
+                        if (row) close();
+                      });
+                    }}
+                  >
+                    Start focus
+                  </button>
+                ) : (
+                  <span className="tdc-step-cost">2 min</span>
+                )}
               </div>
-              {/* //todo Attachments: TaskAttachment exists (M2) but has no
-                  route; the Attach button and file chips wait for it. */}
+
+              {files.length ? (
+                <div className="tdc-files">
+                  {files.map((f) => (
+                    <span key={f.id} className="tdc-file">
+                      <LuPaperclip size={12} aria-hidden />
+                      <a
+                        className="tdc-file-name"
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={f.name}
+                      >
+                        {f.name}
+                      </a>
+                      <button
+                        type="button"
+                        className="tdc-icon-btn"
+                        aria-label={`Remove ${f.name}`}
+                        onClick={() => attach.remove.mutate(f.id)}
+                      >
+                        <LuX size={12} aria-hidden />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <footer className="tdc-foot">
               <span className="tdc-meta">
-                {/* //todo "Created 4 Sep": V3Task carries no createdAt. */}
-                {updated ? `Updated ${updated}` : "Changes save as you type"}
+                {[
+                  created ? `Created ${created}` : null,
+                  updated ? `Updated ${updated}` : null,
+                  provider ? `From ${provider}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Changes save as you type"}
               </span>
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                hidden
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files ?? []);
+                  e.target.value = "";
+                  void (async () => {
+                    for (const f of picked) {
+                      if (f.size > 4 * 1024 * 1024) {
+                        notify.error(`“${f.name}” is over 4 MB.`);
+                        continue;
+                      }
+                      await attach.add.mutateAsync(f).catch(() => undefined);
+                    }
+                  })();
+                }}
+              />
+              <button
+                type="button"
+                className="nx-btn nx-btn-text nx-btn-sm"
+                disabled={attach.add.isPending}
+                onClick={() => fileRef.current?.click()}
+              >
+                <LuPaperclip size={14} aria-hidden />
+                Attach
+              </button>
               <span
                 className="tdc-saved"
                 data-on={flash ? "1" : "0"}
