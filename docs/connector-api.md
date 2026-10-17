@@ -712,6 +712,28 @@ returns at most 500. Responses carry `{ "item": {...} }` (list: `{ "items": [...
 with `id`, `moodboardId`, the fields above, `createdAt` and `updatedAt`.
 `DELETE` answers `204`.
 
+### Comments on a reference
+
+```http
+GET    /api/moodboards/:id/items/:itemId/comments
+POST   /api/moodboards/:id/items/:itemId/comments            { "body": "..." }
+PATCH  /api/moodboards/:id/items/:itemId/comments/:commentId { "resolved": true }
+DELETE /api/moodboards/:id/items/:itemId/comments/:commentId
+```
+
+Same session and workspace rules as the items. A viewer reads; an editor
+(and above) posts; the comment's author, or someone with full access, resolves,
+reopens and deletes. There is no separate commenter role: writing a comment
+needs editor access, as it does for page comments. `body` is 1 to 4,000
+characters after trimming; anything else in the body is a `400`. A board in
+Trash is read-only (`409`). The list is open comments first, then resolved,
+oldest first within each, at most 500; each comment carries `id`, `itemId`,
+`moodboardId`, `authorId`, `author { name, email, image }`, `body`,
+`resolvedAt` and `createdAt`. Responses are `{ "comments": [...] }` and
+`{ "comment": {...} }` (`201` on create); `DELETE` answers `204`. Deleting the
+reference deletes its comments. The board's owner, and anyone who commented on
+the board before, gets a "commented on <board>" card in their notifications.
+
 ### Reorder, pictures, sorting, sharing
 
 ```http

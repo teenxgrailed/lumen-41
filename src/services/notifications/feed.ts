@@ -161,6 +161,7 @@ async function activityCandidates(
     actions,
     comments,
     shares,
+    boardComments,
     boardShares,
     feeds,
     imports,
@@ -226,6 +227,48 @@ async function activityCandidates(
         createdAt: true,
         grantedBy: { select: { name: true } },
         page: { select: { title: true } },
+      },
+    }),
+    // Comments on a board reference, for the board's owner and for people who
+    // commented on the same board before (never your own).
+    prisma.moodboardItemComment.findMany({
+      where: {
+        authorId: { not: userId },
+        createdAt: { gte: since },
+        item: {
+          moodboard: {
+            trashedAt: null,
+            archivedAt: null,
+            AND: [
+              {
+                OR: [
+                  { createdById: userId },
+                  { accessGrants: { some: { userId } } },
+                ],
+              },
+              {
+                OR: [
+                  { createdById: userId },
+                  {
+                    items: {
+                      some: { comments: { some: { authorId: userId } } },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: {
+        id: true,
+        moodboardId: true,
+        body: true,
+        createdAt: true,
+        author: { select: { name: true } },
+        item: { select: { moodboard: { select: { title: true } } } },
       },
     }),
     prisma.moodboardAccessGrant.findMany({
@@ -334,6 +377,19 @@ async function activityCandidates(
       body: null,
       at: s.createdAt.toISOString(),
       link: `/pages/${encodeURIComponent(s.pageId)}`,
+    });
+  }
+  for (const c of boardComments) {
+    const who = c.author.name ?? "Someone";
+    out.push({
+      key: `boardcomment:${c.id}`,
+      group: "activity",
+      kind: "comment",
+      actor: who,
+      title: `${who} commented on ${c.item.moodboard.title}`,
+      body: clip(c.body, 200),
+      at: c.createdAt.toISOString(),
+      link: `/moodboards/${encodeURIComponent(c.moodboardId)}`,
     });
   }
   for (const s of boardShares) {

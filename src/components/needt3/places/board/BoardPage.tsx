@@ -49,6 +49,7 @@ import { PinterestDialog } from "./PinterestDialog";
 import { ShareDialog } from "./ShareDialog";
 import { copyText, openUrl } from "./clipboard";
 import {
+  canManage,
   canWrite,
   classifyPaste,
   isFieldTarget,
@@ -676,6 +677,8 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
         </div>
       ) : null}
       <Detail
+        boardId={id}
+        canModerate={canManage(role)}
         item={detail}
         readOnly={!writing || !!detail?.fromCanvas}
         tz={tz}

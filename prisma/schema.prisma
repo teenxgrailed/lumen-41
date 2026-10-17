@@ -151,6 +151,7 @@ model User {
   aiPageProposals        AiPageChangeProposal[]
   pageAssets             PageAsset[]
   pageComments           PageComment[]
+  moodboardItemComments  MoodboardItemComment[]
   pageAccessGrants       PageAccessGrant[]         @relation("PageAccessGrantee")
   pageAccessGrantsGiven  PageAccessGrant[]         @relation("PageAccessGrantor")
   pagePublications       PagePublication[]         @relation("PagePublicationPublisher")
@@ -3139,8 +3140,30 @@ model MoodboardItem {
   position     Float     @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  comments     MoodboardItemComment[]
 
   @@index([moodboardId, position])
+}
+
+/// A comment on one reference of a moodboard grid (the PageComment pattern).
+/// Read with viewer access, written with editor access; the author or full
+/// access may resolve or delete it. Deleting the reference deletes its comments.
+model MoodboardItemComment {
+  id          String        @id @default(cuid())
+  itemId      String
+  item        MoodboardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  /// Denormalised so the feed and the access check never join through the item.
+  moodboardId String
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body        String
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([itemId, createdAt])
+  @@index([moodboardId, createdAt])
+  @@index([authorId])
 }
 
 /// A picture uploaded to a moodboard's grid. The bytes live in the row (as
