@@ -40,7 +40,7 @@ import {
 import { haptic } from "@/lib/needt3/haptics";
 import type { V3Task } from "@/lib/needt3/map";
 
-import { PhoneStepsSlot } from "../../task/TaskSteps";
+import { type CloseWithStep, PhoneStepsSlot } from "../../task/TaskSteps";
 import { PkSweep } from "./Material";
 import { type EndReason, frameWriter, pkTrack } from "./pointer";
 import { usePkPlate } from "./theme";
@@ -488,6 +488,8 @@ export interface PkTaskRowProps {
   hideProject?: boolean;
   /** A project page draws the steps itself: the row keeps only its count. */
   hideSteps?: boolean;
+  /** The last step ticked closes the task: close it as the row's own tick does. */
+  onStepClose?: CloseWithStep;
   action?: ReactNode;
 }
 
@@ -511,6 +513,7 @@ export function PkTaskRow({
   actions,
   hideProject,
   hideSteps,
+  onStepClose,
   action,
 }: PkTaskRowProps) {
   const h = hourAt(t);
@@ -559,7 +562,9 @@ export function PkTaskRow({
       onOpen={onOpen ? () => onOpen(t) : undefined}
       onSwipe={onSwipe}
       actions={actions}
-      below={<PhoneStepsSlot task={t} hideSteps={hideSteps} />}
+      below={
+        <PhoneStepsSlot task={t} hideSteps={hideSteps} close={onStepClose} />
+      }
     />
   );
 }

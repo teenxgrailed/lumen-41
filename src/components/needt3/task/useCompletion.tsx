@@ -83,10 +83,11 @@ export function useCompletion() {
   /**
    * Tick or untick. The write goes out first, always (optimistic, one Undo);
    * the row's exit is only the page catching up. Ticking a closed task
-   * reopens it at once.
+   * reopens it at once. `also.undo` is run after the task's own undo (the
+   * last step ticked to close it is put back with it).
    */
   const check = useCallback(
-    (t: Closable) => {
+    (t: Closable, also?: { undo?: () => Promise<void> }) => {
       const {
         completed: mode,
         toggle: write,
@@ -128,7 +129,8 @@ export function useCompletion() {
               label: "Undo",
               onClick: () => {
                 drop(t.id);
-                void undo();
+                // closed by its last step: the step is unticked with it
+                void undo().then(() => also?.undo?.());
               },
             },
           })

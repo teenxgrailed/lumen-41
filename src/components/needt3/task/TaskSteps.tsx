@@ -6,7 +6,7 @@ import { FiCheck, FiChevronDown } from "react-icons/fi";
 
 import { useStepsOpen } from "@/lib/needt3/hooks/steps-open";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTickStep } from "@/lib/needt3/hooks/tasks";
+import { useTaskParts, useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 import {
   type StepItem,
@@ -14,7 +14,9 @@ import {
   stepLabel,
   stepList,
 } from "@/lib/needt3/step-list";
+import { tickClosesTask } from "@/lib/needt3/steps";
 import type { SubtaskMode } from "@/lib/needt3/task-view";
+import { notify } from "@/lib/notifications";
 
 import { PartRing } from "./PartRing";
 import { TaskCheck } from "./TaskCheck";
@@ -44,21 +46,54 @@ type Stepped = Pick<V3Task, "id" | "title" | "done"> &
   Partial<Pick<V3Task, "entry" | "parts">>;
 
 /** The steps of `task`, or null when it has none (or is not a task). */
-export function useTaskSteps(task: Stepped | null): StepsState | null {
+/**
+ * How a list closes a task whose last step was just ticked: the same path as
+ * ticking the task itself (its completion animation, its Undo), given the
+ * undo that unticks the step so one Undo puts both back.
+ */
+export type CloseWithStep = (
+  task: Pick<V3Task, "id" | "title" | "done">,
+  undoStep: () => Promise<void>
+) => void;
+
+export function useTaskSteps(
+  task: Stepped | null,
+  close?: CloseWithStep
+): StepsState | null {
   const { subtasks: mode } = useTaskView();
   const [open, setOpen] = useStepsOpen(task?.id ?? "");
-  const { tick: tickStep } = useTickStep();
+  const partsApi = useTaskParts();
+  const toggleTask = useToggleTask();
   const items = useMemo(() => (task ? stepList(task) : []), [task]);
   const parts = task?.parts;
   const tick = useCallback(
     (item: StepItem) => {
       if (!task || !item.part) return;
-      void tickStep(
-        { id: task.id, done: task.done, parts: parts ?? [] },
-        item.part
-      ).catch(() => undefined);
+      const part = item.part;
+      const closes = tickClosesTask(
+        { done: task.done, parts: parts ?? [] },
+        part.id
+      );
+      void partsApi
+        .toggle(task.id, part)
+        .then(async ({ undo: undoStep }) => {
+          if (!closes) return;
+          if (close) {
+            close(task, undoStep);
+            return;
+          }
+          // a list with no completion of its own: close, say so, one Undo
+          const { undo } = await toggleTask.toggle(task);
+          notify.success(`Done · “${task.title}”`, {
+            action: {
+              label: "Undo",
+              onClick: () => void undo().then(undoStep),
+            },
+          });
+        })
+        .catch(() => undefined);
     },
-    [task, parts, tickStep]
+    [task, parts, partsApi, toggleTask, close]
   );
   if (!task || !items.length) return null;
   const real = items.filter((s) => s.part);
@@ -207,11 +242,13 @@ export function StepsBlock({
 function PhoneSteps({
   task,
   hideSteps,
+  close,
 }: {
   task: V3Task;
   hideSteps?: boolean;
+  close?: CloseWithStep;
 }) {
-  const found = useTaskSteps(task);
+  const found = useTaskSteps(task, close);
   if (!found) return null;
   const steps = hideSteps
     ? { ...found, mode: "count" as const, canFold: false }
@@ -222,11 +259,13 @@ function PhoneSteps({
 export function PhoneStepsSlot({
   task,
   hideSteps,
+  close,
 }: {
   task: V3Task;
   hideSteps?: boolean;
+  close?: CloseWithStep;
 }) {
   return task.parts?.length ? (
-    <PhoneSteps task={task} hideSteps={hideSteps} />
+    <PhoneSteps task={task} hideSteps={hideSteps} close={close} />
   ) : null;
 }
