@@ -133,8 +133,9 @@ beforeEach(() => {
           const id = url.split("/").pop()!;
           const task = tasks.get(id);
           if (!task) return reply(404, {});
-          Object.assign(task, body);
-          return reply(200, task);
+          const updated = { ...task, ...body };
+          tasks.set(id, updated);
+          return reply(200, updated);
         }
       }
       return reply(200, { folders: [], tags: [], pages: [] });
