@@ -287,6 +287,20 @@ function nodeRows(node: Record<string, unknown>): PagePreviewBlock[] {
       return tableRows(node);
     case "needtPageBlock":
       return specialRows(node);
+    case "needtCallout": {
+      const text = textOf(node);
+      return text ? [row("callout", text)] : [];
+    }
+    case "needtToggle": {
+      // The title is what shows when the toggle is folded.
+      const title = Array.isArray(node.content) ? node.content[0] : null;
+      const text = textOf(title);
+      return text ? [row("p", text)] : [];
+    }
+    case "needtColumns": {
+      const text = textOf(node);
+      return text ? [row("p", text)] : [];
+    }
     default:
       return [];
   }

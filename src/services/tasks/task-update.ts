@@ -1,4 +1,5 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { getPage } from "@/services/pages/page-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { DOC_ORIGIN } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
@@ -47,6 +49,8 @@ export interface TaskFieldPatch {
   entry?: string | null;
   /** The one open task this waits on; null clears it. */
   dependsOnId?: string | null;
+  /** The page the task came from (originKind "doc" + originId); null detaches. */
+  originPageId?: string | null;
 }
 
 export type TaskUpdateResult =
@@ -143,6 +147,17 @@ export async function updateTaskFields(input: {
       if (!blocker.ok) return blocker;
     }
     updates.dependsOnId = patch.dependsOnId;
+  }
+
+  if (patch.originPageId !== undefined) {
+    if (
+      patch.originPageId &&
+      !(await getPage({ userId, workspace }, patch.originPageId))
+    ) {
+      return { ok: false, status: 400, error: "Origin page not found" };
+    }
+    updates.originKind = patch.originPageId ? DOC_ORIGIN : null;
+    updates.originId = patch.originPageId || null;
   }
 
   const wasCompleted = task.status === TaskStatus.COMPLETED;

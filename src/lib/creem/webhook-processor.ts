@@ -12,6 +12,7 @@ import { mapCreemEventToSubscription } from "@/lib/creem/webhook-mapping";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { purchasePlan, sendUmamiPurchase } from "@/lib/umami-server";
 
 import type { CreemBillingEvent } from "./webhook-mapping";
 
@@ -64,6 +65,21 @@ async function serializableTransaction<T>(
 }
 
 export async function processCreemBillingEvent(event: CreemBillingEvent) {
+  const result = await applyCreemBillingEvent(event);
+  // One `purchase` per payment: the completed checkout, once it has been
+  // applied (a replay, a stale or a refused event answers processed: false).
+  // Renewals and plan updates are other event types and are not purchases.
+  if (result.processed && event.eventType === "checkout.completed") {
+    const mutation = mapCreemEventToSubscription(event);
+    const plan =
+      mutation &&
+      purchasePlan(mutation.data.plan, mutation.data.interval ?? null);
+    if (plan) void sendUmamiPurchase(plan);
+  }
+  return result;
+}
+
+async function applyCreemBillingEvent(event: CreemBillingEvent) {
   const eventId = event.id.trim();
   const eventCreatedAt = newDate(event.createdAt);
   if (!eventId || Number.isNaN(eventCreatedAt.getTime())) {

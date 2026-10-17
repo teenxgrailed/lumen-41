@@ -59,6 +59,8 @@ import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useDesignV3 } from "../root/V3Root";
+import { SortableItem, SortableList } from "../sortable/Sortable";
+import { useSortableList } from "../sortable/useSortableList";
 import { TaskDialogCalendar } from "./TaskDialogCalendar";
 import {
   type ChipBox,
@@ -73,7 +75,6 @@ import {
   fixedPatch,
   foldChips,
   isSchedDefault,
-  moveItem,
   nextMonday,
   placementHint,
   schedSummary,
@@ -204,7 +205,6 @@ export function TaskDialog({
   const [q, setQ] = useState("");
   const [addText, setAddText] = useState("");
   const [partText, setPartText] = useState<Record<string, string>>({});
-  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
   const [subTick, setSubTick] = useState<string | null>(null);
   const [schedOpen, setSchedOpen] = useSchedOpen();
   const [flash, setFlash] = useState(0);
@@ -594,13 +594,16 @@ export function TaskDialog({
     if (!v.trim()) void parts.remove(t.id, id).catch(() => undefined);
     else void parts.update(t.id, id, { title: v }).catch(() => undefined);
   };
-  const reorder = (from: number, to: number) => {
-    const next = moveItem(tparts, from, to);
-    next.forEach((p, i) => {
-      if (tparts[i]?.id !== p.id)
-        void parts.update(t.id, p.id, { position: i }).catch(() => undefined);
-    });
-  };
+  const sortParts = useSortableList({
+    items: tparts,
+    label: (p) => p.title || "subtask",
+    onReorder: (order) =>
+      Promise.all(
+        order.flatMap((id, i) =>
+          tparts[i]?.id === id ? [] : [parts.update(t.id, id, { position: i })]
+        )
+      ),
+  });
 
   /* ── popover bodies ── */
   const ql = q.trim().toLowerCase();
@@ -1190,93 +1193,81 @@ export function TaskDialog({
                     <PartsRing done={closed} total={tparts.length} />
                   </div>
                 ) : null}
-                {tparts.map((p, i) => {
-                  const dropCls =
-                    drag && drag.over === i && drag.from !== i
-                      ? drag.from < i
-                        ? " is-drop-after"
-                        : " is-drop-before"
-                      : "";
-                  return (
-                    <div
+                <SortableList ctl={sortParts}>
+                  {sortParts.ordered.map((p) => (
+                    <SortableItem
                       key={p.id}
-                      className={`tdc-sub${dropCls}${drag?.from === i ? " is-dragging" : ""}`}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", String(i));
-                        setDrag({ from: i, over: i });
-                      }}
-                      onDragOver={(e) => {
-                        if (!drag) return;
-                        e.preventDefault();
-                        if (drag.over !== i)
-                          setDrag({ from: drag.from, over: i });
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (!drag) return;
-                        const f = drag.from;
-                        setDrag(null);
-                        if (f !== i) reorder(f, i);
-                      }}
-                      onDragEnd={() => setDrag(null)}
+                      id={p.id}
+                      className="tdc-sub"
+                      label={p.title || "subtask"}
                     >
-                      <span className="tdc-grip" aria-hidden="true">
-                        <LuGripVertical size={13} />
-                      </span>
-                      <button
-                        type="button"
-                        className={`tdc-sub-check${p.done ? " is-on" : ""}${p.done && subTick === p.id ? " is-ticking" : ""}`}
-                        role="checkbox"
-                        aria-checked={p.done}
-                        aria-label={p.done ? "Reopen subtask" : "Tick subtask"}
-                        onClick={() => {
-                          setSubTick(p.done ? null : p.id);
-                          void parts.toggle(t.id, p).catch(() => undefined);
-                        }}
-                      >
-                        {p.done ? <LuCheck size={11} aria-hidden /> : null}
-                      </button>
-                      <input
-                        className={`tdc-sub-title${p.done ? " is-done" : ""}`}
-                        value={partTitle(p.id, p.title)}
-                        placeholder="Subtask"
-                        aria-label="Subtask"
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setPartText((m) => ({ ...m, [p.id]: v }));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                            addRef.current?.focus();
-                          } else if (
-                            e.key === "Backspace" &&
-                            !partTitle(p.id, p.title)
-                          ) {
-                            e.preventDefault();
-                            void parts
-                              .remove(t.id, p.id)
-                              .catch(() => undefined);
-                          }
-                        }}
-                        onBlur={() => commitPart(p.id, p.title)}
-                      />
-                      <button
-                        type="button"
-                        className="tdc-icon-btn tdc-sub-del"
-                        aria-label="Remove subtask"
-                        onClick={() =>
-                          void parts.remove(t.id, p.id).catch(() => undefined)
-                        }
-                      >
-                        <LuX size={13} aria-hidden />
-                      </button>
-                    </div>
-                  );
-                })}
+                      {({ handleProps }) => (
+                        <>
+                          <span {...handleProps} className="tdc-grip">
+                            <LuGripVertical size={13} />
+                          </span>
+                          <button
+                            type="button"
+                            className={`tdc-sub-check${p.done ? " is-on" : ""}${p.done && subTick === p.id ? " is-ticking" : ""}`}
+                            role="checkbox"
+                            aria-checked={p.done}
+                            aria-label={
+                              p.done ? "Reopen subtask" : "Tick subtask"
+                            }
+                            onClick={() => {
+                              setSubTick(p.done ? null : p.id);
+                              void parts.toggle(t.id, p).catch(() => undefined);
+                            }}
+                          >
+                            {p.done ? <LuCheck size={11} aria-hidden /> : null}
+                          </button>
+                          <input
+                            className={`tdc-sub-title${p.done ? " is-done" : ""}`}
+                            value={partTitle(p.id, p.title)}
+                            placeholder="Subtask"
+                            aria-label="Subtask"
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPartText((m) => ({ ...m, [p.id]: v }));
+                            }}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === "Enter" &&
+                                !e.metaKey &&
+                                !e.ctrlKey
+                              ) {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                                addRef.current?.focus();
+                              } else if (
+                                e.key === "Backspace" &&
+                                !partTitle(p.id, p.title)
+                              ) {
+                                e.preventDefault();
+                                void parts
+                                  .remove(t.id, p.id)
+                                  .catch(() => undefined);
+                              }
+                            }}
+                            onBlur={() => commitPart(p.id, p.title)}
+                          />
+                          <button
+                            type="button"
+                            className="tdc-icon-btn tdc-sub-del"
+                            aria-label="Remove subtask"
+                            onClick={() =>
+                              void parts
+                                .remove(t.id, p.id)
+                                .catch(() => undefined)
+                            }
+                          >
+                            <LuX size={13} aria-hidden />
+                          </button>
+                        </>
+                      )}
+                    </SortableItem>
+                  ))}
+                </SortableList>
                 <label className="tdc-sub tdc-sub-add">
                   <span className="tdc-grip" aria-hidden="true" />
                   <span className="tdc-sub-plus" aria-hidden="true">

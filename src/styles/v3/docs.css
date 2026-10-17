@@ -683,3 +683,9 @@
 @media (max-width: 1100px) { .needt-v3 .docs-cmt { right: 0; top: -10px; } }
 .needt-v3 .docs-selbar-person > .raised,
 .needt-v3 .docs-cmt-head > .raised { flex: none; font: 600 10px/1 var(--font-sans); }
+/* Rename from the card menu: one field and Save in a small sheet. */
+.needt-v3 .docs-rename-sheet { display: flex; flex-direction: column; width: min(420px, 100%); overflow: hidden; }
+.needt-v3 .docs-rename-head { height: 46px; padding: 0 11px 0 16px; flex: none; }
+.needt-v3 .docs-rename-title { flex: 1; font: var(--type-meta); color: var(--text-disabled); }
+.needt-v3 .docs-rename-body { display: flex; gap: 8px; padding: 4px 16px 16px; }
+.needt-v3 .docs-rename-input { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--fill-2); box-shadow: var(--shadow-inset-ring); outline: none; font: var(--type-ui); color: var(--text-primary); }

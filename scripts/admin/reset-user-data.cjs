@@ -47,7 +47,7 @@
  *     membership, including other users' workspaces).
  *   Admin/operator data: FeatureFlag, FeatureFlagOverride, BugReport,
  *     BugReportAttachment, SystemSettings, BetaSettings, Log, Waitlist,
- *     PendingWaitlist, CronState (global row; pendingUserIds is a queue hint).
+ *     PendingWaitlist, AppWaitlist, CronState (global row; pendingUserIds is a queue hint).
  *   Rows the user wrote on OTHER people's things: tasks, projects, pages,
  *     boards, moodboards, templates in SHARED workspaces; PageComment,
  *     PageRevision, PageFormSubmission, PageAccessGrant, MoodboardAccessGrant
@@ -240,6 +240,7 @@ function buildPlan(userId, workspaceId) {
     ["AccessLink", "accessLink", uid],
     ["PushSubscription", "pushSubscription", uid],
     ["Notification", "notification", uid],
+    ["NotificationRead", "notificationRead", uid],
     ["Booking", "booking", any({ ownerId: userId }, { bookingPage: uid })],
     ["BookingPage", "bookingPage", uid],
     ["Tag", "tag", { userId, tasks: { none: { NOT: T } } }],
