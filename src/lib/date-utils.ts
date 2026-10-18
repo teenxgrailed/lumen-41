@@ -41,8 +41,40 @@ export function newDateFromYMD(year: number, month: number, day: number): Date {
   return new Date(year, month, day);
 }
 
-export function addCalendarDays(date: Date, days: number): Date {
-  return addDays(date, days);
+/**
+ * Moves a date by whole calendar days, keeping the wall-clock time. Never add
+ * 24 * 60 minutes to step a day: on a 23- or 25-hour clock-change day that
+ * lands on the same day (or skips one) and a day loop built on it spins
+ * forever.
+ *
+ * Without `timeZone` the days are the process's local days. With one, they are
+ * the days of that zone: the result has the same wall-clock time there.
+ */
+export function addCalendarDays(
+  date: Date,
+  days: number,
+  timeZone?: string
+): Date {
+  if (!timeZone) return addDays(date, days);
+  const wall = formatInTimeZone(date, timeZone, "yyyy-MM-dd'T'HH:mm:ss.SSS");
+  const shifted = new Date(
+    Date.UTC(
+      Number(wall.slice(0, 4)),
+      Number(wall.slice(5, 7)) - 1,
+      Number(wall.slice(8, 10)) + days
+    )
+  )
+    .toISOString()
+    .slice(0, 10);
+  return fromZonedTime(`${shifted}${wall.slice(10)}`, timeZone);
+}
+
+/** Midnight at the start of the date's day in the given zone. */
+export function startOfDayInTimeZone(date: Date, timeZone: string): Date {
+  return fromZonedTime(
+    `${formatInTimeZone(date, timeZone, "yyyy-MM-dd")}T00:00:00.000`,
+    timeZone
+  );
 }
 
 export function calendarDayDifference(later: Date, earlier: Date): number {

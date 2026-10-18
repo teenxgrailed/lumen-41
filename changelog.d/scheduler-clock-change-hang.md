@@ -1,0 +1,1 @@
+- Fixed the scheduler hanging forever when a search reached a 23- or 25-hour clock-change day (for example 25 Oct 2026 in Europe). Auto-scheduling and Plan my day now step by calendar day, and every day-by-day search stops after 400 days.
