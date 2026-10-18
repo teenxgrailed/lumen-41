@@ -56,6 +56,7 @@ import {
 import { highlightMeta, highlightTask } from "../../home/highlight";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHomeStats } from "../../home/useHomeStats";
+import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
   PkEmpty,
@@ -373,6 +374,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           onOpen={() => openTask(hlTask)}
         />
       ) : null}
+      {ready ? <PersonalDayBands date={today} /> : null}
       {ready && nu ? (
         <PkSkyPlate className="v2p-next" data-v2p-next={nu.id} key={nu.id}>
           <div className="v2p-next-top">
