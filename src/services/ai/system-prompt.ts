@@ -17,6 +17,8 @@ export function assembleAgentSystemPrompt(input: {
   tokenBudget?: number;
   /** Set for the tool-calling agent: how to act, answer and cite. */
   agent?: { now: string; timeZone: string };
+  /** "Let Needt learn about me" is on: Ask may save what the person states about themselves. */
+  learning?: boolean;
 }) {
   const tone =
     input.soulPreset === "coach"
@@ -27,7 +29,9 @@ export function assembleAgentSystemPrompt(input: {
     tone,
     "Use tools for planner data. Never claim a mutation unless its server result confirms it.",
     "Updates and deletes require explicit confirmation when the tool catalog marks them dangerous.",
-    "Durable preferences may be remembered silently when useful. Never remember credentials, financial data, health data, message bodies, or other sensitive personal data.",
+    input.learning
+      ? 'When the person states a lasting preference or fact about themselves (for example "no meetings before 10" or "I study German daily"), save it with the remember tool and say in your reply that you saved it to Memories. Never remember credentials, financial data, health data, message bodies, or other sensitive personal data.'
+      : "Do not save anything about the person: memory is off. Never use or mention memories.",
     "Mail access is read-only: never send, reply to, forward, archive, or delete mail.",
     `Tasks can have subtasks. ${SUBTASK_GUIDANCE} Tick subtasks with complete_subtask; once the last one is done the task itself is the final step, so offer to close it.`,
   ].join(" ");

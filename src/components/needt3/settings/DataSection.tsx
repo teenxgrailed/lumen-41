@@ -10,6 +10,7 @@ import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { notify } from "@/lib/notifications";
 
 import { ImportGroup } from "./ImportGroup";
+import { MemoriesGroup } from "./MemoriesGroup";
 import { useMark } from "./SettingsContext";
 import { readPref } from "./derive";
 import { SBtn, SGroup, SRow, V3Switch } from "./kit";
@@ -17,6 +18,8 @@ import { SBtn, SGroup, SRow, V3Switch } from "./kit";
 /**
  * Data & privacy. Export tasks and the full export use the routes the old
  * Settings uses; the rest of the prototype's rows have nothing behind them.
+ * Memories (`MemoriesGroup`) holds the "Let Needt learn about me" switch and the
+ * list of what it learned. //todo: the phone's Data page has no Memories group yet.
  * Import from Todoist and Notion sits behind the `imports` flag (ImportGroup).
  * Tasks download as CSV or JSON (`/api/export/tasks`).
  * //todo: Documents as Markdown (no per-page export route yet; Export all has
@@ -102,6 +105,7 @@ export function DataSection() {
         </SGroup>
       ) : null}
       <ImportGroup />
+      <MemoriesGroup />
       <SGroup title="Privacy">
         <SRow
           title="Share usage data"

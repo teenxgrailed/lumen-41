@@ -29,6 +29,24 @@ describe("agent prompt assembly", () => {
   });
 });
 
+describe("agent prompt and the learning switch", () => {
+  const base = {
+    soulPreset: "business",
+    scheduleSummary: "",
+    memories: [],
+    agent: { now: "Monday", timeZone: "UTC" },
+  };
+
+  it("tells Ask to save stated preferences and say so, only while learning is on", () => {
+    const on = assembleAgentSystemPrompt({ ...base, learning: true }).prompt;
+    expect(on).toMatch(/remember tool and say in your reply that you saved it/);
+    const off = assembleAgentSystemPrompt({ ...base, learning: false }).prompt;
+    expect(off).toMatch(/memory is off/);
+    expect(off).not.toMatch(/remember tool/);
+    expect(assembleAgentSystemPrompt(base).prompt).toMatch(/memory is off/);
+  });
+});
+
 describe("hosted AI metering", () => {
   it("uses normal, slow, and blocked modes at the configured boundaries", () => {
     const cap = hostedUsageStatus(Number.MAX_SAFE_INTEGER, "PRO").limit;

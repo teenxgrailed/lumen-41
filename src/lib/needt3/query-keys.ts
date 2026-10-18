@@ -39,6 +39,8 @@ export const qk = {
 
   projects: () => [V3, "projects"] as const,
   imports: () => [V3, "imports"] as const,
+  /** What Needt has learned about the person (`GET /api/ai/memories`). */
+  memories: () => [V3, "memories"] as const,
   /** Whether first-run examples are still on the account (`GET /api/onboarding/sample`). */
   sample: () => [V3, "sample"] as const,
   project: (id: string) => [V3, "project", id] as const,

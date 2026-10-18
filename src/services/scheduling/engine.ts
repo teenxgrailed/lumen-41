@@ -80,6 +80,12 @@ export interface SchedulingPreferences {
   hardStopTime: string;
   bufferMultiplier: number;
   calibrationFactors?: Record<string, number>;
+  /**
+   * Real time over estimate, learned from the person's finished tasks (only
+   * with "Let Needt learn about me" on). Scales a task's length unless its
+   * context already has a calibration factor, so the two never stack.
+   */
+  learnedDurationRatio?: number;
 }
 
 export interface ScheduledBlock {
@@ -427,11 +433,15 @@ function splitTaskIntoChunks(
   task: SchedulableTask,
   prefs: SchedulingPreferences
 ): TaskChunk[] {
-  const rawEstimate =
-    task.estimatedMinutes ?? task.durationMinutes ?? DEFAULT_ESTIMATE_MINUTES;
   const contextFactor = task.contextTag
     ? prefs.calibrationFactors?.[task.contextTag.toLowerCase()]
     : undefined;
+  const baseEstimate =
+    task.estimatedMinutes ?? task.durationMinutes ?? DEFAULT_ESTIMATE_MINUTES;
+  const rawEstimate =
+    prefs.learnedDurationRatio && contextFactor === undefined
+      ? Math.max(5, Math.round((baseEstimate * prefs.learnedDurationRatio) / 5) * 5)
+      : baseEstimate;
   const estimateFactor = Math.max(1, contextFactor ?? prefs.bufferMultiplier);
   const minChunk = Math.max(
     1,

@@ -73,7 +73,12 @@ export async function POST(request: NextRequest) {
   if (limited) return limited;
 
   try {
-    const outcome = await ensureBrief(auth.userId, date.data, facts.data);
+    const outcome = await ensureBrief(
+      auth.userId,
+      date.data,
+      facts.data,
+      auth.workspace?.workspaceId
+    );
     return NextResponse.json(outcome, { headers: NO_STORE });
   } catch (error) {
     return routeErrorResponse(

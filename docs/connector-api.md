@@ -121,6 +121,9 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                   |
 | `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                   |
 | `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                            |
+| `needt_list_memories`    | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                           |
+| `needt_update_memory`    | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                               |
+| `needt_forget_memory`    | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                             |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -352,6 +355,54 @@ count, and Focus minutes are the person's own. Answers `400` for any other
 - `focusMinutes` is `null` (not 0) when no Focus session was stored in the
   window, so a client can hide the line. The Streak on Home is derived from the
   task list in the browser and is not part of this answer.
+
+## Memories
+
+"Let Needt learn about me" is a switch in Settings, **off by default**. While it
+is off nothing is learned and nothing learned is used: not by Ask (answers,
+Plan my day, the morning brief) and not by the scheduler. The list stays
+readable and editable either way. The switch itself is turned on only in the
+app (or by this API with the person's own token); the MCP tools manage the
+list but have no switch, so an agent cannot opt a person in.
+
+With the switch on Needt keeps, per user and workspace:
+
+- **Work habits** computed from the person's own finished tasks (source
+  `habit`): when focused work usually gets finished, how long tasks really take
+  against the estimate (the scheduler lengthens or shortens blocks by that
+  ratio, between 0.5 and 2), and which weekdays are heavy. Recomputed at most
+  daily.
+- **Stated preferences** the person tells Ask (source `chat`), such as "no
+  meetings before 10". Ask says in its reply that it saved the line.
+- **Short facts from documents and mail metadata** (sources `document`, `mail`):
+  excerpts of recently edited documents and the subject and sender of recent
+  mail go through the same hosted (or own-key) AI path as Ask, at most one
+  action a day, at most 5 facts a pass. Mail bodies and snippets are never read.
+
+Memory text is stored encrypted (`enc:v1`), is included in the account data
+export, and is deleted with the account.
+
+```
+GET    /api/ai/memories
+PATCH  /api/ai/memories   { "enabled": true }
+PATCH  /api/ai/memories   { "enabled": false, "memories": "keep" | "delete" }
+PATCH  /api/ai/memories   { "memoryId": "...", "content": "...", "kind": "preference" }
+DELETE /api/ai/memories   { "memoryId": "..." }
+DELETE /api/ai/memories   { "all": true }
+```
+
+- `GET` returns `{ "enabled", "memories": [{ id, kind, content, source,
+createdAt, updatedAt }] }` for the current workspace. `kind` is `preference`,
+  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`
+  or `inferred`.
+- `PATCH { enabled }` flips the switch. Turning it off keeps the memories
+  unless `"memories": "delete"` (every workspace). Turning it on starts a first
+  learning pass in the background.
+- `PATCH { memoryId, content?, kind? }` edits a line. An edited line is the
+  person's own and later passes no longer replace it. Text that looks like
+  credentials, money or health data is refused.
+- `DELETE` removes one memory, or with `all: true` every memory in the
+  workspace.
 
 ## Morning brief
 
@@ -737,15 +788,15 @@ curl -X PATCH -H "Content-Type: application/json" \
   https://needt.app/api/user-settings
 ```
 
-| Key            | Values                        | Default | Meaning                                                                         |
-| -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
-| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
+| Key            | Values                        | Default | Meaning                                                                                                                                                                                            |
+| -------------- | ----------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays                                                                                                                    |
 | `subtasks`     | `next`, `all`, `count`        | next    | Row detail: the next step under the title with a tap to unfold the rest / every step open / just the count (`0/3`). The first version stored a boolean: `true` reads as `next`, `false` as `count` |
-| `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
-| `project`      | boolean                       | true    | Row detail: the project                                                         |
-| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
-| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)       |
-| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                  |
+| `duration`     | boolean                       | true    | Row detail: the estimated length                                                                                                                                                                   |
+| `project`      | boolean                       | true    | Row detail: the project                                                                                                                                                                            |
+| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                                                                                                                                            |
+| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)                                                                                                                          |
+| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                                                                                                                                     |
 
 Missing keys take their default; an unknown key or value is a `400`. "Until the
 end of the day" counts from the task's `completedAt`.
