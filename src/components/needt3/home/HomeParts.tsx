@@ -624,51 +624,6 @@ export function EmptyDay({
   );
 }
 
-/** DAY CLOSED. A calm stop across the full width, with the two next steps. */
-export function DayClosed({
-  count,
-  mins,
-  habits,
-  lateN,
-  onPlan,
-  onUndo,
-}: {
-  count: number;
-  mins: number;
-  habits: number;
-  lateN: number;
-  onPlan: () => void;
-  onUndo: () => void;
-}) {
-  return (
-    <div className="nx-sheet hd-closed" data-hd-closed="">
-      <Art name="task" size={56} />
-      <div className="hd-closed-text">
-        <h2 className="hd-closed-title">All done for today</h2>
-        <p className="hd-closed-line">
-          {count} {count === 1 ? "task" : "tasks"} · {dur(mins) || "0 min"} of
-          work · {habits} {habits === 1 ? "habit" : "habits"} kept.{" "}
-          {lateN
-            ? `${lateN} overdue ${lateN === 1 ? "task is" : "tasks are"} still open.`
-            : "The rest of the evening is yours."}
-        </p>
-      </div>
-      <div className="hd-closed-acts">
-        <button type="button" className="nx-btn nx-btn-text" onClick={onUndo}>
-          Undo last
-        </button>
-        <button
-          type="button"
-          className="nx-btn nx-btn-primary"
-          onClick={onPlan}
-        >
-          See tomorrow
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const clock = (h: number) => hhmm(h) ?? "";
 
 /** TODAY'S SCHEDULE. Events and timed tasks with the now line where it falls. */

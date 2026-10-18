@@ -1,0 +1,204 @@
+/* Design v3 — Home's small extras: the finished day's next tasks and End day.
+ * Type is 13 px and 12 px; greys are the text colour at ladder alphas (the
+ * --text-* tokens); the accent is never a fill here. */
+
+/* The finished-day card: the old banner, compacted into a header and rows. */
+.needt-v3 .hd-closed.fin-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+.needt-v3 .fin-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.needt-v3 .fin-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.needt-v3 .fin-title {
+  margin: 0;
+  font: 600 15px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .fin-line {
+  margin: 2px 0 0;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .fin-acts {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.needt-v3 .fin-picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .fin-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 4px 0;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .fin-pick-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .fin-pick-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .fin-pick-meta {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Phone: the picks sit on the ground, under the plate. */
+.needt-v3 .v2p-prog-acts {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+.needt-v3 .v2p-next ~ .fin-picks,
+.needt-v3 .v2p-day ~ .fin-picks {
+  margin-top: 6px;
+}
+
+/* End day: the dialog and the sheet share one body. */
+.needt-v3 .fin-dialog {
+  width: min(480px, 100%);
+  padding: 18px 20px 14px;
+  overflow: auto;
+}
+.needt-v3 .fin-dialog-title {
+  margin: 0 0 8px;
+  font: 600 15px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .fin-shut {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 2px 8px;
+}
+.needt-v3 .fin-shut-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .fin-shut-h {
+  margin: 0;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .fin-shut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.needt-v3 .fin-shut-done,
+.needt-v3 .fin-shut-more {
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+.needt-v3 .fin-shut-more {
+  color: var(--text-tertiary);
+}
+.needt-v3 .fin-shut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.needt-v3 .fin-shut-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .fin-shut-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .fin-shut-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .fin-seg {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--fill-2);
+}
+.needt-v3 .fin-seg-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: none;
+  color: var(--text-tertiary);
+  font: var(--type-meta);
+  cursor: pointer;
+}
+.needt-v3 .fin-seg-btn[aria-checked="true"] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+.needt-v3 .fin-field {
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--fill-2);
+  color: var(--text-primary);
+  font: var(--type-ui);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+}
+.needt-v3 .fin-note {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--fill-2);
+  color: var(--text-primary);
+  font: var(--type-ui);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+}
+.needt-v3 .fin-note::placeholder {
+  color: var(--text-muted);
+}
+.needt-v3 .fin-shut-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
