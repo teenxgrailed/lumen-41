@@ -12,6 +12,7 @@ import {
   LuPaperclip,
   LuPlus,
   LuRotateCcw,
+  LuStar,
   LuTarget,
   LuTrash2,
   LuX,
@@ -19,6 +20,7 @@ import {
 
 import { clock } from "@/lib/needt3/day";
 import { addDays, at as hourAt } from "@/lib/needt3/derive";
+import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import {
@@ -135,6 +137,7 @@ function TaskSheetBody({
   onShut,
 }: PkTaskSheetProps & { task: V3Task; onShut: () => void }) {
   const today = usePkToday();
+  const highlight = useDayHighlight(today);
   const live = useTask(task.id).data;
   const t = live ?? task;
   const update = useUpdateTask();
@@ -877,6 +880,18 @@ function TaskSheetBody({
           </p>
         ) : null}
         <div className="pov-delete-row">
+          {t.done ? null : (
+            <PkButton
+              kind="ghost"
+              icon={<LuStar size={18} />}
+              onClick={() => void highlight.toggle(t.id)}
+              data-pov-highlight=""
+            >
+              {highlight.isHighlight(t.id)
+                ? "Remove highlight"
+                : "Make highlight"}
+            </PkButton>
+          )}
           <PkButton
             kind="ghost"
             icon={<LuTrash2 size={18} />}

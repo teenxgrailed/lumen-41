@@ -70,9 +70,14 @@ export function homeView(
     busy?: Readonly<Record<string, unknown>>;
     /** The person's task view: sort, and which closed tasks are kept. */
     view?: TaskViewSettings;
+    /** The day's highlight, drawn on its own card: out of the plate and rows. */
+    lift?: string | null;
   } = {}
 ): HomeView {
-  const busy = opts.busy ?? {};
+  const lift = opts.lift ?? null;
+  const busy = lift
+    ? { ...(opts.busy ?? {}), [lift]: true }
+    : (opts.busy ?? {});
   const live = tasks.filter((t) => !t.trashedAt);
   const view = opts.view ?? DEFAULT_TASK_VIEW;
   const split = splitHome(live, today, view);
@@ -90,7 +95,7 @@ export function homeView(
   const nu = next.nu;
   // the nearest task is on the plate, so not again in the rows
   const notNu = (l: readonly V3Task[]) =>
-    openOf(l).filter((t) => !nu || t.id !== nu.id);
+    openOf(l).filter((t) => (!nu || t.id !== nu.id) && t.id !== lift);
   const lateRows = notNu(sec.late);
   const inboxRows = notNu(sec.inbox);
   const tomorrowRows = openOf(sec.next);

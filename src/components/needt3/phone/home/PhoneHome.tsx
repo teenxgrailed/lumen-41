@@ -21,6 +21,7 @@ import {
   useHabits,
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
+import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
@@ -31,15 +32,24 @@ import { todayLine } from "@/lib/needt3/today";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { FinishPicks } from "../../home/FinishCard";
+import { HighlightCard } from "../../home/HighlightCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
-import { capacityFrom, hourAt, scheduleItems } from "../../home/derive";
+import { StatsCard, StatsSheet } from "../../home/Stats";
+import {
+  capacityFrom,
+  dayStreak,
+  hourAt,
+  scheduleItems,
+} from "../../home/derive";
 import {
   finishHeadline,
   freeMinutesLeft,
   pickFinishNext,
 } from "../../home/finish";
+import { highlightMeta, highlightTask } from "../../home/highlight";
 import { useFinishDay } from "../../home/useFinishDay";
+import { useHomeStats } from "../../home/useHomeStats";
 import {
   PkButton,
   PkEmpty,
@@ -109,14 +119,19 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const all = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
 
   const taskView = useTaskView();
+  const stats = useHomeStats(all.filter((t) => t.done).length);
+  const highlight = useHighlight(today);
+  const setHighlight = useSetHighlight(today);
+  const hlTask = highlightTask(all, highlight.data?.taskId);
+  const lift = hlTask && !hlTask.done ? hlTask.id : null;
   const v = useMemo(
     () =>
       homeView(
         all.filter((t) => !gone[t.id]),
         today,
-        { skipped, busy: { ...X.phase, ...gone }, view: taskView }
+        { skipped, busy: { ...X.phase, ...gone }, view: taskView, lift }
       ),
-    [all, today, skipped, X.phase, gone, taskView]
+    [all, today, skipped, X.phase, gone, taskView, lift]
   );
   const { next: N } = v;
   const nu = N.nu;
@@ -302,6 +317,22 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
+      {ready && hlTask ? (
+        <HighlightCard
+          phone
+          id={hlTask.id}
+          title={hlTask.title}
+          meta={highlightMeta(hlTask, today)}
+          done={hlTask.done}
+          onComplete={() => {
+            pkDotSweep(`[data-hl-card="${hlTask.id}"]`, "row");
+            check(hlTask);
+          }}
+          onFocus={() => void startFocus(hlTask)}
+          onClear={() => void setHighlight.set(null)}
+          onOpen={() => openTask(hlTask)}
+        />
+      ) : null}
       {ready && nu ? (
         <PkSkyPlate className="v2p-next" data-v2p-next={nu.id} key={nu.id}>
           <div className="v2p-next-top">
@@ -461,6 +492,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
+          <StatsCard
+            stats={stats.week}
+            streak={dayStreak(all, today).n}
+            onOpen={stats.show}
+          />
           <button
             type="button"
             className="v2p-notes v2p-notes-btn"
@@ -475,6 +511,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
       <ShutdownSheet phone open={finish.open} {...finish.sheet} />
+      <StatsSheet
+        phone
+        open={stats.open}
+        onClose={stats.close}
+        {...stats.sheet}
+      />
     </PkScreen>
   );
 }

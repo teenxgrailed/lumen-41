@@ -125,6 +125,7 @@ function buildPlan(userId, workspaceId) {
     ["TimeEntry", "timeEntry", { task: T }],
     ["FocusSession", "focusSession", uid],
     ["FocusStats", "focusStats", uid],
+    ["DailyHighlight", "dailyHighlight", any(uid, ws)],
     ["DailyAgenda", "dailyAgenda", uid],
     ["ClosedDay", "closedDay", uid],
     ["PersonalBlock", "personalBlock", uid],

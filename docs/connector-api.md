@@ -296,6 +296,67 @@ It answers the signed-in session, like the rest of `/api/pages/*`.
 - Home's **End day** uses it to put a note for tomorrow into tomorrow's daily
   note ("Daily note · 2 September 2026").
 
+## Daily highlight
+
+The one task a person picked as the main thing of a day. Stored per user,
+workspace and day; the day is the person's own, as `YYYY-MM-DD`, so no time
+zone is guessed on the server. Like the rest of `/api/*` it answers the
+signed-in session.
+
+```
+GET    /api/highlight?date=2026-10-18
+PUT    /api/highlight            { "date": "2026-10-18", "taskId": "..." }
+DELETE /api/highlight?date=2026-10-18
+```
+
+All three answer `{ "highlight": { "date", "taskId", "task": { "id", "title",
+"status", "dueDate", "estimatedMinutes" } } }`, or `{ "highlight": null }` when
+none is set (or its task went to Trash). `PUT` replaces the day's pick; the
+task must be live and in the caller's scope (`404` otherwise). `DELETE` is safe
+to repeat. `400` for a `date` that is not `YYYY-MM-DD`. Writes need the Editor
+role; reading needs none beyond membership.
+
+## Stats
+
+```
+GET /api/stats?range=week|month
+```
+
+What the signed-in person closed over the last 7 (`week`, the default) or 30
+(`month`) days, ending on their today in their saved time zone. Scoped to the
+user and the current workspace: only live (not Trashed) tasks of that scope
+count, and Focus minutes are the person's own. Answers `400` for any other
+`range`. Not cached (`Cache-Control: private, no-store`).
+
+```json
+{
+  "range": "week",
+  "from": "2026-08-26",
+  "to": "2026-09-01",
+  "timeZone": "Europe/Kyiv",
+  "total": 11,
+  "days": [{ "date": "2026-08-26", "done": 2, "focusMinutes": 50 }],
+  "bestDay": "2026-08-28",
+  "byProject": [
+    { "projectId": "p1", "name": "Launch", "color": "#7c6ff7", "done": 6 },
+    { "projectId": null, "name": "No project", "color": null, "done": 5 }
+  ],
+  "byWeekday": [{ "weekday": 0, "done": 1 }],
+  "bestWeekday": 3,
+  "focusMinutes": 140,
+  "focusSessions": 4
+}
+```
+
+- `days` is oldest first, one row per day, zeros included.
+- `bestDay` and `bestWeekday` (0 = Sunday) are `null` when nothing was closed;
+  with a tie the latest day wins.
+- `byProject` is most first; tasks without a project are one "No project" row.
+- `byWeekday` always has all seven weekdays.
+- `focusMinutes` is `null` (not 0) when no Focus session was stored in the
+  window, so a client can hide the line. The Streak on Home is derived from the
+  task list in the browser and is not part of this answer.
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The
