@@ -11,6 +11,7 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { notify } from "@/lib/notifications";
 
+import { CityField } from "../../settings/CityField";
 import { useMark } from "../../settings/SettingsContext";
 import {
   HOUR_OPTIONS,
@@ -59,6 +60,22 @@ export function GeneralPage() {
           options={LINK_OPTIONS}
           disabled={p.off}
           onChange={(v) => p.set("links", v)}
+        />
+      </PsGroup>
+      <PsGroup
+        title="Weather"
+        hint="Shows the weather on Home. Only the city name is sent, never your location."
+      >
+        <PsRow
+          title="City"
+          control={
+            <CityField
+              value={p.get("city")}
+              disabled={p.off}
+              onSave={(v) => p.set("city", v)}
+              width={150}
+            />
+          }
         />
       </PsGroup>
       <PsGroup title="Offline">

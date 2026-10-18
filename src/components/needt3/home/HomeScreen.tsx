@@ -14,6 +14,7 @@ import type {
   HomeController,
   HomeTab,
 } from "@/components/needt3/phone/home/useHomeController";
+import { readPref } from "@/components/needt3/settings/derive";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
@@ -48,6 +49,7 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import { useWeather } from "@/lib/needt3/hooks/weather";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
@@ -57,6 +59,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { PersonalDay } from "../personal/PersonalQuickAdd";
 import { BriefCard } from "./BriefCard";
+import { DayLine } from "./DayLine";
 import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
 import { HighlightCard } from "./HighlightCard";
@@ -84,6 +87,7 @@ import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
 import { TimeLeftBar } from "./TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "./brief";
+import { dayLine, firstEvent } from "./day-line-model";
 import {
   capacityFrom,
   dayState,
@@ -293,6 +297,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       nowHour
     ),
     openTasks: dayOpen,
+  });
+  const city = readPref(settings.data?.prefs, "city");
+  const weather = useWeather(city);
+  const line = dayLine({
+    city,
+    weather: weather.data,
+    first: firstEvent(events.data ?? [], today, nowHour),
   });
   const nudge = useEndDayNudge({
     today,
@@ -573,6 +584,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
+          <DayLine text={line} />
           {nudge.show ? (
             <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
           ) : null}

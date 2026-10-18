@@ -599,6 +599,8 @@ export interface V3Event {
   isRecurring?: boolean;
   /** RRULE text of the series; occurrences are not expanded in v3. */
   recurrenceRule?: string | null;
+  /** Where it is, when the calendar says. */
+  location?: string | null;
 }
 
 /** CalendarFeed.type → the prototype's event source. */
@@ -637,6 +639,7 @@ export function eventFromApi(
     externalId: row.externalEventId ?? null,
     isRecurring: !!row.isRecurring || !!row.masterEventId,
     recurrenceRule: row.recurrenceRule ?? null,
+    location: row.location ?? null,
   };
 }
 
