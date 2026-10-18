@@ -369,20 +369,6 @@ describe("Home", () => {
     });
   });
 
-  it("habits fold, and a tap ticks today through the habits route", async () => {
-    mount(PhoneHome);
-    expect(qa("[data-v2p-habit]")).toHaveLength(0);
-    click(q(".v2p-habits .pk-sec-fold"));
-    expect(q(".v2p-habits .pk-sec-count").textContent).toBe("0 of 1");
-    click(q("[data-v2p-habit]"));
-    await flush();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/habits/h1/completions/today",
-      expect.objectContaining({ method: "PUT" })
-    );
-    expect(q("[data-v2p-habit]").getAttribute("aria-pressed")).toBe("true");
-  });
-
   it("a row of habit circles sits under the date and ticks today", async () => {
     mount(PhoneHome);
     const dot = q('[data-hs-dot="h1"]');
@@ -395,6 +381,11 @@ describe("Home", () => {
       expect.objectContaining({ method: "PUT" })
     );
     expect(q('[data-hs-dot="h1"]').getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("has no second, collapsible Habits section any more", () => {
+    mount(PhoneHome);
+    expect(qa(".v2p-habits, [data-v2p-habit]")).toHaveLength(0);
   });
 
   it("draws no habit row when there are no habits", () => {
@@ -674,14 +665,13 @@ describe("two faces, one state (crossing 700 px)", () => {
   it("Home keeps Skip and the open sections across a swap and back", () => {
     mount(PhoneHome);
     click(q("[data-v2p-skip]"));
-    click(q(".v2p-habits .pk-sec-fold"));
     expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
     swap(PhoneHome, "desktop");
     expect(qa(".pk-screen")).toHaveLength(0);
     expect(qa("[data-desktop]")).toHaveLength(1);
     swap(PhoneHome, "phone");
     expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
-    expect(qa("[data-v2p-habit]")).toHaveLength(1);
+    expect(qa("[data-hs-dot]")).toHaveLength(1);
   });
 
   it("a row that is mid-exit still writes, once, when the window is resized", async () => {

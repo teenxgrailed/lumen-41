@@ -7,12 +7,7 @@ import { useRouter } from "next/navigation";
 import { LuCheck, LuTarget } from "react-icons/lu";
 
 import { clock, durLabel } from "@/lib/needt3/day";
-import {
-  addDays,
-  habitColor,
-  habitDoneOn,
-  liveHabits,
-} from "@/lib/needt3/derive";
+import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
@@ -29,7 +24,7 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
-import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
@@ -193,11 +188,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         .slice(0, 3)
     : [];
 
-  const habits = liveHabits(habitsQuery.data ?? []);
   const checkins = checkinsQuery.data ?? [];
-  const habitsDone = habits.filter((h) =>
-    habitDoneOn(h.id, today, checkins)
-  ).length;
 
   const tomorrowRef = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
@@ -485,28 +476,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.inboxRows} render={(t) => row(t)} />
             </PkSection>
           ) : null}
-          {habits.length ? (
-            <PkSection
-              className="v2p-habits"
-              glyph="habits"
-              title={copy.V2pHome.habits}
-              count={`${habitsDone} of ${habits.length}`}
-              folded={fold.habits}
-              onFold={flip("habits")}
-            >
-              {habits.map((h) => (
-                <HabitRow
-                  key={h.id}
-                  habit={h}
-                  on={habitDoneOn(h.id, today, checkins)}
-                  hue={habitColor(h, projects ?? []) ?? "var(--v2p-lav)"}
-                  onToggle={(done) =>
-                    void toggleHabit.mutateAsync({ id: h.id, done }).catch(none)
-                  }
-                />
-              ))}
-            </PkSection>
-          ) : null}
           {v.tomorrowRows.length ? (
             <div ref={tomorrowRef} className="v2p-anchor">
               <PkSection
@@ -558,33 +527,5 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         {...stats.sheet}
       />
     </PkScreen>
-  );
-}
-
-function HabitRow({
-  habit,
-  on,
-  hue,
-  onToggle,
-}: {
-  habit: V3Habit;
-  on: boolean;
-  hue: string;
-  onToggle: (done: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={pkCx("v2p-hab", on && "is-on")}
-      style={{ "--hue": hue } as React.CSSProperties}
-      aria-pressed={on}
-      onClick={() => onToggle(!on)}
-      data-v2p-habit={habit.id}
-    >
-      <span className="v2p-hab-mark" aria-hidden="true">
-        {on ? <LuCheck size={12} /> : null}
-      </span>
-      <span className="v2p-hab-title">{habit.title}</span>
-    </button>
   );
 }
