@@ -192,6 +192,7 @@ model User {
   projectBlockersCreated ProjectBlocker[]          @relation("ProjectBlockerCreator")
   projectHealthUpdates   ProjectHealthUpdate[]     @relation("ProjectHealthUpdateAuthor")
   habits                 Habit[]
+  personalBlocks         PersonalBlock[]
   weeklyFocusTargets     WeeklyFocusTarget[]
   meetingNoteProposals   MeetingNoteProposal[]     @relation("MeetingNoteProposalCreator")
   closedDays             ClosedDay[]
@@ -233,6 +234,7 @@ model Workspace {
   projectTemplates     ProjectTemplate[]
   projectHealthUpdates ProjectHealthUpdate[]
   habits               Habit[]
+  personalBlocks       PersonalBlock[]
   dailyHighlights      DailyHighlight[]
   weeklyFocusTargets   WeeklyFocusTarget[]
   meetingNoteProposals MeetingNoteProposal[]
@@ -1104,6 +1106,36 @@ model TimeEntry {
   @@index([taskId])
   @@index([userId, startedAt])
   @@index([source])
+}
+
+// Protected personal time (Lunch, Walk, Gym...): kept for the person, never
+// filled by the scheduler. Stays inside Needt; never written to a provider.
+// `rrule` repeats it (wall-clock in the user's time zone). `sourceEventId` links
+// a synced calendar event the person marked as personal (no FK: the sync may
+// remove the event; the block then keeps its own start/end). `isDefault` marks
+// the repeating defaults set in Settings, one per kind.
+model PersonalBlock {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind          String    @default("custom") // lunch|break|walk|dinner|gym|party|rest|custom
+  title         String
+  emoji         String?
+  color         String? // A palette token name, never a raw colour.
+  start         DateTime
+  end           DateTime
+  rrule         String?
+  sourceEventId String?
+  isDefault     Boolean   @default(false)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, archivedAt, start])
+  @@index([workspaceId, archivedAt])
+  @@index([sourceEventId])
 }
 
 model ScheduledBlock {

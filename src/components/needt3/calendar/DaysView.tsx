@@ -5,8 +5,10 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 import type { ProjectLike } from "@/lib/needt3/derive";
+import type { DayBand } from "@/lib/personal-time-days";
 
 import type { DragProps } from "../drag/useDrag";
+import { PersonalRow } from "../personal/PersonalBand";
 import { Task } from "../task/Task";
 import { Seg2 } from "./Seg2";
 import type { CalItem, CalTimed } from "./blocks";
@@ -72,6 +74,9 @@ export interface DaysViewProps {
   dragProps?: DragProps;
   /** The hour of the task in the hand, for the day tag. */
   carryAt: number | null;
+  /** Personal time by day: a quiet row at the top of each day. */
+  personal?: ReadonlyMap<string, readonly DayBand[]>;
+  onPersonal?: (band: DayBand, el: HTMLElement) => void;
 }
 
 /**
@@ -92,6 +97,8 @@ export function DaysView({
   onOpen,
   dragProps,
   carryAt,
+  personal,
+  onPersonal,
 }: DaysViewProps) {
   /* Stack title over meta when a column is too narrow to hold both on one
      line; one ResizeObserver on the grid gives the width. */
@@ -180,6 +187,19 @@ export function DaysView({
                 ) : null}
               </header>
               <div className="scroll-inner c2-col-scroll">
+                {personal
+                  ?.get(d.date)
+                  ?.map((band) => (
+                    <PersonalRow
+                      key={band.key}
+                      band={band}
+                      onOpen={
+                        onPersonal
+                          ? (b, e) => onPersonal(b, e.currentTarget)
+                          : undefined
+                      }
+                    />
+                  ))}
                 {items.length ? (
                   c2WithGaps(c2AgendaFold(items, C2_CAP)).map((it) =>
                     it.gap ? (

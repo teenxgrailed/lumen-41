@@ -222,6 +222,22 @@ export async function seedSampleData(
       },
     });
 
+    // New accounts start with Lunch kept for them, weekdays 13:00-14:00. It is
+    // theirs to edit (Settings, Your day) and is not an example: clearing the
+    // examples leaves it. Existing accounts get nothing.
+    await tx.personalBlock.create({
+      data: {
+        ...owner,
+        kind: "lunch",
+        title: "Lunch",
+        emoji: "🍽️",
+        start: fromZonedTime(`${today}T13:00:00`, zone),
+        end: fromZonedTime(`${today}T14:00:00`, zone),
+        rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+        isDefault: true,
+      },
+    });
+
     return {
       created: true,
       use,

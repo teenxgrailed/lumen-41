@@ -12,7 +12,12 @@ export type RichMenuItem =
   | { sep: true }
   | {
       sep?: false;
-      art: ArtName;
+      /** The picture. Leave it out when `glyph` stands in. */
+      art?: ArtName;
+      /** An emoji in the picture's place (personal time presets). */
+      glyph?: string;
+      /** A small row inside a big menu (a list of presets under the main choices). */
+      compact?: boolean;
       title: string;
       /** A mark after the title (the PRO pill). */
       badge?: ReactNode;
@@ -45,7 +50,13 @@ function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
         className="nx-art shell-sidebar-toggle-row-2"
         style={{ transform: hot ? "translateY(-1px) scale(1.04)" : "none" }}
       >
-        <Art name={it.art} />
+        {it.glyph ? (
+          <span className="pb-glyph" aria-hidden="true">
+            {it.glyph}
+          </span>
+        ) : (
+          <Art name={it.art ?? "task"} />
+        )}
       </span>
       <span className="base-stack shell-rich-row-stack">
         <span className="shell-whats-new-text-2">
@@ -92,7 +103,13 @@ function SmallRow({ it, i }: { it: Row; i: number }) {
         className="shell-small-row-row"
         style={{ transform: hot ? "scale(1.08)" : "none" }}
       >
-        <Art name={it.art} size={22} />
+        {it.glyph ? (
+          <span className="pb-glyph" aria-hidden="true">
+            {it.glyph}
+          </span>
+        ) : (
+          <Art name={it.art ?? "task"} size={22} />
+        )}
       </span>
       <span className="shell-small-row-span">
         {it.badge ? (
@@ -192,7 +209,7 @@ export function RichMenu({
                   key={`sep${i}`}
                   aria-hidden="true"
                 />
-              ) : small ? (
+              ) : small || it.compact ? (
                 <SmallRow key={it.title} i={i} it={it} />
               ) : (
                 <RichRow

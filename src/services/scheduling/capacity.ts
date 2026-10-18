@@ -1,3 +1,5 @@
+import { personalBusyBlocks } from "@/services/personal-time/service";
+
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import {
@@ -129,7 +131,9 @@ export async function getScheduleCapacity(
     (sum, window) => sum + differenceInMinutes(window.end, window.start),
     0
   );
-  const eventWindows = events.map((event) => ({
+  // Personal time is not free time: Lunch or a Walk takes the hour from tasks.
+  const personal = await personalBusyBlocks(userId, rangeStart, rangeEnd);
+  const eventWindows = [...events, ...personal].map((event) => ({
     start: event.start,
     end: event.end,
   }));

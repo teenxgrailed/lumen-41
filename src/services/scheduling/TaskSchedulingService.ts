@@ -1,5 +1,6 @@
-import { getCalibrationContext } from "@/services/time-tracking/calibration";
+import { personalBusyBlocks } from "@/services/personal-time/service";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
+import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
 import { canAutoScheduleMore } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
@@ -378,6 +379,12 @@ export async function scheduleAllTasksForUserDetailed(
       select: { id: true, start: true, end: true },
     });
 
+    const personalBusy: CalendarBusyBlock[] = await personalBusyBlocks(
+      userId,
+      now,
+      addDays(now, DEFAULT_HORIZON_DAYS)
+    );
+
     let dbTasks = (await prisma.task.findMany({
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
@@ -435,15 +442,20 @@ export async function scheduleAllTasksForUserDetailed(
 
     const result = scheduleTasks({
       tasks: dbTasks.map(toSchedulableTask),
-      busyBlocks: busyEvents.map(
-        (event): CalendarBusyBlock => ({
-          id: event.id,
-          title: "Busy",
-          start: event.start,
-          end: event.end,
-          source: "calendar",
-        })
-      ),
+      busyBlocks: [
+        ...busyEvents.map(
+          (event): CalendarBusyBlock => ({
+            id: event.id,
+            title: "Busy",
+            start: event.start,
+            end: event.end,
+            source: "calendar",
+          })
+        ),
+        // Personal time (Lunch, Walk, Gym...) is protected: no task is placed
+        // in it, repeats and blocks linked to an event included.
+        ...personalBusy,
+      ],
       // Energy windows no longer constrain placement. They narrowed the day to
       // a few hours, so tasks either piled into those hours or found no slot at
       // all, and anything with a hard deadline then fell through to the

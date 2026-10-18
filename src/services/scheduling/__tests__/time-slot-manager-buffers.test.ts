@@ -7,6 +7,11 @@ import { TimeSlot } from "@/types/scheduling";
 import { CalendarService } from "../CalendarService";
 import { TimeSlotManagerImpl } from "../TimeSlotManager";
 
+// No personal time here: these cases are about buffers and calendar events.
+jest.mock("../../personal-time/service", () => ({
+  loadPersonalOccurrences: jest.fn().mockResolvedValue([]),
+}));
+
 const TIME_ZONE = "Europe/Zurich";
 
 const settings = {
