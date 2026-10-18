@@ -4,6 +4,12 @@ import { useState } from "react";
 
 import { LuChevronDown } from "react-icons/lu";
 
+import {
+  energyFromKey,
+  energyKey,
+  energyOptions,
+  highEnergyHours,
+} from "@/lib/needt3/energy";
 import { useSchedule, useUpdateSchedule } from "@/lib/needt3/hooks/account";
 import {
   useSetPref,
@@ -71,6 +77,17 @@ export function DayPage() {
         hint="Needt only plans work between these times."
       >
         <WeekRows week={week} disabled={!sch} onChange={saveWeek} />
+        <PsPick
+          title="High-energy hours"
+          desc="Heavy tasks go here; lighter ones later."
+          value={energyKey(highEnergyHours(sch))}
+          options={energyOptions(highEnergyHours(sch))}
+          disabled={!sch}
+          onChange={(v) => {
+            const cols = energyFromKey(v);
+            if (cols) saveSchedule(cols);
+          }}
+        />
         <PsRow
           title="Week starts"
           control={

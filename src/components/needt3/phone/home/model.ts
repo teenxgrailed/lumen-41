@@ -16,6 +16,7 @@ import {
   snapshot,
 } from "@/lib/needt3/day";
 import { addDays, dayLabel, moveDay } from "@/lib/needt3/derive";
+import type { EnergyHours } from "@/lib/needt3/energy";
 import type { V3Task } from "@/lib/needt3/map";
 import { isOverdue } from "@/lib/needt3/task-day";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/lib/needt3/task-view";
 
 import { dayOf, hourAt, splitHome } from "../../home/derive";
+import { energyDay } from "../../home/energy-day";
 
 export interface HomeView {
   sec: DaySections<V3Task>;
@@ -72,6 +74,8 @@ export function homeView(
     view?: TaskViewSettings;
     /** The day's highlight, drawn on its own card: out of the plate and rows. */
     lift?: string | null;
+    /** Order the day's untimed tasks by weight for the hour (default order only). */
+    energy?: { nowHour: number; hours: EnergyHours };
   } = {}
 ): HomeView {
   const lift = opts.lift ?? null;
@@ -86,7 +90,11 @@ export function homeView(
     ...split,
     next: live.filter((t) => !t.noSlot && dayOf(t, today) === tomorrow),
   };
-  const day = sec.day;
+  const day =
+    opts.energy && view.sort === "time"
+      ? energyDay(sec.day, today, opts.energy.nowHour, opts.energy.hours)
+      : sec.day;
+  sec.day = day;
   // Only today's own closed tasks are "Done today": a task with no day that
   // was closed last month is not.
   const doneToday = day.filter((t) => t.done && showsTask(t, view, today));

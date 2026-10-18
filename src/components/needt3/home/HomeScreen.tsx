@@ -28,6 +28,8 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { highEnergyHours } from "@/lib/needt3/energy";
+import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
@@ -98,6 +100,7 @@ import {
   weekAhead,
   weekTotals,
 } from "./derive";
+import { energyDay } from "./energy-day";
 import { freeMinutesLeft, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
 import { suggestMeta } from "./suggest";
@@ -164,10 +167,19 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const taskView = useTaskView();
-  const { late, day, inbox } = useMemo(
+  const schedule = useSchedule();
+  const energyHours = highEnergyHours(schedule.data);
+  const split = useMemo(
     () => splitHome(allTasks, today, taskView),
     [allTasks, today, taskView]
   );
+  const { late, inbox } = split;
+  // heavy tasks first in the high-energy hours, light ones later; only on the
+  // default (time) order, never over a sort the person chose
+  const day =
+    taskView.sort === "time"
+      ? energyDay(split.day, today, nowHour, energyHours)
+      : split.day;
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
 
   // One rule for every section: it lists open tasks (plus a row still playing

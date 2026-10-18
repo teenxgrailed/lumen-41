@@ -35,6 +35,12 @@ export type DbTaskStage = "TODO" | "DOING" | "REVIEW" | "DONE";
  * ("none", which the scheduler's scorer already reads as no priority) while
  * `priorityLevel`, which is required, keeps its last real value.
  */
+/** How heavy a task is (`Task.energyRequired`). */
+export type V3Energy = "high" | "medium" | "low";
+
+const energyFromDb = (v: string | null | undefined): V3Energy =>
+  v === "HIGH" ? "high" : v === "LOW" ? "low" : "medium";
+
 export type V3Priority = "none" | "urgent" | "high" | "medium" | "low";
 export type DbPriority = "URGENT" | "HIGH" | "MEDIUM" | "LOW";
 export type V3OriginKind = "mail" | "doc" | "chat";
@@ -113,6 +119,7 @@ export function localToIso(local: string | null | undefined, tz: string) {
 /** The subset of a Task row the API returns that v3 reads. */
 export interface ApiTask {
   id: string;
+  energyRequired?: string | null;
   title: string;
   description?: string | null;
   status: string;
@@ -288,6 +295,8 @@ export interface V3Task {
   deadline: string | null;
   hardDeadline: boolean;
   priority: V3Priority;
+  /** How heavy it is; absent counts as medium. */
+  energy?: V3Energy;
   holder: string | null;
   blockedBy: string | null;
   value: number | null;
@@ -347,6 +356,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     hardDeadline: row.hardDeadline ?? false,
     priority:
       row.priority === "none" ? "none" : priorityFromDb(row.priorityLevel),
+    energy: energyFromDb(row.energyRequired),
     holder: row.assigneeId ?? null,
     blockedBy: row.dependsOnId ?? null,
     value: fromCents(row.valueCents),
@@ -435,6 +445,8 @@ export function taskPatchToApi(
       out.priority = null;
     }
   }
+  if (has("energy") && patch.energy)
+    out.energyRequired = patch.energy.toUpperCase();
   if (has("holder")) out.assigneeId = patch.holder;
   if (has("blockedBy")) out.dependsOnId = patch.blockedBy;
   if (has("value")) out.valueCents = toCents(patch.value);

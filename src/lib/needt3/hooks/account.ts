@@ -25,6 +25,9 @@ export interface V3Schedule {
   workHourStart: number;
   workHourEnd: number;
   bufferMinutes: number;
+  /** Hours (0-23) heavy work is kept for; null = the morning by default. */
+  highEnergyStart: number | null;
+  highEnergyEnd: number | null;
   /** Each weekday's own hours (0 = Sunday); the fields above summarise it. */
   weekHours: WeekHours;
 }
@@ -57,6 +60,8 @@ export function useSchedule() {
         workHourStart,
         workHourEnd,
         bufferMinutes: row.bufferMinutes ?? 15,
+        highEnergyStart: row.highEnergyStart ?? null,
+        highEnergyEnd: row.highEnergyEnd ?? null,
         weekHours:
           row.weekHours ??
           weekFromLegacy(daysOf(workDays), workHourStart, workHourEnd),
