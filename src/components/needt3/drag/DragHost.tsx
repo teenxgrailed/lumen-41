@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useState,
 } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { findListItem } from "@/lib/needt3/hooks/core";
+import { usePersonalBands } from "@/lib/needt3/hooks/personal";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
@@ -20,7 +22,12 @@ import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
+import {
+  type PersonalDropAsk,
+  PersonalDropConfirm,
+} from "../personal/PersonalDropConfirm";
 import { dropPatch } from "./drop";
+import { personalHitForPlacement } from "./personal-drop";
 import {
   type DragProps,
   type DragState,
@@ -56,6 +63,12 @@ export function V3DragProvider({ children }: PropsWithChildren) {
   const update = useUpdateTask();
   const container = useV3PortalContainer();
   const { mutateAsync } = update;
+  const personal = usePersonalBands();
+  /* A drop into personal time waits for a yes. */
+  const [asking, setAsking] = useState<{
+    ask: PersonalDropAsk;
+    run: () => void;
+  } | null>(null);
 
   const onDrop = useCallback<DropHandler>(
     (item, over) => {
@@ -64,25 +77,48 @@ export function V3DragProvider({ children }: PropsWithChildren) {
       const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
       const result = dropPatch(task, over, today);
       if (!result) return;
-      void mutateAsync({ id: task.id, patch: result.patch })
-        .then(({ undo }) =>
-          notify.success(result.message, {
-            action: { label: "Undo", onClick: () => void undo() },
-          })
-        )
-        .catch(
-          (error: unknown) =>
-            void logger.warn(
-              "Drop was not saved",
-              { error: error instanceof Error ? error.message : String(error) },
-              LOG_SOURCE
-            )
-        );
+      const write = () =>
+        void mutateAsync({ id: task.id, patch: result.patch })
+          .then(({ undo }) =>
+            notify.success(result.message, {
+              action: { label: "Undo", onClick: () => void undo() },
+            })
+          )
+          .catch(
+            (error: unknown) =>
+              void logger.warn(
+                "Drop was not saved",
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                LOG_SOURCE
+              )
+          );
+      const band = personalHitForPlacement(
+        personal,
+        result.patch.scheduledStart,
+        result.patch.scheduledEnd
+      );
+      if (band) setAsking({ ask: { taskTitle: task.title, band }, run: write });
+      else write();
     },
-    [qc, tz, mutateAsync]
+    [qc, tz, mutateAsync, personal]
   );
 
   const { drag, dragProps } = useDrag(onDrop, container);
   const api = useMemo(() => ({ drag, dragProps }), [drag, dragProps]);
-  return <DragContext.Provider value={api}>{children}</DragContext.Provider>;
+  return (
+    <DragContext.Provider value={api}>
+      {children}
+      <PersonalDropConfirm
+        ask={asking?.ask ?? null}
+        onCancel={() => setAsking(null)}
+        onConfirm={() => {
+          const run = asking?.run;
+          setAsking(null);
+          run?.();
+        }}
+      />
+    </DragContext.Provider>
+  );
 }

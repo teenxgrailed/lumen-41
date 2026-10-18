@@ -14,6 +14,7 @@ import { useSchedule, useUpdateSchedule } from "@/lib/needt3/hooks/account";
 import { useSettings, useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import { type WeekHours, legacyColumns, weekIsValid } from "@/lib/work-week";
 
+import { PersonalDefaults } from "./PersonalDefaults";
 import { useMark } from "./SettingsContext";
 import { WeekHoursRows } from "./WeekHoursRows";
 import { minutes, planningSummary, plansWeekends } from "./derive";
@@ -119,6 +120,7 @@ export function DaySection() {
           />
         </SRow>
       </SGroup>
+      <PersonalDefaults />
       <SGroup title="Calendar">
         <SRow title="Time format" desc="How times read on the calendar.">
           <SSelect

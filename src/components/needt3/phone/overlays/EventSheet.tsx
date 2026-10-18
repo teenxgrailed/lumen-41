@@ -7,6 +7,7 @@ import { LuArrowUp } from "react-icons/lu";
 import { clock, durLabel } from "@/lib/needt3/day";
 import { addMinutes, hourOf, minutesBetween } from "@/lib/needt3/derive";
 import { useCreateEvent } from "@/lib/needt3/hooks/events";
+import { useMarkEventPersonal } from "@/lib/needt3/hooks/personal";
 
 import { PkButton, PkField, PkSheet } from "../kit";
 import { PovOpt } from "./parts";
@@ -78,6 +79,8 @@ export function StoreEventSheet() {
   const held = useRef<EventFacts | null>(null);
   if (event) held.current = event;
   const e = event ?? held.current;
+  const markPersonal = useMarkEventPersonal();
+  const eventId = e?.eventId;
   return (
     <PkEventSheet
       open={!!event}
@@ -85,6 +88,25 @@ export function StoreEventSheet() {
       title={e?.title ?? ""}
       meta={e?.meta ?? null}
       facts={e?.facts ?? []}
+      footer={
+        eventId ? (
+          <>
+            <PkButton
+              kind="quiet"
+              data-pov-personal=""
+              onClick={() => {
+                close();
+                void markPersonal({ id: eventId, title: e?.title ?? "Event" });
+              }}
+            >
+              Keep as personal time
+            </PkButton>
+            <PkButton kind="primary" onClick={close}>
+              {copy.done}
+            </PkButton>
+          </>
+        ) : undefined
+      }
     />
   );
 }

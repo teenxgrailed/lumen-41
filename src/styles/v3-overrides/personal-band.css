@@ -1,0 +1,260 @@
+/* Design v3 - personal time (Lunch, Walk, Gym...).
+ * HAND-WRITTEN, not vendored. A stretch the person keeps for themselves must
+ * read as theirs, not as a task: no card, no border, no shadow, full width,
+ * and a tint rather than a fill. The four rules hold: every grey is the text
+ * colour at a ladder alpha, the type is 12px and 13px, and the accent is never
+ * used (the tints are the palette's amber and green washes, and the text
+ * colour, all on the fill ladder). */
+
+.needt-v3 .pb-band {
+  /* fills on the ladder (2/3/4/6/8/12): the text colour for neutral, the
+     palette's own 12% washes for amber and green */
+  --pb-bg: var(--fill-4);
+  --pb-bg-hover: var(--fill-5);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 10px;
+  background: var(--pb-bg);
+  color: var(--text-quaternary);
+  font-size: 12px;
+  line-height: 16px;
+  user-select: none;
+}
+.needt-v3 .pb-band[data-tone="info"] {
+  --pb-bg: var(--fill-info);
+  --pb-bg-hover: var(--fill-info);
+}
+.needt-v3 .pb-band[data-tone="success"] {
+  --pb-bg: var(--fill-success);
+  --pb-bg-hover: var(--fill-success);
+}
+.needt-v3 .pb-band[role="button"] {
+  cursor: pointer;
+}
+.needt-v3 .pb-band[role="button"]:hover {
+  background: var(--pb-bg-hover);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pb-band[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 .pb-emoji {
+  flex: none;
+  font-size: 13px;
+  line-height: 1;
+}
+.needt-v3 .pb-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+}
+.needt-v3 .pb-time {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pb-band.is-compact {
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+
+/* In a calendar column: a stripe behind the blocks, edge to edge. */
+.needt-v3 .pb-band[data-variant="grid"] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 0;
+  align-items: flex-start;
+  padding-top: 3px;
+}
+.needt-v3 .pb-band[data-variant="grid"].is-compact {
+  align-items: center;
+  padding-top: 0;
+}
+
+/* In a list (Home's day, the phone): a quiet row. */
+.needt-v3 .pb-band[data-variant="row"] {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 12px;
+}
+.needt-v3 .pb-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.needt-v3 .pb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .pb-section:empty {
+  display: none;
+}
+.needt-v3 .pb-keep {
+  align-self: flex-start;
+  color: var(--text-quaternary);
+}
+
+/* The small card beside a band: what it is, and how to take it away. */
+.needt-v3 .pb-peek {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 264px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  font-size: 13px;
+}
+.needt-v3 .pb-peek-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .pb-peek-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.needt-v3 .pb-peek-meta {
+  color: var(--text-quaternary);
+  font-size: 12px;
+}
+.needt-v3 .pb-peek-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* The empty-slot menu beside a draft event. */
+.needt-v3 .pb-slotmenu {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3 .pb-slotmenu-head {
+  padding: 4px 8px 6px;
+  color: var(--text-quaternary);
+  font-size: 12px;
+  line-height: 16px;
+}
+.needt-v3 .pb-slotmenu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.needt-v3 .pb-slotmenu-row:hover,
+.needt-v3 .pb-slotmenu-row:focus-visible {
+  outline: none;
+  background: var(--fill-3);
+}
+.needt-v3 .pb-slotmenu-name {
+  flex: 1;
+  min-width: 0;
+}
+.needt-v3 .pb-slotmenu-len {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Home: the day's personal time and the one-tap presets under it. */
+.needt-v3 .pb-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.needt-v3 .pb-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--fill-3);
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.needt-v3 .pb-quick-chip:hover,
+.needt-v3 .pb-quick-chip:focus-visible {
+  outline: none;
+  background: var(--fill-4);
+}
+.needt-v3 .pb-quick-chip .pb-glyph {
+  width: 16px;
+  height: 16px;
+  font-size: 13px;
+}
+.needt-v3 .pb-quick-label {
+  width: 100%;
+  color: var(--text-quaternary);
+  font-size: 12px;
+}
+
+/* Settings → Your day: the repeating defaults. */
+.needt-v3 .pb-default-days {
+  display: inline-flex;
+  gap: 2px;
+}
+.needt-v3 .pb-default-day {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--fill-3);
+  color: var(--text-quaternary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.needt-v3 .pb-default-day[aria-pressed="true"] {
+  background: var(--fill-6);
+  color: var(--text-primary);
+}
+
+/* One tap presets in the Create menu and the empty-slot menu. */
+.needt-v3 .pb-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  line-height: 1;
+}

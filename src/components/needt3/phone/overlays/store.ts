@@ -19,6 +19,8 @@ export interface EventFacts {
   meta?: string | null;
   /** [label, value] pairs: Time, Length, Calendar, Overlaps. */
   facts: readonly (readonly [string, string])[];
+  /** The person's own event: it can be kept as personal time. */
+  eventId?: string;
 }
 
 /** A new event, from a tapped slot: local "YYYY-MM-DDTHH:mm" stamps. */

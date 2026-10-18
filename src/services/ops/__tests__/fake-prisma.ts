@@ -11,6 +11,7 @@ const RELATIONS: Record<
   Record<string, { model: string; key: string }>
 > = {
   scheduledBlock: { task: { model: "task", key: "taskId" } },
+  calendarEvent: { feed: { model: "calendarFeed", key: "feedId" } },
 };
 const CHILDREN: Record<
   string,
@@ -36,6 +37,7 @@ const HAS_UPDATED_AT = new Set([
   "scheduledBlock",
   "calendarEvent",
   "page",
+  "personalBlock",
 ]);
 
 function clone<T>(value: T): T {
@@ -81,6 +83,7 @@ export function createFakePrisma() {
     calendarEvent: [],
     calendarFeed: [],
     page: [],
+    personalBlock: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;

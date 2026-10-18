@@ -32,6 +32,7 @@
 @import "./v3-overrides/layout.css";
 @import "./v3-overrides/task-view.css";
 @import "./v3-overrides/calendar-strip.css";
+@import "./v3-overrides/personal-band.css";
 @import "./v3-overrides/task-complete.css";
 @import "./v3-overrides/sortable.css";
 @import "./v3-overrides/admin.css";

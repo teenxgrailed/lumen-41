@@ -36,6 +36,10 @@ import {
   writePageBlocks,
 } from "@/services/pages/page-write-path";
 import {
+  personalBlockSelect,
+  personalBlockView,
+} from "@/services/personal-time/service";
+import {
   SEARCHABLE_TYPES,
   searchWorkspace,
 } from "@/services/search/workspace-search";
@@ -223,6 +227,7 @@ const LIST_TYPES = [
   "habit",
   "mail",
   "moodboard",
+  "personal_time",
 ] as const;
 type ListType = (typeof LIST_TYPES)[number];
 
@@ -383,6 +388,22 @@ async function listRows(
         })),
         args
       );
+    case "personal_time":
+      return page(
+        (
+          await prisma.personalBlock.findMany({
+            where: {
+              userId,
+              ...(args.includeArchived ? {} : { archivedAt: null }),
+            },
+            select: personalBlockSelect,
+            orderBy: [{ start: "asc" }, { id: "asc" }],
+            take,
+            ...cursorArgs(args.cursor),
+          })
+        ).map(personalBlockView),
+        args.limit
+      );
     case "habit":
       return page(
         await prisma.habit.findMany({
@@ -465,6 +486,13 @@ async function getRow(
       });
     case "moodboard":
       return getMoodboard({ userId, workspace }, id);
+    case "personal_time": {
+      const block = await prisma.personalBlock.findFirst({
+        where: { id, userId },
+        select: personalBlockSelect,
+      });
+      return block && personalBlockView(block);
+    }
   }
 }
 
@@ -525,7 +553,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard.",
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -1038,6 +1066,116 @@ const WRITE_TOOLS: McpTool[] = [
         ? toolResult(created.event)
         : toolError({ status: created.status, error: created.error });
     },
+  }),
+  defineTool({
+    name: "needt_create_personal_time",
+    description:
+      "Keep time for the person: lunch, break, walk, dinner, gym, party, rest or a custom block. No task is ever scheduled inside it. Give start (ISO 8601) and end or minutes (a preset kind has a usual length); rrule repeats it (e.g. FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR). Needt keeps it; nothing is written to Google or iCloud. Personal workspace only. The answer carries actionId for undo.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      kind: z
+        .enum([
+          "lunch",
+          "break",
+          "walk",
+          "dinner",
+          "gym",
+          "party",
+          "rest",
+          "custom",
+        ])
+        .optional(),
+      title: z.string().min(1).max(120).optional(),
+      emoji: z.string().min(1).max(16).optional(),
+      color: z.enum(["info", "success", "neutral"]).optional(),
+      start: isoDate.describe("ISO 8601 start."),
+      end: isoDate.optional().describe("ISO 8601 end, after start."),
+      minutes: z.number().int().min(5).max(1440).optional(),
+      rrule: repeatRule.optional(),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, {
+            params: Promise.resolve({ name: "personal.create" }),
+          }),
+        "/api/connect/ops/personal.create",
+        "POST",
+        args
+      ),
+  }),
+  defineTool({
+    name: "needt_mark_event_personal",
+    description:
+      "Mark a calendar event (synced or your own) as personal time. Needt keeps a block linked to it, so no task is scheduled over it and it follows the event if it moves. The event itself is not changed. Find the id with needt_list type event.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z.object({
+      eventId: z.string().min(1),
+      kind: z
+        .enum(["lunch", "break", "walk", "dinner", "gym", "party", "rest"])
+        .optional(),
+      title: z.string().min(1).max(120).optional(),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, {
+            params: Promise.resolve({ name: "personal.mark_event" }),
+          }),
+        "/api/connect/ops/personal.mark_event",
+        "POST",
+        args
+      ),
+  }),
+  defineTool({
+    name: "needt_update_personal_time",
+    description:
+      "Change a personal time block: title, emoji, tint (info, success, neutral), start, end or rrule (null stops the repeat). The answer carries actionId for undo.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      id: z.string().min(1).describe("Personal time block id."),
+      title: z.string().min(1).max(120).optional(),
+      emoji: z.string().min(1).max(16).nullable().optional(),
+      color: z.enum(["info", "success", "neutral"]).nullable().optional(),
+      start: isoDate.optional(),
+      end: isoDate.optional(),
+      rrule: repeatRule.nullable().optional(),
+    }),
+    invoke: (ctx, { id, ...rest }) =>
+      callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, {
+            params: Promise.resolve({ name: "personal.update" }),
+          }),
+        "/api/connect/ops/personal.update",
+        "POST",
+        { blockId: id, ...rest }
+      ),
+  }),
+  defineTool({
+    name: "needt_delete_personal_time",
+    description:
+      "Remove a personal time block (a repeat goes entirely). It is kept, so the actionId in the answer undoes it. The linked calendar event, if any, is untouched.",
+    annotations: { readOnlyHint: false, destructiveHint: true },
+    input: z.object({ id: z.string().min(1).describe("Block id.") }),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        (req) =>
+          opsPost(req, {
+            params: Promise.resolve({ name: "personal.delete" }),
+          }),
+        "/api/connect/ops/personal.delete",
+        "POST",
+        { blockId: args.id }
+      ),
   }),
   defineTool({
     name: "needt_create_page",
