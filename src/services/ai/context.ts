@@ -11,7 +11,8 @@ import {
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
 
-import { listAgentMemories, touchMemories } from "./memory";
+import { isLearningEnabled, listMemoriesForUse, touchMemories } from "./memory";
+import { runLearning } from "./memory-learning";
 import { assembleAgentSystemPrompt } from "./system-prompt";
 
 export async function getTodayScheduleSummary(
@@ -113,8 +114,12 @@ export async function buildAgentPromptForUser(
   soulPreset: string,
   workspace: WorkspaceAccess
 ) {
+  // Switch off: no pass runs and no memory is read. Documents and mail are
+  // learned in the background so Ask never waits on them.
+  await runLearning(userId, workspace, { background: true });
+  const learning = await isLearningEnabled(userId);
   const [memories, schedule] = await Promise.all([
-    listAgentMemories(userId, workspace.workspaceId),
+    listMemoriesForUse(userId, workspace.workspaceId),
     getTodayScheduleSummary(userId, workspace),
   ]);
   const settings = await prisma.userSettings.findUnique({
@@ -125,6 +130,7 @@ export async function buildAgentPromptForUser(
   const now = newDate();
   const result = assembleAgentSystemPrompt({
     soulPreset,
+    learning,
     memories,
     scheduleSummary: schedule.summary,
     agent: {

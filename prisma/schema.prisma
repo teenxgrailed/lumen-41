@@ -1873,36 +1873,36 @@ model PagePublication {
 /// plan 05.1; access and realtime state live here so authorization is never
 /// inferred from a room ID.
 model Moodboard {
-  id                 String                       @id @default(cuid())
-  workspaceId        String
-  workspace          Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  createdById        String?
-  createdBy          User?                        @relation("MoodboardCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  title              String                       @default("Untitled Moodboard")
-  archivedAt         DateTime?
-  accessGrants       MoodboardAccessGrant[]
-  collaborationState MoodboardCollaborationState?
-  snapshots          MoodboardSnapshot[]
-  createdAt          DateTime                     @default(now())
-  updatedAt          DateTime                     @updatedAt
+  id                     String                       @id @default(cuid())
+  workspaceId            String
+  workspace              Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdById            String?
+  createdBy              User?                        @relation("MoodboardCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  title                  String                       @default("Untitled Moodboard")
+  archivedAt             DateTime?
+  accessGrants           MoodboardAccessGrant[]
+  collaborationState     MoodboardCollaborationState?
+  snapshots              MoodboardSnapshot[]
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
   // Design v3: project, link share, the linked Pinterest board, Trash, grid items.
-  projectId          String?
-  project            Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  linkShare          Boolean                      @default(false)
+  projectId              String?
+  project                Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  linkShare              Boolean                      @default(false)
   /// Mixed into the public link's token; bumped when sharing is turned off, so an old address never comes back.
-  linkTokenVersion   Int                          @default(0)
-  pinterestBoardId   String?
-  pinterestStatus    String?
-  pinterestSyncedAt  DateTime?
+  linkTokenVersion       Int                          @default(0)
+  pinterestBoardId       String?
+  pinterestStatus        String?
+  pinterestSyncedAt      DateTime?
   /// "Keep in sync": the daily worker pass appends new Pins; it never deletes.
   pinterestSync          Boolean                      @default(false)
   /// Whose Pinterest grant the sync reads with.
   pinterestConnectedById String?
   /// Pin ids already imported, so a Pin the person removed is not added back.
   pinterestSeen          String[]                     @default([])
-  trashedAt          DateTime?
-  items              MoodboardItem[]
-  assets             MoodboardAsset[]
+  trashedAt              DateTime?
+  items                  MoodboardItem[]
+  assets                 MoodboardAsset[]
 
   @@index([workspaceId, archivedAt])
   @@index([createdById])
@@ -2188,13 +2188,19 @@ model AgentMemory {
   content     String
   source      AgentMemorySource @default(chat)
   weight      Float             @default(1)
+  /// Stable key of a memory Needt computes or extracts (habit:peak-hours); null for stated ones.
+  sourceKey   String?
+  /// Numbers behind a computed memory (e.g. the duration ratio); never user text.
+  data        Json?
   createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @default(now()) @updatedAt
   lastUsedAt  DateTime          @default(now())
 
   @@index([workspaceId, userId, lastUsedAt])
   @@index([workspaceId, userId, weight])
   @@index([userId, lastUsedAt])
   @@index([userId, weight])
+  @@index([workspaceId, userId, sourceKey])
 }
 
 /// One agent session that changed data: a chat turn, a background job, or an
@@ -2404,19 +2410,27 @@ model AutoScheduleSettings {
 }
 
 model UserSettings {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  theme             String   @default("dark") // "light", "dark", "system"
-  defaultView       String   @default("week") // "day", "week", "month", "agenda"
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme             String    @default("dark") // "light", "dark", "system"
+  defaultView       String    @default("week") // "day", "week", "month", "agenda"
   timeZone          String
   secondaryTimeZone String?
-  weekStartDay      String   @default("sunday") // "monday", "sunday"
-  timeFormat        String   @default("12h") // "12h", "24h"
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  weekStartDay      String    @default("sunday") // "monday", "sunday"
+  timeFormat        String    @default("12h") // "12h", "24h"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   // Design v3: UI-only preferences in one map; anything the server reads gets a typed column.
-  prefs             Json     @default("{}")
+  prefs             Json      @default("{}")
+  // "Let Needt learn about me": off until the person turns it on. Off means nothing
+  // is learned and no memory is used.
+  learnAboutMe      Boolean   @default(false)
+  // When the last learning pass ran, so passes are at most daily.
+  learnedAt         DateTime?
+  learnedContentAt  DateTime?
+  // Learned lines the person deleted (`workspaceId:sourceKey`); not recomputed until Forget all.
+  learnedSkips      String[]  @default([])
 
   @@index([userId])
 }
@@ -2537,7 +2551,7 @@ model SystemSettings {
   linkedinClientSecret                 String?
   openaiSiwcClientId                   String?
   openaiSiwcClientSecret               String?
-  logLevel                            String   @default("none") // none, debug, info, warn, error
+  logLevel                             String   @default("none") // none, debug, info, warn, error
   logRetention                         Json? // Retention periods per log level
   logDestination                       String   @default("db") // db, file, both
   publicSignup                         Boolean  @default(true) // Whether public signup is enabled
@@ -3043,6 +3057,9 @@ enum AgentMemoryKind {
 enum AgentMemorySource {
   chat
   inferred
+  habit
+  document
+  mail
 }
 
 enum MailProvider {
@@ -3212,9 +3229,9 @@ model PageAiAccess {
 
 /// One tile on a moodboard grid (image | link | color | note). Pins are never stored.
 model MoodboardItem {
-  id           String    @id @default(cuid())
+  id           String                 @id @default(cuid())
   moodboardId  String
-  moodboard    Moodboard @relation(fields: [moodboardId], references: [id], onDelete: Cascade)
+  moodboard    Moodboard              @relation(fields: [moodboardId], references: [id], onDelete: Cascade)
   kind         String
   url          String?
   color        String?
@@ -3224,9 +3241,9 @@ model MoodboardItem {
   colorName    String?
   source       Json?
   thumbnailUrl String?
-  position     Float     @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  position     Float                  @default(0)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
   comments     MoodboardItemComment[]
 
   @@index([moodboardId, position])

@@ -8,6 +8,14 @@ import {
   POST as schedulePost,
 } from "@/app/api/connect/schedule/route";
 import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
+import {
+  clearAgentMemories,
+  forgetForUser,
+  isLearningEnabled,
+  listAgentMemories,
+  publicMemory,
+  updateMemoryForUser,
+} from "@/services/ai/memory";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
@@ -1299,6 +1307,99 @@ const WRITE_TOOLS: McpTool[] = [
         }
         throw error;
       }
+    },
+  }),
+  defineTool({
+    name: "needt_list_memories",
+    description:
+      'What Needt has learned about the person ("Let Needt learn about me"): each line with its kind, source (chat, habit, document, mail) and dates, and whether the switch is on. Readable with the switch off; while it is off nothing here is used. The switch itself is turned on or off only in the app.',
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    input: z.object({}),
+    async invoke(ctx) {
+      const access = await readAccess(ctx);
+      if ("error" in access) return access.error;
+      const [enabled, memories] = await Promise.all([
+        isLearningEnabled(ctx.userId),
+        listAgentMemories(ctx.userId, access.workspace.workspaceId),
+      ]);
+      return toolResult({ enabled, memories: memories.map(publicMemory) });
+    },
+  }),
+  defineTool({
+    name: "needt_update_memory",
+    description:
+      "Edit one memory line (its text or kind). An edited line is the person's own and is no longer replaced by later learning.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z.object({
+      id: z.string().min(1).describe("Memory id from needt_list_memories."),
+      content: z.string().trim().min(3).max(500).optional(),
+      kind: z.enum(["preference", "pattern", "goal", "fact"]).optional(),
+    }),
+    async invoke(ctx, args) {
+      if (args.content === undefined && !args.kind) {
+        return toolError({ status: 400, error: "Pass content or kind." });
+      }
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      try {
+        const memory = await updateMemoryForUser(
+          ctx.userId,
+          access.workspace.workspaceId,
+          args.id,
+          { content: args.content, kind: args.kind }
+        );
+        if (!memory)
+          return toolError({ status: 404, error: "Memory not found" });
+        return toolResult({ memory: publicMemory(memory) });
+      } catch {
+        return toolError({
+          status: 400,
+          error: "That cannot be saved as a memory.",
+        });
+      }
+    },
+  }),
+  defineTool({
+    name: "needt_forget_memory",
+    description:
+      "Delete one memory by id, or every memory in the workspace with all: true and confirm: true. Cannot be undone.",
+    annotations: { readOnlyHint: false, destructiveHint: true },
+    input: z.object({
+      id: z.string().min(1).optional(),
+      all: z.boolean().optional(),
+      confirm: z
+        .boolean()
+        .optional()
+        .describe("Must be true to delete everything with all: true."),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      const workspaceId = access.workspace.workspaceId;
+      if (args.all) {
+        if (args.confirm !== true) {
+          return toolError({
+            status: 400,
+            error: "Deleting every memory needs confirm: true.",
+          });
+        }
+        const result = await clearAgentMemories(ctx.userId, workspaceId);
+        return toolResult({ deleted: result.count });
+      }
+      if (!args.id) {
+        return toolError({
+          status: 400,
+          error: "Pass id, or all with confirm.",
+        });
+      }
+      const deleted = await forgetForUser(ctx.userId, workspaceId, args.id);
+      if (!deleted)
+        return toolError({ status: 404, error: "Memory not found" });
+      return toolResult({ deleted: 1 });
     },
   }),
 ];

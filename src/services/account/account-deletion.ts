@@ -102,6 +102,9 @@ async function tombstoneSharedContent(
   const moodboardIds = ownedMoodboards.map(({ id }) => id);
 
   await tx.pagePublication.deleteMany({ where: { page: { userId } } });
+  // Learned memories are the person's own and never outlive the account,
+  // in any workspace they were made in.
+  await tx.agentMemory.deleteMany({ where: { userId } });
   await Promise.all([
     tx.project.updateMany({
       where: { userId, workspaceId: workspaceFilter },

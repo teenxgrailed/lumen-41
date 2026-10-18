@@ -21,6 +21,7 @@ import {
 } from "../../settings/derive";
 import { KEY_GROUPS, SHELL_SHORTCUTS } from "../../shell/keys";
 import { PkButton } from "../kit";
+import { PhoneMemoriesGroup } from "./MemoriesGroup";
 import { LINK_OPTIONS, SOUND_OPTIONS } from "./model";
 import { PsGroup, PsPick, PsRow, PsSwitch } from "./parts";
 
@@ -412,6 +413,7 @@ export function DataPage() {
           }
         />
       </PsGroup>
+      <PhoneMemoriesGroup />
     </>
   );
 }

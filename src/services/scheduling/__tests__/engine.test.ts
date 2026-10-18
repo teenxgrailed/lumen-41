@@ -793,3 +793,37 @@ describe("scheduleTasks", () => {
     expect(result.blocks[0].start.getHours()).toBe(9);
   });
 });
+
+describe("learned duration ratio (Let Needt learn about me)", () => {
+  const blockMinutes = (
+    learnedDurationRatio: number | undefined,
+    over: Partial<SchedulableTask> = {},
+    calibrationFactors?: Record<string, number>
+  ) => {
+    const result = scheduleTasks({
+      tasks: [task({ id: "t", estimatedMinutes: 60, ...over })],
+      busyBlocks: [],
+      energyProfile,
+      prefs: { ...prefs, learnedDurationRatio, calibrationFactors },
+      now: mondayMorning,
+    });
+    return result.blocks.reduce(
+      (sum, b) => sum + (b.end.getTime() - b.start.getTime()) / 60_000,
+      0
+    );
+  };
+
+  it("leaves estimates alone when nothing was learned", () => {
+    expect(blockMinutes(undefined)).toBe(60);
+  });
+
+  it("lengthens and shortens blocks by the ratio, in 5-minute steps", () => {
+    expect(blockMinutes(1.5)).toBe(90);
+    expect(blockMinutes(0.5)).toBe(30);
+    expect(blockMinutes(1.4, { estimatedMinutes: 25 })).toBe(35);
+  });
+
+  it("does not stack on a context's own calibration", () => {
+    expect(blockMinutes(2, { contextTag: "deep" }, { deep: 1.2 })).toBe(60);
+  });
+});
