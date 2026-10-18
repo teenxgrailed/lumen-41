@@ -108,6 +108,7 @@ function buildPlan(userId, workspaceId) {
     ["AiConversation", "aiConversation", wsOnly],
     ["AgentMemory", "agentMemory", wsOnly],
     ["AiUsage", "aiUsage", uid],
+    ["MorningBrief", "morningBrief", uid],
     ["AiPageChangeProposal", "aiPageChangeProposal", any(uid, { page: G })],
     ["AISettings", "aISettings", uid],
     ["AIOAuthConnection", "aIOAuthConnection", uid],
