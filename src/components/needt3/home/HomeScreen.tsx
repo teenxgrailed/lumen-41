@@ -50,9 +50,9 @@ import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { FinishCard } from "./FinishCard";
 import {
   Capped,
-  DayClosed,
   EmptyDay,
   Fold,
   type HabitChip,
@@ -70,6 +70,7 @@ import {
   WeekStats,
 } from "./HomeParts";
 import { SampleBanner } from "./SampleBanner";
+import { ShutdownSheet } from "./Shutdown";
 import {
   capacityFrom,
   dayState,
@@ -86,6 +87,8 @@ import {
   weekAhead,
   weekTotals,
 } from "./derive";
+import { freeMinutesLeft, pickFinishNext } from "./finish";
+import { useFinishDay } from "./useFinishDay";
 
 /**
  * HOME ($P/HomeToday.jsx). The day on the Tasks layout: a header with the
@@ -192,6 +195,22 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     events.data ?? [],
     today
   );
+  // A finished day offers the best next tasks (not the one already on Next up)
+  const finish = useFinishDay({ late, day, today });
+  const finishPicks = closedDay
+    ? pickFinishNext(
+        allTasks,
+        today,
+        freeMinutesLeft(
+          cap,
+          today,
+          nowHour,
+          sched.filter((x) => x.event)
+        )
+      )
+        .filter((p) => p.task.id !== pick?.task.id)
+        .slice(0, 3)
+    : [];
   const hueOf = (id: string | null) =>
     project(id, projects.data ?? [])?.color ?? "var(--text-muted)";
 
@@ -459,11 +478,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
           {closedDay ? (
-            <DayClosed
+            <FinishCard
               count={day.length}
               mins={day.reduce((s, t) => s + (t.estimatedMinutes || 0), 0)}
               habits={habitsKept}
-              lateN={lateOpen.length}
+              open={{ late: lateOpen.length, inbox: inbox.length }}
+              picks={finishPicks}
+              onDoToday={(p) => void finish.doToday(p)}
+              onEndDay={finish.show}
               onPlan={seeTomorrow}
               onUndo={undoLast}
             />
@@ -656,6 +678,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
           </div>
         </div>
       </StScreen>
+      <ShutdownSheet open={finish.open} {...finish.sheet} />
     </div>
   );
 }

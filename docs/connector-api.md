@@ -274,6 +274,24 @@ curl -OJ "http://localhost:3000/api/pages/PAGE_ID/export?format=md" \
 - The editor's **Export as Markdown** writes the same file from the text on
   screen, unsaved edits included.
 
+## Append to a page
+
+```
+POST /api/pages/:id/append
+{ "text": "## From yesterday\n\nCall Anna", "format": "markdown" }
+```
+
+Adds the text to the end of a page you can edit; earlier content is kept and
+the previous version stays in the page history. `format` is `markdown`
+(default) or `plain`. Answers `{ "page": {...}, "appendedBlocks": 2 }`.
+It answers the signed-in session, like the rest of `/api/pages/*`.
+
+- `400` for an empty text or one over 100000 characters, `403` for a page you
+  cannot edit, `404` for a missing one, `409` while the page is being edited
+  live (try again once the editor has saved).
+- Home's **End day** uses it to put a note for tomorrow into tomorrow's daily
+  note ("Daily note · 2 September 2026").
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The

@@ -383,6 +383,26 @@ describe("Home", () => {
     expect(q("[data-v2p-habit]").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("a row of habit circles sits under the date and ticks today", async () => {
+    mount(PhoneHome);
+    const dot = q('[data-hs-dot="h1"]');
+    expect(dot.getAttribute("aria-pressed")).toBe("false");
+    expect(dot.textContent).toBe("S");
+    click(dot);
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/habits/h1/completions/today",
+      expect.objectContaining({ method: "PUT" })
+    );
+    expect(q('[data-hs-dot="h1"]').getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("draws no habit row when there are no habits", () => {
+    client.setQueryData(qk.habits(), []);
+    mount(PhoneHome);
+    expect(qa("[data-hs-row]")).toHaveLength(0);
+  });
+
   it("loading and error come in the body, under the screen's own header", () => {
     client.removeQueries({ queryKey: qk.tasks({}) });
     mount(PhoneHome);

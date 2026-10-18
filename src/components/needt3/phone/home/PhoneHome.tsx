@@ -7,9 +7,15 @@ import { useRouter } from "next/navigation";
 import { LuCheck, LuTarget } from "react-icons/lu";
 
 import { clock, durLabel } from "@/lib/needt3/day";
-import { habitColor, habitDoneOn, liveHabits } from "@/lib/needt3/derive";
+import {
+  addDays,
+  habitColor,
+  habitDoneOn,
+  liveHabits,
+} from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
+import { useEvents } from "@/lib/needt3/hooks/events";
 import {
   useCheckins,
   useHabits,
@@ -24,8 +30,16 @@ import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
-import { hourAt } from "../../home/derive";
+import { FinishPicks } from "../../home/FinishCard";
 import { SampleBanner } from "../../home/SampleBanner";
+import { ShutdownSheet } from "../../home/Shutdown";
+import { capacityFrom, hourAt, scheduleItems } from "../../home/derive";
+import {
+  finishHeadline,
+  freeMinutesLeft,
+  pickFinishNext,
+} from "../../home/finish";
+import { useFinishDay } from "../../home/useFinishDay";
 import {
   PkButton,
   PkEmpty,
@@ -42,7 +56,9 @@ import {
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
+import { HabitsStrip } from "./HabitsStrip";
 import { usePhoneClock } from "./clock";
+import { habitDots } from "./habits-row";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
 import { useTaskPull } from "./pull";
@@ -65,7 +81,7 @@ const none = () => undefined;
  * field in the browser; that would be a second copy of the day's notes.
  */
 export function PhoneHome({ ctl }: { ctl: HomeController }) {
-  const { today, now } = usePhoneClock();
+  const { today, now, hour: nowHour } = usePhoneClock();
   const router = useRouter();
   const dailyNote = useDailyNote(today);
   const tz = useTimeZone();
@@ -104,6 +120,29 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   );
   const { next: N } = v;
   const nu = N.nu;
+
+  // A finished day: the best next tasks (not the one on the plate) and End day
+  const prefs = useSettings().data?.prefs;
+  const events = useEvents({ from: today, to: addDays(today, 1) });
+  const finish = useFinishDay({ late: v.sec.late, day: v.sec.day, today });
+  const openRest = {
+    late: v.lateN,
+    inbox: v.open(v.sec.inbox).length,
+  };
+  const finishPicks = v.dayClosed
+    ? pickFinishNext(
+        all,
+        today,
+        freeMinutesLeft(
+          capacityFrom(prefs),
+          today,
+          nowHour,
+          scheduleItems([], events.data ?? [], today)
+        )
+      )
+        .filter((p) => p.task.id !== nu?.id)
+        .slice(0, 3)
+    : [];
 
   const habits = liveHabits(habitsQuery.data ?? []);
   const checkins = checkinsQuery.data ?? [];
@@ -179,21 +218,33 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
-  const head = !ready ? null : v.allDone ? (
-    <div className="v2p-prog is-done" data-v2p-alldone="">
+  const progress = !ready ? null : v.dayClosed ? (
+    <div
+      className="v2p-prog is-done"
+      data-v2p-alldone={v.allDone ? "" : undefined}
+      data-v2p-dayclosed=""
+    >
       <span className="v2p-prog-sky">
         <PkSkyBadge />
         <p className="v2p-prog-line">
           <span className="v2p-prog-done">
-            {copy.V2pHome.all_done_for_today} <LuCheck size={16} />
+            {v.allDone
+              ? copy.V2pHome.all_done_for_today
+              : finishHeadline(openRest).title}{" "}
+            <LuCheck size={16} />
           </span>
         </p>
       </span>
-      {v.open(v.sec.next).length ? (
-        <PkButton kind="chip" onClick={seeTomorrow} data-v2p-see-tomorrow="">
-          {copy.V2pHome.see_tomorrow}
+      <span className="v2p-prog-acts">
+        <PkButton kind="chip" onClick={finish.show} data-fin="end-day">
+          End day
         </PkButton>
-      ) : null}
+        {v.open(v.sec.next).length ? (
+          <PkButton kind="chip" onClick={seeTomorrow} data-v2p-see-tomorrow="">
+            {copy.V2pHome.see_tomorrow}
+          </PkButton>
+        ) : null}
+      </span>
     </div>
   ) : v.total ? (
     <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
@@ -220,6 +271,25 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       </span>
     </div>
   ) : null;
+
+  const dots = habitDots(
+    habitsQuery.data ?? [],
+    checkins,
+    today,
+    projects ?? []
+  );
+  const head =
+    dots.length || progress ? (
+      <>
+        <HabitsStrip
+          dots={dots}
+          onTick={(id, done) =>
+            void toggleHabit.mutateAsync({ id, done }).catch(none)
+          }
+        />
+        {progress}
+      </>
+    ) : null;
 
   return (
     <PkScreen
@@ -297,6 +367,14 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
             </PkButton>
           </div>
         </PkSkyPlate>
+      ) : null}
+
+      {ready && finishPicks.length ? (
+        <FinishPicks
+          phone
+          picks={finishPicks}
+          onDoToday={(p) => void finish.doToday(p)}
+        />
       ) : null}
 
       {ready && v.empty ? (
@@ -396,6 +474,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           </button>
         </div>
       ) : null}
+      <ShutdownSheet phone open={finish.open} {...finish.sheet} />
     </PkScreen>
   );
 }
