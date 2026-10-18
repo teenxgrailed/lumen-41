@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#19172d">
 <title>Pricing — Needt</title>
 <meta name="description" content="Needt is free to start. Pro is $7 a month or $59 a year, Lifetime is $149 once. Every new account gets 14 days of Pro, no card.">
 <link rel="canonical" href="https://needt.app/pricing/">
@@ -19,9 +18,9 @@
 <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
 <link rel="preload" href="../assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="../vendor/sky-tokens.css?v=26.1">
-<link rel="stylesheet" href="../styles.css?v=26.1">
-<link rel="stylesheet" href="../pages.css?v=26.1">
+<link rel="stylesheet" href="../vendor/sky-tokens.css?v=27">
+<link rel="stylesheet" href="../styles.css?v=27">
+<link rel="stylesheet" href="../pages.css?v=27">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
 -->
@@ -124,7 +123,8 @@
 <section class="sec">
   <div class="wrap">
     <div class="sec-head center"><h2 class="h2">Compare <i>plans.</i></h2></div>
-    <div class="ctbl-wrap"><table class="ctbl">
+    <div class="ct-seg" role="tablist" aria-label="Plan to show"><button type="button" role="tab" data-col="2" aria-selected="false">Free</button><button type="button" role="tab" data-col="3" aria-selected="true">Pro</button><button type="button" role="tab" data-col="4" aria-selected="false">Lifetime</button></div>
+    <div class="ctbl-wrap" data-show="3"><table class="ctbl">
       <thead><tr><th class="ct-feat"><span class="sr">Feature</span></th>
         <th class="c"><b class="ct-name">Free</b><span class="ct-price">$0 forever</span><a class="ct-btn ct-ghost js-trial" href="https://use.needt.app/auth/signin">Start free</a></th>
         <th class="c ct-pro"><b class="ct-name">Needt <span class="pro-pill">PRO</span></b><span class="ct-price">$4.92 / month, billed yearly</span><a class="ct-btn" href="https://use.needt.app/settings?section=billing&amp;checkout=pro-year">Buy Pro</a></th>
@@ -182,7 +182,7 @@
   </section>
 </div>
 
-<script src="../vendor/sky.js?v=26.1" defer></script>
-<script src="../site.js?v=26.1" defer></script>
+<script src="../vendor/sky.js?v=27" defer></script>
+<script src="../site.js?v=27" defer></script>
 </body>
 </html>
