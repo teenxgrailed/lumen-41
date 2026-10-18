@@ -15,5 +15,8 @@ export function selectTasksWithinAutoScheduleLimit<T>(
     entitlement.remaining ?? 0,
     Math.max(0, entitlement.limit - alreadyScheduled.length)
   );
-  return [...alreadyScheduled, ...newCandidates.slice(0, newSlots)];
+  return [
+    ...alreadyScheduled,
+    ...newCandidates.slice(0, newSlots),
+  ];
 }
