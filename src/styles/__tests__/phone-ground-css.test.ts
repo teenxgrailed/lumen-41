@@ -72,3 +72,13 @@ describe("phone screen background layer", () => {
     expect(root).toContain("data-ui={ui}");
   });
 });
+
+describe("edge colours for the browser bars", () => {
+  it("registers both as colours and re-points them per layer", () => {
+    expect(css).toContain("@property --v3-edge-top");
+    expect(css).toContain("@property --v3-edge-bottom");
+    expect(css).toContain(":has(.pk-scrim.is-open, .pk-sheet-layer.is-open) {");
+    expect(css).toContain(':has(.pk-pull[data-pk-pull="open"]) {');
+    expect(css).toContain("--v3-edge-top: var(--sky-ground)");
+  });
+});
