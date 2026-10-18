@@ -46,6 +46,9 @@ export const qk = {
   events: (range?: DateRange) =>
     range ? ([V3, "events", range] as const) : ([V3, "events"] as const),
 
+  /** Personal time blocks (`GET /api/personal-blocks`). */
+  personal: () => [V3, "personal"] as const,
+
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,

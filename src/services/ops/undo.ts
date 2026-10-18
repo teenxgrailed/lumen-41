@@ -77,7 +77,9 @@ async function currentVersion(
             ? await tx.calendarEvent.findUnique({ where: { id }, select })
             : model === "page"
               ? await tx.page.findUnique({ where: { id }, select })
-              : await tx.scheduledBlock.findUnique({ where: { id }, select });
+              : model === "personalBlock"
+                ? await tx.personalBlock.findUnique({ where: { id }, select })
+                : await tx.scheduledBlock.findUnique({ where: { id }, select });
   return row?.updatedAt.toISOString() ?? null;
 }
 

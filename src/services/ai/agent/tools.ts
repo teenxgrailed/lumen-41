@@ -163,6 +163,16 @@ async function readOp<Result>(
   });
 }
 
+type PersonalLike = {
+  id: string;
+  title: string;
+  kind?: string;
+  start?: string;
+  end?: string;
+  rrule?: string | null;
+  href?: string;
+};
+
 function quote(title: string) {
   return `“${title.length > 60 ? `${title.slice(0, 57)}…` : title}”`;
 }
@@ -512,6 +522,111 @@ const WRITE_TOOLS: AgentTool[] = [
     },
   },
   {
+    name: "create_personal_time",
+    kind: "write",
+    progress: "Keeping time for you",
+    description:
+      "Block time the person keeps for themselves (lunch, break, walk, dinner, gym, party, rest, or a custom block with a title). Tasks are never scheduled inside it. start and end are ISO date-times in the user's time zone; give end or minutes, or leave both out for the kind's usual length. rrule repeats it (for example FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR). It stays in Needt and is not written to Google or iCloud.",
+    schema: z
+      .object({
+        kind: z
+          .enum([
+            "lunch",
+            "break",
+            "walk",
+            "dinner",
+            "gym",
+            "party",
+            "rest",
+            "custom",
+          ])
+          .optional(),
+        title: z.string().min(1).max(120).optional(),
+        emoji: z.string().min(1).max(16).optional(),
+        start: z.string().min(1),
+        end: z.string().min(1).optional(),
+        minutes: z.number().int().min(5).max(1440).optional(),
+        rrule: z.string().min(1).max(500).optional(),
+      })
+      .strict(),
+    async run(ctx, args) {
+      const { result, ...run } = await callOp<{ block: PersonalLike }>(
+        ctx,
+        "personal.create",
+        args
+      );
+      return wrote(`Kept time for ${quote(result.block.title)}`, run, {
+        result: result.block,
+        href: result.block.href,
+      });
+    },
+  },
+  {
+    name: "mark_event_personal",
+    kind: "write",
+    progress: "Marking an event as personal time",
+    description:
+      "Mark a calendar event (synced or the user's own) as personal time, so no task is scheduled over it. The event itself is not changed. Get its id from search or list_events first.",
+    schema: z
+      .object({
+        eventId: z.string().min(1),
+        kind: z
+          .enum(["lunch", "break", "walk", "dinner", "gym", "party", "rest"])
+          .optional(),
+      })
+      .strict(),
+    async run(ctx, args) {
+      const { result, ...run } = await callOp<{
+        block: PersonalLike;
+        already: boolean;
+      }>(ctx, "personal.mark_event", args);
+      return wrote(
+        result.already
+          ? `${quote(result.block.title)} was already personal time`
+          : `Marked ${quote(result.block.title)} as personal time`,
+        run,
+        { result: result.block, href: result.block.href }
+      );
+    },
+  },
+  {
+    name: "delete_personal_time",
+    kind: "destructive",
+    progress: "Removing personal time",
+    description:
+      "Remove a personal time block (a repeating one goes entirely). The person is asked to confirm first; Undo brings it back. Get its id from list_personal_time.",
+    schema: z.object({ blockId: z.string().min(1) }).strict(),
+    async run(ctx, args, { confirmed }) {
+      const blockId = String(args.blockId);
+      const { result: listed } = await readOp<{ blocks: PersonalLike[] }>(
+        ctx,
+        "personal.list",
+        {}
+      );
+      const block = listed.blocks.find((item) => item.id === blockId);
+      if (!block) return failure("Personal time block not found.");
+      if (!confirmed) {
+        return {
+          ok: true,
+          summary: `Remove ${quote(block.title)}?`,
+          modelText: modelJson({ ok: false, needsConfirmation: true }),
+          confirm: {
+            prompt: `Remove ${quote(block.title)} from your personal time? You can undo it.`,
+          },
+          changed: false,
+        };
+      }
+      const { result, ...run } = await callOp<{ block: PersonalLike }>(
+        ctx,
+        "personal.delete",
+        { blockId }
+      );
+      return wrote(`Removed ${quote(result.block.title)}`, run, {
+        result: { id: result.block.id },
+      });
+    },
+  },
+  {
     name: "create_page",
     kind: "write",
     progress: "Creating a page",
@@ -847,6 +962,31 @@ const READ_TOOLS: AgentTool[] = [
       return {
         ok: true,
         summary: `Read ${String(args.date)}`,
+        modelText: modelJson(result),
+        changed: false,
+      };
+    },
+  },
+  {
+    name: "list_personal_time",
+    kind: "read",
+    progress: "Looking at your personal time",
+    description:
+      "List the user's personal time blocks (lunch, walks, gym...). With from and to (ISO), also the occurrences in that range.",
+    schema: z
+      .object({
+        from: z.string().min(1).optional(),
+        to: z.string().min(1).optional(),
+      })
+      .strict(),
+    async run(ctx, args) {
+      const { result } = await readOp<{
+        blocks: PersonalLike[];
+        occurrences: unknown[];
+      }>(ctx, "personal.list", args);
+      return {
+        ok: true,
+        summary: `Read ${result.blocks.length} personal time ${result.blocks.length === 1 ? "block" : "blocks"}`,
         modelText: modelJson(result),
         changed: false,
       };

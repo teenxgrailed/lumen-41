@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FiChevronLeft, FiChevronRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { LuPlus } from "react-icons/lu";
 
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
 import { addDays, addMinutes, hhmm, hourOf, stamp } from "@/lib/needt3/derive";
 import { useSchedule } from "@/lib/needt3/hooks/account";
 import {
@@ -17,6 +17,11 @@ import {
   useEvents,
   useUpdateEvent,
 } from "@/lib/needt3/hooks/events";
+import {
+  useMarkEventPersonal,
+  usePersonalBands,
+  useQuickPersonal,
+} from "@/lib/needt3/hooks/personal";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   useSetPref,
@@ -27,11 +32,15 @@ import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
+import type { PersonalPreset } from "@/lib/personal-time";
+import type { DayBand } from "@/lib/personal-time-days";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { V3DragProvider, useV3Drag } from "../drag/DragHost";
 import { RichMenu } from "../menu/RichMenu";
+import { type PeekAnchor, PersonalPeek } from "../personal/PersonalPeek";
+import { personalMenuItems } from "../personal/menu-items";
 import { CalendarFaces } from "../phone/calendar/CalendarFaces";
 import type { CalendarController } from "../phone/calendar/useCalendarController";
 import { useDesignV3 } from "../root/V3Root";
@@ -228,6 +237,21 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const shownDays = new Set(agendaDays.map((d) => d.date));
   const visible = timed.filter((b) => shownDays.has(b.date));
 
+  const personal = usePersonalBands();
+  const keepPersonal = useQuickPersonal();
+  const markPersonal = useMarkEventPersonal();
+  const [personalPeek, setPersonalPeek] = useState<{
+    band: DayBand;
+    anchor: PeekAnchor;
+  } | null>(null);
+  const onPersonal = useCallback((band: DayBand, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setPersonalPeek({
+      band,
+      anchor: { top: r.top, left: r.left, right: r.right },
+    });
+  }, []);
+
   const updateEvent = useUpdateEvent();
   const lifecycle = useEventLifecycle();
   const createEvent = useCreateEvent();
@@ -276,6 +300,14 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
         undoable(`Added ${quote(title)} · ${hhmm(d.at)}`, undo)
       )
       .catch(ignore);
+  };
+  /* A preset from the empty-slot menu keeps the slot that was clicked. */
+  const onPersonalPreset = (preset: PersonalPreset) => {
+    const d = draft;
+    setDraft(null);
+    if (!d) return;
+    const at = stamp(d.date, d.at) ?? `${d.date}T09:00`;
+    void keepPersonal(preset, fromZonedTime(`${at}:00`, tz).toISOString());
   };
   const newEvent = useCallback(() => {
     setViewLocal("week");
@@ -383,6 +415,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               kbd: "N",
               onClick: () => setComposerOpen(true),
             },
+            ...personalMenuItems((preset) => void keepPersonal(preset)),
           ]}
         />
         <h1 className="c2-title">Calendar</h1>
@@ -471,6 +504,12 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onRename={onRename}
               onDelete={onDelete}
               dragProps={drag?.dragProps}
+              personal={personal}
+              onPersonal={onPersonal}
+              onPersonalPreset={onPersonalPreset}
+              onMarkPersonal={(b) =>
+                void markPersonal({ id: b.id, title: b.title })
+              }
             />
           ) : (
             <DaysView
@@ -485,10 +524,20 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onOpen={onOpen}
               dragProps={drag?.dragProps}
               carryAt={carryAt}
+              personal={personal}
+              onPersonal={onPersonal}
             />
           )}
         </div>
       </StScreen>
+      {personalPeek ? (
+        <PersonalPeek
+          key={personalPeek.band.key}
+          band={personalPeek.band}
+          anchor={personalPeek.anchor}
+          onClose={() => setPersonalPeek(null)}
+        />
+      ) : null}
     </div>
   );
   return <CompletionScope value={completion}>{content}</CompletionScope>;

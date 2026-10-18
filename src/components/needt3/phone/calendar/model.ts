@@ -168,7 +168,12 @@ export function dayMeta(p: Pick<DayPlan, "timed" | "allDay" | "booked">) {
 export function eventFacts(
   b: CalItem,
   clash: Record<string, string[]>
-): { title: string; meta: string; facts: [string, string][] } {
+): {
+  title: string;
+  meta: string;
+  facts: [string, string][];
+  eventId?: string;
+} {
   const d = calDay(b.date);
   const timed = b.at != null;
   const facts: [string, string][] = [
@@ -180,7 +185,12 @@ export function eventFacts(
   if (timed) facts.push(["Length", cvDur(b.len)]);
   facts.push(["Calendar", itemLabel(b)]);
   if (clash[b.id]) facts.push(["Overlaps", clash[b.id].join(", ")]);
-  return { title: b.title, meta: `${d.long} ${d.n} ${d.mo}`, facts };
+  return {
+    title: b.title,
+    meta: `${d.long} ${d.n} ${d.mo}`,
+    facts,
+    ...(b.own ? { eventId: b.id } : {}),
+  };
 }
 
 /* ---------- the week strip ---------- */
