@@ -1,4 +1,8 @@
+import { addCalendarDays } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import type { UnscheduledReason } from "@/lib/scheduling-reasons";
+
+const LOG_SOURCE = "SchedulingEngine";
 
 export type SchedulingEnergyLevel = "LOW" | "MEDIUM" | "HIGH";
 export type SchedulingTaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -125,6 +129,12 @@ const DEFAULT_ESTIMATE_MINUTES = 30;
 const DEFAULT_MIN_CHUNK_MINUTES = 25;
 const DEFAULT_SEARCH_DAYS = 21;
 const SLOT_STEP_MINUTES = 15;
+/**
+ * Hard stop for every loop that walks day by day. The planning horizon is 21
+ * days, so this is never reached on purpose; it exists so a stepping bug can
+ * cost one logged line instead of hanging the scheduler and the worker.
+ */
+const MAX_DAY_STEPS = 400;
 
 const PRIORITY_WEIGHT: Record<SchedulingTaskPriority, number> = {
   LOW: 1,
@@ -139,6 +149,15 @@ function addMinutes(date: Date, minutes: number): Date {
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/**
+ * Midnight of the next calendar day. Adding 24 hours is wrong on a 23- or
+ * 25-hour clock-change day: from 00:00 on a 25-hour day it lands on 23:00 the
+ * same day, so the day never advances.
+ */
+function nextDayStart(date: Date): Date {
+  return startOfDay(addCalendarDays(startOfDay(date), 1));
 }
 
 function setTime(date: Date, time: string): Date {
@@ -509,7 +528,15 @@ function findSlot(
       : planningHorizonEnd;
   let day = startOfDay(earliestStart);
 
-  while (day <= searchEnd) {
+  for (let steps = 0; day <= searchEnd; steps += 1) {
+    if (steps >= MAX_DAY_STEPS) {
+      logger.error(
+        "Slot search hit the day cap and stopped",
+        { taskId: chunk.task.id, day: day.toISOString(), cap: MAX_DAY_STEPS },
+        LOG_SOURCE
+      );
+      return null;
+    }
     const workWindows = getWorkWindows(day, prefs, chunk.task.scheduleId);
     for (const work of workWindows) {
       let cursor = roundUpToStep(
@@ -542,7 +569,16 @@ function findSlot(
       }
     }
 
-    day = addMinutes(startOfDay(addMinutes(day, 24 * 60)), 0);
+    const following = nextDayStart(day);
+    if (following <= day) {
+      logger.error(
+        "Slot search could not advance to the next day",
+        { taskId: chunk.task.id, day: day.toISOString() },
+        LOG_SOURCE
+      );
+      return null;
+    }
+    day = following;
   }
 
   return null;
@@ -572,6 +608,7 @@ function findHardDeadlineOverflowSlot(
       : planningHorizonEnd;
   const spacingMinutes = Math.max(prefs.bufferMinutes, prefs.minBreakMinutes);
   let cursor = roundUpToStep(earliestStart);
+  let dayJumps = 0;
 
   while (cursor < searchEnd) {
     const end = addMinutes(cursor, chunk.minutes);
@@ -587,10 +624,24 @@ function findHardDeadlineOverflowSlot(
     if (end > dayEnd) {
       // Past the hard stop: move to the next morning instead of running into
       // the night.
-      cursor = setTime(
-        addMinutes(startOfDay(cursor), 24 * 60),
+      dayJumps += 1;
+      const following = setTime(
+        nextDayStart(cursor),
         `0${OVERFLOW_EARLIEST_HOUR}:00`
       );
+      if (dayJumps > MAX_DAY_STEPS || following <= cursor) {
+        logger.error(
+          "Overflow slot search hit the day cap and stopped",
+          {
+            taskId: chunk.task.id,
+            cursor: cursor.toISOString(),
+            cap: MAX_DAY_STEPS,
+          },
+          LOG_SOURCE
+        );
+        return null;
+      }
+      cursor = following;
       continue;
     }
 
@@ -687,10 +738,7 @@ export function scheduleTasks(input: {
     assignedTasks.filter((task) => !isDone(task) && !task.isFrozen),
     input.now
   );
-  const planningHorizonEnd = addMinutes(
-    input.now,
-    DEFAULT_SEARCH_DAYS * 24 * 60
-  );
+  const planningHorizonEnd = addCalendarDays(input.now, DEFAULT_SEARCH_DAYS);
 
   for (const task of candidateTasks) {
     const availableFrom =

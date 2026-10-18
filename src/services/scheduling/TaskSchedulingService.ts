@@ -2,6 +2,7 @@ import { personalBusyBlocks } from "@/services/personal-time/service";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
+import { addCalendarDays } from "@/lib/date-utils";
 import { canAutoScheduleMore } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -165,7 +166,7 @@ function toTime(hour: number): string {
 }
 
 function addDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  return addCalendarDays(date, days);
 }
 
 function convertDbTaskToTaskWithRelations(
