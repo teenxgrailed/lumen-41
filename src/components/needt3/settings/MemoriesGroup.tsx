@@ -1,35 +1,11 @@
 "use client";
 
-import { useState } from "react";
-
-import {
-  type Memory,
-  useMemories,
-  useMemoryActions,
-} from "@/lib/needt3/hooks/memories";
-import { notify } from "@/lib/notifications";
-
 import { SBtn, SGroup, SRow, V3Switch } from "./kit";
-
-const SOURCE_LABEL: Record<Memory["source"], string> = {
-  chat: "You told Ask",
-  inferred: "Learned",
-  habit: "Your work habits",
-  document: "Your documents",
-  mail: "Your mail subjects",
-};
-
-const day = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
-const fail = (error: unknown) =>
-  notify.error(
-    error instanceof Error ? error.message : "Could not save that change."
-  );
+import {
+  SOURCE_LABEL,
+  memoryDay,
+  useMemoriesControl,
+} from "./use-memories-control";
 
 /**
  * Settings, Memories. The switch is off until the person turns it on; off
@@ -38,39 +14,8 @@ const fail = (error: unknown) =>
  * readable either way, and every line can be edited or deleted.
  */
 export function MemoriesGroup() {
-  const state = useMemories();
-  const { setEnabled, edit, forget } = useMemoryActions();
-  const [asking, setAsking] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; text: string } | null>(
-    null
-  );
-
-  const enabled = state.data?.enabled === true;
-  const memories = state.data?.memories ?? [];
-
-  const turn = (on: boolean) => {
-    if (!on && memories.length > 0) {
-      setAsking(true);
-      return;
-    }
-    setEnabled.mutate({ enabled: on }, { onError: fail });
-  };
-  const turnOff = (keep: boolean) => {
-    setAsking(false);
-    setEnabled.mutate(
-      { enabled: false, memories: keep ? "keep" : "delete" },
-      { onError: fail }
-    );
-  };
-  const save = () => {
-    if (!editing) return;
-    const text = editing.text.trim();
-    if (text.length < 3) return;
-    edit.mutate(
-      { memoryId: editing.id, content: text },
-      { onSuccess: () => setEditing(null), onError: fail }
-    );
-  };
+  const m = useMemoriesControl();
+  const { editing } = m;
 
   return (
     <SGroup
@@ -83,34 +28,34 @@ export function MemoriesGroup() {
       >
         <V3Switch
           label="Let Needt learn about me"
-          checked={enabled}
-          disabled={!state.data || setEnabled.isPending}
-          onChange={turn}
+          checked={m.enabled}
+          disabled={!m.loaded || m.switching}
+          onChange={m.turn}
         />
       </SRow>
-      {asking ? (
+      {m.asking ? (
         <SRow
           title="Keep what Needt learned?"
-          desc={`${memories.length} ${memories.length === 1 ? "memory" : "memories"}. Kept, they stay on this list but nothing uses them.`}
+          desc={`${m.memories.length} ${m.memories.length === 1 ? "memory" : "memories"}. Kept, they stay on this list but nothing uses them.`}
         >
-          <SBtn onClick={() => turnOff(true)}>Keep them</SBtn>
-          <SBtn tone="danger" onClick={() => turnOff(false)}>
+          <SBtn onClick={() => m.turnOff(true)}>Keep them</SBtn>
+          <SBtn tone="danger" onClick={() => m.turnOff(false)}>
             Delete them
           </SBtn>
-          <SBtn onClick={() => setAsking(false)}>Cancel</SBtn>
+          <SBtn onClick={m.cancelAsking}>Cancel</SBtn>
         </SRow>
       ) : null}
-      {state.data && memories.length === 0 ? (
+      {m.loaded && m.memories.length === 0 ? (
         <SRow
           title="Nothing learned yet"
           desc={
-            enabled
+            m.enabled
               ? "Habits appear after you finish some tasks. Tell Ask a preference and it shows up here."
               : "Turn the switch on and what Needt learns will be listed here."
           }
         />
       ) : null}
-      {memories.map((memory) =>
+      {m.memories.map((memory) =>
         editing?.id === memory.id ? (
           <SRow key={memory.id} title="Edit memory">
             <input
@@ -120,53 +65,47 @@ export function MemoriesGroup() {
               value={editing.text}
               autoFocus
               onChange={(e) =>
-                setEditing({ id: memory.id, text: e.target.value })
+                m.setEditing({ id: memory.id, text: e.target.value })
               }
               onKeyDown={(e) => {
-                if (e.key === "Enter") save();
-                if (e.key === "Escape") setEditing(null);
+                if (e.key === "Enter") m.save();
+                if (e.key === "Escape") m.setEditing(null);
               }}
             />
-            <SBtn disabled={edit.isPending} onClick={save}>
+            <SBtn disabled={m.saving} onClick={m.save}>
               Save
             </SBtn>
-            <SBtn onClick={() => setEditing(null)}>Cancel</SBtn>
+            <SBtn onClick={() => m.setEditing(null)}>Cancel</SBtn>
           </SRow>
         ) : (
           <SRow
             key={memory.id}
             title={memory.content}
-            desc={`${SOURCE_LABEL[memory.source]}, ${day(memory.updatedAt)}`}
+            desc={`${SOURCE_LABEL[memory.source]}, ${memoryDay(memory.updatedAt)}`}
           >
             <SBtn
               onClick={() =>
-                setEditing({ id: memory.id, text: memory.content })
+                m.setEditing({ id: memory.id, text: memory.content })
               }
             >
               Edit
             </SBtn>
             <SBtn
               tone="danger"
-              disabled={forget.isPending}
-              onClick={() =>
-                forget.mutate({ memoryId: memory.id }, { onError: fail })
-              }
+              disabled={m.forgetting}
+              onClick={() => m.remove(memory.id)}
             >
               Delete
             </SBtn>
           </SRow>
         )
       )}
-      {memories.length > 0 ? (
+      {m.memories.length > 0 ? (
         <SRow
           title="Forget all"
           desc="Deletes every memory on this list. It cannot be undone."
         >
-          <SBtn
-            tone="danger"
-            disabled={forget.isPending}
-            onClick={() => forget.mutate({ all: true }, { onError: fail })}
-          >
+          <SBtn tone="danger" disabled={m.forgetting} onClick={m.forgetAll}>
             Forget all
           </SBtn>
         </SRow>

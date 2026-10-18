@@ -19,7 +19,8 @@ import { SBtn, SGroup, SRow, V3Switch } from "./kit";
  * Data & privacy. Export tasks and the full export use the routes the old
  * Settings uses; the rest of the prototype's rows have nothing behind them.
  * Memories (`MemoriesGroup`) holds the "Let Needt learn about me" switch and the
- * list of what it learned. //todo: the phone's Data page has no Memories group yet.
+ * list of what it learned.  The phone's Data page has
+ * its twin (`PhoneMemoriesGroup`).
  * Import from Todoist and Notion sits behind the `imports` flag (ImportGroup).
  * Tasks download as CSV or JSON (`/api/export/tasks`).
  * //todo: Documents as Markdown (no per-page export route yet; Export all has
