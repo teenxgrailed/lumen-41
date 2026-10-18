@@ -52,3 +52,35 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background: var(--v2p-ground);
   pointer-events: none;
 }
+
+/* Everything anchored to the bottom keeps its distance from the visible bottom
+ * of the screen, now that the scope reaches the display edge: the dock (menu
+ * A, with the + button), the doc action bar, the snackbar, sheets and the tail
+ * of a scroll. `--v3-sab` is the home-indicator inset (0 outside an installed
+ * PWA). The menu measures its own padding-bottom to size its geometry, so the
+ * dock lands where it did relative to the safe area. */
+.needt-v3[data-ui="phone"] {
+  --v3-sab: env(safe-area-inset-bottom, 0px);
+}
+.needt-v3[data-ui="phone"] .nva {
+  padding-bottom: var(--v3-sab);
+  box-sizing: border-box;
+}
+.needt-v3[data-ui="phone"] .nva-body {
+  bottom: calc(10px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pd-actbar {
+  bottom: calc(26px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pov-snack {
+  bottom: calc(112px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .ma-menu-pill {
+  bottom: calc(14px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pk-sheet {
+  padding-bottom: var(--v3-sab);
+}
+.needt-v3[data-ui="phone"] .pk-tail {
+  height: calc(132px + var(--v3-sab));
+}

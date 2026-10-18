@@ -23,7 +23,7 @@ export function AuthScope({ children }: PropsWithChildren) {
   }, []);
   return (
     <div
-      className={`needt-v3 ${V3_FONT_CLASSES} relative h-dvh min-h-0 overflow-hidden`}
+      className={`needt-v3 ${V3_FONT_CLASSES} fixed inset-0 min-h-0 overflow-hidden`}
       data-theme={dark ? "dark" : "light"}
       style={{
         background: "var(--background)",

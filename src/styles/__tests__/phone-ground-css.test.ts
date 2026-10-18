@@ -37,6 +37,32 @@ describe("phone screen background layer", () => {
     expect(body).toContain("pointer-events: none");
   });
 
+  it("bottom-anchored phone chrome keeps its distance by the safe-area inset", () => {
+    for (const [sel, px] of [
+      [".nva-body", 10],
+      [".pd-actbar", 26],
+      [".pov-snack", 112],
+      [".ma-menu-pill", 14],
+    ] as const) {
+      expect(rule(`.needt-v3[data-ui="phone"] ${sel}`)).toContain(
+        `bottom: calc(${px}px + var(--v3-sab))`
+      );
+    }
+    expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(
+      "padding-bottom: var(--v3-sab)"
+    );
+    expect(css).toContain("--v3-sab: env(safe-area-inset-bottom, 0px)");
+  });
+
+  it("the sign-in scope is fixed to the viewport too", () => {
+    const auth = readFileSync(
+      path.join(process.cwd(), "src/components/needt3/auth/AuthScope.tsx"),
+      "utf8"
+    );
+    expect(auth).toContain("fixed inset-0");
+    expect(auth).not.toContain("h-dvh");
+  });
+
   it("the scope still carries the h-dvh utility the rule overrides", () => {
     const root = readFileSync(
       path.join(process.cwd(), "src/components/needt3/root/V3Root.tsx"),

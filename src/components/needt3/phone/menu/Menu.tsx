@@ -585,7 +585,13 @@ export function Menu(props: MenuProps) {
     if (!el) return undefined;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      const g = nvaGeom(el.clientWidth || r.width, el.clientHeight || r.height);
+      // The home-indicator inset (`.nva` pads its bottom by it) is not menu
+      // room: the dock is sized and placed above it.
+      const sab = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+      const g = nvaGeom(
+        el.clientWidth || r.width,
+        (el.clientHeight || r.height) - sab
+      );
       S.g = g;
       el.style.setProperty("--nva-w", `${g.W}px`);
       el.style.setProperty("--nva-full", `${g.fullH}px`);
