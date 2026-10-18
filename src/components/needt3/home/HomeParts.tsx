@@ -634,6 +634,7 @@ export function Schedule({
   evCount,
   onOpen,
   onCalendar,
+  band,
 }: {
   items: readonly ScheduleItem[];
   nowHour: number;
@@ -641,6 +642,12 @@ export function Schedule({
   evCount: number;
   onOpen: (id: string) => void;
   onCalendar: () => void;
+  /**
+   * A slot above the day's rows for the personal-time band (`PersonalBand`,
+   * built on its own branch). Nothing is drawn while it is empty.
+   * //todo: render `<PersonalBand />` here once it is on main.
+   */
+  band?: ReactNode;
 }) {
   const [all, setAll] = useState(false);
   const nowAt = nowIndex(items, nowHour);
@@ -707,6 +714,11 @@ export function Schedule({
           Calendar
         </button>
       </header>
+      {band ? (
+        <div className="hd-sched-band" data-hd-sched-band="">
+          {band}
+        </div>
+      ) : null}
       <div className="hd-sched-list">
         {items.length ? (
           vis
