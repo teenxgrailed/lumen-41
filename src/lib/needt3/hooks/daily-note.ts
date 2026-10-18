@@ -99,5 +99,22 @@ export function useDailyNote(day: string) {
     }
   }, [qc, day]);
 
-  return { open, busy, exists: exists.data === true };
+  /** Adds Markdown to the end of the day's note (making it first if needed). */
+  const append = useCallback(
+    async (text: string): Promise<boolean> => {
+      const id = await open();
+      if (!id) return false;
+      try {
+        await sendJson(`/api/pages/${id}/append`, "POST", { text });
+        void qc.invalidateQueries({ queryKey: qk.docs() });
+        return true;
+      } catch {
+        notify.error("Could not save the note.");
+        return false;
+      }
+    },
+    [open, qc]
+  );
+
+  return { open, append, busy, exists: exists.data === true };
 }
