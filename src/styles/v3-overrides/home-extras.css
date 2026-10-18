@@ -72,12 +72,66 @@
 /* Phone: the picks sit on the ground, under the plate. */
 .needt-v3 .v2p-prog-acts {
   display: inline-flex;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
   flex: none;
 }
-.needt-v3 .v2p-next ~ .fin-picks,
-.needt-v3 .v2p-day ~ .fin-picks {
-  margin-top: 6px;
+.needt-v3 .v2p-prog-acts .pk-btn.is-quiet {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  font: 500 13px/1 var(--font-sans);
+}
+/* the picks: the task rows' geometry (a 44 px ring column, 12 px gap, the
+   text at 50 px), under a section label with room above and below */
+.needt-v3 .fin-pull {
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+  margin-bottom: 18px;
+}
+.needt-v3 .fin-pull-label {
+  margin: 0;
+  padding: 0 2px 8px;
+}
+.needt-v3 .fin-picks.is-phone {
+  box-shadow: inset 0 1px 0 var(--v2p-line);
+}
+.needt-v3 .fin-picks.is-phone .fin-pick {
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 2px 8px 0;
+  box-shadow: inset 0 -1px 0 var(--v2p-line);
+}
+.needt-v3 .fin-pick-ring {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0 7px 0 1px;
+  border-radius: 12px;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
+  opacity: 0.6;
+}
+.needt-v3 .fin-picks.is-phone .fin-pick-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  font: 500 17px/22px var(--font-sans);
+  letter-spacing: -0.02em;
+  color: var(--v2p-ink);
+}
+.needt-v3 .fin-picks.is-phone .fin-pick-meta {
+  font: 400 13px/17px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .fin-pick-go.pk-btn {
+  height: 28px;
+  padding: 0 10px 0 8px;
+  gap: 4px;
+  color: var(--v2p-ink-2);
 }
 
 /* End day: the dialog and the sheet share one body. */

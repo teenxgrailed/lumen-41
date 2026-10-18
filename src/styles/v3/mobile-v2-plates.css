@@ -32,7 +32,7 @@
 
 /* ── Home: progress, a small part of the header ── */
 .needt-v3 .v2p-prog { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-.needt-v3 .v2p-prog.is-done { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.needt-v3 .v2p-prog.is-done { flex-direction: column; align-items: flex-start; gap: 10px; }
 .needt-v3 .v2p-prog-line { margin: 0; display: flex; align-items: center; gap: 14px; font: 500 15px/20px var(--font-sans); color: var(--v2p-ink); font-variant-numeric: tabular-nums; }
 .needt-v3 .v2p-prog-count { display: inline-flex; align-items: center; white-space: pre; }
 .needt-v3 .v2p-prog-late { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--v2p-alert); }

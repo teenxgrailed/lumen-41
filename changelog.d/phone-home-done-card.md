@@ -1,0 +1,1 @@
+- Phone Home, finished day: the headline stays on one line with End day and See tomorrow under it, and "Pull something in" lists the next tasks in the same rows as the rest of Home, with a small Today action.
