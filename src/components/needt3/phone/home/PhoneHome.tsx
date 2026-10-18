@@ -438,7 +438,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           onOpen={() => openTask(hlTask)}
         />
       ) : null}
-      {ready ? <PersonalDayBands date={today} /> : null}
       {ready && suggest.pick ? (
         <HighlightSuggest
           phone
