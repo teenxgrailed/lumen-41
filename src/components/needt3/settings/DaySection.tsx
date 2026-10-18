@@ -4,6 +4,12 @@ import { useState } from "react";
 
 import { FiChevronRight } from "react-icons/fi";
 
+import {
+  energyFromKey,
+  energyKey,
+  energyOptions,
+  highEnergyHours,
+} from "@/lib/needt3/energy";
 import { useSchedule, useUpdateSchedule } from "@/lib/needt3/hooks/account";
 import { useSettings, useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import { type WeekHours, legacyColumns, weekIsValid } from "@/lib/work-week";
@@ -77,6 +83,22 @@ export function DaySection() {
         hint="Needt only plans work between these times."
       >
         <WeekHoursRows week={week} disabled={!sch} onChange={saveWeek} />
+        <SRow
+          title="High-energy hours"
+          desc="Heavy tasks go here; lighter ones later."
+        >
+          <SSelect
+            label="High-energy hours"
+            width={190}
+            value={energyKey(highEnergyHours(sch))}
+            options={energyOptions(highEnergyHours(sch))}
+            disabled={!sch}
+            onChange={(v) => {
+              const cols = energyFromKey(v);
+              if (cols) saveSchedule(cols);
+            }}
+          />
+        </SRow>
         <SRow title="Week starts">
           <SSelect
             label="Week starts"

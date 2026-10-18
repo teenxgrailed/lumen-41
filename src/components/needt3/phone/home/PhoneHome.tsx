@@ -9,6 +9,8 @@ import { LuCheck, LuTarget } from "react-icons/lu";
 import { clock, durLabel } from "@/lib/needt3/day";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
+import { highEnergyHours } from "@/lib/needt3/energy";
+import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
@@ -128,6 +130,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const taskView = useTaskView();
   const stats = useHomeStats(all.filter((t) => t.done).length);
+  const schedule = useSchedule();
+  const energyHours = useMemo(
+    () => highEnergyHours(schedule.data),
+    [schedule.data]
+  );
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -137,9 +144,15 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       homeView(
         all.filter((t) => !gone[t.id]),
         today,
-        { skipped, busy: { ...X.phase, ...gone }, view: taskView, lift }
+        {
+          skipped,
+          busy: { ...X.phase, ...gone },
+          view: taskView,
+          lift,
+          energy: { nowHour, hours: energyHours },
+        }
       ),
-    [all, today, skipped, X.phase, gone, taskView, lift]
+    [all, today, skipped, X.phase, gone, taskView, lift, nowHour, energyHours]
   );
   const { next: N } = v;
   const nu = N.nu;

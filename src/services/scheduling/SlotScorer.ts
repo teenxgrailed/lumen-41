@@ -1,6 +1,7 @@
 import { AutoScheduleSettings, Task } from "@prisma/client";
 
 import { getEnergyLevelForTime } from "@/lib/autoSchedule";
+import { DEFAULT_HIGH_ENERGY, inHighEnergy } from "@/lib/needt3/energy";
 import {
   differenceInHours,
   differenceInMinutes,
@@ -80,23 +81,47 @@ export class SlotScorer {
     return slot.isWithinWorkHours ? 1 : 0;
   }
 
-  private scoreEnergyLevelMatch(slot: TimeSlot, task: Task): number {
-    if (!task.energyLevel) return 0.5; // Neutral score if task has no energy level
+  /**
+   * A task's weight: its own `energyLevel`, else `energyRequired` when that
+   * says something (HIGH or LOW; MEDIUM is the column's default, so it is not
+   * a preference). Null = no preference.
+   */
+  private taskEnergy(task: Task): EnergyLevel | null {
+    if (task.energyLevel) return task.energyLevel as EnergyLevel;
+    const required = task.energyRequired;
+    return required && required !== "MEDIUM"
+      ? (required.toLowerCase() as EnergyLevel)
+      : null;
+  }
 
-    const slotEnergy = getEnergyLevelForTime(
-      slot.start.getHours(),
-      this.settings
-    );
+  /**
+   * The energy of the hour: the person's windows (Your day), and when they
+   * have set no high-energy hours at all, the morning (`DEFAULT_HIGH_ENERGY`).
+   */
+  private slotEnergy(hour: number): EnergyLevel | null {
+    const set = getEnergyLevelForTime(hour, this.settings);
+    if (set) return set;
+    const noHighSaved =
+      this.settings.highEnergyStart == null ||
+      this.settings.highEnergyEnd == null;
+    return noHighSaved && inHighEnergy(hour, DEFAULT_HIGH_ENERGY)
+      ? "high"
+      : null;
+  }
+
+  private scoreEnergyLevelMatch(slot: TimeSlot, task: Task): number {
+    const taskEnergy = this.taskEnergy(task);
+    if (!taskEnergy) return 0.5; // Neutral score if task has no energy level
+
+    const slotEnergy = this.slotEnergy(slot.start.getHours());
     if (!slotEnergy) return 0.5; // Neutral score if time has no energy level
 
-    // Exact match gets 1.0, adjacent levels get 0.5, opposite levels get 0
+    // Exact match gets 1.0, adjacent levels get 0.5, opposite levels get 0:
+    // heavy work lands in the high-energy hours, light work later.
     const energyLevels: EnergyLevel[] = ["high", "medium", "low"];
-    const taskEnergyIndex = energyLevels.indexOf(
-      task.energyLevel as EnergyLevel
+    const distance = Math.abs(
+      energyLevels.indexOf(taskEnergy) - energyLevels.indexOf(slotEnergy)
     );
-    const slotEnergyIndex = energyLevels.indexOf(slotEnergy);
-
-    const distance = Math.abs(taskEnergyIndex - slotEnergyIndex);
     return distance === 0 ? 1 : distance === 1 ? 0.5 : 0;
   }
 
