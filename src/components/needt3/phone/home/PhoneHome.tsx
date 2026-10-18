@@ -23,6 +23,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -57,16 +58,18 @@ import {
 import {
   finishHeadline,
   freeMinutesLeft,
+  hourOfClock,
   pickFinishNext,
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
 import { suggestMeta } from "../../home/suggest";
-import { minutesAhead, timeLeft } from "../../home/timeleft";
+import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
+import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
   PkEmpty,
@@ -187,9 +190,15 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     accept: (id) => void setHighlight.set(id),
   });
   const calendarItems = scheduleItems([], events.data ?? [], today);
-  // //todo: pass the minutes of personal blocks as `blocked` once they land
+  const personal = usePersonalDay(today);
+  const workCap = capacityFrom(prefs);
   const left = timeLeft({
-    capacity: freeMinutesLeft(capacityFrom(prefs), today, nowHour, []),
+    capacity: freeMinutesLeft(workCap, today, nowHour, []),
+    blocked: blockedMinutes(
+      personal,
+      Math.max(nowHour, hourOfClock(workCap.start)),
+      hourOfClock(workCap.end)
+    ),
     eventsAhead: minutesAhead(
       calendarItems.filter((x) => x.event),
       nowHour
@@ -520,6 +529,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       ) : null}
 
       {ready ? <TimeLeftBar left={left} /> : null}
+      {ready ? <PersonalDayBands date={today} /> : null}
 
       {ready && v.empty ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />

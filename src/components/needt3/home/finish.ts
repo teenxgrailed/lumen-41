@@ -30,7 +30,7 @@ const PRIORITY_RANK: Record<V3Priority, number> = {
   none: 4,
 };
 
-const hourOfClock = (s: string) => {
+export const hourOfClock = (s: string) => {
   const [h, m] = String(s || "").split(":");
   return (+h || 0) + (+m || 0) / 60;
 };

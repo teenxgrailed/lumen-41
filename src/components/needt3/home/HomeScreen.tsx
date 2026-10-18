@@ -43,6 +43,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -106,10 +107,10 @@ import {
   weekTotals,
 } from "./derive";
 import { energyDay } from "./energy-day";
-import { freeMinutesLeft, pickFinishNext } from "./finish";
+import { freeMinutesLeft, hourOfClock, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
 import { suggestMeta } from "./suggest";
-import { minutesAhead, timeLeft } from "./timeleft";
+import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
 import { useHighlightSuggest } from "./useHighlightSuggest";
@@ -291,9 +292,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
   });
-  // //todo: pass the minutes of personal blocks as `blocked` once they land
+  const personal = usePersonalDay(today);
   const left = timeLeft({
     capacity: freeMinutesLeft(cap, today, nowHour, []),
+    blocked: blockedMinutes(
+      personal,
+      Math.max(nowHour, hourOfClock(cap.start)),
+      hourOfClock(cap.end)
+    ),
     eventsAhead: minutesAhead(
       sched.filter((x) => x.event),
       nowHour
