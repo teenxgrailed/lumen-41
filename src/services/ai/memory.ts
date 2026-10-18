@@ -256,24 +256,82 @@ export async function updateMemoryForUser(
   return toView(updated as MemoryRow);
 }
 
+const skipKey = (workspaceId: string, sourceKey: string) =>
+  `${workspaceId}:${sourceKey}`;
+
+/** Learned lines the person deleted: Needt does not compute them again. */
+export async function getLearnedSkips(userId: string): Promise<string[]> {
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { learnedSkips: true },
+  });
+  return row?.learnedSkips ?? [];
+}
+
+async function addLearnedSkip(userId: string, key: string) {
+  const skips = await getLearnedSkips(userId);
+  if (skips.includes(key)) return;
+  await prisma.userSettings.updateMany({
+    where: { userId },
+    data: { learnedSkips: [...skips, key] },
+  });
+}
+
+async function resetLearnedSkips(userId: string, workspaceId?: string) {
+  const skips = await getLearnedSkips(userId);
+  const kept = workspaceId
+    ? skips.filter((key) => !key.startsWith(`${workspaceId}:`))
+    : [];
+  if (kept.length === skips.length) return;
+  await prisma.userSettings.updateMany({
+    where: { userId },
+    data: { learnedSkips: kept },
+  });
+}
+
+/**
+ * Deleting a line Needt computed (a habit) leaves a tombstone, so the next
+ * pass does not bring it back. Forget all is the reset.
+ */
 export async function forgetForUser(
   userId: string,
   workspaceId: string,
   memoryId: string
 ) {
+  const row = await prisma.agentMemory.findFirst({
+    where: { id: memoryId, userId, workspaceId },
+    select: { sourceKey: true },
+  });
   const result = await prisma.agentMemory.deleteMany({
     where: { id: memoryId, userId, workspaceId },
   });
+  if (result.count > 0 && row?.sourceKey) {
+    await addLearnedSkip(userId, skipKey(workspaceId, row.sourceKey));
+  }
   return result.count > 0;
 }
 
 export async function clearAgentMemories(userId: string, workspaceId: string) {
-  return prisma.agentMemory.deleteMany({ where: { userId, workspaceId } });
+  const result = await prisma.agentMemory.deleteMany({
+    where: { userId, workspaceId },
+  });
+  await resetLearnedSkips(userId, workspaceId);
+  return result;
 }
 
 /** Every workspace at once: what "delete them" does when the switch is turned off. */
 export async function clearAllAgentMemories(userId: string) {
-  return prisma.agentMemory.deleteMany({ where: { userId } });
+  const result = await prisma.agentMemory.deleteMany({ where: { userId } });
+  await resetLearnedSkips(userId);
+  return result;
+}
+
+export function isLearnedSkip(
+  skips: string[],
+  workspaceId: string,
+  sourceKey: string
+) {
+  return skips.includes(skipKey(workspaceId, sourceKey));
 }
 
 export async function touchMemories(

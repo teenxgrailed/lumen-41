@@ -402,7 +402,8 @@ createdAt, updatedAt }] }` for the current workspace. `kind` is `preference`,
   person's own and later passes no longer replace it. Text that looks like
   credentials, money or health data is refused.
 - `DELETE` removes one memory, or with `all: true` every memory in the
-  workspace.
+  workspace. A deleted work-habit line is not computed again; `all: true` (or
+  turning the switch off with `"memories": "delete"`) resets that.
 
 ## Morning brief
 

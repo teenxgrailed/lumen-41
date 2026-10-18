@@ -2397,6 +2397,8 @@ model UserSettings {
   // When the last learning pass ran, so passes are at most daily.
   learnedAt         DateTime?
   learnedContentAt  DateTime?
+  // Learned lines the person deleted (`workspaceId:sourceKey`); not recomputed until Forget all.
+  learnedSkips      String[]  @default([])
 
   @@index([userId])
 }

@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 
 import {
   DURATION_RATIO_KEY,
+  getLearnedSkips,
+  isLearnedSkip,
   isLearningEnabled,
   isSensitiveMemory,
   rememberForUser,
@@ -205,7 +207,11 @@ export async function refreshHabitMemories(
     tasks,
     normalizeUserTimeZone(settings?.timeZone)
   );
-  const lines = habitMemories(habits);
+  const skips = await getLearnedSkips(userId);
+  // A line the person deleted stays deleted until Forget all.
+  const lines = habitMemories(habits).filter(
+    (line) => !isLearnedSkip(skips, workspaceId, line.sourceKey)
+  );
   for (const line of lines) {
     await upsertKeyedMemory(userId, workspaceId, {
       sourceKey: line.sourceKey,

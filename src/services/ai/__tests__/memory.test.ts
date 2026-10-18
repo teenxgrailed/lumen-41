@@ -3,9 +3,12 @@ import { AgentMemoryKind, AgentMemorySource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import {
+  clearAgentMemories,
   clearAllAgentMemories,
   forgetForUser,
   getLearnedDurationRatio,
+  getLearnedSkips,
+  isLearnedSkip,
   listAgentMemories,
   listMemoriesForExport,
   listMemoriesForUse,
@@ -18,7 +21,11 @@ import {
 
 type Row = Record<string, unknown> & { id: string };
 let rows: Row[] = [];
-let settings: { userId: string; learnAboutMe: boolean } | null = null;
+let settings: {
+  userId: string;
+  learnAboutMe: boolean;
+  learnedSkips?: string[];
+} | null = null;
 let seq = 0;
 
 function matches(row: Row, where: Record<string, unknown> = {}) {
@@ -72,6 +79,10 @@ jest.mock("@/lib/prisma", () => ({
     },
     userSettings: {
       findUnique: jest.fn(async () => settings),
+      updateMany: jest.fn(async ({ data }) => {
+        if (settings) Object.assign(settings, data);
+        return { count: settings ? 1 : 0 };
+      }),
       upsert: jest.fn(async ({ update, create }) => {
         settings = { ...(settings ?? create), ...update };
         return settings;
@@ -240,6 +251,53 @@ describe("stored memories", () => {
       "source",
       "updatedAt",
     ]);
+  });
+});
+
+describe("deleted habit lines", () => {
+  const habit = (key: string, ws = W) =>
+    upsertKeyedMemory(U, ws, {
+      sourceKey: key,
+      kind: AgentMemoryKind.pattern,
+      source: AgentMemorySource.habit,
+      content: "Heaviest weekdays: Tuesday.",
+    });
+
+  it("leave a tombstone that Forget all resets", async () => {
+    await setLearningEnabled(U, true);
+    await habit("habit:heavy-days");
+    await habit("habit:heavy-days", "ws-2");
+    await forgetForUser(U, W, rows[0].id);
+    expect(await getLearnedSkips(U)).toEqual(["ws-1:habit:heavy-days"]);
+    expect(isLearnedSkip(await getLearnedSkips(U), W, "habit:heavy-days")).toBe(
+      true
+    );
+    // another workspace is its own decision
+    expect(
+      isLearnedSkip(await getLearnedSkips(U), "ws-2", "habit:heavy-days")
+    ).toBe(false);
+    await clearAgentMemories(U, "ws-2");
+    expect(await getLearnedSkips(U)).toEqual(["ws-1:habit:heavy-days"]);
+    await clearAgentMemories(U, W);
+    expect(await getLearnedSkips(U)).toEqual([]);
+  });
+
+  it("are not made for a line the person wrote", async () => {
+    await setLearningEnabled(U, true);
+    await rememberForUser(U, W, {
+      kind: AgentMemoryKind.fact,
+      content: "Lives in Lisbon",
+    });
+    await forgetForUser(U, W, rows[0].id);
+    expect(await getLearnedSkips(U)).toEqual([]);
+  });
+
+  it("are cleared everywhere when memories are deleted with the switch", async () => {
+    await setLearningEnabled(U, true);
+    await habit("habit:peak-hours");
+    await forgetForUser(U, W, rows[0].id);
+    await clearAllAgentMemories(U);
+    expect(await getLearnedSkips(U)).toEqual([]);
   });
 });
 
