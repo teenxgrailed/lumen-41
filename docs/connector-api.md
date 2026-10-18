@@ -357,6 +357,32 @@ count, and Focus minutes are the person's own. Answers `400` for any other
   window, so a client can hide the line. The Streak on Home is derived from the
   task list in the browser and is not part of this answer.
 
+## Morning brief
+
+Two or three lines Ask writes for the person's day, shown at the top of Home in
+the morning. Pro and Lifetime (a trial counts); a Free account always gets
+`{ "brief": null }`. Written at most once per user and day, through the same
+hosted (or own-key) AI path as Ask, so it counts as one AI action against the
+plan's allowance and obeys the same slow and blocked modes. Cached; a dismissed
+brief stays cached, so it is not written again that day.
+
+```
+GET   /api/ai/morning-brief?date=2026-10-19
+POST  /api/ai/morning-brief   { "date": "2026-10-19", "facts": { ... } }
+PATCH /api/ai/morning-brief   { "date": "2026-10-19", "dismissed": true }
+```
+
+- `GET` returns `{ "brief": { "date", "text", "dismissed" } | null }` and never
+  generates.
+- `POST` returns `{ "status", "brief" }`. `status` is `ready` (text written, or
+  already cached), `pending` (another request is writing it), `unavailable` (no
+  AI can answer, or the model said nothing; the day is left unclaimed) or
+  `upgrade` (Free). `facts` is what the client knows of the day in the person's
+  own zone: `today` (up to 6 open task titles), `openToday`, `doneToday`,
+  `overdue` (up to 3 titles), `overdueCount`, `freeMinutes` (or `null`) and an
+  optional `nextEvent` `{ title, at: "HH:MM" }`. Limited to 6 requests a minute.
+- `PATCH` only dismisses.
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The
@@ -953,6 +979,11 @@ New accounts finish setup on Today with a sample day. Every object it creates
 `isSample: true` in the database. Examples never count toward a plan limit:
 `GET /api/habits` lists the sample habit, but Free's three-habit allowance
 skips it, and the examples are never auto-scheduled.
+
+The same first run also keeps Lunch for the new account (personal time, weekdays
+13:00-14:00, `isDefault: true`). It is not an example, so clearing the examples
+leaves it; the person edits it under Settings, Your day. Existing accounts get
+nothing.
 
 ```http
 GET    /api/connect/onboarding/sample   # needt.read

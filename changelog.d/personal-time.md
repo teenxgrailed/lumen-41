@@ -7,3 +7,5 @@
   tinted band on the calendar (desktop and phone) and in Home's day. Dragging a
   task into it asks first. Readable and writable through the API, MCP and Ask,
   with Undo.
+  New accounts start with Lunch kept on weekdays, 13:00 to 14:00; edit it under
+  Settings, Your day.
