@@ -25,3 +25,30 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]),
 html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background-color: #141416 !important;
 }
+
+/* The phone screen covers the whole display, not `100dvh`.
+ *
+ * The cause of the flat band that PR #241 and #252 did not remove: the scope
+ * is `h-dvh`, and in an installed iOS PWA that height ends above the bottom of
+ * the display (by more than the 34 pt home-indicator inset), so the screen -
+ * sky, the dotted fog behind the dock, the ground - stopped there and the
+ * `html` colour showed below it. The phone scope is pinned to the viewport
+ * instead (`position: fixed; inset: 0` reaches every edge, safe areas
+ * included, whatever `dvh` resolves to), and the ground is painted on a fixed
+ * layer of its own behind the content. Content keeps its own padding for the
+ * dock; nothing is sized by `dvh` on the phone. `height: auto` beats the
+ * `h-dvh` utility (this sheet is unlayered, a utility is a single class). */
+.needt-v3[data-ui="phone"] {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  background: var(--v2p-ground);
+}
+.needt-v3[data-ui="phone"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--v2p-ground);
+  pointer-events: none;
+}
