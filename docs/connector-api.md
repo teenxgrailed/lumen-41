@@ -103,24 +103,28 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                     | Scope                                          | What it does                                                                                                                                                                           |
-| ------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`           | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                   |
-| `needt_search`           | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                        |
-| `needt_list`             | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                |
-| `needt_get`              | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                           |
-| `needt_create_task`      | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
-| `needt_schedule`         | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                            |
-| `needt_reschedule`       | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                         |
-| `needt_control`          | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                              |
-| `needt_update_task`      | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId, originPageId; other fields are refused                                  |
-| `needt_add_subtasks`     | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                        |
-| `needt_complete_subtask` | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                     |
-| `needt_complete_task`    | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                 |
-| `needt_create_event`     | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                        |
-| `needt_create_page`      | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                   |
-| `needt_append_page`      | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                   |
-| `needt_log_habit`        | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                            |
+| Tool                         | Scope                                          | What it does                                                                                                                                                                           |
+| ---------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                   |
+| `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                        |
+| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page |
+| `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                           |
+| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
+| `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                            |
+| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                         |
+| `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                              |
+| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId, originPageId; other fields are refused                                  |
+| `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                        |
+| `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                     |
+| `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                 |
+| `needt_create_event`         | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                        |
+| `needt_create_page`          | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                   |
+| `needt_append_page`          | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                   |
+| `needt_log_habit`            | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                            |
+| `needt_create_personal_time` | `needt.write`                                  | Keep time for the person (lunch, break, walk, dinner, gym, party, rest, custom); no task is ever scheduled in it. See Personal time                                                    |
+| `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                       |
+| `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                    |
+| `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                     |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -471,24 +475,30 @@ curl -X POST http://localhost:3000/api/connect/ops/task.create \
 }
 ```
 
-| Operation          | Risk       | Input                                                                                                  | Undo                                 |
-| ------------------ | ---------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `task.list`        | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                      | —                                    |
-| `task.get`         | read       | `taskId`                                                                                               | —                                    |
-| `schedule.get_day` | read       | `date` (YYYY-MM-DD, user's time zone)                                                                  | —                                    |
-| `task.create`      | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `autoSchedule`      | archives the task                    |
-| `task.update`      | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes` | writes the previous values back      |
-| `task.complete`    | reversible | `taskId` (recurring series are refused for now)                                                        | previous status                      |
-| `task.uncomplete`  | reversible | `taskId`, `status` (todo, in_progress)                                                                 | completed with its original time     |
-| `task.archive`     | reversible | `taskId`                                                                                               | unarchives with placement and blocks |
-| `task.unarchive`   | reversible | `taskId`                                                                                               | archives again                       |
-| `task.move_to_day` | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                          | previous dates and blocks            |
-| `schedule.auto`    | reversible | `{}`                                                                                                   | every task it moved goes back        |
-| `project.create`   | reversible | `name`, `description`, `color`, `icon`                                                                 | archives the project                 |
-| `project.archive`  | reversible | `projectId`                                                                                            | previous status                      |
-| `mail.to_task`     | reversible | `messageId`, `title`, `estimateMinutes`                                                                | archives the task                    |
-| `habit.log`        | reversible | `habitId`, `date` (default today)                                                                      | clears the day                       |
-| `habit.unlog`      | reversible | `habitId`, `date` (default today)                                                                      | marks the day again                  |
+| Operation              | Risk       | Input                                                                                                  | Undo                                 |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| `task.list`            | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                      | —                                    |
+| `task.get`             | read       | `taskId`                                                                                               | —                                    |
+| `schedule.get_day`     | read       | `date` (YYYY-MM-DD, user's time zone)                                                                  | —                                    |
+| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `autoSchedule`      | archives the task                    |
+| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes` | writes the previous values back      |
+| `task.complete`        | reversible | `taskId` (recurring series are refused for now)                                                        | previous status                      |
+| `task.uncomplete`      | reversible | `taskId`, `status` (todo, in_progress)                                                                 | completed with its original time     |
+| `task.archive`         | reversible | `taskId`                                                                                               | unarchives with placement and blocks |
+| `task.unarchive`       | reversible | `taskId`                                                                                               | archives again                       |
+| `task.move_to_day`     | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                          | previous dates and blocks            |
+| `schedule.auto`        | reversible | `{}`                                                                                                   | every task it moved goes back        |
+| `project.create`       | reversible | `name`, `description`, `color`, `icon`                                                                 | archives the project                 |
+| `project.archive`      | reversible | `projectId`                                                                                            | previous status                      |
+| `mail.to_task`         | reversible | `messageId`, `title`, `estimateMinutes`                                                                | archives the task                    |
+| `habit.log`            | reversible | `habitId`, `date` (default today)                                                                      | clears the day                       |
+| `habit.unlog`          | reversible | `habitId`, `date` (default today)                                                                      | marks the day again                  |
+| `personal.list`        | read       | `from`, `to` (ISO; adds every occurrence in the range), `includeArchived`                              | —                                    |
+| `personal.create`      | reversible | `kind`, `title`, `emoji`, `color`, `start`, `end` or `minutes`, `rrule`                                | removes the block                    |
+| `personal.update`      | reversible | `blockId` plus any of `title`, `emoji`, `color`, `start`, `end`, `rrule` (null stops the repeat)       | writes the previous values back      |
+| `personal.delete`      | reversible | `blockId`                                                                                              | brings the block back                |
+| `personal.mark_event`  | reversible | `eventId`, `kind`, `title`, `emoji`                                                                    | removes the linked block             |
+| `personal.set_default` | reversible | `kind`, `enabled`, `at` (HH:mm), `minutes`, `days` (0 = Sunday)                                        | restores the previous default        |
 
 Errors are JSON `{ "error", "code" }`: `INVALID_INPUT` (400, with
 `details`), `FORBIDDEN` (403, a viewer cannot write), `OP_NOT_FOUND` or
@@ -514,6 +524,72 @@ Notes on specific operations:
 
 Pick the workspace with the `x-workspace-id` header or `?workspaceId=`, as
 for the other connector routes.
+
+## Personal time
+
+Time the person keeps for themselves: lunch, a break, a walk, dinner, the
+gym, a party, rest, or a custom block. **The scheduler never places a task in
+it**: not `schedule.auto`, not Plan my day (`POST /api/ai/plan-day`, which runs
+`schedule.auto`), not the slot search behind the app's own placement. A repeat
+and a block linked to a synced event count the same as a one-off block. A
+person can still put a task there by hand; the app asks first.
+
+It lives only in Needt. Nothing is ever written to Google, Outlook or iCloud,
+and marking a synced event as personal does not change the event.
+
+A block (`PersonalBlock`):
+
+```json
+{
+  "id": "…",
+  "kind": "lunch",
+  "title": "Lunch",
+  "emoji": "🍽️",
+  "color": null,
+  "start": "2026-10-19T13:00:00.000Z",
+  "end": "2026-10-19T14:00:00.000Z",
+  "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+  "sourceEventId": null,
+  "isDefault": true
+}
+```
+
+- `kind` is `lunch`, `break`, `walk`, `dinner`, `gym`, `party`, `rest` or
+  `custom` (a custom block needs a `title`). A preset kind fills in its title,
+  emoji and usual length (lunch 60 min, break 15, walk 30, dinner 60, gym 60,
+  party 180, rest 60) when you leave them out.
+- `color` is a palette tint: `info`, `success` or `neutral`. Never the accent.
+- `rrule` repeats the block at the same wall-clock time in the person's time
+  zone (`FREQ=DAILY`, `FREQ=WEEKLY;BYDAY=MO,TU,…`, any rule `rrule` reads).
+- `sourceEventId` links a calendar event the person marked as personal. The
+  block then follows the event when it moves; if the event is removed, the
+  block keeps the time it had.
+- `isDefault` marks the repeating defaults from Settings, Your day (one per
+  kind, set with `personal.set_default`).
+- Personal workspace only, like calendar events. Up to 500 blocks.
+
+Every write is an operation (see Operations above), so it is undoable. The
+app's own routes call the same operations for the signed-in session:
+
+```http
+GET    /api/personal-blocks?from=ISO&to=ISO   # blocks (+ occurrences in the range)
+POST   /api/personal-blocks                   # personal.create
+PATCH  /api/personal-blocks/:id               # personal.update
+DELETE /api/personal-blocks/:id               # personal.delete
+POST   /api/personal-blocks/mark-event        # personal.mark_event
+POST   /api/personal-blocks/defaults          # personal.set_default
+```
+
+```bash
+curl -X POST http://localhost:3000/api/connect/ops/personal.create \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "kind": "lunch", "start": "2026-10-19T13:00:00.000Z",
+        "rrule": "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" }'
+```
+
+Ask can do the same in words ("block Friday evening for a party"), with Undo.
+In MCP, `needt_list` and `needt_get` take `type: "personal_time"`.
 
 ## Undo
 
@@ -650,15 +726,15 @@ curl -X PATCH -H "Content-Type: application/json" \
   https://needt.app/api/user-settings
 ```
 
-| Key            | Values                        | Default | Meaning                                                                         |
-| -------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------- |
-| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays |
+| Key            | Values                        | Default | Meaning                                                                                                                                                                                            |
+| -------------- | ----------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `completed`    | `hide`, `today`, `always`     | always  | A ticked task leaves the lists at once / stays until the end of the day / stays                                                                                                                    |
 | `subtasks`     | `next`, `all`, `count`        | next    | Row detail: the next step under the title with a tap to unfold the rest / every step open / just the count (`0/3`). The first version stored a boolean: `true` reads as `next`, `false` as `count` |
-| `duration`     | boolean                       | true    | Row detail: the estimated length                                                |
-| `project`      | boolean                       | true    | Row detail: the project                                                         |
-| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                         |
-| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)       |
-| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                  |
+| `duration`     | boolean                       | true    | Row detail: the estimated length                                                                                                                                                                   |
+| `project`      | boolean                       | true    | Row detail: the project                                                                                                                                                                            |
+| `sort`         | `time`, `priority`, `due`     | time    | Order inside every list                                                                                                                                                                            |
+| `group`        | `date`, `project`, `priority` | date    | Tasks only: what the sections are (Home and the Calendar keep their days)                                                                                                                          |
+| `overdueFirst` | boolean                       | true    | Overdue tasks first, in a section of their own                                                                                                                                                     |
 
 Missing keys take their default; an unknown key or value is a `400`. "Until the
 end of the day" counts from the task's `completedAt`.

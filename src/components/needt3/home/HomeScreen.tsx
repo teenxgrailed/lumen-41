@@ -50,6 +50,7 @@ import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { PersonalDay } from "../personal/PersonalQuickAdd";
 import { FinishCard } from "./FinishCard";
 import {
   Capped,
@@ -657,14 +658,18 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   onUpgrade={upgradeWeek}
                 />
               ) : (
-                <Schedule
-                  items={sched}
-                  nowHour={nowHour}
-                  hueOf={hueOf}
-                  evCount={sched.filter((x) => x.event).length}
-                  onOpen={open}
-                  onCalendar={() => router.push("/calendar")}
-                />
+                <>
+                  <Schedule
+                    items={sched}
+                    nowHour={nowHour}
+                    hueOf={hueOf}
+                    evCount={sched.filter((x) => x.event).length}
+                    onOpen={open}
+                    onCalendar={() => router.push("/calendar")}
+                  />
+                  {/* personal time: the day's quiet bands and one-tap presets */}
+                  <PersonalDay date={today} />
+                </>
               )}
               <InboxCard
                 list={inboxShown.slice(0, 3)}

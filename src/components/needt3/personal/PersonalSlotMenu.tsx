@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useLayoutEffect, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
 import { createPortal } from "react-dom";
 
@@ -30,7 +30,9 @@ export function PersonalSlotMenu({
 }) {
   const container = useV3PortalContainer();
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  useLayoutEffect(() => {
+  // After the commit, not in the layout phase: the draft that owns the anchor
+  // attaches its ref after its children's layout effects have run.
+  useEffect(() => {
     const place = () => {
       const el = anchor.current;
       if (!el) return;
