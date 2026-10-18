@@ -37,7 +37,7 @@ const mount = async (props: { ask: boolean; show: boolean }) => {
     root.render(h(QueryClientProvider, { client }, h(Probe, props)));
   });
   await act(async () => {
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 40));
   });
 };
 const calls = (method: string) =>
@@ -133,6 +133,7 @@ it("dismisses: it disappears at once and the server is told", async () => {
   expect(text()).toBe("Hello.");
   await act(async () => {
     seen?.dismiss();
+    await new Promise((r) => setTimeout(r, 30));
   });
   expect(text()).toBe("");
   expect(JSON.parse(calls("PATCH")[0]?.[1].body)).toEqual({
