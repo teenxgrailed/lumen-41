@@ -5,6 +5,9 @@
  * parts hide themselves: no picks, no list; and the card says "All done" only
  * when nothing Home still lists is open (`finishHeadline`).
  */
+import { LuArrowUpLeft } from "react-icons/lu";
+
+import { PkButton } from "../phone/kit";
 import { Act, type ActionProps } from "./Act";
 import { dur } from "./derive";
 import { type FinishPick, finishHeadline, restLine } from "./finish";
@@ -19,20 +22,47 @@ export function FinishPicks({
   onDoToday: (pick: FinishPick) => void;
 }) {
   if (!picks.length) return null;
-  return (
-    <ul className="fin-picks" data-fin-picks="" aria-label="Good next tasks">
+  const list = (
+    <ul
+      className={phone ? "fin-picks is-phone" : "fin-picks"}
+      data-fin-picks=""
+      aria-label="Good next tasks"
+    >
       {picks.map((p) => (
         <li key={p.task.id} className="fin-pick" data-fin-pick={p.task.id}>
+          {phone ? <span className="fin-pick-ring" aria-hidden="true" /> : null}
           <span className="fin-pick-text">
             <span className="fin-pick-title">{p.task.title}</span>
             <span className="fin-pick-meta">{p.meta}</span>
           </span>
-          <Act phone={phone} data-fin="do-today" onClick={() => onDoToday(p)}>
-            Do today
-          </Act>
+          {phone ? (
+            <PkButton
+              kind="ghost"
+              className="fin-pick-go"
+              icon={<LuArrowUpLeft size={14} />}
+              aria-label={`Do today: ${p.task.title}`}
+              data-fin="do-today"
+              onClick={() => onDoToday(p)}
+            >
+              Today
+            </PkButton>
+          ) : (
+            <Act data-fin="do-today" onClick={() => onDoToday(p)}>
+              Do today
+            </Act>
+          )}
         </li>
       ))}
     </ul>
+  );
+  // the phone's picks sit under a section label on the ground
+  return phone ? (
+    <section className="fin-pull" data-fin-pull="">
+      <h2 className="pk-label fin-pull-label">Pull something in</h2>
+      {list}
+    </section>
+  ) : (
+    list
   );
 }
 
