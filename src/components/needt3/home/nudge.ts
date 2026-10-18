@@ -29,21 +29,27 @@ export function inNudgeWindow(nowHour: number, endHour: number | null) {
   );
 }
 
-const key = (day: string) => `needt.endday.nudge.${day}`;
+const key = (ns: string, day: string) => `needt.${ns}.${day}`;
 
-/** Whether the nudge was dismissed, or End day was run, on this day. */
-export function nudgeOff(day: string): boolean {
+/** A once-a-day "not now" memory, by name. Storage that throws reads as "not off". */
+export function dayFlag(ns: string, day: string): boolean {
   try {
-    return window.localStorage.getItem(key(day)) === "1";
+    return window.localStorage.getItem(key(ns, day)) === "1";
   } catch {
     return false;
   }
 }
 
-export function setNudgeOff(day: string) {
+export function setDayFlag(ns: string, day: string) {
   try {
-    window.localStorage.setItem(key(day), "1");
+    window.localStorage.setItem(key(ns, day), "1");
   } catch {
-    // the nudge may come back on a reload; that is all
+    // it may come back on a reload; that is all
   }
 }
+
+const NUDGE = "endday.nudge";
+
+/** Whether the nudge was dismissed, or End day was run, on this day. */
+export const nudgeOff = (day: string) => dayFlag(NUDGE, day);
+export const setNudgeOff = (day: string) => setDayFlag(NUDGE, day);

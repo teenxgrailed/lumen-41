@@ -57,6 +57,7 @@ import { BriefCard } from "./BriefCard";
 import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
 import { HighlightCard } from "./HighlightCard";
+import { HighlightSuggest } from "./HighlightSuggest";
 import {
   Capped,
   EmptyDay,
@@ -97,8 +98,10 @@ import {
 } from "./derive";
 import { freeMinutesLeft, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
+import { suggestMeta } from "./suggest";
 import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
+import { useHighlightSuggest } from "./useHighlightSuggest";
 import { useHomeStats } from "./useHomeStats";
 
 /**
@@ -258,6 +261,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       facts: briefFacts,
     }),
     facts: briefFacts,
+  });
+  const suggest = useHighlightSuggest({
+    tasks: allTasks,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
   });
   const nudge = useEndDayNudge({
     today,
@@ -557,6 +568,16 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               onFocus={() => void startFocusOn(hlTask)}
               onClear={() => void setHighlight.set(null)}
               onOpen={() => open(hlTask.id)}
+            />
+          ) : null}
+          {suggest.pick ? (
+            <HighlightSuggest
+              title={suggest.pick.title}
+              meta={suggestMeta(suggest.pick)}
+              canCycle={suggest.canCycle}
+              onAccept={suggest.accept}
+              onAnother={suggest.another}
+              onDismiss={suggest.dismiss}
             />
           ) : null}
           {closedDay ? (
