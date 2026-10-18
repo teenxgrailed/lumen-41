@@ -56,7 +56,9 @@ import {
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
+import { HabitsStrip } from "./HabitsStrip";
 import { usePhoneClock } from "./clock";
+import { habitDots } from "./habits-row";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
 import { useTaskPull } from "./pull";
@@ -216,7 +218,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
-  const head = !ready ? null : v.dayClosed ? (
+  const progress = !ready ? null : v.dayClosed ? (
     <div
       className="v2p-prog is-done"
       data-v2p-alldone={v.allDone ? "" : undefined}
@@ -269,6 +271,25 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       </span>
     </div>
   ) : null;
+
+  const dots = habitDots(
+    habitsQuery.data ?? [],
+    checkins,
+    today,
+    projects ?? []
+  );
+  const head =
+    dots.length || progress ? (
+      <>
+        <HabitsStrip
+          dots={dots}
+          onTick={(id, done) =>
+            void toggleHabit.mutateAsync({ id, done }).catch(none)
+          }
+        />
+        {progress}
+      </>
+    ) : null;
 
   return (
     <PkScreen
