@@ -568,3 +568,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Time left: planned work against the working time that remains. */
+.needt-v3 .tl-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0 2px;
+}
+.needt-v3 .hd-scroll > .tl-bar {
+  margin: 4px 4px 8px 26px;
+}
+.needt-v3 .tl-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 10%, transparent);
+  overflow: hidden;
+}
+.needt-v3 .tl-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 45%, transparent);
+}
+.needt-v3 .tl-bar.is-over .tl-fill {
+  background: color-mix(in oklab, var(--destructive) 60%, transparent);
+}
+.needt-v3 .tl-text {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .tl-bar.is-over .tl-text {
+  color: var(--text-secondary);
+}

@@ -37,6 +37,7 @@ import { HighlightSuggest } from "../../home/HighlightSuggest";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
+import { TimeLeftBar } from "../../home/TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
 import {
   capacityFrom,
@@ -52,6 +53,7 @@ import {
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
 import { suggestMeta } from "../../home/suggest";
+import { minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
@@ -158,6 +160,16 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
   });
+  const calendarItems = scheduleItems([], events.data ?? [], today);
+  // //todo: pass the minutes of personal blocks as `blocked` once they land
+  const left = timeLeft({
+    capacity: freeMinutesLeft(capacityFrom(prefs), today, nowHour, []),
+    eventsAhead: minutesAhead(
+      calendarItems.filter((x) => x.event),
+      nowHour
+    ),
+    openTasks: v.open(v.sec.day),
+  });
   const nudge = useEndDayNudge({
     today,
     nowHour,
@@ -167,7 +179,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const pro = proFromPlan(plan.data?.kind);
   const aiAvailable = useAiAvailable();
   const morning = isMorning(nowHour);
-  const calendarItems = scheduleItems([], events.data ?? [], today);
   const briefFacts = briefFactsOf({
     late: v.open(v.sec.late),
     day: v.sec.day,
@@ -470,6 +481,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           onDoToday={(p) => void finish.doToday(p)}
         />
       ) : null}
+
+      {ready ? <TimeLeftBar left={left} /> : null}
 
       {ready && v.empty ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />

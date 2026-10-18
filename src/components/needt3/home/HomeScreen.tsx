@@ -79,6 +79,7 @@ import {
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
+import { TimeLeftBar } from "./TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "./brief";
 import {
   capacityFrom,
@@ -99,6 +100,7 @@ import {
 import { freeMinutesLeft, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
 import { suggestMeta } from "./suggest";
+import { minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
 import { useHighlightSuggest } from "./useHighlightSuggest";
@@ -269,6 +271,15 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     known: highlight.isFetched,
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
+  });
+  // //todo: pass the minutes of personal blocks as `blocked` once they land
+  const left = timeLeft({
+    capacity: freeMinutesLeft(cap, today, nowHour, []),
+    eventsAhead: minutesAhead(
+      sched.filter((x) => x.event),
+      nowHour
+    ),
+    openTasks: dayOpen,
   });
   const nudge = useEndDayNudge({
     today,
@@ -580,6 +591,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               onDismiss={suggest.dismiss}
             />
           ) : null}
+          <TimeLeftBar left={left} />
           {closedDay ? (
             <FinishCard
               count={day.length}
