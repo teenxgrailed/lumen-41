@@ -1,46 +1,13 @@
 "use client";
 
-import { PkButton } from "../phone/kit";
-import { dur } from "./derive";
-import { type FinishPick, finishHeadline, restLine } from "./finish";
-
 /**
  * What a finished day offers, on the desktop Home and the phone Home. Both
  * parts hide themselves: no picks, no list; and the card says "All done" only
  * when nothing Home still lists is open (`finishHeadline`).
  */
-
-interface ActionProps {
-  phone?: boolean;
-}
-
-/** One small button: the desktop's text button, the phone's chip. */
-function Act({
-  phone,
-  children,
-  onClick,
-  ...rest
-}: ActionProps & {
-  children: string;
-  onClick: () => void;
-  "data-fin"?: string;
-  disabled?: boolean;
-}) {
-  return phone ? (
-    <PkButton kind="chip" onClick={onClick} {...rest}>
-      {children}
-    </PkButton>
-  ) : (
-    <button
-      type="button"
-      className="nx-btn nx-btn-sm nx-btn-secondary"
-      onClick={onClick}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
+import { Act, type ActionProps } from "./Act";
+import { dur } from "./derive";
+import { type FinishPick, finishHeadline, restLine } from "./finish";
 
 /** The best next tasks, one line each with a one-tap "Do today". */
 export function FinishPicks({

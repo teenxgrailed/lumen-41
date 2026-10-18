@@ -51,6 +51,8 @@ export const qk = {
   doc: (id: string) => [V3, "doc", id] as const,
   /** Whether the day's note exists (`useDailyNote`). */
   dailyNote: (day: string) => [V3, "daily-note", day] as const,
+  /** The day's highlight (`GET /api/highlight?date=`). */
+  highlight: (day: string) => [V3, "highlight", day] as const,
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,

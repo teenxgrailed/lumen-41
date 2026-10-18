@@ -134,6 +134,7 @@ model User {
   timeEntries            TimeEntry[]
   scheduledBlocks        ScheduledBlock[]
   focusSessions          FocusSession[]
+  dailyHighlights        DailyHighlight[]
   focusStats             FocusStats?
   tasks                  Task[]
   projects               Project[]
@@ -231,6 +232,7 @@ model Workspace {
   projectTemplates     ProjectTemplate[]
   projectHealthUpdates ProjectHealthUpdate[]
   habits               Habit[]
+  dailyHighlights      DailyHighlight[]
   weeklyFocusTargets   WeeklyFocusTarget[]
   meetingNoteProposals MeetingNoteProposal[]
   savedViews           SavedView[]
@@ -865,6 +867,7 @@ model Task {
   timeEntries       TimeEntry[]
   scheduledBlocks   ScheduledBlock[]
   focusSessions     FocusSession[]
+  dailyHighlights   DailyHighlight[]
   habit             Habit?           @relation(fields: [habitId], references: [id], onDelete: Restrict)
   habitId           String?
   habitOccurrenceAt DateTime?
@@ -1153,6 +1156,25 @@ model FocusSession {
   @@index([taskId])
   @@index([mode])
   @@index([completed])
+}
+
+/// The one task a person picked as the main thing of a day. One row per user,
+/// workspace and day; the day is the person's own ("YYYY-MM-DD"), so no time
+/// zone is guessed on the server. Additive: nothing else reads it.
+model DailyHighlight {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  date        String
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, workspaceId, date])
+  @@index([taskId])
 }
 
 model FocusStats {

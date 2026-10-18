@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -154,9 +156,19 @@ export function ShutdownSheet({
   ...body
 }: ShutdownProps & { open: boolean; phone?: boolean }) {
   const container = useV3PortalContainer();
+  // The phone's sheet stays mounted only while it is open or sliding away,
+  // so a closed Home carries none of its body.
+  const [alive, setAlive] = useState(false);
+  if (open && !alive) setAlive(true);
   if (phone) {
+    if (!alive && !open) return null;
     return (
-      <PkSheet open={open} onClose={body.onClose} title="End day">
+      <PkSheet
+        open={open}
+        onClose={body.onClose}
+        onShut={() => setAlive(false)}
+        title="End day"
+      >
         <ShutdownBody {...body} />
       </PkSheet>
     );
