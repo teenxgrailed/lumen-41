@@ -2,6 +2,7 @@ import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 
 import {
+  getLearnedSkips,
   isLearningEnabled,
   rememberForUser,
   upsertKeyedMemory,
@@ -12,6 +13,7 @@ import {
   extractContentMemories,
   habitMemories,
   parseExtractedFacts,
+  refreshHabitMemories,
   runLearning,
 } from "../memory-learning";
 import { getPreparedSchedulerAI } from "../settings";
@@ -34,6 +36,7 @@ jest.mock("@/services/pages/page-model", () => ({
 jest.mock("../memory", () => ({
   ...jest.requireActual("../memory"),
   isLearningEnabled: jest.fn(),
+  getLearnedSkips: jest.fn(async () => []),
   rememberForUser: jest.fn(),
   upsertKeyedMemory: jest.fn(),
 }));
@@ -263,6 +266,28 @@ describe("extraction from documents and mail metadata", () => {
     prepared.mockClear();
     expect(await extractContentMemories("user-1", workspace)).toBe(0);
     expect(prepared).not.toHaveBeenCalled();
+  });
+});
+
+describe("a habit line the person deleted", () => {
+  it("is not computed again, while the others still are", async () => {
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({
+      timeZone: "UTC",
+    });
+    // eight finished tasks at 10:30, all taking twice the estimate
+    (prisma.task.findMany as jest.Mock).mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) =>
+        at(`2026-09-0${i + 1}T10:30:00Z`, { actualMinutes: 60 })
+      )
+    );
+    (getLearnedSkips as jest.Mock).mockResolvedValueOnce([
+      "ws-1:habit:peak-hours",
+    ]);
+    await refreshHabitMemories("user-1", "ws-1");
+    const keys = (upsertKeyedMemory as jest.Mock).mock.calls.map(
+      (c) => c[2].sourceKey
+    );
+    expect(keys).toEqual(["habit:duration-ratio"]);
   });
 });
 
