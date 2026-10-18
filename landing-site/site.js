@@ -297,23 +297,13 @@
   }, true);
 })();
 
-/* v26.1 — Safari's chrome (status bar, toolbar, overscroll) takes the colour of what is under it.
-   Top edge: the sky the viewport starts in, else paper/night. Page end: the night sky's floor. */
+/* v27 — Compare plans: phone plan switcher */
 (() => {
-  const root = document.documentElement, meta = document.querySelector('meta[name="theme-color"]');
-  const SKY = "#b4bbdc", NIGHT = "#19172d", PAPER = "#f7f5f3", DARK = "#121126", END = "#5f5a82";
-  const kind = (n) => { for (; n && n !== document.body; n = n.parentElement) { const s = n.querySelector(":scope > .sky-wrap > [data-sky]"); if (s) return s.dataset.sky; } return ""; };
-  let raf = 0;
-  const paint = () => {
-    raf = 0;
-    const hit = document.elementsFromPoint(innerWidth / 2, 2).find((e) => !e.closest(".nav, .mobile-menu, .m-cta")), k = hit ? kind(hit) : "";
-    const top = k === "night" ? NIGHT : k ? SKY : document.body.classList.contains("is-night") ? DARK : PAPER;
-    const end = scrollY + innerHeight >= root.scrollHeight - 2;
-    root.style.backgroundColor = scrollY > innerHeight ? END : top;
-    if (meta) meta.content = end ? END : top;
-  };
-  const queue = () => { if (!raf) raf = requestAnimationFrame(paint); };
-  addEventListener("scroll", queue, { passive: true }); addEventListener("resize", queue); addEventListener("pageshow", queue);
-  new MutationObserver(queue).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  queue();
+  const seg = document.querySelector(".ct-seg"), wrap = document.querySelector(".ctbl-wrap");
+  if (!seg || !wrap) return;
+  seg.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-col]"); if (!b) return;
+    wrap.dataset.show = b.dataset.col;
+    seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  });
 })();
