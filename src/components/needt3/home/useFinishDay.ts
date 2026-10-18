@@ -18,6 +18,7 @@ import {
   shutdownOf,
   tomorrowNote,
 } from "./finish";
+import { setNudgeOff } from "./nudge";
 
 const metaOf = (t: V3Task, today: string): string => {
   const d = dayOf(t, today);
@@ -115,7 +116,10 @@ export function useFinishDay({
             }
           : undefined
       );
-      if (saved) setOpen(false);
+      if (saved) {
+        setNudgeOff(today);
+        setOpen(false);
+      }
     } finally {
       setBusy(false);
     }

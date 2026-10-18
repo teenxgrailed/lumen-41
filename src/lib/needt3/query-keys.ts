@@ -59,6 +59,10 @@ export const qk = {
   stats: (range: "week" | "month") => [V3, "stats", range] as const,
   /** The day's morning brief (`GET /api/ai/morning-brief?date=`). */
   morningBrief: (day: string) => [V3, "morning-brief", day] as const,
+  /** Today's weather for the saved City (`GET /api/weather`). */
+  weather: () => [V3, "weather"] as const,
+  /** Whether the Sunday review page of this title exists. */
+  weeklyReview: (title: string) => [V3, "weekly-review", title] as const,
   highlight: (day: string) => [V3, "highlight", day] as const,
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,

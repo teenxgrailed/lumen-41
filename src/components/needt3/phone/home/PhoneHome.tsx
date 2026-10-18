@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 
 import { LuCheck, LuTarget } from "react-icons/lu";
 
+import { readPref } from "@/components/needt3/settings/derive";
+
 import { clock, durLabel } from "@/lib/needt3/day";
-import {
-  addDays,
-  habitColor,
-  habitDoneOn,
-  liveHabits,
-} from "@/lib/needt3/derive";
+import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
+import { highEnergyHours } from "@/lib/needt3/energy";
+import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
@@ -24,23 +23,31 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
-import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { useWeather } from "@/lib/needt3/hooks/weather";
+import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { BriefCard } from "../../home/BriefCard";
+import { DayLine } from "../../home/DayLine";
+import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
+import { HighlightSuggest } from "../../home/HighlightSuggest";
+import { ReviewCard, ReviewSheet } from "../../home/ReviewSheet";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
+import { TimeLeftBar } from "../../home/TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
+import { dayLine, firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
   dayStreak,
@@ -51,11 +58,18 @@ import {
 import {
   finishHeadline,
   freeMinutesLeft,
+  hourOfClock,
   pickFinishNext,
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
+import { suggestMeta } from "../../home/suggest";
+import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
+import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
+import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
+import { useWeeklyReview } from "../../home/useWeeklyReview";
+import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
   PkEmpty,
@@ -126,6 +140,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const taskView = useTaskView();
   const stats = useHomeStats(all.filter((t) => t.done).length);
+  const schedule = useSchedule();
+  const energyHours = useMemo(
+    () => highEnergyHours(schedule.data),
+    [schedule.data]
+  );
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -135,9 +154,15 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       homeView(
         all.filter((t) => !gone[t.id]),
         today,
-        { skipped, busy: { ...X.phase, ...gone }, view: taskView, lift }
+        {
+          skipped,
+          busy: { ...X.phase, ...gone },
+          view: taskView,
+          lift,
+          energy: { nowHour, hours: energyHours },
+        }
       ),
-    [all, today, skipped, X.phase, gone, taskView, lift]
+    [all, today, skipped, X.phase, gone, taskView, lift, nowHour, energyHours]
   );
   const { next: N } = v;
   const nu = N.nu;
@@ -150,11 +175,52 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const review = useWeeklyReview({
+    today,
+    late: v.open(v.sec.late),
+    day: v.sec.day,
+    stats: stats.week,
+  });
+  const suggest = useHighlightSuggest({
+    tasks: all,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
+  });
+  const calendarItems = scheduleItems([], events.data ?? [], today);
+  const personal = usePersonalDay(today);
+  const workCap = capacityFrom(prefs);
+  const left = timeLeft({
+    capacity: freeMinutesLeft(workCap, today, nowHour, []),
+    blocked: blockedMinutes(
+      personal,
+      Math.max(nowHour, hourOfClock(workCap.start)),
+      hourOfClock(workCap.end)
+    ),
+    eventsAhead: minutesAhead(
+      calendarItems.filter((x) => x.event),
+      nowHour
+    ),
+    openTasks: v.open(v.sec.day),
+  });
+  const city = readPref(useSettings().data?.prefs, "city");
+  const weather = useWeather(city);
+  const line = dayLine({
+    city,
+    weather: weather.data,
+    first: firstEvent(events.data ?? [], today, nowHour),
+  });
+  const nudge = useEndDayNudge({
+    today,
+    nowHour,
+    hidden: v.dayClosed || finish.open,
+  });
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
   const aiAvailable = useAiAvailable();
   const morning = isMorning(nowHour);
-  const calendarItems = scheduleItems([], events.data ?? [], today);
   const briefFacts = briefFactsOf({
     late: v.open(v.sec.late),
     day: v.sec.day,
@@ -193,11 +259,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         .slice(0, 3)
     : [];
 
-  const habits = liveHabits(habitsQuery.data ?? []);
   const checkins = checkinsQuery.data ?? [];
-  const habitsDone = habits.filter((h) =>
-    habitDoneOn(h.id, today, checkins)
-  ).length;
 
   const tomorrowRef = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
@@ -351,6 +413,13 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
+      {ready ? <DayLine text={line} /> : null}
+      {ready && review.show ? (
+        <ReviewCard phone onStart={review.start} onLater={review.later} />
+      ) : null}
+      {ready && nudge.show ? (
+        <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
+      ) : null}
       {ready && morningBrief.brief ? (
         <BriefCard
           text={morningBrief.brief.text}
@@ -371,6 +440,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           onFocus={() => void startFocus(hlTask)}
           onClear={() => void setHighlight.set(null)}
           onOpen={() => openTask(hlTask)}
+        />
+      ) : null}
+      {ready && suggest.pick ? (
+        <HighlightSuggest
+          phone
+          title={suggest.pick.title}
+          meta={suggestMeta(suggest.pick)}
+          canCycle={suggest.canCycle}
+          onAccept={suggest.accept}
+          onAnother={suggest.another}
+          onDismiss={suggest.dismiss}
         />
       ) : null}
       {ready && nu ? (
@@ -448,6 +528,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         />
       ) : null}
 
+      {ready ? <TimeLeftBar left={left} /> : null}
+      {ready ? <PersonalDayBands date={today} /> : null}
+
       {ready && v.empty ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
       ) : null}
@@ -483,28 +566,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               count={v.inboxRows.length}
             >
               <CappedRows list={v.inboxRows} render={(t) => row(t)} />
-            </PkSection>
-          ) : null}
-          {habits.length ? (
-            <PkSection
-              className="v2p-habits"
-              glyph="habits"
-              title={copy.V2pHome.habits}
-              count={`${habitsDone} of ${habits.length}`}
-              folded={fold.habits}
-              onFold={flip("habits")}
-            >
-              {habits.map((h) => (
-                <HabitRow
-                  key={h.id}
-                  habit={h}
-                  on={habitDoneOn(h.id, today, checkins)}
-                  hue={habitColor(h, projects ?? []) ?? "var(--v2p-lav)"}
-                  onToggle={(done) =>
-                    void toggleHabit.mutateAsync({ id: h.id, done }).catch(none)
-                  }
-                />
-              ))}
             </PkSection>
           ) : null}
           {v.tomorrowRows.length ? (
@@ -551,6 +612,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
       <ShutdownSheet phone open={finish.open} {...finish.sheet} />
+      <ReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone
         open={stats.open}
@@ -558,33 +620,5 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         {...stats.sheet}
       />
     </PkScreen>
-  );
-}
-
-function HabitRow({
-  habit,
-  on,
-  hue,
-  onToggle,
-}: {
-  habit: V3Habit;
-  on: boolean;
-  hue: string;
-  onToggle: (done: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={pkCx("v2p-hab", on && "is-on")}
-      style={{ "--hue": hue } as React.CSSProperties}
-      aria-pressed={on}
-      onClick={() => onToggle(!on)}
-      data-v2p-habit={habit.id}
-    >
-      <span className="v2p-hab-mark" aria-hidden="true">
-        {on ? <LuCheck size={12} /> : null}
-      </span>
-      <span className="v2p-hab-title">{habit.title}</span>
-    </button>
   );
 }

@@ -14,6 +14,7 @@ import type {
   HomeController,
   HomeTab,
 } from "@/components/needt3/phone/home/useHomeController";
+import { readPref } from "@/components/needt3/settings/derive";
 import { StScreen } from "@/components/needt3/states/StScreen";
 import { Task } from "@/components/needt3/task/Task";
 import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
@@ -28,6 +29,8 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { highEnergyHours } from "@/lib/needt3/energy";
+import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
@@ -40,12 +43,14 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import { useWeather } from "@/lib/needt3/hooks/weather";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
@@ -55,8 +60,11 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { PersonalDay } from "../personal/PersonalQuickAdd";
 import { BriefCard } from "./BriefCard";
+import { DayLine } from "./DayLine";
+import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
 import { HighlightCard } from "./HighlightCard";
+import { HighlightSuggest } from "./HighlightSuggest";
 import {
   Capped,
   EmptyDay,
@@ -75,10 +83,13 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { ReviewCard, ReviewSheet } from "./ReviewSheet";
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
+import { TimeLeftBar } from "./TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "./brief";
+import { dayLine, firstEvent } from "./day-line-model";
 import {
   capacityFrom,
   dayState,
@@ -95,10 +106,16 @@ import {
   weekAhead,
   weekTotals,
 } from "./derive";
-import { freeMinutesLeft, pickFinishNext } from "./finish";
+import { energyDay } from "./energy-day";
+import { freeMinutesLeft, hourOfClock, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
+import { suggestMeta } from "./suggest";
+import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
+import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
+import { useHighlightSuggest } from "./useHighlightSuggest";
 import { useHomeStats } from "./useHomeStats";
+import { useWeeklyReview } from "./useWeeklyReview";
 
 /**
  * HOME ($P/HomeToday.jsx). The day on the Tasks layout: a header with the
@@ -157,10 +174,19 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   const allTasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const taskView = useTaskView();
-  const { late, day, inbox } = useMemo(
+  const schedule = useSchedule();
+  const energyHours = highEnergyHours(schedule.data);
+  const split = useMemo(
     () => splitHome(allTasks, today, taskView),
     [allTasks, today, taskView]
   );
+  const { late, inbox } = split;
+  // heavy tasks first in the high-energy hours, light ones later; only on the
+  // default (time) order, never over a sort the person chose
+  const day =
+    taskView.sort === "time"
+      ? energyDay(split.day, today, nowHour, energyHours)
+      : split.day;
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
 
   // One rule for every section: it lists open tasks (plus a row still playing
@@ -258,6 +284,40 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     }),
     facts: briefFacts,
   });
+  const suggest = useHighlightSuggest({
+    tasks: allTasks,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
+  });
+  const personal = usePersonalDay(today);
+  const left = timeLeft({
+    capacity: freeMinutesLeft(cap, today, nowHour, []),
+    blocked: blockedMinutes(
+      personal,
+      Math.max(nowHour, hourOfClock(cap.start)),
+      hourOfClock(cap.end)
+    ),
+    eventsAhead: minutesAhead(
+      sched.filter((x) => x.event),
+      nowHour
+    ),
+    openTasks: dayOpen,
+  });
+  const city = readPref(settings.data?.prefs, "city");
+  const weather = useWeather(city);
+  const line = dayLine({
+    city,
+    weather: weather.data,
+    first: firstEvent(events.data ?? [], today, nowHour),
+  });
+  const nudge = useEndDayNudge({
+    today,
+    nowHour,
+    hidden: closedDay || finish.open,
+  });
   const hueOf = (id: string | null) =>
     project(id, projects.data ?? [])?.color ?? "var(--text-muted)";
 
@@ -278,6 +338,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   };
   const streak = dayStreak(allTasks, today);
   const homeStats = useHomeStats(allTasks.filter((t) => t.done).length);
+  const review = useWeeklyReview({
+    today,
+    late: lateOpen,
+    day,
+    stats: homeStats.week,
+  });
 
   const clearTimers = useCallback(
     (id: string) => {
@@ -494,6 +560,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               sub: "A page for anything",
               onClick: () => void newDoc(),
             },
+            { sep: true },
+            {
+              art: "task",
+              title: "End day",
+              sub: "Wrap up, move what is left, leave a note",
+              onClick: finish.show,
+            },
           ]}
         />
         <div className="hd-titlebox">
@@ -525,6 +598,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
+          <DayLine text={line} />
+          {review.show ? (
+            <ReviewCard onStart={review.start} onLater={review.later} />
+          ) : null}
+          {nudge.show ? (
+            <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
+          ) : null}
           {morningBrief.brief ? (
             <BriefCard
               text={morningBrief.brief.text}
@@ -543,6 +623,17 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               onOpen={() => open(hlTask.id)}
             />
           ) : null}
+          {suggest.pick ? (
+            <HighlightSuggest
+              title={suggest.pick.title}
+              meta={suggestMeta(suggest.pick)}
+              canCycle={suggest.canCycle}
+              onAccept={suggest.accept}
+              onAnother={suggest.another}
+              onDismiss={suggest.dismiss}
+            />
+          ) : null}
+          <TimeLeftBar left={left} />
           {closedDay ? (
             <FinishCard
               count={day.length}
@@ -757,6 +848,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         </div>
       </StScreen>
       <ShutdownSheet open={finish.open} {...finish.sheet} />
+      <ReviewSheet open={review.open} {...review.sheet} />
       <StatsSheet
         open={homeStats.open}
         onClose={homeStats.close}

@@ -3,6 +3,7 @@
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 
+import { CityField } from "./CityField";
 import { useMark } from "./SettingsContext";
 import { type PrefKey, minutes, readPref } from "./derive";
 import { SGroup, SRow, SSelect, V3Switch } from "./kit";
@@ -41,6 +42,18 @@ export function GeneralSection() {
             ]}
             disabled={p.off}
             onChange={(v) => p.set("links", v)}
+          />
+        </SRow>
+      </SGroup>
+      <SGroup title="Weather">
+        <SRow
+          title="City"
+          desc="Shows the weather on Home. Only the city name is sent, never your location. Leave empty for none."
+        >
+          <CityField
+            value={p.get("city")}
+            disabled={p.off}
+            onSave={(v) => p.set("city", v)}
           />
         </SRow>
       </SGroup>

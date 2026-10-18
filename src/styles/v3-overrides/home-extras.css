@@ -520,6 +520,131 @@
 .needt-v3 .br-dismiss:hover {
   color: var(--text-secondary);
 }
+
+/* The End day nudge: one quiet line near the end of the working day. */
+.needt-v3 .nd-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  background: var(--fill-2);
+}
+.needt-v3 .hd-scroll > .nd-card {
+  margin: 6px 4px 8px 26px;
+}
+.needt-v3 .nd-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+
+/* The highlight suggestion: one line, a candidate and two taps. */
+.needt-v3 .hs-suggest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  background: var(--fill-2);
+}
+.needt-v3 .hd-scroll > .hs-suggest {
+  margin: 6px 4px 8px 26px;
+}
+.needt-v3 .hs-suggest-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .hs-suggest-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Time left: planned work against the working time that remains. */
+.needt-v3 .tl-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0 2px;
+}
+.needt-v3 .hd-scroll > .tl-bar {
+  margin: 4px 4px 8px 26px;
+}
+.needt-v3 .tl-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 10%, transparent);
+  overflow: hidden;
+}
+.needt-v3 .tl-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 45%, transparent);
+}
+.needt-v3 .tl-bar.is-over .tl-fill {
+  background: color-mix(in oklab, var(--destructive) 60%, transparent);
+}
+.needt-v3 .tl-text {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .tl-bar.is-over .tl-text {
+  color: var(--text-secondary);
+}
+
+/* Weather and first event: one tiny line. */
+.needt-v3 .dl-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0 2px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .hd-scroll > .dl-line {
+  margin: 2px 4px 8px 26px;
+}
+.needt-v3 .dl-line svg {
+  flex: none;
+}
+
+/* The City field in Settings. */
+.needt-v3 .city-field {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--fill-2);
+  color: var(--text-primary);
+  font: var(--type-ui);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+}
+.needt-v3 .city-field::placeholder {
+  color: var(--text-muted);
+}
+
+/* Weekly review: the three focus fields fill the row. */
+.needt-v3 .city-field.rv-focus {
+  width: 100%;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
 .needt-v3 .hd-sched-band {
   margin: 0 0 6px;
 }
