@@ -403,6 +403,23 @@ describe("Home", () => {
     expect(qa("[data-hs-row]")).toHaveLength(0);
   });
 
+  it("the day's highlight is a card of its own, lifted out of the rows", async () => {
+    client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
+    mount(PhoneHome);
+    expect(q("[data-hl-card]").getAttribute("data-hl-card")).toBe("pm");
+    expect(q(".hl-title").textContent).toBe("Call Anna");
+    // not again on the plate or in the day's rows
+    expect(host.textContent?.match(/Call Anna/g)).toHaveLength(1);
+    click(q('[data-fin="hl-complete"]'));
+    await flush();
+    expect(toggle).toHaveBeenCalled();
+  });
+
+  it("draws no highlight card when none is set", () => {
+    mount(PhoneHome);
+    expect(qa("[data-hl-card]")).toHaveLength(0);
+  });
+
   it("loading and error come in the body, under the screen's own header", () => {
     client.removeQueries({ queryKey: qk.tasks({}) });
     mount(PhoneHome);

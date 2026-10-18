@@ -34,6 +34,7 @@ import {
   LuPlus,
   LuRepeat,
   LuSearch,
+  LuStar,
   LuSun,
   LuSunrise,
   LuTag,
@@ -49,6 +50,7 @@ import { addDays, addMinutes, at, project } from "@/lib/needt3/derive";
 import { findListItem } from "@/lib/needt3/hooks/core";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
+import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
@@ -215,6 +217,7 @@ export function TaskDialog({
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const projects = useProjects().data ?? [];
   const update = useUpdateTask();
+  const highlight = useDayHighlight(today);
   const trash = useTrashTask();
   const create = useCreateTask();
   const parts = useTaskParts();
@@ -1175,6 +1178,15 @@ export function TaskDialog({
       act.sched,
     ],
   ];
+  if (!t.done)
+    menuItems.push([
+      <LuStar key="i" size={14} aria-hidden />,
+      highlight.isHighlight(t.id) ? "Remove highlight" : "Make highlight",
+      () => {
+        setMenu(false);
+        void highlight.toggle(t.id);
+      },
+    ]);
   if (!t.done)
     menuItems.push([
       <LuCircleCheck key="i" size={14} aria-hidden />,

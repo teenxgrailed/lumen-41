@@ -292,6 +292,26 @@ It answers the signed-in session, like the rest of `/api/pages/*`.
 - Home's **End day** uses it to put a note for tomorrow into tomorrow's daily
   note ("Daily note · 2 September 2026").
 
+## Daily highlight
+
+The one task a person picked as the main thing of a day. Stored per user,
+workspace and day; the day is the person's own, as `YYYY-MM-DD`, so no time
+zone is guessed on the server. Like the rest of `/api/*` it answers the
+signed-in session.
+
+```
+GET    /api/highlight?date=2026-10-18
+PUT    /api/highlight            { "date": "2026-10-18", "taskId": "..." }
+DELETE /api/highlight?date=2026-10-18
+```
+
+All three answer `{ "highlight": { "date", "taskId", "task": { "id", "title",
+"status", "dueDate", "estimatedMinutes" } } }`, or `{ "highlight": null }` when
+none is set (or its task went to Trash). `PUT` replaces the day's pick; the
+task must be live and in the caller's scope (`404` otherwise). `DELETE` is safe
+to repeat. `400` for a `date` that is not `YYYY-MM-DD`. Writes need the Editor
+role; reading needs none beyond membership.
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The

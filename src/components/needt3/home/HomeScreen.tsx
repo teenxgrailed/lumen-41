@@ -37,6 +37,7 @@ import {
   useHabits,
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
+import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -51,6 +52,7 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { FinishCard } from "./FinishCard";
+import { HighlightCard } from "./HighlightCard";
 import {
   Capped,
   EmptyDay,
@@ -88,6 +90,7 @@ import {
   weekTotals,
 } from "./derive";
 import { freeMinutesLeft, pickFinishNext } from "./finish";
+import { highlightMeta, highlightTask } from "./highlight";
 import { useFinishDay } from "./useFinishDay";
 
 /**
@@ -155,7 +158,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   // One rule for every section: it lists open tasks (plus a row still playing
   // its exit) and a section with nothing open is not drawn at all.
-  const shown = (t: V3Task) => !t.done || !!leaving[t.id];
+  // The day's highlight has its own card at the top, so it is lifted out of
+  // the lists and Next up while it is open.
+  const highlight = useHighlight(today);
+  const setHighlight = useSetHighlight(today);
+  const hlTask = highlightTask(allTasks, highlight.data?.taskId);
+  const hlOpenId = hlTask && !hlTask.done ? hlTask.id : null;
+  const shown = (t: V3Task) =>
+    (!t.done || !!leaving[t.id]) && t.id !== hlOpenId;
   const lateOpen = late.filter((t) => !leaving[t.id]);
   const dayOpen = day.filter((t) => !t.done && !leaving[t.id]);
   const stats = dayStats(day);
@@ -168,7 +178,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const lateShown = late.filter(shown);
   const inboxShown = inbox.filter(shown);
 
-  const pick = pickNextUp(lateOpen, dayOpen, skipped);
+  const pick = pickNextUp(
+    lateOpen.filter((t) => t.id !== hlOpenId),
+    dayOpen.filter((t) => t.id !== hlOpenId),
+    skipped
+  );
   const canPlan = allTasks.some((t) => !t.done && !t.isFixed);
   // unknown (loading / failed) is neither Pro nor Free: nothing Pro-only is
   // unlocked and nothing is upsold until the plan is known
@@ -392,7 +406,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     <Fold
       title="Overdue"
       tone="late"
-      count={late.length}
+      count={lateShown.length}
       open={!fold.late}
       onToggle={flip("late")}
       note="These were due before today — move them or let them go."
@@ -477,6 +491,18 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
+          {hlTask ? (
+            <HighlightCard
+              id={hlTask.id}
+              title={hlTask.title}
+              meta={highlightMeta(hlTask, today)}
+              done={hlTask.done}
+              onComplete={() => check(hlTask)}
+              onFocus={() => void startFocusOn(hlTask)}
+              onClear={() => void setHighlight.set(null)}
+              onOpen={() => open(hlTask.id)}
+            />
+          ) : null}
           {closedDay ? (
             <FinishCard
               count={day.length}

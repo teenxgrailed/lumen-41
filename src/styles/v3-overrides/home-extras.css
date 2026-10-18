@@ -268,3 +268,74 @@
     transition: transform 120ms ease;
   }
 }
+
+/* Today's highlight: one task, big, at the top of Home. */
+.needt-v3 .hl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 14px 16px 14px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+}
+.needt-v3 .hd-scroll > .hl-card {
+  margin: 6px 4px 8px 26px;
+}
+.needt-v3 .hl-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.needt-v3 .hl-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .hl-clear {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.needt-v3 .hl-clear:hover {
+  color: var(--text-secondary);
+}
+.needt-v3 .hl-title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: 600 20px/26px var(--font-sans);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.needt-v3 .hl-meta {
+  margin: 0;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .hl-acts {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.needt-v3 .hl-card.is-done .hl-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.needt-v3 .pov-delete-row {
+  gap: 8px;
+}
