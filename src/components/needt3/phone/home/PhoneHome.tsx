@@ -40,6 +40,7 @@ import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
 import { HighlightSuggest } from "../../home/HighlightSuggest";
+import { ReviewCard, ReviewSheet } from "../../home/ReviewSheet";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
@@ -65,6 +66,7 @@ import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
+import { useWeeklyReview } from "../../home/useWeeklyReview";
 import {
   PkButton,
   PkEmpty,
@@ -170,6 +172,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const review = useWeeklyReview({
+    today,
+    late: v.open(v.sec.late),
+    day: v.sec.day,
+    stats: stats.week,
+  });
   const suggest = useHighlightSuggest({
     tasks: all,
     today,
@@ -397,6 +405,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
       {ready ? <DayLine text={line} /> : null}
+      {ready && review.show ? (
+        <ReviewCard phone onStart={review.start} onLater={review.later} />
+      ) : null}
       {ready && nudge.show ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
@@ -591,6 +602,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
       <ShutdownSheet phone open={finish.open} {...finish.sheet} />
+      <ReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone
         open={stats.open}

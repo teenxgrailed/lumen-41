@@ -81,6 +81,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { ReviewCard, ReviewSheet } from "./ReviewSheet";
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
@@ -112,6 +113,7 @@ import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
 import { useHighlightSuggest } from "./useHighlightSuggest";
 import { useHomeStats } from "./useHomeStats";
+import { useWeeklyReview } from "./useWeeklyReview";
 
 /**
  * HOME ($P/HomeToday.jsx). The day on the Tasks layout: a header with the
@@ -329,6 +331,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   };
   const streak = dayStreak(allTasks, today);
   const homeStats = useHomeStats(allTasks.filter((t) => t.done).length);
+  const review = useWeeklyReview({
+    today,
+    late: lateOpen,
+    day,
+    stats: homeStats.week,
+  });
 
   const clearTimers = useCallback(
     (id: string) => {
@@ -584,6 +592,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
           <DayLine text={line} />
+          {review.show ? (
+            <ReviewCard onStart={review.start} onLater={review.later} />
+          ) : null}
           {nudge.show ? (
             <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
           ) : null}
@@ -826,6 +837,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         </div>
       </StScreen>
       <ShutdownSheet open={finish.open} {...finish.sheet} />
+      <ReviewSheet open={review.open} {...review.sheet} />
       <StatsSheet
         open={homeStats.open}
         onClose={homeStats.close}

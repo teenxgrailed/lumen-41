@@ -401,6 +401,17 @@ Temperatures are whole degrees Celsius; `code` is the WMO weather code.
 Home draws this next to the day's first event ("First event at 10:00, leave by
 09:40" when that event has a location, otherwise just the time).
 
+## Weekly review
+
+On Sundays Home offers a short review: the week's wins (from `/api/stats`),
+leftovers to move to Monday, a date or the Inbox, and three focuses for next
+week. Saving it creates a private page titled `Weekly review · 18 October 2026`
+(the Sunday's date) with the sections *Wins*, *Moved* and *Focus for next week*,
+written through `POST /api/pages` and `POST /api/pages/:id/append`. It is an
+ordinary page, so it is readable and writable through the pages API and the MCP
+page tools like any other; find it by title with `GET /api/pages?q=Weekly review`.
+Home shows the offer once per Sunday while no page with that title exists.
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The
