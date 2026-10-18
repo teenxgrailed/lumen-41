@@ -14,6 +14,7 @@ import {
   liveHabits,
 } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
+import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
@@ -22,6 +23,8 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
+import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
@@ -31,15 +34,18 @@ import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
+import { BriefCard } from "../../home/BriefCard";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
+import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
 import {
   capacityFrom,
   dayStreak,
   hourAt,
+  proFromPlan,
   scheduleItems,
 } from "../../home/derive";
 import {
@@ -144,6 +150,34 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const plan = usePlan();
+  const pro = proFromPlan(plan.data?.kind);
+  const aiAvailable = useAiAvailable();
+  const morning = isMorning(nowHour);
+  const calendarItems = scheduleItems([], events.data ?? [], today);
+  const briefFacts = briefFactsOf({
+    late: v.open(v.sec.late),
+    day: v.sec.day,
+    freeMinutes: freeMinutesLeft(
+      capacityFrom(prefs),
+      today,
+      nowHour,
+      calendarItems
+    ),
+    schedule: calendarItems,
+    nowHour,
+  });
+  const morningBrief = useMorningBrief({
+    day: today,
+    show: pro === true && morning,
+    ask: shouldAskBrief({
+      pro,
+      morning,
+      aiAvailable: aiAvailable.data,
+      facts: briefFacts,
+    }),
+    facts: briefFacts,
+  });
   const finishPicks = v.dayClosed
     ? pickFinishNext(
         all,
@@ -317,6 +351,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
+      {ready && morningBrief.brief ? (
+        <BriefCard
+          text={morningBrief.brief.text}
+          onDismiss={morningBrief.dismiss}
+        />
+      ) : null}
       {ready && hlTask ? (
         <HighlightCard
           phone

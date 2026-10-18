@@ -135,6 +135,7 @@ model User {
   scheduledBlocks        ScheduledBlock[]
   focusSessions          FocusSession[]
   dailyHighlights        DailyHighlight[]
+  morningBriefs          MorningBrief[]
   focusStats             FocusStats?
   tasks                  Task[]
   projects               Project[]
@@ -1175,6 +1176,22 @@ model DailyHighlight {
 
   @@unique([userId, workspaceId, date])
   @@index([taskId])
+}
+
+/// The morning brief Ask wrote for a person's day (Pro): 2-3 lines, generated
+/// at most once per user and day, cached here, dismissible. `text` is empty
+/// only while the one generation for that day is running.
+model MorningBrief {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String
+  text        String
+  dismissedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, date])
 }
 
 model FocusStats {

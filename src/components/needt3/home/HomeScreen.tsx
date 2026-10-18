@@ -28,6 +28,7 @@ import {
   moveDay,
   project,
 } from "@/lib/needt3/derive";
+import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
@@ -38,6 +39,7 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
+import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -51,6 +53,7 @@ import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { BriefCard } from "./BriefCard";
 import { FinishCard } from "./FinishCard";
 import { HighlightCard } from "./HighlightCard";
 import {
@@ -74,6 +77,7 @@ import {
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
+import { briefFactsOf, isMorning, shouldAskBrief } from "./brief";
 import {
   capacityFrom,
   dayState,
@@ -227,6 +231,32 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         .filter((p) => p.task.id !== pick?.task.id)
         .slice(0, 3)
     : [];
+  // Pro's morning brief: asked for once, in the morning, only when AI can answer
+  const aiAvailable = useAiAvailable();
+  const morning = isMorning(nowHour);
+  const briefFacts = briefFactsOf({
+    late: lateOpen,
+    day,
+    freeMinutes: freeMinutesLeft(
+      cap,
+      today,
+      nowHour,
+      sched.filter((x) => x.event)
+    ),
+    schedule: sched,
+    nowHour,
+  });
+  const morningBrief = useMorningBrief({
+    day: today,
+    show: pro === true && morning,
+    ask: shouldAskBrief({
+      pro,
+      morning,
+      aiAvailable: aiAvailable.data,
+      facts: briefFacts,
+    }),
+    facts: briefFacts,
+  });
   const hueOf = (id: string | null) =>
     project(id, projects.data ?? [])?.color ?? "var(--text-muted)";
 
@@ -494,6 +524,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
+          {morningBrief.brief ? (
+            <BriefCard
+              text={morningBrief.brief.text}
+              onDismiss={morningBrief.dismiss}
+            />
+          ) : null}
           {hlTask ? (
             <HighlightCard
               id={hlTask.id}
