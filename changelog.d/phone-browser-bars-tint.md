@@ -1,0 +1,1 @@
+- In Safari, the bars above and below the phone screen take the colour that is under each edge of the current screen, including while a sheet or the search plate is open.
