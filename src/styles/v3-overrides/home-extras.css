@@ -520,9 +520,6 @@
 .needt-v3 .br-dismiss:hover {
   color: var(--text-secondary);
 }
-.needt-v3 .hd-sched-band {
-  margin: 0 0 6px;
-}
 
 /* The End day nudge: one quiet line near the end of the working day. */
 .needt-v3 .nd-card {
@@ -639,4 +636,15 @@
 }
 .needt-v3 .city-field::placeholder {
   color: var(--text-muted);
+}
+
+/* Weekly review: the three focus fields fill the row. */
+.needt-v3 .city-field.rv-focus {
+  width: 100%;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
+.needt-v3 .hd-sched-band {
+  margin: 0 0 6px;
 }

@@ -23,6 +23,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
+import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -40,6 +41,7 @@ import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
 import { HighlightSuggest } from "../../home/HighlightSuggest";
+import { ReviewCard, ReviewSheet } from "../../home/ReviewSheet";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
@@ -56,15 +58,18 @@ import {
 import {
   finishHeadline,
   freeMinutesLeft,
+  hourOfClock,
   pickFinishNext,
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
 import { suggestMeta } from "../../home/suggest";
-import { minutesAhead, timeLeft } from "../../home/timeleft";
+import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
+import { useWeeklyReview } from "../../home/useWeeklyReview";
+import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
   PkEmpty,
@@ -170,6 +175,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const review = useWeeklyReview({
+    today,
+    late: v.open(v.sec.late),
+    day: v.sec.day,
+    stats: stats.week,
+  });
   const suggest = useHighlightSuggest({
     tasks: all,
     today,
@@ -179,9 +190,15 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     accept: (id) => void setHighlight.set(id),
   });
   const calendarItems = scheduleItems([], events.data ?? [], today);
-  // //todo: pass the minutes of personal blocks as `blocked` once they land
+  const personal = usePersonalDay(today);
+  const workCap = capacityFrom(prefs);
   const left = timeLeft({
-    capacity: freeMinutesLeft(capacityFrom(prefs), today, nowHour, []),
+    capacity: freeMinutesLeft(workCap, today, nowHour, []),
+    blocked: blockedMinutes(
+      personal,
+      Math.max(nowHour, hourOfClock(workCap.start)),
+      hourOfClock(workCap.end)
+    ),
     eventsAhead: minutesAhead(
       calendarItems.filter((x) => x.event),
       nowHour
@@ -397,6 +414,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
       {ready ? <DayLine text={line} /> : null}
+      {ready && review.show ? (
+        <ReviewCard phone onStart={review.start} onLater={review.later} />
+      ) : null}
       {ready && nudge.show ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
@@ -509,6 +529,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       ) : null}
 
       {ready ? <TimeLeftBar left={left} /> : null}
+      {ready ? <PersonalDayBands date={today} /> : null}
 
       {ready && v.empty ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
@@ -591,6 +612,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
       <ShutdownSheet phone open={finish.open} {...finish.sheet} />
+      <ReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone
         open={stats.open}

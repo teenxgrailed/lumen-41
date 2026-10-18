@@ -33,6 +33,30 @@ export function minutesAhead(
 }
 
 /**
+ * Minutes of personal time (lunch, a walk) that fall inside the working time
+ * still left, `[from, to)` in decimal hours. Time outside work takes nothing
+ * from it; overlapping blocks are counted once.
+ */
+export function blockedMinutes(
+  bands: readonly { from: number; to: number }[],
+  from: number,
+  to: number
+) {
+  const spans = bands
+    .map((b) => [Math.max(b.from, from), Math.min(b.to, to)] as const)
+    .filter(([a, z]) => z > a)
+    .sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let cursor = -Infinity;
+  for (const [a, z] of spans) {
+    const start = Math.max(a, cursor);
+    if (z > start) total += z - start;
+    cursor = Math.max(cursor, z);
+  }
+  return Math.round(total * 60);
+}
+
+/**
  * `capacity` = working minutes left (`freeMinutesLeft` without the events),
  * `blocked` = minutes taken by protected personal blocks. Null when there is
  * nothing to say: a day off, work over, or nothing planned.

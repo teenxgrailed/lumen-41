@@ -6,7 +6,12 @@ import { act, createElement as h } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
 import { TimeLeftBar } from "../TimeLeftBar";
-import { minutesAhead, timeLeft, timeLeftLine } from "../timeleft";
+import {
+  blockedMinutes,
+  minutesAhead,
+  timeLeft,
+  timeLeftLine,
+} from "../timeleft";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -21,6 +26,28 @@ describe("minutesAhead", () => {
     ];
     expect(minutesAhead(items, 10.5)).toBe(60);
     expect(minutesAhead(items, 15)).toBe(0);
+  });
+});
+
+describe("blockedMinutes", () => {
+  it("counts personal time inside the working time left, once", () => {
+    const lunch = { from: 12, to: 13 };
+    expect(blockedMinutes([lunch], 10, 17)).toBe(60);
+    // already half over
+    expect(blockedMinutes([lunch], 12.5, 17)).toBe(30);
+    // outside work takes nothing
+    expect(
+      blockedMinutes(
+        [
+          { from: 18, to: 19 },
+          { from: 6, to: 8 },
+        ],
+        9,
+        17
+      )
+    ).toBe(0);
+    // overlapping blocks are not counted twice
+    expect(blockedMinutes([lunch, { from: 12.5, to: 13.5 }], 10, 17)).toBe(90);
   });
 });
 
