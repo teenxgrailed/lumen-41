@@ -520,3 +520,6 @@
 .needt-v3 .br-dismiss:hover {
   color: var(--text-secondary);
 }
+.needt-v3 .hd-sched-band {
+  margin: 0 0 6px;
+}
