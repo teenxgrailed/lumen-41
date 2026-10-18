@@ -501,6 +501,8 @@ export const PREF_DEFAULTS = {
   /** Stored inverted, as in the prototype: true = the logo stays still. */
   stopMark: false,
   links: "ask",
+  /** Home's weather line; empty = no line. */
+  city: "",
   offline: true,
   usage: true,
 } as const;

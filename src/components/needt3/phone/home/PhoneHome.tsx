@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { LuCheck, LuTarget } from "react-icons/lu";
 
+import { readPref } from "@/components/needt3/settings/derive";
+
 import { clock, durLabel } from "@/lib/needt3/day";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
@@ -26,12 +28,14 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import { useWeather } from "@/lib/needt3/hooks/weather";
 import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { BriefCard } from "../../home/BriefCard";
+import { DayLine } from "../../home/DayLine";
 import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
@@ -41,6 +45,7 @@ import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
 import { TimeLeftBar } from "../../home/TimeLeftBar";
 import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
+import { dayLine, firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
   dayStreak,
@@ -182,6 +187,13 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       nowHour
     ),
     openTasks: v.open(v.sec.day),
+  });
+  const city = readPref(useSettings().data?.prefs, "city");
+  const weather = useWeather(city);
+  const line = dayLine({
+    city,
+    weather: weather.data,
+    first: firstEvent(events.data ?? [], today, nowHour),
   });
   const nudge = useEndDayNudge({
     today,
@@ -384,6 +396,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
+      {ready ? <DayLine text={line} /> : null}
       {ready && nudge.show ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}

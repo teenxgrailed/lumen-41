@@ -379,6 +379,28 @@ PATCH /api/ai/morning-brief   { "date": "2026-10-19", "dismissed": true }
   optional `nextEvent` `{ title, at: "HH:MM" }`. Limited to 6 requests a minute.
 - `PATCH` only dismisses.
 
+## Weather
+
+```
+GET /api/weather
+```
+
+Today's weather for the **City** saved in Settings (General; stored as
+`prefs.city` on the user's settings). With no city saved the answer is
+`{ "weather": null }` and nothing is asked of anyone. Otherwise the server asks
+[Open-Meteo](https://open-meteo.com) (free, no key): the city is geocoded once
+(kept for 30 days) and the forecast is cached for one hour. Only the city name
+is sent to Open-Meteo; no device location is read or sent.
+
+```json
+{ "weather": { "city": "Kyiv", "temp": 14, "min": 9, "max": 17, "code": 2, "summary": "Partly cloudy" } }
+```
+
+Temperatures are whole degrees Celsius; `code` is the WMO weather code.
+`weather` is also `null` when the city is unknown or Open-Meteo is down.
+Home draws this next to the day's first event ("First event at 10:00, leave by
+09:40" when that event has a location, otherwise just the time).
+
 ## Imports
 
 Bring projects, tasks and pages in from another tool: Todoist and Notion. The
