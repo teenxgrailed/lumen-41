@@ -33,6 +33,7 @@ import { BriefCard } from "../../home/BriefCard";
 import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
+import { HighlightSuggest } from "../../home/HighlightSuggest";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
@@ -50,8 +51,10 @@ import {
   pickFinishNext,
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
+import { suggestMeta } from "../../home/suggest";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
+import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
 import {
   PkButton,
@@ -147,6 +150,14 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const suggest = useHighlightSuggest({
+    tasks: all,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
+  });
   const nudge = useEndDayNudge({
     today,
     nowHour,
@@ -372,6 +383,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           onFocus={() => void startFocus(hlTask)}
           onClear={() => void setHighlight.set(null)}
           onOpen={() => openTask(hlTask)}
+        />
+      ) : null}
+      {ready && suggest.pick ? (
+        <HighlightSuggest
+          phone
+          title={suggest.pick.title}
+          meta={suggestMeta(suggest.pick)}
+          canCycle={suggest.canCycle}
+          onAccept={suggest.accept}
+          onAnother={suggest.another}
+          onDismiss={suggest.dismiss}
         />
       ) : null}
       {ready && nu ? (
