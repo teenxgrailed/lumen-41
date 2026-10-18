@@ -523,3 +523,24 @@
 .needt-v3 .hd-sched-band {
   margin: 0 0 6px;
 }
+
+/* The End day nudge: one quiet line near the end of the working day. */
+.needt-v3 .nd-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  background: var(--fill-2);
+}
+.needt-v3 .hd-scroll > .nd-card {
+  margin: 6px 4px 8px 26px;
+}
+.needt-v3 .nd-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
