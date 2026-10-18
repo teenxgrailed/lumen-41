@@ -420,6 +420,39 @@ describe("Home", () => {
     expect(qa("[data-hl-card]")).toHaveLength(0);
   });
 
+  it("a small This week card sits at the bottom and opens the stats", async () => {
+    const days = Array.from({ length: 7 }, (_, i) => ({
+      date: `2026-08-${27 + i > 31 ? "0" + (27 + i - 31) : 27 + i}`,
+      done: i === 3 ? 4 : 0,
+      focusMinutes: 0,
+    }));
+    client.setQueryData([...qk.stats("week"), 1], {
+      range: "week",
+      from: days[0]?.date,
+      to: days[6]?.date,
+      timeZone: "UTC",
+      total: 4,
+      days,
+      bestDay: days[3]?.date,
+      byProject: [],
+      byWeekday: [],
+      bestWeekday: null,
+      focusMinutes: null,
+      focusSessions: 0,
+    });
+    mount(PhoneHome);
+    expect(q("[data-st-total]").getAttribute("data-st-total")).toBe("4");
+    expect(qa("[data-st-bar]")).toHaveLength(7);
+    click(q("[data-st-card]"));
+    await flush();
+    expect(qa('[data-st-range="month"]')).toHaveLength(1);
+  });
+
+  it("draws no stats card before there is anything to show", () => {
+    mount(PhoneHome);
+    expect(qa("[data-st-card]")).toHaveLength(0);
+  });
+
   it("loading and error come in the body, under the screen's own header", () => {
     client.removeQueries({ queryKey: qk.tasks({}) });
     mount(PhoneHome);

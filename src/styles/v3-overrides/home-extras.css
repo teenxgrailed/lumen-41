@@ -339,3 +339,131 @@
 .needt-v3 .pov-delete-row {
   gap: 8px;
 }
+
+/* Stats: the small "This week" card and the full view. */
+.needt-v3 .st-card-btn {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.needt-v3 .st-card-row {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.needt-v3 .st-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+  flex: none;
+}
+.needt-v3 .st-bar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  width: 6px;
+  height: 100%;
+}
+.needt-v3 .st-bar-fill {
+  display: block;
+  min-height: 2px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 22%, transparent);
+}
+.needt-v3 .st-bar.is-best .st-bar-fill {
+  background: var(--text-primary);
+}
+.needt-v3 .st-bar-label {
+  display: none;
+}
+.needt-v3 .st-full .st-bars {
+  width: 100%;
+  height: 72px;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.needt-v3 .st-full .st-bar {
+  flex: 1;
+  width: auto;
+}
+.needt-v3 .st-full .st-bar-label {
+  display: block;
+  position: absolute;
+  bottom: -16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .st-full {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 2px 2px 8px;
+}
+.needt-v3 .st-full-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.needt-v3 .st-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .st-note,
+.needt-v3 .st-focus {
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .st-projects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .st-project {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 24px;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+}
+.needt-v3 .st-project-name {
+  font: var(--type-ui);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .st-project-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 10%, transparent);
+  overflow: hidden;
+}
+.needt-v3 .st-project-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--text-primary) 45%, transparent);
+}
