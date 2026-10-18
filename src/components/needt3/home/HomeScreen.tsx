@@ -73,6 +73,7 @@ import {
 } from "./HomeParts";
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
+import { StatsCard, StatsSheet } from "./Stats";
 import {
   capacityFrom,
   dayState,
@@ -92,6 +93,7 @@ import {
 import { freeMinutesLeft, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
 import { useFinishDay } from "./useFinishDay";
+import { useHomeStats } from "./useHomeStats";
 
 /**
  * HOME ($P/HomeToday.jsx). The day on the Tasks layout: a header with the
@@ -244,6 +246,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     if (id) router.push(`/pages/${id}`);
   };
   const streak = dayStreak(allTasks, today);
+  const homeStats = useHomeStats(allTasks.filter((t) => t.done).length);
 
   const clearTimers = useCallback(
     (id: string) => {
@@ -557,7 +560,15 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     closed={closedDay}
                     empty={stats.total === 0}
                   />
-                  <StreakCard n={streak.n} todayClosed={streak.todayClosed} />
+                  {homeStats.week || !homeStats.failed ? (
+                    <StatsCard
+                      stats={homeStats.week}
+                      streak={streak.n}
+                      onOpen={homeStats.show}
+                    />
+                  ) : (
+                    <StreakCard n={streak.n} todayClosed={streak.todayClosed} />
+                  )}
                   <HabitsCard chips={chips} onToggle={onHabit} />
                 </>
               )}
@@ -705,6 +716,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         </div>
       </StScreen>
       <ShutdownSheet open={finish.open} {...finish.sheet} />
+      <StatsSheet
+        open={homeStats.open}
+        onClose={homeStats.close}
+        {...homeStats.sheet}
+      />
     </div>
   );
 }

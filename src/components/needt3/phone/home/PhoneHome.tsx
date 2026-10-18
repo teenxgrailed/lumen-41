@@ -35,7 +35,13 @@ import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
-import { capacityFrom, hourAt, scheduleItems } from "../../home/derive";
+import { StatsCard, StatsSheet } from "../../home/Stats";
+import {
+  capacityFrom,
+  dayStreak,
+  hourAt,
+  scheduleItems,
+} from "../../home/derive";
 import {
   finishHeadline,
   freeMinutesLeft,
@@ -43,6 +49,7 @@ import {
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
 import { useFinishDay } from "../../home/useFinishDay";
+import { useHomeStats } from "../../home/useHomeStats";
 import {
   PkButton,
   PkEmpty,
@@ -112,6 +119,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const all = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
 
   const taskView = useTaskView();
+  const stats = useHomeStats(all.filter((t) => t.done).length);
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -484,6 +492,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
+          <StatsCard
+            stats={stats.week}
+            streak={dayStreak(all, today).n}
+            onOpen={stats.show}
+          />
           <button
             type="button"
             className="v2p-notes v2p-notes-btn"
@@ -498,6 +511,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
       <ShutdownSheet phone open={finish.open} {...finish.sheet} />
+      <StatsSheet
+        phone
+        open={stats.open}
+        onClose={stats.close}
+        {...stats.sheet}
+      />
     </PkScreen>
   );
 }
