@@ -127,6 +127,7 @@ function buildPlan(userId, workspaceId) {
     ["FocusStats", "focusStats", uid],
     ["DailyAgenda", "dailyAgenda", uid],
     ["ClosedDay", "closedDay", uid],
+    ["PersonalBlock", "personalBlock", uid],
     ["WeeklyFocusTarget", "weeklyFocusTarget", wsOnly],
     ["IdempotencyRecord", "idempotencyRecord", uid],
 

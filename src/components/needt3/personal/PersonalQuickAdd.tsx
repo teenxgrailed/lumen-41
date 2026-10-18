@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
 import { useQuickPersonal } from "@/lib/needt3/hooks/personal";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -39,7 +41,7 @@ export function PersonalQuickAdd({
       className={`pb-quick${className ? ` ${className}` : ""}`}
       data-personal-quick={date}
     >
-      <span className="pb-quick-label">{label}</span>
+      {label ? <span className="pb-quick-label">{label}</span> : null}
       {PERSONAL_PRESETS.map((preset) => (
         <button
           key={preset.kind}
@@ -60,8 +62,9 @@ export function PersonalQuickAdd({
 }
 
 /**
- * The reusable block for a day: its personal time as quiet rows, and the
- * presets under them. Home's day mounts this with its own date.
+ * The reusable block for a day: its personal time as quiet rows, and a quiet
+ * "Keep time for you" that opens the presets. Home's day mounts this with its
+ * own date. When the day has no personal time, only that link is drawn.
  */
 export function PersonalDay({
   date,
@@ -70,9 +73,10 @@ export function PersonalDay({
 }: {
   date: string;
   className?: string;
-  /** Show the one-tap presets under the rows. */
+  /** Offer the one-tap presets under the rows. */
   quick?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <section
       className={`pb-section${className ? ` ${className}` : ""}`}
@@ -80,7 +84,20 @@ export function PersonalDay({
       data-personal-section={date}
     >
       <PersonalDayBands date={date} />
-      {quick ? <PersonalQuickAdd date={date} /> : null}
+      {quick ? (
+        <>
+          <button
+            type="button"
+            className="nx-btn nx-btn-text nx-btn-sm pb-keep"
+            aria-expanded={open}
+            data-pb-keep=""
+            onClick={() => setOpen((on) => !on)}
+          >
+            Keep time for you
+          </button>
+          {open ? <PersonalQuickAdd date={date} label="" /> : null}
+        </>
+      ) : null}
     </section>
   );
 }
