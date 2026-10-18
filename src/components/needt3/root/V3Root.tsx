@@ -39,6 +39,7 @@ import { PaywallHost } from "../paywall/PaywallHost";
 import { V3Shell } from "../shell/V3Shell";
 import { PwaBridge } from "./PwaBridge";
 import { PhoneUiProvider, useResolvedPhoneUi } from "./phone-ui-context";
+import { usePhoneEdgeTint } from "./usePhoneEdgeTint";
 
 /**
  * True inside the v3 frame. The layout decides once per request on the server
@@ -185,6 +186,15 @@ export function V3Root({
       body.style.backgroundColor = before[2];
     };
   }, [barColor, resolved.side]);
+
+  // Safari 26 tints its bars from theme-color and html: on the phone, from the
+  // colour under each edge of the current screen (after the two effects above,
+  // so it wins over them).
+  usePhoneEdgeTint(
+    scopeRef,
+    ui === "phone",
+    `${barColor}|${resolved.side}|${theme}`
+  );
 
   // The browser's copy of the look: the next first byte (and generateViewport)
   // start from how this one resolved.
