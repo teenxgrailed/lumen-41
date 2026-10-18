@@ -2,13 +2,15 @@
  * HAND-WRITTEN, not vendored. A stretch the person keeps for themselves must
  * read as theirs, not as a task: no card, no border, no shadow, full width,
  * and a tint rather than a fill. The four rules hold: every grey is the text
- * colour at a ladder alpha, the type is 12px, and the accent is never used
- * (the tints are the palette's amber and green, and the text colour, at low
- * alpha). */
+ * colour at a ladder alpha, the type is 12px and 13px, and the accent is never
+ * used (the tints are the palette's amber and green washes, and the text
+ * colour, all on the fill ladder). */
 
 .needt-v3 .pb-band {
-  --pb-rgb: var(--foreground-rgb);
-  --pb-wash: 0.05;
+  /* fills on the ladder (2/3/4/6/8/12): the text colour for neutral, the
+     palette's own 12% washes for amber and green */
+  --pb-bg: var(--fill-4);
+  --pb-bg-hover: var(--fill-5);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -16,25 +18,26 @@
   min-width: 0;
   overflow: hidden;
   padding: 0 10px;
-  background: rgba(var(--pb-rgb), var(--pb-wash));
+  background: var(--pb-bg);
   color: var(--text-quaternary);
   font-size: 12px;
   line-height: 16px;
   user-select: none;
 }
 .needt-v3 .pb-band[data-tone="info"] {
-  --pb-rgb: var(--info-rgb);
-  --pb-wash: 0.1;
+  --pb-bg: var(--fill-info);
+  --pb-bg-hover: var(--fill-info);
 }
 .needt-v3 .pb-band[data-tone="success"] {
-  --pb-rgb: var(--success-rgb);
-  --pb-wash: 0.09;
+  --pb-bg: var(--fill-success);
+  --pb-bg-hover: var(--fill-success);
 }
 .needt-v3 .pb-band[role="button"] {
   cursor: pointer;
 }
 .needt-v3 .pb-band[role="button"]:hover {
-  --pb-wash: 0.1;
+  background: var(--pb-bg-hover);
+  color: var(--text-tertiary);
 }
 .needt-v3 .pb-band[role="button"]:focus-visible {
   outline: none;
@@ -252,6 +255,6 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
 }
