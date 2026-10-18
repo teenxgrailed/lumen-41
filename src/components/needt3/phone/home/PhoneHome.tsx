@@ -30,6 +30,7 @@ import { todayLine } from "@/lib/needt3/today";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { BriefCard } from "../../home/BriefCard";
+import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
 import { HighlightCard } from "../../home/HighlightCard";
 import { SampleBanner } from "../../home/SampleBanner";
@@ -49,6 +50,7 @@ import {
   pickFinishNext,
 } from "../../home/finish";
 import { highlightMeta, highlightTask } from "../../home/highlight";
+import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHomeStats } from "../../home/useHomeStats";
 import {
@@ -145,6 +147,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
   };
+  const nudge = useEndDayNudge({
+    today,
+    nowHour,
+    hidden: v.dayClosed || finish.open,
+  });
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
   const aiAvailable = useAiAvailable();
@@ -342,6 +349,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
+      {ready && nudge.show ? (
+        <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
+      ) : null}
       {ready && morningBrief.brief ? (
         <BriefCard
           text={morningBrief.brief.text}

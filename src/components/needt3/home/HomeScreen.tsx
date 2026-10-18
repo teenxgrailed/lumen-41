@@ -54,6 +54,7 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { BriefCard } from "./BriefCard";
+import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
 import { HighlightCard } from "./HighlightCard";
 import {
@@ -96,6 +97,7 @@ import {
 } from "./derive";
 import { freeMinutesLeft, pickFinishNext } from "./finish";
 import { highlightMeta, highlightTask } from "./highlight";
+import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
 import { useHomeStats } from "./useHomeStats";
 
@@ -256,6 +258,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       facts: briefFacts,
     }),
     facts: briefFacts,
+  });
+  const nudge = useEndDayNudge({
+    today,
+    nowHour,
+    hidden: closedDay || finish.open,
   });
   const hueOf = (id: string | null) =>
     project(id, projects.data ?? [])?.color ?? "var(--text-muted)";
@@ -493,6 +500,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               sub: "A page for anything",
               onClick: () => void newDoc(),
             },
+            { sep: true },
+            {
+              art: "task",
+              title: "End day",
+              sub: "Wrap up, move what is left, leave a note",
+              onClick: finish.show,
+            },
           ]}
         />
         <div className="hd-titlebox">
@@ -524,6 +538,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
+          {nudge.show ? (
+            <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
+          ) : null}
           {morningBrief.brief ? (
             <BriefCard
               text={morningBrief.brief.text}
