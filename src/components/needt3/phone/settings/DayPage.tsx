@@ -16,6 +16,7 @@ import { zoneOptions } from "../../settings/DaySection";
 import { useMark } from "../../settings/SettingsContext";
 import { minutes, planningSummary, plansWeekends } from "../../settings/derive";
 import { pkCx } from "../kit";
+import { PhonePersonalDefaults } from "./PersonalDefaults";
 import { WeekRows } from "./WeekRows";
 import { CLOCK_OPTIONS, VIEW_OPTIONS, WEEK_OPTIONS } from "./model";
 import { PsGroup, PsPick, PsRow, PsSeg, PsSwitch } from "./parts";
@@ -90,6 +91,7 @@ export function DayPage() {
           onChange={(v) => save({ timeZone: v })}
         />
       </PsGroup>
+      <PhonePersonalDefaults />
       <PsGroup
         title="Calendar"
         hint="Week shows the grid; Agenda lists each day's events and tasks in order."

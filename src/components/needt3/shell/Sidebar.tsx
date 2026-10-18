@@ -33,6 +33,7 @@ import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useMail } from "@/lib/needt3/hooks/mail";
+import { useQuickPersonal } from "@/lib/needt3/hooks/personal";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
@@ -49,6 +50,7 @@ import { useFocusRun } from "../focus/useFocusController";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { PromoCard } from "../paywall";
+import { personalMenuItems } from "../personal/menu-items";
 import { AccountMenu } from "./AccountMenu";
 import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
@@ -615,6 +617,7 @@ export function Sidebar() {
   const tasks = useTasks();
   const docs = useDocs();
   const createDoc = useCreateDoc();
+  const keepPersonal = useQuickPersonal();
   const updateDoc = useUpdateDoc();
   const projects = useProjects();
   const connections = useConnections();
@@ -1065,6 +1068,7 @@ export function Sidebar() {
                   onClick: () =>
                     router.push(newHref("/moodboards", "moodboard")),
                 },
+                ...personalMenuItems((preset) => void keepPersonal(preset)),
               ]}
             />
           </span>

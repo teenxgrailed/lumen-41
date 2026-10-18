@@ -1,18 +1,20 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { LuPlus } from "react-icons/lu";
 
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
+import { useDeletePersonal } from "@/lib/needt3/hooks/personal";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
+import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import {
@@ -21,6 +23,8 @@ import {
   calendarItems,
 } from "../../calendar/blocks";
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
+import { PersonalDayBands } from "../../personal/PersonalBand";
+import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
 import { usePhoneClock } from "../home/clock";
 import { PhoneState, hasContent } from "../home/parts";
 import { useTaskPull } from "../home/pull";
@@ -29,6 +33,7 @@ import {
   PkEmpty,
   PkScreen,
   PkSection,
+  PkSheet,
   PkSkyPlate,
   pkCx,
 } from "../kit";
@@ -79,6 +84,13 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
   const { view, setView, picked, setPicked, fold, flip } = ctl;
   const day = picked ?? today;
+  /* Personal time: the day's rows, a tapped one's sheet, the presets. */
+  const [band, setBand] = useState<DayBand | null>(null);
+  const heldBand = useRef<DayBand | null>(null);
+  if (band) heldBand.current = band;
+  const shownBand = band ?? heldBand.current;
+  const [keeping, setKeeping] = useState(false);
+  const removePersonal = useDeletePersonal();
 
   const tasksQuery = useTasks();
   const range = visibleRange(day, startDay);
@@ -277,7 +289,20 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
         >
           Event
         </PkButton>
+        <PkButton
+          kind="inline"
+          onClick={() => setKeeping((on) => !on)}
+          aria-expanded={keeping}
+          aria-label="Keep time for you"
+          data-p5-personal=""
+        >
+          Personal
+        </PkButton>
       </span>
+      {keeping ? (
+        <PersonalQuickAdd date={day} label="Kept for you. No task goes there" />
+      ) : null}
+      <PersonalDayBands date={day} onOpen={(b) => setBand(b)} />
     </div>
   );
   const noTime: ReactNode = plan.allDay.length ? (
@@ -439,6 +464,37 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
           )}
         </div>
       ) : null}
+      <PkSheet
+        open={!!band}
+        onClose={() => setBand(null)}
+        title={shownBand ? `${shownBand.emoji} ${shownBand.title}` : ""}
+        meta={shownBand ? bandTimeLabel(shownBand) : null}
+        className="pov-event"
+        footer={
+          <>
+            <PkButton kind="quiet" onClick={() => setBand(null)}>
+              Close
+            </PkButton>
+            <PkButton
+              kind="primary"
+              data-pb-remove=""
+              onClick={() => {
+                const b = shownBand;
+                setBand(null);
+                if (b) void removePersonal({ id: b.blockId, title: b.title });
+              }}
+            >
+              {shownBand?.repeating && !shownBand.linked
+                ? "Remove all"
+                : "Remove"}
+            </PkButton>
+          </>
+        }
+      >
+        <p className="pb-peek-meta">
+          Kept for you. No task is placed here, and it stays in Needt.
+        </p>
+      </PkSheet>
     </PkScreen>
   );
 }

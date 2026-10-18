@@ -61,6 +61,8 @@ export interface PeekProps {
   onDone: (b: CalItem) => void;
   onRename: (b: CalItem, title: string) => void;
   onDelete: (b: CalItem) => void;
+  /** Mark an event (synced or not) as personal time; no task is placed over it. */
+  onPersonal?: (b: CalItem) => void;
   onClose: () => void;
 }
 
@@ -77,6 +79,7 @@ export function Peek({
   onDone,
   onRename,
   onDelete,
+  onPersonal,
   onClose,
 }: PeekProps) {
   const container = useV3PortalContainer();
@@ -162,28 +165,45 @@ export function Peek({
       <div className="c2-peek-acts">
         {b.event ? (
           // only the person's own, non-recurring local event is editable;
-          // synced and recurring events and busy blocks get no actions
-          canEditEvent(b) ? (
-            <>
+          // synced and recurring events and busy blocks get no edit actions.
+          // Any of the person's own events can be marked as personal time.
+          <>
+            {canEditEvent(b) ? (
+              <>
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-secondary nx-btn-sm"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit title
+                </button>
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-text nx-btn-sm"
+                  onClick={() => {
+                    onClose();
+                    onDelete(b);
+                  }}
+                >
+                  Delete
+                </button>
+              </>
+            ) : null}
+            {onPersonal && b.own ? (
               <button
                 type="button"
-                className="nx-btn nx-btn-secondary nx-btn-sm"
-                onClick={() => setEditing(true)}
-              >
-                Edit title
-              </button>
-              <button
-                type="button"
+                data-c2-personal=""
                 className="nx-btn nx-btn-text nx-btn-sm"
+                title="Keep this time for you: no task is placed over it"
                 onClick={() => {
                   onClose();
-                  onDelete(b);
+                  onPersonal(b);
                 }}
               >
-                Delete
+                Personal time
               </button>
-            </>
-          ) : null
+            ) : null}
+          </>
         ) : (
           <>
             <button

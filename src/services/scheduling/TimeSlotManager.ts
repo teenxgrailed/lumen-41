@@ -15,6 +15,7 @@ import {
   setMinutes,
   toZonedTime,
 } from "@/lib/date-utils";
+import { type PersonalOccurrence, overlapsPersonal } from "@/lib/personal-time";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 
@@ -22,6 +23,7 @@ import { useSettingsStore } from "@/store/settings";
 
 import { Conflict, TimeSlot } from "@/types/scheduling";
 
+import { loadPersonalOccurrences } from "../personal-time/service";
 import { CalendarService } from "./CalendarService";
 import { SlotScorer } from "./SlotScorer";
 
@@ -52,6 +54,13 @@ export interface TimeSlotManager {
 export class TimeSlotManagerImpl implements TimeSlotManager {
   private slotScorer: SlotScorer;
   private timeZone: string;
+  /** Personal time (Lunch, Walk...) over the span asked about so far. */
+  private personal: {
+    userId: string;
+    from: number;
+    to: number;
+    occurrences: PersonalOccurrence[];
+  } | null = null;
 
   constructor(
     private settings: AutoScheduleSettings,
@@ -121,8 +130,12 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
     // 2. Filter by work hours
     const workHourSlots = this.filterByWorkHours(potentialSlots);
 
-    // 3. Check calendar conflicts
-    const availableSlots = await this.removeConflicts(workHourSlots, task);
+    // 3. Check calendar conflicts, then personal time: a task is never
+    // placed inside Lunch, a Walk or any other block the person keeps.
+    await this.loadPersonal(userId, effectiveStartDate, endDate);
+    const availableSlots = (
+      await this.removeConflicts(workHourSlots, task)
+    ).filter((slot) => !this.inPersonalTime(slot.start, slot.end));
 
     // 4. Reserve both sides of a task's configured buffer. A task may not be
     // placed when either buffer overlaps a calendar event or another scheduled
@@ -150,6 +163,11 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
     // Check for calendar conflicts
     const conflicts = await this.findCalendarConflicts(slot, userId);
     if (conflicts.length > 0) {
+      return false;
+    }
+
+    await this.loadPersonal(userId, slot.start, slot.end);
+    if (this.inPersonalTime(slot.start, slot.end)) {
       return false;
     }
 
@@ -344,6 +362,34 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
     );
   }
 
+  /** Loads personal time for a span once; a wider ask extends what is held. */
+  private async loadPersonal(userId: string, from: Date, to: Date) {
+    const pad = 24 * 3_600_000;
+    const lo = from.getTime() - pad;
+    const hi = to.getTime() + pad;
+    const held = this.personal;
+    if (held && held.userId === userId && held.from <= lo && held.to >= hi) {
+      return;
+    }
+    const nextFrom =
+      held && held.userId === userId ? Math.min(held.from, lo) : lo;
+    const nextTo = held && held.userId === userId ? Math.max(held.to, hi) : hi;
+    this.personal = {
+      userId,
+      from: nextFrom,
+      to: nextTo,
+      occurrences: await loadPersonalOccurrences(
+        userId,
+        newDate(nextFrom),
+        newDate(nextTo)
+      ),
+    };
+  }
+
+  private inPersonalTime(start: Date, end: Date) {
+    return overlapsPersonal(this.personal?.occurrences ?? [], start, end);
+  }
+
   private async findCalendarConflicts(
     slot: TimeSlot,
     userId: string
@@ -449,6 +495,8 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
       if (!buffer.isWithinWorkHours || this.hasInMemoryConflict(buffer)) {
         return false;
       }
+      await this.loadPersonal(userId, buffer.start, buffer.end);
+      if (this.inPersonalTime(buffer.start, buffer.end)) return false;
 
       if ((await this.findCalendarConflicts(buffer, userId)).length > 0) {
         return false;

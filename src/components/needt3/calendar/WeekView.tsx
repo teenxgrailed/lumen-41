@@ -14,9 +14,13 @@ import {
 } from "react";
 
 import { type ProjectLike, weekday } from "@/lib/needt3/derive";
+import type { PersonalPreset } from "@/lib/personal-time";
+import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
 import type { DragProps } from "../drag/useDrag";
+import { PersonalBand } from "../personal/PersonalBand";
+import { PersonalSlotMenu } from "../personal/PersonalSlotMenu";
 import { Task } from "../task/Task";
 import type { CalItem, CalTimed } from "./blocks";
 import {
@@ -77,13 +81,17 @@ function DraftBlock({
   start,
   onSave,
   onCancel,
+  onPreset,
 }: {
   d: Draft;
   pos: Placed<CalTimed>;
   start: number;
   onSave: (title: string) => void;
   onCancel: () => void;
+  /** One tap on a personal time preset keeps that time instead. */
+  onPreset?: (preset: PersonalPreset) => void;
 }) {
+  const box = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState("");
   const done = useRef(false);
   const ref = useRef<HTMLInputElement>(null);
@@ -101,6 +109,7 @@ function DraftBlock({
   };
   return (
     <div
+      ref={box}
       className="nx-pop c2-draft"
       data-c2-block="draft"
       onClick={(e) => e.stopPropagation()}
@@ -134,6 +143,7 @@ function DraftBlock({
       <div className="c2-meta">
         {c2Time(d.at)}–{c2Time(d.at + 1)}
       </div>
+      {onPreset ? <PersonalSlotMenu anchor={box} onPick={onPreset} /> : null}
     </div>
   );
 }
@@ -254,6 +264,13 @@ export interface WeekViewProps {
   onRename: (b: CalItem, title: string) => void;
   onDelete: (b: CalItem) => void;
   dragProps?: DragProps;
+  /** Personal time by day (usePersonalBands): drawn as quiet bands behind the blocks. */
+  personal?: ReadonlyMap<string, readonly DayBand[]>;
+  onPersonal?: (band: DayBand, el: HTMLElement) => void;
+  /** A personal time preset picked from the empty-slot menu. */
+  onPersonalPreset?: (preset: PersonalPreset) => void;
+  /** "Personal time" on an event's peek. */
+  onMarkPersonal?: (b: CalItem) => void;
   /** The first column in view changed (also once on mount). */
   onFirst?: (date: string) => void;
   /** The strip came to rest on a day column. */
@@ -277,6 +294,9 @@ interface ColumnProps {
   peekId: string | null;
   hover: Hover;
   dragProps?: DragProps;
+  bands?: readonly DayBand[];
+  onBand?: (band: DayBand, el: HTMLElement) => void;
+  onPreset?: (preset: PersonalPreset) => void;
   onSlot: (date: string, at: number) => void;
   onSave: (title: string) => void;
   onCancel: () => void;
@@ -297,6 +317,9 @@ const DayColumn = memo(function DayColumn({
   peekId,
   hover,
   dragProps,
+  bands,
+  onBand,
+  onPreset,
   onSlot,
   onSave,
   onCancel,
@@ -351,6 +374,29 @@ const DayColumn = memo(function DayColumn({
           style={{ top: a * C2_H, height: (b - a) * C2_H }}
         />
       ))}
+      {/* personal time: a quiet stripe behind everything, edge to edge */}
+      {bands?.map((band) => (
+        <PersonalBand
+          key={band.key}
+          variant="grid"
+          blockId={band.blockId}
+          title={band.title}
+          emoji={band.emoji}
+          tone={band.tone}
+          time={bandTimeLabel(band)}
+          repeating={band.repeating}
+          linked={band.linked}
+          compact={(band.to - band.from) * C2_H < 24}
+          style={{
+            top: band.from * C2_H,
+            height: (band.to - band.from) * C2_H,
+          }}
+          onOpen={(e) => {
+            e.stopPropagation();
+            onBand?.(band, e.currentTarget);
+          }}
+        />
+      ))}
       {/* the 24 hour lines are one gradient, not 24 nodes per column */}
       <span aria-hidden="true" className="c2-hlines" />
       {laid.placed.map((pos) =>
@@ -362,6 +408,7 @@ const DayColumn = memo(function DayColumn({
             start={0}
             onSave={onSave}
             onCancel={onCancel}
+            onPreset={onPreset}
           />
         ) : (
           <Block
@@ -440,6 +487,10 @@ export function WeekView({
   onRename,
   onDelete,
   dragProps,
+  personal,
+  onPersonal,
+  onPersonalPreset,
+  onMarkPersonal,
   onFirst,
   onSettle,
   handle,
@@ -771,6 +822,9 @@ export function WeekView({
                   peekId={peekId}
                   hover={hover}
                   dragProps={dragProps}
+                  bands={personal?.get(date)}
+                  onBand={onPersonal}
+                  onPreset={onPersonalPreset}
                   onSlot={stable.onSlot}
                   onSave={stable.onSave}
                   onCancel={stable.onCancel}
@@ -810,6 +864,7 @@ export function WeekView({
           onDone={onDone}
           onRename={onRename}
           onDelete={onDelete}
+          onPersonal={onMarkPersonal}
         />
       ) : null}
     </div>

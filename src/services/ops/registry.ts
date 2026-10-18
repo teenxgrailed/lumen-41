@@ -14,6 +14,7 @@ import { toJson } from "./helpers";
 import { zodToJsonSchema } from "./json-schema";
 import { eventPageOps } from "./ops/events-pages";
 import { mailHabitOps } from "./ops/mail-habits";
+import { personalOps } from "./ops/personal";
 import { projectOps } from "./ops/projects";
 import { scheduleOps } from "./ops/schedule";
 import { taskOps } from "./ops/tasks";
@@ -44,6 +45,7 @@ for (const op of [
   ...scheduleOps,
   ...mailHabitOps,
   ...eventPageOps,
+  ...personalOps,
 ] as OpDefinition[]) {
   if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
   registry.set(op.name, op);

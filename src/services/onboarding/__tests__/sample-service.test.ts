@@ -27,6 +27,7 @@ function makeDb(opts: { seededAt?: Date | null; timeZone?: string } = {}) {
     tasks: [] as Row[],
     pages: [] as Row[],
     habits: [] as Row[],
+    personalBlocks: [] as Row[],
   };
   const match = (row: Row, where: Record<string, unknown>): boolean =>
     Object.entries(where).every(([k, v]) => {
@@ -88,6 +89,13 @@ function makeDb(opts: { seededAt?: Date | null; timeZone?: string } = {}) {
       deleteMany: async ({ where }: { where: Record<string, unknown> }) =>
         remove(t.pages, where),
     },
+    personalBlock: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const row = { id: id("pb"), ...data } as Row;
+        t.personalBlocks.push(row);
+        return row;
+      },
+    },
     habit: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
         const row = { id: id("h"), ...data } as Row;
@@ -143,6 +151,23 @@ describe.each(SAMPLE_USES)("the %s sample day", (use: SampleUse) => {
     for (const row of [...t.projects, ...t.tasks, ...t.pages, ...t.habits])
       expect(row).toMatchObject({ userId: "u1", workspaceId: "w1" });
     expect(t.users[0].sampleSeededAt).toEqual(NOW);
+  });
+
+  it("starts the account with Lunch kept for weekdays 13:00-14:00, not marked as an example", async () => {
+    const { db, t } = makeDb();
+    await seed(db, [use]);
+    expect(t.personalBlocks).toHaveLength(1);
+    const lunch = t.personalBlocks[0];
+    expect(lunch).toMatchObject({
+      kind: "lunch",
+      userId: "u1",
+      workspaceId: "w1",
+      isDefault: true,
+      rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+    });
+    expect(lunch.isSample).toBeUndefined();
+    expect((lunch.start as Date).toISOString().slice(11, 16)).toBe("13:00");
+    expect((lunch.end as Date).toISOString().slice(11, 16)).toBe("14:00");
   });
 
   it("has an overdue task, a task with subtasks, and estimates on every task", async () => {
