@@ -335,6 +335,8 @@ export interface NvaFrame {
   dotsOpacity: number;
   glass: { x: number; y: number; sx: number; sy: number; opacity: number };
   add: { x: number; y: number; scale: number; opacity: number };
+  /** The Focus button, the mirror of `add` on the pill's other side. */
+  focus: { x: number; y: number; scale: number; opacity: number };
   handle: { x: number; y: number; opacity: number };
   contentY: number;
   tiles: { opacity: number; y: number; scale: number };
@@ -418,6 +420,12 @@ export function nvaFrame(
     },
     add: {
       x: g.M + s.x + s.w + NVA_ADD_GAP,
+      y: g.fh - g.M - g.fullH + s.y + (s.h - NVA_ADD) / 2,
+      scale: nvaLerp(0.6, 1, pillOp),
+      opacity: pillOp,
+    },
+    focus: {
+      x: g.M + s.x - NVA_ADD_GAP - NVA_ADD,
       y: g.fh - g.M - g.fullH + s.y + (s.h - NVA_ADD) / 2,
       scale: nvaLerp(0.6, 1, pillOp),
       opacity: pillOp,

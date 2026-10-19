@@ -355,7 +355,7 @@
  * nothing. These are the existing --nva-* values (themes.css, same names, same
  * numbers), declared for the three elements that wear the inverse. The glyph
  * drawings read --surface-raised / --border, which the card maps to its own. */
-.needt-v3 :is(.nva-shape, .nva-add, .nva-hint).dark {
+.needt-v3 :is(.nva-shape, .nva-add, .nva-hint, .nva-focus).dark {
   --nva-bg: #0b0b0d;
   --nva-raise: #1a1a1f;
   --nva-raise-2: #24242b;
@@ -379,7 +379,7 @@
   --surface-raised: var(--nva-raise-2);
   --border: var(--nva-line);
 }
-.needt-v3 :is(.nva-shape, .nva-add, .nva-hint).paper {
+.needt-v3 :is(.nva-shape, .nva-add, .nva-hint, .nva-focus).paper {
   --nva-bg: #ffffff;
   --nva-raise: #f3f2f8;
   --nva-raise-2: #ebe9f3;
@@ -423,7 +423,13 @@
  * ground, so nothing visible changes). */
 .needt-v3
   .nva[data-moving]
-  :is(.nva-fog-blur, .nva-head-blur, .nva-add, .nva-tiles .nva-tile) {
+  :is(
+    .nva-fog-blur,
+    .nva-head-blur,
+    .nva-add,
+    .nva-focus-btn,
+    .nva-tiles .nva-tile
+  ) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -1028,4 +1034,97 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+}
+
+/* The Focus button: the mirror of "New task" on the pill's other side, drawn
+ * only while a session runs. `.nva-focus` is placed by Menu (the same
+ * transform channel as `.nva-add`, mirrored); `.nva-focus-btn` is the glass
+ * with the time-left ring. The accent is the ring's mark, never a fill. The
+ * size, glass and rim are `.nva-add`'s. */
+.needt-v3 .nva-focus {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 54px;
+  height: 54px;
+  pointer-events: none;
+}
+.needt-v3 .nva.is-away .nva-focus,
+.needt-v3 .nva.is-morph .nva-focus {
+  visibility: hidden !important;
+}
+.needt-v3 .nva-focus-btn {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 0;
+  border-radius: 27px;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  color: var(--nva-add-quiet);
+  background: transparent;
+  box-shadow: var(--nva-add-rim);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-tap-highlight-color: transparent;
+  cursor: default;
+  opacity: 0;
+  transform: scale(0.82);
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.needt-v3 .nva-focus-btn.is-in {
+  opacity: 1;
+  transform: none;
+}
+.needt-v3 .nva-focus-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--nva-bg);
+  opacity: var(--nva-pill-alpha);
+}
+.needt-v3 .nva-focus-btn.is-in:active {
+  transform: scale(0.94);
+}
+.needt-v3 .nva-focus-btn:focus-visible {
+  outline: 2px solid var(--nva-lav);
+  outline-offset: 2px;
+}
+.needt-v3 .nva-focus-ring {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .nva-focus-arc {
+  transition: stroke-dashoffset 1s linear;
+}
+.needt-v3 .nva-focus-time {
+  position: relative;
+  font: 600 13px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--nva-ink);
+}
+/* paused: the ring holds still and goes quiet; the time dims */
+.needt-v3 .nva-focus-btn.is-paused .nva-focus-arc {
+  opacity: 0.45;
+  transition: none;
+}
+.needt-v3 .nva-focus-btn.is-paused .nva-focus-time {
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .nva-focus-btn,
+  .needt-v3 .nva-focus-arc {
+    transition: none;
+  }
+  .needt-v3 .nva-focus-btn {
+    transform: none;
+  }
 }

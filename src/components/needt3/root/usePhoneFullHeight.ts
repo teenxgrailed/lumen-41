@@ -18,6 +18,8 @@ import { usePathname } from "next/navigation";
  */
 export const MAX_SHORT_PX = 120;
 export const MIN_SHORT_PX = 8;
+/** Re-reads after mount / navigation, while iOS settles its viewport. */
+const SETTLE_MS = [150, 600, 1500, 3500];
 
 export function fullHeightFor(env: {
   standalone: boolean;
@@ -55,11 +57,15 @@ export function usePhoneFullHeight(
       else scope.style.setProperty("height", `${full}px`);
     };
     sync();
+    // iOS reports the short viewport a beat after a navigation or a launch,
+    // without always firing `resize`: read again a few times while it settles.
+    const settle = SETTLE_MS.map((ms) => window.setTimeout(sync, ms));
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
     window.addEventListener("pageshow", sync);
     document.addEventListener("visibilitychange", sync);
     return () => {
+      settle.forEach((id) => window.clearTimeout(id));
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
       window.removeEventListener("pageshow", sync);
