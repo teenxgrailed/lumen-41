@@ -136,7 +136,8 @@ for (const width of [360, 390]) {
     await page.getByRole("button", { name: "Mark done", exact: true }).click();
 
     // The phone has no notice for it: the task moves down to Done.
-    await expect(page.getByText("All clear for today")).toBeVisible();
+    // (The empty-state line is not asserted: a new user with few tasks sees
+    // the starter-game entry card in its place.)
     await expect(page.getByRole("button", { name: "Done 1" })).toBeVisible();
     await expect
       .poll(
