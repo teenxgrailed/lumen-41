@@ -53,11 +53,15 @@ for (const scheme of ["light", "dark"] as const) {
       const i = (y * info.width + x) * info.channels;
       return [data[i], data[i + 1], data[i + 2]];
     };
-    // Column x=4 (left of the dock), the last 60 rows: no step between rows.
+    // Column x=4 (left of the dock), the last 36 rows: no step between rows.
+    // The fog's halftone dots (top-anchored, 40-124 px into the fog, so they end
+    // 42 px above the display edge with the inset) are a design element, not a
+    // seam: they show whenever content scrolls under the fog (e.g. the
+    // starter-game card), so the check starts below them.
     const scale = info.height / 844;
     const x = Math.round(4 * scale);
     let worst = 0;
-    for (let y = info.height - 60 * scale; y < info.height - 1; y++) {
+    for (let y = info.height - 36 * scale; y < info.height - 1; y++) {
       const a = px(x, Math.round(y));
       const b = px(x, Math.round(y) + 1);
       for (let k = 0; k < 3; k++)
