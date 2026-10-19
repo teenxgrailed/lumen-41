@@ -6,6 +6,7 @@ export type OpErrorCode =
   | "CONFLICT"
   | "UNSUPPORTED"
   | "PROJECT_ARCHIVED"
+  | "UPGRADE_REQUIRED"
   | "APPLIED_NOT_UNDOABLE";
 
 const STATUS: Record<OpErrorCode, number> = {
@@ -16,6 +17,7 @@ const STATUS: Record<OpErrorCode, number> = {
   CONFLICT: 409,
   UNSUPPORTED: 422,
   PROJECT_ARCHIVED: 409,
+  UPGRADE_REQUIRED: 403,
   APPLIED_NOT_UNDOABLE: 500,
 };
 

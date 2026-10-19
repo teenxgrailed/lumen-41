@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  DAY_KEY,
+  highlightTaskSelect,
+  loadHighlight,
+  shapeHighlight,
+} from "@/services/highlight/highlight-service";
 import { WorkspaceRole } from "@prisma/client";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
@@ -8,45 +14,6 @@ import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "HighlightAPI";
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-const taskSelect = {
-  id: true,
-  title: true,
-  status: true,
-  dueDate: true,
-  estimatedMinutes: true,
-  trashedAt: true,
-} as const;
-
-/** The day as `{ date, taskId, task }`, or null when no highlight is set. */
-function shape(
-  row: {
-    date: string;
-    taskId: string;
-    task: {
-      id: string;
-      title: string;
-      status: string;
-      dueDate: Date | null;
-      estimatedMinutes: number | null;
-      trashedAt: Date | null;
-    };
-  } | null
-) {
-  if (!row || row.task.trashedAt) return null;
-  return {
-    date: row.date,
-    taskId: row.taskId,
-    task: {
-      id: row.task.id,
-      title: row.task.title,
-      status: row.task.status,
-      dueDate: row.task.dueDate?.toISOString() ?? null,
-      estimatedMinutes: row.task.estimatedMinutes,
-    },
-  };
-}
 
 const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
 
@@ -58,7 +25,7 @@ export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   const date = request.nextUrl.searchParams.get("date") ?? "";
-  if (!DAY.test(date)) return bad("date must be YYYY-MM-DD");
+  if (!DAY_KEY.test(date)) return bad("date must be YYYY-MM-DD");
   if (!auth.workspace) {
     return NextResponse.json(
       { error: "Workspace unavailable" },
@@ -66,17 +33,12 @@ export async function GET(request: NextRequest) {
     );
   }
   try {
-    const row = await prisma.dailyHighlight.findUnique({
-      where: {
-        userId_workspaceId_date: {
-          userId: auth.userId,
-          workspaceId: auth.workspace.workspaceId,
-          date,
-        },
-      },
-      include: { task: { select: taskSelect } },
-    });
-    return NextResponse.json({ highlight: shape(row) });
+    const row = await loadHighlight(
+      auth.userId,
+      auth.workspace.workspaceId,
+      date
+    );
+    return NextResponse.json({ highlight: shapeHighlight(row) });
   } catch (error) {
     return routeErrorResponse(
       error,
@@ -102,7 +64,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const date = typeof body.date === "string" ? body.date : "";
   const taskId = typeof body.taskId === "string" ? body.taskId : "";
-  if (!DAY.test(date)) return bad("date must be YYYY-MM-DD");
+  if (!DAY_KEY.test(date)) return bad("date must be YYYY-MM-DD");
   if (!taskId) return bad("taskId is required");
   try {
     const task = await prisma.task.findFirst({
@@ -125,9 +87,9 @@ export async function PUT(request: NextRequest) {
       where: { userId_workspaceId_date: key },
       create: { ...key, taskId },
       update: { taskId },
-      include: { task: { select: taskSelect } },
+      include: { task: { select: highlightTaskSelect } },
     });
-    return NextResponse.json({ highlight: shape(row) });
+    return NextResponse.json({ highlight: shapeHighlight(row) });
   } catch (error) {
     return routeErrorResponse(
       error,
@@ -151,7 +113,7 @@ export async function DELETE(request: NextRequest) {
     );
   }
   const date = request.nextUrl.searchParams.get("date") ?? "";
-  if (!DAY.test(date)) return bad("date must be YYYY-MM-DD");
+  if (!DAY_KEY.test(date)) return bad("date must be YYYY-MM-DD");
   try {
     await prisma.dailyHighlight.deleteMany({
       where: {

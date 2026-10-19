@@ -17,6 +17,7 @@ import { mailHabitOps } from "./ops/mail-habits";
 import { personalOps } from "./ops/personal";
 import { projectOps } from "./ops/projects";
 import { scheduleOps } from "./ops/schedule";
+import { starterOps } from "./ops/starter";
 import { taskOps } from "./ops/tasks";
 import type {
   OpActor,
@@ -46,6 +47,7 @@ for (const op of [
   ...mailHabitOps,
   ...eventPageOps,
   ...personalOps,
+  ...starterOps,
 ] as OpDefinition[]) {
   if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
   registry.set(op.name, op);
