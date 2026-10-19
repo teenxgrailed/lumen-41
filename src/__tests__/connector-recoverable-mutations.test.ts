@@ -10,6 +10,10 @@ import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEvent: jest.fn(),
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/services/connectors/auth");
 jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUser: jest.fn(),
