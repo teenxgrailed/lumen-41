@@ -59,6 +59,8 @@ export const usePs = () => useContext(Ctx);
 /* ---------- the coloured tile ---------- */
 
 const GLYPH_PX = { s: 32, m: 44 } as const;
+/** A bare landing glyph on a settings row: 28 px on the phone (spec piece 12). */
+const ART_PX = { s: 28, m: 38 } as const;
 
 /** A setting's icon on a tile washed with its hue (the kit's `.pk-glyph` look). */
 export function PsGlyph({
@@ -74,16 +76,18 @@ export function PsGlyph({
   art?: GlyphName;
 }) {
   const px = GLYPH_PX[size ?? "s"];
-  if (art)
+  if (art) {
+    const ax = ART_PX[size ?? "s"];
     return (
       <span
         className="ps-glyph-art"
         aria-hidden="true"
-        style={{ width: px, height: px }}
+        style={{ width: ax, height: ax }}
       >
-        <Glyph name={art} size={Math.round(px * 0.875)} />
+        <Glyph name={art} size={ax} />
       </span>
     );
+  }
   return (
     <span
       className="pk-glyph is-tint ps-glyph"
