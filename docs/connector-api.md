@@ -319,6 +319,104 @@ task must be live and in the caller's scope (`404` otherwise). `DELETE` is safe
 to repeat. `400` for a `date` that is not `YYYY-MM-DD`. Writes need the Editor
 role; reading needs none beyond membership.
 
+## Widgets: today, highlight, habits
+
+Reads for a phone widget or a dashboard, answered to a personal `needt_...`
+token or an OAuth grant like the other `/api/connect/*` routes: `needt.read`
+for the `GET`s, `needt.write` (Editor role) for the toggle. Personal tokens act
+in the person's default workspace; send `X-Workspace-Id` to pick another. An
+OAuth grant stays inside its bound workspace. All answers are
+`Cache-Control: private, no-store`.
+
+"Today" is the day in the time zone saved in Settings (UTC if none): the same
+day the Habits screen counts, whatever the server's or the caller's zone is.
+Weeks start on the person's `weekStartDay`.
+
+```
+GET  /api/connect/today
+GET  /api/connect/highlight?date=2026-10-19
+GET  /api/connect/habits/today
+POST /api/connect/habits/:id/toggle-today      { "completed": true }   (body optional)
+```
+
+### `GET /api/connect/highlight`
+
+`{ "date", "highlight" }`. `date` is `YYYY-MM-DD` and defaults to the person's
+today (`400` for anything else). `highlight` is `null` when none is set or its
+task is in Trash, else `{ date, taskId, title, done, start, end,
+durationMinutes, href }` (`start`/`end` are the task's slot, or null). It reads
+the same rows as `/api/highlight`, which only answers the browser session.
+
+### `GET /api/connect/habits/today`
+
+`{ "date", "timeZone", "habits": [...] }`, active habits oldest first:
+
+```json
+{
+  "id": "h1",
+  "title": "Walk",
+  "icon": "🚶",
+  "color": null,
+  "kind": "weekly",
+  "target": { "perWeek": 3, "daysOfWeek": [], "quota": null, "at": null },
+  "scheduledToday": true,
+  "doneToday": true,
+  "todayCount": 1,
+  "week": { "start": "2026-10-19", "done": 1, "target": 3 }
+}
+```
+
+`kind` is `days` when the habit is pinned to weekdays (`daysOfWeek`, 0 =
+Sunday), `weekly` for N times a week. `scheduledToday` says whether today is
+one of its days. `todayCount` is 0 or 1: a habit day is kept or not. `icon` is
+whatever the person picked, an emoji or a glyph name.
+
+### `POST /api/connect/habits/:id/toggle-today`
+
+Flips today's check-in and answers `{ habitId, date, completed }`. With
+`{ "completed": true | false }` it sets the state instead, so a retry is safe.
+`404` for a habit that is not the caller's active habit in the workspace.
+
+### `GET /api/connect/today`
+
+One request for a widget:
+
+```json
+{
+  "generatedAt": "2026-10-19T08:00:00.000Z",
+  "timeZone": "Europe/Kyiv",
+  "date": "2026-10-19",
+  "counts": { "open": 3, "done": 2, "total": 5 },
+  "next": { "id", "title", "start", "end", "durationMinutes", "due", "overdue", "href" },
+  "tasks": [ /* up to 6 open, same shape as next */ ],
+  "highlight": { "taskId", "title", "done", "start", "end", "durationMinutes", "href", "date" },
+  "habits": [ /* as above */ ],
+  "event": { "id", "title", "start", "end", "location", "allDay" },
+  "personalBlock": { "blockId", "kind", "title", "emoji", "start", "end" },
+  "freeMinutes": 360,
+  "weather": { "city", "temp", "min", "max", "code", "summary", "line": "3° Rain in Tokyo" }
+}
+```
+
+- **Open** is a task that is not done, not habit work, with a slot today or a
+  deadline today or earlier (overdue included). **Done** is closed today.
+  Order: slots running or still ahead, then untimed, then slots already past.
+  `next` is the first one, or `null`. `href` is an app path (`/tasks?task=<id>`).
+- `event` is the next synced calendar event that has not ended (all-day only if
+  nothing timed is coming), within a week; `null` in a shared workspace.
+  `personalBlock` is the next protected personal-time block that ends today
+  (repeats included).
+- `freeMinutes` is what is left of today's working window (Settings, working
+  hours) after task slots, events and personal time, counted from now; `0` on a
+  non-working day.
+- `weather` needs a City in Settings; otherwise `null`, as it is when the
+  weather service is down.
+
+```bash
+curl https://use.needt.app/api/connect/today \
+  -H "Authorization: Bearer needt_..."
+```
+
 ## Stats
 
 ```
