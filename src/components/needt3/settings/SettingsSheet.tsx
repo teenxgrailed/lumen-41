@@ -56,15 +56,15 @@ const SAVED_MS = 1700;
 const NAV_GLYPHS: Record<string, GlyphName> = {
   account: "people",
   plan: "wallet",
-  general: "tune",
-  appearance: "moodboards",
+  general: "settings",
+  appearance: "tune",
   day: "planday",
   tasks: "tasks",
   focus: "focus",
   alerts: "bell",
   keys: "api",
   connections: "connect",
-  data: "stack",
+  data: "import",
   about: "help",
 };
 const P = priceStrings();
@@ -346,7 +346,7 @@ export function SettingsSheet() {
                     }}
                   >
                     <span className="settings-row-5">
-                      {glyph ? <Glyph name={glyph} size={18} /> : null}
+                      {glyph ? <Glyph name={glyph} size={20} /> : null}
                     </span>
                     {item.name}
                     {item.jump ? (

@@ -92,7 +92,23 @@ describe("the words", () => {
     );
     expect(cleanBrief("**Bold** `x`")).toBe("Bold x");
     expect(cleanBrief("   ")).toBe("");
-    expect(cleanBrief("a".repeat(900)).length).toBeLessThanOrEqual(420);
+    expect(cleanBrief("a".repeat(900)).length).toBeLessThanOrEqual(220);
+  });
+
+  it("keeps a leading count and drops only list marks", () => {
+    expect(cleanBrief("14 tasks open today, none done yet.")).toBe(
+      "14 tasks open today, none done yet."
+    );
+    expect(cleanBrief("1. 14 tasks open.")).toBe("14 tasks open.");
+    expect(cleanBrief("2) 3 overdue.")).toBe("3 overdue.");
+  });
+
+  it("caps long text at a sentence end", () => {
+    const text = `${"Word ".repeat(30).trim()}. Second sentence here. ${"More ".repeat(40)}`;
+    const out = cleanBrief(text);
+    expect(out.length).toBeLessThanOrEqual(220);
+    expect(out.endsWith(".")).toBe(true);
+    expect(out).toContain("Second sentence here.");
   });
 
   it("accepts the facts a client sends and refuses junk", () => {

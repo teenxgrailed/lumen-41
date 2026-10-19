@@ -11,6 +11,7 @@ export const QUEUE_NAMES = {
   accountLifecycle: "account-lifecycle",
   imports: "imports",
   oauthCleanup: "oauth-cleanup",
+  focus: "focus",
 } as const;
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
@@ -40,6 +41,12 @@ export interface BugReportSyncJobData {
 export type ReminderJobData =
   | { kind: "sweep" }
   | { kind: "deliver"; reminderId: string };
+
+/** A delayed job per running Focus session, due at its planned end. */
+export interface FocusJobData {
+  kind: "ended";
+  sessionId: string;
+}
 
 export interface NudgeJobData {
   kind: "sweep";

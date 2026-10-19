@@ -8,10 +8,12 @@ import {
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
+import { deliverFocusEnded } from "@/services/focus/focus-end-notification";
 import {
   processImportRun,
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
+import { deliverNudgePushes } from "@/services/nudges/nudge-push";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { cleanupOAuth } from "@/services/oauth/cleanup";
 import { collectOperationsHealth } from "@/services/operations/health";
@@ -92,6 +94,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  FocusJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
@@ -226,8 +229,18 @@ async function processReminder(job: Job<ReminderJobData>) {
   );
 }
 
+async function processFocus(job: Job<FocusJobData>) {
+  const result = await deliverFocusEnded(job.data.sessionId);
+  await logger.info(
+    "Focus ended job finished",
+    { sessionId: job.data.sessionId, ...result },
+    LOG_SOURCE
+  );
+}
+
 async function processNudges() {
   await generateProactiveNudges();
+  await deliverNudgePushes();
 }
 
 async function processLifetimeCheckoutReconciliation() {
@@ -316,6 +329,10 @@ const workers = [
     }
   ),
   new Worker<ReminderJobData>(QUEUE_NAMES.reminders, processReminder, {
+    connection,
+    concurrency: 5,
+  }),
+  new Worker<FocusJobData>(QUEUE_NAMES.focus, processFocus, {
     connection,
     concurrency: 5,
   }),

@@ -6,6 +6,9 @@ import { getWebhookRenewQueue } from "@/lib/queue/queues";
 jest.mock("@/services/bug-reports/bug-report-service", () => ({
   syncBugReportToGithub: jest.fn(),
 }));
+jest.mock("@/services/nudges/nudge-push", () => ({
+  deliverNudgePushes: jest.fn(),
+}));
 jest.mock("@/services/nudges/proactive-assist", () => ({
   generateProactiveNudges: jest.fn(),
 }));

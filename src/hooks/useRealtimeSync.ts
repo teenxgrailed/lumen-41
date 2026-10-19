@@ -8,6 +8,8 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
 import { logger } from "@/lib/logger";
+import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
 import {
   INITIAL_REALTIME_RECONNECT_DELAY_MS,
   nextRealtimeReconnectDelay,
@@ -45,6 +47,25 @@ export function useRealtimeSync(): void {
       void useTaskStore.getState().fetchTasks();
     };
 
+    // A Focus session reached its planned end (the worker also sent a push).
+    // Every open device refreshes its Focus UI; the notice is silent and only
+    // shown while the "Focus ended" setting is on.
+    const onFocusEnded = (event: Event) => {
+      let data: { sessionId?: string; status?: string; message?: string } = {};
+      try {
+        data = JSON.parse((event as MessageEvent<string>).data);
+      } catch {
+        // A malformed event still refreshes the session below.
+      }
+      void queryClient.invalidateQueries({ queryKey: qk.focusSession() });
+      if (data.status === "notify") {
+        notify.success("Focus done", {
+          description: data.message,
+          dedupeKey: `focus-ended-${data.sessionId ?? "session"}`,
+        });
+      }
+    };
+
     const connect = () => {
       if (stopped) return;
       eventSource = new EventSource(
@@ -52,6 +73,7 @@ export function useRealtimeSync(): void {
       );
       eventSource.addEventListener("calendar-updated", refreshCalendar);
       eventSource.addEventListener("tasks-updated", refreshTasks);
+      eventSource.addEventListener("focus-ended", onFocusEnded);
       eventSource.onopen = () => {
         reconnectDelayMs = INITIAL_REALTIME_RECONNECT_DELAY_MS;
       };

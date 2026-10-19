@@ -77,14 +77,14 @@ const P = priceStrings();
 const PAGE_GLYPH: Record<PsPageId, GlyphName> = {
   account: "people",
   plan: "wallet",
-  general: "tune",
-  appearance: "moodboards",
+  general: "settings",
+  appearance: "tune",
   day: "planday",
   tasks: "tasks",
   focus: "focus",
   alerts: "bell",
   menu: "more",
-  data: "stack",
+  data: "import",
   keys: "api",
   about: "help",
 };

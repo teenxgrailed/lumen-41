@@ -85,6 +85,7 @@ const ALERTS = {
   mailPlan: false,
   nudges: false,
   weeklyReview: true,
+  focusEnded: true,
 };
 const billing = (over: Record<string, unknown> = {}) => ({
   configured: true,
@@ -374,8 +375,10 @@ describe("nothing is written before the source has loaded", () => {
 
   it("Notifications: off until the alert columns load", async () => {
     await mount("alerts");
-    expect(sw("Daily plan notification")?.disabled).toBe(true);
     expect(sw("Overdue notification")?.disabled).toBe(true);
+    expect(sw("Focus ended notification")?.disabled).toBe(true);
+    expect(sw("Daily plan notification")).toBeFalsy();
+    expect(sw("Weekly review notification")).toBeFalsy();
     expect(writes).toEqual([]);
   });
 
@@ -518,6 +521,14 @@ describe("writes once loaded, through the desktop's rules", () => {
     const w = writes.filter((x) => x.url === URLS.alerts);
     expect(w).toHaveLength(1);
     expect(w[0].body).toEqual({ nudges: true });
+  });
+
+  it("the Focus ended switch patches focusEnded", async () => {
+    await mount("alerts");
+    await tap(sw("Focus ended notification"));
+    const w = writes.filter((x) => x.url === URLS.alerts);
+    expect(w).toHaveLength(1);
+    expect(w[0].body).toEqual({ focusEnded: false });
   });
 
   it("a picker sheet opens over the page, sets the value and closes", async () => {
