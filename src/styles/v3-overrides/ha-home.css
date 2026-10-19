@@ -285,3 +285,14 @@
 .needt-v3 .ha-btn.is-primary .pro-badge { background: var(--ha-ground); color: var(--ha-ink); box-shadow: none; }
 .needt-v3 .ha-ph-stack { display: flex; flex-direction: column; gap: 16px; }
 
+
+/* Desktop Home: the design's grid in the summary row (Highlight, then Today
+   and Habits on the right), the brief and the weather where the old lines were. */
+.needt-v3 .ha-dk-card-t { font: 500 12px/1 var(--font-sans); color: var(--ha-ink-2); display: flex; justify-content: space-between; margin-bottom: 12px; }
+.needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.needt-v3 .hd-side.ha-side { display: flex; flex-direction: column; gap: 14px; }
+.needt-v3 .ha-dk-pad { margin: 2px 4px 8px 26px; }
+.needt-v3 .ha-dk-wx { margin-left: 8px; display: inline-flex; align-self: center; }
+@container hdhome (max-width: 899px) {
+  .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,35 +1,20 @@
 "use client";
 
-import {
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-  useState,
-} from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
 
-import {
-  FiCalendar,
-  FiCheck,
-  FiChevronDown,
-  FiLock,
-  FiPlus,
-  FiTarget,
-} from "react-icons/fi";
+import { FiCalendar, FiChevronDown, FiLock, FiPlus } from "react-icons/fi";
 import { LuWandSparkles } from "react-icons/lu";
 
 import { Art } from "@/components/needt3/menu/Art";
-import { Tooltip } from "@/components/needt3/menu/Tooltip";
 import { lockedBadgeProps } from "@/components/needt3/paywall/Pro";
 import { Task } from "@/components/needt3/task/Task";
-import { TaskCheck } from "@/components/needt3/task/TaskCheck";
 
 import { hhmm } from "@/lib/needt3/derive";
-import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import type { V3Task } from "@/lib/needt3/map";
 
 import {
   type Capacity,
   HOME_CAP,
-  type NextUp,
   type ScheduleItem,
   type WeekDay,
   cappedCount,
@@ -237,113 +222,6 @@ export function Ring({
   );
 }
 
-export function ProgressCard({
-  done,
-  total,
-  mins,
-  closed,
-  empty,
-}: {
-  done: number;
-  total: number;
-  mins: number;
-  closed: boolean;
-  empty: boolean;
-}) {
-  const pct = total ? done / total : 0;
-  return (
-    <Card
-      hue="var(--accent)"
-      className="hd-card-progress hd-card-sm"
-      label="Progress"
-    >
-      <CardLabel
-        text="Progress"
-        right={
-          <span
-            title={`${Math.round(pct * 100)}% of today's tasks done`}
-            className="hd-card-ring"
-          >
-            <Ring pct={pct} hue="var(--accent)" />
-          </span>
-        }
-      />
-      <div className="hd-card-foot">
-        <span className="hd-card-stack">
-          <span key={done} className="nx-swap hd-progress-n hd-card-big">
-            {empty ? "Nothing due" : `${done} of ${total} done`}
-          </span>
-          <span className="hd-card-sub">
-            {closed
-              ? "All of today is closed"
-              : empty
-                ? "A clear day"
-                : `${dur(mins) || "0 min"} of work left`}
-          </span>
-        </span>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * NEXT UP. The main accent of the screen: a compact card with the pick, why
- * it is the pick, and the actions.
- */
-export function NextUpCard({
-  pick,
-  note,
-  onOpen,
-  onFocus,
-  onDone,
-  onSkip,
-}: {
-  pick: NextUp;
-  note: string;
-  onOpen: (id: string) => void;
-  onFocus: () => void;
-  onDone: () => void;
-  onSkip: () => void;
-}) {
-  return (
-    <Task
-      layout="card"
-      task={pick.task}
-      label="Next up"
-      note={note}
-      onOpen={onOpen}
-      onToggle={onDone}
-      className="hd-card-next hd-next"
-    >
-      <button
-        type="button"
-        className="nx-btn nx-btn-primary hd-next-focus"
-        onClick={onFocus}
-      >
-        <FiTarget size={15} aria-hidden />
-        Start focus
-      </button>
-      <button
-        type="button"
-        className="nx-btn nx-btn-secondary"
-        onClick={onDone}
-      >
-        <FiCheck size={14} aria-hidden />
-        Done
-      </button>
-      {pick.canSkip ? (
-        <button
-          type="button"
-          className="nx-btn nx-btn-sm nx-btn-text"
-          onClick={onSkip}
-        >
-          Skip
-        </button>
-      ) : null}
-    </Task>
-  );
-}
-
 export function NextUpNone({ closed }: { closed: boolean }) {
   return (
     <Card hue="var(--text-primary)" className="hd-card-next" label="Next up">
@@ -357,108 +235,6 @@ export function NextUpNone({ closed }: { closed: boolean }) {
             ? "Tomorrow is a tab away — Week ahead."
             : "Add a task, or let Needt plan the day."}
         </span>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * STREAK ("n days closed"). A day is closed when everything due that day was;
- * `dayStreak` derives the count from the tasks. A card with no run yet says
- * how to start one instead of showing a zero.
- */
-export function StreakCard({
-  n,
-  todayClosed,
-}: {
-  n: number;
-  todayClosed: boolean;
-}) {
-  return (
-    <Card
-      hue="var(--success)"
-      className="hd-card-streak hd-card-sm"
-      label="Streak"
-      title="A day counts as closed when everything due that day was closed."
-    >
-      <CardLabel text="Streak" />
-      <div className="hd-streak hd-card-foot">
-        <span className="hd-card-stack">
-          <span key={n} className="nx-swap hd-card-big" data-hd-streak={n}>
-            {n ? `${n} ${n === 1 ? "day" : "days"} closed` : "No streak yet"}
-          </span>
-          <span className="hd-card-sub hd-card-clip">
-            {todayClosed
-              ? "Today is in"
-              : n
-                ? "Close today to keep it"
-                : "Close a day to start one"}
-          </span>
-        </span>
-      </div>
-    </Card>
-  );
-}
-
-export interface HabitChip {
-  habit: V3Habit;
-  on: boolean;
-  tip: string;
-}
-
-/** The habits block: a chip per habit, ticking one writes today's check-in. */
-export function HabitsCard({
-  chips,
-  onToggle,
-}: {
-  chips: readonly HabitChip[];
-  onToggle: (habit: V3Habit, done: boolean) => void;
-}) {
-  const kept = chips.filter((c) => c.on).length;
-  const key = (h: V3Habit, on: boolean) => (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onToggle(h, !on);
-    }
-  };
-  return (
-    <Card
-      hue="var(--text-primary)"
-      className="hd-card-habits hd-card-sm"
-      label="Habits"
-    >
-      <CardLabel
-        text="Habits"
-        right={
-          chips.length ? (
-            <span key="k">
-              {kept} of {chips.length} kept
-            </span>
-          ) : null
-        }
-      />
-      <div className="hd-chips">
-        {chips.length ? (
-          chips.map(({ habit: h, on, tip }) => (
-            <Tooltip key={h.id} label={tip} side="bottom">
-              <div
-                role="button"
-                tabIndex={0}
-                aria-pressed={on}
-                data-ctx="habit"
-                data-ctx-id={h.id}
-                className={`hd-habit hd-chip${on ? " is-on" : ""}`}
-                onClick={() => onToggle(h, !on)}
-                onKeyDown={key(h, on)}
-              >
-                <TaskCheck on={on} hue="var(--success)" />
-                <span className="hd-chip-name">{h.title}</span>
-              </div>
-            </Tooltip>
-          ))
-        ) : (
-          <span className="hd-meta-t">No habits yet — add one on Habits.</span>
-        )}
       </div>
     </Card>
   );
