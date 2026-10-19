@@ -71,6 +71,10 @@ import { useHomeStats } from "../../home/useHomeStats";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
+  StarterGameSlot,
+  useStarterGameCard,
+} from "../../starter-game/StarterGameSlot";
+import {
   PkButton,
   PkEmpty,
   PkNumber,
@@ -110,6 +114,7 @@ const none = () => undefined;
  * field in the browser; that would be a second copy of the day's notes.
  */
 export function PhoneHome({ ctl }: { ctl: HomeController }) {
+  const starter = useStarterGameCard();
   const { today, now, hour: nowHour } = usePhoneClock();
   const router = useRouter();
   const dailyNote = useDailyNote(today);
@@ -527,7 +532,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       {ready ? <TimeLeftBar left={left} /> : null}
       {ready ? <PersonalDayBands date={today} /> : null}
 
-      {ready && v.empty ? (
+      {ready ? <StarterGameSlot screen="home" /> : null}
+      {ready && v.empty && !starter.show && !starter.hold ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
       ) : null}
 

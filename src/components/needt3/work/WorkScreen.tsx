@@ -35,6 +35,10 @@ import { TaskDialogHost } from "../dialogs/TaskDialog";
 import { PhoneProjects, PhoneTasks, phoneTab } from "../phone/tasks";
 import { useDesignV3 } from "../root/V3Root";
 import { usePhoneUi } from "../root/phone-ui-context";
+import {
+  StarterGameSlot,
+  useStarterGameCard,
+} from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
 import { Task } from "../task/Task";
 import { MiniCard, ProjectCard } from "./ProjectCards";
@@ -251,6 +255,7 @@ function WorkScreenContent({
     ["all", "All Tasks"],
   ];
   const empty = WK_EMPTY[isProjects ? "projects" : tab];
+  const starter = useStarterGameCard();
 
   const content = (
     <div className="wk-screen">
@@ -447,6 +452,7 @@ function WorkScreenContent({
               </div>
             </Fold>
           ) : null}
+          {isProjects || projectId ? null : <StarterGameSlot screen="tasks" />}
           {projectId ||
           (isProjects &&
             pview === "cards" &&
@@ -458,7 +464,10 @@ function WorkScreenContent({
               cta="New project"
               onClick={openNew}
             />
-          ) : !m.sections.length && !m.done.length ? (
+          ) : !m.sections.length &&
+            !m.done.length &&
+            !starter.show &&
+            !starter.hold ? (
             <WkEmpty
               art="task"
               title={empty[0]}

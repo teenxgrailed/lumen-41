@@ -44,6 +44,7 @@ import { personalMenuItems } from "../personal/menu-items";
 import { CalendarFaces } from "../phone/calendar/CalendarFaces";
 import type { CalendarController } from "../phone/calendar/useCalendarController";
 import { useDesignV3 } from "../root/V3Root";
+import { StarterGameSlot } from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
 import { TaskViewGear } from "../task/TaskViewGear";
 import { CompletionScope, useCompletion } from "../task/useCompletion";
@@ -481,6 +482,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
           </span>
         </span>
       </header>
+      <StarterGameSlot screen="calendar" />
       <StScreen query={combined} kind="calendar" screen="calendar">
         <div key={view} className="nx-swap c2-body">
           {view === "week" ? (

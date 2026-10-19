@@ -1,0 +1,1207 @@
+/* Starter game (19.10.26) — ported from needt-app/additions/starter-game/sg-game.css.
+   Entry card, chat, sort board, editor and summary. Scoped by the density
+   wrapper: .sg-phone (reads --v2p-*) or .sg-desk (reads --surface-*, --text-*).
+   The design's own palette is not carried over: tiles, ink and scrims read the
+   existing theme tokens, the four group hues are the project colour set
+   (--info, --accent, --success) and the lavender mark (--v2p-lav), and the
+   agent is the product's AiOrb. No mascots, confetti, points or sounds. */
+
+.sg-phone {
+  --sg-ink: var(--v2p-ink);
+  --sg-ink-2: var(--v2p-ink-2);
+  --sg-ink-3: var(--v2p-ink-3);
+  --sg-ground: var(--v2p-ground);
+  --sg-card: var(--v2p-card);
+  --sg-raise: var(--v2p-raise);
+  --sg-line: var(--v2p-line);
+  --sg-mark: var(--v2p-lav);
+  --sg-mark-ring: var(--v2p-lav-ring);
+  --sg-r: 14px;
+  --sg-tile-h: 76px;
+}
+.sg-desk {
+  --sg-ink: var(--text-primary);
+  --sg-ink-2: var(--text-tertiary);
+  --sg-ink-3: var(--text-muted);
+  --sg-ground: var(--background);
+  --sg-card: var(--surface-raised);
+  --sg-raise: var(--fill-3);
+  --sg-line: var(--fill-5);
+  --sg-mark: var(--accent);
+  --sg-mark-ring: rgba(var(--accent-rgb), 0.45);
+  --sg-r: 10px;
+  --sg-tile-h: 72px;
+}
+/* solid neutral tiles: the plate tokens of each theme */
+.sg-phone,
+.sg-desk {
+  --sg-tile: var(--v2p-raise);
+  --sg-tile-ink: var(--v2p-ink);
+  --sg-tile-hover: var(--v2p-raise-2);
+}
+.needt-v3[data-theme="dark"] .sg-phone,
+.needt-v3[data-theme="dark"] .sg-desk {
+  --sg-tile: var(--v2p-card-raise);
+  --sg-tile-hover: var(--v2p-pick);
+}
+/* group hues = the project colour set, used ONLY as the solved bar / lane mark */
+.sg-phone,
+.sg-desk {
+  --sg-today: var(--info);
+  --sg-week: var(--accent);
+  --sg-habit: var(--success);
+  --sg-project: var(--v2p-lav);
+  --sg-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
+  color: var(--sg-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.sg-phone *,
+.sg-desk * {
+  box-sizing: border-box;
+}
+
+.sg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--sg-raise);
+  color: var(--sg-ink);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform 90ms,
+    background-color 140ms,
+    opacity 140ms;
+}
+.sg-btn:active {
+  transform: scale(0.97);
+}
+.sg-btn.is-primary {
+  background: var(--sg-ink);
+  color: var(--sg-ground);
+}
+.sg-btn.is-text {
+  background: transparent;
+  color: var(--sg-ink-2);
+  padding: 0 8px;
+}
+.sg-btn.is-lg {
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+.sg-desk .sg-btn {
+  border-radius: 11px;
+}
+.sg-desk .sg-btn.is-lg {
+  height: 40px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.sg-btn[disabled] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.sg-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.sg-orb {
+  display: inline-flex;
+  flex: none;
+}
+.sg-x {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--sg-ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sg-x:hover {
+  background: var(--sg-raise);
+}
+
+/* ── Entry card (Home / Calendar / Tasks, < 5 open tasks) ─────────────── */
+.sg-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+  align-items: center;
+  padding: 22px 22px 22px 26px;
+  border-radius: 16px;
+  background: var(--sg-card);
+  box-shadow: 0 0 0 1px var(--sg-line);
+}
+.sg-phone .sg-entry {
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding: 20px;
+  border-radius: 26px;
+}
+.sg-entry-k {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--sg-ink-2);
+  letter-spacing: 0.02em;
+}
+.sg-entry h3 {
+  margin: 10px 0 6px;
+  font: 600 22px/1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sg-entry p {
+  margin: 0;
+  font: 400 14px/1.5 var(--font-sans);
+  color: var(--sg-ink-2);
+  max-width: 46ch;
+}
+.sg-entry-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.sg-phone .sg-entry-acts .sg-btn.is-primary {
+  flex: 1;
+}
+.sg-entry-menu {
+  margin-left: auto;
+}
+/* preview: 8 tiles that settle into a solved bar, on a loop */
+.sg-prev {
+  position: relative;
+  height: 150px;
+  border-radius: 12px;
+  background: var(--sg-raise);
+  padding: 10px;
+  overflow: hidden;
+}
+.sg-phone .sg-prev {
+  height: 132px;
+  border-radius: 18px;
+}
+.sg-prev-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  height: 34px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--sg-today) 55%, var(--sg-card));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sg-tile-ink);
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+  animation: sg-prev-bar 6s var(--sg-ease) infinite;
+}
+.sg-prev-grid {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.sg-prev-t {
+  height: 34px;
+  border-radius: 8px;
+  background: var(--sg-tile);
+  animation: sg-prev-t 6s var(--sg-ease) infinite;
+  animation-delay: calc(var(--i) * 60ms);
+}
+.sg-prev-t.go {
+  animation-name: sg-prev-go;
+}
+.sg-prev-t::after {
+  content: "";
+  display: block;
+  margin: 13px auto 0;
+  width: 60%;
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--sg-tile-ink) 22%, transparent);
+}
+@keyframes sg-prev-t {
+  0%,
+  30% {
+    transform: none;
+  }
+  45%,
+  85% {
+    transform: translateY(40px);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes sg-prev-go {
+  0%,
+  18% {
+    transform: none;
+    opacity: 1;
+  }
+  30%,
+  85% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes sg-prev-bar {
+  0%,
+  28% {
+    transform: scaleY(0);
+  }
+  36%,
+  86% {
+    transform: scaleY(1);
+  }
+  96%,
+  100% {
+    transform: scaleY(0);
+  }
+}
+.sg-entry.is-locked .sg-prev {
+  filter: saturate(0.9);
+}
+
+/* ── Game shell ────────────────────────────────────────────────────────── */
+.sg-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--v2p-scrim);
+  display: grid;
+  place-items: center;
+  animation: sg-fade 240ms ease both;
+}
+@keyframes sg-fade {
+  from {
+    opacity: 0;
+  }
+}
+.sg-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--sg-ground);
+  color: var(--sg-ink);
+  overflow: hidden;
+}
+.sg-desk .sg-shell {
+  width: 960px;
+  height: 680px;
+  border-radius: 20px;
+  box-shadow:
+    0 40px 100px -30px rgba(0, 0, 0, 0.55),
+    0 0 0 1px var(--sg-line);
+  animation: sg-rise 360ms var(--sg-ease) both;
+}
+.sg-phone .sg-shell {
+  position: absolute;
+  inset: 0;
+  animation: sg-up 380ms var(--sg-ease) both;
+}
+@keyframes sg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+@keyframes sg-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+.sg-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px 12px 22px;
+}
+.sg-phone .sg-head {
+  padding: 56px 14px 10px 18px;
+}
+.sg-head b {
+  font: 600 15px/1 var(--font-sans);
+}
+.sg-steps {
+  display: flex;
+  gap: 4px;
+}
+.sg-steps i {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--sg-line);
+  transition: background-color 300ms;
+}
+.sg-steps i.on {
+  background: var(--sg-ink);
+}
+.sg-head .sg-x {
+  margin-left: auto;
+}
+.sg-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+/* ── Chat ──────────────────────────────────────────────────────────────── */
+.sg-chat {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 18px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sg-phone .sg-chat {
+  padding: 8px 16px 24px;
+}
+.sg-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  animation: sg-msg 360ms var(--sg-ease) both;
+}
+@keyframes sg-msg {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.sg-msg-b {
+  max-width: 84%;
+  padding: 11px 14px;
+  border-radius: 18px 18px 18px 6px;
+  background: var(--sg-card);
+  box-shadow: 0 0 0 1px var(--sg-line);
+  font: 400 15px/1.45 var(--font-sans);
+  text-wrap: pretty;
+}
+.sg-desk .sg-msg-b {
+  font-size: 14px;
+}
+.sg-msg-b b {
+  font-weight: 600;
+}
+.sg-msg.is-me {
+  justify-content: flex-end;
+}
+.sg-msg.is-me .sg-msg-b {
+  background: var(--sg-ink);
+  color: var(--sg-ground);
+  box-shadow: none;
+  border-radius: 18px 18px 6px 18px;
+}
+.sg-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.sg-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sg-ink-3);
+  animation: sg-dot 1s ease-in-out infinite;
+}
+.sg-typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.sg-typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes sg-dot {
+  0%,
+  100% {
+    transform: none;
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+.sg-ask {
+  margin-left: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: sg-msg 360ms var(--sg-ease) 120ms both;
+}
+.sg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sg-chip {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--sg-raise);
+  color: var(--sg-ink);
+  font: 500 14px/1 var(--font-sans);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    background-color 140ms,
+    box-shadow 140ms,
+    transform 90ms;
+}
+.sg-desk .sg-chip {
+  height: 32px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.sg-chip:active {
+  transform: scale(0.97);
+}
+.sg-chip[aria-pressed="true"] {
+  background: var(--sg-card);
+  box-shadow: inset 0 0 0 1.5px var(--sg-ink);
+}
+.sg-chip .e {
+  font-size: 15px;
+}
+.sg-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 20px;
+  background: var(--sg-card);
+  box-shadow: 0 0 0 1px var(--sg-line);
+}
+.sg-desk .sg-field {
+  border-radius: 12px;
+}
+.sg-field:focus-within {
+  box-shadow: 0 0 0 1.5px var(--sg-mark-ring);
+}
+.sg-field textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 140px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sg-ink);
+  font: 400 15px/1.45 var(--font-sans);
+  padding: 8px 0;
+}
+.sg-desk .sg-field textarea {
+  font-size: 14px;
+}
+.sg-field textarea::placeholder {
+  color: var(--sg-ink-3);
+}
+.sg-mic {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--sg-raise);
+  color: var(--sg-ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.sg-ask-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sg-ask-foot .sg-btn.is-primary {
+  margin-left: auto;
+}
+.sg-hintline {
+  font: 400 12.5px/1.4 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+
+/* ── Sort board (Connections-like) ─────────────────────────────────────── */
+.sg-board {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 6px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sg-phone .sg-board {
+  padding: 4px 14px 0;
+}
+.sg-board-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font: 400 14px/1.4 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-board-msg b {
+  color: var(--sg-ink);
+  font-weight: 600;
+}
+.sg-board-msg .sg-btn {
+  margin-left: auto;
+}
+/* lanes = the four groups; a lane fills as tiles drop in */
+.sg-lane {
+  position: relative;
+  border-radius: var(--sg-r);
+  min-height: 56px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: color-mix(in oklch, var(--hue) 12%, var(--sg-ground));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hue) 26%, transparent);
+  transition:
+    background-color 260ms var(--sg-ease),
+    box-shadow 200ms,
+    transform 200ms var(--sg-ease);
+}
+.sg-lane.is-empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in oklch, var(--hue) 35%, var(--sg-line));
+}
+.sg-lane.is-over {
+  transform: scale(1.01);
+  box-shadow: inset 0 0 0 2px var(--hue);
+  background: color-mix(in oklch, var(--hue) 20%, var(--sg-ground));
+}
+.sg-lane-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sg-lane-name {
+  font: 700 12px/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sg-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sg-lane-name i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--hue);
+}
+.sg-lane-n {
+  font: 500 12px/1 var(--font-sans);
+  color: var(--sg-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.sg-lane-sub {
+  font: 400 12px/1 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-lane-h .sg-btn {
+  margin-left: auto;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.sg-lane-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sg-lane-item {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--sg-card);
+  color: var(--sg-ink);
+  font: 500 13px/1 var(--font-sans);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  animation: sg-drop 380ms var(--sg-ease) both;
+  touch-action: none;
+}
+.sg-lane-item small {
+  color: var(--sg-ink-2);
+  font-size: 12px;
+}
+@keyframes sg-drop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+.sg-lane-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-lane-hint .sg-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  margin-left: auto;
+}
+/* solved: the lane collapses into one tinted bar, Connections-style */
+.sg-lane.is-solved {
+  background: color-mix(in oklch, var(--hue) 58%, var(--sg-card));
+  box-shadow: none;
+  align-items: center;
+  text-align: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  animation: sg-solve 520ms var(--sg-ease) both;
+  animation-delay: calc(var(--k) * 140ms);
+}
+.needt-v3[data-theme="dark"] .sg-lane.is-solved {
+  background: color-mix(in oklch, var(--hue) 46%, var(--sg-card));
+}
+.sg-lane.is-solved .sg-lane-name {
+  color: var(--sg-ink);
+}
+.sg-lane-sum {
+  font: 500 13px/1.4 var(--font-sans);
+  color: color-mix(in oklch, var(--sg-ink) 78%, transparent);
+  text-transform: none;
+}
+@keyframes sg-solve {
+  0% {
+    transform: scaleY(0.6);
+    opacity: 0.4;
+  }
+  60% {
+    transform: scaleY(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* the tile grid */
+.sg-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.sg-phone .sg-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+.sg-tile {
+  position: relative;
+  height: var(--sg-tile-h);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--sg-r);
+  background: var(--sg-tile);
+  color: var(--sg-tile-ink);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition:
+    background-color 140ms,
+    transform 160ms var(--sg-ease),
+    box-shadow 160ms;
+  animation: sg-fly 560ms var(--sg-ease) both;
+  animation-delay: calc(var(--i) * 45ms);
+}
+.sg-tile:hover {
+  background: var(--sg-tile-hover);
+}
+.sg-tile b {
+  font: 600 14px/1.25 var(--font-sans);
+  letter-spacing: -0.005em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sg-tile small {
+  font: 500 12px/1 var(--font-sans);
+  color: color-mix(in oklch, var(--sg-tile-ink) 58%, transparent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sg-tile .k {
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  background: color-mix(in oklch, var(--sg-tile-ink) 8%, transparent);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.sg-tile.is-ghost {
+  opacity: 0.25;
+}
+@keyframes sg-fly {
+  from {
+    opacity: 0;
+    transform: translate(var(--fx, -40px), var(--fy, -60px)) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sg-drag {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-2deg) scale(1.04);
+  box-shadow: 0 20px 40px -14px rgba(0, 0, 0, 0.45);
+  animation: none;
+  width: 190px;
+}
+.sg-empty-grid {
+  padding: 18px;
+  text-align: center;
+  font: 400 13px/1.4 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-board-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 4px;
+  background: linear-gradient(to bottom, transparent, var(--sg-ground) 30%);
+}
+.sg-phone .sg-board-foot {
+  padding: 16px 0 26px;
+}
+.sg-board-foot .sg-btn.is-primary {
+  margin-left: auto;
+}
+.sg-phone .sg-board-foot .sg-btn.is-primary {
+  flex: 1;
+}
+
+/* tile editor (tap) */
+.sg-ed-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--v2p-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sg-fade 180ms ease both;
+}
+.sg-phone .sg-ed-scrim {
+  align-items: flex-end;
+}
+.sg-ed {
+  width: 420px;
+  max-width: 100%;
+  border-radius: 18px;
+  background: var(--sg-card);
+  box-shadow:
+    0 30px 80px -24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--sg-line);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: sg-rise 260ms var(--sg-ease) both;
+}
+.sg-phone .sg-ed {
+  width: 100%;
+  border-radius: 28px 28px 0 0;
+  padding: 14px 18px 30px;
+  animation-name: sg-up;
+}
+.sg-ed input {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: var(--sg-raise);
+  color: var(--sg-ink);
+  font: 500 16px/1 var(--font-sans);
+  outline: 0;
+}
+.sg-ed input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--sg-mark-ring);
+}
+.sg-ed-l {
+  font: 600 11.5px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-ink-2);
+}
+.sg-ed .sg-chips {
+  gap: 6px;
+}
+.sg-ed .sg-chip {
+  height: 30px;
+  font-size: 13px;
+  padding: 0 11px;
+  border-radius: 10px;
+}
+.sg-ed-sug {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-ed-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.sg-ed-foot .sg-btn.is-primary {
+  margin-left: auto;
+}
+
+/* summary + plan */
+.sg-sum {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 22px 22px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: sg-msg 420ms var(--sg-ease) both;
+}
+.sg-phone .sg-sum {
+  padding: 10px 16px 30px;
+}
+.sg-sum h2 {
+  margin: 0;
+  font: 600 28px/1.15 var(--font-sans);
+  letter-spacing: -0.025em;
+}
+.sg-sum > p {
+  margin: 0;
+  font: 400 15px/1.45 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sg-count {
+  border-radius: 14px;
+  padding: 14px;
+  background: color-mix(in oklch, var(--hue) 16%, var(--sg-card));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hue) 26%, transparent);
+}
+.sg-count b {
+  display: block;
+  font: 600 30px/1 var(--font-sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.sg-count span {
+  font: 500 13px/1.3 var(--font-sans);
+  color: var(--sg-ink-2);
+}
+.sg-sum-list {
+  border-radius: 14px;
+  background: var(--sg-card);
+  box-shadow: 0 0 0 1px var(--sg-line);
+  padding: 6px 14px;
+}
+.sg-sum-r {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--sg-line);
+  font: 500 14px/1.3 var(--font-sans);
+}
+.sg-sum-r:last-child {
+  border-bottom: 0;
+}
+.sg-sum-r i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--hue);
+  flex: none;
+}
+.sg-sum-r span {
+  margin-left: auto;
+  font: 400 12.5px/1 var(--font-sans);
+  color: var(--sg-ink-2);
+  white-space: nowrap;
+}
+.sg-sum-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sg-sum-foot .sg-btn.is-primary {
+  flex: 1;
+}
+.sg-desk .sg-sum-foot .sg-btn.is-primary {
+  flex: none;
+}
+.sg-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sg-plan-r {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  animation: sg-place 460ms var(--sg-ease) both;
+  animation-delay: calc(var(--i) * 90ms);
+}
+.sg-plan-r em {
+  font: 500 12px/1 var(--font-sans);
+  font-style: normal;
+  color: var(--sg-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.sg-plan-r div {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--sg-card);
+  border-left: 3px solid var(--hue);
+  box-shadow: 0 0 0 1px var(--sg-line);
+  font: 500 14px/1.2 var(--font-sans);
+}
+.sg-plan-r div span {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--sg-ink-2);
+}
+.sg-plan-r.is-ev div {
+  background: transparent;
+  border-left-color: var(--sg-ink-3);
+  color: var(--sg-ink-2);
+}
+@keyframes sg-place {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+/* the final hand-off: chips fly to the sidebar (desktop) / dock (phone) */
+.sg-fly {
+  position: absolute;
+  z-index: 60;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--sg-tile);
+  color: var(--sg-tile-ink);
+  font: 500 12px/26px var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: sg-away 900ms cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  animation-delay: calc(var(--i) * 50ms);
+}
+@keyframes sg-away {
+  to {
+    transform: translate(var(--tx), var(--ty)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-tile,
+  .sg-lane-item,
+  .sg-lane.is-solved,
+  .sg-msg,
+  .sg-ask,
+  .sg-plan-r,
+  .sg-sum,
+  .sg-shell,
+  .sg-ed {
+    animation: none !important;
+  }
+  .sg-prev-t,
+  .sg-prev-bar {
+    animation: none !important;
+  }
+  .sg-fly {
+    display: none;
+  }
+}
+
+/* v2 tweaks after first render */
+.sg-entry-c {
+  container-type: inline-size;
+}
+@container (max-width: 640px) {
+  .sg-entry {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .sg-prev {
+    height: 128px;
+  }
+}
+.sg-entry-acts {
+  flex-wrap: nowrap;
+}
+.sg-entry-menu {
+  margin-left: auto;
+}
+.sg-lane-name {
+  white-space: nowrap;
+}
+.sg-phone .sg-lane-sub {
+  display: none;
+}
+.sg-phone .sg-board-msg {
+  flex-wrap: wrap;
+}
+.sg-phone .sg-board-msg > span {
+  flex: 1 1 calc(100% - 40px);
+}
+.sg-phone .sg-board-msg .sg-btn {
+  margin-left: 32px;
+}
+.sg-lane-hint {
+  flex-wrap: wrap;
+}
+.sg-lane-hint > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── Port: where the design's frame is the real one ───────────────────────
+   The design draws the game inside a spec frame (absolute, with a fake status
+   bar). In the app the game is a layer of the v3 scope: a centred sheet on
+   desktop, the whole screen on the phone, below the status bar. */
+.sg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+.sg-layer.sg-desk {
+  display: grid;
+  place-items: center;
+}
+.sg-layer.sg-desk .sg-scrim {
+  position: absolute;
+}
+.sg-layer.sg-phone .sg-shell {
+  position: absolute;
+  inset: 0;
+}
+.sg-phone .sg-head {
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 10px 18px;
+}
+.sg-phone .sg-board-foot {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+.sg-desk .sg-shell {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+}
+/* the scroller of the board and the chat: a phone page never rubber-bands the sheet */
+.sg-body {
+  overscroll-behavior: contain;
+}
+.sg-btn:focus-visible,
+.sg-chip:focus-visible,
+.sg-tile:focus-visible,
+.sg-lane-item:focus-visible,
+.sg-x:focus-visible,
+.sg-mic:focus-visible {
+  outline: 2px solid var(--sg-mark-ring);
+  outline-offset: 2px;
+}
+.sg-lane.is-solved:focus-visible {
+  outline: 2px solid var(--sg-mark-ring);
+  outline-offset: 2px;
+}
+.sg-mic[aria-pressed="true"] {
+  background: var(--sg-ink);
+  color: var(--sg-ground);
+}
+/* the phone card is 350 px wide on a 390 px screen: the two quiet buttons sit
+   tighter, and wrap to a second line on a narrower screen instead of leaving it */
+.sg-phone .sg-entry-acts {
+  flex-wrap: wrap;
+  gap: 4px 4px;
+}
+.sg-phone .sg-entry-acts .sg-btn.is-text {
+  padding: 0 6px;
+}
+.sg-phone .sg-entry-acts .sg-btn.is-primary {
+  min-width: 120px;
+}
+/* the longer Free button takes its own line on the phone */
+.sg-phone .sg-entry.is-locked .sg-entry-acts .sg-btn.is-primary { flex: 1 0 100%; }
+.sg-phone .sg-entry.is-locked .sg-entry-menu { margin-left: auto; }

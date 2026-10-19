@@ -61,6 +61,8 @@ export const qk = {
   stats: (range: "week" | "month") => [V3, "stats", range] as const,
   /** The day's morning brief (`GET /api/ai/morning-brief?date=`). */
   morningBrief: (day: string) => [V3, "morning-brief", day] as const,
+  /** The Starter game's entry-card state (`GET /api/starter-game`). */
+  starterGame: () => [V3, "starter-game"] as const,
   /** Today's weather for the saved City (`GET /api/weather`). */
   weather: () => [V3, "weather"] as const,
   /** Whether the Sunday review page of this title exists. */
