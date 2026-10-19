@@ -1,4 +1,9 @@
-import { addCalendarDays } from "@/lib/date-utils";
+import {
+  addCalendarDays,
+  formatInTimeZone,
+  fromZonedTime,
+  startOfDayInTimeZone,
+} from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import type { UnscheduledReason } from "@/lib/scheduling-reasons";
 
@@ -83,6 +88,13 @@ export interface SchedulingPreferences {
   enableTaskBatching: boolean;
   hardStopTime: string;
   bufferMultiplier: number;
+  /**
+   * IANA zone of the person (UserSettings.timeZone). Work hours, days, energy
+   * windows and overrides are wall-clock in this zone. The process clock is
+   * UTC in production, so without it hours would be read as UTC. Left out, the
+   * engine falls back to the process's local zone.
+   */
+  timeZone?: string;
   calibrationFactors?: Record<string, number>;
   /**
    * Real time over estimate, learned from the person's finished tasks (only
@@ -153,7 +165,8 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-function startOfDay(date: Date): Date {
+function startOfDay(date: Date, timeZone?: string): Date {
+  if (timeZone) return startOfDayInTimeZone(date, timeZone);
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
@@ -162,12 +175,23 @@ function startOfDay(date: Date): Date {
  * 25-hour clock-change day: from 00:00 on a 25-hour day it lands on 23:00 the
  * same day, so the day never advances.
  */
-function nextDayStart(date: Date): Date {
-  return startOfDay(addCalendarDays(startOfDay(date), 1));
+function nextDayStart(date: Date, timeZone?: string): Date {
+  return startOfDay(
+    addCalendarDays(startOfDay(date, timeZone), 1, timeZone),
+    timeZone
+  );
 }
 
-function setTime(date: Date, time: string): Date {
+/** `date`'s calendar day at wall-clock `time` ("HH:mm") in the zone. */
+function setTime(date: Date, time: string, timeZone?: string): Date {
   const [hours, minutes] = time.split(":").map(Number);
+  if (timeZone) {
+    const day = formatInTimeZone(date, timeZone, "yyyy-MM-dd");
+    return fromZonedTime(
+      `${day}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`,
+      timeZone
+    );
+  }
   const next = new Date(date);
   next.setHours(hours, minutes, 0, 0);
   return next;
@@ -190,11 +214,16 @@ function isDone(task: SchedulableTask): boolean {
   return task.status === "completed";
 }
 
-function dayKey(date: Date): string {
+/** Weekday 0 (Sunday) to 6 in the zone. */
+function dayKey(date: Date, timeZone?: string): string {
+  if (timeZone) {
+    return String(Number(formatInTimeZone(date, timeZone, "i")) % 7);
+  }
   return String(date.getDay());
 }
 
-function localDateKey(date: Date): string {
+function localDateKey(date: Date, timeZone?: string): string {
+  if (timeZone) return formatInTimeZone(date, timeZone, "yyyy-MM-dd");
   return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
@@ -281,18 +310,18 @@ function getWorkWindows(
       ? prefs.workHoursBySchedule?.[resolvedScheduleId]
       : undefined) ?? prefs.workHours;
   const overrides = (prefs.flexibleHoursOverrides ?? []).filter(
-    (override) => override.date === localDateKey(date)
+    (override) => override.date === localDateKey(date, prefs.timeZone)
   );
   const windows = applyFlexibleHoursOverrides(
-    normalizeWindows(scheduleHours[dayKey(date)]),
+    normalizeWindows(scheduleHours[dayKey(date, prefs.timeZone)]),
     overrides
   );
-  const hardStop = setTime(date, prefs.hardStopTime);
+  const hardStop = setTime(date, prefs.hardStopTime, prefs.timeZone);
 
   return windows
     .map((window) => {
-      const start = setTime(date, window.start);
-      const windowEnd = setTime(date, window.end);
+      const start = setTime(date, window.start, prefs.timeZone);
+      const windowEnd = setTime(date, window.end, prefs.timeZone);
       return { start, end: windowEnd < hardStop ? windowEnd : hardStop };
     })
     .filter((window) => window.start < window.end);
@@ -300,13 +329,14 @@ function getWorkWindows(
 
 function getEnergyWindowsForDay(
   date: Date,
-  profile: EnergyProfile
+  profile: EnergyProfile,
+  timeZone?: string
 ): Array<{ start: Date; end: Date; energyLevel: SchedulingEnergyLevel }> {
   return profile.windows
-    .filter((window) => window.dayOfWeek === date.getDay())
+    .filter((window) => String(window.dayOfWeek) === dayKey(date, timeZone))
     .map((window) => ({
-      start: setTime(date, window.startTime),
-      end: setTime(date, window.endTime),
+      start: setTime(date, window.startTime, timeZone),
+      end: setTime(date, window.endTime, timeZone),
       energyLevel: window.energyLevel,
     }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -337,13 +367,14 @@ function hasEnergyMatch(
   end: Date,
   task: SchedulableTask,
   profile: EnergyProfile,
-  strict: boolean
+  strict: boolean,
+  timeZone?: string
 ): boolean {
   if (!strict) {
     return true;
   }
 
-  const windows = getEnergyWindowsForDay(start, profile);
+  const windows = getEnergyWindowsForDay(start, profile, timeZone);
   if (windows.length === 0) {
     return task.energyRequired !== "HIGH";
   }
@@ -536,7 +567,7 @@ function findSlot(
         ? chunk.task.deadline
         : planningHorizonEnd
       : planningHorizonEnd;
-  let day = startOfDay(earliestStart);
+  let day = startOfDay(earliestStart, prefs.timeZone);
 
   for (let steps = 0; day <= searchEnd; steps += 1) {
     if (steps >= MAX_DAY_STEPS) {
@@ -557,8 +588,7 @@ function findSlot(
         const end = addMinutes(cursor, chunk.minutes);
 
         if (end <= work.end && end <= searchEnd) {
-          const deepWorkKey =
-            dayKey(cursor) + cursor.toISOString().slice(0, 10);
+          const deepWorkKey = localDateKey(cursor, prefs.timeZone);
           const currentDeepWork = deepWorkByDay.get(deepWorkKey) ?? 0;
           const fitsDeepWork =
             ignoreEnergyLimits ||
@@ -569,7 +599,14 @@ function findSlot(
             fitsDeepWork &&
             !hasConflict(cursor, end, occupied, spacingMinutes) &&
             (ignoreEnergyLimits ||
-              hasEnergyMatch(cursor, end, chunk.task, profile, strictEnergy))
+              hasEnergyMatch(
+                cursor,
+                end,
+                chunk.task,
+                profile,
+                strictEnergy,
+                prefs.timeZone
+              ))
           ) {
             return { start: cursor, end };
           }
@@ -579,7 +616,7 @@ function findSlot(
       }
     }
 
-    const following = nextDayStart(day);
+    const following = nextDayStart(day, prefs.timeZone);
     if (following <= day) {
       logger.error(
         "Slot search could not advance to the next day",
@@ -622,8 +659,12 @@ function findHardDeadlineOverflowSlot(
 
   while (cursor < searchEnd) {
     const end = addMinutes(cursor, chunk.minutes);
-    const dayStart = setTime(cursor, `0${OVERFLOW_EARLIEST_HOUR}:00`);
-    const dayEnd = setTime(cursor, prefs.hardStopTime);
+    const dayStart = setTime(
+      cursor,
+      `0${OVERFLOW_EARLIEST_HOUR}:00`,
+      prefs.timeZone
+    );
+    const dayEnd = setTime(cursor, prefs.hardStopTime, prefs.timeZone);
 
     if (cursor < dayStart) {
       // Too early in the day: jump to the first acceptable minute rather than
@@ -636,8 +677,9 @@ function findHardDeadlineOverflowSlot(
       // the night.
       dayJumps += 1;
       const following = setTime(
-        nextDayStart(cursor),
-        `0${OVERFLOW_EARLIEST_HOUR}:00`
+        nextDayStart(cursor, prefs.timeZone),
+        `0${OVERFLOW_EARLIEST_HOUR}:00`,
+        prefs.timeZone
       );
       if (dayJumps > MAX_DAY_STEPS || following <= cursor) {
         logger.error(
@@ -898,7 +940,7 @@ export function scheduleTasks(input: {
       });
 
       if (task.energyRequired === "HIGH") {
-        const key = dayKey(slot.start) + slot.start.toISOString().slice(0, 10);
+        const key = localDateKey(slot.start, input.prefs.timeZone);
         deepWorkByDay.set(
           key,
           (deepWorkByDay.get(key) ?? 0) + minutesBetween(slot.start, slot.end)

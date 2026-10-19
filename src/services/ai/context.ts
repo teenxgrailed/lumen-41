@@ -3,10 +3,10 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import {
-  endOfDay,
+  addCalendarDays,
   formatInTimeZone,
   newDate,
-  startOfDay,
+  startOfDayInTimeZone,
 } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
@@ -20,6 +20,14 @@ export async function getTodayScheduleSummary(
   workspace: WorkspaceAccess
 ) {
   const now = newDate();
+  // "Today" is the person's day; the server clock is UTC.
+  const userSettings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  const zone = normalizeUserTimeZone(userSettings?.timeZone);
+  const dayStart = startOfDayInTimeZone(now, zone);
+  const dayEnd = new Date(addCalendarDays(dayStart, 1, zone).getTime() - 1);
   const [tasks, preferences] = await Promise.all([
     prisma.task.findMany({
       where: {
@@ -28,12 +36,9 @@ export async function getTodayScheduleSummary(
         status: { not: "completed" },
         OR: [
           {
-            scheduledStart: {
-              gte: startOfDay(now),
-              lte: endOfDay(now),
-            },
+            scheduledStart: { gte: dayStart, lte: dayEnd },
           },
-          { deadline: { gte: startOfDay(now), lte: endOfDay(now) } },
+          { deadline: { gte: dayStart, lte: dayEnd } },
         ],
       },
       orderBy: [{ scheduledStart: "asc" }, { priorityLevel: "desc" }],
@@ -74,7 +79,8 @@ export async function getTodayScheduleSummary(
           { start?: string; end?: string }
         >)
       : {};
-  const todayHours = workHours[String(now.getDay())];
+  const todayHours =
+    workHours[String(Number(formatInTimeZone(now, zone, "i")) % 7)];
   const workMinutes =
     todayHours?.start && todayHours.end
       ? Math.max(
@@ -90,10 +96,7 @@ export async function getTodayScheduleSummary(
     ? tasks
         .map((task) => {
           const time = task.scheduledStart
-            ? task.scheduledStart.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+            ? formatInTimeZone(task.scheduledStart, zone, "HH:mm")
             : "unscheduled";
           return `${time} ${task.title}`;
         })

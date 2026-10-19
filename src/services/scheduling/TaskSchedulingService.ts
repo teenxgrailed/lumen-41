@@ -3,8 +3,9 @@ import { personalBusyBlocks } from "@/services/personal-time/service";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
-import { addCalendarDays } from "@/lib/date-utils";
+import { addCalendarDays, formatInTimeZone } from "@/lib/date-utils";
 import { canAutoScheduleMore } from "@/lib/entitlements";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
@@ -334,6 +335,12 @@ export async function scheduleAllTasksForUserDetailed(
       throw new Error("Auto-schedule settings not found for user");
     }
 
+    // Hours and days are wall-clock in the person's zone; the server runs UTC.
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    });
+    const timeZone = normalizeUserTimeZone(userSettings?.timeZone);
     const [smartPrefs, workSchedules, flexibleHoursOverrides] =
       await Promise.all([
         prisma.schedulingPreferences.findUnique({ where: { userId } }),
@@ -350,10 +357,9 @@ export async function scheduleAllTasksForUserDetailed(
           where: {
             userId,
             date: {
+              // The column is a date: today in the person's zone, as UTC midnight.
               gte: new Date(
-                new Date().getFullYear(),
-                new Date().getMonth(),
-                new Date().getDate()
+                `${formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd")}T00:00:00.000Z`
               ),
               lt: addDays(new Date(), DEFAULT_HORIZON_DAYS + 1),
             },
@@ -474,6 +480,7 @@ export async function scheduleAllTasksForUserDetailed(
       energyProfile: { windows: [] },
       prefs: {
         ...buildPreferences(smartPrefs, legacySettings),
+        timeZone,
         calibrationFactors: calibration.factors,
         learnedDurationRatio: learnedRatio ?? undefined,
         defaultScheduleId:
