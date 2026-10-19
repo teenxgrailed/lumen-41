@@ -2488,6 +2488,8 @@ model NotificationSettings {
   mailPlan              Boolean  @default(false)
   nudges                Boolean  @default(false)
   weeklyReview          Boolean  @default(true)
+  // The worker sends a push when a planned Focus session reaches its end.
+  focusEnded            Boolean  @default(true)
 
   @@index([userId])
 }

@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 
 import { TaskStatus } from "@/types/task";
 
+import { syncFocusEndJob } from "./focus-end-job";
 import { recomputeFocusStats } from "./focusStats";
 
 const LOG_SOURCE = "focusSession";
@@ -98,6 +99,7 @@ export async function startSession(input: {
     },
   });
 
+  await syncFocusEndJob(session);
   logger.info(
     "Started focus session",
     { sessionId: session.id, mode: session.mode },
@@ -115,10 +117,13 @@ export async function pauseSession(
   });
   if (!session || session.pausedAt) return session;
 
-  return prisma.focusSession.update({
+  // A pause has no end yet: the job goes until resume.
+  const paused = await prisma.focusSession.update({
     where: { id: session.id },
     data: { pausedAt: newDate() },
   });
+  await syncFocusEndJob(paused);
+  return paused;
 }
 
 export async function resumeSession(
@@ -135,13 +140,15 @@ export async function resumeSession(
     Math.floor((newDate().getTime() - session.pausedAt.getTime()) / 1000)
   );
 
-  return prisma.focusSession.update({
+  const resumed = await prisma.focusSession.update({
     where: { id: session.id },
     data: {
       pausedAt: null,
       pausedTotalSeconds: session.pausedTotalSeconds + pausedSeconds,
     },
   });
+  await syncFocusEndJob(resumed);
+  return resumed;
 }
 
 export async function extendSession(
@@ -153,12 +160,14 @@ export async function extendSession(
     where: { id: sessionId, userId, endedAt: null },
   });
   if (!session) return null;
-  return prisma.focusSession.update({
+  const extended = await prisma.focusSession.update({
     where: { id: session.id },
     data: {
       plannedMinutes: (session.plannedMinutes ?? 0) + Math.max(1, minutes),
     },
   });
+  await syncFocusEndJob(extended);
+  return extended;
 }
 
 export async function requestEarlyExit(userId: string, sessionId: string) {
@@ -271,6 +280,8 @@ export async function finalizeSession(input: {
       abandoned: !input.completed,
     },
   });
+
+  await syncFocusEndJob(finalized);
 
   // Time spent counts whether the clock ran out or the person stopped early.
   if (

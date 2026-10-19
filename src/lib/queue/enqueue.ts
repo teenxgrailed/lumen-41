@@ -4,6 +4,7 @@ import {
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
   getCalendarSyncQueue,
+  getFocusQueue,
   getImportQueue,
   getMailSyncQueue,
   getReminderQueue,
@@ -149,4 +150,39 @@ export async function enqueueImportRun(importRunId: string) {
     { importRunId },
     { jobId: `import-${importRunId}` }
   );
+}
+
+/** One job per session; the id is what makes scheduling it twice a no-op. */
+export function focusEndJobId(sessionId: string) {
+  return `focus-end-${sessionId}`;
+}
+
+/**
+ * Schedule (or move) the "Focus ended" job to `endsAt`. A delayed job cannot
+ * be edited, so an existing one is removed first; the worker also re-checks
+ * the session when it fires, so a job that could not be removed is harmless.
+ */
+export async function scheduleFocusEnd(sessionId: string, endsAt: Date) {
+  if (await skipWhenUnconfigured("focus-end")) return null;
+  const queue = getFocusQueue();
+  const jobId = focusEndJobId(sessionId);
+  await (await queue.getJob(jobId))?.remove().catch(() => undefined);
+  return queue.add(
+    "focus-ended",
+    { kind: "ended", sessionId },
+    {
+      jobId,
+      delay: Math.max(0, endsAt.getTime() - newDate().getTime()),
+      attempts: 4,
+      backoff: { type: "exponential", delay: 30_000 },
+    }
+  );
+}
+
+export async function cancelFocusEnd(sessionId: string) {
+  if (await skipWhenUnconfigured("focus-end-cancel")) return false;
+  const job = await getFocusQueue().getJob(focusEndJobId(sessionId));
+  if (!job) return false;
+  await job.remove().catch(() => undefined);
+  return true;
 }

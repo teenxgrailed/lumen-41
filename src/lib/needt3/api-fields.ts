@@ -89,6 +89,7 @@ export const notificationSettingsV3FieldsSchema = z.object({
   mailPlan: z.boolean().optional(),
   nudges: z.boolean().optional(),
   weeklyReview: z.boolean().optional(),
+  focusEnded: z.boolean().optional(),
 });
 
 type Parsed<S extends z.ZodTypeAny> =
