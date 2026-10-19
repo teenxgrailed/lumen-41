@@ -7,10 +7,30 @@ import type { V3Task } from "@/lib/needt3/map";
 
 import type { ScheduleItem } from "./derive";
 
-/** The brief is for the morning: it shows (and is written) before this hour. */
-export const BRIEF_UNTIL_HOUR = 12;
+/** The morning, for the highlight suggestion: before this hour. */
+export const MORNING_UNTIL_HOUR = 12;
 
-export const isMorning = (nowHour: number) => nowHour < BRIEF_UNTIL_HOUR;
+export const isMorning = (nowHour: number) => nowHour < MORNING_UNTIL_HOUR;
+
+/** The brief is shown (and written) before this hour... */
+export const BRIEF_UNTIL_HOUR = 11;
+
+/**
+ * ...or until the first task of the day is done, whichever comes first: once
+ * you have started, the brief has done its job.
+ */
+export const inBriefWindow = (nowHour: number, doneToday: number) =>
+  nowHour < BRIEF_UNTIL_HOUR && doneToday === 0;
+
+/** Tasks closed today (by their completion time; a closed task without one counts when it is due today). */
+export function doneTodayCount(tasks: readonly V3Task[], today: string) {
+  return tasks.filter(
+    (t) =>
+      t.done &&
+      !t.trashedAt &&
+      (t.completedAt ? t.completedAt.startsWith(today) : t.dueDate === today)
+  ).length;
+}
 
 export interface BriefFactsInput {
   /** Open overdue tasks, oldest first. */

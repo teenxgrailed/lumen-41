@@ -1,7 +1,9 @@
 import {
   type BriefFacts,
   briefFactsOf,
+  doneTodayCount,
   hasBriefToSay,
+  inBriefWindow,
   isMorning,
   shouldAskBrief,
 } from "../brief";
@@ -21,10 +23,37 @@ const item = (over: Partial<ScheduleItem>): ScheduleItem => ({
 });
 
 describe("isMorning", () => {
-  it("is before noon", () => {
+  it("is before noon, for the highlight suggestion", () => {
     expect(isMorning(7.5)).toBe(true);
     expect(isMorning(11.99)).toBe(true);
     expect(isMorning(12)).toBe(false);
+  });
+});
+
+describe("inBriefWindow", () => {
+  it("lasts until 11:00 or the first task done, whichever comes first", () => {
+    expect(inBriefWindow(7.5, 0)).toBe(true);
+    expect(inBriefWindow(10.99, 0)).toBe(true);
+    expect(inBriefWindow(11, 0)).toBe(false);
+    expect(inBriefWindow(8, 1)).toBe(false);
+  });
+});
+
+describe("doneTodayCount", () => {
+  it("counts tasks closed today, by completion time", () => {
+    const t = (over: object) => task(over as never);
+    expect(
+      doneTodayCount(
+        [
+          t({ done: true, completedAt: `${TODAY}T08:15` }),
+          t({ done: true, completedAt: "2026-08-31T08:15" }),
+          t({ done: true, completedAt: null, dueDate: TODAY }),
+          t({ done: true, completedAt: `${TODAY}T09:00`, trashedAt: "x" }),
+          t({ done: false, completedAt: null }),
+        ],
+        TODAY
+      )
+    ).toBe(2);
   });
 });
 

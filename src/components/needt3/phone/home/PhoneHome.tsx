@@ -4,11 +4,10 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { LuCheck, LuTarget } from "react-icons/lu";
+import { LuCheck } from "react-icons/lu";
 
 import { readPref } from "@/components/needt3/settings/derive";
 
-import { clock, durLabel } from "@/lib/needt3/day";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
@@ -22,7 +21,6 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
-import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -30,28 +28,24 @@ import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
+import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
+import { weekStartOf } from "@/lib/needt3/week-focus";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
-import { BriefCard } from "../../home/BriefCard";
-import { DayLine } from "../../home/DayLine";
 import { EndDayNudge } from "../../home/EndDayNudge";
 import { FinishPicks } from "../../home/FinishCard";
-import { HighlightCard } from "../../home/HighlightCard";
-import { HighlightSuggest } from "../../home/HighlightSuggest";
 import { ReviewCard, ReviewSheet } from "../../home/ReviewSheet";
 import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
-import { TimeLeftBar } from "../../home/TimeLeftBar";
-import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
-import { dayLine, firstEvent } from "../../home/day-line-model";
+import { briefFactsOf, doneTodayCount } from "../../home/brief";
+import { firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
   dayStreak,
-  hourAt,
   proFromPlan,
   scheduleItems,
 } from "../../home/derive";
@@ -61,14 +55,26 @@ import {
   hourOfClock,
   pickFinishNext,
 } from "../../home/finish";
-import { highlightMeta, highlightTask } from "../../home/highlight";
-import { suggestMeta } from "../../home/suggest";
+import {
+  HaBrief,
+  HaHabits,
+  HaHighlight,
+  HaTimeLeft,
+  HaWeather,
+  haHabitsOf,
+  haTaskCard,
+  haTimeOf,
+  haWeatherOf,
+} from "../../home/ha";
+import { useHaBrief } from "../../home/ha/useHaBrief";
+import { highlightTask } from "../../home/highlight";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
+import { openPaywall } from "../../paywall/store";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
@@ -76,18 +82,14 @@ import {
   PkNumber,
   PkScreen,
   PkSection,
-  PkSkyPlate,
   PkTaskRow,
-  pkCx,
   pkDotSweep,
   pkReduced,
 } from "../kit";
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
-import { HabitsStrip } from "./HabitsStrip";
 import { usePhoneClock } from "./clock";
-import { habitDots } from "./habits-row";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
 import { useTaskPull } from "./pull";
@@ -180,14 +182,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     day: v.sec.day,
     stats: stats.week,
   });
-  const suggest = useHighlightSuggest({
-    tasks: all,
-    today,
-    nowHour,
-    known: highlight.isFetched,
-    hasHighlight: !!highlight.data,
-    accept: (id) => void setHighlight.set(id),
-  });
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const workCap = capacityFrom(prefs);
@@ -206,7 +200,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   });
   const city = readPref(useSettings().data?.prefs, "city");
   const weather = useWeather(city);
-  const line = dayLine({
+  const wx = haWeatherOf({
     city,
     weather: weather.data,
     first: firstEvent(events.data ?? [], today, nowHour),
@@ -219,7 +213,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
   const aiAvailable = useAiAvailable();
-  const morning = isMorning(nowHour);
   const briefFacts = briefFactsOf({
     late: v.open(v.sec.late),
     day: v.sec.day,
@@ -232,16 +225,24 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     schedule: calendarItems,
     nowHour,
   });
-  const morningBrief = useMorningBrief({
-    day: today,
-    show: pro === true && morning,
-    ask: shouldAskBrief({
-      pro,
-      morning,
-      aiAvailable: aiAvailable.data,
-      facts: briefFacts,
-    }),
+  const haBrief = useHaBrief({
+    today,
+    nowHour,
+    doneToday: doneTodayCount(all, today),
+    pro,
+    aiAvailable: aiAvailable.data,
     facts: briefFacts,
+  });
+  const weekFocus = useWeekFocus(weekStartOf(today, weekStartDay));
+  const suggest = useHighlightSuggest({
+    tasks: all,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
+    weekFocus: weekFocus.data?.focuses,
+    ai: pro === true && aiAvailable.data === true,
   });
   const finishPicks = v.dayClosed
     ? pickFinishNext(
@@ -324,7 +325,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   );
 
   const ready = hasContent(tasksQuery);
-  const nuAt = nu ? hourAt(nu, today) : null;
+  const sub = (t: V3Task, tail: string) =>
+    [projOf(t)?.name, tail].filter(Boolean).join(" · ");
+  const hlSub = sub;
+  const restToday = Math.max(0, v.open(v.sec.day).length - 1);
+  const nextSub =
+    nu && N.lateOpen.includes(nu)
+      ? nextUpWhy(N, today)
+      : nu
+        ? sub(nu, restToday ? `then ${restToday} more today` : "") ||
+          nextUpWhy(N, today)
+        : "";
   const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
@@ -379,21 +390,20 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     </div>
   ) : null;
 
-  const dots = habitDots(
-    habitsQuery.data ?? [],
-    checkins,
-    today,
-    projects ?? []
-  );
+  const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
   const head =
-    dots.length || progress ? (
+    haHabits.length || progress ? (
       <>
-        <HabitsStrip
-          dots={dots}
-          onTick={(id, done) =>
-            void toggleHabit.mutateAsync({ id, done }).catch(none)
-          }
-        />
+        {haHabits.length ? (
+          <div className="ha-phone">
+            <HaHabits
+              habits={haHabits}
+              onToggle={(id, done) =>
+                void toggleHabit.mutateAsync({ id, done }).catch(none)
+              }
+            />
+          </div>
+        ) : null}
         {progress}
       </>
     ) : null;
@@ -409,111 +419,79 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
-      {ready ? <DayLine text={line} /> : null}
       {ready && review.show ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
       {ready && nudge.show ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
-      {ready && morningBrief.brief ? (
-        <BriefCard
-          text={morningBrief.brief.text}
-          onDismiss={morningBrief.dismiss}
-        />
-      ) : null}
-      {ready && hlTask ? (
-        <HighlightCard
-          phone
-          id={hlTask.id}
-          title={hlTask.title}
-          meta={highlightMeta(hlTask, today)}
-          done={hlTask.done}
-          onComplete={() => {
-            pkDotSweep(`[data-hl-card="${hlTask.id}"]`, "row");
-            check(hlTask);
-          }}
-          onFocus={() => void startFocus(hlTask)}
-          onClear={() => void setHighlight.set(null)}
-          onOpen={() => openTask(hlTask)}
-        />
-      ) : null}
-      {ready && suggest.pick ? (
-        <HighlightSuggest
-          phone
-          title={suggest.pick.title}
-          meta={suggestMeta(suggest.pick)}
-          canCycle={suggest.canCycle}
-          onAccept={suggest.accept}
-          onAnother={suggest.another}
-          onDismiss={suggest.dismiss}
-        />
-      ) : null}
-      {ready && nu ? (
-        <PkSkyPlate className="v2p-next" data-v2p-next={nu.id} key={nu.id}>
-          <div className="v2p-next-top">
-            <span
-              className={pkCx(
-                "v2p-next-label",
-                N.lateOpen.includes(nu) && "is-late"
+      {ready ? (
+        <div className="ha-phone ha-ph-stack" data-ha-stack="">
+          {hlTask && !hlTask.done ? (
+            <HaHighlight
+              phone
+              state="set"
+              card={haTaskCard(
+                hlTask,
+                today,
+                hlSub(hlTask, "the one thing for today")
               )}
-            >
-              {N.lateOpen.includes(nu) ? (
-                <span className="pk-alert-dot" />
-              ) : null}
-              {N.lateOpen.includes(nu)
-                ? copy.V2pHome.overdue
-                : copy.V2pHome.next_up}
-            </span>
-            {nuAt != null ? (
-              <span className="v2p-next-time">{clock(nuAt)}</span>
-            ) : null}
-            {nu.estimatedMinutes ? (
-              <span className="v2p-next-when">
-                {durLabel(nu.estimatedMinutes)}
-              </span>
-            ) : null}
-            {N.cands.length > 1 ? (
-              <PkButton
-                kind="ghost"
-                className="v2p-next-skip"
-                onClick={() => setSkipped(N.skip(skipped))}
-                data-v2p-skip=""
-              >
-                {copy.V2pHome.skip}
-              </PkButton>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="v2p-next-title"
-            onClick={() => openTask(nu)}
-          >
-            {nu.title}
-          </button>
-          <p className="v2p-next-why">{nextUpWhy(N, today)}</p>
-          <div className="v2p-next-actions">
-            <PkButton
-              kind="primary"
-              small
-              icon={<LuTarget size={16} />}
-              onClick={() => void startFocus(nu)}
-            >
-              {copy.V2pHome.start_focus}
-            </PkButton>
-            <PkButton
-              small
-              icon={<LuCheck size={16} />}
-              onClick={() => {
-                pkDotSweep(`[data-v2p-next="${nu.id}"]`, "row");
+              onUnset={() => void setHighlight.set(null)}
+              onStart={() => void startFocus(hlTask)}
+              onDone={() => {
+                pkDotSweep(`[data-ha-card="${hlTask.id}"]`, "row");
+                check(hlTask);
+              }}
+              onOpen={() => openTask(hlTask)}
+            />
+          ) : suggest.pick ? (
+            <HaHighlight
+              phone
+              state="suggest"
+              card={haTaskCard(suggest.pick, today, suggest.reason)}
+              index={suggest.index}
+              count={suggest.count}
+              locked={pro === false}
+              onYes={suggest.accept}
+              onAnother={suggest.another}
+              onUpgrade={() => openPaywall("Highlight suggestions")}
+            />
+          ) : nu ? (
+            <HaHighlight
+              phone
+              state="nextup"
+              late={N.lateOpen.includes(nu)}
+              card={haTaskCard(nu, today, nextSub)}
+              onSkip={
+                N.cands.length > 1
+                  ? () => setSkipped(N.skip(skipped))
+                  : undefined
+              }
+              onStart={() => void startFocus(nu)}
+              onDone={() => {
+                pkDotSweep(`[data-ha-card="${nu.id}"]`, "row");
                 X.exit(nu, "check");
               }}
-              data-v2p-next-done=""
-            >
-              {copy.V2pHome.done}
-            </PkButton>
-          </div>
-        </PkSkyPlate>
+              onOpen={() => openTask(nu)}
+            />
+          ) : null}
+          <HaBrief
+            lines={haBrief.lines}
+            note={haBrief.note}
+            locked={haBrief.locked}
+            onClose={haBrief.dismiss}
+            onUpgrade={() => openPaywall("Morning brief")}
+          />
+          <HaWeather wx={wx} />
+          <HaTimeLeft
+            t={haTimeOf({
+              left,
+              nowHour,
+              start: hourOfClock(workCap.start),
+              end: hourOfClock(workCap.end),
+            })}
+          />
+        </div>
       ) : null}
 
       {ready && finishPicks.length ? (
@@ -524,7 +502,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         />
       ) : null}
 
-      {ready ? <TimeLeftBar left={left} /> : null}
       {ready ? <PersonalDayBands date={today} /> : null}
 
       {ready && v.empty ? (
