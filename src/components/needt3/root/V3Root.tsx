@@ -178,13 +178,31 @@ export function V3Root({
       html.style.colorScheme,
       body.style.backgroundColor,
     ];
+    // `<meta name="color-scheme">` is the server's answer for the first byte;
+    // Safari reads it for its own bars, so it follows the theme live.
+    let schemeMeta = document.head.querySelector<HTMLMetaElement>(
+      'meta[name="color-scheme"]'
+    );
+    let schemeAdded = false;
+    if (!schemeMeta) {
+      schemeMeta = document.createElement("meta");
+      schemeMeta.name = "color-scheme";
+      document.head.appendChild(schemeMeta);
+      schemeAdded = true;
+    }
+    const schemeBefore = schemeMeta.getAttribute("content");
     html.style.backgroundColor = barColor;
     html.style.colorScheme = resolved.side;
     body.style.backgroundColor = barColor;
+    schemeMeta.setAttribute("content", resolved.side);
+    const meta = schemeMeta;
     return () => {
       html.style.backgroundColor = before[0];
       html.style.colorScheme = before[1];
       body.style.backgroundColor = before[2];
+      if (schemeAdded) meta.remove();
+      else if (schemeBefore !== null)
+        meta.setAttribute("content", schemeBefore);
     };
   }, [barColor, resolved.side]);
 
@@ -245,6 +263,13 @@ export function V3Root({
         <PhoneUiProvider value={ui}>
           <V3Shell ui={ui}>{children}</V3Shell>
         </PhoneUiProvider>
+        {/* What Safari 26 samples for its bars (phone-ground.css). */}
+        {ui === "phone" ? (
+          <>
+            <div className="v3-edge-tint is-top" aria-hidden="true" />
+            <div className="v3-edge-tint is-bottom" aria-hidden="true" />
+          </>
+        ) : null}
         {/* Permanent: a sibling of the shell, so no UI change reaches it. */}
         <PaywallHost />
         <PwaBridge />

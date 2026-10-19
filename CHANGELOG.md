@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Phone, Safari 26: the status bar and the bottom toolbar now take the colour of
+  the in-app theme (not the opposite one, not a stale one) and change the moment
+  the theme does. The ground also runs under both bars.
+
 - The notifications bell now shows real activity: what Needt or a connected
   agent did, comments and shares on your pages, a calendar that needs
   reconnecting, finished imports and nudges, with unread dots and Mark all as
