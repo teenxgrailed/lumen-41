@@ -319,6 +319,48 @@ task must be live and in the caller's scope (`404` otherwise). `DELETE` is safe
 to repeat. `400` for a `date` that is not `YYYY-MM-DD`. Writes need the Editor
 role; reading needs none beyond membership.
 
+## Week focus
+
+The up to three focuses a person picks in the Sunday review for the week
+ahead. They are the first candidates for that week's daily highlight (Home
+offers a task that matches one before any other). Stored per user, workspace
+and week; `weekStart` is the first day of the week as the person sees it
+(`YYYY-MM-DD`, their own week start), so no time zone or week rule is guessed
+on the server.
+
+```
+GET /api/week-focus?weekStart=2026-10-26
+PUT /api/week-focus   { "weekStart": "2026-10-26",
+                        "focuses": [{ "title": "Ship the landing", "taskId": "..." },
+                                    { "title": "German B1" }] }
+```
+
+Both answer `{ "weekFocus": { "weekStart", "focuses": [{ "title", "taskId" }] } }`,
+or `{ "weekFocus": null }` when nothing was picked for that week. `focuses`
+holds 1 to 3 entries; `taskId` is optional (`null` when the focus is only a
+title) and must be a live task in the caller's scope (`404` otherwise). `PUT`
+replaces the week's list. `400` for a `weekStart` that is not `YYYY-MM-DD` or a
+list that is empty or longer than three. Writes need the Editor role; reading
+needs none beyond membership.
+
+## Highlight suggestions (Pro)
+
+```
+POST /api/ai/highlight-suggestions
+     { "date": "2026-10-19",
+       "candidates": [{ "id": "...", "title": "...", "due": "2026-10-19",
+                        "priority": "high", "minutes": 60, "focus": true }] }
+```
+
+Asks the hosted (or own-key) AI to pick 2 or 3 of the given tasks as the
+day's highlight and give each a one-line reason. Answers
+`{ "status": "ready", "suggestions": [{ "taskId", "reason" }] }`, or
+`{ "status": "unavailable" | "upgrade", "suggestions": [] }` when no AI can
+answer or the account is Free (the client then falls back to its own order
+without a model). Only ids from `candidates` are returned; at most 12
+candidates are read. It counts as one AI action and is limited to 6 requests
+an hour per account.
+
 ## Widgets: today, highlight, habits
 
 Reads for a phone widget or a dashboard, answered to a personal `needt_...`
@@ -594,8 +636,8 @@ is sent to Open-Meteo; no device location is read or sent.
 
 Temperatures are whole degrees Celsius; `code` is the WMO weather code.
 `weather` is also `null` when the city is unknown or Open-Meteo is down.
-Home draws this next to the day's first event ("First event at 10:00, leave by
-09:40" when that event has a location, otherwise just the time).
+Home draws this next to the day's first event ("First event at 10:00"). It
+does not say when to leave: Needt has no real travel time to base that on.
 
 ## Weekly review
 

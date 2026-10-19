@@ -7,9 +7,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { addDays } from "@/lib/needt3/derive";
 import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
+import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import { useSaveWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
+import { nextWeekStart } from "@/lib/needt3/week-focus";
 import { notify } from "@/lib/notifications";
 
 import type { ReviewProps } from "./ReviewSheet";
@@ -45,6 +48,8 @@ export function useWeeklyReview(o: {
 }) {
   const qc = useQueryClient();
   const updateTask = useUpdateTask();
+  const saveWeekFocus = useSaveWeekFocus();
+  const weekStartDay = useSettings().data?.weekStartDay ?? "monday";
   const title = reviewTitle(o.today);
   const sunday = isReviewDay(o.today);
   const written = useQuery({
@@ -112,6 +117,13 @@ export function useWeeklyReview(o: {
       await sendJson(`/api/pages/${page.id}/append`, "POST", {
         text: reviewMarkdown({ wins, moved, focuses }),
       });
+      // the focuses are also the week's highlight candidates (/api/week-focus)
+      const picked = focuses
+        .map((f) => f.trim())
+        .filter(Boolean)
+        .map((t) => ({ title: t, taskId: null }));
+      if (picked.length)
+        await saveWeekFocus(nextWeekStart(o.today, weekStartDay), picked);
       qc.setQueryData(qk.weeklyReview(title), true);
       void qc.invalidateQueries({ queryKey: qk.docs() });
       notify.success(
@@ -143,6 +155,8 @@ export function useWeeklyReview(o: {
     wins,
     focuses,
     qc,
+    saveWeekFocus,
+    weekStartDay,
   ]);
 
   const sheet: ReviewProps = {

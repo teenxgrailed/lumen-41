@@ -296,9 +296,9 @@ afterEach(() => {
 describe("Home", () => {
   it("the overdue task is on the plate; the rest are rows under the plate", () => {
     mount(PhoneHome);
-    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("late");
-    expect(q(".v2p-next-label").textContent).toBe("Overdue");
-    expect(q(".v2p-next-why").textContent).toBe("Overdue since 1 Sep");
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("late");
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Overdue");
+    expect(q(".ha-hl-sub").textContent).toBe("Overdue since 1 Sep");
     const rows = qa("[data-pk-row]").map((r) => r.getAttribute("data-pk-row"));
     expect(rows).toEqual(["am", "pm", "inbox"]);
     expect(q("[data-v2p-count]").getAttribute("data-v2p-count")).toBe("1/3");
@@ -307,7 +307,7 @@ describe("Home", () => {
 
   it("the title opens the task sheet; a row opens it too", () => {
     mount(PhoneHome);
-    click(q(".v2p-next-title"));
+    click(q(".ha-hl-open"));
     expect(usePhoneOverlays.getState().taskId).toBe("late");
     click(q('[data-pk-row="pm"] .pk-row-open'));
     expect(usePhoneOverlays.getState().taskId).toBe("pm");
@@ -315,8 +315,8 @@ describe("Home", () => {
 
   it("Skip hands the plate on; Done on a row's ring closes it (reduced motion: at once)", async () => {
     mount(PhoneHome);
-    click(q("[data-v2p-skip]"));
-    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
+    click(q("[data-ha-skip]"));
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("am");
     click(q('[data-pk-row="pm"] .pk-check'));
     await flush();
     expect(toggle).toHaveBeenCalledTimes(1);
@@ -384,16 +384,16 @@ describe("Home", () => {
 
   it("a row of habit circles sits under the date and ticks today", async () => {
     mount(PhoneHome);
-    const dot = q('[data-hs-dot="h1"]');
+    const dot = q('[data-ha-habit="h1"]');
     expect(dot.getAttribute("aria-pressed")).toBe("false");
-    expect(dot.textContent).toBe("S");
+    expect(dot.textContent).toContain("S");
     click(dot);
     await flush();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/habits/h1/completions/today",
       expect.objectContaining({ method: "PUT" })
     );
-    expect(q('[data-hs-dot="h1"]').getAttribute("aria-pressed")).toBe("true");
+    expect(q('[data-ha-habit="h1"]').getAttribute("aria-pressed")).toBe("true");
   });
 
   it("has no second, collapsible Habits section any more", () => {
@@ -404,24 +404,25 @@ describe("Home", () => {
   it("draws no habit row when there are no habits", () => {
     client.setQueryData(qk.habits(), []);
     mount(PhoneHome);
-    expect(qa("[data-hs-row]")).toHaveLength(0);
+    expect(qa(".ha-habits")).toHaveLength(0);
   });
 
   it("the day's highlight is a card of its own, lifted out of the rows", async () => {
     client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
     mount(PhoneHome);
-    expect(q("[data-hl-card]").getAttribute("data-hl-card")).toBe("pm");
-    expect(q(".hl-title").textContent).toBe("Call Anna");
+    expect(q('[data-ha-hl="set"]')).toBeTruthy();
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("pm");
+    expect(q(".ha-hl-title").textContent).toBe("Call Anna");
     // not again on the plate or in the day's rows
     expect(host.textContent?.match(/Call Anna/g)).toHaveLength(1);
-    click(q('[data-fin="hl-complete"]'));
+    click(q("[data-ha-done]"));
     await flush();
     expect(toggle).toHaveBeenCalled();
   });
 
   it("draws no highlight card when none is set", () => {
     mount(PhoneHome);
-    expect(qa("[data-hl-card]")).toHaveLength(0);
+    expect(qa('[data-ha-hl="set"]')).toHaveLength(0);
   });
 
   it("a small This week card sits at the bottom and opens the stats", async () => {
@@ -462,7 +463,7 @@ describe("Home", () => {
     mount(PhoneHome);
     expect(q("[data-p5-state]").getAttribute("data-p5-state")).toBe("loading");
     expect(host.textContent).toContain("Today");
-    expect(qa("[data-v2p-next]")).toHaveLength(0);
+    expect(qa("[data-ha-card]")).toHaveLength(0);
   });
 
   it("a failed load says so with Retry, and Retry asks again", async () => {
@@ -706,14 +707,14 @@ describe("Calendar", () => {
 describe("two faces, one state (crossing 700 px)", () => {
   it("Home keeps Skip and the open sections across a swap and back", () => {
     mount(PhoneHome);
-    click(q("[data-v2p-skip]"));
-    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
+    click(q("[data-ha-skip]"));
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("am");
     swap(PhoneHome, "desktop");
     expect(qa(".pk-screen")).toHaveLength(0);
     expect(qa("[data-desktop]")).toHaveLength(1);
     swap(PhoneHome, "phone");
-    expect(q("[data-v2p-next]").getAttribute("data-v2p-next")).toBe("am");
-    expect(qa("[data-hs-dot]")).toHaveLength(1);
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("am");
+    expect(qa("[data-ha-habit]")).toHaveLength(1);
   });
 
   it("a row that is mid-exit still writes, once, when the window is resized", async () => {
@@ -755,7 +756,7 @@ describe("two faces, one state (crossing 700 px)", () => {
     expect(qa("[data-desktop]")).toHaveLength(0);
     // Done today is open on the phone too, and Skip passed nothing real over
     expect(qa("[data-pk-row=doneNow]")).toHaveLength(1);
-    click(q("[data-v2p-skip]"));
+    click(q("[data-ha-skip]"));
     swap(PhoneHome, "desktop");
     expect(q("[data-d=tab]").textContent).toBe("week");
     expect(q("[data-d=late]").textContent).toBe("true");
