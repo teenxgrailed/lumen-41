@@ -24,8 +24,8 @@ describe("tileDetail", () => {
     expect(tileDetail(tile({ k: "habit", perWeek: 7 }))).toBe("daily");
     expect(tileDetail(tile({ k: "habit", perWeek: 3 }))).toBe("3× a week");
     expect(tileDetail(tile({ k: "habit", perWeek: 1 }))).toBe("weekly");
-    expect(tileDetail(tile({ k: "project", horizon: "until Dec" }))).toBe(
-      "until Dec"
+    expect(tileDetail(tile({ k: "project", horizon: "this quarter" }))).toBe(
+      "this quarter"
     );
     expect(tileDetail(tile({ k: "project" }))).toBe("ongoing");
   });
@@ -126,7 +126,7 @@ describe("createInput", () => {
         t: "German course",
         k: "project",
         g: "project",
-        horizon: "until Dec",
+        horizon: "this quarter",
         dueDay: "2026-12-01",
         firstStep: "Book the test",
       }),
@@ -147,7 +147,7 @@ describe("createInput", () => {
         {
           name: "German course",
           firstStep: "Book the test",
-          horizon: "until Dec",
+          horizon: "this quarter",
           deadlineDay: "2026-12-01",
         },
       ],
@@ -173,6 +173,13 @@ describe("createInput", () => {
     ]);
     expect(input.projects).toEqual([
       { name: "Ship orders", firstStep: "Print labels" },
+    ]);
+  });
+
+  it("uses the title as the first step when a task without one becomes a project", () => {
+    const input = createInput([tile({ t: "Plan trip", g: "project" })]);
+    expect(input.projects).toEqual([
+      { name: "Plan trip", firstStep: "Plan trip" },
     ]);
   });
 

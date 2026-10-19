@@ -37,7 +37,7 @@ const TILES: SgTile[] = [
     k: "project",
     s: "project",
     g: null,
-    horizon: "until Dec",
+    horizon: "this quarter",
     firstStep: "Book the test",
   },
 ];
@@ -266,7 +266,7 @@ describe("the editor", () => {
       host.querySelector<HTMLButtonElement>('[data-sg="remove"]')?.click()
     );
     act(() => tile("f").click());
-    expect(host.querySelector(".sg-ed")?.textContent).toContain("until Dec");
+    expect(host.querySelector(".sg-ed")?.textContent).toContain("this quarter");
   });
 
   it("says where the agent would put it", () => {

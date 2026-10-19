@@ -49,7 +49,7 @@ export function tileFromItem(
   };
 }
 
-/** The line a tile wears under its title: "45 min", "3× a week", "until Dec". */
+/** The line a tile wears under its title: "45 min", "3× a week", "this quarter". */
 export const tileDetail = (t: SgTile) =>
   itemDetail({
     kind: t.k,
@@ -61,7 +61,7 @@ export const tileDetail = (t: SgTile) =>
 /** What the editor offers for the "How long / How often / Until" row. */
 export const EDITOR_MINUTES = [15, 30, 45, 60, 90] as const;
 export const EDITOR_PER_WEEK = [7, 3, 1] as const;
-export const EDITOR_HORIZONS = ["this month", "until Dec", "ongoing"] as const;
+export const EDITOR_HORIZONS = ["this month", "ongoing"] as const;
 
 export const detailLabel = (k: StarterKind) =>
   k === "habit" ? "How often" : k === "project" ? "Until" : "Duration";
@@ -120,7 +120,13 @@ export function createInput(tiles: readonly SgTile[]): StarterCreateInput {
       .filter((x) => x.g === "project")
       .map((x) => ({
         name: x.t,
-        ...(x.firstStep ? { firstStep: x.firstStep } : {}),
+        // A tile dropped into Project that is not a project has no first step
+        // of its own; its title is the first thing to do.
+        ...(x.firstStep
+          ? { firstStep: x.firstStep }
+          : x.k !== "project"
+            ? { firstStep: x.t }
+            : {}),
         ...(x.k === "project" && x.horizon ? { horizon: x.horizon } : {}),
         ...(x.k === "project" && x.dueDay ? { deadlineDay: x.dueDay } : {}),
       })),

@@ -51,7 +51,7 @@ const PLAN = {
       title: "German course",
       kind: "project",
       suggestedGroup: "project",
-      horizon: "until Dec",
+      horizon: "this quarter",
       firstStep: "Book the test",
     },
   ],
@@ -209,7 +209,9 @@ describe("the chat", () => {
     expect(q("textarea")?.getAttribute("aria-label")).toBe(
       "What’s burning this week?"
     );
-    expect((q("textarea") as HTMLTextAreaElement).value).toMatch(/Demesures/);
+    expect((q("textarea") as HTMLTextAreaElement).value).toMatch(
+      /Product launch/
+    );
     await next();
     expect(planCalls()).toHaveLength(0);
     chip("Duolingo daily");
@@ -219,7 +221,7 @@ describe("the chat", () => {
     expect(planCalls()).toHaveLength(1);
     expect(planCalls()[0].body).toEqual({
       do: "Work, Study",
-      burn: expect.stringContaining("German homework"),
+      burn: expect.stringContaining("language homework"),
       reg: "Duolingo daily",
     });
     expect(q("[data-sg-board]")).not.toBeNull();
@@ -381,7 +383,7 @@ describe("create, summary and Plan my day", () => {
         {
           name: "German course",
           firstStep: "Book the test",
-          horizon: "until Dec",
+          horizon: "this quarter",
         },
       ],
     });

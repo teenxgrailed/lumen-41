@@ -63,7 +63,7 @@ const INPUT = {
     {
       name: "German B1 course",
       firstStep: "Book the placement test",
-      horizon: "until Dec",
+      horizon: "this quarter",
     },
     { name: "Autumn stock" },
   ],
@@ -102,7 +102,7 @@ describe("starter.create", () => {
     const german = db.tables.project.find(
       (p) => p.name === "German B1 course"
     )!;
-    expect(german.description).toBe("until Dec");
+    expect(german.description).toBe("this quarter");
     const step = db.tables.task.find(
       (t) => t.title === "Book the placement test"
     )!;

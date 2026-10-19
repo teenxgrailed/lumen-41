@@ -106,7 +106,7 @@ export const SG_Q: readonly SgQuestion[] = [
     hint: "Type it the way you’d say it. Deadlines and people help.",
     text: true,
     example:
-      "Demesures drop on Friday, list jackets on Grailed, German homework for Wednesday, return the Swarovski, budget receipts",
+      "Product launch on Friday, list old books online, language homework for Wednesday, return the package, budget receipts",
   },
   {
     id: "reg",

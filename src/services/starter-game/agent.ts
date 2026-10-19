@@ -36,7 +36,7 @@ const SYSTEM = [
   `a task goes to "today" (can be done today) or "week"; a habit to "habit"; a project to "project".`,
   `A task has durationMinutes (5 to 480; 15, 30, 45, 60 or 90 are typical) and may have dueDay (YYYY-MM-DD, within the next 7 days).`,
   `A habit has perWeek (1 to 7; 7 is daily) and durationMinutes.`,
-  `A project is bigger than one sitting. It has horizon (a few words: "by Fri 23 Oct", "until Dec", "ongoing")`,
+  `A project is bigger than one sitting. It has horizon (a few words: "by Fri 23 Oct", "this quarter", "ongoing")`,
   `and ALWAYS a firstStep: one small concrete action that starts it. Give every task a firstStep too (a person may turn it into a project); habits need none.`,
   `Titles are short, concrete, start with a verb where it fits, 60 characters at most.`,
   `Use only what the person said or what follows plainly from it; invent no people, dates or facts.`,
