@@ -66,7 +66,7 @@ export function HaWeek({
           onOpen?.();
         }
       }}
-      aria-label={`This week: ${w.done} done, best day ${w.best}, streak ${w.streak} days. Open stats`}
+      aria-label={`This week: ${w.done} done, best day ${w.best}, streak ${w.streak} ${w.streak === 1 ? "day" : "days"}. Open stats`}
       data-ha-week=""
     >
       <div className="ha-week-h">
@@ -85,7 +85,10 @@ export function HaWeek({
           Best <b>{w.best}</b>
         </span>
         <span>
-          Streak <b>{w.streak} days</b>
+          Streak{" "}
+          <b>
+            {w.streak} {w.streak === 1 ? "day" : "days"}
+          </b>
         </span>
       </div>
     </div>

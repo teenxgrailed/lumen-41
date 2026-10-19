@@ -32,6 +32,13 @@
   --sg-r: 10px;
   --sg-tile-h: 72px;
 }
+/* The entry card on a phone screen sits in the screen's own flow with no gap
+ * from the card above it (Next up, All done); the layer that holds the game
+ * itself is not part of the flow. */
+.sg-phone:not(.sg-layer) {
+  margin-top: 16px;
+}
+
 /* solid neutral tiles: the plate tokens of each theme */
 .sg-phone,
 .sg-desk {
