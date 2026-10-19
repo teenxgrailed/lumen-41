@@ -30,8 +30,10 @@ import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
+import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
+import { weekStartOf } from "@/lib/needt3/week-focus";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
@@ -46,7 +48,12 @@ import { SampleBanner } from "../../home/SampleBanner";
 import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
 import { TimeLeftBar } from "../../home/TimeLeftBar";
-import { briefFactsOf, isMorning, shouldAskBrief } from "../../home/brief";
+import {
+  briefFactsOf,
+  doneTodayCount,
+  inBriefWindow,
+  shouldAskBrief,
+} from "../../home/brief";
 import { dayLine, firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
@@ -180,14 +187,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     day: v.sec.day,
     stats: stats.week,
   });
-  const suggest = useHighlightSuggest({
-    tasks: all,
-    today,
-    nowHour,
-    known: highlight.isFetched,
-    hasHighlight: !!highlight.data,
-    accept: (id) => void setHighlight.set(id),
-  });
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const workCap = capacityFrom(prefs);
@@ -219,7 +218,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
   const aiAvailable = useAiAvailable();
-  const morning = isMorning(nowHour);
+  const morning = inBriefWindow(nowHour, doneTodayCount(all, today));
   const briefFacts = briefFactsOf({
     late: v.open(v.sec.late),
     day: v.sec.day,
@@ -242,6 +241,17 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       facts: briefFacts,
     }),
     facts: briefFacts,
+  });
+  const weekFocus = useWeekFocus(weekStartOf(today, weekStartDay));
+  const suggest = useHighlightSuggest({
+    tasks: all,
+    today,
+    nowHour,
+    known: highlight.isFetched,
+    hasHighlight: !!highlight.data,
+    accept: (id) => void setHighlight.set(id),
+    weekFocus: weekFocus.data?.focuses,
+    ai: pro === true && aiAvailable.data === true,
   });
   const finishPicks = v.dayClosed
     ? pickFinishNext(
@@ -442,7 +452,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         <HighlightSuggest
           phone
           title={suggest.pick.title}
-          meta={suggestMeta(suggest.pick)}
+          meta={suggest.reason || suggestMeta(suggest.pick)}
           canCycle={suggest.canCycle}
           onAccept={suggest.accept}
           onAnother={suggest.another}

@@ -48,15 +48,10 @@ describe("firstEvent", () => {
     );
     expect(f).toMatchObject({ title: "Next", at: "10:00" });
   });
-  it("says when to leave only if the event has a place", () => {
-    expect(firstEvent([ev({})], TODAY, 9)?.leaveBy).toBeNull();
-    expect(firstEvent([ev({ location: "  " })], TODAY, 9)?.leaveBy).toBeNull();
+  it("never says when to leave, even for an event with a place", () => {
     const f = firstEvent([ev({ location: "Office, Main St" })], TODAY, 9);
-    expect(f?.leaveBy).toBe("09:40");
-    expect(firstEventText(f!)).toBe("First event at 10:00, leave by 09:40");
-    expect(firstEventText({ ...f!, leaveBy: null })).toBe(
-      "First event at 10:00"
-    );
+    expect(f).toEqual({ title: expect.any(String), at: "10:00" });
+    expect(firstEventText(f!)).toBe("First event at 10:00");
   });
   it("is null when nothing is ahead", () => {
     expect(firstEvent([ev({})], TODAY, 11)).toBeNull();
@@ -64,20 +59,20 @@ describe("firstEvent", () => {
 });
 
 describe("dayLine", () => {
-  const first = { title: "Planning", at: "10:00", leaveBy: "09:40" };
+  const first = { title: "Planning", at: "10:00" };
   it("is hidden while the city is empty, whatever else is known", () => {
     expect(dayLine({ city: "", weather: W, first })).toBeNull();
     expect(dayLine({ city: "  ", weather: W, first })).toBeNull();
   });
   it("joins the weather and the first event", () => {
     expect(dayLine({ city: "Kyiv", weather: W, first })).toBe(
-      "Kyiv · Partly cloudy 14° (9–17°) · First event at 10:00, leave by 09:40"
+      "Kyiv · Partly cloudy 14° (9–17°) · First event at 10:00"
     );
     expect(weatherText(W)).toContain("14°");
   });
   it("keeps whichever half there is, and is null with neither", () => {
     expect(dayLine({ city: "Kyiv", weather: null, first })).toBe(
-      "First event at 10:00, leave by 09:40"
+      "First event at 10:00"
     );
     expect(dayLine({ city: "Kyiv", weather: W, first: null })).toContain(
       "Partly cloudy"

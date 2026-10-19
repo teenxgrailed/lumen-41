@@ -66,6 +66,13 @@ export const qk = {
   /** Whether the Sunday review page of this title exists. */
   weeklyReview: (title: string) => [V3, "weekly-review", title] as const,
   highlight: (day: string) => [V3, "highlight", day] as const,
+  /** The week's focuses from the Sunday review (`GET /api/week-focus?weekStart=`). */
+  weekFocus: (weekStart: string) => [V3, "week-focus", weekStart] as const,
+  /** The agent's highlight suggestions for a day (`POST /api/ai/highlight-suggestions`). */
+  highlightSuggestions: (day: string) =>
+    [V3, "highlight-suggestions", day] as const,
+  /** The "From yesterday" note in a day's daily note. */
+  yesterdayNote: (day: string) => [V3, "yesterday-note", day] as const,
   templates: () => [V3, "templates"] as const,
   shared: () => [V3, "shared"] as const,
   trash: () => [V3, "trash"] as const,
