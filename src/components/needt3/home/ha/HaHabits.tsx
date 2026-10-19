@@ -77,6 +77,8 @@ export function HaHabits({
             aria-pressed={h.done}
             aria-label={label}
             data-ha-habit={h.id}
+            data-ctx="habit"
+            data-ctx-id={h.id}
             onClick={() => {
               setJust(h.id);
               window.clearTimeout(timer.current);

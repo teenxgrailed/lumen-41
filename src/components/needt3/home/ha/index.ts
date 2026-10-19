@@ -36,6 +36,7 @@ export {
   haHabitsOf,
   haTaskCard,
   haTimeOf,
+  haWeekOf,
   haWeatherOf,
   habitEmoji,
   weatherEmoji,
