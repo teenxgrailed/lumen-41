@@ -1,21 +1,9 @@
-/**
- * @jest-environment jsdom
- */
-import { act, createElement as h } from "react";
-
-import { type Root, createRoot } from "react-dom/client";
-
-import { TimeLeftBar } from "../TimeLeftBar";
 import {
   blockedMinutes,
   minutesAhead,
   timeLeft,
   timeLeftLine,
 } from "../timeleft";
-
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("minutesAhead", () => {
   it("counts only what is still ahead", () => {
@@ -95,37 +83,5 @@ describe("timeLeft", () => {
     expect(
       timeLeft({ capacity: 200, eventsAhead: 0, openTasks: [open(null)] })
     ).toBeNull();
-  });
-});
-
-describe("TimeLeftBar", () => {
-  let host: HTMLDivElement;
-  let root: Root;
-  beforeEach(() => {
-    host = document.createElement("div");
-    document.body.appendChild(host);
-    root = createRoot(host);
-  });
-  afterEach(() => {
-    act(() => root.unmount());
-    host.remove();
-  });
-
-  it("draws nothing without a comparison", async () => {
-    await act(async () => root.render(h(TimeLeftBar, { left: null })));
-    expect(host.innerHTML).toBe("");
-  });
-
-  it("marks an overbooked day", async () => {
-    const left = timeLeft({
-      capacity: 60,
-      eventsAhead: 0,
-      openTasks: [{ done: false, estimatedMinutes: 120 }],
-    });
-    await act(async () => root.render(h(TimeLeftBar, { left })));
-    expect(
-      host.querySelector("[data-tl-bar]")?.getAttribute("data-tl-over")
-    ).toBe("true");
-    expect(host.textContent).toContain("more than the time left");
   });
 });

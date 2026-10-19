@@ -21,14 +21,7 @@ import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { formatInTimeZone } from "@/lib/date-utils";
-import {
-  addDays,
-  habitDoneOn,
-  habitKept,
-  liveHabits,
-  moveDay,
-  project,
-} from "@/lib/needt3/derive";
+import { addDays, liveHabits, moveDay, project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
 import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
@@ -42,7 +35,6 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
-import { useMorningBrief } from "@/lib/needt3/hooks/morning-brief";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
@@ -52,7 +44,7 @@ import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
 import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
-import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import type { V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
@@ -61,42 +53,27 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { PersonalDay } from "../personal/PersonalQuickAdd";
-import { BriefCard } from "./BriefCard";
-import { DayLine } from "./DayLine";
 import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
-import { HighlightCard } from "./HighlightCard";
-import { HighlightSuggest } from "./HighlightSuggest";
 import {
   Capped,
   EmptyDay,
   Fold,
-  type HabitChip,
-  HabitsCard,
   InboxCard,
-  NextUpCard,
   NextUpNone,
   NotesLine,
   PlanButton,
   type ProState,
-  ProgressCard,
   Schedule,
-  StreakCard,
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
 import { ReviewCard, ReviewSheet } from "./ReviewSheet";
 import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
-import { StatsCard, StatsSheet } from "./Stats";
-import { TimeLeftBar } from "./TimeLeftBar";
-import {
-  briefFactsOf,
-  doneTodayCount,
-  inBriefWindow,
-  shouldAskBrief,
-} from "./brief";
-import { dayLine, firstEvent } from "./day-line-model";
+import { StatsSheet } from "./Stats";
+import { briefFactsOf, doneTodayCount } from "./brief";
+import { firstEvent } from "./day-line-model";
 import {
   capacityFrom,
   dayState,
@@ -115,8 +92,22 @@ import {
 } from "./derive";
 import { energyDay } from "./energy-day";
 import { freeMinutesLeft, hourOfClock, pickFinishNext } from "./finish";
-import { highlightMeta, highlightTask } from "./highlight";
-import { suggestMeta } from "./suggest";
+import {
+  HaBrief,
+  HaHabits,
+  HaHighlight,
+  HaScope,
+  HaTimeLeft,
+  HaWeather,
+  HaWeek,
+  haHabitsOf,
+  haTaskCard,
+  haTimeOf,
+  haWeatherOf,
+  haWeekOf,
+} from "./ha";
+import { useHaBrief } from "./ha/useHaBrief";
+import { highlightTask } from "./highlight";
 import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
@@ -230,12 +221,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   const habits = liveHabits(habitsQuery.data ?? []);
   const checkins = checkinsQuery.data ?? [];
-  const chips: HabitChip[] = habits.map((h) => ({
-    habit: h,
-    on: habitDoneOn(h.id, today, checkins),
-    tip: `${h.schedule.time ? `${h.schedule.time} · ` : ""}${habitKept(h.id, checkins, today)} of the last 14`,
-  }));
-  const habitsKept = chips.filter((c) => c.on).length;
+  const haHabits = haHabitsOf(habits, checkins, today);
+  const habitsKept = haHabits.filter((h) => h.done).length;
 
   const cap = capacityFrom(settings.data?.prefs);
   const week = weekAhead(allTasks, events.data ?? [], today, cap);
@@ -267,7 +254,6 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     : [];
   // Pro's morning brief: asked for once, in the morning, only when AI can answer
   const aiAvailable = useAiAvailable();
-  const morning = inBriefWindow(nowHour, doneTodayCount(allTasks, today));
   const briefFacts = briefFactsOf({
     late: lateOpen,
     day,
@@ -280,15 +266,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     schedule: sched,
     nowHour,
   });
-  const morningBrief = useMorningBrief({
-    day: today,
-    show: pro === true && morning,
-    ask: shouldAskBrief({
-      pro,
-      morning,
-      aiAvailable: aiAvailable.data,
-      facts: briefFacts,
-    }),
+  const haBrief = useHaBrief({
+    today,
+    nowHour,
+    doneToday: doneTodayCount(allTasks, today),
+    pro,
+    aiAvailable: aiAvailable.data,
     facts: briefFacts,
   });
   const weekFocus = useWeekFocus(
@@ -320,7 +303,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   });
   const city = readPref(settings.data?.prefs, "city");
   const weather = useWeather(city);
-  const line = dayLine({
+  const wx = haWeatherOf({
     city,
     weather: weather.data,
     first: firstEvent(events.data ?? [], today, nowHour),
@@ -355,6 +338,26 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     late: lateOpen,
     day,
     stats: homeStats.week,
+  });
+  const hlSub = (t: V3Task, tail: string) =>
+    [project(t.projectId, projects.data ?? [])?.name, tail]
+      .filter(Boolean)
+      .join(" · ");
+  const restToday = Math.max(
+    0,
+    dayOpen.length + lateOpen.length - (pick ? 1 : 0)
+  );
+  const nextSub = !pick
+    ? ""
+    : lateOpen.includes(pick.task)
+      ? nextUpNote(pick, nowHour, today)
+      : hlSub(pick.task, restToday ? `then ${restToday} more today` : "") ||
+        nextUpNote(pick, nowHour, today);
+  const weekCard = haWeekOf({
+    stats: homeStats.week,
+    today,
+    startDay: settings.data?.weekStartDay ?? "monday",
+    streak: streak.n,
   });
 
   const clearTimers = useCallback(
@@ -465,8 +468,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     void startFocusOn(pick.task);
   };
 
-  const onHabit = (h: V3Habit, done: boolean) =>
-    void toggleHabit.mutateAsync({ id: h.id, done }).catch(() => undefined);
+  const onHabit = (id: string, done: boolean) =>
+    void toggleHabit.mutateAsync({ id, done }).catch(() => undefined);
 
   const newDoc = async () => {
     try {
@@ -584,6 +587,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div className="hd-titlebox">
           <h1 className="hd-title-h1">{dateLine}</h1>
           <span className="hd-meta-line hd-meta-t">Today · week {weekNo}</span>
+          <span className="ha-dk-wx">
+            <HaScope>
+              <HaWeather wx={wx} />
+            </HaScope>
+          </span>
         </div>
         <span className="hd-head-right">
           <span role="tablist" className="wk-tabs hd-tabs">
@@ -610,42 +618,25 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <SampleBanner />
-          <DayLine text={line} />
           {review.show ? (
             <ReviewCard onStart={review.start} onLater={review.later} />
           ) : null}
           {nudge.show ? (
             <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
           ) : null}
-          {morningBrief.brief ? (
-            <BriefCard
-              text={morningBrief.brief.text}
-              onDismiss={morningBrief.dismiss}
-            />
+          {haBrief.locked || haBrief.lines.length || haBrief.note ? (
+            <div className="ha-dk-pad ha-dk-brief">
+              <HaScope>
+                <HaBrief
+                  lines={haBrief.lines.slice(0, 1)}
+                  note={haBrief.note}
+                  locked={haBrief.locked}
+                  onClose={haBrief.dismiss}
+                  onUpgrade={() => openPaywall("Morning brief")}
+                />
+              </HaScope>
+            </div>
           ) : null}
-          {hlTask ? (
-            <HighlightCard
-              id={hlTask.id}
-              title={hlTask.title}
-              meta={highlightMeta(hlTask, today)}
-              done={hlTask.done}
-              onComplete={() => check(hlTask)}
-              onFocus={() => void startFocusOn(hlTask)}
-              onClear={() => void setHighlight.set(null)}
-              onOpen={() => open(hlTask.id)}
-            />
-          ) : null}
-          {suggest.pick ? (
-            <HighlightSuggest
-              title={suggest.pick.title}
-              meta={suggest.reason || suggestMeta(suggest.pick)}
-              canCycle={suggest.canCycle}
-              onAccept={suggest.accept}
-              onAnother={suggest.another}
-              onDismiss={suggest.dismiss}
-            />
-          ) : null}
-          <TimeLeftBar left={left} />
           {closedDay ? (
             <FinishCard
               count={day.length}
@@ -660,29 +651,72 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
             />
           ) : null}
 
-          <div className="hd-cards" data-hd-cards="" data-hd-mode={tab}>
-            {pick ? (
-              <NextUpCard
-                pick={pick}
-                note={nextUpNote(pick, nowHour, today)}
-                onOpen={open}
-                onFocus={startFocus}
-                onDone={() => check(pick.task)}
-                onSkip={() =>
-                  setSkipped((s) =>
-                    skipNext(
-                      s,
-                      pick,
-                      [...lateOpen, ...dayOpen].filter((t) => !s.includes(t.id))
-                        .length
-                    )
-                  )
-                }
-              />
+          <div
+            className="hd-cards ha-cards"
+            data-hd-cards=""
+            data-hd-mode={tab}
+          >
+            {tab === "day" && hlTask && !hlTask.done ? (
+              <HaScope>
+                <HaHighlight
+                  state="set"
+                  card={haTaskCard(
+                    hlTask,
+                    today,
+                    hlSub(hlTask, "the one thing for today")
+                  )}
+                  onUnset={() => void setHighlight.set(null)}
+                  onStart={() => void startFocusOn(hlTask)}
+                  onDone={() => check(hlTask)}
+                  onOpen={() => open(hlTask.id)}
+                />
+              </HaScope>
+            ) : tab === "day" && suggest.pick ? (
+              <HaScope>
+                <HaHighlight
+                  state="suggest"
+                  card={haTaskCard(suggest.pick, today, suggest.reason)}
+                  index={suggest.index}
+                  count={suggest.count}
+                  locked={pro === false}
+                  onYes={suggest.accept}
+                  onAnother={suggest.another}
+                  onUpgrade={() => openPaywall("Highlight suggestions")}
+                />
+              </HaScope>
+            ) : pick ? (
+              <HaScope>
+                <HaHighlight
+                  state="nextup"
+                  late={lateOpen.includes(pick.task)}
+                  card={haTaskCard(pick.task, today, nextSub)}
+                  onSkip={
+                    pick.canSkip
+                      ? () =>
+                          setSkipped((s) =>
+                            skipNext(
+                              s,
+                              pick,
+                              [...lateOpen, ...dayOpen].filter(
+                                (t) => !s.includes(t.id)
+                              ).length
+                            )
+                          )
+                      : undefined
+                  }
+                  onStart={startFocus}
+                  onDone={() => check(pick.task)}
+                  onOpen={() => open(pick.task.id)}
+                />
+              </HaScope>
             ) : (
               <NextUpNone closed={closedDay} />
             )}
-            <div key={tab} className="hd-side nx-swap" data-hd-side={tab}>
+            <div
+              key={tab}
+              className="hd-side ha-side nx-swap"
+              data-hd-side={tab}
+            >
               {tab === "week" ? (
                 <WeekStats
                   tasks={totals.tasks}
@@ -693,23 +727,43 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                 />
               ) : (
                 <>
-                  <ProgressCard
-                    done={stats.done}
-                    total={stats.total}
-                    mins={stats.mins}
-                    closed={closedDay}
-                    empty={stats.total === 0}
-                  />
-                  {homeStats.week || !homeStats.failed ? (
-                    <StatsCard
-                      stats={homeStats.week}
-                      streak={streak.n}
-                      onOpen={homeStats.show}
-                    />
-                  ) : (
-                    <StreakCard n={streak.n} todayClosed={streak.todayClosed} />
-                  )}
-                  <HabitsCard chips={chips} onToggle={onHabit} />
+                  {stats.total > 0 ? (
+                    <HaScope>
+                      <div className="ha-card" data-ha-today="">
+                        <div className="ha-dk-card-t">
+                          <span>Today</span>
+                          <span>
+                            {stats.done} of {stats.total}
+                          </span>
+                        </div>
+                        <HaTimeLeft
+                          t={haTimeOf({
+                            left,
+                            nowHour,
+                            start: hourOfClock(cap.start),
+                            end: hourOfClock(cap.end),
+                          })}
+                        />
+                      </div>
+                    </HaScope>
+                  ) : null}
+                  {haHabits.length ? (
+                    <HaScope>
+                      <div className="ha-card" data-ha-habits="">
+                        <div className="ha-dk-card-t">
+                          <span>Habits</span>
+                          <span>
+                            {habitsKept} of {haHabits.length} kept
+                          </span>
+                        </div>
+                        <HaHabits
+                          habits={haHabits}
+                          onToggle={onHabit}
+                          onAdd={() => router.push("/habits")}
+                        />
+                      </div>
+                    </HaScope>
+                  ) : null}
                 </>
               )}
             </div>
@@ -834,15 +888,20 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   onUpgrade={upgradeWeek}
                 />
               ) : (
-                <Schedule
-                  items={sched}
-                  nowHour={nowHour}
-                  hueOf={hueOf}
-                  evCount={sched.filter((x) => x.event).length}
-                  onOpen={open}
-                  onCalendar={() => router.push("/calendar")}
-                  band={<PersonalDay date={today} />}
-                />
+                <>
+                  <HaScope>
+                    <HaWeek w={weekCard} onOpen={homeStats.show} />
+                  </HaScope>
+                  <Schedule
+                    items={sched}
+                    nowHour={nowHour}
+                    hueOf={hueOf}
+                    evCount={sched.filter((x) => x.event).length}
+                    onOpen={open}
+                    onCalendar={() => router.push("/calendar")}
+                    band={<PersonalDay date={today} />}
+                  />
+                </>
               )}
               <InboxCard
                 list={inboxShown.slice(0, 3)}
