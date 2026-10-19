@@ -463,6 +463,7 @@ export async function todayView(ctx: ConnectContext, now: Date) {
   // events and personal time. Nothing on a non-working day.
   const window = workWindow(day, calendarSettings);
   let freeMinutes = 0;
+  let workLeftMinutes = 0;
   if (window) {
     const busy: Interval[] = [
       ...items.flatMap((i) => (i.start && i.end ? [i as Interval] : [])),
@@ -471,10 +472,11 @@ export async function todayView(ctx: ConnectContext, now: Date) {
         .map((e) => ({ start: e.start, end: e.end })),
       ...occurrences.map((o) => ({ start: o.start, end: o.end })),
     ];
-    freeMinutes = freeMinutesIn(
-      window.start > now ? window.start : now,
-      window.end,
-      busy
+    const from = window.start > now ? window.start : now;
+    freeMinutes = freeMinutesIn(from, window.end, busy);
+    workLeftMinutes = Math.max(
+      0,
+      Math.floor((window.end.getTime() - from.getTime()) / 60_000)
     );
   }
 
@@ -512,6 +514,7 @@ export async function todayView(ctx: ConnectContext, now: Date) {
         }
       : null,
     freeMinutes,
+    workLeftMinutes,
     weather,
   };
 }

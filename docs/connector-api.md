@@ -394,6 +394,7 @@ One request for a widget:
   "event": { "id", "title", "start", "end", "location", "allDay" },
   "personalBlock": { "blockId", "kind", "title", "emoji", "start", "end" },
   "freeMinutes": 360,
+  "workLeftMinutes": 480,
   "weather": { "city", "temp", "min", "max", "code", "summary", "line": "3° Rain in Tokyo" }
 }
 ```
@@ -408,7 +409,8 @@ One request for a widget:
   (repeats included).
 - `freeMinutes` is what is left of today's working window (Settings, working
   hours) after task slots, events and personal time, counted from now; `0` on a
-  non-working day.
+  non-working day. `workLeftMinutes` is the window still ahead (the bar's
+  whole), so `freeMinutes / workLeftMinutes` is how open the rest of the day is.
 - `weather` needs a City in Settings; otherwise `null`, as it is when the
   weather service is down.
 

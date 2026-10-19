@@ -568,6 +568,7 @@ describe("GET /api/connect/today", () => {
     // 09:00-17:00 window: 11-12 task, 13-14 lunch (the 13-13:30 event sits
     // inside it, counted once); the 07:00 slot is outside the window.
     expect(body.freeMinutes).toBe(8 * 60 - 60 - 60);
+    expect(body.workLeftMinutes).toBe(8 * 60);
     expect(body.weather).toMatchObject({
       city: "Tokyo",
       line: "3° Rain in Tokyo",
