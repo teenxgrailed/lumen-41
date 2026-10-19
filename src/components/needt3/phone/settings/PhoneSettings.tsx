@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,22 +12,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-import {
-  LuBell,
-  LuCheck,
-  LuChevronLeft,
-  LuClock,
-  LuCommand,
-  LuCreditCard,
-  LuDatabase,
-  LuInfo,
-  LuLayoutGrid,
-  LuListChecks,
-  LuPalette,
-  LuSlidersHorizontal,
-  LuTarget,
-  LuUser,
-} from "react-icons/lu";
+import { LuCheck, LuChevronLeft } from "react-icons/lu";
 
 import { useAlerts, useSchedule } from "@/lib/needt3/hooks/account";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -40,6 +24,7 @@ import { ACCENTS } from "@/lib/needt3/theme";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { BrandIcon } from "../../brand";
+import { type GlyphName } from "../../glyphs/Glyph";
 import {
   type SectionId,
   isPro,
@@ -88,30 +73,20 @@ import {
 
 const P = priceStrings();
 
-const HUE = {
-  blue: "var(--info)",
-  accent: "var(--accent)",
-  green: "var(--success)",
-  red: "var(--destructive)",
-  violet: "var(--pk-violet)",
-  lav: "var(--v2p-lav)",
-  ink: "var(--v2p-ink-2)",
-} as const;
-
-/** A page's icon and hue on the main list (phone-settings.jsx PS_PAGES). */
-const PAGE_LOOK: Record<PsPageId, { icon: ReactNode; hue: string }> = {
-  account: { icon: <LuUser size={16} />, hue: HUE.blue },
-  plan: { icon: <LuCreditCard size={16} />, hue: HUE.lav },
-  general: { icon: <LuSlidersHorizontal size={16} />, hue: HUE.ink },
-  appearance: { icon: <LuPalette size={16} />, hue: HUE.violet },
-  day: { icon: <LuClock size={16} />, hue: HUE.red },
-  tasks: { icon: <LuListChecks size={16} />, hue: HUE.accent },
-  focus: { icon: <LuTarget size={16} />, hue: HUE.green },
-  alerts: { icon: <LuBell size={16} />, hue: HUE.red },
-  menu: { icon: <LuLayoutGrid size={16} />, hue: HUE.lav },
-  data: { icon: <LuDatabase size={16} />, hue: HUE.green },
-  keys: { icon: <LuCommand size={16} />, hue: HUE.ink },
-  about: { icon: <LuInfo size={16} />, hue: HUE.ink },
+/** A page's landing glyph on the main list (phone-settings.jsx PS_PAGES). */
+const PAGE_GLYPH: Record<PsPageId, GlyphName> = {
+  account: "people",
+  plan: "wallet",
+  general: "tune",
+  appearance: "moodboards",
+  day: "planday",
+  tasks: "tasks",
+  focus: "focus",
+  alerts: "bell",
+  menu: "more",
+  data: "stack",
+  keys: "api",
+  about: "help",
 };
 
 function PageBody({ id }: { id: PsPageId }) {
@@ -239,11 +214,10 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
           data={{ "data-ps-connections": "" }}
         />
       );
-    const look = PAGE_LOOK[id];
     return (
       <PsRow
         key={id}
-        glyph={<PsGlyph icon={look.icon} hue={look.hue} />}
+        glyph={<PsGlyph art={PAGE_GLYPH[id]} />}
         title={PS_TITLES[id]}
         desc={sub(id)}
         onOpen={() => go(id)}
