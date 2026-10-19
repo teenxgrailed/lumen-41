@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import {
@@ -12,7 +12,11 @@ import type { StarterScreen } from "@/lib/starter-game";
 import { openPaywall } from "../paywall/store";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { SgEntry } from "./SgEntry";
-import { SgShell } from "./SgShell";
+
+/** The game is loaded when it is started, not with every screen. */
+const SgGame = lazy(() =>
+  import("./SgGame").then((m) => ({ default: m.SgGame }))
+);
 
 /**
  * Whether the entry card is (or is about to be) on this screen. A screen that
@@ -63,14 +67,9 @@ export function StarterGameSlot({ screen }: { screen: StarterScreen }) {
         </div>
       ) : null}
       {open ? (
-        <SgShell
-          entry={screen}
-          phone={phone}
-          step={1}
-          onClose={() => setOpen(false)}
-        >
-          {null}
-        </SgShell>
+        <Suspense fallback={null}>
+          <SgGame entry={screen} phone={phone} onClose={() => setOpen(false)} />
+        </Suspense>
       ) : null}
     </>
   );

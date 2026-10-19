@@ -699,7 +699,8 @@
 }
 /* solved: the lane collapses into one tinted bar, Connections-style */
 .sg-lane.is-solved {
-  background: color-mix(in oklch, var(--hue) 58%, var(--sg-card));
+  /* the project colours are stronger than the design's pastels: less of them */
+  background: color-mix(in oklch, var(--hue) 40%, var(--sg-card));
   box-shadow: none;
   align-items: center;
   text-align: center;
@@ -1205,3 +1206,6 @@
 /* the longer Free button takes its own line on the phone */
 .sg-phone .sg-entry.is-locked .sg-entry-acts .sg-btn.is-primary { flex: 1 0 100%; }
 .sg-phone .sg-entry.is-locked .sg-entry-menu { margin-left: auto; }
+
+/* the agent's mark never takes the flexible share of its row */
+.sg-lane-hint > .sg-orb, .sg-phone .sg-board-msg > .sg-orb, .sg-ed-sug > .sg-orb, .sg-msg > .sg-orb, .sg-head > .sg-orb { flex: none; }
