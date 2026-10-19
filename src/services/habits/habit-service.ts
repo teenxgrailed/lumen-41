@@ -195,3 +195,37 @@ export async function setHabitCompletionToday(input: {
     completed: result.completed,
   };
 }
+
+/**
+ * Flips today's check-in (or sets it when `completed` is given). Returns null
+ * when the habit is not the user's active habit in this workspace.
+ */
+export async function toggleHabitToday(input: {
+  userId: string;
+  workspace: WorkspaceAccess;
+  habitId: string;
+  completed?: boolean;
+  now?: Date;
+}) {
+  const dateKey = await habitTodayKey(input.userId, input.now);
+  const date = habitDateFromKey(dateKey);
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.habitCompletion.findUnique({
+      where: { habitId_date: { habitId: input.habitId, date } },
+      select: { id: true },
+    });
+    const result = await setHabitCompletion(transaction, {
+      userId: input.userId,
+      workspace: input.workspace,
+      habitId: input.habitId,
+      dateKey,
+      completed: input.completed ?? !existing,
+    });
+    if (!result) return null;
+    return {
+      habitId: result.habitId,
+      date: result.date,
+      completed: result.completed,
+    };
+  });
+}
