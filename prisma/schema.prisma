@@ -136,6 +136,7 @@ model User {
   focusSessions          FocusSession[]
   dailyHighlights        DailyHighlight[]
   morningBriefs          MorningBrief[]
+  weekFocuses            WeekFocus[]
   focusStats             FocusStats?
   tasks                  Task[]
   projects               Project[]
@@ -236,6 +237,7 @@ model Workspace {
   habits               Habit[]
   personalBlocks       PersonalBlock[]
   dailyHighlights      DailyHighlight[]
+  weekFocuses          WeekFocus[]
   weeklyFocusTargets   WeeklyFocusTarget[]
   meetingNoteProposals MeetingNoteProposal[]
   savedViews           SavedView[]
@@ -1224,6 +1226,24 @@ model MorningBrief {
   updatedAt   DateTime  @updatedAt
 
   @@unique([userId, date])
+}
+
+/// The up-to-three focuses a person picked in the Sunday review for the week
+/// that starts on `weekStart` ("YYYY-MM-DD", the person's own first day of the
+/// week). `focuses` is `[{ title, taskId? }]`; they are the first candidates
+/// for that week's daily highlight.
+model WeekFocus {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  weekStart   String
+  focuses     Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, workspaceId, weekStart])
 }
 
 model FocusStats {
