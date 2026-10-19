@@ -31,6 +31,9 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/services/time-tracking/timeEntries", () => ({
   recomputeTaskActuals: jest.fn(),
 }));
+jest.mock("../focus-end-job", () => ({
+  syncFocusEndJob: jest.fn(),
+}));
 jest.mock("../focusStats", () => ({
   ...jest.requireActual("../focusStats"),
   recomputeFocusStats: jest.fn(),

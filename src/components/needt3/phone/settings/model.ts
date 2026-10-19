@@ -77,8 +77,12 @@ export function daySummary(
 }
 
 export function alertsSummary(a: V3Alerts | undefined) {
-  if (!a) return "Daily plan, overdue, weekly review";
-  return a.dailyPlan ? `Daily plan at ${a.dailyPlanTime}` : "Daily plan off";
+  if (!a) return "Overdue tasks, focus ended";
+  const on = [
+    a.nudges && "Overdue tasks",
+    a.focusEnded && "Focus ended",
+  ].filter(Boolean);
+  return on.length ? on.join(", ") : "Off";
 }
 
 export interface ConnectionsLine {

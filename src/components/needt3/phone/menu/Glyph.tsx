@@ -203,7 +203,7 @@ export function DockGlyph({ id }: { id: MenuPlaceId }) {
   if (!name) return <MenuGlyph id={id} />;
   return (
     <span className="nva-glyph" aria-hidden="true">
-      <Glyph name={name} size={32} />
+      <Glyph name={name} size={30} />
     </span>
   );
 }

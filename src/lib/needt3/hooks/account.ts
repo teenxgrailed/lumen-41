@@ -116,6 +116,7 @@ export interface V3Alerts {
   mailPlan: boolean;
   nudges: boolean;
   weeklyReview: boolean;
+  focusEnded: boolean;
 }
 
 const ALERTS = [...qk.settings(), "alerts"] as const;
@@ -133,6 +134,7 @@ export function useAlerts() {
         mailPlan: row.mailPlan ?? false,
         nudges: row.nudges ?? false,
         weeklyReview: row.weeklyReview ?? true,
+        focusEnded: row.focusEnded ?? true,
       };
     },
     staleTime: 5 * 60_000,

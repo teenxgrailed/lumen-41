@@ -13,15 +13,11 @@ import { notify } from "@/lib/notifications";
 
 import { CityField } from "../../settings/CityField";
 import { useMark } from "../../settings/SettingsContext";
-import {
-  HOUR_OPTIONS,
-  type PrefKey,
-  minutes,
-  readPref,
-} from "../../settings/derive";
+import { type PrefKey, minutes, readPref } from "../../settings/derive";
 import { KEY_GROUPS, SHELL_SHORTCUTS } from "../../shell/keys";
 import { PkButton } from "../kit";
 import { PhoneMemoriesGroup } from "./MemoriesGroup";
+import { PhonePushGroup } from "./PushGroup";
 import { LINK_OPTIONS, SOUND_OPTIONS } from "./model";
 import { PsGroup, PsPick, PsRow, PsSwitch } from "./parts";
 
@@ -241,48 +237,9 @@ export function AlertsPage() {
     if (!a) return;
     void update.mutateAsync(patch).then(mark).catch(noop);
   };
-  const time = a?.dailyPlanTime ?? "08:30";
-  const times = HOUR_OPTIONS.some(([v]) => v === time)
-    ? HOUR_OPTIONS
-    : [...HOUR_OPTIONS, [time, time] as const].sort((x, y) =>
-        x[0].localeCompare(y[0])
-      );
   return (
     <>
-      <PsGroup
-        title="Daily plan"
-        hint="Your day's planned tasks and events, sent before the day starts."
-      >
-        <PsRow
-          title="Notification"
-          control={
-            <PsSwitch
-              label="Daily plan notification"
-              on={a?.dailyPlan ?? true}
-              disabled={!a}
-              onChange={(v) => save({ dailyPlan: v })}
-            />
-          }
-        />
-        <PsRow
-          title="Email"
-          control={
-            <PsSwitch
-              label="Daily plan email"
-              on={a?.mailPlan ?? false}
-              disabled={!a}
-              onChange={(v) => save({ mailPlan: v })}
-            />
-          }
-        />
-        <PsPick
-          title="Time"
-          value={time}
-          options={times}
-          disabled={!a}
-          onChange={(v) => save({ dailyPlanTime: v })}
-        />
-      </PsGroup>
+      <PhonePushGroup />
       <PsGroup
         title="Overdue tasks"
         hint="When a task passes its deadline and has no time yet."
@@ -300,17 +257,17 @@ export function AlertsPage() {
         />
       </PsGroup>
       <PsGroup
-        title="Weekly review"
-        hint="Friday, after your last planned task — what got done and what carries over."
+        title="Focus"
+        hint="When a Focus session reaches its planned end. Sent as a push, and shown here if Needt is open."
       >
         <PsRow
-          title="Notification"
+          title="Focus ended"
           control={
             <PsSwitch
-              label="Weekly review notification"
-              on={a?.weeklyReview ?? true}
+              label="Focus ended notification"
+              on={a?.focusEnded ?? true}
               disabled={!a}
-              onChange={(v) => save({ weeklyReview: v })}
+              onChange={(v) => save({ focusEnded: v })}
             />
           }
         />

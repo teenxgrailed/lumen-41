@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
       mailPlan: settings.mailPlan,
       nudges: settings.nudges,
       weeklyReview: settings.weeklyReview,
+      focusEnded: settings.focusEnded,
     });
   } catch (error) {
     logger.error(
@@ -130,6 +131,7 @@ export async function PATCH(request: NextRequest) {
       mailPlan: settings.mailPlan,
       nudges: settings.nudges,
       weeklyReview: settings.weeklyReview,
+      focusEnded: settings.focusEnded,
     });
   } catch (error) {
     logger.error(

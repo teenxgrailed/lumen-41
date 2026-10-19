@@ -12,7 +12,10 @@ const LOG_SOURCE = "RealtimePublish";
 export async function publishRealtimeEvent(
   userId: string,
   type: RealtimeEventType,
-  details?: Pick<RealtimeEvent, "feedId" | "runId" | "status">
+  details?: Pick<
+    RealtimeEvent,
+    "feedId" | "runId" | "status" | "sessionId" | "message"
+  >
 ): Promise<void> {
   if (!process.env.REDIS_URL?.trim()) {
     await logger.debug(

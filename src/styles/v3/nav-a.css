@@ -160,7 +160,7 @@
 /* ── the three: they travel from the pill to the tile row ── */
 .needt-v3 .nva-icon { position: absolute; left: 0; top: 0; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 26px; background: transparent;
   display: grid; place-items: center; color: var(--nva-ink); transform-origin: 50% 50%; }
-.needt-v3 .nva-icon .nva-glyph { width: 32px; height: 32px; transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1); }
+.needt-v3 .nva-icon .nva-glyph { width: 30px; height: 30px; transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1); }
 .needt-v3 .nva-icon:active .nva-glyph { transform: scale(0.86); }
 .needt-v3 .nva-icon-dot { position: absolute; bottom: 3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: var(--nva-lav); opacity: 0; }
 .needt-v3 .nva-icon.is-on .nva-icon-dot { opacity: calc(1 - var(--nva-k, 0) * 5); }
