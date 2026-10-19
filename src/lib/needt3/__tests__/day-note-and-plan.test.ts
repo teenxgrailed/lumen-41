@@ -1,12 +1,33 @@
 import { buildLabel, shortBuildSha } from "@/lib/build-info";
 
-import { dailyNoteTitle, findDailyNote } from "../hooks/daily-note";
+import {
+  dailyNoteTitle,
+  findDailyNote,
+  fromYesterday,
+} from "../hooks/daily-note";
 import { planDetail } from "../hooks/plan-day";
 
 describe("dailyNoteTitle", () => {
   it("names the day in words", () => {
     expect(dailyNoteTitle("2026-10-14")).toBe("Daily note · 14 October 2026");
     expect(dailyNoteTitle("2027-01-03")).toBe("Daily note · 3 January 2027");
+  });
+});
+
+describe("fromYesterday", () => {
+  it("reads what End day left under From yesterday", () => {
+    expect(
+      fromYesterday(
+        "# Daily note\n\n## From yesterday\n\nStart with the Grailed listings.\nPhotos are ready.\n\n## Tasks\n\nOther"
+      )
+    ).toBe("Start with the Grailed listings. Photos are ready.");
+  });
+  it("joins two sections and is empty with none", () => {
+    expect(
+      fromYesterday("## From yesterday\n\nA\n\n## x\nz\n## From yesterday\nB")
+    ).toBe("A B");
+    expect(fromYesterday("## Notes\n\nNothing here")).toBe("");
+    expect(fromYesterday("")).toBe("");
   });
 });
 

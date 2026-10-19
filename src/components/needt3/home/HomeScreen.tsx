@@ -51,9 +51,11 @@ import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
+import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
+import { weekStartOf } from "@/lib/needt3/week-focus";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -92,7 +94,12 @@ import { SampleBanner } from "./SampleBanner";
 import { ShutdownSheet } from "./Shutdown";
 import { StatsCard, StatsSheet } from "./Stats";
 import { TimeLeftBar } from "./TimeLeftBar";
-import { briefFactsOf, isMorning, shouldAskBrief } from "./brief";
+import {
+  briefFactsOf,
+  doneTodayCount,
+  inBriefWindow,
+  shouldAskBrief,
+} from "./brief";
 import { dayLine, firstEvent } from "./day-line-model";
 import {
   capacityFrom,
@@ -264,7 +271,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     : [];
   // Pro's morning brief: asked for once, in the morning, only when AI can answer
   const aiAvailable = useAiAvailable();
-  const morning = isMorning(nowHour);
+  const morning = inBriefWindow(nowHour, doneTodayCount(allTasks, today));
   const briefFacts = briefFactsOf({
     late: lateOpen,
     day,
@@ -288,6 +295,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     }),
     facts: briefFacts,
   });
+  const weekFocus = useWeekFocus(
+    weekStartOf(today, settings.data?.weekStartDay ?? "monday")
+  );
   const suggest = useHighlightSuggest({
     tasks: allTasks,
     today,
@@ -295,6 +305,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     known: highlight.isFetched,
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
+    weekFocus: weekFocus.data?.focuses,
+    ai: pro === true && aiAvailable.data === true,
   });
   const personal = usePersonalDay(today);
   const left = timeLeft({
@@ -631,7 +643,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
           {suggest.pick ? (
             <HighlightSuggest
               title={suggest.pick.title}
-              meta={suggestMeta(suggest.pick)}
+              meta={suggest.reason || suggestMeta(suggest.pick)}
               canCycle={suggest.canCycle}
               onAccept={suggest.accept}
               onAnother={suggest.another}

@@ -60,6 +60,44 @@ async function lookup(day: string): Promise<string | null> {
 }
 
 /**
+ * The "From yesterday" text in a day's note, from its Markdown: what End day
+ * wrote there the evening before (`tomorrowNote`). Empty when there is none;
+ * more than one section (End day run twice) reads as one text.
+ */
+export function fromYesterday(markdown: string): string {
+  const out: string[] = [];
+  let inside = false;
+  for (const line of markdown.replace(/\r/g, "").split("\n")) {
+    if (/^#{1,6}\s/.test(line)) {
+      inside = /^##\s+From yesterday\s*$/i.test(line);
+      continue;
+    }
+    if (inside && line.trim()) out.push(line.trim());
+  }
+  return out.join(" ").slice(0, 280);
+}
+
+/**
+ * What End day left for this morning, read from the day's own note (the note
+ * is the one copy; nothing is stored twice). Asked only when `enabled`, and
+ * never creates the note. A failed read is no note.
+ */
+export function useYesterdayNote(day: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.yesterdayNote(day),
+    queryFn: async () => {
+      const id = await lookup(day);
+      if (!id) return "";
+      const res = await fetch(`/api/pages/${id}/export?format=md`);
+      return res.ok ? fromYesterday(await res.text()) : "";
+    },
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/**
  * `open()` resolves to the page id of `day`'s note, creating it when there is
  * none; `null` when it could not (the person has been told). `exists` says
  * whether the note is already there, for the line's wording.
