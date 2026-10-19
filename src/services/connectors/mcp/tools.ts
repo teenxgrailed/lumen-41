@@ -246,6 +246,8 @@ const calendarSelect = {
   color: true,
   enabled: true,
   lastSync: true,
+  // The last sync failure, empty when the calendar is healthy.
+  error: true,
   createdAt: true,
   updatedAt: true,
 } as const;

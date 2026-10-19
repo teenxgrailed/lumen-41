@@ -17,7 +17,9 @@ export const QUEUE_NAMES = {
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
 
 export interface CalendarSyncJobData {
-  feedId: string;
+  /** One feed to sync. Absent on the periodic sweep, which fans out per feed. */
+  feedId?: string;
+  kind?: "sweep";
 }
 
 export interface RescheduleJobData {

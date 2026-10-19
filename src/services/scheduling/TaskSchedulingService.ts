@@ -1,5 +1,6 @@
 import { getLearnedDurationRatio } from "@/services/ai/memory";
 import { personalBusyBlocks } from "@/services/personal-time/service";
+import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
@@ -129,21 +130,6 @@ type DbTaskWithRelations = {
     userId: string | null;
   } | null;
 };
-
-function parseJsonArray(value: string | null | undefined): string[] {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
 
 function parseWorkDays(value: string | null | undefined): number[] {
   if (!value) {
@@ -374,13 +360,25 @@ export async function scheduleAllTasksForUserDetailed(
       options.workspaceId
     );
     const now = new Date();
-    const selectedCalendarIds = parseJsonArray(
-      legacySettings.selectedCalendars
+    const busyFeedIds = await resolveBusyFeedIds(
+      userId,
+      legacySettings.excludedCalendars
     );
-    const busyEvents = await prisma.calendarEvent.findMany({
+    // An event that echoes a task block we pushed to a calendar is not busy
+    // time: the task owns that slot.
+    const pushedBlocks = await prisma.task.findMany({
+      where: { userId, blockEventId: { not: null } },
+      select: { blockEventId: true },
+    });
+    const pushedBlockIds = new Set(
+      pushedBlocks.flatMap((t) => (t.blockEventId ? [t.blockEventId] : []))
+    );
+    const busyEventRows = await prisma.calendarEvent.findMany({
       where: {
         archivedAt: null,
-        feedId: { in: selectedCalendarIds },
+        // All-day events (holidays, working locations) describe the day, not busy time.
+        allDay: false,
+        feedId: { in: busyFeedIds },
         feed: { userId, enabled: true },
         start: { lt: addDays(now, DEFAULT_HORIZON_DAYS) },
         end: { gt: now },
@@ -389,8 +387,12 @@ export async function scheduleAllTasksForUserDetailed(
           { NOT: { description: { startsWith: "[NEEDT_DAY_BLOCK]" } } },
         ],
       },
-      select: { id: true, start: true, end: true },
+      select: { id: true, start: true, end: true, externalEventId: true },
     });
+    const busyEvents = busyEventRows.filter(
+      (event) =>
+        !event.externalEventId || !pushedBlockIds.has(event.externalEventId)
+    );
 
     const personalBusy: CalendarBusyBlock[] = await personalBusyBlocks(
       userId,

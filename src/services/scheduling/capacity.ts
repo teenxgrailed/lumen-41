@@ -1,4 +1,5 @@
 import { personalBusyBlocks } from "@/services/personal-time/service";
+import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -16,17 +17,6 @@ import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
 type Window = { start: Date; end: Date };
-
-function parseStringArray(value: string) {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
 
 function atTime(day: Date, time: string, timeZone?: string) {
   const [hour, minute] = time.split(":").map(Number);
@@ -104,12 +94,15 @@ export async function getScheduleCapacity(
   const settings = await prisma.autoScheduleSettings.findUnique({
     where: { userId },
     select: {
-      selectedCalendars: true,
+      excludedCalendars: true,
     },
   });
   if (!settings) return null;
 
-  const selectedCalendarIds = parseStringArray(settings.selectedCalendars);
+  const busyFeedIds = await resolveBusyFeedIds(
+    userId,
+    settings.excludedCalendars
+  );
   const windows = workingWindowsForRange(
     await loadWeekHours(userId),
     rangeStart,
@@ -121,7 +114,8 @@ export async function getScheduleCapacity(
     prisma.calendarEvent.findMany({
       where: {
         archivedAt: null,
-        feedId: { in: selectedCalendarIds },
+        allDay: false,
+        feedId: { in: busyFeedIds },
         feed: { userId, enabled: true },
         start: { lt: rangeEnd },
         end: { gt: rangeStart },

@@ -599,8 +599,8 @@ POST  /api/starter-game/create   { "tasks": [], "habits": [], "projects": [] }
   limit of 6 a minute). It returns `{ status, items, suggestions }`. `status` is
   `ready`, `unavailable` (no AI can answer; nothing is made up) or `upgrade`
   (Free). `items` are 12 to 16 tiles `{ title, kind: task | habit | project,
-  suggestedGroup: today | week | habit | project, durationMinutes | perWeek |
-  horizon, dueDay?, firstStep? }`; `suggestions` holds up to one extra tile per
+suggestedGroup: today | week | habit | project, durationMinutes | perWeek |
+horizon, dueDay?, firstStep? }`; `suggestions` holds up to one extra tile per
   lane. Nothing is created.
 - `create` runs the op `starter.create` once: tasks (`group` today or week, with
   due dates), habits (`perWeek`) and projects (each with a first step) in one
@@ -879,6 +879,18 @@ Notes on specific operations:
 Pick the workspace with the `x-workspace-id` header or `?workspaceId=`, as
 for the other connector routes.
 
+## What blocks the scheduler
+
+Busy time is every non-all-day event in every enabled calendar the person
+owns: synced Google, Outlook and CalDAV calendars and the Needt local calendar
+that `needt_create_event` creates on first use. A calendar made later counts
+from its first event, with no settings write. Only a calendar the person
+switched off (`AutoScheduleSettings.excludedCalendars`, a JSON array of feed
+ids) is ignored, and the local Needt calendar cannot be switched off. All-day
+events and the echo of a task block Needt itself pushed to a calendar are not
+busy time. `needt_list` with `type: "calendar"` returns each calendar's
+`lastSync` and its last sync `error` (null when it is healthy).
+
 ## Personal time
 
 Time the person keeps for themselves: lunch, a break, a walk, dinner, the
@@ -913,6 +925,8 @@ A block (`PersonalBlock`):
   emoji and usual length (lunch 60 min, break 15, walk 30, dinner 60, gym 60,
   party 180, rest 60) when you leave them out.
 - `color` is a palette tint: `info`, `success` or `neutral`. Never the accent.
+  There is no hue and no soft/hard flag: every block is hard, the scheduler
+  never overlaps it.
 - `rrule` repeats the block at the same wall-clock time in the person's time
   zone (`FREQ=DAILY`, `FREQ=WEEKLY;BYDAY=MO,TU,…`, any rule `rrule` reads).
 - `sourceEventId` links a calendar event the person marked as personal. The
