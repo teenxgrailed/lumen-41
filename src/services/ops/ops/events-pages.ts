@@ -21,7 +21,12 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { OpError } from "../errors";
-import { dateInputSchema, isoOrNull, touched } from "../helpers";
+import {
+  dateInputSchema,
+  isoOrNull,
+  publishRealtimeAfterCommit,
+  touched,
+} from "../helpers";
 import { defineOp } from "../types";
 import type { OpContext } from "../types";
 
@@ -160,6 +165,7 @@ export const eventCreate = defineOp({
     }
     const event = created.event;
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "calendar-updated")],
       result: { event: eventView(event) },
       before: null,
       inverse: {
@@ -216,6 +222,7 @@ export const eventUpdate = defineOp({
       data: eventData(fields),
     });
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "calendar-updated")],
       result: { event: eventView(updated as EventRow) },
       before: { fields: previous },
       inverse: {
@@ -240,6 +247,7 @@ export const eventDelete = defineOp({
       data: { archivedAt: newDate() },
     });
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "calendar-updated")],
       result: { event: eventView(event), deleted: true },
       before: { fields: { archivedAt: null } },
       inverse: {
@@ -269,6 +277,7 @@ export const eventRestore = defineOp({
       data: eventData(input.fields),
     });
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "calendar-updated")],
       result: { event: eventView(updated as EventRow) },
       before: { fields: current },
       inverse: {
@@ -363,6 +372,7 @@ export const pageCreate = defineOp({
       }
     }
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "docs-updated")],
       result: { page: pageView(final), blocks: blocks.length },
       before: null,
       inverse: {
@@ -407,6 +417,7 @@ export const pageAppend = defineOp({
       .map((block) => block.id)
       .filter((id) => !knownIds.has(id));
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "docs-updated")],
       result: { page: pageView(written), appendedBlocks: appendedIds.length },
       before: { blockCount: page.blocks.length },
       inverse: appendedIds.length
@@ -439,6 +450,7 @@ export const pageSetTrashed = defineOp({
     });
     if (!page) throw new OpError("NOT_FOUND", "Page not found");
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "docs-updated")],
       result: { page: pageView(page) },
       before: { trashed: Boolean(before?.trashedAt) },
       inverse: {
@@ -491,6 +503,7 @@ export const pageRemoveBlocks = defineOp({
     }
     if (!written) throw new OpError("NOT_FOUND", "Page not found");
     return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "docs-updated")],
       result: {
         page: pageView(written),
         removedBlocks: page.blocks.length - keep.length,

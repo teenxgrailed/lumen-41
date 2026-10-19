@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 
-import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { createLocalEvent } from "@/services/connectors/local-events";
@@ -102,14 +101,6 @@ describe("MCP writes tell the open app", () => {
     expect(types()).toEqual(["tasks-updated", "tasks-updated"]);
   });
 
-  it("needt_create_task publishes tasks-updated", async () => {
-    (createTaskPost as jest.Mock).mockResolvedValue(
-      Response.json({ id: "t2" }, { status: 201 })
-    );
-    await call("needt_create_task", { title: "Launch" });
-    expect(types()).toEqual(["tasks-updated"]);
-  });
-
   it("needt_log_habit publishes tasks-updated", async () => {
     (setHabitCompletionToday as jest.Mock).mockResolvedValue({
       habitId: "h1",
@@ -163,15 +154,5 @@ describe("MCP writes tell the open app", () => {
     });
     expect(result.isError).toBe(true);
     expect(publish).not.toHaveBeenCalled();
-  });
-
-  it("needt_schedule only publishes when it runs the scheduler", async () => {
-    const { POST, GET } = jest.requireMock("@/app/api/connect/schedule/route");
-    POST.mockResolvedValue(Response.json({ ok: true }));
-    GET.mockResolvedValue(Response.json({ ok: true }));
-    await call("needt_schedule", { run: false });
-    expect(publish).not.toHaveBeenCalled();
-    await call("needt_schedule", { run: true });
-    expect(types()).toEqual(["tasks-updated"]);
   });
 });

@@ -647,125 +647,111 @@ export const MCP_TOOLS: McpTool[] = [
       return toolResult(row);
     },
   }),
-  defineTool(
-    {
-      name: "needt_create_task",
-      description: `Create an auto-scheduled task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
-      annotations: { readOnlyHint: false, destructiveHint: false },
-      input: z.object({
-        title: z
-          .string()
-          .min(1)
-          .describe("The closing step: what is true once everything is done."),
-        description: z.string().optional(),
-        estimatedMinutes: z.number().int().min(1).optional(),
-        deadline: z
-          .string()
-          .optional()
-          .describe("ISO 8601 deadline, also used as due date."),
-        priorityLevel: priorityOrNone
-          .optional()
-          .describe("NONE leaves the task without a priority."),
-        recurrenceRule: repeatRule.optional(),
-        labelIds: labelIds.optional(),
-        scheduleId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe("Hours: the id of one of your work schedules."),
-        energyRequired: energy.optional(),
-        contextTag: z.string().optional(),
-        projectId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe("An active project in this workspace."),
-        entry: entrySchema
-          .optional()
-          .describe("The very first small step, about two minutes."),
-        subtasks: subtaskListSchema
-          .optional()
-          .describe(
-            "Steps in the order they are done, after the entry step and before this task. Up to 30."
-          ),
-        dependsOnId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe(
-            "Id of an existing open task this one cannot start before."
-          ),
-        originPageId: z
-          .string()
-          .min(1)
-          .optional()
-          .describe(
-            "A page in this workspace the task came from; the page's to-do and the task then tick together."
-          ),
-      }),
-      invoke: (ctx, args) =>
-        callRoute(ctx, createTaskPost, "/api/connect/tasks", "POST", args),
-    },
-    ["tasks-updated"]
-  ),
-  defineTool(
-    {
-      name: "needt_schedule",
-      description:
-        "Return the upcoming schedule. With run: true (default) Needt re-runs the scheduler first, which can move auto-scheduled tasks.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
-      scopes: (args) => (args.run ? ["needt.write"] : ["needt.read"]),
-      input: z.object({ run: z.boolean().default(true) }),
-      invoke: (ctx, args) =>
-        args.run
-          ? callRoute(ctx, schedulePost, "/api/connect/schedule", "POST")
-          : callRoute(ctx, scheduleGet, "/api/connect/schedule", "GET"),
-    },
-    (args) => (args.run ? ["tasks-updated"] : [])
-  ),
-  defineTool(
-    {
-      name: "needt_reschedule",
-      description:
-        "Re-run the scheduler and send the schedule.changed webhook if one is configured.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
-      input: z.object({}),
-      invoke: (ctx) =>
-        callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
-    },
-    ["tasks-updated"]
-  ),
-  defineTool(
-    {
-      name: "needt_control",
-      description:
-        "Change Needt projects, tasks, local calendars and events. Use action: overview to inspect the workspace. delete_* actions archive the object and require confirm: true; restore_* brings it back.",
-      annotations: { readOnlyHint: false, destructiveHint: true },
-      // The overview only reads; every other action writes.
-      scopes: (args) =>
-        args.action === "overview" ? ["needt.read"] : ["needt.write"],
-      input: z.object({
-        action: z.enum(CONNECTOR_CONTROL_ACTIONS),
-        id: z.string().optional(),
-        title: z.string().optional(),
-        name: z.string().optional(),
-        description: z.string().optional(),
-        status: z.string().optional(),
-        color: z.string().optional(),
-        icon: z.string().optional(),
-        location: z.string().optional(),
-        allDay: z.boolean().optional(),
-        start: z.string().optional().describe("ISO 8601"),
-        end: z.string().optional().describe("ISO 8601"),
-        feedId: z.string().optional(),
-        projectId: z.string().nullable().optional(),
-        confirm: z.boolean().optional(),
-      }),
-      invoke: (ctx, args) =>
-        callRoute(ctx, controlPost, "/api/connect/control", "POST", args),
-    },
-    ["tasks-updated", "calendar-updated"]
-  ),
+  defineTool({
+    name: "needt_create_task",
+    description: `Create an auto-scheduled task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({
+      title: z
+        .string()
+        .min(1)
+        .describe("The closing step: what is true once everything is done."),
+      description: z.string().optional(),
+      estimatedMinutes: z.number().int().min(1).optional(),
+      deadline: z
+        .string()
+        .optional()
+        .describe("ISO 8601 deadline, also used as due date."),
+      priorityLevel: priorityOrNone
+        .optional()
+        .describe("NONE leaves the task without a priority."),
+      recurrenceRule: repeatRule.optional(),
+      labelIds: labelIds.optional(),
+      scheduleId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Hours: the id of one of your work schedules."),
+      energyRequired: energy.optional(),
+      contextTag: z.string().optional(),
+      projectId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("An active project in this workspace."),
+      entry: entrySchema
+        .optional()
+        .describe("The very first small step, about two minutes."),
+      subtasks: subtaskListSchema
+        .optional()
+        .describe(
+          "Steps in the order they are done, after the entry step and before this task. Up to 30."
+        ),
+      dependsOnId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Id of an existing open task this one cannot start before."),
+      originPageId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "A page in this workspace the task came from; the page's to-do and the task then tick together."
+        ),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(ctx, createTaskPost, "/api/connect/tasks", "POST", args),
+  }),
+  defineTool({
+    name: "needt_schedule",
+    description:
+      "Return the upcoming schedule. With run: true (default) Needt re-runs the scheduler first, which can move auto-scheduled tasks.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    scopes: (args) => (args.run ? ["needt.write"] : ["needt.read"]),
+    input: z.object({ run: z.boolean().default(true) }),
+    invoke: (ctx, args) =>
+      args.run
+        ? callRoute(ctx, schedulePost, "/api/connect/schedule", "POST")
+        : callRoute(ctx, scheduleGet, "/api/connect/schedule", "GET"),
+  }),
+  defineTool({
+    name: "needt_reschedule",
+    description:
+      "Re-run the scheduler and send the schedule.changed webhook if one is configured.",
+    annotations: { readOnlyHint: false, destructiveHint: false },
+    input: z.object({}),
+    invoke: (ctx) =>
+      callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
+  }),
+  defineTool({
+    name: "needt_control",
+    description:
+      "Change Needt projects, tasks, local calendars and events. Use action: overview to inspect the workspace. delete_* actions archive the object and require confirm: true; restore_* brings it back.",
+    annotations: { readOnlyHint: false, destructiveHint: true },
+    // The overview only reads; every other action writes.
+    scopes: (args) =>
+      args.action === "overview" ? ["needt.read"] : ["needt.write"],
+    input: z.object({
+      action: z.enum(CONNECTOR_CONTROL_ACTIONS),
+      id: z.string().optional(),
+      title: z.string().optional(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      status: z.string().optional(),
+      color: z.string().optional(),
+      icon: z.string().optional(),
+      location: z.string().optional(),
+      allDay: z.boolean().optional(),
+      start: z.string().optional().describe("ISO 8601"),
+      end: z.string().optional().describe("ISO 8601"),
+      feedId: z.string().optional(),
+      projectId: z.string().nullable().optional(),
+      confirm: z.boolean().optional(),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(ctx, controlPost, "/api/connect/control", "POST", args),
+  }),
 ];
 
 const taskStatus = z.enum([

@@ -7,6 +7,7 @@ import {
   partSelect,
   readBody,
   scopedTaskId,
+  touchTaskAfterPartWrite,
 } from "@/services/tasks/parts-waits";
 import { WorkspaceRole } from "@prisma/client";
 
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       },
       select: partSelect,
     });
+    await touchTaskAfterPartWrite(auth.userId, taskId);
     return NextResponse.json(part, { status: 201 });
   } catch (error) {
     logger.error(
