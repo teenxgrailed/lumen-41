@@ -102,6 +102,8 @@ export interface MenuProps {
   me: MenuMe;
   /** A full-screen layer is up (Ask, a place's cover): the menu steps down and away. */
   away?: boolean;
+  /** The Focus button beside the pill (PhoneShell's FocusDockButton); the menu only places it. */
+  focus?: React.ReactNode;
   /** The composer is growing out of the pill: the pill steps out. */
   morph?: boolean;
   /** A place was chosen (a route, or Ask Needt). Settings goes to onSettings. */
@@ -177,6 +179,7 @@ interface Refs {
   dots: HTMLButtonElement | null;
   handle: HTMLSpanElement | null;
   add: HTMLButtonElement | null;
+  focus: HTMLSpanElement | null;
   hint: HTMLSpanElement | null;
   icons: (HTMLButtonElement | null)[];
   iconDots: (HTMLSpanElement | null)[];
@@ -229,7 +232,7 @@ function fling(S: State, el: HTMLElement, v: number, onFrame: () => void) {
 }
 
 export function Menu(props: MenuProps) {
-  const { side, screen, tiles, counts, me, away, morph } = props;
+  const { side, screen, tiles, counts, me, away, morph, focus } = props;
   const top = tiles.slice(0, 3);
   const rows = menuRows(top);
   const [mode, setMode] = useState<NvaMode>("pill");
@@ -254,6 +257,7 @@ export function Menu(props: MenuProps) {
     dots: null,
     handle: null,
     add: null,
+    focus: null,
     hint: null,
     icons: [],
     iconDots: [],
@@ -387,6 +391,15 @@ export function Menu(props: MenuProps) {
     put(R.add, "transform", nvaTransform(f.add.x, f.add.y, f.add.scale));
     put(R.add, "opacity", f.add.opacity.toFixed(3));
     put(R.add, "visibility", vis(f.add.opacity >= NVA_HIDE_BELOW));
+
+    // the Focus button mirrors it on the pill's other side
+    put(
+      R.focus,
+      "transform",
+      nvaTransform(f.focus.x, f.focus.y, f.focus.scale)
+    );
+    put(R.focus, "opacity", f.focus.opacity.toFixed(3));
+    put(R.focus, "visibility", vis(f.focus.opacity >= NVA_HIDE_BELOW));
 
     // tucked away: a handle that brings it back
     put(R.handle, "transform", nvaTransform(f.handle.x, f.handle.y));
@@ -1246,6 +1259,14 @@ export function Menu(props: MenuProps) {
       >
         <LuPlus size={22} />
       </button>
+      <span
+        ref={(n) => {
+          R.focus = n;
+        }}
+        className={"nva-focus " + inverse}
+      >
+        {focus}
+      </span>
       <span
         ref={(n) => {
           R.hint = n;
