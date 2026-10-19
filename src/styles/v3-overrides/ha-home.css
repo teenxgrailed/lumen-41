@@ -296,3 +296,21 @@
 @container hdhome (max-width: 899px) {
   .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Sheets, the schedule card and small controls (tokens only). */
+.needt-v3 .ha-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.needt-v3 .ha-dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; outline: 0; border-radius: 20px; }
+.needt-v3 .ha-link { border: 0; background: none; padding: 0; font: inherit; color: var(--ha-ink-2); cursor: pointer; }
+.needt-v3 .ha-link:hover { color: var(--ha-ink); }
+.needt-v3 .ha-sched-more { display: block; margin-top: 8px; font: var(--ha-t-meta); }
+.needt-v3 .ha-task-t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .ha-task[data-ctx] { cursor: pointer; }
+.needt-v3 .ha-task.is-past .ha-task-t, .needt-v3 .ha-task.is-past > span { color: var(--ha-ink-3); }
+.needt-v3 .ha-task.is-done .ha-task-t { text-decoration: line-through; color: var(--ha-ink-3); }
+.needt-v3 .ha-date { display: flex; align-items: center; gap: 10px; margin: 8px 2px 0; font: var(--ha-t-meta); color: var(--ha-ink-2); }
+.needt-v3 .ha-field { height: 32px; border: 0; border-radius: 11px; padding: 0 10px; background: var(--ha-raise); color: var(--ha-ink); font: 400 13px/1 var(--font-sans); outline: 0; }
+.needt-v3 .ha-field:focus { box-shadow: inset 0 0 0 1.5px var(--ha-mark-ring); }
+.needt-v3 .ha-ph-bands { gap: 6px; }
+.needt-v3 .pk-sheet-layer .ha-sheet { background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
+.needt-v3 .pk-sheet-layer .ha-grab { display: none; }
+.needt-v3 .ha-band .ha-band-e { margin-left: 0; }

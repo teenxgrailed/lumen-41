@@ -332,13 +332,16 @@ on the server.
 GET /api/week-focus?weekStart=2026-10-26
 PUT /api/week-focus   { "weekStart": "2026-10-26",
                         "focuses": [{ "title": "Ship the landing", "taskId": "..." },
-                                    { "title": "German B1" }] }
+                                    { "title": "German B1", "projectId": "..." }] }
 ```
 
-Both answer `{ "weekFocus": { "weekStart", "focuses": [{ "title", "taskId" }] } }`,
+Both answer `{ "weekFocus": { "weekStart", "focuses": [{ "title", "taskId", "projectId" }] } }`,
 or `{ "weekFocus": null }` when nothing was picked for that week. `focuses`
-holds 1 to 3 entries; `taskId` is optional (`null` when the focus is only a
-title) and must be a live task in the caller's scope (`404` otherwise). `PUT`
+holds 1 to 3 entries. Each is a reference to one open task (`taskId`) or one
+project (`projectId`), with `title` as a snapshot of its name when it was
+picked. A `taskId` must be a live task and a `projectId` a project in the
+caller's scope (`404` otherwise). Entries saved before references existed (a
+bare title) are still read, with both ids `null`; they point at nothing. `PUT`
 replaces the week's list. `400` for a `weekStart` that is not `YYYY-MM-DD` or a
 list that is empty or longer than three. Writes need the Editor role; reading
 needs none beyond membership.

@@ -21,40 +21,64 @@ describe("nextWeekStart", () => {
 });
 
 describe("focusTasks", () => {
-  it("finds a focus by id, else by its title", () => {
-    const byId = task({ title: "Landing v27" });
-    const byTitle = task({ title: "German B1 — Lektion 7" });
-    const none = task({ title: "Unrelated" });
+  it("finds a task focus by its id and a project focus by its open tasks", () => {
+    const one = task({ title: "Landing v27", projectId: "p-needt" });
+    const lek = task({
+      title: "Lektion 7",
+      projectId: "p-de",
+      dueDate: "2026-09-03",
+    });
+    const lek2 = task({
+      title: "Lektion 8",
+      projectId: "p-de",
+      dueDate: "2026-09-02",
+    });
+    const lek3 = task({
+      title: "Lektion 9",
+      projectId: "p-de",
+      dueDate: "2026-09-09",
+    });
+    const other = task({ title: "Unrelated", projectId: "p-x" });
     const list = focusTasks(
       [
-        { title: "whatever the title says", taskId: byId.id },
-        { title: "german b1", taskId: null },
+        { title: "snapshot", taskId: one.id },
+        { title: "German", projectId: "p-de" },
       ],
-      [none, byTitle, byId]
+      [other, lek, lek3, lek2, one]
     );
-    expect(list.map((t) => t.id)).toEqual([byId.id, byTitle.id]);
+    expect(list.map((t) => t.title)).toEqual([
+      "Landing v27",
+      "Lektion 8",
+      "Lektion 7",
+    ]);
   });
 
   it("skips closed, trashed and unplaceable tasks, and lists each task once", () => {
-    const open = task({ title: "Ship the report" });
+    const open = task({ title: "Ship the report", projectId: "p1" });
     const list = focusTasks(
       [
-        { title: "Ship the report", taskId: open.id },
-        { title: "ship the report", taskId: null },
+        { title: "a", taskId: open.id },
+        { title: "b", projectId: "p1" },
       ],
       [
-        task({ title: "Ship the report", done: true }),
-        task({ title: "Ship the report", trashedAt: `${TODAY}T10:00:00Z` }),
-        task({ title: "Ship the report", noSlot: true }),
+        task({ title: "Closed", done: true, projectId: "p1" }),
+        task({
+          title: "Gone",
+          trashedAt: `${TODAY}T10:00:00Z`,
+          projectId: "p1",
+        }),
+        task({ title: "Nowhere", noSlot: true, projectId: "p1" }),
         open,
       ]
     );
     expect(list).toEqual([open]);
   });
 
-  it("does not match a short word inside a longer title", () => {
+  it("does not match by title: an old title-only focus points at nothing", () => {
     const t = task({ title: "Go to the dentist" });
-    expect(focusTasks([{ title: "go", taskId: null }], [t])).toEqual([]);
-    expect(focusTasks([{ title: "dentist", taskId: null }], [t])).toEqual([t]);
+    expect(focusTasks([{ title: "dentist" }], [t])).toEqual([]);
+    expect(
+      focusTasks([{ title: "Go to the dentist", taskId: null }], [t])
+    ).toEqual([]);
   });
 });

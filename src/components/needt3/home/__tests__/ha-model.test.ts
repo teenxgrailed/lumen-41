@@ -6,7 +6,9 @@ import type { V3Habit } from "@/lib/needt3/map";
 
 import {
   briefLines,
+  haBandOf,
   haHabitsOf,
+  haScheduleRows,
   haTaskCard,
   haTimeOf,
   haWeatherOf,
@@ -258,5 +260,74 @@ describe("haWeekOf", () => {
         streak: 0,
       })
     ).toBeNull();
+  });
+});
+
+describe("the day's timeline", () => {
+  const band = (over = {}) => ({
+    key: "b1",
+    blockId: "b1",
+    kind: "lunch",
+    title: "Lunch",
+    emoji: "🍽",
+    tone: "info" as const,
+    date: TODAY,
+    from: 12.5,
+    to: 13.25,
+    repeating: false,
+    linked: false,
+    ...over,
+  });
+  const item = (over = {}) => ({
+    key: "i1",
+    id: "t1",
+    at: 10,
+    len: 60,
+    title: "Write report",
+    event: false,
+    done: false,
+    projectId: null,
+    ...over,
+  });
+  it("draws a personal block as a band in a palette colour, never a raw one", () => {
+    expect(haBandOf(band())).toEqual({
+      e: "🍽",
+      n: "Lunch",
+      time: "12:30–13:15",
+      hue: "var(--info)",
+    });
+    expect(haBandOf(band({ tone: "neutral" })).hue).toBe(
+      "var(--text-tertiary)"
+    );
+  });
+  it("puts tasks, events and bands in one run by hour, the now line above the next", () => {
+    const rows = haScheduleRows({
+      items: [
+        item({ at: 14, key: "late" }),
+        item({ at: 9, key: "early", event: true }),
+      ],
+      bands: [band()],
+      nowHour: 11,
+      hueOf: () => "red",
+    });
+    expect(rows.map((r) => r.key)).toEqual(["early", "band:b1", "late"]);
+    expect(rows.map((r) => !!r.now)).toEqual([false, true, false]);
+    expect(rows[0]?.task).toMatchObject({ event: true, past: true });
+    expect(rows[1]?.band?.n).toBe("Lunch");
+    expect(rows[2]?.task?.c).toBe("red");
+  });
+  it("leaves the now line alone at the end when the day is past every row", () => {
+    const rows = haScheduleRows({
+      items: [item({ at: 9 })],
+      bands: [],
+      nowHour: 18,
+      hueOf: () => "red",
+    });
+    expect(rows.at(-1)).toMatchObject({ now: true, bare: true, t: "18:00" });
+  });
+  it("is empty for an empty day", () => {
+    expect(
+      haScheduleRows({ items: [], bands: [], nowHour: 9, hueOf: () => "" })
+    ).toEqual([]);
   });
 });

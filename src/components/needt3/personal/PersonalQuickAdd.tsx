@@ -70,11 +70,14 @@ export function PersonalDay({
   date,
   className,
   quick = true,
+  bands = true,
 }: {
   date: string;
   className?: string;
   /** Offer the one-tap presets under the rows. */
   quick?: boolean;
+  /** Draw the day's blocks as rows (Home's timeline draws them itself). */
+  bands?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -83,7 +86,7 @@ export function PersonalDay({
       aria-label="Personal time"
       data-personal-section={date}
     >
-      <PersonalDayBands date={date} />
+      {bands ? <PersonalDayBands date={date} /> : null}
       {quick ? (
         <>
           <button

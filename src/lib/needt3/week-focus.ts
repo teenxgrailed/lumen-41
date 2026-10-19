@@ -5,9 +5,11 @@
 import { addDays, weekday } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 
+/** A focus: a task or a project (by id), with its name when it was picked. */
 export interface WeekFocusItem {
   title: string;
-  taskId: string | null;
+  taskId?: string | null;
+  projectId?: string | null;
 }
 
 export interface WeekFocus {
@@ -33,14 +35,14 @@ export function nextWeekStart(
   return weekStartOf(addDays(today, 1), startDay);
 }
 
-const norm = (s: string) => s.trim().toLocaleLowerCase();
-/** A title shorter than this only matches exactly, so "go" matches nothing by accident. */
-const MIN_PARTIAL = 4;
+/** Open tasks a project focus offers as highlight candidates. */
+const PER_PROJECT = 2;
 
 /**
- * The open tasks the week's focuses point at, in the focuses' order: by task
- * id when the focus has one, else a task whose title is the focus (or holds it,
- * or is held by it, from four letters up). Each task once.
+ * The open tasks the week's focuses point at, in the focuses' order: a task
+ * focus is that task (when still open), a project focus is the project's most
+ * pressing open tasks (earliest due first). By id only: a focus with no
+ * reference (an old title-only entry) points at nothing.
  */
 export function focusTasks(
   focuses: readonly WeekFocusItem[],
@@ -52,25 +54,15 @@ export function focusTasks(
     if (t && !out.includes(t)) out.push(t);
   };
   for (const f of focuses) {
-    if (f.taskId) {
-      const byId = open.find((t) => t.id === f.taskId);
-      if (byId) {
-        add(byId);
-        continue;
-      }
-    }
-    const want = norm(f.title);
-    if (!want) continue;
-    add(open.find((t) => norm(t.title) === want));
-    if (want.length >= MIN_PARTIAL) {
-      for (const t of open) {
-        const have = norm(t.title);
-        if (
-          have.length >= MIN_PARTIAL &&
-          (have.includes(want) || want.includes(have))
+    if (f.taskId) add(open.find((t) => t.id === f.taskId));
+    else if (f.projectId) {
+      open
+        .filter((t) => t.projectId === f.projectId)
+        .sort((a, b) =>
+          (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")
         )
-          add(t);
-      }
+        .slice(0, PER_PROJECT)
+        .forEach(add);
     }
   }
   return out;

@@ -5,7 +5,9 @@
  */
 export { HaAllDone, type HaPull } from "./HaAllDone";
 export { HaBrief } from "./HaBrief";
-export { HaEndDay, type HaLeft, type HaMove } from "./HaEndDay";
+export { HaEndDay } from "./HaEndDay";
+export { HaLeftList, type HaLeft, type HaTarget } from "./HaLeftList";
+export { HaEndDaySheet, HaReviewSheet } from "./HaSheets";
 export { HaHabits, type HaHabit } from "./HaHabits";
 export { HaHighlight, type HaCard, type HaHighlightState } from "./HaHighlight";
 export {
@@ -14,6 +16,7 @@ export {
   type HaFocusOption,
   type HaWin,
 } from "./HaReview";
+export { HaSchedule } from "./HaSchedule";
 export { HaTimeLeft, type HaTime } from "./HaTimeLeft";
 export {
   HaBand,
@@ -33,7 +36,10 @@ export {
 export { HaScope } from "./ui";
 export {
   briefLines,
+  haAllDoneOf,
+  haBandOf,
   haHabitsOf,
+  haScheduleRows,
   haTaskCard,
   haTimeOf,
   haWeekOf,

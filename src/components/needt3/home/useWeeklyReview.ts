@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { type ComponentProps, useCallback, useMemo, useState } from "react";
 
 import type { Stats } from "@/services/stats/home-stats";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,19 +10,23 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useSaveWeekFocus } from "@/lib/needt3/hooks/week-focus";
-import type { V3Task } from "@/lib/needt3/map";
+import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
-import { nextWeekStart } from "@/lib/needt3/week-focus";
+import { weekNumber } from "@/lib/needt3/today";
+import { nextWeekStart, weekStartOf } from "@/lib/needt3/week-focus";
 import { notify } from "@/lib/notifications";
 
-import type { ReviewProps } from "./ReviewSheet";
+import { dur } from "./derive";
 import { type LeftoverTarget, leftoverPatch, shutdownOf } from "./finish";
+import type { HaReview } from "./ha";
 import { dayFlag, setDayFlag } from "./nudge";
 import {
-  REVIEW_FOCUSES,
+  focusItems,
+  focusOptions,
   isReviewDay,
   reviewMarkdown,
   reviewTitle,
+  weekRangeLabel,
   winsLines,
 } from "./review";
 
@@ -45,6 +49,11 @@ export function useWeeklyReview(o: {
   late: readonly V3Task[];
   day: readonly V3Task[];
   stats: Stats | undefined;
+  /** Every task, for the focus picker. */
+  tasks: readonly V3Task[];
+  projects: readonly V3Project[];
+  /** Days in a row with something closed. */
+  streak: number;
 }) {
   const qc = useQueryClient();
   const updateTask = useUpdateTask();
@@ -63,13 +72,15 @@ export function useWeeklyReview(o: {
   const [, bump] = useState(0);
   const [choices, setChoices] = useState<Record<string, LeftoverTarget>>({});
   const [date, setDate] = useState(addDays(o.today, 2));
-  const [focuses, setFocuses] = useState<string[]>(
-    Array(REVIEW_FOCUSES).fill("")
-  );
+  const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const shut = useMemo(() => shutdownOf(o.late, o.day), [o.late, o.day]);
   const wins = useMemo(() => winsLines(o.stats), [o.stats]);
+  const options = useMemo(
+    () => focusOptions(o.tasks, o.projects, o.today),
+    [o.tasks, o.projects, o.today]
+  );
 
   const show =
     sunday &&
@@ -115,15 +126,16 @@ export function useWeeklyReview(o: {
         isPrivate: true,
       });
       await sendJson(`/api/pages/${page.id}/append`, "POST", {
-        text: reviewMarkdown({ wins, moved, focuses }),
+        text: reviewMarkdown({
+          wins,
+          moved,
+          focuses: focusItems(options, picked).map((f) => f.title),
+        }),
       });
       // the focuses are also the week's highlight candidates (/api/week-focus)
-      const picked = focuses
-        .map((f) => f.trim())
-        .filter(Boolean)
-        .map((t) => ({ title: t, taskId: null }));
-      if (picked.length)
-        await saveWeekFocus(nextWeekStart(o.today, weekStartDay), picked);
+      const chosen = focusItems(options, picked);
+      if (chosen.length)
+        await saveWeekFocus(nextWeekStart(o.today, weekStartDay), chosen);
       qc.setQueryData(qk.weeklyReview(title), true);
       void qc.invalidateQueries({ queryKey: qk.docs() });
       notify.success(
@@ -153,27 +165,57 @@ export function useWeeklyReview(o: {
     date,
     title,
     wins,
-    focuses,
+    options,
+    picked,
     qc,
     saveWeekFocus,
     weekStartDay,
   ]);
 
-  const sheet: ReviewProps = {
-    wins,
+  const first = weekStartOf(o.today, weekStartDay);
+  const next = nextWeekStart(o.today, weekStartDay);
+  const week = o.stats;
+  const sheet: ComponentProps<typeof HaReview> = {
+    title: `Week ${weekNumber(first, weekStartDay)} in review`,
+    sub: `Sunday · ${weekRangeLabel(first)}`,
+    wins:
+      week && week.total > 0
+        ? [
+            {
+              b: String(week.total),
+              span: week.total === 1 ? "task done" : "tasks done",
+            },
+            ...(week.focusMinutes != null
+              ? [{ b: dur(week.focusMinutes) || "0 min", span: "focused" }]
+              : []),
+            ...(o.streak > 0
+              ? [{ b: String(o.streak), span: "day streak" }]
+              : []),
+          ]
+        : [],
+    winLines: wins.filter((l) => !/ done$/.test(l) && !/ of focus$/.test(l)),
     leftovers: shut.leftovers.map((t) => ({
       id: t.id,
       title: t.title,
       meta: t.dueDate && t.dueDate < o.today ? "Overdue" : "This week",
     })),
-    choices,
+    moves: choices,
     date,
     minDate: addDays(o.today, 1),
-    focuses,
+    options,
+    picked,
+    nextWeek: weekNumber(next, weekStartDay),
     busy,
-    onChoice: (id, target) => setChoices((c) => ({ ...c, [id]: target })),
+    onMove: (id, target) => setChoices((c) => ({ ...c, [id]: target })),
     onDate: setDate,
-    onFocus: (i, v) => setFocuses((f) => f.map((x, j) => (j === i ? v : x))),
+    onPick: (key) =>
+      setPicked((p) =>
+        p.includes(key)
+          ? p.filter((x) => x !== key)
+          : p.length < 3
+            ? [...p, key]
+            : p
+      ),
     onSubmit: () => void submit(),
     onClose: () => setOpen(false),
   };

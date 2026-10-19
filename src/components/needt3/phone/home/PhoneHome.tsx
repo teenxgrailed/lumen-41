@@ -4,8 +4,6 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { LuCheck } from "react-icons/lu";
-
 import { readPref } from "@/components/needt3/settings/derive";
 
 import { addDays } from "@/lib/needt3/derive";
@@ -36,10 +34,8 @@ import { weekStartOf } from "@/lib/needt3/week-focus";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
-import { FinishPicks } from "../../home/FinishCard";
-import { ReviewCard, ReviewSheet } from "../../home/ReviewSheet";
+import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
-import { ShutdownSheet } from "../../home/Shutdown";
 import { StatsCard, StatsSheet } from "../../home/Stats";
 import { briefFactsOf, doneTodayCount } from "../../home/brief";
 import { firstEvent } from "../../home/day-line-model";
@@ -50,17 +46,22 @@ import {
   scheduleItems,
 } from "../../home/derive";
 import {
-  finishHeadline,
   freeMinutesLeft,
   hourOfClock,
   pickFinishNext,
 } from "../../home/finish";
 import {
+  HaAllDone,
+  HaBand,
   HaBrief,
+  HaEndDaySheet,
   HaHabits,
   HaHighlight,
+  HaReviewSheet,
   HaTimeLeft,
   HaWeather,
+  haAllDoneOf,
+  haBandOf,
   haHabitsOf,
   haTaskCard,
   haTimeOf,
@@ -75,7 +76,6 @@ import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
 import { openPaywall } from "../../paywall/store";
-import { PersonalDayBands } from "../../personal/PersonalBand";
 import {
   PkButton,
   PkEmpty,
@@ -181,6 +181,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     late: v.open(v.sec.late),
     day: v.sec.day,
     stats: stats.week,
+    tasks: all,
+    projects: projects ?? [],
+    streak: dayStreak(all, today).n,
   });
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
@@ -339,56 +342,32 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const dateLine = todayLine(now, tz, weekStartDay).line;
 
   /* Progress is a small part of the header; a finished day is one line. */
-  const progress = !ready ? null : v.dayClosed ? (
-    <div
-      className="v2p-prog is-done"
-      data-v2p-alldone={v.allDone ? "" : undefined}
-      data-v2p-dayclosed=""
-    >
-      <p className="v2p-prog-line">
-        <span className="v2p-prog-done">
-          {v.allDone
-            ? copy.V2pHome.all_done_for_today
-            : finishHeadline(openRest).title}{" "}
-          <LuCheck size={16} />
-        </span>
-      </p>
-      <span className="v2p-prog-acts">
-        <PkButton kind="quiet" onClick={finish.show} data-fin="end-day">
-          End day
-        </PkButton>
-        {v.open(v.sec.next).length ? (
-          <PkButton kind="ghost" onClick={seeTomorrow} data-v2p-see-tomorrow="">
-            {copy.V2pHome.see_tomorrow}
-          </PkButton>
-        ) : null}
-      </span>
-    </div>
-  ) : v.total ? (
-    <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
-      <p className="v2p-prog-line">
-        <span className="v2p-prog-count">
-          {`${copy.V2pHome.done} `}
-          <PkNumber value={v.done} label={String(v.done)} />
-          {` of ${v.total}`}
-        </span>
-        {v.lateN ? (
-          <span className="v2p-prog-late">
-            <span className="pk-alert-dot" />
-            {v.lateN} overdue
+  const progress =
+    !ready || v.dayClosed ? null : v.total ? (
+      <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
+        <p className="v2p-prog-line">
+          <span className="v2p-prog-count">
+            {`${copy.V2pHome.done} `}
+            <PkNumber value={v.done} label={String(v.done)} />
+            {` of ${v.total}`}
           </span>
-        ) : null}
-      </p>
-      <span className="v2p-prog-bar" aria-hidden="true">
-        <span
-          className="v2p-prog-fill"
-          style={
-            { "--p": (v.done / v.total).toFixed(3) } as React.CSSProperties
-          }
-        />
-      </span>
-    </div>
-  ) : null;
+          {v.lateN ? (
+            <span className="v2p-prog-late">
+              <span className="pk-alert-dot" />
+              {v.lateN} overdue
+            </span>
+          ) : null}
+        </p>
+        <span className="v2p-prog-bar" aria-hidden="true">
+          <span
+            className="v2p-prog-fill"
+            style={
+              { "--p": (v.done / v.total).toFixed(3) } as React.CSSProperties
+            }
+          />
+        </span>
+      </div>
+    ) : null;
 
   const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
   const head =
@@ -427,7 +406,31 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       ) : null}
       {ready ? (
         <div className="ha-phone ha-ph-stack" data-ha-stack="">
-          {hlTask && !hlTask.done ? (
+          {v.dayClosed ? (
+            <HaAllDone
+              {...haAllDoneOf({
+                count: v.sec.day.length,
+                focusMinutes: stats.week?.days.find((d) => d.date === today)
+                  ?.focusMinutes,
+                open: openRest,
+                picks: finishPicks,
+                freeMinutes: freeMinutesLeft(
+                  workCap,
+                  today,
+                  nowHour,
+                  calendarItems
+                ),
+              })}
+              onPull={(id) => {
+                const p = finishPicks.find((x) => x.task.id === id);
+                if (p) void finish.doToday(p);
+              }}
+              onEndDay={finish.show}
+              onSeeTomorrow={
+                v.open(v.sec.next).length ? seeTomorrow : undefined
+              }
+            />
+          ) : hlTask && !hlTask.done ? (
             <HaHighlight
               phone
               state="set"
@@ -494,15 +497,13 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         </div>
       ) : null}
 
-      {ready && finishPicks.length ? (
-        <FinishPicks
-          phone
-          picks={finishPicks}
-          onDoToday={(p) => void finish.doToday(p)}
-        />
+      {ready && personal.length ? (
+        <div className="ha-phone ha-ph-stack ha-ph-bands" data-ha-bands="">
+          {personal.map((b) => (
+            <HaBand key={b.key} b={haBandOf(b)} />
+          ))}
+        </div>
       ) : null}
-
-      {ready ? <PersonalDayBands date={today} /> : null}
 
       {ready && v.empty ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
@@ -584,8 +585,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           </button>
         </div>
       ) : null}
-      <ShutdownSheet phone open={finish.open} {...finish.sheet} />
-      <ReviewSheet phone open={review.open} {...review.sheet} />
+      <HaEndDaySheet phone open={finish.open} {...finish.sheet} />
+      <HaReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone
         open={stats.open}
