@@ -37,3 +37,9 @@ export const keepGoing = "Keep going";
 export const endAsk = (focused: string) => `End now? ${focused} so far.`;
 export const focusedSoFar = (dur: string | null) =>
   dur ? `${dur} focused` : "Under a minute focused";
+
+/* The Done ask after a session on a task. */
+export const doneAsk = (title: string) => `Done with ${title}?`;
+export const doneLabel = "Done";
+export const notYet = "Not yet";
+export const moreFocus = "+15 min";

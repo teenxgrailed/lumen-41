@@ -27,6 +27,14 @@ import {
   taskOf,
 } from "@/lib/needt3/focus";
 import {
+  FOCUS_DONE_PARAM,
+  MORE_FOCUS_MINUTES,
+  canFocusMore,
+  readFocusDoneParam,
+  shouldAskDone,
+  withoutFocusDoneParam,
+} from "@/lib/needt3/focus-done";
+import {
   useFocusActions,
   useFocusSession,
   useFocusStats,
@@ -36,7 +44,7 @@ import {
   useSettings,
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -128,6 +136,7 @@ export function useFocusController() {
   const settings = useSettings();
   const setPref = useSetPref();
   const actions = useFocusActions();
+  const updateTask = useUpdateTask();
   const ui = useFocusWindow();
   const { session, run, nowMs } = useFocusRun();
 
@@ -193,7 +202,7 @@ export function useFocusController() {
             preset: w.breakAfter,
             breakAfter: null,
           });
-        else w.patch({ summary });
+        else w.patch({ summary, askDismissed: false });
         useNeedt3Ui.getState().setFocusOpen(true);
       }
       const ok = await actions.stop(row, how === "complete");
@@ -293,6 +302,94 @@ export function useFocusController() {
   };
   const keepGoing = () => rethink();
 
+  /* ---------- "Done with <task>?" ---------- */
+  const askTask = ui.summary?.taskId
+    ? (tasks ?? []).find((t) => t.id === ui.summary?.taskId)
+    : undefined;
+  const asking =
+    !!ui.summary &&
+    !ui.askDismissed &&
+    shouldAskDone({
+      taskId: ui.summary.taskId,
+      task: askTask,
+      isBreak: false,
+    });
+  /** Completes a task; one notice with Undo says so. */
+  const completeTask = useCallback(
+    async (target: { id: string; title: string }) => {
+      try {
+        const saved = await updateTask.mutateAsync({
+          id: target.id,
+          patch: { done: true },
+        });
+        notify.success(`Done · ${target.title}`, {
+          action: { label: "Undo", onClick: () => void saved.undo() },
+        });
+        return true;
+      } catch {
+        // The mutation has already reported the failure and rolled back.
+        return false;
+      }
+    },
+    [updateTask]
+  );
+  const markDone = () => (askTask ? completeTask(askTask) : undefined);
+  const notYet = () => useFocusWindow.getState().patch({ askDismissed: true });
+  /** Another quarter hour on the same task; only after the clock ran out. */
+  const focusMore = async () => {
+    const w = useFocusWindow.getState();
+    if (!w.summary || !askTask || !canFocusMore(w.summary.how)) return;
+    const row = await actions.start({
+      taskId: askTask.id,
+      intention: askTask.title,
+      plannedMinutes: MORE_FOCUS_MINUTES,
+    });
+    if (row) useFocusWindow.getState().reset();
+  };
+  /** Leaving the End view without answering: one notice keeps the question. */
+  const remindDone = () => {
+    const w = useFocusWindow.getState();
+    if (!asking || !askTask || w.askDismissed) return;
+    notify.info(`Done with ${askTask.title}?`, {
+      dedupeKey: `focus-done-${askTask.id}`,
+      action: { label: "Done", onClick: () => void completeTask(askTask) },
+    });
+  };
+
+  // A Focus-ended push opens the app on `?focusDone=<taskId>`: show the ask
+  // once the tasks are known, then take the parameter off the address.
+  const linkHandled = useRef(false);
+  useEffect(() => {
+    if (linkHandled.current || !tasks) return;
+    linkHandled.current = true;
+    const id = readFocusDoneParam(window.location.search);
+    if (!id) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(FOCUS_DONE_PARAM);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${withoutFocusDoneParam(window.location.search)}${url.hash}`
+    );
+    const t = tasks.find((x) => x.id === id);
+    if (
+      live.current.run ||
+      !shouldAskDone({ taskId: id, task: t, isBreak: false })
+    )
+      return;
+    useFocusWindow.getState().patch({
+      summary: {
+        minutes: 0,
+        title: t!.title,
+        taskId: id,
+        how: "complete",
+        bare: true,
+      },
+      askDismissed: false,
+    });
+    useNeedt3Ui.getState().setFocusOpen(true);
+  }, [tasks]);
+
   const takeBreak = async () => {
     const w = useFocusWindow.getState();
     const next = nextTask(tasks, w.summary?.taskId ?? null);
@@ -309,6 +406,7 @@ export function useFocusController() {
       .getState()
       .patch({ summary: null, preset: t.id, note: null, draft: null });
   const done = () => {
+    remindDone();
     useFocusWindow.getState().patch({ summary: null });
     setOpen(false);
   };
@@ -319,7 +417,10 @@ export function useFocusController() {
       rethink();
       return;
     }
-    if (view === "end") useFocusWindow.getState().patch({ summary: null });
+    if (view === "end") {
+      remindDone();
+      useFocusWindow.getState().patch({ summary: null });
+    }
     setOpen(false);
   };
 
@@ -341,6 +442,11 @@ export function useFocusController() {
     hide,
     setHide,
     stats: stats.data ?? null,
+    asking,
+    askTask: askTask ?? null,
+    markDone,
+    notYet,
+    focusMore,
     begin,
     togglePause,
     more,

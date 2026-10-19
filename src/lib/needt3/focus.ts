@@ -179,6 +179,8 @@ export interface FocusSummary {
   title: string;
   taskId: string | null;
   how: "complete" | "stopped";
+  /** Opened from a Focus-ended push: only the ask, no numbers to show. */
+  bare?: boolean;
 }
 
 export function summaryOf(

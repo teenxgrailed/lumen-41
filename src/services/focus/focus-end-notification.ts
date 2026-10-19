@@ -2,6 +2,7 @@ import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { focusDoneUrl } from "@/lib/needt3/focus-done";
 import { prisma } from "@/lib/prisma";
 import { scheduleFocusEnd } from "@/lib/queue/enqueue";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
@@ -27,7 +28,7 @@ export async function deliverFocusEnded(
   const session = await prisma.focusSession.findUnique({
     where: { id: sessionId },
     include: {
-      task: { select: { title: true } },
+      task: { select: { title: true, status: true } },
       user: {
         select: {
           pushSubscriptions: true,
@@ -53,7 +54,20 @@ export async function deliverFocusEnded(
 
   let pushes = 0;
   if (enabled) {
-    const payload = { title: "Focus done", body: message, url: "/today" };
+    // A session on an open task asks "Done?": the push opens the app on that
+    // ask, and a browser that shows actions offers "Mark done".
+    const openTask =
+      session.taskId && session.task && session.task.status !== "completed"
+        ? session.taskId
+        : null;
+    const payload = openTask
+      ? {
+          title: "Focus done",
+          body: message,
+          url: focusDoneUrl(openTask),
+          taskId: openTask,
+        }
+      : { title: "Focus done", body: message, url: "/today" };
     const results = await Promise.allSettled(
       session.user.pushSubscriptions.map((subscription) =>
         deliverPush(subscription, payload)
