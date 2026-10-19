@@ -16,6 +16,7 @@ import {
   LuLock,
 } from "react-icons/lu";
 
+import { Glyph, type GlyphName } from "../../glyphs/Glyph";
 import { PkSheet, pkCx } from "../kit";
 import type { MenuPlaceId } from "../menu/places";
 
@@ -64,12 +65,25 @@ export function PsGlyph({
   icon,
   hue,
   size,
+  art,
 }: {
-  icon: ReactNode;
+  icon?: ReactNode;
   hue?: string;
   size?: keyof typeof GLYPH_PX;
+  /** A landing glyph drawn bare, with no tile behind it. */
+  art?: GlyphName;
 }) {
   const px = GLYPH_PX[size ?? "s"];
+  if (art)
+    return (
+      <span
+        className="ps-glyph-art"
+        aria-hidden="true"
+        style={{ width: px, height: px }}
+      >
+        <Glyph name={art} size={Math.round(px * 0.875)} />
+      </span>
+    );
   return (
     <span
       className="pk-glyph is-tint ps-glyph"

@@ -12,22 +12,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-import type { IconType } from "react-icons";
 import { FiArrowUpRight, FiCheck, FiX } from "react-icons/fi";
-import {
-  LuBell,
-  LuCable,
-  LuClock,
-  LuCommand,
-  LuCreditCard,
-  LuDatabase,
-  LuInfo,
-  LuListChecks,
-  LuPalette,
-  LuSlidersHorizontal,
-  LuTarget,
-  LuUser,
-} from "react-icons/lu";
 
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
@@ -36,6 +21,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import { Glyph, type GlyphName } from "../glyphs/Glyph";
 import { openPaywall } from "../paywall";
 import type { MenuPlaceId } from "../phone/menu/places";
 import { PhoneSettings } from "../phone/settings/PhoneSettings";
@@ -66,20 +52,20 @@ import { MeDisc } from "./kit";
 
 const SAVED_MS = 1700;
 
-/** The rail's row icons (SettingsScreen.jsx `NAV`, lucide at 15). */
-const NAV_ICONS: Record<string, IconType> = {
-  account: LuUser,
-  plan: LuCreditCard,
-  general: LuSlidersHorizontal,
-  appearance: LuPalette,
-  day: LuClock,
-  tasks: LuListChecks,
-  focus: LuTarget,
-  alerts: LuBell,
-  keys: LuCommand,
-  connections: LuCable,
-  data: LuDatabase,
-  about: LuInfo,
+/** The rail's row marks: the landing glyphs (SettingsScreen.jsx `NAV`). */
+const NAV_GLYPHS: Record<string, GlyphName> = {
+  account: "people",
+  plan: "wallet",
+  general: "tune",
+  appearance: "moodboards",
+  day: "planday",
+  tasks: "tasks",
+  focus: "focus",
+  alerts: "bell",
+  keys: "api",
+  connections: "connect",
+  data: "stack",
+  about: "help",
 };
 const P = priceStrings();
 
@@ -338,7 +324,7 @@ export function SettingsSheet() {
               ) : null}
               {g.items.map((item) => {
                 const on = !item.jump && section === item.id;
-                const Icon = NAV_ICONS[item.id];
+                const glyph = NAV_GLYPHS[item.id];
                 return (
                   <button
                     className="settings-row-4 settings-nav-row"
@@ -360,7 +346,7 @@ export function SettingsSheet() {
                     }}
                   >
                     <span className="settings-row-5">
-                      {Icon ? <Icon size={15} aria-hidden /> : null}
+                      {glyph ? <Glyph name={glyph} size={18} /> : null}
                     </span>
                     {item.name}
                     {item.jump ? (
