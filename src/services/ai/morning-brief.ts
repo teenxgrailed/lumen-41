@@ -11,7 +11,7 @@ const LOG_SOURCE = "morning-brief";
 
 /** A placeholder older than this is a generation that died; the next run takes over. */
 const STALE_MS = 2 * 60 * 1000;
-const MAX_CHARS = 420;
+const MAX_CHARS = 220;
 const MAX_LINES = 3;
 
 const title = z.string().trim().min(1).max(120);
@@ -45,8 +45,9 @@ export const briefDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const SYSTEM = [
   "You write a person's morning brief for their planner.",
-  "Write 2 or 3 short plain lines, 60 words at most in all.",
-  "Say what matters today, what is overdue, and how much free time is left.",
+  "Write at most 2 short sentences, about 200 characters in all.",
+  "Start with how many tasks are open today, then the one thing to do first;",
+  "mention overdue or free time only if it fits.",
   "Use only the facts you are given; invent nothing. No greeting, no markdown,",
   "no emoji, no list marks, no questions.",
 ].join(" ");
@@ -83,16 +84,30 @@ export function cleanBrief(raw: string): string {
     .split("\n")
     .map((l) =>
       l
-        .replace(/^[\s>*\-•#\d.)]+/, "")
+        // list marks only: "1. " or "2) " go, a leading count like "14 tasks" stays
+        .replace(/^(?:[\s>*\-•#]+|\d{1,2}[.)]\s+)+/, "")
         .replace(/[*_`]/g, "")
         .trim()
     )
     .filter(Boolean)
     .slice(0, MAX_LINES);
-  const text = lines.join("\n");
-  return text.length > MAX_CHARS
-    ? `${text.slice(0, MAX_CHARS - 1).trimEnd()}…`
-    : text;
+  return capAtSentence(lines.join("\n"), MAX_CHARS);
+}
+
+/** Cut at the last sentence end within max; with none, at a word, with an ellipsis. */
+export function capAtSentence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const head = text.slice(0, max);
+  const end = Math.max(
+    head.lastIndexOf(". "),
+    head.lastIndexOf("! "),
+    head.lastIndexOf("? "),
+    head.lastIndexOf(".\n"),
+    /[.!?]$/.test(head) ? head.length - 1 : -1
+  );
+  if (end >= 40) return head.slice(0, end + 1).trimEnd();
+  const space = head.lastIndexOf(" ");
+  return `${head.slice(0, space > 40 ? space : max - 1).trimEnd()}…`;
 }
 
 export interface BriefView {
