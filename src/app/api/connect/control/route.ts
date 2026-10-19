@@ -12,6 +12,7 @@ import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 
 import { TaskStatus } from "@/types/task";
@@ -34,6 +35,21 @@ function confirmationRequired(
 }
 
 export async function POST(request: NextRequest) {
+  let writer: string | null = null;
+  const response = await handleControl(request, (userId) => {
+    writer = userId;
+  });
+  if (response.ok && writer) {
+    await publishRealtimeEventSafe(writer, "tasks-updated");
+    await publishRealtimeEventSafe(writer, "calendar-updated");
+  }
+  return response;
+}
+
+async function handleControl(
+  request: NextRequest,
+  markWrite: (userId: string) => void
+) {
   const userId = await authenticateConnectorToken(
     request.headers.get("authorization")
   );
@@ -52,6 +68,7 @@ export async function POST(request: NextRequest) {
   );
   if (auth.response) return auth.response;
   const { workspace } = auth;
+  if (action !== "overview") markWrite(userId);
   const scope = workspaceDataScopeWhere(workspace, userId);
 
   if (action === "overview") {

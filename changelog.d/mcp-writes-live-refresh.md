@@ -1,0 +1,1 @@
+- Changes made through the Needt connector (MCP) or an AI assistant, such as ticking a subtask, adding subtasks, completing or editing a task, logging a habit, or writing a page, now show up in the open app at once instead of after a reload. Subtask changes also update the task's last-changed time.

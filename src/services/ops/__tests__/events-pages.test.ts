@@ -7,6 +7,8 @@ import {
 import { writePageBlocks } from "@/services/pages/page-write-path";
 import { WorkspaceRole } from "@prisma/client";
 
+import { publishRealtimeEvent } from "@/lib/realtime/publish";
+
 import { OpError, runOp, undoAction } from "..";
 import { createFakePrisma } from "./fake-prisma";
 import { OWNER_ID, WORKSPACE_ID, access, opts } from "./harness";
@@ -84,6 +86,10 @@ describe("event ops", () => {
     const id = created.result.event.id;
     expect(eventRow(id).archivedAt).toBeNull();
     expect(created.undoable).toBe(true);
+    expect(publishRealtimeEvent).toHaveBeenCalledWith(
+      OWNER_ID,
+      "calendar-updated"
+    );
 
     const undone = await undoAction(created.actionId!, OWNER_ID);
     expect(undone.status).toBe("undone");
@@ -199,6 +205,7 @@ describe("page ops", () => {
       opts()
     );
     expect(created.result.page.href).toBe(`/pages/${page.id}`);
+    expect(publishRealtimeEvent).toHaveBeenCalledWith(OWNER_ID, "docs-updated");
     expect(jest.mocked(createPage).mock.calls[0][1]).toMatchObject({
       title: "Trip plan",
       createdBy: "AI",

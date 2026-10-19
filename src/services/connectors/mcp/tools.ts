@@ -77,6 +77,8 @@ import { listMailMessages } from "@/lib/mail-db";
 import type { McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
+import type { RealtimeEventType } from "@/lib/realtime/channels";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 import { TaskStatus } from "@/types/task";
 
@@ -123,8 +125,35 @@ export interface McpTool<S extends z.ZodTypeAny = z.ZodTypeAny> {
   invoke(ctx: McpToolContext, args: z.infer<S>): Promise<McpToolResult>;
 }
 
-function defineTool<S extends z.ZodTypeAny>(tool: McpTool<S>): McpTool {
-  return tool as unknown as McpTool;
+/**
+ * Tells the open app what a successful write changed, so every connected
+ * client refreshes without a reload. The UI's own writes update their cache
+ * directly; a write that arrives over MCP has no such path.
+ */
+type Publishes<S extends z.ZodTypeAny> =
+  | readonly RealtimeEventType[]
+  | ((args: z.infer<S>) => readonly RealtimeEventType[]);
+
+function defineTool<S extends z.ZodTypeAny>(
+  tool: McpTool<S>,
+  publishes?: Publishes<S>
+): McpTool {
+  if (!publishes) return tool as unknown as McpTool;
+  const invoke = tool.invoke;
+  return {
+    ...tool,
+    async invoke(ctx: McpToolContext, args: z.infer<S>) {
+      const result = await invoke(ctx, args);
+      if (!result.isError) {
+        const types =
+          typeof publishes === "function" ? publishes(args) : publishes;
+        for (const type of types) {
+          await publishRealtimeEventSafe(ctx.userId, type);
+        }
+      }
+      return result;
+    },
+  } as unknown as McpTool;
 }
 
 export function toolResult(payload: unknown): McpToolResult {
@@ -806,106 +835,109 @@ function pageSummary(
 }
 
 const WRITE_TOOLS: McpTool[] = [
-  defineTool({
-    name: "needt_update_task",
-    description:
-      "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z
-      .object({
-        id: z.string().min(1).describe("Task id."),
-        title: z.string().min(1).max(500).optional(),
-        description: z.string().max(20_000).nullable().optional(),
-        dueDate: isoDate
-          .nullable()
-          .optional()
-          .describe(
-            "ISO 8601; null clears it. Moves the deadline too when the two were equal."
-          ),
-        deadline: isoDate
-          .nullable()
-          .optional()
-          .describe(
-            "ISO 8601 hard deadline the scheduler must beat; null clears it. Set it only to make it differ from dueDate."
-          ),
-        estimatedMinutes: z
-          .number()
-          .int()
-          .min(1)
-          .max(24 * 60)
-          .nullable()
-          .optional(),
-        priority: priorityOrNone.optional(),
-        recurrenceRule: repeatRule.nullable().optional(),
-        labelIds: labelIds.optional(),
-        scheduleId: z
-          .string()
-          .min(1)
-          .nullable()
-          .optional()
-          .describe(
-            "Hours: one of your work schedule ids; null = the default."
-          ),
-        energy: energy.optional(),
-        status: taskStatus.optional(),
-        projectId: z
-          .string()
-          .min(1)
-          .nullable()
-          .optional()
-          .describe("Project in the same workspace; null removes it."),
-        entry: entrySchema
-          .nullable()
-          .optional()
-          .describe("The very first small step; null clears it."),
-        dependsOnId: z
-          .string()
-          .min(1)
-          .nullable()
-          .optional()
-          .describe(
-            "Id of an open task this one waits on; null clears it. Loops are refused."
-          ),
-        originPageId: z
-          .string()
-          .min(1)
-          .nullable()
-          .optional()
-          .describe("The page the task came from; null detaches it."),
-      })
-      .strict(),
-    async invoke(ctx, args) {
-      const dueDate =
-        args.dueDate == null ? args.dueDate : newDate(args.dueDate);
-      if (dueDate && Number.isNaN(dueDate.getTime())) {
-        return toolError({ status: 400, error: "dueDate must be ISO 8601" });
-      }
-      const deadline =
-        args.deadline == null ? args.deadline : newDate(args.deadline);
-      if (deadline && Number.isNaN(deadline.getTime())) {
-        return toolError({ status: 400, error: "deadline must be ISO 8601" });
-      }
-      return updateTask(ctx, args.id, {
-        title: args.title,
-        description: args.description,
-        dueDate,
-        deadline,
-        estimatedMinutes: args.estimatedMinutes,
-        ...(args.priority === "NONE"
-          ? { noPriority: true }
-          : { priorityLevel: args.priority }),
-        recurrenceRule: args.recurrenceRule,
-        tagIds: args.labelIds,
-        scheduleId: args.scheduleId,
-        energyRequired: args.energy,
-        status: args.status,
-        projectId: args.projectId,
-        entry: args.entry,
-        dependsOnId: args.dependsOnId,
-        originPageId: args.originPageId,
-      });
+  defineTool(
+    {
+      name: "needt_update_task",
+      description:
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z
+        .object({
+          id: z.string().min(1).describe("Task id."),
+          title: z.string().min(1).max(500).optional(),
+          description: z.string().max(20_000).nullable().optional(),
+          dueDate: isoDate
+            .nullable()
+            .optional()
+            .describe(
+              "ISO 8601; null clears it. Moves the deadline too when the two were equal."
+            ),
+          deadline: isoDate
+            .nullable()
+            .optional()
+            .describe(
+              "ISO 8601 hard deadline the scheduler must beat; null clears it. Set it only to make it differ from dueDate."
+            ),
+          estimatedMinutes: z
+            .number()
+            .int()
+            .min(1)
+            .max(24 * 60)
+            .nullable()
+            .optional(),
+          priority: priorityOrNone.optional(),
+          recurrenceRule: repeatRule.nullable().optional(),
+          labelIds: labelIds.optional(),
+          scheduleId: z
+            .string()
+            .min(1)
+            .nullable()
+            .optional()
+            .describe(
+              "Hours: one of your work schedule ids; null = the default."
+            ),
+          energy: energy.optional(),
+          status: taskStatus.optional(),
+          projectId: z
+            .string()
+            .min(1)
+            .nullable()
+            .optional()
+            .describe("Project in the same workspace; null removes it."),
+          entry: entrySchema
+            .nullable()
+            .optional()
+            .describe("The very first small step; null clears it."),
+          dependsOnId: z
+            .string()
+            .min(1)
+            .nullable()
+            .optional()
+            .describe(
+              "Id of an open task this one waits on; null clears it. Loops are refused."
+            ),
+          originPageId: z
+            .string()
+            .min(1)
+            .nullable()
+            .optional()
+            .describe("The page the task came from; null detaches it."),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const dueDate =
+          args.dueDate == null ? args.dueDate : newDate(args.dueDate);
+        if (dueDate && Number.isNaN(dueDate.getTime())) {
+          return toolError({ status: 400, error: "dueDate must be ISO 8601" });
+        }
+        const deadline =
+          args.deadline == null ? args.deadline : newDate(args.deadline);
+        if (deadline && Number.isNaN(deadline.getTime())) {
+          return toolError({ status: 400, error: "deadline must be ISO 8601" });
+        }
+        return updateTask(ctx, args.id, {
+          title: args.title,
+          description: args.description,
+          dueDate,
+          deadline,
+          estimatedMinutes: args.estimatedMinutes,
+          ...(args.priority === "NONE"
+            ? { noPriority: true }
+            : { priorityLevel: args.priority }),
+          recurrenceRule: args.recurrenceRule,
+          tagIds: args.labelIds,
+          scheduleId: args.scheduleId,
+          energyRequired: args.energy,
+          status: args.status,
+          projectId: args.projectId,
+          entry: args.entry,
+          dependsOnId: args.dependsOnId,
+          originPageId: args.originPageId,
+        });
+      },
     },
-  }),
+    ["tasks-updated"]
+  ),
   defineTool({
     name: "needt_attach_file",
     description:
@@ -959,122 +991,134 @@ const WRITE_TOOLS: McpTool[] = [
       );
     },
   }),
-  defineTool({
-    name: "needt_add_subtasks",
-    description: `Add subtasks to an existing task, after the ones it already has. ${SUBTASK_GUIDANCE} Returns the new subtasks in order. Ticking them is needt_complete_subtask; the task itself is closed last with needt_complete_task.`,
-    annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z
-      .object({
-        taskId: z.string().min(1).describe("Task id (the closing step)."),
-        subtasks: subtaskListSchema
-          .min(1)
-          .describe("Steps in the order they are done."),
-      })
-      .strict(),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      const result = await appendSubtasks({
-        userId: ctx.userId,
-        workspace: access.workspace,
-        taskId: args.taskId,
-        subtasks: normalizeSubtasks(args.subtasks),
-      });
-      return result.ok
-        ? toolResult({ subtasks: result.subtasks })
-        : toolError({ status: result.status, error: result.error });
+  defineTool(
+    {
+      name: "needt_add_subtasks",
+      description: `Add subtasks to an existing task, after the ones it already has. ${SUBTASK_GUIDANCE} Returns the new subtasks in order. Ticking them is needt_complete_subtask; the task itself is closed last with needt_complete_task.`,
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z
+        .object({
+          taskId: z.string().min(1).describe("Task id (the closing step)."),
+          subtasks: subtaskListSchema
+            .min(1)
+            .describe("Steps in the order they are done."),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        const result = await appendSubtasks({
+          userId: ctx.userId,
+          workspace: access.workspace,
+          taskId: args.taskId,
+          subtasks: normalizeSubtasks(args.subtasks),
+        });
+        return result.ok
+          ? toolResult({ subtasks: result.subtasks })
+          : toolError({ status: result.status, error: result.error });
+      },
     },
-  }),
-  defineTool({
-    name: "needt_complete_subtask",
-    description:
-      "Tick a subtask done, or not done with done: false. Safe to repeat. The answer says allDone: true when no subtask is left open; then the task itself is the last step, so close it with needt_complete_task.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_complete_subtask",
+      description:
+        "Tick a subtask done, or not done with done: false. Safe to repeat. The answer says allDone: true when no subtask is left open; then the task itself is the last step, so close it with needt_complete_task.",
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+      input: z
+        .object({
+          taskId: z.string().min(1).describe("Task id the subtask belongs to."),
+          subtaskId: z
+            .string()
+            .min(1)
+            .describe("Subtask id, from needt_get type task."),
+          done: z.boolean().default(true),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        const result = await setSubtaskDone({
+          userId: ctx.userId,
+          workspace: access.workspace,
+          taskId: args.taskId,
+          subtaskId: args.subtaskId,
+          done: args.done,
+        });
+        return result.ok
+          ? toolResult({
+              subtask: result.subtask,
+              open: result.open,
+              allDone: result.allDone,
+            })
+          : toolError({ status: result.status, error: result.error });
+      },
     },
-    input: z
-      .object({
-        taskId: z.string().min(1).describe("Task id the subtask belongs to."),
-        subtaskId: z
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_complete_task",
+      description:
+        "Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence.",
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+      input: z.object({
+        id: z.string().min(1).describe("Task id."),
+        done: z.boolean().default(true),
+      }),
+      invoke: (ctx, args) =>
+        updateTask(ctx, args.id, {
+          status: args.done ? TaskStatus.COMPLETED : TaskStatus.TODO,
+        }),
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_create_event",
+      description:
+        "Create an event in a Needt calendar (the first one when feedId is omitted; synced Google, Outlook and CalDAV calendars are refused). Events are personal, so this works in the personal workspace only.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z.object({
+        title: z.string().min(1).max(500),
+        start: isoDate.describe("ISO 8601 start."),
+        end: isoDate.describe("ISO 8601 end, after start."),
+        allDay: z.boolean().optional(),
+        location: z.string().max(1000).optional(),
+        description: z.string().max(20_000).optional(),
+        feedId: z
           .string()
           .min(1)
-          .describe("Subtask id, from needt_get type task."),
-        done: z.boolean().default(true),
-      })
-      .strict(),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      const result = await setSubtaskDone({
-        userId: ctx.userId,
-        workspace: access.workspace,
-        taskId: args.taskId,
-        subtaskId: args.subtaskId,
-        done: args.done,
-      });
-      return result.ok
-        ? toolResult({
-            subtask: result.subtask,
-            open: result.open,
-            allDone: result.allDone,
-          })
-        : toolError({ status: result.status, error: result.error });
-    },
-  }),
-  defineTool({
-    name: "needt_complete_task",
-    description:
-      "Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
-    },
-    input: z.object({
-      id: z.string().min(1).describe("Task id."),
-      done: z.boolean().default(true),
-    }),
-    invoke: (ctx, args) =>
-      updateTask(ctx, args.id, {
-        status: args.done ? TaskStatus.COMPLETED : TaskStatus.TODO,
+          .optional()
+          .describe("A Needt calendar id from needt_list type calendar."),
       }),
-  }),
-  defineTool({
-    name: "needt_create_event",
-    description:
-      "Create an event in a Needt calendar (the first one when feedId is omitted; synced Google, Outlook and CalDAV calendars are refused). Events are personal, so this works in the personal workspace only.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z.object({
-      title: z.string().min(1).max(500),
-      start: isoDate.describe("ISO 8601 start."),
-      end: isoDate.describe("ISO 8601 end, after start."),
-      allDay: z.boolean().optional(),
-      location: z.string().max(1000).optional(),
-      description: z.string().max(20_000).optional(),
-      feedId: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("A Needt calendar id from needt_list type calendar."),
-    }),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      if (access.workspace.workspaceKind !== WorkspaceKind.PERSONAL) {
-        return toolError({
-          status: 403,
-          error:
-            "Personal calendar actions are unavailable in shared workspaces.",
-        });
-      }
-      const created = await createLocalEvent(ctx.userId, args);
-      return created.ok
-        ? toolResult(created.event)
-        : toolError({ status: created.status, error: created.error });
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        if (access.workspace.workspaceKind !== WorkspaceKind.PERSONAL) {
+          return toolError({
+            status: 403,
+            error:
+              "Personal calendar actions are unavailable in shared workspaces.",
+          });
+        }
+        const created = await createLocalEvent(ctx.userId, args);
+        return created.ok
+          ? toolResult(created.event)
+          : toolError({ status: created.status, error: created.error });
+      },
     },
-  }),
+    ["calendar-updated"]
+  ),
   defineTool({
     name: "needt_create_personal_time",
     description:
@@ -1185,130 +1229,139 @@ const WRITE_TOOLS: McpTool[] = [
         { blockId: args.id }
       ),
   }),
-  defineTool({
-    name: "needt_create_page",
-    description:
-      "Create a page in the active workspace, optionally under a parent page you can edit, with an optional Markdown or plain-text body.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z.object({
-      title: z.string().min(1).max(240),
-      body: pageText.optional(),
-      format: pageFormat,
-      parentId: z.string().min(1).optional().describe("Parent page id."),
-    }),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      const actor = { userId: ctx.userId, workspace: access.workspace };
-      const blocks = args.body
-        ? pageBlocksFromText(args.body, args.format)
-        : [];
-      try {
-        const created = await createPage(actor, {
-          title: args.title,
-          parentId: args.parentId ?? null,
-          createdBy: PageAuthor.AI,
-        });
-        const written = blocks.length
-          ? await writePageBlocks(
-              actor,
-              created.id,
-              blocks.map((block, index) => ({
-                ...block,
-                position: (index + 1) * 1024,
-              })),
-              PageAuthor.AI,
-              1,
-              created.contentRevision
-            )
-          : created;
-        return toolResult(pageSummary(written ?? created, blocks.length));
-      } catch (error) {
-        return pageWriteError(error);
-      }
-    },
-  }),
-  defineTool({
-    name: "needt_append_page",
-    description:
-      "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z.object({
-      id: z.string().min(1).describe("Page id."),
-      text: pageText,
-      format: pageFormat,
-    }),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      const blocks = pageBlocksFromText(args.text, args.format);
-      if (blocks.length === 0) {
-        return toolError({ status: 400, error: "text has no content" });
-      }
-      try {
-        const written = await appendPageBlocks(
-          { userId: ctx.userId, workspace: access.workspace },
-          args.id,
-          blocks,
-          PageAuthor.AI
-        );
-        if (!written) {
-          return toolError({
-            status: 404,
-            error: "Page not found, or you cannot edit it.",
+  defineTool(
+    {
+      name: "needt_create_page",
+      description:
+        "Create a page in the active workspace, optionally under a parent page you can edit, with an optional Markdown or plain-text body.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z.object({
+        title: z.string().min(1).max(240),
+        body: pageText.optional(),
+        format: pageFormat,
+        parentId: z.string().min(1).optional().describe("Parent page id."),
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        const actor = { userId: ctx.userId, workspace: access.workspace };
+        const blocks = args.body
+          ? pageBlocksFromText(args.body, args.format)
+          : [];
+        try {
+          const created = await createPage(actor, {
+            title: args.title,
+            parentId: args.parentId ?? null,
+            createdBy: PageAuthor.AI,
           });
+          const written = blocks.length
+            ? await writePageBlocks(
+                actor,
+                created.id,
+                blocks.map((block, index) => ({
+                  ...block,
+                  position: (index + 1) * 1024,
+                })),
+                PageAuthor.AI,
+                1,
+                created.contentRevision
+              )
+            : created;
+          return toolResult(pageSummary(written ?? created, blocks.length));
+        } catch (error) {
+          return pageWriteError(error);
         }
-        return toolResult(pageSummary(written, blocks.length));
-      } catch (error) {
-        return pageWriteError(error);
-      }
+      },
     },
-  }),
-  defineTool({
-    name: "needt_log_habit",
-    description:
-      "Mark a habit kept for a day (today in your time zone by default), or not kept with kept: false. Safe to repeat. Future days are refused.",
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: true,
-    },
-    input: z.object({
-      id: z.string().min(1).describe("Habit id."),
-      date: z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .optional()
-        .describe("yyyy-MM-dd in your time zone; today when omitted."),
-      kept: z.boolean().default(true),
-    }),
-    async invoke(ctx, args) {
-      const access = await writeAccess(ctx);
-      if ("error" in access) return access.error;
-      try {
-        const result = await setHabitCompletionToday({
-          userId: ctx.userId,
-          workspace: access.workspace,
-          habitId: args.id,
-          completed: args.kept,
-          dateKey: args.date,
-        });
-        if (!result) {
-          return toolError({ status: 404, error: "Habit not found" });
+    ["docs-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_append_page",
+      description:
+        "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z.object({
+        id: z.string().min(1).describe("Page id."),
+        text: pageText,
+        format: pageFormat,
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        const blocks = pageBlocksFromText(args.text, args.format);
+        if (blocks.length === 0) {
+          return toolError({ status: 400, error: "text has no content" });
         }
-        return toolResult({
-          habitId: result.habitId,
-          date: result.date,
-          kept: result.completed,
-        });
-      } catch (error) {
-        if (error instanceof HabitCompletionDateError) {
-          return toolError({ status: 400, error: error.message });
+        try {
+          const written = await appendPageBlocks(
+            { userId: ctx.userId, workspace: access.workspace },
+            args.id,
+            blocks,
+            PageAuthor.AI
+          );
+          if (!written) {
+            return toolError({
+              status: 404,
+              error: "Page not found, or you cannot edit it.",
+            });
+          }
+          return toolResult(pageSummary(written, blocks.length));
+        } catch (error) {
+          return pageWriteError(error);
         }
-        throw error;
-      }
+      },
     },
-  }),
+    ["docs-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_log_habit",
+      description:
+        "Mark a habit kept for a day (today in your time zone by default), or not kept with kept: false. Safe to repeat. Future days are refused.",
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+      input: z.object({
+        id: z.string().min(1).describe("Habit id."),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("yyyy-MM-dd in your time zone; today when omitted."),
+        kept: z.boolean().default(true),
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        try {
+          const result = await setHabitCompletionToday({
+            userId: ctx.userId,
+            workspace: access.workspace,
+            habitId: args.id,
+            completed: args.kept,
+            dateKey: args.date,
+          });
+          if (!result) {
+            return toolError({ status: 404, error: "Habit not found" });
+          }
+          return toolResult({
+            habitId: result.habitId,
+            date: result.date,
+            kept: result.completed,
+          });
+        } catch (error) {
+          if (error instanceof HabitCompletionDateError) {
+            return toolError({ status: 400, error: error.message });
+          }
+          throw error;
+        }
+      },
+    },
+    ["tasks-updated"]
+  ),
   defineTool({
     name: "needt_list_memories",
     description:

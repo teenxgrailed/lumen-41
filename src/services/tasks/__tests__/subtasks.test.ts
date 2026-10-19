@@ -10,7 +10,7 @@ import {
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    task: { findFirst: jest.fn() },
+    task: { findFirst: jest.fn(), update: jest.fn() },
     taskPart: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -29,7 +29,7 @@ const workspace = {
 } as never;
 const auth = { userId: "u1", workspace };
 const db = prisma as unknown as {
-  task: { findFirst: jest.Mock };
+  task: { findFirst: jest.Mock; update: jest.Mock };
   taskPart: Record<"findFirst" | "create" | "update" | "count", jest.Mock>;
   $transaction: jest.Mock;
 };
@@ -114,6 +114,12 @@ describe("appendSubtasks", () => {
     expect(db.taskPart.create.mock.calls.map(([a]) => a.data.position)).toEqual(
       [5, 6]
     );
+    expect(db.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "t1" },
+        data: { updatedAt: expect.any(Date) },
+      })
+    );
   });
 
   it("refuses an archived task and a task that would pass 30", async () => {
@@ -153,6 +159,12 @@ describe("setSubtaskDone", () => {
     });
     expect(result).toMatchObject({ ok: true, open: 0, allDone: true });
     expect(db.task.findFirst).not.toHaveBeenCalled();
+    expect(db.task.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "t1" },
+        data: { updatedAt: expect.any(Date) },
+      })
+    );
   });
 
   it("404s a subtask of another task", async () => {

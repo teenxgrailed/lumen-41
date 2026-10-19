@@ -4,6 +4,8 @@ import { authenticateConnectorRequest } from "@/services/connectors/auth";
 import { toggleHabitToday } from "@/services/habits/habit-service";
 import { WorkspaceRole } from "@prisma/client";
 
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" } as const;
 
 /**
@@ -36,5 +38,6 @@ export async function POST(
       { status: 404, headers: NO_STORE }
     );
   }
+  await publishRealtimeEventSafe(auth.userId, "tasks-updated");
   return NextResponse.json(result, { headers: NO_STORE });
 }

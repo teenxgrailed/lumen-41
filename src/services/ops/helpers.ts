@@ -4,6 +4,7 @@ import { z } from "zod";
 import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
+import type { RealtimeEventType } from "@/lib/realtime/channels";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 
 import { OpError } from "./errors";
@@ -136,6 +137,27 @@ export function moveInstantToDay(
 ) {
   const clock = formatInTimeZone(instant, timeZone, "HH:mm:ss.SSS");
   return fromZonedTime(`${dayKey}T${clock}`, timeZone);
+}
+
+export function publishRealtimeAfterCommit(
+  userId: string,
+  type: RealtimeEventType
+) {
+  return async () => {
+    try {
+      await publishRealtimeEvent(userId, type);
+    } catch (error) {
+      logger.warn(
+        "Could not publish ops realtime event",
+        {
+          userId,
+          type,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      );
+    }
+  };
 }
 
 export function publishTasksUpdated(userId: string) {

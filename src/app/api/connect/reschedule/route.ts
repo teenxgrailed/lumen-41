@@ -7,6 +7,7 @@ import { WorkspaceRole } from "@prisma/client";
 
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateConnectorRequest(
@@ -33,5 +34,6 @@ export async function POST(request: NextRequest) {
     payload: { taskCount: tasks.length },
   });
 
+  await publishRealtimeEventSafe(auth.userId, "tasks-updated");
   return NextResponse.json({ tasks });
 }
