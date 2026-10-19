@@ -3,6 +3,7 @@ const PRIVATE_CACHE_PREFIX = "needt-private-v5:";
 const DB_NAME = "needt-offline-v2";
 const DB_VERSION = 2;
 const OFFLINE_SCHEMA_VERSION = 2;
+const MARK_DONE_ACTION = "mark-done";
 const STORE_QUEUE = "mutationQueue";
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
@@ -128,15 +129,23 @@ self.addEventListener("push", (event) => {
     data = { title: "Needt", body: event.data?.text() ?? "Planner reminder" };
   }
   const url = typeof data.url === "string" ? data.url : "/today";
+  // A Focus-ended push for a task carries its id: "Mark done" completes it
+  // without opening the app. (iOS shows no actions; its tap opens the Done
+  // ask through the url.)
+  const taskId =
+    typeof data.taskId === "string" && data.taskId ? data.taskId : null;
+  const options = {
+    body: data.body || "Your planner has an update.",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/favicon-32.png",
+    // One notification per URL: a repeat replaces instead of stacking.
+    tag: url,
+    data: { url, taskId },
+  };
+  if (taskId)
+    options.actions = [{ action: MARK_DONE_ACTION, title: "Mark done" }];
   event.waitUntil(
-    self.registration.showNotification(data.title || "Needt", {
-      body: data.body || "Your planner has an update.",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/favicon-32.png",
-      // One notification per URL: a repeat replaces instead of stacking.
-      tag: url,
-      data: { url },
-    })
+    self.registration.showNotification(data.title || "Needt", options)
   );
 });
 
@@ -148,25 +157,55 @@ self.addEventListener("notificationclick", (event) => {
     self.location.origin
   );
   if (target.origin !== self.location.origin) return;
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then(async (windows) => {
-        const open = windows.find((client) =>
-          client.url.startsWith(self.location.origin)
-        );
-        if (open) {
-          await open.focus();
-          // Move the window that is already open to the notification's page.
-          if ("navigate" in open) {
-            return open.navigate(target.href).catch(() => undefined);
-          }
-          return undefined;
-        }
-        return self.clients.openWindow(target.href);
-      })
-  );
+  const taskId = typeof raw === "object" && raw ? raw.taskId : null;
+  if (event.action === MARK_DONE_ACTION && typeof taskId === "string") {
+    // Done in the background; only a refusal (signed out, offline) brings the
+    // app up on the Done ask so the tap is never lost.
+    event.waitUntil(
+      markTaskDone(taskId).then((ok) => (ok ? undefined : openTarget(target)))
+    );
+    return;
+  }
+  event.waitUntil(openTarget(target));
 });
+
+// The authenticated call behind "Mark done": the same task update the app
+// makes, with the session cookie and the workspace the worker last served.
+async function markTaskDone(taskId) {
+  try {
+    await restoreActiveScope().catch(() => undefined);
+    const headers = { "Content-Type": "application/json" };
+    if (activeScope) headers["x-workspace-id"] = activeScope.workspaceId;
+    const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers,
+      body: JSON.stringify({ status: "completed" }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function openTarget(target) {
+  return self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then(async (windows) => {
+      const open = windows.find((client) =>
+        client.url.startsWith(self.location.origin)
+      );
+      if (open) {
+        await open.focus();
+        // Move the window that is already open to the notification's page.
+        if ("navigate" in open) {
+          return open.navigate(target.href).catch(() => undefined);
+        }
+        return undefined;
+      }
+      return self.clients.openWindow(target.href);
+    });
+}
 
 // The browser rotated the subscription: save the new one so reminders keep
 // arriving. The fetches carry the session cookie.

@@ -28,6 +28,7 @@ import {
   lengthMinutes,
   taskChoices,
 } from "@/lib/needt3/focus";
+import { canFocusMore } from "@/lib/needt3/focus-done";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTaskParts, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
@@ -683,6 +684,59 @@ function FcRun({ ctl }: { ctl: FocusController }) {
 
 /* ---------- end ---------- */
 
+/** "Done with <task>?": Done is the default and takes the focus, so Enter
+ *  closes the task; Not yet puts the question away; +15 min is offered only
+ *  when the clock ran out. */
+function FcDoneAsk({ ctl, title }: { ctl: FocusController; title: string }) {
+  const done = useRef<HTMLButtonElement>(null);
+  useEffect(() => done.current?.focus({ preventScroll: true }), []);
+  const more = ctl.ui.summary ? canFocusMore(ctl.ui.summary.how) : false;
+  return (
+    <GlassCard
+      pad={0}
+      radius={20}
+      className="fc-card fc-card-end"
+      style={PAD_CARD}
+      data-fc-done-ask=""
+      role="group"
+      aria-label={copy.doneAsk(title)}
+    >
+      <span className="fc-end-line">{copy.doneAsk(title)}</span>
+      <span className="fc-end-actions">
+        <button
+          type="button"
+          ref={done}
+          className="nx-btn nx-btn-primary fc-ctl"
+          onClick={() => void ctl.markDone()}
+          data-fc-done=""
+        >
+          <LuCheck size={14} />
+          {copy.doneLabel}
+        </button>
+        <button
+          type="button"
+          className="nx-btn nx-btn-secondary fc-ctl"
+          onClick={ctl.notYet}
+          data-fc-not-yet=""
+        >
+          {copy.notYet}
+        </button>
+        {more ? (
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary fc-ctl"
+            onClick={() => void ctl.focusMore()}
+            data-fc-more-focus=""
+          >
+            <LuPlus size={14} />
+            {copy.moreFocus}
+          </button>
+        ) : null}
+      </span>
+    </GlassCard>
+  );
+}
+
 function FcEnd({ ctl }: { ctl: FocusController }) {
   const summary = ctl.ui.summary;
   if (!summary) return null;
@@ -721,6 +775,23 @@ function FcEnd({ ctl }: { ctl: FocusController }) {
   ];
   const mins =
     summary.minutes < 1 ? copy.end.under_a_minute : cvDur(summary.minutes);
+  const ask = ctl.asking ? <FcDoneAsk ctl={ctl} title={summary.title} /> : null;
+  if (summary.bare) {
+    // Opened from a Focus-ended push: the question and nothing else.
+    return (
+      <div className="fc-stack fc-end">
+        <FcHead
+          kicker={copy.end.session_complete}
+          title={summary.title}
+          sub=""
+          action="close"
+          actionLabel={copy.CLOSE}
+          onAction={ctl.done}
+        />
+        {ask}
+      </div>
+    );
+  }
   return (
     <div className="fc-stack fc-end">
       <FcHead
@@ -735,6 +806,7 @@ function FcEnd({ ctl }: { ctl: FocusController }) {
         actionLabel={copy.CLOSE}
         onAction={ctl.done}
       />
+      {ask}
       <GlassCard
         pad={0}
         radius={20}

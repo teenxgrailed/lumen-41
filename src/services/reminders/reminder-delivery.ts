@@ -114,7 +114,13 @@ export async function deliverPush(
     p256dh: string;
     auth: string;
   },
-  payload: { title: string; body: string; url: string }
+  payload: {
+    title: string;
+    body: string;
+    url: string;
+    /** A Focus-ended push for a task: the service worker adds "Mark done". */
+    taskId?: string;
+  }
 ) {
   const configuration = getVapidConfiguration();
   if (!configuration.configured) {

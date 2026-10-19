@@ -80,6 +80,30 @@ describe("deliverFocusEnded", () => {
     });
   });
 
+  it("for an open task the push opens the Done ask and carries the task id", async () => {
+    row({ taskId: "t1", task: { title: "Write the spec", status: "todo" } });
+    await deliverFocusEnded("s1");
+    expect(push).toHaveBeenCalledWith(subs[0], {
+      title: "Focus done",
+      body: "Write the spec · 25 min",
+      url: "/today?focusDone=t1",
+      taskId: "t1",
+    });
+  });
+
+  it("a task that is already completed gets the plain push", async () => {
+    row({
+      taskId: "t1",
+      task: { title: "Write the spec", status: "completed" },
+    });
+    await deliverFocusEnded("s1");
+    expect(push.mock.calls[0][1]).toEqual({
+      title: "Focus done",
+      body: "Write the spec · 25 min",
+      url: "/today",
+    });
+  });
+
   it("falls back to the intention, then 'Focus', for a task-less session", async () => {
     row({ task: null });
     await deliverFocusEnded("s1");

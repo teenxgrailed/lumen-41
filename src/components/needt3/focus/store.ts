@@ -32,6 +32,8 @@ interface FocusWindowState {
   /** The task a break returns to once it is over. */
   breakAfter: string | null;
   draft: SetupDraft | null;
+  /** "Not yet" was pressed: the Done ask stays away for this summary. */
+  askDismissed: boolean;
   /** End session was pressed and is waiting for its one confirm. */
   confirmEnd: boolean;
 
@@ -45,6 +47,7 @@ const BLANK = {
   note: null,
   breakAfter: null,
   draft: null,
+  askDismissed: false,
   confirmEnd: false,
 } satisfies Partial<FocusWindowState>;
 
