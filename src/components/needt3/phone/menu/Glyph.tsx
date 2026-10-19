@@ -1,3 +1,4 @@
+import { Glyph, type GlyphName } from "../../glyphs/Glyph";
 import { PlaceGlyph } from "../../shell/PlaceGlyph";
 import { type MenuPlaceId, menuGlyphId } from "./places";
 
@@ -178,6 +179,31 @@ export function MenuGlyph({ id }: { id: MenuPlaceId }) {
   return (
     <span className="nva-glyph" aria-hidden="true">
       {shellId ? <PlaceGlyph id={shellId} /> : <OwnGlyph id={id} />}
+    </span>
+  );
+}
+
+/** The dock's pick of the landing set, by place (names as on the landing). */
+const DOCK_GLYPH: Partial<Record<MenuPlaceId, GlyphName>> = {
+  home: "home",
+  calendar: "calendar",
+  tasks: "tasks",
+  docs: "docs",
+  mail: "mail",
+  ask: "ai",
+  habits: "habits",
+  moodboards: "moodboards",
+  projects: "projects",
+  templates: "templates",
+};
+
+/** A dock icon: the landing glyph on the bare pill, no tile behind it. */
+export function DockGlyph({ id }: { id: MenuPlaceId }) {
+  const name = DOCK_GLYPH[id];
+  if (!name) return <MenuGlyph id={id} />;
+  return (
+    <span className="nva-glyph" aria-hidden="true">
+      <Glyph name={name} size={32} />
     </span>
   );
 }

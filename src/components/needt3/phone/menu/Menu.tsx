@@ -43,11 +43,12 @@ import { type Spring, springStep } from "@/lib/needt3/spring";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { Glyph } from "../../glyphs/Glyph";
 import { PxSky } from "../../scenes";
 import { type EndReason, frameWriter, pkTrack } from "../kit/pointer";
 import { usePkSkyMood } from "../kit/theme";
 import { type PkSide, pkReduced } from "../kit/util";
-import { MenuGlyph } from "./Glyph";
+import { DockGlyph, MenuGlyph } from "./Glyph";
 import { menuFocusMove, menuIsOpen, setInert } from "./a11y";
 import { type MenuPlaceId, menuRows, menuWord } from "./places";
 import { type MenuCounts, menuBadge, menuStatus } from "./status";
@@ -1165,7 +1166,7 @@ export function Menu(props: MenuProps) {
               onClick={() => pick(id)}
               data-nva-icon={id}
             >
-              <MenuGlyph id={id} />
+              <DockGlyph id={id} />
               <span
                 className="nva-icon-dot"
                 ref={(n) => {
@@ -1199,9 +1200,7 @@ export function Menu(props: MenuProps) {
               }
               data-nva-open
             >
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <span key={i} className="nva-dot" />
-              ))}
+              <Glyph name="more" size={30} />
             </button>
           </div>
 
