@@ -40,6 +40,7 @@ import { V3Shell } from "../shell/V3Shell";
 import { PwaBridge } from "./PwaBridge";
 import { PhoneUiProvider, useResolvedPhoneUi } from "./phone-ui-context";
 import { usePhoneEdgeTint } from "./usePhoneEdgeTint";
+import { usePhoneFullHeight } from "./usePhoneFullHeight";
 
 /**
  * True inside the v3 frame. The layout decides once per request on the server
@@ -186,6 +187,9 @@ export function V3Root({
       body.style.backgroundColor = before[2];
     };
   }, [barColor, resolved.side]);
+
+  // An installed iOS app can have a viewport shorter than the display.
+  usePhoneFullHeight(scopeRef, ui === "phone");
 
   // Safari 26 tints its bars from theme-color and html: on the phone, from the
   // colour under each edge of the current screen (after the two effects above,
