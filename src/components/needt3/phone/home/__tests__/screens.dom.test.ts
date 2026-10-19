@@ -49,6 +49,7 @@ jest.mock("next/navigation", () => ({
 
 // StScreen's module reaches V3Root, which imports the CSS entry
 jest.mock("../../../root/V3Root", () => ({ useDesignV3: () => true }));
+jest.mock("../../../orb/AiOrb", () => ({ AiOrb: () => null }));
 
 class RO {
   observe() {}
@@ -137,7 +138,19 @@ const flush = () =>
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel)!;
 const qa = (sel: string) => Array.from(host.querySelectorAll(sel));
 
+/** The Starter game's card: hidden unless a test wants it. */
+const starter = (eligible: boolean) =>
+  client.setQueryData(qk.starterGame(), {
+    hiddenUntil: null,
+    neverShow: false,
+    hidden: !eligible,
+    openTasks: 0,
+    eligible,
+    canPlay: true,
+  });
+
 const seed = (tasks: V3Task[] | undefined = TASKS) => {
+  starter(false);
   client.setQueryData(qk.settings(), {
     theme: "light",
     defaultView: "week",
@@ -471,6 +484,22 @@ describe("Home", () => {
     expect(host.textContent).toContain("A clear day.");
   });
 
+  it("the Starter game's card takes the clear day's place", () => {
+    client.setQueryData(qk.tasks({}), []);
+    starter(true);
+    mount(PhoneHome);
+    expect(q("[data-sg-entry]").getAttribute("data-sg-entry")).toBe("home");
+    expect(host.textContent).toContain("Sort out your day");
+    expect(host.textContent).not.toContain("A clear day.");
+  });
+
+  it("waits for the card's answer before saying the day is clear", () => {
+    client.setQueryData(qk.tasks({}), []);
+    client.removeQueries({ queryKey: qk.starterGame() });
+    mount(PhoneHome);
+    expect(host.textContent).not.toContain("A clear day.");
+  });
+
   it("Notes for the day opens today's note once it exists", async () => {
     client.setQueryData(qk.dailyNote(TODAY), true);
     fetchMock.mockImplementation((url: string) =>
@@ -659,6 +688,19 @@ describe("Calendar", () => {
     mount(PhoneCalendar);
     expect(host.textContent).toContain("Nothing planned");
     expect(host.textContent).toContain("A free day.");
+  });
+
+  it("the Starter game's card sits where the free day's line is", () => {
+    client.setQueryData(qk.tasks({}), []);
+    client.setQueryData(
+      qk.events({ from: "2026-08-31", to: "2026-10-12" }),
+      []
+    );
+    starter(true);
+    mount(PhoneCalendar);
+    expect(q("[data-sg-entry]").getAttribute("data-sg-entry")).toBe("calendar");
+    expect(host.textContent).toContain("Fill your week");
+    expect(host.textContent).not.toContain("A free day.");
   });
 });
 

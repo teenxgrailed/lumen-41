@@ -25,6 +25,10 @@ import {
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
+import {
+  StarterGameSlot,
+  useStarterGameCard,
+} from "../../starter-game/StarterGameSlot";
 import { usePhoneClock } from "../home/clock";
 import { PhoneState, hasContent } from "../home/parts";
 import { useTaskPull } from "../home/pull";
@@ -316,10 +320,18 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       {plan.allDay.map(looseLine)}
     </PkSection>
   ) : null;
-  const empty =
-    !plan.timed.length && !plan.allDay.length ? (
-      <PkEmpty line={copy.a_free_day_pull_down_to_add_something_to} />
-    ) : null;
+  const starter = useStarterGameCard();
+  const empty = (
+    <>
+      <StarterGameSlot screen="calendar" />
+      {!plan.timed.length &&
+      !plan.allDay.length &&
+      !starter.show &&
+      !starter.hold ? (
+        <PkEmpty line={copy.a_free_day_pull_down_to_add_something_to} />
+      ) : null}
+    </>
+  );
   const plateB = plan.plate;
 
   const query = combineQueries(
