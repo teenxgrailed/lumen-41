@@ -257,73 +257,6 @@
   gap: 6px;
 }
 
-/* Today's highlight: one task, big, at the top of Home. */
-.needt-v3 .hl-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0 0 12px;
-  padding: 14px 16px 14px;
-  border-radius: 16px;
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-ring);
-}
-.needt-v3 .hd-scroll > .hl-card {
-  margin: 6px 4px 8px 26px;
-}
-.needt-v3 .hl-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.needt-v3 .hl-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font: var(--type-meta);
-  color: var(--text-tertiary);
-}
-.needt-v3 .hl-clear {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin: -4px -6px 0 0;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.needt-v3 .hl-clear:hover {
-  color: var(--text-secondary);
-}
-.needt-v3 .hl-title {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  font: 600 20px/26px var(--font-sans);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-.needt-v3 .hl-meta {
-  margin: 0;
-  font: var(--type-meta);
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v3 .hl-acts {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.needt-v3 .hl-card.is-done .hl-title {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
 .needt-v3 .pov-delete-row {
   gap: 8px;
 }
@@ -456,42 +389,6 @@
   background: color-mix(in oklab, var(--text-primary) 45%, transparent);
 }
 
-/* The morning brief: two or three quiet lines at the top, dismissible. */
-.needt-v3 .br-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0 0 12px;
-  padding: 10px 10px 10px 12px;
-  border-radius: 12px;
-  background: var(--fill-2);
-}
-.needt-v3 .hd-scroll > .br-card {
-  margin: 6px 4px 8px 26px;
-}
-.needt-v3 .br-icon {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  flex: none;
-  color: var(--text-tertiary);
-}
-.needt-v3 .br-lines {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.needt-v3 .br-line {
-  margin: 0;
-  font: var(--type-ui);
-  color: var(--text-secondary);
-}
-.needt-v3 .br-line:first-child {
-  color: var(--text-primary);
-}
 .needt-v3 .br-dismiss {
   display: grid;
   place-items: center;
@@ -528,87 +425,6 @@
   margin: 0;
   font: var(--type-ui);
   color: var(--text-secondary);
-}
-
-/* The highlight suggestion: one line, a candidate and two taps. */
-.needt-v3 .hs-suggest {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  padding: 8px 8px 8px 12px;
-  border-radius: 12px;
-  background: var(--fill-2);
-}
-.needt-v3 .hd-scroll > .hs-suggest {
-  margin: 6px 4px 8px 26px;
-}
-.needt-v3 .hs-suggest-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.needt-v3 .hs-suggest-title {
-  font: var(--type-ui-medium);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Time left: planned work against the working time that remains. */
-.needt-v3 .tl-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 12px;
-  padding: 0 2px;
-}
-.needt-v3 .hd-scroll > .tl-bar {
-  margin: 4px 4px 8px 26px;
-}
-.needt-v3 .tl-track {
-  flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: color-mix(in oklab, var(--text-primary) 10%, transparent);
-  overflow: hidden;
-}
-.needt-v3 .tl-fill {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  background: color-mix(in oklab, var(--text-primary) 45%, transparent);
-}
-.needt-v3 .tl-bar.is-over .tl-fill {
-  background: color-mix(in oklab, var(--destructive) 60%, transparent);
-}
-.needt-v3 .tl-text {
-  flex: none;
-  font: var(--type-meta);
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v3 .tl-bar.is-over .tl-text {
-  color: var(--text-secondary);
-}
-
-/* Weather and first event: one tiny line. */
-.needt-v3 .dl-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 8px;
-  padding: 0 2px;
-  font: var(--type-meta);
-  color: var(--text-tertiary);
-}
-.needt-v3 .hd-scroll > .dl-line {
-  margin: 2px 4px 8px 26px;
-}
-.needt-v3 .dl-line svg {
-  flex: none;
 }
 
 /* The City field in Settings. */
