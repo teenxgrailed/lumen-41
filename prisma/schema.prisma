@@ -136,6 +136,7 @@ model User {
   focusSessions          FocusSession[]
   dailyHighlights        DailyHighlight[]
   morningBriefs          MorningBrief[]
+  starterGameState       StarterGameState?
   focusStats             FocusStats?
   tasks                  Task[]
   projects               Project[]
@@ -1224,6 +1225,18 @@ model MorningBrief {
   updatedAt   DateTime  @updatedAt
 
   @@unique([userId, date])
+}
+
+/// Starter game: whether the entry card is hidden. "Not now" sets `hiddenUntil`
+/// (7 days ahead); "Don't show again" sets `neverShow`. One row per user.
+model StarterGameState {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hiddenUntil DateTime?
+  neverShow   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model FocusStats {

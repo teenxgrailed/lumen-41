@@ -435,6 +435,37 @@ PATCH /api/ai/morning-brief   { "date": "2026-10-19", "dismissed": true }
   optional `nextEvent` `{ title, at: "HH:MM" }`. Limited to 6 requests a minute.
 - `PATCH` only dismisses.
 
+## Starter game
+
+The Starter game shows on Home, Calendar and Tasks while a person has fewer
+than five open tasks. Three questions, one agent request, a board to sort, and
+one undoable create.
+
+```
+GET   /api/starter-game
+PATCH /api/starter-game          { "hide": "7d" | "never" | "show" }
+POST  /api/starter-game/plan     { "do": "...", "burn": "...", "reg": "..." }
+POST  /api/starter-game/create   { "tasks": [], "habits": [], "projects": [] }
+```
+
+- `GET` returns `{ hiddenUntil, neverShow, hidden, openTasks, eligible, canPlay }`.
+  `eligible` is "fewer than five open tasks and not hidden"; `canPlay` is false on
+  Free (the card shows with PRO).
+- `PATCH` remembers "Not now" (`7d`, hidden for 7 days), "Don't show again"
+  (`never`) or clears both (`show`).
+- `plan` is the one agent request (one hosted-AI action, with Ask's caps; a
+  limit of 6 a minute). It returns `{ status, items, suggestions }`. `status` is
+  `ready`, `unavailable` (no AI can answer; nothing is made up) or `upgrade`
+  (Free). `items` are 12 to 16 tiles `{ title, kind: task | habit | project,
+  suggestedGroup: today | week | habit | project, durationMinutes | perWeek |
+  horizon, dueDay?, firstStep? }`; `suggestions` holds up to one extra tile per
+  lane. Nothing is created.
+- `create` runs the op `starter.create` once: tasks (`group` today or week, with
+  due dates), habits (`perWeek`) and projects (each with a first step) in one
+  transaction and one AgentAction. The answer carries `actionId`; undo it with
+  `POST /api/agent/actions/:id/undo`, which archives everything it made. The
+  same op is callable at `/api/connect/ops/starter.create`.
+
 ## Weather
 
 ```
