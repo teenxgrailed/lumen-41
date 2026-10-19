@@ -1,6 +1,7 @@
 export type RealtimeEventType =
   | "calendar-updated"
   | "tasks-updated"
+  | "docs-updated"
   | "schedule-run-updated"
   | "focus-ended";
 

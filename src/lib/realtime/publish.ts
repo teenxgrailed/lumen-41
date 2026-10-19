@@ -35,3 +35,27 @@ export async function publishRealtimeEvent(
     JSON.stringify(event)
   );
 }
+
+/**
+ * Publish for a write that already succeeded: a Redis hiccup must never turn
+ * a saved change into an error for the caller (the open app just refreshes
+ * on its next poll or focus).
+ */
+export async function publishRealtimeEventSafe(
+  userId: string,
+  type: RealtimeEventType
+): Promise<void> {
+  try {
+    await publishRealtimeEvent(userId, type);
+  } catch (error) {
+    await logger.warn(
+      "Could not publish realtime event",
+      {
+        userId,
+        type,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
+}

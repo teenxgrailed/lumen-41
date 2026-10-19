@@ -5,6 +5,7 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
+import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -134,6 +135,18 @@ export type SubtaskResult =
     }
   | { ok: false; status: number; error: string };
 
+/**
+ * A subtask write changes what the parent task shows (its n/m count), so the
+ * parent's `updatedAt` moves with it; clients and sync compare on that.
+ */
+async function touchTask(taskId: string) {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { updatedAt: newDate() },
+    select: { id: true },
+  });
+}
+
 /** Append subtasks after the task's last one. */
 export async function appendSubtasks(input: {
   userId: string;
@@ -184,6 +197,7 @@ export async function appendSubtasks(input: {
       })
     )
   );
+  await touchTask(task.id);
   return { ok: true, subtasks: created };
 }
 
@@ -224,6 +238,7 @@ export async function setSubtaskDone(input: {
     data: { done: input.done },
     select: subtaskSelect,
   });
+  await touchTask(input.taskId);
   const open = await prisma.taskPart.count({
     where: { taskId: input.taskId, done: false },
   });

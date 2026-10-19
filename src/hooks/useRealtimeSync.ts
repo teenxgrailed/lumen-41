@@ -20,6 +20,14 @@ import { useTaskStore } from "@/store/task";
 
 const LOG_SOURCE = "RealtimeSyncHook";
 
+/** v3 caches a `tasks-updated` event makes stale: lists, one task, habits. */
+export const REALTIME_TASK_QUERY_KEYS = [
+  qk.tasks(),
+  [...qk.task("")].slice(0, 2),
+  qk.habits(),
+  qk.checkins(),
+] as const;
+
 export function useRealtimeSync(): void {
   const queryClient = useQueryClient();
   const { status } = useAppSession();
@@ -44,7 +52,15 @@ export function useRealtimeSync(): void {
 
     const refreshTasks = () => {
       void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      // The v3 screens read these keys (task dialog, lists, habits).
+      for (const key of REALTIME_TASK_QUERY_KEYS) {
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
       void useTaskStore.getState().fetchTasks();
+    };
+
+    const refreshDocs = () => {
+      void queryClient.invalidateQueries({ queryKey: qk.docs() });
     };
 
     // A Focus session reached its planned end (the worker also sent a push).
@@ -73,6 +89,7 @@ export function useRealtimeSync(): void {
       );
       eventSource.addEventListener("calendar-updated", refreshCalendar);
       eventSource.addEventListener("tasks-updated", refreshTasks);
+      eventSource.addEventListener("docs-updated", refreshDocs);
       eventSource.addEventListener("focus-ended", onFocusEnded);
       eventSource.onopen = () => {
         reconnectDelayMs = INITIAL_REALTIME_RECONNECT_DELAY_MS;
