@@ -1,7 +1,7 @@
 ---
 id: 20261019-claude-home-ha-port
 owner: claude-home-ha
-branch: feat/home-ha-desktop
+branch: feat/home-ha-wire
 status: active
 updated: 2026-10-19T00:00:00Z
 objective: Port the new Home design (needt-app/additions/home) 1:1 in three stages - (a) data and API, (b) phone Home pieces, (c) desktop Home
@@ -17,6 +17,7 @@ objective: Port the new Home design (needt-app/additions/home) 1:1 in three stag
 
 ## Completed
 
+- Stage (d): HaAllDone, HaEndDay, HaTimeline/HaBand and HaReview replace FinishCard, Shutdown, the Home personal rows and ReviewSheet (phone and desktop); review focuses are picked from open tasks and projects and stored as references; PersonalBand stays for the Calendar.
 - Stage (c): desktop Home grid (Highlight in the Next up slot, Today + time left and Habits on the right, This week above the schedule, weather beside the date, one-line brief); BriefCard, HighlightCard, HighlightSuggest, TimeLeftBar, DayLine, ProgressCard, NextUpCard, StreakCard, HabitsCard and their CSS removed.
 - Stage (b): `home/ha/` components (habits, brief, Highlight, weather, time left, plus all done, End day, week and stats, personal timeline, review as unwired pieces), `ha-home.css`, phone Home order. HabitsStrip, habit dots and the old plate removed from the phone.
 - Stage (a): `WeekFocus` model (additive migration), `/api/week-focus` GET/PUT, `/api/ai/highlight-suggestions`, brief window (until 11:00 or the first task done), "From yesterday" note reader, leave-by removed from the day line.
@@ -40,4 +41,4 @@ objective: Port the new Home design (needt-app/additions/home) 1:1 in three stag
 
 ## Next action
 
-- Open the stage (c) PR and report.
+- Stage (d) PR open, no auto-merge (release batches running).

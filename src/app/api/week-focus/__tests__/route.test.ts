@@ -10,6 +10,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     weekFocus: { findUnique: jest.fn(), upsert: jest.fn() },
     task: { count: jest.fn() },
+    project: { count: jest.fn() },
   },
 }));
 
@@ -20,6 +21,7 @@ const authenticate = authenticateRequest as jest.Mock;
 const db = prisma as unknown as {
   weekFocus: Record<"findUnique" | "upsert", jest.Mock>;
   task: { count: jest.Mock };
+  project: { count: jest.Mock };
 };
 
 const req = (method: string, url: string, body?: unknown) =>
@@ -31,7 +33,11 @@ const req = (method: string, url: string, body?: unknown) =>
 
 const row = {
   weekStart: "2026-10-26",
-  focuses: [{ title: "Ship the landing", taskId: "t1" }, { title: "German" }],
+  focuses: [
+    { title: "Ship the landing", taskId: "t1" },
+    "German",
+    { title: "Resale", projectId: "p1" },
+  ],
 };
 
 beforeEach(() => {
@@ -52,8 +58,9 @@ describe("GET /api/week-focus", () => {
     expect((await res.json()).weekFocus).toEqual({
       weekStart: "2026-10-26",
       focuses: [
-        { title: "Ship the landing", taskId: "t1" },
-        { title: "German", taskId: null },
+        { title: "Ship the landing", taskId: "t1", projectId: null },
+        { title: "German", taskId: null, projectId: null },
+        { title: "Resale", taskId: null, projectId: "p1" },
       ],
     });
     expect(db.weekFocus.findUnique.mock.calls[0][0].where).toEqual({
@@ -103,6 +110,29 @@ describe("PUT /api/week-focus", () => {
         ],
       },
     });
+  });
+
+  it("checks a project it names and stores the reference", async () => {
+    db.project.count.mockResolvedValue(1);
+    db.weekFocus.upsert.mockResolvedValue(row);
+    const res = await put({
+      weekStart: "2026-10-26",
+      focuses: [{ title: "Resale", projectId: "p1" }],
+    });
+    expect(res.status).toBe(200);
+    expect(db.project.count.mock.calls[0][0].where).toEqual({
+      id: { in: ["p1"] },
+      workspaceId: "w1",
+    });
+    expect(db.weekFocus.upsert.mock.calls[0][0].update).toEqual({
+      focuses: [{ title: "Resale", taskId: null, projectId: "p1" }],
+    });
+    db.project.count.mockResolvedValue(0);
+    const bad = await put({
+      weekStart: "2026-10-26",
+      focuses: [{ title: "x", projectId: "other" }],
+    });
+    expect(bad.status).toBe(404);
   });
 
   it("refuses a task outside the scope", async () => {

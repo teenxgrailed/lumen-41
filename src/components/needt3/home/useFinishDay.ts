@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { type ComponentProps, useCallback, useMemo, useState } from "react";
 
 import { addDays } from "@/lib/needt3/derive";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
@@ -8,7 +8,6 @@ import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
-import type { ShutdownProps, ShutdownRow } from "./Shutdown";
 import { dayOf, dur } from "./derive";
 import {
   type FinishPick,
@@ -18,7 +17,9 @@ import {
   shutdownOf,
   tomorrowNote,
 } from "./finish";
+import type { HaEndDay } from "./ha";
 import { setNudgeOff } from "./nudge";
+import { weekdayLong, weekdayOf } from "./stats-model";
 
 const metaOf = (t: V3Task, today: string): string => {
   const d = dayOf(t, today);
@@ -125,19 +126,26 @@ export function useFinishDay({
     }
   }, [busy, shut, choices, updateTask, today, date, note, tomorrowNoteRef]);
 
-  const sheet: ShutdownProps = {
-    done: shut.done,
-    leftovers: shut.leftovers.map<ShutdownRow>((t) => ({
+  const sheet: ComponentProps<typeof HaEndDay> = {
+    title: `End of ${weekdayLong(weekdayOf(today))}`,
+    summary: [
+      `${shut.done.length} done`,
+      shut.leftovers.length ? `${shut.leftovers.length} left` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    done: shut.done.map((t) => t.title),
+    leftovers: shut.leftovers.map((t) => ({
       id: t.id,
       title: t.title,
       meta: metaOf(t, today),
     })),
-    choices,
+    moves: choices,
     date,
     minDate: tomorrow,
     note,
     busy,
-    onChoice: (id, target) => setChoices((c) => ({ ...c, [id]: target })),
+    onMove: (id, target) => setChoices((c) => ({ ...c, [id]: target })),
     onDate: setDate,
     onNote: setNote,
     onSubmit: () => void submit(),

@@ -2,16 +2,8 @@
 
 import { useState } from "react";
 
+import { type HaLeft, HaLeftList, type HaTarget } from "./HaLeftList";
 import { HaI } from "./ui";
-
-export type HaMove = "Tomorrow" | "Pick a date" | "Inbox";
-const MOVES: readonly HaMove[] = ["Tomorrow", "Pick a date", "Inbox"];
-
-export interface HaLeft {
-  id: string;
-  title: string;
-  dur: string;
-}
 
 /**
  * 5 - the End day sheet: what was done (three lines and "+ N more"), what is
@@ -24,23 +16,29 @@ export function HaEndDay({
   done,
   leftovers,
   moves,
+  date,
+  minDate,
   note,
   busy,
   onMove,
+  onDate,
   onNote,
   onSubmit,
   onClose,
 }: {
   /** "End of Monday" */
   title: string;
-  /** "6 done · 4 h 40 focused · 2 left" */
+  /** "6 done · 2 left" */
   summary: string;
   done: readonly string[];
   leftovers: readonly HaLeft[];
-  moves: Readonly<Record<string, HaMove>>;
+  moves: Readonly<Record<string, HaTarget>>;
+  date: string;
+  minDate: string;
   note: string;
   busy?: boolean;
-  onMove: (id: string, to: HaMove) => void;
+  onMove: (id: string, to: HaTarget) => void;
+  onDate: (date: string) => void;
   onNote: (text: string) => void;
   onSubmit: () => void;
   onClose: () => void;
@@ -48,7 +46,12 @@ export function HaEndDay({
   const [all, setAll] = useState(false);
   const shown = all ? done : done.slice(0, 3);
   return (
-    <div className="ha-sheet" role="dialog" aria-label="End day">
+    <div
+      className="ha-sheet"
+      role="dialog"
+      aria-label="End day"
+      data-ha-endday=""
+    >
       <div className="ha-grab" />
       <div className="ha-sheet-h">
         <div>
@@ -93,36 +96,21 @@ export function HaEndDay({
           <div className="ha-sec-l">
             Still open <span>move them</span>
           </div>
-          {leftovers.map((l) => (
-            <div key={l.id} className="ha-left">
-              <div className="ha-left-t">
-                <b>{l.title}</b>
-                <span className="ha-meta">{l.dur}</span>
-              </div>
-              <div
-                className="ha-seg"
-                role="group"
-                aria-label={`Move ${l.title}`}
-              >
-                {MOVES.map((o) => (
-                  <button
-                    key={o}
-                    type="button"
-                    aria-pressed={(moves[l.id] ?? "Tomorrow") === o}
-                    onClick={() => onMove(l.id, o)}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          <HaLeftList
+            leftovers={leftovers}
+            moves={moves}
+            date={date}
+            minDate={minDate}
+            onMove={onMove}
+            onDate={onDate}
+          />
         </>
       ) : null}
       <div className="ha-sec-l">Note for tomorrow</div>
       <textarea
         className="ha-note"
         placeholder="What should tomorrow start with?"
+        aria-label="A note for tomorrow"
         value={note}
         onChange={(e) => onNote(e.target.value)}
       />
@@ -130,6 +118,7 @@ export function HaEndDay({
         <button
           type="button"
           className="ha-btn is-primary is-lg"
+          data-ha="close-day"
           disabled={busy}
           onClick={onSubmit}
         >

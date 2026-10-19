@@ -6,8 +6,18 @@ import { act, createElement as h } from "react";
 import type { Stats } from "@/services/stats/home-stats";
 import { type Root, createRoot } from "react-dom/client";
 
-import { ReviewBody, ReviewCard } from "../ReviewSheet";
-import { isReviewDay, reviewMarkdown, reviewTitle, winsLines } from "../review";
+import { ReviewCard } from "../ReviewCard";
+import { HaReview } from "../ha/HaReview";
+import {
+  focusItems,
+  focusOptions,
+  isReviewDay,
+  reviewMarkdown,
+  reviewTitle,
+  weekRangeLabel,
+  winsLines,
+} from "../review";
+import { TODAY, task } from "./fixtures";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -16,10 +26,6 @@ import { isReviewDay, reviewMarkdown, reviewTitle, winsLines } from "../review";
 jest.mock("../../phone/kit", () => ({
   PkButton: ({ children, ...p }: { children: string }) =>
     h("button", p, children),
-  PkSheet: () => null,
-}));
-jest.mock("../../ctx/PortalScope", () => ({
-  useV3PortalContainer: () => null,
 }));
 
 const stats = (over: Partial<Stats> = {}): Stats => ({
@@ -121,39 +127,190 @@ describe("the review's screens", () => {
     expect(onLater).toHaveBeenCalled();
   });
 
-  const props = () => ({
-    wins: ["12 tasks done"],
+  const options = [
+    {
+      key: "project:p1",
+      kind: "project" as const,
+      id: "p1",
+      title: "Launch",
+      color: "red",
+    },
+    {
+      key: "task:t1",
+      kind: "task" as const,
+      id: "t1",
+      title: "Ship v2",
+      color: "red",
+    },
+    {
+      key: "task:t2",
+      kind: "task" as const,
+      id: "t2",
+      title: "Hire",
+      color: "red",
+    },
+    {
+      key: "task:t3",
+      kind: "task" as const,
+      id: "t3",
+      title: "Plan",
+      color: "red",
+    },
+  ];
+  const props = (over = {}) => ({
+    title: "Week 43 in review",
+    sub: "Sunday · 12–18 October",
+    wins: [{ b: "12", span: "tasks done" }],
+    winLines: ["Best day: Friday"],
     leftovers: [{ id: "l1", title: "Pay rent", meta: "Overdue" }],
-    choices: {},
+    moves: {},
     date: "2026-10-21",
     minDate: "2026-10-19",
-    focuses: ["", "", ""],
+    options,
+    picked: [] as string[],
+    nextWeek: 44,
     busy: false,
-    onChoice: jest.fn(),
+    onMove: jest.fn(),
     onDate: jest.fn(),
-    onFocus: jest.fn(),
+    onPick: jest.fn(),
     onSubmit: jest.fn(),
     onClose: jest.fn(),
+    ...over,
+  });
+  const tap = (sel: string) =>
+    (host.querySelector(sel) as HTMLButtonElement).click();
+
+  it("shows wins and leftovers, and picking a focus reports its key", async () => {
+    const p = props();
+    await act(async () => root.render(h(HaReview, p)));
+    expect(host.textContent).toContain("12");
+    expect(host.textContent).toContain("Best day: Friday");
+    expect(host.querySelectorAll("[data-ha-left]")).toHaveLength(1);
+    tap('[data-ha-to="inbox"]');
+    expect(p.onMove).toHaveBeenCalledWith("l1", "inbox");
+    tap('[data-ha-focus="task:t1"]');
+    expect(p.onPick).toHaveBeenCalledWith("task:t1");
   });
 
-  it("shows wins, leftovers and three focus fields, and saves", async () => {
-    const p = props();
-    await act(async () => root.render(h(ReviewBody, p)));
-    expect(host.querySelector("[data-rv-wins]")?.textContent).toContain(
-      "12 tasks done"
+  it("saves only with exactly three picked, and a fourth cannot be picked", async () => {
+    await act(async () =>
+      root.render(h(HaReview, props({ picked: ["project:p1", "task:t1"] })))
     );
-    expect(host.querySelectorAll("[data-rv-left-row]")).toHaveLength(1);
-    expect(host.querySelectorAll(".rv-focus")).toHaveLength(3);
-    (host.querySelector('[data-rv-to="inbox"]') as HTMLElement).click();
-    expect(p.onChoice).toHaveBeenCalledWith("l1", "inbox");
-    (host.querySelector('[data-fin="review-save"]') as HTMLElement).click();
+    expect(
+      (host.querySelector('[data-ha="review-save"]') as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+    const p = props({ picked: ["project:p1", "task:t1", "task:t2"] });
+    await act(async () => root.render(h(HaReview, p)));
+    expect(
+      (host.querySelector('[data-ha-focus="task:t3"]') as HTMLButtonElement)
+        .disabled
+    ).toBe(true);
+    tap('[data-ha="review-save"]');
     expect(p.onSubmit).toHaveBeenCalled();
+    expect(host.textContent).toContain("Start week 44");
+  });
+
+  it("asks for as many as there are when fewer than three can be picked", async () => {
+    const p = props({ options: options.slice(0, 1), picked: ["project:p1"] });
+    await act(async () => root.render(h(HaReview, p)));
+    expect(
+      (host.querySelector('[data-ha="review-save"]') as HTMLButtonElement)
+        .disabled
+    ).toBe(false);
   });
 
   it("hides the leftovers section when nothing is left", async () => {
-    await act(async () =>
-      root.render(h(ReviewBody, { ...props(), leftovers: [] }))
-    );
-    expect(host.querySelector("[data-rv-left]")).toBeNull();
+    await act(async () => root.render(h(HaReview, props({ leftovers: [] }))));
+    expect(host.querySelector("[data-ha-left]")).toBeNull();
+  });
+});
+
+describe("the focus picker's options", () => {
+  const projects = [
+    {
+      id: "p1",
+      name: "Launch",
+      color: "#e5484d",
+      icon: null,
+      ground: null,
+      position: 0,
+      archived: false,
+    },
+    {
+      id: "p2",
+      name: "Old",
+      color: null,
+      icon: null,
+      ground: null,
+      position: 1,
+      archived: true,
+    },
+    {
+      id: "p3",
+      name: "Quiet",
+      color: null,
+      icon: null,
+      ground: null,
+      position: 2,
+      archived: false,
+    },
+  ];
+  it("offers projects with open work, then the tasks that press, by id", () => {
+    const a = task({
+      title: "Due soon",
+      projectId: "p1",
+      dueDate: "2026-09-03",
+      priority: "high",
+    });
+    const b = task({ title: "Later", projectId: "p1", dueDate: "2026-12-01" });
+    const c = task({
+      title: "Archived project",
+      projectId: "p2",
+      dueDate: "2026-09-02",
+    });
+    const d = task({
+      title: "Closed",
+      projectId: "p1",
+      dueDate: "2026-09-02",
+      done: true,
+    });
+    const opts = focusOptions([a, b, c, d], projects, TODAY);
+    expect(opts.map((o) => o.key)).toEqual([
+      "project:p1",
+      `task:${a.id}`,
+      `task:${c.id}`,
+    ]);
+    expect(opts[0]).toMatchObject({
+      kind: "project",
+      title: "Launch",
+      color: "#e5484d",
+    });
+  });
+  it("turns picked keys into references with the name as a snapshot", () => {
+    const opts = [
+      {
+        key: "project:p1",
+        kind: "project" as const,
+        id: "p1",
+        title: "Launch",
+        color: "x",
+      },
+      {
+        key: "task:t9",
+        kind: "task" as const,
+        id: "t9",
+        title: "Ship",
+        color: "x",
+      },
+    ];
+    expect(focusItems(opts, ["task:t9", "gone", "project:p1"])).toEqual([
+      { title: "Ship", taskId: "t9" },
+      { title: "Launch", projectId: "p1" },
+    ]);
+  });
+  it("names the week, across a month end too", () => {
+    expect(weekRangeLabel("2026-10-12")).toBe("12–18 Oct");
+    expect(weekRangeLabel("2026-10-26")).toBe("26 Oct – 1 Nov");
   });
 });
