@@ -53,6 +53,10 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { PersonalDay } from "../personal/PersonalQuickAdd";
+import {
+  StarterGameSlot,
+  useStarterGameCard,
+} from "../starter-game/StarterGameSlot";
 import { EndDayNudge } from "./EndDayNudge";
 import { FinishCard } from "./FinishCard";
 import {
@@ -321,6 +325,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     [router]
   );
   const newTask = () => setComposerOpen(true);
+  const starter = useStarterGameCard();
   // A locked feature opens the Pro sheet, on what was asked for.
   const upgradePlan = () => openPaywall("Plan my day");
   const upgradeWeek = () => openPaywall("Week load");
@@ -811,7 +816,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                 })
               ) : (
                 <>
-                  {state === "empty" ? (
+                  <StarterGameSlot screen="home" />
+                  {state === "empty" && !starter.show && !starter.hold ? (
                     <EmptyDay onNew={newTask} plan={planButton()} />
                   ) : null}
 

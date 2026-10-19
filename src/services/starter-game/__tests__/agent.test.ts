@@ -57,7 +57,7 @@ function reply(n = 14) {
             title: `Project ${i}`,
             kind: "project",
             suggestedGroup: "project",
-            horizon: "until Dec",
+            horizon: "this quarter",
             firstStep: "Start it",
           }
   );

@@ -17,6 +17,10 @@ import {
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
+import {
+  StarterGameSlot,
+  useStarterGameCard,
+} from "../../starter-game/StarterGameSlot";
 import { StScreen } from "../../states/StScreen";
 import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
@@ -208,6 +212,7 @@ function TasksBody({
   };
 
   const empty = !m.live.length ? EMPTY.all : EMPTY[tab];
+  const starter = useStarterGameCard();
   return (
     <PkScreen
       screen="tasks"
@@ -248,7 +253,10 @@ function TasksBody({
             </PkSection>
           </PkDropZone>
         ))}
-        {!m.sections.length ? <PkEmpty line={empty} /> : null}
+        <StarterGameSlot screen="tasks" />
+        {!m.sections.length && !starter.show && !starter.hold ? (
+          <PkEmpty line={empty} />
+        ) : null}
         {m.done.length ? (
           <PkDropZone
             k={DONE_ZONE}
