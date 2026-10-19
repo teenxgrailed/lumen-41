@@ -2417,7 +2417,11 @@ model AutoScheduleSettings {
   workHourEnd   Int // 0-23
 
   // Preferences
-  selectedCalendars String @default("[]") // JSON string of calendar IDs
+  selectedCalendars String @default("[]") // Legacy: no longer read by the scheduler
+  // JSON array of feed ids the person switched off for scheduling. Every other
+  // enabled feed, including ones created later, blocks time. LOCAL feeds never
+  // count as excluded.
+  excludedCalendars String @default("[]")
   bufferMinutes     Int    @default(15)
 
   // Energy Level Mappings

@@ -58,7 +58,6 @@ import {
   useStarterGameCard,
 } from "../starter-game/StarterGameSlot";
 import { EndDayNudge } from "./EndDayNudge";
-import { FinishCard } from "./FinishCard";
 import {
   Capped,
   EmptyDay,
@@ -68,13 +67,11 @@ import {
   NotesLine,
   PlanButton,
   type ProState,
-  Schedule,
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
-import { ReviewCard, ReviewSheet } from "./ReviewSheet";
+import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
-import { ShutdownSheet } from "./Shutdown";
 import { StatsSheet } from "./Stats";
 import { briefFactsOf, doneTodayCount } from "./brief";
 import { firstEvent } from "./day-line-model";
@@ -97,14 +94,20 @@ import {
 import { energyDay } from "./energy-day";
 import { freeMinutesLeft, hourOfClock, pickFinishNext } from "./finish";
 import {
+  HaAllDone,
   HaBrief,
+  HaEndDaySheet,
   HaHabits,
   HaHighlight,
+  HaReviewSheet,
+  HaSchedule,
   HaScope,
   HaTimeLeft,
   HaWeather,
   HaWeek,
+  haAllDoneOf,
   haHabitsOf,
+  haScheduleRows,
   haTaskCard,
   haTimeOf,
   haWeatherOf,
@@ -343,6 +346,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     late: lateOpen,
     day,
     stats: homeStats.week,
+    tasks: allTasks,
+    projects: projects.data ?? [],
+    streak: streak.n,
   });
   const hlSub = (t: V3Task, tail: string) =>
     [project(t.projectId, projects.data ?? [])?.name, tail]
@@ -358,6 +364,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       ? nextUpNote(pick, nowHour, today)
       : hlSub(pick.task, restToday ? `then ${restToday} more today` : "") ||
         nextUpNote(pick, nowHour, today);
+  const timeCard = haTimeOf({
+    left,
+    nowHour,
+    start: hourOfClock(cap.start),
+    end: hourOfClock(cap.end),
+  });
   const weekCard = haWeekOf({
     stats: homeStats.week,
     today,
@@ -642,26 +654,38 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               </HaScope>
             </div>
           ) : null}
-          {closedDay ? (
-            <FinishCard
-              count={day.length}
-              mins={day.reduce((s, t) => s + (t.estimatedMinutes || 0), 0)}
-              habits={habitsKept}
-              open={{ late: lateOpen.length, inbox: inbox.length }}
-              picks={finishPicks}
-              onDoToday={(p) => void finish.doToday(p)}
-              onEndDay={finish.show}
-              onPlan={seeTomorrow}
-              onUndo={undoLast}
-            />
-          ) : null}
-
           <div
             className="hd-cards ha-cards"
             data-hd-cards=""
             data-hd-mode={tab}
           >
-            {tab === "day" && hlTask && !hlTask.done ? (
+            {tab === "day" && closedDay ? (
+              <HaScope>
+                <HaAllDone
+                  {...haAllDoneOf({
+                    count: day.length,
+                    focusMinutes: homeStats.week?.days.find(
+                      (d) => d.date === today
+                    )?.focusMinutes,
+                    open: { late: lateOpen.length, inbox: inbox.length },
+                    picks: finishPicks,
+                    freeMinutes: freeMinutesLeft(
+                      cap,
+                      today,
+                      nowHour,
+                      sched.filter((x) => x.event)
+                    ),
+                  })}
+                  onPull={(id) => {
+                    const p = finishPicks.find((x) => x.task.id === id);
+                    if (p) void finish.doToday(p);
+                  }}
+                  onEndDay={finish.show}
+                  onSeeTomorrow={seeTomorrow}
+                  onUndo={undoLast}
+                />
+              </HaScope>
+            ) : tab === "day" && hlTask && !hlTask.done ? (
               <HaScope>
                 <HaHighlight
                   state="set"
@@ -732,7 +756,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                 />
               ) : (
                 <>
-                  {stats.total > 0 ? (
+                  {stats.total > 0 && timeCard ? (
                     <HaScope>
                       <div className="ha-card" data-ha-today="">
                         <div className="ha-dk-card-t">
@@ -741,14 +765,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                             {stats.done} of {stats.total}
                           </span>
                         </div>
-                        <HaTimeLeft
-                          t={haTimeOf({
-                            left,
-                            nowHour,
-                            start: hourOfClock(cap.start),
-                            end: hourOfClock(cap.end),
-                          })}
-                        />
+                        <HaTimeLeft t={timeCard} />
                       </div>
                     </HaScope>
                   ) : null}
@@ -898,15 +915,19 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   <HaScope>
                     <HaWeek w={weekCard} onOpen={homeStats.show} />
                   </HaScope>
-                  <Schedule
-                    items={sched}
-                    nowHour={nowHour}
-                    hueOf={hueOf}
-                    evCount={sched.filter((x) => x.event).length}
-                    onOpen={open}
-                    onCalendar={() => router.push("/calendar")}
-                    band={<PersonalDay date={today} />}
-                  />
+                  <HaScope>
+                    <HaSchedule
+                      rows={haScheduleRows({
+                        items: sched,
+                        bands: personal,
+                        nowHour,
+                        hueOf,
+                      })}
+                      onOpen={open}
+                      onCalendar={() => router.push("/calendar")}
+                      footer={<PersonalDay date={today} bands={false} />}
+                    />
+                  </HaScope>
                 </>
               )}
               <InboxCard
@@ -921,8 +942,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
           </div>
         </div>
       </StScreen>
-      <ShutdownSheet open={finish.open} {...finish.sheet} />
-      <ReviewSheet open={review.open} {...review.sheet} />
+      <HaEndDaySheet open={finish.open} {...finish.sheet} />
+      <HaReviewSheet open={review.open} {...review.sheet} />
       <StatsSheet
         open={homeStats.open}
         onClose={homeStats.close}

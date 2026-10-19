@@ -1,4 +1,5 @@
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
+import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
@@ -184,14 +185,18 @@ async function computeStagedSnapshot(
     throw new Error("Auto-schedule settings not found for user");
   }
 
-  const selectedCalendarIds = parseStringArray(legacy.selectedCalendars);
+  const busyFeedIds = await resolveBusyFeedIds(
+    userId,
+    legacy.excludedCalendars
+  );
   const sourceFeeds = await prisma.calendarFeed.findMany({
-    where: { id: { in: selectedCalendarIds }, userId, enabled: true },
+    where: { id: { in: busyFeedIds }, userId, enabled: true },
     select: {
       id: true,
       events: {
         where: {
           archivedAt: null,
+          allDay: false,
           start: { lt: addCalendarDays(now, 21) },
           end: { gt: now },
         },
@@ -391,24 +396,14 @@ async function computeStagedSnapshot(
   }
 }
 
-function parseStringArray(value: string) {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 async function captureContextVersion(userId: string) {
   const settings = await prisma.autoScheduleSettings.findUnique({
     where: { userId },
-    select: { selectedCalendars: true, updatedAt: true },
+    select: { excludedCalendars: true, updatedAt: true },
   });
-  const selectedCalendarIds = parseStringArray(
-    settings?.selectedCalendars ?? "[]"
+  const busyFeedIds = await resolveBusyFeedIds(
+    userId,
+    settings?.excludedCalendars
   );
   const [preferences, energyWindows, workSchedules, overrides, events] =
     await Promise.all([
@@ -440,7 +435,7 @@ async function captureContextVersion(userId: string) {
       }),
       prisma.calendarEvent.findMany({
         where: {
-          feedId: { in: selectedCalendarIds },
+          feedId: { in: busyFeedIds },
           feed: { userId, enabled: true },
           archivedAt: null,
         },

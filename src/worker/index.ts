@@ -30,6 +30,10 @@ import {
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
+import {
+  CALDAV_SYNC_INTERVAL_MS,
+  sweepCalDavFeeds,
+} from "@/worker/caldav-sweep";
 import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   startWorkerHealthServer,
@@ -82,6 +86,7 @@ import {
   closeQueues,
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
+  getCalendarSyncQueue,
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
@@ -143,6 +148,11 @@ const BUILD_SHA = requireProductionBuildSha();
 const WORKER_RELEASE_HEARTBEAT_VALUE = `${newDate().toISOString()}:${randomUUID()}`;
 
 async function processCalendarSync(job: Job<CalendarSyncJobData>) {
+  if (!job.data.feedId) {
+    const queued = await sweepCalDavFeeds();
+    await logger.info("Queued CalDAV feed syncs", { queued }, LOG_SOURCE);
+    return;
+  }
   const feed = await getCalendarFeedForSync(job.data.feedId);
   if (!feed || !feed.enabled) {
     await logger.info(
@@ -153,7 +163,9 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
     return;
   }
   if (!feed.userId || !feed.url || !feed.account) {
-    throw new Error("Calendar feed is missing user, URL, or account data.");
+    const message = "Calendar feed is missing user, URL, or account data.";
+    await updateCalendarFeedSyncState(feed.id, { error: message });
+    throw new Error(message);
   }
 
   try {
@@ -435,6 +447,11 @@ export async function start(): Promise<void> {
     { name: "renew-webhooks", data: {} }
   );
   await enqueueWebhookRenew();
+  await getCalendarSyncQueue().upsertJobScheduler(
+    "caldav-sync-sweep",
+    { every: CALDAV_SYNC_INTERVAL_MS },
+    { name: "sweep-caldav", data: { kind: "sweep" } }
+  );
   await getBugReportSyncQueue().upsertJobScheduler(
     "bug-report-retry",
     { every: 30 * 60 * 1_000 },

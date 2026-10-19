@@ -1,31 +1,23 @@
 /**
  * @jest-environment jsdom
  *
- * The finished-day card and the End day body: the headline never says "All
- * done" while something Home lists is open, the picks hide themselves, "Do
- * today" is one tap, and the sheet hands back its choices.
+ * The finished-day card and the End day sheet: the title never says "All done"
+ * while something Home lists is open, the picks hide themselves, "Pull
+ * something in" is one tap, and the sheet hands back its choices.
  */
 import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
-import { FinishCard, FinishPicks } from "../FinishCard";
-import { ShutdownBody } from "../Shutdown";
 import { pickFinishNext } from "../finish";
+import { HaAllDone } from "../ha/HaAllDone";
+import { HaEndDay } from "../ha/HaEndDay";
+import { haAllDoneOf } from "../ha/model";
 import { TODAY, task } from "./fixtures";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
-
-jest.mock("../../phone/kit", () => ({
-  PkButton: ({ children, ...p }: { children: string }) =>
-    h("button", p, children),
-  PkSheet: ({ children }: { children: unknown }) => children,
-}));
-jest.mock("../../ctx/PortalScope", () => ({
-  useV3PortalContainer: () => null,
-}));
 
 let host: HTMLDivElement;
 let root: Root;
@@ -40,6 +32,8 @@ afterEach(() => {
 });
 const render = (el: unknown) =>
   act(async () => root.render(el as Parameters<Root["render"]>[0]));
+const tap = (sel: string, from: ParentNode = host) =>
+  (from.querySelector(sel) as HTMLButtonElement).click();
 
 const picks = pickFinishNext(
   [
@@ -50,122 +44,132 @@ const picks = pickFinishNext(
   120
 );
 
-const card = (open: { late: number; inbox: number }, over = {}) =>
-  h(FinishCard, {
+describe("haAllDoneOf", () => {
+  const base = {
     count: 3,
-    mins: 90,
-    habits: 1,
-    open,
+    focusMinutes: 90,
+    open: { late: 0, inbox: 0 },
     picks,
-    onDoToday: jest.fn(),
+    freeMinutes: 170,
+  };
+  it("says All done when nothing else is open", () => {
+    const a = haAllDoneOf(base);
+    expect(a.title).toBe("All done for today");
+    expect(a.meta).toBe("3 of 3 · 1 h 30 focused");
+    expect(a.free).toBe("2 h 50");
+    expect(a.pull.map((p) => p.title)).toEqual(picks.map((p) => p.task.title));
+  });
+  it("does not say All done while overdue or inbox tasks are open", () => {
+    const a = haAllDoneOf({ ...base, open: { late: 2, inbox: 1 } });
+    expect(a.title).not.toMatch(/all done/i);
+    expect(a.meta).toContain("2 overdue · 1 in Inbox still open");
+  });
+  it("leaves out the focus time and the free time it does not have", () => {
+    const a = haAllDoneOf({ ...base, focusMinutes: null, freeMinutes: 0 });
+    expect(a.meta).toBe("3 of 3");
+    expect(a.free).toBeUndefined();
+  });
+});
+
+describe("HaAllDone", () => {
+  const props = (over = {}) => ({
+    ...haAllDoneOf({
+      count: 3,
+      focusMinutes: null,
+      open: { late: 0, inbox: 0 },
+      picks,
+      freeMinutes: 60,
+    }),
     onEndDay: jest.fn(),
-    onPlan: jest.fn(),
+    onSeeTomorrow: jest.fn(),
     onUndo: jest.fn(),
+    onPull: jest.fn(),
     ...over,
   });
 
-describe("FinishCard", () => {
-  it("says All done when nothing else is open", async () => {
-    await render(card({ late: 0, inbox: 0 }));
-    expect(host.querySelector("h2")?.textContent).toBe("All done for today");
-    expect(
-      host.querySelector("[data-fin-card]")?.getAttribute("data-fin-all-done")
-    ).toBe("true");
-  });
-
-  it("does not say All done while overdue or inbox tasks are open", async () => {
-    await render(card({ late: 2, inbox: 1 }));
-    expect(host.querySelector("h2")?.textContent).not.toMatch(/all done/i);
-    expect(host.textContent).toContain("2 overdue · 1 in Inbox");
-  });
-
-  it("offers each pick with one Do today tap", async () => {
-    const onDoToday = jest.fn();
-    await render(card({ late: 0, inbox: 0 }, { onDoToday }));
-    const rows = host.querySelectorAll("[data-fin-pick]");
-    expect(rows).toHaveLength(2);
-    (
-      rows[0]?.querySelector('[data-fin="do-today"]') as HTMLButtonElement
-    ).click();
-    expect(onDoToday).toHaveBeenCalledWith(picks[0]);
+  it("offers each pick with one tap, and the pulled one leaves the list", async () => {
+    const p = props();
+    await render(h(HaAllDone, p));
+    expect(host.querySelectorAll("[data-ha-pick]")).toHaveLength(2);
+    tap('[data-ha="pull"]', host.querySelector("[data-ha-pick]") as Element);
+    expect(p.onPull).toHaveBeenCalledWith(picks[0]?.task.id);
+    await act(async () => undefined);
+    expect(host.querySelectorAll("[data-ha-pick]")).toHaveLength(1);
   });
 
   it("hides the list when there is nothing to offer", async () => {
-    await render(card({ late: 0, inbox: 0 }, { picks: [] }));
-    expect(host.querySelector("[data-fin-picks]")).toBeNull();
+    await render(h(HaAllDone, props({ pull: [] })));
+    expect(host.querySelector("[data-ha-pull]")).toBeNull();
   });
 
-  it("opens End day", async () => {
-    const onEndDay = jest.fn();
-    await render(card({ late: 0, inbox: 0 }, { onEndDay }));
-    (host.querySelector('[data-fin="end-day"]') as HTMLButtonElement).click();
-    expect(onEndDay).toHaveBeenCalled();
+  it("opens End day, sees tomorrow, undoes the last", async () => {
+    const p = props();
+    await render(h(HaAllDone, p));
+    tap('[data-ha="end-day"]');
+    tap('[data-ha="see-tomorrow"]');
+    tap('[data-ha="undo-last"]');
+    expect(p.onEndDay).toHaveBeenCalled();
+    expect(p.onSeeTomorrow).toHaveBeenCalled();
+    expect(p.onUndo).toHaveBeenCalled();
+  });
+
+  it("has no See tomorrow when there is nothing tomorrow", async () => {
+    await render(h(HaAllDone, props({ onSeeTomorrow: undefined })));
+    expect(host.querySelector('[data-ha="see-tomorrow"]')).toBeNull();
   });
 });
 
-describe("FinishPicks on the phone", () => {
-  it("draws nothing without picks", async () => {
-    await render(
-      h(FinishPicks, { phone: true, picks: [], onDoToday: jest.fn() })
-    );
-    expect(host.innerHTML).toBe("");
-  });
-});
-
-describe("ShutdownBody", () => {
+describe("HaEndDay", () => {
   const base = {
-    done: [{ id: "d1", title: "Write report" }],
+    title: "End of Wednesday",
+    summary: "1 done · 2 left",
+    done: ["Write report"],
     leftovers: [
       { id: "l1", title: "Pay rent", meta: "Overdue" },
       { id: "l2", title: "Email Anna", meta: "Today" },
     ],
-    choices: { l2: "date" as const },
+    moves: { l2: "date" as const },
     date: "2026-09-09",
     minDate: "2026-09-02",
     note: "",
     busy: false,
-    onChoice: jest.fn(),
+    onMove: jest.fn(),
     onDate: jest.fn(),
     onNote: jest.fn(),
     onSubmit: jest.fn(),
     onClose: jest.fn(),
   };
 
-  it("shows what got done and what is left", async () => {
-    await render(h(ShutdownBody, base));
-    expect(host.querySelector("[data-fin-done]")?.textContent).toContain(
-      "Write report"
-    );
-    expect(host.querySelectorAll("[data-fin-left-row]")).toHaveLength(2);
-    // a date field only while someone picked "Pick a date"
+  it("shows what got done and what is left, with a date field only for a picked date", async () => {
+    await render(h(HaEndDay, base));
+    expect(host.textContent).toContain("End of Wednesday");
+    expect(host.textContent).toContain("Write report");
+    expect(host.querySelectorAll("[data-ha-left]")).toHaveLength(2);
     expect(host.querySelector('input[type="date"]')).not.toBeNull();
   });
 
   it("hides empty sections and the date field", async () => {
-    await render(
-      h(ShutdownBody, { ...base, done: [], leftovers: [], choices: {} })
-    );
-    expect(host.querySelector("[data-fin-done]")).toBeNull();
-    expect(host.querySelector("[data-fin-left]")).toBeNull();
+    await render(h(HaEndDay, { ...base, done: [], leftovers: [], moves: {} }));
+    expect(host.querySelector("[data-ha-left]")).toBeNull();
     expect(host.querySelector('input[type="date"]')).toBeNull();
     expect(host.querySelector("textarea")).not.toBeNull();
   });
 
-  it("reports a destination and submits", async () => {
-    const onChoice = jest.fn();
-    const onSubmit = jest.fn();
-    await render(h(ShutdownBody, { ...base, onChoice, onSubmit }));
-    const row = host.querySelector('[data-fin-left-row="l1"]') as HTMLElement;
+  it("reports a destination, the note, and closes the day", async () => {
+    const p = {
+      ...base,
+      onMove: jest.fn(),
+      onSubmit: jest.fn(),
+      onNote: jest.fn(),
+    };
+    await render(h(HaEndDay, p));
+    const row = host.querySelector('[data-ha-left="l1"]') as HTMLElement;
     expect(
-      row
-        .querySelector('[data-fin-to="tomorrow"]')
-        ?.getAttribute("aria-checked")
+      row.querySelector('[data-ha-to="tomorrow"]')?.getAttribute("aria-pressed")
     ).toBe("true");
-    (row.querySelector('[data-fin-to="inbox"]') as HTMLButtonElement).click();
-    expect(onChoice).toHaveBeenCalledWith("l1", "inbox");
-    (
-      host.querySelector('[data-fin="confirm-end-day"]') as HTMLButtonElement
-    ).click();
-    expect(onSubmit).toHaveBeenCalled();
+    tap('[data-ha-to="inbox"]', row);
+    expect(p.onMove).toHaveBeenCalledWith("l1", "inbox");
+    tap('[data-ha="close-day"]');
+    expect(p.onSubmit).toHaveBeenCalled();
   });
 });

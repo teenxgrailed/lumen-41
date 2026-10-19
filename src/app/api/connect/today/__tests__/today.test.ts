@@ -35,6 +35,9 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
     .fn()
     .mockResolvedValue({ required: false, verified: true }),
 }));
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/services/weather/open-meteo", () => ({
   cleanCity: (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null,

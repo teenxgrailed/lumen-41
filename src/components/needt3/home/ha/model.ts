@@ -17,14 +17,19 @@ import {
 import type { Weather } from "@/lib/needt3/hooks/weather";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
 import { weekStartOf } from "@/lib/needt3/week-focus";
+import type { PersonalTone } from "@/lib/personal-time";
+import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import type { FirstEvent } from "../day-line-model";
-import { dur, hourAt } from "../derive";
+import { type ScheduleItem, dur, hourAt } from "../derive";
+import { type FinishPick, finishHeadline, restLine } from "../finish";
 import { hasStatsToShow, weekdayOf, weekdayShort } from "../stats-model";
 import type { TimeLeft } from "../timeleft";
+import type { HaPull } from "./HaAllDone";
 import type { HaHabit } from "./HaHabits";
 import type { HaCard } from "./HaHighlight";
 import type { HaTime } from "./HaTimeLeft";
+import type { HaBandData, HaTimelineRow } from "./HaTimeline";
 import type { HaWx } from "./HaWeather";
 import type { HaWeekData } from "./HaWeek";
 
@@ -180,5 +185,101 @@ export function haWeekOf(o: {
         ? `${weekdayShort(weekdayOf(dates[bestAt] as string))} · ${max}`
         : "—",
     streak: o.streak,
+  };
+}
+
+/** A personal block's tone as a colour of the palette (a token, never a raw hex). */
+const TONE_HUE: Record<PersonalTone, string> = {
+  info: "var(--info)",
+  success: "var(--success)",
+  neutral: "var(--text-tertiary)",
+};
+
+/** A personal block of the day as the band the timeline draws. */
+export function haBandOf(b: DayBand): HaBandData {
+  return {
+    e: b.emoji,
+    n: b.title,
+    time: bandTimeLabel(b),
+    hue: TONE_HUE[b.tone] ?? TONE_HUE.neutral,
+  };
+}
+
+/**
+ * The day's timeline: timed tasks, events and personal blocks together by hour,
+ * the now line above the first row still ahead (or alone at the end when the
+ * day is past every row). Events and tasks keep their rail colour; a block is
+ * a band, never a task row.
+ */
+export function haScheduleRows(o: {
+  items: readonly ScheduleItem[];
+  bands: readonly DayBand[];
+  nowHour: number;
+  hueOf: (projectId: string | null) => string;
+}): HaTimelineRow[] {
+  type Entry = { at: number; row: HaTimelineRow };
+  const entries: Entry[] = [
+    ...o.items.map<Entry>((x) => ({
+      at: x.at,
+      row: {
+        key: x.key,
+        t: clock(x.at),
+        task: {
+          id: x.id,
+          title: x.title,
+          c: x.event ? "var(--fill-5)" : o.hueOf(x.projectId),
+          d: dur(x.len),
+          event: x.event,
+          done: x.done,
+          past: x.at + x.len / 60 <= o.nowHour,
+        },
+      },
+    })),
+    ...o.bands.map<Entry>((b) => ({
+      at: b.from,
+      row: { key: `band:${b.key}`, t: clock(b.from), band: haBandOf(b) },
+    })),
+  ].sort((a, b) => a.at - b.at);
+  const rows = entries.map((e) => e.row);
+  const nowAt = entries.findIndex((e) => e.at > o.nowHour);
+  if (nowAt >= 0) {
+    const r = rows[nowAt];
+    if (r) rows[nowAt] = { ...r, now: true };
+  } else if (rows.length) {
+    rows.push({ key: "now", t: clock(o.nowHour), now: true, bare: true });
+  }
+  return rows;
+}
+
+/**
+ * What the all-done card says: its title (the day is done only when nothing
+ * Home lists is still open), the counts line, and the tasks it offers to pull
+ * in with the free time they fit in.
+ */
+export function haAllDoneOf(o: {
+  count: number;
+  /** Focus minutes today, when any were stored. */
+  focusMinutes: number | null | undefined;
+  open: { late: number; inbox: number };
+  picks: readonly FinishPick[];
+  freeMinutes: number | null;
+}): { title: string; meta: string; pull: HaPull[]; free?: string } {
+  const head = finishHeadline(o.open);
+  const meta = [
+    `${o.count} of ${o.count}`,
+    o.focusMinutes ? `${dur(o.focusMinutes)} focused` : "",
+    restLine(o.open),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return {
+    title: head.title,
+    meta,
+    pull: o.picks.map((p) => ({
+      id: p.task.id,
+      title: p.task.title,
+      when: p.meta,
+    })),
+    ...(o.freeMinutes ? { free: dur(o.freeMinutes) } : {}),
   };
 }

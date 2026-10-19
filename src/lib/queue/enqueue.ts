@@ -33,22 +33,47 @@ async function skipWhenUnconfigured(operation: string) {
   return true;
 }
 
+/**
+ * BullMQ ignores `add` while a job with the same id is still stored, finished
+ * jobs included. A fixed id per feed or user therefore stopped every later
+ * enqueue once one job had completed or failed. Drop a finished job first; a
+ * waiting or running one still dedupes.
+ */
+async function clearFinishedJob(
+  queue: {
+    getJob: (id: string) => Promise<
+      | {
+          isCompleted: () => Promise<boolean>;
+          isFailed: () => Promise<boolean>;
+          remove: () => Promise<void>;
+        }
+      | null
+      | undefined
+    >;
+  },
+  jobId: string
+) {
+  const existing = await queue.getJob(jobId);
+  if (!existing) return;
+  if ((await existing.isCompleted()) || (await existing.isFailed())) {
+    await existing.remove().catch(() => undefined);
+  }
+}
+
 export async function enqueueCalendarSync(feedId: string) {
   if (await skipWhenUnconfigured("calendar-sync")) return null;
-  return getCalendarSyncQueue().add(
-    "sync-feed",
-    { feedId },
-    { jobId: `calendar-sync-${feedId}` }
-  );
+  const queue = getCalendarSyncQueue();
+  const jobId = `calendar-sync-${feedId}`;
+  await clearFinishedJob(queue, jobId);
+  return queue.add("sync-feed", { feedId }, { jobId });
 }
 
 export async function enqueueReschedule(userId: string, runId?: string) {
   if (await skipWhenUnconfigured("reschedule")) return null;
-  return getRescheduleQueue().add(
-    "reschedule-user",
-    { userId, runId },
-    { jobId: runId ? `reschedule-run-${runId}` : `reschedule-${userId}` }
-  );
+  const queue = getRescheduleQueue();
+  const jobId = runId ? `reschedule-run-${runId}` : `reschedule-${userId}`;
+  await clearFinishedJob(queue, jobId);
+  return queue.add("reschedule-user", { userId, runId }, { jobId });
 }
 
 export async function enqueueWebhookRenew(options?: {

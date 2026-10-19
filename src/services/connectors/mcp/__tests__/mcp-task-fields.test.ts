@@ -10,6 +10,10 @@ import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEvent: jest.fn(),
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/services/connectors/bearer", () => ({
   ...jest.requireActual("@/services/connectors/bearer"),
   authenticateBearer: jest.fn(),

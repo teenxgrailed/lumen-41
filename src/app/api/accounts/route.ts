@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
             name: true,
             enabled: true,
             error: true,
+            lastSync: true,
           },
         },
       },
@@ -46,6 +47,13 @@ export async function GET(request: NextRequest) {
         // was revoked or expired, the one thing a retry cannot fix. A single
         // failing calendar is not enough (that is a calendar problem).
         needsReconnect: accountNeedsReconnect(account.calendars),
+        // At least one calendar failed its last sync (the text stays server-side).
+        syncFailing: account.calendars.some((c) => c.enabled && c.error),
+        lastSync:
+          account.calendars
+            .map((c) => c.lastSync)
+            .filter((d): d is Date => d instanceof Date)
+            .sort((a, b) => b.getTime() - a.getTime())[0] ?? null,
       }))
     );
   } catch (error) {

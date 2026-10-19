@@ -2,14 +2,20 @@
 
 import type { CSSProperties } from "react";
 
-import { HaI } from "./ui";
+import { type HaLeft, HaLeftList, type HaTarget } from "./HaLeftList";
+import { HaI, haCx } from "./ui";
 
 export interface HaWin {
   b: string;
   span: string;
 }
 
+/** A thing to focus the next week on: an open task or a project. */
 export interface HaFocusOption {
+  /** "task:<id>" or "project:<id>" */
+  key: string;
+  kind: "task" | "project";
+  id: string;
   title: string;
   /** The project's colour, a dot. */
   color: string;
@@ -19,20 +25,26 @@ export interface HaFocusOption {
 export const HA_REVIEW_PICKS = 3;
 
 /**
- * 10 - the Sunday weekly review sheet: the week's wins, what is left over and
- * exactly three focuses for next week, which become that week's highlight
- * candidates (`/api/week-focus`).
+ * 10 - the Sunday weekly review sheet: the week's wins, what is left over
+ * (each moves to Monday, a date or the Inbox) and exactly three focuses for
+ * next week, picked from open tasks and projects. They become that week's
+ * highlight candidates (`/api/week-focus`).
  */
 export function HaReview({
   title,
   sub,
   wins,
   winLines,
-  leftOver,
+  leftovers,
+  moves,
+  date,
+  minDate,
   options,
   picked,
   nextWeek,
   busy,
+  onMove,
+  onDate,
   onPick,
   onSubmit,
   onClose,
@@ -43,20 +55,31 @@ export function HaReview({
   sub: string;
   wins: readonly HaWin[];
   winLines: readonly string[];
-  leftOver: readonly string[];
+  leftovers: readonly HaLeft[];
+  moves: Readonly<Record<string, HaTarget>>;
+  date: string;
+  minDate: string;
   options: readonly HaFocusOption[];
-  /** Indexes into `options`, in the order picked. */
-  picked: readonly number[];
+  /** Keys of `options`, in the order picked. */
+  picked: readonly string[];
   /** The number of the week the focuses are for. */
   nextWeek: number;
   busy?: boolean;
-  onPick: (index: number) => void;
+  onMove: (id: string, to: HaTarget) => void;
+  onDate: (date: string) => void;
+  onPick: (key: string) => void;
   onSubmit: () => void;
   onClose: () => void;
 }) {
-  const ready = picked.length === HA_REVIEW_PICKS;
+  const need = Math.min(HA_REVIEW_PICKS, options.length);
+  const ready = picked.length === need;
   return (
-    <div className="ha-sheet" role="dialog" aria-label="Weekly review">
+    <div
+      className="ha-sheet"
+      role="dialog"
+      aria-label="Weekly review"
+      data-ha-review=""
+    >
       <div className="ha-grab" />
       <div className="ha-sheet-h">
         <div>
@@ -72,14 +95,16 @@ export function HaReview({
           <HaI n="x" />
         </button>
       </div>
-      <div className="ha-wins">
-        {wins.map((w) => (
-          <div key={w.span} className="ha-win">
-            <b>{w.b}</b>
-            <span>{w.span}</span>
-          </div>
-        ))}
-      </div>
+      {wins.length ? (
+        <div className="ha-wins">
+          {wins.map((w) => (
+            <div key={w.span} className="ha-win">
+              <b>{w.b}</b>
+              <span>{w.span}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {winLines.length ? (
         <>
           <div className="ha-sec-l">Wins</div>
@@ -92,63 +117,66 @@ export function HaReview({
             </div>
           ))}
         </>
-      ) : null}
-      {leftOver.length ? (
+      ) : (
+        <p className="ha-meta" data-ha-quiet="">
+          A quiet week.
+        </p>
+      )}
+      {leftovers.length ? (
         <>
           <div className="ha-sec-l">
-            Left over <span>{leftOver.length} → next week</span>
+            Left over <span>{leftovers.length} → next week</span>
           </div>
-          {leftOver.map((t) => (
-            <div
-              key={t}
-              className="ha-doneline"
-              style={{ color: "var(--ha-ink)" }}
-            >
-              <span
-                className="ha-tick"
-                style={{
-                  background: "transparent",
-                  boxShadow: "inset 0 0 0 1.5px var(--ha-ink-3)",
-                }}
-              />
-              {t}
-            </div>
-          ))}
+          <HaLeftList
+            leftovers={leftovers}
+            moves={moves}
+            labels={{ tomorrow: "Monday" }}
+            date={date}
+            minDate={minDate}
+            onMove={onMove}
+            onDate={onDate}
+          />
         </>
       ) : null}
-      <div className="ha-sec-l">
-        Pick {HA_REVIEW_PICKS} focuses{" "}
-        <span>
-          {picked.length} of {HA_REVIEW_PICKS}
-        </span>
-      </div>
-      <div className="ha-focus-pick">
-        {options.map((o, k) => {
-          const on = picked.includes(k);
-          return (
-            <button
-              key={o.title}
-              type="button"
-              className="ha-fp"
-              aria-pressed={on}
-              disabled={!on && picked.length >= HA_REVIEW_PICKS}
-              onClick={() => onPick(k)}
-            >
-              <i
-                className="ha-dot"
-                style={{ "--c": o.color } as CSSProperties}
-              />
-              {o.title}
-            </button>
-          );
-        })}
-      </div>
+      {options.length ? (
+        <>
+          <div className="ha-sec-l">
+            Pick {need} {need === 1 ? "focus" : "focuses"}{" "}
+            <span>
+              {picked.length} of {need}
+            </span>
+          </div>
+          <div className="ha-focus-pick">
+            {options.map((o) => {
+              const on = picked.includes(o.key);
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  className={haCx("ha-fp")}
+                  data-ha-focus={o.key}
+                  aria-pressed={on}
+                  disabled={!on && picked.length >= HA_REVIEW_PICKS}
+                  onClick={() => onPick(o.key)}
+                >
+                  <i
+                    className="ha-dot"
+                    style={{ "--c": o.color } as CSSProperties}
+                  />
+                  {o.title}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
       <div className="ha-sheet-foot">
         <button
           type="button"
           className="ha-btn is-primary is-lg"
-          disabled={!ready || busy}
-          style={ready ? undefined : { opacity: 0.4 }}
+          data-ha="review-save"
+          disabled={(options.length > 0 && !ready) || busy}
+          style={options.length > 0 && !ready ? { opacity: 0.4 } : undefined}
           onClick={onSubmit}
         >
           Start week {nextWeek}

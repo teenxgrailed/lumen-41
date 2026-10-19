@@ -13,11 +13,15 @@ import { POST as openWait } from "@/app/api/tasks/[id]/waits/route";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    task: { findFirst: jest.fn() },
+    task: { findFirst: jest.fn(), update: jest.fn() },
     taskPart: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -38,7 +42,7 @@ jest.mock("@/lib/prisma", () => ({
 
 const authenticate = authenticateRequest as jest.Mock;
 const db = prisma as unknown as {
-  task: { findFirst: jest.Mock };
+  task: { findFirst: jest.Mock; update: jest.Mock };
   taskPart: Record<string, jest.Mock>;
   taskWait: Record<string, jest.Mock>;
   workspaceMember: { findUnique: jest.Mock };
@@ -149,6 +153,34 @@ describe("task parts and waits routes", () => {
           },
         })
       );
+    });
+
+    it("a part write bumps the parent's updatedAt and tells other devices", async () => {
+      db.taskPart.findFirst.mockResolvedValue({ id: "part-1", position: 0 });
+      db.taskPart.create.mockResolvedValue({ id: "part-2" });
+      db.taskPart.update.mockResolvedValue({ id: "part-1", done: true });
+      db.taskPart.delete.mockResolvedValue({ id: "part-1" });
+      const writes = [
+        () => addPart(req("POST", { title: "x" }), ctx({})),
+        () =>
+          patchPart(req("PATCH", { done: true }), ctx({ partId: "part-1" })),
+        () => deletePart(req("DELETE"), ctx({ partId: "part-1" })),
+      ];
+      for (const write of writes) {
+        db.task.update.mockClear();
+        (publishRealtimeEventSafe as jest.Mock).mockClear();
+        expect((await write()).ok).toBe(true);
+        expect(db.task.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: TASK.id },
+            data: { updatedAt: expect.any(Date) },
+          })
+        );
+        expect(publishRealtimeEventSafe).toHaveBeenCalledWith(
+          "user-ws-a",
+          "tasks-updated"
+        );
+      }
     });
 
     it("404s a part that belongs to another task", async () => {

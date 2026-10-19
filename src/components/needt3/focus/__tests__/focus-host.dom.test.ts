@@ -30,13 +30,21 @@ import { useStartFocus } from "../useFocusController";
 
 const success = jest.fn();
 const error = jest.fn();
+const info = jest.fn();
+const complete = jest.fn();
 jest.mock("@/lib/notifications", () => ({
   notify: {
     success: (...a: unknown[]) => success(...a),
     error: (...a: unknown[]) => error(...a),
-    info: jest.fn(),
+    info: (...a: unknown[]) => info(...a),
     warning: jest.fn(),
   },
+}));
+jest.mock("@/lib/needt3/hooks/tasks", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/tasks"),
+  useUpdateTask: () => ({
+    mutateAsync: (...a: unknown[]) => complete(...a),
+  }),
 }));
 jest.mock("@/lib/logger", () => ({
   logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() },
@@ -151,6 +159,15 @@ function fakeFetch(url: string, init?: RequestInit) {
 beforeEach(() => {
   jest.useFakeTimers({ now: NOW });
   jest.clearAllMocks();
+  complete.mockImplementation(async ({ id }: { id: string }) => {
+    qc.setQueryData(qk.tasks({}), (list: V3Task[] | undefined) =>
+      (list ?? []).map((t) =>
+        t.id === id ? ({ ...t, done: true, status: "completed" } as V3Task) : t
+      )
+    );
+    return { result: {}, undo: jest.fn() };
+  });
+  window.history.replaceState({}, "", "/today");
   server = null;
   strictStop = false;
   calls = [];
@@ -599,5 +616,137 @@ describe("a reload in the middle of a session", () => {
     );
     expect(document.title).toBe("Today | Needt");
     expect(qc.getQueryData(qk.focusSession())).toBeNull();
+  });
+});
+
+describe("Done with <task>?", () => {
+  const run = async (minutes = "25") => {
+    await mount();
+    await open();
+    await click(`[data-fc-seg='${minutes}']`);
+    await click("[data-fc-start]");
+  };
+  const ranOut = async () => {
+    await run();
+    await tick(25 * 60 * 1000 + 1000);
+  };
+  const stopEarly = async () => {
+    await run();
+    await tick(2000);
+    await click("[data-fc-stop]");
+    await click("[data-fc-end-confirm]");
+  };
+
+  it("asks when the clock runs out on a task, with Done, Not yet and +15 min", async () => {
+    await ranOut();
+    expect(q("[data-fc-done-ask] .fc-end-line")!.textContent).toBe(
+      "Done with Write the brief?"
+    );
+    expect(q("[data-fc-done]")!.textContent).toBe("Done");
+    expect(q("[data-fc-not-yet]")!.textContent).toBe("Not yet");
+    expect(q("[data-fc-more-focus]")!.textContent).toBe("+15 min");
+    expect(document.activeElement).toBe(q("[data-fc-done]"));
+  });
+
+  it("Done completes the task and says so with an Undo", async () => {
+    await ranOut();
+    await click("[data-fc-done]");
+    await tick(10);
+    expect(complete).toHaveBeenCalledWith({ id: "t1", patch: { done: true } });
+    expect(success).toHaveBeenCalledWith(
+      "Done · Write the brief",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Undo" }),
+      })
+    );
+    expect(q("[data-fc-done-ask]")).toBeNull();
+  });
+
+  it("an early stop asks too, but without +15 min", async () => {
+    await stopEarly();
+    expect(q("[data-fc-done-ask]")).not.toBeNull();
+    expect(q("[data-fc-more-focus]")).toBeNull();
+  });
+
+  it("+15 min starts another session on the same task", async () => {
+    await ranOut();
+    await click("[data-fc-more-focus]");
+    expect(posts("start")[1].body).toMatchObject({
+      taskId: "t1",
+      plannedMinutes: 15,
+      phase: "FOCUS",
+    });
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("run");
+    expect(clock()).toBe("15:00");
+  });
+
+  it("Not yet puts the question away and does not nag on close", async () => {
+    await ranOut();
+    await click("[data-fc-not-yet]");
+    expect(q("[data-fc-done-ask]")).toBeNull();
+    expect(complete).not.toHaveBeenCalled();
+    await click("[data-fc-action='close']");
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("leaving without answering keeps the question once, as a notice with Done", async () => {
+    await ranOut();
+    await click("[data-fc-action='close']");
+    await tick(300);
+    expect(q("[data-fc-window]")).toBeNull();
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledWith(
+      "Done with Write the brief?",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Done" }),
+      })
+    );
+    const action = info.mock.calls[0][1].action as { onClick: () => void };
+    await act(async () => action.onClick());
+    expect(complete).toHaveBeenCalledWith({ id: "t1", patch: { done: true } });
+  });
+
+  it("does not ask when the task is already completed", async () => {
+    await run();
+    qc.setQueryData(qk.tasks({}), [
+      task("t1", "Write the brief", { done: true, status: "completed" }),
+      task("t2", "Review the budget"),
+    ]);
+    await tick(25 * 60 * 1000 + 1000);
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("end");
+    expect(q("[data-fc-done-ask]")).toBeNull();
+  });
+
+  it("does not ask for a session that was not on a task", async () => {
+    await mount();
+    await open();
+    useFocusWindow.getState().patch({
+      draft: { purpose: "Think", len: "25", custom: "", taskId: "" },
+    });
+    await click("[data-fc-start]");
+    await tick(25 * 60 * 1000 + 1000);
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("end");
+    expect(q("[data-fc-done-ask]")).toBeNull();
+    await click("[data-fc-action='close']");
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("a Focus-ended push link opens straight on the ask, on the phone too", async () => {
+    window.history.replaceState({}, "", "/today?focusDone=t2&x=1");
+    await mount("phone");
+    expect(window.location.search).toBe("?x=1");
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("end");
+    expect(q("[data-fc-done-ask] .fc-end-line")!.textContent).toBe(
+      "Done with Review the budget?"
+    );
+    await click("[data-fc-done]");
+    expect(complete).toHaveBeenCalledWith({ id: "t2", patch: { done: true } });
+  });
+
+  it("a push link for a finished or unknown task shows nothing", async () => {
+    window.history.replaceState({}, "", "/today?focusDone=nope");
+    await mount();
+    expect(window.location.search).toBe("");
+    expect(q("[data-fc-window]")).toBeNull();
   });
 });

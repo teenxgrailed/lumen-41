@@ -32,6 +32,7 @@ jest.mock("@/lib/prisma", () => ({
         bufferMinutes: 0,
       }),
     },
+    calendarFeed: { findMany: jest.fn().mockResolvedValue([]) },
     schedulingPreferences: { findUnique: jest.fn().mockResolvedValue(null) },
     workSchedule: { findMany: jest.fn().mockResolvedValue([]) },
     flexibleHoursOverride: { findMany: jest.fn().mockResolvedValue([]) },
@@ -179,9 +180,11 @@ async function runScheduler() {
   // 25 Oct, the autumn clock change in many zones, where the engine's day
   // loop (startOfDay(day + 24h)) never advances on a 25-hour day.
   const tasks = Array.from({ length: 6 }, (_, i) => dbTask(i));
-  prisma.task.findMany
-    .mockResolvedValueOnce(tasks) // the tasks to place
-    .mockResolvedValueOnce([]); // the reload after saving
+  const queue: unknown[][] = [tasks, []]; // the tasks to place, then the reload
+  prisma.task.findMany.mockImplementation(
+    async (args?: { where?: { blockEventId?: unknown } }) =>
+      args?.where?.blockEventId ? [] : (queue.shift() ?? [])
+  );
   await scheduleAllTasksForUserDetailed("user-1");
   return mockDb.created;
 }

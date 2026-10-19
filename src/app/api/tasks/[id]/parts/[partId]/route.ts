@@ -6,6 +6,7 @@ import {
   partSelect,
   readBody,
   scopedTaskId,
+  touchTaskAfterPartWrite,
 } from "@/services/tasks/parts-waits";
 import { WorkspaceRole } from "@prisma/client";
 
@@ -46,6 +47,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       data: body.data,
       select: partSelect,
     });
+    await touchTaskAfterPartWrite(auth.userId, id);
     return NextResponse.json(part);
   } catch (error) {
     logger.error(
@@ -70,6 +72,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       where: { id: partId },
       select: partSelect,
     });
+    await touchTaskAfterPartWrite(auth.userId, id);
     return NextResponse.json(part);
   } catch (error) {
     logger.error(

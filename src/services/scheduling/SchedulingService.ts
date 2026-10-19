@@ -110,6 +110,7 @@ export class SchedulingService {
         userId: "store",
         createdAt: newDate(),
         updatedAt: newDate(),
+        excludedCalendars: "[]",
         pushTasksToCalendar: false,
         pushTasksFeedId: null,
       };

@@ -9,6 +9,7 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 async function readSchedule(userId: string, workspace: WorkspaceAccess) {
   const now = new Date();
@@ -58,5 +59,6 @@ export async function POST(request: NextRequest) {
         ? auth.workspace.workspaceId
         : undefined,
   });
+  await publishRealtimeEventSafe(auth.userId, "tasks-updated");
   return NextResponse.json(await readSchedule(auth.userId, auth.workspace));
 }

@@ -51,4 +51,27 @@ describe("GET /api/accounts", () => {
     expect(body[0].calendars).toEqual([{ id: "c1", name: "Main" }]);
     expect(JSON.stringify(body)).not.toContain("invalid_grant");
   });
+
+  it("flags a failing calendar on an otherwise healthy account and reports the last sync", async () => {
+    const lastSync = new Date("2026-10-14T05:00:00.000Z");
+    findMany.mockResolvedValue([
+      {
+        id: "a1",
+        provider: "CALDAV",
+        email: "me@example.com",
+        caldavUrl: null,
+        calendars: [
+          { id: "c1", name: "A", enabled: true, error: null, lastSync },
+          { id: "c2", name: "B", enabled: true, error: "403", lastSync: null },
+        ],
+      },
+    ]);
+    const res = await GET(new NextRequest("http://localhost/api/accounts"));
+    if (!res) throw new Error("the route sent no response");
+    const [account] = await res.json();
+    expect(account.needsReconnect).toBe(false);
+    expect(account.syncFailing).toBe(true);
+    expect(account.lastSync).toBe(lastSync.toISOString());
+    expect(JSON.stringify(account)).not.toContain("403");
+  });
 });

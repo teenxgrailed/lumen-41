@@ -16,8 +16,10 @@ const WEEK_FOCUS_MAX = 3;
 const dayText = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const focusSchema = z.object({
+  /** A snapshot of the task's or project's name when it was picked. */
   title: z.string().trim().min(1).max(160),
   taskId: z.string().min(1).max(64).nullish(),
+  projectId: z.string().min(1).max(64).nullish(),
 });
 
 const weekFocusBodySchema = z.object({
@@ -28,18 +30,26 @@ const weekFocusBodySchema = z.object({
 interface Focus {
   title: string;
   taskId: string | null;
+  projectId: string | null;
 }
 
-/** The stored JSON as a clean list; anything malformed is dropped. */
+/**
+ * The stored JSON as a clean list; anything malformed is dropped. Entries from
+ * before references existed (a bare string, or a title with a null taskId) are
+ * still read, as titles with no reference.
+ */
 function focusesOf(value: unknown): Focus[] {
   if (!Array.isArray(value)) return [];
   const out: Focus[] = [];
   for (const raw of value) {
-    const parsed = focusSchema.safeParse(raw);
+    const parsed = focusSchema.safeParse(
+      typeof raw === "string" ? { title: raw } : raw
+    );
     if (parsed.success)
       out.push({
         title: parsed.data.title,
         taskId: parsed.data.taskId ?? null,
+        projectId: parsed.data.projectId ?? null,
       });
   }
   return out.slice(0, WEEK_FOCUS_MAX);
@@ -89,9 +99,10 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * PUT { weekStart, focuses: [{ title, taskId? }] } -> { weekFocus }
- * Replaces the week's focuses (1 to 3). A `taskId` must be a live task in the
- * caller's scope.
+ * PUT { weekStart, focuses: [{ title, taskId? | projectId? }] } -> { weekFocus }
+ * Replaces the week's focuses (1 to 3). A `taskId` must be a live task and a
+ * `projectId` a project in the caller's scope; `title` is a snapshot of its
+ * name when it was picked.
  */
 export async function PUT(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE, {
@@ -128,6 +139,25 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
     }
+    const projectIds = [
+      ...new Set(
+        body.data.focuses.flatMap((f) => (f.projectId ? [f.projectId] : []))
+      ),
+    ];
+    if (projectIds.length) {
+      const found = await prisma.project.count({
+        where: {
+          id: { in: projectIds },
+          workspaceId: auth.workspace.workspaceId,
+        },
+      });
+      if (found !== projectIds.length) {
+        return NextResponse.json(
+          { error: "Project not found" },
+          { status: 404 }
+        );
+      }
+    }
     const key = {
       userId: auth.userId,
       workspaceId: auth.workspace.workspaceId,
@@ -136,6 +166,7 @@ export async function PUT(request: NextRequest) {
     const focuses = body.data.focuses.map((f) => ({
       title: f.title,
       taskId: f.taskId ?? null,
+      projectId: f.projectId ?? null,
     }));
     const row = await prisma.weekFocus.upsert({
       where: { userId_workspaceId_weekStart: key },

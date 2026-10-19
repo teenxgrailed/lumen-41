@@ -1,27 +1,22 @@
 "use client";
 
-import { type CSSProperties, type ReactNode, useState } from "react";
+import { type ReactNode, useState } from "react";
 
-import { FiCalendar, FiChevronDown, FiLock, FiPlus } from "react-icons/fi";
+import { FiChevronDown, FiLock, FiPlus } from "react-icons/fi";
 import { LuWandSparkles } from "react-icons/lu";
 
 import { Art } from "@/components/needt3/menu/Art";
 import { lockedBadgeProps } from "@/components/needt3/paywall/Pro";
 import { Task } from "@/components/needt3/task/Task";
 
-import { hhmm } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 
 import {
   type Capacity,
   HOME_CAP,
-  type ScheduleItem,
   type WeekDay,
   cappedCount,
-  dur,
   hours,
-  nowIndex,
-  scheduleWindow,
 } from "./derive";
 
 /* The Home pieces ($P/HomeToday.jsx). Pure drawing: the screen owns state. */
@@ -397,122 +392,6 @@ export function EmptyDay({
         {plan}
       </div>
     </div>
-  );
-}
-
-const clock = (h: number) => hhmm(h) ?? "";
-
-/** TODAY'S SCHEDULE. Events and timed tasks with the now line where it falls. */
-export function Schedule({
-  items,
-  nowHour,
-  hueOf,
-  evCount,
-  onOpen,
-  onCalendar,
-  band,
-}: {
-  items: readonly ScheduleItem[];
-  nowHour: number;
-  hueOf: (projectId: string | null) => string;
-  evCount: number;
-  onOpen: (id: string) => void;
-  onCalendar: () => void;
-  /**
-   * A slot above the day's rows for the personal-time band (`PersonalBand`,
-   * built on its own branch). Nothing is drawn while it is empty.
-   * //todo: render `<PersonalBand />` here once it is on main.
-   */
-  band?: ReactNode;
-}) {
-  const [all, setAll] = useState(false);
-  const nowAt = nowIndex(items, nowHour);
-  const rows: ReactNode[] = [];
-  const nowLine = (
-    <div key="__now" className="hd-now" title={`Now · ${clock(nowHour)}`}>
-      <span className="hd-now-time">{clock(nowHour)}</span>
-      <span aria-hidden="true" className="hd-now-dot" />
-      <span aria-hidden="true" className="hd-now-line" />
-    </div>
-  );
-  items.forEach((x, i) => {
-    if (i === nowAt) rows.push(nowLine);
-    const past = x.at + x.len / 60 <= nowHour;
-    const live = x.at <= nowHour && !past;
-    rows.push(
-      <div
-        key={x.key}
-        className="hd-sched-row hd-sched-item"
-        data-ctx={x.event ? undefined : "task"}
-        data-ctx-id={x.event ? undefined : (x.id ?? undefined)}
-        onClick={() => !x.event && x.id && onOpen(x.id)}
-        title={`${x.title} · ${clock(x.at)}${x.len ? ` · ${dur(x.len)}` : ""}`}
-        style={
-          live ? ({ background: "var(--fill-2)" } as CSSProperties) : undefined
-        }
-      >
-        <span className={`hd-sched-time${past ? " is-past" : ""}`}>
-          {clock(x.at)}
-        </span>
-        <span
-          aria-hidden="true"
-          className={`hd-sched-rail${past || x.done ? " is-dim" : ""}`}
-          style={{ background: x.event ? "var(--fill-5)" : hueOf(x.projectId) }}
-        />
-        <span
-          className={`hd-sched-title${x.event ? " is-event" : ""}${x.done ? " is-done" : past ? " is-past" : ""}`}
-        >
-          {x.event ? (
-            <span className="hd-sched-ico">
-              <FiCalendar size={12} aria-hidden />
-            </span>
-          ) : null}
-          {x.title}
-        </span>
-        <span className="hd-sched-dur">{dur(x.len)}</span>
-      </div>
-    );
-  });
-  if (nowAt < 0) rows.push(nowLine);
-  const vis = scheduleWindow(rows, rows.indexOf(nowLine), all);
-  const taskN = items.length - evCount;
-  return (
-    <section className="hd-sched hd-panel">
-      <header className="hd-sched-head">
-        <span className="hd-sched-heading">
-          <span className="hd-panel-title">Today&apos;s schedule</span>
-          <span className="hd-meta-t hd-num">
-            {evCount} {evCount === 1 ? "event" : "events"} · {taskN} timed{" "}
-            {taskN === 1 ? "task" : "tasks"}
-          </span>
-        </span>
-        <button type="button" className="hd-link hd-push" onClick={onCalendar}>
-          Calendar
-        </button>
-      </header>
-      {band ? (
-        <div className="hd-sched-band" data-hd-sched-band="">
-          {band}
-        </div>
-      ) : null}
-      <div className="hd-sched-list">
-        {items.length ? (
-          vis
-        ) : (
-          <span className="hd-sched-none">Nothing timed today.</span>
-        )}
-      </div>
-      {vis.length < rows.length || all ? (
-        <button
-          type="button"
-          className="hd-link hd-sched-more"
-          data-hd-sched-more=""
-          onClick={() => setAll(!all)}
-        >
-          {all ? "Show around now" : `Show all ${items.length}`}
-        </button>
-      ) : null}
-    </section>
   );
 }
 

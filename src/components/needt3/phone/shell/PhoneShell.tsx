@@ -14,6 +14,7 @@ import { planPill } from "../../shell/AccountMenu";
 import { SyncStatus } from "../../sync/SyncStatus";
 import { pkDotSweep } from "../kit/Material";
 import { usePkSide } from "../kit/theme";
+import { FocusDockButton } from "../menu/FocusDockButton";
 import { Menu } from "../menu/Menu";
 import {
   type MenuPlaceId,
@@ -128,6 +129,7 @@ export function PhoneShell() {
         counts={counts}
         me={me}
         away={away}
+        focus={<FocusDockButton />}
         morph={morph}
         onPick={onPick}
         onSettings={onSettings}

@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 /**
  * Parts (TaskPart) and waits (TaskWait) of one task. Every route resolves the
@@ -54,6 +55,20 @@ export const waitSelect = partsWaitsInclude.waits.select;
 export interface PartsWaitsAuth {
   userId: string;
   workspace?: WorkspaceAccess;
+}
+
+/**
+ * After a part is added, ticked, moved or removed: the parent task shows the
+ * change (its n/m count), so its `updatedAt` moves and every other open
+ * device is told to refresh.
+ */
+export async function touchTaskAfterPartWrite(userId: string, taskId: string) {
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { updatedAt: newDate() },
+    select: { id: true },
+  });
+  await publishRealtimeEventSafe(userId, "tasks-updated");
 }
 
 export const notFound = (what = "Task") =>

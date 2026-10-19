@@ -9,10 +9,11 @@ const calendarAdd = jest.fn();
 const rescheduleAdd = jest.fn();
 const renewAdd = jest.fn();
 const mailAdd = jest.fn();
+const getJob = jest.fn();
 
 jest.mock("@/lib/queue/queues", () => ({
-  getCalendarSyncQueue: () => ({ add: calendarAdd }),
-  getRescheduleQueue: () => ({ add: rescheduleAdd }),
+  getCalendarSyncQueue: () => ({ add: calendarAdd, getJob }),
+  getRescheduleQueue: () => ({ add: rescheduleAdd, getJob }),
   getWebhookRenewQueue: () => ({ add: renewAdd }),
   getMailSyncQueue: () => ({ add: mailAdd }),
 }));
@@ -22,6 +23,7 @@ describe("queue enqueue helpers", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    getJob.mockResolvedValue(null);
     process.env.REDIS_URL = "redis://localhost:6379";
   });
 

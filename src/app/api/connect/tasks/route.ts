@@ -20,6 +20,7 @@ import { WorkspaceRole } from "@prisma/client";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 import {
   SchedulingEnergyLevel,
@@ -247,6 +248,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  await publishRealtimeEventSafe(userId, "tasks-updated");
   return NextResponse.json(withOriginPageId(scheduledTask || task), {
     status: 201,
   });

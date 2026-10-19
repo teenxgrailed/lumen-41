@@ -30,6 +30,10 @@ import {
 import { isPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { prisma } from "@/lib/prisma";
 
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEvent: jest.fn(),
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/services/connectors/bearer", () => ({
   ...jest.requireActual("@/services/connectors/bearer"),
   authenticateBearer: jest.fn(),
