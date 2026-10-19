@@ -102,6 +102,7 @@ jest.mock("@/lib/queue/queues", () => {
   return {
     closeQueues: jest.fn(),
     getBugReportSyncQueue: jest.fn(() => queue),
+    getCalendarSyncQueue: jest.fn(() => queue),
     getNudgeQueue: jest.fn(() => queue),
     getReminderQueue: jest.fn(() => queue),
     getLifetimeCheckoutReconciliationQueue: jest.fn(() => queue),

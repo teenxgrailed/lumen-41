@@ -49,6 +49,21 @@ export async function getCalendarFeedForSync(feedId: string) {
   });
 }
 
+/** Enabled CALDAV feeds that can be synced: they have an owner, a URL and a login. */
+export async function listCalDavFeedIdsForSweep(): Promise<string[]> {
+  const feeds = await prisma.calendarFeed.findMany({
+    where: {
+      type: "CALDAV",
+      enabled: true,
+      userId: { not: null },
+      url: { not: null },
+      accountId: { not: null },
+    },
+    select: { id: true },
+  });
+  return feeds.map((feed) => feed.id);
+}
+
 export async function updateCalendarFeedSyncState(
   feedId: string,
   data: { lastSync?: Date; syncToken?: string | null; error?: string | null }

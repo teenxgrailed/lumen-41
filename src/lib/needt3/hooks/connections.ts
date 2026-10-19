@@ -25,6 +25,7 @@ interface ApiCalendarAccount {
   email: string;
   calendars: { id: string; name: string }[];
   needsReconnect?: boolean;
+  syncFailing?: boolean;
 }
 interface ApiMailAccount {
   id: string;
@@ -74,9 +75,13 @@ export function useConnections() {
           out.push({
             provider: a.provider.toLowerCase(),
             kind: "calendar",
-            state: a.needsReconnect ? "error" : "connected",
+            state: a.needsReconnect || a.syncFailing ? "error" : "connected",
             label: a.email,
-            detail: a.needsReconnect ? "Needs reconnecting" : null,
+            detail: a.needsReconnect
+              ? "Needs reconnecting"
+              : a.syncFailing
+                ? "Calendar sync failing"
+                : null,
             accountId: a.id,
           });
         }
