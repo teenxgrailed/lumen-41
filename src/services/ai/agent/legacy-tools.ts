@@ -1,6 +1,8 @@
 import {
   forgetForUser,
-  listAgentMemories,
+  isLearningEnabled,
+  isSensitiveMemory,
+  listMemoriesForUse,
   rememberForUser,
 } from "@/services/ai/memory";
 import { createReschedulePreview } from "@/services/ai/reschedule-preview";
@@ -808,11 +810,14 @@ export async function executeTool(
 
     case "remember": {
       const content = stringArg(call.arguments, "content") || "";
-      if (
-        /(password|api[- ]?key|secret|token|credit card|bank|diagnos|medication|health)/i.test(
-          content
-        )
-      ) {
+      if (!(await isLearningEnabled(userId))) {
+        return {
+          text: 'I did not save that: "Let Needt learn about me" is off. Turn it on in Settings, Memories, and I will remember it.',
+          toolName: call.name,
+          requiresConfirm: false,
+        };
+      }
+      if (isSensitiveMemory(content)) {
         return {
           text: "I did not save that because assistant memory excludes sensitive information.",
           toolName: call.name,
@@ -830,7 +835,7 @@ export async function executeTool(
         source: "chat",
       });
       return {
-        text: "Remembered.",
+        text: `Saved to your memories: "${memory.content}". You can edit or delete it in Settings, Memories.`,
         toolName: call.name,
         toolPayload: jsonValue({ memoryId: memory.id }),
         requiresConfirm: false,
@@ -850,7 +855,7 @@ export async function executeTool(
     }
 
     case "list_memories": {
-      const memories = await listAgentMemories(userId, workspaceId);
+      const memories = await listMemoriesForUse(userId, workspaceId);
       return {
         text: memories.length
           ? memories

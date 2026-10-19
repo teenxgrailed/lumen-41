@@ -1,3 +1,4 @@
+import { getLearnedDurationRatio } from "@/services/ai/memory";
 import { personalBusyBlocks } from "@/services/personal-time/service";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
@@ -367,6 +368,11 @@ export async function scheduleAllTasksForUserDetailed(
         }),
       ]);
     const calibration = await getCalibrationContext(userId);
+    // Null unless the person turned "Let Needt learn about me" on.
+    const learnedRatio = await getLearnedDurationRatio(
+      userId,
+      options.workspaceId
+    );
     const now = new Date();
     const selectedCalendarIds = parseJsonArray(
       legacySettings.selectedCalendars
@@ -476,6 +482,7 @@ export async function scheduleAllTasksForUserDetailed(
         ...buildPreferences(smartPrefs, legacySettings),
         timeZone,
         calibrationFactors: calibration.factors,
+        learnedDurationRatio: learnedRatio ?? undefined,
         defaultScheduleId:
           workSchedules.find((schedule) => schedule.isDefault)?.id ??
           workSchedules[0]?.id ??

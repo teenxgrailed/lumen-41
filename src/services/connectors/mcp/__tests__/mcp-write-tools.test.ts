@@ -2,6 +2,13 @@ import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/mcp/route";
 import {
+  clearAgentMemories,
+  forgetForUser,
+  isLearningEnabled,
+  listAgentMemories,
+  updateMemoryForUser,
+} from "@/services/ai/memory";
+import {
   type BearerAuth,
   authenticateBearer,
 } from "@/services/connectors/bearer";
@@ -39,6 +46,14 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
 jest.mock("@/lib/auth/moodboard-auth", () => ({
   ...jest.requireActual("@/lib/auth/moodboard-auth"),
   resolveMoodboardAccess: jest.fn(),
+}));
+jest.mock("@/services/ai/memory", () => ({
+  ...jest.requireActual("@/services/ai/memory"),
+  clearAgentMemories: jest.fn(),
+  forgetForUser: jest.fn(),
+  isLearningEnabled: jest.fn(),
+  listAgentMemories: jest.fn(),
+  updateMemoryForUser: jest.fn(),
 }));
 jest.mock("@/services/connectors/webhooks", () => ({
   sendConnectorWebhook: jest.fn(),
@@ -552,6 +567,104 @@ describe("MCP write tools", () => {
         status: 404,
         error: "Habit not found",
       });
+    });
+  });
+
+  describe("memories", () => {
+    const memory = {
+      id: "m1",
+      kind: "preference",
+      content: "No meetings before 10",
+      source: "chat",
+      sourceKey: "hidden",
+      weight: 1,
+      createdAt: new Date("2026-10-01T00:00:00Z"),
+      updatedAt: new Date("2026-10-02T00:00:00Z"),
+    };
+
+    it("lists the lines and whether learning is on, without internals", async () => {
+      jest.mocked(isLearningEnabled).mockResolvedValue(false);
+      jest.mocked(listAgentMemories).mockResolvedValue([memory] as never);
+      const result = await call("needt_list_memories", {});
+      expect(result.isError).toBe(false);
+      expect(result.payload.enabled).toBe(false);
+      expect(result.payload.memories).toEqual([
+        {
+          id: "m1",
+          kind: "preference",
+          content: "No meetings before 10",
+          source: "chat",
+          createdAt: "2026-10-01T00:00:00.000Z",
+          updatedAt: "2026-10-02T00:00:00.000Z",
+        },
+      ]);
+      expect(listAgentMemories).toHaveBeenCalledWith("user-1", "workspace-1");
+    });
+
+    it("edits a line, and answers 404 for one that is not theirs", async () => {
+      jest.mocked(updateMemoryForUser).mockResolvedValue(memory as never);
+      const ok = await call("needt_update_memory", {
+        id: "m1",
+        content: "No meetings before 11",
+      });
+      expect(ok.payload.memory.id).toBe("m1");
+      expect(updateMemoryForUser).toHaveBeenCalledWith(
+        "user-1",
+        "workspace-1",
+        "m1",
+        { content: "No meetings before 11", kind: undefined }
+      );
+      jest.mocked(updateMemoryForUser).mockResolvedValue(null);
+      const missing = await call("needt_update_memory", {
+        id: "x",
+        content: "Something else",
+      });
+      expect(missing.payload).toEqual({
+        status: 404,
+        error: "Memory not found",
+      });
+    });
+
+    it("forgets one line; forgetting all needs confirm", async () => {
+      jest.mocked(forgetForUser).mockResolvedValue(true);
+      const one = await call("needt_forget_memory", { id: "m1" });
+      expect(one.payload).toEqual({ deleted: 1 });
+
+      const refused = await call("needt_forget_memory", { all: true });
+      expect(refused.payload.status).toBe(400);
+      expect(clearAgentMemories).not.toHaveBeenCalled();
+
+      jest.mocked(clearAgentMemories).mockResolvedValue({ count: 3 });
+      const all = await call("needt_forget_memory", {
+        all: true,
+        confirm: true,
+      });
+      expect(all.payload).toEqual({ deleted: 3 });
+      expect(clearAgentMemories).toHaveBeenCalledWith("user-1", "workspace-1");
+    });
+
+    it("has no tool that turns learning on", async () => {
+      const response = await POST(
+        new NextRequest("http://localhost/api/mcp", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer good-token",
+          },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+        })
+      );
+      const names = (await response.json()).result.tools.map(
+        (tool: { name: string }) => tool.name
+      );
+      expect(names).toEqual(
+        expect.arrayContaining([
+          "needt_list_memories",
+          "needt_update_memory",
+          "needt_forget_memory",
+        ])
+      );
+      expect(names.filter((n: string) => /learn|enable/.test(n))).toEqual([]);
     });
   });
 

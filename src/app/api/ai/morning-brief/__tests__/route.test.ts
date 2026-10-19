@@ -93,7 +93,13 @@ describe("POST /api/ai/morning-brief", () => {
     )) as Response;
     expect(res.status).toBe(200);
     expect((await res.json()).status).toBe("ready");
-    expect(ensureBrief).toHaveBeenCalledWith("u1", "2026-10-18", FACTS);
+    // the workspace goes along so the brief can use that workspace's memories
+    expect(ensureBrief).toHaveBeenCalledWith(
+      "u1",
+      "2026-10-18",
+      FACTS,
+      undefined
+    );
   });
 
   it("refuses bad input before any AI action", async () => {

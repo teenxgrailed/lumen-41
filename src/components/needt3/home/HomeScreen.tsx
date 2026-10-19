@@ -822,18 +822,15 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   onUpgrade={upgradeWeek}
                 />
               ) : (
-                <>
-                  <Schedule
-                    items={sched}
-                    nowHour={nowHour}
-                    hueOf={hueOf}
-                    evCount={sched.filter((x) => x.event).length}
-                    onOpen={open}
-                    onCalendar={() => router.push("/calendar")}
-                  />
-                  {/* personal time: the day's quiet bands and one-tap presets */}
-                  <PersonalDay date={today} />
-                </>
+                <Schedule
+                  items={sched}
+                  nowHour={nowHour}
+                  hueOf={hueOf}
+                  evCount={sched.filter((x) => x.event).length}
+                  onOpen={open}
+                  onCalendar={() => router.push("/calendar")}
+                  band={<PersonalDay date={today} />}
+                />
               )}
               <InboxCard
                 list={inboxShown.slice(0, 3)}

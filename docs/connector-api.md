@@ -125,6 +125,9 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                       |
 | `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                    |
 | `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                     |
+| `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                           |
+| `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                               |
+| `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                             |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -357,6 +360,55 @@ count, and Focus minutes are the person's own. Answers `400` for any other
   window, so a client can hide the line. The Streak on Home is derived from the
   task list in the browser and is not part of this answer.
 
+## Memories
+
+"Let Needt learn about me" is a switch in Settings, **off by default**. While it
+is off nothing is learned and nothing learned is used: not by Ask (answers,
+Plan my day, the morning brief) and not by the scheduler. The list stays
+readable and editable either way. The switch itself is turned on only in the
+app (or by this API with the person's own token); the MCP tools manage the
+list but have no switch, so an agent cannot opt a person in.
+
+With the switch on Needt keeps, per user and workspace:
+
+- **Work habits** computed from the person's own finished tasks (source
+  `habit`): when focused work usually gets finished, how long tasks really take
+  against the estimate (the scheduler lengthens or shortens blocks by that
+  ratio, between 0.5 and 2), and which weekdays are heavy. Recomputed at most
+  daily.
+- **Stated preferences** the person tells Ask (source `chat`), such as "no
+  meetings before 10". Ask says in its reply that it saved the line.
+- **Short facts from documents and mail metadata** (sources `document`, `mail`):
+  excerpts of recently edited documents and the subject and sender of recent
+  mail go through the same hosted (or own-key) AI path as Ask, at most one
+  action a day, at most 5 facts a pass. Mail bodies and snippets are never read.
+
+Memory text is stored encrypted (`enc:v1`), is included in the account data
+export, and is deleted with the account.
+
+```
+GET    /api/ai/memories
+PATCH  /api/ai/memories   { "enabled": true }
+PATCH  /api/ai/memories   { "enabled": false, "memories": "keep" | "delete" }
+PATCH  /api/ai/memories   { "memoryId": "...", "content": "...", "kind": "preference" }
+DELETE /api/ai/memories   { "memoryId": "..." }
+DELETE /api/ai/memories   { "all": true }
+```
+
+- `GET` returns `{ "enabled", "memories": [{ id, kind, content, source,
+createdAt, updatedAt }] }` for the current workspace. `kind` is `preference`,
+  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`
+  or `inferred`.
+- `PATCH { enabled }` flips the switch. Turning it off keeps the memories
+  unless `"memories": "delete"` (every workspace). Turning it on starts a first
+  learning pass in the background.
+- `PATCH { memoryId, content?, kind? }` edits a line. An edited line is the
+  person's own and later passes no longer replace it. Text that looks like
+  credentials, money or health data is refused.
+- `DELETE` removes one memory, or with `all: true` every memory in the
+  workspace. A deleted work-habit line is not computed again; `all: true` (or
+  turning the switch off with `"memories": "delete"`) resets that.
+
 ## Morning brief
 
 Two or three lines Ask writes for the person's day, shown at the top of Home in
@@ -397,7 +449,16 @@ Today's weather for the **City** saved in Settings (General; stored as
 is sent to Open-Meteo; no device location is read or sent.
 
 ```json
-{ "weather": { "city": "Kyiv", "temp": 14, "min": 9, "max": 17, "code": 2, "summary": "Partly cloudy" } }
+{
+  "weather": {
+    "city": "Kyiv",
+    "temp": 14,
+    "min": 9,
+    "max": 17,
+    "code": 2,
+    "summary": "Partly cloudy"
+  }
+}
 ```
 
 Temperatures are whole degrees Celsius; `code` is the WMO weather code.
@@ -410,7 +471,7 @@ Home draws this next to the day's first event ("First event at 10:00, leave by
 On Sundays Home offers a short review: the week's wins (from `/api/stats`),
 leftovers to move to Monday, a date or the Inbox, and three focuses for next
 week. Saving it creates a private page titled `Weekly review · 18 October 2026`
-(the Sunday's date) with the sections *Wins*, *Moved* and *Focus for next week*,
+(the Sunday's date) with the sections _Wins_, _Moved_ and _Focus for next week_,
 written through `POST /api/pages` and `POST /api/pages/:id/append`. It is an
 ordinary page, so it is readable and writable through the pages API and the MCP
 page tools like any other; find it by title with `GET /api/pages?q=Weekly review`.

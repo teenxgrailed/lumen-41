@@ -5,6 +5,7 @@ import { getPlan } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import { listMemoriesForUse, rankMemories } from "./memory";
 import { getConfiguredSchedulerAI, getPreparedSchedulerAI } from "./settings";
 
 const LOG_SOURCE = "morning-brief";
@@ -76,6 +77,22 @@ export function briefPrompt(facts: BriefFacts): string {
   return lines.filter(Boolean).join("\n");
 }
 
+/** What Ask has learned, as lines for the brief; empty while "Let Needt learn about me" is off. */
+export function memoryLines(
+  memories: Array<{
+    kind: string;
+    content: string;
+    weight: number;
+    id: string;
+    lastUsedAt: Date;
+  }>
+): string {
+  const top = rankMemories(memories).slice(0, 8);
+  return top.length
+    ? `What you know about this person:\n${top.map((m) => `- ${m.content}`).join("\n")}`
+    : "";
+}
+
 /** The model's text as 2-3 clean lines, or "" when it said nothing usable. */
 export function cleanBrief(raw: string): string {
   const lines = raw
@@ -140,7 +157,8 @@ function isUnique(error: unknown) {
 export async function ensureBrief(
   userId: string,
   date: string,
-  facts: BriefFacts
+  facts: BriefFacts,
+  workspaceId?: string
 ): Promise<BriefOutcome> {
   const cached = await prisma.morningBrief.findUnique({
     where: { userId_date: { userId, date } },
@@ -182,10 +200,18 @@ export async function ensureBrief(
       await release();
       return { status: "unavailable", brief: null };
     }
+    const known = workspaceId
+      ? memoryLines(await listMemoriesForUse(userId, workspaceId))
+      : "";
     let raw = "";
     for await (const chunk of ai.streamChat({
       systemPrompt: SYSTEM,
-      messages: [{ role: "user", content: briefPrompt(facts) }],
+      messages: [
+        {
+          role: "user",
+          content: [briefPrompt(facts), known].filter(Boolean).join("\n\n"),
+        },
+      ],
     })) {
       raw += chunk;
       if (raw.length > 4000) break;

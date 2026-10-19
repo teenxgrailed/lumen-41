@@ -76,7 +76,6 @@ import {
   PkNumber,
   PkScreen,
   PkSection,
-  PkSkyBadge,
   PkSkyPlate,
   PkTaskRow,
   pkCx,
@@ -335,23 +334,20 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       data-v2p-alldone={v.allDone ? "" : undefined}
       data-v2p-dayclosed=""
     >
-      <span className="v2p-prog-sky">
-        <PkSkyBadge />
-        <p className="v2p-prog-line">
-          <span className="v2p-prog-done">
-            {v.allDone
-              ? copy.V2pHome.all_done_for_today
-              : finishHeadline(openRest).title}{" "}
-            <LuCheck size={16} />
-          </span>
-        </p>
-      </span>
+      <p className="v2p-prog-line">
+        <span className="v2p-prog-done">
+          {v.allDone
+            ? copy.V2pHome.all_done_for_today
+            : finishHeadline(openRest).title}{" "}
+          <LuCheck size={16} />
+        </span>
+      </p>
       <span className="v2p-prog-acts">
-        <PkButton kind="chip" onClick={finish.show} data-fin="end-day">
+        <PkButton kind="quiet" onClick={finish.show} data-fin="end-day">
           End day
         </PkButton>
         {v.open(v.sec.next).length ? (
-          <PkButton kind="chip" onClick={seeTomorrow} data-v2p-see-tomorrow="">
+          <PkButton kind="ghost" onClick={seeTomorrow} data-v2p-see-tomorrow="">
             {copy.V2pHome.see_tomorrow}
           </PkButton>
         ) : null}

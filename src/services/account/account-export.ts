@@ -1,3 +1,4 @@
+import { listMemoriesForExport } from "@/services/ai/memory";
 import { DataExportStatus } from "@prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 import { gzipSync } from "node:zlib";
@@ -344,7 +345,7 @@ export async function collectAccountExport(userId: string) {
       where: { userId },
       include: { messages: { where: { userId } } },
     }),
-    prisma.agentMemory.findMany({ where: { userId } }),
+    listMemoriesForExport(userId),
     prisma.externalIntegration.findMany({ where: { userId } }),
     prisma.workSchedule.findMany({
       where: { userId },
