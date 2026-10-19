@@ -12,6 +12,7 @@ import {
   processImportRun,
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
+import { deliverNudgePushes } from "@/services/nudges/nudge-push";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { cleanupOAuth } from "@/services/oauth/cleanup";
 import { collectOperationsHealth } from "@/services/operations/health";
@@ -228,6 +229,7 @@ async function processReminder(job: Job<ReminderJobData>) {
 
 async function processNudges() {
   await generateProactiveNudges();
+  await deliverNudgePushes();
 }
 
 async function processLifetimeCheckoutReconciliation() {
