@@ -3,23 +3,30 @@
  * their check-ins, the saved city's weather, the time-left numbers and the
  * tasks. Pure; the pieces take plain props and know nothing of the stores.
  */
+import type { Stats } from "@/services/stats/home-stats";
+
 import { clock } from "@/lib/needt3/day";
 import {
   type Checkin,
+  addDays,
+  daysBetween,
   habitDoneOn,
   habitWeek,
   liveHabits,
 } from "@/lib/needt3/derive";
 import type { Weather } from "@/lib/needt3/hooks/weather";
 import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import { weekStartOf } from "@/lib/needt3/week-focus";
 
 import type { FirstEvent } from "../day-line-model";
 import { dur, hourAt } from "../derive";
+import { hasStatsToShow, weekdayOf, weekdayShort } from "../stats-model";
 import type { TimeLeft } from "../timeleft";
 import type { HaHabit } from "./HaHabits";
 import type { HaCard } from "./HaHighlight";
 import type { HaTime } from "./HaTimeLeft";
 import type { HaWx } from "./HaWeather";
+import type { HaWeekData } from "./HaWeek";
 
 const EMOJI = /^\p{Extended_Pictographic}/u;
 
@@ -140,5 +147,38 @@ export function haTaskCard(t: V3Task, today: string, sub: string): HaCard {
     ...(at != null ? { time: clock(at) } : {}),
     ...(t.estimatedMinutes ? { dur: dur(t.estimatedMinutes) } : {}),
     sub,
+  };
+}
+
+/**
+ * The This week card for the calendar week that holds today (from the week's
+ * first day to its last): seven bars against the busiest day, today marked,
+ * days to come left empty. Null when there is nothing to show yet.
+ */
+export function haWeekOf(o: {
+  stats: Stats | undefined;
+  today: string;
+  /** "monday" or "sunday". */
+  startDay: string;
+  /** Days in a row with something closed. */
+  streak: number;
+}): HaWeekData | null {
+  const s = o.stats;
+  if (!s || !hasStatsToShow(s, o.streak)) return null;
+  const first = weekStartOf(o.today, o.startDay);
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(first, i));
+  const done = dates.map((d) => s.days.find((x) => x.date === d)?.done ?? 0);
+  const max = Math.max(0, ...done);
+  const bestAt = max > 0 ? done.indexOf(max) : -1;
+  return {
+    done: done.reduce((a, b) => a + b, 0),
+    bars: done.map((n) => (max ? n / max : 0)),
+    labels: dates.map((d) => weekdayShort(weekdayOf(d)).slice(0, 1)),
+    today: daysBetween(first, o.today),
+    best:
+      bestAt >= 0
+        ? `${weekdayShort(weekdayOf(dates[bestAt] as string))} · ${max}`
+        : "—",
+    streak: o.streak,
   };
 }

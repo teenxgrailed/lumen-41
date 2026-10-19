@@ -1,3 +1,5 @@
+import type { Stats } from "@/services/stats/home-stats";
+
 import type { Checkin } from "@/lib/needt3/derive";
 import type { Weather } from "@/lib/needt3/hooks/weather";
 import type { V3Habit } from "@/lib/needt3/map";
@@ -8,6 +10,7 @@ import {
   haTaskCard,
   haTimeOf,
   haWeatherOf,
+  haWeekOf,
   habitEmoji,
   weatherEmoji,
 } from "../ha/model";
@@ -189,5 +192,71 @@ describe("briefLines and haTaskCard", () => {
     );
     expect(bare.time).toBeUndefined();
     expect(bare.dur).toBeUndefined();
+  });
+});
+
+describe("haWeekOf", () => {
+  // Thursday 22 October 2026; the week runs Monday 19 to Sunday 25
+  const NOW = "2026-10-22";
+  const stats = (over: Partial<Stats> = {}): Stats => ({
+    range: "week",
+    from: "2026-10-16",
+    to: NOW,
+    timeZone: "Europe/Zurich",
+    total: 11,
+    days: [
+      { date: "2026-10-18", done: 9, focusMinutes: 0 },
+      { date: "2026-10-19", done: 2, focusMinutes: 0 },
+      { date: "2026-10-20", done: 5, focusMinutes: 0 },
+      { date: "2026-10-21", done: 0, focusMinutes: 0 },
+      { date: NOW, done: 4, focusMinutes: 0 },
+    ],
+    bestDay: "2026-10-18",
+    byProject: [],
+    byWeekday: [],
+    bestWeekday: null,
+    focusMinutes: null,
+    focusSessions: 0,
+    ...over,
+  });
+  it("is the calendar week of today: bars against the busiest day, today marked", () => {
+    const w = haWeekOf({
+      stats: stats(),
+      today: NOW,
+      startDay: "monday",
+      streak: 3,
+    });
+    expect(w).toMatchObject({
+      done: 11,
+      today: 3,
+      streak: 3,
+      best: "Tue · 5",
+      labels: ["M", "T", "W", "T", "F", "S", "S"],
+    });
+    expect(w?.bars).toEqual([2 / 5, 1, 0, 4 / 5, 0, 0, 0]);
+  });
+  it("starts on Sunday when the person does", () => {
+    const w = haWeekOf({
+      stats: stats(),
+      today: NOW,
+      startDay: "sunday",
+      streak: 0,
+    });
+    expect(w?.labels[0]).toBe("S");
+    expect(w?.today).toBe(4);
+    expect(w?.done).toBe(20);
+  });
+  it("is null with nothing to show", () => {
+    expect(
+      haWeekOf({ stats: undefined, today: NOW, startDay: "monday", streak: 4 })
+    ).toBeNull();
+    expect(
+      haWeekOf({
+        stats: stats({ total: 0, days: [] }),
+        today: NOW,
+        startDay: "monday",
+        streak: 0,
+      })
+    ).toBeNull();
   });
 });
