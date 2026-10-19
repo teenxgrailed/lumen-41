@@ -380,13 +380,41 @@ export function convertRRuleStringToICalRRule(
 }
 
 /**
+ * True when an ATTENDEE line for one of the user's own addresses carries
+ * PARTSTAT=DECLINED.
+ */
+export function isDeclinedByUser(
+  vevent: ICAL.Component,
+  selfAddresses: Array<string | null | undefined>
+): boolean {
+  const own = new Set(
+    selfAddresses.flatMap((value) =>
+      value ? [value.trim().toLowerCase()] : []
+    )
+  );
+  if (own.size === 0) return false;
+  return vevent.getAllProperties("attendee").some((property) => {
+    const address = String(property.getFirstValue() ?? "")
+      .replace(/^mailto:/i, "")
+      .trim()
+      .toLowerCase();
+    return (
+      own.has(address) &&
+      String(property.getParameter("partstat") ?? "").toUpperCase() ===
+        "DECLINED"
+    );
+  });
+}
+
+/**
  * Converts a VEVENT component to a CalendarEvent
  * @param vevent VEVENT component
  * @param vcalendar Parent VCALENDAR component
  * @returns Converted calendar event
  */
 export function convertVEventToCalendarEvent(
-  vevent: ICAL.Component
+  vevent: ICAL.Component,
+  selfAddresses: Array<string | null | undefined> = []
 ): CalendarEvent {
   try {
     // Extract event properties
@@ -527,6 +555,13 @@ export function convertVEventToCalendarEvent(
       recurrenceRule: recurrenceRuleString,
       allDay: isAllDay,
       status: null,
+      transparent:
+        String(vevent.getFirstPropertyValue("transp") ?? "").toUpperCase() ===
+          "TRANSPARENT" ||
+        String(
+          vevent.getFirstPropertyValue("x-microsoft-cdo-busystatus") ?? ""
+        ).toUpperCase() === "FREE",
+      selfDeclined: isDeclinedByUser(vevent, selfAddresses),
       sequence: null,
       created: null,
       lastModified: null,

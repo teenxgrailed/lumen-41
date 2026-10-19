@@ -129,6 +129,12 @@ function toCalendarEvent(
     recurrenceRule: processRecurrenceRule(recurrence, start),
     allDay,
     status: event.status ?? undefined,
+    transparent: event.transparency === "transparent",
+    selfDeclined: Boolean(
+      event.attendees?.some(
+        (attendee) => attendee.self && attendee.responseStatus === "declined"
+      )
+    ),
     sequence: event.sequence ?? undefined,
     created: event.created ? newDate(event.created) : undefined,
     lastModified: event.updated ? newDate(event.updated) : undefined,

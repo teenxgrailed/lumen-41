@@ -1,5 +1,8 @@
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
-import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
+import {
+  blockingEventWhere,
+  resolveBusyFeedIds,
+} from "@/services/scheduling/busy-feeds";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
@@ -197,6 +200,7 @@ async function computeStagedSnapshot(
         where: {
           archivedAt: null,
           allDay: false,
+          ...blockingEventWhere,
           start: { lt: addCalendarDays(now, 21) },
           end: { gt: now },
         },

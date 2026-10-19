@@ -178,7 +178,7 @@ describe.each(cases)("clock change: $zone, $label", (c) => {
     expect(onChangeDay).toHaveLength(4);
   });
 
-  it("the hard-deadline overflow path steps past the clock-change day", () => {
+  it("a hard deadline with no work hours stays unplaced across the clock-change day", () => {
     const deadline = new Date(c.next[0], c.next[1], c.next[2], 12, 0);
     const result = scheduleTasks({
       tasks: [task({ id: "late", hardDeadline: true, deadline })],
@@ -198,7 +198,9 @@ describe.each(cases)("clock change: $zone, $label", (c) => {
       now: nowOf(),
     });
 
-    expect(result.unscheduled).toEqual([]);
-    expect(wall(result.blocks[0].start)).toEqual([...c.next, 7, 0]);
+    expect(result.blocks).toEqual([]);
+    expect(result.unscheduled).toEqual([
+      expect.objectContaining({ reason: "HARD_DEADLINE_MISSED" }),
+    ]);
   });
 });

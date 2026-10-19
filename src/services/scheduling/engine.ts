@@ -632,81 +632,32 @@ function findSlot(
 }
 
 /**
- * Earliest hour overflow may reach into. A hard deadline outranks the work
- * schedule — that is deliberate, and covered by tests — but it does not outrank
- * sleep. Without this the search walked the clock minute by minute and would
- * happily return 03:00, which no one acts on and which reads as a bug rather
- * than as urgency.
+ * Last resort for a hard deadline: relax the energy and deep-work limits, but
+ * never the work schedule. A hard deadline does not move a task outside the
+ * person's work hours; when nothing fits inside them before the deadline the
+ * task stays unplaced and is reported as HARD_DEADLINE_MISSED (at risk).
  */
-const OVERFLOW_EARLIEST_HOUR = 7;
-
 function findHardDeadlineOverflowSlot(
   chunk: TaskChunk,
   occupied: OccupiedBlock[],
+  profile: EnergyProfile,
   prefs: SchedulingPreferences,
   earliestStart: Date,
-  planningHorizonEnd: Date
+  planningHorizonEnd: Date,
+  deepWorkByDay: Map<string, number>
 ): { start: Date; end: Date } | null {
   if (!chunk.task.hardDeadline || !chunk.task.deadline) return null;
-
-  const searchEnd =
-    chunk.task.deadline < planningHorizonEnd
-      ? chunk.task.deadline
-      : planningHorizonEnd;
-  const spacingMinutes = Math.max(prefs.bufferMinutes, prefs.minBreakMinutes);
-  let cursor = roundUpToStep(earliestStart);
-  let dayJumps = 0;
-
-  while (cursor < searchEnd) {
-    const end = addMinutes(cursor, chunk.minutes);
-    const dayStart = setTime(
-      cursor,
-      `0${OVERFLOW_EARLIEST_HOUR}:00`,
-      prefs.timeZone
-    );
-    const dayEnd = setTime(cursor, prefs.hardStopTime, prefs.timeZone);
-
-    if (cursor < dayStart) {
-      // Too early in the day: jump to the first acceptable minute rather than
-      // stepping through the small hours one slot at a time.
-      cursor = dayStart;
-      continue;
-    }
-    if (end > dayEnd) {
-      // Past the hard stop: move to the next morning instead of running into
-      // the night.
-      dayJumps += 1;
-      const following = setTime(
-        nextDayStart(cursor, prefs.timeZone),
-        `0${OVERFLOW_EARLIEST_HOUR}:00`,
-        prefs.timeZone
-      );
-      if (dayJumps > MAX_DAY_STEPS || following <= cursor) {
-        logger.error(
-          "Overflow slot search hit the day cap and stopped",
-          {
-            taskId: chunk.task.id,
-            cursor: cursor.toISOString(),
-            cap: MAX_DAY_STEPS,
-          },
-          LOG_SOURCE
-        );
-        return null;
-      }
-      cursor = following;
-      continue;
-    }
-
-    if (
-      end <= searchEnd &&
-      !hasConflict(cursor, end, occupied, spacingMinutes)
-    ) {
-      return { start: cursor, end };
-    }
-    cursor = addMinutes(cursor, SLOT_STEP_MINUTES);
-  }
-
-  return null;
+  return findSlot(
+    chunk,
+    occupied,
+    profile,
+    prefs,
+    earliestStart,
+    planningHorizonEnd,
+    deepWorkByDay,
+    false,
+    true
+  );
 }
 
 function toFrozenBlock(task: SchedulableTask): ScheduledBlock | null {
@@ -892,9 +843,11 @@ export function scheduleTasks(input: {
         findHardDeadlineOverflowSlot(
           chunk,
           occupied,
+          input.energyProfile,
           input.prefs,
           cursor,
-          planningHorizonEnd
+          planningHorizonEnd,
+          deepWorkByDay
         );
 
       if (!slot) {

@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
     where: { endpoint: body.endpoint },
     select: { userId: true },
   });
-  if (existing && existing.userId !== auth.userId) {
-    return NextResponse.json(
-      { error: "Subscription belongs to another account" },
-      { status: 409 }
-    );
-  }
+  // A browser endpoint is one device. When someone else signs in on a shared
+  // browser the endpoint moves to them (the upsert below rebinds the row), so
+  // pushes follow whoever is signed in now and the previous account stops
+  // receiving them on this device.
+  const movedFromOtherAccount = Boolean(
+    existing && existing.userId !== auth.userId
+  );
   const subscription = await prisma.pushSubscription.upsert({
     where: { endpoint: body.endpoint },
     update: {
@@ -79,7 +80,11 @@ export async function POST(request: NextRequest) {
   });
   await logger.info(
     "Push subscription saved",
-    { userId: auth.userId, host: new URL(body.endpoint).host },
+    {
+      userId: auth.userId,
+      host: new URL(body.endpoint).host,
+      movedFromOtherAccount,
+    },
     LOG_SOURCE
   );
   return NextResponse.json({ id: subscription.id }, { status: 201 });

@@ -14,7 +14,7 @@ const getJob = jest.fn();
 jest.mock("@/lib/queue/queues", () => ({
   getCalendarSyncQueue: () => ({ add: calendarAdd, getJob }),
   getRescheduleQueue: () => ({ add: rescheduleAdd, getJob }),
-  getWebhookRenewQueue: () => ({ add: renewAdd }),
+  getWebhookRenewQueue: () => ({ add: renewAdd, getJob }),
   getMailSyncQueue: () => ({ add: mailAdd }),
 }));
 
@@ -73,6 +73,30 @@ describe("queue enqueue helpers", () => {
       { provider: "GOOGLE", feedId: "feed-123" },
       { jobId: "webhook-renew-GOOGLE-feed-123" }
     );
+  });
+
+  test("drops a finished webhook-renew job before adding the next one", async () => {
+    const remove = jest.fn().mockResolvedValue(undefined);
+    getJob.mockResolvedValue({
+      isCompleted: async () => true,
+      isFailed: async () => false,
+      remove,
+    });
+    await enqueueWebhookRenew();
+    expect(getJob).toHaveBeenCalledWith("webhook-renew-ALL-all");
+    expect(remove).toHaveBeenCalled();
+    expect(renewAdd).toHaveBeenCalled();
+  });
+
+  test("keeps a waiting webhook-renew job so the add dedupes", async () => {
+    const remove = jest.fn();
+    getJob.mockResolvedValue({
+      isCompleted: async () => false,
+      isFailed: async () => false,
+      remove,
+    });
+    await enqueueWebhookRenew();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   test("treats a missing Redis URL as an optional web-process integration", async () => {
