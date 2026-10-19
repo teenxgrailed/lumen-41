@@ -1,0 +1,2 @@
+- Needt tells you when a Focus session ends: a push saying "Focus done" with the task and length, and a quiet notice in any open window. The session you paused, extended or ended early is followed, and Settings → Notifications has a "Focus ended" switch (on by default).
+- Settings → Notifications no longer offers Daily plan and Weekly review: nothing sent them. Overdue tasks and Focus ended remain.

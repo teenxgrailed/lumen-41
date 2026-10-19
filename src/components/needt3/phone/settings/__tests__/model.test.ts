@@ -100,26 +100,23 @@ describe("summaries", () => {
       "08:00 – 18:00 · week from Sunday"
     );
   });
-  it("alerts: the daily plan time, or off", () => {
-    expect(alertsSummary(undefined)).toMatch(/Daily plan/);
-    expect(
-      alertsSummary({
-        dailyPlan: true,
-        dailyPlanTime: "08:30",
-        mailPlan: false,
-        nudges: false,
-        weeklyReview: true,
-      })
-    ).toBe("Daily plan at 08:30");
-    expect(
-      alertsSummary({
-        dailyPlan: false,
-        dailyPlanTime: "08:30",
-        mailPlan: false,
-        nudges: false,
-        weeklyReview: true,
-      })
-    ).toBe("Daily plan off");
+  it("alerts: what is on, or off", () => {
+    const base = {
+      dailyPlan: true,
+      dailyPlanTime: "08:30",
+      mailPlan: false,
+      weeklyReview: true,
+    };
+    expect(alertsSummary(undefined)).toMatch(/focus ended/);
+    expect(alertsSummary({ ...base, nudges: true, focusEnded: true })).toBe(
+      "Overdue tasks, Focus ended"
+    );
+    expect(alertsSummary({ ...base, nudges: false, focusEnded: true })).toBe(
+      "Focus ended"
+    );
+    expect(alertsSummary({ ...base, nudges: false, focusEnded: false })).toBe(
+      "Off"
+    );
   });
   it("the theme word", () => {
     expect(themeWord("time")).toBe("Time");
