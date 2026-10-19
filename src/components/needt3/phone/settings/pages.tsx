@@ -22,6 +22,7 @@ import {
 import { KEY_GROUPS, SHELL_SHORTCUTS } from "../../shell/keys";
 import { PkButton } from "../kit";
 import { PhoneMemoriesGroup } from "./MemoriesGroup";
+import { PhonePushGroup } from "./PushGroup";
 import { LINK_OPTIONS, SOUND_OPTIONS } from "./model";
 import { PsGroup, PsPick, PsRow, PsSwitch } from "./parts";
 
@@ -249,6 +250,7 @@ export function AlertsPage() {
       );
   return (
     <>
+      <PhonePushGroup />
       <PsGroup
         title="Daily plan"
         hint="Your day's planned tasks and events, sent before the day starts."

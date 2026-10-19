@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = "needt-static-v6";
+const STATIC_CACHE_NAME = "needt-static-v7";
 const PRIVATE_CACHE_PREFIX = "needt-private-v5:";
 const DB_NAME = "needt-offline-v2";
 const DB_VERSION = 2;
@@ -127,19 +127,74 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "Needt", body: event.data?.text() ?? "Planner reminder" };
   }
+  const url = typeof data.url === "string" ? data.url : "/today";
   event.waitUntil(
     self.registration.showNotification(data.title || "Needt", {
       body: data.body || "Your planner has an update.",
       icon: "/icons/icon-192.png",
       badge: "/icons/favicon-32.png",
-      data: data.url || "/focus",
+      // One notification per URL: a repeat replaces instead of stacking.
+      tag: url,
+      data: { url },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow(event.notification.data || "/focus"));
+  const raw = event.notification.data;
+  const target = new URL(
+    (typeof raw === "string" ? raw : raw?.url) || "/today",
+    self.location.origin
+  );
+  if (target.origin !== self.location.origin) return;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (windows) => {
+        const open = windows.find((client) =>
+          client.url.startsWith(self.location.origin)
+        );
+        if (open) {
+          await open.focus();
+          // Move the window that is already open to the notification's page.
+          if ("navigate" in open) {
+            return open.navigate(target.href).catch(() => undefined);
+          }
+          return undefined;
+        }
+        return self.clients.openWindow(target.href);
+      })
+  );
+});
+
+// The browser rotated the subscription: save the new one so reminders keep
+// arriving. The fetches carry the session cookie.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const keyResponse = await fetch("/api/push-subscriptions", {
+        credentials: "same-origin",
+      });
+      if (!keyResponse.ok) return;
+      const { publicKey } = await keyResponse.json();
+      if (!publicKey) return;
+      const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+      const raw = atob(
+        (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/")
+      );
+      const subscription = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)),
+      });
+      await fetch("/api/push-subscriptions", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subscription.toJSON()),
+      });
+    })().catch(() => undefined)
+  );
 });
 
 function normalizeScope(scope) {

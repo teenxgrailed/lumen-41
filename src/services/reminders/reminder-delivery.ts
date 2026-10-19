@@ -148,9 +148,19 @@ export async function deliverPush(
     await prisma.pushSubscription.deleteMany({
       where: { id: subscription.id },
     });
+    await logger.info(
+      "Removed dead push subscription",
+      { status: response.status, host: new URL(subscription.endpoint).host },
+      LOG_SOURCE
+    );
     return false;
   }
   if (!response.ok) {
+    await logger.error(
+      "Push provider rejected a message",
+      { status: response.status, host: new URL(subscription.endpoint).host },
+      LOG_SOURCE
+    );
     throw new Error(`Push provider returned ${response.status}`);
   }
   return true;

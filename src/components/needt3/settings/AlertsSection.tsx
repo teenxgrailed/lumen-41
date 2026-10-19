@@ -4,6 +4,7 @@ import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 
 import { useMark } from "./SettingsContext";
 import { HOUR_OPTIONS } from "./derive";
+import { PushGroup } from "./PushGroup";
 import { SGroup, SRow, SSelect, V3Switch } from "./kit";
 
 /**
@@ -26,6 +27,7 @@ export function AlertsSection() {
       );
   return (
     <>
+      <PushGroup />
       <SGroup
         title="Daily plan"
         hint="Your day's planned tasks and events, sent before the day starts."
