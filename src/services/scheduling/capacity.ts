@@ -1,5 +1,9 @@
 import { personalBusyBlocks } from "@/services/personal-time/service";
-import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
+import {
+  blockingEventWhere,
+  pushedBlockExternalIds,
+  resolveBusyFeedIds,
+} from "@/services/scheduling/busy-feeds";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -110,11 +114,12 @@ export async function getScheduleCapacity(
     timeZone
   );
 
-  const [events, tasks] = await Promise.all([
+  const [eventRows, pushedBlockIds, tasks] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
         archivedAt: null,
         allDay: false,
+        ...blockingEventWhere,
         feedId: { in: busyFeedIds },
         feed: { userId, enabled: true },
         start: { lt: rangeEnd },
@@ -124,8 +129,9 @@ export async function getScheduleCapacity(
           { NOT: { description: { startsWith: "[NEEDT_DAY_BLOCK]" } } },
         ],
       },
-      select: { start: true, end: true },
+      select: { start: true, end: true, externalEventId: true },
     }),
+    pushedBlockExternalIds(userId),
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
@@ -141,6 +147,12 @@ export async function getScheduleCapacity(
       },
     }),
   ]);
+
+  // An event that echoes a task block we pushed is the task, not busy time.
+  const events = eventRows.filter(
+    (event) =>
+      !event.externalEventId || !pushedBlockIds.has(event.externalEventId)
+  );
 
   const workingMinutes = windows.reduce(
     (sum, window) => sum + differenceInMinutes(window.end, window.start),

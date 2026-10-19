@@ -433,6 +433,10 @@ model CalendarEvent {
   organizer       Json? // Stored as JSON { name?: string, email: string }
   attendees       Json? // Stored as JSON array of { name?: string, email: string, status?: string }
   syncStatus      String? // 'PENDING', 'SYNCED' or 'ERROR' for provider reconciliation
+  // Does not block scheduling: shown as free / transparent upstream, or the
+  // account owner declined the invitation. Set by the provider sync.
+  transparent     Boolean      @default(false)
+  selfDeclined    Boolean      @default(false)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   archivedAt      DateTime?

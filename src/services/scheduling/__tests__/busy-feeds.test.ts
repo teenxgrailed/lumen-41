@@ -15,6 +15,8 @@ type Ev = {
   end: Date;
   allDay: boolean;
   externalEventId: string | null;
+  transparent?: boolean;
+  selfDeclined?: boolean;
 };
 
 const mockDb: {
@@ -62,13 +64,22 @@ jest.mock("@/lib/prisma", () => ({
         async ({
           where,
         }: {
-          where: { feedId?: { in: string[] }; allDay?: boolean };
+          where: {
+            feedId?: { in: string[] };
+            allDay?: boolean;
+            transparent?: boolean;
+            selfDeclined?: boolean;
+          };
         }) =>
           where.feedId
             ? mockDb.events.filter(
                 (e) =>
                   where.feedId!.in.includes(e.feedId) &&
-                  (where.allDay === undefined || e.allDay === where.allDay)
+                  (where.allDay === undefined || e.allDay === where.allDay) &&
+                  (where.transparent === undefined ||
+                    (e.transparent ?? false) === where.transparent) &&
+                  (where.selfDeclined === undefined ||
+                    (e.selfDeclined ?? false) === where.selfDeclined)
               )
             : []
       ),
@@ -320,6 +331,20 @@ describe("the scheduler and busy time", () => {
       event({ feedId: "caldav-1", externalEventId: "pushed-1" }),
     ];
     mockDb.pushedBlockIds = ["pushed-1"];
+    const blocks = await place();
+    expect(blocks.some((b) => onMondayBetween(b, 9, 17))).toBe(true);
+  });
+
+  it("a free / transparent event is not busy time", async () => {
+    mockDb.feeds = [{ id: "caldav-1", type: "CALDAV", enabled: true }];
+    mockDb.events = [event({ feedId: "caldav-1", transparent: true })];
+    const blocks = await place();
+    expect(blocks.some((b) => onMondayBetween(b, 9, 17))).toBe(true);
+  });
+
+  it("an event whose invitation the user declined is not busy time", async () => {
+    mockDb.feeds = [{ id: "caldav-1", type: "CALDAV", enabled: true }];
+    mockDb.events = [event({ feedId: "caldav-1", selfDeclined: true })];
     const blocks = await place();
     expect(blocks.some((b) => onMondayBetween(b, 9, 17))).toBe(true);
   });

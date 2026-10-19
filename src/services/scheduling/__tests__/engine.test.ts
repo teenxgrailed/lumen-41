@@ -429,7 +429,7 @@ describe("scheduleTasks", () => {
     ]);
   });
 
-  it("uses free time outside Work Schedule to meet a hard deadline", () => {
+  it("does not place a hard deadline outside the Work Schedule", () => {
     const result = scheduleTasks({
       tasks: [
         task({
@@ -452,61 +452,46 @@ describe("scheduleTasks", () => {
       now: mondayMorning,
     });
 
-    expect(result.unscheduled).toHaveLength(0);
-    expect(result.blocks).toEqual([
+    expect(result.blocks).toHaveLength(0);
+    expect(result.unscheduled).toEqual([
       expect.objectContaining({
         taskId: "hard-overflow",
-        start: new Date(2026, 6, 6, 10, 0, 0),
-        end: new Date(2026, 6, 6, 11, 0, 0),
+        reason: "HARD_DEADLINE_MISSED",
       }),
     ]);
   });
 
-  it("keeps hard-deadline overflow clear of Busy events", () => {
+  it("still places a hard deadline inside work hours past the deep-work cap", () => {
     const result = scheduleTasks({
       tasks: [
         task({
-          id: "hard-overflow",
-          estimatedMinutes: 30,
+          id: "hard-deep",
+          estimatedMinutes: 60,
+          energyRequired: "HIGH",
           hardDeadline: true,
-          deadline: new Date(2026, 6, 6, 11, 30, 0),
+          deadline: new Date(2026, 6, 6, 12, 0, 0),
         }),
       ],
-      busyBlocks: [
-        busy({
-          start: new Date(2026, 6, 6, 8, 0, 0),
-          end: new Date(2026, 6, 6, 10, 30, 0),
-        }),
-      ],
+      busyBlocks: [],
       energyProfile,
-      prefs: {
-        ...prefs,
-        workHours: { "1": { start: "09:00", end: "10:00" } },
-      },
+      prefs: { ...prefs, maxDeepWorkPerDay: 0 },
       now: mondayMorning,
     });
 
-    expect(result.blocks[0]).toEqual(
-      expect.objectContaining({
-        start: new Date(2026, 6, 6, 10, 30, 0),
-        end: new Date(2026, 6, 6, 11, 0, 0),
-      })
-    );
+    expect(result.unscheduled).toHaveLength(0);
+    expect(result.blocks).toHaveLength(1);
   });
 
-  it("never places hard-deadline overflow during the night", () => {
-    // Monday is entirely blocked and the deadline is Tuesday morning, so the
-    // only free minutes before it are the small hours. A hard deadline may
-    // outrank the work schedule — that is deliberate — but it must not outrank
-    // sleep: overflow used to walk the clock minute by minute and return 03:00,
-    // which nobody acts on.
+  it("leaves a hard deadline unplaced instead of using the evening or night", () => {
+    // Monday's work hours are full and the deadline is Tuesday before work
+    // starts, so the only free minutes are outside work hours.
     const result = scheduleTasks({
       tasks: [
         task({
           id: "hard-night",
           estimatedMinutes: 60,
           hardDeadline: true,
-          deadline: new Date(2026, 6, 7, 9, 0, 0),
+          deadline: new Date(2026, 6, 7, 8, 0, 0),
         }),
       ],
       busyBlocks: [
@@ -520,11 +505,10 @@ describe("scheduleTasks", () => {
       now: mondayMorning,
     });
 
-    for (const block of result.blocks) {
-      const hour = block.start.getHours();
-      expect(hour).toBeGreaterThanOrEqual(7);
-      expect(block.end.getHours()).toBeLessThanOrEqual(22);
-    }
+    expect(result.blocks).toHaveLength(0);
+    expect(result.unscheduled).toEqual([
+      expect.objectContaining({ reason: "HARD_DEADLINE_MISSED" }),
+    ]);
   });
 
   it("does not use overflow time for a soft deadline", () => {

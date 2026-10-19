@@ -1,6 +1,10 @@
 import { getLearnedDurationRatio } from "@/services/ai/memory";
 import { personalBusyBlocks } from "@/services/personal-time/service";
-import { resolveBusyFeedIds } from "@/services/scheduling/busy-feeds";
+import {
+  blockingEventWhere,
+  pushedBlockExternalIds,
+  resolveBusyFeedIds,
+} from "@/services/scheduling/busy-feeds";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
@@ -366,18 +370,13 @@ export async function scheduleAllTasksForUserDetailed(
     );
     // An event that echoes a task block we pushed to a calendar is not busy
     // time: the task owns that slot.
-    const pushedBlocks = await prisma.task.findMany({
-      where: { userId, blockEventId: { not: null } },
-      select: { blockEventId: true },
-    });
-    const pushedBlockIds = new Set(
-      pushedBlocks.flatMap((t) => (t.blockEventId ? [t.blockEventId] : []))
-    );
+    const pushedBlockIds = await pushedBlockExternalIds(userId);
     const busyEventRows = await prisma.calendarEvent.findMany({
       where: {
         archivedAt: null,
         // All-day events (holidays, working locations) describe the day, not busy time.
         allDay: false,
+        ...blockingEventWhere,
         feedId: { in: busyFeedIds },
         feed: { userId, enabled: true },
         start: { lt: addDays(now, DEFAULT_HORIZON_DAYS) },

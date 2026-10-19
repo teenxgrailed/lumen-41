@@ -455,7 +455,10 @@ export class CalDAVCalendarService {
             this.extractEventProperties(vevent);
 
           // Convert VEVENT to CalendarEvent
-          const event = convertVEventToCalendarEvent(vevent);
+          const event = convertVEventToCalendarEvent(vevent, [
+            this.account.email,
+            this.account.caldavUsername,
+          ]);
           const excludedInstanceStarts = vevent
             .getAllProperties("exdate")
             .flatMap((property) => property.getValues())
@@ -1622,6 +1625,8 @@ export class CalDAVCalendarService {
           recurrenceRule: event.recurrenceRule,
           allDay: event.allDay || false,
           status: event.status,
+          transparent: event.transparent ?? false,
+          selfDeclined: event.selfDeclined ?? false,
           isMaster: true,
           masterEventId: null,
           recurringEventId: null,
@@ -1699,6 +1704,8 @@ export class CalDAVCalendarService {
           recurrenceRule: event.recurrenceRule,
           allDay: event.allDay || false,
           status: event.status,
+          transparent: event.transparent ?? false,
+          selfDeclined: event.selfDeclined ?? false,
           isMaster: false,
           masterEventId,
           recurringEventId: event.recurringEventId,

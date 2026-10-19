@@ -52,6 +52,7 @@ interface OutlookEvent {
   };
   isAllDay?: boolean;
   showAs?: string;
+  responseStatus?: { response?: string };
   createdDateTime?: string;
   lastModifiedDateTime?: string;
   isOrganizer?: boolean;
@@ -129,6 +130,8 @@ export function createBaseEventData(
     isMaster,
     allDay: event.isAllDay || false,
     status: event.showAs || "busy",
+    transparent: event.showAs === "free",
+    selfDeclined: event.responseStatus?.response === "declined",
     created: event.createdDateTime ? newDate(event.createdDateTime) : newDate(),
     lastModified: event.lastModifiedDateTime
       ? newDate(event.lastModifiedDateTime)
@@ -280,7 +283,9 @@ export async function fetchEventInstances(
       startDateTime: timeMin.toISOString(),
       endDateTime: timeMax.toISOString(),
     })
-    .select("id,subject,start,end,body,location,seriesMasterId")
+    .select(
+      "id,subject,start,end,body,location,seriesMasterId,showAs,responseStatus"
+    )
     .orderby("start/dateTime")
     .top(PAGE_SIZE)
     .get();

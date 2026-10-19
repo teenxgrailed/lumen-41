@@ -83,9 +83,10 @@ export async function enqueueWebhookRenew(options?: {
   if (await skipWhenUnconfigured("webhook-renew")) return null;
   const provider = options?.provider ?? "ALL";
   const feedId = options?.feedId ?? "all";
-  return getWebhookRenewQueue().add("renew-webhooks", options ?? {}, {
-    jobId: `webhook-renew-${provider}-${feedId}`,
-  });
+  const queue = getWebhookRenewQueue();
+  const jobId = `webhook-renew-${provider}-${feedId}`;
+  await clearFinishedJob(queue, jobId);
+  return queue.add("renew-webhooks", options ?? {}, { jobId });
 }
 
 export async function enqueueMailSync(accountId: string) {

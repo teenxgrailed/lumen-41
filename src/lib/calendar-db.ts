@@ -29,6 +29,10 @@ export interface CalendarEventSyncInput {
   organizer?: Prisma.InputJsonValue;
   attendees?: Prisma.InputJsonValue;
   recurringEventId?: string;
+  /** Free / transparent upstream: does not block scheduling. */
+  transparent?: boolean;
+  /** The account owner declined the invitation. */
+  selfDeclined?: boolean;
 }
 
 export interface CalendarWebhookInput {

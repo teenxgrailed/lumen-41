@@ -31,3 +31,28 @@ export async function resolveBusyFeedIds(
     .filter((feed) => feed.type === "LOCAL" || !excluded.has(feed.id))
     .map((feed) => feed.id);
 }
+
+/**
+ * Prisma filter for events that do not take scheduling time: shown as free or
+ * transparent upstream, or an invitation the account owner declined.
+ */
+export const blockingEventWhere = {
+  transparent: false,
+  selfDeclined: false,
+} as const;
+
+/**
+ * External ids of the calendar events we pushed for a person's task blocks.
+ * The synced copy of such an event is an echo of the task, not a commitment.
+ */
+export async function pushedBlockExternalIds(
+  userId: string
+): Promise<Set<string>> {
+  const pushed = await prisma.task.findMany({
+    where: { userId, blockEventId: { not: null } },
+    select: { blockEventId: true },
+  });
+  return new Set(
+    pushed.flatMap((task) => (task.blockEventId ? [task.blockEventId] : []))
+  );
+}

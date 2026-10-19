@@ -149,10 +149,17 @@ describe("POST /api/push-subscriptions", () => {
     expect(subs.upsert).not.toHaveBeenCalled();
   });
 
-  it("does not take over another account's endpoint", async () => {
+  it("re-binds an endpoint that belonged to another account to the current user", async () => {
     subs.findUnique.mockResolvedValue({ userId: "someone-else" } as never);
-    expect((await POST(request("POST", valid))).status).toBe(409);
-    expect(subs.upsert).not.toHaveBeenCalled();
+    subs.upsert.mockResolvedValue({ id: "sub-1" } as never);
+    const response = await POST(request("POST", valid));
+    expect(response.status).toBe(201);
+    expect(subs.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { endpoint: valid.endpoint },
+        update: expect.objectContaining({ userId: "user-1" }),
+      })
+    );
   });
 });
 
