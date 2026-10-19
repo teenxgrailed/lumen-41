@@ -1,0 +1,1 @@
+- Planned tasks now land inside your own work hours: the scheduler read hours, weekdays, overrides and the capacity numbers in server time (UTC), so 09:00-17:00 in Zurich was planned as 11:00-19:00. "Today" in the AI day summary follows your time zone too.

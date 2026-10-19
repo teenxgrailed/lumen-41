@@ -5,9 +5,12 @@ import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import {
   addCalendarDays,
   differenceInMinutes,
+  formatInTimeZone,
+  fromZonedTime,
   newDate,
-  startOfDay,
+  startOfDayInTimeZone,
 } from "@/lib/date-utils";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
@@ -25,8 +28,15 @@ function parseStringArray(value: string) {
   }
 }
 
-function atTime(day: Date, time: string) {
+function atTime(day: Date, time: string, timeZone?: string) {
   const [hour, minute] = time.split(":").map(Number);
+  if (timeZone) {
+    const date = formatInTimeZone(day, timeZone, "yyyy-MM-dd");
+    return fromZonedTime(
+      `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`,
+      timeZone
+    );
+  }
   const value = newDate(day);
   value.setHours(hour, minute, 0, 0);
   return value;
@@ -35,20 +45,25 @@ function atTime(day: Date, time: string) {
 /**
  * The working windows of `days` calendar days from `rangeStart`, taken from
  * each weekday's own hours (a day that is off, or has two ranges, counts as
- * such).
+ * such). Days and hours are wall-clock in `timeZone` (the person's zone);
+ * without it they are the process's local days.
  */
 export function workingWindowsForRange(
   week: WeekHours,
   rangeStart: Date,
-  days: number
+  days: number,
+  timeZone?: string
 ): Window[] {
   return Array.from({ length: days }, (_, offset) => {
-    const day = addCalendarDays(rangeStart, offset);
-    const entry = week.find((item) => item.day === day.getDay());
+    const day = addCalendarDays(rangeStart, offset, timeZone);
+    const weekday = timeZone
+      ? Number(formatInTimeZone(day, timeZone, "i")) % 7
+      : day.getDay();
+    const entry = week.find((item) => item.day === weekday);
     return entry?.on
       ? entry.ranges.map((range) => ({
-          start: atTime(day, range.start),
-          end: atTime(day, range.end),
+          start: atTime(day, range.start, timeZone),
+          end: atTime(day, range.end, timeZone),
         }))
       : [];
   }).flat();
@@ -79,8 +94,13 @@ export async function getScheduleCapacity(
   workspace: WorkspaceAccess,
   days = 7
 ) {
-  const rangeStart = startOfDay(newDate());
-  const rangeEnd = addCalendarDays(rangeStart, days);
+  const userSettings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  const timeZone = normalizeUserTimeZone(userSettings?.timeZone);
+  const rangeStart = startOfDayInTimeZone(newDate(), timeZone);
+  const rangeEnd = addCalendarDays(rangeStart, days, timeZone);
   const settings = await prisma.autoScheduleSettings.findUnique({
     where: { userId },
     select: {
@@ -93,7 +113,8 @@ export async function getScheduleCapacity(
   const windows = workingWindowsForRange(
     await loadWeekHours(userId),
     rangeStart,
-    days
+    days,
+    timeZone
   );
 
   const [events, tasks] = await Promise.all([
