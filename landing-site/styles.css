@@ -47,7 +47,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font: 400 17px/1.55 var(--sans); letter-spacing: -0.01em;
-  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: clip;
   transition: background-color .5s var(--ease);
 }
 img, video { display: block; max-width: 100%; height: auto; }
