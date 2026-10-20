@@ -37,7 +37,7 @@ jobs:
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
           (idb_companion --udid "$UDID" --grpc-port 10882 > companion.log 2>&1 &)
-          sleep 5; idb connect localhost 10882
+          for i in $(seq 1 20); do sleep 5; idb connect localhost 10882 && break; done
       - name: strategies
         run: |
           set -uo pipefail
