@@ -13,6 +13,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { planPill } from "../../shell/AccountMenu";
 import { SyncStatus } from "../../sync/SyncStatus";
 import { pkDotSweep } from "../kit/Material";
+import { pkScrollY } from "../kit/scroll";
 import { usePkSide } from "../kit/theme";
 import { FocusDockButton } from "../menu/FocusDockButton";
 import { Menu } from "../menu/Menu";
@@ -48,6 +49,41 @@ function useLinger(open: boolean, ms: number) {
   return open || lingering;
 }
 
+const savedScroll = new Map<string, number>();
+
+/**
+ * Scroll to the top on a new route, back to the saved offset on back/forward.
+ * The offset is remembered per path while the page scrolls.
+ */
+function usePageScrollPerRoute(pathname: string) {
+  const path = useRef(pathname);
+  const popped = useRef(false);
+  useEffect(() => {
+    const pop = () => {
+      popped.current = true;
+    };
+    const onScroll = () => {
+      savedScroll.set(path.current, pkScrollY());
+    };
+    window.addEventListener("popstate", pop);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("popstate", pop);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  useEffect(() => {
+    if (path.current === pathname) return undefined;
+    path.current = pathname;
+    const y = popped.current ? (savedScroll.get(pathname) ?? 0) : 0;
+    popped.current = false;
+    window.scrollTo(0, y);
+    // the content may still be filling in: settle once more a frame later
+    const id = window.requestAnimationFrame(() => window.scrollTo(0, y));
+    return () => window.cancelAnimationFrame(id);
+  }, [pathname]);
+}
+
 /**
  * The phone's chrome: menu A, the one-shot halftone sweep on a place switch,
  * and the overlay host. It is mounted by the frame (`ShellFrame`, via
@@ -77,6 +113,10 @@ export function PhoneShell() {
 
   const away = askOpen || covered;
   const morph = useLinger(composerOpen, MORPH_SETTLE_MS);
+
+  /* The page scrolls (kit/scroll.ts), so a new screen starts at the top and
+     going back returns to where that screen was left. */
+  usePageScrollPerRoute(pathname);
 
   /* A place switch gets the one-shot halftone sweep; the first screen does not. */
   const lastScreen = useRef<MenuPlaceId | null>(screen);

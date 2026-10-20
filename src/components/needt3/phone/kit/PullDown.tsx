@@ -125,6 +125,9 @@ export function PkPullDown<H extends PullHit = PullHit>({
     el.style.setProperty("-webkit-clip-path", clip);
     el.style.transform = over ? `translateY(${over.toFixed(1)}px)` : "";
     el.style.visibility = y < 0.5 ? "hidden" : "visible";
+    // Shut, the plate is parked off the top edge: Safari 26 reads a fixed
+    // full-width element there for its status-bar colour, hidden or not.
+    el.style.top = y < 0.5 ? "-200vh" : "";
     // the screen's blur bands rest while the plate moves
     const moving = !!(S.raf || (S.drag && S.drag.kind === "pull"));
     if (moving !== S.moving) {

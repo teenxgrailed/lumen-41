@@ -25,6 +25,7 @@ import {
 import { springStep } from "@/lib/needt3/spring";
 
 import { PkScrim } from "./Scrim";
+import { pkLockScroll } from "./scroll";
 import {
   focusablesIn,
   stackIsTop,
@@ -429,6 +430,8 @@ export function PkSheet({
   useEffect(() => {
     if (!open) return undefined;
     const opener = document.activeElement as HTMLElement | null;
+    // The page behind the sheet holds still (and keeps its offset on release).
+    const unlock = pkLockScroll();
     const id = stackPush();
     const sheetEl = sheet.current;
     let raf = requestAnimationFrame(() => {
@@ -459,6 +462,7 @@ export function PkSheet({
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", k);
       stackRemove(id);
+      unlock();
       // back to the opener, unless the person already moved on
       const here = document.activeElement;
       if (

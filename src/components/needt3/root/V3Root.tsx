@@ -18,6 +18,7 @@ import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
 import {
   LOOK_BOOT_SCRIPT,
   type Look,
+  PHONE_GROUND,
   barColorOf,
   firstPaint,
   writeLookCookie,
@@ -39,8 +40,6 @@ import { PaywallHost } from "../paywall/PaywallHost";
 import { V3Shell } from "../shell/V3Shell";
 import { PwaBridge } from "./PwaBridge";
 import { PhoneUiProvider, useResolvedPhoneUi } from "./phone-ui-context";
-import { usePhoneEdgeTint } from "./usePhoneEdgeTint";
-import { usePhoneFullHeight } from "./usePhoneFullHeight";
 
 /**
  * True inside the v3 frame. The layout decides once per request on the server
@@ -149,7 +148,13 @@ export function V3Root({
       : resolveTheme(theme, osDark, time);
   const vars: Record<string, string> = resolved.vars;
 
-  const barColor = barColorOf({ side: resolved.side, vars });
+  // The phone's page is its own ground (Safari 26 tints its bars from the page
+  // colour, and nothing on the phone is fixed at an edge): the desktop's
+  // `--background` would be a lighter strip behind it.
+  const barColor =
+    ui === "phone"
+      ? PHONE_GROUND[resolved.side]
+      : barColorOf({ side: resolved.side, vars });
   useEffect(() => {
     // The status bar / PWA frame follow the chosen theme, not the OS scheme
     // the static viewport metadata keys on (Time at dusk, Dark on a light OS).
@@ -206,18 +211,6 @@ export function V3Root({
     };
   }, [barColor, resolved.side]);
 
-  // An installed iOS app can have a viewport shorter than the display.
-  usePhoneFullHeight(scopeRef, ui === "phone");
-
-  // Safari 26 tints its bars from theme-color and html: on the phone, from the
-  // colour under each edge of the current screen (after the two effects above,
-  // so it wins over them).
-  usePhoneEdgeTint(
-    scopeRef,
-    ui === "phone",
-    `${barColor}|${resolved.side}|${theme}`
-  );
-
   // The browser's copy of the look: the next first byte (and generateViewport)
   // start from how this one resolved.
   const palette = time && !time.pure ? time.palette : null;
@@ -245,7 +238,10 @@ export function V3Root({
         // pt-[var(--needt-top-banner)]: start below a fixed top banner (the
         // email confirmation, EmailVerificationGate's TOP_BANNER_VAR) instead
         // of under it; 0 when there is none.
-        className={`needt-v3 ${V3_FONT_CLASSES} relative z-10 flex h-dvh min-h-0 flex-col overflow-hidden pt-[var(--needt-top-banner,0px)]`}
+        className={`needt-v3 ${V3_FONT_CLASSES} relative z-10 flex flex-col pt-[var(--needt-top-banner,0px)] ${
+          // Phone: the document scrolls, so the scope grows with its content.
+          ui === "phone" ? "min-h-dvh" : "h-dvh min-h-0 overflow-hidden"
+        }`}
         data-theme={resolved.side}
         data-drift={resolved.drift ? "on" : undefined}
         data-accent={accent}
@@ -263,13 +259,6 @@ export function V3Root({
         <PhoneUiProvider value={ui}>
           <V3Shell ui={ui}>{children}</V3Shell>
         </PhoneUiProvider>
-        {/* What Safari 26 samples for its bars (phone-ground.css). */}
-        {ui === "phone" ? (
-          <>
-            <div className="v3-edge-tint is-top" aria-hidden="true" />
-            <div className="v3-edge-tint is-bottom" aria-hidden="true" />
-          </>
-        ) : null}
         {/* Permanent: a sibling of the shell, so no UI change reaches it. */}
         <PaywallHost />
         <PwaBridge />
