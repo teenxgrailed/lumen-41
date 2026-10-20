@@ -745,3 +745,15 @@ html { background: var(--edge-t, var(--paper)); }
 @supports (-webkit-touch-callout: none) {
   body, body.is-night, body.page { background-color: #f7f5f3 !important; }
 }
+
+/* v40 — iOS: no runway. At scrollY 0 (and on first paint, before any script) Safari paints the
+   status bar from body's background, so body carries the colour at the top of the page — static
+   per page, never changed while scrolling — and main carries paper for the sections that relied
+   on body. The runway (v37/v38) let the page be pulled into it and showed white for a moment on
+   each page load; both go. Overscroll stays off (v35). */
+@supports (-webkit-touch-callout: none) {
+  body::before { display: none !important; }
+  main#top { background-color: #f7f5f3; }
+  body:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { background-color: #a9b1db !important; }
+  body:has(.pw .sky[data-sky="night"]) { background-color: #121126 !important; }
+}
