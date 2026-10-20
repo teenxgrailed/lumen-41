@@ -224,19 +224,108 @@
   color: var(--text-secondary);
 }
 
-/* The City field in Settings. */
+/* The City picker in Settings: a field, a cross, and a list under it. */
+.needt-v3 .city-pick {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
 .needt-v3 .city-field {
+  width: 100%;
   height: 32px;
-  padding: 0 10px;
+  padding: 0 30px 0 10px;
   border: 0;
   border-radius: var(--radius-md);
   background: var(--fill-2);
   color: var(--text-primary);
   font: var(--type-ui);
   box-shadow: var(--fill-5) 0 0 0 1px inset;
+  text-overflow: ellipsis;
 }
 .needt-v3 .city-field::placeholder {
   color: var(--text-muted);
+}
+.needt-v3 .city-field:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 .city-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.needt-v3 .city-clear:hover {
+  background: var(--fill-3);
+  color: var(--text-secondary);
+}
+.needt-v3 .city-pop {
+  z-index: 1100;
+  box-sizing: border-box;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3 .city-pop ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.needt-v3 .city-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 38px;
+  padding: 4px 10px;
+  border-radius: var(--radius-lg);
+  cursor: default;
+}
+.needt-v3 .city-opt[data-active] {
+  background: var(--fill-2);
+}
+.needt-v3 .city-opt-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.needt-v3 .city-opt-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font: var(--type-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .city-opt-sub {
+  overflow: hidden;
+  color: var(--text-muted);
+  font: var(--type-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .city-opt-code {
+  color: var(--text-muted);
+  font: var(--type-meta-medium);
+  letter-spacing: 0.04em;
+}
+.needt-v3 .city-note {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font: var(--type-meta);
 }
 
 /* Weekly review: the three focus fields fill the row. */

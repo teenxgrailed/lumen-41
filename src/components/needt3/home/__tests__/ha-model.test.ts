@@ -149,6 +149,8 @@ describe("haTimeOf", () => {
     expect(t?.used).toBeCloseTo(2 / 9);
     expect(t?.plan).toBeCloseTo(180 / 540);
     expect(t?.over).toBeUndefined();
+    expect(t?.overFrac).toBeUndefined();
+    expect(t?.ends).toBe("18:00");
   });
   it("says how much it is overbooked by and when the day ends", () => {
     const t = haTimeOf({
@@ -158,6 +160,8 @@ describe("haTimeOf", () => {
       end: 18,
     });
     expect(t?.over).toEqual({ by: "40 min", ends: "18:00" });
+    expect(t?.ends).toBe("18:00");
+    expect(t?.overFrac).toBeCloseTo(40 / 540);
     expect(t?.free).toBeUndefined();
     expect((t?.used ?? 0) + (t?.plan ?? 0)).toBeCloseTo(1);
   });

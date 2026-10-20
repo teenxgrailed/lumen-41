@@ -241,4 +241,50 @@ describe("HaWeather and HaTimeLeft", () => {
     expect(host.querySelector(".ha-tl.is-over")).toBeTruthy();
     expect(host.querySelector(".ha-tl-warn button")).toBeNull();
   });
+  it("time left: the bar draws done, planned, free and the day's end", async () => {
+    await render(
+      h(HaTimeLeft, {
+        t: {
+          planned: "3 h",
+          free: "2 h",
+          used: 0.25,
+          plan: 0.5,
+          now: 0.25,
+          ends: "18:00",
+        },
+      })
+    );
+    const style = (sel: string) =>
+      (host.querySelector(sel) as HTMLElement).style;
+    expect(style(".ha-tl-bar .past").width).toBe("25%");
+    expect(style(".ha-tl-bar .plan").left).toBe("25%");
+    expect(style(".ha-tl-bar .plan").width).toBe("50%");
+    expect(style(".ha-tl-bar .free").left).toBe("75%");
+    expect(host.querySelector(".ha-tl-bar .spill")).toBeNull();
+    expect(host.querySelector(".ha-tl-ticks .at-end")?.textContent).toBe(
+      "18:00"
+    );
+  });
+  it("time left: overbooked, the day's end is a tick and the rest runs past it", async () => {
+    await render(
+      h(HaTimeLeft, {
+        t: {
+          planned: "9 h",
+          used: 0.5,
+          plan: 0.5,
+          now: 0.5,
+          ends: "18:00",
+          over: { by: "1 h", ends: "18:00" },
+          overFrac: 1,
+        },
+      })
+    );
+    const style = (sel: string) =>
+      (host.querySelector(sel) as HTMLElement).style;
+    // the whole axis is two working days wide: the day ends at its middle
+    expect(style(".ha-tl-bar .end").left).toBe("50%");
+    expect(style(".ha-tl-bar .spill").left).toBe("50%");
+    expect(style(".ha-tl-bar .spill").width).toBe("50%");
+    expect(host.querySelector(".ha-tl-bar .free")).toBeNull();
+  });
 });

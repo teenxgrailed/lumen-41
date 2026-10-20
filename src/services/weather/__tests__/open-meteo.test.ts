@@ -3,6 +3,7 @@ import {
   cleanCity,
   describeWeather,
   memoryCache,
+  searchCities,
   weatherFor,
 } from "../open-meteo";
 
@@ -89,6 +90,84 @@ describe("weatherFor", () => {
     expect(
       await weatherFor("Kyiv", { fetcher: down, cache: memoryCache() })
     ).toBeNull();
+  });
+});
+
+describe("searchCities", () => {
+  const GEO_LIST = {
+    results: [
+      {
+        name: "Zürich",
+        admin1: "Zurich",
+        country: "Switzerland",
+        country_code: "ch",
+        latitude: 47.37,
+        longitude: 8.55,
+      },
+      {
+        name: "Zürich",
+        admin1: "Zurich",
+        country: "Switzerland",
+        country_code: "CH",
+        latitude: 47.371,
+        longitude: 8.551,
+      },
+      { name: "Nowhere", latitude: "x", longitude: 1 },
+    ],
+  };
+
+  it("asks for eight places, returns usable ones once, and sends only the query", async () => {
+    const f = jest.fn((url: string) => json(url ? GEO_LIST : null));
+    const found = await searchCities("  zur ", {
+      fetcher: f,
+      cache: memoryCache(),
+    });
+    expect(found).toEqual([
+      {
+        name: "Zürich",
+        admin1: "Zurich",
+        country: "Switzerland",
+        countryCode: "CH",
+        latitude: 47.37,
+        longitude: 8.55,
+      },
+    ]);
+    const url = f.mock.calls[0][0];
+    expect(url).toContain("name=zur");
+    expect(url).toContain("count=8");
+    expect(url).not.toMatch(/apikey|key=|ip=|device/i);
+  });
+
+  it("asks nobody under two letters, and remembers an answer", async () => {
+    const f = jest.fn((url: string) => json(url ? GEO_LIST : null));
+    const cache = memoryCache();
+    expect(await searchCities("z", { fetcher: f, cache })).toEqual([]);
+    expect(f).not.toHaveBeenCalled();
+    await searchCities("Zur", { fetcher: f, cache });
+    await searchCities("zur", { fetcher: f, cache });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("weatherFor with a picked place", () => {
+  it("uses its coordinates and does not geocode", async () => {
+    const f = fetcher();
+    const w = await weatherFor("Zürich", {
+      fetcher: f,
+      cache: memoryCache(),
+      place: {
+        name: "Zürich",
+        admin1: null,
+        country: "Switzerland",
+        countryCode: "CH",
+        latitude: 47.37,
+        longitude: 8.55,
+      },
+    });
+    expect(w?.city).toBe("Zürich");
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(f.mock.calls[0][0]).toContain("api.open-meteo.com/v1/forecast");
+    expect(f.mock.calls[0][0]).toContain("latitude=47.37");
   });
 });
 
