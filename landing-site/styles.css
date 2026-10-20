@@ -681,3 +681,10 @@ html { background: var(--edge-t, var(--paper)); }
   100% { font-variation-settings: "EXPO" -22; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .nav .brand-word .bw-l { animation: none; font-variation-settings: "EXPO" -28; } }
+
+/* v31 — Safari 26+ tints its bars from sticky/fixed elements it treats as sitting at the
+   viewport edge, and it counts a sticky sky whose section is off screen (the lavender sky of a
+   section further down tinted both bars over a white section). While its section is off screen a
+   sticky sky or pin is parked as relative; the script (app.js / site.js) parks and unparks it
+   a little before it scrolls in, so the choreography is unchanged. */
+.sky-wrap .sky.is-parked, .fold-pin.is-parked, .tour-pin.is-parked, .night-pin.is-parked, .dusk-veil.is-parked { position: relative !important; }

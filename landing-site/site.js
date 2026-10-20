@@ -370,3 +370,23 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   [120, 400, 900, 1800].forEach((ms) => setTimeout(queue, ms));
   queue();
 })();
+
+/* ── Park sticky skies and pins while their section is off screen ──
+   Safari 26+ takes its bar colour from sticky elements it considers at the
+   edge, including ones whose section is off screen (see styles.css v31). */
+(() => {
+  if (!("IntersectionObserver" in window)) return;
+  const els = document.querySelectorAll(".sky-wrap .sky, .fold-pin, .tour-pin, .night-pin, .dusk-veil");
+  if (!els.length) return;
+  const byHost = new Map();
+  els.forEach((el) => {
+    const host = el.closest("section") || el.parentElement;
+    if (!host) return;
+    if (!byHost.has(host)) byHost.set(host, []);
+    byHost.get(host).push(el);
+  });
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => (byHost.get(e.target) || []).forEach((el) => el.classList.toggle("is-parked", !e.isIntersecting)));
+  }, { rootMargin: "200px 0px" });
+  byHost.forEach((_, host) => io.observe(host));
+})();
