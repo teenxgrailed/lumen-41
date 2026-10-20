@@ -5,6 +5,22 @@
   if (window.__edgeDebug) return;
   window.__edgeDebug = true;
 
+  /* ?autoscroll[=px]: no panel; scroll down one step every 3 s, then back up,
+     so a simulator can screenshot Safari's bars at each position. */
+  const auto = /[?&]autoscroll(?:=(\d+))?/.exec(location.search);
+  if (auto) {
+    const step = Number(auto[1] || 600);
+    let dir = 1;
+    setTimeout(function tick() {
+      const max = document.documentElement.scrollHeight - innerHeight;
+      if (dir > 0 && scrollY >= max - 2) dir = -1;
+      else if (dir < 0 && scrollY <= 2) return;
+      window.scrollBy(0, dir * step);
+      setTimeout(tick, 3000);
+    }, 4000);
+    return;
+  }
+
   const probe = document.createElement("div");
   probe.style.cssText =
     "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;" +
