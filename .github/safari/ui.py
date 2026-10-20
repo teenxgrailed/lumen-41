@@ -86,16 +86,18 @@ if __name__ == "__main__":
     elif cmd == "signin":
         email, password = args
         shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True)
-        # web content is not exposed to accessibility: coordinates it is
+        # web content is not exposed to accessibility: coordinates it is. The
+        # simulator has no GPU on a runner, so key events queue up behind the
+        # painting; wait generously after each one so they land in order.
         tap(w / 2, h * 0.44)
-        time.sleep(4)
+        time.sleep(20)
         shot("1-focused")
         idb("ui", "text", email)
-        time.sleep(3)
+        time.sleep(60)
         shot("2-email")
         idb("ui", "key", "43")  # Tab to the password field
-        time.sleep(2)
+        time.sleep(20)
         idb("ui", "text", password)
-        time.sleep(3)
+        time.sleep(60)
         shot("3-password")
         idb("ui", "key", "40")  # Return submits the form

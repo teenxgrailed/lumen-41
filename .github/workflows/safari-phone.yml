@@ -150,7 +150,7 @@ jobs:
           sleep 3
           xcrun simctl io "$UDID" screenshot shots/00-signin.png
           python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-          sleep 12
+          sleep 90
           xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
           python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
 
