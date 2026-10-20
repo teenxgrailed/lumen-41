@@ -576,8 +576,15 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
 (() => {
   if (!(window.CSS && CSS.supports("-webkit-touch-callout", "none"))) return;
   const R = 64; /* = body::before runway in styles.css (v37) */
-  const keep = () => { if (window.scrollY < R && document.documentElement.scrollHeight > innerHeight + R) window.scrollTo(0, R); };
-  addEventListener("scroll", keep, { passive: true });
+  const can = () => document.documentElement.scrollHeight > innerHeight + R;
+  const keep = () => { if (window.scrollY < R && can()) window.scrollTo(0, R); };
+  /* While scrolling, leave the page alone (correcting mid-gesture fights the
+     momentum and jerks); the runway is the page's top colour, so seeing it is
+     harmless. Once scrolling stops above it, glide back. */
+  let idle;
+  const settle = () => { if (window.scrollY < R && can()) window.scrollTo({ top: R, behavior: "smooth" }); };
+  addEventListener("scroll", () => { clearTimeout(idle); idle = setTimeout(settle, 180); }, { passive: true });
+  if ("onscrollend" in window) addEventListener("scrollend", () => { clearTimeout(idle); settle(); });
   addEventListener("load", keep);
   addEventListener("pageshow", keep);
   keep();
