@@ -25,6 +25,10 @@ export const metadata: Metadata = {
     title: APP_NAME,
     statusBarStyle: "black-translucent",
   },
+  // iOS reads the status-bar style only from an installed app that declares
+  // `apple-mobile-web-app-capable`; Next emits just `mobile-web-app-capable`.
+  // Without it the bar is opaque and the page starts below it.
+  other: { "apple-mobile-web-app-capable": "yes" },
   icons: {
     icon: [
       { url: "/brand/needt-icon.svg", type: "image/svg+xml", sizes: "any" },

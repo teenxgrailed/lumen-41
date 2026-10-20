@@ -111,6 +111,35 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   inset: auto 0 0 0;
   height: var(--pk-band-h);
 }
+/* One soft tint from the display edge down past the compact header (+12 px),
+ * then gone: no opaque slab behind the clock, the blur shows what scrolls
+ * under it, and the compact title (the middle of the band) reads on a blur
+ * strong enough to dissolve the row text under it. */
+.needt-v3[data-ui="phone"] .pk-topband-wash {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--pk-mist) 85%, transparent) 0%,
+    var(--pk-mist) 55%,
+    color-mix(in srgb, var(--pk-mist) 40%, transparent) 82%,
+    var(--pk-fog-0) 100%
+  );
+}
+.needt-v3[data-ui="phone"] .pk-topband .pk-blur.is-2 {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    transparent 4%,
+    var(--v2p-ink) 34%
+  );
+  mask-image: linear-gradient(to top, transparent 4%, var(--v2p-ink) 34%);
+}
+.needt-v3[data-ui="phone"] .pk-topband .pk-blur.is-3 {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    transparent 22%,
+    var(--v2p-ink) 52%
+  );
+  mask-image: linear-gradient(to top, transparent 22%, var(--v2p-ink) 52%);
+}
 /* Bottom fog: its box reaches the display edge; the dots keep their place
  * from its top. */
 .needt-v3[data-ui="phone"] .pk-fog {
