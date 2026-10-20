@@ -46,6 +46,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { Glyph } from "../../glyphs/Glyph";
 import { PxSky } from "../../scenes";
 import { type EndReason, frameWriter, pkTrack } from "../kit/pointer";
+import { pkEdgeInset } from "../kit/scroll";
 import { usePkSkyMood } from "../kit/theme";
 import { type PkSide, pkReduced } from "../kit/util";
 import { DockGlyph, MenuGlyph } from "./Glyph";
@@ -604,7 +605,7 @@ export function Menu(props: MenuProps) {
       const sab = parseFloat(getComputedStyle(el).paddingBottom) || 0;
       const g = nvaGeom(
         el.clientWidth || r.width,
-        (el.clientHeight || r.height) - sab
+        (el.clientHeight || r.height) - sab + 2 * pkEdgeInset(el)
       );
       S.g = g;
       el.style.setProperty("--nva-w", `${g.W}px`);

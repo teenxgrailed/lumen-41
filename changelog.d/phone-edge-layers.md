@@ -1,0 +1,1 @@
+Phone: the blurred band at the top and the fog at the bottom reach the very screen edge again (behind the status bar and the Safari toolbar), and the pull-down plate no longer paints a band at the top. Full-screen fixed layers now stand 8 px in from the edges so Safari 26 has nothing to tint its bars from.

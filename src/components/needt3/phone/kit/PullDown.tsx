@@ -431,98 +431,100 @@ export function PkPullDown<H extends PullHit = PullHit>({
   return (
     <>
       <PkScrim scrimRef={scrim} open={open} onClick={() => setOpen(false)} />
-      <div
-        ref={plateEl}
-        className={`pk-pull ${plate}`}
-        data-pk-pull={open ? "open" : "shut"}
-        aria-hidden={open ? undefined : "true"}
-        onPointerDown={onPlateDown}
-      >
-        <div className="pk-pull-sky" data-px-scope="" aria-hidden="true">
-          <PxSky
-            horizon="none"
-            fps={15}
-            mood={sky.mood ?? undefined}
-            dark={sky.dark}
-            parked
-            engine={skyEng}
-          />
-        </div>
-        <div ref={body} className="pk-pull-body">
-          <div className="pk-pull-status" />
-          <div className="pk-pull-field">
-            <LuSearch size={22} aria-hidden />
-            <input
-              ref={input}
-              className="pk-pull-input"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={
-                placeholder ?? (onAdd ? "Search or add…" : "Search…")
-              }
-              aria-label={placeholder ?? (onAdd ? "Search or add" : "Search")}
-              tabIndex={tab}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  add();
-                }
-              }}
-              data-pk-pull-input
+      <div className="pk-pull-host">
+        <div
+          ref={plateEl}
+          className={`pk-pull ${plate}`}
+          data-pk-pull={open ? "open" : "shut"}
+          aria-hidden={open ? undefined : "true"}
+          onPointerDown={onPlateDown}
+        >
+          <div className="pk-pull-sky" data-px-scope="" aria-hidden="true">
+            <PxSky
+              horizon="none"
+              fps={15}
+              mood={sky.mood ?? undefined}
+              dark={sky.dark}
+              parked
+              engine={skyEng}
             />
           </div>
-          {hits.length ? (
-            <div className="pk-pull-hits">
-              {hits.map((h) => (
-                <button
-                  key={h.id}
-                  type="button"
-                  className={pkCx("pk-pull-hit", h.done && "is-done")}
-                  tabIndex={tab}
-                  onClick={() => {
-                    setOpen(false);
-                    onPick?.(h);
-                  }}
-                >
-                  <span className="pk-pull-hit-title">{h.title}</span>
-                  {h.meta ? (
-                    <span className="pk-pull-hit-meta">{h.meta}</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="pk-pull-none">
-              {query
-                ? "Nothing called that yet."
-                : (hint ??
-                  (onAdd
-                    ? "Tasks, by any word in their title. Enter adds it to today."
-                    : "By any word."))}
-            </p>
-          )}
-          <div className="pk-pull-actions">
-            <PkButton tabIndex={tab} onClick={() => setOpen(false)}>
-              Cancel
-            </PkButton>
-            {onAdd ? (
-              <PkButton
-                kind="primary"
-                icon={<LuPlus size={18} />}
+          <div ref={body} className="pk-pull-body">
+            <div className="pk-pull-status" />
+            <div className="pk-pull-field">
+              <LuSearch size={22} aria-hidden />
+              <input
+                ref={input}
+                className="pk-pull-input"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={
+                  placeholder ?? (onAdd ? "Search or add…" : "Search…")
+                }
+                aria-label={placeholder ?? (onAdd ? "Search or add" : "Search")}
                 tabIndex={tab}
-                disabled={!query}
-                onClick={add}
-                data-pk-pull-add
-              >
-                {addLabel
-                  ? addLabel(query)
-                  : query
-                    ? `Add “${query}”`
-                    : "Add to today"}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    add();
+                  }
+                }}
+                data-pk-pull-input
+              />
+            </div>
+            {hits.length ? (
+              <div className="pk-pull-hits">
+                {hits.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    className={pkCx("pk-pull-hit", h.done && "is-done")}
+                    tabIndex={tab}
+                    onClick={() => {
+                      setOpen(false);
+                      onPick?.(h);
+                    }}
+                  >
+                    <span className="pk-pull-hit-title">{h.title}</span>
+                    {h.meta ? (
+                      <span className="pk-pull-hit-meta">{h.meta}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="pk-pull-none">
+                {query
+                  ? "Nothing called that yet."
+                  : (hint ??
+                    (onAdd
+                      ? "Tasks, by any word in their title. Enter adds it to today."
+                      : "By any word."))}
+              </p>
+            )}
+            <div className="pk-pull-actions">
+              <PkButton tabIndex={tab} onClick={() => setOpen(false)}>
+                Cancel
               </PkButton>
-            ) : null}
+              {onAdd ? (
+                <PkButton
+                  kind="primary"
+                  icon={<LuPlus size={18} />}
+                  tabIndex={tab}
+                  disabled={!query}
+                  onClick={add}
+                  data-pk-pull-add
+                >
+                  {addLabel
+                    ? addLabel(query)
+                    : query
+                      ? `Add “${query}”`
+                      : "Add to today"}
+                </PkButton>
+              ) : null}
+            </div>
+            <span className="pk-pull-grab" aria-hidden="true" />
           </div>
-          <span className="pk-pull-grab" aria-hidden="true" />
         </div>
       </div>
       <span

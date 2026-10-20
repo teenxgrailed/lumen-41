@@ -25,7 +25,6 @@ import {
 import { springStep } from "@/lib/needt3/spring";
 
 import { PkScrim } from "./Scrim";
-import { pkLockScroll } from "./scroll";
 import {
   focusablesIn,
   stackIsTop,
@@ -34,6 +33,7 @@ import {
   trapTab,
 } from "./focus";
 import { type EndReason, onGestureAbort, pkTrack } from "./pointer";
+import { pkEdgeInset, pkLockScroll } from "./scroll";
 import { usePkInverse } from "./theme";
 import { pkClamp, pkCx, pkMarkMoving, pkReduced } from "./util";
 
@@ -318,7 +318,7 @@ export function PkSheet({
     if (!el || !ly) return;
     const oldShut = S.H + 24;
     const wasShut = !S.open && S.target >= oldShut - 0.5;
-    S.FH = ly.clientHeight;
+    S.FH = ly.clientHeight + 2 * pkEdgeInset(ly);
     if (S.ds) el.style.height = `${Math.round(S.ds[S.ds.length - 1] * S.FH)}px`;
     else el.style.height = "";
     S.H = el.offsetHeight;

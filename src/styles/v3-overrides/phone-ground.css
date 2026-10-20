@@ -49,6 +49,8 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   --v3-sab: env(safe-area-inset-bottom, 0px);
   /* Where content starts: the design's 52 px status bar, or the real inset. */
   --v3-top: max(52px, env(safe-area-inset-top, 0px));
+  /* How far a full-screen fixed layer stands in from the top and bottom edge. */
+  --v3-edge: 8px;
 }
 
 /* No ancestor of the page clips it vertically or fixes its height. Sideways
@@ -74,27 +76,53 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   height: calc(132px + var(--v3-sab));
 }
 
-/* Layers that stay put while the page scrolls. */
-.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact, .pk-pull),
+/* Layers that stay put while the page scrolls.
+ *
+ * Safari 26 tints a bar from the own background-colour of a fixed / sticky
+ * element within a few px of that edge, at least 80% wide and 3 px tall
+ * (opacity, visibility and a transparent colour do not matter; only
+ * `display: none` removes it; pseudo-elements and absolute children are not
+ * read). So no full-width fixed element may touch the top or bottom edge:
+ *
+ * - the top band and the bottom fog are fixed HOSTS with no height, parked
+ *   at the inner edge of their band; the blur, wash and dots are absolute
+ *   children that reach the screen edge from there (children are not read);
+ * - the pull-down plate is an absolute child of such a zero-height host;
+ * - the scrim, the sheet layer, the menu and the screen sweep stand
+ *   `--v3-edge` (8 px) in from both edges, and the paint of each reaches out
+ *   to the edge from there (the menu and the sheet add the offset back when
+ *   they measure the screen). */
+.needt-v3[data-ui="phone"]
+  :is(.pk-topband, .pk-fog, .pk-pull-host, .pk-compact),
 .needt-v3[data-ui="phone"]
   :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen) {
   position: fixed;
 }
-/* The two bands stand 8 px off their edge: Safari 26 reads a fixed full-width
- * element within ~5 px of the top or bottom edge for the bar colour. */
-.needt-v3[data-ui="phone"] .pk-topband {
-  top: 8px;
-  height: calc(var(--v3-top) + 56px);
-}
 .needt-v3[data-ui="phone"] .pk-compact {
   top: var(--v3-top);
 }
-/* The bottom fog reaches the display edge: its wash reaches the ground colour
- * at the very bottom (its dots keep their own faded mask) and is only glass:
- * no opaque fill. */
+/* Top band: its box is the status bar plus the compact header's row. */
+.needt-v3[data-ui="phone"] .pk-topband {
+  --pk-band-h: calc(var(--v3-top) + 56px);
+  top: var(--pk-band-h);
+  height: 0;
+}
+.needt-v3[data-ui="phone"] .pk-topband > * {
+  inset: auto 0 0 0;
+  height: var(--pk-band-h);
+}
+/* Bottom fog: its box reaches the display edge; the dots keep their place
+ * from its top. */
 .needt-v3[data-ui="phone"] .pk-fog {
-  bottom: 8px;
-  height: calc(124px + var(--v3-sab));
+  --pk-fog-h: calc(132px + var(--v3-sab));
+  top: auto;
+  bottom: var(--pk-fog-h);
+  height: 0;
+  overflow: visible;
+}
+.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots) {
+  inset: 0 0 auto 0;
+  height: var(--pk-fog-h);
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-1 {
   top: calc(40px + var(--v3-sab));
@@ -104,6 +132,36 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
   top: calc(82px + var(--v3-sab));
+}
+/* The pull-down plate (PullDown wraps it in the host). */
+.needt-v3 .pk-pull-host {
+  display: contents;
+}
+.needt-v3[data-ui="phone"] .pk-pull-host {
+  display: block;
+  left: 0;
+  right: 0;
+  top: var(--v3-edge);
+  height: 0;
+  z-index: 51;
+  pointer-events: none;
+}
+.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull {
+  top: calc(-1 * var(--v3-edge));
+  pointer-events: auto;
+}
+/* Scrim and screen sweep: in from the edges, the paint out to them. */
+.needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),
+.needt-v3[data-ui="phone"] :is(.pk-sheet-layer, .nva) {
+  top: var(--v3-edge);
+  bottom: var(--v3-edge);
+}
+.needt-v3[data-ui="phone"] .pk-scrim > *,
+.needt-v3[data-ui="phone"] .nva-scrim {
+  inset: calc(-1 * var(--v3-edge)) 0;
+}
+.needt-v3[data-ui="phone"] .nva-glass {
+  top: calc(-1 * var(--v3-edge));
 }
 
 /* Everything anchored to the bottom floats above it by a gap plus the inset:
@@ -115,7 +173,7 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   box-sizing: border-box;
 }
 .needt-v3[data-ui="phone"] .nva-body {
-  bottom: calc(10px + var(--v3-sab));
+  bottom: calc(10px + var(--v3-sab) - var(--v3-edge));
 }
 .needt-v3[data-ui="phone"] .pd-actbar {
   bottom: calc(26px + var(--v3-sab));
@@ -128,27 +186,6 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 }
 .needt-v3[data-ui="phone"] .pk-sheet {
   padding-bottom: var(--v3-sab);
-}
-
-/* Safari 26 tints a bar from the own background-colour of a fixed or sticky
- * element within a few px of that edge that is at least 80% of the width
- * (opacity ignored; pseudo-elements and absolute children are not read). The
- * pull-down plate is fixed at the top edge, so its fill moves to a pseudo
- * element and the element itself carries no colour. The other full-width fixed
- * layers (topband, fog, scrim, sheet layer, menu) already hold their colours
- * in children. */
-.needt-v3[data-ui="phone"] .pk-pull {
-  background: none;
-}
-.needt-v3[data-ui="phone"] .pk-pull::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--v2p-plate);
-  pointer-events: none;
-}
-.needt-v3[data-ui="phone"] .pk-pull::before {
-  background: var(--v2p-plate);
+  /* the sheet layer stands in from the edge; the sheet still sits on it */
+  bottom: calc(-1 * var(--v3-edge));
 }
