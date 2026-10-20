@@ -700,3 +700,21 @@ html { background: var(--edge-t, var(--paper)); }
 .fold-pin, .tour-pin, .night-pin { top: 5px; height: calc(100vh - 10px); }
 .dusk-veil { top: 5px; height: calc(100vh - 10px); margin-top: calc(-100vh + 5px); margin-bottom: 5px; background: transparent; }
 .dusk-veil::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; background: #fff; }
+
+/* v34 — iOS "budget mode". budget.needt.app has no bands in Safari 26+ while this page kept
+   them through every attempt to steer the tint (opaque sticky skies, parking, edge colours,
+   body nudges): Safari samples a sticky/fixed element at an edge and then keeps that colour
+   while the page scrolls under it. budget.needt.app never has such an element and never
+   changes its root colours. On iOS this page now does the same: the skies scroll with their
+   section instead of sticking (the clouds lose their parallax on the phone only), the dusk
+   veil scrolls with its sky, the colour under each sky continues as a plain background, and
+   html keeps one static colour. Desktop is unchanged. */
+@supports (-webkit-touch-callout: none) {
+  html { background: var(--paper) !important; }
+  .sky-wrap .sky { position: absolute !important; top: 0; left: 0; right: 0; height: 100vh; }
+  .sky-wrap .sky[data-sky="lavender"] { background-color: transparent; }
+  .sky-wrap .sky[data-sky="night"] { background-color: transparent; }
+  .sky-wrap:has(> .sky[data-sky="lavender"]) { background: #ece6ea; }
+  .sky-wrap:has(> .sky[data-sky="night"]) { background: #3a3760; }
+  .dusk-veil { position: absolute !important; top: 0; left: 0; right: 0; margin: 0; height: 100vh; }
+}

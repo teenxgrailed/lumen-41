@@ -477,6 +477,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
    (--sky-edge, under its canvas) equal to the colour at the edge it touches; this keeps it,
    --edge-t (html) and <meta theme-color> in step. */
 (() => {
+  /* iOS: "budget mode" in styles.css (v34) — nothing sticks to the edges and
+     the page keeps one static background, so this script stays out. */
+  if (window.CSS && CSS.supports("-webkit-touch-callout", "none")) return;
   const root = document.documentElement;
   const FALL = { lavender: [[174, 180, 216], [233, 230, 234]], night: [[18, 17, 38], [58, 55, 96]] };
   const parse = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ""); if (!m) return null; const v = m[1].split(",").map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
