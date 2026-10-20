@@ -1,3 +1,5 @@
+/* ?edgedebug loads a panel that reports what sits at the screen edges (Safari bar bands). */
+if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement("script"); s.src = "/edge-debug.js"; document.head.appendChild(s); }
 /* Needt landing v2 — behaviour. No framework; Lenis (optional) for smooth scroll,
    vendor/sky.js for the app's own sky. */
 (() => {

@@ -1,3 +1,5 @@
+/* ?edgedebug loads a panel that reports what sits at the screen edges (Safari bar bands). */
+if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement("script"); s.src = "/edge-debug.js"; document.head.appendChild(s); }
 /* Needt site — shared behaviour for every page except the home page (app.js).
    No framework. vendor/sky.js draws the app's own sky; vendor/lenis.min.js
    smooths the scroll when it is there. */
