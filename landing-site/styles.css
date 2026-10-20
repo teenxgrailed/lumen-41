@@ -737,3 +737,11 @@ html { background: var(--edge-t, var(--paper)); }
   body:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"])::before { background: #a9b1db; }
   body:has(.pw .sky[data-sky="night"])::before { background: #121126; }
 }
+
+/* v39 — iOS: body keeps one background through the night zone. body.is-night swaps --paper to
+   navy, so body's background changed mid-scroll and Safari re-tinted its bars from it (owner's
+   iPhone: dark-grey top bar and a white bottom bar over the night section). The night zone
+   paints its own background (sky-wrap), so body never needs to change on the phone. */
+@supports (-webkit-touch-callout: none) {
+  body, body.is-night, body.page { background-color: #f7f5f3 !important; }
+}
