@@ -718,3 +718,13 @@ html { background: var(--edge-t, var(--paper)); }
   .sky-wrap:has(> .sky[data-sky="night"]) { background: #3a3760; }
   .dusk-veil { position: absolute !important; top: 0; left: 0; right: 0; margin: 0; height: 100vh; }
 }
+
+/* v35 — iOS: at scrollY 0 Safari paints the status bar with the root background, so it must be
+   the colour at the top of the page (lavender sky on the home page and lavender-hero pages,
+   night on pricing), not paper; and the page can't be pulled down past its top, which would
+   show the root colour as a band. Static per page — never changed while scrolling. */
+@supports (-webkit-touch-callout: none) {
+  html { overscroll-behavior-y: none; }
+  html:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { background: #a9b1db !important; }
+  html:has(.pw .sky[data-sky="night"]) { background: #121126 !important; }
+}
