@@ -85,9 +85,14 @@ jobs:
         run: |
           set -euo pipefail
           brew tap facebook/fb
+          brew trust facebook/fb || true
           brew install idb-companion
-          python3 -m pip install --break-system-packages fb-idb || pipx install fb-idb
-          idb --help | head -3
+          # fb-idb predates the newest asyncio changes; give it Python 3.12
+          brew install python@3.12
+          "$(brew --prefix python@3.12)/bin/python3.12" -m venv "$HOME/idbenv"
+          "$HOME/idbenv/bin/pip" install fb-idb
+          echo "$HOME/idbenv/bin" >> "$GITHUB_PATH"
+          "$HOME/idbenv/bin/idb" --help | head -3
 
       - name: Boot an iPhone simulator
         run: |
