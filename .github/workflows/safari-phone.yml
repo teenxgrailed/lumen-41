@@ -79,7 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           npm run build
-          setsid nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          disown
           for i in $(seq 1 60); do
             curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
             sleep 2
