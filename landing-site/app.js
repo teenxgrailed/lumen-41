@@ -471,9 +471,9 @@
    Safari 26 ignores theme-color and tints the status bar / floating toolbar
    from the fixed or sticky element at the viewport edge (else the root
    background). Our skies are sticky and transparent, so Safari fell through
-   to the paper colour and drew a band. Two fixed 3px strips (body::before /
-   ::after, styles.css) carry the colour that is really at each edge;
-   this keeps --edge-t / --edge-b and <meta theme-color> in step with it. */
+   to the paper colour and drew a band. Each sky now carries an opaque background-color
+   (--sky-edge, under its canvas) equal to the colour at the edge it touches; this keeps it,
+   --edge-t (html) and <meta theme-color> in step. */
 (() => {
   const root = document.documentElement;
   const FALL = { lavender: [[174, 180, 216], [233, 230, 234]], night: [[18, 17, 38], [58, 55, 96]] };
@@ -512,7 +512,11 @@
     queued = false;
     const t = hex(colourAt(true)), b = hex(colourAt(false));
     if (t !== lt) { lt = t; root.style.setProperty("--edge-t", t); meta.content = t; }
-    if (b !== lb) { lb = b; root.style.setProperty("--edge-b", b); }
+    lb = b;
+    document.querySelectorAll(".sky").forEach((s) => {
+      const r = s.getBoundingClientRect(), c = r.top <= 1 && r.bottom > 1 ? t : r.top < innerHeight - 2 && r.bottom >= innerHeight - 2 ? b : "";
+      if (c) { if (s.__edge !== c) { s.__edge = c; s.style.setProperty("--sky-edge", c); } }
+    });
   };
   const queue = () => { if (!queued) { queued = true; requestAnimationFrame(apply); } };
   addEventListener("scroll", queue, { passive: true });

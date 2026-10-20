@@ -35,17 +35,15 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-/* Safari 26 tints its status bar and floating toolbar from the fixed element at the
-   viewport edge (else the root background). The skies are sticky and transparent, so it
-   saw paper and drew a band. These two 3px strips carry the colour that is really at each
-   edge; the script (app.js / site.js) keeps --edge-t / --edge-b current. The defaults are
-   what the page opens on, so there is no band before the script runs. */
-:root { --edge-t: #f7f5f3; --edge-b: #f7f5f3; }
-:root:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { --edge-t: #aeb4d8; --edge-b: #e9e6ea; }
-:root:has(.pw .sky[data-sky="night"]) { --edge-t: #121126; --edge-b: #3a3760; }
-body::before, body::after { content: ""; position: fixed; left: 0; right: 0; height: 3px; z-index: 40; pointer-events: none; transition: background-color .3s linear; }
-body::before { top: 0; background-color: var(--edge-t); }
-body::after { bottom: 0; background-color: var(--edge-b); }
+/* Safari 26 tints its status bar and floating toolbar from the fixed/sticky element at the
+   viewport edge (else the root background). The skies are sticky with a transparent
+   background-color, so it fell through to paper and drew a band. Each sky now has an opaque
+   background-color (under its canvas, so invisible) equal to the colour at the edge it touches;
+   the script (app.js / site.js) keeps --sky-edge and --edge-t current. The defaults are what the
+   page opens on, so there is no band before the script runs. */
+:root { --edge-t: #f7f5f3; }
+:root:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { --edge-t: #aeb4d8; }
+:root:has(.pw .sky[data-sky="night"]) { --edge-t: #121126; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font: 400 17px/1.55 var(--sans); letter-spacing: -0.01em;
@@ -173,6 +171,8 @@ a[aria-disabled="true"] { cursor: default; }
 .sky-wrap { position: absolute; inset: 0; pointer-events: none; }
 .sky-wrap .sky[data-sky="lavender"] { background: linear-gradient(180deg, #a9b1db 0%, #c7c9e6 55%, #ece6ea 100%); }
 .sky-wrap .sky[data-sky="night"] { background: linear-gradient(180deg, #121126 0%, #24223f 70%, #3a3760 100%); }
+.sky-wrap .sky[data-sky="lavender"] { background-color: var(--sky-edge, #aeb4d8); }
+.sky-wrap .sky[data-sky="night"] { background-color: var(--sky-edge, #121126); }
 .sky-wrap .sky { position: sticky !important; top: 0; height: 100vh; width: 100%; overflow: hidden; pointer-events: auto; }
 /* Soft section edges: paper-coloured fades laid over the sky (cheaper than a mask). */
 .hero::after, .ai::before, .ai::after { content: ""; position: absolute; left: 0; right: 0; height: 160px; pointer-events: none; z-index: 1; }
