@@ -528,7 +528,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ["day", "Day", stats.left],
     ["week", "Week ahead", weekOpen],
   ];
-  const { date: dateLine, week: weekNo } = todayLine(
+  const { date: dateLine } = todayLine(
     now,
     tz,
     settings.data?.weekStartDay ?? "monday"
@@ -603,7 +603,6 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         />
         <div className="hd-titlebox">
           <h1 className="hd-title-h1">{dateLine}</h1>
-          <span className="hd-meta-line hd-meta-t">Today · week {weekNo}</span>
           <span className="ha-dk-wx">
             <HaScope>
               <HaWeather wx={wx} />

@@ -25,6 +25,7 @@ import {
   normalizeUserTimeZone,
 } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
+import { parseCityPlace } from "@/lib/needt3/city";
 import { prisma } from "@/lib/prisma";
 
 import { loadHighlight } from "../highlight/highlight-service";
@@ -276,7 +277,9 @@ export async function weatherLine(userId: string) {
         : {};
     const city = cleanCity(prefs.city);
     if (!city) return null;
-    const weather = await weatherFor(city);
+    const weather = await weatherFor(city, {
+      place: parseCityPlace(prefs.cityPlace),
+    });
     if (!weather) return null;
     return {
       ...weather,

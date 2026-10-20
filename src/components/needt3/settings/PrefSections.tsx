@@ -1,7 +1,12 @@
 "use client";
 
+import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
 import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
+import {
+  useSetPref,
+  useSetPrefs,
+  useSettings,
+} from "@/lib/needt3/hooks/settings";
 
 import { CityField } from "./CityField";
 import { useMark } from "./SettingsContext";
@@ -12,12 +17,19 @@ import { SGroup, SRow, SSelect, V3Switch } from "./kit";
 function usePrefs() {
   const settings = useSettings();
   const setPref = useSetPref();
+  const setPrefs = useSetPrefs();
   const mark = useMark();
   const prefs = settings.data?.prefs;
   return {
     get: <K extends PrefKey>(key: K) => readPref(prefs, key),
     set: (key: PrefKey, value: unknown) =>
       void setPref(key, value).then((saved) => saved && mark()),
+    place: parseCityPlace(prefs?.cityPlace),
+    /** The picked city: its name and its place land in one write. */
+    setCity: (place: CityPlace | null) =>
+      void setPrefs({ city: place ? place.name : "", cityPlace: place }).then(
+        (saved) => saved && mark()
+      ),
     /** Controls stay off until the stored prefs are known. */
     off: !settings.data,
   };
@@ -48,12 +60,13 @@ export function GeneralSection() {
       <SGroup title="Weather">
         <SRow
           title="City"
-          desc="Shows the weather on Home. Only the city name is sent, never your location. Leave empty for none."
+          desc="Shows the weather on Home. Only what you type is sent, never your location."
         >
           <CityField
-            value={p.get("city")}
+            city={p.get("city")}
+            place={p.place}
             disabled={p.off}
-            onSave={(v) => p.set("city", v)}
+            onPick={p.setCity}
           />
         </SRow>
       </SGroup>

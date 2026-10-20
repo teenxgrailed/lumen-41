@@ -1,0 +1,3 @@
+- Settings, General: the weather City is now a picker. Type a few letters, choose a city from the list (name, region, country), and the weather uses its exact location. A cross clears it. Same picker on the phone. Only what you type is sent, through our server.
+- Home: the Today card's time bar now shows planned time as a solid stretch, free time as a dashed track and, when the day is overbooked, the part that does not fit as red dashes past a marked end of the day.
+- Home: the header no longer repeats "Today · week N", and the weather line sits level with the date heading.
