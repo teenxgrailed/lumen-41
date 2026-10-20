@@ -688,3 +688,15 @@ html { background: var(--edge-t, var(--paper)); }
    sticky sky or pin is parked as relative; the script (app.js / site.js) parks and unparks it
    a little before it scrolls in, so the choreography is unchanged. */
 .sky-wrap .sky.is-parked, .fold-pin.is-parked, .tour-pin.is-parked, .night-pin.is-parked, .dusk-veil.is-parked { position: relative !important; }
+
+/* v32 — Safari 26+ tints its bars from the background-color of a fixed/sticky element within
+   ~4px of the top or ~3px of the bottom edge, full width, at least 3px tall — read from the
+   element itself, ignoring its opacity, its pseudo-elements and absolute children. The pins
+   and the dusk veil sat exactly at both edges with a transparent (pins) or white (veil, even
+   when faded out) background, so the bars took paper or white over a coloured screen. They now
+   stop 5px short of each edge and so are never sampled; the veil paints through ::before,
+   which reaches the edges but which Safari does not read. Only the skies (opaque, kept on the
+   edge colour by the script) can tint. */
+.fold-pin, .tour-pin, .night-pin { top: 5px; height: calc(100vh - 10px); }
+.dusk-veil { top: 5px; height: calc(100vh - 10px); margin-top: calc(-100vh + 5px); margin-bottom: 5px; background: transparent; }
+.dusk-veil::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; bottom: -5px; background: #fff; }
