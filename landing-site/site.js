@@ -307,3 +307,64 @@
     seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
   });
 })();
+
+/* ── Safari bars follow the page ─────────────────────────
+   Safari 26 ignores theme-color and tints the status bar / floating toolbar
+   from the fixed or sticky element at the viewport edge (else the root
+   background). Our skies are sticky and transparent, so Safari fell through
+   to the paper colour and drew a band. Each sky now carries an opaque background-color
+   (--sky-edge, under its canvas) equal to the colour at the edge it touches; this keeps it,
+   --edge-t (html) and <meta theme-color> in step. */
+(() => {
+  const root = document.documentElement;
+  const FALL = { lavender: [[174, 180, 216], [233, 230, 234]], night: [[18, 17, 38], [58, 55, 96]] };
+  const parse = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ""); if (!m) return null; const v = m[1].split(",").map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
+  const hex = (c) => "#" + c.slice(0, 3).map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  /* What the sky canvas really shows at viewport row y (the 2D canvas is readable). */
+  const skyColour = (sky, y, top) => {
+    const cv = sky.querySelector(".px-canvas"), r = sky.getBoundingClientRect();
+    if (cv && cv.width && r.width) {
+      try {
+        const k = cv.width / r.width, row = Math.max(0, Math.min(cv.height - 1, Math.round((y - r.top) * k))), x = cv.getContext("2d");
+        const px = [.2, .5, .8].map((f) => x.getImageData(Math.round(cv.width * f), row, 1, 1).data);
+        if (px.every((p) => p[3] > 250)) return [0, 1, 2].map((i) => px.reduce((a, p) => a + p[i], 0) / px.length);
+      } catch (e) { /* tainted or lost: use the table */ }
+    }
+    return (FALL[sky.dataset.sky] || FALL.lavender)[top ? 0 : 1];
+  };
+  const colourAt = (top) => {
+    const y = top ? 1 : innerHeight - 2;
+    for (const el of document.elementsFromPoint(4, y)) {
+      if (el.classList.contains("sky")) {
+        let c = skyColour(el, y, top);
+        const veil = el.parentElement && el.parentElement.querySelector(".dusk-veil");
+        if (veil) { const o = parseFloat(getComputedStyle(veil).opacity); if (o > 0) c = c.map((v) => v * (1 - o) + 255 * o); }
+        return c;
+      }
+      const c = parse(getComputedStyle(el).backgroundColor);
+      if (c && c[3] > .95) return c;
+    }
+    return parse(getComputedStyle(document.body).backgroundColor) || [247, 245, 243, 1];
+  };
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) { meta = document.createElement("meta"); meta.name = "theme-color"; document.head.appendChild(meta); }
+  let lt = "", lb = "", queued = false;
+  const apply = () => {
+    queued = false;
+    const t = hex(colourAt(true)), b = hex(colourAt(false));
+    if (t !== lt) { lt = t; root.style.setProperty("--edge-t", t); meta.content = t; }
+    lb = b;
+    document.querySelectorAll(".sky").forEach((s) => {
+      const r = s.getBoundingClientRect(), c = r.top <= 1 && r.bottom > 1 ? t : r.top < innerHeight - 2 && r.bottom >= innerHeight - 2 ? b : "";
+      if (c) { if (s.__edge !== c) { s.__edge = c; s.style.setProperty("--sky-edge", c); } }
+    });
+  };
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(apply); } };
+  addEventListener("scroll", queue, { passive: true });
+  addEventListener("resize", queue);
+  addEventListener("load", queue);
+  addEventListener("pageshow", queue);
+  /* The skies paint a moment after load; look again while they settle. */
+  [120, 400, 900, 1800].forEach((ms) => setTimeout(queue, ms));
+  queue();
+})();
