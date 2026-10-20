@@ -85,13 +85,17 @@ if __name__ == "__main__":
         idb("ui", "key", args[0])
     elif cmd == "signin":
         email, password = args
-        # the form is the first screen: email field sits at ~44% of the height
+        shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True)
+        # web content is not exposed to accessibility: coordinates it is
         tap(w / 2, h * 0.44)
-        time.sleep(1)
+        time.sleep(4)
+        shot("1-focused")
         idb("ui", "text", email)
-        time.sleep(1)
+        time.sleep(3)
+        shot("2-email")
         idb("ui", "key", "43")  # Tab to the password field
-        time.sleep(1)
+        time.sleep(2)
         idb("ui", "text", password)
-        time.sleep(1)
+        time.sleep(3)
+        shot("3-password")
         idb("ui", "key", "40")  # Return submits the form

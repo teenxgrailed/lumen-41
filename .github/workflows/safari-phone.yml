@@ -126,7 +126,6 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
           xcrun simctl ui "$UDID" appearance light
-          open -a Simulator --args -CurrentDeviceUDID "$UDID" || true
           (idb_companion --udid "$UDID" --grpc-port 10882 > "$RUNNER_TEMP/companion.log" 2>&1 &)
           sleep 5
           idb connect localhost 10882
@@ -134,14 +133,24 @@ jobs:
 
       - name: Sign in through the sign-in form
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p shots debug
+          # the simulator is slow on a shared runner: wait until Safari has painted
+          # a real page (a blank or error page is a tiny JPEG)
+          loaded() {
+            for i in $(seq 1 40); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && return 0
+              sleep 3
+            done
+            return 1
+          }
           xcrun simctl openurl "$UDID" http://127.0.0.1:3000/auth/signin
-          sleep 12
+          loaded || echo "sign-in page did not paint"
+          sleep 3
           xcrun simctl io "$UDID" screenshot shots/00-signin.png
-          python3 .github/safari/ui.py dump > debug/signin-describe.json || true
           python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-          sleep 10
+          sleep 12
           xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
           python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
 
@@ -153,7 +162,13 @@ jobs:
           set -uo pipefail
           open_url() {
             curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
-            xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1"; sleep 9
+            xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1"; sleep 4
+            for i in $(seq 1 30); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
+              sleep 3
+            done
+            sleep 3
           }
           shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
           for theme in light dark; do
