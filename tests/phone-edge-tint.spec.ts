@@ -24,7 +24,7 @@ import { createV3User, signInAs } from "./helpers/v3-user";
  * descriptor), `PHONE_SHOTS=<dir>` writes the screenshots.
  */
 const GROUND = { light: "rgb(246, 246, 243)", dark: "rgb(20, 20, 22)" };
-const BASE = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3000";
+const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
 async function readEdges(page: Page) {
   return page.evaluate(() => {
@@ -75,7 +75,9 @@ for (const system of ["light", "dark"] as const) {
   for (const app of ["light", "dark"] as const) {
     test(`bars follow the app theme: system ${system}, app ${app}`, async () => {
       const engine = process.env.EDGE_BROWSER === "webkit" ? webkit : chromium;
-      const browser = await engine.launch();
+      const browser = await engine.launch({
+        args: ["--no-sandbox", "--disable-dev-shm-usage"],
+      });
       const context = await browser.newContext({
         ...devices[engine === webkit ? "iPhone 15" : "iPhone 14"],
         colorScheme: system,
