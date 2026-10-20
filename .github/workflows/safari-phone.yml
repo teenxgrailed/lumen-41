@@ -145,12 +145,21 @@ jobs:
             done
             return 1
           }
+          # the first touch after a boot is swallowed (seen in a typing test):
+          # spend it on a throwaway load of the same page
+          xcrun simctl openurl "$UDID" "http://127.0.0.1:3000/auth/signin?warm=1"
+          loaded || echo "warm-up page did not paint"
+          python3 -c "import sys; sys.path.insert(0, '.github/safari'); import ui; ui.tap(201, 385)"
+          sleep 10
+          idb ui text w --udid "$UDID" || true
+          sleep 15
           xcrun simctl openurl "$UDID" http://127.0.0.1:3000/auth/signin
+          sleep 5
           loaded || echo "sign-in page did not paint"
           sleep 3
           xcrun simctl io "$UDID" screenshot shots/00-signin.png
           python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-          sleep 90
+          sleep 60
           xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
           python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
 

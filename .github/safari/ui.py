@@ -87,17 +87,17 @@ if __name__ == "__main__":
         email, password = args
         shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True)
         # web content is not exposed to accessibility: coordinates it is. The
-        # simulator has no GPU on a runner, so key events queue up behind the
-        # painting; wait generously after each one so they land in order.
+        # simulator has no GPU on a runner, so wait after each event. The email
+        # field is tapped, typed into, then the password field is tapped (Tab did
+        # nothing); what the typing test showed to work.
         tap(w / 2, h * 0.44)
-        time.sleep(20)
-        shot("1-focused")
+        time.sleep(10)
         idb("ui", "text", email)
-        time.sleep(60)
+        time.sleep(25)
         shot("2-email")
-        idb("ui", "key", "43")  # Tab to the password field
-        time.sleep(20)
+        tap(w / 2, h * 0.54)
+        time.sleep(10)
         idb("ui", "text", password)
-        time.sleep(60)
+        time.sleep(25)
         shot("3-password")
         idb("ui", "key", "40")  # Return submits the form
