@@ -1,0 +1,1 @@
+- Opt-in `?edgedebug` panel that reports what sits at the screen edges, for the Safari bar bands.
