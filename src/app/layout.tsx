@@ -39,6 +39,16 @@ export default function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
+        {/* ?edgedebug loads a panel that reports what sits at the screen
+         * edges (Safari 26 bar bands). Nothing loads without the param. */}
+        <Script
+          id="edge-debug-loader"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html:
+              'if(/[?&]edgedebug\\b/.test(location.search)){var s=document.createElement("script");s.src="/edge-debug.js";document.head.appendChild(s);}',
+          }}
+        />
         {FIGMA_CAPTURE_ENABLED ? (
           <Script
             id="figma-local-capture"
