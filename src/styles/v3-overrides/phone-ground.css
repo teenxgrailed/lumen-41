@@ -1,23 +1,40 @@
-/* The page behind the phone screen is the screen's own ground.
+/* The phone page scrolls like a document.
  *
- * The screen is `position: fixed` on `--v2p-ground`, but `html` and `body`
- * were painted with the desktop page colour (look-boot SIDE_BG, #202022 in
- * dark). Anything the screen does not cover - the home-indicator strip under
- * the floating bar in an installed PWA, the overscroll bounce, the gap while
- * the viewport resizes - showed that lighter colour. On the phone UI the page
- * wears the ground, whichever theme is active. The hex values are
- * `--v2p-ground` of themes.css and PHONE_GROUND of look-boot.ts; a test holds
- * the three together. `!important` beats the inline colour the boot script
- * writes for the desktop page. */
+ * Owner decision 2026-10-20: rebuild the phone's scrolling the way the Budget
+ * app does it, to end the bands at the top and bottom of the screen in Safari
+ * 26 and in the installed home-screen app.
+ *
+ * Cause of the bands: the phone shell was `position: fixed; inset: 0` with
+ * inner scrollers. Safari 26 reads fixed elements that touch the top and
+ * bottom edge and paints its status bar and floating toolbar from them as solid
+ * tinted bands, and the floating toolbar cannot show content through its glass
+ * over a fixed container. So now:
+ *
+ * - The document scrolls (html / body / the scope grow with the content).
+ *   Nothing with a background is fixed to the top or bottom edge at rest.
+ * - The ground is the page: `html` and `body` wear it (below), the scope wears
+ *   it too, and `theme-color` / `color-scheme` follow the app theme live
+ *   (V3Root). Whatever Safari samples is the page colour.
+ * - Content runs under the status bar (`--v3-top`) and under the toolbar /
+ *   home indicator (`--v3-sab` plus the dock's tail).
+ * - Layers that must stay put while the page scrolls (the blur bands, the fog,
+ *   the dock, sheets and their scrim, the pull-down plate) are `fixed`, but only
+ *   as translucent glass or while a sheet is open: no opaque fill at an edge.
+ *
+ * The hex values are `--v2p-ground` of themes.css and PHONE_GROUND of
+ * look-boot.ts; a test holds the three together. `!important` beats the inline
+ * colour the boot script writes for the desktop page. */
 html:has(.needt-v3[data-ui="phone"]),
 html:has(.needt-v3[data-ui="phone"]) body {
   background-color: #f6f6f3 !important;
-  /* The cause of the band PR #234 left: globals.css paints `body` (and so the
-   * canvas) with `background-image: var(--page-background)`, an opaque
-   * gradient of the desktop canvas colour. An image paints over the colour, so
-   * whatever the screen does not cover (the safe-area strip under the floating
-   * bar) showed the desktop canvas, lighter than the ground. */
+  /* globals.css paints `body` with an opaque gradient of the desktop canvas. */
   background-image: none !important;
+  /* Nothing can be pulled past the top: the page colour stays what Safari
+   * shows behind the status bar at scroll 0. */
+  overscroll-behavior-y: none;
+  /* The page grows with its content (globals.css pins both to 100%). */
+  height: auto;
+  min-height: 100dvh;
 }
 html:has(.needt-v3[data-ui="phone"][data-theme="dark"]),
 html:has(.needt-v3[data-ui="phone"][data-theme="dark"]) body,
@@ -26,45 +43,73 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background-color: #141416 !important;
 }
 
-/* The phone screen covers the whole display, not `100dvh`.
- *
- * The cause of the flat band that PR #241 and #252 did not remove: the scope
- * is `h-dvh`, and in an installed iOS PWA that height ends above the bottom of
- * the display (by more than the 34 pt home-indicator inset), so the screen -
- * sky, the dotted fog behind the dock, the ground - stopped there and the
- * `html` colour showed below it. The phone scope is pinned to the viewport
- * instead (`position: fixed; inset: 0` reaches every edge, safe areas
- * included, whatever `dvh` resolves to), and the ground is painted on a fixed
- * layer of its own behind the content. Content keeps its own padding for the
- * dock; nothing is sized by `dvh` on the phone. `height: auto` beats the
- * `h-dvh` utility (this sheet is unlayered, a utility is a single class). */
 .needt-v3[data-ui="phone"] {
-  position: fixed;
-  inset: 0;
-  height: auto;
   background: var(--v2p-ground);
-}
-.needt-v3[data-ui="phone"]::before {
-  content: "";
-  position: fixed;
-  /* Bleeds past the viewport (Safari 26 lays the page out between its bars but
-   * paints under them): the ground is real pixels beneath the status bar and
-   * the floating toolbar, not only the colour of the page behind. */
-  inset: -160px 0;
-  z-index: -1;
-  background: var(--v2p-ground);
-  pointer-events: none;
+  /* The home-indicator inset (0 outside an installed app). */
+  --v3-sab: env(safe-area-inset-bottom, 0px);
+  /* Where content starts: the design's 52 px status bar, or the real inset. */
+  --v3-top: max(52px, env(safe-area-inset-top, 0px));
 }
 
-/* Everything anchored to the bottom keeps its distance from the visible bottom
- * of the screen, now that the scope reaches the display edge: the dock (menu
- * A, with the + button), the doc action bar, the snackbar, sheets and the tail
- * of a scroll. `--v3-sab` is the home-indicator inset (0 outside an installed
- * PWA). The menu measures its own padding-bottom to size its geometry, so the
- * dock lands where it did relative to the safe area. */
-.needt-v3[data-ui="phone"] {
-  --v3-sab: env(safe-area-inset-bottom, 0px);
+/* No ancestor of the page clips it vertically or fixes its height. Sideways
+ * overflow is still clipped. */
+.needt-v3[data-ui="phone"] .v2p-frame,
+.needt-v3[data-ui="phone"] .v3-phone-host {
+  overflow-x: clip;
+  overflow-y: visible;
 }
+.needt-v3[data-ui="phone"] .v3-phone-host {
+  min-height: 100dvh;
+}
+
+/* The screen's content is the page: no inner scroller, room under the status
+ * bar, and a tail so the last row clears the floating dock and the home
+ * indicator. */
+.needt-v3[data-ui="phone"] .pk-scroll {
+  overflow: visible;
+  flex: none;
+  padding-top: var(--v3-top);
+}
+.needt-v3[data-ui="phone"] .pk-tail {
+  height: calc(132px + var(--v3-sab));
+}
+
+/* Layers that stay put while the page scrolls. */
+.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact, .pk-pull),
+.needt-v3[data-ui="phone"]
+  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen) {
+  position: fixed;
+}
+/* The two bands stand 8 px off their edge: Safari 26 reads a fixed full-width
+ * element within ~5 px of the top or bottom edge for the bar colour. */
+.needt-v3[data-ui="phone"] .pk-topband {
+  top: 8px;
+  height: calc(var(--v3-top) + 56px);
+}
+.needt-v3[data-ui="phone"] .pk-compact {
+  top: var(--v3-top);
+}
+/* The bottom fog reaches the display edge: its wash reaches the ground colour
+ * at the very bottom (its dots keep their own faded mask) and is only glass:
+ * no opaque fill. */
+.needt-v3[data-ui="phone"] .pk-fog {
+  bottom: 8px;
+  height: calc(124px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pk-fog-dots.is-1 {
+  top: calc(40px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pk-fog-dots.is-2 {
+  top: calc(60px + var(--v3-sab));
+}
+.needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
+  top: calc(82px + var(--v3-sab));
+}
+
+/* Everything anchored to the bottom floats above it by a gap plus the inset:
+ * the dock (menu A, with the + button and the focus button), the doc action
+ * bar, the snackbar, sheets. The menu measures its own padding-bottom to size
+ * its geometry. */
 .needt-v3[data-ui="phone"] .nva {
   padding-bottom: var(--v3-sab);
   box-sizing: border-box;
@@ -84,101 +129,26 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 .needt-v3[data-ui="phone"] .pk-sheet {
   padding-bottom: var(--v3-sab);
 }
-.needt-v3[data-ui="phone"] .pk-tail {
-  height: calc(132px + var(--v3-sab));
-}
 
-/* The colour under each edge of the phone screen, for the browser's own bars.
- * Safari 26 tints its status-bar and toolbar areas from `theme-color` and the
- * `html` background, never from our fixed screen, so `usePhoneEdgeTint`
- * (root/) reads these two and writes them there. Registered as <color> so a
- * computed read returns a resolved colour, not the token stream. The top is
- * the screen's ground (the top band is the ground under a mist), unless a
- * layer covers it: a sheet's scrim dims it, the pull-down shows its sky. The
- * bottom is the ground (the fog fades to it), dimmed by a scrim. The initial
- * values are the dark ground, the same as the static fallback metas. */
-@property --v3-edge-top {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #141416;
+/* Safari 26 tints a bar from the own background-colour of a fixed or sticky
+ * element within a few px of that edge that is at least 80% of the width
+ * (opacity ignored; pseudo-elements and absolute children are not read). The
+ * pull-down plate is fixed at the top edge, so its fill moves to a pseudo
+ * element and the element itself carries no colour. The other full-width fixed
+ * layers (topband, fog, scrim, sheet layer, menu) already hold their colours
+ * in children. */
+.needt-v3[data-ui="phone"] .pk-pull {
+  background: none;
 }
-@property --v3-edge-bottom {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #141416;
+.needt-v3[data-ui="phone"] .pk-pull::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--v2p-plate);
+  pointer-events: none;
 }
-.needt-v3[data-ui="phone"] {
-  --v3-edge-top: var(--v2p-ground);
-  --v3-edge-bottom: var(--v2p-ground);
-  /* --v2p-scrim laid over the ground (dark .5 black, light .24 #121218) */
-  --v3-ground-dim: color-mix(in srgb, var(--v2p-ground) 76%, #121218);
-}
-.needt-v3[data-ui="phone"][data-theme="dark"],
-.needt-v3[data-ui="phone"][data-theme="dim"] {
-  --v3-ground-dim: color-mix(in srgb, var(--v2p-ground) 50%, #000);
-}
-.needt-v3[data-ui="phone"]:has(.pk-scrim.is-open, .pk-sheet-layer.is-open) {
-  --v3-edge-top: var(--v3-ground-dim);
-  --v3-edge-bottom: var(--v3-ground-dim);
-}
-.needt-v3[data-ui="phone"]:has(.pk-pull[data-pk-pull="open"]) {
-  --v3-edge-top: var(--sky-ground);
-  --v3-edge-bottom: var(--v3-ground-dim);
-}
-
-/* The bottom fog reaches the display edge.
- *
- * The screen now runs to the very bottom (under the home-indicator inset), the
- * list scrolls under the floating dock to the edge, and `.pk-tail` keeps the
- * last row reachable. The fog behind the dock was 132 px tall and so stopped
- * at the bottom of the screen with its dotted rows ~8 px above it; on a phone
- * with a home indicator that left the dots as a visible seam with plain ground
- * under it. The fog now also covers the inset: its wash reaches the same ground
- * colour at the very bottom (the dots keep their own faded mask). */
-.needt-v3[data-ui="phone"] .pk-fog {
-  height: calc(132px + var(--v3-sab));
-}
-/* The dot rows are anchored to the top of the fog, so with the taller fog they
- * ended `--v3-sab` px above the display edge (~42px on an iPhone with a home
- * indicator) and read as a line over plain ground. Push them down by the same
- * inset so they keep their distance from the bottom edge, as in the design. */
-.needt-v3[data-ui="phone"] .pk-fog-dots.is-1 {
-  top: calc(40px + var(--v3-sab));
-}
-.needt-v3[data-ui="phone"] .pk-fog-dots.is-2 {
-  top: calc(60px + var(--v3-sab));
-}
-.needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
-  top: calc(82px + var(--v3-sab));
-}
-
-/* What Safari 26 tints its bars from.
- *
- * Safari 26 ignores `theme-color`. It samples the element that sits at the very
- * top and bottom edge of the viewport inside a fixed container (falling back to
- * the body colour), and on the phone that element was whatever the screen put
- * there: the menu card, which wears the OPPOSITE theme, and its fog. Light page,
- * black bars; dark page, light bars; and the bars did not follow a theme switch
- * until something else repainted. These two strips are the elements at the
- * edges: opaque, above everything, painted with the colour the screen really
- * has under each edge (--v3-edge-top / --v3-edge-bottom above, which follow the
- * theme, a scrim and the pull-down in CSS), so the sample is the theme's and
- * changes the instant the theme does. The bottom one is 4 px on screen (the
- * rest sits below the edge); the top one hides under the status bar. */
-.needt-v3[data-ui="phone"] .v3-edge-tint {
-  position: fixed;
-  left: 0;
-  right: 0;
-  height: 12px;
-  margin: 0;
-  padding: 0;
-  z-index: 2147483000;
-}
-.needt-v3[data-ui="phone"] .v3-edge-tint.is-top {
-  top: 0;
-  background-color: var(--v3-edge-top);
-}
-.needt-v3[data-ui="phone"] .v3-edge-tint.is-bottom {
-  bottom: -8px;
-  background-color: var(--v3-edge-bottom);
+.needt-v3[data-ui="phone"] .pk-pull::before {
+  background: var(--v2p-plate);
 }

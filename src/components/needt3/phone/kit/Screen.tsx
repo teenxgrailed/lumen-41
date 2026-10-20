@@ -12,6 +12,7 @@ import {
 
 import { PkGlyph } from "./Material";
 import { PkPullDown, type PkPullProps } from "./PullDown";
+import { pkAdoptDocumentScroll } from "./scroll";
 import { pkClamp, pkCx } from "./util";
 
 export { PkScrim } from "./Scrim";
@@ -118,8 +119,8 @@ export interface PkScreenProps {
 }
 
 /**
- * The phone screen: a native scroll container (momentum, overscroll
- * contained) under a 52 px status bar, a large title that hands over to a
+ * The phone screen: content that the document scrolls (momentum, nothing
+ * fixed at the edges) under a 52 px status bar, a large title that hands over to a
  * compact one over a progressive top blur, and a bottom fog behind the menu
  * pill. Scroll only changes custom properties on the root (no layout), and
  * only when the clamped values change.
@@ -148,6 +149,13 @@ export function PkScreen({
       scrollRef?.(el);
     },
     [scrollRef]
+  );
+
+  // The page scrolls, not this block (see ./scroll.ts): the block answers for
+  // the document so everything that asks the "scroller" gets the page.
+  useLayoutEffect(
+    () => (scroller ? pkAdoptDocumentScroll(scroller) : undefined),
+    [scroller]
   );
 
   // On scroll only: the top band fades in, the large title hands over to the
