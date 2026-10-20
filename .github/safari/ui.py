@@ -85,14 +85,12 @@ if __name__ == "__main__":
         idb("ui", "key", args[0])
     elif cmd == "signin":
         email, password = args
-        if not tap_el(["email"], tries=8):
-            print("email field not found, falling back to coordinates", file=sys.stderr)
-            tap(w / 2, h * 0.45)
+        # the form is the first screen: email field sits at ~44% of the height
+        tap(w / 2, h * 0.44)
         time.sleep(1)
         idb("ui", "text", email)
         time.sleep(1)
-        if not tap_el(["password"], tries=3):
-            idb("ui", "key", "43")  # Tab
+        idb("ui", "key", "43")  # Tab to the password field
         time.sleep(1)
         idb("ui", "text", password)
         time.sleep(1)

@@ -37,7 +37,7 @@ env:
 jobs:
   safari:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -69,11 +69,17 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npx tsx prisma/ci-seed.ts
 
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
       - name: Build and start the app
         run: |
           set -euo pipefail
           npm run build
-          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 &
+          setsid nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
           for i in $(seq 1 60); do
             curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
             sleep 2
@@ -144,7 +150,10 @@ jobs:
       - name: Scenarios, light and dark
         run: |
           set -uo pipefail
-          open_url() { xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1"; sleep 9; }
+          open_url() {
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
+            xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1"; sleep 9
+          }
           shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
           for theme in light dark; do
             xcrun simctl ui "$UDID" appearance "$theme"
@@ -160,6 +169,10 @@ jobs:
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
 
+      - name: Keep the server log
+        if: always()
+        run: cp "$RUNNER_TEMP/next.log" next.log || true
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -167,6 +180,7 @@ jobs:
           path: |
             shots
             debug
+            next.log
           if-no-files-found: warn
 
       - name: Server log
