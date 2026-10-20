@@ -48,9 +48,27 @@ describe("phone page ground", () => {
 
   it("the layers that stay put are fixed, and only those", () => {
     const fixed = rule(
-      '.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact, .pk-pull),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
+      '.needt-v3[data-ui="phone"]\n  :is(.pk-topband, .pk-fog, .pk-pull-host, .pk-compact),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
     );
     expect(fixed).toContain("position: fixed");
+  });
+
+  it("no full-width fixed layer touches an edge", () => {
+    // the band and the fog hosts have no height; the paint is in children
+    expect(rule('.needt-v3[data-ui="phone"] .pk-topband')).toContain(
+      "height: 0"
+    );
+    expect(rule('.needt-v3[data-ui="phone"] .pk-fog')).toContain("height: 0");
+    expect(rule('.needt-v3[data-ui="phone"] .pk-pull-host')).toContain(
+      "height: 0"
+    );
+    // the full-screen layers stand in from both edges
+    const inset = rule(
+      '.needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),\n.needt-v3[data-ui="phone"] :is(.pk-sheet-layer, .nva)'
+    );
+    expect(inset).toContain("top: var(--v3-edge)");
+    expect(inset).toContain("bottom: var(--v3-edge)");
+    expect(css).toContain("--v3-edge: 8px");
   });
 
   it("bottom-anchored phone chrome floats above the safe-area inset", () => {
@@ -61,7 +79,7 @@ describe("phone page ground", () => {
       [".ma-menu-pill", 14],
     ] as const) {
       expect(rule(`.needt-v3[data-ui="phone"] ${sel}`)).toContain(
-        `bottom: calc(${px}px + var(--v3-sab))`
+        `bottom: calc(${px}px + var(--v3-sab)${sel === ".nva-body" ? " - var(--v3-edge)" : ""})`
       );
     }
     expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(

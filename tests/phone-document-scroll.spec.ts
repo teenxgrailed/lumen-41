@@ -103,35 +103,35 @@ async function open(page: Page, route: string, ready?: string) {
 
 /**
  * What Safari 26 reads to tint a bar: the own `background-color` of a
- * `position: fixed` / `sticky` element within ~4px of the top (~3px of the
- * bottom) edge that is at least 80% of the viewport wide and 3px tall. Opacity
- * and visibility are ignored (only `display: none` removes it); pseudo-elements
- * and absolute children are not read. Returns every such element that has a
- * colour of its own. Empty is the goal: the bars then sample the page, which is
- * the app theme's ground.
+ * `position: fixed` / `sticky` element within ~4px of the top or bottom edge
+ * that is at least 80% of the viewport wide and 3px tall. Opacity, visibility
+ * and even a transparent colour do not matter (any such element is a
+ * candidate); pseudo-elements and absolute children are not read, and only
+ * `display: none` removes it. Returns every such element, within 5px of an
+ * edge. Empty is the goal: the bars then show the page under them.
  */
-async function edgeTintSources(page: Page) {
+async function edgeCandidates(page: Page) {
   return page.evaluate(() => {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const found: string[] = [];
-    for (const el of Array.from(document.body.querySelectorAll("*"))) {
+    for (const el of Array.from(document.querySelectorAll("*"))) {
       const cs = getComputedStyle(el);
       if (cs.position !== "fixed" && cs.position !== "sticky") continue;
       if (cs.display === "none") continue;
       const r = el.getBoundingClientRect();
       if (r.width < w * 0.8 || r.height < 3) continue;
-      const atTop = r.top <= 4 && r.bottom > 0;
-      const atBottom = r.bottom >= h - 3 && r.top < h;
+      const atTop = r.top <= 5 && r.bottom > 0;
+      const atBottom = r.bottom >= h - 5 && r.top < h;
       if (!atTop && !atBottom) continue;
-      const c = cs.backgroundColor.match(/[\d.]+/g) ?? [];
-      const alpha = c.length > 3 ? Number(c[3]) : c.length ? 1 : 0;
-      if (alpha > 0)
-        found.push(
-          `${atTop ? "top" : "bottom"} ${el.tagName.toLowerCase()}#${el.id}.${String(
-            el.className
-          ).slice(0, 60)} ${cs.backgroundColor}`
-        );
+      found.push(
+        `${atTop ? "top" : "bottom"} ${el.tagName.toLowerCase()}#${el.id}.${String(
+          el.className
+        ).slice(
+          0,
+          60
+        )} ${cs.backgroundColor} ${Math.round(r.top)}..${Math.round(r.bottom)}`
+      );
     }
     return found;
   });
@@ -188,8 +188,8 @@ for (const system of ["light", "dark"] as const) {
           if (at === "middle") await scrollTo(page, 300);
           if (at === "bottom") await scrollTo(page, 1e6);
           expect(
-            await edgeTintSources(page),
-            `${route} ${at}: no fixed element with its own colour at an edge`
+            await edgeCandidates(page),
+            `${route} ${at}: no full-width fixed element at an edge`
           ).toEqual([]);
           const c = await pageColours(page);
           expect(c.html).toBe(GROUND[app]);
@@ -338,6 +338,64 @@ test.fixme(
   }
 );
 
+for (const app of ["light", "dark"] as const) {
+  test(`edge layers in motion: pull-down, menu, scroll (${app})`, async () => {
+    const browser = await launch();
+    const { page } = await phone(browser, app, app, { tasks: 30 });
+    await open(page, "/today", "[data-pk-screen='home']");
+    // real rows, not the loading skeleton: the page has to be long enough to scroll
+    await page
+      .getByText("Row 1", { exact: true })
+      .first()
+      .waitFor({ timeout: 45_000 });
+    await page.waitForTimeout(800);
+    expect(
+      await page.evaluate(
+        () => document.scrollingElement!.scrollHeight - innerHeight
+      )
+    ).toBeGreaterThan(450);
+    const shot = async (name: string) => {
+      if (SHOTS)
+        await page.screenshot({ path: `${SHOTS}/edge-${name}-${app}.png` });
+    };
+    await shot("home-top");
+
+    // the header collapsed over the blurred band
+    await scrollTo(page, 400);
+    expect(await edgeCandidates(page), "collapsed").toEqual([]);
+    await shot("home-collapsed");
+    await scrollTo(page, 1e6);
+    expect(await edgeCandidates(page), "bottom").toEqual([]);
+    await shot("home-bottom");
+    await scrollTo(page, 0);
+
+    // the pull-down plate half open, held
+    await page.mouse.move(195, 300);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(195, 300 + i * 12);
+      await page.waitForTimeout(40);
+    }
+    await page.waitForTimeout(250);
+    expect(await edgeCandidates(page), "pull-down held").toEqual([]);
+    await shot("pull-half");
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    expect(await edgeCandidates(page), "pull-down open").toEqual([]);
+    await shot("pull-open");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(900);
+    expect(await edgeCandidates(page), "pull-down shut").toEqual([]);
+
+    // the menu open (its scrim and card are the biggest fixed layer)
+    await page.locator("[data-nva-pill]").click({ force: true });
+    await page.waitForTimeout(900);
+    expect(await edgeCandidates(page), "menu").toEqual([]);
+    await shot("menu");
+    await browser.close();
+  });
+}
+
 test("the edge probe does see a painted fixed strip (control)", async () => {
   const browser = await launch();
   const { page } = await phone(browser, "dark", "dark");
@@ -349,6 +407,6 @@ test("the edge probe does see a painted fixed strip (control)", async () => {
       "position:fixed;left:0;right:0;top:0;height:12px;background:#f00;z-index:99999";
     document.body.appendChild(d);
   });
-  expect((await edgeTintSources(page)).join("|")).toContain("probe-strip");
+  expect((await edgeCandidates(page)).join("|")).toContain("probe-strip");
   await browser.close();
 });

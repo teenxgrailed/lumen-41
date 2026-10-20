@@ -122,3 +122,14 @@ export function pkAdoptDocumentScroll(el: HTMLElement): () => void {
       delete (el as unknown as Record<string, unknown>)[k];
   };
 }
+
+/**
+ * How far the phone's full-screen fixed layers (menu, sheet layer, scrim) stand
+ * in from the top and bottom edge (`--v3-edge`, phone-ground.css): Safari 26
+ * tints its bars from a full-width fixed element at an edge, so they keep off
+ * it. Code that measures such a layer adds twice this back to get the screen.
+ */
+export function pkEdgeInset(el: Element): number {
+  if (typeof getComputedStyle === "undefined") return 0;
+  return parseFloat(getComputedStyle(el).getPropertyValue("--v3-edge")) || 0;
+}
