@@ -31,10 +31,21 @@ describe("phone screen background layer", () => {
   it("the ground is a fixed inset-0 layer behind the content", () => {
     const body = rule('.needt-v3[data-ui="phone"]::before');
     expect(body).toContain("position: fixed");
-    expect(body).toContain("inset: 0");
+    // bleeds past the viewport, so the ground is real pixels under Safari's bars
+    expect(body).toMatch(/inset: -\d+px 0/);
     expect(body).toContain("z-index: -1");
     expect(body).toContain("background: var(--v2p-ground)");
     expect(body).toContain("pointer-events: none");
+  });
+
+  it("the elements Safari samples at the two edges are opaque theme-driven strips", () => {
+    expect(css).toContain("2147483000");
+    expect(rule('.needt-v3[data-ui="phone"] .v3-edge-tint.is-top')).toContain(
+      "background-color: var(--v3-edge-top)"
+    );
+    expect(
+      rule('.needt-v3[data-ui="phone"] .v3-edge-tint.is-bottom')
+    ).toContain("background-color: var(--v3-edge-bottom)");
   });
 
   it("bottom-anchored phone chrome keeps its distance by the safe-area inset", () => {

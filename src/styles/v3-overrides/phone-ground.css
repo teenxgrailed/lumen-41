@@ -47,7 +47,10 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 .needt-v3[data-ui="phone"]::before {
   content: "";
   position: fixed;
-  inset: 0;
+  /* Bleeds past the viewport (Safari 26 lays the page out between its bars but
+   * paints under them): the ground is real pixels beneath the status bar and
+   * the floating toolbar, not only the colour of the page behind. */
+  inset: -160px 0;
   z-index: -1;
   background: var(--v2p-ground);
   pointer-events: none;
@@ -147,4 +150,35 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
   top: calc(82px + var(--v3-sab));
+}
+
+/* What Safari 26 tints its bars from.
+ *
+ * Safari 26 ignores `theme-color`. It samples the element that sits at the very
+ * top and bottom edge of the viewport inside a fixed container (falling back to
+ * the body colour), and on the phone that element was whatever the screen put
+ * there: the menu card, which wears the OPPOSITE theme, and its fog. Light page,
+ * black bars; dark page, light bars; and the bars did not follow a theme switch
+ * until something else repainted. These two strips are the elements at the
+ * edges: opaque, above everything, painted with the colour the screen really
+ * has under each edge (--v3-edge-top / --v3-edge-bottom above, which follow the
+ * theme, a scrim and the pull-down in CSS), so the sample is the theme's and
+ * changes the instant the theme does. The bottom one is 4 px on screen (the
+ * rest sits below the edge); the top one hides under the status bar. */
+.needt-v3[data-ui="phone"] .v3-edge-tint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  z-index: 2147483000;
+}
+.needt-v3[data-ui="phone"] .v3-edge-tint.is-top {
+  top: 0;
+  background-color: var(--v3-edge-top);
+}
+.needt-v3[data-ui="phone"] .v3-edge-tint.is-bottom {
+  bottom: -8px;
+  background-color: var(--v3-edge-bottom);
 }
