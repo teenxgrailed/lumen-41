@@ -35,7 +35,7 @@ const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 const ENGINE = process.env.EDGE_BROWSER === "webkit" ? webkit : chromium;
 const SHOTS = process.env.PHONE_SHOTS;
 
-test.setTimeout(600_000);
+test.setTimeout(120_000);
 
 async function launch(): Promise<Browser> {
   return ENGINE.launch({
@@ -97,7 +97,7 @@ async function phone(
 async function open(page: Page, route: string, ready?: string) {
   await page.goto(route).catch(() => undefined);
   await page.locator('.needt-v3[data-ui="phone"]').waitFor();
-  if (ready) await page.locator(ready).first().waitFor({ timeout: 150_000 });
+  if (ready) await page.locator(ready).first().waitFor({ timeout: 45_000 });
   await page.waitForTimeout(1200);
 }
 
