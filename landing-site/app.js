@@ -509,12 +509,27 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   };
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) { meta = document.createElement("meta"); meta.name = "theme-color"; document.head.appendChild(meta); }
-  let lt = "", lb = "", queued = false;
+  let lt = "", lb = "", queued = false, nudge = false;
   const apply = () => {
     queued = false;
     const t = hex(colourAt(true)), b = hex(colourAt(false));
-    if (t !== lt) { lt = t; root.style.setProperty("--edge-t", t); meta.content = t; }
-    lb = b;
+    /* Within 2 per channel counts as the same colour: the nudge below feeds
+       back into the body fallback and must not retrigger itself. */
+    const near = (x, y) => !!x && !!y && [1, 3, 5].every((i) => Math.abs(parseInt(x.substr(i, 2), 16) - parseInt(y.substr(i, 2), 16)) <= 2);
+    if (!near(t, lt) || !near(b, lb)) {
+      /* Safari 26+ samples its bar colour once and keeps it while scrolling
+         (owner's iPhone: navy bars from the pricing sky over a paper section,
+         with theme-color, html and body all paper). A change to body's
+         background-color makes it sample again, so nudge it by one step in
+         blue (invisible, from whatever colour body has) whenever the colour at an edge changes. */
+      nudge = !nudge;
+      const bs = document.body.style;
+      bs.backgroundColor = "";
+      const bc = parse(getComputedStyle(document.body).backgroundColor);
+      if (nudge && bc) bs.backgroundColor = `rgb(${bc[0]}, ${bc[1]}, ${bc[2] > 0 ? bc[2] - 1 : 1})`;
+    }
+    if (!near(t, lt)) { lt = t; root.style.setProperty("--edge-t", t); meta.content = t; }
+    if (!near(b, lb)) lb = b;
     document.querySelectorAll(".sky").forEach((s) => {
       const r = s.getBoundingClientRect(), c = r.top <= 1 && r.bottom > 1 ? t : r.top < innerHeight - 2 && r.bottom >= innerHeight - 2 ? b : "";
       if (c) { if (s.__edge !== c) { s.__edge = c; s.style.setProperty("--sky-edge", c); } }
