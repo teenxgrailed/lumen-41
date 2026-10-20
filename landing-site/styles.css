@@ -728,3 +728,12 @@ html { background: var(--edge-t, var(--paper)); }
   html:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { background: #a9b1db !important; }
   html:has(.pw .sky[data-sky="night"]) { background: #121126 !important; }
 }
+
+/* v37 — iOS runway: one pixel down was not enough for Safari to show page pixels under the status
+   bar (owner's iPhone). A 64px block in the page's top colour sits above everything, and the
+   script keeps the page scrolled past it, so what Safari paints there is always the page. */
+@supports (-webkit-touch-callout: none) {
+  body::before { content: ""; display: block; height: 64px; background: var(--paper); }
+  body:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"])::before { background: #a9b1db; }
+  body:has(.pw .sky[data-sky="night"])::before { background: #121126; }
+}
