@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { newDate } from "@/lib/date-utils";
 
+import { parseCityPlace } from "./city";
 import { TASK_VIEW_PREF, taskViewError } from "./task-view";
 
 /**
@@ -73,6 +74,9 @@ export const userSettingsV3FieldsSchema = z.object({
   // present it must be a valid one, so a bad write is a 400, not a stored typo
   prefs: jsonObjectSchema
     .superRefine((value, ctx) => {
+      // a picked city is a place with real coordinates, or absent
+      if (value.cityPlace != null && !parseCityPlace(value.cityPlace))
+        ctx.addIssue({ code: "custom", message: "Invalid city" });
       if (!(TASK_VIEW_PREF in value)) return;
       const message = taskViewError(value[TASK_VIEW_PREF]);
       if (message) ctx.addIssue({ code: "custom", message });

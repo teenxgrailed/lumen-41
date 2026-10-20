@@ -218,12 +218,22 @@
 /* ── 7 · Time-left bar ─────────────────────────────────────────────────── */
 .needt-v3 .ha-tl-l { display: flex; justify-content: space-between; gap: 10px; font: var(--ha-t-meta); color: var(--ha-ink-2); font-variant-numeric: tabular-nums; }
 .needt-v3 .ha-tl-l b { color: var(--ha-ink); font-weight: 500; }
-.needt-v3 .ha-tl-bar { position: relative; display: flex; height: 3px; margin-top: 8px; border-radius: 2px; background: var(--ha-raise-2); overflow: hidden; }
-.needt-v3 .ha-tl-bar .used { background: var(--ha-ink); opacity: .82; }
-.needt-v3 .ha-tl-bar .plan { background: var(--ha-mark); }
-.needt-v3 .ha-tl-bar .now { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--ha-ink); left: calc(var(--now) * 100%); }
-.needt-v3 .ha-tl.is-over .ha-tl-bar .plan { background: var(--ha-alert); }
-.needt-v3 .ha-tl-warn { margin-top: 8px; display: flex; align-items: center; gap: 8px; font: 400 13px/1.35 var(--font-sans); color: var(--ha-ink-2); }
+.needt-v3 .ha-tl-bar { position: relative; height: 6px; margin-top: 12px; }
+.needt-v3 .ha-tl-bar > span { position: absolute; top: 0; height: 6px; }
+.needt-v3 .ha-tl-bar .past { left: 0; border-radius: 3px; background: var(--ha-raise-2); }
+.needt-v3 .ha-tl-bar .plan { border-radius: 3px; background: var(--ha-ink); opacity: .82; }
+/* The track that is still free, and the part that does not fit: dashes, so
+   they read as room and as overflow, not as work already placed. */
+.needt-v3 .ha-tl-bar .free,
+.needt-v3 .ha-tl-bar .spill { --dash: var(--ha-ink-3); background: repeating-linear-gradient(90deg, var(--dash) 0 5px, transparent 5px 8px); }
+.needt-v3 .ha-tl-bar .spill { --dash: var(--ha-alert); }
+.needt-v3 .ha-tl-bar .end { width: 1px; top: -5px; height: 16px; margin-left: -1px; background: var(--ha-ink-2); }
+.needt-v3 .ha-tl-bar .now { top: -3px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ha-ink); }
+.needt-v3 .ha-tl-ticks { position: relative; height: 16px; margin-top: 8px; font: var(--ha-t-meta); color: var(--ha-ink-3); font-variant-numeric: tabular-nums; }
+.needt-v3 .ha-tl-ticks > span { position: absolute; top: 0; white-space: nowrap; }
+.needt-v3 .ha-tl-ticks .at-now { transform: translateX(-50%); }
+.needt-v3 .ha-tl-ticks .at-end { transform: translateX(-100%); }
+.needt-v3 .ha-tl-warn { margin-top: 6px; display: flex; align-items: center; gap: 8px; font: 400 13px/1.35 var(--font-sans); color: var(--ha-ink-2); }
 .needt-v3 .ha-tl-warn i { width: 6px; height: 6px; border-radius: 3px; background: var(--ha-alert); flex: none; }
 .needt-v3 .ha-tl-warn button { margin-left: auto; }
 
@@ -252,7 +262,7 @@
 
 /* ── 9 · Weather + first event ─────────────────────────────────────────── */
 .needt-v3 .ha-wx { display: flex; align-items: center; gap: 8px; font: 400 14px/1.3 var(--font-sans); color: var(--ha-ink-2); font-variant-numeric: tabular-nums; }
-.needt-v3 .ha-desk .ha-wx { font-size: 12.5px; }
+.needt-v3 .ha-desk .ha-wx { font-size: 12px; }
 .needt-v3 .ha-wx-ic { font-size: 16px; line-height: 1; }
 .needt-v3 .ha-wx b { color: var(--ha-ink); font-weight: 500; }
 .needt-v3 .ha-wx i { width: 3px; height: 3px; border-radius: 2px; background: var(--ha-ink-3); }
@@ -292,7 +302,10 @@
 .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
 .needt-v3 .hd-side.ha-side { display: flex; flex-direction: column; gap: 14px; }
 .needt-v3 .ha-dk-pad { margin: 2px 4px 8px 26px; }
-.needt-v3 .ha-dk-wx { margin-left: 8px; display: inline-flex; align-self: center; }
+/* Beside the heading the weather sits on the heading's own baseline, lifted so
+   the middle of its figures is the middle of the heading's capitals (not the
+   middle of the line box, which sits low). */
+.needt-v3 .ha-dk-wx { margin-left: 4px; display: inline-flex; align-self: baseline; position: relative; top: -3px; }
 @container hdhome (max-width: 899px) {
   .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1fr); }
 }

@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
 
 /**
  * Today's weather for the city a person typed in Settings, from Open-Meteo
@@ -96,6 +97,45 @@ const num = (v: unknown) =>
 export const cleanCity = (raw: unknown) =>
   typeof raw === "string" ? raw.replace(/\s+/g, " ").trim().slice(0, 80) : "";
 
+/**
+ * Type-ahead: up to 8 places matching what was typed. Only the typed query
+ * leaves the server. Open-Meteo needs two characters at least.
+ */
+export async function searchCities(
+  rawQuery: unknown,
+  deps: { fetcher?: Fetcher; cache?: WeatherCache } = {}
+): Promise<CityPlace[]> {
+  const q = cleanCity(rawQuery);
+  if (q.length < 2) return [];
+  const cache = deps.cache ?? shared;
+  const key = `cities:${q.toLowerCase()}`;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit as CityPlace[];
+  const body = (await getJson(
+    deps.fetcher ?? fetch,
+    `${GEOCODE_URL}?name=${encodeURIComponent(q)}&count=8&language=en&format=json`
+  )) as { results?: Record<string, unknown>[] };
+  const seen = new Set<string>();
+  const places: CityPlace[] = [];
+  for (const r of body.results ?? []) {
+    const place = parseCityPlace({
+      name: r.name,
+      admin1: r.admin1,
+      country: r.country,
+      countryCode: r.country_code,
+      latitude: r.latitude,
+      longitude: r.longitude,
+    });
+    if (!place) continue;
+    const id = `${place.latitude.toFixed(2)},${place.longitude.toFixed(2)}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    places.push(place);
+  }
+  cache.set(key, places, GEOCODE_TTL_MS);
+  return places;
+}
+
 export async function geocode(
   city: string,
   deps: { fetcher?: Fetcher; cache?: WeatherCache } = {}
@@ -127,13 +167,18 @@ export async function geocode(
 /** Today's weather for a city, or null when it is unknown or the service is down. */
 export async function weatherFor(
   rawCity: unknown,
-  deps: { fetcher?: Fetcher; cache?: WeatherCache } = {}
+  deps: {
+    fetcher?: Fetcher;
+    cache?: WeatherCache;
+    place?: CityPlace | null;
+  } = {}
 ): Promise<Weather | null> {
   const city = cleanCity(rawCity);
   if (!city) return null;
   const cache = deps.cache ?? shared;
   try {
-    const place = await geocode(city, deps);
+    // A picked city carries its coordinates; only a typed name is geocoded.
+    const place = deps.place ?? (await geocode(city, deps));
     if (!place) return null;
     const key = `wx:${place.latitude.toFixed(2)},${place.longitude.toFixed(2)}`;
     const hit = cache.get(key) as Omit<Weather, "city"> | undefined;

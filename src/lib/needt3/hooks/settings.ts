@@ -93,11 +93,17 @@ export function useUpdateSettings() {
  * refused instead and resolves to `null`.
  */
 export function useSetPref() {
+  const setPrefs = useSetPrefs();
+  return (key: string, value: unknown) => setPrefs({ [key]: value });
+}
+
+/** Several preferences in one write (`city` and `cityPlace` must land together). */
+export function useSetPrefs() {
   const qc = useQueryClient();
   const update = useUpdateSettings();
-  return async (key: string, value: unknown) => {
+  return async (patch: Record<string, unknown>) => {
     const cur = qc.getQueryData<V3Settings>(qk.settings());
     if (!cur) return null;
-    return update.mutateAsync({ prefs: { ...cur.prefs, [key]: value } });
+    return update.mutateAsync({ prefs: { ...cur.prefs, ...patch } });
   };
 }
