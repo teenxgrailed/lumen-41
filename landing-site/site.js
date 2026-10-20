@@ -415,6 +415,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
    So on iOS the page has a 64px runway above it (body::before, the page's top
    colour) and is kept scrolled past it: the status bar always shows page pixels. */
 (() => {
+  /* v40: replaced by body's static top colour (styles.css); kept off. */
+  return;
+  // eslint-disable-next-line no-unreachable
   if (!(window.CSS && CSS.supports("-webkit-touch-callout", "none"))) return;
   const R = 64; /* = body::before runway in styles.css (v37) */
   const can = () => document.documentElement.scrollHeight > innerHeight + R;
