@@ -62,14 +62,24 @@ function usePageScrollPerRoute(pathname: string) {
     const pop = () => {
       popped.current = true;
     };
+    /* Next scrolls to the top on a navigation before the new pathname
+       arrives; committing a position only once the page has rested on the
+       same path keeps that jump from overwriting where the screen was left. */
+    let pending: number | undefined;
     const onScroll = () => {
-      savedScroll.set(path.current, pkScrollY());
+      const at = path.current;
+      const y = pkScrollY();
+      window.clearTimeout(pending);
+      pending = window.setTimeout(() => {
+        if (path.current === at) savedScroll.set(at, y);
+      }, 150);
     };
     window.addEventListener("popstate", pop);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("popstate", pop);
       window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(pending);
     };
   }, []);
   useEffect(() => {
