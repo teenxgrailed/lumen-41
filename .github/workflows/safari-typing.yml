@@ -43,19 +43,19 @@ jobs:
           set -uo pipefail
           mkdir -p shots
           idbx() { echo "+ idb $*"; idb "$@" --udid "$UDID" 2>&1; echo "rc=$?"; }
-          load() { xcrun simctl openurl "$UDID" "http://127.0.0.1:3000/form.html?$1"; sleep 25; }
+          load() { xcrun simctl openurl "$UDID" "http://127.0.0.1:3000/form.html?$1" || true; sleep 25; }
           shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png" >/dev/null 2>&1; }
           # A: tap, text
-          load A; idbx ui tap 201 385; sleep 10; shot A1; idbx ui text "hello@x.io"; sleep 20; shot A2
+          load A; idbx ui tap 201 316; sleep 10; shot A1; idbx ui text "hello@x.io"; sleep 20; shot A2
           # B: same page, text again
           idbx ui text "second"; sleep 20; shot B1
           # C: fresh page, tap, one-char warmup then text
-          load C; idbx ui tap 201 385; sleep 10; idbx ui text "a"; sleep 10; idbx ui text "bcdef"; sleep 20; shot C1
+          load C; idbx ui tap 201 316; sleep 10; idbx ui text "a"; sleep 10; idbx ui text "bcdef"; sleep 20; shot C1
           # D: fresh page, tap, key sequence of letters (HID 4=a..)
-          load D; idbx ui tap 201 385; sleep 10; idbx ui key-sequence 4 5 6 7; sleep 20; shot D1
+          load D; idbx ui tap 201 316; sleep 10; idbx ui key-sequence 4 5 6 7; sleep 20; shot D1
           idbx ui key 43; sleep 10; idbx ui key-sequence 8 9 10; sleep 20; shot D2
           # E: fresh page, tap email, text, tap password, text
-          load E; idbx ui tap 201 385; sleep 10; idbx ui text "mail@x.io"; sleep 20; idbx ui tap 201 485; sleep 10; idbx ui text "secret"; sleep 20; shot E1
+          load E; idbx ui tap 201 316; sleep 10; idbx ui text "mail@x.io"; sleep 20; idbx ui tap 201 399; sleep 10; idbx ui text "secret"; sleep 20; shot E1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
