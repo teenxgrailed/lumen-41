@@ -60,7 +60,7 @@ export function GeneralSection() {
       <SGroup title="Weather">
         <SRow
           title="City"
-          desc="Shows the weather on Home. Only what you type here is sent, never your location. Clear it for none."
+          desc="Shows the weather on Home. Only what you type is sent, never your location."
         >
           <CityField
             city={p.get("city")}
