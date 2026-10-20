@@ -1,0 +1,1 @@
+Phone: the collapsed header now sits on a full-strength 24 px blur with a 78% ground tint from the display edge down to 16 px below it, then a 24 px fade, so no row text is legible behind the title. The band is sized from the header's own height.
