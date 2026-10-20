@@ -571,10 +571,12 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
 /* ── iOS: never rest at scrollY 0 ──
    At scrollY 0 Safari 26+ paints the status bar from body's background (paper),
    not from the page; one pixel down it shows the real top of the page there.
-   So on iOS the page opens one pixel down and can't scroll back to 0. */
+   So on iOS the page has a 64px runway above it (body::before, the page's top
+   colour) and is kept scrolled past it: the status bar always shows page pixels. */
 (() => {
   if (!(window.CSS && CSS.supports("-webkit-touch-callout", "none"))) return;
-  const keep = () => { if (window.scrollY < 1 && document.documentElement.scrollHeight > innerHeight + 2) window.scrollTo(0, 1); };
+  const R = 64; /* = body::before runway in styles.css (v37) */
+  const keep = () => { if (window.scrollY < R && document.documentElement.scrollHeight > innerHeight + R) window.scrollTo(0, R); };
   addEventListener("scroll", keep, { passive: true });
   addEventListener("load", keep);
   addEventListener("pageshow", keep);
