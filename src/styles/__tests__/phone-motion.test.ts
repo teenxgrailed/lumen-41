@@ -282,8 +282,7 @@ describe("phone will-change", () => {
 /** Glass that stays live while something moves, or never shares a screen with
  *  a mover, with the reason. */
 const BLUR_OWN: Record<string, string> = {
-  "pk-scrim-blur":
-    "the mover's own blur: the scrim of a sheet or the pull-down",
+  "pk-scrim-blur": "the mover's own blur: the scrim of a sheet",
   "pk-sheet":
     "a moving sheet keeps its own glass (the scrim is the other half of the pair)",
   "px-glass": "sign-in / setup sky chrome: no mover shares the screen",
