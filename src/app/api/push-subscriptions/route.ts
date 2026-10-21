@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { assertPublicHost } from "@/services/oauth/safe-fetch";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -38,6 +40,24 @@ export async function POST(request: NextRequest) {
     typeof body.keys?.p256dh !== "string" ||
     typeof body.keys.auth !== "string"
   ) {
+    return NextResponse.json(
+      { error: "Invalid subscription" },
+      { status: 400 }
+    );
+  }
+  // The push service is called at this address later, so it must be a public
+  // host: a person could otherwise aim the server at its own network.
+  try {
+    await assertPublicHost(new URL(body.endpoint).hostname);
+  } catch (error) {
+    await logger.warn(
+      "Push subscription endpoint refused",
+      {
+        userId: auth.userId,
+        reason: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
     return NextResponse.json(
       { error: "Invalid subscription" },
       { status: 400 }
