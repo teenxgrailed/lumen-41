@@ -20,7 +20,7 @@ import { MAX_LENGTH, MIN_LENGTH } from "@/lib/needt3/focus";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useFocusActions, useFocusSession } from "@/lib/needt3/hooks/focus";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { qk } from "@/lib/needt3/query-keys";
 import { dayAt } from "@/lib/needt3/today";
@@ -28,6 +28,7 @@ import { dayAt } from "@/lib/needt3/today";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { nextTasks, trayState } from "../root/desktopTray";
+import { readPref } from "../settings/derive";
 import { useShellApi } from "./ShellContext";
 
 /** The desktop app refreshes what its menu-bar menu shows this often. */
@@ -78,6 +79,7 @@ function DesktopBridgeInApp() {
   const createDoc = useCreateDoc();
   const queryClient = useQueryClient();
   const tz = useTimeZone();
+  const settings = useSettings();
   const now = useNow();
   const tasks = useTasks().data;
   const focus = useFocusSession().data;
@@ -236,12 +238,14 @@ function DesktopBridgeInApp() {
     };
   }, [queryClient]);
 
+  const dockBadge = String(readPref(settings.data?.prefs, "macDockBadge"));
   const state = trayState({
     tasks,
     today,
     nowHour,
     focus,
     nowMs: now.getTime(),
+    dockBadge: dockBadge !== "off",
   });
   const serialized = state ? JSON.stringify(state) : null;
   useEffect(() => {
