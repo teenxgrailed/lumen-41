@@ -18,7 +18,7 @@ async function main() {
   await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: { theme: "system", prefs },
-    create: { userId: user.id, theme: "system", prefs },
+    create: { userId: user.id, theme: "system", timeZone: "Europe/Zurich", prefs },
   });
   for (let i = 0; i < 30; i++)
     await prisma.task.create({
