@@ -535,8 +535,8 @@ struct ContentView: View {
             }
             .conditionalModifier(useModernCloseAnimation) { view in
                 let hoverAnimation = Animation.bouncy.speed(1.2)
-                let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-                let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
+                let openAnimation = Animation.spring(response: 0.55, dampingFraction: 0.72, blendDuration: 0)
+                let closeAnimation = Animation.spring(response: 0.55, dampingFraction: 0.9, blendDuration: 0)
                 let notchAnimation = vm.notchState == .open ? openAnimation : closeAnimation
                 return view
                     .animation(hoverAnimation, value: isHovering)
