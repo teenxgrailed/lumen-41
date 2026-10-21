@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Mac app: widgets on the desktop and in Notification Center (Today in small,
   medium, large and extra large; Next event, Focus timer, Habits, Quick add)
-  with eight looks to pick per widget, and Controls for Add task and Start
-  focus on macOS 26.
+  with eight looks to pick per widget.
 - Mac app: the traffic lights are centred on the page's sidebar toggle (the
   page reports its top-bar centre) and the toggle starts 16 pt after the zoom
   button.

@@ -5,7 +5,7 @@ import SwiftUI
 import WidgetKit
 
 /// The Mac WidgetKit extension: Today (small, medium, large, extra large),
-/// Next event, Focus timer, Habits, Quick add and the Controls. Everything is
+/// Next event, Focus timer, Habits and Quick add. Everything is
 /// in apps/shared/NeedtWidgetKit; this target is only the entry point.
 @main
 struct NeedtWidgetsMain: WidgetBundle {

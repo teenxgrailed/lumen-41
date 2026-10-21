@@ -126,9 +126,11 @@ point: the views, widgets and intents are in `apps/shared/NeedtWidgetKit`, the
 data in `apps/shared/NeedtKit`.
 
 - Today (small, medium, large and extra large), Next event, Focus timer,
-  Habits (Free shows 3), Quick add; on macOS 26 the Add task and Start focus
-  Controls (menu bar, Control Center). Eight styles per widget in its Edit menu,
-  D Ink by default.
+  Habits (Free shows 3), Quick add. Eight styles per widget in its Edit menu,
+  D Ink by default. The Add task and Start focus Controls are in the code but
+  only the iPhone bundle lists them: on macOS 26 they need the extension itself
+  to target macOS 26 (an `if #available` in the widget bundle does not link
+  below that), a follow-up.
 - The session comes from the vault the app already fills (`SessionSync`); the
   app reloads the widgets whenever it refreshes or clears it.
 - `needt://open?path=/today` (also `/focus`, `/habits`, `/calendar`,

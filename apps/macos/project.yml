@@ -357,7 +357,7 @@ targets:
 
   # Widgets for the desktop and Notification Center (WidgetKit): Today
   # (small / medium / large / extra large), Next event, Focus timer, Habits,
-  # Quick add, and the Controls on macOS 26. The views, data and intents are in
+  # Quick add. The views, data and intents are in
   # apps/shared/NeedtWidgetKit and NeedtKit.
   NeedtWidgets:
     type: app-extension
