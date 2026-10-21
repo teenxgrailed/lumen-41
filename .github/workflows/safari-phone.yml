@@ -140,12 +140,16 @@ jobs:
           tmo 60 idb list-targets
 
       - name: Sign in through the sign-in form
-        timeout-minutes: 15
-        continue-on-error: true
+        timeout-minutes: 25
         run: |
           set +e
           set -uo pipefail
           mkdir -p shots debug
+          # One host everywhere: the session cookie and the CSRF check are bound to
+          # NEXTAUTH_URL (127.0.0.1); a page opened on localhost never signs in.
+          HOST=http://127.0.0.1:3000
+          PSQL="psql -h localhost -U needt -d needt_test -tAq"
+          export PGPASSWORD=needt
           # openurl right after boot can time out (code 60): retry
           openurl() {
             for i in 1 2 3 4 5 6; do
@@ -154,8 +158,6 @@ jobs:
             done
             return 1
           }
-          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
-          sleep 20
           # the simulator is slow on a shared runner: wait until Safari has painted
           # a real page (a blank or error page is a tiny JPEG)
           loaded() {
@@ -166,22 +168,50 @@ jobs:
             done
             return 1
           }
-          # the first touch after a boot is swallowed (seen in a typing test):
-          # spend it on a throwaway load of the same page
-          openurl "http://127.0.0.1:3000/auth/signin?warm=1"
-          loaded || echo "warm-up page did not paint"
-          python3 .github/safari/ui.py tapxy 201 385
-          sleep 10
-          python3 .github/safari/ui.py text w
-          sleep 15
-          openurl http://127.0.0.1:3000/auth/signin
+          # server-side proof of a sign-in: the credentials provider stamps
+          # User.lastAuthenticatedAt, which the seed leaves empty
+          signed_in() {
+            [ "$($PSQL -c "select count(*) from \"User\" where email='$PROBE_EMAIL' and \"lastAuthenticatedAt\" is not null")" = "1" ]
+          }
+          OK=0
+          for attempt in 1 2 3; do
+            echo "=== sign-in attempt $attempt"
+            $PSQL -c "update \"User\" set \"lastAuthenticatedAt\"=null where email='$PROBE_EMAIL'"
+            xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
+            sleep 3
+            xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+            sleep 15
+            # the first touch after a boot is swallowed (seen in a typing test):
+            # spend it on a throwaway load of the same page
+            openurl "$HOST/auth/signin?warm=$attempt"
+            loaded || echo "warm-up page did not paint"
+            python3 .github/safari/ui.py tapxy 201 385
+            sleep 10
+            python3 .github/safari/ui.py text w
+            sleep 10
+            openurl "$HOST/auth/signin"
+            sleep 5
+            loaded || echo "sign-in page did not paint"
+            sleep 3
+            xcrun simctl io "$UDID" screenshot "shots/00-signin-$attempt.png"
+            python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
+            for i in $(seq 1 18); do signed_in && { OK=1; break; }; sleep 5; done
+            xcrun simctl io "$UDID" screenshot "shots/00-after-signin-$attempt.png"
+            [ "$OK" = 1 ] && break
+            echo "attempt $attempt: the server saw no sign-in"
+            tail -n 15 "$RUNNER_TEMP/next.log"
+          done
+          if [ "$OK" != 1 ]; then
+            python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
+            echo "::error::Could not sign in through the form after 3 attempts; the screens would be sign-in pages"
+            exit 1
+          fi
+          echo "signed in on attempt $attempt"
+          # let the app load past the sign-in redirect on the one host
+          openurl "$HOST/today"
+          loaded || true
           sleep 5
-          loaded || echo "sign-in page did not paint"
-          sleep 3
-          xcrun simctl io "$UDID" screenshot shots/00-signin.png
-          python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-          sleep 60
-          xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
+          cp "shots/00-after-signin-$attempt.png" shots/00-after-signin.png
           python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
 
       - name: Rows for the scroll scenarios
