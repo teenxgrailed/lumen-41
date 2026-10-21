@@ -18,7 +18,7 @@ import {
   PkSection,
 } from "../kit";
 import { PhoneState, PplRow } from "./Parts";
-import { trashHits, trashSectionsOf, trashSub } from "./logic";
+import { trashSectionsOf, trashSub } from "./logic";
 
 const tr = strings["places.jsx"].TrashScreen;
 
@@ -126,15 +126,6 @@ export function TrashPhone({ c }: { c: TrashController }) {
           </>
         ) : null
       }
-      onPull={{
-        search: (q) => trashHits(sections, q),
-        onPick: (h) => {
-          const [kind, id] = h.id.split(":") as [Kind, string];
-          void restore(kind, id);
-        },
-        placeholder: "Search Trash",
-        hint: "Anything deleted in the last 30 days. Pick it to restore it.",
-      }}
     >
       <PhoneState query={mergeQueries([tasks, boards, docs])} screen="trash">
         {!total ? (

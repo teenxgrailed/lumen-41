@@ -133,3 +133,12 @@ export function pkEdgeInset(el: Element): number {
   if (typeof getComputedStyle === "undefined") return 0;
   return parseFloat(getComputedStyle(el).getPropertyValue("--v3-edge")) || 0;
 }
+
+/**
+ * The collapsing header's progress (phone-shell `psK`): 0 until 8 px of scroll,
+ * 1 at 52 px, which is when the large title (36 px) is gone and the small one
+ * has fully arrived. Written as `--ps-k` on the screen root.
+ */
+export function pkPsK(y: number): number {
+  return Math.max(0, Math.min(1, (y - 8) / 44));
+}
