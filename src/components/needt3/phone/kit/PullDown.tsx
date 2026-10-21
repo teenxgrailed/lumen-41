@@ -91,6 +91,9 @@ export function PkPullDown<H extends PullHit = PullHit>({
 }: PkPullProps<H>) {
   const plate = usePkPlate();
   const plateEl = useRef<HTMLDivElement>(null);
+  const shadowEl = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLElement | null>(scroller);
+  scrollerRef.current = scroller;
   const body = useRef<HTMLDivElement>(null);
   const scrim = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -128,6 +131,16 @@ export function PkPullDown<H extends PullHit = PullHit>({
     // Shut, the plate is parked off the top edge: Safari 26 reads a fixed
     // full-width element there for its status-bar colour, hidden or not.
     el.style.top = y < 0.5 ? "-200vh" : "";
+    // The plate's edge (phone-shell): the clip-path above would cut a shadow
+    // or a lip off the plate itself, so a transparent twin of the plate's
+    // visible box carries both, unclipped.
+    const sh = shadowEl.current;
+    if (sh) {
+      sh.style.height = `${H}px`;
+      sh.style.transform = `translateY(${(y - H).toFixed(1)}px)`;
+      sh.style.visibility = el.style.visibility;
+      sh.style.top = el.style.top;
+    }
     // the screen's blur bands rest while the plate moves
     const moving = !!(S.raf || (S.drag && S.drag.kind === "pull"));
     if (moving !== S.moving) {
@@ -140,6 +153,14 @@ export function PkPullDown<H extends PullHit = PullHit>({
       skyEng.current?.park(!S.skyOn);
     }
     const k = Math.min(1, shown / H);
+    // The screen behind scales to 94% and moves down 18 px with the pull
+    // (phone-shell .ps-under); the attribute keeps the transform off at rest.
+    const under = scrollerRef.current;
+    if (under) {
+      under.style.setProperty("--ps-pull", k.toFixed(3));
+      if (k > 0.001 !== under.hasAttribute("data-ps-pull"))
+        under.toggleAttribute("data-ps-pull", k > 0.001);
+    }
     if (body.current) {
       body.current.style.opacity = Math.min(
         1,
@@ -526,6 +547,12 @@ export function PkPullDown<H extends PullHit = PullHit>({
             <span className="pk-pull-grab" aria-hidden="true" />
           </div>
         </div>
+        <div
+          ref={shadowEl}
+          className="pk-pull-edge"
+          aria-hidden="true"
+          style={{ visibility: "hidden", top: "-200vh" }}
+        />
       </div>
       <span
         ref={hintEl}
