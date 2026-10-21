@@ -19,14 +19,16 @@ export const metadata = {
 export default async function DesktopHandoffPage({
   searchParams,
 }: {
-  searchParams: Promise<{ challenge?: string }>;
+  searchParams: Promise<{ challenge?: string; client?: string }>;
 }) {
-  const { challenge = "" } = await searchParams;
+  const { challenge = "", client } = await searchParams;
+  // The iOS app opens this page in its sign-in sheet; only the wording differs.
+  const ios = client === "ios";
   const session = await getServerSession(await getAuthOptions());
   if (!session?.user?.id) {
     // The middleware already does this; sign in first, then come back here.
     const back = validChallenge(challenge)
-      ? `/auth/desktop?challenge=${encodeURIComponent(challenge)}`
+      ? `/auth/desktop?challenge=${encodeURIComponent(challenge)}${ios ? "&client=ios" : ""}`
       : "/auth/desktop";
     redirect(`/auth/signin?callbackUrl=${encodeURIComponent(back)}`);
   }
@@ -34,6 +36,7 @@ export default async function DesktopHandoffPage({
     <V3DesktopHandoffRoute
       email={session.user.email ?? ""}
       challenge={challenge}
+      app={ios ? "ios" : "desktop"}
       {...await requestPhoneUi()}
     />
   );

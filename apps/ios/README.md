@@ -8,6 +8,7 @@ so every web deploy reaches the iOS app at once. Navigation is limited to
 - App id `app.needt.ios`, name "Needt"
 - Native project uses Swift Package Manager (no CocoaPods)
 - Plugins: App, Haptics, Push Notifications, Share, Splash Screen, Status Bar
+- Local plugins (`ios/App/App/NeedtPlugins.swift`, registered by `NeedtViewController` in `capacitorDidLoad`, the Capacitor 6+ way for plugins that live in the app target): `NeedtAppIcon` (`setIcon({ name })`, `getIcon()` over `setAlternateIconName`) and `NeedtAuth` (`start({ url, callbackScheme })`, an `ASWebAuthenticationSession`)
 - `www/` is a placeholder Capacitor requires; it is never shown
 
 ## Run locally
@@ -43,16 +44,35 @@ follows the resolved theme. Available but not called yet: `share()`,
 
 ## Waiting for the Apple Developer account
 
-| Item | Why it waits |
-| --- | --- |
-| Signing and a real device | Needs a team id and a development certificate |
-| Push (APNs) | Needs the Push Notifications capability and an APNs key; add `aps-environment` entitlement, send the device token to the server, deliver from the worker. Web push stays as it is meanwhile |
-| TestFlight / App Store | Needs App Store Connect record, distribution signing, privacy answers and review notes |
-| Bundle id registration | `app.needt.ios` must be registered in the developer portal |
-| Sign in with Apple | Required by App Review if other social logins are offered |
+| Item                      | Why it waits                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signing and a real device | Needs a team id and a development certificate                                                                                                                                               |
+| Push (APNs)               | Needs the Push Notifications capability and an APNs key; add `aps-environment` entitlement, send the device token to the server, deliver from the worker. Web push stays as it is meanwhile |
+| TestFlight / App Store    | Needs App Store Connect record, distribution signing, privacy answers and review notes                                                                                                      |
+| Bundle id registration    | `app.needt.ios` must be registered in the developer portal                                                                                                                                  |
+| Sign in with Apple        | Required by App Review if other social logins are offered                                                                                                                                   |
 
-Icon and splash are upscaled from `public/icons/icon-maskable-512.png`; replace
-`ios/App/App/Assets.xcassets` with a 1024 px master before submission.
+## Icon, launch screen, sign-in
+
+- `AppIcon` is the Midnight master (`needt-ios-1024.png`) with the iOS 18 dark
+  (transparent) and tinted appearances. The other 12 are `AppIcon-<id>` sets
+  listed in `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`; the web picker
+  calls `NeedtAppIcon.setIcon` (free: midnight, ink, sky, paper).
+- `LaunchScreen.storyboard`: `LaunchGround` colour (light #F6F6F3, dark
+  #0C0B16) and the `LaunchMark` at 100 pt centred. The SplashScreen plugin
+  shows that same storyboard for 600 ms and fades it, so there is one splash.
+- Sign-in screen (`src/components/needt3/auth/IosSignIn.tsx`) shows only in the
+  app: Apple, Google, email. Apple and Google run in the system sheet and come
+  back through the one-time-code handoff (see
+  `docs/operations/sign-in-providers.md`). The `needt://` return is caught by
+  the sheet itself (`callbackURLScheme`), so no URL scheme is registered in
+  Info.plist; add `CFBundleURLTypes` only if a link must open the app from
+  outside the sheet.
+- Sign in with Apple needs the Apple Developer account and the Apple provider
+  keys (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`
+  or System Settings → Sign-in providers). Until then the button is drawn and
+  says it is not set up yet when pressed (hiding it would break the Apple
+  first order the design and App Review want).
 
 ## App icon (alternate icons)
 

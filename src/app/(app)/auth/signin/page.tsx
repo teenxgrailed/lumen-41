@@ -6,6 +6,7 @@ import { V3SignInRoute } from "@/components/needt3/auth/SignInRoute";
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { safeCallbackPath } from "@/lib/auth/callback-url";
+import { isSignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
@@ -19,13 +20,17 @@ export const metadata = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+  searchParams: Promise<{
+    callbackUrl?: string;
+    error?: string;
+    provider?: string;
+  }>;
 }) {
   // Check if user is already signed in
   const authOptions = await getAuthOptions();
   const session = await getServerSession(authOptions);
 
-  const { callbackUrl, error } = await searchParams;
+  const { callbackUrl, error, provider } = await searchParams;
 
   if (session) {
     // Already signed in: go where the link was going, not always Calendar.
@@ -39,6 +44,7 @@ export default async function SignInPage({
     <V3SignInRoute
       callbackUrl={callbackUrl}
       error={error}
+      autoProvider={isSignInProviderId(provider) ? provider : undefined}
       {...await requestPhoneUi()}
     />
   );

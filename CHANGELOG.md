@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quick add on Shift-Command-Space, native notifications and automatic
   updates (Sparkle, switched on once signed). The Tauri build remains for
   Windows.
+- iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
+  looks), the other twelve are alternate icons you pick in Settings →
+  Appearance, the launch screen is the ground colour with the Midnight mark,
+  and sign-in is Apple, then Google, then email, done in the system browser
+  sheet and handed back with a one-time code.
 - Desktop app, chrome redone to the new design: the start window (440 x 520)
   shows each step of the browser sign-in (browser opened, signing you in, link
   expired); on a Mac the sidebar lets the desktop show through (vibrancy; the
