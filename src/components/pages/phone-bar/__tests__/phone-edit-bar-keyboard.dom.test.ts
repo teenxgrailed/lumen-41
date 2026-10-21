@@ -195,11 +195,11 @@ describe("the bar on the keyboard", () => {
     make();
     keyboard(450);
     await focus();
-    // 350 for the keyboard, 48 for the bar's row
-    expect(scroller.style.paddingBottom).toBe("398px");
-    expect(scroller.style.scrollPaddingBottom).toBe("418px");
+    // 350 for the keyboard, 48 for the pill's row, 10 for its gap
+    expect(scroller.style.paddingBottom).toBe("408px");
+    expect(scroller.style.scrollPaddingBottom).toBe("416px");
     keyboard(400);
-    expect(scroller.style.paddingBottom).toBe("448px");
+    expect(scroller.style.paddingBottom).toBe("458px");
     act(() => void editor.commands.blur());
     await wait(220);
     expect(scroller.style.paddingBottom).toBe("7px");
@@ -232,8 +232,8 @@ describe("the bar on the keyboard", () => {
       .mockReturnValue({ top: 700, bottom: 720, left: 0, right: 0 });
     keyboard(450);
     await focus();
-    // the line's bottom (720) rises to the bar's top (500) less a 20 px margin
-    // (ProseMirror scrolls on focus too; ours is the last step: +240)
-    expect(sets.at(-1)).toBe(240);
+    // the line's bottom (720) rises to the bar's top (500) less an 8 px margin
+    // (ProseMirror scrolls on focus too; ours is the last step: +228)
+    expect(sets.at(-1)).toBe(228);
   });
 });
