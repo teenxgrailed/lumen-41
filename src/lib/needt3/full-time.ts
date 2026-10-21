@@ -12,14 +12,27 @@ export interface FullTimeInput {
   recurrenceMasterId?: string | null;
 }
 
+/** Why a task is full time without being asked: its habit, or its repeat. */
+export type FullTimeAuto = "habit" | "repeat" | null;
+
 /**
- * Whether a task is done for the full time. An explicit true or false wins;
- * otherwise a habit's task or a repeating one is, and a one-off is not.
+ * A habit's task and a repeating one are ALWAYS full time (the design's
+ * "Auto"): the toggle shows an Auto tag, locked on, and no stored choice can
+ * turn it off. A one-off has no such reason.
+ */
+export function fullTimeAuto(task: FullTimeInput): FullTimeAuto {
+  if (task.habitId) return "habit";
+  if (task.isRecurring || task.recurrenceMasterId) return "repeat";
+  return null;
+}
+
+/**
+ * Whether a task is done for the full time: forced on for habits and
+ * repeating tasks (a stored `false` does not override that), otherwise the
+ * person's own choice; a one-off defaults to off.
  */
 export function effectiveFullTime(task: FullTimeInput): boolean {
-  if (task.fullTime === true) return true;
-  if (task.fullTime === false) return false;
-  return !!task.habitId || !!task.isRecurring || !!task.recurrenceMasterId;
+  return fullTimeAuto(task) != null || task.fullTime === true;
 }
 
 /** Whole minutes a session was ended ahead of its planned length; 0 if none. */
@@ -41,6 +54,9 @@ export function fullTimeAskLine(minutesLeft: number): string {
   return `${minutesLeft} min left`;
 }
 
+/** The small tag beside a switch that is locked on by itself. */
+export const FULL_TIME_AUTO_TAG = "Auto";
+
 /** The task dialog's and the phone sheet's wording for the toggle. */
 export const FULL_TIME_LABEL = "Do for the full time";
 /** The row's short label (the 116px label column does not fit the toggle). */
@@ -53,18 +69,17 @@ export function fullTimePatch(task: { fullTimeOn?: boolean }): {
   return { fullTime: !task.fullTimeOn };
 }
 
-/** The line beside the toggle: what it does, and where "on" came from. */
+/** The line beside the toggle: what it does, and why it is locked on. */
 export function fullTimeHint(task: {
-  fullTime?: boolean | null;
   fullTimeOn?: boolean;
+  fullTimeAuto?: FullTimeAuto;
 }): string {
-  if (task.fullTime == null)
-    return task.fullTimeOn
-      ? "On for habits and repeating tasks"
-      : "Ticking it ends the focus";
-  return task.fullTime
-    ? "Focus runs its whole length"
-    : "Ticking it ends the focus";
+  if (task.fullTimeAuto === "habit") return "Habits always run the full time";
+  if (task.fullTimeAuto === "repeat")
+    return "Repeating tasks run the full time";
+  return task.fullTimeOn
+    ? "Done before the time is up asks first"
+    : "Done ends the focus right away";
 }
 
 /** The phone sheet's two choices. */

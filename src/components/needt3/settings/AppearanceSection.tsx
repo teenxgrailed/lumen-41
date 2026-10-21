@@ -6,6 +6,7 @@ import { FiCheck, FiLock } from "react-icons/fi";
 import { LuSun, LuSunrise, LuSunset } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
+import { appIconDef, appIconSrc } from "@/lib/needt3/app-icon";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
@@ -20,6 +21,7 @@ import {
   timeThemeAt,
 } from "@/lib/needt3/theme";
 
+import { openAppIconPicker, useAppIcon } from "@/store/app-icon";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Miniature } from "./Miniature";
@@ -221,6 +223,8 @@ export function AppearanceSection({
     void setPref("accent", id).then((saved) => saved && mark());
   };
   const cur = ACCENTS.find((a) => a.id === accent) ?? ACCENTS[0];
+  const iconId = useAppIcon((s) => s.id);
+  const icon = appIconDef(iconId);
 
   return (
     <>
@@ -344,6 +348,24 @@ export function AppearanceSection({
             </span>
           </div>
         </div>
+      </SGroup>
+      <SGroup
+        title="App icon"
+        hint="The icon on your home screen, dock, browser tab and in the app."
+      >
+        <button
+          type="button"
+          className="nx-press ai-entry"
+          data-app-icon-entry
+          onClick={() => openAppIconPicker("settings")}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={appIconSrc(icon.id)} alt="" width={40} height={40} />
+          <span className="base-strong">{icon.name}</span>
+          <span className="base-meta">
+            {icon.tier === "pro" ? "Pro" : "Free"} · Change
+          </span>
+        </button>
       </SGroup>
     </>
   );

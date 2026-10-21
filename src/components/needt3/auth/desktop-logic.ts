@@ -18,20 +18,23 @@ export const DESKTOP_RESTART_LINK = "needt://start-sign-in";
 
 export type HandoffStep = "invalid" | "ready" | "working" | "sent" | "error";
 
+export type HandoffApp = "desktop" | "ios";
+
 export const HANDOFF_COPY: Record<
   HandoffStep,
-  { a: string; b: string; line: (email: string) => string }
+  { a: string; b: string; line: (email: string, app?: HandoffApp) => string }
 > = {
   invalid: {
     a: "This link",
     b: "is not valid",
-    line: () => "Start signing in again from the Needt desktop app.",
+    line: (_email, app) =>
+      `Start signing in again from the Needt ${app === "ios" ? "app" : "desktop app"}.`,
   },
   ready: {
     a: "Open",
     b: "Needt",
-    line: (email) =>
-      `You are signed in as ${email}. Open the Needt desktop app with this account?`,
+    line: (email, app) =>
+      `You are signed in as ${email}. Open the Needt ${app === "ios" ? "app" : "desktop app"} with this account?`,
   },
   working: {
     a: "Opening",

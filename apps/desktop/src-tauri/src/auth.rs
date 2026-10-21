@@ -24,6 +24,8 @@ use tauri::{AppHandle, Manager, Url, WebviewUrl};
 use tauri_plugin_opener::OpenerExt;
 
 const FLOW_TTL: Duration = Duration::from_secs(10 * 60);
+/// How long the start window waits for the signed-in page before showing it anyway.
+const HANDOVER_TIMEOUT: Duration = Duration::from_secs(20);
 /// A file in the app's data folder: this machine has signed in before, so the
 /// next launch opens Today instead of the start window.
 const MARKER: &str = "signed-in";
@@ -95,10 +97,18 @@ pub fn handle_deep_link(app: &AppHandle, url: &Url) {
     let verifier = match app.state::<AuthFlow>().0.lock() {
         Ok(mut flow) => match flow.take() {
             Some((verifier, started)) if started.elapsed() < FLOW_TTL => verifier,
-            _ => return,
+            // A sign-in this app started, but it waited too long: say so.
+            Some(_) => {
+                welcome_state(app, "error");
+                return;
+            }
+            // Nothing pending: a link some other program made. Ignored.
+            None => return,
         },
         Err(_) => return,
     };
+    // The start window says "Signing you in…" while the session is made.
+    welcome_state(app, "back");
     complete(app, &code, &verifier);
 }
 
@@ -121,15 +131,68 @@ fn complete(app: &AppHandle, code: &str, verifier: &str) {
             }
             None => {
                 // The new window first: closing the last one would end the app.
-                if crate::build_main(&app, WebviewUrl::External(url)).is_err() {
+                // While the start window is up the new one stays hidden: the
+                // start window keeps saying "Signing you in…" and hands over
+                // when the signed-in page reports (`finish_welcome`), or shows
+                // the expired-link state when the exchange fails
+                // (`welcome_failed`).
+                let hidden = app.get_webview_window("welcome").is_some();
+                if crate::build_main(&app, WebviewUrl::External(url), !hidden).is_err() {
+                    welcome_state(&app, "error");
                     return;
                 }
+                if hidden {
+                    // Never leave the person staring at a spinner.
+                    let app = app.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(HANDOVER_TIMEOUT);
+                        finish_welcome(&app);
+                    });
+                }
+                return;
             }
         }
         if let Some(welcome) = app.get_webview_window("welcome") {
             let _ = welcome.destroy();
         }
     });
+}
+
+/// Tells the start window how the sign-in is going ("browser", "back",
+/// "error" or "idle"; see dist/index.html).
+pub fn welcome_state(app: &AppHandle, state: &str) {
+    if let Some(welcome) = app.get_webview_window("welcome") {
+        let _ = welcome.eval(format!(
+            "window.__needtWelcome && window.__needtWelcome('{state}');"
+        ));
+    }
+}
+
+/// The signed-in page is up in the (hidden) main window: show it, drop the
+/// start window.
+pub fn finish_welcome(app: &AppHandle) {
+    let Some(welcome) = app.get_webview_window("welcome") else {
+        return;
+    };
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+        let _ = welcome.destroy();
+    }
+}
+
+/// The exchange failed in the hidden main window: back to the start window,
+/// with the expired-link state, and no leftover window.
+pub fn welcome_failed(app: &AppHandle) {
+    if app.get_webview_window("welcome").is_none() {
+        return;
+    }
+    welcome_state(app, "error");
+    if let Some(main) = app.get_webview_window("main") {
+        if !main.is_visible().unwrap_or(true) {
+            let _ = main.destroy();
+        }
+    }
 }
 
 fn marker_path(app: &AppHandle) -> Option<PathBuf> {

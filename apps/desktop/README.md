@@ -9,27 +9,31 @@ page. App id `app.needt.desktop`.
 
 ## What the shell adds
 
-| Feature         | How                                                                                                               |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Start window    | Small, centred, bundled (`dist/index.html`): icon, "Sign in". Shown until this machine has signed in once         |
-| Sign-in         | System browser plus a `needt://auth` deep link (below). Google works: providers refuse embedded webviews          |
-| Native Mac look | Overlay title bar: traffic lights sit over the web app's own top bar, which is the drag handle                    |
-| App menu        | Needt / File / Edit / View / Window / Help; custom items call the web app (routes, composer, sidebar, settings)   |
-| Menu-bar menu   | Next 3 tasks of today with time, running focus session, Open / Quick add / Quit; click a task to open it          |
-| Dock badge      | Today's open tasks plus overdue (macOS), the same count as the installed web app's badge                          |
-| Quick add       | `Cmd+Shift+Space` (macOS) / `Ctrl+Shift+Space` (Windows): small always-on-top window on the web `/quick-add` page |
-| Notifications   | `window.Notification` is shimmed over the Tauri notification plugin (WKWebView has no Web Notifications)          |
-| Offline page    | Start or Reload with no connection shows `dist/offline.html` (not a browser error) and returns by itself          |
-| Navigation lock | `needt.app` and subdomains (https) stay in the app; every other link opens in the system browser                  |
-| Window state    | Size and position remembered (`tauri-plugin-window-state`); quick-add and start windows excluded                  |
-| Single instance | A second launch focuses the running app                                                                           |
+| Feature         | How                                                                                                                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Start window    | 440 x 520, centred, not resizable, bundled (`dist/index.html`). Four states: start, browser open, signing you in, link expired. Shown until this machine has signed in once                                                               |
+| Sign-in         | System browser plus a `needt://auth` deep link (below). Google works: providers refuse embedded webviews                                                                                                                                  |
+| Native Mac look | Overlay title bar: traffic lights at (18, 20) over the web app's own top bar (the 52 px drag handle); sidebar toggle at x 78. Vibrancy (macOS only): transparent window, under-window material, translucent sidebar                       |
+| App menu        | Needt / File / Edit / View / Window / Help; custom items call the web app (routes, composer, sidebar, settings)                                                                                                                           |
+| Menu-bar menu   | Template "n" icon alone; while a focus runs, icon plus the time left (mm:ss, ticked here). Menu: running focus (Pause, End), next 3 tasks with time, Open / Quick add / Start focus / Quit. Rows are cut with an ellipsis to about 330 px |
+| Dock badge      | Overdue tasks only (macOS), hidden at 0                                                                                                                                                                                                   |
+| Quick add       | `Cmd+Shift+Space` (macOS) / `Ctrl+Shift+Space` (Windows): borderless always-on-top 620 px card in the upper third of the active screen, on the web `/desktop-quick-add` page; closes on Esc, Enter or focus leaving                       |
+| Notifications   | `window.Notification` is shimmed over the Tauri notification plugin (WKWebView has no Web Notifications)                                                                                                                                  |
+| Offline page    | Start or Reload with no connection shows `dist/offline.html` (not a browser error) and retries every 10 s                                                                                                                                 |
+| Navigation lock | `needt.app` and subdomains (https) stay in the app; every other link opens in the system browser                                                                                                                                          |
+| Window state    | Size and position remembered (`tauri-plugin-window-state`); quick-add and start windows excluded                                                                                                                                          |
+| Single instance | A second launch focuses the running app                                                                                                                                                                                                   |
 
 Web side: `src/lib/desktop.ts` (`isDesktopApp()`, `desktopPlatform()`,
 `onDesktopCommand()`, `emitDesktopEvent()`, `sendDesktopNotification()`), all
 no-ops outside the app; `src/components/needt3/shell/DesktopBridge.tsx` (menu
 commands, tray feed, drag regions, `data-desktop` on `<html>`);
 `src/styles/v3-overrides/desktop-app.css` (everything gated by
-`html[data-desktop]`, so browser behaviour is unchanged).
+`html[data-desktop]`, so browser behaviour is unchanged; the vibrancy rules
+also need `data-vibrancy="on"`, which the page sets only when the shell says it
+made the window transparent), `src/components/needt3/desktop/DesktopQuickAdd.tsx`
+with `desktop-quick-add.css`. Design source: `additions-2/desktop-chrome`
+(prefix `dk-`).
 
 ## Sign-in
 
@@ -50,6 +54,12 @@ No web sign-in page is ever shown in the app.
    from the address at once.
 4. That page posts both to `POST /api/auth/desktop/exchange`, which sets the
    NextAuth session cookie in the app's own webview, and goes to `/today`.
+   While this runs the start window shows "Signing you in…" and the main
+   window loads hidden; the signed-in page reports (`needt-signed-in`), the
+   main window is shown and the start window closes. A failed exchange
+   (`needt-desktop-failed`) or a link that arrived after its ten minutes shows
+   "That sign-in link expired" in the start window instead. After 20 s without
+   a report the main window is shown anyway.
 5. The app writes a marker in its data folder and opens straight to Today on
    later launches. If the session ends, the web app redirects to
    `/auth/signin`; the shell cancels that navigation, forgets the marker and
@@ -130,10 +140,6 @@ CI; commit the refreshed lock after the first local build.
 - A full local-first sync engine (reads and writes against a local store, not a
   cache of server responses).
 - Spotlight and widgets (Today widget, Spotlight task search).
-- Vibrancy behind the sidebar. Needs a transparent window
-  (`macOSPrivateApi`) and a translucent sidebar ground, which changes the
-  ground and elevation rules in `docs/handoff/PORT.md` section 0; an owner
-  design decision first.
 - Signing and notarization: Apple Developer ID certificate, then signing and
   notarization in CI (`APPLE_CERTIFICATE`, `APPLE_ID`, `APPLE_TEAM_ID`).
   Windows: Authenticode or Azure Trusted Signing certificate.
@@ -144,6 +150,13 @@ CI; commit the refreshed lock after the first local build.
 
 ## Known limits
 
+- Vibrancy needs `macOSPrivateApi` (a transparent window); that rules out the
+  Mac App Store, which the app is not on. The owner lifted PORT.md's opaque
+  ground rule for the native sidebar only (21.10.26).
+- A native menu cannot be given a width or item icons through Tauri's menu
+  API: the 330 px menu is an ellipsis at about 42 characters, and rows carry
+  text and key hints only (the spec's template icons are not drawn).
+- No "Dock badge" off switch yet (spec: Settings, Notifications).
 - Unverified on real hardware: everything native here was built in CI only
   (menu, tray menu, Dock badge, traffic-light inset, deep link, drag region).
 - Linking a provider (Google, Outlook) from Settings opens the system browser;
@@ -154,3 +167,13 @@ CI; commit the refreshed lock after the first local build.
 - Any local program can open `needt://auth?code=...`. Without the app's
   verifier the code is useless, but a flood of such links can cancel a
   pending sign-in (the verifier is single use); the person starts again.
+
+## App icon (Dock)
+
+The bundled icon is Midnight. When the person picks another icon the web app
+emits the Tauri event `app-icon` with `{ id }` (`emitDesktopEvent`).
+
+//todo: nothing listens yet. Setting the Dock tile at runtime on macOS needs
+`NSApplication.setApplicationIconImage` through `objc2`, with the PNGs from
+`public/app-icons/<id>/`; it cannot be verified in CI, so it is left for a
+Mac build. Windows keeps the bundled icon.
