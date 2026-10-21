@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- iPhone: widgets for Today (small, medium, large), Next event, Focus timer,
+  Habits (Free shows 3) and Quick add, Lock Screen widgets, and Controls for
+  Add task and Start focus; each widget has eight looks you pick in its Edit
+  menu (D · Ink by default; tinted, clear and Lock Screen always use the Ink
+  layout); the focus block shows as a Live Activity (compact ring and timer,
+  one outlined Pause, ends with the run); titles stay off the Lock Screen
+  unless you turn "Show titles on Lock Screen" on.
 - Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
   start and end focus, what's today, what's next, replan day, log habit) and
   your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to
