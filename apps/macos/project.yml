@@ -37,8 +37,20 @@ targets:
     dependencies:
       - package: Sparkle
       - package: NeedtKit
+      - target: NeedtShare
+        embed: true
+    entitlements:
+      path: Generated/Needt.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-only: true
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.application-groups:
+          - $(TeamIdentifierPrefix)app.needt.mac
     info:
-      path: Needt/Info.plist
+      path: Generated/Needt-Info.plist
       properties:
         CFBundleName: Needt
         CFBundleDisplayName: Needt
@@ -48,6 +60,9 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
+        # Resolves to "<TeamID>.app.needt.mac" when signed; NeedtKit falls back
+        # to a private folder while the team prefix is empty (unsigned builds).
+        NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
         CFBundleURLTypes:
           - CFBundleURLName: app.needt.mac
             CFBundleURLSchemes: [needt]
@@ -67,3 +82,41 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+  # "Add to Needt" in the Share menu: a URL or text becomes a task.
+  NeedtShare:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Share/Sources
+    dependencies:
+      - package: NeedtKit
+    entitlements:
+      path: Generated/NeedtShare.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - $(TeamIdentifierPrefix)app.needt.mac
+    info:
+      path: Generated/NeedtShare-Info.plist
+      properties:
+        CFBundleName: Add to Needt
+        CFBundleDisplayName: Add to Needt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac.share
+        PRODUCT_NAME: NeedtShare
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
