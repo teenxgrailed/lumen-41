@@ -59,7 +59,7 @@ struct StartView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Dk.ground(scheme)
+            Dk.ground(scheme).ignoresSafeArea()
             VStack(spacing: 0) {
                 Image("StartIcon")
                     .resizable()
@@ -161,7 +161,7 @@ struct OfflineView: View {
 
     var body: some View {
         ZStack {
-            Dk.ground(scheme)
+            Dk.ground(scheme).ignoresSafeArea()
             VStack(spacing: 0) {
                 Image(systemName: "wifi.slash")
                     .font(.system(size: 26, weight: .regular))
