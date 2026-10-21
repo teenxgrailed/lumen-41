@@ -116,6 +116,14 @@ public struct TrayState: Codable, Equatable, Sendable {
         return id.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
     }
 
+    /// When a running, unpaused focus ends.
+    public var focusEndDate: Date? {
+        focusEndsAt.map { Date(timeIntervalSince1970: $0 / 1000) }
+    }
+
+    /// True while a focus run exists, paused or not.
+    public var isFocusActive: Bool { focus != nil || focusEndsAt != nil }
+
     /// Seconds left on the focus at `now`, nil when it is not counting down.
     public func focusSecondsLeft(at now: Date = Date()) -> Int? {
         guard let end = focusEndsAt else { return nil }
@@ -174,6 +182,54 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
     public let scheduledEnd: Date?
     public let estimatedMinutes: Int?
     public let trashedAt: Date?
+    public let projectId: String?
 
     public var isDone: Bool { status?.lowercased() == "completed" }
+
+    public init(
+        id: String, title: String, status: String? = nil, dueDate: Date? = nil,
+        scheduledStart: Date? = nil, scheduledEnd: Date? = nil,
+        estimatedMinutes: Int? = nil, trashedAt: Date? = nil, projectId: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.status = status
+        self.dueDate = dueDate
+        self.scheduledStart = scheduledStart
+        self.scheduledEnd = scheduledEnd
+        self.estimatedMinutes = estimatedMinutes
+        self.trashedAt = trashedAt
+        self.projectId = projectId
+    }
+
+    /// When the task wants attention: its scheduled slot, else its due date.
+    public var when: Date? { scheduledStart ?? dueDate }
+}
+
+/// A project, for the "project" parameter of Add task and the Focus filter.
+public struct ProjectSummary: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let name: String
+    public let status: String?
+
+    public init(id: String, name: String, status: String? = nil) {
+        self.id = id
+        self.name = name
+        self.status = status
+    }
+}
+
+/// A habit, for the "Log habit" intent.
+public struct HabitSummary: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let title: String
+
+    public init(id: String, title: String) {
+        self.id = id
+        self.title = title
+    }
+}
+
+struct HabitsEnvelope: Decodable {
+    let habits: [HabitSummary]
 }

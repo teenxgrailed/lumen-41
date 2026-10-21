@@ -37,9 +37,9 @@ enum WebBridge {
       window.__needtNative = { platform: 'mac-swift' };
       window.__needtDesktop = {
         platform: 'mac',
-        // Same flag the Tauri shell sets on macOS: the web app then marks
-        // html[data-vibrancy="on"] and its sidebar turns translucent.
-        vibrancy: true,
+        // Off: the window is opaque (App Store build), so the page never marks
+        // html[data-vibrancy="on"] and its sidebar stays solid.
+        vibrancy: false,
         home: boot.home,
         dispatch: function (command) {
           if (handler) { deliver(command); return; }
@@ -119,21 +119,6 @@ enum WebBridge {
         if (!e.target.closest('[data-tauri-drag-region]') || e.target.closest(INTERACTIVE)) return;
         post({ kind: e.detail === 2 ? 'zoom' : 'drag' });
       }, true);
-
-      // Vibrancy: the page asks for it with html[data-desktop="mac"][data-vibrancy="on"].
-      var lastVibrancy = null;
-      function reportVibrancy() {
-        var el = document.documentElement;
-        var on = el.getAttribute('data-vibrancy') === 'on' && el.getAttribute('data-desktop') === 'mac';
-        if (on === lastVibrancy) return;
-        lastVibrancy = on;
-        post({ kind: 'vibrancy', on: on });
-      }
-      new MutationObserver(reportVibrancy).observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-vibrancy', 'data-desktop']
-      });
-      document.addEventListener('DOMContentLoaded', reportVibrancy);
     })();
     """#
 
@@ -166,13 +151,11 @@ enum WebBridge {
 protocol BridgeHost: AnyObject {
     func bridgeDidRequestDrag(_ event: NSEvent?)
     func bridgeDidRequestZoom()
-    func bridgeDidSetVibrancy(_ on: Bool)
 }
 
 extension BridgeHost {
     func bridgeDidRequestDrag(_ event: NSEvent?) {}
     func bridgeDidRequestZoom() {}
-    func bridgeDidSetVibrancy(_ on: Bool) {}
 }
 
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
@@ -210,9 +193,6 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         case "notification.send":
             Notifier.shared.send(title: body["title"] as? String ?? "", body: body["body"] as? String ?? "")
             reply(nil, nil)
-        case "vibrancy":
-            host?.bridgeDidSetVibrancy(body["on"] as? Bool ?? false)
-            reply(nil, nil)
         case "drag":
             host?.bridgeDidRequestDrag(NSApp.currentEvent)
             reply(nil, nil)
@@ -229,7 +209,7 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         switch name {
         case "needt-tray-state":
             if let payload, let state = TrayState.parse(json: payload) {
-                AppController.shared.tray.apply(state)
+                AppController.shared.tray.report(state)
             }
         case "needt-signed-in":
             AppController.shared.auth.signedIn()
