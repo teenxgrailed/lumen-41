@@ -84,7 +84,7 @@ flattened because iOS rejects alpha) listed in
 in `src/lib/native.ts`; `name` is `null` for Midnight) and is silent when the
 plugin is missing.
 
-//todo: the Swift plugin `NeedtAppIcon` (wrapping
-`UIApplication.shared.setAlternateIconName`) is not written: it needs a
-device or Simulator to verify and a local-plugin registration in the Xcode
-project. Until it exists the choice only changes the web-side icons.
+The Swift plugin `NeedtAppIcon` (`NeedtPlugins.swift`, wraps
+`UIApplication.shared.setAlternateIconName`) is written and registered by
+`NeedtViewController`. //todo: confirm on a Simulator or device that the icon
+switches (the system shows its own confirmation alert); CI only builds.
