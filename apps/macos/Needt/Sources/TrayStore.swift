@@ -2,17 +2,39 @@ import AppKit
 import NeedtKit
 import WebKit
 
+struct FocusSuggestion: Equatable {
+    let taskId: String
+    let title: String
+    let minutes: Int
+}
+
 /// What the menu bar item, its menu and the Dock badge show. Fed by the web
-/// app's `needt-tray-state` report (about once a minute and on change); the
-/// countdown between reports is counted here from `focusEndsAt`.
+/// app's `needt-tray-state` report (about once a minute and on change). The
+/// menu-bar countdown is a system `Text(timerInterval:)` fed by `focusEndsAt`.
 @MainActor
 final class TrayStore: ObservableObject {
     @Published private(set) var state: TrayState = .empty
-    /// "18:42" while a focus counts down, else nil. Shown beside the menu-bar icon.
-    @Published private(set) var clock: String?
     @Published private(set) var focusError: String?
+    /// "Start focus: task" while a macOS Focus filter set to suggest is on.
+    @Published private(set) var suggestion: FocusSuggestion?
+    /// When `state` was last reported (or loaded from the disk cache).
+    @Published private(set) var updatedAt: Date?
 
-    private var timer: Timer?
+    private let cache = OfflineCache.shared
+
+    init() {
+        // The menu has something to show before the page reports, and while
+        // offline. A cached focus run is not trusted: it may have ended.
+        if let hit = cache.load(TrayState.self, for: .tray) {
+            var cached = hit.value
+            cached.focus = nil
+            cached.focusEndsAt = nil
+            cached.focusTitle = nil
+            state = cached
+            updatedAt = hit.savedAt
+        }
+    }
+
     /// The session id for Pause / End, fetched on demand through NeedtAPI.
     private var session: FocusSession?
 
@@ -24,16 +46,28 @@ final class TrayStore: ObservableObject {
         state.focus?.lowercased().contains("paused") ?? false
     }
 
+    /// The web app's own report (`needt-tray-state`).
+    func report(_ next: TrayState) {
+        FocusBridge.shared.reported(active: next.isFocusActive)
+        apply(next)
+    }
+
     func apply(_ next: TrayState) {
+        SessionSync.push()
+        if next != .empty, next != state || updatedAt == nil {
+            cache.save(next, for: .tray)
+            updatedAt = Date()
+        }
         state = next
-        refreshClock()
         updateDockBadge()
-        updateTimer()
     }
 
     /// Signed out: nothing of the previous person stays in the menu.
     func reset() {
         apply(.empty)
+        FocusBridge.shared.reset()
+        suggestion = nil
+        updatedAt = nil
         session = nil
     }
 
@@ -42,30 +76,28 @@ final class TrayStore: ObservableObject {
         NSApp.dockTile.badgeLabel = state.overdue > 0 ? String(state.overdue) : nil
     }
 
-    private func refreshClock() {
-        if let left = state.focusSecondsLeft() {
-            clock = formatClock(left)
-        } else {
-            clock = nil
-        }
+    // MARK: focus started or ended outside the page (Siri, Shortcuts, Spotlight)
+
+    /// A focus run the page did not start: show it now. The page's own report
+    /// replaces this within a minute once a window is open.
+    func nativeFocusStarted(_ started: FocusSession?, title: String?, minutes: Int) {
+        FocusBridge.shared.nativeChange(active: true)
+        suggestion = nil
+        var next = state
+        next.focus = "Focus \(minutes) min left"
+        next.focusTitle = title
+        let begin = started?.startedAt ?? Date()
+        next.focusEndsAt = (begin.timeIntervalSince1970 + Double(minutes) * 60) * 1000
+        apply(next)
     }
 
-    private func updateTimer() {
-        guard state.focusSecondsLeft() != nil else {
-            timer?.invalidate()
-            timer = nil
-            return
-        }
-        guard timer == nil else { return }
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.refreshClock()
-                if self.clock == nil { self.updateTimer() }
-            }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
+    func nativeFocusEnded() {
+        FocusBridge.shared.nativeChange(active: false)
+        var next = state
+        next.focus = nil
+        next.focusEndsAt = nil
+        next.focusTitle = nil
+        apply(next)
     }
 
     // MARK: focus controls (through the HTTP API, same session as the page)
@@ -106,33 +138,75 @@ final class TrayStore: ObservableObject {
             do {
                 try await api.stopFocus(sessionId: current.id, completed: false)
                 focusError = nil
-                var next = state
-                next.focus = nil
-                next.focusEndsAt = nil
-                next.focusTitle = nil
-                apply(next)
+                nativeFocusEnded()
             } catch {
-                focusError = "Could not reach Needt"
+                focusError = Self.message(for: error)
             }
         }
     }
 
     func startFocusOnNextTask() {
         guard let task = state.next.first else { return }
+        startFocus(taskId: task.id, title: task.title, minutes: FocusFilterState.defaultMinutes)
+    }
+
+    func startFocus(taskId: String?, title: String?, minutes: Int) {
         Task {
             do {
-                if let started = try await api.startFocus(taskId: task.id, plannedMinutes: 25, intention: task.title) {
-                    var next = state
-                    next.focus = "Focus 25 min left"
-                    next.focusTitle = task.title
-                    next.focusEndsAt = (started.startedAt.timeIntervalSince1970 + 25 * 60) * 1000
-                    apply(next)
-                }
+                try await startFocusNow(taskId: taskId, title: title, minutes: minutes)
                 focusError = nil
             } catch {
-                focusError = "Could not reach Needt"
+                focusError = Self.message(for: error)
             }
         }
+    }
+
+    func startFocusNow(taskId: String?, title: String?, minutes: Int) async throws {
+        let started = try await api.startFocus(taskId: taskId, plannedMinutes: minutes, intention: title)
+        nativeFocusStarted(started, title: title, minutes: minutes)
+    }
+
+    private static func message(for error: Error) -> String {
+        (error as? NeedtAPIError)?.message ?? "Could not reach Needt"
+    }
+
+    // MARK: macOS Focus filter
+
+    /// The Focus filter changed (its intent ran): update the suggestion and,
+    /// when it asks for it, start the focus.
+    func focusFilterChanged() async {
+        let filter = FocusFilterStore.shared.load()
+        guard filter.mode != .off else {
+            suggestion = nil
+            return
+        }
+        let open: [TaskSummary]
+        do {
+            open = try await api.tasksCached().value.filter { !$0.isDone && $0.trashedAt == nil }
+        } catch {
+            suggestion = nil
+            return
+        }
+        guard let task = filter.pickTask(from: open) else {
+            suggestion = nil
+            return
+        }
+        switch filter.mode {
+        case .suggest:
+            suggestion = state.isFocusActive ? nil : FocusSuggestion(taskId: task.id, title: task.title, minutes: filter.minutes)
+        case .start:
+            suggestion = nil
+            guard !state.isFocusActive else { return }
+            try? await startFocusNow(taskId: task.id, title: task.title, minutes: filter.minutes)
+        case .off:
+            break
+        }
+    }
+
+    func startSuggested() {
+        guard let s = suggestion else { return }
+        suggestion = nil
+        startFocus(taskId: s.taskId, title: s.title, minutes: s.minutes)
     }
 }
 

@@ -24,7 +24,7 @@ final class NeedtWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Called when the page asked for its own sign-in page (the session ended).
     var onSignedOut: (() -> Void)?
 
-    /// Who the page's drag, zoom and vibrancy requests go to (held weakly).
+    /// Who the page's drag and zoom requests go to (held weakly).
     weak var bridgeHost: BridgeHost? {
         didSet { handler.host = bridgeHost }
     }
@@ -41,9 +41,6 @@ final class NeedtWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
-        // Transparent so the vibrancy view behind can show where the page asks
-        // for it; the page paints its own ground everywhere else.
-        webView.setValue(false, forKey: "drawsBackground")
         #if DEBUG
         webView.isInspectable = true
         #endif
