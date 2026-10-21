@@ -1,0 +1,7 @@
+Needt.xcodeproj/
+build/
+out/
+DerivedData/
+xcuserdata/
+.DS_Store
+Generated/

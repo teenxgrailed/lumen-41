@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
+  start and end focus, what's today, what's next, replan day, log habit) and
+  your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to
+  switch a macOS Focus on or off, and a macOS Focus can suggest or start the
+  focus task (Focus filter); the menu bar shows "24:10 · task" only while a
+  focus runs; "Add to Needt" in the Share menu turns a link or text into a
+  task; offline, the menu shows the last day read-only ("Offline · updated
+  14:05") and writes say why they are off; the app is sandboxed and has a Mac
+  App Store configuration without the updater.
+- Place switches show the skeleton of the place being opened (after 150 ms, in
+  the page's own slot, not a full-screen card) instead of the old screen frozen
+  while the server answers; desktop and phone, still under reduced motion.
+- Phone document editor: the format bar is a floating pill with side margins
+  above the keyboard, the page no longer springs when you tap it, and typing
+  does less work (no relayout per keyboard frame, no blur re-render of the
+  backdrop while editing, one scroll read per frame).
+- Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
+- Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
+  a native window with a transparent title bar, a menu-bar item (focus
+  countdown, today's next tasks), a Dock badge for overdue tasks, a global
+  quick add on Shift-Command-Space, native notifications and automatic
+  updates (Sparkle, switched on once signed). The Tauri build remains for
+  Windows.
 - iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
   looks), the other twelve are alternate icons you pick in Settings →
   Appearance, the launch screen is the ground colour with the Midnight mark,

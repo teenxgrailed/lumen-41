@@ -1915,22 +1915,33 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 .needt-page-editor .needt-task-due-clear[hidden] {
   display: none;
 }
-/* The phone editing bar (PhoneEditBar): portalled out of the page, fixed to
- * the bottom of the layout viewport and lifted onto the keyboard by a
- * translateY the bar writes from the visual viewport (bar-logic trackKeyboard;
- * iOS does not shrink the layout viewport for the keyboard, so `bottom` alone
- * leaves it behind the keys). Shown only while the editor has focus. */
+/* The phone editing bar (PhoneEditBar): a floating pill in the dock pill's
+ * language (radius, glass, shadow; phone-kit .pk-glass.is-strong), portalled
+ * out of the page, fixed to the bottom of the layout viewport with a side
+ * margin and lifted onto the keyboard by a translateY the bar writes from the
+ * visual viewport (bar-logic trackKeyboard; iOS does not shrink the layout
+ * viewport for the keyboard, so `bottom` alone leaves it behind the keys).
+ * The visual viewport ends above iOS's own accessory row, so the pill sits
+ * above that row and never on the screen edges. Shown only while the editor
+ * has focus. BAR_GAP in bar-logic is this `bottom` while the keyboard is up. */
 .needt-page-bar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 45;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--pk-glass, var(--surface-raised));
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow:
+    var(--pk-glass-edge, 0 0 0 1px var(--border-subtle)),
+    var(--pdc-chip-shadow, 0 6px 24px rgb(0 0 0 / 0.14));
   will-change: transform;
 }
 .needt-page-bar[data-kb="open"] {
-  padding-bottom: 0;
+  bottom: 10px;
 }
 .needt-page-bar[data-shown="false"] {
   visibility: hidden;
