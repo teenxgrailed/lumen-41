@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "landing",
+    "apps",
     "landing from figma",
     "New ui ",
     "_archive-figma-make",
