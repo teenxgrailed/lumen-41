@@ -3,22 +3,169 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>Needt</title>
+    <!--
+      The start window. Bundled with the app, so it opens at once and offline.
+      Nothing here talks to the network: "Sign in" asks the shell to open the
+      system browser (needt://start-sign-in is caught by the shell's
+      navigation guard and never loads), and the shell brings the sign-in back.
+      Colours are the design system's: one text colour at a ladder alpha, one
+      hairline, no solid accent on a button.
+    -->
     <style>
+      :root {
+        --background: #fcfdfe;
+        --foreground-rgb: 26, 28, 30;
+        --accent-rgb: 46, 109, 233;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #121314;
+          --foreground-rgb: 249, 249, 249;
+          --accent-rgb: 113, 178, 255;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
       html,
       body {
         height: 100%;
         margin: 0;
-        background: #0e0e10;
-        color: rgba(255, 255, 255, 0.6);
-        font: 13px -apple-system, system-ui, sans-serif;
-        display: grid;
-        place-items: center;
+        background: var(--background);
+        color: rgba(var(--foreground-rgb), 1);
+        font:
+          13px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+        overflow: hidden;
+      }
+      .drag {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 52px;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: 0 40px 24px;
+        text-align: center;
+      }
+      img {
+        width: 72px;
+        height: 72px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        max-width: 280px;
+        color: rgba(var(--foreground-rgb), 0.7);
+      }
+      .actions {
+        margin-top: 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        min-height: 78px;
+      }
+      button {
+        font: inherit;
+        color: rgba(var(--foreground-rgb), 1);
+        background: rgba(var(--foreground-rgb), 0.04);
+        border: 0;
+        border-radius: 8px;
+        box-shadow: inset 0 0 0 1px rgba(var(--foreground-rgb), 0.08);
+        height: 32px;
+        min-width: 168px;
+        padding: 0 16px;
+        cursor: default;
+      }
+      button:hover {
+        background: rgba(var(--foreground-rgb), 0.06);
+      }
+      button:active {
+        background: rgba(var(--foreground-rgb), 0.12);
+      }
+      button:focus-visible {
+        outline: none;
+        box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.4);
+      }
+      .link {
+        height: auto;
+        min-width: 0;
+        padding: 0;
+        background: none;
+        box-shadow: none;
+        font-size: 12px;
+        color: rgba(var(--foreground-rgb), 0.55);
+      }
+      .link:hover {
+        background: none;
+        color: rgba(var(--foreground-rgb), 0.85);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .note {
+        font-size: 12px;
+        color: rgba(var(--foreground-rgb), 0.55);
       }
     </style>
   </head>
   <body>
-    <!-- Never shown in normal use: windows load the remote web app directly. -->
-    <p>Needt</p>
+    <div class="drag" data-tauri-drag-region></div>
+    <main>
+      <img src="icon.png" alt="" width="72" height="72" />
+      <h1>Needt</h1>
+      <p>The place you keep everything you work on.</p>
+      <div class="actions">
+        <div id="idle">
+          <button id="sign-in" type="button">Sign in</button>
+        </div>
+        <div id="waiting" hidden>
+          <p class="note">Finish signing in in your browser, then come back.</p>
+          <button id="cancel" type="button" class="link">Cancel</button>
+        </div>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var idle = document.getElementById("idle");
+        var waiting = document.getElementById("waiting");
+        // The shell catches these navigations; the page itself never changes.
+        function ask(what) {
+          window.location.href = "needt://" + what;
+        }
+        document.getElementById("sign-in").addEventListener("click", function () {
+          idle.hidden = true;
+          waiting.hidden = false;
+          ask("start-sign-in");
+        });
+        document.getElementById("cancel").addEventListener("click", function () {
+          waiting.hidden = true;
+          idle.hidden = false;
+          ask("cancel-sign-in");
+        });
+      })();
+    </script>
   </body>
 </html>

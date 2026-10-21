@@ -15,11 +15,19 @@ tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
 tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
-tauri-plugin-single-instance = "2.5"
+# deep-link: a second launch with a needt:// link reaches the running app.
+tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
+tauri-plugin-deep-link = "2.4"
 tauri-plugin-global-shortcut = "2.4"
 tauri-plugin-window-state = "2.5"
 tauri-plugin-notification = "2.7"
 tauri-plugin-opener = "2.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Sign-in handoff (PKCE): random verifier, sha256 challenge.
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.2"
 
 [profile.release]
 codegen-units = 1

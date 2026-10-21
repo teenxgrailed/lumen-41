@@ -30,6 +30,7 @@ import { ShellFrame } from "../root/ShellFrame";
 import { StatusBanners } from "../states/StBanner";
 import { BugSheet } from "./BugSheet";
 import { CustomizeSidebar } from "./CustomizeSidebar";
+import { DesktopBridge } from "./DesktopBridge";
 import { KeySheet } from "./KeySheet";
 import { PermanentHosts } from "./PermanentHosts";
 import { RailColumn } from "./RailColumn";
@@ -314,7 +315,12 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
             }
             rail={phone ? null : rail}
             overlays={phone ? <PhoneShell /> : desktopLayers}
-            hosts={<PermanentHosts />}
+            hosts={
+              <>
+                <PermanentHosts />
+                <DesktopBridge />
+              </>
+            }
             dock={dock}
             // Keyed by place, so moving between two docs keeps the page.
             placeKey={pathname?.split("/")[1] ?? ""}
