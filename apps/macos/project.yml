@@ -1,0 +1,69 @@
+# XcodeGen spec for the native Mac app. `xcodegen generate` writes
+# Needt.xcodeproj (not committed); see README.md.
+name: Needt
+
+options:
+  bundleIdPrefix: app.needt
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    # Set to the Sparkle EdDSA *public* key (see README.md). While it is empty
+    # the app never checks for updates.
+    SPARKLE_PUBLIC_ED_KEY: ""
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.4
+  NeedtKit:
+    path: ../shared/NeedtKit
+
+targets:
+  Needt:
+    type: application
+    platform: macOS
+    sources:
+      - path: Needt/Sources
+      - path: Needt/Resources
+    dependencies:
+      - package: Sparkle
+      - package: NeedtKit
+    info:
+      path: Needt/Info.plist
+      properties:
+        CFBundleName: Needt
+        CFBundleDisplayName: Needt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "Needt"
+        NSPrincipalClass: NSApplication
+        CFBundleURLTypes:
+          - CFBundleURLName: app.needt.mac
+            CFBundleURLSchemes: [needt]
+        # Debug builds may point at a local web app (NEEDT_URL).
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
+        NSCameraUsageDescription: Needt uses the camera when you attach a photo.
+        SUFeedURL: https://needt.app/desktop/appcast.xml
+        SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
+        SUEnableAutomaticChecks: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
+        PRODUCT_NAME: Needt
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO

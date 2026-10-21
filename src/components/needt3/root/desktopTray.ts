@@ -15,6 +15,12 @@ export interface DesktopTrayState {
   next: { id: string; title: string; time: string | null }[];
   /** A running focus session, in words; null when none runs. */
   focus: string | null;
+  /** Overdue open tasks: the native Mac app's Dock badge. */
+  overdue: number;
+  /** When a running, unpaused focus ends (epoch ms), for the menu-bar countdown. */
+  focusEndsAt: number | null;
+  /** What the running focus is for, if the person said. */
+  focusTitle: string | null;
 }
 
 export const TRAY_TASK_LIMIT = 3;
@@ -70,6 +76,17 @@ export function focusLine(
   return `${what} ${Math.max(1, Math.ceil(run.leftSec / 60))} min left`;
 }
 
+/** Epoch ms a running, unpaused focus session ends; null otherwise. */
+export function focusEndsAt(
+  row: FocusRow | null | undefined,
+  nowMs: number
+): number | null {
+  if (!row) return null;
+  const run = runOf(row, nowMs);
+  if (run.paused || run.leftSec == null || run.due) return null;
+  return nowMs + run.leftSec * 1000;
+}
+
 export function trayState(input: {
   tasks: readonly V3Task[] | undefined;
   today: string;
@@ -78,9 +95,14 @@ export function trayState(input: {
   nowMs?: number;
 }): DesktopTrayState | null {
   if (!input.tasks) return null;
+  const nowMs = input.nowMs ?? newDate().getTime();
+  const { late } = splitHome(input.tasks, input.today);
   return {
     open: badgeCount(input.tasks, input.today),
     next: nextTasks(input.tasks, input.today, input.nowHour),
-    focus: focusLine(input.focus, input.nowMs ?? newDate().getTime()),
+    focus: focusLine(input.focus, nowMs),
+    overdue: late.filter((t) => !t.done).length,
+    focusEndsAt: focusEndsAt(input.focus, nowMs),
+    focusTitle: input.focus?.intention?.trim() || null,
   };
 }

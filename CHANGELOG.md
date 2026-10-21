@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
+  a native window with a transparent title bar, a menu-bar item (focus
+  countdown, today's next tasks), a Dock badge for overdue tasks, a global
+  quick add on Shift-Command-Space, native notifications and automatic
+  updates (Sparkle, switched on once signed). The Tauri build remains for
+  Windows.
 - Desktop app (macOS, Windows): it opens on its own start window instead of a
   web page, and signing in happens in your browser (so Google works) and
   returns to the app with a one-time code; the app then opens straight to

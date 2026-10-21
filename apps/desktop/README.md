@@ -1,5 +1,9 @@
 # Needt desktop
 
+> **macOS: legacy.** The Mac app is now native Swift (`apps/macos`). This
+> Tauri app remains the Windows app; its macOS build stays only until the
+> native one is signed and released, then it will be removed.
+
 Tauri v2 app (macOS and Windows). It is the same Needt interface as the
 browser, loaded from `https://use.needt.app` (one codebase, every web release
 reaches the app without a new build), with native layers around it: a start

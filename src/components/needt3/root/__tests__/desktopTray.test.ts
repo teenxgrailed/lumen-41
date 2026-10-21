@@ -135,6 +135,9 @@ describe("trayState", () => {
         { id: "c", title: "Task c", time: null },
       ],
       focus: null,
+      overdue: 0,
+      focusEndsAt: null,
+      focusTitle: null,
     });
   });
 });
