@@ -9,18 +9,15 @@ struct FocusSuggestion: Equatable {
 }
 
 /// What the menu bar item, its menu and the Dock badge show. Fed by the web
-/// app's `needt-tray-state` report (about once a minute and on change); the
-/// countdown between reports is counted here from `focusEndsAt`.
+/// app's `needt-tray-state` report (about once a minute and on change). The
+/// menu-bar countdown is a system `Text(timerInterval:)` fed by `focusEndsAt`.
 @MainActor
 final class TrayStore: ObservableObject {
     @Published private(set) var state: TrayState = .empty
-    /// "18:42" while a focus counts down, else nil. Shown beside the menu-bar icon.
-    @Published private(set) var clock: String?
     @Published private(set) var focusError: String?
     /// "Start focus: task" while a macOS Focus filter set to suggest is on.
     @Published private(set) var suggestion: FocusSuggestion?
 
-    private var timer: Timer?
     /// The session id for Pause / End, fetched on demand through NeedtAPI.
     private var session: FocusSession?
 
@@ -41,9 +38,7 @@ final class TrayStore: ObservableObject {
     func apply(_ next: TrayState) {
         SessionSync.push()
         state = next
-        refreshClock()
         updateDockBadge()
-        updateTimer()
     }
 
     /// Signed out: nothing of the previous person stays in the menu.
@@ -57,32 +52,6 @@ final class TrayStore: ObservableObject {
     private func updateDockBadge() {
         // Overdue only: red means "needs you now". Hidden at zero.
         NSApp.dockTile.badgeLabel = state.overdue > 0 ? String(state.overdue) : nil
-    }
-
-    private func refreshClock() {
-        if let left = state.focusSecondsLeft() {
-            clock = formatClock(left)
-        } else {
-            clock = nil
-        }
-    }
-
-    private func updateTimer() {
-        guard state.focusSecondsLeft() != nil else {
-            timer?.invalidate()
-            timer = nil
-            return
-        }
-        guard timer == nil else { return }
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.refreshClock()
-                if self.clock == nil { self.updateTimer() }
-            }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
     }
 
     // MARK: focus started or ended outside the page (Siri, Shortcuts, Spotlight)

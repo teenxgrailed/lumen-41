@@ -31,15 +31,27 @@ enum MenuBarGlyph {
     }()
 }
 
-/// The item in the menu bar: the icon alone, plus mm:ss while a focus runs.
+/// The item in the menu bar: the icon alone, and "24:10 · task" only while a
+/// focus run exists. The countdown is the system's own `Text(timerInterval:)`,
+/// so nothing here ticks; the label is rebuilt when the state changes.
 struct MenuBarLabel: View {
     @ObservedObject var tray: TrayStore
 
     var body: some View {
+        let state = tray.state
         HStack(spacing: 4) {
             Image(nsImage: MenuBarGlyph.image)
-            if let clock = tray.clock {
-                Text(clock).monospacedDigit()
+            if let end = state.focusEndDate, end > Date() {
+                HStack(spacing: 3) {
+                    Text(timerInterval: Date()...end, countsDown: true, showsHours: false)
+                        .monospacedDigit()
+                    if let title = FocusSync.shortTitle(state.focusTitle) {
+                        Text("· \(title)")
+                    }
+                }
+            } else if state.isFocusActive {
+                // Paused: no end time to count to.
+                Text(FocusSync.shortTitle(state.focusTitle).map { "Paused · \($0)" } ?? "Paused")
             }
         }
     }
@@ -64,7 +76,7 @@ struct MenuBarContent: View {
         let state = tray.state
         if let focus = state.focus {
             Text("Focus · \(state.focusTitle ?? "Untitled")")
-            Text(tray.clock.map { "\($0) left" } ?? focus)
+            Text(focus)
             Button(tray.isFocusPaused ? "Resume focus" : "Pause focus") {
                 tray.togglePauseFocus()
             }
