@@ -10,7 +10,7 @@ import WidgetKit
 @main
 struct NeedtWidgetsMain: WidgetBundle {
     var body: some Widget {
-        NeedtWidgetBundle()
+        NeedtWidgetBundle().body
     }
 }
 
