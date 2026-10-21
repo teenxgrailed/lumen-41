@@ -106,7 +106,7 @@ enum IslandV3Geometry {
     private static func ear(for mode: IslandV3Mode) -> CGFloat {
         switch mode {
         case .live: return 98
-        case .warn: return 168
+        case .warn: return 200
         case .done: return 112
         case .music: return 62
         case .airpods, .charge: return 112
