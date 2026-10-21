@@ -219,7 +219,9 @@ jobs:
         env:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
-      - if: failure()
+      # Always: the onboarding spec attaches a screenshot of every screen
+      # (desktop and phone) for visual review, not only on failure.
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-e2e-report

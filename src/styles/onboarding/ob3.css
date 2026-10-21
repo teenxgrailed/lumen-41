@@ -523,7 +523,7 @@
 }
 
 /* the printed sky (PxSky). CSS clouds stay only as the fallback */
-.ob3-px { position: absolute; inset: 40px; transition: opacity .9s ease; }
+.ob3-px { position: absolute; inset: 40px; transition: opacity .8s ease; }
 .ob3-px .px-canvas, .ob3-px .px-dotscreen, .ob3-px .px-grain { pointer-events: none; }
 .ob3-sky.has-engine { background: none; }
 .ob3-sky.has-engine > i { display: none; }

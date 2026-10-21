@@ -129,6 +129,8 @@ export interface WeekPlan {
   /** Which hours the grid should show. */
   range: { lo: number; hi: number };
   source: "sample" | "calendar";
+  /** The calendar the events came from ("Google Calendar"), when real. */
+  calendarName: string | null;
 }
 
 /** The calendar a visitor without a connected account sees: 12 events, Monday first. */
@@ -695,5 +697,6 @@ export function planWeek(input: PlanInput): WeekPlan {
     steps,
     range: { lo, hi },
     source: sample ? "sample" : "calendar",
+    calendarName: sample ? null : (input.calendarName ?? null),
   };
 }
