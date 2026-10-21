@@ -52,7 +52,9 @@ final class OfflineAndShareTests: XCTestCase {
     func testOfflineNote() {
         var cal = utc()
         cal.locale = Locale(identifier: "en_US_POSIX")
-        let date = Date(timeIntervalSince1970: 1_800_000_000 + 14 * 3600 + 5 * 60 - (1_800_000_000 % 86_400))
+        let base: Double = 1_800_000_000
+        let startOfDay: Double = base - base.truncatingRemainder(dividingBy: 86_400)
+        let date = Date(timeIntervalSince1970: startOfDay + 14 * 3600 + 5 * 60)
         XCTAssertEqual(OfflineCache.note(updatedAt: date, calendar: cal), "Offline · updated 14:05")
         XCTAssertEqual(ReadResult(value: 1, staleSince: date).note(calendar: cal), "Offline · updated 14:05")
         XCTAssertNil(ReadResult(value: 1, staleSince: nil).note(calendar: cal))
@@ -93,10 +95,10 @@ final class OfflineAndShareTests: XCTestCase {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let start = cal.startOfDay(for: now)
         let tasks = [
-            TaskSummary(id: "a", title: "Later today", status: "todo", scheduledStart: start.addingTimeInterval(20 * 3600)),
-            TaskSummary(id: "b", title: "Overdue", status: "todo", dueDate: start.addingTimeInterval(-86_400 + 9 * 3600)),
+            TaskSummary(id: "a", title: "Later today", status: "todo", scheduledStart: start.addingTimeInterval(72_000)),
+            TaskSummary(id: "b", title: "Overdue", status: "todo", dueDate: start.addingTimeInterval(-54_000)),
             TaskSummary(id: "c", title: "Done", status: "completed", dueDate: start.addingTimeInterval(3600)),
-            TaskSummary(id: "d", title: "Tomorrow", status: "todo", dueDate: start.addingTimeInterval(86_400 + 3600)),
+            TaskSummary(id: "d", title: "Tomorrow", status: "todo", dueDate: start.addingTimeInterval(90_000)),
             TaskSummary(id: "e", title: "Trashed", status: "todo", dueDate: start.addingTimeInterval(3600), trashedAt: now),
             TaskSummary(id: "f", title: "No date", status: "todo"),
         ]
