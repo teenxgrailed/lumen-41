@@ -5,8 +5,8 @@ import Foundation
 // every state in docs `pack.html` -> States is a case here, testable without
 // WidgetKit.
 
-enum WidgetCalendar {
-    static func formatter(_ format: String, calendar: Calendar) -> DateFormatter {
+public enum WidgetCalendar {
+    public static func formatter(_ format: String, calendar: Calendar) -> DateFormatter {
         let f = DateFormatter()
         f.calendar = calendar
         f.locale = calendar.locale ?? .current
