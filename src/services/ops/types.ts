@@ -5,6 +5,7 @@ import type {
   WorkspaceAccess,
   WorkspaceDataScope,
 } from "@/lib/auth/workspace-auth";
+import type { McpScope } from "@/lib/mcp-config";
 
 /**
  * `read` never writes. `reversible` writes and stores an inverse, so the
@@ -81,6 +82,13 @@ export interface OpDefinition<
    * not listed or callable from outside; undo is the only caller.
    */
   internal?: boolean;
+  /**
+   * Token scopes a connector token needs beyond the one the risk implies
+   * (reads need `needt.read`, every write `needt.write`). An op that reads
+   * mail lists `mail.read`, so a token without that consent cannot reach mail
+   * through `/api/connect/ops`.
+   */
+  scopes?: readonly McpScope[];
   /**
    * Ops that drive services owning their own transactions (the scheduler)
    * set this to false: `ctx.tx` is then the root client and the action row
