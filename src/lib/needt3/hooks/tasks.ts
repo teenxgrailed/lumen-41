@@ -83,6 +83,9 @@ function applyLocal(t: V3Task, patch: V3TaskPatch): V3Task {
     // the server's stamp arrives with its answer; until then "closed just now"
     next.completedAt = null;
   }
+  // The toggle's effective value follows an explicit choice at once; "auto"
+  // (null) waits for the server's answer, which knows habits and repeats.
+  if (typeof patch.fullTime === "boolean") next.fullTimeOn = patch.fullTime;
   return next;
 }
 

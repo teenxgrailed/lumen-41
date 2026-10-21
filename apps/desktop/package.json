@@ -1,0 +1,15 @@
+{
+  "name": "needt-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Needt desktop app: a Tauri v2 shell around https://use.needt.app",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icons": "tauri icon ../../public/brand/needt-icon.svg"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.3"
+  }
+}

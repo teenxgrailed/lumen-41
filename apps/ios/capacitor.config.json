@@ -1,0 +1,26 @@
+{
+  "appId": "app.needt.ios",
+  "appName": "Needt",
+  "webDir": "www",
+  "backgroundColor": "#141416",
+  "server": {
+    "url": "https://use.needt.app",
+    "allowNavigation": ["use.needt.app", "*.needt.app", "needt.app"],
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "never",
+    "scheme": "Needt"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 800,
+      "backgroundColor": "#141416"
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DEFAULT"
+    }
+  }
+}

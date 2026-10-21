@@ -21,6 +21,7 @@ export const SECTION_TITLES = {
   signIn: "Sign in",
   resetPassword: "Reset password",
   confirmEmail: "Confirm email",
+  desktopApp: "Desktop app",
   chat: "Chat",
   focus: "Focus",
   quickAdd: "Quick add",

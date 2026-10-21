@@ -302,6 +302,32 @@ export function useFocusController() {
   };
   const keepGoing = () => rethink();
 
+  /* ---------- a full-time task was ticked while its session runs ---------- */
+  // The server leaves a full-time task's session running when the task is
+  // done (any device, the API, MCP): this asks what to do with the time left.
+  const fullTimeLeftMin =
+    run &&
+    !run.isBreak &&
+    !run.due &&
+    run.leftSec != null &&
+    task?.done &&
+    task.fullTimeOn &&
+    ui.fullTimeKept !== run.id
+      ? Math.max(1, Math.ceil(run.leftSec / 60))
+      : null;
+  const askingFullTime = fullTimeLeftMin != null;
+  const askedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!askingFullTime || !runId || askedFor.current === runId) return;
+    askedFor.current = runId;
+    // The ask is in the window: bring it up if it is folded into the pill.
+    useNeedt3Ui.getState().setFocusOpen(true);
+  }, [askingFullTime, runId]);
+  const keepGoingFullTime = () => {
+    if (run) useFocusWindow.getState().patch({ fullTimeKept: run.id });
+  };
+  const endFullTimeNow = () => finish("stopped");
+
   /* ---------- "Done with <task>?" ---------- */
   const askTask = ui.summary?.taskId
     ? (tasks ?? []).find((t) => t.id === ui.summary?.taskId)
@@ -443,6 +469,10 @@ export function useFocusController() {
     setHide,
     stats: stats.data ?? null,
     asking,
+    askingFullTime,
+    fullTimeLeftMin,
+    keepGoingFullTime,
+    endFullTimeNow,
     askTask: askTask ?? null,
     markDone,
     notYet,

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Needt</title>
+    <!--
+      Shown instead of a browser error page when the app starts or reloads with
+      no connection. Bundled with the app. It checks for the network every few
+      seconds and returns to Needt by itself.
+    -->
+    <style>
+      :root {
+        --background: #fcfdfe;
+        --foreground-rgb: 26, 28, 30;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #121314;
+          --foreground-rgb: 249, 249, 249;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--background);
+        color: rgba(var(--foreground-rgb), 1);
+        font:
+          13px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+        overflow: hidden;
+      }
+      .drag {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 52px;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 40px 24px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        max-width: 320px;
+        color: rgba(var(--foreground-rgb), 0.7);
+      }
+      button {
+        margin-top: 24px;
+        font: inherit;
+        color: rgba(var(--foreground-rgb), 1);
+        background: rgba(var(--foreground-rgb), 0.04);
+        border: 0;
+        border-radius: 8px;
+        box-shadow: inset 0 0 0 1px rgba(var(--foreground-rgb), 0.08);
+        height: 32px;
+        padding: 0 16px;
+        cursor: default;
+      }
+      button:hover {
+        background: rgba(var(--foreground-rgb), 0.06);
+      }
+      button:active {
+        background: rgba(var(--foreground-rgb), 0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="drag" data-tauri-drag-region></div>
+    <main>
+      <h1>You’re offline</h1>
+      <p>Needt will open as soon as the connection is back.</p>
+      <button id="retry" type="button">Try now</button>
+    </main>
+    <script>
+      (function () {
+        var boot = window.__needtDesktop || {};
+        var home = "https://use.needt.app/today";
+        try {
+          var candidate = new URL(boot.home || home);
+          if (candidate.protocol === "https:" || candidate.hostname === "localhost") {
+            home = candidate.href;
+          }
+        } catch (_) {}
+        var busy = false;
+        function check() {
+          if (busy) return;
+          busy = true;
+          // no-cors: only reachability matters, not the answer.
+          var timer = setTimeout(function () {
+            busy = false;
+          }, 6000);
+          fetch(new URL("/api/health", home).href, {
+            mode: "no-cors",
+            cache: "no-store",
+          })
+            .then(function () {
+              window.location.replace(home);
+            })
+            .catch(function () {})
+            .then(function () {
+              clearTimeout(timer);
+              busy = false;
+            });
+        }
+        document.getElementById("retry").addEventListener("click", check);
+        window.addEventListener("online", check);
+        setInterval(check, 5000);
+      })();
+    </script>
+  </body>
+</html>

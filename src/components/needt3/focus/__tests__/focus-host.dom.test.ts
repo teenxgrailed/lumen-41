@@ -750,3 +750,55 @@ describe("Done with <task>?", () => {
     expect(q("[data-fc-window]")).toBeNull();
   });
 });
+
+describe("a full-time task ticked during its session", () => {
+  const markDoneElsewhere = async () => {
+    await act(async () => {
+      qc.setQueryData(qk.tasks({}), (list: V3Task[] | undefined) =>
+        (list ?? []).map((t) =>
+          t.id === "t1"
+            ? ({ ...t, done: true, status: "completed" } as V3Task)
+            : t
+        )
+      );
+    });
+    await tick(10);
+  };
+  const runFor = async (over: Partial<V3Task>) => {
+    qc.setQueryData(qk.tasks({}), (list: V3Task[] | undefined) =>
+      (list ?? []).map((t) => (t.id === "t1" ? { ...t, ...over } : t))
+    );
+    await mount();
+    await open();
+    await click("[data-fc-seg='25']");
+    await click("[data-fc-start]");
+    await tick(5 * 60 * 1000);
+  };
+
+  it("asks 'N min left' with Keep going and End now, and Keep going stays away", async () => {
+    await runFor({ fullTimeOn: true });
+    expect(q("[data-fc-full-time-ask]")).toBeNull();
+    await markDoneElsewhere();
+    expect(q("[data-fc-full-time-ask] .fc-end-line")!.textContent).toContain(
+      "20 min left on Write the brief"
+    );
+    await click("[data-fc-full-time-keep]");
+    expect(q("[data-fc-full-time-ask]")).toBeNull();
+    // the session itself carries on
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("run");
+  });
+
+  it("End now ends the session", async () => {
+    await runFor({ fullTimeOn: true });
+    await markDoneElsewhere();
+    await click("[data-fc-full-time-end]");
+    expect(posts("stop")).toHaveLength(1);
+    expect(q("[data-fc-window]")?.getAttribute("data-fc-window")).toBe("end");
+  });
+
+  it("a one-off task that is done asks nothing (the server ended its session)", async () => {
+    await runFor({ fullTimeOn: false });
+    await markDoneElsewhere();
+    expect(q("[data-fc-full-time-ask]")).toBeNull();
+  });
+});

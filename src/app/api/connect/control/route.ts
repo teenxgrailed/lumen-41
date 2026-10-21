@@ -6,6 +6,7 @@ import {
 } from "@/services/connectors/auth";
 import { isConnectorControlAction } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
+import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
@@ -183,6 +184,14 @@ async function handleControl(
     });
     if (!result.count)
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    if (action === "complete_task" || body.status === TaskStatus.COMPLETED) {
+      // Done ends the task's running focus; the scheduler run below takes
+      // back the minutes saved.
+      const done = await prisma.task.findFirst({
+        where: { id: body.id, ...scope },
+      });
+      if (done) await endFocusForCompletedTask({ userId, task: done });
+    }
     await scheduleAllTasksForUser(userId, {
       workspaceId:
         workspace.dataScope.mode === "workspace"
