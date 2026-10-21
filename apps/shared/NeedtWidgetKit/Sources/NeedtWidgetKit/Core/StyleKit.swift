@@ -141,6 +141,7 @@ struct ColorRing: View {
             Circle().trim(from: 0, to: max(0.001, min(1, progress)))
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+                .motion(value: progress)
         }
         .frame(width: diameter, height: diameter)
     }
