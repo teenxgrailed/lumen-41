@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.start()
         installMainMenu()
         AppController.shared.start()
+        IslandHost.start(notification)
         Task { await AppController.shared.tray.focusFilterChanged() }
         // SwiftUI installs its own menu bar around the scene; keep ours on top.
         DispatchQueue.main.async { [weak self] in self?.installMainMenu() }
@@ -62,6 +63,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls where url.scheme == "needt" {
             AppController.shared.auth.handleDeepLink(url)
         }
+        IslandHost.open(urls.filter(\.isFileURL))
+    }
+
+    @MainActor
+    func applicationWillTerminate(_ notification: Notification) {
+        IslandHost.stop(notification)
     }
 
     /// A click on a task in Spotlight.

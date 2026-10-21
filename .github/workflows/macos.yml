@@ -23,7 +23,7 @@ jobs:
   build:
     name: Build Needt.app (unsigned)
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -54,7 +54,22 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | tail -n 80
+            build 2>&1 | tee build.log | tail -n 80
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build.log | sort -u | head -80 || true
+
+      - name: Zip Needt.app
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Release/Needt.app
+          test -d "$APP"
+          plutil -p "$APP/Contents/Info.plist" | head -40
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-macos-unsigned.zip
 
       - name: App Store build has no Sparkle, direct build embeds the Share extension
         working-directory: apps/macos
@@ -97,8 +112,12 @@ jobs:
           for name in ("Needt", "NeedtAppStore", "NeedtShare"):
               e = load(name)
               print(name, sorted(e))
-              need = ["com.apple.security.app-sandbox", "com.apple.security.network.client",
+              # The direct build is unsandboxed on purpose (the full island);
+              # the App Store build and the extension must be sandboxed.
+              need = ["com.apple.security.network.client",
                       "com.apple.security.application-groups"]
+              if name != "Needt":
+                  need.append("com.apple.security.app-sandbox")
               if name != "NeedtShare":
                   need.append("com.apple.security.files.user-selected.read-only")
               for key in need:
@@ -114,16 +133,6 @@ jobs:
           if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share; then
             echo "private API pattern found"; exit 1
           fi
-
-      - name: Zip Needt.app
-        working-directory: apps/macos
-        run: |
-          set -euo pipefail
-          APP=build/Build/Products/Release/Needt.app
-          test -d "$APP"
-          plutil -p "$APP/Contents/Info.plist" | head -40
-          mkdir -p out
-          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-macos-unsigned.zip
 
       # Best effort: start the app for a few seconds and report whether it
       # stayed up. A runner has no signed-in person, so this shows the start
@@ -156,4 +165,5 @@ jobs:
             apps/macos/out/Needt-macos-unsigned.zip
             apps/macos/out/needt-start-window.png
             apps/macos/out/launch.log
+            apps/macos/build.log
           if-no-files-found: warn
