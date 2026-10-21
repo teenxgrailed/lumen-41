@@ -295,12 +295,18 @@ final class IslandAppDelegate: NSObject {
         window.animationBehavior = .none
         // collectionBehavior is configured in DynamicIslandWindow.init
 
-        window.contentView = FirstMouseHostingView(
+        let hosting = FirstMouseHostingView(
             rootView: ContentView()
                 .environmentObject(viewModel)
                 .environmentObject(webcamManager)
                 //.moveToSky()
         )
+        // The window is sized from code (resizeWindows). With the default sizing
+        // options the hosting view also pushes its own ideal size into the
+        // window's min/max size on every layout pass, and a ticking countdown
+        // made that loop ("Update Constraints" exceeded the pass limit).
+        hosting.sizingOptions = []
+        window.contentView = hosting
         
         window.orderFrontRegardless()
         // Pin above every space (fullscreen included) only for "Never hide"; the
@@ -486,7 +492,12 @@ final class IslandAppDelegate: NSObject {
         let newY = (screenFrame.origin.y + screenFrame.height - clampedHeight).rounded()
         let targetFrame = NSRect(x: newX, y: newY, width: clampedWidth, height: clampedHeight)
 
-        window.setFrame(targetFrame, display: true)
+        // Never resize inside a layout pass, and not at all when nothing changed.
+        guard window.frame != targetFrame else { return }
+        DispatchQueue.main.async { [weak window] in
+            guard let window, window.frame != targetFrame else { return }
+            window.setFrame(targetFrame, display: true)
+        }
     }
 
     private func shouldAnimateResize(for newSize: CGSize) -> Bool {

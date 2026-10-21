@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: the notch island is part of Needt (Pro). Focus, Next (next task and
+  event) and Add (quick add) sit before Music and Files; focus can be paused or
+  ended from the notch ("Done 5 min early"). On a Mac without a notch the
+  island is a black pill at the top centre. Settings has an Island pane
+  (on/off, modules and their order, open on hover or click, displays, sounds
+  and haptics); on Free the pane is read-only. The App Store build has no
+  private interfaces (no volume or brightness HUD, no system sensors) and plays
+  Apple Music and Spotify only. The direct-download build is no longer
+  sandboxed. The island is derived from Atoll and boring.notch (GPL v3), so the
+  source of the Mac app is offered under GPL v3.
 - Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
   start and end focus, what's today, what's next, replan day, log habit) and
   your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to

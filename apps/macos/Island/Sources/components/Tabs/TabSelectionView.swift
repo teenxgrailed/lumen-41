@@ -128,6 +128,12 @@ struct TabSelectionView: View {
         }
         .animation(.smooth(duration: 0.3), value: coordinator.currentView)
         .clipShape(Capsule())
+        .overlay(alignment: .trailing) {
+            Text("Pro")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(NeedtInk.tertiary)
+                .offset(x: 34)
+        }
         .onAppear {
             ensureValidSelection(with: tabs)
         }

@@ -237,6 +237,7 @@ struct NeedtFocusTabView: View {
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
+                .frame(width: 70)
         } else if tray.isFocusPaused {
             Image(systemName: "pause.fill").font(.system(size: 18)).foregroundStyle(NeedtInk.secondary)
         } else {
@@ -467,5 +468,65 @@ struct NeedtIntroView: View {
         .toggleStyle(.switch)
         .controlSize(.small)
         .font(.system(size: 13))
+    }
+}
+
+// MARK: - Closed island while a focus runs
+
+/// The notch grows sideways: a progress ring on the left, the time on the right.
+@MainActor
+struct NeedtFocusLiveActivity: View {
+    @EnvironmentObject var vm: DynamicIslandViewModel
+    @ObservedObject var tray: TrayStore
+    @State private var session: FocusSession?
+
+    private var height: CGFloat { max(0, vm.effectiveClosedNotchHeight - 12) }
+
+    var body: some View {
+        let state = tray.state
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: height + 20, height: height)
+                .overlay(alignment: .trailing) {
+                    TimelineView(.animation(minimumInterval: 1)) { context in
+                        ZStack {
+                            Circle().stroke(NeedtInk.track, lineWidth: 2.5)
+                            Circle()
+                                .trim(from: 0, to: progress(state, at: context.date))
+                                .stroke(NeedtInk.primary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                        }
+                        .frame(width: height - 8, height: height - 8)
+                    }
+                }
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width, height: height)
+            Color.clear
+                .frame(width: 76, height: height)
+                .overlay(alignment: .leading) {
+                    if let end = state.focusEndDate, end > Date(), !tray.isFocusPaused {
+                        Text(timerInterval: Date()...end, countsDown: true, showsHours: false)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(NeedtInk.primary)
+                            .frame(width: 60, alignment: .leading)
+                    } else {
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(NeedtInk.secondary)
+                    }
+                }
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+        .task(id: state.focusEndsAt) {
+            session = state.isFocusActive ? (try? await tray.api.activeFocusSession()) : nil
+        }
+    }
+
+    private func progress(_ state: TrayState, at date: Date) -> Double {
+        guard let planned = session?.plannedMinutes, planned > 0 else { return 1 }
+        let left = state.focusSecondsLeft(at: date) ?? session?.secondsLeft(at: date) ?? 0
+        return min(1, max(0, Double(left) / Double(planned * 60)))
     }
 }
