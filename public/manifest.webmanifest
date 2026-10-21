@@ -6,7 +6,7 @@
   "start_url": "/today",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": ["standalone"],
   "background_color": "#141416",
   "theme_color": "#141416",
   "orientation": "portrait-primary",
