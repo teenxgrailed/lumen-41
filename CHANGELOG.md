@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Desktop app, chrome redone to the new design: the start window (440 x 520)
+  shows each step of the browser sign-in (browser opened, signing you in, link
+  expired); on a Mac the sidebar lets the desktop show through (vibrancy; the
+  content stays opaque) and the sidebar toggle sits next to the traffic lights;
+  the menu-bar item is the Needt mark alone until a focus runs, then it shows
+  the time left, and its menu can pause or end the focus; the Dock badge counts
+  overdue tasks only; Quick add is a borderless card above other apps (Enter
+  adds, Cmd+Enter adds and opens, Tab switches task, event, doc, Esc closes);
+  the offline page follows the new design and retries every 10 seconds. Nothing
+  changes in the browser.
 - Focus and Done: ticking a task during its focus ends the focus. The notice
   "Done 12 min early" now has Undo (it opens the task again; the focus itself is
   not resumed, start a new one), and Home's time-left bar shows the returned

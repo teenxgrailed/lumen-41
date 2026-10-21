@@ -1,5 +1,6 @@
 import {
   desktopPlatform,
+  desktopVibrancy,
   emitDesktopEvent,
   isDesktopApp,
   onDesktopCommand,
@@ -75,6 +76,9 @@ describe("desktop shell commands", () => {
       type: "open-task",
       id: "ck_12-x",
     });
+    for (const type of ["focus-toggle", "focus-end", "focus-start-next"]) {
+      expect(parseDesktopCommand({ type })).toEqual({ type });
+    }
     for (const bad of [
       null,
       "new-task",
@@ -111,6 +115,22 @@ describe("desktop shell commands", () => {
     expect(seen).toEqual([{ type: "palette" }]);
     stop();
     expect(installed.fn).toBeNull();
+  });
+
+  it("reports vibrancy only on macOS and only when the shell says so", () => {
+    const host = (platform: string, vibrancy?: boolean) => ({
+      __TAURI__: {},
+      __needtDesktop: { platform, vibrancy },
+    });
+    (globalThis as TestGlobal).window = host("mac", true);
+    expect(desktopVibrancy()).toBe(true);
+    // An older shell sends no flag: the sidebar stays opaque.
+    (globalThis as TestGlobal).window = host("mac");
+    expect(desktopVibrancy()).toBe(false);
+    (globalThis as TestGlobal).window = host("windows", true);
+    expect(desktopVibrancy()).toBe(false);
+    (globalThis as TestGlobal).window = {};
+    expect(desktopVibrancy()).toBe(false);
   });
 
   it("is inert in a browser", () => {
