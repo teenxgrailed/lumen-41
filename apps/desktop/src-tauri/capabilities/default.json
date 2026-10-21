@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal IPC for the Needt web app: native notifications only. Remote pages get nothing else.",
+  "windows": ["main", "quick"],
+  "remote": {
+    "urls": ["https://needt.app", "https://*.needt.app"]
+  },
+  "permissions": [
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
+  ]
+}

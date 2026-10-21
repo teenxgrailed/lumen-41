@@ -1,0 +1,76 @@
+name: Desktop
+
+# Unsigned Tauri builds of the desktop app (apps/desktop). Not part of the
+# release pipeline: nothing here publishes or deploys.
+on:
+  push:
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: needt-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (universal dmg)
+            os: macos-26
+            args: --target universal-apple-darwin
+            bundle_dir: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle
+            artifact: needt-desktop-macos-universal
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: Windows (msi + exe)
+            os: windows-latest
+            args: ""
+            bundle_dir: apps/desktop/src-tauri/target/release/bundle
+            artifact: needt-desktop-windows-x64
+            rust_targets: ""
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - run: npm ci
+
+      - name: Build (unsigned)
+        run: npx tauri build ${{ matrix.args }}
+
+      - name: Bundle file list
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: find "${{ matrix.bundle_dir }}" -maxdepth 2 | sort
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          path: |
+            ${{ matrix.bundle_dir }}/dmg/*.dmg
+            ${{ matrix.bundle_dir }}/msi/*.msi
+            ${{ matrix.bundle_dir }}/nsis/*.exe

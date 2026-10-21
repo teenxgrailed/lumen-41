@@ -1,0 +1,1 @@
+- Needt desktop app preview builds for macOS and Windows: tray icon, global quick-add shortcut, native notifications.
