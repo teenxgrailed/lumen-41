@@ -79,24 +79,6 @@ export function SharedPhone() {
         title="Shared"
         glyph="shared"
         sub={sharedMeta(list.length)}
-        onPull={{
-          search: (q) =>
-            list
-              .filter((x) =>
-                (x.doc.title || "Untitled")
-                  .toLowerCase()
-                  .includes(q.trim().toLowerCase())
-              )
-              .slice(0, 6)
-              .map((x) => ({
-                id: x.doc.id,
-                title: x.doc.title || "Untitled",
-                meta: roleView(x.role).label,
-              })),
-          onPick: (h) => open(h.id),
-          placeholder: "Search shared pages",
-          hint: "By title. Pick one to open it.",
-        }}
       >
         <PhoneState query={shared} screen="shared">
           {list.length ? (
