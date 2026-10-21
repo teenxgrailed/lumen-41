@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { newDate } from "@/lib/date-utils";
 
+import { appIconPrefsError } from "./app-icon";
 import { parseCityPlace } from "./city";
 import { TASK_VIEW_PREF, taskViewError } from "./task-view";
 
@@ -79,6 +80,9 @@ export const userSettingsV3FieldsSchema = z.object({
       // a picked city is a place with real coordinates, or absent
       if (value.cityPlace != null && !parseCityPlace(value.cityPlace))
         ctx.addIssue({ code: "custom", message: "Invalid city" });
+      // the app icon is one of the thirteen; the one-time popup flag a boolean
+      const iconError = appIconPrefsError(value);
+      if (iconError) ctx.addIssue({ code: "custom", message: iconError });
       if (!(TASK_VIEW_PREF in value)) return;
       const message = taskViewError(value[TASK_VIEW_PREF]);
       if (message) ctx.addIssue({ code: "custom", message });
