@@ -10,6 +10,16 @@ async function main() {
   const member = await prisma.workspaceMember.findFirst({
     where: { userId: user.id },
   });
+  // The probe shoots light and dark from the simulator's appearance, so the app
+  // follows the system; the one-time "New icons for Needt" sheet is marked seen
+  // so it doesn't cover every screen.
+  const existing = await prisma.userSettings.findUnique({ where: { userId: user.id } });
+  const prefs = { ...((existing?.prefs as Record<string, unknown>) ?? {}), seenIconPicker: true };
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: { theme: "system", prefs },
+    create: { userId: user.id, theme: "system", prefs },
+  });
   for (let i = 0; i < 30; i++)
     await prisma.task.create({
       data: {
