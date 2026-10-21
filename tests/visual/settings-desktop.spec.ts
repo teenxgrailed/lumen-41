@@ -9,6 +9,12 @@ import { signInVisualUser } from "./helpers";
  * one-row "These settings live in the Mac app" in a browser tab. The Mac app is
  * simulated with `window.__needtNative` (what the Swift shell sets).
  */
+/* The Desktop group is the Mac app's: the phone sheet does not list it. */
+test.skip(
+  ({ viewport }) => (viewport?.width ?? 0) < 768,
+  "The phone settings sheet has no Desktop group."
+);
+
 const SECTIONS = [
   ["app", "App"],
   ["island", "Island"],
