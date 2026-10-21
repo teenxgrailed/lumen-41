@@ -24,6 +24,49 @@ public enum FocusActivityPolicy {
     public static let maxDuration: TimeInterval = 8 * 3600
 }
 
+/// What a focus Live Activity shows. Plain data, so the views that draw it can
+/// also be rendered in a CI snapshot on the Mac.
+public struct FocusActivityContent: Codable, Hashable, Sendable {
+    public var title: String?
+    /// Start of the countdown interval (paused time already added).
+    public var start: Date
+    /// End of the countdown; nil for an open-ended run.
+    public var end: Date?
+    /// Set while paused: the countdown is frozen at this time.
+    public var pausedAt: Date?
+    public var plannedMinutes: Int
+    public var upNext: String?
+    /// The run is over: the summary shows until the dismissal time.
+    public var ended: Bool
+    /// False hides the title on the Lock Screen (privacySensitive).
+    public var showTitle: Bool
+
+    public init(title: String?, start: Date, end: Date?, pausedAt: Date?, plannedMinutes: Int,
+                upNext: String?, ended: Bool, showTitle: Bool) {
+        self.title = title
+        self.start = start
+        self.end = end
+        self.pausedAt = pausedAt
+        self.plannedMinutes = plannedMinutes
+        self.upNext = upNext
+        self.ended = ended
+        self.showTitle = showTitle
+    }
+
+    public var interval: ClosedRange<Date>? {
+        guard let end, end > start else { return nil }
+        return start...end
+    }
+
+    public static func make(from focus: WidgetFocus, upNext: String?, ended: Bool = false,
+                            showTitle: Bool = WidgetPrivacy.showTitlesOnLockScreen()) -> FocusActivityContent {
+        FocusActivityContent(
+            title: focus.title, start: focus.effectiveStart, end: focus.endDate, pausedAt: focus.pausedAt,
+            plannedMinutes: focus.plannedMinutes ?? 0, upNext: upNext, ended: ended, showTitle: showTitle
+        )
+    }
+}
+
 #if os(iOS) && canImport(ActivityKit)
 import ActivityKit
 
@@ -31,53 +74,10 @@ import ActivityKit
 /// Island, expanded and Lock Screen presentations with one outlined Pause.
 @available(iOS 16.2, *)
 public struct NeedtFocusAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        public var title: String?
-        /// Start of the countdown interval (paused time already added).
-        public var start: Date
-        /// End of the countdown; nil for an open-ended run.
-        public var end: Date?
-        /// Set while paused: the countdown is frozen at this time.
-        public var pausedAt: Date?
-        public var plannedMinutes: Int
-        public var upNext: String?
-        /// The run is over: the summary shows until the dismissal time.
-        public var ended: Bool
-        /// False hides the title on the Lock Screen (privacySensitive).
-        public var showTitle: Bool
-
-        public init(title: String?, start: Date, end: Date?, pausedAt: Date?, plannedMinutes: Int,
-                    upNext: String?, ended: Bool, showTitle: Bool) {
-            self.title = title
-            self.start = start
-            self.end = end
-            self.pausedAt = pausedAt
-            self.plannedMinutes = plannedMinutes
-            self.upNext = upNext
-            self.ended = ended
-            self.showTitle = showTitle
-        }
-
-        public var interval: ClosedRange<Date>? {
-            guard let end, end > start else { return nil }
-            return start...end
-        }
-    }
-
+    public typealias ContentState = FocusActivityContent
     public var sessionId: String
 
     public init(sessionId: String) { self.sessionId = sessionId }
-}
-
-@available(iOS 16.2, *)
-public enum FocusActivityState {
-    public static func make(from focus: WidgetFocus, upNext: String?, ended: Bool = false) -> NeedtFocusAttributes.ContentState {
-        NeedtFocusAttributes.ContentState(
-            title: focus.title, start: focus.effectiveStart, end: focus.endDate, pausedAt: focus.pausedAt,
-            plannedMinutes: focus.plannedMinutes ?? 0, upNext: upNext, ended: ended,
-            showTitle: WidgetPrivacy.showTitlesOnLockScreen()
-        )
-    }
 }
 
 /// App side: starts, updates and ends the activity so it follows the server's
@@ -107,7 +107,7 @@ public final class FocusActivityController: @unchecked Sendable {
             await end(now: now, last: focus, upNext: upNext)
             return
         }
-        let state = FocusActivityState.make(from: focus, upNext: upNext)
+        let state = FocusActivityContent.make(from: focus, upNext: upNext)
         if let activity = current, activity.attributes.sessionId == focus.sessionId {
             await activity.update(ActivityContent(state: state, staleDate: focus.endDate))
         } else {
@@ -124,7 +124,7 @@ public final class FocusActivityController: @unchecked Sendable {
     public func end(now: Date = Date(), last: WidgetFocus? = nil, upNext: String? = nil) async {
         for activity in Activity<NeedtFocusAttributes>.activities {
             var state = activity.content.state
-            if let last { state = FocusActivityState.make(from: last, upNext: upNext, ended: true) } else { state.ended = true }
+            if let last { state = FocusActivityContent.make(from: last, upNext: upNext, ended: true) } else { state.ended = true }
             await activity.end(
                 ActivityContent(state: state, staleDate: nil),
                 dismissalPolicy: .after(now.addingTimeInterval(FocusActivityPolicy.dismissalAfterEnd))

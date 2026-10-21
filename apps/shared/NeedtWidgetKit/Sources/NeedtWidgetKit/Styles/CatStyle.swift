@@ -80,12 +80,12 @@ private struct CatImage: View {
 
     var body: some View {
         #if os(iOS)
-        if let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Cat"),
+        if let url = (Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Cat") ?? Bundle.module.url(forResource: name, withExtension: "png")),
            let image = UIImage(contentsOfFile: url.path) {
             Image(uiImage: image).resizable().scaledToFit()
         }
         #else
-        if let url = Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Cat"),
+        if let url = (Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "Cat") ?? Bundle.module.url(forResource: name, withExtension: "png")),
            let image = NSImage(contentsOf: url) {
             Image(nsImage: image).resizable().scaledToFit()
         }

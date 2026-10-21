@@ -17,7 +17,7 @@ enum FontRegistry {
         guard !done else { return }
         done = true
         for ext in ["ttf", "otf"] {
-            let urls = Bundle.module.urls(forResourcesWithExtension: ext, subdirectory: "Fonts") ?? []
+            let urls = (Bundle.module.urls(forResourcesWithExtension: ext, subdirectory: "Fonts") ?? []) + (Bundle.module.urls(forResourcesWithExtension: ext, subdirectory: nil) ?? [])
             for url in urls {
                 CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
                 if let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] {

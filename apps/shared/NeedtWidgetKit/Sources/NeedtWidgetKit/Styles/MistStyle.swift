@@ -128,6 +128,7 @@ private struct MistCard: View {
             }
         }
         .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

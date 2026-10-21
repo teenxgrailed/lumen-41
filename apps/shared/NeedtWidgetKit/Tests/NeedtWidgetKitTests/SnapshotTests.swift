@@ -140,6 +140,7 @@ import WidgetKit
         }
         inkModes(ink)
         inkLockScreen(ink)
+        liveActivity()
         writeIndex()
         let count = (try? FileManager.default.contentsOfDirectory(atPath: outDir.path).filter { $0.hasSuffix(".png") }.count) ?? 0
         #expect(count > 100)
@@ -256,6 +257,39 @@ import WidgetKit
             }
         }
         shoot(StyleRegistry.quickAdd(QuickAddModel.make(status: .live), choices: ink, context: context(.circular, scheme: .dark, mode: .vibrant)), "lock-quickadd-circular")
+    }
+
+    /// pack.html -> Live Activity: compact, minimal, expanded, Lock Screen.
+    func liveActivity() {
+        let run = sample.focus!
+        let paused = WidgetFocus(sessionId: run.sessionId, title: run.title, taskId: nil, plannedMinutes: 25, startedAt: run.startedAt, pausedAt: now)
+        let done = WidgetFocus(sessionId: run.sessionId, title: run.title, taskId: nil, plannedMinutes: 25, startedAt: at(13, 40))
+        let states: [(String, FocusActivityContent)] = [
+            ("running", FocusActivityContent.make(from: run, upNext: "Weekly report 15:00", showTitle: true)),
+            ("paused", FocusActivityContent.make(from: paused, upNext: "Weekly report 15:00", showTitle: true)),
+            ("ended", FocusActivityContent.make(from: done, upNext: nil, ended: true, showTitle: true)),
+            ("title-hidden", FocusActivityContent.make(from: run, upNext: "Weekly report 15:00", showTitle: false)),
+        ]
+        let ctx = context(.rectangular, scheme: .dark)
+        for (name, st) in states {
+            let compact = HStack(spacing: 0) {
+                FocusActivityRing(state: st, diameter: 22, lineWidth: 3)
+                Spacer().frame(width: 126)
+                FocusTimeText(state: st, size: 14, weight: .semibold).frame(width: 52)
+            }
+            .padding(.horizontal, 10).frame(width: 232, height: 37).background(Capsule().fill(Color.black))
+            let minimal = FocusActivityRing(state: st, diameter: 22, lineWidth: 3).frame(width: 37, height: 37).background(Circle().fill(Color.black))
+            let expanded = FocusExpandedView(sessionId: "x", state: st).padding(.horizontal, 18).padding(.vertical, 16)
+                .frame(width: 371, height: 150).background(RoundedRectangle(cornerRadius: 44, style: .continuous).fill(Color.black))
+            let lock = FocusLockScreenView(sessionId: "x", state: st).padding(14).frame(width: 371)
+                .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(rgb: 0x1A1926).opacity(0.92)))
+            for (kind, view) in [("compact", AnyView(compact)), ("minimal", AnyView(minimal)), ("expanded", AnyView(expanded)), ("lockscreen", AnyView(lock))] {
+                var c = ctx; c.family = .rectangular
+                let framed = view.environment(\.needt, c).padding(14)
+                    .background(LinearGradient(colors: [Color(rgb: 0x3D4A8A), Color(rgb: 0x2A2440)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                write(framed, named: "live-\(kind)-\(name)")
+            }
+        }
     }
 
     func writeIndex() {
