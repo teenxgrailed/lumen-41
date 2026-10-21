@@ -59,14 +59,14 @@ struct InkNext: View {
                 titleLine(e).padding(.top, 4)
             case .inProgress:
                 HStack(spacing: 12) {
-                    InkRing(progress: model.progress, diameter: 60, lineWidth: 4)
+                    InkRing(progress: model.progress, diameter: 52, lineWidth: 4)
                     VStack(alignment: .leading, spacing: 2) {
+                        Text("Now").font(c.fonts.t12()).foregroundStyle(c.palette.a2)
                         HStack(spacing: 3) {
-                            Text("Now ·")
                             if c.isSnapshot { Text("\(max(0, Int(c.now.timeIntervalSince(e.start) / 60))) min") } else { Text(e.start, style: .relative) }
                             Text("in")
                         }
-                        .font(c.fonts.t12()).foregroundStyle(c.palette.a2).lineLimit(1)
+                        .font(c.fonts.t12()).foregroundStyle(c.palette.a2).lineLimit(1).minimumScaleFactor(0.8)
                         titleLine(e)
                     }
                 }
