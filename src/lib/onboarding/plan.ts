@@ -96,7 +96,27 @@ export interface PlanStats {
   byArea: Record<string, number>;
 }
 
+/** One task as the plan settled it: what the commit writes into the account. */
+export interface PlannedTask {
+  id: string;
+  title: string;
+  area: string;
+  minutes: number;
+  /** Times this week. */
+  n: number;
+  /** A repeat or ritual: becomes a Habit, its weekly tasks carry a deadline. */
+  habit: boolean;
+  kind: "work" | "life";
+  /** Part of the day the plan could keep it in ("" = the whole day). */
+  part: DayPart;
+  focusy: boolean;
+  priority: SchedulingTaskPriority;
+  /** The start day of each occurrence, Monday = 0. */
+  targets: number[];
+}
+
 export interface WeekPlan {
+  tasks: PlannedTask[];
   /** Monday of the week planned, yyyy-MM-dd in the person's zone. */
   weekStart: string;
   days: PlanDay[];
@@ -642,7 +662,30 @@ export function planWeek(input: PlanInput): WeekPlan {
   const lo = Math.min(a.hours.start, ...(a.weekends ? [a.daysOff.start] : []));
   const hi = Math.max(a.hours.end, ...(a.weekends ? [a.daysOff.end] : []));
 
+  const taskOut = new Map<string, PlannedTask>();
+  for (const i of instances) {
+    const got =
+      taskOut.get(i.task.id) ??
+      taskOut
+        .set(i.task.id, {
+          id: i.task.id,
+          title: i.task.title,
+          area: i.task.area,
+          minutes: i.task.minutes,
+          n: i.n,
+          habit: i.habit,
+          kind: i.kind,
+          part: assigned.get(i.key) ?? "",
+          focusy: i.focusy,
+          priority: i.priority,
+          targets: [],
+        })
+        .get(i.task.id)!;
+    got.targets.push(i.target);
+  }
+
   return {
+    tasks: [...taskOut.values()],
     weekStart: formatInTimeZone(weekStart, timeZone, "yyyy-MM-dd"),
     days: planDays,
     events: eventsInPlay,
