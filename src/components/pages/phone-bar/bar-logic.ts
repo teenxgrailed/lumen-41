@@ -77,9 +77,12 @@ export function caretScrollDelta(input: {
   return 0;
 }
 
-/** The padding the scroll area needs so its last line clears the bar. */
+/** The gap under the floating pill while the keyboard is up (px). */
+export const BAR_GAP = 10;
+
+/** The padding the scroll area needs so its last line clears the pill. */
 export const barInset = (lift: number, barHeight: number) =>
-  Math.max(0, Math.round(lift)) + Math.max(barHeight, BAR_ROW_PX);
+  Math.max(0, Math.round(lift)) + Math.max(barHeight, BAR_ROW_PX) + BAR_GAP;
 
 /** The nearest ancestor that scrolls vertically, or null (the window does). */
 export function scrollParentOf(el: HTMLElement): HTMLElement | null {

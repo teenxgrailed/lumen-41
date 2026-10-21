@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/auth/reset-password/reset/route";
+import { createHash } from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
 
@@ -56,6 +57,14 @@ describe("POST /api/auth/reset-password/reset", () => {
     const response = await POST(resetRequest());
 
     expect(response.status).toBe(200);
+    // The emailed token is looked up by its sha256, never by the raw value.
+    expect(mocked.passwordReset.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          token: createHash("sha256").update("reset-token").digest("hex"),
+        }),
+      })
+    );
     expect(mocked.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { sessionVersion: { increment: 1 } },

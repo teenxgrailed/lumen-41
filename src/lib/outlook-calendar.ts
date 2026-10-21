@@ -419,13 +419,8 @@ export async function createOutlookEvent(
   // Convert RRule to Outlook recurrence pattern if present
   let recurrence;
   if (event.isRecurring && event.recurrenceRule) {
-    console.log(
-      "Converting RRule to Outlook recurrence:",
-      event.recurrenceRule
-    );
     const rrule = RRule.fromString("RRULE:" + event.recurrenceRule);
     recurrence = convertRRuleToOutlookRecurrence(rrule);
-    console.log("Converted recurrence pattern:", recurrence);
   }
 
   // Special handling for all-day events - ensure they are at midnight UTC
@@ -459,15 +454,6 @@ export async function createOutlookEvent(
       startDate = createOutlookAllDayDate(startStr);
       endDate = createOutlookAllDayDate(endStr);
     }
-
-    // Log the dates for debugging
-    console.log("All-day event dates:", {
-      originalStart: event.start,
-      originalEnd: event.end,
-      adjustedStart: startDate,
-      adjustedEnd: endDate,
-      sameDay: sameDay,
-    });
   }
 
   // Format dates in ISO format for Outlook
@@ -490,7 +476,6 @@ export async function createOutlookEvent(
     ...(recurrence && { recurrence }),
   };
 
-  console.log("Creating Outlook event with data:", eventData);
   const response = await client
     .api(`/me/calendars/${calendarId}/events`)
     .post(eventData);
@@ -638,15 +623,6 @@ export async function updateOutlookEvent(
         startDate = createOutlookAllDayDate(startStr);
         endDate = createOutlookAllDayDate(endStr);
       }
-
-      // Log the dates for debugging
-      console.log("All-day event update dates:", {
-        originalStart: event.start,
-        originalEnd: event.end,
-        adjustedStart: startDate,
-        adjustedEnd: endDate,
-        sameDay: sameDay,
-      });
     }
 
     const response = await client
@@ -766,10 +742,6 @@ function convertRRuleToOutlookRecurrence(rrule: RRule) {
             SA: "saturday",
           };
           const dayStr = day.toString().toUpperCase();
-          console.log("Converting RRule weekday to Outlook:", {
-            rruleDay: dayStr,
-            outlookDay: weekdayMap[dayStr],
-          });
           return weekdayMap[dayStr];
         }
       }

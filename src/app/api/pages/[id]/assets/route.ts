@@ -17,6 +17,17 @@ const MAX_ASSET_BYTES = 10 * 1024 * 1024;
 const FORM_OVERHEAD_BYTES = 64 * 1024;
 /** Per person per day, so one account cannot fill the database. */
 const DAILY_UPLOAD_BYTES = 250 * 1024 * 1024;
+/**
+ * Only plain raster pictures keep their declared type. Anything else (SVG,
+ * HTML, unknown) is stored as opaque bytes so it is served as a download.
+ */
+const SAFE_RASTER_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+]);
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -86,7 +97,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       pageId: id,
       userId: auth.userId,
       originalName: file.name.slice(0, 240) || "attachment",
-      mimeType: file.type.slice(0, 120) || "application/octet-stream",
+      mimeType: SAFE_RASTER_TYPES.has(file.type.toLowerCase())
+        ? file.type.toLowerCase()
+        : "application/octet-stream",
       size: file.size,
       bytes: Buffer.from(await file.arrayBuffer()),
     },
