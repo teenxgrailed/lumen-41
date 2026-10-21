@@ -17,7 +17,7 @@ enum NeedtModule: String, CaseIterable, Codable, Identifiable, Defaults.Serializ
     var title: String {
         switch self {
         case .focus: return "Focus"
-        case .today: return "Today"
+        case .today: return "Next"
         case .quickAdd: return "Add"
         }
     }
@@ -50,6 +50,8 @@ extension Defaults.Keys {
     static let needtModuleOrder = Key<[NeedtModule]>("needtModuleOrder", default: NeedtModule.allCases)
     /// Which of them are switched on.
     static let needtModulesEnabled = Key<[NeedtModule]>("needtModulesEnabled", default: NeedtModule.allCases)
+    /// The first-run screen is shown once.
+    static let needtIntroSeen = Key<Bool>("needtIntroSeen", default: false)
 }
 
 extension NeedtModule {
@@ -82,7 +84,7 @@ private struct NeedtOfflineLine: View {
         if !net.isOnline {
             Text(updatedAt.map { "Offline · updated \(Self.clock.string(from: $0))" } ?? "Offline")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(NeedtInk.secondary)
         }
     }
 
@@ -111,51 +113,145 @@ private struct NeedtIslandButtonStyle: ButtonStyle {
 
 // MARK: - Focus
 
+/// Greys are white at a fixed ladder of alphas; no accent fills.
+enum NeedtInk {
+    static let primary = Color.white
+    static let secondary = Color.white.opacity(0.6)
+    static let tertiary = Color.white.opacity(0.38)
+    static let card = Color.white.opacity(0.07)
+    static let pill = Color.white.opacity(0.14)
+    static let track = Color.white.opacity(0.14)
+}
+
+private struct NeedtPillStyle: ButtonStyle {
+    var light = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .background(Capsule().fill(light ? Color.white : NeedtInk.pill))
+            .foregroundStyle(light ? Color.black : NeedtInk.primary)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
 @MainActor
 struct NeedtFocusTabView: View {
     @ObservedObject var tray: TrayStore
     @ObservedObject var net = Connectivity.shared
+    @State private var session: FocusSession?
 
     var body: some View {
         let state = tray.state
-        VStack(spacing: 10) {
-            if state.isFocusActive {
-                active(state)
-            } else {
-                idle(state)
+        VStack(spacing: 6) {
+            HStack(alignment: .top, spacing: 12) {
+                focusCard(state)
+                upNextCard(state)
             }
             if let error = tray.focusError {
-                Text(error).font(.caption).foregroundStyle(.red)
+                Text(error).font(.system(size: 12)).foregroundStyle(NeedtInk.secondary)
             }
             NeedtOfflineLine(net: net, updatedAt: tray.updatedAt)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: state.focusEndsAt) { await loadSession(state) }
+    }
+
+    private func loadSession(_ state: TrayState) async {
+        guard state.isFocusActive else { session = nil; return }
+        session = try? await tray.api.activeFocusSession()
+    }
+
+    // MARK: left card
+
+    private func focusCard(_ state: TrayState) -> some View {
+        HStack(spacing: 14) {
+            ring(state)
+            VStack(alignment: .leading, spacing: 4) {
+                if state.isFocusActive {
+                    Text(session?.plannedMinutes.map { "Focus · \($0) min" } ?? "Focus")
+                        .font(.system(size: 12))
+                        .foregroundStyle(NeedtInk.secondary)
+                    Text(state.focusTitle ?? "Focus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(2)
+                    Spacer(minLength: 4)
+                    HStack(spacing: 8) {
+                        Button(tray.isFocusPaused ? "Resume" : "Pause") { tray.togglePauseFocus() }
+                            .buttonStyle(NeedtPillStyle())
+                        TimelineView(.periodic(from: Date(), by: 20)) { context in
+                            Button {
+                                tray.endFocus()
+                            } label: {
+                                Label(doneLabel(state, at: context.date), systemImage: "checkmark")
+                            }
+                            .buttonStyle(NeedtPillStyle(light: true))
+                        }
+                    }
+                    .disabled(!net.isOnline)
+                } else {
+                    Text("No focus running")
+                        .font(.system(size: 14, weight: .semibold))
+                    if let next = state.next.first {
+                        Text(next.title)
+                            .font(.system(size: 12))
+                            .foregroundStyle(NeedtInk.secondary)
+                            .lineLimit(2)
+                        Spacer(minLength: 4)
+                        Button("Start focus") { tray.startFocusOnNextTask() }
+                            .buttonStyle(NeedtPillStyle(light: true))
+                            .disabled(!net.isOnline)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(NeedtInk.card))
+    }
+
+    private func ring(_ state: TrayState) -> some View {
+        TimelineView(.animation(minimumInterval: 1)) { context in
+            let fraction = progress(state, at: context.date)
+            ZStack {
+                Circle().stroke(NeedtInk.track, lineWidth: 6)
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(NeedtInk.primary, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                clock(state)
+            }
+        }
+        .frame(width: 96, height: 96)
     }
 
     @ViewBuilder
-    private func active(_ state: TrayState) -> some View {
-        Text(state.focusTitle ?? "Focus")
-            .font(.system(size: 15, weight: .semibold))
-            .lineLimit(1)
+    private func clock(_ state: TrayState) -> some View {
         if let end = state.focusEndDate, end > Date(), !tray.isFocusPaused {
-            Text(timerInterval: Date()...end, countsDown: true)
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-        } else {
-            Text(tray.isFocusPaused ? "Paused" : (state.focus ?? "Focus"))
+            Text(timerInterval: Date()...end, countsDown: true, showsHours: false)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .multilineTextAlignment(.center)
+        } else if tray.isFocusPaused {
+            Image(systemName: "pause.fill").font(.system(size: 18)).foregroundStyle(NeedtInk.secondary)
+        } else {
+            Text("--:--")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(NeedtInk.tertiary)
         }
-        HStack(spacing: 10) {
-            Button(tray.isFocusPaused ? "Resume" : "Pause") { tray.togglePauseFocus() }
-                .buttonStyle(NeedtIslandButtonStyle())
-            TimelineView(.periodic(from: Date(), by: 20)) { context in
-                Button(doneLabel(state, at: context.date)) { tray.endFocus() }
-                    .buttonStyle(NeedtIslandButtonStyle(prominent: true))
-            }
-        }
-        .disabled(!net.isOnline)
+    }
+
+    /// Share of the run that is left, from the session when known.
+    private func progress(_ state: TrayState, at date: Date) -> Double {
+        guard state.isFocusActive else { return 0 }
+        guard let planned = session?.plannedMinutes, planned > 0 else { return 1 }
+        let left = state.focusSecondsLeft(at: date) ?? session?.secondsLeft(at: date) ?? 0
+        return min(1, max(0, Double(left) / Double(planned * 60)))
     }
 
     private func doneLabel(_ state: TrayState, at date: Date) -> String {
@@ -163,19 +259,38 @@ struct NeedtFocusTabView: View {
         return "Done \((left + 59) / 60) min early"
     }
 
-    @ViewBuilder
-    private func idle(_ state: TrayState) -> some View {
-        Text("No focus running")
-            .font(.system(size: 15, weight: .semibold))
-        if let next = state.next.first {
-            Text(next.title)
+    // MARK: right card
+
+    private func upNextCard(_ state: TrayState) -> some View {
+        let candidates = state.next.filter { $0.title != state.focusTitle }
+        let next = candidates.first ?? (state.isFocusActive ? nil : state.next.dropFirst().first)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Up next")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Button("Start focus") { tray.startFocusOnNextTask() }
-                .buttonStyle(NeedtIslandButtonStyle(prominent: true))
-                .disabled(!net.isOnline)
+                .foregroundStyle(NeedtInk.secondary)
+            if let next {
+                Text(next.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(2)
+                if let time = next.time {
+                    Text(time)
+                        .font(.system(size: 12))
+                        .foregroundStyle(NeedtInk.secondary)
+                }
+            } else {
+                Text("Nothing else today")
+                    .font(.system(size: 13))
+                    .foregroundStyle(NeedtInk.secondary)
+            }
+            Spacer(minLength: 4)
+            Text("Done early? Needt gives the time back to your day.")
+                .font(.system(size: 12))
+                .foregroundStyle(NeedtInk.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(NeedtInk.card))
     }
 }
 
@@ -288,5 +403,69 @@ struct NeedtQuickAddTabView: View {
             }
             sending = false
         }
+    }
+}
+
+// MARK: - First run
+
+/// Shown once, the first time the island opens.
+@MainActor
+struct NeedtIntroView: View {
+    @Default(.needtModulesEnabled) private var enabled
+    @Default(.needtIntroSeen) private var seen
+
+    var body: some View {
+        HStack(spacing: 24) {
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle().stroke(NeedtInk.track, lineWidth: 3)
+                        Circle().trim(from: 0, to: 0.7)
+                            .stroke(NeedtInk.primary, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: 18, height: 18)
+                    Text("Focus 18:04")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(Capsule().fill(Color.black))
+                .overlay(Capsule().stroke(NeedtInk.track, lineWidth: 1))
+            }
+            .frame(width: 190)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Meet the island")
+                    .font(.system(size: 17, weight: .semibold))
+                Text("Your focus, next task and quick add live in the notch. Hover to peek, click to open.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(NeedtInk.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                toggle("Focus timer", .focus)
+                toggle("Next task & event", .today)
+                toggle("Quick add", .quickAdd)
+                Button("Got it") { seen = true }
+                    .buttonStyle(NeedtPillStyle(light: true))
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func toggle(_ title: String, _ module: NeedtModule) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { enabled.contains(module) },
+            set: { on in
+                enabled.removeAll { $0 == module }
+                if on { enabled.append(module) }
+            }
+        ))
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .font(.system(size: 13))
     }
 }

@@ -74,7 +74,7 @@ struct CameraPreviewView: View {
                         NSWorkspace.shared.open(settingsURL)
                     }
                 }
-                NSApp.setActivationPolicy(.accessory)
+                NSApp.setActivationPolicy(.regular)
                 NSApp.deactivate()
             }
         case .notDetermined:

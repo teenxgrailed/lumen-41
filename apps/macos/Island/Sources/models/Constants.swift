@@ -822,7 +822,7 @@ extension Defaults.Keys {
 	static let extendHoverArea = Key<Bool>("extendHoverArea", default: false)
     static let externalDisplayStyle = Key<ExternalDisplayStyle>(
         "externalDisplayStyle",
-        default: .notch
+        default: .dynamicIsland
     )
     static let hideNonNotchUntilHover = Key<Bool>("hideNonNotchUntilHover", default: false)
     static let notchHeightMode = Key<WindowHeightMode>(
@@ -1097,7 +1097,7 @@ extension Defaults.Keys {
     static let terminalStickyMode = Key<Bool>("terminalStickyMode", default: false)
     
     // MARK: Timer Feature
-    static let enableTimerFeature = Key<Bool>("enableTimerFeature", default: true)
+    static let enableTimerFeature = Key<Bool>("enableTimerFeature", default: false)
     static let timerDisplayMode = Key<TimerDisplayMode>("timerDisplayMode", default: .tab)
     static let timerPresets = Key<[TimerPreset]>("timerPresets", default: TimerPreset.defaultPresets)
     static let showTimerPresetsInNotchTab = Key<Bool>("showTimerPresetsInNotchTab", default: true)

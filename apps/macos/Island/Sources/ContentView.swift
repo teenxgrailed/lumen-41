@@ -209,6 +209,7 @@ struct ContentView: View {
     @Default(.showNotHumanFace) var showNotHumanFace
     @Default(.useModernCloseAnimation) var useModernCloseAnimation
     @Default(.enableMinimalisticUI) var enableMinimalisticUI
+    @Default(.needtIntroSeen) private var needtIntroSeen
 
     private static let musicControlLogFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -1058,6 +1059,9 @@ struct ContentView: View {
               ZStack {
                   if vm.notchState == .open {
                       Group {
+                          if !needtIntroSeen {
+                              NeedtIntroView()
+                          } else {
                           switch coordinator.currentView {
                               case .needtFocus:
                                   NeedtFocusTabView(tray: AppController.shared.tray)
@@ -1089,6 +1093,7 @@ struct ContentView: View {
                                 } else {
                                     NotchHomeView(albumArtNamespace: albumArtNamespace)
                                 }
+                          }
                           }
                       }
                       .id(coordinator.currentView)

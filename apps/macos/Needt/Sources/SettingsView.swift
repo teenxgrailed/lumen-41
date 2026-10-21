@@ -4,6 +4,18 @@ import SwiftUI
 /// Mac-only settings: plain system controls. Everything else is in the web
 /// app's own settings.
 struct SettingsView: View {
+    var body: some View {
+        TabView {
+            FocusSettingsPane()
+                .tabItem { Label("Focus", systemImage: "scope") }
+            IslandSettingsPane()
+                .tabItem { Label("Island", systemImage: "rectangle.topthird.inset.filled") }
+        }
+        .frame(width: 500, height: 560)
+    }
+}
+
+private struct FocusSettingsPane: View {
     @AppStorage(FocusBridge.Keys.startShortcut) private var startShortcut = ""
     @AppStorage(FocusBridge.Keys.endShortcut) private var endShortcut = ""
 
@@ -19,7 +31,5 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }

@@ -424,7 +424,7 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
 
-                NSApp.setActivationPolicy(.accessory)
+                NSApp.setActivationPolicy(.regular)
                 NSApp.deactivate()
             }
 

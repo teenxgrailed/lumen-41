@@ -47,11 +47,11 @@ struct TabSelectionView: View {
         }
 
         if homeTabVisible {
-            tabsArray.append(TabModel(label: "Home", icon: "house.fill", view: .home))
+            tabsArray.append(TabModel(label: "Music", icon: "music.note", view: .home))
         }
 
         if Defaults[.dynamicShelf] {
-            tabsArray.append(TabModel(label: "Shelf", icon: "tray.fill", view: .shelf))
+            tabsArray.append(TabModel(label: "Files", icon: "doc.on.doc", view: .shelf))
         }
         
         if enableTimerFeature && timerDisplayMode == .tab {

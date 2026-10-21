@@ -18,6 +18,17 @@ final class IslandAppDelegate: NSObject {
     static var shared: IslandAppDelegate? { instance }
     @MainActor static func current() -> IslandAppDelegate { instance }
 
+    /// Shows or hides every island window without tearing the island down
+    /// (the plan or the master switch changed).
+    @MainActor
+    func setHostEnabled(_ enabled: Bool) {
+        if enabled {
+            restoreWindowsAfterLock()
+        } else {
+            hideWindowsForLock()
+        }
+    }
+
     var statusItem: NSStatusItem?
     var windows: [NSScreen: NSWindow] = [:]
     var viewModels: [NSScreen: DynamicIslandViewModel] = [:]
@@ -1375,7 +1386,7 @@ final class IslandAppDelegate: NSObject {
             window.contentView = NSHostingView(rootView: OnboardingView(
                 onFinish: {
                     window.orderOut(nil)
-                    NSApp.setActivationPolicy(.accessory)
+                    NSApp.setActivationPolicy(.regular)
                     window.close()
                     NSApp.deactivate()
                 },

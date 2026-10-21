@@ -64,6 +64,8 @@ targets:
           - "tr.lproj/**"
           - Localizable.xcstrings
       - path: Island/LottieAnimations
+      - path: Island/LICENSE
+      - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: Sparkle
       - package: NeedtKit
@@ -162,6 +164,8 @@ targets:
           - "tr.lproj/**"
           - Localizable.xcstrings
       - path: Island/LottieAnimations
+      - path: Island/LICENSE
+      - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: NeedtKit
       - package: Defaults
