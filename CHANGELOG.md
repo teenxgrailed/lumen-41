@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Desktop app (macOS, Windows): it opens on its own start window instead of a
+  web page, and signing in happens in your browser (so Google works) and
+  returns to the app with a one-time code; the app then opens straight to
+  Today and remembers you. On a Mac the window now uses the native title bar
+  inset over Needt's own top bar, with a native menu (New task, Quick add,
+  Today, Calendar, Tasks, Docs, Toggle sidebar, Reload), a menu-bar menu with
+  today's next three tasks and a running focus session, and a Dock badge with
+  today's open count. Starting with no connection shows an offline page that
+  returns by itself. Nothing changes in the browser.
+
 - Phone, Safari 26: the status bar and the bottom toolbar now take the colour of
   the in-app theme (not the opposite one, not a stale one) and change the moment
   the theme does. The ground also runs under both bars.

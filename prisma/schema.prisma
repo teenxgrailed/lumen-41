@@ -137,6 +137,7 @@ model User {
   dailyHighlights        DailyHighlight[]
   morningBriefs          MorningBrief[]
   weekFocuses            WeekFocus[]
+  desktopAuthCodes       DesktopAuthCode[]
   starterGameState       StarterGameState?
   focusStats             FocusStats?
   tasks                  Task[]
@@ -291,6 +292,23 @@ model WorkspaceInvite {
   @@index([email, expiresAt])
   @@index([invitedById])
   @@index([acceptedById])
+}
+
+/// One-time code that carries a browser sign-in back to the desktop app
+/// (src/lib/auth/desktop-handoff.ts). Only the SHA-256 of the code is stored;
+/// `challenge` is the SHA-256 of a verifier the app keeps to itself (PKCE).
+model DesktopAuthCode {
+  id        String    @id @default(cuid())
+  codeHash  String    @unique
+  challenge String
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 model VerificationToken {

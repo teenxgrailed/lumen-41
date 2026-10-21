@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "bundled",
+  "description": "The pages bundled with the app (start window, offline page): drag the window by its top strip.",
+  "windows": ["welcome", "main"],
+  "permissions": ["core:window:allow-start-dragging"]
+}

@@ -1,0 +1,30 @@
+/* The desktop app (apps/desktop).
+ *
+ * DesktopBridge sets `data-desktop` on <html> inside the Tauri shell and
+ * nowhere else, so none of this reaches a browser tab. On macOS the title bar
+ * is the app's own top bar: the window's traffic lights sit over its left end
+ * (the shell places them at x 18, y 20), so the bar leaves that room before
+ * the sidebar toggle. Windows keeps its native title bar and needs nothing.
+ */
+
+html[data-desktop="mac"] .needt-v3 .shell-tab-bar-tab-bar {
+  padding-left: 96px;
+}
+
+/* The window frame is chrome, not a page: nothing in it selects or rubber-bands. */
+html[data-desktop] body {
+  overscroll-behavior: none;
+}
+html[data-desktop] .needt-v3 .tab-bar,
+html[data-desktop] .needt-v3 .sb-shell {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Scrollbars appear only over the thing that scrolls, the way a Mac app's do. */
+html[data-desktop] .needt-v3 ::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+html[data-desktop] .needt-v3 :hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
