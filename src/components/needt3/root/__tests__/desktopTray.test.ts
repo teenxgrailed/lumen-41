@@ -1,5 +1,6 @@
 import {
   focusLine,
+  focusRunOf,
   nextTasks,
   trayState,
 } from "@/components/needt3/root/desktopTray";
@@ -130,11 +131,99 @@ describe("trayState", () => {
     });
     expect(state).toEqual({
       open: 2,
+      overdue: 0,
       next: [
         { id: "a", title: "Task a", time: null },
         { id: "c", title: "Task c", time: null },
       ],
       focus: null,
+      focusRun: null,
+    });
+  });
+
+  it("counts only the overdue ones for the Dock badge", () => {
+    const state = trayState({
+      tasks: [
+        task("today"),
+        task("late1", { dueDate: "2026-10-19" }),
+        task("late2", { dueDate: "2026-10-20" }),
+        task("lateDone", { dueDate: "2026-10-19", done: true }),
+      ],
+      today: TODAY,
+      nowHour: 9,
+      focus: null,
+    });
+    expect(state?.open).toBe(3);
+    expect(state?.overdue).toBe(2);
+  });
+
+  it("hides the badge at zero overdue", () => {
+    const state = trayState({
+      tasks: [task("a"), task("b")],
+      today: TODAY,
+      nowHour: 9,
+      focus: null,
+    });
+    expect(state?.open).toBe(2);
+    expect(state?.overdue).toBe(0);
+  });
+});
+
+describe("focusRunOf", () => {
+  const NOW = Date.parse("2026-10-21T10:00:00Z");
+  const row = (o: Partial<FocusRow> = {}): FocusRow => ({
+    id: "f1",
+    taskId: null,
+    intention: "Write the brief",
+    plannedMinutes: 60,
+    startedAt: new Date(NOW - 41 * 60_000 - 18_000).toISOString(),
+    pausedAt: null,
+    pausedTotalSeconds: 0,
+    phase: "FOCUS",
+    ...o,
+  });
+
+  it("is null without a session, so the menu bar shows the icon alone", () => {
+    expect(focusRunOf(null, NOW)).toBeNull();
+    expect(focusRunOf(undefined, NOW)).toBeNull();
+  });
+
+  it("gives the shell the end time, so it can tick the countdown itself", () => {
+    const run = focusRunOf(row(), NOW);
+    expect(run).toMatchObject({
+      kind: "Focus",
+      title: "Write the brief",
+      leftSec: null,
+      totalSec: 3600,
+      paused: false,
+    });
+    // 18:42 left of 60:00
+    expect(run?.endsAt).toBe(NOW + (18 * 60 + 42) * 1000);
+  });
+
+  it("holds the seconds left while paused and has no end time", () => {
+    const run = focusRunOf(row({ pausedAt: new Date(NOW).toISOString() }), NOW);
+    expect(run?.paused).toBe(true);
+    expect(run?.endsAt).toBeNull();
+    expect(run?.leftSec).toBe(18 * 60 + 42);
+  });
+
+  it("has no countdown when no length was planned", () => {
+    const run = focusRunOf(row({ plannedMinutes: null }), NOW);
+    expect(run?.endsAt).toBeNull();
+    expect(run?.leftSec).toBeNull();
+    expect(run?.totalSec).toBeNull();
+  });
+
+  it("names the task when there is no intention, and marks a break", () => {
+    const run = focusRunOf(
+      row({ intention: null, taskId: "t1", phase: "SHORT_BREAK" }),
+      NOW,
+      [task("t1", { title: "Edit lookbook selects" })]
+    );
+    expect(run).toMatchObject({
+      kind: "Break",
+      title: "Edit lookbook selects",
     });
   });
 });

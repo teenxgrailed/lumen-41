@@ -10,6 +10,7 @@ import * as React from "react";
 import { LuArrowRight, LuLoaderCircle, LuRotateCw } from "react-icons/lu";
 
 import { DESKTOP_HANDOFF_HEADER } from "@/lib/auth/desktop-handoff-shape";
+import { emitDesktopEvent } from "@/lib/desktop";
 import { logger } from "@/lib/logger";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
@@ -65,6 +66,8 @@ export function V3DesktopCompleteRoute({
         });
         if (!response.ok) {
           setStep("failed");
+          // The start window may be waiting behind this one: it says so too.
+          emitDesktopEvent("needt-desktop-failed");
           return;
         }
         // Always Today: no destination from outside is ever followed here.
@@ -76,6 +79,7 @@ export function V3DesktopCompleteRoute({
           LOG_SOURCE
         );
         setStep("failed");
+        emitDesktopEvent("needt-desktop-failed");
       }
     })();
   }, []);

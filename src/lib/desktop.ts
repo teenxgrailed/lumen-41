@@ -67,10 +67,17 @@ export type DesktopCommand =
   | { type: "toggle-sidebar" }
   | { type: "palette" }
   | { type: "settings" }
-  | { type: "open-task"; id: string };
+  | { type: "open-task"; id: string }
+  /** Menu bar: pause the running focus session, or resume a paused one. */
+  | { type: "focus-toggle" }
+  /** Menu bar: end the running focus session. */
+  | { type: "focus-end" }
+  /** Menu bar: start a focus session on the next task of the day. */
+  | { type: "focus-start-next" };
 
 type DesktopHost = {
   platform?: unknown;
+  vibrancy?: unknown;
   setHandler?: (handler: ((command: unknown) => void) | null) => void;
 };
 
@@ -86,6 +93,15 @@ export function desktopPlatform(): "mac" | "windows" | "other" | null {
   if (!isDesktopApp()) return null;
   const platform = desktopHost()?.platform;
   return platform === "mac" || platform === "windows" ? platform : "other";
+}
+
+/**
+ * True when the shell gave its window the see-through sidebar material
+ * (macOS only). The web app's translucent sidebar keys on this, so a page
+ * served to an older shell, or to Windows, stays opaque.
+ */
+export function desktopVibrancy(): boolean {
+  return desktopPlatform() === "mac" && desktopHost()?.vibrancy === true;
 }
 
 const NAVIGABLE = /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@%/?#]*$/;
@@ -111,6 +127,9 @@ export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
     case "toggle-sidebar":
     case "palette":
     case "settings":
+    case "focus-toggle":
+    case "focus-end":
+    case "focus-start-next":
       return { type };
     default:
       return null;

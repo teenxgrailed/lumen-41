@@ -1,0 +1,169 @@
+/* The desktop app's quick-add window (spec: additions-2/desktop-chrome,
+ * dk-qa in dk-chrome.css). The page is only this card; the window around it is
+ * transparent (the shell makes it so) and its shadow is the system's, so the
+ * card keeps the spec's hairline and not its outer shadow, which a window
+ * edge would clip.
+ *
+ * Only the quick-add page renders these classes, so nothing here reaches a
+ * screen of the app. */
+
+html[data-desktop-quick],
+html[data-desktop-quick] body {
+  background: transparent !important;
+}
+html[data-desktop-quick] .ambient-backdrop {
+  display: none;
+}
+
+.needt-v3.dk-qa-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text-primary);
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.needt-v3 .dk-qa {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.25);
+  padding: 14px 16px 12px;
+  overflow: hidden;
+}
+.needt-v3[data-theme="dark"] .dk-qa {
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+.needt-v3 .dk-qa * {
+  box-sizing: border-box;
+}
+
+.needt-v3 .dk-qa .in {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  flex: none;
+}
+.needt-v3 .dk-qa .in img {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  flex: none;
+}
+/* The line: the input's own text is transparent and the parse is drawn
+   under it in the same metrics (as the composer does), so the marks sit
+   under the letters. */
+.needt-v3 .dk-qa .line {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+}
+.needt-v3 .dk-qa .line input,
+.needt-v3 .dk-qa .dk-qa-mirror {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: 400 20px/40px var(--font-sans);
+  letter-spacing: -0.01em;
+  white-space: pre;
+}
+.needt-v3 .dk-qa .line input {
+  z-index: 1;
+  color: transparent;
+  caret-color: var(--text-primary);
+  outline: none;
+  overflow-x: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.needt-v3 .dk-qa .line input:focus,
+.needt-v3 .dk-qa .line input:focus-visible {
+  box-shadow: none;
+}
+.needt-v3 .dk-qa .line input::placeholder {
+  color: var(--text-disabled);
+}
+.needt-v3 .dk-qa .line input::-webkit-scrollbar {
+  display: none;
+}
+.needt-v3 .dk-qa .dk-qa-mirror {
+  color: var(--text-primary);
+  pointer-events: none;
+}
+.needt-v3 .dk-qa .dk-qa-mirror mark {
+  background: none;
+  color: #5a54c8;
+}
+.needt-v3[data-theme="dark"] .dk-qa .dk-qa-mirror mark {
+  color: #bdb6ff;
+}
+
+.needt-v3 .dk-qa .chips {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 0 38px;
+  min-height: 24px;
+  flex: none;
+  overflow: hidden;
+}
+.needt-v3 .dk-qa .chip {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--fill-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .dk-qa .chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--c);
+}
+
+.needt-v3 .dk-qa .bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: auto -16px 0;
+  padding: 10px 16px 0;
+  border-top: 1px solid var(--fill-5);
+  font: 400 12px/1 var(--font-sans);
+  color: var(--text-tertiary);
+  flex: none;
+  white-space: nowrap;
+}
+.needt-v3 .dk-qa .bar kbd {
+  font: 500 11px/1 var(--font-sans);
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: var(--fill-3);
+  color: var(--text-primary);
+  margin-right: 4px;
+}
+.needt-v3 .dk-qa .bar .err {
+  color: var(--destructive);
+}
+.needt-v3 .dk-qa .bar .r {
+  margin-left: auto;
+}

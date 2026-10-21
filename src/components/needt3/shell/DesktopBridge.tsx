@@ -10,14 +10,16 @@ import { formatInTimeZone } from "@/lib/date-utils";
 import {
   type DesktopCommand,
   desktopPlatform,
+  desktopVibrancy,
   emitDesktopEvent,
   isDesktopApp,
   onDesktopCommand,
 } from "@/lib/desktop";
 import { hourOf } from "@/lib/needt3/derive";
+import { MAX_LENGTH, MIN_LENGTH } from "@/lib/needt3/focus";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
-import { useFocusSession } from "@/lib/needt3/hooks/focus";
+import { useFocusActions, useFocusSession } from "@/lib/needt3/hooks/focus";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { qk } from "@/lib/needt3/query-keys";
@@ -25,11 +27,14 @@ import { dayAt } from "@/lib/needt3/today";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { trayState } from "../root/desktopTray";
+import { nextTasks, trayState } from "../root/desktopTray";
 import { useShellApi } from "./ShellContext";
 
 /** The desktop app refreshes what its menu-bar menu shows this often. */
 const REFRESH_MS = 60_000;
+
+/** "Start focus on next task" plans the task's own estimate, else this. */
+const DEFAULT_FOCUS_MINUTES = 25;
 
 /**
  * Elements the desktop window can be dragged by (the title bar is the app's
@@ -76,6 +81,10 @@ function DesktopBridgeInApp() {
   const now = useNow();
   const tasks = useTasks().data;
   const focus = useFocusSession().data;
+  const focusActions = useFocusActions();
+  const sidebarOpen = useNeedt3Ui((s) => s.sidebarOpen);
+  const today = dayAt(now, tz);
+  const nowHour = hourOf(`T${formatInTimeZone(now, tz, "HH:mm")}`) ?? 0;
 
   const run = (command: DesktopCommand) => {
     const ui = useNeedt3Ui.getState();
@@ -106,6 +115,34 @@ function DesktopBridgeInApp() {
       case "settings":
         ui.openSettings();
         return;
+      case "focus-toggle":
+        if (focus) {
+          void (focus.pausedAt
+            ? focusActions.resume(focus)
+            : focusActions.pause(focus));
+        }
+        return;
+      case "focus-end":
+        if (focus) void focusActions.stop(focus, false);
+        return;
+      case "focus-start-next": {
+        const next = nextTasks(tasks ?? [], today, nowHour)[0];
+        if (!next) {
+          // Nothing queued for today: the focus window picks the task.
+          ui.setFocusOpen(true);
+          return;
+        }
+        const task = tasks?.find((t) => t.id === next.id);
+        const minutes = Math.round(
+          task?.estimatedMinutes ?? DEFAULT_FOCUS_MINUTES
+        );
+        void focusActions.start({
+          taskId: next.id,
+          intention: task?.title ?? next.title,
+          plannedMinutes: Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, minutes)),
+        });
+        return;
+      }
     }
   };
   // The listener is installed once; it always calls the latest closure.
@@ -116,13 +153,51 @@ function DesktopBridgeInApp() {
     if (!isDesktopApp()) return undefined;
     const html = document.documentElement;
     html.dataset.desktop = desktopPlatform() ?? "other";
+    // The shell gave this window a see-through sidebar material (macOS only):
+    // desktop-app.css makes the sidebar translucent only then.
+    if (desktopVibrancy()) html.dataset.vibrancy = "on";
     // Reaching this component means a session exists: the shell may remember it.
     emitDesktopEvent("needt-signed-in");
     const stop = onDesktopCommand((command) => runRef.current(command));
     return () => {
       stop();
       delete html.dataset.desktop;
+      delete html.dataset.vibrancy;
     };
+  }, []);
+
+  // The top bar's left end is translucent only while the sidebar is open.
+  useEffect(() => {
+    if (!isDesktopApp()) return undefined;
+    const html = document.documentElement;
+    html.dataset.sidebar = sidebarOpen ? "open" : "closed";
+    return () => {
+      delete html.dataset.sidebar;
+    };
+  }, [sidebarOpen]);
+
+  // macOS: the window's own appearance follows the app's theme, so the
+  // material behind the translucent sidebar is the same light or dark.
+  // "system" hands it back to the operating system.
+  useEffect(() => {
+    if (!desktopVibrancy()) return undefined;
+    const scope = document.querySelector<HTMLElement>(".needt-v3");
+    if (!scope) return undefined;
+    let sent = "";
+    const send = () => {
+      const side = scope.dataset.theme === "dark" ? "dark" : "light";
+      const next = scope.dataset.themeChoice === "system" ? "system" : side;
+      if (next === sent) return;
+      sent = next;
+      emitDesktopEvent("needt-theme", next);
+    };
+    send();
+    const observer = new MutationObserver(send);
+    observer.observe(scope, {
+      attributes: true,
+      attributeFilter: ["data-theme", "data-theme-choice"],
+    });
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -161,11 +236,10 @@ function DesktopBridgeInApp() {
     };
   }, [queryClient]);
 
-  const today = dayAt(now, tz);
   const state = trayState({
     tasks,
     today,
-    nowHour: hourOf(`T${formatInTimeZone(now, tz, "HH:mm")}`) ?? 0,
+    nowHour,
     focus,
     nowMs: now.getTime(),
   });

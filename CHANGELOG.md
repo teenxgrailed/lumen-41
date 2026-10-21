@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Desktop app, chrome redone to the new design: the start window (440 x 520)
+  shows each step of the browser sign-in (browser opened, signing you in, link
+  expired); on a Mac the sidebar lets the desktop show through (vibrancy; the
+  content stays opaque) and the sidebar toggle sits next to the traffic lights;
+  the menu-bar item is the Needt mark alone until a focus runs, then it shows
+  the time left, and its menu can pause or end the focus; the Dock badge counts
+  overdue tasks only; Quick add is a borderless card above other apps (Enter
+  adds, Cmd+Enter adds and opens, Tab switches task, event, doc, Esc closes);
+  the offline page follows the new design and retries every 10 seconds. Nothing
+  changes in the browser.
+
 - Desktop app (macOS, Windows): it opens on its own start window instead of a
   web page, and signing in happens in your browser (so Google works) and
   returns to the app with a one-time code; the app then opens straight to
