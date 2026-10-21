@@ -16,6 +16,7 @@ interface TauriNotificationApi {
 
 interface TauriGlobal {
   notification?: TauriNotificationApi;
+  event?: { emit?: (name: string, payload?: unknown) => unknown };
 }
 
 function tauriGlobal(): TauriGlobal | undefined {
@@ -49,5 +50,96 @@ export async function sendDesktopNotification(
     return true;
   } catch {
     return false;
+  }
+}
+
+/* ---------- the shell's bridge ---------- */
+
+/**
+ * What the app's native menu and tray ask the page to do. The shell sends a
+ * plain object through `window.__needtDesktop.dispatch`; nothing else in the
+ * page is reachable from it, and `parseDesktopCommand` accepts only these.
+ */
+export type DesktopCommand =
+  | { type: "navigate"; path: string }
+  | { type: "new-task" }
+  | { type: "new-doc" }
+  | { type: "toggle-sidebar" }
+  | { type: "palette" }
+  | { type: "settings" }
+  | { type: "open-task"; id: string };
+
+type DesktopHost = {
+  platform?: unknown;
+  setHandler?: (handler: ((command: unknown) => void) | null) => void;
+};
+
+function desktopHost(): DesktopHost | undefined {
+  if (typeof window === "undefined") return undefined;
+  const host = (window as unknown as { __needtDesktop?: unknown })
+    .__needtDesktop;
+  return host && typeof host === "object" ? (host as DesktopHost) : undefined;
+}
+
+/** "mac", "windows" or "other" inside the app; null in a browser. */
+export function desktopPlatform(): "mac" | "windows" | "other" | null {
+  if (!isDesktopApp()) return null;
+  const platform = desktopHost()?.platform;
+  return platform === "mac" || platform === "windows" ? platform : "other";
+}
+
+const NAVIGABLE = /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@%/?#]*$/;
+
+/** A command from the shell, or null for anything that is not one. */
+export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { type, path, id } = raw as Record<string, unknown>;
+  switch (type) {
+    case "navigate":
+      return typeof path === "string" &&
+        NAVIGABLE.test(path) &&
+        !path.startsWith("//") &&
+        path.length <= 512
+        ? { type, path }
+        : null;
+    case "open-task":
+      return typeof id === "string" && /^[\w-]{1,64}$/.test(id)
+        ? { type, id }
+        : null;
+    case "new-task":
+    case "new-doc":
+    case "toggle-sidebar":
+    case "palette":
+    case "settings":
+      return { type };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Receive the shell's commands. Commands sent before the page was ready are
+ * held by the shell and delivered here. Returns the cleanup.
+ */
+export function onDesktopCommand(
+  handler: (command: DesktopCommand) => void
+): () => void {
+  const host = desktopHost();
+  if (!host?.setHandler) return () => undefined;
+  host.setHandler((raw) => {
+    const command = parseDesktopCommand(raw);
+    if (command) handler(command);
+  });
+  return () => host.setHandler?.(null);
+}
+
+/** Tell the shell something (tray contents, signed in). No-op outside it. */
+export function emitDesktopEvent(name: string, payload?: unknown): void {
+  try {
+    void Promise.resolve(tauriGlobal()?.event?.emit?.(name, payload)).catch(
+      () => undefined
+    );
+  } catch {
+    /* a shell without events has no tray to update */
   }
 }

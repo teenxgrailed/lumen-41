@@ -16,6 +16,10 @@ const publicRoutes = [
   "/api/setup/check",
   "/auth/signin",
   "/auth/confirm-email",
+  // Opened by the desktop app with a one-time code in the fragment; the page
+  // trades it for a session, so it cannot require one. (/auth/desktop, the
+  // confirmation page, is not public: a stranger signs in first.)
+  "/auth/desktop-complete",
   "/auth/reset-password",
   "/auth/error",
   "/api/auth/register",
