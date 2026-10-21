@@ -59,6 +59,14 @@ that needs a scope the token lacks gets `403` with
 `WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
 scope; search without `mail.read` simply leaves mail out.
 
+MCP never reaches a Private page, or any page filed under one, whoever owns it:
+`needt_search`, `needt_list` and `needt_get` leave it out, and
+`needt_create_page` and `needt_append_page` refuse it (the answer is the same
+as for a page that does not exist). The assistant inside Needt keeps the same
+line. Calendars, personal time and mail belong to the person, not to a
+workspace, so over MCP they answer only from the personal workspace, never from
+a Team workspace.
+
 The same token rules apply to the `/api/connect/*` routes below: reads need
 `needt.read`, writes `needt.write`.
 
