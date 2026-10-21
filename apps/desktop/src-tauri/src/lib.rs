@@ -15,16 +15,29 @@ mod tray;
 
 use serde_json::json;
 use tauri::{
-    menu::Menu, AppHandle, Listener, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    menu::Menu, AppHandle, Listener, Manager, PhysicalPosition, Url, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, WindowEvent,
 };
 #[cfg(target_os = "macos")]
-use tauri::{LogicalPosition, TitleBarStyle};
+use tauri::{
+    window::{Effect, EffectsBuilder},
+    LogicalPosition, Theme, TitleBarStyle,
+};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::StateFlags;
 
 const DEFAULT_URL: &str = "https://use.needt.app";
-const QUICK_ADD_PATH: &str = "quick-add";
+/// The quick-add window's own page (src/app/desktop-quick-add): one line and
+/// its chips, nothing of the app's frame around it.
+const QUICK_ADD_PATH: &str = "desktop-quick-add";
+/// Spec dk-qa: a 620 px borderless card; the height is the card's own.
+const QUICK_WIDTH: f64 = 620.0;
+const QUICK_HEIGHT: f64 = 142.0;
+/// The start window (spec dk-start): 440 x 520, centred, not resizable.
+const WELCOME_WIDTH: f64 = 440.0;
+const WELCOME_HEIGHT: f64 = 520.0;
 const HOME_PATH: &str = "today";
 
 /// Runs in every page of every window before the page's own scripts.
@@ -51,6 +64,7 @@ const INIT_JS: &str = r#"
   window.__needtDesktop = {
     platform: boot.platform,
     home: boot.home,
+    vibrancy: boot.vibrancy === true,
     dispatch: function (command) {
       if (handler) { deliver(command); return; }
       queue.push(command);
@@ -114,7 +128,15 @@ fn init_js() -> String {
     } else {
         "other"
     };
-    let boot = json!({ "platform": platform, "home": home_url().as_str() });
+    // `vibrancy`: this shell gives the main window a see-through sidebar
+    // material (macOS only); the web app turns its translucent sidebar on only
+    // when it is true, so a page served to an older shell stays opaque.
+    let boot = json!({
+        "platform": platform,
+        "home": home_url().as_str(),
+        "version": env!("CARGO_PKG_VERSION"),
+        "vibrancy": cfg!(target_os = "macos"),
+    });
     format!("window.__needtDesktopBoot = {boot};\n{INIT_JS}")
 }
 
@@ -193,8 +215,14 @@ fn nav_guard(app: &AppHandle) -> impl Fn(&Url) -> bool + Send + 'static {
 }
 
 /// The main window. On macOS its title bar is the web app's own top bar: the
-/// bar is transparent and the traffic lights sit over its left end.
-pub(crate) fn build_main(app: &AppHandle, url: WebviewUrl) -> tauri::Result<()> {
+/// bar is transparent and the traffic lights sit over its left end (18, 20).
+/// macOS only: the window is transparent with the under-window material
+/// behind it (vibrancy), so the web app's translucent sidebar shows the
+/// desktop through it; the content panes stay opaque. Windows keeps its
+/// native, opaque window.
+///
+/// `visible: false` builds it hidden (the start window is still up).
+pub(crate) fn build_main(app: &AppHandle, url: WebviewUrl, visible: bool) -> tauri::Result<()> {
     if app.get_webview_window("main").is_some() {
         return Ok(());
     }
@@ -202,13 +230,20 @@ pub(crate) fn build_main(app: &AppHandle, url: WebviewUrl) -> tauri::Result<()> 
         .title("Needt")
         .inner_size(1280.0, 820.0)
         .min_inner_size(900.0, 600.0)
+        .visible(visible)
         .initialization_script(init_js())
         .on_navigation(nav_guard(app));
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true)
-        .traffic_light_position(LogicalPosition::new(18.0, 20.0));
+        .traffic_light_position(LogicalPosition::new(18.0, 20.0))
+        .transparent(true)
+        .effects(
+            EffectsBuilder::new()
+                .effect(Effect::UnderWindowBackground)
+                .build(),
+        );
     builder.build()?;
     Ok(())
 }
@@ -222,7 +257,7 @@ pub(crate) fn show_welcome(app: &AppHandle) {
     }
     let builder = WebviewWindowBuilder::new(app, "welcome", WebviewUrl::App("index.html".into()))
         .title("Needt")
-        .inner_size(420.0, 560.0)
+        .inner_size(WELCOME_WIDTH, WELCOME_HEIGHT)
         .resizable(false)
         .maximizable(false)
         .center()
@@ -231,7 +266,8 @@ pub(crate) fn show_welcome(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(TitleBarStyle::Overlay)
-        .hidden_title(true);
+        .hidden_title(true)
+        .traffic_light_position(LogicalPosition::new(18.0, 20.0));
     let _ = builder.build();
 }
 
@@ -252,7 +288,7 @@ pub(crate) fn start(app: &AppHandle) {
         } else {
             WebviewUrl::App("offline.html".into())
         };
-        if build_main(&app, url).is_err() {
+        if build_main(&app, url, true).is_err() {
             show_welcome(&app);
         }
     });
@@ -288,6 +324,17 @@ pub(crate) fn send_command(app: &AppHandle, command: serde_json::Value) {
     ));
 }
 
+/// Like `send_command`, for commands that act in the background (the menu-bar
+/// focus controls): the window is not raised.
+pub(crate) fn send_command_quiet(app: &AppHandle, command: serde_json::Value) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    let _ = window.eval(format!(
+        "window.__needtDesktop && window.__needtDesktop.dispatch({command});"
+    ));
+}
+
 /// View, Reload. Offline it does nothing: the page already open keeps its own
 /// offline state, and a reload would only trade it for an error.
 pub(crate) fn reload_main(app: &AppHandle) {
@@ -310,9 +357,34 @@ pub(crate) fn reload_main(app: &AppHandle) {
     });
 }
 
-/// Small always-on-top window on the web app's own /quick-add page.
+/// Puts the quick-add window in the upper third of the screen the pointer is
+/// on, centred.
+fn place_quick(app: &AppHandle, window: &WebviewWindow) {
+    let monitor = app
+        .cursor_position()
+        .ok()
+        .and_then(|at| app.monitor_from_point(at.x, at.y).ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else {
+        let _ = window.center();
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let origin = monitor.position();
+    let size = monitor.size();
+    let width = (QUICK_WIDTH * scale) as i32;
+    let x = origin.x + (size.width as i32 - width) / 2;
+    let y = origin.y + (size.height as f64 * 0.2) as i32;
+    let _ = window.set_position(PhysicalPosition::new(x, y));
+}
+
+/// Spec dk-qa: a borderless, always-on-top 620 px card in the upper third of
+/// the active screen, on its own page (one line, chips, key hints). It stays
+/// above other apps until Esc or until focus moves away (see `run`), and is
+/// kept hidden between uses.
 pub(crate) fn show_quick_add(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("quick") {
+        place_quick(app, &window);
         let _ = window.show();
         let _ = window.set_focus();
         return;
@@ -320,15 +392,26 @@ pub(crate) fn show_quick_add(app: &AppHandle) {
     let Ok(url) = start_url().join(QUICK_ADD_PATH) else {
         return;
     };
-    let _ = WebviewWindowBuilder::new(app, "quick", WebviewUrl::External(url))
+    let built = WebviewWindowBuilder::new(app, "quick", WebviewUrl::External(url))
         .title("Quick add")
-        .inner_size(560.0, 380.0)
-        .min_inner_size(400.0, 260.0)
-        .center()
+        .inner_size(QUICK_WIDTH, QUICK_HEIGHT)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(true)
         .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
         .initialization_script(init_js())
         .on_navigation(nav_guard(app))
         .build();
+    if let Ok(window) = built {
+        place_quick(app, &window);
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 pub fn run() {
@@ -347,7 +430,11 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(
+            // Everything but whether the window was visible: a window built
+            // hidden (the main window while the start window hands over) must
+            // not be shown by a restored state.
             tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() - StateFlags::VISIBLE)
                 .with_denylist(&["quick", "welcome"])
                 .build(),
         )
@@ -363,6 +450,7 @@ pub fn run() {
                 .build(),
         )
         .manage(auth::AuthFlow::default())
+        .manage(tray::FocusClock::default())
         .menu(|app| appmenu::build(app).or_else(|_| Menu::default(app)))
         .on_menu_event(|app, event| {
             let id: &str = event.id.as_ref();
@@ -375,6 +463,12 @@ pub fn run() {
             if matches!(window.label(), "main" | "welcome") {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+            // Quick add stays until Esc (the page asks) or focus moves away.
+            if window.label() == "quick" {
+                if let WindowEvent::Focused(false) = event {
                     let _ = window.hide();
                 }
             }
@@ -393,7 +487,45 @@ pub fn run() {
             let for_signed_in = handle.clone();
             app.listen("needt-signed-in", move |_| {
                 auth::remember_signed_in(&for_signed_in);
+                // A browser sign-in is done: the start window hands over.
+                auth::finish_welcome(&for_signed_in);
             });
+            let for_failed = handle.clone();
+            app.listen("needt-desktop-failed", move |_| {
+                auth::welcome_failed(&for_failed);
+            });
+
+            // The quick-add page closes itself with Esc or Enter; "Add and
+            // open" also names the task to open in the main window.
+            let for_quick = handle.clone();
+            app.listen("needt-quick-close", move |event| {
+                if let Some(window) = for_quick.get_webview_window("quick") {
+                    let _ = window.hide();
+                }
+                let id = serde_json::from_str::<serde_json::Value>(event.payload())
+                    .ok()
+                    .and_then(|v| v.get("openTask").and_then(|t| t.as_str().map(String::from)));
+                if let Some(id) = id.filter(|id| tray::valid_id(id)) {
+                    send_command(&for_quick, json!({ "type": "open-task", "id": id }));
+                }
+            });
+
+            // macOS: the window's appearance follows the app's own theme, so
+            // the sidebar material under it matches ("system" = the OS's).
+            #[cfg(target_os = "macos")]
+            {
+                let for_theme = handle.clone();
+                app.listen("needt-theme", move |event| {
+                    let theme = match serde_json::from_str::<String>(event.payload()).as_deref() {
+                        Ok("dark") => Some(Theme::Dark),
+                        Ok("light") => Some(Theme::Light),
+                        _ => None,
+                    };
+                    if let Some(window) = for_theme.get_webview_window("main") {
+                        let _ = window.set_theme(theme);
+                    }
+                });
+            }
 
             // The browser hands a sign-in back as needt://auth?code=...
             #[cfg(windows)]

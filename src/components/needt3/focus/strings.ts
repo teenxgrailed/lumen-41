@@ -4,6 +4,8 @@
  * retyped. A line the extraction did not catch (it joins pieces at run time)
  * is spelled out here once, from focus.jsx.
  */
+import { cvDur } from "@/lib/needt3/derive";
+
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 
 const f = strings["focus.jsx"];
@@ -46,5 +48,7 @@ export const moreFocus = "+15 min";
 
 /* A full-time task was ticked with focus time left: keep going or end now. */
 export const endNow = "End now";
-export const fullTimeAsk = (title: string, left: string) =>
-  `${left} left on ${title}`;
+export const fullTimeAskSub = (title: string, plannedMin: number | null) =>
+  plannedMin
+    ? `${title} is set to run the full ${cvDur(plannedMin)}.`
+    : `${title} is set to run the full time.`;

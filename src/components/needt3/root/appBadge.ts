@@ -13,6 +13,16 @@ export function badgeCount(tasks: readonly V3Task[], today: string): number {
   return open.size;
 }
 
+/**
+ * Overdue tasks alone: the desktop app's Dock badge. Red means "needs you
+ * now", so a day's ordinary open tasks are not counted (spec: desktop-chrome,
+ * dk-badge); zero hides the badge.
+ */
+export function overdueCount(tasks: readonly V3Task[], today: string): number {
+  const { late } = splitHome(tasks, today);
+  return new Set(late.filter((t) => !t.done).map((t) => t.id)).size;
+}
+
 export interface BadgeNavigator {
   setAppBadge?: (count?: number) => Promise<void>;
   clearAppBadge?: () => Promise<void>;

@@ -22,7 +22,11 @@
  */
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { notesText } from "@/lib/needt3/derive";
-import { effectiveFullTime } from "@/lib/needt3/full-time";
+import {
+  type FullTimeAuto,
+  effectiveFullTime,
+  fullTimeAuto,
+} from "@/lib/needt3/full-time";
 import {
   PREVIEW_MAX_ROWS,
   PREVIEW_ROW_TEXT,
@@ -299,6 +303,8 @@ export interface V3Task {
   fullTime?: boolean | null;
   /** What it comes to once auto is resolved (effectiveFullTime). */
   fullTimeOn?: boolean;
+  /** Why it is on by itself (habit / repeat): locked on, shown as "Auto". */
+  fullTimeAuto?: FullTimeAuto;
   /** "YYYY-MM-DD", local. */
   deadline: string | null;
   hardDeadline: boolean;
@@ -362,6 +368,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     splitAllowed: row.splitAllowed ?? true,
     fullTime: row.fullTime ?? null,
     fullTimeOn: effectiveFullTime(row),
+    fullTimeAuto: fullTimeAuto(row),
     deadline: isoToDay(row.deadline, tz),
     hardDeadline: row.hardDeadline ?? false,
     priority:
@@ -416,6 +423,7 @@ export type V3TaskPatch = Partial<
     | "attachments"
     | "syncedFrom"
     | "fullTimeOn"
+    | "fullTimeAuto"
   >
 >;
 

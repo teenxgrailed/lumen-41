@@ -48,6 +48,7 @@ import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { addDays, addMinutes, at, project } from "@/lib/needt3/derive";
 import {
+  FULL_TIME_AUTO_TAG,
   FULL_TIME_LABEL,
   FULL_TIME_ROW,
   fullTimeHint,
@@ -1466,15 +1467,20 @@ export function TaskDialog({
                   </div>
                   <div className="tdc-srow" data-tdc-full-time="">
                     <span className="tdc-srow-label">{FULL_TIME_ROW}</span>
-                    <span className="tdc-pills">
+                    <span className="tdc-pills fd-desk fd-ft">
+                      <span className="fd-ft-name">{FULL_TIME_LABEL}</span>
+                      {t.fullTimeAuto ? (
+                        <span className="fd-auto">{FULL_TIME_AUTO_TAG}</span>
+                      ) : null}
                       <button
                         type="button"
-                        className="tdc-pill"
-                        aria-pressed={!!t.fullTimeOn}
+                        role="switch"
+                        className="fd-sw"
+                        aria-checked={!!t.fullTimeOn}
+                        aria-label={FULL_TIME_LABEL}
+                        disabled={!!t.fullTimeAuto}
                         onClick={() => emit(fullTimePatch(t))}
-                      >
-                        {FULL_TIME_LABEL}
-                      </button>
+                      />
                     </span>
                     <span className="tdc-srow-hint">{fullTimeHint(t)}</span>
                   </div>

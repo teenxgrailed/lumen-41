@@ -6,8 +6,8 @@ enum Config {
     static let site = URL(string: "https://needt.app")!
 
     static let homePath = "today"
-    /// The web app's own quick-add page (the Tauri shell used the same one).
-    static let quickAddPath = "quick-add"
+    /// The web app's desktop quick-add card (the Tauri shell loads the same one).
+    static let quickAddPath = "desktop-quick-add"
 
     /// The web app. Debug builds can aim at a local server:
     /// `NEEDT_URL=http://localhost:3000`.

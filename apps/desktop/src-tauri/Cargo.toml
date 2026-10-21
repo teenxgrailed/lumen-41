@@ -14,7 +14,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+# macos-private-api: a transparent window on macOS (the sidebar vibrancy). It must
+# match "macOSPrivateApi" in tauri.conf.json. Not for the Mac App Store, which
+# the app is not on.
+tauri = { version = "2.12", features = ["tray-icon", "image-png", "macos-private-api"] }
 # deep-link: a second launch with a needt:// link reaches the running app.
 tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
 tauri-plugin-deep-link = "2.4"

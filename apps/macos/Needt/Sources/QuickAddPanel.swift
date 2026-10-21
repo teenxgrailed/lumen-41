@@ -17,7 +17,7 @@ final class QuickAddController: NSObject, NSWindowDelegate, BridgeHost {
     private var web: NeedtWebView?
     private var keyMonitor: Any?
 
-    static let size = NSSize(width: 620, height: 380)
+    static let size = NSSize(width: 620, height: 142)
 
     var isVisible: Bool { panel?.isVisible ?? false }
 

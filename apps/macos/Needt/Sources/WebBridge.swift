@@ -37,6 +37,9 @@ enum WebBridge {
       window.__needtNative = { platform: 'mac-swift' };
       window.__needtDesktop = {
         platform: 'mac',
+        // Same flag the Tauri shell sets on macOS: the web app then marks
+        // html[data-vibrancy="on"] and its sidebar turns translucent.
+        vibrancy: true,
         home: boot.home,
         dispatch: function (command) {
           if (handler) { deliver(command); return; }
@@ -230,6 +233,10 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             }
         case "needt-signed-in":
             AppController.shared.auth.signedIn()
+        case "needt-theme":
+            // "light", "dark" or "system": the window follows the app's theme so
+            // the material behind the sidebar matches (as the Tauri shell does).
+            AppController.shared.setWindowTheme(payload as? String ?? "system")
         default:
             break
         }

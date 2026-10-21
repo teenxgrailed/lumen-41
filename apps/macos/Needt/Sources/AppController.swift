@@ -59,6 +59,16 @@ final class AppController {
         controller.show()
     }
 
+    /// The app's theme, reported by the page: the main window's appearance
+    /// follows it ("system" hands it back to macOS).
+    func setWindowTheme(_ theme: String) {
+        main?.window?.appearance = switch theme {
+        case "dark": NSAppearance(named: .darkAqua)
+        case "light": NSAppearance(named: .aqua)
+        default: nil
+        }
+    }
+
     /// The deep link brought a code: load the completion page in the main
     /// window (made now if there is none), but keep it hidden until signed in.
     func loadSignInCompletion(_ url: URL) {

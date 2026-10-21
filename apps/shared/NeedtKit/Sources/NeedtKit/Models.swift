@@ -44,7 +44,14 @@ public struct TrayState: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case open, overdue, next, focus, focusEndsAt, focusTitle
+        case open, overdue, next, focus, focusEndsAt, focusTitle, focusRun
+    }
+
+    /// The web app's `focusRun` (desktopTray.ts): the running session as data.
+    /// Older pages sent `focusEndsAt` and `focusTitle` on their own; both work.
+    private struct FocusRun: Decodable {
+        var title: String?
+        var endsAt: Double?
     }
 
     public init(from decoder: Decoder) throws {
@@ -53,8 +60,9 @@ public struct TrayState: Codable, Equatable, Sendable {
         overdue = max(0, (try? c.decode(Int.self, forKey: .overdue)) ?? 0)
         next = (try? c.decode([TrayTask].self, forKey: .next)) ?? []
         focus = try? c.decodeIfPresent(String.self, forKey: .focus)
-        focusEndsAt = try? c.decodeIfPresent(Double.self, forKey: .focusEndsAt)
-        focusTitle = try? c.decodeIfPresent(String.self, forKey: .focusTitle)
+        let run = try? c.decodeIfPresent(FocusRun.self, forKey: .focusRun)
+        focusEndsAt = (try? c.decodeIfPresent(Double.self, forKey: .focusEndsAt)) ?? run?.endsAt
+        focusTitle = (try? c.decodeIfPresent(String.self, forKey: .focusTitle)) ?? run?.title
     }
 
     /// Parses a payload from the page and cleans it the way the Tauri shell

@@ -134,6 +134,7 @@ export function haTimeOf(o: {
         }
       : { free: dur(left.free - left.planned) || "0 min" }),
     ends: clock(o.end),
+    dayMinutes: span * 60,
     used: now,
     plan,
     now,
