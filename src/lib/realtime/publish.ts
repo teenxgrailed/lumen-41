@@ -14,7 +14,14 @@ export async function publishRealtimeEvent(
   type: RealtimeEventType,
   details?: Pick<
     RealtimeEvent,
-    "feedId" | "runId" | "status" | "sessionId" | "message"
+    | "feedId"
+    | "runId"
+    | "status"
+    | "sessionId"
+    | "message"
+    | "minutes"
+    | "taskId"
+    | "taskTitle"
   >
 ): Promise<void> {
   if (!process.env.REDIS_URL?.trim()) {

@@ -84,6 +84,11 @@ export async function endFocusForCompletedTask(input: {
         sessionId: session.id,
         status: early > 0 ? "early" : "done",
         message: early > 0 ? earlyLine(early) : undefined,
+        // The toast names the task and offers Undo; Home's bar draws the
+        // returned minutes as a green slice. Both read these.
+        minutes: early > 0 ? early : undefined,
+        taskId: task.id,
+        taskTitle: task.title ?? undefined,
       });
     } catch (error) {
       await logger.warn(

@@ -49,6 +49,15 @@ async function call(
   }
 }
 
+/**
+ * Switch the home-screen icon (iOS alternate icons). `null` is the primary
+ * icon (Midnight). Silent when the shell has no `NeedtAppIcon` plugin, which
+ * is the case until the Swift plugin exists (apps/ios/README.md, //todo).
+ */
+export async function setNativeAppIcon(name: string | null): Promise<void> {
+  await call("NeedtAppIcon", "setIcon", { name });
+}
+
 export type HapticKind = "light" | "medium" | "success" | "warning" | "error";
 
 /** A short tap. Silent in browsers. */

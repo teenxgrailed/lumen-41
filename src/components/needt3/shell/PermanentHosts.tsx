@@ -2,6 +2,7 @@
 
 import { ActionToasts } from "@/components/needt/corner/ActionToasts";
 
+import { AppIconHost } from "../app-icon/AppIconHost";
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
 import { FocusHost } from "../focus/FocusHost";
@@ -29,6 +30,8 @@ export function PermanentHosts() {
   return (
     <>
       <SettingsSheet />
+      {/* The app icon picker and its one-time popup, on both UIs. */}
+      <AppIconHost />
       {/* On the phone too: its snacks are the same notices, and nothing else
           on the phone draws them. */}
       <ActionToasts />
