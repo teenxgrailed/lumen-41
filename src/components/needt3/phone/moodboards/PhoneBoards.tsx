@@ -38,7 +38,6 @@ import {
   boardMeta,
   boardQuota,
   cardMeta,
-  searchBoards,
 } from "./model";
 
 const t = strings["phone-habits.jsx"];
@@ -144,23 +143,6 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
       ],
     });
 
-  const pull = {
-    search: (q: string) =>
-      searchBoards(live, q).map((b) => ({
-        id: b.id,
-        title: b.title || UNTITLED_BOARD,
-        meta: boardMeta(b, tz),
-      })),
-    onPick: (hit: { id: string }) => ctl.open(hit.id),
-    onAdd: (q: string) => {
-      if (q.trim()) void ctl.make(q);
-      else ctl.openNew();
-    },
-    placeholder: t.PhbBoards.search_or_add_a_board,
-    hint: "Boards, by name. Enter starts a board.",
-    addLabel: (q: string) => (q ? `New board “${q}”` : t.PhbBoards.new_board),
-  };
-
   return (
     <div className="phb-mb" data-pk-screen="moodboards" data-phb-view="list">
       <div className="phb-mb-stage">
@@ -202,7 +184,6 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
               {t.PhbBoards.new}
             </PkButton>
           }
-          onPull={pull}
         >
           <PlaceState query={boards} screen="moodboards">
             {!live.length ? (
