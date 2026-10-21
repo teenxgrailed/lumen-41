@@ -35,3 +35,6 @@ coverage/
 # Frozen design prototype for the port (reference only)
 docs/port/prototype
 docs/port/_ds
+
+# Capacitor iOS shell
+apps/ios/ios

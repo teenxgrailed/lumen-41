@@ -23,6 +23,8 @@ const eslintConfig = [
       "playwright-report/**",
       "test-results/**",
       "public/sw.js",
+      // Capacitor iOS shell: its own package, native project and generated files.
+      "apps/**",
       // Frozen design prototype for the port: reference only, never built.
       "docs/port/prototype/**",
       "docs/port/_ds/**",

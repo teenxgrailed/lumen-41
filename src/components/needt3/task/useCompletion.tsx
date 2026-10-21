@@ -13,6 +13,7 @@ import {
 
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
+import { haptic } from "@/lib/native";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
@@ -109,6 +110,7 @@ export function useCompletion() {
           .catch(none);
         return;
       }
+      void haptic("success");
       if (!calm) {
         setPhase((m) => ({ ...m, [t.id]: "strike" }));
         if (mode === "hide")

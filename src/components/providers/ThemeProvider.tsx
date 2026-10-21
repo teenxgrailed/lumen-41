@@ -9,6 +9,7 @@ import React, {
 
 import { animateThemeTransition } from "@/components/ui/animated-theme-toggler";
 
+import { setStatusBarForTheme } from "@/lib/native";
 import { DEFAULT_SYSTEM_THEME_PAIR } from "@/lib/theme";
 import { applyThemeToRoot } from "@/lib/theme-init";
 
@@ -56,13 +57,15 @@ export function ThemeProvider({
   // resolve a theme differently.
   const applyTheme = useCallback(
     (theme: ThemeMode, pair: SystemThemePair) => {
-      applyThemeToRoot(window.document.documentElement, {
+      const resolved = applyThemeToRoot(window.document.documentElement, {
         theme,
         systemTheme: pair,
         systemPrefersDark: enableSystem
           ? window.matchMedia("(prefers-color-scheme: dark)").matches
           : false,
       });
+      // no-op outside the iOS shell
+      void setStatusBarForTheme(resolved);
     },
     [enableSystem]
   );
