@@ -13,8 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phone: the top and bottom edges follow the new phone-shell design. The
   collapsed header is the place icon and title, centred, over a three-step
   blur that fades in as you scroll; the fog under the dock is 128 px (deeper
-  in a Safari tab); pulling the search plate down shrinks the screen behind it
-  and the plate gets a soft edge.
+  in a Safari tab).
+- Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
+- Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
+  a native window with a transparent title bar, a menu-bar item (focus
+  countdown, today's next tasks), a Dock badge for overdue tasks, a global
+  quick add on Shift-Command-Space, native notifications and automatic
+  updates (Sparkle, switched on once signed). The Tauri build remains for
+  Windows.
 - iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
   looks), the other twelve are alternate icons you pick in Settings →
   Appearance, the launch screen is the ground colour with the Midnight mark,
