@@ -54,8 +54,6 @@ final class IslandAppDelegate: NSObject {
     private var cancellables = Set<AnyCancellable>()
     private var windowsHiddenForLock = false
     private var optionalShortcutHandlersRegistered = false
-    private weak var focusWithoutDevToolsMenuItem: NSMenuItem?
-    private weak var focusUseDevToolsMenuItem: NSMenuItem?
     
     // Debouncing mechanism for window size updates
     private var windowSizeUpdateWorkItem: DispatchWorkItem?
@@ -88,7 +86,6 @@ final class IslandAppDelegate: NSObject {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        installTopMenuItemsIfNeeded()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -188,7 +185,9 @@ final class IslandAppDelegate: NSObject {
         AudioTap.shared.stopCapture()
 
         // Restore Lunar's native OSD if integration was active
+        #if !APPSTORE
         LunarManager.shared.appWillTerminate()
+        #endif
     }
     
     @objc func onScreenLocked(_: Notification) {
@@ -536,22 +535,21 @@ final class IslandAppDelegate: NSObject {
         idleAnimationManager.initializeDefaultAnimations()
 
         applySelectedAppIcon()
-        installTopMenuItemsIfNeeded()
 
-        Defaults.publisher(.focusMonitoringMode, options: [])
-            .sink { [weak self] _ in
-                self?.updateFocusMenuState()
-            }
-            .store(in: &cancellables)
-        
         // Setup SystemHUD Manager
+        #if !APPSTORE
         SystemHUDManager.shared.setup(coordinator: coordinator)
+        #endif
 
         // Setup BetterDisplay integration
+        #if !APPSTORE
         BetterDisplayManager.shared.configure(coordinator: coordinator)
+        #endif
 
         // Setup Lunar integration
+        #if !APPSTORE
         LunarManager.shared.configure(coordinator: coordinator)
+        #endif
         
         // Setup ScreenRecording Manager
         if Defaults[.enableScreenRecordingDetection] && !AppRuntimeEnvironment.isUITesting {
@@ -866,276 +864,6 @@ final class IslandAppDelegate: NSObject {
         let timerWidgetManager = LockScreenTimerWidgetManager.shared
         timerWidgetManager.handleLockStateChange(isLocked: LockScreenManager.shared.currentLockStatus)
 
-    }
-
-    // Needt owns the menu bar; the island adds no menus of its own.
-    private static let hostOwnsMenu = true
-
-    private func installTopMenuItemsIfNeeded() {
-        guard !Self.hostOwnsMenu, let mainMenu = NSApp.mainMenu else { return }
-        if mainMenu.items.contains(where: { $0.identifier?.rawValue == "Needt.Focus.Menu" }) {
-            updateFocusMenuState()
-            return
-        }
-
-        let insertionIndex = preferredMenuInsertionIndex(in: mainMenu)
-
-        let focusMenuItem = NSMenuItem(title: "Focus", action: nil, keyEquivalent: "")
-        focusMenuItem.identifier = NSUserInterfaceItemIdentifier("Needt.Focus.Menu")
-        let focusSubmenu = NSMenu(title: "Focus")
-
-        let withoutDevTools = NSMenuItem(
-            title: "Use without DevTools",
-            action: #selector(selectFocusWithoutDevTools),
-            keyEquivalent: ""
-        )
-        withoutDevTools.target = self
-
-        let useDevTools = NSMenuItem(
-            title: "Use DevTools",
-            action: #selector(selectFocusUseDevTools),
-            keyEquivalent: ""
-        )
-        useDevTools.target = self
-
-        focusSubmenu.addItem(withoutDevTools)
-        focusSubmenu.addItem(useDevTools)
-        focusMenuItem.submenu = focusSubmenu
-        mainMenu.insertItem(focusMenuItem, at: insertionIndex)
-
-        focusWithoutDevToolsMenuItem = withoutDevTools
-        focusUseDevToolsMenuItem = useDevTools
-
-        let accessibilityMenuItem = NSMenuItem(title: "Accessibility", action: nil, keyEquivalent: "")
-        accessibilityMenuItem.identifier = NSUserInterfaceItemIdentifier("Needt.Accessibility.Menu")
-        let accessibilitySubmenu = NSMenu(title: "Accessibility")
-
-        let requestAccessibility = NSMenuItem(
-            title: "Request Accessibility Access",
-            action: #selector(requestAccessibilityAccess),
-            keyEquivalent: ""
-        )
-        requestAccessibility.target = self
-
-        let openAccessibility = NSMenuItem(
-            title: "Open Accessibility Settings",
-            action: #selector(openAccessibilitySettings),
-            keyEquivalent: ""
-        )
-        openAccessibility.target = self
-
-        accessibilitySubmenu.addItem(requestAccessibility)
-        accessibilitySubmenu.addItem(openAccessibility)
-        accessibilityMenuItem.submenu = accessibilitySubmenu
-        mainMenu.insertItem(accessibilityMenuItem, at: insertionIndex + 1)
-
-        let permissionsMenuItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
-        permissionsMenuItem.identifier = NSUserInterfaceItemIdentifier("Needt.Permissions.Menu")
-        let permissionsSubmenu = NSMenu(title: "Permissions")
-
-        let requestFullDisk = NSMenuItem(
-            title: "Request Full Disk Access",
-            action: #selector(requestFullDiskAccess),
-            keyEquivalent: ""
-        )
-        requestFullDisk.target = self
-
-        let openFullDisk = NSMenuItem(
-            title: "Open Full Disk Access Settings",
-            action: #selector(openFullDiskAccessSettings),
-            keyEquivalent: ""
-        )
-        openFullDisk.target = self
-
-        let openDevTools = NSMenuItem(
-            title: "Open Developer Tools Settings",
-            action: #selector(openDeveloperToolsSettingsFromMenu),
-            keyEquivalent: ""
-        )
-        openDevTools.target = self
-
-        permissionsSubmenu.addItem(requestFullDisk)
-        permissionsSubmenu.addItem(openFullDisk)
-        permissionsSubmenu.addItem(NSMenuItem.separator())
-        permissionsSubmenu.addItem(openDevTools)
-        permissionsMenuItem.submenu = permissionsSubmenu
-        mainMenu.insertItem(permissionsMenuItem, at: insertionIndex + 2)
-
-        let toolsMenuItem = NSMenuItem(title: "Tools", action: nil, keyEquivalent: "")
-        toolsMenuItem.identifier = NSUserInterfaceItemIdentifier("Needt.Tools.Menu")
-        let toolsSubmenu = NSMenu(title: "Tools")
-
-        let loggingLevelItem = NSMenuItem(title: "Logging Level", action: nil, keyEquivalent: "")
-        let loggingLevelSubmenu = NSMenu(title: "Logging Level")
-        
-        let levels: [(String, LogLevel)] = [
-            ("No Logging", .none),
-            ("Error", .error),
-            ("Warning", .warning),
-            ("Info", .info),
-            ("Debug", .debug)
-        ]
-        
-        for (title, level) in levels {
-            let item = NSMenuItem(title: title, action: #selector(setLogLevel(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = level.rawValue
-            item.state = (Defaults[.logLevel] == level) ? NSControl.StateValue.on : NSControl.StateValue.off
-            loggingLevelSubmenu.addItem(item)
-        }
-        loggingLevelItem.submenu = loggingLevelSubmenu
-        toolsSubmenu.addItem(loggingLevelItem)
-
-        toolsSubmenu.addItem(NSMenuItem.separator())
-        
-        let exportLogsItem = NSMenuItem(title: "Export Logs", action: #selector(exportLogs), keyEquivalent: "")
-        exportLogsItem.target = self
-        toolsSubmenu.addItem(exportLogsItem)
-
-        toolsMenuItem.submenu = toolsSubmenu
-        mainMenu.insertItem(toolsMenuItem, at: insertionIndex + 3)
-
-        updateFocusMenuState()
-    }
-
-    private func preferredMenuInsertionIndex(in mainMenu: NSMenu) -> Int {
-        if let index = mainMenu.items.firstIndex(where: { $0.title == "Window" }) {
-            return index
-        }
-        if let index = mainMenu.items.firstIndex(where: { $0.title == "Help" }) {
-            return index
-        }
-        return max(mainMenu.numberOfItems, 0)
-    }
-
-    private func updateFocusMenuState() {
-        let mode = Defaults[.focusMonitoringMode]
-        focusWithoutDevToolsMenuItem?.state = mode == .withoutDevTools ? .on : .off
-        focusUseDevToolsMenuItem?.state = mode == .useDevTools ? .on : .off
-    }
-
-    @objc private func selectFocusWithoutDevTools() {
-        Defaults[.focusMonitoringMode] = .withoutDevTools
-        updateFocusMenuState()
-    }
-
-    @objc private func selectFocusUseDevTools() {
-        Defaults[.focusMonitoringMode] = .useDevTools
-        updateFocusMenuState()
-    }
-
-    @objc private func requestAccessibilityAccess() {
-        AccessibilityPermissionStore.shared.requestAuthorizationPrompt()
-    }
-
-    @objc private func openAccessibilitySettings() {
-        AccessibilityPermissionStore.shared.openSystemSettings()
-    }
-
-    @objc private func requestFullDiskAccess() {
-        FullDiskAccessPermissionStore.shared.requestAccessPrompt()
-    }
-
-    @objc private func openFullDiskAccessSettings() {
-        FullDiskAccessPermissionStore.shared.openSystemSettings()
-    }
-
-    @objc private func openDeveloperToolsSettingsFromMenu() {
-        let urls = [
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_DevTools",
-            "x-apple.systempreferences:com.apple.preference.security"
-        ]
-
-        for candidate in urls {
-            guard let url = URL(string: candidate) else { continue }
-            if NSWorkspace.shared.open(url) {
-                return
-            }
-        }
-    }
-
-    @objc private func setLogLevel(_ sender: NSMenuItem) {
-        guard let level = LogLevel(rawValue: sender.tag) else { return }
-        Defaults[.logLevel] = level
-        
-        guard let mainMenu = NSApp.mainMenu,
-              let toolsItem = mainMenu.item(withTitle: "Tools"),
-              let toolsMenu = toolsItem.submenu,
-              let loggingItem = toolsMenu.items.first(where: { $0.title == "Logging Level" }),
-              let loggingSubmenu = loggingItem.submenu else { return }
-              
-        for item in loggingSubmenu.items {
-            item.state = (item.tag == level.rawValue) ? NSControl.StateValue.on : NSControl.StateValue.off
-        }
-    }
-
-    @objc private func exportLogs() {
-        let savePanel = NSSavePanel()
-        savePanel.nameFieldStringValue = "Island_Logs.zip"
-        savePanel.title = "Export Logs & Crash Reports"
-        
-        savePanel.begin { response in
-            guard response == .OK, let url = savePanel.url else { return }
-            
-            Task.detached(priority: .utility) {
-                do {
-                    let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                    
-                    let logsFile = tempDir.appendingPathComponent("app_logs.txt")
-                    let logProcess = Process()
-                    logProcess.executableURL = URL(fileURLWithPath: "/usr/bin/log")
-                    logProcess.arguments = ["show", "--predicate", "subsystem == 'com.dynamicisland.app' OR subsystem == 'com.dynamicisland.app.dev'", "--info", "--debug", "--last", "2d"]
-                    
-                    let pipe = Pipe()
-                    logProcess.standardOutput = pipe
-                    try logProcess.run()
-                    logProcess.waitUntilExit()
-                    
-                    let logData = pipe.fileHandleForReading.readDataToEndOfFile()
-                    try logData.write(to: logsFile)
-                    
-                    let diagDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Logs/DiagnosticReports")
-                    let allFiles = (try? FileManager.default.contentsOfDirectory(at: diagDir, includingPropertiesForKeys: nil)) ?? []
-                    for file in allFiles where file.lastPathComponent.contains("Needt") {
-                        try? FileManager.default.copyItem(at: file, to: tempDir.appendingPathComponent(file.lastPathComponent))
-                    }
-                    
-                    let sysDiagDir = URL(fileURLWithPath: "/Library/Logs/DiagnosticReports")
-                    let sysFiles = (try? FileManager.default.contentsOfDirectory(at: sysDiagDir, includingPropertiesForKeys: nil)) ?? []
-                    for file in sysFiles where file.lastPathComponent.contains("Needt") {
-                        try? FileManager.default.copyItem(at: file, to: tempDir.appendingPathComponent(file.lastPathComponent))
-                    }
-                    
-                    let zipProcess = Process()
-                    zipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
-                    zipProcess.currentDirectoryURL = tempDir
-                    let items = (try? FileManager.default.contentsOfDirectory(atPath: tempDir.path)) ?? []
-                    zipProcess.arguments = ["-r", url.path] + items
-                    
-                    try zipProcess.run()
-                    zipProcess.waitUntilExit()
-                    
-                    try? FileManager.default.removeItem(at: tempDir)
-                    
-                    DispatchQueue.main.async {
-                        let alert = NSAlert()
-                        alert.messageText = "Logs Exported"
-                        alert.informativeText = "Logs and crash reports have been successfully exported to \(url.lastPathComponent)."
-                        alert.alertStyle = .informational
-                        alert.runModal()
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        let alert = NSAlert()
-                        alert.messageText = "Export Failed"
-                        alert.informativeText = "Failed to export logs: \(error.localizedDescription)"
-                        alert.alertStyle = .critical
-                        alert.runModal()
-                    }
-                }
-            }
-        }
     }
 
     private func registerOptionalShortcutHandlers() {

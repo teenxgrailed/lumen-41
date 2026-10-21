@@ -63,6 +63,15 @@ targets:
           - DynamicIsland.entitlements
           - "tr.lproj/**"
           - Localizable.xcstrings
+          # The island's own settings window is replaced by Needt's Settings.
+          - components/Settings/IslandSettingsView.swift
+          - components/Settings/AnimationEditorView.swift
+          - components/Settings/ExtensionsSettings.swift
+          - components/Settings/IdleAnimationsSettingsSection.swift
+          - components/Settings/MusicSlotConfigurationView.swift
+          - components/Settings/SpotifyAuthSettingsSection.swift
+          - components/Settings/SpotifyLoginSheet.swift
+          - components/Settings/ListItemPopover.swift
       - path: Island/LottieAnimations
       - path: Island/LICENSE
       - path: Island/ACKNOWLEDGEMENTS.md
@@ -163,6 +172,67 @@ targets:
           - DynamicIsland.entitlements
           - "tr.lproj/**"
           - Localizable.xcstrings
+          # The island's own settings window is replaced by Needt's Settings.
+          - components/Settings/IslandSettingsView.swift
+          - components/Settings/AnimationEditorView.swift
+          - components/Settings/ExtensionsSettings.swift
+          - components/Settings/IdleAnimationsSettingsSection.swift
+          - components/Settings/MusicSlotConfigurationView.swift
+          - components/Settings/SpotifyAuthSettingsSection.swift
+          - components/Settings/SpotifyLoginSheet.swift
+          - components/Settings/ListItemPopover.swift
+          # --- Mac App Store: no private or restricted interfaces ----------
+          # SkyLight window-server spaces
+          - private/**
+          # volume / brightness / keyboard HUD (DisplayServices, CoreBrightness,
+          # media-key event taps, OSD helper)
+          - components/OSD/**
+          - helpers/CoreBrightnessDisplayClient.swift
+          - helpers/DisplayServicesDynamic.swift
+          - helpers/SystemHUDDebugger.swift
+          - managers/SystemMediaControllers.swift
+          - managers/SystemOSDManager.swift
+          - managers/SystemHUDManager.swift
+          - managers/SystemVolumeManager.swift
+          - managers/SystemKeyObserver.swift
+          - managers/SystemKeyboardBacklightController.swift
+          - managers/SystemDisplayManager.swift
+          - managers/SystemChangesObserver.swift
+          - managers/KeyboardBrightnessSensor.swift
+          - managers/MediaKeyInterceptor.swift
+          - managers/CustomOSDWindowManager.swift
+          - managers/CircularHUDWindowManager.swift
+          - managers/VerticalHUDWindowManager.swift
+          - managers/BetterDisplayManager.swift
+          - managers/LunarManager.swift
+          # CPU / GPU / memory sensors (IOReport, SMC)
+          - components/Stats/**
+          - components/Notch/NotchStatsView.swift
+          - managers/StatsManager.swift
+          - utils/IOReportBridging.swift
+          - utils/CPUSensorCollector.swift
+          - utils/SMC.swift
+          # Accessibility-driven features and permission helpers
+          - managers/SystemTimerBridge.swift
+          - observers/FullscreenMediaDetection.swift
+          - helpers/AccessibilityPermissionStore.swift
+          - helpers/FullDiskAccessPermissionStore.swift
+          # Focus and Bluetooth internals, screen-recording detection
+          - managers/DoNotDisturbManager.swift
+          - components/Focus/DoNotDisturbLiveActivity.swift
+          - managers/BluetoothAudioManager.swift
+          - managers/ScreenRecordingManager.swift
+          # automation of apps other than Music and Spotify, shells, other apps' data
+          - managers/AppleNotesSyncManager.swift
+          - managers/TerminalManager.swift
+          - components/Notch/NotchTerminalView.swift
+          - components/DynamicIslandSystemTiles.swift
+          - managers/LLMUsage/**
+          - components/Notch/NotchLLMUsageView.swift
+          # private SwiftUI symbol, private glass material
+          - extensions/Image+InternalSystemName.swift
+          - helpers/LiquidGlassBackground.swift
+      - path: Island/AppStore
       - path: Island/LottieAnimations
       - path: Island/LICENSE
       - path: Island/ACKNOWLEDGEMENTS.md
@@ -174,7 +244,6 @@ targets:
       - package: LottieUI
       - package: SwiftUIIntrospect
       - package: Collections
-      - package: SwiftTerm
       - target: NeedtShare
         embed: true
     entitlements:
@@ -185,6 +254,14 @@ targets:
         com.apple.security.files.user-selected.read-only: true
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
+        com.apple.security.personal-information.calendars: true
+        com.apple.security.personal-information.location: true
+        # Music works for Apple Music and Spotify only, through Apple Events.
+        com.apple.security.scripting-targets:
+          com.apple.Music:
+            - com.apple.Music.playback
+          com.spotify.client:
+            - com.spotify.client.playback
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
     info:

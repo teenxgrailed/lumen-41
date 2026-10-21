@@ -560,9 +560,13 @@ class MusicManager: ObservableObject {
         // Initialize deprecation check asynchronously
         Task { @MainActor in
             // Check if Pear Desktop is already running at startup
+            #if APPSTORE
+            let pearDesktopRunning = false
+            #else
             let pearDesktopRunning = NSWorkspace.shared.runningApplications.contains {
                 $0.bundleIdentifier == Self.pearDesktopBundleID
             }
+            #endif
             
             if pearDesktopRunning {
                 print("[MusicManager] Pear Desktop detected at startup, auto-switching to YouTubeMusicController")
@@ -579,6 +583,9 @@ class MusicManager: ObservableObject {
 
     // MARK: - Pear Desktop Auto-Detection
     private func setupPearDesktopAutoDetection() {
+        #if APPSTORE
+        return
+        #endif
         NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)
             .sink { [weak self] notification in
                 guard let self = self,
@@ -643,7 +650,12 @@ class MusicManager: ObservableObject {
         case .spotify:
             newController = SpotifyController()
         case .youtubeMusic:
+            #if APPSTORE
+            // The Mac App Store build talks to Apple Music and Spotify only.
+            newController = AppleMusicController()
+            #else
             newController = YouTubeMusicController()
+            #endif
         }
 
         // Set up state observation for the new controller

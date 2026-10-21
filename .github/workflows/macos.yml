@@ -1,7 +1,10 @@
 name: macOS
 
-# Unsigned build of the native Mac app (apps/macos, SwiftUI/AppKit around a
-# WKWebView) and a test run of the shared Swift package (apps/shared/NeedtKit).
+# Unsigned builds of the native Mac app (apps/macos, SwiftUI/AppKit around a
+# WKWebView, with the notch island compiled in from apps/macos/Island) and a
+# test run of the shared Swift package (apps/shared/NeedtKit).
+# Two builds run side by side: Needt (direct download, full island, Sparkle)
+# and NeedtAppStore (sandboxed, no private interfaces, no Sparkle).
 # Not part of the release pipeline: nothing here signs, notarizes or publishes.
 # The Windows app is still the Tauri one (desktop.yml).
 on:
@@ -21,7 +24,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Needt.app (unsigned)
+    name: Build Needt.app (unsigned, direct)
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -71,35 +74,18 @@ jobs:
           mkdir -p out
           ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-macos-unsigned.zip
 
-      - name: App Store build has no Sparkle, direct build embeds the Share extension
+      - name: Direct build embeds Sparkle and the Share extension
         working-directory: apps/macos
         run: |
           set -euo pipefail
-          xcodebuild \
-            -project Needt.xcodeproj \
-            -scheme NeedtAppStore \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath build-appstore \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build | tail -n 40
-          STORE=build-appstore/Build/Products/Release/Needt.app
           DIRECT=build/Build/Products/Release/Needt.app
-          test -d "$STORE"
-          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
           test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
-          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
-            echo "Sparkle is inside the App Store build"; exit 1
-          fi
-          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
-          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
-            echo "Sparkle symbols are inside the App Store build"; exit 1
-          fi
           test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
+          # The island's GPL licence and acknowledgements ship in the app.
+          test -f "$DIRECT/Contents/Resources/LICENSE"
+          test -f "$DIRECT/Contents/Resources/ACKNOWLEDGEMENTS.md"
 
-      - name: Entitlements and private APIs
+      - name: Entitlements
         working-directory: apps/macos
         run: |
           set -euo pipefail
@@ -125,14 +111,13 @@ jobs:
                       print("missing", name, key); failed = True
               if not any("app.needt.mac" in g for g in e.get("com.apple.security.application-groups", [])):
                   print("no app group in", name); failed = True
-          if "com.apple.security.temporary-exception.mach-lookup.global-name" in load("NeedtAppStore"):
+          store = load("NeedtAppStore")
+          if "com.apple.security.temporary-exception.mach-lookup.global-name" in store:
               print("App Store entitlements carry a temporary exception"); failed = True
+          if "com.apple.security.cs.disable-library-validation" in store:
+              print("App Store entitlements disable library validation"); failed = True
           sys.exit(1 if failed else 0)
           PY
-          # No private API: no KVC into WebKit/AppKit internals, no private selectors by string.
-          if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share; then
-            echo "private API pattern found"; exit 1
-          fi
 
       # Best effort: start the app for a few seconds and report whether it
       # stayed up. A runner has no signed-in person, so this shows the start
@@ -166,4 +151,75 @@ jobs:
             apps/macos/out/needt-start-window.png
             apps/macos/out/launch.log
             apps/macos/build.log
+          if-no-files-found: warn
+
+  appstore:
+    name: Build NeedtAppStore (unsigned, sandboxed)
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      # Runs before the build: it reads project.yml and the sources, so a
+      # private interface fails fast and does not need a compile to find.
+      - name: No private interface in the sources compiled into NeedtAppStore
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-private-api.py
+
+      - name: Build NeedtAppStore (no signing)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme NeedtAppStore \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-appstore \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build-appstore.log | tail -n 60
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build-appstore.log | sort -u | head -120 || true
+
+      - name: App Store build has no Sparkle and no private framework
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          STORE=build-appstore/Build/Products/Release/Needt.app
+          test -d "$STORE"
+          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
+            echo "Sparkle is inside the App Store build"; exit 1
+          fi
+          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
+          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
+            echo "Sparkle symbols are inside the App Store build"; exit 1
+          fi
+          # Linked libraries: nothing from PrivateFrameworks.
+          otool -L "$STORE/Contents/MacOS/Needt" | tee "$RUNNER_TEMP/store-libs.txt"
+          if grep -q "PrivateFrameworks" "$RUNNER_TEMP/store-libs.txt"; then
+            echo "The App Store binary links a private framework"; exit 1
+          fi
+          # Private paths and symbols named in the binary.
+          if grep -E "PrivateFrameworks|SkyLight|MediaRemote|IOReport|DisplayServices|CoreBrightness" "$RUNNER_TEMP/store-strings.txt" | head -20 | grep .; then
+            echo "A private interface is named in the App Store binary"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-macos-appstore-log
+          path: apps/macos/build-appstore.log
           if-no-files-found: warn
