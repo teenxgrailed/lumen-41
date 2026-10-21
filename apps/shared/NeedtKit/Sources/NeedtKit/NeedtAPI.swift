@@ -104,6 +104,16 @@ public final class NeedtAPI: @unchecked Sendable {
         return data
     }
 
+    /// The signed-in person's plan from `GET /api/billing` (the field the web
+    /// app's settings read): "FREE" or "PRO". A trial counts as "PRO".
+    public func plan() async throws -> String {
+        let data = try await request("/api/billing")
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let plan = object["plan"] as? String
+        else { throw NeedtAPIError.badResponse }
+        return plan.uppercased()
+    }
+
     /// The running focus session, or nil when none runs.
     public func activeFocusSession() async throws -> FocusSession? {
         let data = try await request("/api/focus/session")
