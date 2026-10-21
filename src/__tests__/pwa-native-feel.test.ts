@@ -31,7 +31,14 @@ describe("PWA native feel", () => {
     expect(m.name).toBe(BRAND_LINE);
     expect(m.short_name).toBe("Needt");
     expect(m.display).toBe("standalone");
-    expect(m.display_override[0]).toBe("standalone");
+    // minimal-ui would let iOS 26 wrap the app in the Safari controller
+    expect(m.display_override).toEqual(["standalone"]);
+    // the entry URL and the id sit inside the scope: leaving it is what makes
+    // iOS show the in-app browser bar
+    expect(m.scope).toBe("/");
+    expect(m.start_url.startsWith(m.scope)).toBe(true);
+    expect(m.id.startsWith(m.scope)).toBe(true);
+    expect(m.start_url).not.toMatch(/^https?:/);
     expect(m.orientation).toBe("portrait-primary");
     expect(m.background_color).toBe(m.theme_color);
     expect(m.icons.some((i: { type: string }) => i.type === "image/png")).toBe(

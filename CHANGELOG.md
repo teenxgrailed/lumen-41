@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
 - Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
   a native window with a transparent title bar, a menu-bar item (focus
   countdown, today's next tasks), a Dock badge for overdue tasks, a global

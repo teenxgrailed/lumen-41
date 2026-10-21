@@ -7,10 +7,30 @@ type PublicUrlRequest = {
   headers?: { get(name: string): string | null };
 };
 
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".test")
+  );
+}
+
+/**
+ * The origin of a URL, always https unless it is a local development host. An
+ * installed iOS home-screen app treats a redirect to http:// as leaving the
+ * app and wraps it in the Safari controller, so a misconfigured http
+ * NEXTAUTH_URL (or forwarded proto) must never reach a Location header.
+ */
 function originOf(value: string | undefined): string | null {
   if (!value?.trim()) return null;
   try {
-    return new URL(value.trim()).origin;
+    const url = new URL(value.trim());
+    if (url.protocol === "http:" && !isLocalHost(url.hostname)) {
+      url.protocol = "https:";
+    }
+    return url.origin;
   } catch {
     return null;
   }

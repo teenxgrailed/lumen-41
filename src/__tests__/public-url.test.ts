@@ -50,4 +50,27 @@ describe("public URL helpers", () => {
       "http://0.0.0.0:3000/calendar?view=week"
     );
   });
+
+  it("never builds an http redirect for a public host", () => {
+    process.env.NEXTAUTH_URL = "http://use.needt.app";
+    expect(publicAppUrl("/auth/signin", request).toString()).toBe(
+      "https://use.needt.app/auth/signin"
+    );
+    delete process.env.NEXTAUTH_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const headers = new Headers({
+      "x-forwarded-host": "use.needt.app",
+      "x-forwarded-proto": "http",
+    });
+    expect(publicAppUrl("/mail", { ...request, headers }).toString()).toBe(
+      "https://use.needt.app/mail"
+    );
+  });
+
+  it("keeps http for local development", () => {
+    process.env.NEXTAUTH_URL = "http://localhost:3000";
+    expect(publicAppUrl("/today", request).toString()).toBe(
+      "http://localhost:3000/today"
+    );
+  });
 });
