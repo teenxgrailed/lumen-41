@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import { hashPasswordResetToken } from "@/lib/auth/password-reset-token";
 import {
   forgetSessionState,
   revokeAllAccess,
@@ -65,10 +66,10 @@ export async function POST(request: NextRequest) {
     );
     if (limited) return limited;
 
-    // Find the reset token
+    // Find the reset token (stored as its sha256, never in the clear)
     const resetRequest = await prisma.passwordReset.findFirst({
       where: {
-        token,
+        token: hashPasswordResetToken(token),
         expiresAt: {
           gt: new Date(),
         },
