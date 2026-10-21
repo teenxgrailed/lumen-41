@@ -427,8 +427,7 @@ class MusicManager: ObservableObject {
     @MainActor private var pendingOptimisticPlayState: Bool?
 
     // Helper to check if macOS has removed support for NowPlayingController
-    public private(set) var isNowPlayingDeprecated: Bool = false
-    private let mediaChecker = MediaChecker()
+    public private(set) var isNowPlayingDeprecated: Bool = true
 
     // Active controller
     private var activeController: (any MediaControllerProtocol)?
@@ -560,14 +559,6 @@ class MusicManager: ObservableObject {
 
         // Initialize deprecation check asynchronously
         Task { @MainActor in
-            do {
-                self.isNowPlayingDeprecated = try await self.mediaChecker.checkDeprecationStatus()
-                print("Deprecation check completed: \(self.isNowPlayingDeprecated)")
-            } catch {
-                print("Failed to check deprecation status: \(error). Defaulting to false.")
-                self.isNowPlayingDeprecated = false
-            }
-            
             // Check if Pear Desktop is already running at startup
             let pearDesktopRunning = NSWorkspace.shared.runningApplications.contains {
                 $0.bundleIdentifier == Self.pearDesktopBundleID
@@ -645,21 +636,14 @@ class MusicManager: ObservableObject {
         let newController: (any MediaControllerProtocol)?
 
         switch type {
-        case .nowPlaying:
-            // Only create NowPlayingController if not deprecated on this macOS version
-            if !self.isNowPlayingDeprecated {
-                newController = NowPlayingController()
-            } else {
-                return nil
-            }
+        case .nowPlaying, .amazonMusic:
+            newController = AppleMusicController()
         case .appleMusic:
             newController = AppleMusicController()
         case .spotify:
             newController = SpotifyController()
         case .youtubeMusic:
             newController = YouTubeMusicController()
-        case .amazonMusic:
-            newController = AmazonMusicController()
         }
 
         // Set up state observation for the new controller

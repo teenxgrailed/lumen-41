@@ -1,7 +1,6 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
-import SkyLightWindow
 import QuartzCore
 
 struct MusicControlWindowMetrics: Equatable {
@@ -48,7 +47,7 @@ final class MusicControlWindowManager {
         lastMetrics = metrics
 
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             hasDelegated = true
         }
 

@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import SkyLightWindow
 import Defaults
 import QuartzCore
 
@@ -92,7 +91,7 @@ final class LockScreenWeatherPanelManager {
 
         window = newWindow
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(newWindow)
+            WindowLayerBridge.shared.attach(newWindow)
             hasDelegated = true
         }
         return newWindow

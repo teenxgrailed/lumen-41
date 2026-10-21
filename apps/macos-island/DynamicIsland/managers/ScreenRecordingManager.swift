@@ -4,28 +4,10 @@ import AppKit
 import Defaults
 import SwiftUI
 
-// MARK: - Private API Declarations
-// These private APIs provide direct screen capture detection
-// Use at your own risk - may break in future macOS versions
-
-@_silgen_name("CGSIsScreenWatcherPresent")
-func CGSIsScreenWatcherPresent() -> Bool
-
-@_silgen_name("CGSRegisterNotifyProc")
-func CGSRegisterNotifyProc(
-    _ callback: (@convention(c) (Int32, Int32, Int32, UnsafeMutableRawPointer?) -> Void)?,
-    _ event: Int32,
-    _ context: UnsafeMutableRawPointer?
-) -> Bool
-
-// MARK: - Global Callback Function
-// C function pointer cannot capture context, so we need a global function
 private func screenCaptureEventCallback(eventType: Int32, _: Int32, _: Int32, context: UnsafeMutableRawPointer?) {
     guard let context = context else { return }
     let manager = Unmanaged<ScreenRecordingManager>.fromOpaque(context).takeUnretainedValue()
-    
     DispatchQueue.main.async {
-        print("ScreenRecordingManager: 📢 Screen capture event received (type: \(eventType))")
         manager.checkRecordingStatus()
     }
 }
@@ -76,11 +58,12 @@ class ScreenRecordingManager: ObservableObject {
         
         isMonitoring = true
         
-        print("ScreenRecordingManager: 🟢 Starting screen capture monitoring (Private API)...")
+        print("ScreenRecordingManager: 🟢 Starting screen capture monitoring ...")
         
         // Setup event-driven capture detection using private CoreGraphics APIs
-        setupPrivateAPINotifications()
         
+        setupNotifications()
+
         // Check initial state
         checkRecordingStatus()
         
@@ -123,29 +106,16 @@ class ScreenRecordingManager: ObservableObject {
     }
     
     // MARK: - Private Methods
-    
-    /// Setup private API notifications for screen capture events
-    private func setupPrivateAPINotifications() {
-        // Pass self as context to the global callback function
+
+    private func setupNotifications() {
         let context = Unmanaged.passUnretained(self).toOpaque()
-        
-        // Register for remote session events (screen capture start/stop)
-        // kCGSessionRemoteConnect - fires when screen sharing/recording starts
-        let registered1 = CGSRegisterNotifyProc(screenCaptureEventCallback, 1502, context)
-        
-        // kCGSessionRemoteDisconnect - fires when screen sharing/recording stops
-        let registered2 = CGSRegisterNotifyProc(screenCaptureEventCallback, 1503, context)
-        
-        if registered1 && registered2 {
-            print("ScreenRecordingManager: ✅ Private API notifications registered")
-        } else {
-            print("ScreenRecordingManager: ⚠️ Failed to register private API notifications")
-        }
+        _ = SystemBridge.registerNotify?(screenCaptureEventCallback, 1502, context)
+        _ = SystemBridge.registerNotify?(screenCaptureEventCallback, 1503, context)
     }
-    
-    /// Check current recording status using private API
+
+    /// Check current recording status
     func checkRecordingStatus() {
-        let currentRecordingState = CGSIsScreenWatcherPresent()
+        let currentRecordingState = SystemBridge.screenWatcherPresent?() ?? false
         
         // Debug: Always log current check
         print("ScreenRecordingManager: 🔍 Checking... current=\(isRecording), detected=\(currentRecordingState)")

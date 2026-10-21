@@ -1,20 +1,44 @@
 import ApplicationServices
 import Defaults
-import MacroVisionKit
 import SwiftUI
+
+struct FullscreenWindowInfo {
+    let processId: pid_t
+    let bundleIdentifier: String?
+    let screen: NSScreen
+}
 
 class FullscreenMediaDetector: ObservableObject {
     static let shared = FullscreenMediaDetector()
-    private let detector: MacroVisionKit
     @ObservedObject private var musicManager = MusicManager.shared
     @MainActor @Published private(set) var fullscreenStatus: [String: Bool] = [:]
     private var notificationTask: Task<Void, Never>?
 
     private init() {
-        self.detector = MacroVisionKit.shared
-        detector.configuration.includeSystemApps = true
         setupNotificationObservers()
         updateFullScreenStatus()
+    }
+
+    /// Finds on-screen app windows that cover an entire display.
+    private func detectFullscreenApps() -> [FullscreenWindowInfo] {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return [] }
+        var result: [FullscreenWindowInfo] = []
+        for info in list {
+            guard (info[kCGWindowLayer as String] as? Int) == 0,
+                  let pid = info[kCGWindowOwnerPID as String] as? pid_t,
+                  let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: boundsDict) else { continue }
+            for screen in NSScreen.screens {
+                guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { continue }
+                let displayBounds = CGDisplayBounds(displayID)
+                if bounds.width >= displayBounds.width, bounds.height >= displayBounds.height,
+                   bounds.intersects(displayBounds) {
+                    let bundleID = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
+                    result.append(FullscreenWindowInfo(processId: pid, bundleIdentifier: bundleID, screen: screen))
+                }
+            }
+        }
+        return result
     }
 
     private func setupNotificationObservers() {
@@ -58,7 +82,7 @@ class FullscreenMediaDetector: ObservableObject {
         }
         
 
-        let apps = detector.detectFullscreenApps(debug: false)
+        let apps = detectFullscreenApps()
         let names = NSScreen.screens.map { $0.localizedName }
         let hideOption = Defaults[.hideNotchOption]
 
@@ -97,7 +121,7 @@ class FullscreenMediaDetector: ObservableObject {
     /// fullscreen window report nearly identical frames, so frame size alone can't tell them
     /// apart — the Accessibility `AXFullScreen` attribute can. Falls back to the detector's
     /// frame-based result when Accessibility isn't trusted (so behavior doesn't silently break).
-    private func isInNativeFullscreen(_ app: MacroVisionKit.FullscreenWindowInfo) -> Bool {
+    private func isInNativeFullscreen(_ app: FullscreenWindowInfo) -> Bool {
         guard AXIsProcessTrusted() else { return true }
 
         let appElement = AXUIElementCreateApplication(app.processId)

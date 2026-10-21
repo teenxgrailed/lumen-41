@@ -1,6 +1,5 @@
 import AppKit
 import Defaults
-import SkyLightWindow
 import SwiftUI
 import QuartzCore
 
@@ -176,7 +175,7 @@ class LockScreenLiveActivityWindowManager {
         window.displayIfNeeded()
 
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             hasDelegated = true
         }
 

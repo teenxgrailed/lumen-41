@@ -3,7 +3,6 @@ import Combine
 import Defaults
 import SwiftUI
 import AppKit
-import SkyLightWindow
 import QuartzCore
 
 @MainActor
@@ -223,7 +222,7 @@ final class LockScreenTimerWidgetPanelManager {
         window = newWindow
 
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(newWindow)
+            WindowLayerBridge.shared.attach(newWindow)
             hasDelegated = true
         }
 

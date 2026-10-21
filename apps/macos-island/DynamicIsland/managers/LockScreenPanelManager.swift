@@ -1,6 +1,5 @@
 import SwiftUI
 import AppKit
-import SkyLightWindow
 import Defaults
 import QuartzCore
 import Combine
@@ -148,11 +147,11 @@ class LockScreenPanelManager {
         }
 
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             hasDelegated = true
         }
 
-        // Keep the window alive and simply order it out on unlock to avoid SkyLight crashes.
+        // Keep the window alive and simply order it out on unlock.
         window.orderFrontRegardless()
 
         DispatchQueue.main.async { [weak self] in

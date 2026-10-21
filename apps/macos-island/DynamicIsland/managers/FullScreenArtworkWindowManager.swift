@@ -3,7 +3,6 @@ import AVFoundation
 import Combine
 import CoreImage
 import Defaults
-import SkyLightWindow
 import SwiftUI
 
 // MARK: - Click Receiver Window
@@ -1216,7 +1215,7 @@ final class FullScreenArtworkWindowManager: ObservableObject {
         }
 
         if !clickWindowDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             clickWindowDelegated = true
         }
 
@@ -1279,7 +1278,7 @@ final class FullScreenArtworkWindowManager: ObservableObject {
         }
 
         if !artworkOverlayWindowDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             artworkOverlayWindowDelegated = true
         }
 
@@ -1375,7 +1374,7 @@ final class FullScreenArtworkWindowManager: ObservableObject {
         hostingView.rootView = content
 
         if !lyricsOverlayWindowDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             lyricsOverlayWindowDelegated = true
         }
 

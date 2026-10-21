@@ -3,7 +3,6 @@ import Combine
 import Defaults
 import KeyboardShortcuts
 import SwiftUI
-import SkyLightWindow
 
 @main
 struct DynamicNotchApp: App {
@@ -290,11 +289,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Rebuilds the notch's CGSSpace membership from the current hide option and the
+    /// Rebuilds the notch's notch window set from the current hide option and the
     /// live windows. The space pins the notch above every space (fullscreen included)
     /// and is used **only** for "Never hide"; the hide options keep the set empty so
     /// FullscreenMediaDetector can hide the notch. Assigning the whole set lets the
-    /// CGSSpace diff additions/removals, so this is safe to call on any change.
+    /// window-set diff additions/removals, so this is safe to call on any change.
     @MainActor
     private func syncNotchSpaceMembership() {
         guard Defaults[.hideNotchOption] == .never else {
@@ -344,7 +343,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if Defaults[.hideNotchOption] == .never {
             NotchSpaceManager.shared.notchSpace.windows.insert(window)
         }
-        //SkyLightOperator.shared.delegateWindow(window)
         return window
     }
 
@@ -729,7 +727,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
 
         // Pin/unpin the notch above all spaces when the hide option changes:
-        // "Never hide" joins the max-level CGSSpace, the hide options leave it.
+        // "Never hide" joins the max-level window set, the hide options leave it.
         Defaults.publisher(.hideNotchOption, options: []).sink { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.syncNotchSpaceMembership()

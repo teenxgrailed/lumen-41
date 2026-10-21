@@ -1,7 +1,6 @@
 #if os(macOS)
 import AppKit
 import SwiftUI
-import SkyLightWindow
 import QuartzCore
 
 struct TimerControlWindowMetrics: Equatable {
@@ -52,7 +51,7 @@ final class TimerControlWindowManager {
         lastMetrics = metrics
 
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(window)
+            WindowLayerBridge.shared.attach(window)
             hasDelegated = true
         }
 

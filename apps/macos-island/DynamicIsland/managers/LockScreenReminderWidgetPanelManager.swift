@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import SkyLightWindow
 import QuartzCore
 import Defaults
 
@@ -94,7 +93,7 @@ final class LockScreenReminderWidgetPanelManager {
 
         window = newWindow
         if !hasDelegated {
-            SkyLightOperator.shared.delegateWindow(newWindow)
+            WindowLayerBridge.shared.attach(newWindow)
             hasDelegated = true
         }
         return newWindow
