@@ -70,6 +70,13 @@ def swipe(x1, y1, x2, y2, duration=0.3):
     idb("ui", "swipe", str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), "--duration", str(duration))
 
 
+def type_slowly(text):
+    # one key at a time: bulk typing drops characters when the simulator lags
+    for ch in text:
+        idb("ui", "text", ch, check=False)
+        time.sleep(0.8)
+
+
 if __name__ == "__main__":
     cmd, args = sys.argv[1], sys.argv[2:]
     if cmd == "dump":
@@ -101,15 +108,15 @@ if __name__ == "__main__":
         # nothing); what the typing test showed to work.
         tap(w / 2, h * 0.44)
         time.sleep(10)
-        idb("ui", "text", email)
-        time.sleep(25)
+        type_slowly(email)
+        time.sleep(8)
         shot("2-email")
         tap(w / 2, h * 0.54)
         time.sleep(8)
         tap(w / 2, h * 0.54)  # the first touch after the keyboard opened can be swallowed
         time.sleep(10)
         shot("2b-password-focus")
-        idb("ui", "text", password)
-        time.sleep(25)
+        type_slowly(password)
+        time.sleep(8)
         shot("3-password")
         idb("ui", "key", "40")  # Return submits the form
