@@ -779,9 +779,13 @@ describe("a full-time task ticked during its session", () => {
     await runFor({ fullTimeOn: true });
     expect(q("[data-fc-full-time-ask]")).toBeNull();
     await markDoneElsewhere();
-    expect(q("[data-fc-full-time-ask] .fc-end-line")!.textContent).toContain(
-      "20 min left on Write the brief"
+    expect(q("[data-fc-full-time-ask] b")!.textContent).toBe("20 min left");
+    expect(q("[data-fc-full-time-ask]")!.className).toContain("fd-ask");
+    expect(q("[data-fc-full-time-ask] .h > div > span")!.textContent).toBe(
+      "Write the brief is set to run the full 25 min."
     );
+    // Keep going is the primary
+    expect(q("[data-fc-full-time-keep]")!.className).toContain("is-primary");
     await click("[data-fc-full-time-keep]");
     expect(q("[data-fc-full-time-ask]")).toBeNull();
     // the session itself carries on

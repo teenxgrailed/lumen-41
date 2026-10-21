@@ -45,4 +45,9 @@ describe("the phone sheet's 'Do for the full time' choice", () => {
     expect(src).toContain("choose({ fullTime: true })");
     expect(src).toContain("title: FULL_TIME_LABEL");
   });
+
+  it("is locked, with the Auto tag, for a habit's task or a repeating one", () => {
+    expect(src).toContain("!!t.fullTimeAuto");
+    expect(src).toContain("{FULL_TIME_AUTO_TAG}");
+  });
 });

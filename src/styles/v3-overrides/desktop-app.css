@@ -1,14 +1,28 @@
 /* The desktop app (apps/desktop).
  *
  * DesktopBridge sets `data-desktop` on <html> inside the Tauri shell and
- * nowhere else, so none of this reaches a browser tab. On macOS the title bar
- * is the app's own top bar: the window's traffic lights sit over its left end
- * (the shell places them at x 18, y 20), so the bar leaves that room before
- * the sidebar toggle. Windows keeps its native title bar and needs nothing.
+ * nowhere else, so none of this reaches a browser tab. Spec:
+ * additions-2/desktop-chrome (dk-chrome.css / dk-chrome.jsx, 21.10.26).
+ *
+ * TITLE BAR. On macOS the title bar is the app's own top bar: the window's
+ * traffic lights sit over its left end (the shell places them at x 18, y 20),
+ * so the bar leaves that room and the sidebar toggle starts at x 78 (its
+ * 18 px icon is centred at x 93, level with the lights). The whole 52 px bar
+ * is the drag region (DesktopBridge marks it); its buttons, the search field
+ * and the menus are not. Windows keeps its native title bar and needs nothing.
+ *
+ * VIBRANCY (macOS only; owner decision 21.10.26, which lifts PORT.md section
+ * 0's opaque-ground rule for the native sidebar and nothing else). The shell
+ * makes the window transparent with the under-window material behind it and
+ * reports it (`data-vibrancy="on"`, set only when the shell really did). The
+ * sidebar then lets the desktop through, blurred and tinted; the content
+ * panes, the top bar to the right of the sidebar and everything that floats
+ * stay opaque. Windows, a browser, and a page served to a shell without
+ * vibrancy never match these rules.
  */
 
 html[data-desktop="mac"] .needt-v3 .shell-tab-bar-tab-bar {
-  padding-left: 96px;
+  padding-left: 76px;
 }
 
 /* The window frame is chrome, not a page: nothing in it selects or rubber-bands. */
@@ -27,4 +41,58 @@ html[data-desktop] .needt-v3 ::-webkit-scrollbar-thumb {
 }
 html[data-desktop] .needt-v3 :hover::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
+}
+
+/* ---- Vibrancy: the sidebar column ------------------------------------- */
+
+/* The page behind the app is the window's own material now. */
+html[data-desktop="mac"][data-vibrancy="on"],
+html[data-desktop="mac"][data-vibrancy="on"] body {
+  background: transparent !important;
+}
+html[data-desktop="mac"][data-vibrancy="on"] .ambient-backdrop {
+  display: none;
+}
+
+/* The tint over the material, and the 1 px edge against the content. */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 {
+  --dk-tint: rgba(246, 246, 248, 0.62);
+  --dk-edge: rgba(0, 0, 0, 0.08);
+}
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3[data-theme="dark"] {
+  --dk-tint: rgba(28, 28, 32, 0.58);
+  --dk-edge: rgba(255, 255, 255, 0.07);
+}
+
+/* The wide rail only: the floating rail (narrow windows) and the document rail
+   keep their opaque ground. */
+html[data-desktop="mac"][data-vibrancy="on"]
+  .needt-v3
+  .shell-app-row-2
+  .shell-sidebar-stack {
+  background: var(--dk-tint);
+  box-shadow: inset -1px 0 0 var(--dk-edge);
+}
+
+/* The top bar is the page's ground ... */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .tab-bar {
+  background: var(--background);
+}
+/* ... except over the open, wide sidebar, where it is the same tinted glass
+   as the column below it. */
+@media (min-width: 1100px) {
+  html[data-desktop="mac"][data-vibrancy="on"][data-sidebar="open"]
+    .needt-v3
+    .tab-bar {
+    background: linear-gradient(
+      to right,
+      var(--dk-tint) var(--sidebar-w),
+      var(--background) var(--sidebar-w)
+    );
+  }
+}
+
+/* What used to lean on the page's colour behind it stays opaque. */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .chat-dock-slot {
+  background: var(--background);
 }

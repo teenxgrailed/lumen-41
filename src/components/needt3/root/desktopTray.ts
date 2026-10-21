@@ -5,16 +5,39 @@ import type { V3Task } from "@/lib/needt3/map";
 import { hourOn } from "@/lib/needt3/task-day";
 
 import { splitHome } from "../home/derive";
-import { badgeCount } from "./appBadge";
+import { badgeCount, overdueCount } from "./appBadge";
 
 /** What the desktop app's menu-bar menu shows (apps/desktop reads this). */
 export interface DesktopTrayState {
-  /** Today's open tasks plus the overdue ones: the Dock badge. */
+  /** Today's open tasks plus the overdue ones: the menu's "Today · N open". */
   open: number;
+  /** The overdue ones alone: the Dock badge (hidden at 0). */
+  overdue: number;
   /** The next few of them, in the order the day will reach them. */
   next: { id: string; title: string; time: string | null }[];
   /** A running focus session, in words; null when none runs. */
   focus: string | null;
+  /** The same session as numbers, for the menu and the menu-bar countdown. */
+  focusRun: DesktopFocusRun | null;
+}
+
+/**
+ * A running session for the menu bar. The shell ticks the countdown itself,
+ * once a second, from `endsAt` (an absolute time, so a page that reports once
+ * a minute stays exact); `leftSec` is what a paused session has left. A
+ * session with no planned length has neither and shows no countdown.
+ */
+export interface DesktopFocusRun {
+  kind: "Focus" | "Break";
+  /** What it is on: the intention, else the task's title. */
+  title: string;
+  /** Epoch ms the planned time runs out; null when paused or open-ended. */
+  endsAt: number | null;
+  /** Seconds left while paused; null otherwise. */
+  leftSec: number | null;
+  /** The planned length in seconds; null when open-ended. */
+  totalSec: number | null;
+  paused: boolean;
 }
 
 export const TRAY_TASK_LIMIT = 3;
@@ -70,6 +93,33 @@ export function focusLine(
   return `${what} ${Math.max(1, Math.ceil(run.leftSec / 60))} min left`;
 }
 
+export function focusRunOf(
+  row: FocusRow | null | undefined,
+  nowMs: number,
+  tasks: readonly V3Task[] = []
+): DesktopFocusRun | null {
+  if (!row) return null;
+  const run = runOf(row, nowMs);
+  const task = row.taskId ? tasks.find((t) => t.id === row.taskId) : undefined;
+  const title = (row.intention?.trim() || task?.title.trim() || "").replace(
+    /\s+/g,
+    " "
+  );
+  return {
+    kind: run.isBreak ? "Break" : "Focus",
+    title: title.length > 120 ? `${title.slice(0, 119)}…` : title,
+    // Whole seconds, so the page's once-a-minute reports do not jitter.
+    endsAt:
+      !run.paused && run.leftSec != null
+        ? Math.round((nowMs + run.leftSec * 1000) / 1000) * 1000
+        : null,
+    leftSec: run.paused ? run.leftSec : null,
+    totalSec:
+      row.plannedMinutes != null ? Math.round(row.plannedMinutes * 60) : null,
+    paused: run.paused,
+  };
+}
+
 export function trayState(input: {
   tasks: readonly V3Task[] | undefined;
   today: string;
@@ -78,9 +128,12 @@ export function trayState(input: {
   nowMs?: number;
 }): DesktopTrayState | null {
   if (!input.tasks) return null;
+  const nowMs = input.nowMs ?? newDate().getTime();
   return {
     open: badgeCount(input.tasks, input.today),
+    overdue: overdueCount(input.tasks, input.today),
     next: nextTasks(input.tasks, input.today, input.nowHour),
-    focus: focusLine(input.focus, input.nowMs ?? newDate().getTime()),
+    focus: focusLine(input.focus, nowMs),
+    focusRun: focusRunOf(input.focus, nowMs, input.tasks),
   };
 }
