@@ -13,6 +13,10 @@ struct NeedtApp: App {
             MenuBarLabel(tray: AppController.shared.tray)
         }
         .menuBarExtraStyle(.menu)
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 
@@ -31,10 +35,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = Connectivity.shared
         Notifier.shared.start()
         Updater.shared.start()
         installMainMenu()
         AppController.shared.start()
+        Task { await AppController.shared.tray.focusFilterChanged() }
         // SwiftUI installs its own menu bar around the scene; keep ours on top.
         DispatchQueue.main.async { [weak self] in self?.installMainMenu() }
     }
@@ -56,6 +62,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls where url.scheme == "needt" {
             AppController.shared.auth.handleDeepLink(url)
         }
+    }
+
+    /// A click on a task in Spotlight.
+    @MainActor
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
+        guard let id = SpotlightIndex.taskID(from: userActivity) else { return false }
+        AppController.shared.openTask(id: id)
+        return true
     }
 
     // Closing the window keeps the app in the menu bar.

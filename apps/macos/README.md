@@ -127,13 +127,43 @@ refuses to replace an app signed by a different identity.
 - The Sparkle keypair (above) and the appcast hosting.
 - A real-Mac pass: everything native here was built in CI only.
 
+## System integration
+
+| Feature         | How                                                                                                                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| App Intents     | `Needt/Sources/Intents`: Add task, Complete task, Start focus, End focus, What's today, What's next, Replan day, Log habit, with phrases for Siri and Spotlight. Same HTTP API as the web app, signed in by the session vault |
+| Spotlight       | Open tasks are indexed (CoreSpotlight, up to 200); a click opens the task in the main window                                                                                                                              |
+| Focus to macOS  | Settings, Focus: the name of a Shortcut to run when a Needt focus starts and one for when it ends (`shortcuts://run-shortcut`). Make them with the Set Focus action                                                       |
+| macOS to Needt  | System Settings, Focus, Focus Filters, Needt: suggest the next task of a project in the menu, or start the focus. Unverified on a real Mac: whether the system also calls the filter with its defaults when the Focus ends |
+| Menu bar text   | `24:10 · task` only while a focus runs (`Text(timerInterval:)`, no timer in the app); the icon alone otherwise                                                                                                            |
+| Share extension | `Share/`: URL or text, title = page title or first line, link in the notes                                                                                                                                                |
+| Offline         | `NeedtKit.OfflineCache` keeps the last day report and task list; the menu and the offline screen show them read-only with "Offline · updated HH:mm"; Quick add, pause, end and start focus are disabled. No edit queue      |
+| Sandbox         | Every target has `app-sandbox`, `network.client`, `application-groups`; the apps also `files.user-selected.read-only` and camera and microphone for the page                                                              |
+
+The session for intents and the Share extension is copied from the web view
+into `NeedtKit.CookieVault`: a 0600 file in the App Group container (the
+keychain access group is supported by the vault but needs a provisioning
+profile, so it stays off). The app group is `<TeamID>.app.needt.mac`, set by
+the signing team; unsigned builds fall back to a private folder, where the
+Share extension cannot see the session.
+
+### Mac App Store
+
+`xcodegen generate` makes two app targets from the same sources: `Needt`
+(Developer ID, Sparkle) and `NeedtAppStore` (compilation flag `APPSTORE`, no
+Sparkle package, no update menu item, no mach-lookup exception). Both embed the
+Share extension. CI builds both unsigned, checks that the store build has no
+Sparkle, checks the generated entitlements, and fails on private-API patterns
+(the old `drawsBackground` KVC is gone; the window is opaque).
+
+Needs the owner: an Apple Developer Program team, the App ID `app.needt.mac`
+and `app.needt.mac.share`, the app group `<TeamID>.app.needt.mac`, a Mac App
+Distribution certificate and provisioning profiles, then archive
+`NeedtAppStore` and upload with Transporter. Pro is sold on the site only.
+
 ## Phase 2 (not in this PR)
 
 - WidgetKit widgets (Today, focus) reading `NeedtKit`.
-- App Intents and Shortcuts (add task, start focus, open Today).
-- Spotlight (CoreSpotlight) task and doc search.
-- Share extension ("Add to Needt").
-- Focus filters.
 - Handoff between the Mac app, the iOS app and the web.
 - Vibrancy on (web side), downloads, the Dock icon chosen in Settings
   (`app-icon` setting; `NSApplication.applicationIconImage`).

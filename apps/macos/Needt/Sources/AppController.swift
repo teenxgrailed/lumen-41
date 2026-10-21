@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import NeedtKit
 import SwiftUI
 
 /// Owns the windows and what flows between them: the start window, the main
@@ -31,6 +32,7 @@ final class AppController {
             self?.showQuickAdd()
         }
         if auth.isSignedInBefore {
+            SessionSync.push(force: true)
             showMain()
         } else {
             showStart()
@@ -170,9 +172,31 @@ final class AppController {
         main?.web.reload()
     }
 
+    /// A Spotlight click on a task: open the window, then ask the page for it.
+    /// A window made just now has no page to receive the command yet.
+    func openTask(id: String) {
+        guard auth.isSignedInBefore, TrayState.validID(id) else { return }
+        let fresh = main == nil
+        showMain()
+        if fresh {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                self.sendCommand(["type": "open-task", "id": id])
+            }
+        } else {
+            sendCommand(["type": "open-task", "id": id])
+        }
+    }
+
     func showQuickAdd() {
-        guard auth.isSignedInBefore else { return }
+        guard auth.isSignedInBefore, Connectivity.shared.isOnline else { return }
         quickAdd.show()
+    }
+
+    /// The SwiftUI Settings scene (focus Shortcuts), apart from the web app's settings.
+    func showMacSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     func openWebsite() {

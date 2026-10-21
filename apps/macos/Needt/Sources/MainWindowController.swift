@@ -10,8 +10,6 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
     static let titleBarHeight: CGFloat = 52
 
     let web: NeedtWebView
-    private let effectView: NSVisualEffectView
-    private var vibrancyOn = false
 
     init(url: URL) {
         let window = NSWindow(
@@ -27,22 +25,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
         window.minSize = NSSize(width: 900, height: 600)
         window.collectionBehavior = [.fullScreenPrimary]
 
-        // Behind the page: the system's window material, shown only when the
-        // page marks html[data-vibrancy="on"] (sidebar ground transparent).
-        let effect = NSVisualEffectView()
-        effect.material = .underWindowBackground
-        effect.blendingMode = .behindWindow
-        effect.state = .followsWindowActiveState
-        effect.autoresizingMask = [.width, .height]
-        effect.isHidden = true
-
+        // Opaque window: the page paints its own ground everywhere.
         let container = NSView()
         container.autoresizingMask = [.width, .height]
         window.contentView = container
-        effect.frame = container.bounds
-        container.addSubview(effect)
 
-        self.effectView = effect
         self.web = NeedtWebView()
         super.init(window: window)
         window.delegate = self
@@ -121,17 +108,6 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
 
     func bridgeDidRequestZoom() {
         window?.performZoom(nil)
-    }
-
-    /// Vibrancy under the page, only where the page asks for it. On: the
-    /// window stops being opaque and the material shows through the page's
-    /// transparent parts. Off: a plain opaque window.
-    func bridgeDidSetVibrancy(_ on: Bool) {
-        guard on != vibrancyOn, let window else { return }
-        vibrancyOn = on
-        effectView.isHidden = !on
-        window.isOpaque = !on
-        window.backgroundColor = on ? .clear : .windowBackgroundColor
     }
 
     // MARK: actions

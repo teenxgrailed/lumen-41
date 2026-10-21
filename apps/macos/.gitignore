@@ -4,3 +4,4 @@ out/
 DerivedData/
 xcuserdata/
 .DS_Store
+Generated/

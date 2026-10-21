@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
+  start and end focus, what's today, what's next, replan day, log habit) and
+  your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to
+  switch a macOS Focus on or off, and a macOS Focus can suggest or start the
+  focus task (Focus filter); the menu bar shows "24:10 · task" only while a
+  focus runs; "Add to Needt" in the Share menu turns a link or text into a
+  task; offline, the menu shows the last day read-only ("Offline · updated
+  14:05") and writes say why they are off; the app is sandboxed and has a Mac
+  App Store configuration without the updater.
 - Place switches show the skeleton of the place being opened (after 150 ms, in
   the page's own slot, not a full-screen card) instead of the old screen frozen
   while the server answers; desktop and phone, still under reduced motion.

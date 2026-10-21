@@ -171,6 +171,7 @@ final class AuthFlow: ObservableObject {
         timeout?.cancel()
         writeMarker()
         step = .start
+        SessionSync.push(force: true)
         AppController.shared.signInFinished()
     }
 
@@ -179,6 +180,7 @@ final class AuthFlow: ObservableObject {
     /// marker and goes back to its own start window.
     func signedOut() {
         removeMarker()
+        SessionSync.clear()
         pending = nil
         timeout?.cancel()
         step = .start

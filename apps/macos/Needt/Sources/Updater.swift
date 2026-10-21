@@ -1,5 +1,5 @@
 import AppKit
-#if canImport(Sparkle)
+#if canImport(Sparkle) && !APPSTORE
 import Sparkle
 #endif
 
@@ -10,7 +10,7 @@ import Sparkle
 final class Updater {
     static let shared = Updater()
 
-    #if canImport(Sparkle)
+    #if canImport(Sparkle) && !APPSTORE
     private var controller: SPUStandardUpdaterController?
     #endif
 
@@ -23,7 +23,7 @@ final class Updater {
     }
 
     var isConfigured: Bool {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         return Updater.publicKey != nil
         #else
         return false
@@ -31,14 +31,14 @@ final class Updater {
     }
 
     func start() {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         guard Updater.publicKey != nil, controller == nil else { return }
         controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         #endif
     }
 
     func checkForUpdates() {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         controller?.checkForUpdates(nil)
         #endif
     }
