@@ -5,356 +5,61 @@
  * (--v2p-*), .ai-desk the dialog (--surface-*). The toast of the spec is the
  * app's own `notify` toast, so its rules are not carried over.
  * Corrections to the spec are at the end, marked V-*. */
-.needt-v3 .ai-phone {
-  --ai-ink: var(--v2p-ink);
-  --ai-ink-2: var(--v2p-ink-2);
-  --ai-ink-3: var(--v2p-ink-3);
-  --ai-ground: var(--v2p-card);
-  --ai-raise: var(--v2p-raise);
-  --ai-line: var(--v2p-line);
-  --ai-mark: var(--v2p-lav);
-  --ai-t: 88px;
-}
-.needt-v3 .ai-desk {
-  --ai-ink: var(--text-primary);
-  --ai-ink-2: var(--text-tertiary);
-  --ai-ink-3: var(--text-muted);
-  --ai-ground: var(--surface-raised);
-  --ai-raise: var(--fill-3);
-  --ai-line: var(--fill-5);
-  --ai-mark: var(--accent);
-  --ai-t: 76px;
-}
-.needt-v3 .ai-phone,
-.needt-v3 .ai-desk {
-  color: var(--ai-ink);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-}
-.needt-v3 .ai-phone *,
-.needt-v3 .ai-desk * {
-  box-sizing: border-box;
-}
-.needt-v3 .ai-scrim {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 14, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: ai-fade 220ms ease both;
-}
-.needt-v3 .ai-phone .ai-scrim {
-  align-items: flex-end;
-}
-@keyframes ai-fade {
-  from {
-    opacity: 0;
-  }
-}
-.needt-v3 .ai-sheet {
-  position: relative;
-  width: 600px;
-  max-width: 100%;
-  max-height: 100%;
-  overflow: auto;
-  background: var(--ai-ground);
-  border-radius: 20px;
-  box-shadow:
-    0 40px 100px -30px rgba(0, 0, 0, 0.6),
-    0 0 0 1px var(--ai-line);
-  animation: ai-rise 320ms cubic-bezier(0.2, 0.9, 0.24, 1) both;
-}
-.needt-v3 .ai-phone .ai-sheet {
-  width: 100%;
-  border-radius: 30px 30px 0 0;
-  padding-bottom: 26px;
-  animation-name: ai-up;
-}
-@keyframes ai-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-}
-@keyframes ai-up {
-  from {
-    transform: translateY(60px);
-    opacity: 0;
-  }
-}
-.needt-v3 .ai-grab {
-  width: 36px;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--ai-ink-3);
-  opacity: 0.6;
-  margin: 10px auto 0;
-}
-.needt-v3 .ai-desk .ai-grab {
-  display: none;
-}
+.needt-v3 .ai-phone { --ai-ink: var(--v2p-ink); --ai-ink-2: var(--v2p-ink-2); --ai-ink-3: var(--v2p-ink-3); --ai-ground: var(--v2p-card); --ai-raise: var(--v2p-raise); --ai-line: var(--v2p-line); --ai-mark: var(--v2p-lav); --ai-t: 88px; }
+.needt-v3 .ai-desk { --ai-ink: var(--text-primary); --ai-ink-2: var(--text-tertiary); --ai-ink-3: var(--text-muted); --ai-ground: var(--surface-raised); --ai-raise: var(--fill-3); --ai-line: var(--fill-5); --ai-mark: var(--accent); --ai-t: 76px; }
+.needt-v3 .ai-phone, .needt-v3 .ai-desk { color: var(--ai-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.needt-v3 .ai-phone *, .needt-v3 .ai-desk * { box-sizing: border-box; }
+.needt-v3 .ai-scrim { position: absolute; inset: 0; background: rgba(10,10,14,.4); display: flex; align-items: center; justify-content: center; animation: ai-fade 220ms ease both; }
+.needt-v3 .ai-phone .ai-scrim { align-items: flex-end; }
+@keyframes ai-fade { from { opacity: 0; } }
+.needt-v3 .ai-sheet { position: relative; width: 600px; max-width: 100%; max-height: 100%; overflow: auto; background: var(--ai-ground); border-radius: 20px; box-shadow: 0 40px 100px -30px rgba(0,0,0,.6), 0 0 0 1px var(--ai-line); animation: ai-rise 320ms cubic-bezier(.2,.9,.24,1) both; }
+.needt-v3 .ai-phone .ai-sheet { width: 100%; border-radius: 30px 30px 0 0; padding-bottom: 26px; animation-name: ai-up; }
+@keyframes ai-rise { from { opacity: 0; transform: translateY(12px) scale(.985); } }
+@keyframes ai-up { from { transform: translateY(60px); opacity: 0; } }
+.needt-v3 .ai-grab { width: 36px; height: 5px; border-radius: 3px; background: var(--ai-ink-3); opacity: .6; margin: 10px auto 0; }
+.needt-v3 .ai-desk .ai-grab { display: none; }
 /* hero: the chosen icon, large, on its own light — the reason to open this sheet */
-.needt-v3 .ai-hero {
-  position: relative;
-  height: 230px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 20px 20px 0 0;
-}
-.needt-v3 .ai-phone .ai-hero {
-  height: 250px;
-  border-radius: 0;
-  margin-top: 4px;
-}
-.needt-v3 .ai-hero-bg {
-  position: absolute;
-  inset: -40px;
-  filter: blur(60px) saturate(1.3);
-  opacity: 0.55;
-  transform: scale(1.2);
-  transition: background-image 300ms;
-  background-size: cover;
-  background-position: center;
-}
-.needt-v3 .ai-hero img {
-  position: relative;
-  width: 136px;
-  height: 136px;
-  filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.35));
-  animation: ai-pop 420ms cubic-bezier(0.2, 0.9, 0.24, 1);
-}
-@keyframes ai-pop {
-  0% {
-    transform: scale(0.86) rotate(-4deg);
-  }
-  60% {
-    transform: scale(1.04) rotate(1deg);
-  }
-  100% {
-    transform: none;
-  }
-}
-.needt-v3 .ai-hero-name {
-  position: absolute;
-  bottom: 16px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font: 600 15px/1 var(--font-sans);
-}
-.needt-v3 .ai-hero-name span {
-  font: 400 13px/1 var(--font-sans);
-  color: var(--ai-ink-2);
-  margin-left: 6px;
-}
-.needt-v3 .ai-x {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.18);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-.needt-v3 .ai-body {
-  padding: 18px 22px 6px;
-}
-.needt-v3 .ai-phone .ai-body {
-  padding: 16px 16px 4px;
-}
-.needt-v3 .ai-h {
-  margin: 0 0 4px;
-  font: 600 20px/1.2 var(--font-sans);
-  letter-spacing: -0.01em;
-}
-.needt-v3 .ai-p {
-  margin: 0 0 14px;
-  font: 400 14px/1.45 var(--font-sans);
-  color: var(--ai-ink-2);
-}
-.needt-v3 .ai-sec {
-  margin: 16px 2px 10px;
-  font: 600 12px/1 var(--font-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ai-ink-2);
-}
-.needt-v3 .ai-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--ai-t), 1fr));
-  gap: 14px 10px;
-}
-.needt-v3 .ai-phone .ai-grid {
-  grid-template-columns: repeat(4, 1fr);
-}
-.needt-v3 .ai-opt {
-  position: relative;
-  border: 0;
-  background: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  color: var(--ai-ink);
-  font: 500 12px/1.2 var(--font-sans);
-}
-.needt-v3 .ai-opt img {
-  width: var(--ai-t);
-  height: var(--ai-t);
-  display: block;
-  border-radius: 22%;
-  transition:
-    transform 160ms cubic-bezier(0.2, 0.9, 0.24, 1),
-    box-shadow 160ms;
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.45);
-}
-.needt-v3 .ai-phone .ai-opt img {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-}
-.needt-v3 .ai-opt:hover img {
-  transform: translateY(-2px);
-}
-.needt-v3 .ai-opt:active img {
-  transform: scale(0.95);
-}
-.needt-v3 .ai-opt[aria-checked="true"] img {
-  box-shadow:
-    0 0 0 3px var(--ai-ground),
-    0 0 0 5.5px var(--ai-ink);
-}
-.needt-v3 .ai-opt .ai-badge {
-  position: absolute;
-  top: -5px;
-  right: -3px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: var(--ai-ink);
-  color: var(--ai-ground);
-  font: 700 9.5px/18px var(--font-sans);
-  letter-spacing: 0.06em;
-  box-shadow: 0 0 0 2px var(--ai-ground);
-}
-.needt-v3 .ai-opt .ai-check {
-  position: absolute;
-  top: calc(var(--ai-t) - 20px);
-  right: 2px;
-  width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  background: var(--ai-ink);
-  color: var(--ai-ground);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 2px var(--ai-ground);
-}
-.needt-v3 .ai-phone .ai-opt .ai-check {
-  top: auto;
-  bottom: 22px;
-}
-.needt-v3 .ai-opt span.n {
-  color: var(--ai-ink-2);
-}
-.needt-v3 .ai-opt[aria-checked="true"] span.n {
-  color: var(--ai-ink);
-  font-weight: 600;
-}
-.needt-v3 .ai-foot {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 22px 18px;
-  background: linear-gradient(to bottom, transparent, var(--ai-ground) 30%);
-}
-.needt-v3 .ai-phone .ai-foot {
-  padding: 14px 16px 6px;
-}
-.needt-v3 .ai-foot small {
-  flex: 1;
-  font: 400 12.5px/1.35 var(--font-sans);
-  color: var(--ai-ink-2);
-}
-.needt-v3 .ai-btn {
-  height: 40px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--ai-raise);
-  color: var(--ai-ink);
-  font: 500 14px/1 var(--font-sans);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-.needt-v3 .ai-btn.is-primary {
-  background: var(--ai-ink);
-  color: var(--ai-ground);
-}
-.needt-v3 .ai-phone .ai-btn {
-  height: 50px;
-  border-radius: 25px;
-  font-size: 15px;
-}
-.needt-v3 .ai-phone .ai-foot .ai-btn.is-primary {
-  flex: 1;
-  justify-content: center;
-}
-@media (prefers-reduced-motion: reduce) {
-  .needt-v3 .ai-sheet,
-  .needt-v3 .ai-hero img,
-  .needt-v3 .ai-scrim {
-    animation: none;
-  }
-}
+.needt-v3 .ai-hero { position: relative; height: 230px; display: grid; place-items: center; overflow: hidden; border-radius: 20px 20px 0 0; }
+.needt-v3 .ai-phone .ai-hero { height: 250px; border-radius: 0; margin-top: 4px; }
+.needt-v3 .ai-hero-bg { position: absolute; inset: -40px; filter: blur(60px) saturate(1.3); opacity: .55; transform: scale(1.2); transition: background-image 300ms; background-size: cover; background-position: center; }
+.needt-v3 .ai-hero img { position: relative; width: 136px; height: 136px; filter: drop-shadow(0 24px 40px rgba(0,0,0,.35)); animation: ai-pop 420ms cubic-bezier(.2,.9,.24,1); }
+@keyframes ai-pop { 0% { transform: scale(.86) rotate(-4deg); } 60% { transform: scale(1.04) rotate(1deg); } 100% { transform: none; } }
+.needt-v3 .ai-hero-name { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font: 600 15px/1 var(--font-sans); }
+.needt-v3 .ai-hero-name span { font: 400 13px/1 var(--font-sans); color: var(--ai-ink-2); margin-left: 6px; }
+.needt-v3 .ai-x { position: absolute; top: 14px; right: 14px; z-index: 2; width: 32px; height: 32px; border: 0; border-radius: 16px; background: rgba(0,0,0,.18); color: #fff; display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(8px); }
+.needt-v3 .ai-body { padding: 18px 22px 6px; }
+.needt-v3 .ai-phone .ai-body { padding: 16px 16px 4px; }
+.needt-v3 .ai-h { margin: 0 0 4px; font: 600 20px/1.2 var(--font-sans); letter-spacing: -.01em; }
+.needt-v3 .ai-p { margin: 0 0 14px; font: 400 14px/1.45 var(--font-sans); color: var(--ai-ink-2); }
+.needt-v3 .ai-sec { margin: 16px 2px 10px; font: 600 12px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ai-ink-2); }
+.needt-v3 .ai-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--ai-t), 1fr)); gap: 14px 10px; }
+.needt-v3 .ai-phone .ai-grid { grid-template-columns: repeat(4, 1fr); }
+.needt-v3 .ai-opt { position: relative; border: 0; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 7px; cursor: pointer; color: var(--ai-ink); font: 500 12px/1.2 var(--font-sans); }
+.needt-v3 .ai-opt img { width: var(--ai-t); height: var(--ai-t); display: block; border-radius: 22%; transition: transform 160ms cubic-bezier(.2,.9,.24,1), box-shadow 160ms; box-shadow: 0 6px 16px -8px rgba(0,0,0,.45); }
+.needt-v3 .ai-phone .ai-opt img { width: 100%; height: auto; aspect-ratio: 1; }
+.needt-v3 .ai-opt:hover img { transform: translateY(-2px); }
+.needt-v3 .ai-opt:active img { transform: scale(.95); }
+.needt-v3 .ai-opt[aria-checked="true"] img { box-shadow: 0 0 0 3px var(--ai-ground), 0 0 0 5.5px var(--ai-ink); }
+.needt-v3 .ai-opt .ai-badge { position: absolute; top: -5px; right: -3px; height: 18px; padding: 0 6px; border-radius: 6px; background: var(--ai-ink); color: var(--ai-ground); font: 700 9.5px/18px var(--font-sans); letter-spacing: .06em; box-shadow: 0 0 0 2px var(--ai-ground); }
+.needt-v3 .ai-opt .ai-check { position: absolute; top: calc(var(--ai-t) - 20px); right: 2px; width: 22px; height: 22px; border-radius: 11px; background: var(--ai-ink); color: var(--ai-ground); display: grid; place-items: center; box-shadow: 0 0 0 2px var(--ai-ground); }
+.needt-v3 .ai-phone .ai-opt .ai-check { top: auto; bottom: 22px; }
+.needt-v3 .ai-opt span.n { color: var(--ai-ink-2); }
+.needt-v3 .ai-opt[aria-checked="true"] span.n { color: var(--ai-ink); font-weight: 600; }
+.needt-v3 .ai-foot { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 14px 22px 18px; background: linear-gradient(to bottom, transparent, var(--ai-ground) 30%); }
+.needt-v3 .ai-phone .ai-foot { padding: 14px 16px 6px; }
+.needt-v3 .ai-foot small { flex: 1; font: 400 12.5px/1.35 var(--font-sans); color: var(--ai-ink-2); }
+.needt-v3 .ai-btn { height: 40px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--ai-raise); color: var(--ai-ink); font: 500 14px/1 var(--font-sans); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.needt-v3 .ai-btn.is-primary { background: var(--ai-ink); color: var(--ai-ground); }
+.needt-v3 .ai-phone .ai-btn { height: 50px; border-radius: 25px; font-size: 15px; }
+.needt-v3 .ai-phone .ai-foot .ai-btn.is-primary { flex: 1; justify-content: center; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .ai-sheet, .needt-v3 .ai-hero img, .needt-v3 .ai-scrim { animation: none; } }
 
 /* V-1: the spec draws the scrim inside a framed mock-up (absolute); in the
  * app the host fills the window, above the Settings sheet (z 59 on the
  * phone) and the other sheets (1050), below the paywall (1100). */
-.needt-v3 .ai-host .ai-scrim {
-  position: fixed;
-  z-index: 1060;
-}
+.needt-v3 .ai-host .ai-scrim { position: fixed; z-index: 1060; }
 /* V-2: the Settings entry (desktop row, phone glyph) shows the chosen icon. */
-.needt-v3 .ai-entry {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--fill-3);
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-}
-.needt-v3 .ai-entry img {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 22%;
-}
-.needt-v3 .ai-entry .base-meta {
-  margin-left: auto;
-}
-.needt-v3 .ai-entry-img {
-  border-radius: 22%;
-  display: block;
-}
+.needt-v3 .ai-entry { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--fill-3); color: var(--text-primary); text-align: left; cursor: pointer; }
+.needt-v3 .ai-entry img { flex: none; width: 40px; height: 40px; border-radius: 22%; }
+.needt-v3 .ai-entry .base-meta { margin-left: auto; }
+.needt-v3 .ai-entry-img { border-radius: 22%; display: block; }

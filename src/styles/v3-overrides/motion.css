@@ -287,7 +287,7 @@
     var(--v2p-ink) 70%
   );
 }
-/* While a sheet moves (PkSheet marks the host
+/* While a sheet or the pull-down moves (PkSheet / PkPullDown mark the host
  * with data-pk-moving) the screen's own band and fog blurs rest: the mover's
  * scrim is the one blur. */
 .needt-v3 [data-pk-moving] :is(.pk-topband, .pk-fog) .pk-blur {

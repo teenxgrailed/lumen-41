@@ -45,66 +45,51 @@
   /* === BASE — light, the default. Two grounds: off-white canvas, white card.
      Surfaces do not collapse; the card is visible because the ground is a step
      darker. === */
-  --background: #fcfdfe; /* canvas, sidebar */
-  --surface-raised: #ffffff; /* card, sheet, popover */
+  --background: #fcfdfe;                 /* canvas, sidebar */
+  --surface-raised: #ffffff;             /* card, sheet, popover */
   /* oklch(0.245 0.008 250) from the source renders #1E2124, not the #1A1C1E it
      is annotated with — and --foreground-rgb (26, 28, 30), which generates the
      entire grey ladder, is the documented hex. Two different greys were
      shipping: solid --foreground and every derived step. Pinned to the
      documented value; the equivalent OKLCH is oklch(0.2295 0.0053 247). */
-  --foreground: #1a1c1e; /* all text and icons */
+  --foreground: #1a1c1e;                 /* all text and icons */
   --foreground-rgb: 26, 28, 30; /* @kind color */
 
-  --accent: oklch(0.567 0.199 262); /* Craft blue #2E6DE9 */
+  --accent: oklch(0.567 0.199 262);      /* Craft blue #2E6DE9 */
   --accent-rgb: 46, 109, 233; /* @kind color */
-  --info: oklch(0.75 0.16 70); /* #ED990E */
+  --info: oklch(0.75 0.16 70);           /* #ED990E */
   --info-rgb: 237, 153, 14; /* @kind color */
-  --success: oklch(0.55 0.17 145); /* #098926 */
+  --success: oklch(0.55 0.17 145);       /* #098926 */
   --success-rgb: 9, 137, 38; /* @kind color */
-  --destructive: oklch(0.58 0.24 28); /* #E6000C */
+  --destructive: oklch(0.58 0.24 28);    /* #E6000C */
   --destructive-rgb: 230, 0, 12; /* @kind color */
 
-  --border-width: 1.5px; /* @kind spacing */ /* chrome hairline */
-  --border-width-doc: 1px; /* @kind spacing */ /* inside a document */
+  --border-width: 1.5px; /* @kind spacing */     /* chrome hairline */
+  --border-width-doc: 1px; /* @kind spacing */   /* inside a document */
 
   /* === TEXT — one colour, six levels === */
-  --text-primary: rgba(
-    var(--foreground-rgb),
-    1
-  ); /* titles, active rows, values */
-  --text-secondary: rgba(
-    var(--foreground-rgb),
-    0.85
-  ); /* labels, nav rows at rest */
-  --text-tertiary: rgba(var(--foreground-rgb), 0.7); /* supporting copy */
-  --text-quaternary: rgba(var(--foreground-rgb), 0.55); /* metadata */
-  --text-muted: rgba(var(--foreground-rgb), 0.4); /* inactive tabs, low meta */
-  --text-disabled: rgba(
-    var(--foreground-rgb),
-    0.25
-  ); /* placeholder, empty state */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
 
   /* === FILLS — the same colour, six steps === */
-  --fill-1: rgba(var(--foreground-rgb), 0.02); /* subtlest wash */
-  --fill-2: rgba(var(--foreground-rgb), 0.03); /* menu row rest */
-  --fill-3: rgba(
-    var(--foreground-rgb),
-    0.04
-  ); /* button rest, inactive segment */
-  --fill-4: rgba(var(--foreground-rgb), 0.06); /* nav row active */
-  --fill-5: rgba(var(--foreground-rgb), 0.08); /* hairline, calendar day */
-  --fill-6: rgba(var(--foreground-rgb), 0.12); /* pressed */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
 
   /* === BORDER === */
   --border: rgba(var(--foreground-rgb), 0.08);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
 
   /* === ACCENT FILLS — translucent only === */
-  --fill-accent: rgba(var(--accent-rgb), 0.12); /* selected tab, chip */
-  --fill-accent-strong: rgba(
-    var(--accent-rgb),
-    0.24
-  ); /* today, and nothing else */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
 
   /* === STATE FILLS === */
   --fill-info: rgba(var(--info-rgb), 0.12);
@@ -120,22 +105,20 @@
   --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
   --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
   --shadow-raised-hover:
-    rgba(0, 0, 0, 0.06) 0 1px 1px 0, rgba(0, 0, 0, 0.05) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.03) 0 6px 4px 0, rgba(0, 0, 0, 0.02) 0 10px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.05) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.03) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.02) 0 10px 4px 0,
     rgba(0, 0, 0, 0.07) 0 0 0 1px;
   --shadow-raised-press:
-    rgba(0, 0, 0, 0.05) 0 1px 1px 0, rgba(0, 0, 0, 0.03) 0 2px 1px 0,
+    rgba(0, 0, 0, 0.05) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.03) 0 2px 1px 0,
     rgba(0, 0, 0, 0.08) 0 0 0 1px;
   /* A very slight vertical veil on the working surface: top a touch lighter,
      bottom a touch darker, so a tall column has a direction. Not a decorative
      gradient — the range is one step of the fill ladder end to end, and it is
      the only gradient in the product. */
-  --canvas-veil: linear-gradient(
-    180deg,
-    rgba(var(--foreground-rgb), 0) 0%,
-    rgba(var(--foreground-rgb), 0.02) 45%,
-    rgba(var(--foreground-rgb), 0.05) 100%
-  ); /* @kind color */
+  --canvas-veil: linear-gradient(180deg, rgba(var(--foreground-rgb), 0) 0%, rgba(var(--foreground-rgb), 0.02) 45%, rgba(var(--foreground-rgb), 0.05) 100%); /* @kind color */
 
   /* === SEMANTIC ALIASES === */
   --surface-canvas: var(--background);
@@ -163,56 +146,41 @@
 .needt-v2[data-theme="dark"] {
   --background: #121314;
   --surface-raised: #1e1e1e;
-  --foreground: oklch(0.975 0 0); /* #F9F9F9 */
+  --foreground: oklch(0.975 0 0);   /* #F9F9F9 */
   --foreground-rgb: 249, 249, 249; /* @kind color */
 
   --accent: oklch(0.752 0.13 253.6); /* #71B2FF */
   --accent-rgb: 113, 178, 255; /* @kind color */
-  --info: oklch(0.7 0.16 70); /* #DC8900 */
+  --info: oklch(0.70 0.16 70);      /* #DC8900 */
   --info-rgb: 220, 137, 0; /* @kind color */
-  --success: oklch(0.6 0.17 145); /* #279936 */
+  --success: oklch(0.60 0.17 145);  /* #279936 */
   --success-rgb: 39, 153, 54; /* @kind color */
-  --destructive: oklch(0.7 0.19 22); /* #FF6367 */
+  --destructive: oklch(0.70 0.19 22); /* #FF6367 */
   --destructive-rgb: 255, 99, 103; /* @kind color */
 
   /* === TEXT — one colour, six levels === */
-  --text-primary: rgba(
-    var(--foreground-rgb),
-    1
-  ); /* titles, active rows, values */
-  --text-secondary: rgba(
-    var(--foreground-rgb),
-    0.85
-  ); /* labels, nav rows at rest */
-  --text-tertiary: rgba(var(--foreground-rgb), 0.7); /* supporting copy */
-  --text-quaternary: rgba(var(--foreground-rgb), 0.55); /* metadata */
-  --text-muted: rgba(var(--foreground-rgb), 0.4); /* inactive tabs, low meta */
-  --text-disabled: rgba(
-    var(--foreground-rgb),
-    0.25
-  ); /* placeholder, empty state */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
 
   /* === FILLS — the same colour, six steps === */
-  --fill-1: rgba(var(--foreground-rgb), 0.02); /* subtlest wash */
-  --fill-2: rgba(var(--foreground-rgb), 0.03); /* menu row rest */
-  --fill-3: rgba(
-    var(--foreground-rgb),
-    0.04
-  ); /* button rest, inactive segment */
-  --fill-4: rgba(var(--foreground-rgb), 0.06); /* nav row active */
-  --fill-5: rgba(var(--foreground-rgb), 0.08); /* hairline, calendar day */
-  --fill-6: rgba(var(--foreground-rgb), 0.12); /* pressed */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
 
   /* === BORDER === */
   --border: rgba(var(--foreground-rgb), 0.08);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
 
   /* === ACCENT FILLS — translucent only === */
-  --fill-accent: rgba(var(--accent-rgb), 0.12); /* selected tab, chip */
-  --fill-accent-strong: rgba(
-    var(--accent-rgb),
-    0.24
-  ); /* today, and nothing else */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
 
   /* === STATE FILLS === */
   --fill-info: rgba(var(--info-rgb), 0.12);
@@ -228,22 +196,20 @@
   --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
   --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
   --shadow-raised-hover:
-    rgba(0, 0, 0, 0.3) 0 1px 1px 0, rgba(0, 0, 0, 0.26) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.2) 0 6px 4px 0, rgba(0, 0, 0, 0.14) 0 10px 4px 0,
+    rgba(0, 0, 0, 0.3) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.26) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.2) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.14) 0 10px 4px 0,
     rgba(255, 255, 255, 0.1) 0 0 0 1px;
   --shadow-raised-press:
-    rgba(0, 0, 0, 0.28) 0 1px 1px 0, rgba(0, 0, 0, 0.2) 0 2px 1px 0,
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.2) 0 2px 1px 0,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   /* A very slight vertical veil on the working surface: top a touch lighter,
      bottom a touch darker, so a tall column has a direction. Not a decorative
      gradient — the range is one step of the fill ladder end to end, and it is
      the only gradient in the product. */
-  --canvas-veil: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.02) 45%,
-    rgba(0, 0, 0, 0.05) 100%
-  ); /* @kind color */
+  --canvas-veil: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.02) 45%, rgba(0, 0, 0, 0.05) 100%); /* @kind color */
   --toolbar-fill: rgba(30, 30, 30, 0.88);
   --floating-fill: rgba(30, 30, 30, 0.78);
 }
@@ -257,51 +223,36 @@
 
   --accent: oklch(0.752 0.13 253.6);
   --accent-rgb: 113, 178, 255; /* @kind color */
-  --info: oklch(0.7 0.16 70);
+  --info: oklch(0.70 0.16 70);
   --info-rgb: 220, 137, 0; /* @kind color */
-  --success: oklch(0.6 0.17 145);
+  --success: oklch(0.60 0.17 145);
   --success-rgb: 39, 153, 54; /* @kind color */
-  --destructive: oklch(0.7 0.19 22);
+  --destructive: oklch(0.70 0.19 22);
   --destructive-rgb: 255, 99, 103; /* @kind color */
 
   /* === TEXT — one colour, six levels === */
-  --text-primary: rgba(
-    var(--foreground-rgb),
-    1
-  ); /* titles, active rows, values */
-  --text-secondary: rgba(
-    var(--foreground-rgb),
-    0.85
-  ); /* labels, nav rows at rest */
-  --text-tertiary: rgba(var(--foreground-rgb), 0.7); /* supporting copy */
-  --text-quaternary: rgba(var(--foreground-rgb), 0.55); /* metadata */
-  --text-muted: rgba(var(--foreground-rgb), 0.4); /* inactive tabs, low meta */
-  --text-disabled: rgba(
-    var(--foreground-rgb),
-    0.25
-  ); /* placeholder, empty state */
+  --text-primary: rgba(var(--foreground-rgb), 1);      /* titles, active rows, values */
+  --text-secondary: rgba(var(--foreground-rgb), 0.85); /* labels, nav rows at rest */
+  --text-tertiary: rgba(var(--foreground-rgb), 0.7);   /* supporting copy */
+  --text-quaternary: rgba(var(--foreground-rgb), 0.55);/* metadata */
+  --text-muted: rgba(var(--foreground-rgb), 0.4);      /* inactive tabs, low meta */
+  --text-disabled: rgba(var(--foreground-rgb), 0.25);  /* placeholder, empty state */
 
   /* === FILLS — the same colour, six steps === */
-  --fill-1: rgba(var(--foreground-rgb), 0.02); /* subtlest wash */
-  --fill-2: rgba(var(--foreground-rgb), 0.03); /* menu row rest */
-  --fill-3: rgba(
-    var(--foreground-rgb),
-    0.04
-  ); /* button rest, inactive segment */
-  --fill-4: rgba(var(--foreground-rgb), 0.06); /* nav row active */
-  --fill-5: rgba(var(--foreground-rgb), 0.08); /* hairline, calendar day */
-  --fill-6: rgba(var(--foreground-rgb), 0.12); /* pressed */
+  --fill-1: rgba(var(--foreground-rgb), 0.02);  /* subtlest wash */
+  --fill-2: rgba(var(--foreground-rgb), 0.03);  /* menu row rest */
+  --fill-3: rgba(var(--foreground-rgb), 0.04);  /* button rest, inactive segment */
+  --fill-4: rgba(var(--foreground-rgb), 0.06);  /* nav row active */
+  --fill-5: rgba(var(--foreground-rgb), 0.08);  /* hairline, calendar day */
+  --fill-6: rgba(var(--foreground-rgb), 0.12);  /* pressed */
 
   /* === BORDER === */
   --border: rgba(var(--foreground-rgb), 0.08);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
 
   /* === ACCENT FILLS — translucent only === */
-  --fill-accent: rgba(var(--accent-rgb), 0.12); /* selected tab, chip */
-  --fill-accent-strong: rgba(
-    var(--accent-rgb),
-    0.24
-  ); /* today, and nothing else */
+  --fill-accent: rgba(var(--accent-rgb), 0.12);         /* selected tab, chip */
+  --fill-accent-strong: rgba(var(--accent-rgb), 0.24);  /* today, and nothing else */
 
   /* === STATE FILLS === */
   --fill-info: rgba(var(--info-rgb), 0.12);
@@ -317,22 +268,20 @@
   --shadow-focus: rgba(var(--accent-rgb), 0.4) 0 0 0 2px inset;
   --shadow-focus-destructive: rgba(var(--destructive-rgb), 0.4) 0 0 0 2px inset;
   --shadow-raised-hover:
-    rgba(0, 0, 0, 0.3) 0 1px 1px 0, rgba(0, 0, 0, 0.26) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.2) 0 6px 4px 0, rgba(0, 0, 0, 0.14) 0 10px 4px 0,
+    rgba(0, 0, 0, 0.3) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.26) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.2) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.14) 0 10px 4px 0,
     rgba(255, 255, 255, 0.1) 0 0 0 1px;
   --shadow-raised-press:
-    rgba(0, 0, 0, 0.28) 0 1px 1px 0, rgba(0, 0, 0, 0.2) 0 2px 1px 0,
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.2) 0 2px 1px 0,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   /* A very slight vertical veil on the working surface: top a touch lighter,
      bottom a touch darker, so a tall column has a direction. Not a decorative
      gradient — the range is one step of the fill ladder end to end, and it is
      the only gradient in the product. */
-  --canvas-veil: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.02) 45%,
-    rgba(0, 0, 0, 0.05) 100%
-  ); /* @kind color */
+  --canvas-veil: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.02) 45%, rgba(0, 0, 0, 0.05) 100%); /* @kind color */
   --toolbar-fill: rgba(41, 43, 44, 0.88);
   --floating-fill: rgba(41, 43, 44, 0.78);
 }
@@ -345,22 +294,19 @@
    never on a translatable string (Latin-only, 374 glyphs). */
 
 .needt-v2 {
-  --font-sans:
-    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Instrument Serif", ui-serif, Georgia, serif;
-  --font-mono:
-    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --font-default: var(--font-sans);
 
   /* sizes */
-  --text-doc: 16px; /* 400 / 19.2 — document body only */
-  --text-ui: 13px; /* 400 and 500 / 16 — every control, nav row, button, chip */
-  --text-meta: 12px; /* 400 / 14.4 and 500 — metadata, counts, eyebrows */
-  --text-title: 15px; /* 600 / 18 — card and section titles */
-  --text-page: 22px; /* 600 — page heading */
-  --text-h1: 24px; /* 700 / 29 — H1 inside a document */
-  --text-display: 28px; /* serif floor — display only */
+  --text-doc: 16px;    /* 400 / 19.2 — document body only */
+  --text-ui: 13px;     /* 400 and 500 / 16 — every control, nav row, button, chip */
+  --text-meta: 12px;   /* 400 / 14.4 and 500 — metadata, counts, eyebrows */
+  --text-title: 15px;  /* 600 / 18 — card and section titles */
+  --text-page: 22px;   /* 600 — page heading */
+  --text-h1: 24px;     /* 700 / 29 — H1 inside a document */
+  --text-display: 28px;/* serif floor — display only */
 
   /* line heights */
   --lh-doc: 19.2px; /* @kind font */
@@ -380,20 +326,13 @@
   --tracking-display: -0.02em; /* @kind font */
 
   /* semantic aliases */
-  --type-body: var(--weight-regular) var(--text-doc) / var(--lh-doc)
-    var(--font-sans);
-  --type-ui: var(--weight-regular) var(--text-ui) / var(--lh-ui)
-    var(--font-sans);
-  --type-ui-medium: var(--weight-medium) var(--text-ui) / var(--lh-ui)
-    var(--font-sans);
-  --type-meta: var(--weight-regular) var(--text-meta) / var(--lh-meta)
-    var(--font-sans);
-  --type-meta-medium: var(--weight-medium) var(--text-meta) / var(--lh-meta)
-    var(--font-sans);
-  --type-card-title: var(--weight-semibold) var(--text-title) / var(--lh-title)
-    var(--font-sans);
-  --type-page-title: var(--weight-semibold) var(--text-page) / 1.2
-    var(--font-sans);
+  --type-body: var(--weight-regular) var(--text-doc) / var(--lh-doc) var(--font-sans);
+  --type-ui: var(--weight-regular) var(--text-ui) / var(--lh-ui) var(--font-sans);
+  --type-ui-medium: var(--weight-medium) var(--text-ui) / var(--lh-ui) var(--font-sans);
+  --type-meta: var(--weight-regular) var(--text-meta) / var(--lh-meta) var(--font-sans);
+  --type-meta-medium: var(--weight-medium) var(--text-meta) / var(--lh-meta) var(--font-sans);
+  --type-card-title: var(--weight-semibold) var(--text-title) / var(--lh-title) var(--font-sans);
+  --type-page-title: var(--weight-semibold) var(--text-page) / 1.2 var(--font-sans);
 }
 
 .needt-v2[data-font="inter"] {
@@ -415,14 +354,14 @@
   --space-16: 16px;
   --space-20: 20px;
   /* rhythm values used inside dialogs and forms */
-  --space-6: 6px; /* inside a group */
-  --space-11: 11px; /* under a sub-line */
-  --space-21: 21px; /* between groups */
+  --space-6: 6px;    /* inside a group */
+  --space-11: 11px;  /* under a sub-line */
+  --space-21: 21px;  /* between groups */
 
   /* === CONTROL METRICS (measured) === */
-  --control-h: 32px; /* nav row, button, command bar, select, input */
-  --control-h-sm: 28px; /* icon button, chip */
-  --control-w-icon: 34px; /* icon button is 34×28, not square */
+  --control-h: 32px;         /* nav row, button, command bar, select, input */
+  --control-h-sm: 28px;      /* icon button, chip */
+  --control-w-icon: 34px;    /* icon button is 34×28, not square */
   --pad-nav-row: 7px 11px 7px 6px;
   --pad-button: 4px 13px 4px 7px;
   --pad-icon-button: 3px;
@@ -451,8 +390,8 @@
      changes, and record the new measurement here. */
   --form-label-w: 105px;
   --form-row-h: 32px;
-  --form-row-gap: 11px; /* between rows inside a group */
-  --form-group-gap: 21px; /* between groups */
+  --form-row-gap: 11px;      /* between rows inside a group */
+  --form-group-gap: 21px;    /* between groups */
 
   /* === DIALOG (measured) === */
   --dialog-w: 840px;
@@ -463,7 +402,7 @@
   --dialog-aside-max: 356px;
 
   /* === LAYOUT SHELL === */
-  --hour-h: 46px; /* one hour on the day timeline; a block's height is its duration */
+  --hour-h: 46px;   /* one hour on the day timeline; a block's height is its duration */
   --sidebar-w: 268px;
   --page-pad: 20px;
   --page-pad-lg: 32px;
@@ -477,17 +416,17 @@
    object, never from taste. */
 
 .needt-v2 {
-  --radius-xs: 4px; /* inline chips, tiny controls */
-  --radius-sm: 6px; /* inner highlights, selection */
-  --radius-md: 8px; /* nav rows, icon buttons, tabs, chips — the workhorse */
-  --radius-lg: 10px; /* buttons, menu rows */
-  --radius-xl: 12px; /* command bar, panels */
-  --radius-2xl: 14px; /* avatar, space switcher */
-  --radius-3xl: 16px; /* cards, calendar day */
-  --radius-4xl: 20px; /* calendar strip container */
+  --radius-xs: 4px;     /* inline chips, tiny controls */
+  --radius-sm: 6px;     /* inner highlights, selection */
+  --radius-md: 8px;     /* nav rows, icon buttons, tabs, chips — the workhorse */
+  --radius-lg: 10px;    /* buttons, menu rows */
+  --radius-xl: 12px;    /* command bar, panels */
+  --radius-2xl: 14px;   /* avatar, space switcher */
+  --radius-3xl: 16px;   /* cards, calendar day */
+  --radius-4xl: 20px;   /* calendar strip container */
   --radius-floating: 18px; /* the floating action, and only that */
   --radius-sheet: 26px; /* the document sheet — largest in the product */
-  --radius-pill: 9999px; /* toggle groups, floating toolbar */
+  --radius-pill: 9999px;/* toggle groups, floating toolbar */
 
   /* semantic aliases */
   --radius-chip: var(--radius-xs);
@@ -512,30 +451,39 @@
 
   /* small raised object — avatar, space switcher: five thin layers, no spread */
   --shadow-raised:
-    rgba(0, 0, 0, 0.05) 0 1px 1px 0, rgba(0, 0, 0, 0.04) 0 2px 2px 0,
-    rgba(0, 0, 0, 0.02) 0 4px 2px 0, rgba(0, 0, 0, 0.01) 0 7px 2px 0,
+    rgba(0, 0, 0, 0.05) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.04) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.02) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.01) 0 7px 2px 0,
     rgba(0, 0, 0, 0.05) 0 0 0 1px;
 
   /* popover, dropdown, dialog, floating action — deep, two blurs, ring */
   --shadow-floating:
-    rgba(0, 0, 0, 0.06) 0 12px 24px -6px, rgba(0, 0, 0, 0.24) 0 16px 40px -6px,
-    rgba(0, 0, 0, 0.1) 0 0 0 1px, rgba(255, 255, 255, 0.03) 0 0 0 1px inset;
+    rgba(0, 0, 0, 0.06) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.24) 0 16px 40px -6px,
+    rgba(0, 0, 0, 0.1) 0 0 0 1px,
+    rgba(255, 255, 255, 0.03) 0 0 0 1px inset;
 
   /* container that sits on the canvas — the calendar strip: six layers */
   --shadow-container:
     rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
-    rgba(0, 0, 0, 0.04) 0 1px 1px 0, rgba(0, 0, 0, 0.04) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.02) 0 6px 4px 0, rgba(0, 0, 0, 0.01) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.04) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.04) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.02) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.01) 0 11px 4px 0,
     rgba(0, 0, 0, 0.03) 0 0 0 1px;
 
   /* the document sheet — two layers only */
   --shadow-sheet:
-    rgba(0, 0, 0, 0.06) 0 0 0 1px, rgba(0, 0, 0, 0.06) 0 1px 1px -0.5px;
+    rgba(0, 0, 0, 0.06) 0 0 0 1px,
+    rgba(0, 0, 0, 0.06) 0 1px 1px -0.5px;
 
   /* the editor floating toolbar */
   --shadow-toolbar:
-    rgba(0, 0, 0, 0.07) 0 2px 4px 0, rgba(0, 0, 0, 0.06) 0 8px 8px 0,
-    rgba(0, 0, 0, 0.04) 0 18px 11px 0, rgba(0, 0, 0, 0.01) 0 32px 13px 0,
+    rgba(0, 0, 0, 0.07) 0 2px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 8px 8px 0,
+    rgba(0, 0, 0, 0.04) 0 18px 11px 0,
+    rgba(0, 0, 0, 0.01) 0 32px 13px 0,
     rgba(0, 0, 0, 0.03) 0 0 0 1px;
 
   --overlay-scrim: rgba(0, 0, 0, 0.28);
@@ -543,39 +491,49 @@
 
 .needt-v2[data-theme="dark"] {
   --shadow-floating:
-    rgba(0, 0, 0, 0.4) 0 12px 24px -6px, rgba(0, 0, 0, 0.5) 0 16px 40px -6px,
+    rgba(0, 0, 0, 0.4) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.5) 0 16px 40px -6px,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   --overlay-scrim: rgba(0, 0, 0, 0.5);
   /* The light stack's ring is black at 5%, which is invisible on a dark ground:
      raised objects would lose their edge. Deepen the layers and switch the ring
      to white. */
   --shadow-raised:
-    rgba(0, 0, 0, 0.28) 0 1px 1px 0, rgba(0, 0, 0, 0.22) 0 2px 2px 0,
-    rgba(0, 0, 0, 0.16) 0 4px 2px 0, rgba(0, 0, 0, 0.1) 0 7px 2px 0,
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.22) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.16) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.1) 0 7px 2px 0,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   --shadow-container:
     rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
-    rgba(0, 0, 0, 0.16) 0 1px 1px 0, rgba(0, 0, 0, 0.14) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.1) 0 6px 4px 0, rgba(0, 0, 0, 0.06) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.16) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.14) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.10) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 11px 4px 0,
     rgba(0, 0, 0, 0.12) 0 0 0 1px;
 }
 
 .needt-v2[data-theme="dim"] {
   --shadow-floating:
-    rgba(0, 0, 0, 0.35) 0 12px 24px -6px, rgba(0, 0, 0, 0.45) 0 16px 40px -6px,
+    rgba(0, 0, 0, 0.35) 0 12px 24px -6px,
+    rgba(0, 0, 0, 0.45) 0 16px 40px -6px,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   --overlay-scrim: rgba(0, 0, 0, 0.45);
   /* The light stack's ring is black at 5%, which is invisible on a dark ground:
      raised objects would lose their edge. Deepen the layers and switch the ring
      to white. */
   --shadow-raised:
-    rgba(0, 0, 0, 0.28) 0 1px 1px 0, rgba(0, 0, 0, 0.22) 0 2px 2px 0,
-    rgba(0, 0, 0, 0.16) 0 4px 2px 0, rgba(0, 0, 0, 0.1) 0 7px 2px 0,
+    rgba(0, 0, 0, 0.28) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.22) 0 2px 2px 0,
+    rgba(0, 0, 0, 0.16) 0 4px 2px 0,
+    rgba(0, 0, 0, 0.1) 0 7px 2px 0,
     rgba(255, 255, 255, 0.08) 0 0 0 1px;
   --shadow-container:
     rgba(var(--foreground-rgb), 0.04) 0 0 0 1px inset,
-    rgba(0, 0, 0, 0.16) 0 1px 1px 0, rgba(0, 0, 0, 0.14) 0 3px 3px 0,
-    rgba(0, 0, 0, 0.1) 0 6px 4px 0, rgba(0, 0, 0, 0.06) 0 11px 4px 0,
+    rgba(0, 0, 0, 0.16) 0 1px 1px 0,
+    rgba(0, 0, 0, 0.14) 0 3px 3px 0,
+    rgba(0, 0, 0, 0.10) 0 6px 4px 0,
+    rgba(0, 0, 0, 0.06) 0 11px 4px 0,
     rgba(0, 0, 0, 0.12) 0 0 0 1px;
 }
 
@@ -630,68 +588,40 @@
 }
 
 @keyframes needt-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 /* An overlay arriving. transform-origin is set by the surface that opens it —
    a menu from its trigger's corner, a popover from its anchor's edge. */
 @keyframes needt-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* A modal surface: the same arrival, one step softer, because it is not
    attached to a point on the screen. */
 @keyframes needt-pop-modal {
-  from {
-    opacity: 0;
-    transform: scale(0.975);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.975); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* The ground behind a modal. */
 @keyframes needt-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* A screen replacing another. */
 @keyframes needt-screen {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Something the app just did to your day: a block the scheduler placed, a task
    that moved. The ring blooms once and settles into the resting ring. */
 @keyframes needt-landed {
-  0% {
-    box-shadow: var(--shadow-focus);
-  }
-  100% {
-    box-shadow: var(--shadow-ring);
-  }
+  0%   { box-shadow: var(--shadow-focus); }
+  100% { box-shadow: var(--shadow-ring); }
 }
 
 /* ---------- tokens/zindex.css ---------- */
@@ -721,13 +651,9 @@
 
 .needt-v2 *,
 .needt-v2 *::before,
-.needt-v2 *::after {
-  box-sizing: border-box;
-}
+.needt-v2 *::after { box-sizing: border-box; }
 
-.needt-v2 {
-  font-size: var(--font-size-base);
-}
+.needt-v2 { font-size: var(--font-size-base); }
 
 .needt-v2 {
   margin: 0;
@@ -737,67 +663,32 @@
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition:
-    background-color var(--transition-theme),
-    color var(--transition-theme);
+  transition: background-color var(--transition-theme), color var(--transition-theme);
 }
 
-.needt-v2 a {
-  color: var(--accent);
-  text-decoration: none;
-}
-.needt-v2 a:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
+.needt-v2 a { color: var(--accent); text-decoration: none; }
+.needt-v2 a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 
 .needt-v2 button,
 .needt-v2 input,
 .needt-v2 select,
-.needt-v2 textarea {
-  font: inherit;
-  color: inherit;
-}
+.needt-v2 textarea { font: inherit; color: inherit; }
 
-.needt-v2 ::-webkit-scrollbar {
-  width: var(--scrollbar-w);
-  height: var(--scrollbar-w);
-}
-.needt-v2 ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.needt-v2 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: var(--radius-xs);
-}
-.needt-v2 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+.needt-v2 ::-webkit-scrollbar { width: var(--scrollbar-w); height: var(--scrollbar-w); }
+.needt-v2 ::-webkit-scrollbar-track { background: transparent; }
+.needt-v2 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--radius-xs); }
+.needt-v2 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* Inside a scrolling region: 4px, visible only on hover of the group. */
-.needt-v2 .scroll-inner::-webkit-scrollbar {
-  width: var(--scrollbar-w-inner);
-}
-.needt-v2 .scroll-inner::-webkit-scrollbar-thumb {
-  background: transparent;
-}
-.needt-v2 .scroll-inner:hover::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-}
+.needt-v2 .scroll-inner::-webkit-scrollbar { width: var(--scrollbar-w-inner); }
+.needt-v2 .scroll-inner::-webkit-scrollbar-thumb { background: transparent; }
+.needt-v2 .scroll-inner:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
 
-.needt-v2 *:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
+.needt-v2 *:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-.needt-v2 ::selection {
-  background: var(--fill-accent-strong);
-}
+.needt-v2 ::selection { background: var(--fill-accent-strong); }
 
-.needt-v2 ::placeholder {
-  color: var(--text-disabled);
-}
+.needt-v2 ::placeholder { color: var(--text-disabled); }
 
 /* Icons. Outline is the default, and the fill is pinned from the wrapper span
    that Icon renders — not from the svg itself. Icon libraries build their svg
@@ -805,20 +696,11 @@
    nor a data-* attribute reaches the element; every outline glyph would inherit
    fill="currentColor" and render solid. A descendant rule from a wrapper the
    system owns is immune to whatever the library does with attrs. */
-.needt-v2 [data-needt-icon] > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+.needt-v2 [data-needt-icon] > svg { display: block; width: 100%; height: 100%; }
 .needt-v2 [data-needt-icon] svg,
-.needt-v2 [data-needt-icon] svg * {
-  fill: none;
-  stroke: currentColor;
-}
+.needt-v2 [data-needt-icon] svg * { fill: none; stroke: currentColor; }
 .needt-v2 [data-needt-icon="filled"] svg,
-.needt-v2 [data-needt-icon="filled"] svg * {
-  fill: currentColor;
-}
+.needt-v2 [data-needt-icon="filled"] svg * { fill: currentColor; }
 
 /* ---------- tokens/components.css ---------- */
 /* Component classes — the measured metrics, one class each, for consumers
@@ -827,446 +709,130 @@
 
 /* Sidebar nav row. Active is a fill plus a weight bump — never an underline,
    never a left accent bar. */
-.needt-v2 .nav-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  height: var(--control-h);
-  padding: var(--pad-nav-row);
-  border-radius: var(--radius-md);
-  font: var(--type-ui);
-  color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  width: 100%;
-  cursor: default;
-  transition:
-    background-color var(--transition-hover),
-    color var(--transition-hover);
-}
-.needt-v2 .nav-row:hover {
-  background: var(--fill-3);
-  color: var(--text-primary);
-}
+.needt-v2 .nav-row { display: flex; align-items: center; gap: var(--space-8); height: var(--control-h); padding: var(--pad-nav-row); border-radius: var(--radius-md); font: var(--type-ui); color: var(--text-secondary); background: transparent; border: 0; width: 100%; cursor: default; transition: background-color var(--transition-hover), color var(--transition-hover); }
+.needt-v2 .nav-row:hover { background: var(--fill-3); color: var(--text-primary); }
 .needt-v2 .nav-row[aria-current],
-.needt-v2 .nav-row.is-active {
-  background: var(--fill-4);
-  color: var(--text-primary);
-  font-weight: var(--weight-medium);
-}
+.needt-v2 .nav-row.is-active { background: var(--fill-4); color: var(--text-primary); font-weight: var(--weight-medium); }
 
 /* Command bar. Labelled with a verb ("Open"), not a magnifier. Inset ring. */
-.needt-v2 .command-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  height: var(--control-h);
-  padding: var(--pad-search);
-  border-radius: var(--radius-xl);
-  background: transparent;
-  box-shadow: var(--shadow-inset-ring);
-  font-size: var(--text-ui);
-  color: var(--text-quaternary);
-}
+.needt-v2 .command-bar { display: flex; align-items: center; gap: var(--space-8); height: var(--control-h); padding: var(--pad-search); border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font-size: var(--text-ui); color: var(--text-quaternary); }
 
 /* The button. A raised object, not a tinted patch of the canvas: the white
    surface lifted by five very thin shadow layers plus a ring — the avatar's
    treatment, at control size. This is the default; there is still no filled
    primary button in this system.
    Press settles the object back toward the page rather than darkening it. */
-.needt-v2 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  height: var(--control-h);
-  padding: var(--pad-button);
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  font: var(--type-ui-medium);
-  cursor: default;
-  box-shadow: var(--shadow-raised);
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover),
-    color var(--transition-hover);
-}
-.needt-v2 .btn:hover {
-  box-shadow: var(--shadow-raised-hover);
-}
-.needt-v2 .btn:active {
-  box-shadow: var(--shadow-raised-press);
-}
-.needt-v2 .btn:disabled {
-  color: var(--text-disabled);
-  background: var(--fill-2);
-  box-shadow: none;
-}
+.needt-v2 .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); height: var(--control-h); padding: var(--pad-button); border: 0; border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--text-primary); font: var(--type-ui-medium); cursor: default; box-shadow: var(--shadow-raised); transition: background-color var(--transition-hover), box-shadow var(--transition-hover), color var(--transition-hover); }
+.needt-v2 .btn:hover { box-shadow: var(--shadow-raised-hover); }
+.needt-v2 .btn:active { box-shadow: var(--shadow-raised-press); }
+.needt-v2 .btn:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
 /* Flat variants sit IN the surface instead of on it — for secondary actions
    beside a raised one, and for controls inside an already-raised object
    (a dialog footer, a popover) where a second lift would stack. */
-.needt-v2 .btn-flat {
-  background: var(--fill-3);
-  color: var(--text-secondary);
-  box-shadow: none;
-}
-.needt-v2 .btn-flat:hover {
-  background: var(--fill-4);
-  box-shadow: none;
-}
-.needt-v2 .btn-flat:active {
-  background: var(--fill-5);
-  box-shadow: none;
-}
-.needt-v2 .btn-outline {
-  background: transparent;
-  color: var(--text-secondary);
-  box-shadow: var(--shadow-inset-ring);
-}
-.needt-v2 .btn-outline:hover {
-  background: var(--fill-2);
-  box-shadow: var(--shadow-inset-ring);
-}
-.needt-v2 .btn-outline:active {
-  background: var(--fill-3);
-  box-shadow: var(--shadow-inset-ring);
-}
-.needt-v2 .btn-accent {
-  background: var(--fill-accent);
-  color: var(--accent);
-  box-shadow: none;
-}
-.needt-v2 .btn-accent:hover {
-  background: var(--fill-accent-strong);
-  box-shadow: none;
-}
-.needt-v2 .btn-accent:active {
-  background: var(--fill-accent-strong);
-  box-shadow: none;
-}
-.needt-v2 .btn-destructive {
-  background: var(--fill-destructive);
-  color: var(--destructive);
-  box-shadow: none;
-}
-.needt-v2 .btn-destructive:hover {
-  background: var(--fill-destructive-strong);
-  box-shadow: none;
-}
-.needt-v2 .btn-destructive:active {
-  background: var(--fill-destructive-strong);
-  box-shadow: none;
-}
-.needt-v2 .btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  box-shadow: none;
-}
-.needt-v2 .btn-ghost:hover {
-  background: var(--fill-3);
-  box-shadow: none;
-}
-.needt-v2 .btn-ghost:active {
-  background: var(--fill-5);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon {
-  display: grid;
-  place-items: center;
-  width: var(--control-w-icon);
-  height: var(--control-h-sm);
-  padding: var(--pad-icon-button);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  cursor: default;
-  box-shadow: var(--shadow-raised);
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .btn-icon:hover {
-  box-shadow: var(--shadow-raised-hover);
-}
-.needt-v2 .btn-icon:active {
-  box-shadow: var(--shadow-raised-press);
-}
-.needt-v2 .btn-icon:disabled {
-  color: var(--text-disabled);
-  background: var(--fill-2);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-flat {
-  background: var(--fill-3);
-  color: var(--text-secondary);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-flat:hover {
-  background: var(--fill-4);
-  color: var(--text-primary);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-flat:active {
-  background: var(--fill-5);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-flat:disabled {
-  background: var(--fill-2);
-  color: var(--text-disabled);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-ghost {
-  background: transparent;
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-ghost:hover {
-  background: var(--fill-3);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-ghost:active {
-  background: var(--fill-5);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-ghost:disabled {
-  background: transparent;
-  color: var(--text-disabled);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-accent {
-  background: var(--fill-accent);
-  color: var(--accent);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-accent:hover {
-  background: var(--fill-accent-strong);
-  box-shadow: none;
-}
-.needt-v2 .btn-icon.btn-accent:disabled {
-  background: var(--fill-2);
-  color: var(--text-disabled);
-  box-shadow: none;
-}
+.needt-v2 .btn-flat { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
+.needt-v2 .btn-flat:hover { background: var(--fill-4); box-shadow: none; }
+.needt-v2 .btn-flat:active { background: var(--fill-5); box-shadow: none; }
+.needt-v2 .btn-outline { background: transparent; color: var(--text-secondary); box-shadow: var(--shadow-inset-ring); }
+.needt-v2 .btn-outline:hover { background: var(--fill-2); box-shadow: var(--shadow-inset-ring); }
+.needt-v2 .btn-outline:active { background: var(--fill-3); box-shadow: var(--shadow-inset-ring); }
+.needt-v2 .btn-accent { background: var(--fill-accent); color: var(--accent); box-shadow: none; }
+.needt-v2 .btn-accent:hover { background: var(--fill-accent-strong); box-shadow: none; }
+.needt-v2 .btn-accent:active { background: var(--fill-accent-strong); box-shadow: none; }
+.needt-v2 .btn-destructive { background: var(--fill-destructive); color: var(--destructive); box-shadow: none; }
+.needt-v2 .btn-destructive:hover { background: var(--fill-destructive-strong); box-shadow: none; }
+.needt-v2 .btn-destructive:active { background: var(--fill-destructive-strong); box-shadow: none; }
+.needt-v2 .btn-ghost { background: transparent; color: var(--text-secondary); box-shadow: none; }
+.needt-v2 .btn-ghost:hover { background: var(--fill-3); box-shadow: none; }
+.needt-v2 .btn-ghost:active { background: var(--fill-5); box-shadow: none; }
+.needt-v2 .btn-icon { display: grid; place-items: center; width: var(--control-w-icon); height: var(--control-h-sm); padding: var(--pad-icon-button); border: 0; border-radius: var(--radius-md); background: var(--surface-raised); color: var(--text-primary); cursor: default; box-shadow: var(--shadow-raised); transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .btn-icon:hover { box-shadow: var(--shadow-raised-hover); }
+.needt-v2 .btn-icon:active { box-shadow: var(--shadow-raised-press); }
+.needt-v2 .btn-icon:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.needt-v2 .btn-icon.btn-flat { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
+.needt-v2 .btn-icon.btn-flat:hover { background: var(--fill-4); color: var(--text-primary); box-shadow: none; }
+.needt-v2 .btn-icon.btn-flat:active { background: var(--fill-5); box-shadow: none; }
+.needt-v2 .btn-icon.btn-flat:disabled { background: var(--fill-2); color: var(--text-disabled); box-shadow: none; }
+.needt-v2 .btn-icon.btn-ghost { background: transparent; box-shadow: none; }
+.needt-v2 .btn-icon.btn-ghost:hover { background: var(--fill-3); box-shadow: none; }
+.needt-v2 .btn-icon.btn-ghost:active { background: var(--fill-5); box-shadow: none; }
+.needt-v2 .btn-icon.btn-ghost:disabled { background: transparent; color: var(--text-disabled); box-shadow: none; }
+.needt-v2 .btn-icon.btn-accent { background: var(--fill-accent); color: var(--accent); box-shadow: none; }
+.needt-v2 .btn-icon.btn-accent:hover { background: var(--fill-accent-strong); box-shadow: none; }
+.needt-v2 .btn-icon.btn-accent:disabled { background: var(--fill-2); color: var(--text-disabled); box-shadow: none; }
 
 /* Segmented control. Selected segment takes the accent as fill AND as text. */
-.needt-v2 .segment {
-  height: var(--control-h);
-  padding: var(--pad-button);
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--fill-3);
-  color: var(--text-muted);
-  font: var(--type-ui-medium);
-}
+.needt-v2 .segment { height: var(--control-h); padding: var(--pad-button); border: 0; border-radius: var(--radius-lg); background: var(--fill-3); color: var(--text-muted); font: var(--type-ui-medium); }
 .needt-v2 .segment[aria-selected="true"],
-.needt-v2 .segment.is-selected {
-  background: var(--fill-accent);
-  color: var(--accent);
-}
+.needt-v2 .segment.is-selected { background: var(--fill-accent); color: var(--accent); }
 
 /* Chip — the small inline action. 28px tall, asymmetric padding. */
-.needt-v2 .chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-4);
-  height: var(--control-h-sm);
-  padding: var(--pad-chip);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--fill-3);
-  color: var(--text-muted);
-  font: var(--type-ui-medium);
-}
-.needt-v2 .chip.is-accent {
-  background: var(--fill-accent);
-  color: var(--accent);
-}
+.needt-v2 .chip { display: inline-flex; align-items: center; gap: var(--space-4); height: var(--control-h-sm); padding: var(--pad-chip); border: 0; border-radius: var(--radius-md); background: var(--fill-3); color: var(--text-muted); font: var(--type-ui-medium); }
+.needt-v2 .chip.is-accent { background: var(--fill-accent); color: var(--accent); }
 
 /* Card. Ring only, no resting blur. It reads because the ground is darker.
    Hover promotes the ring one fill step; selected takes the accent fill and the
    accent ring, the same pair the segmented control and the date cell use.
    The shadow never changes size on hover — this system rings, it does not
    lift. */
-.needt-v2 .card {
-  background: var(--surface-raised);
-  border-radius: var(--radius-3xl);
-  box-shadow: var(--shadow-ring);
-}
-.needt-v2 .card[data-interactive="true"] {
-  cursor: default;
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .card[data-interactive="true"]:hover {
-  box-shadow: var(--shadow-ring-strong);
-}
-.needt-v2 .card[data-interactive="true"]:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .card[data-selected="true"] {
-  background: var(--fill-accent);
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .card[data-selected="true"]:hover {
-  background: var(--fill-accent);
-  box-shadow: var(--shadow-focus);
-}
+.needt-v2 .card { background: var(--surface-raised); border-radius: var(--radius-3xl); box-shadow: var(--shadow-ring); }
+.needt-v2 .card[data-interactive="true"] { cursor: default; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .card[data-interactive="true"]:hover { box-shadow: var(--shadow-ring-strong); }
+.needt-v2 .card[data-interactive="true"]:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.needt-v2 .card[data-selected="true"] { background: var(--fill-accent); box-shadow: var(--shadow-focus); }
+.needt-v2 .card[data-selected="true"]:hover { background: var(--fill-accent); box-shadow: var(--shadow-focus); }
 /* The title's default colour lives here, not inline: an inline colour outranks
    every stylesheet rule, which silently kills the selected state. */
-.needt-v2 .card-title {
-  color: var(--text-primary);
-}
-.needt-v2 .card[data-selected="true"] .card-title {
-  color: var(--accent);
-}
+.needt-v2 .card-title { color: var(--text-primary); }
+.needt-v2 .card[data-selected="true"] .card-title { color: var(--accent); }
 
 /* Small raised object: avatar, space switcher. */
-.needt-v2 .raised {
-  border-radius: var(--radius-2xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-raised);
-}
+.needt-v2 .raised { border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
 
 /* Floating action, bottom right — the ONLY backdrop blur in the product. */
-.needt-v2 .floating {
-  height: 40px;
-  border-radius: var(--radius-floating);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-}
-.needt-v2 .glass {
-  backdrop-filter: saturate(1.5) blur(32px);
-  -webkit-backdrop-filter: saturate(1.5) blur(32px);
-}
+.needt-v2 .floating { height: 40px; border-radius: var(--radius-floating); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.needt-v2 .glass { backdrop-filter: saturate(1.5) blur(32px); -webkit-backdrop-filter: saturate(1.5) blur(32px); }
 
 /* Selection: translucent accent fill plus a 2px inset ring. */
-.needt-v2 .selected {
-  background: var(--fill-accent);
-  box-shadow: var(--shadow-focus);
-  border-radius: var(--radius-sm);
-}
+.needt-v2 .selected { background: var(--fill-accent); box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
 
 /* Calendar. Today is the only element that gets the strong accent fill. */
-.needt-v2 .cal-day {
-  padding: var(--space-16);
-  border-radius: var(--radius-3xl);
-  background: var(--fill-5);
-}
-.needt-v2 .cal-day.is-today {
-  background: var(--fill-accent-strong);
-}
-.needt-v2 .cal-strip {
-  padding: var(--space-8);
-  border-radius: var(--radius-4xl);
-  background: var(--background);
-  box-shadow: var(--shadow-container);
-}
+.needt-v2 .cal-day { padding: var(--space-16); border-radius: var(--radius-3xl); background: var(--fill-5); }
+.needt-v2 .cal-day.is-today { background: var(--fill-accent-strong); }
+.needt-v2 .cal-strip { padding: var(--space-8); border-radius: var(--radius-4xl); background: var(--background); box-shadow: var(--shadow-container); }
 
 /* The document sheet. */
-.needt-v2 .doc-sheet-page {
-  max-width: var(--doc-max-w);
-  border-radius: var(--radius-sheet);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sheet);
-  font: var(--type-body);
-}
+.needt-v2 .doc-sheet-page { max-width: var(--doc-max-w); border-radius: var(--radius-sheet); background: var(--surface-raised); box-shadow: var(--shadow-sheet); font: var(--type-body); }
 
 /* Editor floating toolbar — 85% opaque fill, not a blur alone. */
-.needt-v2 .toolbar-floating {
-  height: 45px;
-  padding: 4.5px;
-  border-radius: var(--radius-pill);
-  background: var(--toolbar-fill);
-  box-shadow: var(--shadow-toolbar);
-}
+.needt-v2 .toolbar-floating { height: 45px; padding: 4.5px; border-radius: var(--radius-pill); background: var(--toolbar-fill); box-shadow: var(--shadow-toolbar); }
 
 /* Menu row inside a popover. */
-.needt-v2 .menu-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  height: var(--menu-row-h);
-  padding: var(--pad-menu-row);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-ui);
-  color: var(--text-secondary);
-}
-.needt-v2 .menu-row:hover {
-  background: var(--fill-2);
-}
+.needt-v2 .menu-row { display: flex; align-items: center; gap: var(--space-8); height: var(--menu-row-h); padding: var(--pad-menu-row); border-radius: var(--radius-lg); font-size: var(--text-ui); color: var(--text-secondary); }
+.needt-v2 .menu-row:hover { background: var(--fill-2); }
 
 /* Pill toggle group — full round, 3px inner padding. */
-.needt-v2 .toggle-group {
-  display: inline-flex;
-  gap: var(--space-2);
-  height: var(--control-h);
-  padding: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--fill-3);
-}
+.needt-v2 .toggle-group { display: inline-flex; gap: var(--space-2); height: var(--control-h); padding: 3px; border-radius: var(--radius-pill); background: var(--fill-3); }
 
 /* Form row — one label column width, one row height. */
-.needt-v2 .form-row {
-  display: grid;
-  grid-template-columns: var(--form-label-w) 1fr;
-  align-items: center;
-  column-gap: var(--space-16);
-  min-height: var(--form-row-h);
-}
-.needt-v2 .form-row > .form-label {
-  font: var(--type-ui);
-  color: var(--text-quaternary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.needt-v2 .form-row { display: grid; grid-template-columns: var(--form-label-w) 1fr; align-items: center; column-gap: var(--space-16); min-height: var(--form-row-h); }
+.needt-v2 .form-row > .form-label { font: var(--type-ui); color: var(--text-quaternary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Empty-state hint in the sidebar: grey, italic, one size down. */
-.needt-v2 .empty-hint {
-  font-size: var(--text-meta);
-  font-style: italic;
-  color: var(--text-muted);
-}
+.needt-v2 .empty-hint { font-size: var(--text-meta); font-style: italic; color: var(--text-muted); }
 
 /* Display type — serif, 28px and up only. */
-.needt-v2 .display {
-  font-family: var(--font-display);
-  letter-spacing: var(--tracking-display);
-  font-weight: var(--weight-regular);
-}
+.needt-v2 .display { font-family: var(--font-display); letter-spacing: var(--tracking-display); font-weight: var(--weight-regular); }
 
 /* Controls that appear only on hover of their row. */
-.needt-v2 .reveal-on-hover {
-  opacity: 0;
-  transition: opacity var(--transition-hover);
-}
+.needt-v2 .reveal-on-hover { opacity: 0; transition: opacity var(--transition-hover); }
 .needt-v2 .group:hover .reveal-on-hover,
-.needt-v2 .reveal-on-hover:focus-visible {
-  opacity: 1;
-}
+.needt-v2 .reveal-on-hover:focus-visible { opacity: 1; }
 
-.needt-v2 .theme-surface {
-  transition:
-    background-color var(--transition-theme),
-    border-color var(--transition-theme),
-    color var(--transition-theme);
-}
-.needt-v2 .shadow-ring {
-  box-shadow: var(--shadow-ring);
-}
-.needt-v2 .shadow-inset-ring {
-  box-shadow: var(--shadow-inset-ring);
-}
-.needt-v2 .shadow-raised {
-  box-shadow: var(--shadow-raised);
-}
-.needt-v2 .shadow-floating {
-  box-shadow: var(--shadow-floating);
-}
+.needt-v2 .theme-surface { transition: background-color var(--transition-theme), border-color var(--transition-theme), color var(--transition-theme); }
+.needt-v2 .shadow-ring { box-shadow: var(--shadow-ring); }
+.needt-v2 .shadow-inset-ring { box-shadow: var(--shadow-inset-ring); }
+.needt-v2 .shadow-raised { box-shadow: var(--shadow-raised); }
+.needt-v2 .shadow-floating { box-shadow: var(--shadow-floating); }
 
 /* ---------- tokens/ui.css ---------- */
 /* UI component classes — the families DESIGN.md names but does not draw:
@@ -1283,846 +849,211 @@
    One label-column width (--form-label-w, measured — see spacing.css) and one
    row height (--form-row-h) for every row in the system. Do not override them
    per form. Labels truncate on one line; they never wrap. */
-.needt-v2 .nt-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--form-row-gap);
-}
-.needt-v2 .nt-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--form-row-gap);
-}
+.needt-v2 .nt-form { display: flex; flex-direction: column; gap: var(--form-row-gap); }
+.needt-v2 .nt-form-group { display: flex; flex-direction: column; gap: var(--form-row-gap); }
 .needt-v2 .nt-form + .nt-form-group,
-.needt-v2 .nt-form-group + .nt-form-group {
-  margin-top: var(--form-group-gap);
-}
-.needt-v2 .nt-form-group-title {
-  font: var(--type-meta-medium);
-  color: var(--text-quaternary);
-  text-transform: none;
-  margin-bottom: var(--space-6);
-}
-.needt-v2 .nt-row {
-  display: grid;
-  grid-template-columns: var(--form-label-w) minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--space-16);
-  min-height: var(--form-row-h);
-}
-.needt-v2 .nt-row-stacked {
-  align-items: start;
-}
-.needt-v2 .nt-row-label {
-  font: var(--type-ui);
-  color: var(--text-quaternary);
-  align-self: center;
-  padding-top: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.needt-v2 .nt-row-stacked > .nt-row-label {
-  padding-top: 8px;
-}
-.needt-v2 .nt-row-control {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  min-width: 0;
-  min-height: var(--form-row-h);
-}
-.needt-v2 .nt-row-hint {
-  grid-column: 2;
-  font: var(--type-meta);
-  color: var(--text-muted);
-  margin-top: var(--space-6);
-}
-.needt-v2 .nt-row-error {
-  grid-column: 2;
-  font: var(--type-meta);
-  color: var(--destructive);
-  margin-top: var(--space-6);
-}
-.needt-v2 .nt-row[data-disabled="true"] .nt-row-label {
-  color: var(--text-disabled);
-}
+.needt-v2 .nt-form-group + .nt-form-group { margin-top: var(--form-group-gap); }
+.needt-v2 .nt-form-group-title { font: var(--type-meta-medium); color: var(--text-quaternary); text-transform: none; margin-bottom: var(--space-6); }
+.needt-v2 .nt-row { display: grid; grid-template-columns: var(--form-label-w) minmax(0, 1fr); align-items: center; column-gap: var(--space-16); min-height: var(--form-row-h); }
+.needt-v2 .nt-row-stacked { align-items: start; }
+.needt-v2 .nt-row-label { font: var(--type-ui); color: var(--text-quaternary); align-self: center; padding-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v2 .nt-row-stacked > .nt-row-label { padding-top: 8px; }
+.needt-v2 .nt-row-control { display: flex; align-items: center; gap: var(--space-8); min-width: 0; min-height: var(--form-row-h); }
+.needt-v2 .nt-row-hint { grid-column: 2; font: var(--type-meta); color: var(--text-muted); margin-top: var(--space-6); }
+.needt-v2 .nt-row-error { grid-column: 2; font: var(--type-meta); color: var(--destructive); margin-top: var(--space-6); }
+.needt-v2 .nt-row[data-disabled="true"] .nt-row-label { color: var(--text-disabled); }
 
 /* ── INPUT / TEXTAREA ─────────────────────────────────────────────────────
    Controls are recessed: transparent fill, inset ring. */
-.needt-v2 .nt-input {
-  display: block;
-  width: 100%;
-  height: var(--control-h);
-  padding: 0 var(--space-8);
-  border: 0;
-  border-radius: var(--radius-xl);
-  background: transparent;
-  box-shadow: var(--shadow-inset-ring);
-  font: var(--type-ui);
-  color: var(--text-primary);
-  transition:
-    box-shadow var(--transition-hover),
-    background-color var(--transition-hover);
-}
-.needt-v2 .nt-input:hover {
-  background: var(--fill-1);
-}
+.needt-v2 .nt-input { display: block; width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font: var(--type-ui); color: var(--text-primary); transition: box-shadow var(--transition-hover), background-color var(--transition-hover); }
+.needt-v2 .nt-input:hover { background: var(--fill-1); }
 .needt-v2 .nt-input:focus,
-.needt-v2 .nt-input:focus-visible {
-  outline: none;
-  background: transparent;
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-input:disabled {
-  color: var(--text-disabled);
-  background: var(--fill-2);
-  box-shadow: none;
-}
-.needt-v2 .nt-input[aria-invalid="true"] {
-  box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset;
-}
-.needt-v2 .nt-input[aria-invalid="true"]:focus-visible {
-  box-shadow: var(--shadow-focus-destructive);
-}
-.needt-v2 .nt-input-plain {
-  box-shadow: none;
-  padding-left: 0;
-}
-.needt-v2 textarea.nt-input {
-  height: auto;
-  min-height: 72px;
-  padding: 8px;
-  resize: vertical;
-  line-height: var(--lh-ui);
-}
-.needt-v2 .nt-input-sm {
-  height: var(--control-h-sm);
-  border-radius: var(--radius-md);
-}
+.needt-v2 .nt-input:focus-visible { outline: none; background: transparent; box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-input:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.needt-v2 .nt-input[aria-invalid="true"] { box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset; }
+.needt-v2 .nt-input[aria-invalid="true"]:focus-visible { box-shadow: var(--shadow-focus-destructive); }
+.needt-v2 .nt-input-plain { box-shadow: none; padding-left: 0; }
+.needt-v2 textarea.nt-input { height: auto; min-height: 72px; padding: 8px; resize: vertical; line-height: var(--lh-ui); }
+.needt-v2 .nt-input-sm { height: var(--control-h-sm); border-radius: var(--radius-md); }
 
 /* ── SELECT ─────────────────────────────────────────────────────────────── */
-.needt-v2 .nt-select {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
-}
-.needt-v2 .nt-select-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
-  width: 100%;
-  height: var(--control-h);
-  padding: 0 var(--space-8);
-  border: 0;
-  border-radius: var(--radius-xl);
-  background: transparent;
-  box-shadow: var(--shadow-inset-ring);
-  font: var(--type-ui);
-  color: var(--text-primary);
-  cursor: default;
-  text-align: left;
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .nt-select-trigger:hover {
-  background: var(--fill-1);
-}
-.needt-v2 .nt-select-trigger:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-select-trigger[aria-expanded="true"] {
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-select-trigger:disabled {
-  color: var(--text-disabled);
-  background: var(--fill-2);
-  box-shadow: none;
-}
-.needt-v2 .nt-select-trigger[data-placeholder="true"] {
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-select-trigger[aria-invalid="true"] {
-  box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset;
-}
+.needt-v2 .nt-select { position: relative; display: inline-flex; align-items: center; width: 100%; }
+.needt-v2 .nt-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-xl); background: transparent; box-shadow: var(--shadow-inset-ring); font: var(--type-ui); color: var(--text-primary); cursor: default; text-align: left; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .nt-select-trigger:hover { background: var(--fill-1); }
+.needt-v2 .nt-select-trigger:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-select-trigger[aria-expanded="true"] { box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-select-trigger:disabled { color: var(--text-disabled); background: var(--fill-2); box-shadow: none; }
+.needt-v2 .nt-select-trigger[data-placeholder="true"] { color: var(--text-disabled); }
+.needt-v2 .nt-select-trigger[aria-invalid="true"] { box-shadow: rgba(var(--destructive-rgb), 0.4) 0 0 0 1px inset; }
 .needt-v2 .nt-select-trigger[aria-invalid="true"]:focus-visible,
-.needt-v2 .nt-select-trigger[aria-invalid="true"][aria-expanded="true"] {
-  box-shadow: var(--shadow-focus-destructive);
-}
+.needt-v2 .nt-select-trigger[aria-invalid="true"][aria-expanded="true"] { box-shadow: var(--shadow-focus-destructive); }
 /* Loading keeps the trigger's exact geometry and takes it out of the tab order;
    the spinner replaces the caret rather than sitting beside it. */
-.needt-v2 .nt-select-trigger[data-loading="true"] {
-  color: var(--text-quaternary);
-  pointer-events: none;
-}
-.needt-v2 .nt-select-trigger[data-loading="true"]:hover {
-  background: transparent;
-}
-.needt-v2 .nt-select-caret {
-  color: var(--text-muted);
-  flex: none;
-}
+.needt-v2 .nt-select-trigger[data-loading="true"] { color: var(--text-quaternary); pointer-events: none; }
+.needt-v2 .nt-select-trigger[data-loading="true"]:hover { background: transparent; }
+.needt-v2 .nt-select-caret { color: var(--text-muted); flex: none; }
 
 /* ── CHECKBOX / RADIO ─────────────────────────────────────────────────────
    16px box, inset ring at rest, accent fill at 24% with accent glyph when on.
    No solid accent fill. */
-.needt-v2 .nt-check {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-8);
-  font: var(--type-ui);
-  color: var(--text-secondary);
-  cursor: default;
-  min-height: var(--form-row-h);
-}
-.needt-v2 .nt-check-box {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  box-shadow: var(--shadow-inset-ring);
-  color: transparent;
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .nt-check:hover .nt-check-box {
-  background: var(--fill-3);
-}
-.needt-v2 .nt-check input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.needt-v2 .nt-check input:focus-visible + .nt-check-box {
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-check[data-checked="true"] .nt-check-box {
-  background: var(--fill-accent-strong);
-  color: var(--accent);
-  box-shadow: none;
-}
-.needt-v2 .nt-check[data-indeterminate="true"] .nt-check-box {
-  background: var(--fill-accent-strong);
-  color: var(--accent);
-  box-shadow: none;
-}
-.needt-v2 .nt-check[data-disabled="true"] {
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-check[data-disabled="true"] .nt-check-box {
-  background: var(--fill-2);
-  box-shadow: none;
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-radio-box {
-  border-radius: var(--radius-pill);
-}
+.needt-v2 .nt-check { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--type-ui); color: var(--text-secondary); cursor: default; min-height: var(--form-row-h); }
+.needt-v2 .nt-check-box { flex: none; display: grid; place-items: center; width: 16px; height: 16px; border-radius: var(--radius-xs); background: transparent; box-shadow: var(--shadow-inset-ring); color: transparent; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .nt-check:hover .nt-check-box { background: var(--fill-3); }
+.needt-v2 .nt-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.needt-v2 .nt-check input:focus-visible + .nt-check-box { box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-check[data-checked="true"] .nt-check-box { background: var(--fill-accent-strong); color: var(--accent); box-shadow: none; }
+.needt-v2 .nt-check[data-indeterminate="true"] .nt-check-box { background: var(--fill-accent-strong); color: var(--accent); box-shadow: none; }
+.needt-v2 .nt-check[data-disabled="true"] { color: var(--text-disabled); }
+.needt-v2 .nt-check[data-disabled="true"] .nt-check-box { background: var(--fill-2); box-shadow: none; color: var(--text-disabled); }
+.needt-v2 .nt-radio-box { border-radius: var(--radius-pill); }
 
 /* ── SWITCH ───────────────────────────────────────────────────────────────
    28×16 track, 12px knob. Off: fill-5. On: accent at 24% with an accent knob. */
-.needt-v2 .nt-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-8);
-  font: var(--type-ui);
-  color: var(--text-secondary);
-  cursor: default;
-  min-height: var(--form-row-h);
-}
-.needt-v2 .nt-switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.needt-v2 .nt-switch-track {
-  flex: none;
-  position: relative;
-  width: 28px;
-  height: 16px;
-  border-radius: var(--radius-pill);
-  background: var(--fill-5);
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .nt-switch:hover .nt-switch-track {
-  background: var(--fill-6);
-}
-.needt-v2 .nt-switch input:focus-visible + .nt-switch-track {
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-switch-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-raised);
-  transition:
-    transform var(--transition-hover),
-    background-color var(--transition-hover);
-}
-.needt-v2 .nt-switch[data-checked="true"] .nt-switch-track {
-  background: var(--fill-accent-strong);
-}
-.needt-v2 .nt-switch[data-checked="true"] .nt-switch-knob {
-  transform: translateX(12px);
-  background: var(--accent);
-  box-shadow: none;
-}
-.needt-v2 .nt-switch[data-disabled="true"] {
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-switch[data-disabled="true"] .nt-switch-track {
-  background: var(--fill-2);
-}
+.needt-v2 .nt-switch { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--type-ui); color: var(--text-secondary); cursor: default; min-height: var(--form-row-h); }
+.needt-v2 .nt-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.needt-v2 .nt-switch-track { flex: none; position: relative; width: 28px; height: 16px; border-radius: var(--radius-pill); background: var(--fill-5); transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .nt-switch:hover .nt-switch-track { background: var(--fill-6); }
+.needt-v2 .nt-switch input:focus-visible + .nt-switch-track { box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-switch-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: var(--radius-pill); background: var(--surface-raised); box-shadow: var(--shadow-raised); transition: transform var(--transition-hover), background-color var(--transition-hover); }
+.needt-v2 .nt-switch[data-checked="true"] .nt-switch-track { background: var(--fill-accent-strong); }
+.needt-v2 .nt-switch[data-checked="true"] .nt-switch-knob { transform: translateX(12px); background: var(--accent); box-shadow: none; }
+.needt-v2 .nt-switch[data-disabled="true"] { color: var(--text-disabled); }
+.needt-v2 .nt-switch[data-disabled="true"] .nt-switch-track { background: var(--fill-2); }
 
 /* ── MENU (dropdown and context — one implementation) ─────────────────────
    Popover surface: raised fill, radius 12, floating shadow, 4px inner pad.
    Rows are 32px, radius 8, transparent at rest. */
-.needt-v2 .nt-menu {
-  min-width: 200px;
-  padding: var(--space-4);
-  border-radius: var(--radius-xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-  z-index: var(--z-dropdown);
-}
-.needt-v2 .nt-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  width: 100%;
-  height: var(--control-h);
-  padding: 0 var(--space-8);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  font: var(--type-ui);
-  color: var(--text-secondary);
-  text-align: left;
-  cursor: default;
-  transition: background-color var(--transition-hover);
-}
-.needt-v2 .nt-menu-item:hover {
-  background: var(--fill-3);
-  color: var(--text-primary);
-}
-.needt-v2 .nt-menu-item:active {
-  background: var(--fill-5);
-}
-.needt-v2 .nt-menu-item:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-menu-item[data-selected="true"] {
-  background: var(--fill-accent);
-  color: var(--accent);
-}
-.needt-v2 .nt-menu-item[data-variant="destructive"] {
-  color: var(--destructive);
-}
-.needt-v2 .nt-menu-item[data-variant="destructive"]:hover {
-  background: var(--fill-destructive);
-}
+.needt-v2 .nt-menu { min-width: 200px; padding: var(--space-4); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); z-index: var(--z-dropdown); }
+.needt-v2 .nt-menu-item { display: flex; align-items: center; gap: var(--space-8); width: 100%; height: var(--control-h); padding: 0 var(--space-8); border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-ui); color: var(--text-secondary); text-align: left; cursor: default; transition: background-color var(--transition-hover); }
+.needt-v2 .nt-menu-item:hover { background: var(--fill-3); color: var(--text-primary); }
+.needt-v2 .nt-menu-item:active { background: var(--fill-5); }
+.needt-v2 .nt-menu-item:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-menu-item[data-selected="true"] { background: var(--fill-accent); color: var(--accent); }
+.needt-v2 .nt-menu-item[data-variant="destructive"] { color: var(--destructive); }
+.needt-v2 .nt-menu-item[data-variant="destructive"]:hover { background: var(--fill-destructive); }
 .needt-v2 .nt-menu-item[data-disabled="true"],
-.needt-v2 .nt-menu-item:disabled {
-  color: var(--text-disabled);
-  background: transparent;
-}
-.needt-v2 .nt-menu-shortcut {
-  margin-left: auto;
-  font: var(--type-meta);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v2 .nt-menu-label {
-  padding: var(--space-6) var(--space-8) var(--space-4);
-  font: var(--type-meta-medium);
-  color: var(--text-muted);
-}
-.needt-v2 .nt-menu-sep {
-  height: 1px;
-  margin: var(--space-4) var(--space-8);
-  background: var(--border);
-}
+.needt-v2 .nt-menu-item:disabled { color: var(--text-disabled); background: transparent; }
+.needt-v2 .nt-menu-shortcut { margin-left: auto; font: var(--type-meta); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.needt-v2 .nt-menu-label { padding: var(--space-6) var(--space-8) var(--space-4); font: var(--type-meta-medium); color: var(--text-muted); }
+.needt-v2 .nt-menu-sep { height: 1px; margin: var(--space-4) var(--space-8); background: var(--border); }
 
 /* ── POPOVER ──────────────────────────────────────────────────────────── */
-.needt-v2 .nt-popover {
-  padding: var(--space-16);
-  border-radius: var(--radius-xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-  z-index: var(--z-dropdown);
-}
+.needt-v2 .nt-popover { padding: var(--space-16); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); z-index: var(--z-dropdown); }
 
 /* ── TOOLTIP ──────────────────────────────────────────────────────────────
    12px, one line, no arrow, no blur. Appears on hover of its trigger. */
-.needt-v2 .nt-tooltip-wrap {
-  position: relative;
-  display: inline-flex;
-}
-.needt-v2 .nt-tooltip {
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-  font: var(--type-meta);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  z-index: var(--z-tooltip);
-  transition: opacity var(--transition-hover);
-}
+.needt-v2 .nt-tooltip-wrap { position: relative; display: inline-flex; }
+.needt-v2 .nt-tooltip { position: absolute; pointer-events: none; opacity: 0; padding: 4px 8px; border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-floating); font: var(--type-meta); color: var(--text-secondary); white-space: nowrap; z-index: var(--z-tooltip); transition: opacity var(--transition-hover); }
 .needt-v2 .nt-tooltip-wrap:hover > .nt-tooltip,
-.needt-v2 .nt-tooltip-wrap:focus-within > .nt-tooltip {
-  opacity: 1;
-}
-.needt-v2 .nt-tooltip[data-side="top"] {
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.needt-v2 .nt-tooltip[data-side="bottom"] {
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.needt-v2 .nt-tooltip[data-side="right"] {
-  left: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-.needt-v2 .nt-tooltip[data-side="left"] {
-  right: calc(100% + 6px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-.needt-v2 .nt-tooltip-key {
-  margin-left: 6px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
+.needt-v2 .nt-tooltip-wrap:focus-within > .nt-tooltip { opacity: 1; }
+.needt-v2 .nt-tooltip[data-side="top"] { bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+.needt-v2 .nt-tooltip[data-side="bottom"] { top: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+.needt-v2 .nt-tooltip[data-side="right"] { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+.needt-v2 .nt-tooltip[data-side="left"] { right: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+.needt-v2 .nt-tooltip-key { margin-left: 6px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* ── DIALOG ───────────────────────────────────────────────────────────────
    840×620, header 84, footer 54, aside minmax(320px, 356px). */
-.needt-v2 .nt-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay-scrim);
-  z-index: var(--z-modal);
-  display: grid;
-  place-items: center;
-}
-.needt-v2 .nt-dialog {
-  display: flex;
-  flex-direction: column;
-  width: var(--dialog-w);
-  max-width: calc(100vw - 40px);
-  height: var(--dialog-h);
-  max-height: calc(100vh - 40px);
-  border-radius: var(--radius-4xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-  overflow: hidden;
-}
-.needt-v2 .nt-dialog-sm {
-  width: 480px;
-  height: auto;
-}
-.needt-v2 .nt-dialog-header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-16);
-  min-height: var(--dialog-header-h);
-  padding: 0 var(--space-20);
-}
-.needt-v2 .nt-dialog-title {
-  font: var(--type-page-title);
-  color: var(--text-primary);
-  margin: 0;
-}
-.needt-v2 .nt-dialog-sub {
-  font: var(--type-meta);
-  color: var(--text-muted);
-  margin: var(--space-4) 0 0;
-}
-.needt-v2 .nt-dialog-body {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  overflow: hidden;
-}
-.needt-v2 .nt-dialog-body-split {
-  grid-template-columns: minmax(0, 1fr) minmax(
-      var(--dialog-aside-min),
-      var(--dialog-aside-max)
-    );
-}
-.needt-v2 .nt-dialog-main {
-  padding: var(--space-4) var(--space-20) var(--space-20);
-  overflow: auto;
-}
-.needt-v2 .nt-dialog-aside {
-  padding: var(--space-4) var(--space-20) var(--space-20);
-  overflow: auto;
-  box-shadow: var(--border) 1px 0 0 0 inset;
-}
-.needt-v2 .nt-dialog-footer {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-8);
-  min-height: var(--dialog-footer-h);
-  padding: 0 var(--space-20);
-  box-shadow: var(--border) 0 1px 0 0 inset;
-}
+.needt-v2 .nt-scrim { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: var(--z-modal); display: grid; place-items: center; }
+.needt-v2 .nt-dialog { display: flex; flex-direction: column; width: var(--dialog-w); max-width: calc(100vw - 40px); height: var(--dialog-h); max-height: calc(100vh - 40px); border-radius: var(--radius-4xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); overflow: hidden; }
+.needt-v2 .nt-dialog-sm { width: 480px; height: auto; }
+.needt-v2 .nt-dialog-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-16); min-height: var(--dialog-header-h); padding: 0 var(--space-20); }
+.needt-v2 .nt-dialog-title { font: var(--type-page-title); color: var(--text-primary); margin: 0; }
+.needt-v2 .nt-dialog-sub { font: var(--type-meta); color: var(--text-muted); margin: var(--space-4) 0 0; }
+.needt-v2 .nt-dialog-body { flex: 1; min-height: 0; display: grid; overflow: hidden; }
+.needt-v2 .nt-dialog-body-split { grid-template-columns: minmax(0, 1fr) minmax(var(--dialog-aside-min), var(--dialog-aside-max)); }
+.needt-v2 .nt-dialog-main { padding: var(--space-4) var(--space-20) var(--space-20); overflow: auto; }
+.needt-v2 .nt-dialog-aside { padding: var(--space-4) var(--space-20) var(--space-20); overflow: auto; box-shadow: var(--border) 1px 0 0 0 inset; }
+.needt-v2 .nt-dialog-footer { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); min-height: var(--dialog-footer-h); padding: 0 var(--space-20); box-shadow: var(--border) 0 1px 0 0 inset; }
 
 /* ── DATE PICKER ──────────────────────────────────────────────────────────
    28px cells, radius 8. Today gets the strong accent fill; the selected day
    gets the accent fill plus accent text. Never a solid accent cell. */
-.needt-v2 .nt-datepicker {
-  width: 252px;
-  padding: var(--space-8);
-  border-radius: var(--radius-xl);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-floating);
-}
-.needt-v2 .nt-dp-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--control-h-sm);
-  padding: 0 var(--space-4);
-}
-.needt-v2 .nt-dp-month {
-  font: var(--type-ui-medium);
-  color: var(--text-primary);
-}
-.needt-v2 .nt-dp-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-}
-.needt-v2 .nt-dp-dow {
-  display: grid;
-  place-items: center;
-  height: 20px;
-  font: var(--type-meta-medium);
-  color: var(--text-muted);
-}
-.needt-v2 .nt-dp-cell {
-  display: grid;
-  place-items: center;
-  height: var(--control-h-sm);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  font: var(--type-ui);
-  color: var(--text-secondary);
-  cursor: default;
-  font-variant-numeric: tabular-nums;
-  transition: background-color var(--transition-hover);
-}
-.needt-v2 .nt-dp-cell:hover {
-  background: var(--fill-3);
-}
-.needt-v2 .nt-dp-cell:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-dp-cell[data-outside="true"] {
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-dp-cell[data-today="true"] {
-  background: var(--fill-accent-strong);
-  color: var(--accent);
-  font-weight: var(--weight-medium);
-}
-.needt-v2 .nt-dp-cell[data-selected="true"] {
-  background: var(--fill-accent);
-  color: var(--accent);
-  font-weight: var(--weight-medium);
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-dp-cell:disabled {
-  color: var(--text-disabled);
-  background: transparent;
-}
-.needt-v2 .nt-dp-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  box-shadow: var(--border) 0 1px 0 0 inset;
-}
+.needt-v2 .nt-datepicker { width: 252px; padding: var(--space-8); border-radius: var(--radius-xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.needt-v2 .nt-dp-head { display: flex; align-items: center; justify-content: space-between; height: var(--control-h-sm); padding: 0 var(--space-4); }
+.needt-v2 .nt-dp-month { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v2 .nt-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-2); margin-top: var(--space-4); }
+.needt-v2 .nt-dp-dow { display: grid; place-items: center; height: 20px; font: var(--type-meta-medium); color: var(--text-muted); }
+.needt-v2 .nt-dp-cell { display: grid; place-items: center; height: var(--control-h-sm); border: 0; border-radius: var(--radius-md); background: transparent; font: var(--type-ui); color: var(--text-secondary); cursor: default; font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
+.needt-v2 .nt-dp-cell:hover { background: var(--fill-3); }
+.needt-v2 .nt-dp-cell:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-dp-cell[data-outside="true"] { color: var(--text-disabled); }
+.needt-v2 .nt-dp-cell[data-today="true"] { background: var(--fill-accent-strong); color: var(--accent); font-weight: var(--weight-medium); }
+.needt-v2 .nt-dp-cell[data-selected="true"] { background: var(--fill-accent); color: var(--accent); font-weight: var(--weight-medium); box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-dp-cell:disabled { color: var(--text-disabled); background: transparent; }
+.needt-v2 .nt-dp-foot { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-4); padding-top: var(--space-4); box-shadow: var(--border) 0 1px 0 0 inset; }
 
 /* ── CALENDAR BLOCK ───────────────────────────────────────────────────────
    The rail means movability: grey rail = fixed, project-colour rail = the
    scheduler placed it and can move it again. Priority is rail thickness.
    Overdue overrides in red. Nothing else rides the rail. */
-.needt-v2 .nt-block {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-height: 28px;
-  padding: 5px 8px 5px 11px;
-  border-radius: var(--radius-md);
-  background: var(--fill-4);
-  overflow: hidden;
-  transition:
-    background-color var(--transition-hover),
-    box-shadow var(--transition-hover);
-}
-.needt-v2 .nt-block::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--text-muted);
-}
-.needt-v2 .nt-block[data-priority="high"]::before {
-  width: 6px;
-}
-.needt-v2 .nt-block[data-movable="true"]::before {
-  background: var(--block-color, var(--accent));
-}
-.needt-v2 .nt-block[data-overdue="true"]::before {
-  background: var(--destructive);
-}
-.needt-v2 .nt-block:hover {
-  box-shadow: var(--shadow-ring);
-}
-.needt-v2 .nt-block[data-selected="true"] {
-  box-shadow: var(--shadow-focus);
-}
-.needt-v2 .nt-block[data-done="true"] .nt-block-title {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-.needt-v2 .nt-block-title {
-  flex: none;
-  font: var(--type-meta-medium);
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.needt-v2 .nt-block { position: relative; display: flex; flex-direction: column; gap: 1px; min-height: 28px; padding: 5px 8px 5px 11px; border-radius: var(--radius-md); background: var(--fill-4); overflow: hidden; transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
+.needt-v2 .nt-block::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--text-muted); }
+.needt-v2 .nt-block[data-priority="high"]::before { width: 6px; }
+.needt-v2 .nt-block[data-movable="true"]::before { background: var(--block-color, var(--accent)); }
+.needt-v2 .nt-block[data-overdue="true"]::before { background: var(--destructive); }
+.needt-v2 .nt-block:hover { box-shadow: var(--shadow-ring); }
+.needt-v2 .nt-block[data-selected="true"] { box-shadow: var(--shadow-focus); }
+.needt-v2 .nt-block[data-done="true"] .nt-block-title { color: var(--text-muted); text-decoration: line-through; }
+.needt-v2 .nt-block-title { flex: none; font: var(--type-meta-medium); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Under 30 minutes there is no room for two lines: title and time share one. */
-.needt-v2 .nt-block[data-compact="true"] {
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-6);
-  padding-top: 0;
-  padding-bottom: 0;
-}
-.needt-v2 .nt-block[data-compact="true"] .nt-block-title {
-  min-width: 0;
-}
-.needt-v2 .nt-block[data-compact="true"] .nt-block-time {
-  flex: none;
-  margin-left: auto;
-}
-.needt-v2 .nt-block-time {
-  flex: none;
-  font: var(--type-meta);
-  color: var(--text-quaternary);
-  font-variant-numeric: tabular-nums;
-}
+.needt-v2 .nt-block[data-compact="true"] { flex-direction: row; align-items: center; gap: var(--space-6); padding-top: 0; padding-bottom: 0; }
+.needt-v2 .nt-block[data-compact="true"] .nt-block-title { min-width: 0; }
+.needt-v2 .nt-block[data-compact="true"] .nt-block-time { flex: none; margin-left: auto; }
+.needt-v2 .nt-block-time { flex: none; font: var(--type-meta); color: var(--text-quaternary); font-variant-numeric: tabular-nums; }
 
 /* ── EMPTY STATE ──────────────────────────────────────────────────────────
    An outline icon, one sentence at --text-disabled, one action. */
-.needt-v2 .nt-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-11);
-  padding: var(--space-20);
-  text-align: center;
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-empty-icon {
-  color: var(--text-muted);
-}
-.needt-v2 .nt-empty-text {
-  font: var(--type-ui);
-  color: var(--text-disabled);
-  max-width: 320px;
-}
+.needt-v2 .nt-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-11); padding: var(--space-20); text-align: center; color: var(--text-disabled); }
+.needt-v2 .nt-empty-icon { color: var(--text-muted); }
+.needt-v2 .nt-empty-text { font: var(--type-ui); color: var(--text-disabled); max-width: 320px; }
 
 /* ── LOADING ──────────────────────────────────────────────────────────────
    One spinner, and skeleton rows that use fill-3 → fill-5. Rotation is the
    only motion in the product that is not a 0.15s or 0.25s transition. */
-.needt-v2 .nt-spinner {
-  display: inline-block;
-  border-radius: var(--radius-pill);
-  border: 1.5px solid var(--fill-6);
-  border-top-color: var(--text-quaternary);
-  animation: needt-spin 0.7s linear infinite;
-}
-.needt-v2 .nt-skeleton {
-  border-radius: var(--radius-xs);
-  background: var(--fill-3);
-}
+.needt-v2 .nt-spinner { display: inline-block; border-radius: var(--radius-pill); border: 1.5px solid var(--fill-6); border-top-color: var(--text-quaternary); animation: needt-spin 0.7s linear infinite; }
+.needt-v2 .nt-skeleton { border-radius: var(--radius-xs); background: var(--fill-3); }
 
 /* ── STATUS DOT ───────────────────────────────────────────────────────── */
-.needt-v2 .nt-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--text-muted);
-  flex: none;
-}
-.needt-v2 .nt-dot[data-tone="accent"] {
-  background: var(--accent);
-}
-.needt-v2 .nt-dot[data-tone="success"] {
-  background: var(--success);
-}
-.needt-v2 .nt-dot[data-tone="info"] {
-  background: var(--info);
-}
-.needt-v2 .nt-dot[data-tone="destructive"] {
-  background: var(--destructive);
-}
+.needt-v2 .nt-dot { display: inline-block; width: 6px; height: 6px; border-radius: var(--radius-pill); background: var(--text-muted); flex: none; }
+.needt-v2 .nt-dot[data-tone="accent"] { background: var(--accent); }
+.needt-v2 .nt-dot[data-tone="success"] { background: var(--success); }
+.needt-v2 .nt-dot[data-tone="info"] { background: var(--info); }
+.needt-v2 .nt-dot[data-tone="destructive"] { background: var(--destructive); }
 
 /* ── DAY TIMELINE ─────────────────────────────────────────────────────────
    One hour is --hour-h and every position derives from it, so a block's height
    is its duration. Free time is drawn as space, not as an object: the gap has
    no fill and no ring, so occupied work reads as raised surfaces against the
    canvas and the amount left is legible as size before any label is read. */
-.needt-v2 .nt-timeline {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  padding-top: var(--space-8);
-}
-.needt-v2 .nt-timeline-gutter {
-  position: relative;
-}
-.needt-v2 .nt-timeline-hour {
-  position: absolute;
-  left: 0;
-  transform: translateY(-7px);
-  font: var(--type-meta);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v2 .nt-timeline-track {
-  position: relative;
-}
-.needt-v2 .nt-timeline-rule {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--border);
-}
+.needt-v2 .nt-timeline { display: grid; grid-template-columns: 52px minmax(0, 1fr); padding-top: var(--space-8); }
+.needt-v2 .nt-timeline-gutter { position: relative; }
+.needt-v2 .nt-timeline-hour { position: absolute; left: 0; transform: translateY(-7px); font: var(--type-meta); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.needt-v2 .nt-timeline-track { position: relative; }
+.needt-v2 .nt-timeline-rule { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
 /* Blocks sit above the now-line. The line must never cross a title: a
    horizontal line through text is how this system marks a task done, so a
    1px accent line over an overdue task would say the opposite of the truth. */
-.needt-v2 .nt-timeline-slot {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  z-index: var(--z-local);
-}
-.needt-v2 .nt-timeline-now {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--accent);
-  z-index: var(--z-base);
-}
+.needt-v2 .nt-timeline-slot { position: absolute; left: 8px; right: 8px; z-index: var(--z-local); }
+.needt-v2 .nt-timeline-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--accent); z-index: var(--z-base); }
 /* The moment falls inside a placed block: draw a tick, not a rule. */
-.needt-v2 .nt-timeline-now[data-clipped="true"] {
-  right: auto;
-  width: 6px;
-}
-.needt-v2 .nt-timeline-now-label {
-  position: absolute;
-  left: -46px;
-  top: -7px;
-  font: var(--type-meta-medium);
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
+.needt-v2 .nt-timeline-now[data-clipped="true"] { right: auto; width: 6px; }
+.needt-v2 .nt-timeline-now-label { position: absolute; left: -46px; top: -7px; font: var(--type-meta-medium); color: var(--accent); font-variant-numeric: tabular-nums; }
 
 /* A free gap. Rest: nothing at all. Hover (only when it can take a task):
    the faintest wash, and the affordance appears. */
-.needt-v2 .nt-free {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  transition: background-color var(--transition-hover);
-}
+.needt-v2 .nt-free { position: relative; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); transition: background-color var(--transition-hover); }
 /* Elapsed free time: still space, but not offered. */
-.needt-v2 .nt-free[data-past="true"] {
-  pointer-events: none;
-}
-.needt-v2 .nt-free[data-actionable="true"]:hover {
-  background: var(--fill-2);
-}
-.needt-v2 .nt-free-label {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font: var(--type-meta);
-  color: var(--text-disabled);
-}
-.needt-v2 .nt-free[data-actionable="true"]:hover .nt-free-label {
-  color: var(--text-muted);
-}
-.needt-v2 .nt-free-quantity {
-  font-variant-numeric: tabular-nums;
-}
-.needt-v2 .nt-free-action {
-  font: var(--type-meta-medium);
-  color: var(--accent);
-  margin-left: var(--space-4);
-}
+.needt-v2 .nt-free[data-past="true"] { pointer-events: none; }
+.needt-v2 .nt-free[data-actionable="true"]:hover { background: var(--fill-2); }
+.needt-v2 .nt-free-label { display: flex; align-items: baseline; gap: 5px; font: var(--type-meta); color: var(--text-disabled); }
+.needt-v2 .nt-free[data-actionable="true"]:hover .nt-free-label { color: var(--text-muted); }
+.needt-v2 .nt-free-quantity { font-variant-numeric: tabular-nums; }
+.needt-v2 .nt-free-action { font: var(--type-meta-medium); color: var(--accent); margin-left: var(--space-4); }
 
 /* The free-time headline: the one number the screen exists to answer, so it
    takes the display serif rather than another 13px caption. */
-.needt-v2 .nt-freetime {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.needt-v2 .nt-freetime-value {
-  font-family: var(--font-display);
-  font-size: 40px;
-  line-height: 1;
-  letter-spacing: var(--tracking-display);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v2 .nt-freetime-caption {
-  font: var(--type-meta);
-  color: var(--text-quaternary);
-}
+.needt-v2 .nt-freetime { display: flex; flex-direction: column; gap: var(--space-2); }
+.needt-v2 .nt-freetime-value { font-family: var(--font-display); font-size: 40px; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v2 .nt-freetime-caption { font: var(--type-meta); color: var(--text-quaternary); }
+

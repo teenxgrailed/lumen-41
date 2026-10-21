@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collapsed header is the place icon and title, centred, over a three-step
   blur that fades in as you scroll; the fog under the dock is 128 px (deeper
   in a Safari tab).
+- Place switches show the skeleton of the place being opened (after 150 ms, in
+  the page's own slot, not a full-screen card) instead of the old screen frozen
+  while the server answers; desktop and phone, still under reduced motion.
 - Phone document editor: the format bar is a floating pill with side margins
   above the keyboard, the page no longer springs when you tap it, and typing
   does less work (no relayout per keyboard frame, no blur re-render of the

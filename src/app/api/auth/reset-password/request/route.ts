@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import crypto from "crypto";
 
+import { hashPasswordResetToken } from "@/lib/auth/password-reset-token";
 import { sendPasswordResetEmail } from "@/lib/email/password-reset";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -70,14 +71,20 @@ export async function POST(request: NextRequest) {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
-    // Store the reset token
-    await prisma.passwordReset.create({
-      data: {
-        userId: user.id,
-        token: resetToken,
-        expiresAt: resetTokenExpiry,
-      },
-    });
+    // Store only the hash of the token (the raw token goes in the email link)
+    // and invalidate any reset links this person still has outstanding.
+    await prisma.$transaction([
+      prisma.passwordReset.deleteMany({
+        where: { userId: user.id, usedAt: null },
+      }),
+      prisma.passwordReset.create({
+        data: {
+          userId: user.id,
+          token: hashPasswordResetToken(resetToken),
+          expiresAt: resetTokenExpiry,
+        },
+      }),
+    ]);
 
     // Send the password reset email
     await sendPasswordResetEmail({
