@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: the traffic lights are centred on the page's sidebar toggle (the
+  page reports its top-bar centre) and the toggle starts 16 pt after the zoom
+  button.
 - Mac app: the notch island is part of Needt (Pro). Focus, Next (next task and
   event) and Add (quick add) sit before Music and Files; focus can be paused or
   ended from the notch ("Done 5 min early"). On a Mac without a notch the
