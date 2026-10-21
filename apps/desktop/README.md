@@ -154,3 +154,13 @@ CI; commit the refreshed lock after the first local build.
 - Any local program can open `needt://auth?code=...`. Without the app's
   verifier the code is useless, but a flood of such links can cancel a
   pending sign-in (the verifier is single use); the person starts again.
+
+## App icon (Dock)
+
+The bundled icon is Midnight. When the person picks another icon the web app
+emits the Tauri event `app-icon` with `{ id }` (`emitDesktopEvent`).
+
+//todo: nothing listens yet. Setting the Dock tile at runtime on macOS needs
+`NSApplication.setApplicationIconImage` through `objc2`, with the PNGs from
+`public/app-icons/<id>/`; it cannot be verified in CI, so it is left for a
+Mac build. Windows keeps the bundled icon.

@@ -1,0 +1,235 @@
+name: Safari phone
+
+# The phone app in real Mobile Safari (iOS Simulator), status bar and floating
+# toolbar tint included, so Safari 26/27 "bar bands" can be seen without a phone.
+# A throwaway server on the runner with the CI-only secrets; nothing touches
+# production. The app is signed into through its normal sign-in form.
+
+on:
+  push:
+    branches:
+      - "safari-probe/**"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to show in Safari
+        required: false
+        default: main
+        type: string
+
+concurrency:
+  group: safari-phone-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_test
+  DIRECT_URL: postgresql://needt:needt@localhost:5432/needt_test
+  SHADOW_DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_shadow
+  REDIS_URL: redis://localhost:6379
+  NEXTAUTH_URL: http://127.0.0.1:3000
+  NEXTAUTH_SECRET: needt-ci-only-secret-not-valid-outside-github-actions
+  RATE_LIMIT_HASH_SECRET: needt-ci-rate-limit-hash-secret
+  NODE_OPTIONS: --max-old-space-size=5120
+  PROBE_EMAIL: ci-pro@needt.local
+  PROBE_PASSWORD: Needt-ci-Password1
+
+jobs:
+  safari:
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Start PostgreSQL and Redis
+        run: |
+          set -euo pipefail
+          brew install postgresql@16 redis
+          brew services start postgresql@16
+          brew services start redis
+          PGBIN="$(brew --prefix postgresql@16)/bin"
+          echo "$PGBIN" >> "$GITHUB_PATH"
+          for i in $(seq 1 30); do "$PGBIN/pg_isready" -h localhost && break; sleep 2; done
+          "$PGBIN/psql" -h localhost -d postgres -c "CREATE ROLE needt LOGIN SUPERUSER PASSWORD 'needt'"
+          "$PGBIN/createdb" -h localhost -O needt needt_test
+          "$PGBIN/createdb" -h localhost -O needt needt_shadow
+          redis-cli ping
+
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/ci-seed.ts
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build and start the app
+        run: |
+          set -euo pipefail
+          npm run build
+          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          disown
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/next.log"
+          exit 1
+
+      - name: Install idb
+        run: |
+          set -euo pipefail
+          brew tap facebook/fb
+          brew trust facebook/fb || true
+          brew install idb-companion
+          # fb-idb predates the newest asyncio changes; give it Python 3.12
+          brew install python@3.12
+          "$(brew --prefix python@3.12)/bin/python3.12" -m venv "$HOME/idbenv"
+          "$HOME/idbenv/bin/pip" install fb-idb
+          echo "$HOME/idbenv/bin" >> "$GITHUB_PATH"
+          "$HOME/idbenv/bin/idb" --help | head -3
+
+      - name: Boot an iPhone simulator
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          xcrun simctl list runtimes -j > "$RUNNER_TEMP/runtimes.json"
+          read -r RUNTIME DEVTYPE <<< "$(python3 - "$RUNNER_TEMP/runtimes.json" <<'PY'
+          import json, re, sys
+          rts = [r for r in json.load(open(sys.argv[1]))["runtimes"]
+                 if r.get("platform") == "iOS" and r.get("isAvailable", True)]
+          rts.sort(key=lambda r: [int(p) for p in re.findall(r"\d+", r["version"])])
+          rt = rts[-1]
+          best = None
+          for d in rt["supportedDeviceTypes"]:
+              m = re.fullmatch(r"iPhone (\d+) Pro", d["name"])
+              if m and (best is None or int(m.group(1)) > best[0]):
+                  best = (int(m.group(1)), d["identifier"])
+          print(rt["identifier"], best[1])
+          PY
+          )"
+          echo "runtime=$RUNTIME devtype=$DEVTYPE"
+          UDID="$(xcrun simctl create probe "$DEVTYPE" "$RUNTIME")"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          tmo() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+          for i in 1 2 3; do
+            xcrun simctl boot "$UDID" || true
+            tmo 300 xcrun simctl bootstatus "$UDID" -b && break
+            echo "boot attempt $i hung; restarting the simulator"
+            xcrun simctl shutdown "$UDID" || true
+          done
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+          xcrun simctl ui "$UDID" appearance light
+          (idb_companion --udid "$UDID" --grpc-port 10882 > "$RUNNER_TEMP/companion.log" 2>&1 &)
+          for i in $(seq 1 12); do
+            sleep 5
+            tmo 30 idb connect localhost 10882 && break
+          done
+          tmo 60 idb list-targets
+
+      - name: Sign in through the sign-in form
+        timeout-minutes: 15
+        continue-on-error: true
+        run: |
+          set +e
+          set -uo pipefail
+          mkdir -p shots debug
+          # openurl right after boot can time out (code 60): retry
+          openurl() {
+            for i in 1 2 3 4 5 6; do
+              xcrun simctl openurl "$UDID" "$1" && return 0
+              sleep 10
+            done
+            return 1
+          }
+          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
+          sleep 20
+          # the simulator is slow on a shared runner: wait until Safari has painted
+          # a real page (a blank or error page is a tiny JPEG)
+          loaded() {
+            for i in $(seq 1 40); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && return 0
+              sleep 3
+            done
+            return 1
+          }
+          # the first touch after a boot is swallowed (seen in a typing test):
+          # spend it on a throwaway load of the same page
+          openurl "http://127.0.0.1:3000/auth/signin?warm=1"
+          loaded || echo "warm-up page did not paint"
+          python3 .github/safari/ui.py tapxy 201 385
+          sleep 10
+          python3 .github/safari/ui.py text w
+          sleep 15
+          openurl http://127.0.0.1:3000/auth/signin
+          sleep 5
+          loaded || echo "sign-in page did not paint"
+          sleep 3
+          xcrun simctl io "$UDID" screenshot shots/00-signin.png
+          python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
+          sleep 60
+          xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
+          python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
+
+      - name: Rows for the scroll scenarios
+        run: npx tsx .github/safari/seed-tasks.ts
+
+      - name: Scenarios, light and dark
+        timeout-minutes: 25
+        run: |
+          set -uo pipefail
+          open_url() {
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
+            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
+            for i in $(seq 1 30); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
+              sleep 3
+            done
+            sleep 3
+          }
+          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
+          for theme in light dark; do
+            xcrun simctl ui "$UDID" appearance "$theme"
+            sleep 2
+            open_url /today;               shot "$theme-01-today-top"
+            python3 .github/safari/ui.py up 2; sleep 1; shot "$theme-02-today-scrolled"
+            open_url /tasks;               shot "$theme-03-tasks-top"
+            python3 .github/safari/ui.py up 12; sleep 1; shot "$theme-04-tasks-bottom"
+            open_url "/settings#appearance"; shot "$theme-05-settings-sheet"
+            open_url /tasks
+            python3 .github/safari/ui.py pull 0.2; sleep 1; shot "$theme-06-pulldown-half"
+          done
+        # a scenario that goes wrong must not hide the shots already taken
+        continue-on-error: true
+
+      - name: Keep the server log
+        if: always()
+        run: cp "$RUNNER_TEMP/next.log" next.log || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-shots
+          path: |
+            shots
+            debug
+            next.log
+          if-no-files-found: warn
+
+      - name: Server log
+        if: always()
+        run: tail -n 60 "$RUNNER_TEMP/next.log" || true

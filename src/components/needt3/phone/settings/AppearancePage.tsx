@@ -2,6 +2,7 @@
 
 import { LuCheck, LuLock } from "react-icons/lu";
 
+import { appIconDef, appIconSrc } from "@/lib/needt3/app-icon";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { useUpdateSettings } from "@/lib/needt3/hooks/settings";
@@ -13,6 +14,7 @@ import {
   type ThemeChoice,
 } from "@/lib/needt3/theme";
 
+import { openAppIconPicker, useAppIcon } from "@/store/app-icon";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { ThemePicture, usePalettes } from "../../settings/AppearanceSection";
@@ -52,6 +54,7 @@ export function AppearancePage() {
   const kind = plan.data?.kind ?? "free";
   const pro = isPro(kind);
   const cur: Accent = ACCENTS.find((a) => a.id === accent) ?? ACCENTS[0];
+  const icon = appIconDef(useAppIcon((s) => s.id));
 
   const pickTheme = (id: ThemeChoice) => {
     if (themeLocked(id, kind)) return upgrade("Time theme");
@@ -157,6 +160,27 @@ export function AppearancePage() {
             data={{ "data-ps-accent-up": "" }}
           />
         )}
+      </PsGroup>
+      <PsGroup
+        title="App icon"
+        hint="Home screen, dock, browser tab and the app."
+      >
+        <PsRow
+          glyph={
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={appIconSrc(icon.id)}
+              alt=""
+              width={28}
+              height={28}
+              className="ai-entry-img"
+            />
+          }
+          title="App icon"
+          value={icon.name}
+          onOpen={() => openAppIconPicker("settings")}
+          data={{ "data-app-icon-entry": "" }}
+        />
       </PsGroup>
     </>
   );

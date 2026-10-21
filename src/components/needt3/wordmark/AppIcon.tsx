@@ -1,9 +1,15 @@
+"use client";
+
 import Image from "next/image";
+
+import { appIconSrc } from "@/lib/needt3/app-icon";
+
+import { useAppIcon } from "@/store/app-icon";
 
 import { ExposureWordmark } from "./ExposureWordmark";
 
 /**
- * The Needt app icon ("Swing": the n on the lavender-to-pearl squircle). The
+ * The Needt app icon (the one the person chose; Midnight by default). The
  * tile carries its own continuous-corner shape and transparent corners, so it
  * needs no radius or clip. Decorative by default: the wordmark beside it
  * already names the app; pass `label` to make it an image. Not for the sidebar
@@ -18,9 +24,11 @@ export function NeedtAppIcon({
   className?: string;
   label?: string;
 }) {
+  // The icon the person chose in Settings -> Appearance; Midnight until then.
+  const chosen = useAppIcon((s) => s.id);
   return (
     <Image
-      src="/brand/needt-icon.svg"
+      src={appIconSrc(chosen)}
       width={size}
       height={size}
       unoptimized
