@@ -15,9 +15,9 @@
  * blocks (themes.css, ACCENT), repeated for the descendant. Dark wins by
  * specificity wherever it applies. */
 .needt-v3 [data-accent="blue"] {
-  --accent: #2e6de9;
+  --accent: #2E6DE9;
   --accent-rgb: 46, 109, 233;
-  --accent-gradient: linear-gradient(135deg, #2e6de9 0%, #2e6de9 100%);
+  --accent-gradient: linear-gradient(135deg, #2E6DE9 0%, #2E6DE9 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -26,9 +26,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="pink"] {
-  --accent: #d23369;
+  --accent: #D23369;
   --accent-rgb: 210, 51, 105;
-  --accent-gradient: linear-gradient(135deg, #d23369 0%, #d23369 100%);
+  --accent-gradient: linear-gradient(135deg, #D23369 0%, #D23369 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -37,9 +37,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="mint"] {
-  --accent: #0b7f62;
+  --accent: #0B7F62;
   --accent-rgb: 11, 127, 98;
-  --accent-gradient: linear-gradient(135deg, #0b7f62 0%, #0b7f62 100%);
+  --accent-gradient: linear-gradient(135deg, #0B7F62 0%, #0B7F62 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -48,9 +48,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="violet"] {
-  --accent: #7347d6;
+  --accent: #7347D6;
   --accent-rgb: 115, 71, 214;
-  --accent-gradient: linear-gradient(135deg, #7347d6 0%, #7347d6 100%);
+  --accent-gradient: linear-gradient(135deg, #7347D6 0%, #7347D6 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -59,9 +59,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="amber"] {
-  --accent: #a85f00;
+  --accent: #A85F00;
   --accent-rgb: 168, 95, 0;
-  --accent-gradient: linear-gradient(135deg, #a85f00 0%, #a85f00 100%);
+  --accent-gradient: linear-gradient(135deg, #A85F00 0%, #A85F00 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -70,9 +70,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="graphite"] {
-  --accent: #4a5059;
+  --accent: #4A5059;
   --accent-rgb: 74, 80, 89;
-  --accent-gradient: linear-gradient(135deg, #4a5059 0%, #4a5059 100%);
+  --accent-gradient: linear-gradient(135deg, #4A5059 0%, #4A5059 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -81,9 +81,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="aurora"] {
-  --accent: #5a5be0;
+  --accent: #5A5BE0;
   --accent-rgb: 90, 91, 224;
-  --accent-gradient: linear-gradient(135deg, #2e6de9 0%, #8247d9 100%);
+  --accent-gradient: linear-gradient(135deg, #2E6DE9 0%, #8247D9 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -92,9 +92,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="sunset"] {
-  --accent: #c93a3f;
+  --accent: #C93A3F;
   --accent-rgb: 201, 58, 63;
-  --accent-gradient: linear-gradient(135deg, #c93f0a 0%, #d23369 100%);
+  --accent-gradient: linear-gradient(135deg, #C93F0A 0%, #D23369 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
@@ -103,9 +103,9 @@
   --accent-contrast: #ffffff;
 }
 .needt-v3 [data-accent="lagoon"] {
-  --accent: #1572b0;
+  --accent: #1572B0;
   --accent-rgb: 21, 114, 176;
-  --accent-gradient: linear-gradient(135deg, #0b7f75 0%, #2e6de9 100%);
+  --accent-gradient: linear-gradient(135deg, #0B7F75 0%, #2E6DE9 100%);
   --accent-fill: var(--accent-gradient);
   --ring-accent: rgba(var(--accent-rgb), 0.4);
   --fill-accent: rgba(var(--accent-rgb), 0.12);
