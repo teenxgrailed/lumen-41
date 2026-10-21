@@ -105,7 +105,10 @@ if __name__ == "__main__":
         time.sleep(25)
         shot("2-email")
         tap(w / 2, h * 0.54)
+        time.sleep(8)
+        tap(w / 2, h * 0.54)  # the first touch after the keyboard opened can be swallowed
         time.sleep(10)
+        shot("2b-password-focus")
         idb("ui", "text", password)
         time.sleep(25)
         shot("3-password")
