@@ -264,11 +264,14 @@ public struct NeedtWidgetBundle: WidgetBundle {
         FocusTimerWidget()
         HabitsWidget()
         QuickAddWidget()
-        if #available(iOS 18.0, macOS 26.0, *) {
+        // Controls and the Live Activity are iPhone only here. On macOS 26 the
+        // Controls need the extension itself to target macOS 26: the
+        // `if #available` builder path does not link below that (//todo).
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
             QuickAddControl()
             StartFocusControl()
         }
-        #if os(iOS)
         FocusLiveActivity()
         #endif
     }
