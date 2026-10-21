@@ -245,4 +245,28 @@ public final class NeedtAPI: @unchecked Sendable {
     public func replan() async throws {
         _ = try await request("/api/tasks/schedule-all", method: "POST")
     }
+
+    // MARK: island
+
+    /// The island's settings: `prefs.island` of `GET /api/user-settings`.
+    /// A missing or unreadable block is the defaults, never an error.
+    public func islandPrefs() async throws -> IslandPrefs {
+        let data = try await request("/api/user-settings")
+        return IslandPrefs.decode(settingsJSON: data)
+    }
+
+    /// Moves a task to the trash (the island's trash button).
+    public func trashTask(id: String) async throws {
+        guard TrayState.validID(id) else { throw NeedtAPIError.badResponse }
+        _ = try await request("/api/tasks/\(id)", method: "DELETE")
+    }
+
+    /// "Hand back to Needt": releases the slots the person pinned by hand,
+    /// then asks the scheduler to plan again.
+    public func handBackToNeedt(taskIds: [String]) async throws {
+        for id in taskIds where TrayState.validID(id) {
+            _ = try await request("/api/tasks/\(id)", method: "PUT", body: ["scheduleLocked": false])
+        }
+        try await replan()
+    }
 }
