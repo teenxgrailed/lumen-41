@@ -96,3 +96,29 @@
  * reader, not the screen), shows only while the editor has focus and rides on
  * the keyboard by its own translateY (globals.css .needt-page-bar, bar-logic
  * trackKeyboard). While it shows it pads the reader's scroll area itself. */
+
+/* ───────── Phone editor: no spring, no relayout per keyboard frame ─────────
+ * The reader's scroller does not rubber-band (ReaderPhone also turns the
+ * document's off while a page is open). */
+.needt-v3 .pd-reader-scroll {
+  overscroll-behavior: none;
+}
+
+/* While the keyboard is up the page's bottom room belongs to PhoneEditBar
+ * (it pads the scroller by the keyboard plus the pill). The vendored rule
+ * added the keyboard's height to the card as well, which re-laid the whole
+ * editor on every visual-viewport frame; the editor's own bottom padding is
+ * all the card needs. */
+.needt-v3 .pd-reader.is-editing .mb-doc-card {
+  padding-bottom: 24px;
+}
+
+/* The blurred backdrop is a 22 px filter on a layer as tall as the whole
+ * document: it re-rasterises every time a line is added and is the layer iOS
+ * drops (black rectangle, tiles of text through the glass) once the keyboard
+ * takes its memory. The backdrop rests unblurred while the page is edited
+ * (Rule 12 above: one blur at a time while something moves). */
+.needt-v3 .pd-reader.is-editing .pd-doc.is-blur::before {
+  -webkit-filter: none;
+  filter: none;
+}

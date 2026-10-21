@@ -1,6 +1,6 @@
 import { APP_NAME } from "@/lib/app-config";
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   // The five HTML metacharacters are escaped in full and every interpolation
   // below is escaped, so the audit rule's "partial escape list" concern does
   // not apply. src/lib/mail/mapping.ts and src/lib/task-description-format.ts

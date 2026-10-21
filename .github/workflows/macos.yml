@@ -75,6 +75,65 @@ jobs:
         working-directory: apps/macos
         run: grep -E "error:" build.log | sort -u | head -80 || true
 
+      - name: App Store build has no Sparkle, direct build embeds the Share extension
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme NeedtAppStore \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-appstore \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tail -n 40
+          STORE=build-appstore/Build/Products/Release/Needt.app
+          DIRECT=build/Build/Products/Release/Needt.app
+          test -d "$STORE"
+          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
+          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
+            echo "Sparkle is inside the App Store build"; exit 1
+          fi
+          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
+          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
+            echo "Sparkle symbols are inside the App Store build"; exit 1
+          fi
+          test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
+
+      - name: Entitlements and private APIs
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import plistlib, sys
+          def load(name):
+              with open(f"Generated/{name}.entitlements", "rb") as f:
+                  return plistlib.load(f)
+          failed = False
+          for name in ("Needt", "NeedtAppStore", "NeedtShare"):
+              e = load(name)
+              print(name, sorted(e))
+              need = ["com.apple.security.app-sandbox", "com.apple.security.network.client",
+                      "com.apple.security.application-groups"]
+              if name != "NeedtShare":
+                  need.append("com.apple.security.files.user-selected.read-only")
+              for key in need:
+                  if not e.get(key):
+                      print("missing", name, key); failed = True
+              if not any("app.needt.mac" in g for g in e.get("com.apple.security.application-groups", [])):
+                  print("no app group in", name); failed = True
+          if "com.apple.security.temporary-exception.mach-lookup.global-name" in load("NeedtAppStore"):
+              print("App Store entitlements carry a temporary exception"); failed = True
+          sys.exit(1 if failed else 0)
+          PY
+          # No private API: no KVC into WebKit/AppKit internals, no private selectors by string.
+          if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share; then
+            echo "private API pattern found"; exit 1
+          fi
+
       - name: Zip Needt.app
         working-directory: apps/macos
         run: |

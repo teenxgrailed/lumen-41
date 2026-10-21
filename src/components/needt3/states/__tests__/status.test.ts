@@ -1,7 +1,12 @@
 import { newDate } from "@/lib/date-utils";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 
-import { type ScreenQuery, accountState, screenState } from "../status";
+import {
+  type ScreenQuery,
+  accountState,
+  routeSkeletonKind,
+  screenState,
+} from "../status";
 
 const pending: ScreenQuery = {
   status: "pending",
@@ -87,5 +92,28 @@ describe("v3 query screen state", () => {
     expect(screenState({ ...pending, fetchStatus: "paused", data: [] })).toBe(
       "content"
     );
+  });
+});
+
+describe("routeSkeletonKind", () => {
+  it("shapes the skeleton after the place being opened", () => {
+    expect(routeSkeletonKind("/today")).toBe("list");
+    expect(routeSkeletonKind("/calendar")).toBe("calendar");
+    expect(routeSkeletonKind("/pages")).toBe("grid");
+    expect(routeSkeletonKind("/pages/abc")).toBe("doc");
+    expect(routeSkeletonKind("/moodboards/abc")).toBe("grid");
+    expect(routeSkeletonKind("/connections")).toBe("cards");
+    expect(routeSkeletonKind("/chat")).toBe("chat");
+  });
+  it("draws nothing for routes that are not places", () => {
+    for (const path of [
+      "/",
+      "/auth/signin",
+      "/admin/users",
+      "/focus",
+      "/settings",
+      "/setup",
+    ])
+      expect(routeSkeletonKind(path)).toBeNull();
   });
 });

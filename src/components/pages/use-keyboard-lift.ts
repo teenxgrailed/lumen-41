@@ -21,11 +21,13 @@ export function keyboardLiftOf(
   return barOffset({ innerHeight, vvHeight, vvOffsetTop }).lift;
 }
 
-export function useKeyboardLift(): number {
+export function useKeyboardLift(enabled = true): number {
   const [lift, setLift] = useState(0);
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!vv) return undefined;
+    // Idle unless asked: the lift is React state, and a state change here
+    // re-renders the whole editor, so only the open "/" sheet listens.
+    if (!enabled || !vv) return undefined;
     let last: BarOffset = NO_KEYBOARD;
     // Straight from the event, not a frame later: a frame of lag is what made
     // the lifted sheet trail the page while it scrolled.
@@ -48,6 +50,6 @@ export function useKeyboardLift(): number {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [enabled]);
   return lift;
 }
