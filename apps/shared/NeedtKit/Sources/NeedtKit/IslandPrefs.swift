@@ -2,32 +2,71 @@ import Foundation
 
 // The island's settings and the pure rules behind its states.
 //
-// The settings live on the server in `UserSettings.prefs.island` (one JSON
-// object) so the web app's Settings, Desktop, Island section and the Mac app
-// read and write the same thing. This file is the contract: the keys below are
-// the ones the web side stores. Every key is optional on the wire; a missing,
-// misspelt or wrongly typed key is its default, so an older or newer page can
-// never break the island.
+// The settings live on the server in `UserSettings.prefs` as FLAT keys, written
+// by the web app's Settings, Desktop (docs/handoff/desktop-prefs.md) and read
+// here through `GET /api/user-settings`. This file is the contract: the key
+// names, values and defaults below are the ones the web side stores. Every key
+// is optional on the wire; a missing, misspelt or wrongly typed key is its
+// default, so an older or newer page can never break the island.
 //
-//   prefs.island = {
-//     "show": true,                        // the master switch (Pro)
-//     "tabs": { "today": true, "week": true, "focus": true },
-//     "modules": [ { "id": "music", "on": true }, ... ],   // order = order in the grid
-//     "peek": true,                        // hover shows the peek
-//     "hoverDelay": 0.26,                  // seconds before the peek
-//     "openOn": "click" | "hover",         // "hover" = long hover opens
-//     "showNothingOnPlan": true,           // dark cockpit
-//     "quiet": false,                      // no moments at all
-//     "haptics": true,
-//     "moments": { "music": true, "airpods": true, "charging": true, "volume": true },
-//     "warnMinutes": 5,
-//     "standbySeconds": 30,
-//     "quietDuringStandby": true,
-//     "hud": true                          // scroll = volume (direct build only)
-//   }
+//   islandShow                     bool            true   (Pro)
+//   islandToday/Week/Focus         bool            true   tabs
+//   islandMusic/Calendar/Shelf/Devices   bool      true   modules
+//   islandClipboard/Tools/Hud      bool            false  modules
+//   islandModuleOrder              "music,calendar,shelf,clipboard,devices,tools,hud"
+//   islandMomentNow/Airpods/Charging/Done   bool   true
+//   islandWarning                  off|2|5|10      5      minutes before the block ends
+//   islandStandby                  off|15|30|60    30     seconds before the block ends
+//   islandQuietStandby             bool            true
+//   islandOnPlanQuiet              bool            true   dark cockpit
+//   islandPeek                     hover|off       hover
+//   islandHoverDelay               0.1|0.3|0.6|1   0.3    seconds
+//   islandOpenOn                   click|hover     click
+//   islandDisplays                 built-in|all|main  built-in
+//   islandPill/HideFullScreen/Haptics  bool        true
+//   islandSounds                   bool            false
 
 public enum IslandModuleID: String, CaseIterable, Codable, Sendable {
     case music, cal, shelf, clip, dev, tools, hud
+
+    /// The id the web side uses in `islandModuleOrder`.
+    public var webID: String {
+        switch self {
+        case .music: return "music"
+        case .cal: return "calendar"
+        case .shelf: return "shelf"
+        case .clip: return "clipboard"
+        case .dev: return "devices"
+        case .tools: return "tools"
+        case .hud: return "hud"
+        }
+    }
+
+    /// The boolean key that switches the module on.
+    public var prefKey: String {
+        switch self {
+        case .music: return "islandMusic"
+        case .cal: return "islandCalendar"
+        case .shelf: return "islandShelf"
+        case .clip: return "islandClipboard"
+        case .dev: return "islandDevices"
+        case .tools: return "islandTools"
+        case .hud: return "islandHud"
+        }
+    }
+
+    /// Clipboard, Tools and Hud are off until the person turns them on.
+    public var onByDefault: Bool {
+        switch self {
+        case .clip, .tools, .hud: return false
+        default: return true
+        }
+    }
+
+    init?(webID: String) {
+        guard let id = IslandModuleID.allCases.first(where: { $0.webID == webID }) else { return nil }
+        self = id
+    }
 }
 
 public struct IslandPrefs: Equatable, Sendable {
@@ -39,10 +78,12 @@ public struct IslandPrefs: Equatable, Sendable {
     }
 
     public struct Moments: Equatable, Sendable {
-        public var music = true
+        /// Now playing.
+        public var now = true
         public var airpods = true
         public var charging = true
-        public var volume = true
+        /// A block was finished.
+        public var done = true
         public init() {}
     }
 
@@ -57,25 +98,41 @@ public struct IslandPrefs: Equatable, Sendable {
 
     public enum OpenOn: String, Sendable { case click, hover }
 
+    public enum Displays: String, Sendable {
+        case builtIn = "built-in"
+        case all
+        case main
+    }
+
     public var show = true
     public var tabs = Tabs()
-    public var modules: [ModuleSetting] = IslandModuleID.allCases.map { ModuleSetting(id: $0) }
+    public var modules: [ModuleSetting] = IslandModuleID.allCases.map { ModuleSetting(id: $0, on: $0.onByDefault) }
     public var peek = true
-    /// Seconds before the peek; nil means "use the Mac's own setting".
-    public var hoverDelay: Double?
+    /// Seconds before the peek.
+    public var hoverDelay: Double = 0.3
     public var openOn = OpenOn.click
+    /// Dark cockpit: show nothing while the day is on plan.
     public var showNothingOnPlan = true
-    public var quiet = false
     public var haptics = true
+    public var sounds = false
+    public var pill = true
+    public var hideFullScreen = true
+    public var displays = Displays.builtIn
     public var moments = Moments()
+    /// Minutes before the block ends; 0 is off.
     public var warnMinutes = 5
+    /// Seconds before the block ends; 0 is off.
     public var standbySeconds = 30
     public var quietDuringStandby = true
-    public var hud = true
 
     public init() {}
 
     public static let defaults = IslandPrefs()
+
+    /// Scroll = volume belongs to the Hud module.
+    public var hud: Bool {
+        modules.first { $0.id == .hud }?.on ?? false
+    }
 
     /// The modules the grid shows: switched on, in the stored order.
     public var visibleModules: [IslandModuleID] {
@@ -94,60 +151,125 @@ public struct IslandPrefs: Equatable, Sendable {
         return out.isEmpty ? [.today] : out
     }
 
-    /// Reads `prefs.island` out of a `GET /api/user-settings` body.
+    /// Reads the flat `island*` keys out of a `GET /api/user-settings` body.
     public static func decode(settingsJSON data: Data) -> IslandPrefs {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let prefs = root["prefs"] as? [String: Any],
-              let island = prefs["island"] as? [String: Any]
-        else { return IslandPrefs() }
-        return decode(island: island)
+        guard let prefs = PrefsReader.prefs(from: data) else { return IslandPrefs() }
+        return decode(prefs: prefs)
     }
 
-    public static func decode(island o: [String: Any]) -> IslandPrefs {
+    public static func decode(prefs o: [String: Any]) -> IslandPrefs {
         var p = IslandPrefs()
-        func bool(_ any: Any?) -> Bool? { any as? Bool }
-        func number(_ any: Any?) -> Double? {
-            if let n = any as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { return n.doubleValue }
-            return nil
-        }
-        if let v = bool(o["show"]) { p.show = v }
-        if let t = o["tabs"] as? [String: Any] {
-            if let v = bool(t["today"]) { p.tabs.today = v }
-            if let v = bool(t["week"]) { p.tabs.week = v }
-            if let v = bool(t["focus"]) { p.tabs.focus = v }
-        }
-        if let list = o["modules"] as? [[String: Any]] {
-            var seen = Set<IslandModuleID>()
-            var out: [ModuleSetting] = []
-            for item in list {
-                guard let raw = item["id"] as? String, let id = IslandModuleID(rawValue: raw),
-                      !seen.contains(id) else { continue }
-                seen.insert(id)
-                out.append(ModuleSetting(id: id, on: bool(item["on"]) ?? true))
+        let r = PrefsReader(o)
+        if let v = r.bool("islandShow") { p.show = v }
+        if let v = r.bool("islandToday") { p.tabs.today = v }
+        if let v = r.bool("islandWeek") { p.tabs.week = v }
+        if let v = r.bool("islandFocus") { p.tabs.focus = v }
+
+        var on: [IslandModuleID: Bool] = [:]
+        for id in IslandModuleID.allCases { on[id] = r.bool(id.prefKey) ?? id.onByDefault }
+        var order: [IslandModuleID] = []
+        if let list = r.string("islandModuleOrder") {
+            for part in list.split(separator: ",") {
+                let key = part.trimmingCharacters(in: .whitespaces)
+                if let id = IslandModuleID(webID: key), !order.contains(id) { order.append(id) }
             }
-            // Modules the page did not mention keep their place at the end.
-            for id in IslandModuleID.allCases where !seen.contains(id) {
-                out.append(ModuleSetting(id: id, on: true))
-            }
-            p.modules = out
         }
-        if let v = bool(o["peek"]) { p.peek = v }
-        if let v = number(o["hoverDelay"]) { p.hoverDelay = min(max(v, 0), 2) }
-        if let raw = o["openOn"] as? String, let v = OpenOn(rawValue: raw) { p.openOn = v }
-        if let v = bool(o["showNothingOnPlan"]) { p.showNothingOnPlan = v }
-        if let v = bool(o["quiet"]) { p.quiet = v }
-        if let v = bool(o["haptics"]) { p.haptics = v }
-        if let m = o["moments"] as? [String: Any] {
-            if let v = bool(m["music"]) { p.moments.music = v }
-            if let v = bool(m["airpods"]) { p.moments.airpods = v }
-            if let v = bool(m["charging"]) { p.moments.charging = v }
-            if let v = bool(m["volume"]) { p.moments.volume = v }
+        // Modules the list did not mention keep their place at the end.
+        for id in IslandModuleID.allCases where !order.contains(id) { order.append(id) }
+        p.modules = order.map { ModuleSetting(id: $0, on: on[$0] ?? $0.onByDefault) }
+
+        if let v = r.bool("islandMomentNow") { p.moments.now = v }
+        if let v = r.bool("islandMomentAirpods") { p.moments.airpods = v }
+        if let v = r.bool("islandMomentCharging") { p.moments.charging = v }
+        if let v = r.bool("islandMomentDone") { p.moments.done = v }
+
+        if let v = r.string("islandWarning") {
+            if v == "off" { p.warnMinutes = 0 } else if let n = Int(v), [2, 5, 10].contains(n) { p.warnMinutes = n }
         }
-        if let v = number(o["warnMinutes"]) { p.warnMinutes = min(max(Int(v), 1), 30) }
-        if let v = number(o["standbySeconds"]) { p.standbySeconds = min(max(Int(v), 5), 120) }
-        if let v = bool(o["quietDuringStandby"]) { p.quietDuringStandby = v }
-        if let v = bool(o["hud"]) { p.hud = v }
+        if let v = r.string("islandStandby") {
+            if v == "off" { p.standbySeconds = 0 } else if let n = Int(v), [15, 30, 60].contains(n) { p.standbySeconds = n }
+        }
+        if let v = r.bool("islandQuietStandby") { p.quietDuringStandby = v }
+        if let v = r.bool("islandOnPlanQuiet") { p.showNothingOnPlan = v }
+        if let v = r.string("islandPeek") { p.peek = v != "off" }
+        if let v = r.number("islandHoverDelay") { p.hoverDelay = min(max(v, 0), 2) }
+        if let v = r.string("islandOpenOn"), let open = OpenOn(rawValue: v) { p.openOn = open }
+        if let v = r.string("islandDisplays"), let d = Displays(rawValue: v) { p.displays = d }
+        if let v = r.bool("islandPill") { p.pill = v }
+        if let v = r.bool("islandHideFullScreen") { p.hideFullScreen = v }
+        if let v = r.bool("islandHaptics") { p.haptics = v }
+        if let v = r.bool("islandSounds") { p.sounds = v }
         return p
+    }
+}
+
+/// The Mac app's own keys in the same flat `prefs` map (Settings, Desktop).
+public struct DesktopPrefs: Equatable, Sendable {
+    public enum DockBadge: String, Sendable { case overdue, off }
+    public enum MenuIcon: String, Sendable { case focus, always, off }
+    public enum FocusMode: String, Sendable { case off, dnd, work, personal }
+    public enum WidgetHabits: String, Sendable { case three = "3", five = "5", all }
+
+    public var dockBadge = DockBadge.overdue
+    public var menuIcon = MenuIcon.focus
+    /// Modifiers then key, space-separated.
+    public var quickAddKeys = "\u{2325} Space"
+    public var focusMode = FocusMode.dnd
+    public var menuTimer = true
+    /// `A`...`H`.
+    public var widgetStyle = "D"
+    public var widgetTitlesLocked = false
+    public var widgetHabits = WidgetHabits.all
+
+    public init() {}
+
+    public static func decode(settingsJSON data: Data) -> DesktopPrefs {
+        guard let prefs = PrefsReader.prefs(from: data) else { return DesktopPrefs() }
+        return decode(prefs: prefs)
+    }
+
+    public static func decode(prefs o: [String: Any]) -> DesktopPrefs {
+        var p = DesktopPrefs()
+        let r = PrefsReader(o)
+        if let v = r.string("macDockBadge"), let e = DockBadge(rawValue: v) { p.dockBadge = e }
+        if let v = r.string("macMenuIcon"), let e = MenuIcon(rawValue: v) { p.menuIcon = e }
+        if let v = r.string("macQuickAddKeys"), !v.isEmpty { p.quickAddKeys = v }
+        if let v = r.string("macFocusMode"), let e = FocusMode(rawValue: v) { p.focusMode = e }
+        if let v = r.bool("macMenuTimer") { p.menuTimer = v }
+        if let v = r.string("widgetStyle"), ["A", "B", "C", "D", "E", "F", "G", "H"].contains(v) { p.widgetStyle = v }
+        if let v = r.bool("widgetTitlesLocked") { p.widgetTitlesLocked = v }
+        if let v = r.string("widgetHabits"), let e = WidgetHabits(rawValue: v) { p.widgetHabits = e }
+        return p
+    }
+}
+
+/// Typed reads from the flat prefs map; a wrong type is "not there".
+struct PrefsReader {
+    let o: [String: Any]
+    init(_ o: [String: Any]) { self.o = o }
+
+    static func prefs(from data: Data) -> [String: Any]? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let prefs = root["prefs"] as? [String: Any] else { return nil }
+        return prefs
+    }
+
+    func bool(_ key: String) -> Bool? { o[key] as? Bool }
+
+    func number(_ key: String) -> Double? {
+        if let n = o[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { return n.doubleValue }
+        if let s = o[key] as? String { return Double(s) }
+        return nil
+    }
+
+    /// A string, or a number written in its shortest form ("5", "0.3").
+    func string(_ key: String) -> String? {
+        if let s = o[key] as? String { return s }
+        if let n = o[key] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() {
+            let d = n.doubleValue
+            return d == d.rounded() ? String(Int(d)) : String(d)
+        }
+        return nil
     }
 }
 

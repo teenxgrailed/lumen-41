@@ -194,7 +194,7 @@ final class IslandV3Feed {
         Task { [weak self] in
             guard let self, let prefs = try? await self.tray.api.islandPrefs() else { return }
             self.model.prefs = prefs
-            IslandV3Controller.shared.setVisible(prefs.show)
+            IslandV3Controller.shared.apply(prefs: prefs)
             self.model.settleIfResting()
         }
     }

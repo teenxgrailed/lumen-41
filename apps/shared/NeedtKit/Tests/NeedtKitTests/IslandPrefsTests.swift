@@ -2,39 +2,88 @@ import XCTest
 @testable import NeedtKit
 
 final class IslandPrefsTests: XCTestCase {
-    func testMissingBlockIsDefaults() {
+    func testMissingKeysAreDefaults() {
         let data = Data(#"{"theme":"dark","prefs":{}}"#.utf8)
         XCTAssertEqual(IslandPrefs.decode(settingsJSON: data), IslandPrefs())
         XCTAssertEqual(IslandPrefs.decode(settingsJSON: Data("nonsense".utf8)), IslandPrefs())
+        let p = IslandPrefs()
+        XCTAssertTrue(p.show)
+        XCTAssertEqual(p.hoverDelay, 0.3)
+        XCTAssertEqual(p.warnMinutes, 5)
+        XCTAssertEqual(p.standbySeconds, 30)
+        XCTAssertEqual(p.displays, .builtIn)
+        XCTAssertFalse(p.sounds)
+        XCTAssertFalse(p.hud)
+        XCTAssertEqual(p.visibleModules, [.music, .cal, .shelf, .dev])
+        XCTAssertEqual(DesktopPrefs.decode(settingsJSON: data), DesktopPrefs())
     }
 
-    func testReadsKeysAndIgnoresWrongTypes() {
+    func testReadsFlatKeysAndIgnoresWrongTypes() {
         let json = #"""
-        {"prefs":{"island":{"show":false,"peek":"yes","hoverDelay":0.4,"openOn":"hover",
-        "warnMinutes":7,"standbySeconds":9999,"tabs":{"week":false},
-        "modules":[{"id":"clip","on":true},{"id":"music","on":false},{"id":"bogus"},{"id":"clip"}],
-        "moments":{"airpods":false}}}}
+        {"prefs":{"islandShow":false,"islandPeek":"off","islandHoverDelay":"0.6","islandOpenOn":"hover",
+        "islandWarning":"10","islandStandby":"60","islandWeek":false,"islandDisplays":"all",
+        "islandModuleOrder":"clipboard,music,bogus,clipboard","islandClipboard":true,"islandMusic":false,
+        "islandHud":true,"islandMomentAirpods":false,"islandMomentDone":"yes","islandSounds":true,
+        "islandOnPlanQuiet":false}}
         """#
         let p = IslandPrefs.decode(settingsJSON: Data(json.utf8))
         XCTAssertFalse(p.show)
-        XCTAssertTrue(p.peek, "a string is not a Bool, so the default stays")
-        XCTAssertEqual(p.hoverDelay, 0.4)
+        XCTAssertFalse(p.peek)
+        XCTAssertEqual(p.hoverDelay, 0.6)
         XCTAssertEqual(p.openOn, .hover)
-        XCTAssertEqual(p.warnMinutes, 7)
-        XCTAssertEqual(p.standbySeconds, 120, "clamped")
+        XCTAssertEqual(p.warnMinutes, 10)
+        XCTAssertEqual(p.standbySeconds, 60)
+        XCTAssertEqual(p.displays, .all)
         XCTAssertEqual(p.visibleTabs, [.today, .focus])
         XCTAssertFalse(p.moments.airpods)
-        XCTAssertTrue(p.moments.music)
-        // Order kept, the unknown id dropped, the duplicate dropped, the rest appended.
+        XCTAssertTrue(p.moments.done, "a string is not a Bool, so the default stays")
+        XCTAssertTrue(p.sounds)
+        XCTAssertFalse(p.showNothingOnPlan)
+        // Order kept, the unknown id and the duplicate dropped, the rest appended.
         XCTAssertEqual(p.modules.first?.id, .clip)
-        XCTAssertEqual(p.modules.count, IslandModuleID.allCases.count)
         XCTAssertEqual(p.modules[1], IslandPrefs.ModuleSetting(id: .music, on: false))
-        XCTAssertFalse(p.visibleModules.contains(.music))
+        XCTAssertEqual(p.modules.count, IslandModuleID.allCases.count)
+        XCTAssertEqual(p.visibleModules, [.clip, .cal, .shelf, .dev, .hud])
+        XCTAssertTrue(p.hud)
+    }
+
+    func testOffAndNumbers() {
+        let json = #"{"prefs":{"islandWarning":"off","islandStandby":"off","islandHoverDelay":1,"islandDisplays":"main"}}"#
+        let p = IslandPrefs.decode(settingsJSON: Data(json.utf8))
+        XCTAssertEqual(p.warnMinutes, 0)
+        XCTAssertEqual(p.standbySeconds, 0)
+        XCTAssertEqual(p.hoverDelay, 1)
+        XCTAssertEqual(p.displays, .main)
+        // Off means no call, ever.
+        XCTAssertEqual(IslandCadence.call(secondsLeft: 20, hasNext: true, warnMinutes: p.warnMinutes, standbySeconds: p.standbySeconds), .none)
+        XCTAssertEqual(IslandCadence.call(secondsLeft: 100, hasNext: true, warnMinutes: p.warnMinutes, standbySeconds: p.standbySeconds), .none)
+    }
+
+    func testWrongValuesKeepDefaults() {
+        let json = #"{"prefs":{"islandWarning":"7","islandStandby":"x","islandOpenOn":"tap","islandDisplays":"none"}}"#
+        let p = IslandPrefs.decode(settingsJSON: Data(json.utf8))
+        XCTAssertEqual(p.warnMinutes, 5)
+        XCTAssertEqual(p.standbySeconds, 30)
+        XCTAssertEqual(p.openOn, .click)
+        XCTAssertEqual(p.displays, .builtIn)
+    }
+
+    func testDesktopPrefs() {
+        let json = #"{"prefs":{"macDockBadge":"off","macMenuIcon":"always","macQuickAddKeys":"⌘ K","macFocusMode":"work","macMenuTimer":false,"widgetStyle":"B","widgetTitlesLocked":true,"widgetHabits":"3"}}"#
+        let p = DesktopPrefs.decode(settingsJSON: Data(json.utf8))
+        XCTAssertEqual(p.dockBadge, .off)
+        XCTAssertEqual(p.menuIcon, .always)
+        XCTAssertEqual(p.quickAddKeys, "⌘ K")
+        XCTAssertEqual(p.focusMode, .work)
+        XCTAssertFalse(p.menuTimer)
+        XCTAssertEqual(p.widgetStyle, "B")
+        XCTAssertTrue(p.widgetTitlesLocked)
+        XCTAssertEqual(p.widgetHabits, .three)
+        XCTAssertEqual(DesktopPrefs.decode(settingsJSON: Data(#"{"prefs":{"macDockBadge":"x","widgetStyle":"Z"}}"#.utf8)), DesktopPrefs())
     }
 
     func testBarIsNeverEmpty() {
         var p = IslandPrefs()
-        p.tabs = IslandPrefs.Tabs()
         p.tabs.today = false; p.tabs.week = false; p.tabs.focus = false
         XCTAssertEqual(p.visibleTabs, [.today])
     }

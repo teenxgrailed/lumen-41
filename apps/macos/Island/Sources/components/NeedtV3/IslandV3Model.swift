@@ -55,6 +55,9 @@ final class IslandV3Model: ObservableObject {
     var onWillChange: ((IslandV3Size) -> Void)?
     /// Called when the open state wants the window to take keyboard focus.
     var onWantsKey: ((Bool) -> Void)?
+    /// Every moment, before the prefs filter it: lets the primary display repeat
+    /// it on the other screens (Displays: all).
+    var onMoment: ((IslandV3Mode) -> Void)?
     var tray: TrayStore?
     var feed: IslandV3Feed?
     let isPreview: Bool
@@ -216,12 +219,14 @@ final class IslandV3Model: ObservableObject {
     /// A short system event. It waits during Standby, is dropped in Quiet, and
     /// never interrupts what the person is doing in the island.
     func moment(_ mode: IslandV3Mode) {
-        guard mode.isMoment, !prefs.quiet else { return }
+        onMoment?(mode)
+        guard mode.isMoment else { return }
         switch mode {
-        case .music where !prefs.moments.music: return
+        case .music where !prefs.moments.now: return
         case .airpods where !prefs.moments.airpods: return
         case .charge where !prefs.moments.charging: return
-        case .hudv where !(prefs.moments.volume && prefs.hud): return
+        case .done where !prefs.moments.done: return
+        case .hudv where !prefs.hud: return
         default: break
         }
         if shapeMode == .standby || shapeMode == .go, prefs.quietDuringStandby { return }
@@ -268,7 +273,7 @@ final class IslandV3Model: ObservableObject {
         guard shapeMode.isResting || shapeMode.isMoment else { return }
         guard prefs.peek || prefs.openOn == .hover else { return }
         withAnimation(.easeOut(duration: 0.26)) { pre = true }
-        let delay = prefs.hoverDelay ?? max(0.26, Defaults[.minimumHoverDuration])
+        let delay = prefs.hoverDelay
         hoverWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.hovering else { return }

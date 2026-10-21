@@ -248,8 +248,14 @@ public final class NeedtAPI: @unchecked Sendable {
 
     // MARK: island
 
-    /// The island's settings: `prefs.island` of `GET /api/user-settings`.
-    /// A missing or unreadable block is the defaults, never an error.
+    /// The Mac app's own keys (`macDockBadge`, ...) from the same flat `prefs` map.
+    public func desktopPrefs() async throws -> DesktopPrefs {
+        let data = try await request("/api/user-settings")
+        return DesktopPrefs.decode(settingsJSON: data)
+    }
+
+    /// The island's settings: the flat `island*` keys of `GET /api/user-settings`.
+    /// A missing or unreadable key is its default, never an error.
     public func islandPrefs() async throws -> IslandPrefs {
         let data = try await request("/api/user-settings")
         return IslandPrefs.decode(settingsJSON: data)
