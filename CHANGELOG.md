@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Phone: the top and bottom edges follow the new phone-shell design. The
+  collapsed header is the place icon and title, centred, over a three-step
+  blur that fades in as you scroll; the fog under the dock is 128 px (deeper
+  in a Safari tab); pulling the search plate down shrinks the screen behind it
+  and the plate gets a soft edge.
 - Desktop app (macOS, Windows): it opens on its own start window instead of a
   web page, and signing in happens in your browser (so Google works) and
   returns to the app with a one-time code; the app then opens straight to
