@@ -104,6 +104,7 @@ struct InkFocus: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(c.palette.well)
                     Capsule().fill(c.palette.ink).frame(width: geo.size.width * f.progress(at: c.now))
+                        .motion(value: f.progress(at: c.now))
                 }
             }.frame(height: 6)
         } else if let interval = f.interval {

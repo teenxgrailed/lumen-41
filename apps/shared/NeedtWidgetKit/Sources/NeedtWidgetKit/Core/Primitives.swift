@@ -6,6 +6,26 @@ import WidgetKit
 // 16 pt check box, the accent mark, the ring, wells and cards, placeholder
 // bars. Accent is only ever a mark and always `widgetAccentable`.
 
+/// WidgetKit allows at most 2 s of animation per data change and only plays
+/// what changes between entries: so a widget gets the draw-in of rings and
+/// bars and the row transition, never a loop (motion.js comet and shine are app
+/// only). Reduce Motion turns all of it off.
+struct MotionModifier<V: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var animation: Animation
+    var value: V
+
+    func body(content: Content) -> some View {
+        if reduce { content } else { content.animation(animation, value: value) }
+    }
+}
+
+extension View {
+    func motion<V: Equatable>(_ animation: Animation = .spring(response: 0.9, dampingFraction: 0.85), value: V) -> some View {
+        modifier(MotionModifier(animation: animation, value: value))
+    }
+}
+
 /// The accent dot with its 3 pt halo (`.mk`).
 struct InkMark: View {
     @Environment(\.needt) private var c
@@ -31,15 +51,18 @@ struct InkCheckBox: View {
         ZStack {
             if on {
                 RoundedRectangle(cornerRadius: 5, style: .continuous).fill(c.palette.ink)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
                 Image(systemName: "checkmark")
                     .font(.system(size: 9, weight: .heavy))
                     .foregroundStyle(c.palette.isMonochrome ? Color.black : c.palette.bg)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
             } else {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .strokeBorder(c.palette.checkBorder, lineWidth: 1.5)
             }
         }
         .frame(width: 16, height: 16)
+        .motion(.spring(response: 0.35, dampingFraction: 0.5), value: on)
         .accessibilityHidden(true)
     }
 }
@@ -64,6 +87,7 @@ struct InkRing: View {
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .widgetAccentable(!frozen)
+                .motion(value: progress)
         }
         .frame(width: diameter, height: diameter)
     }

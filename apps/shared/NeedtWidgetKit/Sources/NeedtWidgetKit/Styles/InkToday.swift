@@ -76,8 +76,12 @@ struct InkToday: View {
 
     private func list(_ rows: [TodayRow], spacing: CGFloat, interactive: Bool) -> some View {
         VStack(alignment: .leading, spacing: spacing) {
-            ForEach(rows) { r in taskRow(r, interactive: interactive) }
+            ForEach(rows) { r in
+                taskRow(r, interactive: interactive)
+                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+            }
         }
+        .motion(.easeOut(duration: 0.45), value: rows.map(\.id))
     }
 
     // MARK: small
