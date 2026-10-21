@@ -175,7 +175,7 @@ jobs:
             [ "$($PSQL -c "select count(*) from \"User\" where email='$PROBE_EMAIL' and \"lastAuthenticatedAt\" is not null")" = "1" ]
           }
           OK=0
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4; do
             echo "=== sign-in attempt $attempt"
             $PSQL -c "update \"User\" set \"lastAuthenticatedAt\"=null where email='$PROBE_EMAIL'"
             [ "$attempt" = 1 ] && { tmo 60 xcrun simctl launch "$UDID" com.apple.mobilesafari || true; sleep 15; }
@@ -183,9 +183,7 @@ jobs:
             # spend it on a throwaway load of the same page
             openurl "$HOST/auth/signin?warm=$attempt"
             loaded || echo "warm-up page did not paint"
-            tmo 120 python3 .github/safari/ui.py tapxy 201 385
-            sleep 10
-            tmo 120 python3 .github/safari/ui.py text w
+            tmo 120 python3 .github/safari/ui.py tapxy 201 250
             sleep 10
             openurl "$HOST/auth/signin"
             sleep 5
@@ -201,7 +199,7 @@ jobs:
           done
           if [ "$OK" != 1 ]; then
             python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
-            echo "::error::Could not sign in through the form after 3 attempts; the screens would be sign-in pages"
+            echo "::error::Could not sign in through the form after 4 attempts; the screens would be sign-in pages"
             exit 1
           fi
           echo "signed in on attempt $attempt"
