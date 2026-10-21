@@ -58,6 +58,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A click on a task in Spotlight.
+    @MainActor
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
+        guard let id = SpotlightIndex.taskID(from: userActivity) else { return false }
+        AppController.shared.openTask(id: id)
+        return true
+    }
+
     // Closing the window keeps the app in the menu bar.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 

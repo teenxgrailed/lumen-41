@@ -25,6 +25,7 @@ final class TrayStore: ObservableObject {
     }
 
     func apply(_ next: TrayState) {
+        SessionSync.push()
         state = next
         refreshClock()
         updateDockBadge()
@@ -66,6 +67,27 @@ final class TrayStore: ObservableObject {
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    // MARK: focus started or ended outside the page (Siri, Shortcuts, Spotlight)
+
+    /// A focus run the page did not start: show it now. The page's own report
+    /// replaces this within a minute once a window is open.
+    func nativeFocusStarted(_ started: FocusSession?, title: String?, minutes: Int) {
+        var next = state
+        next.focus = "Focus \(minutes) min left"
+        next.focusTitle = title
+        let begin = started?.startedAt ?? Date()
+        next.focusEndsAt = (begin.timeIntervalSince1970 + Double(minutes) * 60) * 1000
+        apply(next)
+    }
+
+    func nativeFocusEnded() {
+        var next = state
+        next.focus = nil
+        next.focusEndsAt = nil
+        next.focusTitle = nil
+        apply(next)
     }
 
     // MARK: focus controls (through the HTTP API, same session as the page)
