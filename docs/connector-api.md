@@ -109,11 +109,11 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                        |
 | `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page |
 | `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                           |
-| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
+| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
 | `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                            |
 | `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                         |
 | `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                              |
-| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, dependsOnId, originPageId; other fields are refused                                  |
+| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, fullTime, dependsOnId, originPageId; other fields are refused                                  |
 | `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                        |
 | `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                     |
 | `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                 |
@@ -186,6 +186,21 @@ Agents (MCP tools, Ask Needt) are told to break any non-trivial work this way;
 `needt_get` with `type: task` returns the subtasks with their ids, and
 `needt_complete_subtask` ticks them. Needt does not close the task for the agent:
 when `allDone` is `true` the agent closes the task with `needt_complete_task`.
+
+### Done ends focus, and `fullTime`
+
+When a task is marked done by any path (the app, `PUT /api/tasks/:id`,
+`needt_complete_task`, `needt_update_task`, `/api/connect/control`) and a Focus
+session is running or paused on it, the session ends as completed early: the
+minutes are booked to the task (`actualFocusedMinutes`), the rest of its block
+is released and the scheduler re-runs, and every open client drops the timer.
+Breaks are unaffected.
+
+`fullTime` (boolean or `null`, on create and update) is "do for the full time"
+(for example 30 minutes of German). `true` keeps the session running its whole
+length when the task is ticked; `false` ends it at once; `null` (the default) is
+auto: `true` for a task linked to a habit or a repeating task, `false` for any
+other. The task row returns the stored value (`null` when auto).
 
 ## Read Schedule
 

@@ -43,6 +43,8 @@ export const taskV3FieldsSchema = z.object({
   originPageId: nullableShort(200).optional(),
   originQuote: nullableShort(2000).optional(),
   splitAllowed: z.boolean().optional(),
+  /** "Do for the full time": true/false is a choice, null = auto. */
+  fullTime: z.boolean().nullable().optional(),
 });
 
 export const projectV3FieldsSchema = z.object({

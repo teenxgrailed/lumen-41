@@ -36,6 +36,9 @@ interface FocusWindowState {
   askDismissed: boolean;
   /** End session was pressed and is waiting for its one confirm. */
   confirmEnd: boolean;
+  /** The session id "Keep going" was pressed on once its full-time task was
+   *  ticked: the "N min left" ask stays away for that session. */
+  fullTimeKept: string | null;
 
   patch: (p: Partial<Omit<FocusWindowState, "patch" | "reset">>) => void;
   reset: () => void;
@@ -49,6 +52,7 @@ const BLANK = {
   draft: null,
   askDismissed: false,
   confirmEnd: false,
+  fullTimeKept: null,
 } satisfies Partial<FocusWindowState>;
 
 export const useFocusWindow = create<FocusWindowState>()((set) => ({

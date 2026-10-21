@@ -74,6 +74,16 @@ export function useRealtimeSync(): void {
         // A malformed event still refreshes the session below.
       }
       void queryClient.invalidateQueries({ queryKey: qk.focusSession() });
+      // Ended because its task was marked done: the timer goes on every
+      // device, and the saved minutes changed the plan (Home's time left).
+      if (data.status === "early" || data.status === "done") {
+        refreshTasks();
+        if (data.status === "early" && data.message) {
+          notify.success(data.message, {
+            dedupeKey: `focus-early-${data.sessionId ?? "session"}`,
+          });
+        }
+      }
       if (data.status === "notify") {
         notify.success("Focus done", {
           description: data.message,

@@ -29,6 +29,7 @@ import {
   taskChoices,
 } from "@/lib/needt3/focus";
 import { canFocusMore } from "@/lib/needt3/focus-done";
+import { fullTimeAskLine } from "@/lib/needt3/full-time";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTaskParts, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
@@ -659,6 +660,40 @@ function FcRun({ ctl }: { ctl: FocusController }) {
               onEnd={() => void ctl.endNow()}
               onKeep={ctl.keepGoing}
             />
+          </span>
+        </GlassCard>
+      ) : null}
+
+      {ctl.askingFullTime && task ? (
+        <GlassCard
+          pad={0}
+          radius={20}
+          className="fc-card fc-card-end"
+          style={PAD_CARD}
+          data-fc-full-time-ask=""
+          role="alertdialog"
+          aria-label={fullTimeAskLine(ctl.fullTimeLeftMin ?? 0)}
+        >
+          <span className="fc-end-line">
+            {copy.fullTimeAsk(task.title, cvDur(ctl.fullTimeLeftMin ?? 0))}
+          </span>
+          <span className="fc-end-actions">
+            <button
+              type="button"
+              className="nx-btn nx-btn-primary fc-ctl"
+              onClick={ctl.keepGoingFullTime}
+              data-fc-full-time-keep=""
+            >
+              {copy.keepGoing}
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary fc-ctl"
+              onClick={() => void ctl.endFullTimeNow()}
+              data-fc-full-time-end=""
+            >
+              {copy.endNow}
+            </button>
           </span>
         </GlassCard>
       ) : null}

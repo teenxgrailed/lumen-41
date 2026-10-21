@@ -86,6 +86,13 @@ describe("TaskDialog wiring", () => {
     expect(src).not.toContain("/api/focus");
   });
 
+  it("has the 'Do for the full time' toggle, written through the shared patch", () => {
+    expect(src).toContain("data-tdc-full-time");
+    expect(src).toContain("{FULL_TIME_LABEL}");
+    expect(src).toContain("emit(fullTimePatch(t))");
+    expect(src).toContain("aria-pressed={!!t.fullTimeOn}");
+  });
+
   it("keeps the title and the repeat read-only for a synced task", () => {
     expect(src).toContain("readOnly={!!provider}");
     expect(src).toMatch(/if \(provider\) return;/);

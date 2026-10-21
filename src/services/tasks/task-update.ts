@@ -1,13 +1,14 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { getPage } from "@/services/pages/page-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
+import { deadlineForPatch } from "@/services/tasks/deadline";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import {
   type RecurringCompletion,
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
-import { deadlineForPatch } from "@/services/tasks/deadline";
 import { checkBlocker } from "@/services/tasks/subtasks";
 import {
   checkLabelsAndHours,
@@ -69,6 +70,8 @@ export interface TaskFieldPatch {
   dependsOnId?: string | null;
   /** The page the task came from (originKind "doc" + originId); null detaches. */
   originPageId?: string | null;
+  /** "Do for the full time": true/false is the person's choice, null = auto. */
+  fullTime?: boolean | null;
 }
 
 export type TaskUpdateResult =
@@ -188,6 +191,7 @@ export async function updateTaskFields(input: {
   if (patch.energyRequired) updates.energyRequired = patch.energyRequired;
   if (projectId !== undefined) updates.projectId = projectId;
   if (patch.entry !== undefined) updates.entry = patch.entry?.trim() || null;
+  if (patch.fullTime !== undefined) updates.fullTime = patch.fullTime;
   if (patch.dependsOnId !== undefined) {
     if (patch.dependsOnId) {
       const blocker = await checkBlocker(
@@ -279,6 +283,9 @@ export async function updateTaskFields(input: {
       event: "task.completed",
       payload: { taskId: updated.id, title: updated.title },
     });
+    // Done ends the task's running focus; the scheduler run below takes back
+    // the minutes saved.
+    await endFocusForCompletedTask({ userId, task: updated });
   }
 
   await scheduleAllTasksForUser(userId, {
