@@ -7,6 +7,7 @@ import {
   newDate,
   toZonedTime,
 } from "@/lib/date-utils";
+import { type Chronotype, chronotypeEnergy } from "@/lib/needt3/chronotype";
 import { DEFAULT_HIGH_ENERGY, inHighEnergy } from "@/lib/needt3/energy";
 
 import { EnergyLevel, SlotScore, TimeSlot } from "@/types/scheduling";
@@ -25,7 +26,12 @@ export class SlotScorer {
      * The person's time zone: energy windows and morning/afternoon/evening
      * are their hours, not the server's. Without one, the process's own.
      */
-    private timeZone?: string
+    private timeZone?: string,
+    /**
+     * The person's chronotype curve, when they picked one and the
+     * `energy_curve` flag and their plan allow it (`SchedulingService`).
+     */
+    private chronotype: Chronotype | null = null
   ) {}
 
   /** The slot's hour on the person's clock. */
@@ -108,8 +114,9 @@ export class SlotScorer {
   }
 
   /**
-   * The energy of the hour: the person's windows (Your day), and when they
-   * have set no high-energy hours at all, the morning (`DEFAULT_HIGH_ENERGY`).
+   * The energy of the hour: the person's windows (Your day); when they have
+   * set no high-energy hours at all, their chronotype curve if they picked
+   * one, else the morning (`DEFAULT_HIGH_ENERGY`).
    */
   private slotEnergy(hour: number): EnergyLevel | null {
     const set = getEnergyLevelForTime(hour, this.settings);
@@ -117,6 +124,9 @@ export class SlotScorer {
     const noHighSaved =
       this.settings.highEnergyStart == null ||
       this.settings.highEnergyEnd == null;
+    if (noHighSaved && this.chronotype) {
+      return chronotypeEnergy(hour, this.chronotype);
+    }
     return noHighSaved && inHighEnergy(hour, DEFAULT_HIGH_ENERGY)
       ? "high"
       : null;
