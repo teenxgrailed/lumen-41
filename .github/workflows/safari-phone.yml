@@ -237,7 +237,7 @@ jobs:
             python3 .github/safari/ui.py up 12; sleep 1; shot "$theme-04-tasks-bottom"
             open_url "/settings#appearance"; shot "$theme-05-settings-sheet"
             open_url /tasks
-            python3 .github/safari/ui.py pull 0.2; sleep 1; shot "$theme-06-pulldown-half"
+            python3 .github/safari/ui.py up 1; sleep 1; shot "$theme-06-tasks-mid"
           done
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
