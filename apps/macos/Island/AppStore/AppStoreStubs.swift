@@ -137,6 +137,8 @@ final class BluetoothAudioManager: ObservableObject {
     static let shared = BluetoothAudioManager()
     @Published var lastConnectedDevice: BluetoothAudioDevice?
     @Published var connectedDevices: [BluetoothAudioDevice] = []
+    @Published var activeListeningModeEvent: AirPodsListeningModeEvent?
+    @Published var isBluetoothAudioConnected = false
     private init() {}
     func refreshConnectedDeviceBatteries() {}
     func activeDeviceIconSymbol() -> String? { nil }
@@ -186,6 +188,27 @@ struct NotchStatsView: View {
 
 struct NotchLLMUsageView: View {
     var body: some View { EmptyView() }
+}
+
+// MARK: HUD style enums (their defaults are stored in the shared settings)
+
+enum OSDMaterial: String, CaseIterable, Defaults.Serializable {
+    case frosted = "Frosted Glass"
+    case liquid = "Liquid Glass"
+    case solidDark = "Solid Dark"
+    case solidLight = "Solid Light"
+    case solidAuto = "Solid Auto"
+}
+
+enum OSDIconColorStyle: String, CaseIterable, Defaults.Serializable {
+    case white = "White"
+    case whiteTransparent = "White (Transparent)"
+    case lightGray = "Light Gray"
+    case darkGray = "Dark Gray"
+    case black = "Black"
+    case blackTransparent = "Black (Transparent)"
+    case auto = "Auto"
+    case autoTransparent = "Auto (Transparent)"
 }
 
 // MARK: glass material (the direct build uses a private variant setter)
