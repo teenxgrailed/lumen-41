@@ -757,3 +757,16 @@ html { background: var(--edge-t, var(--paper)); }
   body:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]) { background-color: #a9b1db !important; }
   body:has(.pw .sky[data-sky="night"]) { background-color: #121126 !important; }
 }
+
+/* v41 — "Featured on" directory badges: a quiet secondary row at the bottom of the footer. The
+   directories' free tiers require a visible, crawlable, followed link, so the row is plain HTML,
+   always visible, and nothing hides it. */
+.foot-featured { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; padding: 18px 6px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.foot-featured-label { font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: rgba(244,243,251,.45); margin-right: 4px; }
+.foot-featured a { display: inline-flex; align-items: center; border-radius: 10px; outline-offset: 3px; }
+.foot-featured a:focus-visible { outline: 2px solid rgba(244,243,251,.8); }
+.foot-featured img { height: 40px; width: auto; display: block; opacity: .85; transition: opacity .15s; }
+.foot-featured a:hover img, .foot-featured a:focus-visible img { opacity: 1; }
+.foot-featured-pill { height: 40px; padding: 0 14px; font-size: 13px; color: rgba(244,243,251,.82); text-decoration: none; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.04); }
+.foot-featured-pill:hover { color: #fff; border-color: rgba(255,255,255,.3); }
+@media (max-width: 760px) { .foot-featured { justify-content: center; } .foot-featured-label { width: 100%; text-align: center; margin: 0 0 2px; } }
