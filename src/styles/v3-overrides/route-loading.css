@@ -1,0 +1,35 @@
+/* The skeleton a place shows between the tap and its page (RouteLoading).
+ *
+ * In flow, no background and no fixed position: on the phone the page scrolls
+ * like a document and nothing with a fill may touch a screen edge, so this
+ * paints only its bars. It starts invisible and appears after 150 ms, so a
+ * quick switch never flashes it. `backwards` fill keeps the end state off the
+ * element once the entry has played (phone-motion rule V-B8).
+ *
+ * Reduced motion: no fade and no shimmer (.st-sk), the delay stays so a quick
+ * switch is still clean. */
+.needt-v3 .st-route-loading {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 4px;
+  animation: v3-route-loading-in 160ms ease-out 150ms backwards;
+}
+.needt-v3[data-ui="phone"] .st-route-loading {
+  padding: calc(var(--v3-top, 0px) + var(--v3-compact-h, 44px) + 16px) 16px
+    calc(var(--v3-sab, 0px) + 96px);
+}
+@keyframes v3-route-loading-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .st-route-loading {
+    animation: v3-route-loading-in 1ms linear 150ms backwards;
+  }
+}
