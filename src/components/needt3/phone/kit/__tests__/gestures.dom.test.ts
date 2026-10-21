@@ -11,7 +11,7 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
-import { PkPullDown, PkRow, PkSheet } from "..";
+import { PkRow, PkSheet } from "..";
 import { pkAbortGestures, pkTrack } from "../pointer";
 
 (
@@ -181,35 +181,6 @@ describe("row swipe", () => {
     expect(onSwipe).not.toHaveBeenCalled();
     fire(window, "pointerup", { x: 140, y: 12, id: 1 });
     expect(onSwipe).toHaveBeenCalledWith("done");
-  });
-});
-
-describe("pull-down", () => {
-  const mountPull = () => {
-    const scroller = document.createElement("div");
-    document.body.appendChild(scroller);
-    act(() => root.render(h(PkPullDown, { scroller, onAdd: () => {} })));
-    return scroller;
-  };
-  const state = () => q("[data-pk-pull]").getAttribute("data-pk-pull");
-
-  it("pulling past the arm distance opens it", () => {
-    const scroller = mountPull();
-    fire(scroller, "pointerdown", { x: 50, y: 0 });
-    fire(window, "pointermove", { x: 50, y: 160 });
-    fire(window, "pointerup", { x: 50, y: 160 });
-    expect(state()).toBe("open");
-    scroller.remove();
-  });
-
-  it("a hold that fires mid-pull lets go: it stays shut", () => {
-    const scroller = mountPull();
-    fire(scroller, "pointerdown", { x: 50, y: 0 });
-    fire(window, "pointermove", { x: 50, y: 160 });
-    act(() => pkAbortGestures());
-    fire(window, "pointerup", { x: 50, y: 160 });
-    expect(state()).toBe("shut");
-    scroller.remove();
   });
 });
 

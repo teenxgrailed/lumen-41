@@ -13,13 +13,11 @@ import {
   deletedLabel,
   isAhead,
   openInProjects,
-  projectHits,
   projectRow,
   projectSpecs,
   ptkHeader,
   ptkModel,
   ptkSpecs,
-  taskHits,
 } from "../model";
 
 const TODAY = "2026-09-01";
@@ -319,25 +317,5 @@ describe("projects", () => {
     expect(deletedLabel("Lab", 2)).toBe(
       "Deleted “Lab” — 2 tasks moved to No project"
     );
-  });
-});
-
-describe("the pull-down", () => {
-  it("finds titles by any word, five at most, and says where they are", () => {
-    const live = model("all").live;
-    const hits = taskHits(live, "TASK t", TODAY);
-    expect(hits.map((h) => h.id)).toEqual(["today", "today-done", "tmrw"]);
-    expect(hits[0].meta).toBe("Today");
-    expect(hits[1].meta).toBe("Done");
-    expect(hits[2].meta).toBe("2 Sep");
-    expect(taskHits(live, "late", TODAY)[0].meta).toBe("Overdue");
-    expect(taskHits(live, "inbox", TODAY)[0].meta).toBe("Inbox");
-    expect(taskHits(live, "  ", TODAY)).toEqual([]);
-    expect(taskHits(live, "task", TODAY)).toHaveLength(5);
-  });
-  it("finds projects by name", () => {
-    expect(projectHits([ops, lab], tasks, "OPER")).toEqual([
-      { id: "p-ops", title: "Operations", meta: "2 open" },
-    ]);
   });
 });

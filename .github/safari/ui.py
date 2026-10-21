@@ -87,7 +87,7 @@ if __name__ == "__main__":
         print(w, h)
     elif cmd == "up":  # scroll the page up: finger moves up. args: count
         for _ in range(int(args[0]) if args else 1):
-            swipe(w / 2, h * 0.75, w / 2, h * 0.25, 0.25)
+            swipe(w / 2, h * 0.62, w / 2, h * 0.16, 0.25)  # starts above the dock, which a swipe would grab
             time.sleep(0.5)
     elif cmd == "pull":  # pull down from the header, args: fraction of height
         swipe(w / 2, h * 0.14, w / 2, h * (0.14 + float(args[0])), 0.6)
