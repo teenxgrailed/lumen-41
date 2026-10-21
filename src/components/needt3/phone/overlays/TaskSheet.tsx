@@ -21,6 +21,7 @@ import {
 import { clock } from "@/lib/needt3/day";
 import { addDays, at as hourAt } from "@/lib/needt3/derive";
 import {
+  FULL_TIME_AUTO_TAG,
   FULL_TIME_HINT_OFF,
   FULL_TIME_HINT_ON,
   FULL_TIME_LABEL,
@@ -252,7 +253,8 @@ function TaskSheetBody({
     k: SchedPick,
     label: string,
     value: string,
-    muted?: boolean
+    muted?: boolean,
+    locked?: boolean
   ) => (
     <button
       type="button"
@@ -260,14 +262,21 @@ function TaskSheetBody({
       onClick={() => setPick(k)}
       aria-haspopup="dialog"
       data-pov-srow={k}
+      disabled={locked}
     >
       <span className="pov-srow-label">{label}</span>
       <span className={pkCx("pov-srow-value", muted && "is-muted")}>
         {value}
       </span>
-      <span className="pov-srow-chev" aria-hidden="true">
-        <LuChevronRight size={14} />
-      </span>
+      {locked ? (
+        <span className="fd-phone fd-auto" data-fd-auto="">
+          {FULL_TIME_AUTO_TAG}
+        </span>
+      ) : (
+        <span className="pov-srow-chev" aria-hidden="true">
+          <LuChevronRight size={14} />
+        </span>
+      )}
     </button>
   );
 
@@ -763,7 +772,8 @@ function TaskSheetBody({
                 "fullTime",
                 FULL_TIME_ROW,
                 t.fullTimeOn ? FULL_TIME_VALUE_ON : FULL_TIME_OFF,
-                !t.fullTimeOn
+                !t.fullTimeOn,
+                !!t.fullTimeAuto
               )}
               {schedRow(
                 "deadline",

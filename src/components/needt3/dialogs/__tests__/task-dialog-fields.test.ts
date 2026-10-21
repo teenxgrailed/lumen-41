@@ -90,7 +90,13 @@ describe("TaskDialog wiring", () => {
     expect(src).toContain("data-tdc-full-time");
     expect(src).toContain("{FULL_TIME_LABEL}");
     expect(src).toContain("emit(fullTimePatch(t))");
-    expect(src).toContain("aria-pressed={!!t.fullTimeOn}");
+    expect(src).toContain('role="switch"');
+    expect(src).toContain("aria-checked={!!t.fullTimeOn}");
+  });
+
+  it("locks the switch on habits and repeating tasks and tags it Auto", () => {
+    expect(src).toContain("disabled={!!t.fullTimeAuto}");
+    expect(src).toContain("{FULL_TIME_AUTO_TAG}");
   });
 
   it("keeps the title and the repeat read-only for a synced task", () => {
