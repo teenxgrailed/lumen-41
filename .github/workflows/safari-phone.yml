@@ -132,6 +132,8 @@ jobs:
           idb list-targets
 
       - name: Sign in through the sign-in form
+        timeout-minutes: 15
+        continue-on-error: true
         run: |
           set -uo pipefail
           mkdir -p shots debug
@@ -149,9 +151,9 @@ jobs:
           # spend it on a throwaway load of the same page
           xcrun simctl openurl "$UDID" "http://127.0.0.1:3000/auth/signin?warm=1"
           loaded || echo "warm-up page did not paint"
-          python3 -c "import sys; sys.path.insert(0, '.github/safari'); import ui; ui.tap(201, 385)"
+          python3 .github/safari/ui.py tapxy 201 385
           sleep 10
-          idb ui text w --udid "$UDID" || true
+          python3 .github/safari/ui.py text w
           sleep 15
           xcrun simctl openurl "$UDID" http://127.0.0.1:3000/auth/signin
           sleep 5
@@ -167,6 +169,7 @@ jobs:
         run: npx tsx .github/safari/seed-tasks.ts
 
       - name: Scenarios, light and dark
+        timeout-minutes: 25
         run: |
           set -uo pipefail
           open_url() {

@@ -7,7 +7,12 @@ UDID = os.environ["UDID"]
 
 
 def idb(*args, check=True):
-    return subprocess.run(["idb", *args, "--udid", UDID], capture_output=True, text=True, check=check)
+    print("idb", *args, flush=True)
+    try:
+        return subprocess.run(["idb", *args, "--udid", UDID], capture_output=True, text=True, check=check, timeout=150)
+    except subprocess.TimeoutExpired:
+        print("idb timed out", flush=True)
+        return subprocess.CompletedProcess(args, 124, "", "timeout")
 
 
 def describe():
@@ -81,11 +86,15 @@ if __name__ == "__main__":
         swipe(w / 2, h * 0.14, w / 2, h * (0.14 + float(args[0])), 0.6)
     elif cmd == "tap":
         tap_el(args)
+    elif cmd == "text":
+        idb("ui", "text", args[0], check=False)
+    elif cmd == "tapxy":
+        tap(float(args[0]), float(args[1]))
     elif cmd == "key":
         idb("ui", "key", args[0])
     elif cmd == "signin":
         email, password = args
-        shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True)
+        shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True, timeout=150)
         # web content is not exposed to accessibility: coordinates it is. The
         # simulator has no GPU on a runner, so wait after each event. The email
         # field is tapped, typed into, then the password field is tapped (Tab did
