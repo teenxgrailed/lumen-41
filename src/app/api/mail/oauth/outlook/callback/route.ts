@@ -7,6 +7,11 @@ import { canAddMailbox } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { createOAuthMailAccount } from "@/lib/mail-db";
 import {
+  clearMailOAuthCookies,
+  invalidMailOAuthStateResponse,
+  verifyMailOAuthCallback,
+} from "@/lib/mail/oauth-state";
+import {
   MICROSOFT_GRAPH_API_BASE,
   MICROSOFT_GRAPH_AUTH_ENDPOINTS,
   MSGraphUser,
@@ -21,6 +26,29 @@ const LOG_SOURCE = "OutlookMailOAuthCallback";
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
+  // Nothing below runs, and no mailbox is attached, without a verified state.
+  const check = verifyMailOAuthCallback(request, "outlook", auth.userId);
+  if (!check.valid) {
+    await logger.warn(
+      "Outlook mail OAuth callback rejected: invalid state",
+      { userId: auth.userId },
+      LOG_SOURCE
+    );
+    return invalidMailOAuthStateResponse("outlook");
+  }
+  const response = await connectOutlookMailbox(
+    request,
+    auth.userId,
+    check.codeVerifier
+  );
+  return clearMailOAuthCookies(response, "outlook");
+}
+
+async function connectOutlookMailbox(
+  request: NextRequest,
+  userId: string,
+  codeVerifier: string
+) {
   try {
     const code = request.nextUrl.searchParams.get("code");
     if (!code) throw new Error("Outlook OAuth code is missing.");
@@ -33,6 +61,7 @@ export async function GET(request: NextRequest) {
         client_id: clientId,
         client_secret: clientSecret,
         code,
+        code_verifier: codeVerifier,
         redirect_uri: redirectUrl,
         grant_type: "authorization_code",
       }),
@@ -51,7 +80,7 @@ export async function GET(request: NextRequest) {
       (await profileResponse.json()) as MSGraphUser
     );
     if (!address) throw new Error("Outlook email address is unavailable.");
-    const entitlement = await canAddMailbox(auth.userId, {
+    const entitlement = await canAddMailbox(userId, {
       provider: "OUTLOOK",
       address,
     });
@@ -68,10 +97,10 @@ export async function GET(request: NextRequest) {
         refreshToken: tokens.refresh_token,
         expiresAt: newDate(newDate().getTime() + tokens.expires_in * 1_000),
       },
-      auth.userId
+      userId
     );
     const account = await createOAuthMailAccount({
-      userId: auth.userId,
+      userId,
       provider: "OUTLOOK",
       address,
       connectionRef,
