@@ -102,6 +102,7 @@ jobs:
           "$HOME/idbenv/bin/idb" --help | head -3
 
       - name: Boot an iPhone simulator
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           xcrun simctl list runtimes -j > "$RUNNER_TEMP/runtimes.json"
@@ -122,14 +123,21 @@ jobs:
           echo "runtime=$RUNTIME devtype=$DEVTYPE"
           UDID="$(xcrun simctl create probe "$DEVTYPE" "$RUNTIME")"
           echo "UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
+          tmo() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+          for i in 1 2 3; do
+            xcrun simctl boot "$UDID" || true
+            tmo 300 xcrun simctl bootstatus "$UDID" -b && break
+            echo "boot attempt $i hung; restarting the simulator"
+            xcrun simctl shutdown "$UDID" || true
+          done
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
           xcrun simctl ui "$UDID" appearance light
           (idb_companion --udid "$UDID" --grpc-port 10882 > "$RUNNER_TEMP/companion.log" 2>&1 &)
-          sleep 5
-          idb connect localhost 10882
-          idb list-targets
+          for i in $(seq 1 12); do
+            sleep 5
+            tmo 30 idb connect localhost 10882 && break
+          done
+          tmo 60 idb list-targets
 
       - name: Sign in through the sign-in form
         timeout-minutes: 15
