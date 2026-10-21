@@ -108,7 +108,8 @@ fn complete(app: &AppHandle, code: &str, verifier: &str) {
     let Ok(mut url) = crate::start_url().join("auth/desktop-complete") else {
         return;
     };
-    url.set_fragment(Some(&format!("code={code}&verifier={verifier}")));
+    let fragment = format!("code={code}&verifier={verifier}");
+    url.set_fragment(Some(fragment.as_str()));
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         match app.get_webview_window("main") {

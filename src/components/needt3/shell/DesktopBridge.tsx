@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -60,6 +60,14 @@ function markDragRegions() {
  *    badge in step with the same queries the screens use.
  */
 export function DesktopBridge() {
+  // Decided after mount, so a browser tab never runs the inner hooks (no
+  // extra queries, nothing to hydrate) and the server render matches.
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(isDesktopApp()), []);
+  return inApp ? <DesktopBridgeInApp /> : null;
+}
+
+function DesktopBridgeInApp() {
   const router = useRouter();
   const shell = useShellApi();
   const createDoc = useCreateDoc();
