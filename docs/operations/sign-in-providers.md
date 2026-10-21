@@ -256,3 +256,23 @@ Env fallback: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`.
 4. `redirect_uri_mismatch` or similar from the provider means the callback URL
    in its console differs from the table above (check `https`, the host
    `use.needt.app`, and no trailing slash).
+
+## The iOS app (apps/ios)
+
+The app does not sign in inside its WebView (Google refuses embedded
+WebViews, and Sign in with Apple needs the system sheet). Its own screen shows
+**Sign in with Apple → Continue with Google → Continue with email**. Apple and
+Google open `/auth/signin?provider=<id>` in an `ASWebAuthenticationSession`
+(the `NeedtAuth` plugin), the person signs in the normal way, the confirmation
+page `/auth/desktop?client=ios` hands a one-time code back as
+`needt://auth?code=…`, and the app trades code + PKCE verifier for the session
+cookie at `/auth/desktop-complete`. It is the same handoff, endpoints and
+guarantees as the desktop app (`src/lib/auth/desktop-handoff.ts`: 60 s, single
+use, bound to the user and the challenge). Email stays the web form inside the
+app.
+
+Nothing extra to configure for Google. For Apple, the web Services ID above is
+the one used: the sheet runs the web flow, so the iOS app id does not need its
+own Sign in with Apple credentials. Until the provider is configured the app
+still shows the Apple button; pressing it shows "Apple sign-in is not set up
+yet. Use Google or email." instead of leaving the app.

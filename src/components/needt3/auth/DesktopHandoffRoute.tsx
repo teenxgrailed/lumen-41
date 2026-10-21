@@ -30,11 +30,14 @@ const LOG_SOURCE = "needt3-desktop-handoff";
 export function V3DesktopHandoffRoute({
   email,
   challenge,
+  app = "desktop",
   initialUi = "desktop",
   uiForced = false,
 }: {
   email: string;
   challenge: string;
+  /** Which app asked: only the wording differs. */
+  app?: "desktop" | "ios";
   initialUi?: PhoneUi;
   uiForced?: boolean;
 }) {
@@ -82,6 +85,7 @@ export function V3DesktopHandoffRoute({
   }
 
   const copy = HANDOFF_COPY[step];
+  const line = copy.line(email || "your account", app);
 
   let actions: React.ReactNode = null;
   if (step === "ready" || step === "working") {
@@ -124,12 +128,12 @@ export function V3DesktopHandoffRoute({
       <LinkShell
         face={face}
         screen={"desktop-" + step}
-        kicker="Desktop app"
+        kicker={app === "ios" ? "iPhone app" : "Desktop app"}
         icon={LuArrowRight}
         hue="var(--info)"
         a={copy.a}
         b={copy.b}
-        line={copy.line(email || "your account")}
+        line={line}
         offline={offline}
         offlineText="You’re offline — opening the app needs a connection."
       >

@@ -49,10 +49,52 @@ async function call(
   }
 }
 
+/** True inside the iOS shell (not the desktop app, not a browser). */
+export function isIosApp(): boolean {
+  if (!isNativeApp()) return false;
+  try {
+    return capacitor()?.getPlatform?.() === "ios";
+  } catch {
+    return false;
+  }
+}
+
+export type NativeAuthResult =
+  | { ok: true; url: string }
+  | { ok: false; reason: "cancelled" | "unavailable" | "failed" };
+
+/**
+ * Runs `url` in the system's authentication sheet (the `NeedtAuth` plugin,
+ * ASWebAuthenticationSession) and resolves with the link it came back to
+ * (`needt://auth?code=...`). Unlike `call`, the reason for a failure matters
+ * here: closing the sheet is not an error the person needs to be told about.
+ */
+export async function runNativeAuthSession(
+  url: string,
+  callbackScheme: string
+): Promise<NativeAuthResult> {
+  const fn = capacitor()?.Plugins?.NeedtAuth?.start as
+    | ((a: unknown) => Promise<{ url?: string }>)
+    | undefined;
+  if (!isIosApp() || !fn) return { ok: false, reason: "unavailable" };
+  try {
+    const result = await fn({ url, callbackScheme });
+    return typeof result?.url === "string"
+      ? { ok: true, url: result.url }
+      : { ok: false, reason: "failed" };
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code;
+    return {
+      ok: false,
+      reason: code === "cancelled" ? "cancelled" : "failed",
+    };
+  }
+}
+
 /**
  * Switch the home-screen icon (iOS alternate icons). `null` is the primary
- * icon (Midnight). Silent when the shell has no `NeedtAppIcon` plugin, which
- * is the case until the Swift plugin exists (apps/ios/README.md, //todo).
+ * icon (Midnight). Silent when the shell has no `NeedtAppIcon` plugin (the
+ * Swift plugin in apps/ios/ios/App/App/NeedtPlugins.swift).
  */
 export async function setNativeAppIcon(name: string | null): Promise<void> {
   await call("NeedtAppIcon", "setIcon", { name });

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
+  looks), the other twelve are alternate icons you pick in Settings →
+  Appearance, the launch screen is the ground colour with the Midnight mark,
+  and sign-in is Apple, then Google, then email, done in the system browser
+  sheet and handed back with a one-time code.
 - Desktop app (macOS, Windows): it opens on its own start window instead of a
   web page, and signing in happens in your browser (so Google works) and
   returns to the app with a one-time code; the app then opens straight to
