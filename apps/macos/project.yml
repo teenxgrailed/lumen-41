@@ -73,7 +73,7 @@ targets:
           - components/Settings/SpotifyLoginSheet.swift
           - components/Settings/ListItemPopover.swift
       - path: Island/LottieAnimations
-      - path: Island/LICENSE
+      - path: Island/LICENSE.txt
       - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: Sparkle
@@ -234,7 +234,7 @@ targets:
           - helpers/LiquidGlassBackground.swift
       - path: Island/AppStore
       - path: Island/LottieAnimations
-      - path: Island/LICENSE
+      - path: Island/LICENSE.txt
       - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: NeedtKit

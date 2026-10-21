@@ -1,7 +1,7 @@
 # Island acknowledgements
 
 The notch island in Needt (`apps/macos/Island`) is derived from open source
-work licensed under the GNU General Public License v3.0 (see `LICENSE` in this
+work licensed under the GNU General Public License v3.0 (see `LICENSE.txt` in this
 folder):
 
 - Atoll (Dynamic Island for the Mac notch), which is itself a fork of

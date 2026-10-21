@@ -37,6 +37,17 @@ jobs:
         working-directory: apps/shared/NeedtKit
         run: swift test
 
+      # Regression guard for the Update Constraints crash: the notch panel's
+      # hosting view must not feed its ideal size back into its window.
+      - name: Island hosting view has no sizing options
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          grep -n "hosting.sizingOptions = \[\]" Island/Sources/DynamicIslandApp.swift
+          if grep -n "window.contentView = FirstMouseHostingView" Island/Sources/DynamicIslandApp.swift; then
+            echo "FirstMouseHostingView must get sizingOptions = [] before it becomes contentView"; exit 1
+          fi
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -82,7 +93,7 @@ jobs:
           test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
           test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
           # The island's GPL licence and acknowledgements ship in the app.
-          test -f "$DIRECT/Contents/Resources/LICENSE"
+          test -f "$DIRECT/Contents/Resources/LICENSE.txt"
           test -f "$DIRECT/Contents/Resources/ACKNOWLEDGEMENTS.md"
 
       - name: Entitlements

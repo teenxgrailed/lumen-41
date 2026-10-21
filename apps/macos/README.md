@@ -175,7 +175,7 @@ SPM): `NeedtAPI` (cookie-signed HTTP client), `TrayState`, `FocusSession`,
 ## The notch island
 
 `Island/` is the notch island (a fork of Atoll, itself a fork of boring.notch,
-GPL v3 - see `Island/LICENSE` and `Island/ACKNOWLEDGEMENTS.md`). It is compiled
+GPL v3 - see `Island/LICENSE.txt` and `Island/ACKNOWLEDGEMENTS.md`). It is compiled
 into the Mac app, not run beside it. Needt's `AppDelegate` owns the lifecycle
 and calls `IslandHost` (`Needt/Sources/IslandHost.swift`); the island runs only
 for Pro (`IslandEntitlement`, from `GET /api/billing`) and only while

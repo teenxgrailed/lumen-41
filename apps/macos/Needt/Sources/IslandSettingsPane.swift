@@ -105,7 +105,7 @@ struct IslandSettingsPane: View {
                     Link("Atoll", destination: URL(string: "https://github.com/Ebullioscopic/Atoll")!)
                     Link("boring.notch", destination: URL(string: "https://github.com/TheBoredTeam/boring.notch")!)
                     Spacer()
-                    Button("Show licence") { Self.reveal("LICENSE") }
+                    Button("Show licence") { Self.reveal("LICENSE.txt") }
                     Button("Show acknowledgements") { Self.reveal("ACKNOWLEDGEMENTS.md") }
                 }
                 .buttonStyle(.link)
