@@ -73,10 +73,14 @@ describe("a task done during its focus", () => {
     expect(blockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: { end: expect.any(Date) } })
     );
+    // the clients draw the toast (with Undo) and the green slice from this
     expect(publish).toHaveBeenCalledWith("u1", "focus-ended", {
       sessionId: "s1",
       status: "early",
       message: "Done 12 min early",
+      minutes: 12,
+      taskId: "t1",
+      taskTitle: "Report",
     });
   });
 
@@ -110,10 +114,21 @@ describe("a task done during its focus", () => {
     }
   });
 
-  it("an explicit fullTime false ends even a habit's task", async () => {
+  it("a stored fullTime false does not end a habit's or a repeating task (they are forced on)", async () => {
+    for (const task of [
+      { id: "t1", habitId: "h1", fullTime: false },
+      { id: "t1", isRecurring: true, fullTime: false },
+    ]) {
+      const out = await endFocusForCompletedTask({ userId: "u1", task });
+      expect(out).toEqual({ ended: false, reason: "full-time" });
+    }
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it("an explicit fullTime false on a one-off ends it", async () => {
     const out = await endFocusForCompletedTask({
       userId: "u1",
-      task: { id: "t1", habitId: "h1", fullTime: false },
+      task: { id: "t1", fullTime: false },
     });
     expect(out.ended).toBe(true);
   });
