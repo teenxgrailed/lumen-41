@@ -123,8 +123,11 @@ jobs:
           for name in ("Needt", "NeedtAppStore", "NeedtShare"):
               e = load(name)
               print(name, sorted(e))
-              need = ["com.apple.security.app-sandbox", "com.apple.security.network.client",
+              # The direct build is unsandboxed on purpose (see the Entitlements step).
+              need = ["com.apple.security.network.client",
                       "com.apple.security.application-groups"]
+              if name != "Needt":
+                  need.append("com.apple.security.app-sandbox")
               if name != "NeedtShare":
                   need.append("com.apple.security.files.user-selected.read-only")
               for key in need:
