@@ -13,6 +13,10 @@ struct NeedtApp: App {
             MenuBarLabel(tray: AppController.shared.tray)
         }
         .menuBarExtraStyle(.menu)
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 
@@ -35,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.start()
         installMainMenu()
         AppController.shared.start()
+        Task { await AppController.shared.tray.focusFilterChanged() }
         // SwiftUI installs its own menu bar around the scene; keep ours on top.
         DispatchQueue.main.async { [weak self] in self?.installMainMenu() }
     }

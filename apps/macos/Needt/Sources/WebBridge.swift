@@ -209,7 +209,7 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         switch name {
         case "needt-tray-state":
             if let payload, let state = TrayState.parse(json: payload) {
-                AppController.shared.tray.apply(state)
+                AppController.shared.tray.report(state)
             }
         case "needt-signed-in":
             AppController.shared.auth.signedIn()

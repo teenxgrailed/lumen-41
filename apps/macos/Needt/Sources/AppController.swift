@@ -193,6 +193,12 @@ final class AppController {
         quickAdd.show()
     }
 
+    /// The SwiftUI Settings scene (focus Shortcuts), apart from the web app's settings.
+    func showMacSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
     func openWebsite() {
         NSWorkspace.shared.open(Config.site)
     }

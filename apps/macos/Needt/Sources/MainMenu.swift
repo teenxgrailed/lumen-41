@@ -38,6 +38,7 @@ final class MainMenuBuilder: NSObject, NSMenuItemValidation {
             .separator(),
             item("Check for Updates…", #selector(checkForUpdates), target: self),
             item("Settings…", #selector(openSettings), key: ",", target: self),
+            item("Mac Settings…", #selector(openMacSettings), key: ",", modifiers: [.command, .option], target: self),
             .separator(),
             item("Hide Needt", #selector(NSApplication.hide(_:)), key: "h", target: NSApp),
             item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), key: "h", modifiers: [.command, .option], target: NSApp),
@@ -99,6 +100,7 @@ final class MainMenuBuilder: NSObject, NSMenuItemValidation {
 
     @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
     @objc private func openSettings() { AppController.shared.sendCommand(["type": "settings"]) }
+    @objc private func openMacSettings() { AppController.shared.showMacSettings() }
     @objc private func newTask() { AppController.shared.sendCommand(["type": "new-task"]) }
     @objc private func newDoc() { AppController.shared.sendCommand(["type": "new-doc"]) }
     @objc private func quickAdd() { AppController.shared.showQuickAdd() }

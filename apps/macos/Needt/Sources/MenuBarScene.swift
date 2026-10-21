@@ -93,7 +93,11 @@ struct MenuBarContent: View {
             AppController.shared.showQuickAdd()
         }
         .keyboardShortcut(.space, modifiers: [.command, .shift])
-        if state.focus == nil, !state.next.isEmpty {
+        if state.focus == nil, let suggestion = tray.suggestion {
+            Button("Start focus: \(FocusSync.shortTitle(suggestion.title, max: 32) ?? "task")") {
+                tray.startSuggested()
+            }
+        } else if state.focus == nil, !state.next.isEmpty {
             Button("Start focus on next task") {
                 tray.startFocusOnNextTask()
             }
@@ -102,6 +106,10 @@ struct MenuBarContent: View {
             Text(error)
         }
         Divider()
+        Button("Mac Settings…") {
+            AppController.shared.showMacSettings()
+        }
+        .keyboardShortcut(",", modifiers: [.command, .option])
         Button("Quit Needt") {
             NSApp.terminate(nil)
         }
