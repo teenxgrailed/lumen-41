@@ -268,9 +268,16 @@ public struct NeedtWidgetBundle: WidgetBundle {
             QuickAddControl()
             StartFocusControl()
         }
+        #if os(iOS)
+        FocusLiveActivity()
+        #endif
     }
 }
 
 /// The App Intents the widgets use, declared once so the metadata extractor of
 /// each host target finds them in this package.
-public struct NeedtWidgetsIntentsPackage: AppIntentsPackage {}
+public struct NeedtWidgetsIntentsPackage: AppIntentsPackage {
+    #if os(iOS)
+    public static var includedPackages: [any AppIntentsPackage.Type] { [NeedtKitIntentsPackage.self] }
+    #endif
+}
