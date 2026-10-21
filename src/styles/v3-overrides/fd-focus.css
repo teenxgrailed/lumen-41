@@ -86,7 +86,7 @@
 .needt-v3 .nva-focus-btn .fd-pz { position: absolute; bottom: 11px; display: flex; gap: 2px; }
 .needt-v3 .nva-focus-btn .fd-pz i { width: 2.5px; height: 7px; border-radius: 1px; background: var(--nva-ink); opacity: .8; }
 .needt-v3 .nva-focus-btn.is-ending .nva-focus-arc { stroke: #ffb57a; }
-.needt-v3 .nva-focus-btn.is-ending.is-in { animation: fd-breathe 2s ease-in-out infinite; }
+.needt-v3 .nva-focus-btn.is-ending.is-in { animation: fd-breathe 2s ease-in-out 3; }
 @keyframes fd-breathe { 50% { box-shadow: var(--nva-add-rim), 0 0 0 4px rgba(255,181,122,.18); } }
 
 @media (prefers-reduced-motion: reduce) {
