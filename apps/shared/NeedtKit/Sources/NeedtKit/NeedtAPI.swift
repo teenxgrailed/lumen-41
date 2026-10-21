@@ -53,7 +53,7 @@ public final class NeedtAPI: @unchecked Sendable {
         return ISO8601DateFormatter().date(from: text)
     }
 
-    private static let decoder: JSONDecoder = {
+    static let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .custom { decoder in
             let c = try decoder.singleValueContainer()
@@ -64,7 +64,7 @@ public final class NeedtAPI: @unchecked Sendable {
         return d
     }()
 
-    private func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+    func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL,
               url.host == baseURL.host
         else { throw NeedtAPIError.badResponse }
@@ -118,8 +118,9 @@ public final class NeedtAPI: @unchecked Sendable {
 
     /// Starts a focus session, optionally on a task.
     @discardableResult
-    public func startFocus(taskId: String?, plannedMinutes: Int? = 25, intention: String? = nil) async throws -> FocusSession? {
-        var body: [String: Any] = ["action": "start", "mode": "POMODORO", "phase": "FOCUS", "source": "mac"]
+    public func startFocus(taskId: String?, plannedMinutes: Int? = 25, intention: String? = nil,
+                           origin: String = "mac") async throws -> FocusSession? {
+        var body: [String: Any] = ["action": "start", "mode": "POMODORO", "phase": "FOCUS", "source": origin]
         if let taskId { body["taskId"] = taskId }
         if let plannedMinutes { body["plannedMinutes"] = plannedMinutes }
         if let intention { body["intention"] = intention }
