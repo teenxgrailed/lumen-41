@@ -67,15 +67,16 @@ public enum StyleRegistry {
 
     // MARK: routing
 
-    private static func ctx(_ base: RenderContext, _ style: any WidgetStyle) -> RenderContext {
+    private static func ctx(_ base: RenderContext, _ style: any WidgetStyle, _ choices: WidgetChoices) -> RenderContext {
         var c = base
         c.fonts = style.fonts
+        c.choices = choices
         return c
     }
 
     public static func today(_ model: TodayModel, choices: WidgetChoices, context: RenderContext) -> Rendered {
         let style = style(choices.style)
-        let c = ctx(context, style)
+        let c = ctx(context, style, choices)
         if choices.style != .ink, allowsStyled(c), model.state == .normal, let v = style.today(model, ctx: c) {
             return Rendered(content: v, background: style.background(.today, ctx: c), context: c)
         }
@@ -84,7 +85,7 @@ public enum StyleRegistry {
 
     public static func next(_ model: NextModel, choices: WidgetChoices, context: RenderContext) -> Rendered {
         let style = style(choices.style)
-        let c = ctx(context, style)
+        let c = ctx(context, style, choices)
         let data = [.upcoming, .soon, .inProgress].contains(model.state)
         if choices.style != .ink, allowsStyled(c), data, let v = style.next(model, ctx: c) {
             return Rendered(content: v, background: style.background(.next, ctx: c), context: c)
@@ -94,8 +95,8 @@ public enum StyleRegistry {
 
     public static func focus(_ model: FocusModel, choices: WidgetChoices, context: RenderContext) -> Rendered {
         let style = style(choices.style)
-        let c = ctx(context, style)
-        let data = [.running, .paused].contains(model.state)
+        let c = ctx(context, style, choices)
+        let data = [.running, .paused].contains(model.state) || (choices.style == .cat && model.state == .finished)
         if choices.style != .ink, allowsStyled(c), data, let v = style.focus(model, ctx: c) {
             return Rendered(content: v, background: style.background(.focus, ctx: c), context: c)
         }
@@ -104,7 +105,7 @@ public enum StyleRegistry {
 
     public static func habits(_ model: HabitsModel, choices: WidgetChoices, context: RenderContext) -> Rendered {
         let style = style(choices.style)
-        let c = ctx(context, style)
+        let c = ctx(context, style, choices)
         let data = [.noneLogged, .partial, .atRisk, .allDone].contains(model.state)
         if choices.style != .ink, allowsStyled(c), data, choices.habitsMedium == .today, let v = style.habits(model, ctx: c) {
             return Rendered(content: v, background: style.background(.habits, ctx: c), context: c)
@@ -114,7 +115,7 @@ public enum StyleRegistry {
 
     public static func quickAdd(_ model: QuickAddModel, choices: WidgetChoices, context: RenderContext) -> Rendered {
         let style = style(choices.style)
-        let c = ctx(context, style)
+        let c = ctx(context, style, choices)
         if choices.style != .ink, allowsStyled(c), model.state == .ready, choices.quickAdd == .open, let v = style.quickAdd(model, ctx: c) {
             return Rendered(content: v, background: style.background(.quickAdd, ctx: c), context: c)
         }

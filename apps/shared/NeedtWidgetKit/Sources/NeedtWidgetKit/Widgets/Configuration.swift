@@ -23,7 +23,7 @@ public enum TodayLayoutChoice: String, AppEnum, CaseIterable {
     case standard, tray
     public static var typeDisplayRepresentation: TypeDisplayRepresentation { "Medium layout" }
     public static var caseDisplayRepresentations: [TodayLayoutChoice: DisplayRepresentation] {
-        [.standard: "Tasks and next event", .tray: "Tray (D · Ink)"]
+        [.standard: "Tasks and next event", .tray: "Alternative layout"]
     }
 }
 
@@ -31,7 +31,7 @@ public enum HabitsLayoutChoice: String, AppEnum, CaseIterable {
     case today, history
     public static var typeDisplayRepresentation: TypeDisplayRepresentation { "Medium layout" }
     public static var caseDisplayRepresentations: [HabitsLayoutChoice: DisplayRepresentation] {
-        [.today: "Today's check-ins", .history: "Last 4 weeks (D · Ink)"]
+        [.today: "Today's check-ins", .history: "Alternative layout"]
     }
 }
 
@@ -39,7 +39,7 @@ public enum QuickAddLayoutChoice: String, AppEnum, CaseIterable {
     case open, prompt
     public static var typeDisplayRepresentation: TypeDisplayRepresentation { "Layout" }
     public static var caseDisplayRepresentations: [QuickAddLayoutChoice: DisplayRepresentation] {
-        [.open: "Add mark", .prompt: "Prompt line (D · Ink)"]
+        [.open: "Add mark", .prompt: "Alternative layout"]
     }
 }
 

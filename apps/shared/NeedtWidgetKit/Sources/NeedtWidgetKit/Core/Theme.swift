@@ -187,6 +187,8 @@ public struct RenderContext: Sendable {
     public var fonts: StyleFonts
     public var palette: InkPalette
     public var calendar: Calendar
+    /// What the person chose in the Edit menu (layout alternatives).
+    public var choices = WidgetChoices()
 
     public init(scheme: ColorScheme = .light, mode: WidgetRenderingMode = .fullColor, family: NeedtFamily,
                 now: Date = Date(), showTitles: Bool = false, isSnapshot: Bool = false,

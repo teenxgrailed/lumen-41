@@ -213,3 +213,38 @@ extension TodayModel {
     var nextTask: TodayRow? { rows.first { !$0.done } }
     func openRows() -> [TodayRow] { rows.filter { !$0.done } }
 }
+
+/// An sRGB colour that can be mixed (the lab uses `color-mix`).
+struct RGB: Equatable {
+    var r: Double, g: Double, b: Double
+
+    init(_ hex: UInt32) {
+        r = Double((hex >> 16) & 0xFF) / 255
+        g = Double((hex >> 8) & 0xFF) / 255
+        b = Double(hex & 0xFF) / 255
+    }
+
+    init(r: Double, g: Double, b: Double) { self.r = r; self.g = g; self.b = b }
+
+    /// "#rrggbb"; falls back to `fallback`.
+    init(hex: String?, fallback: UInt32) {
+        var text = hex?.trimmingCharacters(in: .whitespaces) ?? ""
+        if text.hasPrefix("#") { text.removeFirst() }
+        self.init(UInt32(text, radix: 16).flatMap { text.count == 6 ? $0 : nil } ?? fallback)
+    }
+
+    /// `self` at `amount` mixed with `other` (0 = self, 1 = other).
+    func mixed(_ other: RGB, _ amount: Double) -> RGB {
+        RGB(r: r + (other.r - r) * amount, g: g + (other.g - g) * amount, b: b + (other.b - b) * amount)
+    }
+
+    func color(_ opacity: Double = 1) -> Color { Color(.sRGB, red: r, green: g, blue: b, opacity: opacity) }
+
+    static let white = RGB(0xFFFFFF)
+    static let black = RGB(0x000000)
+}
+
+/// A Toggle that draws only its label, for rows that carry their own state.
+struct LabelOnlyToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
+}

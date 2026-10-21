@@ -91,9 +91,10 @@ struct SkyClouds: View {
     }
 
     private func cloud(w: CGFloat, h: CGFloat, x: CGFloat, y: CGFloat, a: Double) -> some View {
-        Ellipse()
+        Circle()
             .fill(RadialGradient(colors: [.white.opacity(a), .white.opacity(0)], center: .center, startRadius: 0, endRadius: w / 2))
-            .frame(width: w, height: h)
+            .frame(width: w, height: w)
+            .scaleEffect(x: 1, y: h / w)
             .position(x: size.width * x, y: size.height * y)
     }
 }
@@ -234,7 +235,7 @@ struct SkyNext: View {
                                 Text(hhmm(start.addingTimeInterval(Double(i) * 3600))).font(c.fonts.t12()).foregroundStyle(t.a3).monospacedDigit()
                                     .position(x: CGFloat(i) * (w - 30) / 5 + 15, y: geo.size.height - 6)
                             }
-                            block(e.title, t).frame(width: max(w * 0.2, (frac(e.end) - frac(e.start)) * w)).offset(x: frac(e.start) * w)
+                            block(e.title, t, minWidth: max(w * 0.2, (frac(e.end) - frac(e.start)) * w)).offset(x: frac(e.start) * w)
                             if let a = model.after {
                                 block("\(a.title) \(hhmm(a.start))", t).opacity(0.85).fixedSize()
                                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -253,9 +254,9 @@ struct SkyNext: View {
         .widgetURL(NeedtLink.calendar)
     }
 
-    private func block(_ title: String, _ t: SkyTheme) -> some View {
-        Text(title).font(c.fonts.t12(.semibold)).foregroundStyle(t.ink).lineLimit(1).titleSensitive(c.showTitles)
-            .padding(.horizontal, 8).frame(height: 30, alignment: .leading)
+    private func block(_ title: String, _ t: SkyTheme, minWidth: CGFloat = 0) -> some View {
+        Text(title).font(c.fonts.t12(.semibold)).foregroundStyle(t.ink).lineLimit(1).fixedSize().titleSensitive(c.showTitles)
+            .padding(.horizontal, 8).frame(minWidth: minWidth, minHeight: 30, maxHeight: 30, alignment: .leading)
             .lit(t.glassFill, radius: 9, rim: t.glassRim)
     }
 }
