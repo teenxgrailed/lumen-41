@@ -1,3 +1,7 @@
+"use client";
+
+import { type FocusGift, useFocusGift } from "@/lib/needt3/focus-early";
+
 export interface HaTime {
   /** "6 h 12" */
   planned: string;
@@ -13,6 +17,8 @@ export interface HaTime {
   over?: { by: string; ends: string };
   /** Overbooked: the part that does not fit, as a share of the working day. */
   overFrac?: number;
+  /** Length of the working day in minutes (sizes the green slice). */
+  dayMinutes?: number;
 }
 
 /**
@@ -25,11 +31,20 @@ export interface HaTime {
 export function HaTimeLeft({
   t,
   onMoveOne,
+  gift: giftProp,
 }: {
   t: HaTime | null | undefined;
   /** Overbooked: "Move one" (shown only when something can answer it). */
   onMoveOne?: () => void;
+  /**
+   * A focus ended early: the minutes it gave back show as a green slice right
+   * after "now" for ~2.4 s, then join "free". Not drawn when overbooked.
+   * Left out, it follows the shared slice (`useFocusGift`).
+   */
+  gift?: FocusGift | null;
 }) {
+  const live = useFocusGift((s) => s.gift);
+  const gift = giftProp === undefined ? live : giftProp;
   if (!t) return null;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
   // The axis is the working day; overbooked, it grows by what does not fit.
@@ -38,13 +53,29 @@ export function HaTimeLeft({
   const pc = (v: number) => `${Math.round(v * 1000) / 10}%`;
   const at = (v: number) => pc(clamp(v) * k);
   const now = clamp(t.now);
-  const plan = Math.min(clamp(t.plan), 1 - now);
+  // The returned minutes, as a share of the working day, that fit after now.
+  const give =
+    gift && !t.over && t.dayMinutes && t.dayMinutes > 0
+      ? Math.min(gift.minutes / t.dayMinutes, 1 - now)
+      : 0;
+  const plan = Math.min(clamp(t.plan), 1 - now - give);
   const ends = t.ends ?? t.over?.ends;
   const bar = (
     <>
       <div className="ha-tl-bar" aria-hidden>
         <span className="past" style={{ width: at(now) }} />
-        <span className="plan" style={{ left: at(now), width: at(plan) }} />
+        {give > 0 ? (
+          <span
+            key={gift?.key}
+            className="fd-gift"
+            data-fd-gift=""
+            style={{ left: at(now), width: at(give) }}
+          />
+        ) : null}
+        <span
+          className="plan"
+          style={{ left: at(now + give), width: at(plan) }}
+        />
         {t.over ? (
           <span
             className="spill"
@@ -53,7 +84,10 @@ export function HaTimeLeft({
         ) : (
           <span
             className="free"
-            style={{ left: at(now + plan), width: at(1 - now - plan) }}
+            style={{
+              left: at(now + give + plan),
+              width: at(1 - now - give - plan),
+            }}
           />
         )}
         {t.over ? <span className="end" style={{ left: at(1) }} /> : null}
@@ -113,6 +147,11 @@ export function HaTimeLeft({
           <b>{t.planned}</b> planned
         </span>
         <span>
+          {give > 0 && gift ? (
+            <span key={gift.key} className="fd-back" data-fd-back="">
+              +{gift.minutes} min&nbsp;&nbsp;
+            </span>
+          ) : null}
           <b>{t.free}</b> free
         </span>
       </div>

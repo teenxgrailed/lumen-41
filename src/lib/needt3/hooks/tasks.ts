@@ -85,7 +85,8 @@ function applyLocal(t: V3Task, patch: V3TaskPatch): V3Task {
   }
   // The toggle's effective value follows an explicit choice at once; "auto"
   // (null) waits for the server's answer, which knows habits and repeats.
-  if (typeof patch.fullTime === "boolean") next.fullTimeOn = patch.fullTime;
+  if (typeof patch.fullTime === "boolean")
+    next.fullTimeOn = patch.fullTime || !!next.fullTimeAuto;
   return next;
 }
 

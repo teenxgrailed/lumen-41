@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Focus and Done: ticking a task during its focus ends the focus. The notice
+  "Done 12 min early" now has Undo (it opens the task again; the focus itself is
+  not resumed, start a new one), and Home's time-left bar shows the returned
+  minutes as a green slice right after now for 2.4 s. "Do for the full time" is
+  a switch with an Auto tag: habits and repeating tasks are always full time
+  (no stored choice turns it off), a one-off defaults to off. Ticking a
+  full-time task early asks "N min left" with Keep going (primary) and End now.
+  The phone focus button shows whole minutes, a dashed ring with two bars when
+  paused, and a warm breathing ring in the last 2 minutes.
+
 - Desktop app (macOS, Windows): it opens on its own start window instead of a
   web page, and signing in happens in your browser (so Google works) and
   returns to the app with a one-time code; the app then opens straight to
