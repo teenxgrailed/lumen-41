@@ -42,6 +42,8 @@ import {
 /** How long a blur may last before the bar goes away (a tap on the bar blurs
  *  and refocuses within a frame or two; a real blur outlasts this). */
 const BLUR_GRACE_MS = 140;
+/** Room kept between the caret line and the pill (px). */
+const CARET_MARGIN = 8;
 
 function Btn({
   label,
@@ -184,7 +186,7 @@ export function PhoneEditBar({
           vv?.offsetTop ?? 0
         ),
         viewBottom: el.getBoundingClientRect().top,
-        margin: 20,
+        margin: CARET_MARGIN,
       });
       if (delta === 0) return;
       if (scroller) scroller.scrollTop += delta;
@@ -192,9 +194,9 @@ export function PhoneEditBar({
     };
     const apply = () => {
       const inset = barInset(lift.current, el.offsetHeight);
-      if (style) {
+      if (style && style.paddingBottom !== `${inset}px`) {
         style.paddingBottom = `${inset}px`;
-        style.scrollPaddingBottom = `${inset + 20}px`;
+        style.scrollPaddingBottom = `${inset + CARET_MARGIN}px`;
       }
       keepCaret();
     };
@@ -205,7 +207,8 @@ export function PhoneEditBar({
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(keepCaret);
     };
-    editor.on("selectionUpdate", later);
+    // Typing only: a tap or a drag that moves the caret inside the visible
+    // area must not scroll the page (that was the bounce on tap).
     editor.on("update", later);
     // The keyboard finishes opening after the focus: look again once it has.
     const settle = setTimeout(apply, 350);
@@ -213,7 +216,6 @@ export function PhoneEditBar({
       sync.current = () => undefined;
       cancelAnimationFrame(frame);
       clearTimeout(settle);
-      editor.off("selectionUpdate", later);
       editor.off("update", later);
       if (style && before) {
         style.paddingBottom = before.pad;
@@ -271,11 +273,11 @@ export function PhoneEditBar({
       aria-label="Page editing actions"
       // A tap here must not take focus from the page: the keyboard stays.
       onMouseDown={(event) => event.preventDefault()}
-      className="needt-page-bar font-sans border-t border-[var(--border-subtle)] bg-[var(--surface-raised)]"
+      className="needt-page-bar font-sans"
     >
       {panel ? (
         <div
-          className="needt-page-bar-panel border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3"
+          className="needt-page-bar-panel border-b border-[var(--border-subtle)] p-3"
           data-panel={panel}
         >
           {panel === "blocks" ? (

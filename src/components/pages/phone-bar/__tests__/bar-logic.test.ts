@@ -24,9 +24,9 @@ describe("what the bar does about the keyboard", () => {
   });
 
   it("pads the scroll area by the keyboard plus the bar", () => {
-    expect(barInset(336, 48)).toBe(384);
-    expect(barInset(0, 0)).toBe(48);
-    expect(barInset(336, 300)).toBe(636); // a panel open above the row
+    expect(barInset(336, 48)).toBe(394);
+    expect(barInset(0, 0)).toBe(58);
+    expect(barInset(336, 300)).toBe(646); // a panel open above the row
   });
 
   it("scrolls a caret out from under the bar, and back from under the top", () => {

@@ -37,7 +37,7 @@ import { usePhoneCover } from "../shell/cover";
 import { PageStyleSheet } from "./PageStyleSheet";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { ShareSheetPhone } from "./ShareSheetPhone";
-import { keyboardLift, scrollVars } from "./logic";
+import { scrollVars } from "./logic";
 import { useReaderSlide } from "./useReaderSlide";
 
 /** A focus that lands in the editor's text: the keyboard is (about to be) up. */
@@ -126,41 +126,40 @@ export function ReaderPhone({
       r.setAttribute("data-pk-fog-on", v.fog > 0.01 ? "1" : "0");
     };
     readScroll();
-    el.addEventListener("scroll", readScroll, { passive: true });
+    // One read per frame: scroll and resize (a keystroke grows the page)
+    // both land here, and the reads of scrollHeight force a layout.
+    let frame = 0;
+    const queue = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        readScroll();
+      });
+    };
+    el.addEventListener("scroll", queue, { passive: true });
     const ro =
-      typeof ResizeObserver === "function"
-        ? new ResizeObserver(readScroll)
-        : null;
+      typeof ResizeObserver === "function" ? new ResizeObserver(queue) : null;
     if (ro) {
       ro.observe(el);
       if (el.firstElementChild) ro.observe(el.firstElementChild);
     }
     return () => {
-      el.removeEventListener("scroll", readScroll);
+      cancelAnimationFrame(frame);
+      el.removeEventListener("scroll", queue);
       ro?.disconnect();
     };
   }, [pageId]);
 
-  // The keyboard's height (a real phone shows its own), written to a custom
-  // property from the visual viewport: no React state per resize.
+  // No rubber band under the editor: the document itself must not spring
+  // while this page is open (the scroller's own is off in docs.css).
   useEffect(() => {
-    const r = root.current;
-    const vv = window.visualViewport;
-    if (!typing || !r || !vv) return undefined;
-    const lift = () =>
-      r.style.setProperty(
-        "--pd-kb",
-        `${keyboardLift(window.innerHeight, vv.height, vv.offsetTop)}px`
-      );
-    lift();
-    vv.addEventListener("resize", lift);
-    vv.addEventListener("scroll", lift);
+    const html = document.documentElement;
+    const before = html.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = "none";
     return () => {
-      vv.removeEventListener("resize", lift);
-      vv.removeEventListener("scroll", lift);
-      r.style.setProperty("--pd-kb", "0px");
+      html.style.overscrollBehaviorY = before;
     };
-  }, [typing]);
+  }, []);
 
   // Native focus events on the root: the editor is portalled in (DocumentFace),
   // so React's synthetic focus events would not reach this component.
