@@ -57,7 +57,7 @@ extension NeedtAPI {
             return WidgetHabit(
                 id: habit.id, title: habit.title, colorHex: habit.color,
                 doneToday: done.last ?? false, streak: WidgetRepository.streak(done),
-                last7: Array(done.suffix(7))
+                history: Array(done.suffix(28))
             )
         }
     }
@@ -176,10 +176,10 @@ public struct WidgetRepository: Sendable {
         patchCache { snapshot in
             snapshot.habits = snapshot.habits.map { h in
                 guard h.id == id, h.doneToday != done else { return h }
-                var last7 = h.last7
-                if !last7.isEmpty { last7[last7.count - 1] = done }
+                var history = h.history
+                if !history.isEmpty { history[history.count - 1] = done }
                 return WidgetHabit(id: h.id, title: h.title, colorHex: h.colorHex, doneToday: done,
-                                   streak: max(0, h.streak + (done ? 1 : -1)), last7: last7)
+                                   streak: max(0, h.streak + (done ? 1 : -1)), history: history)
             }
         }
     }

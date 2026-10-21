@@ -55,17 +55,20 @@ public struct WidgetHabit: Codable, Equatable, Identifiable, Sendable {
     /// Consecutive days up to and including today (or up to yesterday while
     /// today is still open).
     public let streak: Int
+    /// The last 28 days at most, oldest first, today last.
+    public let history: [Bool]
+
     /// The last seven days, oldest first, today last.
-    public let last7: [Bool]
+    public var last7: [Bool] { Array(history.suffix(7)) }
 
     public init(id: String, title: String, colorHex: String? = nil, doneToday: Bool,
-                streak: Int = 0, last7: [Bool] = []) {
+                streak: Int = 0, history: [Bool] = []) {
         self.id = id
         self.title = title
         self.colorHex = colorHex
         self.doneToday = doneToday
         self.streak = streak
-        self.last7 = last7
+        self.history = history
     }
 }
 

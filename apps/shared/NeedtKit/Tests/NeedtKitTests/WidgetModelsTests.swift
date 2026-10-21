@@ -171,7 +171,7 @@ import Foundation
     // MARK: Habits
 
     private func habit(_ t: String, _ done: Bool, _ streak: Int) -> WidgetHabit {
-        WidgetHabit(id: t, title: t, doneToday: done, streak: streak, last7: [true, true, false, true, true, true, done])
+        WidgetHabit(id: t, title: t, doneToday: done, streak: streak, history: [true, true, false, true, true, true, done])
     }
 
     @Test func habitStatesAndFreeLimit() {
