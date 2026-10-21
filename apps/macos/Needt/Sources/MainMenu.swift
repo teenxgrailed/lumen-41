@@ -8,16 +8,27 @@ import AppKit
 final class MainMenuBuilder: NSObject, NSMenuItemValidation {
     static let shared = MainMenuBuilder()
 
+    /// The App Store build has no updater of its own: the store updates it.
+    static let appStoreBuild: Bool = {
+        #if APPSTORE
+        return true
+        #else
+        return false
+        #endif
+    }()
+
     private func item(
         _ title: String,
         _ action: Selector?,
         key: String = "",
         modifiers: NSEvent.ModifierFlags = .command,
-        target: AnyObject? = nil
+        target: AnyObject? = nil,
+        hidden: Bool = false
     ) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.keyEquivalentModifierMask = key.isEmpty ? [] : modifiers
         item.target = target
+        item.isHidden = hidden
         return item
     }
 
@@ -36,7 +47,7 @@ final class MainMenuBuilder: NSObject, NSMenuItemValidation {
         main.addItem(submenu("Needt", [
             item("About Needt", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), target: NSApp),
             .separator(),
-            item("Check for Updates…", #selector(checkForUpdates), target: self),
+            item("Check for Updates…", #selector(checkForUpdates), target: self, hidden: MainMenuBuilder.appStoreBuild),
             item("Settings…", #selector(openSettings), key: ",", target: self),
             item("Mac Settings…", #selector(openMacSettings), key: ",", modifiers: [.command, .option], target: self),
             .separator(),

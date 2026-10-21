@@ -28,6 +28,7 @@ packages:
     path: ../shared/NeedtKit
 
 targets:
+  # The direct-download build (Developer ID, Sparkle updates).
   Needt:
     type: application
     platform: macOS
@@ -49,6 +50,10 @@ targets:
         com.apple.security.device.audio-input: true
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
+        # Sparkle's installer launcher and status services (sandboxed updates).
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
     info:
       path: Generated/Needt-Info.plist
       properties:
@@ -74,6 +79,7 @@ targets:
         SUFeedURL: https://needt.app/desktop/appcast.xml
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
         SUEnableAutomaticChecks: true
+        SUEnableInstallerLauncherService: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
@@ -82,6 +88,56 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+  # The Mac App Store build: same sources, no Sparkle (the APPSTORE flag and
+  # the missing package keep every updater out), no mach-lookup exception.
+  NeedtAppStore:
+    type: application
+    platform: macOS
+    sources:
+      - path: Needt/Sources
+      - path: Needt/Resources
+    dependencies:
+      - package: NeedtKit
+      - target: NeedtShare
+        embed: true
+    entitlements:
+      path: Generated/NeedtAppStore.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-only: true
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.application-groups:
+          - $(TeamIdentifierPrefix)app.needt.mac
+    info:
+      path: Generated/NeedtAppStore-Info.plist
+      properties:
+        CFBundleName: Needt
+        CFBundleDisplayName: Needt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "Needt"
+        NSPrincipalClass: NSApplication
+        ITSAppUsesNonExemptEncryption: false
+        NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
+        CFBundleURLTypes:
+          - CFBundleURLName: app.needt.mac
+            CFBundleURLSchemes: [needt]
+        NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
+        NSCameraUsageDescription: Needt uses the camera when you attach a photo.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
+        PRODUCT_NAME: Needt
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APPSTORE"
 
   # "Add to Needt" in the Share menu: a URL or text becomes a task.
   NeedtShare:
