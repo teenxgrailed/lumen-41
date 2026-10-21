@@ -71,10 +71,10 @@ def swipe(x1, y1, x2, y2, duration=0.3):
 
 
 def type_slowly(text):
-    # one key at a time: bulk typing drops characters when the simulator lags
-    for ch in text:
-        idb("ui", "text", ch, check=False)
-        time.sleep(0.8)
+    # short chunks with a pause: bulk typing drops characters when the simulator lags
+    for i in range(0, len(text), 3):
+        idb("ui", "text", text[i:i + 3], check=False)
+        time.sleep(1.5)
 
 
 if __name__ == "__main__":
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         print(w, h)
     elif cmd == "up":  # scroll the page up: finger moves up. args: count
         for _ in range(int(args[0]) if args else 1):
-            swipe(w / 2, h * 0.75, w / 2, h * 0.25, 0.25)
+            swipe(w / 2, h * 0.62, w / 2, h * 0.16, 0.25)  # starts above the dock, which a swipe would grab
             time.sleep(0.5)
     elif cmd == "pull":  # pull down from the header, args: fraction of height
         swipe(w / 2, h * 0.14, w / 2, h * (0.14 + float(args[0])), 0.6)
@@ -106,8 +106,11 @@ if __name__ == "__main__":
         # simulator has no GPU on a runner, so wait after each event. The email
         # field is tapped, typed into, then the password field is tapped (Tab did
         # nothing); what the typing test showed to work.
+        # a touch can be swallowed: tap twice, a second tap on a focused field is harmless
         tap(w / 2, h * 0.44)
-        time.sleep(10)
+        time.sleep(6)
+        tap(w / 2, h * 0.44)
+        time.sleep(8)
         type_slowly(email)
         time.sleep(8)
         shot("2-email")

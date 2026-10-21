@@ -37,7 +37,6 @@ import {
   emptyFor,
   foldsAsRead,
   reconnectHref,
-  searchMail,
   swipeRules,
   unreadLine,
   whenLabel,
@@ -192,16 +191,6 @@ export function PhoneMail({ box }: { box: Mailbox }) {
     </span>
   ) : null;
 
-  const pull = {
-    search: (q: string) => searchMail(box.live, q, box.today),
-    onPick: (hit: { id: string }) => {
-      const m = box.live.find((x) => x.id === hit.id);
-      if (m) box.open(m);
-    },
-    placeholder: "Search",
-    hint: "Mail, by sender, subject or any word in it.",
-  };
-
   let body;
   if (state === "loading") {
     body = <StSkeleton kind="list" />;
@@ -298,7 +287,6 @@ export function PhoneMail({ box }: { box: Mailbox }) {
         title="Mailbox"
         glyph="mail"
         sub={sub}
-        onPull={pull}
         right={
           <PkButton
             kind="chip"
