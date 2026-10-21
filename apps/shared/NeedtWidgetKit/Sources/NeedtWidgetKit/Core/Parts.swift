@@ -31,15 +31,18 @@ struct FocusRing: View {
     var focus: WidgetFocus
     var diameter: CGFloat
     var lineWidth: CGFloat
+    var tint: Color? = nil
+    var track: Color? = nil
 
     var body: some View {
         if c.isSnapshot || focus.isPaused || focus.interval == nil {
-            InkRing(progress: focus.progress(at: c.now), diameter: diameter, lineWidth: lineWidth, frozen: focus.isPaused)
+            InkRing(progress: focus.progress(at: c.now), diameter: diameter, lineWidth: lineWidth, tint: tint, track: track,
+                    frozen: focus.isPaused)
                 .opacity(focus.isPaused ? 0.55 : 1)
         } else if let interval = focus.interval {
             ProgressView(timerInterval: interval, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
                 .progressViewStyle(.circular)
-                .tint(c.palette.accent)
+                .tint(tint ?? c.palette.accent)
                 .frame(width: diameter, height: diameter)
                 .widgetAccentable()
         }
@@ -50,13 +53,14 @@ struct FocusRing: View {
 struct UntilText: View {
     @Environment(\.needt) private var c
     var date: Date
+    var capitalized = false
 
     var body: some View {
         if c.isSnapshot {
-            Text("in \(max(1, Int((date.timeIntervalSince(c.now) / 60).rounded(.up)))) min")
+            Text("\(capitalized ? "In" : "in") \(max(1, Int((date.timeIntervalSince(c.now) / 60).rounded(.up)))) min")
         } else {
             HStack(spacing: 3) {
-                Text("in")
+                Text(capitalized ? "In" : "in")
                 Text(date, style: .relative)
             }
         }

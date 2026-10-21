@@ -53,7 +53,7 @@ struct InkNext: View {
             case .soon:
                 HStack(spacing: 6) {
                     InkMark()
-                    UntilText(date: e.start).font(c.fonts.t13(.bold)).foregroundStyle(c.palette.ink)
+                    UntilText(date: e.start, capitalized: true).font(c.fonts.t13(.bold)).foregroundStyle(c.palette.ink)
                 }
                 Text(time(e.start)).font(c.fonts.num(30)).monospacedDigit().foregroundStyle(c.palette.ink).padding(.top, 10)
                 titleLine(e).padding(.top, 4)

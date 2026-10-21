@@ -11,7 +11,7 @@ enum WidgetCalendar {
         f.calendar = calendar
         f.locale = calendar.locale ?? .current
         f.timeZone = calendar.timeZone
-        f.setLocalizedDateFormatFromTemplate(format)
+        f.dateFormat = format
         return f
     }
 }

@@ -43,7 +43,7 @@ import Foundation
         #expect(m.left == 4)
         #expect(m.done == 2)
         #expect(m.weekday == "Tuesday")
-        #expect(m.dateLabel == "Oct 27")
+        #expect(m.dateLabel == "27 Oct")
         #expect(m.clock == "14:20")
         #expect(m.rows.map(\.id) == ["1", "2", "3", "4", "5", "6"])
         #expect(m.rows.first?.time == "09:30")

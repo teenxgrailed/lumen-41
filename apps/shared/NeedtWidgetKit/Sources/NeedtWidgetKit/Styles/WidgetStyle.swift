@@ -58,7 +58,7 @@ public enum StyleRegistry {
     /// True when `ctx` allows a style's own look: full colour, and a size the
     /// lab designed (small or medium).
     static func allowsStyled(_ ctx: RenderContext) -> Bool {
-        ctx.isFullColor && (ctx.family == .small || ctx.family == .medium)
+        ctx.isFullColor && (ctx.family == .small || ctx.family == .medium || ctx.family == .control)
     }
 
     static func inkBackground(_ ctx: RenderContext) -> AnyView {

@@ -52,11 +52,12 @@ struct InkRing: View {
     var diameter: CGFloat
     var lineWidth: CGFloat
     var tint: Color? = nil
+    var track: Color? = nil
     var frozen = false
 
     var body: some View {
         ZStack {
-            Circle().stroke(c.palette.ink.opacity(c.palette.isMonochrome ? 0.2 : 0.08), lineWidth: lineWidth)
+            Circle().stroke(track ?? c.palette.ink.opacity(c.palette.isMonochrome ? 0.2 : 0.08), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: max(0.001, min(1, progress)))
                 .stroke(tint ?? (frozen ? c.palette.ink : c.palette.accent),
@@ -122,7 +123,7 @@ struct InkButtonLabel: View {
     var body: some View {
         HStack(spacing: 6) {
             if let symbol { Image(systemName: symbol).font(.system(size: 12, weight: .bold)) }
-            if let title { Text(title).font(c.fonts.t13(.semibold)).lineLimit(1) }
+            if let title { Text(title).font(c.fonts.t13(.semibold)).lineLimit(1).fixedSize(horizontal: true, vertical: false) }
         }
         .foregroundStyle(c.palette.ink)
         .padding(.horizontal, 14)

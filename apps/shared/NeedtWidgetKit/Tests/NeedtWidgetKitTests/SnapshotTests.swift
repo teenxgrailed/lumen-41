@@ -51,7 +51,7 @@ import WidgetKit
         return r.content
             .environment(\.needt, c)
             .environment(\.redactionReasons, redacted ? .privacy : [])
-            .padding(margin)
+            .padding(family.isAccessory ? 6 : margin)
             .frame(width: size.width, height: size.height)
             .background {
                 if accessory {
@@ -182,12 +182,13 @@ import WidgetKit
         t(today(status: .signedOut), "signedout")
         t(today(status: .stale(at(14, 5))), "stale")
         t(today(failed: true), "togglefailed")
-        shoot(StyleRegistry.today(today(), choices: ink, context: context(.small, scheme: scheme)), "ink-today-small-redacted-\(s)", redacted: true)
+        var hidden = context(.small, scheme: scheme); hidden.showTitles = false
+        shoot(StyleRegistry.today(today(), choices: ink, context: hidden), "ink-today-small-redacted-\(s)", redacted: true)
 
-        func n(_ m: NextModel, _ name: String) { shoot(StyleRegistry.next(m, choices: ink, context: context(.small, scheme: scheme)), "ink-next-small-\(name)-\(s)") }
+        func n(_ m: NextModel, _ name: String, _ d: Date? = nil) { shoot(StyleRegistry.next(m, choices: ink, context: context(.small, scheme: scheme, date: d)), "ink-next-small-\(name)-\(s)") }
         n(next(), "upcoming")
-        n(next(date: at(14, 52)), "soon")
-        n(next(date: at(15, 21)), "inprogress")
+        n(next(date: at(14, 52)), "soon", at(14, 52))
+        n(next(date: at(15, 21)), "inprogress", at(15, 21))
         n(next { $0.events = [] }, "none")
         n(next { s in
             s.events = [WidgetEvent(id: "ad", title: "Dentist week", start: at(0, 0), end: at(0, 0).addingTimeInterval(86400), allDay: true)]
@@ -203,12 +204,12 @@ import WidgetKit
         f(focusModel(WidgetFocus(sessionId: "x", title: "Deep work", taskId: nil, plannedMinutes: 25, startedAt: at(13, 40))), "finished")
         f(focusModel(nil, status: .signedOut), "signedout")
 
-        func h(_ m: HabitsModel, _ name: String) { shoot(StyleRegistry.habits(m, choices: ink, context: context(.small, scheme: scheme)), "ink-habits-small-\(name)-\(s)") }
+        func h(_ m: HabitsModel, _ name: String, _ d: Date? = nil) { shoot(StyleRegistry.habits(m, choices: ink, context: context(.small, scheme: scheme, date: d)), "ink-habits-small-\(name)-\(s)") }
         h(habits { s in s.habits = s.habits.map { WidgetHabit(id: $0.id, title: $0.title, doneToday: false, streak: 0, history: []) } }, "nonelogged")
         h(habits(), "partial")
         h(habits { s in s.habits = s.habits.map { WidgetHabit(id: $0.id, title: $0.title, doneToday: true, streak: $0.streak, history: $0.history) } }, "alldone")
         h(habits { $0.habits = [] }, "nohabits")
-        h(habits(date: at(19, 0)), "atrisk")
+        h(habits(date: at(19, 0)), "atrisk", at(19, 0))
 
         func q(_ st: WidgetStatus, _ name: String) { shoot(StyleRegistry.quickAdd(QuickAddModel.make(status: st), choices: ink, context: context(.small, scheme: scheme)), "ink-quickadd-small-\(name)-\(s)") }
         q(.live, "default"); q(.signedOut, "signedout"); q(.stale(at(14, 5)), "offline")

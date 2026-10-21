@@ -58,7 +58,7 @@ struct InkFocus: View {
                 Text(f.isPaused ? "Paused" : (f.title ?? "Focus"))
                     .font(c.fonts.t12()).foregroundStyle(c.palette.a3).lineLimit(1).titleSensitive(c.showTitles)
             }
-            .frame(width: 70)
+            .frame(width: 76)
         }
         return Button(intent: ToggleFocusPauseWidgetIntent(sessionId: f.sessionId, paused: f.isPaused)) { content }
             .buttonStyle(.plain)
@@ -79,7 +79,7 @@ struct InkFocus: View {
                     .titleSensitive(c.showTitles)
                 Spacer(minLength: 0)
                 HStack(alignment: .bottom) {
-                    CountdownText(focus: f, font: c.fonts.num(40)).foregroundStyle(c.palette.ink).frame(alignment: .leading)
+                    CountdownText(focus: f, font: c.fonts.num(34)).foregroundStyle(c.palette.ink).minimumScaleFactor(0.7).lineLimit(1)
                     Spacer(minLength: 8)
                     HStack(spacing: 8) {
                         Button(intent: ToggleFocusPauseWidgetIntent(sessionId: f.sessionId, paused: f.isPaused)) {
