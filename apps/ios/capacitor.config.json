@@ -15,8 +15,8 @@
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": true,
-      "launchShowDuration": 800,
-      "backgroundColor": "#141416"
+      "launchShowDuration": 600,
+      "launchFadeOutDuration": 200
     },
     "StatusBar": {
       "overlaysWebView": true,

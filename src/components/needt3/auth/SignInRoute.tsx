@@ -21,6 +21,7 @@ import {
   type SignInProviderId,
 } from "@/lib/auth/sign-in-provider-ids";
 import { logger } from "@/lib/logger";
+import { isIosApp } from "@/lib/native";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
 
@@ -34,6 +35,7 @@ import {
   type AuthResult,
   AuthScreen,
 } from "./AuthScreen";
+import { IosSignIn } from "./IosSignIn";
 import { fetchPublicSignup, signupFlags } from "./public-signup-state";
 import { useAuthSteps } from "./use-auth-fields";
 
@@ -70,12 +72,15 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export function V3SignInRoute({
   callbackUrl,
   error,
+  autoProvider,
   initialUi = "desktop",
   uiForced = false,
   startRecover = false,
 }: {
   callbackUrl?: string;
   error?: string;
+  /** Start this provider on load (the iOS app's sign-in sheet opens the page with it). */
+  autoProvider?: string;
   /** Open on "Forgot your password?" (/auth/reset-password without a token). */
   startRecover?: boolean;
   /** The server's pick for the first render (`phoneUiFrom`). */
@@ -110,6 +115,15 @@ export function V3SignInRoute({
   const [configured, setConfigured] = React.useState<readonly AuthProvider[]>(
     []
   );
+  /* The iOS app shows its own sign-in (Apple, Google, email); "Continue with
+     email" falls through to this page's form. Decided after mount, so the
+     server render and the first client render agree. */
+  const [iosApp, setIosApp] = React.useState(false);
+  const [iosEmail, setIosEmail] = React.useState(false);
+  const [providersLoaded, setProvidersLoaded] = React.useState(false);
+  React.useEffect(() => {
+    setIosApp(isIosApp());
+  }, []);
   const [providerBusy, setProviderBusy] = React.useState<string | null>(null);
   const [resending, setResending] = React.useState(false);
   /** The address last typed, so "resend" has something to send to. */
@@ -143,6 +157,7 @@ export function V3SignInRoute({
       .then((available: Record<string, ClientSafeProvider> | null) => {
         if (!available) return;
         setConfigured(configuredSignInProviders(available));
+        setProvidersLoaded(true);
       })
       .catch((e: unknown) => {
         void logger.warn(
@@ -266,6 +281,46 @@ export function V3SignInRoute({
     }
   }, []);
 
+  const startProvider = React.useCallback(
+    (id: string) => {
+      setProviderBusy(id);
+      void signIn(id, { callbackUrl: safeCallbackUrl }).catch((e: unknown) => {
+        void logger.error(
+          "OAuth sign in failed",
+          { provider: id, error: message(e) },
+          LOG_SOURCE
+        );
+        notify.error("Could not continue with that account");
+        setProviderBusy(null);
+      });
+    },
+    [safeCallbackUrl]
+  );
+
+  /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to
+     that provider once it is known to be configured. Not after an error, so a
+     refusal does not loop. */
+  const autoStarted = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoProvider || error || autoStarted.current || !providersLoaded) {
+      return;
+    }
+    if (!configured.some((p) => p.id === autoProvider)) return;
+    autoStarted.current = true;
+    startProvider(autoProvider);
+  }, [autoProvider, error, providersLoaded, configured, startProvider]);
+
+  if (iosApp && !iosEmail) {
+    return (
+      <AuthScope>
+        <IosSignIn
+          configured={providersLoaded ? configured.map((p) => p.id) : null}
+          onEmail={() => setIosEmail(true)}
+        />
+      </AuthScope>
+    );
+  }
+
   const Screen = ui === "phone" ? PhoneAuth : AuthScreen;
 
   return (
@@ -280,20 +335,7 @@ export function V3SignInRoute({
         onRecover={recover}
         providers={configured}
         providerBusy={providerBusy}
-        onProvider={(id) => {
-          setProviderBusy(id);
-          void signIn(id, { callbackUrl: safeCallbackUrl }).catch(
-            (e: unknown) => {
-              void logger.error(
-                "OAuth sign in failed",
-                { provider: id, error: message(e) },
-                LOG_SOURCE
-              );
-              notify.error("Could not continue with that account");
-              setProviderBusy(null);
-            }
-          );
-        }}
+        onProvider={startProvider}
         notice={oauthErrorMessage(error) || null}
         {...signupFlags(allowSignup)}
         aside={
