@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
+  start and end focus, what's today, what's next, replan day, log habit) and
+  your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to
+  switch a macOS Focus on or off, and a macOS Focus can suggest or start the
+  focus task (Focus filter); the menu bar shows "24:10 · task" only while a
+  focus runs; "Add to Needt" in the Share menu turns a link or text into a
+  task; offline, the menu shows the last day read-only ("Offline · updated
+  14:05") and writes say why they are off; the app is sandboxed and has a Mac
+  App Store configuration without the updater.
 - Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
 - Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
   a native window with a transparent title bar, a menu-bar item (focus
