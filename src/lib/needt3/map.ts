@@ -22,6 +22,7 @@
  */
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { notesText } from "@/lib/needt3/derive";
+import { effectiveFullTime } from "@/lib/needt3/full-time";
 import {
   PREVIEW_MAX_ROWS,
   PREVIEW_ROW_TEXT,
@@ -134,6 +135,9 @@ export interface ApiTask {
   entry?: string | null;
   minChunkMinutes?: number | null;
   splitAllowed?: boolean;
+  fullTime?: boolean | null;
+  habitId?: string | null;
+  recurrenceMasterId?: string | null;
   deadline?: string | null;
   hardDeadline?: boolean;
   priorityLevel?: string | null;
@@ -291,6 +295,10 @@ export interface V3Task {
   entry: string | null;
   chunk: number | null;
   splitAllowed: boolean;
+  /** "Do for the full time" as the person set it; null = auto. */
+  fullTime?: boolean | null;
+  /** What it comes to once auto is resolved (effectiveFullTime). */
+  fullTimeOn?: boolean;
   /** "YYYY-MM-DD", local. */
   deadline: string | null;
   hardDeadline: boolean;
@@ -352,6 +360,8 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     entry: row.entry ?? null,
     chunk: row.minChunkMinutes ?? null,
     splitAllowed: row.splitAllowed ?? true,
+    fullTime: row.fullTime ?? null,
+    fullTimeOn: effectiveFullTime(row),
     deadline: isoToDay(row.deadline, tz),
     hardDeadline: row.hardDeadline ?? false,
     priority:
@@ -405,6 +415,7 @@ export type V3TaskPatch = Partial<
     | "waits"
     | "attachments"
     | "syncedFrom"
+    | "fullTimeOn"
   >
 >;
 
@@ -435,6 +446,7 @@ export function taskPatchToApi(
   if (has("entry")) out.entry = patch.entry;
   if (has("chunk")) out.minChunkMinutes = patch.chunk;
   if (has("splitAllowed")) out.splitAllowed = patch.splitAllowed;
+  if (has("fullTime")) out.fullTime = patch.fullTime;
   if (has("deadline")) out.deadline = localToIso(patch.deadline, tz);
   if (has("hardDeadline")) out.hardDeadline = patch.hardDeadline;
   if (has("priority") && patch.priority) {

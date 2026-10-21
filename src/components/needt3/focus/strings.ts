@@ -43,3 +43,8 @@ export const doneAsk = (title: string) => `Done with ${title}?`;
 export const doneLabel = "Done";
 export const notYet = "Not yet";
 export const moreFocus = "+15 min";
+
+/* A full-time task was ticked with focus time left: keep going or end now. */
+export const endNow = "End now";
+export const fullTimeAsk = (title: string, left: string) =>
+  `${left} left on ${title}`;

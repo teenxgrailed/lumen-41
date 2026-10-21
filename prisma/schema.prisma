@@ -940,6 +940,9 @@ model Task {
   originId               String?
   originQuote            String?
   splitAllowed           Boolean          @default(true)
+  /// Focus runs the whole planned time even if the task is ticked early.
+  /// null = auto (see effectiveFullTime in src/lib/needt3/full-time.ts).
+  fullTime               Boolean?
   attachments            TaskAttachment[]
 
   @@unique([recurrenceMasterId, recurrenceInstanceAt])

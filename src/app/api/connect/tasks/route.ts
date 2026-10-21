@@ -103,6 +103,12 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (body.fullTime != null && typeof body.fullTime !== "boolean") {
+    return NextResponse.json(
+      { error: "fullTime must be true, false or null" },
+      { status: 400 }
+    );
+  }
   if (body.projectId != null) {
     const project =
       typeof body.projectId === "string"
@@ -216,6 +222,7 @@ export async function POST(request: NextRequest) {
         ? { originKind: DOC_ORIGIN, originId: body.originPageId }
         : {}),
       entry: entry.data,
+      fullTime: typeof body.fullTime === "boolean" ? body.fullTime : null,
       parts: partsCreateData(normalizeSubtasks(subtasks.data)),
       isAutoScheduled: true,
       autoScheduled: true,

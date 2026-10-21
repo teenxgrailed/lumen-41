@@ -684,6 +684,12 @@ export const MCP_TOOLS: McpTool[] = [
       entry: entrySchema
         .optional()
         .describe("The very first small step, about two minutes."),
+      fullTime: z
+        .boolean()
+        .optional()
+        .describe(
+          "Do for the full time: a focus session on it runs its whole length instead of ending when the task is ticked. Leave unset for auto (on for habit and repeating tasks)."
+        ),
       subtasks: subtaskListSchema
         .optional()
         .describe(
@@ -841,7 +847,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z
         .object({
@@ -890,6 +896,13 @@ const WRITE_TOOLS: McpTool[] = [
             .nullable()
             .optional()
             .describe("The very first small step; null clears it."),
+          fullTime: z
+            .boolean()
+            .nullable()
+            .optional()
+            .describe(
+              "Do for the full time: true keeps a focus session running its whole length when the task is ticked, false ends it at once; null = auto (on for habit and repeating tasks)."
+            ),
           dependsOnId: z
             .string()
             .min(1)
@@ -933,6 +946,7 @@ const WRITE_TOOLS: McpTool[] = [
           status: args.status,
           projectId: args.projectId,
           entry: args.entry,
+          fullTime: args.fullTime,
           dependsOnId: args.dependsOnId,
           originPageId: args.originPageId,
         });

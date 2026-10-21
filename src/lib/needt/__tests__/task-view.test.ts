@@ -108,6 +108,7 @@ const baseRow: NeedtTaskRow = {
   originId: null,
   originQuote: null,
   splitAllowed: true,
+  fullTime: null,
 
   project: null,
   parts: [],
