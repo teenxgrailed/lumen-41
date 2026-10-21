@@ -55,6 +55,40 @@ export const SCREEN_KIND: Record<string, SkeletonKind> = {
   chat: "chat",
 };
 
+/**
+ * The skeleton a route shows while its page is still on the way (the Next
+ * `loading.tsx` boundary), read from the pathname alone. Places the person
+ * does not "open" (sign-in, admin, Focus, Settings, Setup) draw nothing: a
+ * skeleton there would promise a list that never comes.
+ */
+export function routeSkeletonKind(pathname: string): SkeletonKind | null {
+  const [first, second] = pathname.split("/").filter(Boolean);
+  switch (first) {
+    case "today":
+    case "tasks":
+    case "mail":
+    case "habits":
+    case "trash":
+    case "projects":
+      return "list";
+    case "calendar":
+      return "calendar";
+    case "connections":
+      return "cards";
+    case "chat":
+      return "chat";
+    case "pages":
+      return second ? "doc" : "grid";
+    case "templates":
+    case "shared":
+    case "moodboards":
+    case "boards":
+      return "grid";
+    default:
+      return null;
+  }
+}
+
 const SCREEN_WHAT: Record<string, string> = {
   today: "your day",
   tasks: "your tasks",
