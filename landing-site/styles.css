@@ -770,3 +770,15 @@ html { background: var(--edge-t, var(--paper)); }
 .foot-featured-pill { height: 40px; padding: 0 14px; font-size: 13px; color: rgba(244,243,251,.82); text-decoration: none; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.04); }
 .foot-featured-pill:hover { color: #fff; border-color: rgba(255,255,255,.3); }
 @media (max-width: 760px) { .foot-featured { justify-content: center; } .foot-featured-label { width: 100%; text-align: center; margin: 0 0 2px; } }
+
+/* v42 — phone (<=760px): the hero and AI skies melt into the next section, and night comes down
+from the top as a lavender dusk band instead of a flat white-to-night crossfade (that read as grey).
+Design v28, adapted to the iOS rules above: masks sit on .sky-wrap (absolute, not a sticky/fixed
+edge element); the veil element itself stays transparent and the moving-edge gradient is painted
+on ::before, which Safari does not sample for its bars. onNight (app.js) is unchanged and still
+drives --nt on the veil, which ::before inherits. */
+@media (max-width: 760px) {
+  .hero > .sky-wrap, .ai > .sky-wrap { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 260px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 260px), transparent); }
+  .dusk-veil { --e: calc(var(--nt, 0) * 170% - 40%); opacity: 1; background: transparent; }
+  .dusk-veil::before { background: linear-gradient(180deg, rgba(169,177,219,0) calc(var(--e) - 34%), rgba(199,201,230,.8) var(--e), #ece6ea calc(var(--e) + 14%), #fff calc(var(--e) + 32%)); }
+}
