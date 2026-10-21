@@ -1,0 +1,29 @@
+[package]
+name = "needt-desktop"
+version = "0.1.0"
+description = "Needt desktop app: a Tauri shell around https://use.needt.app"
+authors = ["Needt"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "needt_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2.5"
+tauri-plugin-global-shortcut = "2.4"
+tauri-plugin-window-state = "2.5"
+tauri-plugin-notification = "2.7"
+tauri-plugin-opener = "2.7"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
