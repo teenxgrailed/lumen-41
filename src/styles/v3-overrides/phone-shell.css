@@ -1,0 +1,218 @@
+/* Phone shell edges (additions-2/phone-shell, ps-shell.css, 21.10.26).
+ *
+ * The page scrolls (phone-ground.css). Three things sit on it:
+ *   .ps-top   the collapsed header: progressive blur in three masked steps and
+ *             a tint, from the very top edge to 14 px past the small title.
+ *             Its strength follows --ps-k = clamp((scrollY - 8) / 44, 0, 1),
+ *             written on the screen root by PkScreen.
+ *   .ps-title the small centred title (place glyph + name). The large title
+ *             (.pk-head-row, .pk-sub) shrinks away as it arrives.
+ *   .ps-bot   the fog under the dock: 128 px to the screen edge (170 in a
+ *             Safari tab), two masked blur steps and a tint.
+ *   pull-down the screen behind the plate scales to 94% and moves down 18 px
+ *             (--ps-pull), the plate gets a lip and a two-layer shadow.
+ *
+ * Where it differs from the spec on purpose:
+ *   - The fade is on each layer (.b, .t), never on .ps-top / .ps-bot: opacity
+ *     on an ancestor of a backdrop-filter leaves the blur nothing to see.
+ *   - Safari 26 (confirmed on a device): no fixed element at least 80% wide
+ *     with its own background-colour within a few px of the top or bottom
+ *     edge. The hosts are the zero-height fixed .pk-topband / .pk-fog of
+ *     phone-ground.css; every layer here is an absolute child painted with
+ *     gradients and masks only.
+ *   - `.ps-title` is also a class of the settings page's title row
+ *     (phone-settings.css); everything that rule sets is reset below.
+ *
+ * Tokens: the ground is --v2p-ground (#f6f6f3 / #141416); only --ps-* below
+ * are new. */
+
+.needt-v3[data-ui="phone"] {
+  --ps-tint: rgba(246, 246, 243, 0.78); /* the ground at .78 */
+  --ps-tint-strong: rgba(246, 246, 243, 0.96);
+  --ps-hair: rgba(18, 18, 20, 0.06);
+  --ps-fog: rgba(246, 246, 243, 0.97);
+  --ps-fog-0: rgba(246, 246, 243, 0);
+  --ps-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
+}
+.needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"]) {
+  --ps-tint: rgba(20, 20, 22, 0.74);
+  --ps-tint-strong: rgba(20, 20, 22, 0.95);
+  --ps-hair: rgba(255, 255, 255, 0.07);
+  --ps-fog: rgba(20, 20, 22, 0.97);
+  --ps-fog-0: rgba(20, 20, 22, 0);
+}
+
+/* ── Top: collapsed header ────────────────────────────────────────────────── */
+.needt-v3[data-ui="phone"] .ps-top > * {
+  opacity: var(--ps-k, var(--pk-band, 0));
+  transition: opacity 120ms linear;
+}
+/* three blur steps, each masked so the blur fades in from the bottom edge up */
+.needt-v3[data-ui="phone"] .ps-top .pk-blur.b1 {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  -webkit-mask: linear-gradient(to top, transparent 0, #000 28px);
+  mask: linear-gradient(to top, transparent 0, #000 28px);
+}
+.needt-v3[data-ui="phone"] .ps-top .pk-blur.b2 {
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+  -webkit-mask: linear-gradient(to top, transparent 10px, #000 44px);
+  mask: linear-gradient(to top, transparent 10px, #000 44px);
+}
+.needt-v3[data-ui="phone"] .ps-top .pk-blur.b3 {
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-mask: linear-gradient(to top, transparent 22px, #000 60px);
+  mask: linear-gradient(to top, transparent 22px, #000 60px);
+}
+/* tint: strong behind the clock and the title (text under it is never
+   legible), then gone */
+.needt-v3[data-ui="phone"] .ps-top > .t {
+  background: linear-gradient(
+    to bottom,
+    var(--ps-tint-strong) 0,
+    var(--ps-tint-strong) 80%,
+    var(--ps-tint) 88%,
+    var(--ps-fog-0) 100%
+  );
+}
+/* the blur rests while the band is faded out (motion.css rests it at 0 too,
+   but this sheet's selectors are more specific) */
+.needt-v3[data-ui="phone"] .pk-screen[data-pk-band-on="0"] .ps-top .pk-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* the small title: place glyph + name, centred in a 36 px row */
+.needt-v3[data-ui="phone"] .pk-compact.ps-title {
+  top: calc(var(--v3-top) + 2px);
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: var(--ps-k, var(--pk-kt, 0));
+  transform: translateY(calc((1 - var(--ps-k, var(--pk-kt, 0))) * 8px));
+  transition:
+    opacity 120ms linear,
+    transform 160ms var(--ps-ease);
+}
+.needt-v3[data-ui="phone"] .pk-compact.ps-title .pk-compact-title {
+  font: 600 16px/1 var(--font-sans);
+  letter-spacing: -0.01em;
+  /* the row carries the fade and the slide */
+  opacity: 1;
+  transform: none;
+}
+.needt-v3[data-ui="phone"] .pk-compact.ps-title .pk-compact-glyph {
+  margin-right: 0;
+  opacity: 1;
+}
+/* the large title shrinks away as the small one arrives; transformed only
+   once the hand-over starts (data-ps-on), so a header at rest is not the
+   containing block of anything fixed */
+.needt-v3[data-ui="phone"]
+  .pk-screen[data-ps-on="1"]
+  :is(.pk-head-row, .pk-head > .pk-sub) {
+  transform-origin: 0 100%;
+  transform: scale(calc(1 - var(--ps-k, 0) * 0.12));
+  opacity: calc(1 - var(--ps-k, 0) * 1.4);
+  transition: opacity 120ms linear;
+}
+
+/* ── Bottom: fog under the dock ───────────────────────────────────────────── */
+.needt-v3[data-ui="phone"] .ps-bot .pk-blur.b1 {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  -webkit-mask: linear-gradient(to bottom, transparent 0, #000 46px);
+  mask: linear-gradient(to bottom, transparent 0, #000 46px);
+}
+.needt-v3[data-ui="phone"] .ps-bot .pk-blur.b2 {
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask: linear-gradient(to bottom, transparent 30px, #000 88px);
+  mask: linear-gradient(to bottom, transparent 30px, #000 88px);
+}
+.needt-v3[data-ui="phone"] .ps-bot > .t {
+  background: linear-gradient(
+    to bottom,
+    var(--ps-fog-0) 0,
+    color-mix(in srgb, var(--ps-fog) 55%, transparent) 46%,
+    var(--ps-fog) 82%,
+    var(--ps-fog) 100%
+  );
+}
+.needt-v3[data-ui="phone"] .pk-screen[data-pk-fog-on="0"] .ps-bot .pk-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Pull-down plate ──────────────────────────────────────────────────────── */
+/* the screen behind: 94%, 18 px down, driven by the pull (PkPullDown writes
+   --ps-pull on the scroller and data-ps-pull while it is above 0) */
+.needt-v3[data-ui="phone"] .pk-scroll[data-ps-pull] {
+  transform-origin: 50% 0;
+  transform: translateY(calc(var(--ps-pull, 0) * 18px))
+    scale(calc(1 - var(--ps-pull, 0) * 0.06));
+}
+/* the plate's edge: a transparent twin of its visible box (PkPullDown moves
+   it with the plate) carrying the two-layer shadow and the light lip, which
+   the plate's own clip-path would cut off */
+.needt-v3 .pk-pull-edge {
+  display: none;
+}
+.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull-edge {
+  display: block;
+  left: 0;
+  right: 0;
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 0 0 34px 34px;
+  box-shadow:
+    0 1px 0 var(--ps-hair),
+    0 30px 60px -20px rgba(18, 16, 40, 0.35),
+    0 8px 18px -10px rgba(18, 16, 40, 0.25);
+}
+.needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  .pk-pull-host
+  > .pk-pull-edge {
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 30px 70px -20px rgba(0, 0, 0, 0.8);
+}
+.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+}
+.needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  .pk-pull-host
+  > .pk-pull-edge::after {
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.16),
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3[data-ui="phone"] .ps-top > *,
+  .needt-v3[data-ui="phone"] .pk-compact.ps-title,
+  .needt-v3[data-ui="phone"]
+    .pk-screen[data-ps-on="1"]
+    :is(.pk-head-row, .pk-head > .pk-sub) {
+    transition: none;
+  }
+}
