@@ -60,6 +60,8 @@ export interface SkyOptions {
   clouds?: SkyClouds;
   scene?: "promo";
   fps?: number;
+  /** Input-free time before the sky settles (default 12 s; onboarding: 2 min). */
+  restMs?: number;
   mood?: string;
   dark?: boolean;
   parked?: boolean;
@@ -333,7 +335,7 @@ export function startSky(
      smoothstep(fl) x real time, so stopping and resuming never jump. */
   const joined = joinRest((idle) => {
     if (!idle) kick();
-  });
+  }, opt.restMs);
   const pageRest = joined.rest;
   let fl = pageRest.idle ? 0 : 1;
   let ta = 0;
