@@ -89,9 +89,9 @@ describe("tab titles", () => {
 describe("app icon", () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p));
 
-  it("is the dark tile everywhere the app declares one", () => {
+  it("is the Midnight tile everywhere the app declares one", () => {
     const svg = read("public/brand/needt-icon.svg").toString("utf8");
-    expect(svg).toContain("#17162b");
+    expect(svg).toContain("#1b1a33");
     expect(
       existsSync(join(process.cwd(), "public/brand/needt-icon-dark.svg"))
     ).toBe(false);

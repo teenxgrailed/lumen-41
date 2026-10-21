@@ -53,3 +53,18 @@ follows the resolved theme. Available but not called yet: `share()`,
 
 Icon and splash are upscaled from `public/icons/icon-maskable-512.png`; replace
 `ios/App/App/Assets.xcassets` with a 1024 px master before submission.
+
+## App icon (alternate icons)
+
+Midnight is the primary `AppIcon`. The other twelve are alternate icon sets
+(`AppIcon-<id>.appiconset`, generated from the design pack's 1024 px PNGs,
+flattened because iOS rejects alpha) listed in
+`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`. The web app calls
+`window.Capacitor.Plugins.NeedtAppIcon.setIcon({ name })` (`setNativeAppIcon`
+in `src/lib/native.ts`; `name` is `null` for Midnight) and is silent when the
+plugin is missing.
+
+//todo: the Swift plugin `NeedtAppIcon` (wrapping
+`UIApplication.shared.setAlternateIconName`) is not written: it needs a
+device or Simulator to verify and a local-plugin registration in the Xcode
+project. Until it exists the choice only changes the web-side icons.
