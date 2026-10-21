@@ -26,6 +26,8 @@ packages:
     from: 2.6.4
   NeedtKit:
     path: ../shared/NeedtKit
+  NeedtWidgetKit:
+    path: ../shared/NeedtWidgetKit
   # The island's packages, pinned to the versions its own build resolved.
   Defaults:
     url: https://github.com/sindresorhus/Defaults
@@ -86,6 +88,8 @@ targets:
       - package: Collections
       - package: SwiftTerm
       - target: NeedtShare
+        embed: true
+      - target: NeedtWidgets
         embed: true
     entitlements:
       path: Generated/Needt.entitlements
@@ -246,6 +250,8 @@ targets:
       - package: Collections
       - target: NeedtShare
         embed: true
+      - target: NeedtWidgets
+        embed: true
     entitlements:
       path: Generated/NeedtAppStore.entitlements
       properties:
@@ -348,3 +354,41 @@ targets:
         PRODUCT_NAME: NeedtShare
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES
+
+  # Widgets for the desktop and Notification Center (WidgetKit): Today
+  # (small / medium / large / extra large), Next event, Focus timer, Habits,
+  # Quick add, and the Controls on macOS 26. The views, data and intents are in
+  # apps/shared/NeedtWidgetKit and NeedtKit.
+  NeedtWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widgets/Sources
+    dependencies:
+      - package: NeedtKit
+      - package: NeedtWidgetKit
+    entitlements:
+      path: Generated/NeedtWidgets.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - $(TeamIdentifierPrefix)app.needt.mac
+    info:
+      path: Generated/NeedtWidgets-Info.plist
+      properties:
+        CFBundleName: Needt Widgets
+        CFBundleDisplayName: Needt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac.widgets
+        PRODUCT_NAME: NeedtWidgets
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"

@@ -117,6 +117,32 @@ public key is set; no key is generated or stored in this repository.
 Updates also need a Developer ID signed and notarized app (below); Sparkle
 refuses to replace an app signed by a different identity.
 
+## Widgets
+
+`Widgets/Sources` is a WidgetKit extension (`NeedtWidgets`, bundle id
+`app.needt.mac.widgets`, sandboxed, same App Group as the app). It embeds in
+both the direct and the App Store build. Like the iPhone one it is only an entry
+point: the views, widgets and intents are in `apps/shared/NeedtWidgetKit`, the
+data in `apps/shared/NeedtKit`.
+
+- Today (small, medium, large and extra large), Next event, Focus timer,
+  Habits (Free shows 3), Quick add; on macOS 26 the Add task and Start focus
+  Controls (menu bar, Control Center). Eight styles per widget in its Edit menu,
+  D Ink by default.
+- The session comes from the vault the app already fills (`SessionSync`); the
+  app reloads the widgets whenever it refreshes or clears it.
+- `needt://open?path=/today` (also `/focus`, `/habits`, `/calendar`,
+  `/quick-add`, `/tasks`) opens that screen; `/quick-add` opens the native Quick
+  add panel. The Quick add Control leaves a pending link the app reads when it
+  comes forward.
+- A focus Live Activity started on a paired iPhone shows in the Mac menu bar
+  with no Mac code (macOS 26).
+- [unverified] Mac widget sizes (158 x 158, 338 x 158, 338 x 354, 715 x 338 pt)
+  and how tinted / clear rendering looks on macOS 26: Apple publishes no table
+  and the HIG lists accented as unsupported on Mac while WWDC25 says it applies.
+  Tinted, clear and vibrant use the D Ink layout either way. Check in Xcode
+  previews on a macOS 26 machine.
+
 ## What needs the owner
 
 - Apple Developer Program membership (99 USD a year): a Developer ID

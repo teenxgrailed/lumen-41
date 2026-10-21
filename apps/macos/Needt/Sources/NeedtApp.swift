@@ -1,4 +1,5 @@
 import AppKit
+import NeedtKit
 import SwiftUI
 
 @main
@@ -51,6 +52,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if NSApp.mainMenu?.items.first?.title != "Needt" || (NSApp.mainMenu?.items.count ?? 0) < 6 {
             installMainMenu()
         }
+        // The Quick add Control (or a widget) opened the app: show what it asked for.
+        if let link = PendingLink.take() { openWidgetLink(link) }
+    }
+
+    /// `needt://open?path=/today` from a widget or Control: only Needt's own
+    /// routes are accepted (NeedtLink.path). Quick add uses the native panel.
+    @MainActor
+    private func openWidgetLink(_ url: URL) {
+        guard let path = NeedtLink.path(from: url) else { return }
+        if path == "/quick-add" {
+            AppController.shared.showQuickAdd()
+        } else {
+            AppController.shared.navigate(path)
+        }
     }
 
     @MainActor
@@ -61,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "needt" {
-            AppController.shared.auth.handleDeepLink(url)
+            if url.host == "open" { openWidgetLink(url) } else { AppController.shared.auth.handleDeepLink(url) }
         }
         IslandHost.open(urls.filter(\.isFileURL))
     }

@@ -93,7 +93,10 @@ jobs:
           DIRECT=build/Build/Products/Release/Needt.app
           test -d "$STORE"
           test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
           test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtWidgets.appex"
+          plutil -p "$DIRECT/Contents/PlugIns/NeedtWidgets.appex/Contents/Info.plist" | grep -E "com.apple.widgetkit-extension"
           if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
             echo "Sparkle is inside the App Store build"; exit 1
           fi
@@ -113,12 +116,12 @@ jobs:
               with open(f"Generated/{name}.entitlements", "rb") as f:
                   return plistlib.load(f)
           failed = False
-          for name in ("Needt", "NeedtAppStore", "NeedtShare"):
+          for name in ("Needt", "NeedtAppStore", "NeedtShare", "NeedtWidgets"):
               e = load(name)
               print(name, sorted(e))
               need = ["com.apple.security.app-sandbox", "com.apple.security.network.client",
                       "com.apple.security.application-groups"]
-              if name != "NeedtShare":
+              if name not in ("NeedtShare", "NeedtWidgets"):
                   need.append("com.apple.security.files.user-selected.read-only")
               for key in need:
                   if not e.get(key):
@@ -130,7 +133,7 @@ jobs:
           sys.exit(1 if failed else 0)
           PY
           # No private API: no KVC into WebKit/AppKit internals, no private selectors by string.
-          if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share; then
+          if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share Widgets; then
             echo "private API pattern found"; exit 1
           fi
 
@@ -150,6 +153,8 @@ jobs:
           set -euo pipefail
           DIRECT=build/Build/Products/Release/Needt.app
           test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtWidgets.appex"
+          plutil -p "$DIRECT/Contents/PlugIns/NeedtWidgets.appex/Contents/Info.plist" | grep -E "com.apple.widgetkit-extension"
           test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
           # The island's GPL licence and acknowledgements ship in the app.
           test -f "$DIRECT/Contents/Resources/LICENSE.txt"
@@ -165,7 +170,7 @@ jobs:
               with open(f"Generated/{name}.entitlements", "rb") as f:
                   return plistlib.load(f)
           failed = False
-          for name in ("Needt", "NeedtAppStore", "NeedtShare"):
+          for name in ("Needt", "NeedtAppStore", "NeedtShare", "NeedtWidgets"):
               e = load(name)
               print(name, sorted(e))
               # The direct build is unsandboxed on purpose (the full island);
@@ -174,7 +179,7 @@ jobs:
                       "com.apple.security.application-groups"]
               if name != "Needt":
                   need.append("com.apple.security.app-sandbox")
-              if name != "NeedtShare":
+              if name not in ("NeedtShare", "NeedtWidgets"):
                   need.append("com.apple.security.files.user-selected.read-only")
               for key in need:
                   if not e.get(key):
@@ -270,6 +275,7 @@ jobs:
           STORE=build-appstore/Build/Products/Release/Needt.app
           test -d "$STORE"
           test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
           if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
             echo "Sparkle is inside the App Store build"; exit 1
           fi
