@@ -1,4 +1,5 @@
 import dns from "node:dns";
+import http from "node:http";
 import https from "node:https";
 import net from "node:net";
 
@@ -18,6 +19,10 @@ import net from "node:net";
  *   goes through a resolver with its own timeout, not the libuv thread
  *   pool, so slow zones cannot exhaust it;
  * - a size cap, and the answer must say it is JSON.
+ *
+ * `assertPublicHost` and `safeFetch` below reuse the same resolver and the
+ * same address check for the other outbound targets a person can set
+ * (webhooks, custom AI endpoints, CalDAV and IMAP hosts).
  */
 
 export class UnsafeFetchError extends Error {
@@ -141,10 +146,11 @@ function checkUrl(url: URL) {
   }
 }
 
-async function publicAddress(
+/** Every address `hostname` resolves to, or a refusal if any is not public. */
+async function publicAddresses(
   hostname: string,
-  deps: SafeFetchDeps
-): Promise<string> {
+  deps: Pick<SafeFetchDeps, "lookup">
+): Promise<string[]> {
   const host = hostname.replace(/^\[|\]$/g, "");
   const addresses = net.isIP(host) ? [host] : await deps.lookup(host);
   if (!addresses.length)
@@ -152,7 +158,14 @@ async function publicAddress(
   if (addresses.some(isPrivateAddress)) {
     throw new UnsafeFetchError("The host resolves to a non-public address.");
   }
-  return addresses[0];
+  return addresses;
+}
+
+async function publicAddress(
+  hostname: string,
+  deps: Pick<SafeFetchDeps, "lookup">
+): Promise<string> {
+  return (await publicAddresses(hostname, deps))[0];
 }
 
 const resolver = new dns.promises.Resolver({ timeout: 2_000, tries: 1 });
@@ -171,6 +184,41 @@ async function resolveAll(hostname: string): Promise<string[]> {
   return [...v4, ...v6];
 }
 
+type LookupCallback = (
+  error: NodeJS.ErrnoException | null,
+  address: string | { address: string; family: number }[],
+  family?: number
+) => void;
+
+/**
+ * A `lookup` for http(s).request that answers only with addresses that were
+ * already checked, so the socket cannot connect anywhere a fresh DNS answer
+ * (rebinding) would send it.
+ */
+function pinnedLookup(addresses: string[]) {
+  const entries = addresses.map((address) => ({
+    address,
+    family: net.isIPv6(address) ? 6 : 4,
+  }));
+  return (
+    _host: string,
+    options: { all?: boolean; family?: number | string },
+    callback: LookupCallback
+  ) => {
+    const wanted = Number(options.family) || 0;
+    const usable = wanted
+      ? entries.filter((e) => e.family === wanted)
+      : entries;
+    if (!usable.length) {
+      const error: NodeJS.ErrnoException = new Error("No address available.");
+      error.code = "ENOTFOUND";
+      return callback(error, "", 0);
+    }
+    if (options.all) return callback(null, usable);
+    return callback(null, usable[0].address, usable[0].family);
+  };
+}
+
 const defaultDeps: SafeFetchDeps = {
   lookup: resolveAll,
   get(url, address, { timeoutMs, maxBytes }) {
@@ -187,19 +235,7 @@ const defaultDeps: SafeFetchDeps = {
             "user-agent": "Needt-OAuth/1",
           },
           // Connect to the address that was checked, never a fresh answer.
-          lookup: (_host, options, callback) => {
-            const family = net.isIPv6(address) ? 6 : 4;
-            if ((options as { all?: boolean }).all) {
-              (
-                callback as unknown as (
-                  err: null,
-                  addresses: { address: string; family: number }[]
-                ) => void
-              )(null, [{ address, family }]);
-            } else {
-              callback(null, address, family);
-            }
-          },
+          lookup: pinnedLookup([address]),
         },
         (response) => {
           const chunks: Buffer[] = [];
@@ -306,4 +342,176 @@ export async function safeFetchJson(
     }
   }
   throw new UnsafeFetchError("Too many redirects.");
+}
+
+/* ---------- other outbound targets a person can set ---------- */
+
+/**
+ * Refuses a host that is, or resolves to, anything but public addresses.
+ * Scheme-agnostic: for clients that open their own connection (IMAP, CalDAV)
+ * and so cannot be pinned to the checked address the way `safeFetch` is —
+ * a name that changes its answer after this check is not caught here.
+ *
+ * Every refusal is an `UnsafeFetchError`, including a name that does not
+ * resolve and a resolver that fails, so a caller can answer all of them the
+ * same way and not tell a probe which internal names exist.
+ */
+export async function assertPublicHost(
+  hostname: string,
+  deps: Pick<SafeFetchDeps, "lookup"> = defaultDeps
+): Promise<void> {
+  const host = hostname.trim();
+  if (!host) throw new UnsafeFetchError("The host is empty.");
+  try {
+    await withDeadline(publicAddresses(host, deps), Date.now() + 5_000);
+  } catch (error) {
+    if (error instanceof UnsafeFetchError) throw error;
+    throw new UnsafeFetchError("The host could not be resolved.");
+  }
+}
+
+export interface SafeFetchInit {
+  method?: string;
+  headers?: HeadersInit;
+  body?: string | Uint8Array | null;
+}
+
+export interface SafeFetchOptions {
+  /** One hard deadline for DNS, connect, TLS, the request and the body. */
+  timeoutMs?: number;
+  /** Largest response body accepted; a larger one is refused. */
+  maxBytes?: number;
+  deps?: Pick<SafeFetchDeps, "lookup">;
+}
+
+// A response to these carries no body, and `new Response` rejects one.
+const NO_BODY_STATUS = new Set([204, 205, 304]);
+
+function sendPinned(
+  url: URL,
+  init: SafeFetchInit,
+  addresses: string[],
+  { timeoutMs, maxBytes }: { timeoutMs: number; maxBytes: number }
+): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const secure = url.protocol === "https:";
+    const host = url.hostname.replace(/^\[|\]$/g, "");
+    const payload =
+      init.body === undefined || init.body === null
+        ? undefined
+        : Buffer.from(init.body);
+    const headers = new Headers(init.headers);
+    // Node does not decompress; ask for the bytes we will hand back as-is.
+    if (!headers.has("accept-encoding")) {
+      headers.set("accept-encoding", "identity");
+    }
+    if (!headers.has("host")) headers.set("host", url.host);
+    if (payload && !headers.has("content-length")) {
+      headers.set("content-length", String(payload.length));
+    }
+    const request = (secure ? https : http).request(
+      {
+        method: init.method ?? "GET",
+        host,
+        port: url.port || (secure ? 443 : 80),
+        path: `${url.pathname}${url.search}`,
+        headers: Object.fromEntries(headers),
+        servername: secure && !net.isIP(host) ? host : undefined,
+        // One connection per request: nothing pooled from an earlier answer.
+        agent: false,
+        // Connect only to addresses that were checked, never a fresh answer.
+        lookup: pinnedLookup(addresses),
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        response.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > maxBytes) {
+            request.destroy(new UnsafeFetchError("The response is too large."));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.on("end", () => {
+          try {
+            const status = response.statusCode ?? 0;
+            const answer = new Headers();
+            for (let i = 0; i + 1 < response.rawHeaders.length; i += 2) {
+              answer.append(response.rawHeaders[i], response.rawHeaders[i + 1]);
+            }
+            resolve(
+              new Response(
+                NO_BODY_STATUS.has(status)
+                  ? null
+                  : new Uint8Array(Buffer.concat(chunks)),
+                {
+                  status,
+                  statusText: response.statusMessage ?? "",
+                  headers: answer,
+                }
+              )
+            );
+          } catch (error) {
+            reject(error);
+          }
+        });
+        response.on("error", reject);
+      }
+    );
+    // A hard deadline, not a socket idle timeout: a server that sends one
+    // byte a second never goes idle.
+    const deadline = setTimeout(
+      () => request.destroy(new UnsafeFetchError("The fetch timed out.")),
+      timeoutMs
+    );
+    request.on("close", () => clearTimeout(deadline));
+    request.on("error", reject);
+    request.end(payload);
+  });
+}
+
+/**
+ * `fetch` for a URL a person typed in (a webhook, a custom AI endpoint):
+ * http or https, no credentials in the URL, and every address the name
+ * resolves to must be public — a single private, loopback, link-local or
+ * reserved answer refuses the request, and the connection is pinned to the
+ * addresses that were checked. Redirects are not followed (the 3xx answer is
+ * returned as it is), the response is read in full under one deadline, and a
+ * body over `maxBytes` is refused.
+ *
+ * Scheme and port are left as `fetch` allows them: this only keeps a request
+ * from reaching the server's own network, it does not decide which public
+ * servers a person may use.
+ */
+export async function safeFetch(
+  input: string | URL,
+  init: SafeFetchInit = {},
+  options: SafeFetchOptions = {}
+): Promise<Response> {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    throw new UnsafeFetchError("The URL is not valid.");
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new UnsafeFetchError("Only http and https URLs can be fetched.");
+  }
+  if (url.username || url.password) {
+    throw new UnsafeFetchError("URLs with credentials are refused.");
+  }
+  const timeoutMs = options.timeoutMs ?? 20_000;
+  const deadline = Date.now() + timeoutMs;
+  const addresses = await withDeadline(
+    publicAddresses(url.hostname, options.deps ?? defaultDeps),
+    deadline
+  );
+  return withDeadline(
+    sendPinned(url, init, addresses, {
+      timeoutMs: Math.max(1, deadline - Date.now()),
+      maxBytes: options.maxBytes ?? 5 * 1024 * 1024,
+    }),
+    deadline
+  );
 }
