@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
 - iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
   looks), the other twelve are alternate icons you pick in Settings →
   Appearance, the launch screen is the ground colour with the Midnight mark,
