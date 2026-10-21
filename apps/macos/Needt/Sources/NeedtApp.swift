@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = Connectivity.shared
         Notifier.shared.start()
         Updater.shared.start()
         installMainMenu()

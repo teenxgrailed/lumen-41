@@ -17,6 +17,23 @@ final class TrayStore: ObservableObject {
     @Published private(set) var focusError: String?
     /// "Start focus: task" while a macOS Focus filter set to suggest is on.
     @Published private(set) var suggestion: FocusSuggestion?
+    /// When `state` was last reported (or loaded from the disk cache).
+    @Published private(set) var updatedAt: Date?
+
+    private let cache = OfflineCache.shared
+
+    init() {
+        // The menu has something to show before the page reports, and while
+        // offline. A cached focus run is not trusted: it may have ended.
+        if let hit = cache.load(TrayState.self, for: .tray) {
+            var cached = hit.value
+            cached.focus = nil
+            cached.focusEndsAt = nil
+            cached.focusTitle = nil
+            state = cached
+            updatedAt = hit.savedAt
+        }
+    }
 
     /// The session id for Pause / End, fetched on demand through NeedtAPI.
     private var session: FocusSession?
@@ -37,6 +54,10 @@ final class TrayStore: ObservableObject {
 
     func apply(_ next: TrayState) {
         SessionSync.push()
+        if next != .empty, next != state || updatedAt == nil {
+            cache.save(next, for: .tray)
+            updatedAt = Date()
+        }
         state = next
         updateDockBadge()
     }
@@ -46,6 +67,7 @@ final class TrayStore: ObservableObject {
         apply(.empty)
         FocusBridge.shared.reset()
         suggestion = nil
+        updatedAt = nil
         session = nil
     }
 

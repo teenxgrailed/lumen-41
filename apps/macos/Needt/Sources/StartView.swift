@@ -1,3 +1,4 @@
+import NeedtKit
 import SwiftUI
 
 /// Colours of the dk-chrome spec, light and dark.
@@ -158,6 +159,8 @@ struct StartView: View {
 struct OfflineView: View {
     let retry: () -> Void
     @Environment(\.colorScheme) private var scheme
+    /// The last day the app reported, shown read-only (no edit queue).
+    private let cached = OfflineCache.shared.load(TrayState.self, for: .tray)
 
     var body: some View {
         ZStack {
@@ -181,6 +184,25 @@ struct OfflineView: View {
                     .frame(maxWidth: 320)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 18)
+                if let cached, !cached.value.next.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(OfflineCache.note(updatedAt: cached.savedAt))
+                            .font(.system(size: 12))
+                            .foregroundStyle(Dk.ink3(scheme))
+                        ForEach(cached.value.next) { task in
+                            Text(task.time.map { "\($0)   \(task.title)" } ?? task.title)
+                                .font(.system(size: 13))
+                                .foregroundStyle(Dk.ink2(scheme))
+                                .lineLimit(1)
+                        }
+                        Text(OfflineCache.writeDisabledReason)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Dk.ink3(scheme))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: 320, alignment: .leading)
+                    .padding(.bottom, 18)
+                }
                 Button("Try again", action: retry)
                     .buttonStyle(DkButtonStyle(kind: .primary))
                 Text("Retrying every 10 s")

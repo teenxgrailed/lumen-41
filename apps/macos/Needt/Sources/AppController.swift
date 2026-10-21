@@ -189,7 +189,7 @@ final class AppController {
     }
 
     func showQuickAdd() {
-        guard auth.isSignedInBefore else { return }
+        guard auth.isSignedInBefore, Connectivity.shared.isOnline else { return }
         quickAdd.show()
     }
 
