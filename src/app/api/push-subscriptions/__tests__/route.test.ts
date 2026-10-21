@@ -6,12 +6,20 @@ import {
   POST as rawPost,
 } from "@/app/api/push-subscriptions/route";
 import { POST as rawTestPost } from "@/app/api/push-subscriptions/test/route";
+import {
+  UnsafeFetchError,
+  assertPublicHost,
+} from "@/services/oauth/safe-fetch";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  ...jest.requireActual("@/services/oauth/safe-fetch"),
+  assertPublicHost: jest.fn(),
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     pushSubscription: {
@@ -50,6 +58,7 @@ const TEST_POST = defined(rawTestPost as Handler);
 const mockAuth = jest.mocked(authenticateRequest);
 const subs = jest.mocked(prisma.pushSubscription);
 const mockDeliver = jest.mocked(deliverPush);
+const mockAssertPublicHost = jest.mocked(assertPublicHost);
 
 const saved = {
   subject: process.env.VAPID_SUBJECT,
@@ -88,6 +97,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   configure();
   mockAuth.mockResolvedValue({ userId: "user-1" } as never);
+  mockAssertPublicHost.mockResolvedValue(undefined);
 });
 
 afterAll(() => {
@@ -146,6 +156,33 @@ describe("POST /api/push-subscriptions", () => {
       (await POST(request("POST", { endpoint: valid.endpoint, keys: {} })))
         .status
     ).toBe(400);
+    expect(subs.upsert).not.toHaveBeenCalled();
+  });
+
+  it("only stores an endpoint whose host is public", async () => {
+    subs.findUnique.mockResolvedValue(null);
+    subs.upsert.mockResolvedValue({ id: "sub-1" } as never);
+    await POST(request("POST", valid));
+    expect(mockAssertPublicHost).toHaveBeenCalledWith("push.example.test");
+
+    mockAssertPublicHost.mockRejectedValue(
+      new UnsafeFetchError("The host resolves to a non-public address.")
+    );
+    subs.upsert.mockClear();
+    const refused = await POST(
+      request("POST", { ...valid, endpoint: "https://169.254.169.254/push" })
+    );
+    expect(refused.status).toBe(400);
+    // No hint of why: the answer is the one any invalid subscription gets.
+    expect(await refused.json()).toEqual({ error: "Invalid subscription" });
+    expect(subs.upsert).not.toHaveBeenCalled();
+  });
+
+  it("answers an endpoint that is not a URL with a 400, not a failure", async () => {
+    const response = await POST(
+      request("POST", { ...valid, endpoint: "https://" })
+    );
+    expect(response.status).toBe(400);
     expect(subs.upsert).not.toHaveBeenCalled();
   });
 
