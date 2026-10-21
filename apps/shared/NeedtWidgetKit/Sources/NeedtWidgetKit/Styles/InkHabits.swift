@@ -112,7 +112,7 @@ struct InkHabits: View {
                         VStack(alignment: .leading, spacing: 8) {
                             CheckRow(title: "", done: h.doneToday, habitIntent: ToggleHabitIntent(habitId: h.id)).frame(height: 16)
                             Text(h.title).font(pro ? c.fonts.t12(.semibold) : c.fonts.t13(.semibold))
-                                .foregroundStyle(c.palette.ink).lineLimit(2).titleSensitive(c.showTitles)
+                                .foregroundStyle(c.palette.ink).lineLimit(pro ? 1 : 2).minimumScaleFactor(pro ? 0.7 : 1).titleSensitive(c.showTitles)
                             Spacer(minLength: 0)
                         }
                         .padding(pro ? 8 : 10)

@@ -285,7 +285,7 @@ import WidgetKit
                 .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(rgb: 0x1A1926).opacity(0.92)))
             for (kind, view) in [("compact", AnyView(compact)), ("minimal", AnyView(minimal)), ("expanded", AnyView(expanded)), ("lockscreen", AnyView(lock))] {
                 var c = ctx; c.family = .rectangular
-                let framed = view.environment(\.needt, c).padding(14)
+                let framed = view.environment(\.needt, c).environment(\.redactionReasons, name == "title-hidden" ? .privacy : []).padding(14)
                     .background(LinearGradient(colors: [Color(rgb: 0x3D4A8A), Color(rgb: 0x2A2440)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 write(framed, named: "live-\(kind)-\(name)")
             }
