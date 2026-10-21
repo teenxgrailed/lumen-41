@@ -8,13 +8,7 @@
  * projectGroups, projectStats); what is particular to the phone is which
  * sections a tab shows, and what a drop into each one means.
  */
-import { clock } from "@/lib/needt3/day";
-import {
-  addDays,
-  daysBetween,
-  dueLabel,
-  at as hourAt,
-} from "@/lib/needt3/derive";
+import { addDays, daysBetween } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { isOnToday, taskDay } from "@/lib/needt3/task-day";
 import {
@@ -36,7 +30,6 @@ import {
   upcomingTitle,
 } from "../../work/model";
 import type { ZoneSpec } from "../drag";
-import type { PullHit } from "../kit";
 import { copy } from "./strings";
 
 export type PtkTab = "inbox" | "today" | "upcoming" | "all";
@@ -365,61 +358,6 @@ export function deleteLine(openN: number) {
 
 /** The project edit sheet's rule: a name another project has is taken. */
 export { nameTaken } from "../../work/model";
-
-/* ---------- the pull-down ---------- */
-
-/** Titles that hold the query (any case), five at most: the pull-down's search. */
-export function taskHits(
-  tasks: readonly V3Task[],
-  q: string,
-  today: string
-): PullHit[] {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return [];
-  return tasks
-    .filter((t) => t.title.toLowerCase().includes(needle))
-    .slice(0, 5)
-    .map((t) => {
-      const h = hourAt(t);
-      const day = t.dueDate
-        ? t.dueDate === today
-          ? copy.PtkTasks.today
-          : (dueLabel(t) ?? copy.PtkTasks.inbox)
-        : copy.PtkTasks.inbox;
-      return {
-        id: t.id,
-        title: t.title,
-        done: t.done,
-        meta: [
-          t.done ? copy.PtkTasks.done : isOverdue(t, today) ? "Overdue" : day,
-          h != null ? clock(h) : null,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      };
-    });
-}
-
-/** Project names that hold the query, five at most. */
-export function projectHits(
-  projects: readonly V3Project[],
-  tasks: readonly V3Task[],
-  q: string
-): PullHit[] {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return [];
-  return projects
-    .filter((p) => p.name.toLowerCase().includes(needle))
-    .slice(0, 5)
-    .map((p) => {
-      const n = tasks.filter((t) => t.projectId === p.id && !t.done).length;
-      return {
-        id: p.id,
-        title: p.name,
-        meta: n ? `${n} open` : copy.PtkProjectRow.all_done,
-      };
-    });
-}
 
 /** The snack after Delete: the name, and where the open tasks went. */
 export function deletedLabel(name: string, openN: number) {

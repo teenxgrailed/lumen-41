@@ -35,61 +35,206 @@
 */
 
 /* text */
-.needt-v3 .base-meta { font: var(--type-meta); color: var(--text-tertiary); }
-.needt-v3 .base-meta-muted { font: var(--type-meta); color: var(--text-muted); }
-.needt-v3 .base-label { font: var(--type-meta-medium); color: var(--text-secondary); }
-.needt-v3 .base-strong { font: var(--type-ui-medium); color: var(--text-primary); }
-.needt-v3 .base-section-label { font: var(--type-meta-medium); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-quaternary); }
+.needt-v3 .base-meta {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .base-meta-muted {
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3 .base-label {
+  font: var(--type-meta-medium);
+  color: var(--text-secondary);
+}
+.needt-v3 .base-strong {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .base-section-label {
+  font: var(--type-meta-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
 
 /* layout */
-.needt-v3 .base-stack { display: flex; flex-direction: column; gap: 2px; }
-.needt-v3 .base-row { display: flex; align-items: center; gap: 8px; }
-.needt-v3 .base-push { margin-left: auto; }
+.needt-v3 .base-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .base-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .base-push {
+  margin-left: auto;
+}
 
 /* surfaces */
-.needt-v3 .base-scrim { position: fixed; inset: 0; z-index: 1050; display: grid; place-items: center; background: var(--nx-scrim); }
-.needt-v3 .base-sheet { border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
-.needt-v3 .base-close { width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 999px; background: var(--fill-5); color: var(--text-tertiary); cursor: default; }
+.needt-v3 .base-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  background: var(--nx-scrim);
+}
+.needt-v3 .base-sheet {
+  border-radius: var(--radius-2xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3 .base-close {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill-5);
+  color: var(--text-tertiary);
+  cursor: default;
+}
 
 /* menus / popovers */
-.needt-v3 .base-menu { width: 240px; padding: 6px; box-sizing: border-box; border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-floating); }
-.needt-v3 .base-menu-sep { display: block; height: 1px; margin: 5px 10px; background: var(--border); }
+.needt-v3 .base-menu {
+  width: 240px;
+  padding: 6px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3 .base-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 5px 10px;
+  background: var(--border);
+}
 
 /* empty states */
-.needt-v3 .base-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .base-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
 
 /* states.jsx — static styles moved out of style={{…}} */
-.needt-v3 .state-glyph-svg { flex: none; display: block; }
-.needt-v3 .state-banner-dismiss { padding: 0 7px; }
-.needt-v3 .state-skeleton-span { flex: 1; }
-.needt-v3 .state-skeleton-span-2 { height: 10px; }
-.needt-v3 .state-skeleton-row { display: flex; gap: 10px; align-items: center; }
-.needt-v3 .state-skeleton-row-2 { display: flex; justify-content: flex-end; margin-top: auto; }
-.needt-v3 .state-skeleton-row-3 { display: flex; gap: 10px; }
-.needt-v3 .state-skeleton-stack { flex: 1; display: flex; flex-direction: column; gap: 7px; }
-.needt-v3 .state-no-access-stack { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
-.needt-v3 .state-offline-indicator-row { position: relative; display: inline-flex; }
+.needt-v3 .state-glyph-svg {
+  flex: none;
+  display: block;
+}
+.needt-v3 .state-banner-dismiss {
+  padding: 0 7px;
+}
+.needt-v3 .state-skeleton-span {
+  flex: 1;
+}
+.needt-v3 .state-skeleton-span-2 {
+  height: 10px;
+}
+.needt-v3 .state-skeleton-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.needt-v3 .state-skeleton-row-2 {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+.needt-v3 .state-skeleton-row-3 {
+  display: flex;
+  gap: 10px;
+}
+.needt-v3 .state-skeleton-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.needt-v3 .state-no-access-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+.needt-v3 .state-offline-indicator-row {
+  position: relative;
+  display: inline-flex;
+}
 
 /* AI orb (AiOrb.jsx). Colours from --orb-* (themes.css); the film turns once
    every 9 s and the halo breathes every 7 s; still under reduced motion. */
-.needt-v3 .ai-orb { flex: none; display: block; overflow: visible; }
-.needt-v3 .ai-orb-tile { fill: var(--orb-tile); }
-.needt-v3 .ai-orb-s-hi { stop-color: var(--orb-hi); }
-.needt-v3 .ai-orb-s-blue { stop-color: var(--orb-blue); }
-.needt-v3 .ai-orb-s-deep { stop-color: var(--orb-deep); }
-.needt-v3 .ai-orb-s-pale { stop-color: var(--orb-pale); stop-opacity: 0.9; }
-.needt-v3 .ai-orb-s-lilac { stop-color: var(--orb-lilac); stop-opacity: 0.95; }
-.needt-v3 .ai-orb-s-pink { stop-color: var(--orb-pink); stop-opacity: 0.95; }
-.needt-v3 .ai-orb-s-spec { stop-color: var(--orb-spec); stop-opacity: 0.85; }
-.needt-v3 .ai-orb-s-rim { stop-color: var(--orb-rim); stop-opacity: 0.55; }
-.needt-v3 .ai-orb-s-glow { stop-color: var(--orb-glow); }
-.needt-v3 .ai-orb-s-0 { stop-opacity: 0; }
-.needt-v3 .ai-orb-spark { fill: var(--orb-spec); opacity: 0.9; }
+.needt-v3 .ai-orb {
+  flex: none;
+  display: block;
+  overflow: visible;
+}
+.needt-v3 .ai-orb-tile {
+  fill: var(--orb-tile);
+}
+.needt-v3 .ai-orb-s-hi {
+  stop-color: var(--orb-hi);
+}
+.needt-v3 .ai-orb-s-blue {
+  stop-color: var(--orb-blue);
+}
+.needt-v3 .ai-orb-s-deep {
+  stop-color: var(--orb-deep);
+}
+.needt-v3 .ai-orb-s-pale {
+  stop-color: var(--orb-pale);
+  stop-opacity: 0.9;
+}
+.needt-v3 .ai-orb-s-lilac {
+  stop-color: var(--orb-lilac);
+  stop-opacity: 0.95;
+}
+.needt-v3 .ai-orb-s-pink {
+  stop-color: var(--orb-pink);
+  stop-opacity: 0.95;
+}
+.needt-v3 .ai-orb-s-spec {
+  stop-color: var(--orb-spec);
+  stop-opacity: 0.85;
+}
+.needt-v3 .ai-orb-s-rim {
+  stop-color: var(--orb-rim);
+  stop-opacity: 0.55;
+}
+.needt-v3 .ai-orb-s-glow {
+  stop-color: var(--orb-glow);
+}
+.needt-v3 .ai-orb-s-0 {
+  stop-opacity: 0;
+}
+.needt-v3 .ai-orb-spark {
+  fill: var(--orb-spec);
+  opacity: 0.9;
+}
 /* A still frame at rest (08.10.26): no CSS loop. AiOrb.jsx plays the 9 s turn
    and 7 s breathe with the Web Animations API only on mount, for one cycle on
    hover/focus, and while Needt is working (thinking / streaming). */
-.needt-v3 .ai-orb-film { transform-box: view-box; transform-origin: 20px 20px; }
-.needt-v3 .ai-orb-glow { transform-box: view-box; transform-origin: 20px 20px; }
+.needt-v3 .ai-orb-film {
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+}
+.needt-v3 .ai-orb-glow {
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+}
 
 /* DARK SELECTED STATES (08.10.26, contrast pass). On dark the raised surface
    and a track are the same grey, so a white-thumb segmented control, a
@@ -98,21 +243,49 @@
    selection ring (--selected-ring, >= 3:1 against the ground beside it); the
    off switch knob turns light grey so its position reads at >= 3:1. Tokens
    live in themes.css (.dark). Light is untouched. */
-.needt-v3[data-theme="dark"] :is(.shell-seg2-layer,
-  .toggle-group > button[aria-pressed="true"], .toggle-group > button[aria-checked="true"], .toggle-group > button.is-selected,
-  .segment[aria-selected="true"], .segment.is-selected,
-  .pl-seg-btn[aria-pressed="true"], .docs-document-screen-s1.is-on, .docs-doc-panel-s2.is-on,
-  .wk-tab[aria-pressed="true"], .wk-tab[aria-pressed="true"]:hover, .ml-tab.is-on, .docs-docs-screen-s1.is-on,
-  .settings-nav-row[aria-current]) {
-  background: var(--selected-fill); box-shadow: var(--selected-ring);
+.needt-v3[data-theme="dark"]
+  :is(
+    .shell-seg2-layer,
+    .toggle-group > button[aria-pressed="true"],
+    .toggle-group > button[aria-checked="true"],
+    .toggle-group > button.is-selected,
+    .segment[aria-selected="true"],
+    .segment.is-selected,
+    .pl-seg-btn[aria-pressed="true"],
+    .docs-document-screen-s1.is-on,
+    .docs-doc-panel-s2.is-on,
+    .wk-tab[aria-pressed="true"],
+    .wk-tab[aria-pressed="true"]:hover,
+    .ml-tab.is-on,
+    .docs-docs-screen-s1.is-on,
+    .settings-nav-row[aria-current]
+  ) {
+  background: var(--selected-fill);
+  box-shadow: var(--selected-ring);
 }
-.needt-v3[data-theme="dark"] .nt-switch:not([data-checked="true"]) .nt-switch-knob { background: var(--switch-off-knob); box-shadow: none; }
+.needt-v3[data-theme="dark"]
+  .nt-switch:not([data-checked="true"])
+  .nt-switch-knob {
+  background: var(--switch-off-knob);
+  box-shadow: none;
+}
 
 /* App icon (app-icon.jsx) — the tile is its own shape, so only layout here.
    .needt-lockup sets it beside the wordmark. */
-.needt-v3 .needt-app-icon { display: block; flex: none; user-select: none; -webkit-user-drag: none; }
-.needt-v3 .needt-lockup { display: inline-flex; align-items: center; gap: 12px; }
-.needt-v3 .needt-lockup-sm { gap: 10px; }
+.needt-v3 .needt-app-icon {
+  display: block;
+  flex: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.needt-v3 .needt-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.needt-v3 .needt-lockup-sm {
+  gap: 10px;
+}
 
 /* REDUCED MOTION — one global rule (08.10.26). Under prefers-reduced-motion
    every CSS animation and transition (keyframes, inline `animation:` styles,
@@ -123,9 +296,12 @@
    the drag ghost (Drag.jsx), the Brief typewriter, ExposureWordmark, and the
    Time theme view transition (Drift.jsx). */
 @media (prefers-reduced-motion: reduce) {
-  .needt-v3 *:not(.nt-spinner):not(.st-spin):not(.pw-spin):not(.auth-row-spin):not(.ml-spin):not(.cn-spin),
-.needt-v3 *::before,
-.needt-v3 *::after {
+  .needt-v3
+    *:not(.nt-spinner):not(.st-spin):not(.pw-spin):not(.auth-row-spin):not(
+      .ml-spin
+    ):not(.cn-spin),
+  .needt-v3 *::before,
+  .needt-v3 *::after {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;

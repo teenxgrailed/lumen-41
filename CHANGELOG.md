@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Phone: the pull-down plate (search and quick add from the top of a screen) is
+  gone; pages scroll normally. The dock (pill, + and focus buttons) sits 30 px
+  above the screen edge, 84 px in a Safari tab where the tab bar floats under it.
 - Phone: the top and bottom edges follow the new phone-shell design. The
   collapsed header is the place icon and title, centred, over a three-step
   blur that fades in as you scroll; the fog under the dock is 128 px (deeper

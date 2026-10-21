@@ -11,7 +11,6 @@ import {
 } from "react";
 
 import { PkGlyph } from "./Material";
-import { PkPullDown, type PkPullProps } from "./PullDown";
 import { pkAdoptDocumentScroll, pkPsK } from "./scroll";
 import { pkClamp, pkCx } from "./util";
 
@@ -116,8 +115,6 @@ export interface PkScreenProps {
   /** More header content under `sub` (Home's big figures). */
   head?: ReactNode;
   headClass?: string;
-  /** Pull down at the top drops the pull-down plate (search, or add). */
-  onPull?: Omit<PkPullProps, "scroller">;
   /** `data-pk-screen` value, for tests and CSS hooks. */
   screen?: string;
   /** Receives the scroll container. */
@@ -144,7 +141,6 @@ export function PkScreen({
   right,
   head,
   headClass,
-  onPull,
   screen,
   scrollRef,
   tail,
@@ -282,7 +278,6 @@ export function PkScreen({
         </div>
       ) : null}
       <PkFog />
-      {onPull ? <PkPullDown scroller={scroller} {...onPull} /> : null}
     </div>
   );
 }

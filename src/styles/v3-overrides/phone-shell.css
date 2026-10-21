@@ -9,8 +9,7 @@
  *             (.pk-head-row, .pk-sub) shrinks away as it arrives.
  *   .ps-bot   the fog under the dock: 128 px to the screen edge (170 in a
  *             Safari tab), two masked blur steps and a tint.
- *   pull-down the screen behind the plate scales to 94% and moves down 18 px
- *             (--ps-pull), the plate gets a lip and a two-layer shadow.
+ * (The spec's pull-down plate is not ported: phone screens have no pull-down.)
  *
  * Where it differs from the spec on purpose:
  *   - The fade is on each layer (.b, .t), never on .ps-top / .ps-bot: opacity
@@ -146,65 +145,6 @@
 .needt-v3[data-ui="phone"] .pk-screen[data-pk-fog-on="0"] .ps-bot .pk-blur {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-}
-
-/* ── Pull-down plate ──────────────────────────────────────────────────────── */
-/* the screen behind: 94%, 18 px down, driven by the pull (PkPullDown writes
-   --ps-pull on the scroller and data-ps-pull while it is above 0) */
-.needt-v3[data-ui="phone"] .pk-scroll[data-ps-pull] {
-  transform-origin: 50% 0;
-  transform: translateY(calc(var(--ps-pull, 0) * 18px))
-    scale(calc(1 - var(--ps-pull, 0) * 0.06));
-}
-/* the plate's edge: a transparent twin of its visible box (PkPullDown moves
-   it with the plate) carrying the two-layer shadow and the light lip, which
-   the plate's own clip-path would cut off */
-.needt-v3 .pk-pull-edge {
-  display: none;
-}
-.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull-edge {
-  display: block;
-  left: 0;
-  right: 0;
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
-  border-radius: 0 0 34px 34px;
-  box-shadow:
-    0 1px 0 var(--ps-hair),
-    0 30px 60px -20px rgba(18, 16, 40, 0.35),
-    0 8px 18px -10px rgba(18, 16, 40, 0.25);
-}
-.needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
-  .pk-pull-host
-  > .pk-pull-edge {
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
-    0 30px 70px -20px rgba(0, 0, 0, 0.8);
-}
-.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull-edge::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgba(255, 255, 255, 0.6),
-    transparent
-  );
-}
-.needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
-  .pk-pull-host
-  > .pk-pull-edge::after {
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgba(255, 255, 255, 0.16),
-    transparent
-  );
 }
 
 @media (prefers-reduced-motion: reduce) {

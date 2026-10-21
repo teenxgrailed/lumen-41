@@ -18,7 +18,7 @@
  * - Content runs under the status bar (`--v3-top`) and under the toolbar /
  *   home indicator (`--v3-sab` plus the dock's tail).
  * - Layers that must stay put while the page scrolls (the blur bands, the fog,
- *   the dock, sheets and their scrim, the pull-down plate) are `fixed`, but only
+ *   the dock, sheets and their scrim) are `fixed`, but only
  *   as translucent glass or while a sheet is open: no opaque fill at an edge.
  *
  * The hex values are `--v2p-ground` of themes.css and PHONE_GROUND of
@@ -49,6 +49,11 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   --v3-sab: env(safe-area-inset-bottom, 0px);
   /* Where content starts: the design's 52 px status bar, or the real inset. */
   --v3-top: max(52px, env(safe-area-inset-top, 0px));
+  /* The dock (pill, + button, focus button) floats with its bottom edge 30 px
+   * above the display edge (additions-2/phone-shell .ps-dock); 10 px of that
+   * is the menu's own margin, the rest is the lift. In a Safari tab the compact
+   * tab bar floats under the dock, so it lifts 54 px more (.ps.is-safari). */
+  --v3-dock-lift: 20px;
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
   /* The collapsed header's row; the top band is sized from it. */
@@ -75,7 +80,10 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   padding-top: var(--v3-top);
 }
 .needt-v3[data-ui="phone"] .pk-tail {
-  height: calc(132px + var(--v3-sab));
+  height: calc(112px + var(--v3-dock-lift));
+}
+html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
+  --v3-dock-lift: 74px;
 }
 
 /* Layers that stay put while the page scrolls.
@@ -89,13 +97,11 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
  * - the top band and the bottom fog are fixed HOSTS with no height, parked
  *   at the inner edge of their band; the blur, wash and dots are absolute
  *   children that reach the screen edge from there (children are not read);
- * - the pull-down plate is an absolute child of such a zero-height host;
  * - the scrim, the sheet layer, the menu and the screen sweep stand
  *   `--v3-edge` (8 px) in from both edges, and the paint of each reaches out
  *   to the edge from there (the menu and the sheet add the offset back when
  *   they measure the screen). */
-.needt-v3[data-ui="phone"]
-  :is(.pk-topband, .pk-fog, .pk-pull-host, .pk-compact),
+.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact),
 .needt-v3[data-ui="phone"]
   :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen) {
   position: fixed;
@@ -145,23 +151,6 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
   top: calc(var(--ps-fog-h) - 50px);
 }
-/* The pull-down plate (PullDown wraps it in the host). */
-.needt-v3 .pk-pull-host {
-  display: contents;
-}
-.needt-v3[data-ui="phone"] .pk-pull-host {
-  display: block;
-  left: 0;
-  right: 0;
-  top: var(--v3-edge);
-  height: 0;
-  z-index: 51;
-  pointer-events: none;
-}
-.needt-v3[data-ui="phone"] .pk-pull-host > :is(.pk-pull, .pk-pull-edge) {
-  top: calc(-1 * var(--v3-edge));
-  pointer-events: auto;
-}
 /* Scrim and screen sweep: in from the edges, the paint out to them. */
 .needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),
 .needt-v3[data-ui="phone"] :is(.pk-sheet-layer, .nva) {
@@ -181,17 +170,17 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
  * bar, the snackbar, sheets. The menu measures its own padding-bottom to size
  * its geometry. */
 .needt-v3[data-ui="phone"] .nva {
-  padding-bottom: var(--v3-sab);
+  padding-bottom: var(--v3-dock-lift);
   box-sizing: border-box;
 }
 .needt-v3[data-ui="phone"] .nva-body {
-  bottom: calc(10px + var(--v3-sab) - var(--v3-edge));
+  bottom: calc(10px + var(--v3-dock-lift) - var(--v3-edge));
 }
 .needt-v3[data-ui="phone"] .pd-actbar {
   bottom: calc(26px + var(--v3-sab));
 }
 .needt-v3[data-ui="phone"] .pov-snack {
-  bottom: calc(112px + var(--v3-sab));
+  bottom: calc(92px + var(--v3-dock-lift) + var(--v3-sab));
 }
 .needt-v3[data-ui="phone"] .ma-menu-pill {
   bottom: calc(14px + var(--v3-sab));

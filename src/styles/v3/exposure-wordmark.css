@@ -16,8 +16,9 @@
  * move and there is no width lock. The previous build's invisible ghost copy
  * is deleted. */
 
-
-.needt-v3 .font-display { font-family: var(--font-v3-exposure), Georgia, serif; }
+.needt-v3 .font-display {
+  font-family: var(--font-v3-exposure), Georgia, serif;
+}
 
 /* Letters are written to directly by the component's animation engine, so they
    carry no transition of their own — a transition would fight the spring. */
@@ -47,9 +48,12 @@
 .needt-v3 .ew-sculpt .ew-letter {
   --ew-lift: 1;
   text-shadow:
-    calc(0.008em * var(--ew-lift)) calc(0.014em * var(--ew-lift)) 0 var(--ew-shade-contact, rgba(0, 0, 0, 0.16)),
-    calc(0.014em * var(--ew-lift)) calc(0.026em * var(--ew-lift)) calc(0.03em * var(--ew-lift)) var(--ew-shade-cast, rgba(0, 0, 0, 0.1)),
-    calc(0.02em * var(--ew-lift)) calc(0.042em * var(--ew-lift)) calc(0.08em * var(--ew-lift)) var(--ew-shade-spread, rgba(0, 0, 0, 0.055));
+    calc(0.008em * var(--ew-lift)) calc(0.014em * var(--ew-lift)) 0
+      var(--ew-shade-contact, rgba(0, 0, 0, 0.16)),
+    calc(0.014em * var(--ew-lift)) calc(0.026em * var(--ew-lift))
+      calc(0.03em * var(--ew-lift)) var(--ew-shade-cast, rgba(0, 0, 0, 0.1)),
+    calc(0.02em * var(--ew-lift)) calc(0.042em * var(--ew-lift))
+      calc(0.08em * var(--ew-lift)) var(--ew-shade-spread, rgba(0, 0, 0, 0.055));
 }
 /* On a dark ground a black shade disappears into the page, so the cast goes
    further out and the top edge takes a hairline of light instead — the same
@@ -64,25 +68,42 @@
 /* DEVELOP-IN — once, on mount: a print coming up in the tray. easeOutCubic,
    not expo: expo front-loads the move and the last 300ms goes dead. */
 @keyframes v3-ew-develop {
-  from { font-variation-settings: "EXPO" var(--ew-from, -100); }
-  to   { font-variation-settings: "EXPO" 0; }
+  from {
+    font-variation-settings: "EXPO" var(--ew-from, -100);
+  }
+  to {
+    font-variation-settings: "EXPO" 0;
+  }
 }
 .needt-v3 .ew-letter.is-developing {
   animation: v3-ew-develop 620ms cubic-bezier(0.215, 0.61, 0.355, 1) both;
 }
 
 @keyframes v3-ew-lean {
-  0%, 62%, 100% { transform: skewX(0deg); }
-  74%           { transform: skewX(-1.5deg); }
-  86%           { transform: skewX(0.4deg); }
+  0%,
+  62%,
+  100% {
+    transform: skewX(0deg);
+  }
+  74% {
+    transform: skewX(-1.5deg);
+  }
+  86% {
+    transform: skewX(0.4deg);
+  }
 }
-.needt-v3 .ew-leans { display: inline-block; animation: v3-ew-lean 19s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.needt-v3 .ew-leans {
+  display: inline-block;
+  animation: v3-ew-lean 19s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
 
 /* The name is read once, from the copy that is not split into letters. */
 .needt-v3 .sr-only {
   position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -93,8 +114,8 @@
    stays: it is a property of the object, not a motion. */
 @media (prefers-reduced-motion: reduce) {
   .needt-v3 .ew-letter,
-.needt-v3 .ew-letter.is-developing,
-.needt-v3 .ew-leans {
+  .needt-v3 .ew-letter.is-developing,
+  .needt-v3 .ew-leans {
     animation: none;
     font-variation-settings: "EXPO" 0;
   }

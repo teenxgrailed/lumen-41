@@ -45,9 +45,4 @@ describe("phone shell (ps-)", () => {
     expect(shell).not.toMatch(/\.pk-topband \{[^}]*opacity/);
     expect(shell).not.toMatch(/\.pk-fog \{[^}]*opacity/);
   });
-
-  it("the screen behind a pull scales to 94% and moves down 18 px", () => {
-    expect(shell).toContain("translateY(calc(var(--ps-pull, 0) * 18px))");
-    expect(shell).toContain("scale(calc(1 - var(--ps-pull, 0) * 0.06))");
-  });
 });

@@ -9,87 +9,304 @@
    focus button's paused / ending states. */
 
 .needt-v3 .fd-phone {
-  --fd-ink: var(--v2p-ink); --fd-ink-2: var(--v2p-ink-2); --fd-ink-3: var(--v2p-ink-3);
-  --fd-ground: var(--v2p-ground); --fd-card: var(--v2p-card); --fd-raise: var(--v2p-raise); --fd-raise-2: var(--v2p-raise-2);
-  --fd-line: var(--v2p-line); --fd-mark: var(--v2p-lav); --fd-r: 26px;
+  --fd-ink: var(--v2p-ink);
+  --fd-ink-2: var(--v2p-ink-2);
+  --fd-ink-3: var(--v2p-ink-3);
+  --fd-ground: var(--v2p-ground);
+  --fd-card: var(--v2p-card);
+  --fd-raise: var(--v2p-raise);
+  --fd-raise-2: var(--v2p-raise-2);
+  --fd-line: var(--v2p-line);
+  --fd-mark: var(--v2p-lav);
+  --fd-r: 26px;
 }
 .needt-v3 .fd-desk {
-  --fd-ink: var(--text-primary); --fd-ink-2: var(--text-tertiary); --fd-ink-3: var(--text-muted);
-  --fd-ground: var(--background); --fd-card: var(--surface-raised); --fd-raise: var(--fill-3); --fd-raise-2: var(--fill-5);
-  --fd-line: var(--fill-5); --fd-mark: var(--accent); --fd-r: 16px;
+  --fd-ink: var(--text-primary);
+  --fd-ink-2: var(--text-tertiary);
+  --fd-ink-3: var(--text-muted);
+  --fd-ground: var(--background);
+  --fd-card: var(--surface-raised);
+  --fd-raise: var(--fill-3);
+  --fd-raise-2: var(--fill-5);
+  --fd-line: var(--fill-5);
+  --fd-mark: var(--accent);
+  --fd-r: 16px;
 }
-.needt-v3 .fd-phone, .needt-v3 .fd-desk {
+.needt-v3 .fd-phone,
+.needt-v3 .fd-desk {
   --fd-ok: var(--success, #1f9d55);
-  --fd-ease: cubic-bezier(.2, .9, .24, 1);
+  --fd-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
   color: var(--fd-ink);
   -webkit-font-smoothing: antialiased;
 }
-.needt-v3 .fd-phone *, .needt-v3 .fd-desk * { box-sizing: border-box; }
+.needt-v3 .fd-phone *,
+.needt-v3 .fd-desk * {
+  box-sizing: border-box;
+}
 
-@keyframes fd-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+@keyframes fd-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
 
 /* ── 1b · time-left bar: the minutes given back flash, then join "free" ───── */
-.needt-v3 .ha-tl-l .fd-back { color: var(--ha-ok); font-weight: 600; animation: fd-back 2.4s var(--ha-ease) both; }
-@keyframes fd-back { 0% { opacity: 0; transform: translateY(4px); } 12%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.needt-v3 .ha-tl-l .fd-back {
+  color: var(--ha-ok);
+  font-weight: 600;
+  animation: fd-back 2.4s var(--ha-ease) both;
+}
+@keyframes fd-back {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  12%,
+  70% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 .needt-v3 .ha-tl-bar .fd-gift {
-  background: var(--ha-ok); border-radius: 3px;
+  background: var(--ha-ok);
+  border-radius: 3px;
   box-shadow: 0 0 0 0 color-mix(in oklch, var(--ha-ok) 40%, transparent);
   transform-origin: 50% 50%;
   animation: fd-gift 2.4s var(--ha-ease) both;
 }
 @keyframes fd-gift {
-  0% { transform: scaleY(1); box-shadow: 0 0 0 0 color-mix(in oklch, var(--ha-ok) 40%, transparent); }
-  15% { transform: scaleY(1.6); box-shadow: 0 0 0 4px color-mix(in oklch, var(--ha-ok) 25%, transparent); }
-  55% { transform: scaleY(1); background: var(--ha-ok); }
-  100% { background: transparent; box-shadow: none; }
+  0% {
+    transform: scaleY(1);
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--ha-ok) 40%, transparent);
+  }
+  15% {
+    transform: scaleY(1.6);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--ha-ok) 25%, transparent);
+  }
+  55% {
+    transform: scaleY(1);
+    background: var(--ha-ok);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
 }
 /* the plan and the free track make room for the slice, then take it back */
-.needt-v3 .ha-tl-bar .plan, .needt-v3 .ha-tl-bar .free { transition: left .4s var(--ha-ease), width .4s var(--ha-ease); }
+.needt-v3 .ha-tl-bar .plan,
+.needt-v3 .ha-tl-bar .free {
+  transition:
+    left 0.4s var(--ha-ease),
+    width 0.4s var(--ha-ease);
+}
 
 /* ── 2 · "Do for the full time" switch ────────────────────────────────────── */
-.needt-v3 .fd-ft { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
-.needt-v3 .fd-ft-name { font: var(--type-ui, 400 13px/1.3 var(--font-sans)); color: var(--text-primary); }
-.needt-v3 .fd-sw { position: relative; width: 38px; height: 23px; border-radius: 12px; border: 0; padding: 0; background: var(--fd-raise-2); cursor: default; flex: none; transition: background-color 180ms; }
-.needt-v3 .fd-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform 200ms var(--fd-ease); }
-.needt-v3 .fd-sw[aria-checked="true"] { background: var(--fd-ink); }
-.needt-v3 .fd-sw[aria-checked="true"]::after { transform: translateX(15px); }
+.needt-v3 .fd-ft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.needt-v3 .fd-ft-name {
+  font: var(--type-ui, 400 13px/1.3 var(--font-sans));
+  color: var(--text-primary);
+}
+.needt-v3 .fd-sw {
+  position: relative;
+  width: 38px;
+  height: 23px;
+  border-radius: 12px;
+  border: 0;
+  padding: 0;
+  background: var(--fd-raise-2);
+  cursor: default;
+  flex: none;
+  transition: background-color 180ms;
+}
+.needt-v3 .fd-sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 200ms var(--fd-ease);
+}
+.needt-v3 .fd-sw[aria-checked="true"] {
+  background: var(--fd-ink);
+}
+.needt-v3 .fd-sw[aria-checked="true"]::after {
+  transform: translateX(15px);
+}
 /* the thumb takes the ground colour: light on the dark track, dark on the light one */
-.needt-v3 .fd-sw[aria-checked="true"]::after { background: var(--fd-ground); }
-.needt-v3 .fd-sw[disabled] { opacity: .45; }
-.needt-v3 .fd-sw:focus-visible { outline: 2px solid var(--fd-mark); outline-offset: 2px; }
-.needt-v3 .fd-auto { font: 500 11.5px/1 var(--font-sans); color: var(--fd-ink-2); background: var(--fd-raise); padding: 4px 7px; border-radius: 6px; flex: none; }
+.needt-v3 .fd-sw[aria-checked="true"]::after {
+  background: var(--fd-ground);
+}
+.needt-v3 .fd-sw[disabled] {
+  opacity: 0.45;
+}
+.needt-v3 .fd-sw:focus-visible {
+  outline: 2px solid var(--fd-mark);
+  outline-offset: 2px;
+}
+.needt-v3 .fd-auto {
+  font: 500 11.5px/1 var(--font-sans);
+  color: var(--fd-ink-2);
+  background: var(--fd-raise);
+  padding: 4px 7px;
+  border-radius: 6px;
+  flex: none;
+}
 /* the phone sheet's locked row: the tag stands where the chevron would */
-.needt-v3 .pov-srow[disabled] { opacity: 1; cursor: default; }
+.needt-v3 .pov-srow[disabled] {
+  opacity: 1;
+  cursor: default;
+}
 
 /* ── 3 · Full-time task, Done before time ─────────────────────────────────── */
-.needt-v3 .fd-ask { width: 100%; max-width: 320px; border-radius: 16px; background: var(--fd-card); box-shadow: 0 0 0 1px var(--fd-line), 0 24px 60px -24px rgba(0,0,0,.5); padding: 16px; animation: fd-in 280ms var(--fd-ease) both; }
-.needt-v3 .fc-phone .fd-ask { max-width: none; border-radius: 24px; padding: 18px; }
-.needt-v3 .fd-ask .h { display: flex; align-items: center; gap: 12px; }
-.needt-v3 .fd-ask .h b { display: block; font: 600 16px/1.25 var(--font-sans); }
-.needt-v3 .fd-ask .h > div > span { display: block; font: 400 13px/1.35 var(--font-sans); color: var(--fd-ink-2); }
-.needt-v3 .fd-ask .acts { display: flex; gap: 8px; margin-top: 14px; }
-.needt-v3 .fd-btn { flex: 1; height: 36px; border: 0; border-radius: 11px; background: var(--fd-raise); color: var(--fd-ink); font: 500 13px/1 var(--font-sans); cursor: default; }
-.needt-v3 .fd-btn.is-primary { background: var(--fd-ink); color: var(--fd-ground); }
-.needt-v3 .fd-btn:focus-visible { outline: 2px solid var(--fd-mark); outline-offset: 2px; }
-.needt-v3 .fc-phone .fd-btn { height: 48px; border-radius: 24px; font-size: 15px; }
+.needt-v3 .fd-ask {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 16px;
+  background: var(--fd-card);
+  box-shadow:
+    0 0 0 1px var(--fd-line),
+    0 24px 60px -24px rgba(0, 0, 0, 0.5);
+  padding: 16px;
+  animation: fd-in 280ms var(--fd-ease) both;
+}
+.needt-v3 .fc-phone .fd-ask {
+  max-width: none;
+  border-radius: 24px;
+  padding: 18px;
+}
+.needt-v3 .fd-ask .h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.needt-v3 .fd-ask .h b {
+  display: block;
+  font: 600 16px/1.25 var(--font-sans);
+}
+.needt-v3 .fd-ask .h > div > span {
+  display: block;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--fd-ink-2);
+}
+.needt-v3 .fd-ask .acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.needt-v3 .fd-btn {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--fd-raise);
+  color: var(--fd-ink);
+  font: 500 13px/1 var(--font-sans);
+  cursor: default;
+}
+.needt-v3 .fd-btn.is-primary {
+  background: var(--fd-ink);
+  color: var(--fd-ground);
+}
+.needt-v3 .fd-btn:focus-visible {
+  outline: 2px solid var(--fd-mark);
+  outline-offset: 2px;
+}
+.needt-v3 .fc-phone .fd-btn {
+  height: 48px;
+  border-radius: 24px;
+  font-size: 15px;
+}
 
 /* the ring (shared: ask header, phone focus button) */
-.needt-v3 .fd-ring { position: relative; flex: none; display: grid; place-items: center; color: var(--fd-ink); }
-.needt-v3 .fd-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-.needt-v3 .fd-ring .bg { fill: none; stroke: var(--fd-raise-2); }
-.needt-v3 .fd-ring .fg { fill: none; stroke: var(--fd-mark); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-.needt-v3 .fd-ring em { position: relative; font: 600 12px/1 var(--font-sans); font-style: normal; font-variant-numeric: tabular-nums; }
+.needt-v3 .fd-ring {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--fd-ink);
+}
+.needt-v3 .fd-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.needt-v3 .fd-ring .bg {
+  fill: none;
+  stroke: var(--fd-raise-2);
+}
+.needt-v3 .fd-ring .fg {
+  fill: none;
+  stroke: var(--fd-mark);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.needt-v3 .fd-ring em {
+  position: relative;
+  font: 600 12px/1 var(--font-sans);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── 4 · Phone focus button: paused and ending (the running look is nva-focus-btn's) ── */
-.needt-v3 .nva-focus-btn.is-paused .nva-focus-arc { stroke-dasharray: 3 5; opacity: .5; }
-.needt-v3 .nva-focus-btn.is-paused .nva-focus-time { transform: translateY(-5px); }
-.needt-v3 .nva-focus-btn .fd-pz { position: absolute; bottom: 11px; display: flex; gap: 2px; }
-.needt-v3 .nva-focus-btn .fd-pz i { width: 2.5px; height: 7px; border-radius: 1px; background: var(--nva-ink); opacity: .8; }
-.needt-v3 .nva-focus-btn.is-ending .nva-focus-arc { stroke: #ffb57a; }
-.needt-v3 .nva-focus-btn.is-ending.is-in { animation: fd-breathe 2s ease-in-out 3; }
-@keyframes fd-breathe { 50% { box-shadow: var(--nva-add-rim), 0 0 0 4px rgba(255,181,122,.18); } }
+.needt-v3 .nva-focus-btn.is-paused .nva-focus-arc {
+  stroke-dasharray: 3 5;
+  opacity: 0.5;
+}
+.needt-v3 .nva-focus-btn.is-paused .nva-focus-time {
+  transform: translateY(-5px);
+}
+.needt-v3 .nva-focus-btn .fd-pz {
+  position: absolute;
+  bottom: 11px;
+  display: flex;
+  gap: 2px;
+}
+.needt-v3 .nva-focus-btn .fd-pz i {
+  width: 2.5px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--nva-ink);
+  opacity: 0.8;
+}
+.needt-v3 .nva-focus-btn.is-ending .nva-focus-arc {
+  stroke: #ffb57a;
+}
+.needt-v3 .nva-focus-btn.is-ending.is-in {
+  animation: fd-breathe 2s ease-in-out 3;
+}
+@keyframes fd-breathe {
+  50% {
+    box-shadow:
+      var(--nva-add-rim),
+      0 0 0 4px rgba(255, 181, 122, 0.18);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .needt-v3 .fd-ask, .needt-v3 .ha-tl-bar .fd-gift, .needt-v3 .ha-tl-l .fd-back, .needt-v3 .nva-focus-btn.is-ending.is-in { animation: none; }
-  .needt-v3 .ha-tl-bar .plan, .needt-v3 .ha-tl-bar .free, .needt-v3 .fd-sw, .needt-v3 .fd-sw::after { transition: none; }
+  .needt-v3 .fd-ask,
+  .needt-v3 .ha-tl-bar .fd-gift,
+  .needt-v3 .ha-tl-l .fd-back,
+  .needt-v3 .nva-focus-btn.is-ending.is-in {
+    animation: none;
+  }
+  .needt-v3 .ha-tl-bar .plan,
+  .needt-v3 .ha-tl-bar .free,
+  .needt-v3 .fd-sw,
+  .needt-v3 .fd-sw::after {
+    transition: none;
+  }
 }
