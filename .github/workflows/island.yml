@@ -1,0 +1,51 @@
+name: island
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/macos-island/**"
+      - ".github/workflows/island.yml"
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          ls /Applications | grep -i '^Xcode' || true
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$LATEST" ]; then sudo xcode-select -s "$LATEST/Contents/Developer"; fi
+          xcodebuild -version
+
+      - name: List schemes
+        run: xcodebuild -project apps/macos-island/DynamicIsland.xcodeproj -list
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project apps/macos-island/DynamicIsland.xcodeproj \
+            -scheme DynamicIsland \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee xcodebuild.log
+
+      - name: Zip app
+        run: |
+          cd build/Build/Products/Release
+          ditto -c -k --keepParent DynamicIsland.app "$GITHUB_WORKSPACE/DynamicIsland-app.zip"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DynamicIsland-app
+          path: |
+            DynamicIsland-app.zip
+            xcodebuild.log
+          retention-days: 7
