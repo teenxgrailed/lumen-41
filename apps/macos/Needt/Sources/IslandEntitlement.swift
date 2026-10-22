@@ -16,8 +16,12 @@ final class IslandEntitlement: ObservableObject {
     private var timer: Timer?
     private var observer: NSObjectProtocol?
 
+    /// CI only: `--ci-fake-pro` lets the launch smoke test run the island
+    /// without an account. It changes nothing on disk and nothing server-side.
+    static let ciFakePro = CommandLine.arguments.contains("--ci-fake-pro")
+
     private init() {
-        isPro = UserDefaults.standard.bool(forKey: Self.key)
+        isPro = Self.ciFakePro || UserDefaults.standard.bool(forKey: Self.key)
     }
 
     func start() {
@@ -33,6 +37,7 @@ final class IslandEntitlement: ObservableObject {
     }
 
     func refresh() {
+        guard !Self.ciFakePro else { return }
         Task {
             do {
                 let plan = try await AppController.shared.tray.api.plan()
@@ -47,10 +52,12 @@ final class IslandEntitlement: ObservableObject {
 
     /// Signed out.
     func reset() {
+        guard !Self.ciFakePro else { return }
         set(false)
     }
 
     private func set(_ value: Bool) {
+        guard !Self.ciFakePro else { return }
         UserDefaults.standard.set(value, forKey: Self.key)
         if value != isPro { isPro = value }
         IslandHost.apply()

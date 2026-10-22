@@ -126,9 +126,7 @@ final class AppController {
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.zoomButton)?.isEnabled = false
-        let hosting = NSHostingView(rootView: StartView(auth: auth).frame(width: 440, height: 520))
-        // The window is 440 x 520 and fixed; the content must not resize it.
-        hosting.sizingOptions = []
+        let hosting = makeHostingView(rootView: StartView(auth: auth).frame(width: 440, height: 520))
         window.contentView = hosting
         window.center()
         startWindow = window

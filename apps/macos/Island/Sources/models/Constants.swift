@@ -955,7 +955,7 @@ extension Defaults.Keys {
     static let lockScreenMusicMergedAirPlayOutput = Key<Bool>("lockScreenMusicMergedAirPlayOutput", default: true)
     static let lockScreenMusicFullscreenArtworkEnabled = Key<Bool>("lockScreenMusicFullscreenArtworkEnabled", default: true)
     static let lockScreenKeepAlbumArtVisibleDuringFullscreenArtwork = Key<Bool>("lockScreenKeepAlbumArtVisibleDuringFullscreenArtwork", default: false)
-    static let lockScreenMusicFullscreenVideoArtwork = Key<Bool>("lockScreenMusicFullscreenVideoArtwork", default: true)
+    static let lockScreenMusicFullscreenVideoArtwork = Key<Bool>("lockScreenMusicFullscreenVideoArtwork", default: false)
     static let lockScreenUseArtworkLayoutOverFullscreenCanvas = Key<Bool>("lockScreenShowCenteredAlbumArtOverFullscreenCanvas", default: true)
     static let lockScreenTimerWidgetUsesBlur = Key<Bool>("lockScreenTimerWidgetUsesBlur", default: false)
     static let lockScreenReminderChipStyle = Key<LockScreenReminderChipStyle>("lockScreenReminderChipStyle", default: .eventColor)

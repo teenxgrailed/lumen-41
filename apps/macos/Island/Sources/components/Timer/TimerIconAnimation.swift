@@ -37,7 +37,7 @@ struct TimerIconAnimation: View {
 
 struct TimerIconView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        let hostingView = NSHostingView(rootView: TimerIconAnimation())
+        let hostingView = makeHostingView(rootView: TimerIconAnimation())
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         return hostingView
     }

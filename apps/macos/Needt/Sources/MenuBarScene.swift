@@ -45,6 +45,7 @@ struct MenuBarLabel: View {
                 HStack(spacing: 3) {
                     Text(timerInterval: Date()...end, countsDown: true, showsHours: false)
                         .monospacedDigit()
+                        .frame(width: 40, alignment: .leading)
                     if let title = FocusSync.shortTitle(state.focusTitle) {
                         Text("· \(title)")
                     }
