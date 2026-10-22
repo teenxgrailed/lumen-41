@@ -1,0 +1,60 @@
+name: widgets
+
+# The widget stack (apps/shared/NeedtKit data layer, apps/shared/NeedtWidgetKit
+# views): unit tests, a compile for the iOS Simulator SDK, and a render of every
+# style / widget / state to PNG with SwiftUI's ImageRenderer. The PNGs and an
+# index.html are uploaded as `needt-widget-snapshots` so the design can be
+# compared with additions-2/widgets/pack.html. Nothing here signs or publishes.
+on:
+  push:
+    paths:
+      - "apps/shared/**"
+      - ".github/workflows/widgets.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: needt-widgets-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Widget packages (tests, iOS compile, snapshots)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: NeedtKit tests
+        working-directory: apps/shared/NeedtKit
+        run: swift test
+
+      - name: NeedtWidgetKit tests and snapshots
+        working-directory: apps/shared/NeedtWidgetKit
+        env:
+          NEEDT_SNAPSHOT_DIR: ${{ runner.temp }}/needt-widget-snapshots
+        run: swift test
+
+      - name: NeedtWidgetKit builds for the iOS SDK
+        working-directory: apps/shared/NeedtWidgetKit
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -scheme NeedtWidgetKit \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build-ios \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tail -n 60
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-widget-snapshots
+          path: ${{ runner.temp }}/needt-widget-snapshots
+          if-no-files-found: warn
