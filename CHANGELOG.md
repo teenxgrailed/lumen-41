@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app: widgets on the desktop and in Notification Center (Today in small,
+  medium, large and extra large; Next event, Focus timer, Habits, Quick add)
+  with eight looks to pick per widget.
 - Mac app, island v3 (Pro): one black shape that morphs between states (on
   plan, manual change, focus running, warning, standby, peek, open, moments),
   with Today / Week / Focus and a modules grid. Reads `prefs.island` from the

@@ -4,6 +4,7 @@ import CoreSpotlight
 import Foundation
 import NeedtKit
 import UniformTypeIdentifiers
+import WidgetKit
 
 /// An error the Shortcuts and Siri UI can show as plain text.
 struct IntentFailure: Error, CustomLocalizedStringResourceConvertible {
@@ -102,6 +103,7 @@ enum SessionSync {
         Task {
             let cookies = await WebCookies.all()
             CookieVault.shared.store(cookies)
+            WidgetCenter.shared.reloadAllTimelines()
             // Fills the Spotlight index and the offline cache.
             _ = try? await IntentSupport.openTasks(api: IntentSupport.api())
         }
@@ -110,6 +112,7 @@ enum SessionSync {
     static func clear() {
         lastPush = .distantPast
         CookieVault.shared.clear()
+        WidgetCenter.shared.reloadAllTimelines()
         SpotlightIndex.clear()
         OfflineCache.shared.clear()
     }
