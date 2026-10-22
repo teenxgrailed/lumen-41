@@ -34,6 +34,38 @@ html[data-desktop="mac"][data-desktop-shell="swift"]
   padding-left: 86px;
 }
 
+/* FIXED FRAME. In the desktop app the window is the frame: the top bar stays,
+ * the panes scroll, the document never does (as in a browser tab).
+ *
+ * Measured the other way (100dvh) the Swift shell's WKWebView laid the scope
+ * out taller than the area it shows, the document became scrollable and a
+ * wheel at the end of a pane carried the whole page up under the traffic
+ * lights; focus and scrollIntoView did the same to the overflow:hidden
+ * containers. So, on the desktop UI (700 px and wider; the phone keeps its
+ * document scroll, phone-ground.css):
+ *  - the scope is pinned to the window (`fixed`, inset 0), whatever dvh says;
+ *  - html and body do not scroll;
+ *  - the frame's containers CLIP instead of hide: `overflow: clip` is not a
+ *    scroll container, so nothing can scroll it programmatically. */
+html[data-desktop-shell="swift"]:has(.needt-v3[data-ui="desktop"]),
+html[data-desktop-shell="swift"]:has(.needt-v3[data-ui="desktop"]) body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+html[data-desktop-shell="swift"] .needt-v3[data-ui="desktop"] {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+}
+html[data-desktop] .needt-v3[data-ui="desktop"],
+html[data-desktop] .needt-v3[data-ui="desktop"] .app,
+html[data-desktop] .needt-v3[data-ui="desktop"] .shell-app-row,
+html[data-desktop] .needt-v3[data-ui="desktop"] .shell-app-stack {
+  overflow: clip;
+}
+
 /* The window frame is chrome, not a page: nothing in it selects or rubber-bands. */
 html[data-desktop] body {
   overscroll-behavior: none;
