@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, island v3 (Pro): one black shape that morphs between states (on
+  plan, manual change, focus running, warning, standby, peek, open, moments),
+  with Today / Week / Focus and a modules grid. Reads `prefs.island` from the
+  user settings. `NeedtKit` gains `IslandPrefs`, `IslandCadence`,
+  `IslandOverrides` and `IslandWeek`. Rolls back with the `needtIslandV3`
+  default.
+
+- Mac app: the traffic lights are centred on the page's sidebar toggle (the
+  page reports its top-bar centre) and the toggle starts 16 pt after the zoom
+  button.
+- Mac app: the notch island is part of Needt (Pro). Focus, Next (next task and
+  event) and Add (quick add) sit before Music and Files; focus can be paused or
+  ended from the notch ("Done 5 min early"). On a Mac without a notch the
+  island is a black pill at the top centre. Settings has an Island pane
+  (on/off, modules and their order, open on hover or click, displays, sounds
+  and haptics); on Free the pane is read-only. The App Store build has no
+  private interfaces (no volume or brightness HUD, no system sensors) and plays
+  Apple Music and Spotify only. The direct-download build is no longer
+  sandboxed. The island is derived from Atoll and boring.notch (GPL v3), so the
+  source of the Mac app is offered under GPL v3.
 - Phone: the pull-down plate (search and quick add from the top of a screen) is
   gone; pages scroll normally. The dock (pill, + and focus buttons) sits 30 px
   above the screen edge, 84 px in a Safari tab where the tab bar floats under it.

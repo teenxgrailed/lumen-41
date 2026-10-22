@@ -35,11 +35,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // CI: draw every island state to PNG and quit (no account, no window).
+        if let directory = IslandV3Render.outputDirectory {
+            let count = IslandV3Render.run(into: directory)
+            exit(count > 0 ? 0 : 2)
+        }
         _ = Connectivity.shared
         Notifier.shared.start()
         Updater.shared.start()
         installMainMenu()
         AppController.shared.start()
+        IslandHost.begin()
         Task { await AppController.shared.tray.focusFilterChanged() }
         // SwiftUI installs its own menu bar around the scene; keep ours on top.
         DispatchQueue.main.async { [weak self] in self?.installMainMenu() }
@@ -62,6 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls where url.scheme == "needt" {
             AppController.shared.auth.handleDeepLink(url)
         }
+        IslandHost.open(urls.filter(\.isFileURL))
+    }
+
+    @MainActor
+    func applicationWillTerminate(_ notification: Notification) {
+        IslandHost.stop(notification)
     }
 
     /// A click on a task in Spotlight.

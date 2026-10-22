@@ -171,3 +171,30 @@ Distribution certificate and provisioning profiles, then archive
 `apps/shared/NeedtKit` is the base for those and for the iOS app (Capacitor,
 SPM): `NeedtAPI` (cookie-signed HTTP client), `TrayState`, `FocusSession`,
 `TaskSummary`. Foundation only; `swift test` runs it in CI.
+
+## The notch island
+
+`Island/` is the notch island (a fork of Atoll, itself a fork of boring.notch,
+GPL v3 - see `Island/LICENSE.txt` and `Island/ACKNOWLEDGEMENTS.md`). It is compiled
+into the Mac app, not run beside it. Needt's `AppDelegate` owns the lifecycle
+and calls `IslandHost` (`Needt/Sources/IslandHost.swift`); the island runs only
+for Pro (`IslandEntitlement`, from `GET /api/billing`) and only while
+Settings, Island has it on. The Needt modules (`Island/Sources/components/Needt`)
+read the menu bar's `TrayStore` and write through `NeedtAPI`.
+
+Two builds from the same sources:
+
+| Target | Island | Sandbox | Updates |
+| --- | --- | --- | --- |
+| `Needt` | all of it | no (the full island needs it) | Sparkle |
+| `NeedtAppStore` | minus everything in the `excludes` of its `Island/Sources` entry in `project.yml`; inert stand-ins in `Island/AppStore` | yes | none |
+
+`scripts/check-appstore-private-api.py` (run by CI) fails when a source
+compiled into `NeedtAppStore` names a private interface. Music in the App
+Store build is Apple Music and Spotify through Apple Events
+(`com.apple.security.scripting-targets`). To add a feature to the island that
+uses a restricted interface, add the file to the App Store `excludes` and a
+stand-in to `Island/AppStore/AppStoreStubs.swift`.
+
+Because GPL code ships inside Needt.app, the Mac app's source must be offered
+under GPL v3.

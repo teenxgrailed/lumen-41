@@ -54,6 +54,29 @@ function markDragRegions() {
     });
 }
 
+/** True in the Swift Mac app, which reports layout the Tauri shell does not use. */
+function isSwiftShell(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as unknown as { __needtNative?: unknown }).__needtNative
+  );
+}
+
+/**
+ * Vertical centre of the top bar's sidebar toggle in CSS px from the window's
+ * top, so the Swift shell can centre the traffic lights on it. Null while the
+ * bar is not rendered.
+ */
+function topBarCenter(): number | null {
+  const el =
+    document.querySelector<HTMLElement>(".shell-sidebar-toggle-row") ??
+    document.querySelector<HTMLElement>(".tab-bar");
+  if (!el) return null;
+  const rect = el.getBoundingClientRect();
+  if (rect.height === 0) return null;
+  return Math.round((rect.top + rect.height / 2) * 2) / 2;
+}
+
 /**
  * The page's half of the desktop app (`apps/desktop`). It renders nothing and
  * does nothing in a browser tab: `isDesktopApp()` is false there and every
@@ -155,6 +178,7 @@ function DesktopBridgeInApp() {
     if (!isDesktopApp()) return undefined;
     const html = document.documentElement;
     html.dataset.desktop = desktopPlatform() ?? "other";
+    if (isSwiftShell()) html.dataset.desktopShell = "swift";
     // The shell gave this window a see-through sidebar material (macOS only):
     // desktop-app.css makes the sidebar translucent only then.
     if (desktopVibrancy()) html.dataset.vibrancy = "on";
@@ -164,6 +188,7 @@ function DesktopBridgeInApp() {
     return () => {
       stop();
       delete html.dataset.desktop;
+      delete html.dataset.desktopShell;
       delete html.dataset.vibrancy;
     };
   }, []);
@@ -205,16 +230,31 @@ function DesktopBridgeInApp() {
   useEffect(() => {
     if (!isDesktopApp()) return undefined;
     markDragRegions();
+    // Swift shell: tell it where the top bar's controls are centred, on load,
+    // on resize and whenever the bar re-renders, so the traffic lights match.
+    const swift = isSwiftShell();
+    let sentCenter: number | null = null;
+    const reportCenter = () => {
+      if (!swift) return;
+      const y = topBarCenter();
+      if (y === null || y === sentCenter) return;
+      sentCenter = y;
+      emitDesktopEvent("needt-topbar-center", y);
+    };
+    reportCenter();
+    window.addEventListener("resize", reportCenter);
     let frame = 0;
     const observer = new MutationObserver(() => {
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
         markDragRegions();
+        reportCenter();
       });
     });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => {
+      window.removeEventListener("resize", reportCenter);
       observer.disconnect();
       if (frame) window.cancelAnimationFrame(frame);
     };
