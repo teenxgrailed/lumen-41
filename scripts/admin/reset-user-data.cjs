@@ -267,6 +267,7 @@ function buildPlan(userId, workspaceId) {
     ["AutoScheduleSettings", "autoScheduleSettings", uid],
     ["SchedulingPreferences", "schedulingPreferences", uid],
     ["FocusPreferences", "focusPreferences", uid],
+    ["BlockingProfile", "blockingProfile", uid],
     ["EnergyProfileWindow", "energyProfileWindow", uid],
     ["FlexibleHoursOverride", "flexibleHoursOverride", uid],
     ["WorkScheduleWindow", "workScheduleWindow", { schedule: uid }],
