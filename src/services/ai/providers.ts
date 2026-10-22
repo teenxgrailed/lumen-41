@@ -1,3 +1,5 @@
+import { UnsafeFetchError, safeFetch } from "@/services/oauth/safe-fetch";
+
 import { aiHostKind } from "./endpoint";
 import { parseTasksFallback } from "./fallback-parser";
 import { extractProviderText, parseStrictJson } from "./json";
@@ -601,6 +603,16 @@ function openAIAgentMessages(
   ];
 }
 
+/**
+ * The deployment's own endpoint (`AI_CUSTOM_URL`) is the operator's choice,
+ * not a person's, and may sit on the internal network. Any other address a
+ * person typed in is held to public hosts.
+ */
+function isOperatorAiUrl(url: string) {
+  const operator = process.env.AI_CUSTOM_URL?.trim();
+  return Boolean(operator) && url.trim() === operator;
+}
+
 export class CustomProvider implements SchedulerAI {
   name = "Custom";
 
@@ -612,20 +624,34 @@ export class CustomProvider implements SchedulerAI {
     }
 
     const base = this.config.customUrl.replace(/\/$/, "");
-    const response = await fetchWithTimeout(
-      `${base}${path}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(this.config.apiKey
-            ? { Authorization: `Bearer ${this.config.apiKey}` }
-            : {}),
-        },
-        body: JSON.stringify(body),
+    const url = `${base}${path}`;
+    const init = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.config.apiKey
+          ? { Authorization: `Bearer ${this.config.apiKey}` }
+          : {}),
       },
-      this.config.timeoutMs
-    );
+      body: JSON.stringify(body),
+    };
+    let response: Response;
+    if (isOperatorAiUrl(this.config.customUrl)) {
+      response = await fetchWithTimeout(url, init, this.config.timeoutMs);
+    } else {
+      try {
+        response = await safeFetch(url, init, {
+          timeoutMs: this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        });
+      } catch (error) {
+        // The reason (private address, no such host, ...) stays out of the
+        // message: it would tell a probe what exists on the internal network.
+        if (error instanceof UnsafeFetchError) {
+          throw new Error("Custom AI endpoint could not be reached");
+        }
+        throw error;
+      }
+    }
 
     if (!response.ok) {
       throw new Error(`Custom AI request failed: ${response.status}`);
