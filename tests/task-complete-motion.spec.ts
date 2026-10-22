@@ -69,7 +69,7 @@ test("Home: a ticked Overdue row pops, is struck, then folds away and the list c
   await seed(user, "Call the landlord", 2);
   await seed(user, "Renew the passport", 1);
 
-  await page.goto("/");
+  await page.goto("/today");
   const row = rowOf(page, "Pay the invoice");
   await expect(row).toBeVisible();
   const others = rowOf(page, "Call the landlord");
@@ -111,7 +111,7 @@ test("Home: Undo inside the window keeps the row", async ({ page }) => {
   const task = await seed(user, "Book the dentist", 2);
   await seed(user, "Water the plants", 1);
 
-  await page.goto("/");
+  await page.goto("/today");
   await rowOf(page, "Book the dentist")
     .getByRole("button", { name: "Mark done", exact: true })
     .first()
@@ -140,7 +140,7 @@ test("Home: with Reduce Motion the row leaves with no exit", async ({
   await seed(user, "Send the parcel", 2);
   await seed(user, "Pick up the keys", 1);
 
-  await page.goto("/");
+  await page.goto("/today");
   await rowOf(page, "Send the parcel")
     .getByRole("button", { name: "Mark done", exact: true })
     .first()
