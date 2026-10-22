@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { parseAutoScheduleSettingsUpdate } from "@/lib/auto-schedule-settings-input";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { removeAllTaskBlocks } from "@/lib/task-block-push";
@@ -60,10 +61,20 @@ export async function PATCH(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const { weekHours: rawWeek, ...updates } = (await request.json()) as Record<
-      string,
-      unknown
-    >;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Body must be a JSON object" },
+        { status: 400 }
+      );
+    }
+
+    const { weekHours: rawWeek, ...rest } = body as Record<string, unknown>;
     let week: ReturnType<typeof parseWeek> | null = null;
     if (rawWeek !== undefined) {
       try {
@@ -73,6 +84,27 @@ export async function PATCH(request: NextRequest) {
           {
             error: error instanceof Error ? error.message : "Invalid weekHours",
           },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Only the preference columns reach the database.
+    const parsed = parseAutoScheduleSettingsUpdate(rest);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const updates = parsed.data;
+
+    // The target calendar must be the caller's own. Clearing it is always fine.
+    if (updates.pushTasksFeedId) {
+      const feed = await prisma.calendarFeed.findFirst({
+        where: { id: updates.pushTasksFeedId, userId },
+        select: { id: true },
+      });
+      if (!feed) {
+        return NextResponse.json(
+          { error: "pushTasksFeedId must be one of your calendars" },
           { status: 400 }
         );
       }

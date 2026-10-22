@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New tab</title>
+  <link rel="stylesheet" href="base.css" />
+  <style>
+    body { min-height: 100vh; display: grid; place-content: center; padding: 16px; }
+    main { width: min(420px, calc(100vw - 32px)); display: grid; gap: 16px; }
+    .card { background: var(--raised); border-radius: 12px; box-shadow: var(--ring); padding: 12px; display: grid; gap: 6px; }
+    .item { display: flex; justify-content: space-between; gap: 12px; }
+    .item a { color: var(--text-primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item a:hover { text-decoration: underline; }
+    #clock { font-size: 12px; color: var(--text-quaternary); }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="clock"></div>
+    <div id="focus" class="card" hidden></div>
+    <div id="event" class="card" hidden></div>
+    <div id="tasks" class="card" hidden></div>
+    <div id="empty" class="meta" hidden></div>
+  </main>
+  <script type="module" src="newtab.js"></script>
+</body>
+</html>
