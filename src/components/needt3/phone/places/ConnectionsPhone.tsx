@@ -37,7 +37,6 @@ import { PhoneState, PplRow, PplTile } from "./Parts";
 import {
   chipPressed,
   connectionChips,
-  connectionHits,
   connectionMeta,
   connectionsSub,
   disconnectText,
@@ -348,15 +347,6 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         glyph="connections"
         sub={connectionsSub(c.items, c.tab, loaded, c.mcp.apps?.length ?? 0)}
         head={tabs}
-        onPull={{
-          search: (q) => connectionHits(c.items, q),
-          onPick: (h) => {
-            c.pickTab("apps");
-            setAcctKey(h.id);
-          },
-          placeholder: "Search",
-          hint: "Any app by name. Pick one to see what it does and connect it.",
-        }}
       >
         {c.tab === "apps" ? appsTab : aiTab}
       </PkScreen>

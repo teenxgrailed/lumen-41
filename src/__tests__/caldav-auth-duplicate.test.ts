@@ -20,6 +20,8 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 jest.mock("@/app/api/calendar/caldav/utils", () => ({
+  CALDAV_HOST_NOT_ALLOWED: "not allowed",
+  isPublicCalDAVUrl: jest.fn(async () => true),
   createCalDAVClient: jest.fn(),
   fetchCalDAVCalendars: jest.fn(),
   formatAbsoluteUrl: jest.fn((serverUrl: string) => serverUrl),

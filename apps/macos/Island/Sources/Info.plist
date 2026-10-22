@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Dynamic Island uses Apple Music to fetch animated artwork for the lock screen wallpaper.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Dynamic Island needs audio capture permission to display the real-time music waveform visualizer.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Dynamic Island needs screen recording permission to capture screenshots for the AI assistant feature.</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict/>
+	</array>
+</dict>
+</plist>

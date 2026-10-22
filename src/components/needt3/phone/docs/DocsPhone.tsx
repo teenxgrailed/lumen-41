@@ -58,7 +58,7 @@ import { DocCard } from "./DocCard";
 import { MoveSheet, RenameSheet } from "./DocSheets";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { ShareSheetPhone } from "./ShareSheetPhone";
-import { docsSub, matchDocs, pullHits } from "./logic";
+import { docsSub, matchDocs } from "./logic";
 
 /**
  * Docs on the phone (phone-docs.jsx `PdDocs` 1588): the large "Docs" title,
@@ -217,14 +217,6 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
           title="Docs"
           glyph="docs"
           sub={state === "content" ? docsSub(mine.length, sort) : null}
-          onPull={{
-            search: (x) => pullHits(mine, x, now),
-            onPick: (h) => open(h.id),
-            onAdd: (x) => newDoc(x.trim()),
-            placeholder: "Search docs or start one…",
-            hint: "Docs, by any word in their title. Enter starts a new one.",
-            addLabel: (x) => (x ? `New doc “${x}”` : "New doc"),
-          }}
         >
           <div className="pd-home">
             {state === "loading" ? (
