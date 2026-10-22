@@ -220,13 +220,13 @@ jobs:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-swift-shell-shots
           path: desktop-shots
           if-no-files-found: ignore
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-e2e-report
           path: |
@@ -427,7 +427,7 @@ jobs:
         run: npm run test:visual:update -- --last-failed
       - name: Upload visual failure report
         if: always() && steps.visual.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-visual-report-${{ strategy.job-index }}
           path: |
@@ -435,7 +435,7 @@ jobs:
             test-results
       - name: Upload Linux baseline candidates
         if: always() && steps.visual.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: visual-baseline-candidates-${{ strategy.job-index }}
           path: tests/visual/*-snapshots
