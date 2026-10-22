@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mac app: widgets on the desktop and in Notification Center (Today in small,
   medium, large and extra large; Next event, Focus timer, Habits, Quick add)
   with eight looks to pick per widget.
+- Mac app, island v3 (Pro): one black shape that morphs between states (on
+  plan, manual change, focus running, warning, standby, peek, open, moments),
+  with Today / Week / Focus and a modules grid. Reads `prefs.island` from the
+  user settings. `NeedtKit` gains `IslandPrefs`, `IslandCadence`,
+  `IslandOverrides` and `IslandWeek`. Rolls back with the `needtIslandV3`
+  default.
+
 - Mac app: the traffic lights are centred on the page's sidebar toggle (the
   page reports its top-bar centre) and the toggle starts 16 pt after the zoom
   button.
@@ -23,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Apple Music and Spotify only. The direct-download build is no longer
   sandboxed. The island is derived from Atoll and boring.notch (GPL v3), so the
   source of the Mac app is offered under GPL v3.
+- Phone: the pull-down plate (search and quick add from the top of a screen) is
+  gone; pages scroll normally. The dock (pill, + and focus buttons) sits 30 px
+  above the screen edge, 84 px in a Safari tab where the tab bar floats under it.
+- Phone: the top and bottom edges follow the new phone-shell design. The
+  collapsed header is the place icon and title, centred, over a three-step
+  blur that fades in as you scroll; the fog under the dock is 128 px (deeper
+  in a Safari tab).
 - Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
   start and end focus, what's today, what's next, replan day, log habit) and
   your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to

@@ -53,7 +53,6 @@ import {
   itemName,
   madeLine,
   referenceCount,
-  searchItems,
 } from "./model";
 
 const t = strings["phone-habits.jsx"];
@@ -214,18 +213,6 @@ export function PhoneBoardPage({
     });
   };
 
-  const pull = {
-    search: (q: string) =>
-      searchItems(items, q).map((it) => ({
-        id: it.id,
-        title: itemName(it),
-        meta: it.kind,
-      })),
-    onPick: (hit: { id: string }) => ctl.openDetail(hit.id),
-    placeholder: t.PhbBoardPage.search_this_board,
-    hint: t.PhbBoardPage.titles_notes_colours_and_sites_on_this_b,
-  };
-
   const who = !b ? null : !owner ? (
     <span className="phb-bh-who">
       {listed?.owner?.name ? `${listed.owner.name}’s board · ` : ""}you can{" "}
@@ -312,7 +299,6 @@ export function PhoneBoardPage({
           head={head}
           headClass="phb-bh-head"
           className="phb-board-screen"
-          onPull={b ? pull : undefined}
         >
           <PlaceState query={boards} screen="moodboards">
             {!b ? (

@@ -36,6 +36,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // CI: draw every island state to PNG and quit (no account, no window).
+        if let directory = IslandV3Render.outputDirectory {
+            let count = IslandV3Render.run(into: directory)
+            exit(count > 0 ? 0 : 2)
+        }
         _ = Connectivity.shared
         Notifier.shared.start()
         Updater.shared.start()

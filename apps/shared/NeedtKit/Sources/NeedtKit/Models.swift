@@ -188,6 +188,9 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
     public let priority: String?
     /// The project as `GET /api/tasks` includes it (its colour tints a row).
     public let project: ProjectSummary?
+    /// True while the person pinned the slot by hand (a manual change the
+    /// scheduler keeps). Nil when the server does not send it.
+    public let scheduleLocked: Bool?
 
     public var isDone: Bool { status?.lowercased() == "completed" }
 
@@ -195,6 +198,7 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
         id: String, title: String, status: String? = nil, dueDate: Date? = nil,
         scheduledStart: Date? = nil, scheduledEnd: Date? = nil,
         estimatedMinutes: Int? = nil, trashedAt: Date? = nil, projectId: String? = nil,
+        scheduleLocked: Bool? = nil,
         completedAt: Date? = nil, priority: String? = nil, project: ProjectSummary? = nil
     ) {
         self.id = id
@@ -209,6 +213,7 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
         self.completedAt = completedAt
         self.priority = priority
         self.project = project
+        self.scheduleLocked = scheduleLocked
     }
 
     /// When the task wants attention: its scheduled slot, else its due date.

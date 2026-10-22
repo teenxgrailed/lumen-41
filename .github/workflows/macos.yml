@@ -48,6 +48,13 @@ jobs:
             echo "FirstMouseHostingView must get sizingOptions = [] before it becomes contentView"; exit 1
           fi
 
+      # Island v3 hosts its SwiftUI view the same way.
+      - name: Island v3 hosting view has no sizing options
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          grep -n "sizingOptions = \[\]" Island/Sources/components/NeedtV3/IslandV3Window.swift
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -219,6 +226,29 @@ jobs:
             cat out/launch.log
             exit 1
           fi
+
+      # Draws every island v3 state once (ImageRenderer, fixture data, no
+      # account, no window) so the result can be compared with the HTML lab
+      # (additions-2/widgets/index.html). Not a gate: the app build is.
+      - name: Render island states to PNG
+        continue-on-error: true
+        working-directory: apps/macos
+        run: |
+          set -u
+          APP=build/Build/Products/Release/Needt.app
+          mkdir -p out/island
+          "$APP/Contents/MacOS/Needt" --render-island-states out/island > out/island-render.log 2>&1 || true
+          tail -n 20 out/island-render.log
+          ls out/island | wc -l
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-island-states
+          path: |
+            apps/macos/out/island/*.png
+            apps/macos/out/island-render.log
+          if-no-files-found: warn
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
