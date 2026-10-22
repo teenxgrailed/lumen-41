@@ -1,5 +1,5 @@
 import { type Page, expect, test } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
@@ -38,26 +38,57 @@ const rowOf = (page: Page, title: string) =>
 const foldOf = (page: Page, title: string) =>
   page.locator("[data-complete]").filter({ hasText: title }).first();
 
-async function frames(page: Page, name: string, every: number, count: number) {
+type Frame = {
+  t: number;
+  phase: string | null;
+  height: number;
+  opacity: number;
+  nextY: number;
+};
+
+/**
+ * Records one frame per animation frame for `ms`: the ticked row's phase,
+ * height and opacity, and where the next row sits. Cheap, so it does not
+ * disturb the motion the way a screenshot loop would.
+ */
+function startRecording(page: Page, title: string, next: string, ms: number) {
+  return page.evaluate(
+    ([name, other, span]) => {
+      const out: Frame[] = [];
+      (window as unknown as { __frames: Frame[] }).__frames = out;
+      const t0 = performance.now();
+      const step = () => {
+        const el = [...document.querySelectorAll("[data-complete]")].find((e) =>
+          e.textContent?.includes(name as string)
+        );
+        const n = [...document.querySelectorAll("[data-task]")].find((e) =>
+          e.textContent?.includes(other as string)
+        );
+        out.push({
+          t: Math.round(performance.now() - t0),
+          phase: el?.getAttribute("data-complete") ?? null,
+          height: el ? Math.round(el.getBoundingClientRect().height) : 0,
+          opacity: el ? Number(getComputedStyle(el).opacity) : 0,
+          nextY: n ? Math.round(n.getBoundingClientRect().y) : 0,
+        });
+        if (performance.now() - t0 < (span as number))
+          requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+    [title, next, ms]
+  );
+}
+
+const recorded = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __frames: Frame[] }).__frames);
+
+/** A still of the list, never allowed to stall the test. */
+async function still(page: Page, name: string) {
   await mkdir(FRAMES, { recursive: true });
-  const started = Date.now();
-  const seen: string[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const phase = await page
-      .locator("[data-complete]")
-      .first()
-      .getAttribute("data-complete")
-      .catch(() => null);
-    seen.push(phase ?? "none");
-    await page.screenshot({
-      path: path.join(
-        FRAMES,
-        `${name}-${String(Date.now() - started).padStart(4, "0")}ms-${phase ?? "none"}.png`
-      ),
-    });
-    await page.waitForTimeout(every);
-  }
-  return seen;
+  await page
+    .screenshot({ path: path.join(FRAMES, `${name}.png`), timeout: 8000 })
+    .catch(() => undefined);
 }
 
 test("Home: a ticked Overdue row pops, is struck, then folds away and the list closes up", async ({
@@ -75,7 +106,9 @@ test("Home: a ticked Overdue row pops, is struck, then folds away and the list c
   const others = rowOf(page, "Call the landlord");
   await expect(others).toBeVisible();
   const before = (await others.boundingBox())?.y ?? 0;
+  await still(page, "overdue-0-before");
 
+  await startRecording(page, "Pay the invoice", "Call the landlord", 1800);
   await row
     .getByRole("button", { name: "Mark done", exact: true })
     .first()
@@ -87,13 +120,32 @@ test("Home: a ticked Overdue row pops, is struck, then folds away and the list c
     "strike"
   );
   await expect(row).toBeVisible();
-  const seen = await frames(page, "overdue", 80, 14);
+  await still(page, "overdue-1-struck");
 
   // the fold ran, then the row was removed and the rows below moved up
-  expect(seen).toContain("strike");
   await expect(rowOf(page, "Pay the invoice")).toHaveCount(0, {
     timeout: 3000,
   });
+  await page.waitForTimeout(1000);
+  const timeline = await recorded(page);
+  await mkdir(FRAMES, { recursive: true });
+  await writeFile(
+    path.join(FRAMES, "overdue-timeline.json"),
+    JSON.stringify(timeline, null, 1)
+  );
+  await still(page, "overdue-2-after");
+
+  const phases = timeline.map((f) => f.phase);
+  expect(phases).toContain("strike");
+  expect(phases).toContain("collapse");
+  expect(phases.indexOf("strike")).toBeLessThan(phases.indexOf("collapse"));
+  // the fold is a height collapse, not a cut: some frame is part-way
+  const full = Math.max(...timeline.map((f) => f.height));
+  expect(timeline.some((f) => f.height > 0 && f.height < full)).toBe(true);
+  // the exit takes under a second and a half end to end
+  const startedAt = timeline.find((f) => f.phase)?.t ?? 0;
+  const gone = timeline.find((f) => f.phase === null && f.t > startedAt);
+  expect(gone?.t ?? Infinity).toBeLessThan(1500);
   const after = (await others.boundingBox())?.y ?? 0;
   expect(after).toBeLessThan(before);
 
