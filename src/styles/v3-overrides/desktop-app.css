@@ -25,6 +25,15 @@ html[data-desktop="mac"] .needt-v3 .shell-tab-bar-tab-bar {
   padding-left: 76px;
 }
 
+/* Swift shell: lights at x 18, 20 pt apart, 14 pt wide, so the zoom button
+ * ends at 72. The toggle starts 16 pt later (88) = bar padding 86 plus the
+ * button row's 2 px frame. */
+html[data-desktop="mac"][data-desktop-shell="swift"]
+  .needt-v3
+  .shell-tab-bar-tab-bar {
+  padding-left: 86px;
+}
+
 /* The window frame is chrome, not a page: nothing in it selects or rubber-bands. */
 html[data-desktop] body {
   overscroll-behavior: none;
