@@ -180,6 +180,7 @@ model User {
   taskDependenciesOwned  TaskDependency[]          @relation("TaskDependencyOwner")
   focusPreferences       FocusPreferences?
   energyProfile          EnergyProfile?
+  blockingProfiles       BlockingProfile[]
   taskReminders          TaskReminder[]
   proactiveNudges        ProactiveNudge[]
   pushSubscriptions      PushSubscription[]
@@ -1296,6 +1297,45 @@ model EnergyProfile {
   chronotype String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+/// Which side of a profile's list is blocked: everything on the list, or
+/// everything except it.
+enum BlockingMode {
+  BLOCKLIST
+  ALLOWLIST
+}
+
+/// A named set of sites and apps that is blocked while one of its triggers
+/// holds: a focus session is running, or a calendar event or a scheduled task
+/// block it matches is under way. The browser extension and the Mac app read
+/// the result from `GET /api/blocking/active`; they do the blocking. Pro, and
+/// behind the `focus_blocking` flag.
+model BlockingProfile {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  /// Host names, lower case, without scheme or path; "*.example.com" also
+  /// covers subdomains.
+  sites           String[]
+  /// macOS bundle identifiers, e.g. "com.tinyspeck.slackmacgap".
+  apps            String[]
+  mode            BlockingMode @default(BLOCKLIST)
+  /// Active whenever a focus session runs.
+  onFocusSession  Boolean      @default(false)
+  /// Active during a calendar event whose title contains one of these words
+  /// (case-insensitive).
+  eventKeywords   String[]
+  /// Active during any event on these calendars.
+  calendarFeedIds String[]
+  /// Active during a scheduled block of a task in these projects.
+  projectIds      String[]
+  enabled         Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
 }
 
 model FocusStats {

@@ -25,3 +25,9 @@ export const SIGNUPS_OPEN = "signups_open";
  * own energy hours always win over the curve.
  */
 export const ENERGY_CURVE = "energy_curve";
+
+/**
+ * Focus blocking profiles (`/api/blocking/*`, the `needt_blocking` MCP tools).
+ * Off unless a FeatureFlag row turns it on; Pro only on top of that.
+ */
+export const FOCUS_BLOCKING = "focus_blocking";

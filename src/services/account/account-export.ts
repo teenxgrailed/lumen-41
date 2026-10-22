@@ -76,6 +76,7 @@ export async function collectAccountExport(userId: string) {
       focusPreferences: true,
       focusStats: true,
       energyProfile: true,
+      blockingProfiles: true,
       aiUsage: true,
       aiSettings: {
         select: {

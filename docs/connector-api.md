@@ -128,6 +128,8 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                       |
 | `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                           |
 | `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                         |
+| `needt_blocking`             | `needt.read`                                   | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking                                                                           |
+| `needt_blocking_profile`     | `needt.write`                                  | Create, update (only the fields given) or delete a focus blocking profile                                                                                                                          |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -1101,6 +1103,64 @@ curl -X PUT https://use.needt.app/api/energy/profile \
 ```
 
 `GET` reads it, and `DELETE` goes back to the plain morning default.
+
+## Focus blocking
+
+Pro, behind the `focus_blocking` flag (404 while it is off, 403
+`UPGRADE_REQUIRED` on Free). Needt decides what to block; the browser
+extension and the Mac app enforce it. Every route takes the web session or a
+bearer token (`needt.read` to read, `needt.write` to change).
+
+A profile is a list of `sites` (host names; `*.example.com` also covers
+subdomains; URLs are reduced to their host) and `apps` (macOS bundle ids),
+with a `mode`: `BLOCKLIST` blocks what is listed, `ALLOWLIST` blocks
+everything else. It holds while any of its triggers does:
+
+- `onFocusSession`: a focus session is running;
+- `eventKeywords`: a calendar event under way has one of the words in its
+  title (case-insensitive; all-day and declined events do not count);
+- `calendarFeedIds`: any event under way on those calendars;
+- `projectIds`: a scheduled block of an open task in those projects is under way.
+
+```bash
+curl -X POST https://use.needt.app/api/blocking/profiles \
+  -H "Authorization: Bearer $NEEDT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "name": "Deep work", "sites": ["youtube.com", "x.com"],
+        "onFocusSession": true, "eventKeywords": ["deep work"] }'
+```
+
+`GET /api/blocking/profiles` lists them, `PATCH /api/blocking/profiles/:id`
+changes the fields given, `DELETE` removes one. At most 20 profiles, 500
+entries per list.
+
+`GET /api/blocking/active` is what to block right now:
+
+```json
+{
+  "active": true,
+  "mode": "BLOCKLIST",
+  "sites": ["x.com", "youtube.com"],
+  "apps": [],
+  "until": "2026-10-21T15:30:00.000Z",
+  "profiles": [
+    {
+      "id": "…",
+      "name": "Deep work",
+      "reason": {
+        "kind": "event",
+        "id": "…",
+        "title": "Deep work: launch",
+        "until": "2026-10-21T15:30:00.000Z"
+      }
+    }
+  ]
+}
+```
+
+When several profiles hold, their lists are merged; if any of them is an
+`ALLOWLIST`, only the allow lists apply. `until` is when the earliest reason
+ends (poll again then); `null` while only an open-ended focus session holds.
+`reason.kind` is `focus_session`, `event` or `task_block`.
 
 ## Webhooks
 
