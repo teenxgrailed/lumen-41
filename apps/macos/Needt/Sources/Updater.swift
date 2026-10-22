@@ -12,7 +12,8 @@ import Sparkle
 final class Updater {
     static let shared = Updater()
 
-    private static let log = Logger(subsystem: "app.needt.mac", category: "Updater")
+    // os.Logger spelled out: the island target defines its own `Logger`.
+    private static let log = os.Logger(subsystem: "app.needt.mac", category: "Updater")
 
     #if canImport(Sparkle) && !APPSTORE
     private var controller: SPUStandardUpdaterController?
