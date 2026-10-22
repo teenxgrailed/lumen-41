@@ -219,6 +219,12 @@ jobs:
         env:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-swift-shell-shots
+          path: desktop-shots
+          if-no-files-found: ignore
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
