@@ -1,0 +1,85 @@
+{
+  "manifest_version": 3,
+  "name": "Needt",
+  "short_name": "Needt",
+  "version": "0.1.0",
+  "description": "Capture anything into Needt, block distractions during focus blocks, and keep YouTube on your goal.",
+  "minimum_chrome_version": "121",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "src/pages/popup.html",
+    "default_title": "Add to Needt"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "options_page": "src/pages/options.html",
+  "chrome_url_overrides": {
+    "newtab": "src/pages/newtab.html"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "contextMenus",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://use.needt.app/*",
+    "https://*.youtube.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://localhost/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "src/content/youtube.js"
+      ],
+      "css": [
+        "src/content/youtube.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/pages/blocked.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    },
+    {
+      "resources": [
+        "src/lib/relevance.js"
+      ],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ]
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+N"
+      },
+      "description": "Add to Needt"
+    }
+  }
+}
