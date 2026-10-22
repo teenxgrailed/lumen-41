@@ -1,0 +1,11 @@
+{
+  "name": "needt-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Needt for Chrome: capture, focus blocking, goal filter, new tab.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "zip": "rm -f needt-extension.zip && zip -r needt-extension.zip manifest.json icons src -x '*.DS_Store'"
+  }
+}
