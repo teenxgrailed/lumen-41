@@ -137,3 +137,14 @@ html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .tab-bar {
 html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .chat-dock-slot {
   background: var(--background);
 }
+
+/* THE CORNER (Ask Needt pill). The pill's elevation is a separate "shade"
+ * element behind a clip-path'd shell (corner.css), so the two are painted by
+ * different layers. In the Swift shell's WKWebView they fell out of step: the
+ * shade (a 142x40 box with only a shadow, ~160x46 with its halo) kept painting
+ * at the corner while the pill on top of it did not, which showed as an empty
+ * rounded rectangle over the right end of the last task row. One layer for
+ * the whole anchor keeps them together. */
+html[data-desktop] .needt-v3 .v3c-anchor {
+  will-change: transform;
+}
