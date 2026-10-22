@@ -219,6 +219,13 @@ jobs:
         env:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
+      - name: Upload task-completion motion frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: completion-frames
+          path: test-results/completion-frames
+          if-no-files-found: ignore
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
