@@ -15,6 +15,7 @@ import {
   setMinutes,
   toZonedTime,
 } from "@/lib/date-utils";
+import type { Chronotype } from "@/lib/needt3/chronotype";
 import { type PersonalOccurrence, overlapsPersonal } from "@/lib/personal-time";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
@@ -65,12 +66,18 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
   constructor(
     private settings: AutoScheduleSettings,
     private calendarService: CalendarService,
-    timeZone?: string
+    timeZone?: string,
+    chronotype: Chronotype | null = null
   ) {
-    this.slotScorer = new SlotScorer(settings);
     // On the server the settings store holds no user state, so callers
     // should pass the user's timezone explicitly (e.g. from UserSettings).
     this.timeZone = timeZone || useSettingsStore.getState().user.timeZone;
+    this.slotScorer = new SlotScorer(
+      settings,
+      new Map(),
+      this.timeZone,
+      chronotype
+    );
   }
 
   async updateScheduledTasks(userId: string): Promise<void> {

@@ -1,12 +1,14 @@
 import { AutoScheduleSettings, Task } from "@prisma/client";
 
 import { getEnergyLevelForTime } from "@/lib/autoSchedule";
-import { DEFAULT_HIGH_ENERGY, inHighEnergy } from "@/lib/needt3/energy";
 import {
   differenceInHours,
   differenceInMinutes,
   newDate,
+  toZonedTime,
 } from "@/lib/date-utils";
+import { type Chronotype, chronotypeEnergy } from "@/lib/needt3/chronotype";
+import { DEFAULT_HIGH_ENERGY, inHighEnergy } from "@/lib/needt3/energy";
 
 import { EnergyLevel, SlotScore, TimeSlot } from "@/types/scheduling";
 import { Priority } from "@/types/task";
@@ -19,8 +21,25 @@ interface ProjectTask {
 export class SlotScorer {
   constructor(
     private settings: AutoScheduleSettings,
-    private scheduledTasks: Map<string, ProjectTask[]> = new Map()
+    private scheduledTasks: Map<string, ProjectTask[]> = new Map(),
+    /**
+     * The person's time zone: energy windows and morning/afternoon/evening
+     * are their hours, not the server's. Without one, the process's own.
+     */
+    private timeZone?: string,
+    /**
+     * The person's chronotype curve, when they picked one and the
+     * `energy_curve` flag and their plan allow it (`SchedulingService`).
+     */
+    private chronotype: Chronotype | null = null
   ) {}
+
+  /** The slot's hour on the person's clock. */
+  private localHour(date: Date): number {
+    return this.timeZone
+      ? toZonedTime(date, this.timeZone).getHours()
+      : date.getHours();
+  }
 
   // Add method to update scheduled tasks
   updateScheduledTasks(tasks: Task[]) {
@@ -95,8 +114,9 @@ export class SlotScorer {
   }
 
   /**
-   * The energy of the hour: the person's windows (Your day), and when they
-   * have set no high-energy hours at all, the morning (`DEFAULT_HIGH_ENERGY`).
+   * The energy of the hour: the person's windows (Your day); when they have
+   * set no high-energy hours at all, their chronotype curve if they picked
+   * one, else the morning (`DEFAULT_HIGH_ENERGY`).
    */
   private slotEnergy(hour: number): EnergyLevel | null {
     const set = getEnergyLevelForTime(hour, this.settings);
@@ -104,6 +124,9 @@ export class SlotScorer {
     const noHighSaved =
       this.settings.highEnergyStart == null ||
       this.settings.highEnergyEnd == null;
+    if (noHighSaved && this.chronotype) {
+      return chronotypeEnergy(hour, this.chronotype);
+    }
     return noHighSaved && inHighEnergy(hour, DEFAULT_HIGH_ENERGY)
       ? "high"
       : null;
@@ -113,7 +136,7 @@ export class SlotScorer {
     const taskEnergy = this.taskEnergy(task);
     if (!taskEnergy) return 0.5; // Neutral score if task has no energy level
 
-    const slotEnergy = this.slotEnergy(slot.start.getHours());
+    const slotEnergy = this.slotEnergy(this.localHour(slot.start));
     if (!slotEnergy) return 0.5; // Neutral score if time has no energy level
 
     // Exact match gets 1.0, adjacent levels get 0.5, opposite levels get 0:
@@ -133,7 +156,7 @@ export class SlotScorer {
   private scoreTimePreference(slot: TimeSlot, task: Task): number {
     // If task has a specific time preference, use that
     if (task.preferredTime) {
-      const hour = slot.start.getHours();
+      const hour = this.localHour(slot.start);
       const preference = task.preferredTime.toLowerCase();
       const ranges = {
         morning: { start: 5, end: 12 },
