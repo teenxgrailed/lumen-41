@@ -20,6 +20,11 @@ final class TrayStore: ObservableObject {
     /// When `state` was last reported (or loaded from the disk cache).
     @Published private(set) var updatedAt: Date?
 
+    /// The Mac app's own settings (`macDockBadge`, ...) from the account's flat
+    /// prefs; defaults until the first fetch lands.
+    @Published private(set) var desktopPrefs = DesktopPrefs()
+    private var desktopPrefsFetchedAt: Date?
+
     private let cache = OfflineCache.shared
 
     init() {
@@ -60,6 +65,21 @@ final class TrayStore: ObservableObject {
         }
         state = next
         updateDockBadge()
+        refreshDesktopPrefs()
+    }
+
+    /// Re-reads the account's prefs at most once a minute (the tray report is
+    /// the heartbeat). A failed fetch keeps the last known values.
+    private func refreshDesktopPrefs(force: Bool = false) {
+        if !force, let at = desktopPrefsFetchedAt, Date().timeIntervalSince(at) < 60 { return }
+        desktopPrefsFetchedAt = Date()
+        Task { [weak self] in
+            guard let self, let prefs = try? await self.api.desktopPrefs() else { return }
+            if prefs != self.desktopPrefs {
+                self.desktopPrefs = prefs
+                self.updateDockBadge()
+            }
+        }
     }
 
     /// Signed out: nothing of the previous person stays in the menu.
@@ -72,8 +92,10 @@ final class TrayStore: ObservableObject {
     }
 
     private func updateDockBadge() {
-        // Overdue only: red means "needs you now". Hidden at zero.
-        NSApp.dockTile.badgeLabel = state.overdue > 0 ? String(state.overdue) : nil
+        // Overdue only: red means "needs you now". Hidden at zero, and always
+        // hidden when Settings, Desktop says "Dock badge: off".
+        let show = desktopPrefs.dockBadge == .overdue && state.overdue > 0
+        NSApp.dockTile.badgeLabel = show ? String(state.overdue) : nil
     }
 
     // MARK: focus started or ended outside the page (Siri, Shortcuts, Spotlight)
