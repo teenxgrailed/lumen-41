@@ -183,6 +183,11 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
     public let estimatedMinutes: Int?
     public let trashedAt: Date?
     public let projectId: String?
+    /// When it was marked done; widgets show what was done today.
+    public let completedAt: Date?
+    public let priority: String?
+    /// The project as `GET /api/tasks` includes it (its colour tints a row).
+    public let project: ProjectSummary?
     /// True while the person pinned the slot by hand (a manual change the
     /// scheduler keeps). Nil when the server does not send it.
     public let scheduleLocked: Bool?
@@ -193,7 +198,8 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
         id: String, title: String, status: String? = nil, dueDate: Date? = nil,
         scheduledStart: Date? = nil, scheduledEnd: Date? = nil,
         estimatedMinutes: Int? = nil, trashedAt: Date? = nil, projectId: String? = nil,
-        scheduleLocked: Bool? = nil
+        scheduleLocked: Bool? = nil,
+        completedAt: Date? = nil, priority: String? = nil, project: ProjectSummary? = nil
     ) {
         self.id = id
         self.title = title
@@ -204,6 +210,9 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
         self.estimatedMinutes = estimatedMinutes
         self.trashedAt = trashedAt
         self.projectId = projectId
+        self.completedAt = completedAt
+        self.priority = priority
+        self.project = project
         self.scheduleLocked = scheduleLocked
     }
 
@@ -216,11 +225,14 @@ public struct ProjectSummary: Codable, Equatable, Identifiable, Sendable {
     public let id: String
     public let name: String
     public let status: String?
+    /// "#rrggbb" when the project has its own colour.
+    public let color: String?
 
-    public init(id: String, name: String, status: String? = nil) {
+    public init(id: String, name: String, status: String? = nil, color: String? = nil) {
         self.id = id
         self.name = name
         self.status = status
+        self.color = color
     }
 }
 
