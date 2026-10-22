@@ -107,10 +107,12 @@ struct IslandSettingsPane: View {
                 Toggle("Haptics", isOn: $haptics)
                 Toggle("Low battery sound", isOn: $batterySound)
                 Toggle("Lock and unlock sounds", isOn: $lockSounds)
+                #if !APPSTORE
                 // Accessibility is asked for here and never at launch.
                 Button("Show volume and brightness in the island…") {
                     MediaKeyInterceptor.shared.requestAccessibilityAndStart()
                 }
+                #endif
             }
             .disabled(!isPro || !enabled)
 
