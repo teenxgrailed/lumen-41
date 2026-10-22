@@ -158,3 +158,22 @@ html[data-desktop] .needt-v3[data-ui="desktop"] .chat-agent-anchor {
   position: fixed;
   bottom: 20px;
 }
+
+/* NO BACKDROP BLUR IN THE SWIFT SHELL. A backdrop-filter re-reads and blurs
+ * what is behind it on every frame its layer or anything under it changes;
+ * in WKWebView that, over a window-sized page that is also animating (a
+ * sheet sliding in over the Today sky), is what made Settings and the menus
+ * open late. These surfaces are already 78-92% opaque, so they go solid
+ * instead of blurred: the same look without the cost. */
+html[data-desktop-shell="swift"] .needt-v3 .sb-acct,
+html[data-desktop-shell="swift"] .needt-v3 .st-banner,
+html[data-desktop-shell="swift"] .needt-v3 .mb-bar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--surface-raised);
+}
+html[data-desktop-shell="swift"] .needt-v3 .cn-sticky.is-stuck,
+html[data-desktop-shell="swift"] .needt-v3 .cn-sheet-col.is-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
