@@ -5,6 +5,10 @@ import Defaults
 extension Defaults.Keys {
     /// The master switch in Settings, Island.
     static let needtIslandEnabled = Key<Bool>("needtIslandEnabled", default: true)
+    /// Island v3 (the one morphing shape). Off falls back to the Atoll-derived
+    /// notch the first island release shipped with; there is no switch for it
+    /// in Settings, it exists to roll back.
+    static let needtIslandV3 = Key<Bool>("needtIslandV3", default: true)
 }
 
 /// The one place the app talks to the notch island (the code in `Island/`).
@@ -30,6 +34,12 @@ enum IslandHost {
 
     /// Starts, shows or hides the island to match the plan and the switch.
     static func apply() {
+        if isOn && Defaults[.needtIslandV3] {
+            IslandV3Controller.shared.start(tray: AppController.shared.tray)
+            if started { IslandAppDelegate.current().setHostEnabled(false) }
+            return
+        }
+        if IslandV3Controller.shared.isRunning { IslandV3Controller.shared.stop() }
         if isOn {
             if started {
                 IslandAppDelegate.current().setHostEnabled(true)
@@ -45,13 +55,19 @@ enum IslandHost {
     }
 
     static func stop(_ notification: Notification) {
+        IslandV3Controller.shared.stop()
         guard started else { return }
         IslandAppDelegate.current().applicationWillTerminate(notification)
     }
 
     /// Files dropped on the Dock icon or opened with Needt go to the Shelf.
     static func open(_ urls: [URL]) {
-        guard started, isOn, !urls.isEmpty else { return }
+        guard isOn, !urls.isEmpty else { return }
+        if Defaults[.needtIslandV3] {
+            IslandV3Controller.shared.addToShelf(urls)
+            return
+        }
+        guard started else { return }
         IslandAppDelegate.current().application(NSApp, open: urls)
     }
 }

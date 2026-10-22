@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, island v3 (Pro): one black shape that morphs between states (on
+  plan, manual change, focus running, warning, standby, peek, open, moments),
+  with Today / Week / Focus and a modules grid. Reads `prefs.island` from the
+  user settings. `NeedtKit` gains `IslandPrefs`, `IslandCadence`,
+  `IslandOverrides` and `IslandWeek`. Rolls back with the `needtIslandV3`
+  default.
+
 - Mac app: the traffic lights are centred on the page's sidebar toggle (the
   page reports its top-bar centre) and the toggle starts 16 pt after the zoom
   button.
