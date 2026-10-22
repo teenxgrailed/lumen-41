@@ -10,11 +10,13 @@ import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/security/secret-encryption";
 
 import {
+  CALDAV_HOST_NOT_ALLOWED,
   classifyCalDAVError,
   createCalDAVClient,
   fetchCalDAVCalendars,
   formatAbsoluteUrl,
   handleFastmailPath,
+  isPublicCalDAVUrl,
   loginToCalDAVServer,
   normalizeCalDAVServerUrl,
 } from "../utils";
@@ -53,6 +55,13 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json(
         { error: "Server URL, username, and password are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!(await isPublicCalDAVUrl(serverUrl))) {
+      return NextResponse.json(
+        { error: CALDAV_HOST_NOT_ALLOWED, details: CALDAV_HOST_NOT_ALLOWED },
         { status: 400 }
       );
     }
@@ -174,6 +183,15 @@ export async function POST(request: NextRequest) {
       const fullUrl = normalizeCalDAVServerUrl(
         caldavPath ? formatAbsoluteUrl(serverUrl, caldavPath) : serverUrl
       );
+
+      // A path may itself be a full URL on another host, and this is the
+      // address every later sync connects to, so it is judged as well.
+      if (caldavPath && !(await isPublicCalDAVUrl(fullUrl))) {
+        return NextResponse.json(
+          { error: CALDAV_HOST_NOT_ALLOWED, details: CALDAV_HOST_NOT_ALLOWED },
+          { status: 400 }
+        );
+      }
 
       const account = await prisma.connectedAccount.create({
         data: {

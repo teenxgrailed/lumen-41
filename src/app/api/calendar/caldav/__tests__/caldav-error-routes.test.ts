@@ -6,6 +6,11 @@
  * message + 401. `classifyCalDAVError` is exercised for real; only the login
  * primitive and the auth/db boundaries are mocked.
  */
+import {
+  UnsafeFetchError,
+  assertPublicHost,
+} from "@/services/oauth/safe-fetch";
+
 import { authenticateRequest, requireAuth } from "@/lib/auth/api-auth";
 import { canAddCalendar } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +22,13 @@ jest.mock("@/lib/auth/api-auth", () => ({
   requireAuth: jest.fn(),
 }));
 jest.mock("@/lib/entitlements", () => ({ canAddCalendar: jest.fn() }));
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  ...jest.requireActual("@/services/oauth/safe-fetch"),
+  assertPublicHost: jest.fn(),
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    connectedAccount: { findUnique: jest.fn() },
+    connectedAccount: { findUnique: jest.fn(), create: jest.fn() },
     calendarFeed: { findMany: jest.fn() },
   },
 }));
@@ -30,6 +39,9 @@ const mockAuthenticateRequest = authenticateRequest as jest.MockedFunction<
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
 const mockCanAddCalendar = canAddCalendar as jest.MockedFunction<
   typeof canAddCalendar
+>;
+const mockAssertPublicHost = assertPublicHost as jest.MockedFunction<
+  typeof assertPublicHost
 >;
 
 /** Narrows a route handler's `Response | undefined` return to a defined Response. */
@@ -51,6 +63,8 @@ function jsonRequest(body: unknown) {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.restoreAllMocks();
+  // The servers in these tests are public unless a test says otherwise.
+  mockAssertPublicHost.mockResolvedValue(undefined);
 });
 
 describe("CalDAV test route classifies login failures", () => {
@@ -358,5 +372,136 @@ describe("CalDAV add-calendar route classifies login failures", () => {
 
     expect(res.status).toBe(502);
     expect(data.error.toLowerCase()).toContain("connect");
+  });
+});
+
+describe("CalDAV test and auth routes refuse servers that are not public", () => {
+  const PRIVATE = new UnsafeFetchError(
+    "The host resolves to a non-public address."
+  );
+
+  beforeEach(() => {
+    mockRequireAuth.mockResolvedValue(null);
+    mockAuthenticateRequest.mockResolvedValue({ userId: "user-1" } as never);
+    mockCanAddCalendar.mockResolvedValue({
+      allowed: true,
+      limit: 1,
+      used: 0,
+      remaining: 1,
+      upgradeRequired: false,
+      plan: "FREE",
+    });
+  });
+
+  it("answers the test route with a 400 and never creates a client", async () => {
+    mockAssertPublicHost.mockRejectedValue(PRIVATE);
+    const createClient = jest.spyOn(utils, "createCalDAVClient");
+    const { POST } = await import("../test/route");
+
+    const res = await POST(
+      jsonRequest({
+        serverUrl: "http://169.254.169.254/dav",
+        username: "u",
+        password: "p",
+      })
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.success).toBe(false);
+    expect(data.error.toLowerCase()).toContain("not allowed");
+    // Why it was refused stays out of the answer.
+    expect(JSON.stringify(data).toLowerCase()).not.toContain("non-public");
+    expect(JSON.stringify(data).toLowerCase()).not.toContain("resolve");
+    expect(mockAssertPublicHost).toHaveBeenCalledWith("169.254.169.254");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("answers the auth route with a 400 and never creates a client", async () => {
+    mockAssertPublicHost.mockRejectedValue(PRIVATE);
+    const createClient = jest.spyOn(utils, "createCalDAVClient");
+    const { POST } = await import("../auth/route");
+
+    const res = assertResponse(
+      await POST(
+        jsonRequest({
+          serverUrl: "http://localhost:5232",
+          username: "u",
+          password: "p",
+        })
+      )
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error.toLowerCase()).toContain("not allowed");
+    expect(JSON.stringify(data).toLowerCase()).not.toContain("non-public");
+    expect(createClient).not.toHaveBeenCalled();
+    expect(prisma.connectedAccount.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unparseable server address", async () => {
+    const createClient = jest.spyOn(utils, "createCalDAVClient");
+    const { POST } = await import("../test/route");
+
+    const res = await POST(
+      jsonRequest({ serverUrl: "not a url", username: "u", password: "p" })
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockAssertPublicHost).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("refuses a path that is a full URL on a private host, before saving", async () => {
+    mockAssertPublicHost
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(PRIVATE);
+    jest
+      .spyOn(utils, "createCalDAVClient")
+      .mockReturnValue({} as ReturnType<typeof utils.createCalDAVClient>);
+    jest.spyOn(utils, "loginToCalDAVServer").mockResolvedValue(true);
+    jest.spyOn(utils, "fetchCalDAVCalendars").mockResolvedValue([]);
+    const { POST } = await import("../auth/route");
+
+    const res = assertResponse(
+      await POST(
+        jsonRequest({
+          serverUrl: "https://dav.example.com",
+          username: "u",
+          password: "p",
+          path: "http://10.0.0.5/internal/",
+        })
+      )
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockAssertPublicHost).toHaveBeenLastCalledWith("10.0.0.5");
+    expect(prisma.connectedAccount.create).not.toHaveBeenCalled();
+  });
+
+  it("still reaches a public self-hosted server over plain http on its own port", async () => {
+    const createClient = jest
+      .spyOn(utils, "createCalDAVClient")
+      .mockReturnValue({} as ReturnType<typeof utils.createCalDAVClient>);
+    jest.spyOn(utils, "loginToCalDAVServer").mockRejectedValue(FETCH_FAILED);
+    const { POST } = await import("../test/route");
+
+    const res = await POST(
+      jsonRequest({
+        serverUrl: "http://dav.example.com:5232/dav",
+        username: "u",
+        password: "p",
+      })
+    );
+
+    // Past the guard: the login was attempted and its failure classified.
+    expect(res.status).toBe(502);
+    expect(mockAssertPublicHost).toHaveBeenCalledWith("dav.example.com");
+    expect(createClient).toHaveBeenCalledWith(
+      "http://dav.example.com:5232/dav",
+      "u",
+      "p"
+    );
   });
 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { encryptSecret } from "@/services/ai/encryption";
+import { assertPublicHost } from "@/services/oauth/safe-fetch";
 import { MailProvider } from "@prisma/client";
 import { ImapFlow } from "imapflow";
 import { z } from "zod";
@@ -63,6 +64,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Mailbox limit reached.", entitlement },
       { status: 403 }
+    );
+  }
+  // The server connects to whatever host was typed in, so it must be a public
+  // one. The answer is the one a failed connection gets: it must not tell a
+  // probe whether an internal name exists.
+  try {
+    await assertPublicHost(credentials.host);
+  } catch (error) {
+    await logger.warn(
+      "IMAP host refused",
+      { reason: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+    return NextResponse.json(
+      { error: "Could not connect to this IMAP account." },
+      { status: 400 }
     );
   }
   const client = new ImapFlow({

@@ -5,7 +5,7 @@ name: Needt
 options:
   bundleIdPrefix: app.needt
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "14.6"
   createIntermediateGroups: true
   developmentLanguage: en
 
@@ -14,7 +14,7 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.6"
     ENABLE_HARDENED_RUNTIME: YES
     # Set to the Sparkle EdDSA *public* key (see README.md). While it is empty
     # the app never checks for updates.
@@ -26,6 +26,28 @@ packages:
     from: 2.6.4
   NeedtKit:
     path: ../shared/NeedtKit
+  # The island's packages, pinned to the versions its own build resolved.
+  Defaults:
+    url: https://github.com/sindresorhus/Defaults
+    exactVersion: 9.0.3
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    exactVersion: 2.3.0
+  LaunchAtLogin:
+    url: https://github.com/sindresorhus/LaunchAtLogin-Modern
+    revision: a04ec1c363be3627734f6dad757d82f5d4fa8fcc
+  LottieUI:
+    url: https://github.com/jasudev/LottieUI.git
+    revision: 0cd5b54a1c8467b19c01f56395aec179087b62e2
+  SwiftUIIntrospect:
+    url: https://github.com/siteline/swiftui-introspect
+    exactVersion: 1.3.0
+  Collections:
+    url: https://github.com/apple/swift-collections.git
+    exactVersion: 1.1.4
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.13.0
 
 targets:
   # The direct-download build (Developer ID, Sparkle updates).
@@ -35,25 +57,53 @@ targets:
     sources:
       - path: Needt/Sources
       - path: Needt/Resources
+      - path: Island/Sources
+        excludes:
+          - Info.plist
+          - DynamicIsland.entitlements
+          - "tr.lproj/**"
+          - Localizable.xcstrings
+          # The island's own settings window is replaced by Needt's Settings.
+          - components/Settings/IslandSettingsView.swift
+          - components/Settings/AnimationEditorView.swift
+          - components/Settings/ExtensionsSettings.swift
+          - components/Settings/IdleAnimationsSettingsSection.swift
+          - components/Settings/MusicSlotConfigurationView.swift
+          - components/Settings/SpotifyAuthSettingsSection.swift
+          - components/Settings/SpotifyLoginSheet.swift
+          - components/Settings/ListItemPopover.swift
+      - path: Island/LottieAnimations
+      - path: Island/LICENSE.txt
+      - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: Sparkle
       - package: NeedtKit
+      - package: Defaults
+      - package: KeyboardShortcuts
+      - package: LaunchAtLogin
+      - package: LottieUI
+      - package: SwiftUIIntrospect
+      - package: Collections
+      - package: SwiftTerm
       - target: NeedtShare
         embed: true
     entitlements:
       path: Generated/Needt.entitlements
       properties:
-        com.apple.security.app-sandbox: true
+        # The direct build is not sandboxed: the full island (system HUD,
+        # media keys, sensors, terminal) needs it. The App Store build is.
+        com.apple.security.app-sandbox: false
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-only: true
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
+        com.apple.security.device.bluetooth: true
+        com.apple.security.personal-information.calendars: true
+        com.apple.security.personal-information.location: true
+        com.apple.security.automation.apple-events: true
+        com.apple.security.cs.disable-library-validation: true
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
-        # Sparkle's installer launcher and status services (sandboxed updates).
-        com.apple.security.temporary-exception.mach-lookup.global-name:
-          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
-          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
     info:
       path: Generated/Needt-Info.plist
       properties:
@@ -61,7 +111,7 @@ targets:
         CFBundleDisplayName: Needt
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSMinimumSystemVersion: "14.0"
+        LSMinimumSystemVersion: "14.6"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
@@ -71,20 +121,39 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: app.needt.mac
             CFBundleURLSchemes: [needt]
+        MetalCaptureEnabled: true
         # Debug builds may point at a local web app (NEEDT_URL).
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
-        NSCameraUsageDescription: Needt uses the camera when you attach a photo.
+        NSCameraUsageDescription: Needt uses the camera when you attach a photo and for the island mirror.
+        NSAppleEventsUsageDescription: Needt uses AppleScript to show and control what Spotify and Apple Music are playing.
+        NSBluetoothAlwaysUsageDescription: Needt shows when audio devices connect and their battery level in the island.
+        NSCalendarsUsageDescription: Needt shows your next event in the island.
+        NSCalendarsFullAccessUsageDescription: Needt shows your next event in the island.
+        NSRemindersUsageDescription: Needt shows your reminders in the island.
+        NSRemindersFullAccessUsageDescription: Needt shows your reminders in the island.
+        NSLocationUsageDescription: Needt uses your location for the weather on the lock screen widget.
+        NSLocationWhenInUseUsageDescription: Needt uses your location for the weather on the lock screen widget.
+        NSDesktopFolderUsageDescription: Needt saves screenshots to your Desktop.
+        NSDocumentsFolderUsageDescription: Needt saves and reads files you drop on the island shelf.
+        NSDownloadsFolderUsageDescription: Needt reads your Downloads folder to show download progress in the island.
+        NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
+        NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
+        NSAppleMusicUsageDescription: Needt uses Apple Music to fetch animated artwork.
         SUFeedURL: https://needt.app/desktop/appcast.xml
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
         SUEnableAutomaticChecks: true
-        SUEnableInstallerLauncherService: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
         PRODUCT_NAME: Needt
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: Island/Sources/DynamicIsland-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++20
+        CLANG_ENABLE_MODULES: YES
+        CLANG_ENABLE_OBJC_ARC: YES
+        MTL_FAST_MATH: YES
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -97,8 +166,84 @@ targets:
     sources:
       - path: Needt/Sources
       - path: Needt/Resources
+      - path: Island/Sources
+        excludes:
+          - Info.plist
+          - DynamicIsland.entitlements
+          - "tr.lproj/**"
+          - Localizable.xcstrings
+          # The island's own settings window is replaced by Needt's Settings.
+          - components/Settings/IslandSettingsView.swift
+          - components/Settings/AnimationEditorView.swift
+          - components/Settings/ExtensionsSettings.swift
+          - components/Settings/IdleAnimationsSettingsSection.swift
+          - components/Settings/MusicSlotConfigurationView.swift
+          - components/Settings/SpotifyAuthSettingsSection.swift
+          - components/Settings/SpotifyLoginSheet.swift
+          - components/Settings/ListItemPopover.swift
+          # --- Mac App Store: no private or restricted interfaces ----------
+          # SkyLight window-server spaces
+          - private/**
+          # volume / brightness / keyboard HUD (DisplayServices, CoreBrightness,
+          # media-key event taps, OSD helper)
+          - components/OSD/**
+          - helpers/CoreBrightnessDisplayClient.swift
+          - helpers/DisplayServicesDynamic.swift
+          - helpers/SystemHUDDebugger.swift
+          - managers/SystemMediaControllers.swift
+          - managers/SystemOSDManager.swift
+          - managers/SystemHUDManager.swift
+          - managers/SystemVolumeManager.swift
+          - managers/SystemKeyObserver.swift
+          - managers/SystemKeyboardBacklightController.swift
+          - managers/SystemDisplayManager.swift
+          - managers/SystemChangesObserver.swift
+          - managers/KeyboardBrightnessSensor.swift
+          - managers/MediaKeyInterceptor.swift
+          - managers/CustomOSDWindowManager.swift
+          - managers/CircularHUDWindowManager.swift
+          - managers/VerticalHUDWindowManager.swift
+          - managers/BetterDisplayManager.swift
+          - managers/LunarManager.swift
+          # CPU / GPU / memory sensors (IOReport, SMC)
+          - components/Stats/**
+          - components/Notch/NotchStatsView.swift
+          - managers/StatsManager.swift
+          - utils/IOReportBridging.swift
+          - utils/CPUSensorCollector.swift
+          - utils/SMC.swift
+          # Accessibility-driven features and permission helpers
+          - managers/SystemTimerBridge.swift
+          - observers/FullscreenMediaDetection.swift
+          - helpers/AccessibilityPermissionStore.swift
+          - helpers/FullDiskAccessPermissionStore.swift
+          # Focus and Bluetooth internals, screen-recording detection
+          - managers/DoNotDisturbManager.swift
+          - components/Focus/DoNotDisturbLiveActivity.swift
+          - managers/BluetoothAudioManager.swift
+          - managers/ScreenRecordingManager.swift
+          # automation of apps other than Music and Spotify, shells, other apps' data
+          - managers/AppleNotesSyncManager.swift
+          - managers/TerminalManager.swift
+          - components/Notch/NotchTerminalView.swift
+          - components/DynamicIslandSystemTiles.swift
+          - managers/LLMUsage/**
+          - components/Notch/NotchLLMUsageView.swift
+          # private SwiftUI symbol, private glass material
+          - extensions/Image+InternalSystemName.swift
+          - helpers/LiquidGlassBackground.swift
+      - path: Island/AppStore
+      - path: Island/LottieAnimations
+      - path: Island/LICENSE.txt
+      - path: Island/ACKNOWLEDGEMENTS.md
     dependencies:
       - package: NeedtKit
+      - package: Defaults
+      - package: KeyboardShortcuts
+      - package: LaunchAtLogin
+      - package: LottieUI
+      - package: SwiftUIIntrospect
+      - package: Collections
       - target: NeedtShare
         embed: true
     entitlements:
@@ -109,6 +254,14 @@ targets:
         com.apple.security.files.user-selected.read-only: true
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
+        com.apple.security.personal-information.calendars: true
+        com.apple.security.personal-information.location: true
+        # Music works for Apple Music and Spotify only, through Apple Events.
+        com.apple.security.scripting-targets:
+          com.apple.Music:
+            - com.apple.Music.playback
+          com.spotify.client:
+            - com.spotify.client.playback
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
     info:
@@ -118,7 +271,7 @@ targets:
         CFBundleDisplayName: Needt
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSMinimumSystemVersion: "14.0"
+        LSMinimumSystemVersion: "14.6"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
@@ -128,12 +281,31 @@ targets:
           - CFBundleURLName: app.needt.mac
             CFBundleURLSchemes: [needt]
         NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
-        NSCameraUsageDescription: Needt uses the camera when you attach a photo.
+        NSCameraUsageDescription: Needt uses the camera when you attach a photo and for the island mirror.
+        NSAppleEventsUsageDescription: Needt uses AppleScript to show and control what Spotify and Apple Music are playing.
+        NSBluetoothAlwaysUsageDescription: Needt shows when audio devices connect and their battery level in the island.
+        NSCalendarsUsageDescription: Needt shows your next event in the island.
+        NSCalendarsFullAccessUsageDescription: Needt shows your next event in the island.
+        NSRemindersUsageDescription: Needt shows your reminders in the island.
+        NSRemindersFullAccessUsageDescription: Needt shows your reminders in the island.
+        NSLocationUsageDescription: Needt uses your location for the weather on the lock screen widget.
+        NSLocationWhenInUseUsageDescription: Needt uses your location for the weather on the lock screen widget.
+        NSDesktopFolderUsageDescription: Needt saves screenshots to your Desktop.
+        NSDocumentsFolderUsageDescription: Needt saves and reads files you drop on the island shelf.
+        NSDownloadsFolderUsageDescription: Needt reads your Downloads folder to show download progress in the island.
+        NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
+        NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
+        NSAppleMusicUsageDescription: Needt uses Apple Music to fetch animated artwork.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
         PRODUCT_NAME: Needt
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: Island/Sources/DynamicIsland-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++20
+        CLANG_ENABLE_MODULES: YES
+        CLANG_ENABLE_OBJC_ARC: YES
+        MTL_FAST_MATH: YES
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -161,7 +333,7 @@ targets:
         CFBundleDisplayName: Add to Needt
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSMinimumSystemVersion: "14.0"
+        LSMinimumSystemVersion: "14.6"
         NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
