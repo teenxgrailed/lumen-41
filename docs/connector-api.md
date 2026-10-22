@@ -1115,6 +1115,31 @@ curl -X POST https://use.needt.app/api/quick-add/parse \
 - `tokens` lists what was read, with each token's position in the original
   text, so inputs can highlight them.
 
+## Energy curve
+
+Pro, behind the `energy_curve` flag (404 while off, 403 `UPGRADE_REQUIRED` on
+Free). Session or bearer token.
+
+A chronotype gives the scheduler an energy level for each hour of the day.
+Heavy tasks go to the peak and light ones to the dip. Energy hours a person
+sets by hand (Settings, Your day) always win over the curve. Hours are read
+on the person's own clock.
+
+| `chronotype` | High  | Dip (low) | Second rise  |
+| ------------ | ----- | --------- | ------------ |
+| `lark`       | 6–10  | 12–14     | 14–17 medium |
+| `neutral`    | 9–12  | 13–15     | 15–18 medium |
+| `owl`        | 15–20 | 13–15     | 20–23 medium |
+
+```bash
+curl -X PUT https://use.needt.app/api/energy/profile \
+  -H "Authorization: Bearer $NEEDT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "chronotype": "owl" }'
+# -> { "chronotype": "owl", "curve": [{ "start": 10, "end": 13, "energy": "medium" }, …] }
+```
+
+`GET` reads it, and `DELETE` goes back to the plain morning default.
+
 ## Focus blocking
 
 Pro, behind the `focus_blocking` flag (404 while it is off, 403
