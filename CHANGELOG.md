@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layout); the focus block shows as a Live Activity (compact ring and timer,
   one outlined Pause, ends with the run); titles stay off the Lock Screen
   unless you turn "Show titles on Lock Screen" on.
+- Mac app: widgets on the desktop and in Notification Center (Today in small,
+  medium, large and extra large; Next event, Focus timer, Habits, Quick add)
+  with eight looks to pick per widget.
 - Mac app, island v3 (Pro): one black shape that morphs between states (on
   plan, manual change, focus running, warning, standby, peek, open, moments),
   with Today / Week / Focus and a modules grid. Reads `prefs.island` from the

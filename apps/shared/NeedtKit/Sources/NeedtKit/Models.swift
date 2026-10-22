@@ -198,8 +198,8 @@ public struct TaskSummary: Codable, Equatable, Identifiable, Sendable {
         id: String, title: String, status: String? = nil, dueDate: Date? = nil,
         scheduledStart: Date? = nil, scheduledEnd: Date? = nil,
         estimatedMinutes: Int? = nil, trashedAt: Date? = nil, projectId: String? = nil,
-        completedAt: Date? = nil, priority: String? = nil, project: ProjectSummary? = nil,
-        scheduleLocked: Bool? = nil
+        scheduleLocked: Bool? = nil,
+        completedAt: Date? = nil, priority: String? = nil, project: ProjectSummary? = nil
     ) {
         self.id = id
         self.title = title
