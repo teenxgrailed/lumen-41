@@ -148,3 +148,13 @@ html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .chat-dock-slot {
 html[data-desktop] .needt-v3 .v3c-anchor {
   will-change: transform;
 }
+
+/* Ask Needt is anchored to the window, not to the bottom of the scope. The
+ * scope used to be 100dvh high; where the web view's dvh runs past the area it
+ * shows (the Swift shell), 20 px above the scope's bottom edge is below the
+ * window and the pill was out of sight. `fixed` measures from what is shown.
+ * Nothing in the scope is transformed, so this is the same place elsewhere. */
+html[data-desktop] .needt-v3[data-ui="desktop"] .chat-agent-anchor {
+  position: fixed;
+  bottom: 20px;
+}
