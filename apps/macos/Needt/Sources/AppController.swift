@@ -15,6 +15,7 @@ final class AppController {
 
     private var main: MainWindowController?
     private var startWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private var hotKey: GlobalHotKey?
     /// A main window made for a sign-in that has not finished stays hidden
     /// until the page reports it is signed in.
@@ -191,10 +192,28 @@ final class AppController {
         quickAdd.show()
     }
 
-    /// The SwiftUI Settings scene (focus Shortcuts), apart from the web app's settings.
+    /// The Mac settings window (focus Shortcuts, island), apart from the web
+    /// app's settings. An AppKit window, fixed 500 x 560, whose hosting view
+    /// has no sizing options: nothing SwiftUI-owned.
     func showMacSettings() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        if let settingsWindow {
+            settingsWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 560),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Needt Settings"
+        window.isReleasedWhenClosed = false
+        window.contentView = makeHostingView(rootView: SettingsView())
+        window.setContentSize(NSSize(width: 500, height: 560))
+        window.center()
+        settingsWindow = window
+        window.makeKeyAndOrderFront(nil)
     }
 
     func openWebsite() {

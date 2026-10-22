@@ -18,7 +18,7 @@ final class IslandEntitlement: ObservableObject {
 
     /// CI only: `--ci-fake-pro` lets the launch smoke test run the island
     /// without an account. It changes nothing on disk and nothing server-side.
-    static let ciFakePro = CommandLine.arguments.contains("--ci-fake-pro")
+    static let ciFakePro = CommandLine.arguments.contains("--ci-fake-pro") || CIFixture.enabled
 
     private init() {
         isPro = Self.ciFakePro || UserDefaults.standard.bool(forKey: Self.key)

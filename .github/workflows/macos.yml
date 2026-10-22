@@ -38,8 +38,9 @@ jobs:
         run: swift test
 
       # Regression guard for the "Update Constraints in Window" crash: every
-      # hosting view in apps/macos must publish no size into its window.
-      - name: Every hosting view has sizingOptions = []
+      # hosting view in apps/macos must publish no size into its window, and no
+      # SwiftUI scene (MenuBarExtra, Settings, WindowGroup) may exist.
+      - name: Every hosting view has sizingOptions = [] and no SwiftUI scene exists
         working-directory: apps/macos
         run: python3 scripts/check-hosting-views.py
 
@@ -202,18 +203,24 @@ jobs:
           set -u
           APP=build/Build/Products/Release/Needt.app
           mkdir -p out
-          "$APP/Contents/MacOS/Needt" > out/launch.log 2>&1 &
+          # Signed-in behaviour without an account: --ci-fixture-data feeds the
+          # menu-bar item and the island tasks and a focus run that change every
+          # 3 s, so the first-data-arrives path runs (the real-Mac crash).
+          "$APP/Contents/MacOS/Needt" --ci-fixture-data > out/launch.log 2>&1 &
           PID=$!
-          sleep 12
+          sleep 20
           screencapture -x out/needt-start-window.png || true
           if kill -0 "$PID" 2>/dev/null; then
-            echo "Needt is running after 12 s (pid $PID)"
+            echo "Needt is running after 20 s (pid $PID)"
             kill "$PID" || true
           else
             echo "Needt exited early"
             cat out/launch.log
             exit 1
           fi
+          STEPS=$(grep -c "^\[ci-fixture\] step" out/launch.log || true)
+          echo "fixture updates applied: $STEPS"
+          test "$STEPS" -ge 5
 
       # Draws every island v3 state once (ImageRenderer, fixture data, no
       # account, no window) so the result can be compared with the HTML lab
@@ -229,10 +236,11 @@ jobs:
           tail -n 20 out/island-render.log
           ls out/island | wc -l
 
-      # Soak: the island runs (fake Pro, no account) for minutes and must not
-      # crash. The Update Constraints loop and a launch-time permission prompt
+      # Soak: the app runs with fixture data (fake Pro, tasks and a focus run
+      # that change every 3 s, menu-bar item and island fed) for minutes and
+      # must not crash. The Update Constraints loop and a launch-time permission prompt
       # both showed up only on a real Mac, after a few seconds of running.
-      - name: Island soak (v3 for 3 min, classic notch for 90 s)
+      - name: Signed-in soak with fixture data (v3 for 3 min, classic notch for 90 s)
         working-directory: apps/macos
         run: |
           set -u
@@ -244,7 +252,7 @@ jobs:
           run_soak() {
             NAME="$1"; SECONDS_TOTAL="$2"
             echo "== $NAME for ${SECONDS_TOTAL}s"
-            "$APP/Contents/MacOS/Needt" --ci-fake-pro > "out/soak-$NAME.log" 2>&1 &
+            "$APP/Contents/MacOS/Needt" --ci-fake-pro --ci-fixture-data > "out/soak-$NAME.log" 2>&1 &
             PID=$!
             ELAPSED=0
             while [ "$ELAPSED" -lt "$SECONDS_TOTAL" ]; do
@@ -258,6 +266,13 @@ jobs:
             screencapture -x "out/soak-$NAME-end.png" || true
             kill "$PID" 2>/dev/null || true
             wait "$PID" 2>/dev/null || true
+            # The fixture changes menu-bar and island data every 3 s: the
+            # soak only means something if those updates really ran.
+            STEPS=$(grep -c "^\[ci-fixture\] step" "out/soak-$NAME.log" || true)
+            echo "$NAME: fixture updates applied: $STEPS"
+            if [ "$STEPS" -lt $((SECONDS_TOTAL / 3 - 5)) ]; then
+              echo "too few fixture updates ($NAME)"; return 1
+            fi
             return 0
           }
           STATUS=0

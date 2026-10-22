@@ -19,6 +19,10 @@ SETS = re.compile(r"sizingOptions\s*=\s*\[\s*\]")
 CTOR = re.compile(r"(?<![\w.])(NSHostingView|NSHostingController|FirstMouseHostingView)\s*(<[^>]*>)?\s*\(")
 SUBCLASS = re.compile(r"class\s+\w+(<[^>]*>)?\s*:\s*NSHosting(View|Controller)\b")
 SCENE = re.compile(r"NSHostingSceneRepresentation|NSHostingMenu")
+# A SwiftUI scene owns a window whose hosting view publishes its size (the
+# crash this guard exists for). The menu-bar item, Settings and every window
+# are AppKit; there is no SwiftUI App at all.
+SWIFTUI_SCENE = re.compile(r"(?<![\w.])(MenuBarExtra|WindowGroup|DocumentGroup|Window|UtilityWindow)\s*[({<]|(?<![\w.])Settings\s*\{|:\s*App\b|some\s+Scene\b")
 
 failed = []
 sources = [p for p in ROOT.rglob("*.swift") if "Generated" not in p.parts and "build" not in p.parts]
@@ -37,6 +41,8 @@ for path in sources:
         failed.append(f"{rel}: a hosting view subclass must set sizingOptions = [] in its init")
     for i, line in enumerate(lines):
         code = line.split("//")[0]
+        if SWIFTUI_SCENE.search(code):
+            failed.append(f"{rel}:{i + 1}: SwiftUI scene ({line.strip()}); use NSStatusItem / an AppKit window with makeHostingView")
         if SCENE.search(code):
             failed.append(f"{rel}:{i + 1}: audit this scene-hosted window by hand, then extend this check")
         if SUBCLASS.search(code):

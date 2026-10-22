@@ -78,6 +78,7 @@ final class IslandV3Feed {
 
     private func apply(_ state: TrayState) {
         var d = model.data
+        if CIFixture.enabled { tasks = CIFixture.tasks() }
         let title = state.focusTitle ?? (state.isFocusActive ? "Focus" : d.focusTitle)
         d.focusTitle = title
         d.focusShort = FocusSync.shortTitle(title, max: 16) ?? "Focus"
@@ -100,6 +101,7 @@ final class IslandV3Feed {
 
     /// The planned length of the running block, for the ring.
     private func lookUpSession() {
+        if CIFixture.enabled { return }
         if let last = lastSessionLookup, Date().timeIntervalSince(last) < 20 { return }
         lastSessionLookup = Date()
         Task { [weak self] in
@@ -122,6 +124,12 @@ final class IslandV3Feed {
         guard !refreshing else { return }
         refreshing = true
         defer { refreshing = false }
+        if CIFixture.enabled {
+            tasks = CIFixture.tasks()
+            recompute()
+            model.settleIfResting()
+            return
+        }
         do {
             let result = try await tray.api.tasksCached()
             tasks = result.value
@@ -191,6 +199,7 @@ final class IslandV3Feed {
     // MARK: settings
 
     func refreshPrefs() {
+        if CIFixture.enabled { return }
         Task { [weak self] in
             guard let self, let prefs = try? await self.tray.api.islandPrefs() else { return }
             self.model.prefs = prefs
