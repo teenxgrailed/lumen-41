@@ -75,6 +75,7 @@ export async function collectAccountExport(userId: string) {
       schedulingPreferences: true,
       focusPreferences: true,
       focusStats: true,
+      energyProfile: true,
       aiUsage: true,
       aiSettings: {
         select: {

@@ -179,6 +179,7 @@ model User {
   creemCursors           CreemSubscriptionCursor[]
   taskDependenciesOwned  TaskDependency[]          @relation("TaskDependencyOwner")
   focusPreferences       FocusPreferences?
+  energyProfile          EnergyProfile?
   taskReminders          TaskReminder[]
   proactiveNudges        ProactiveNudge[]
   pushSubscriptions      PushSubscription[]
@@ -1282,6 +1283,19 @@ model StarterGameState {
   neverShow   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+/// The chronotype a person picked ("lark", "neutral", "owl"). When they have
+/// set no energy hours of their own, the scheduler reads the energy of each
+/// hour from its curve (`src/lib/needt3/chronotype.ts`). Pro, behind the
+/// `energy_curve` flag; nothing else reads it.
+model EnergyProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chronotype String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model FocusStats {

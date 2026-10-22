@@ -117,3 +117,23 @@ describe("SlotScorer reads hours on the person's clock", () => {
     );
   });
 });
+
+describe("SlotScorer with a chronotype", () => {
+  const heavy = task({ energyRequired: "HIGH" });
+  const owl = (s: AutoScheduleSettings, hour: number) =>
+    new SlotScorer(s, new Map(), undefined, "owl").scoreSlot(
+      slotAt(hour),
+      heavy
+    ).factors.energyLevelMatch;
+
+  it("moves heavy work to the curve's peak", () => {
+    expect(owl(settings(), 17)).toBe(1);
+    expect(owl(settings(), 10)).toBe(0.5);
+  });
+
+  it("never overrides hours the person set", () => {
+    const own = settings({ highEnergyStart: 9, highEnergyEnd: 12 });
+    expect(owl(own, 10)).toBe(1);
+    expect(owl(own, 17)).toBe(0.5);
+  });
+});
