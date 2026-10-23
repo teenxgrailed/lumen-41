@@ -13,7 +13,9 @@ async function main() {
   const member = await prisma.workspaceMember.findFirst({
     where: { userId: user.id },
   });
-  const workspaceId = member?.workspaceId;
+  // Created by the first signed-in request; rows without it are invisible.
+  if (!member) throw new Error(`${email} has no workspace yet; sign in first`);
+  const workspaceId = member.workspaceId;
 
   // The app follows the system appearance (the workflow switches macOS
   // between light and dark); the one-time icon sheet would cover every shot.

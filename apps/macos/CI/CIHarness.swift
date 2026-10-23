@@ -22,6 +22,9 @@ import WebKit
 ///       link (AuthFlow.swift), which a runner cannot click through; CI signs
 ///       in through the web app's credentials endpoint instead and passes the
 ///       cookie it got.
+///   --ci-appearance dark|light
+///       NSApp.appearance, for when the runner's system appearance cannot be
+///       switched (the page follows it through prefers-color-scheme).
 ///
 /// Commands arrive as distributed notifications named `app.needt.mac.ci`
 /// whose object is one string (`needt-ci send <command>`):
@@ -72,6 +75,12 @@ enum CIHarness {
             return
         }
         log("base \(baseURL.absoluteString)")
+        // The app's appearance when the runner's system one cannot be switched.
+        switch value(after: "--ci-appearance") {
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        default: break
+        }
         listen()
         markSignedIn()
         guard let cookie = sessionCookie(host: baseURL.host ?? "") else {

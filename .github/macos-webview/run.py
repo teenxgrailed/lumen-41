@@ -9,7 +9,8 @@ session cookie CI got from the credentials endpoint, and takes commands from
 each window size it photographs the window with `screencapture -l` and
 measures the page from inside the WKWebView:
 
-  1-home  2-home-scrolled  3-ask  4-connections  5-settings
+  1-home (with the "Task overdue" tip)  2-home-scrolled  2b-tasks
+  2c-tasks-scrolled  3-ask  3b-ask-closed  4-connections  5-settings
 
 Every check prints one line to results.txt:
   PASS / FAIL  the harness itself or an assertion the workflow gates on
@@ -123,12 +124,37 @@ def scale_of(p, png):
         return 1.0
 
 
+def reset_nudges():
+    """The overdue nudge again undelivered: the corner speaks it once, 9 s
+    after the page mounts (TIP_FIRST_MS), then the GET marks it delivered."""
+    subprocess.run(
+        ["psql", "-h", "localhost", "-U", "needt", "-d", "needt_test", "-qc",
+         'update "ProactiveNudge" set "deliveredAt" = null, "readAt" = null'],
+        env={**os.environ, "PGPASSWORD": "needt"}, capture_output=True,
+    )
+
+
+def system_appearance(theme):
+    """Try the real system switch; the app also gets --ci-appearance."""
+    if theme == "dark":
+        subprocess.run(["defaults", "write", "-g", "AppleInterfaceStyle", "-string", "Dark"])
+    else:
+        subprocess.run(["defaults", "delete", "-g", "AppleInterfaceStyle"], capture_output=True)
+    r = subprocess.run(
+        ["osascript", "-e", 'tell application "System Events" to tell appearance preferences to set dark mode to '
+         + ("true" if theme == "dark" else "false")],
+        capture_output=True, text=True, timeout=30,
+    )
+    record(f"NOTE [{theme}] system appearance switch: {'ok' if r.returncode == 0 else r.stderr.strip()[:160]}")
+
+
 def launch(theme):
     subprocess.run(["pkill", "-x", "Needt"])
     time.sleep(2)
     log = open(os.path.join(LOGS, f"app-{theme}.log"), "a")
     proc = subprocess.Popen(
-        [os.path.join(APP, "Contents/MacOS/Needt"), "--ci-base-url", BASE, "--ci-session-cookie", "@" + COOKIE],
+        [os.path.join(APP, "Contents/MacOS/Needt"), "--ci-base-url", BASE, "--ci-session-cookie", "@" + COOKIE,
+         "--ci-appearance", theme],
         stdout=log,
         stderr=subprocess.STDOUT,
     )
@@ -144,16 +170,15 @@ def rect_inside(r, w, h):
 
 
 for theme in THEMES:
-    if theme == "dark":
-        subprocess.run(["defaults", "write", "-g", "AppleInterfaceStyle", "-string", "Dark"])
-    else:
-        subprocess.run(["defaults", "delete", "-g", "AppleInterfaceStyle"], capture_output=True)
+    system_appearance(theme)
     proc, wid = launch(theme)
     if not wid:
         continue
     for w, h in SIZES:
         tag = f"{theme}-{w}x{h}"
         send(f"size:{w}x{h}", 1.5)
+        reset_nudges()
+        loaded = time.time()
         send("load:/today", 3)
         home = ready(f"{tag}-1-home")
         hp = page(home)
@@ -161,8 +186,9 @@ for theme in THEMES:
             record(f"FAIL [{tag}] Home never showed its top bar and Ask pill (path {hp.get('path')}, session {hp.get('session')})")
             shot(wid, f"{tag}-1-home-not-ready")
             continue
-        # The entrance and the skies settle; the overdue nudge reaches the corner.
-        time.sleep(4)
+        # The entrance settles and the overdue nudge reaches the corner (9 s
+        # after mount, shown for 8 s).
+        time.sleep(max(2.0, 11.5 - (time.time() - loaded)))
         home = probe(f"{tag}-1-home")
         hp = page(home)
         wid = window_id() or wid
@@ -219,6 +245,26 @@ for theme in THEMES:
                + f" [{tag}] top bar {hf.get('topBar')} -> {sf.get('topBar')}, rail {hf.get('rail')} -> {sf.get('rail')}")
         record(("PASS" if moved else "NOTE") + f" [{tag}] the wheel {'scrolled a pane' if moved else 'scrolled no pane'}")
 
+        # Tasks: 31 rows, a pane that really scrolls.
+        send("load:/tasks", 3)
+        tasks = ready(f"{tag}-2b-tasks")
+        time.sleep(2)
+        tasks = probe(f"{tag}-2b-tasks")
+        tasks_png = shot(wid, f"{tag}-2b-tasks")
+        send("wheel:15", 2)
+        tasks_after = probe(f"{tag}-2c-tasks-scrolled")
+        tasks_after_png = shot(wid, f"{tag}-2c-tasks-scrolled")
+        if tasks_png and tasks_after_png:
+            check(f"{tag} top bar after wheel on Tasks", "frame", tasks_png, tasks_after_png, s, TOP_BAR)
+            check(f"{tag} tasks scrolled", "edge", tasks_after_png, s)
+        tp, tap = page(tasks), page(tasks_after)
+        moved = [(a, b) for a, b in zip(tp.get("scrollers") or [], tap.get("scrollers") or []) if a.get("top") != b.get("top")]
+        record(f"NOTE [{tag}] tasks scrollers before {tp.get('scrollers')} after {tap.get('scrollers')}")
+        taf = tap.get("frame") or {}
+        record(("PASS" if taf.get("doc") == 0 else "BUG") + f" [{tag}] Tasks: document scrollTop after wheel {taf.get('doc')} (chain {taf.get('chainScrollTop')})")
+        record(("PASS" if taf.get("topBar") == (tp.get("frame") or {}).get("topBar") else "BUG") + f" [{tag}] Tasks: top bar {(tp.get('frame') or {}).get('topBar')} -> {taf.get('topBar')}")
+        record(("PASS" if moved else "NOTE") + f" [{tag}] Tasks: the wheel {'scrolled ' + moved[0][0]['el'] if moved else 'scrolled no pane'}")
+
         # Ask Needt (Command-J).
         send("load:/today", 3)
         ready(f"{tag}-3-ask-before")
@@ -230,7 +276,12 @@ for theme in THEMES:
         record(("PASS" if ap.get("chatPanel") else "BUG") + f" [{tag}] Command-J opened the Ask panel: {ap.get('chatPanel')}")
         if ask_png and ap.get("chatPanel"):
             check(f"{tag} Ask panel painted", "region", ask_png, s, *ap["chatPanel"], gate=False)
-        send("key:escape", 1)
+        send("key:escape", 1.5)
+        closed = probe(f"{tag}-3b-ask-closed")
+        shot(wid, f"{tag}-3b-ask-closed")
+        cl = page(closed)
+        record(("PASS" if not cl.get("ghosts") and not cl.get("chatPanel") else "BUG")
+               + f" [{tag}] after Escape: panel {cl.get('chatPanel')} ghosts {cl.get('ghosts')} corner {(cl.get('corner') or {}).get('visible')}")
 
         # Connections.
         send("load:/connections", 3)
