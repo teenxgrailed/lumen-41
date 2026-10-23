@@ -193,10 +193,10 @@ struct StyledCheck<Mark: View>: View {
 
     private var label: some View {
         HStack(spacing: 6) {
-            Text(title).font(font).foregroundStyle(color).strikethrough(strike && done).lineLimit(1).titleSensitive(c.showTitles)
+            Text(title).font(font).foregroundStyle(color).strikethrough(strike && done).lineLimit(1).minimumScaleFactor(0.9).titleSensitive(c.showTitles)
             if let trailing {
                 Spacer(minLength: 4)
-                Text(trailing).font(c.fonts.t12()).monospacedDigit().foregroundStyle(trailingColor ?? color.opacity(0.6)).lineLimit(1)
+                Text(trailing).font(c.fonts.t12()).monospacedDigit().foregroundStyle(trailingColor ?? color.opacity(0.6)).lineLimit(1).fixedSize()
             }
         }
     }
