@@ -88,7 +88,7 @@ function Sky({ d, dark }: { d: PreviewDay; dark: boolean }) {
         </div>
         <span className="t12 a2">{d.done} done</span>
       </div>
-      <div className="glass sky-list">
+      <div className="wp-glass sky-list">
         {rows.map((t, i) => (
           <div className="rowf" key={i}>
             <span className={`ck ${t.done ? "on" : ""}`} />
@@ -494,7 +494,7 @@ function Mist({ d }: { d: PreviewDay }) {
         <div className="rowf" style={{ gap: 12 }}>
           <span className="mring">
             <svg
-              className="ring"
+              className="wp-ring"
               width={s}
               height={s}
               viewBox={`0 0 ${s} ${s}`}

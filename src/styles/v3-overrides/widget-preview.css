@@ -232,7 +232,7 @@
     0 0 0 4px rgba(255, 255, 255, 0.12),
     0 0 26px 8px rgba(255, 255, 255, 0.5);
 }
-.needt-v3 .wpv .sky .glass {
+.needt-v3 .wpv .sky .wp-glass {
   background: rgba(255, 255, 255, 0.28);
   -webkit-backdrop-filter: blur(14px) saturate(1.5);
   backdrop-filter: blur(14px) saturate(1.5);
@@ -243,7 +243,7 @@
     0 6px 14px -8px rgba(10, 20, 60, 0.28);
   border-radius: 20px;
 }
-.needt-v3 .wpv .sky.night .glass {
+.needt-v3 .wpv .sky.night .wp-glass {
   background: rgba(255, 255, 255, 0.12);
   box-shadow:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.3),
@@ -616,7 +616,7 @@
   display: grid;
   place-items: center;
 }
-.needt-v3 .wpv .mring .ring {
+.needt-v3 .wpv .mring .wp-ring {
   position: absolute;
   inset: 0;
 }
