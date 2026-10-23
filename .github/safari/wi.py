@@ -105,7 +105,7 @@ class WI:
 
     def pages(self):
         ready = [a for a, v in self.apps.items()
-                 if v.get("WIRIsApplicationReadyKey", True) and not str(v.get("WIRApplicationBundleIdentifierKey", "")).startswith("process-")]
+                 if not str(v.get("WIRApplicationBundleIdentifierKey", "")).startswith("process-")]
         for app_id in ready:
             self.send("_rpc_forwardGetListing:", {"WIRConnectionIdentifierKey": self.conn,
                                                    "WIRApplicationIdentifierKey": app_id})

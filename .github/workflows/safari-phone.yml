@@ -37,7 +37,7 @@ env:
 jobs:
   safari:
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 110
     permissions:
       contents: read
     steps:
@@ -97,7 +97,7 @@ jobs:
           # fb-idb predates the newest asyncio changes; give it Python 3.12
           brew install python@3.12
           "$(brew --prefix python@3.12)/bin/python3.12" -m venv "$HOME/idbenv"
-          "$HOME/idbenv/bin/pip" install fb-idb
+          "$HOME/idbenv/bin/pip" install fb-idb pillow
           echo "$HOME/idbenv/bin" >> "$GITHUB_PATH"
           "$HOME/idbenv/bin/idb" --help | head -3
 
@@ -242,6 +242,29 @@ jobs:
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
 
+      # The installed app (Add to Home Screen, standalone). The owner's bands,
+      # the Safari controls after leaving Home and the top band show there, not
+      # in a tab: in a tab `top: 0` sits 62 px under the status bar.
+      - name: Install the app to the Home Screen
+        timeout-minutes: 15
+        run: python3 .github/safari/standalone.py install
+        continue-on-error: true
+
+      - name: Sign in inside the installed app
+        timeout-minutes: 20
+        run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
+        continue-on-error: true
+
+      - name: Installed app, scenarios light and dark
+        timeout-minutes: 30
+        run: python3 .github/safari/standalone.py scenarios
+        continue-on-error: true
+
+      - name: Installed app, Home > Tasks > a doc > Settings > back
+        timeout-minutes: 15
+        run: python3 .github/safari/standalone.py nav
+        continue-on-error: true
+
       - name: Keep the server log
         if: always()
         run: cp "$RUNNER_TEMP/next.log" next.log || true
@@ -259,3 +282,17 @@ jobs:
       - name: Server log
         if: always()
         run: tail -n 60 "$RUNNER_TEMP/next.log" || true
+
+      # Last, so every shot is uploaded first: an edge band or Safari's chrome
+      # in the installed app fails the run, with what was measured.
+      - name: Installed app verdict
+        if: always()
+        run: |
+          cat shots/standalone-report.txt 2>/dev/null || true
+          if [ ! -s debug/standalone-method.txt ] || [ "$(head -1 debug/standalone-method.txt)" = "None" ]; then
+            echo "::error::The app could not be installed to the Home Screen"; exit 1
+          fi
+          if [ -s debug/standalone-problems.txt ]; then
+            while read -r l; do echo "::error::$l"; done < debug/standalone-problems.txt
+            exit 1
+          fi

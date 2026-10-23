@@ -114,6 +114,14 @@ def add_to_home_screen(w, h):
             time.sleep(6)
             save_debug("a2hs-added", describe())
             return True
+        labels = {label(x) for x in els}
+        if "dismiss popup" in labels and tapped.get("tip", 0) < 3:
+            # a Safari tip bubble ("View Bookmarks, Share Menu...") swallows taps
+            tapped["tip"] = tapped.get("tip", 0) + 1
+            x = exact("close") or next(x for x in els if label(x) == "dismiss popup")
+            tap(*centre(x))
+            time.sleep(3)
+            continue
         e = (exact("add to home screen") or exact("share") or
              exact("more", "page menu", "more options", "show more", "view more", "tab options"))
         if e:

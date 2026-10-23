@@ -198,12 +198,26 @@ def install():
 
 
 def signin(email, password):
+    for attempt in range(1, 4):
+        v = js("return location.pathname") or ""
+        log(f"signin attempt {attempt}: the installed app is at {v!r}")
+        if v and not v.startswith("/auth"):
+            log("signin: signed in" + (" (Safari's session came along)" if attempt == 1 else ""))
+            return
+        signin_once(email, password)
+        time.sleep(25)
     v = js("return location.pathname") or ""
-    log(f"signin: the installed app opened at {v!r}")
-    if v and not v.startswith("/auth"):
-        return  # Safari's session came along
-    if not v:
-        js(f"location.assign('{HOST}/auth/signin'); return 1")
+    ok = v and not v.startswith("/auth")
+    log(f"signin: {'signed in' if ok else 'NOT signed in'}, at {v!r}")
+    if not ok:
+        print("::error::Could not sign in inside the installed app", flush=True)
+        sys.exit(1)
+
+
+def signin_once(email, password):
+    if not (js("return location.pathname") or "").startswith("/auth/signin"):
+        js("location.assign('/auth/signin'); return 1")
+        time.sleep(8)
     painted_form = False
     for _ in range(20):
         if rect(['input[type="email"]', 'input[name="email"]']):
