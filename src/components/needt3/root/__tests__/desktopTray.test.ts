@@ -141,6 +141,17 @@ describe("trayState", () => {
     });
   });
 
+  it("sends overdue 0 when the Dock badge is off", () => {
+    const state = trayState({
+      tasks: [task("late", { dueDate: "2026-10-19" })],
+      today: TODAY,
+      nowHour: 9,
+      focus: null,
+      dockBadge: false,
+    });
+    expect(state?.overdue).toBe(0);
+  });
+
   it("counts only the overdue ones for the Dock badge", () => {
     const state = trayState({
       tasks: [

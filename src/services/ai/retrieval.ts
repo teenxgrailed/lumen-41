@@ -2,6 +2,7 @@ import {
   getMoodboard,
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
+import { withoutPrivateTrees } from "@/services/pages/ai-page-access";
 import { pageActorScope } from "@/services/pages/page-model";
 import { getPage, listPages } from "@/services/pages/page-service";
 import { Prisma, WorkspaceKind } from "@prisma/client";
@@ -23,6 +24,11 @@ import { prisma } from "@/lib/prisma";
  * mail by the person. Mail is metadata only (sender, subject, date, the
  * provider's snippet): bodies are read by the existing `get_message` tool, and
  * mail is never written.
+ *
+ * The caller here is always the AI agent, so pages are read as an AI actor:
+ * a page in a private tree is never searched, listed or fetched, whoever owns
+ * it (the same rule the Pages screen applies before sending a page to a
+ * provider).
  */
 
 export const RETRIEVAL_TYPES = [
@@ -93,11 +99,13 @@ async function searchPageBodies(
   query: string,
   take: number
 ): Promise<Array<{ pageId: string; text: string }>> {
-  const pages = await prisma.page.findMany({
+  const scanned = await prisma.page.findMany({
     where: { ...pageActorScope(actor), trashedAt: null },
     select: { id: true },
     take: PAGE_SCAN_LIMIT,
   });
+  // Private trees are dropped before their text is ever queried.
+  const pages = await withoutPrivateTrees(scanned);
   if (!pages.length) return [];
   const like = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   return prisma.$queryRaw<Array<{ pageId: string; text: string }>>(Prisma.sql`
@@ -125,7 +133,7 @@ export async function searchData(input: {
   const scope = workspaceDataScopeWhere(workspace, userId);
   const contains = { contains: q, mode: "insensitive" as const };
   const personal = workspace.workspaceKind === WorkspaceKind.PERSONAL;
-  const actor = { userId, workspace };
+  const actor = { userId, workspace, ai: true };
 
   const [
     tasks,
@@ -471,7 +479,9 @@ export async function fetchObject(input: {
       });
     }
     case "page": {
-      const page = await getPage({ userId, workspace }, id);
+      // null for a missing page, one the person cannot open, and one in a
+      // private tree: the agent cannot tell these apart.
+      const page = await getPage({ userId, workspace, ai: true }, id);
       if (!page) return null;
       const text = page.blocks
         .map((block) => blockText(block.content))
