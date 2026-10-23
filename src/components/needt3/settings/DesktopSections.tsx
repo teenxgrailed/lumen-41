@@ -16,6 +16,11 @@ import { SortableItem, SortableList } from "../sortable/Sortable";
 import { useSortableList } from "../sortable/useSortableList";
 import { IslandPlay } from "./IslandPlay";
 import { usePrefs } from "./PrefSections";
+import {
+  WidgetPreview,
+  type WidgetStyleKey,
+  useWidgetPreviewDay,
+} from "./WidgetPreview";
 import { DESKTOP_PREF_DEFAULTS, type PrefKey } from "./derive";
 import { Kbd, ProPill, SBtn, SGroup, SRow, SSelect, V3Switch } from "./kit";
 
@@ -731,6 +736,8 @@ export function WidgetsSection() {
   const p = usePrefs();
   const free = !useIsPro();
   const style = p.get("widgetStyle");
+  const day = useWidgetPreviewDay();
+  const picked = STYLES.find(([k]) => k === style) ?? STYLES[STYLES.length - 1];
   return (
     <Gate>
       <SGroup
@@ -760,6 +767,25 @@ export function WidgetsSection() {
               </button>
             ))}
           </div>
+        </div>
+      </SGroup>
+      <SGroup
+        title="Preview"
+        hint={
+          day.real
+            ? "Today's medium widget with your next tasks."
+            : "Today's medium widget. Your next tasks appear here once you plan some."
+        }
+      >
+        <div
+          className="settings-srow-row"
+          style={{ display: "block", padding: "14px 12px" }}
+        >
+          <WidgetPreview
+            style={picked[0] as WidgetStyleKey}
+            name={picked[1]}
+            day={day}
+          />
         </div>
       </SGroup>
       <SGroup title="Content">

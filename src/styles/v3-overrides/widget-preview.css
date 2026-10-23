@@ -1,0 +1,745 @@
+/* Settings -> Desktop -> Widgets: the live preview of the Today medium widget
+ * (WidgetPreview.tsx). HAND-WRITTEN, not vendored. The widget rules are ported
+ * from additions-2/widgets/wg.css (the frozen lab), only the parts the Today
+ * medium of the eight styles uses, scoped under .wpv. Sizes in pt, 1 pt = 1 px:
+ * medium 338 x 158. The lab's per-style fonts (Doto, Bricolage Grotesque,
+ * Sometype Mono, Unbounded, Fraunces, Urbanist, Exposure) are not shipped, so
+ * their stacks fall back to the system fonts. Sky deviates from the lab in two
+ * places (lab A2 puts the sun on the "left" label and cuts the task titles):
+ * the arc sits lower and the glass is 14 pt wider.
+ */
+.needt-v3 .wpv {
+  --wp-font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui,
+    sans-serif;
+  --wp-display: "Exposure", Georgia, serif;
+  --wp-acc: #6a5cff;
+  --wp-sh-w:
+    0 0 0 0.5px rgba(16, 14, 40, 0.08), 0 1px 1.5px rgba(16, 14, 40, 0.08),
+    0 3px 6px -2px rgba(16, 14, 40, 0.08),
+    0 14px 28px -10px rgba(16, 14, 40, 0.16);
+  --wp-rim:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.22),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.06);
+  --wp-lift:
+    0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.12),
+    0 4px 10px -4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 24px;
+  align-items: flex-start;
+}
+.needt-v3 .wpv-dk {
+  --wp-sh-w:
+    0 0 0 0.5px rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 18px -6px rgba(0, 0, 0, 0.45);
+  --wp-rim:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+}
+.needt-v3 .wpv-cell {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+.needt-v3 .wpv-cell figcaption {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .wpv-stage {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 2px;
+}
+
+/* ── widget frame ── */
+.needt-v3 .wpv .w {
+  position: relative;
+  width: 338px;
+  height: 158px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--wp-sh-w);
+  isolation: isolate;
+  font: 13px/1.25 var(--wp-font);
+  flex: none;
+  box-sizing: border-box;
+}
+.needt-v3 .wpv .w *,
+.needt-v3 .wpv .w *::before,
+.needt-v3 .wpv .w *::after {
+  box-sizing: border-box;
+}
+.needt-v3 .wpv .w::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 9;
+  box-shadow: var(--wp-rim);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0) 32%
+  );
+}
+.needt-v3 .wpv .pad {
+  position: absolute;
+  inset: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .wpv .t12 {
+  font-size: 12px;
+}
+.needt-v3 .wpv .t13 {
+  font-size: 13px;
+}
+.needt-v3 .wpv .b {
+  font-weight: 600;
+}
+.needt-v3 .wpv .grow {
+  flex: 1;
+}
+.needt-v3 .wpv .rowf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .wpv .between {
+  justify-content: space-between;
+}
+.needt-v3 .wpv .ell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.needt-v3 .wpv .num {
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .wpv .ck {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  opacity: 0.7;
+  display: grid;
+  place-items: center;
+}
+.needt-v3 .wpv .ck.on {
+  opacity: 1;
+  background: currentColor;
+}
+.needt-v3 .wpv .ck.on::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border: 2px solid var(--fill, #fff);
+  border-top: 0;
+  border-right: 0;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+/* ── A · SKY ── */
+.needt-v3 .wpv .sky {
+  --ink: #10213f;
+  color: var(--ink);
+}
+.needt-v3 .wpv .sky.day {
+  background: linear-gradient(180deg, #5ea9f6 0%, #8cc4fb 55%, #cfe6ff 100%);
+}
+.needt-v3 .wpv .sky.night {
+  background: radial-gradient(120% 90% at 30% 0%, #23214a 0%, #0b0b18 60%);
+  --ink: #fff;
+}
+.needt-v3 .wpv .sky .a2 {
+  opacity: 0.72;
+}
+.needt-v3 .wpv .sky .a3 {
+  opacity: 0.5;
+}
+.needt-v3 .wpv .sky .clouds {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      60px 16px at 22% 30%,
+      rgba(255, 255, 255, 0.55),
+      transparent 70%
+    ),
+    radial-gradient(
+      90px 20px at 78% 22%,
+      rgba(255, 255, 255, 0.4),
+      transparent 70%
+    ),
+    radial-gradient(
+      130px 30px at 60% 108%,
+      rgba(255, 255, 255, 0.7),
+      transparent 70%
+    );
+}
+.needt-v3 .wpv .sky.night .clouds {
+  background:
+    radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 70% 20%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 45% 12%, #fff, transparent),
+    radial-gradient(1px 1px at 85% 45%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 12% 60%, rgba(255, 255, 255, 0.6), transparent);
+}
+.needt-v3 .wpv .sky-arcbox {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 150px;
+  overflow: hidden;
+}
+.needt-v3 .wpv .arc {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 7px solid rgba(255, 255, 255, 0.45);
+  box-shadow:
+    0 0 22px rgba(255, 255, 255, 0.35),
+    inset 0 0 18px rgba(255, 255, 255, 0.2),
+    0 0 16px rgba(255, 255, 255, 0.28);
+}
+.needt-v3 .wpv .sky.night .arc {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.08);
+}
+.needt-v3 .wpv .sun {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff9d6, #ffd23a 55%, #ffb000);
+  box-shadow:
+    0 0 0 4px rgba(255, 214, 70, 0.28),
+    0 0 24px 6px rgba(255, 200, 60, 0.7);
+}
+.needt-v3 .wpv .sun.moon {
+  background: radial-gradient(circle at 40% 35%, #fff, #dcdcf0 60%, #a9a9c8);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.12),
+    0 0 26px 8px rgba(255, 255, 255, 0.5);
+}
+.needt-v3 .wpv .sky .glass {
+  background: rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.75),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(10, 20, 60, 0.1),
+    0 6px 14px -8px rgba(10, 20, 60, 0.28);
+  border-radius: 20px;
+}
+.needt-v3 .wpv .sky.night .glass {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 6px 14px -8px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .wpv .sky-list {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 190px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.needt-v3 .wpv .sky.day .ck.on {
+  --fill: #9cc8f8;
+}
+.needt-v3 .wpv .sky .ck {
+  opacity: 0.8;
+}
+.needt-v3 .wpv .sky .ck.on {
+  opacity: 1;
+}
+.needt-v3 .wpv .sky .big {
+  font:
+    700 40px/1 ui-rounded,
+    "SF Pro Rounded",
+    "Nunito",
+    -apple-system,
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* ── B · PIXEL ── */
+.needt-v3 .wpv .px {
+  --base: #15141f;
+  --cell: rgba(255, 255, 255, 0.07);
+  --ink: #f3f1ff;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--base) 88%, #fff) 0%,
+    var(--base) 42%
+  );
+  color: var(--ink);
+}
+.needt-v3 .wpv .px.lt {
+  --base: #f2f0e8;
+  --cell: rgba(20, 18, 40, 0.07);
+  --ink: #17162b;
+  background: linear-gradient(180deg, #fbfaf6, #f0eee6);
+}
+.needt-v3 .wpv .px .a2 {
+  opacity: 0.6;
+}
+.needt-v3 .wpv .grid {
+  display: grid;
+  gap: 3px;
+}
+.needt-v3 .wpv .grid i {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--cell);
+  display: block;
+  box-shadow: inset 0 0.5px 0 rgba(0, 0, 0, 0.25);
+}
+.needt-v3 .wpv .px.lt .grid i {
+  box-shadow: inset 0 0.5px 1px rgba(0, 0, 0, 0.08);
+}
+.needt-v3 .wpv .grid i.f1 {
+  background: color-mix(in srgb, var(--c) 45%, transparent);
+}
+.needt-v3 .wpv .grid i.f2 {
+  background: color-mix(in srgb, var(--c) 75%, transparent);
+}
+.needt-v3 .wpv .grid i.f3 {
+  background: var(--c);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.2),
+    0 0 6px -1px color-mix(in srgb, var(--c) 70%, transparent);
+}
+.needt-v3 .wpv .grid i.f1,
+.needt-v3 .wpv .grid i.f2 {
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -0.5px 0 rgba(0, 0, 0, 0.18);
+}
+.needt-v3 .wpv .grid i.now {
+  box-shadow: 0 0 0 1.5px var(--ink);
+  background: transparent;
+}
+.needt-v3 .wpv .mascot {
+  display: block;
+  image-rendering: pixelated;
+  flex: none;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.22))
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18));
+}
+
+/* ── C · BENTO ── */
+.needt-v3 .wpv .bn {
+  color: #17162b;
+}
+.needt-v3 .wpv .bn.dkbg {
+  color: #f3f1ff;
+}
+.needt-v3 .wpv .bn .k {
+  font: 800 12px/1 var(--wp-font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.needt-v3 .wpv .bn .huge {
+  font: 400 64px/0.9 var(--wp-display);
+  letter-spacing: -0.04em;
+}
+.needt-v3 .wpv .bn .tile {
+  position: absolute;
+  border-radius: 18px;
+}
+.needt-v3 .wpv .bn .tile.bt {
+  box-shadow:
+    var(--wp-lift),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ── D · INK ── */
+.needt-v3 .wpv .ink {
+  --ink: #17162b;
+  --bg: #fbfbfd;
+  background: var(--bg);
+  color: var(--ink);
+}
+.needt-v3 .wpv .ink.dk {
+  --ink: #f3f1ff;
+  --bg: #1a1926;
+}
+.needt-v3 .wpv .ink .a2 {
+  color: color-mix(in srgb, var(--ink) 58%, transparent);
+}
+.needt-v3 .wpv .ink .a3 {
+  color: color-mix(in srgb, var(--ink) 38%, transparent);
+}
+.needt-v3 .wpv .ink .card {
+  position: absolute;
+  border-radius: 16px;
+  background: var(--bg);
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 1px 2px rgba(16, 14, 40, 0.08),
+    0 6px 14px -8px rgba(16, 14, 40, 0.2),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.8);
+}
+.needt-v3 .wpv .ink.dk .card {
+  background: #24232f;
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 6px 14px -8px rgba(0, 0, 0, 0.6);
+}
+.needt-v3 .wpv .ink .ckb {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  flex: none;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.needt-v3 .wpv .ink .ckb.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  position: relative;
+}
+.needt-v3 .wpv .ink .ckb.on::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 4px;
+  height: 7px;
+  border: 2px solid var(--bg);
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+
+/* ── E · LUCKY CAT ── */
+.needt-v3 .wpv .lcat {
+  position: absolute;
+  bottom: -4px;
+  aspect-ratio: 195 / 300;
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35))
+    drop-shadow(0 10px 14px rgba(60, 20, 0, 0.3));
+}
+.needt-v3 .wpv .lcat img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.needt-v3 .wpv .lcat .arm {
+  transform-origin: 85.7% 60.9%;
+}
+.needt-v3 .wpv .ckb2 {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 0 0 1.6px var(--c);
+}
+.needt-v3 .wpv .ctask {
+  width: 100%;
+}
+
+/* ── F · NOIR ── */
+.needt-v3 .wpv .nr {
+  background: linear-gradient(180deg, #1e1d1c, #121212);
+  color: #f3ece4;
+  font-family: "Bricolage Grotesque", "Figtree", var(--wp-font);
+}
+.needt-v3 .wpv .nr-h {
+  font:
+    700 25px/1 "Bricolage Grotesque",
+    var(--wp-font);
+  letter-spacing: -0.035em;
+}
+.needt-v3 .wpv .nr-h sup {
+  font-size: 11px;
+  margin-left: 3px;
+  vertical-align: top;
+  opacity: 0.7;
+}
+.needt-v3 .wpv .nr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
+.needt-v3 .wpv .nr-row.on {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+.needt-v3 .wpv .nr-row b {
+  font:
+    600 13px "Bricolage Grotesque",
+    var(--wp-font);
+  letter-spacing: -0.01em;
+}
+.needt-v3 .wpv .nr-row small {
+  display: block;
+  font-size: 12px;
+  opacity: 0.5;
+}
+.needt-v3 .wpv .nr-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.needt-v3 .wpv .nr-ck {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex: none;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+.needt-v3 .wpv .nr-row.on .nr-ck {
+  background: #e9d46c;
+  box-shadow: 0 0 8px rgba(233, 212, 108, 0.45);
+  position: relative;
+}
+.needt-v3 .wpv .nr-row.on .nr-ck::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 3px;
+  width: 4px;
+  height: 7px;
+  border: 1.8px solid #2a2510;
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+.needt-v3 .wpv .nr-tile {
+  border-radius: 18px;
+  background: linear-gradient(160deg, #6a5652, #4d3f3c);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.18),
+    0 6px 14px -8px rgba(0, 0, 0, 0.8);
+}
+.needt-v3 .wpv .nr-num {
+  font:
+    900 34px/1 "Doto",
+    "Figtree",
+    monospace;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .wpv .nr-cap {
+  font:
+    500 10.5px/1.3 "Sometype Mono",
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.06em;
+  color: rgba(243, 236, 228, 0.55);
+}
+.needt-v3 .wpv .dm {
+  display: grid;
+  gap: 5px;
+}
+.needt-v3 .wpv .dm i {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #0d0c0c;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.needt-v3 .wpv .dm i.d {
+  background: rgba(0, 0, 0, 0.25);
+}
+.needt-v3 .wpv .dm i.y {
+  background: #e9d46c;
+  box-shadow: 0 0 6px rgba(233, 212, 108, 0.5);
+}
+
+/* ── G · MIST ── */
+.needt-v3 .wpv .ms {
+  color: #fff;
+  font-family: "Unbounded", "Urbanist", var(--wp-font);
+  background: #6b6f76;
+}
+.needt-v3 .wpv .mist {
+  position: absolute;
+  inset: -30%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 40% at 25% 30%, var(--m1), transparent 70%),
+    radial-gradient(45% 45% at 75% 70%, var(--m2), transparent 70%),
+    radial-gradient(60% 60% at 60% 20%, var(--m3), transparent 70%), var(--m3);
+  filter: blur(18px) saturate(1.1);
+}
+.needt-v3 .wpv .ms::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0) 40%
+  );
+  pointer-events: none;
+}
+.needt-v3 .wpv .ms .pad {
+  z-index: 1;
+}
+.needt-v3 .wpv .mring {
+  position: relative;
+  width: 35px;
+  height: 35px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.needt-v3 .wpv .mring .ring {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .wpv .mring > span {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.4);
+}
+.needt-v3 .wpv .mtit {
+  font:
+    italic 500 16px/1.1 "Fraunces",
+    Georgia,
+    serif;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.15);
+}
+.needt-v3 .wpv .mlab {
+  font:
+    500 10.5px "Unbounded",
+    var(--wp-font);
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.65);
+}
+.needt-v3 .wpv .mnum {
+  font:
+    700 32px/1 "Unbounded",
+    var(--wp-font);
+  letter-spacing: -0.04em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+.needt-v3 .wpv .mnum small {
+  font:
+    italic 500 13px "Fraunces",
+    Georgia,
+    serif;
+  margin-left: 4px;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── H · RIM ── */
+.needt-v3 .wpv .hr {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.6)
+  );
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+.needt-v3 .wpv-dk .hr {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.14)
+  );
+}
+.needt-v3 .wpv .hin {
+  position: absolute;
+  inset: 7px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.15),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.needt-v3 .wpv .grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='1.1' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+}
+.needt-v3 .wpv .hin .pad {
+  z-index: 1;
+}
+.needt-v3 .wpv .hbig {
+  font: 400 46px/1 var(--wp-display);
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .wpv .hcopy {
+  display: inline-block;
+  max-width: 100%;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 14px;
+  border-radius: 15px;
+  color: #222;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fbfbfb, #e2e2e2);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 4px rgba(255, 255, 255, 0.22),
+    0 0 0 4.5px rgba(255, 255, 255, 0.4),
+    0 8px 16px -6px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .wpv .hchip {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  background: linear-gradient(160deg, #a6c98f, #6f9a57);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.55),
+    0 0 0 4.5px rgba(255, 255, 255, 0.75),
+    0 10px 18px -6px rgba(0, 0, 0, 0.45);
+  transform: rotate(6deg);
+}
