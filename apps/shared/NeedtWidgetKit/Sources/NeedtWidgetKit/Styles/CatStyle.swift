@@ -252,7 +252,7 @@ struct CatToday: View {
                     .frame(width: 120, height: size.height)
                     .offset(x: size.width - 120)
                 LuckyCat(height: 138, angle: CatPaw.angle(at: c.now, running: true))
-                    .frame(width: size.width, height: size.height, alignment: .bottomTrailing).padding(.trailing, 12).offset(y: 4)
+                    .frame(width: size.width, height: size.height, alignment: .bottomTrailing).offset(x: -12, y: 4)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         Text("TODAY").font(.system(size: 12, weight: .heavy)).tracking(0.5)

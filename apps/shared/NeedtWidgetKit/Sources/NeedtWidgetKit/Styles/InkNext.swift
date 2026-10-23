@@ -138,14 +138,17 @@ struct InkNext: View {
                     ForEach(Array(items.enumerated()), id: \.element.id) { i, e in
                         let x0 = frac(e.start) * geo.size.width
                         let w = max(52, (frac(e.end) - frac(e.start)) * geo.size.width)
-                        Text(e.title).font(c.fonts.t12(.semibold)).foregroundStyle(c.palette.ink).lineLimit(1).titleSensitive(c.showTitles)
+                        // A block never cuts its title: it is at least as wide as its hour and as wide as its text;
+                        // the later one sits on the right edge so it cannot run off the strip.
+                        Text(e.title).font(c.fonts.t12(.semibold)).foregroundStyle(c.palette.ink).lineLimit(1).fixedSize().titleSensitive(c.showTitles)
                             .padding(.horizontal, 10)
-                            .frame(width: min(w, geo.size.width - x0), alignment: .leading)
+                            .frame(minWidth: w, alignment: .leading)
                             .frame(maxHeight: .infinity)
                             .inkCard(radius: 10)
                             .overlay(alignment: .topLeading) { if i == 0 { InkMark().offset(x: -6, y: -6) } }
                             .padding(.vertical, 10)
-                            .offset(x: x0)
+                            .offset(x: i == 0 ? x0 : 0)
+                            .frame(maxWidth: .infinity, alignment: i == 0 ? .leading : .trailing)
                     }
                     Capsule().fill(c.palette.accent).frame(width: 2).padding(.vertical, 4)
                         .offset(x: frac(c.now) * geo.size.width)
