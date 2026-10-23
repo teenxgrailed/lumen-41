@@ -5,7 +5,7 @@
  */
 import type { V3Connection } from "@/lib/needt3/hooks/connections";
 
-import { SECTION_TITLES } from "../../../settings/derive";
+import { SECTION_TITLES, isDesktopSection } from "../../../settings/derive";
 import {
   PILL_PLACES,
   PILL_SIZE,
@@ -78,10 +78,14 @@ describe("the list", () => {
   it("reaches every desktop section once, plus the pill and Connections", () => {
     const rows = PS_LIST.flatMap((g) => g.rows);
     expect(new Set(rows).size).toBe(rows.length);
-    for (const id of Object.keys(SECTION_TITLES)) expect(rows).toContain(id);
+    // the Desktop group (island, widgets, ...) is the Mac app's, not the phone's
+    const phone = Object.keys(SECTION_TITLES).filter(
+      (id) => !isDesktopSection(id as keyof typeof SECTION_TITLES)
+    );
+    for (const id of phone) expect(rows).toContain(id);
     expect(rows).toContain("menu");
     expect(rows).toContain("connections");
-    expect(rows).toHaveLength(Object.keys(SECTION_TITLES).length + 2);
+    expect(rows).toHaveLength(phone.length + 2);
   });
   it("names the pages as the desktop does", () => {
     for (const [id, title] of Object.entries(SECTION_TITLES))

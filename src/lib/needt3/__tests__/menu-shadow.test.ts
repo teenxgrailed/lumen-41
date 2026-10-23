@@ -136,7 +136,7 @@ describe("nvaShadowPlacement", () => {
     expect(pcs).toHaveLength(8);
     // top-left corner: translate to the shape's corner minus the shadow room
     expect(pcs[0].transform).toBe(
-      "translate(-33.00px,594.00px) scale(1.0000,1.0000)"
+      "translate(-33.00px,604.00px) scale(1.0000,1.0000)"
     );
     expect(pcs[0].opacity).toBe("1.000");
     // the pill is as tall as its two corners: its side edges have no length

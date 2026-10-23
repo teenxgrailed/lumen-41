@@ -23,7 +23,8 @@ class BluetoothAudioManager: ObservableObject {
     private let coordinator = DynamicIslandViewCoordinator.shared
     private var pollingTimer: Timer?
     private let bluetoothPreferencesSuite = "/Library/Preferences/com.apple.Bluetooth"
-    private let batteryReader = BluetoothLEBatteryReader()
+    // Lazy: creating the CoreBluetooth manager is what raises the Bluetooth prompt.
+    private lazy var batteryReader = BluetoothLEBatteryReader()
     private var isLiveBatteryRefreshInFlight = false
 
     private let appleVendorID: UInt16 = 0x05AC

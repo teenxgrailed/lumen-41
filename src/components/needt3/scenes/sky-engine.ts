@@ -176,8 +176,18 @@ export function startSky(
   dotCanvas: HTMLCanvasElement,
   opt: SkyOptions
 ): SkyEngine {
-  const ctx = canvas.getContext("2d", { alpha: false });
-  const dctx = dotCanvas.getContext("2d");
+  /* The native Mac app (WKWebView): both canvases are only ever written with
+     putImageData, so a CPU-backed canvas costs nothing and keeps the pixels
+     out of the GPU process, which painted the sky on part of its box and let
+     the rest go (see repaintAll). */
+  const swift =
+    typeof window !== "undefined" &&
+    !!(window as unknown as { __needtNative?: unknown }).__needtNative;
+  const ctx = canvas.getContext("2d", {
+    alpha: false,
+    willReadFrequently: swift,
+  });
+  const dctx = dotCanvas.getContext("2d", { willReadFrequently: swift });
   const scope = (root.closest("[data-px-scope]") as HTMLElement | null) ?? root;
   if (!ctx || !dctx) {
     return { set() {}, park() {}, stop() {} };
@@ -1815,16 +1825,21 @@ export function startSky(
           if (key !== cellKey[ci]) setCell(ci, cx, cy, key);
         }
       }
-      if (dX1 >= dX0)
-        dctx!.putImageData(
-          dimg,
-          0,
-          0,
-          dX0 * PITCH,
-          dY0 * PITCH,
-          (dX1 - dX0 + 1) * PITCH,
-          (dY1 - dY0 + 1) * PITCH
-        );
+      if (dX1 >= dX0) {
+        /* The Mac app uploads the whole frame: a partial upload onto a canvas
+           that lost its pixels leaves the rest blank. */
+        if (swift) dctx!.putImageData(dimg, 0, 0);
+        else
+          dctx!.putImageData(
+            dimg,
+            0,
+            0,
+            dX0 * PITCH,
+            dY0 * PITCH,
+            (dX1 - dX0 + 1) * PITCH,
+            (dY1 - dY0 + 1) * PITCH
+          );
+      }
     }
     if (!shown) reveal();
   }
@@ -1849,7 +1864,11 @@ export function startSky(
     /* While the pointer is in the sky (or a hover is easing) small skies run at
        display rate and full skies at 30 fps with a full field each frame. */
     const hv = busyHover();
-    const fm = framePeriod({ big, hover: hv, fps: opt.fps });
+    const fm = framePeriod({
+      big,
+      hover: hv,
+      fps: opt.fps ?? (swift ? 15 : undefined),
+    });
     if (ts - last < fm - 4) return;
     /* 24 fps on a 60 Hz display is an even 2/3-vsync cadence: step the clock
        by frameMs instead of snapping it to ts. */
@@ -1997,11 +2016,25 @@ export function startSky(
         })
       : null;
   if (io) io.observe(root);
+  /* A web view may drop a canvas's pixels while its window is hidden, resized
+     or moved to another screen. The dots are drawn as changes on top of what
+     is there, so a lost canvas came back with only the changed cells. Coming
+     back to the page, or a new window size or pixel ratio, repaints it all. */
+  function repaintAll() {
+    if (stopped || !booted) return;
+    dotsReset = true;
+    needResize = true;
+    schedule();
+  }
   const onVis = () => {
     hidden = document.hidden;
+    if (!hidden) repaintAll();
     kick();
   };
   document.addEventListener("visibilitychange", onVis);
+  window.addEventListener("resize", repaintAll);
+  window.addEventListener("focus", repaintAll);
+  window.addEventListener("pageshow", repaintAll);
   /* A theme change (data-theme on the scope) picks a new mood at once, even
      while the sky is resting. */
   const themed = root.closest("[data-theme]");
@@ -2180,6 +2213,9 @@ export function startSky(
       if (io) io.disconnect();
       if (mo) mo.disconnect();
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("resize", repaintAll);
+      window.removeEventListener("focus", repaintAll);
+      window.removeEventListener("pageshow", repaintAll);
       scope.removeEventListener("scroll", onScroll, { capture: true });
       window.clearTimeout(scrollEnd);
       if (mq && mq.removeEventListener) mq.removeEventListener("change", onMq);

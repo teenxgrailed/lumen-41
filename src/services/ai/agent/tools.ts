@@ -12,6 +12,7 @@ import {
   startOfZonedDay,
   userTimeZone,
 } from "@/services/ops/helpers";
+import { AI_PAGE_UNAVAILABLE } from "@/services/pages/ai-page-access";
 import type { PageActor } from "@/services/pages/page-service";
 import { WorkspaceKind } from "@prisma/client";
 import { z } from "zod";
@@ -25,6 +26,7 @@ import { prisma } from "@/lib/prisma";
 
 import { zodToJsonSchema } from "../../ops/json-schema";
 import type { AIChatToolDefinition, SchedulerAI } from "../types";
+import { untrustedJson } from "../untrusted";
 
 /**
  * The agent's own tools. Every write goes through `runOp`, so each one is an
@@ -88,11 +90,19 @@ export interface AgentTool {
 
 const MODEL_TEXT_MAX = 6000;
 
+/**
+ * What the model reads back from a tool. The JSON is quoted as data: it
+ * carries mail, page text, event and task titles that other people wrote, and
+ * the system prompt says nothing inside the quote is ever an instruction.
+ */
 export function modelJson(value: unknown): string {
   const text = JSON.stringify(value);
-  return text.length > MODEL_TEXT_MAX
-    ? `${text.slice(0, MODEL_TEXT_MAX)}…(truncated; narrow the request)`
-    : text;
+  return untrustedJson(
+    "tool_result",
+    text.length > MODEL_TEXT_MAX
+      ? `${text.slice(0, MODEL_TEXT_MAX)}…(truncated; narrow the request)`
+      : text
+  );
 }
 
 function failure(message: string): AgentToolOutcome {
@@ -846,7 +856,13 @@ const READ_TOOLS: AgentTool[] = [
         type: args.type as RetrievalType,
         id: String(args.id),
       });
-      if (!found) return failure(`${String(args.type)} not found.`);
+      if (!found) {
+        return failure(
+          args.type === "page"
+            ? AI_PAGE_UNAVAILABLE
+            : `${String(args.type)} not found.`
+        );
+      }
       return {
         ok: true,
         summary: `Read ${quote(found.title)}`,

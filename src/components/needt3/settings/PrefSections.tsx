@@ -14,7 +14,7 @@ import { type PrefKey, minutes, readPref } from "./derive";
 import { SGroup, SRow, SSelect, V3Switch } from "./kit";
 
 /** A switch and a select bound to one `UserSettings.prefs` key. */
-function usePrefs() {
+export function usePrefs() {
   const settings = useSettings();
   const setPref = useSetPref();
   const setPrefs = useSetPrefs();
