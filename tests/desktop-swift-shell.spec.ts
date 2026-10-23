@@ -503,14 +503,23 @@ for (const engine of ENGINES) {
         });
         console.log(`CORNER ${tag} ${JSON.stringify(corner)}`);
         expect.soft(corner).not.toBeNull();
-        expect.soft(corner!.clipPath).not.toBe("none");
+        // Either the box is exactly what it shows, or a clip hides the rest.
+        const clipped = corner!.clipPath !== "none";
+        if (!clipped) {
+          expect
+            .soft(corner!.frame[0])
+            .toBeLessThanOrEqual(corner!.visible[0] + 1);
+          expect
+            .soft(corner!.frame[1])
+            .toBeLessThanOrEqual(corner!.visible[1] + 1);
+        }
         // Resting corner: the pill (142x40), never wider than one toast (376).
         expect.soft(corner!.visible[0]).toBeLessThanOrEqual(376);
         expect.soft(corner!.visible[1]).toBeLessThanOrEqual(54 * 4 + 28);
         // The corner's own box is never bigger than one toast either.
         expect.soft(corner!.anchor.width).toBeLessThanOrEqual(376);
         expect.soft(corner!.anchor.height).toBeLessThanOrEqual(54 * 4 + 28);
-        expect.soft(corner!.probeIsShell).toBe(false);
+        if (clipped) expect.soft(corner!.probeIsShell).toBe(false);
 
         // Ask Needt opens.
         const p = await pill(page);
