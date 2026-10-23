@@ -77,6 +77,112 @@ def type_slowly(text):
         time.sleep(1.5)
 
 
+def label(e):
+    return (e.get("AXLabel") or "").strip().lower()
+
+
+def save_debug(tag, els):
+    os.makedirs("debug", exist_ok=True)
+    with open(f"debug/{tag}.json", "w") as f:
+        json.dump(els, f, indent=1)
+    subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"debug/{tag}.png"], capture_output=True, timeout=150)
+    print(tag, "labels:", sorted({label(e) for e in els if label(e)})[:80], flush=True)
+
+
+def add_to_home_screen(w, h):
+    """Safari: Share > Add to Home Screen > (Open as Web App on) > Add, by labels.
+    The iOS 26 compact bar hides Share behind the More (...) button."""
+    tapped = {}
+    for step in range(16):
+        els = describe()
+        save_debug(f"a2hs-{step:02d}", els)
+        text = " ".join(haystack(e) for e in els)
+
+        def exact(*names):
+            for e in els:
+                if label(e) in names and tapped.get(label(e), 0) < 3:
+                    return e
+            return None
+        add = next((e for e in els if label(e) == "add" and e.get("enabled", True)), None)
+        if add and ("home screen" in text or "web app" in text):
+            for e in els:  # the iOS 26 sheet's "Open as Web App" switch must be on
+                if "web app" in label(e) and str(e.get("AXValue")) in ("0", "off"):
+                    tap(*centre(e))
+                    time.sleep(2)
+            tap(*centre(add))
+            time.sleep(6)
+            save_debug("a2hs-added", describe())
+            return True
+        e = (exact("add to home screen") or exact("share") or
+             exact("more", "page menu", "more options", "show more", "view more", "tab options"))
+        if e:
+            tapped[label(e)] = tapped.get(label(e), 0) + 1
+            tap(*centre(e))
+        else:
+            # the action list of the share sheet: scroll it up
+            swipe(w / 2, h * 0.85, w / 2, h * 0.45, 0.4)
+        time.sleep(4)
+    return False
+
+
+def home():
+    idb("ui", "button", "HOME", check=False)
+    time.sleep(3)
+
+
+def find_icon(name):
+    for e in describe():
+        if name.lower() in label(e) and e.get("type") != "Application":
+            return e
+    return None
+
+
+def launch_icon(name, w, h):
+    """Home Screen, find the icon by its label (swipe through the pages), tap it."""
+    home()
+    home()  # a second press lands on the first page
+    for page in range(5):
+        e = find_icon(name)
+        if e:
+            print("icon", json.dumps(e)[:400], flush=True)
+            tap(*centre(e))
+            time.sleep(8)
+            return True
+        save_debug(f"home-{page}", describe())
+        swipe(w * 0.85, h * 0.5, w * 0.15, h * 0.5, 0.3)
+        time.sleep(2)
+    return False
+
+
+def front_app():
+    for e in describe():
+        if e.get("type") == "Application":
+            return e.get("AXLabel")
+    return None
+
+
+def install_webclip(title, url, icon):
+    """The fallback: a FullScreen Web Clip written into the simulator's data
+    folder (what a com.apple.webClip.managed profile leaves), then SpringBoard
+    restarted so it reads the clips again."""
+    import plistlib, shutil, uuid
+    base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{UDID}/data/Library/WebClips")
+    d = os.path.join(base, uuid.uuid4().hex.upper() + ".webclip")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "Info.plist"), "wb") as f:
+        plistlib.dump({"Title": title, "URL": url, "FullScreen": True, "IsRemovable": True,
+                       "IconIsPrecomposed": True, "IconIsScreenShotBased": False,
+                       "WebClipStatusBarStyle": "UIStatusBarStyleBlackTranslucent",
+                       "ClassicMode": False, "ContentMode": "Mobile"}, f)
+    if icon and os.path.exists(icon):
+        shutil.copy(icon, os.path.join(d, "icon.png"))
+    print("webclip at", d, flush=True)
+    r = subprocess.run(["xcrun", "simctl", "spawn", UDID, "launchctl", "stop", "com.apple.SpringBoard"],
+                       capture_output=True, text=True, timeout=60)
+    print("respring:", r.returncode, r.stdout, r.stderr, flush=True)
+    time.sleep(20)
+
+
 if __name__ == "__main__":
     cmd, args = sys.argv[1], sys.argv[2:]
     if cmd == "dump":
@@ -97,6 +203,20 @@ if __name__ == "__main__":
         idb("ui", "text", args[0], check=False)
     elif cmd == "tapxy":
         tap(float(args[0]), float(args[1]))
+    elif cmd == "a2hs":
+        sys.exit(0 if add_to_home_screen(w, h) else 1)
+    elif cmd == "launch":  # args: icon label
+        sys.exit(0 if launch_icon(args[0], w, h) else 1)
+    elif cmd == "webclip":  # args: title url [icon.png]
+        install_webclip(args[0], args[1], args[2] if len(args) > 2 else None)
+    elif cmd == "home":
+        home()
+    elif cmd == "front":
+        print(front_app())
+    elif cmd == "labels":  # args: tag
+        save_debug(args[0] if args else "labels", describe())
+    elif cmd == "back":  # the edge swipe from the left
+        swipe(2, h * 0.5, w * 0.7, h * 0.5, 0.3)
     elif cmd == "key":
         idb("ui", "key", args[0])
     elif cmd == "signin":
