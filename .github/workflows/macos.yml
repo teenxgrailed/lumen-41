@@ -170,6 +170,17 @@ jobs:
           test -f "$DIRECT/Contents/Resources/LICENSE.txt"
           test -f "$DIRECT/Contents/Resources/ACKNOWLEDGEMENTS.md"
 
+      # The CI harness (apps/macos/CI, macos-webview.yml) is compiled only with
+      # NEEDT_CI_CONDITION=NEEDT_CI; a build made the release way has none of it.
+      - name: Release-style build has no CI harness
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          strings build/Build/Products/Release/Needt.app/Contents/MacOS/Needt > "$RUNNER_TEMP/direct-strings.txt"
+          if grep -E -- "--ci-session-cookie|--ci-base-url|app\.needt\.mac\.ci" "$RUNNER_TEMP/direct-strings.txt"; then
+            echo "The CI harness is compiled into the release-style build"; exit 1
+          fi
+
       - name: Entitlements
         working-directory: apps/macos
         run: |

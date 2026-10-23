@@ -45,7 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Notifier.shared.start()
         Updater.shared.start()
         installMainMenu()
+        #if NEEDT_CI
+        // CI builds only (apps/macos/CI): session cookie first, then start.
+        CIHarness.prepare { AppController.shared.start() }
+        #else
         AppController.shared.start()
+        #endif
         IslandHost.begin()
         Task { await AppController.shared.tray.focusFilterChanged() }
         // SwiftUI installs its own menu bar around the scene; keep ours on top.
