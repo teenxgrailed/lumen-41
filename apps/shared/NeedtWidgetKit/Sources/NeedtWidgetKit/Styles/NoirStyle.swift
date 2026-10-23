@@ -206,10 +206,11 @@ struct NoirNext: View {
     private func small(_ e: WidgetEvent) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(hhmm(e.start)).font(noirNum(c, 34)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.55)
+                Text(hhmm(e.start)).font(noirNum(c, 34)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.55).layoutPriority(1)
                 Spacer(minLength: 4)
-                HStack(spacing: 4) { NoirCap(text: "IN"); UntilText(date: e.start).font(c.fonts.mono.font(10.5, weight: .medium)).textCase(.uppercase).foregroundStyle(NoirStyle.cream.opacity(0.55)).lineLimit(1) }
-                    .fixedSize()
+                // UntilText already reads "in 40 min": no extra IN caption.
+                UntilText(date: e.start).font(c.fonts.mono.font(10.5, weight: .medium)).textCase(.uppercase)
+                    .foregroundStyle(NoirStyle.cream.opacity(0.55)).lineLimit(1).minimumScaleFactor(0.7)
             }
             Spacer(minLength: 0)
             Text(e.title).font(c.fonts.body.font(13, weight: .semibold)).lineLimit(1).titleSensitive(c.showTitles)
