@@ -541,3 +541,8 @@
 .ob3-mailcol button.ob3-sso { height: 48px; }
 .ob3-wait { width: 100%; max-width: 420px; }
 .ob3-note[role="status"] { min-height: 1.4em; }
+
+/* The shell's .needt-v2 a rule (accent colour, underline on hover) outranks the single-class link;
+   the sign-in link is an anchor, the design's is a button. */
+.ob3 a.ob3-link, .ob3 a.ob3-link:hover { color: var(--ink2); text-decoration: none; }
+.ob3 a.ob3-link:hover { color: var(--ink); }

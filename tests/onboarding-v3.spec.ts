@@ -88,6 +88,63 @@ for (const [name, viewport] of [
 test.describe("onboarding v3 · desktop board", () => {
   test.use({ viewport: DESKTOP });
 
+  test("diagnostics: which rules colour the primary pill and the sign-in link", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/start?step=cats");
+    await page.waitForTimeout(1200);
+    const report = await page.evaluate(() => {
+      const out: string[] = [];
+      const targets = [
+        document.querySelector(".ob3-cta"),
+        document.querySelector(".ob3-cta > span"),
+        document.querySelector(".ob3-back"),
+      ];
+      for (const el of targets) {
+        if (!el) continue;
+        const cs = getComputedStyle(el);
+        out.push(
+          `${el.tagName}.${el.className} color=${cs.color} font=${cs.fontSize}/${cs.fontWeight} opacity=${cs.opacity} filter=${cs.filter} mix=${cs.mixBlendMode}`
+        );
+        const walk = (rules: CSSRuleList, ctx: string) => {
+          for (const r of Array.from(rules)) {
+            const cr = r as CSSStyleRule & { cssRules?: CSSRuleList };
+            if (cr.selectorText) {
+              try {
+                if (
+                  el.matches(cr.selectorText) &&
+                  /(^|;|\s)(color|opacity|filter|mix-blend-mode)\s*:/.test(
+                    cr.style.cssText
+                  )
+                ) {
+                  out.push(
+                    `   ${ctx}${cr.selectorText} { ${cr.style.cssText} }`
+                  );
+                }
+              } catch {
+                /* selector the browser cannot match */
+              }
+            } else if (cr.cssRules) {
+              walk(cr.cssRules, ctx + "@ ");
+            }
+          }
+        };
+        for (const sheet of Array.from(document.styleSheets)) {
+          try {
+            walk(sheet.cssRules, "");
+          } catch {
+            /* cross-origin sheet */
+          }
+        }
+      }
+      return out.join("\n");
+    });
+    await testInfo.attach("diagnostics", {
+      body: report,
+      contentType: "text/plain",
+    });
+  });
+
   test("areas are a 4-column board of at most 624 px with a pill row under it", async ({
     page,
   }) => {
