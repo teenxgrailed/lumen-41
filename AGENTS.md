@@ -103,8 +103,10 @@ Viewer roles and invites). While that migration is in progress:
   cite `path:line`. Plans written from assumption have shipped real errors here.
 - **Scope tightly.** Do not add tables, endpoints, or features that the task did
   not ask for, even if they seem useful later.
-- **Commit per completed unit of work**, with the gates green, and update
-  `CHANGELOG.md` under `[unreleased]` for user-facing changes.
+- **Commit per completed unit of work**, with the gates green, and add a
+  `changelog.d/<short-slug>.md` fragment for user-facing changes. Never edit
+  `CHANGELOG.md` in a PR (CI fails it); `npm run changelog:collect` compiles
+  the fragments at release time.
 - **Leave `//todo` comments in place**; add new ones for deferred work.
 
 ### Owner-granted autonomy (2026-08-22)
