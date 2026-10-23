@@ -1,0 +1,1 @@
+- Settings has a Desktop group (App, Island, Focus, Widgets, Siri & Shortcuts) for the Mac app, with a live island preview. Outside the Mac app each section points to the Mac app. The Dock badge can be turned off.

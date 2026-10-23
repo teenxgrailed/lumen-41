@@ -29,6 +29,40 @@ const LOG_SOURCE = "ai-agent-loop";
 /** Model round trips in one turn. Enough to read, act and answer. */
 export const MAX_AGENT_STEPS = 6;
 
+/**
+ * Changes one turn may make. The write tools run without asking, so a page,
+ * mail or event that talks the model into "fixing" everything stops here
+ * instead of rewriting the planner. Each change is still undoable.
+ */
+export const MAX_WRITES_PER_TURN = 10;
+
+/** Legacy catalog tools that only read (or only parse); every other one writes. */
+const READ_ONLY_LEGACY_TOOLS = new Set([
+  "query_schedule",
+  "list_pages",
+  "search_pages",
+  "get_focus_stats",
+  "search_mail",
+  "get_message",
+  "get_user_settings",
+  "list_memories",
+  "parse_brain_dump",
+]);
+
+/** Whether a call changes something. Unknown tools count as changes. */
+export function isMutatingToolCall(
+  name: string,
+  args: Record<string, unknown>
+) {
+  const own = getAgentTool(name);
+  if (own) return own.kind !== "read";
+  if (READ_ONLY_LEGACY_TOOLS.has(name)) return false;
+  if (name === "manage_projects" && args.action === "list") return false;
+  return true;
+}
+
+export const WRITE_LIMIT_MESSAGE = `I stopped after ${MAX_WRITES_PER_TURN} changes, the most I make in one request. Each one can be undone from the action list. Ask me to continue if you want more.`;
+
 export interface AgentSettings {
   allowParseTasks: boolean;
   allowFullAuto: boolean;
@@ -61,6 +95,8 @@ export interface AgentTurnResult {
   changed: boolean;
   /** The last task a tool touched, for the cursor. */
   taskId: string | null;
+  /** The turn stopped at `MAX_WRITES_PER_TURN` changes. */
+  writeLimitReached: boolean;
 }
 
 interface TurnInput {
@@ -224,9 +260,15 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
   let changed = false;
   let taskId: string | null = null;
   let pending: PendingConfirmation | null = null;
+  let writes = 0;
+  let writeLimitReached = false;
 
   try {
-    for (let step = 0; step < MAX_AGENT_STEPS && !pending; step += 1) {
+    for (
+      let step = 0;
+      step < MAX_AGENT_STEPS && !pending && !writeLimitReached;
+      step += 1
+    ) {
       if (input.signal?.aborted) break;
       let stepText = "";
       const calls: Array<{
@@ -262,6 +304,18 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
       });
 
       for (const call of calls) {
+        if (isMutatingToolCall(call.name, call.arguments)) {
+          if (writes >= MAX_WRITES_PER_TURN) {
+            writeLimitReached = true;
+            logger.warn(
+              "Agent turn stopped at the write limit",
+              { userId: input.userId, limit: MAX_WRITES_PER_TURN },
+              LOG_SOURCE
+            );
+            break;
+          }
+          writes += 1;
+        }
         const meta = getAgentTool(call.name);
         const label = meta?.progress ?? "Working";
         input.emit({
@@ -329,6 +383,10 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
     const separator = tail(text);
     text += separator + pending.prompt;
     input.emit({ type: "token", value: separator + pending.prompt });
+  } else if (writeLimitReached) {
+    const separator = tail(text);
+    text += separator + WRITE_LIMIT_MESSAGE;
+    input.emit({ type: "token", value: separator + WRITE_LIMIT_MESSAGE });
   }
 
   return {
@@ -339,6 +397,7 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
     pending,
     changed,
     taskId,
+    writeLimitReached,
   };
 }
 
@@ -393,5 +452,6 @@ export async function runConfirmedToolCall(
     pending: null,
     changed: outcome.changed,
     taskId: outcome.taskId ?? null,
+    writeLimitReached: false,
   };
 }

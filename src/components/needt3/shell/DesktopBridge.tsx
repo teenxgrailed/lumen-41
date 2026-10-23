@@ -20,7 +20,7 @@ import { MAX_LENGTH, MIN_LENGTH } from "@/lib/needt3/focus";
 import { useNow } from "@/lib/needt3/hooks/clock";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useFocusActions, useFocusSession } from "@/lib/needt3/hooks/focus";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { qk } from "@/lib/needt3/query-keys";
 import { dayAt } from "@/lib/needt3/today";
@@ -28,6 +28,7 @@ import { dayAt } from "@/lib/needt3/today";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { nextTasks, trayState } from "../root/desktopTray";
+import { readPref } from "../settings/derive";
 import { useShellApi } from "./ShellContext";
 
 /** The desktop app refreshes what its menu-bar menu shows this often. */
@@ -101,6 +102,7 @@ function DesktopBridgeInApp() {
   const createDoc = useCreateDoc();
   const queryClient = useQueryClient();
   const tz = useTimeZone();
+  const settings = useSettings();
   const now = useNow();
   const tasks = useTasks().data;
   const focus = useFocusSession().data;
@@ -191,6 +193,32 @@ function DesktopBridgeInApp() {
     };
   }, []);
 
+  // The window is the frame: nothing above the panes may scroll. desktop-app.css
+  // clips those containers; this puts back anything an engine still moved
+  // (the document, or a container that ignores `overflow: clip`).
+  useEffect(() => {
+    if (!isDesktopApp()) return undefined;
+    const FRAME = ".needt-v3, .needt-v3 .app, .shell-app-row, .shell-app-stack";
+    const hold = (e: Event) => {
+      const t = e.target;
+      if (
+        t === document ||
+        t === document.documentElement ||
+        t === document.body
+      ) {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        return;
+      }
+      if (!(t instanceof HTMLElement) || !t.matches(FRAME)) return;
+      if (t.scrollTop !== 0) t.scrollTop = 0;
+      if (t.scrollLeft !== 0) t.scrollLeft = 0;
+    };
+    document.addEventListener("scroll", hold, true);
+    return () => document.removeEventListener("scroll", hold, true);
+  }, []);
+
   // The top bar's left end is translucent only while the sidebar is open.
   useEffect(() => {
     if (!isDesktopApp()) return undefined;
@@ -276,12 +304,14 @@ function DesktopBridgeInApp() {
     };
   }, [queryClient]);
 
+  const dockBadge = String(readPref(settings.data?.prefs, "macDockBadge"));
   const state = trayState({
     tasks,
     today,
     nowHour,
     focus,
     nowMs: now.getTime(),
+    dockBadge: dockBadge !== "off",
   });
   const serialized = state ? JSON.stringify(state) : null;
   useEffect(() => {

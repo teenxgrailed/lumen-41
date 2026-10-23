@@ -58,7 +58,7 @@ class ChatMessagesPanel: NSPanel {
     
     private func setupContentView() {
         let contentView = ChatMessagesView()
-        let hostingView = NSHostingView(rootView: contentView)
+        let hostingView = makeHostingView(rootView: contentView)
         applyChatPanelCornerMask(hostingView, radius: 16)
         self.contentView = hostingView
         
@@ -143,7 +143,7 @@ class ChatInputPanel: NSPanel {
     
     private func setupContentView() {
         let contentView = ChatInputView()
-        let hostingView = NSHostingView(rootView: contentView)
+        let hostingView = makeHostingView(rootView: contentView)
         applyChatPanelCornerMask(hostingView, radius: 16)
         self.contentView = hostingView
         

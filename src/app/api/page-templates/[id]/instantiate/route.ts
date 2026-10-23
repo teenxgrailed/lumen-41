@@ -37,7 +37,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           : template.name,
     parentId: typeof body.parentId === "string" ? body.parentId : null,
     icon: typeof snapshot.icon === "string" ? snapshot.icon : null,
-    isPrivate: body.isPrivate !== false,
+    // not private unless asked: the assistant never reads a Private page
+    isPrivate: body.isPrivate === true,
   });
   const blocks = rawBlocks.flatMap((raw, index) => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
