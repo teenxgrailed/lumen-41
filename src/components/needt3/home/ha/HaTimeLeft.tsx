@@ -31,11 +31,20 @@ export interface HaTime {
 export function HaTimeLeft({
   t,
   onMoveOne,
+  onSpread,
+  spreadBusy,
   gift: giftProp,
 }: {
   t: HaTime | null | undefined;
   /** Overbooked: "Move one" (shown only when something can answer it). */
   onMoveOne?: () => void;
+  /**
+   * Overbooked: "Spread across the week" — today's tasks with no time go to
+   * the next days with room (shown only when there is something to spread).
+   */
+  onSpread?: () => void;
+  /** The spread is on its way: the button waits. */
+  spreadBusy?: boolean;
   /**
    * A focus ended early: the minutes it gave back show as a green slice right
    * after "now" for ~2.4 s, then join "free". Not drawn when overbooked.
@@ -124,6 +133,18 @@ export function HaTimeLeft({
         <div className="ha-tl-warn">
           <i />
           Overbooked by {t.over.by} — the day ends at {t.over.ends}.
+          {onSpread ? (
+            <button
+              type="button"
+              className="ha-btn is-text ha-tl-act"
+              data-ha-spread=""
+              onClick={onSpread}
+              disabled={spreadBusy}
+              aria-busy={spreadBusy || undefined}
+            >
+              Spread across the week
+            </button>
+          ) : null}
           {onMoveOne ? (
             <button
               type="button"

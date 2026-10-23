@@ -128,6 +128,10 @@ describe("HaHighlight", () => {
     await render(h(HaHighlight, { state: "nextup", card }));
     expect(host.querySelector("[data-ha-skip]")).toBeNull();
     expect(host.querySelector(".ha-kicker")?.textContent).toBe("Next up");
+    // the title is clamped to two lines; the whole of it is the tooltip
+    expect(host.querySelector(".ha-hl-title")?.getAttribute("title")).toBe(
+      card.title
+    );
   });
 
   it("phone: the card is the sky plate; desktop: a plain section", async () => {
@@ -242,6 +246,34 @@ describe("HaWeather and HaTimeLeft", () => {
     expect(host.textContent).toContain("Overbooked by 40 min");
     expect(host.querySelector(".ha-tl.is-over")).toBeTruthy();
     expect(host.querySelector(".ha-tl-warn button")).toBeNull();
+  });
+  it("time left: overbooked offers one Spread across the week, which waits while it runs", async () => {
+    const onSpread = jest.fn();
+    const t = {
+      planned: "17 h 45",
+      used: 0.4,
+      plan: 0.6,
+      now: 0.4,
+      over: { by: "14 h 42", ends: "18:00" },
+    };
+    await render(h(HaTimeLeft, { t, onSpread }));
+    const button = host.querySelector("[data-ha-spread]") as HTMLButtonElement;
+    expect(button.textContent).toBe("Spread across the week");
+    expect(host.querySelectorAll(".ha-tl-warn button")).toHaveLength(1);
+    tap("[data-ha-spread]");
+    expect(onSpread).toHaveBeenCalledTimes(1);
+    await render(h(HaTimeLeft, { t, onSpread, spreadBusy: true }));
+    expect(
+      (host.querySelector("[data-ha-spread]") as HTMLButtonElement).disabled
+    ).toBe(true);
+    // with room left there is nothing to spread
+    await render(
+      h(HaTimeLeft, {
+        t: { planned: "3 h", free: "2 h", used: 0.2, plan: 0.4, now: 0.2 },
+        onSpread,
+      })
+    );
+    expect(host.querySelector("[data-ha-spread]")).toBeNull();
   });
   it("time left: the bar draws done, planned, free and the day's end", async () => {
     await render(

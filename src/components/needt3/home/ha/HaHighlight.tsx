@@ -112,7 +112,10 @@ export function HaHighlight({
           </button>
         ) : null}
       </div>
-      <h2 className={haCx("ha-hl-title", state === "suggest" && "ha-hl-swap")}>
+      <h2
+        className={haCx("ha-hl-title", state === "suggest" && "ha-hl-swap")}
+        title={card.title}
+      >
         {onOpen && state !== "suggest" ? (
           <button type="button" className="ha-hl-open" onClick={onOpen}>
             {haBreak(card.title)}
