@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Read a page in the iOS Simulator through Web Inspector, for the Safari phone
 probe. Usage:
-  wi.py pages                       every inspectable page, as JSON
+  wi.py serve                       keep one inspector connection, answer evals
+  wi.py pages                       every inspectable page, as JSON (own connection)
   wi.py eval [--webapp|--safari] [--url SUBSTR] JS
                                     evaluate JS in one page, print the JSON value
 
@@ -194,33 +195,106 @@ def pick(pages, want, url):
     return ok[-1] if ok else None
 
 
-def evaluate(js, want=None, url=None, tries=4):
-    last = None
-    for _ in range(tries):
-        wi = None
+def eval_on(wi, js, want, url):
+    """One evaluation on an open connection: list, pick, attach, run, detach."""
+    wi.listings = {}
+    pages = wi.pages()
+    p = pick(pages, want, url)
+    if not p:
+        return None, "no matching page in " + json.dumps([(q["appName"], q["url"]) for q in pages])
+    wi.sender, wi.target, wi.data = str(uuid.uuid4()).upper(), None, []
+    wi.attach(p["app"], p["page"])
+    try:
+        r = wi.command("Runtime.evaluate", {"expression": f"JSON.stringify((()=>{{{js}}})())",
+                                            "returnByValue": True})
+    finally:
         try:
-            wi = WI()
-            p = pick(wi.pages(), want, url)
-            if not p:
-                last = "no matching page"
-                time.sleep(2)
-                continue
-            wi.attach(p["app"], p["page"])
-            r = wi.command("Runtime.evaluate", {"expression": f"JSON.stringify((()=>{{{js}}})())",
-                                                "returnByValue": True})
-            res = r.get("result") or {}
-            if r.get("error") or res.get("wasThrown"):
-                last = json.dumps(r)[:600]
-                time.sleep(2)
-                continue
-            val = (res.get("result") or {}).get("value")
-            return {"page": p, "value": json.loads(val) if isinstance(val, str) else val}
-        except SystemExit as e:
-            last = str(e)
-            time.sleep(2)
-        finally:
-            if wi:
-                wi.close()
+            wi.send("_rpc_forwardDidClose:", wi._base())
+        except Exception:
+            pass
+    res = r.get("result") or {}
+    if r.get("error") or res.get("wasThrown"):
+        return None, json.dumps(r)[:600]
+    val = (res.get("result") or {}).get("value")
+    return {"page": p, "value": json.loads(val) if isinstance(val, str) else val}, None
+
+
+# The simulator's inspector refuses a new client for a few seconds after one
+# leaves, so one long-lived connection (`wi.py serve`) answers every call.
+PORT = int(os.environ.get("WI_PORT", "9333"))
+
+
+def serve():
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    state = {"wi": None}
+
+    def conn():
+        if state["wi"] is None:
+            for _ in range(6):
+                try:
+                    state["wi"] = WI()
+                    break
+                except (SystemExit, OSError) as e:
+                    print("connect failed:", e, flush=True)
+                    time.sleep(8)
+        return state["wi"]
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            q = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            out, err = None, None
+            for _ in range(3):
+                try:
+                    wi = conn()
+                    if wi is None:
+                        err = "no inspector connection"
+                        break
+                    out, err = eval_on(wi, q["js"], q.get("want"), q.get("url"))
+                    if out:
+                        break
+                    time.sleep(2)
+                except (SystemExit, OSError) as e:
+                    err = f"connection lost: {e}"
+                    try:
+                        state["wi"].s.close()
+                    except Exception:
+                        pass
+                    state["wi"] = None
+                    time.sleep(8)
+            body = json.dumps({"ok": out, "error": err}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            print("wi serve:", *a, flush=True)
+
+    HTTPServer(("127.0.0.1", PORT), H).serve_forever()
+
+
+def evaluate(js, want=None, url=None, tries=2):
+    """Evaluate through the `serve` process (started on first use)."""
+    import urllib.request
+    body = json.dumps({"js": js, "want": want, "url": url}).encode()
+    last = None
+    for i in range(tries + 3):
+        try:
+            req = urllib.request.Request(f"http://127.0.0.1:{PORT}/", data=body, method="POST")
+            r = json.loads(urllib.request.urlopen(req, timeout=180).read())
+        except OSError as e:
+            last = f"no wi serve: {e}"
+            if i == 0:
+                os.makedirs("debug", exist_ok=True)
+                subprocess.Popen([sys.executable, os.path.abspath(__file__), "serve"],
+                                 stdout=open("debug/wi-serve.log", "a"), stderr=subprocess.STDOUT,
+                                 stdin=subprocess.DEVNULL, start_new_session=True)
+            time.sleep(3)
+            continue
+        if r.get("ok"):
+            return r["ok"]
+        last = r.get("error")
+        time.sleep(3)
     raise SystemExit(f"eval failed: {last}")
 
 
@@ -228,7 +302,9 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if not args:
         raise SystemExit(__doc__)
-    if args[0] == "pages":
+    if args[0] == "serve":
+        serve()
+    elif args[0] == "pages":
         wi = WI()
         print(json.dumps({"apps": wi.apps, "pages": wi.pages()}, indent=1, default=str))
         wi.close()

@@ -89,44 +89,74 @@ def save_debug(tag, els):
     print(tag, "labels:", sorted({label(e) for e in els if label(e)})[:80], flush=True)
 
 
-def add_to_home_screen(w, h):
-    """Safari: Share > Add to Home Screen > (Open as Web App on) > Add, by labels.
-    The iOS 26 compact bar hides Share behind the More (...) button."""
-    tapped = {}
-    for step in range(16):
-        els = describe()
-        save_debug(f"a2hs-{step:02d}", els)
-        text = " ".join(haystack(e) for e in els)
+OCR_BIN = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "probe-ocr")
 
-        def exact(*names):
-            for n in names:
-                for e in els:
-                    if label(e) == n and tapped.get(n, 0) < 3:
-                        return e
-            return None
-        add = next((e for e in els if label(e) == "add" and e.get("enabled", True)), None)
-        if add and ("home screen" in text or "web app" in text):
+
+def ocr(tag, w, h):
+    """Text on debug/<tag>.png (Vision), as (lowercase text, x, y) in points."""
+    if not os.path.exists(OCR_BIN):
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr.swift")
+        subprocess.run(["swiftc", "-O", src, "-o", OCR_BIN], capture_output=True, timeout=600)
+    try:
+        r = subprocess.run([OCR_BIN, f"debug/{tag}.png"], capture_output=True, text=True, timeout=120)
+        items = json.loads(r.stdout)
+    except Exception as e:
+        print("ocr failed:", e, flush=True)
+        return []
+    words = [(i["text"].strip().lower(), i["x"] * w, i["y"] * h) for i in items]
+    print(tag, "ocr:", [t for t, _, _ in words][:60], flush=True)
+    return words
+
+
+def add_to_home_screen(w, h):
+    """Safari: More (...) > Share > View More > Add to Home Screen > Add.
+    Safari's own bar and menu are in idb's accessibility dump; the share sheet
+    is a remote view that is not, so its rows are found by their text (OCR)."""
+    tapped = {}
+
+    def once(key, limit=3):
+        tapped[key] = tapped.get(key, 0) + 1
+        return tapped[key] <= limit
+
+    for step in range(18):
+        els = describe()
+        tag = f"a2hs-{step:02d}"
+        save_debug(tag, els)
+        labels = {label(e) for e in els}
+        words = ocr(tag, w, h)
+
+        def word(pred):
+            return next(((x, y) for t, x, y in words if pred(t)), None)
+
+        def el(name):
+            return next((e for e in els if label(e) == name), None)
+
+        add = el("add")
+        add_xy = centre(add) if add else word(lambda t: t == "add")
+        if add_xy and once("add", 2):
             for e in els:  # the iOS 26 sheet's "Open as Web App" switch must be on
                 if "web app" in label(e) and str(e.get("AXValue")) in ("0", "off"):
                     tap(*centre(e))
                     time.sleep(2)
-            tap(*centre(add))
-            time.sleep(6)
+            tap(*add_xy)
+            time.sleep(8)
             save_debug("a2hs-added", describe())
             return True
-        labels = {label(x) for x in els}
-        if "dismiss popup" in labels and tapped.get("tip", 0) < 3:
-            # a Safari tip bubble ("View Bookmarks, Share Menu...") swallows taps
-            tapped["tip"] = tapped.get("tip", 0) + 1
-            x = exact("close") or next(x for x in els if label(x) == "dismiss popup")
+        if any("view bookmarks, share menu" in l for l in labels) and once("tip"):
+            # a one-time Safari tip bubble over the bar swallows the next tap
+            x = el("close") or el("dismiss popup")
             tap(*centre(x))
             time.sleep(3)
             continue
-        e = (exact("add to home screen") or exact("share") or
-             exact("more", "page menu", "more options", "show more", "view more", "tab options"))
-        if e:
-            tapped[label(e)] = tapped.get(label(e), 0) + 1
-            tap(*centre(e))
+        target = word(lambda t: t.startswith("add to home") or t == "add to home screen")
+        if target and once("a2hs"):
+            tap(*target)
+        elif (target := word(lambda t: t == "view more")) and once("view more"):
+            tap(*target)
+        elif el("share") and once("share"):
+            tap(*centre(el("share")))
+        elif el("more") and once("more"):
+            tap(*centre(el("more")))
         else:
             # the action list of the share sheet: scroll it up
             swipe(w / 2, h * 0.85, w / 2, h * 0.45, 0.4)
@@ -162,17 +192,32 @@ def launch_icon(name, w, h):
             break
         swipe(w * 0.85, h * 0.5, w * 0.15, h * 0.5, 0.3)
         time.sleep(2)
-    # SpringBoard often gives idb no elements: Spotlight finds the app by name
+    # SpringBoard often gives idb no elements: read the icon names from the
+    # screen, then Spotlight
     home()
     home()
-    tap(w / 2, h * 0.82)  # the Search pill above the dock
-    time.sleep(4)
-    type_slowly(name)
-    time.sleep(4)
-    save_debug("spotlight", describe())
-    idb("ui", "key", "40")  # Return opens the top hit
-    time.sleep(10)
-    return True
+    save_debug("home-ocr", [])
+    hit = next(((x, y) for t, x, y in ocr("home-ocr", w, h) if t == name.lower()), None)
+    if hit:
+        tap(hit[0], hit[1] - 40)  # the icon sits above its name
+        time.sleep(10)
+        if front_app() not in (None, "", "Springboard", "SpringBoard"):
+            return True
+    for attempt in range(3):
+        home()
+        home()
+        tap(w / 2, h * 0.82)  # the Search pill above the dock
+        time.sleep(5)
+        type_slowly(name)
+        time.sleep(5)
+        save_debug(f"spotlight-{attempt}", describe())
+        idb("ui", "key", "40")  # Return opens the top hit
+        time.sleep(10)
+        app = front_app()
+        print("front app after Spotlight:", app, flush=True)
+        if app and app.lower() not in ("springboard", "spotlight", "safari", "search"):
+            return True
+    return False
 
 
 def front_app():

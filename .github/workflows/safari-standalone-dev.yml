@@ -82,33 +82,27 @@ jobs:
         timeout-minutes: 15
         run: |
           set +e -x
-          export WI_TRACE=1
           mkdir -p debug
           xcrun simctl launch "$UDID" com.apple.mobilesafari; sleep 15
           xcrun simctl openurl "$UDID" http://127.0.0.1:3000/; sleep 20
           xcrun simctl io "$UDID" screenshot debug/safari.png
           xcrun simctl getenv "$UDID" RWI_LISTEN_SOCKET || true
-          python3 .github/safari/wi.py pages > debug/wi-pages-safari.json; cat debug/wi-pages-safari.json | head -80
           python3 .github/safari/wi.py eval --safari 'return {st: navigator.standalone, ih: innerHeight, sh: screen.height, url: location.href, r: document.getElementById("in").getBoundingClientRect().toJSON()}'
           python3 .github/safari/ui.py a2hs; echo "a2hs exit $?"
-          unset WI_TRACE
           python3 .github/safari/ui.py launch Probe; echo "launch exit $?"
           sleep 5
           python3 .github/safari/ui.py front
           xcrun simctl io "$UDID" screenshot debug/standalone-0.png
-          export WI_TRACE=1
-          python3 .github/safari/wi.py pages > debug/wi-pages-standalone.json; head -80 debug/wi-pages-standalone.json
           python3 .github/safari/wi.py eval --webapp 'return {st: navigator.standalone, ih: innerHeight, iw: innerWidth, sh: screen.height, url: location.href, r: document.getElementById("in").getBoundingClientRect().toJSON(), dm: matchMedia("(display-mode: standalone)").matches}'
           python3 .github/safari/ui.py labels standalone-0
-          python3 .github/safari/ui.py tapxy 200 350; sleep 6
+          python3 .github/safari/ui.py tapxy 200 380; sleep 6
           xcrun simctl io "$UDID" screenshot debug/standalone-1-in.png
           python3 .github/safari/wi.py eval --webapp 'return {st: navigator.standalone, ih: innerHeight, url: location.href}'
           python3 .github/safari/ui.py labels standalone-1
-          python3 .github/safari/ui.py tapxy 200 350; sleep 6
-          python3 .github/safari/ui.py tapxy 200 550; sleep 8
+          python3 .github/safari/ui.py tapxy 200 380; sleep 6
+          python3 .github/safari/ui.py tapxy 200 580; sleep 8
           xcrun simctl io "$UDID" screenshot debug/standalone-2-out.png
           python3 .github/safari/ui.py labels standalone-2
-          python3 .github/safari/wi.py pages > debug/wi-pages-out.json; head -80 debug/wi-pages-out.json
           python3 .github/safari/wi.py eval --url localhost 'return {st: navigator.standalone, ih: innerHeight, url: location.href}'
         continue-on-error: true
 
