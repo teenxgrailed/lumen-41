@@ -165,6 +165,14 @@ Object.defineProperty(HTMLElement.prototype, "scrollTop", {
 });
 
 beforeEach(() => {
+  // The desktop sheet mounts its section two frames after it opens; the frames
+  // run at once here so each step sees the section it just chose.
+  jest
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((cb: FrameRequestCallback) => {
+      cb(0);
+      return 0;
+    });
   G.__facesLog = { mounts: 0, unmounts: 0 };
   useNeedt3Ui.setState({ settingsOpen: false, settingsSection: null });
   host = document.createElement("div");
@@ -172,6 +180,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(() => {
+  jest.restoreAllMocks();
   act(() => root.unmount());
   host.remove();
 });

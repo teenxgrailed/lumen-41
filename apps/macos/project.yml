@@ -16,8 +16,10 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     MACOSX_DEPLOYMENT_TARGET: "14.6"
     ENABLE_HARDENED_RUNTIME: YES
-    # Set to the Sparkle EdDSA *public* key (see README.md). While it is empty
-    # the app never checks for updates.
+    # The Sparkle EdDSA *public* key. Left empty here on purpose: the release
+    # workflow passes it on the xcodebuild command line from the repository
+    # variable SPARKLE_ED_PUBLIC_KEY (see README.md). While it is empty the app
+    # never checks for updates.
     SPARKLE_PUBLIC_ED_KEY: ""
 
 packages:
@@ -145,9 +147,12 @@ targets:
         NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
         NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
         NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
-        SUFeedURL: https://needt.app/desktop/appcast.xml
+        # The fixed release "mac-appcast" holds the one appcast.xml, replaced by
+        # .github/workflows/macos-release.yml on every release.
+        SUFeedURL: https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
         SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
