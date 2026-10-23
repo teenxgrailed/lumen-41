@@ -2,6 +2,14 @@
   "$comment": "High/critical npm audit advisories accepted for now. scripts/check-npm-audit.mjs fails CI on any advisory not listed here and on any entry past reviewBy. Each entry says why the risk is acceptable; delete it when the fix lands.",
   "advisories": [
     {
+      "id": "GHSA-27r3-jxmh-p828",
+      "package": "body-parser",
+      "severity": "high",
+      "title": "body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+      "reason": "Transitive via express inside @modelcontextprotocol/sdk (creem); no express server runs in Needt, and no code in src or mcp imports express or body-parser.",
+      "reviewBy": "2026-11-30"
+    },
+    {
       "id": "GHSA-22jm-h49p-29qw",
       "package": "@modelcontextprotocol/sdk",
       "severity": "high",
