@@ -24,6 +24,9 @@ enum IslandV3Power {
         else { return nil }
         for source in list {
             guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+                  // The Mac's own battery, not a Bluetooth accessory that the
+                  // system lists next to it.
+                  (description[kIOPSTypeKey] as? String) == kIOPSInternalBatteryType,
                   let current = description[kIOPSCurrentCapacityKey] as? Int,
                   let maximum = description[kIOPSMaxCapacityKey] as? Int, maximum > 0
             else { continue }
@@ -34,6 +37,34 @@ enum IslandV3Power {
                 isCharging: charging,
                 isPluggedIn: state == kIOPSACPowerValue
             )
+        }
+        return nil
+    }
+}
+
+extension IslandV3Power {
+    /// The level of a connected accessory (AirPods, Magic devices) when the
+    /// system lists it as a power source under the same name. This is the only
+    /// public route to it (IOBluetooth has no battery property); when the
+    /// system does not list the device it returns nil and the island shows the
+    /// connection without a percentage. [unverified] whether macOS lists
+    /// AirPods this way on every OS version.
+    static func accessoryPercent(named name: String) -> Int? {
+        let wanted = name.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !wanted.isEmpty,
+              let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef]
+        else { return nil }
+        for source in list {
+            guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+                  (description[kIOPSTypeKey] as? String) != kIOPSInternalBatteryType,
+                  let rawName = (description[kIOPSNameKey] as? String)?.lowercased(), !rawName.isEmpty,
+                  rawName == wanted || rawName.contains(wanted) || wanted.contains(rawName),
+                  let current = description[kIOPSCurrentCapacityKey] as? Int
+            else { continue }
+            let maximum = (description[kIOPSMaxCapacityKey] as? Int) ?? 100
+            guard maximum > 0 else { continue }
+            return min(100, max(0, Int((Double(current) / Double(maximum) * 100).rounded())))
         }
         return nil
     }

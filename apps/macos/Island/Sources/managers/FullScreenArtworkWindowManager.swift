@@ -1356,7 +1356,7 @@ final class FullScreenArtworkWindowManager: ObservableObject {
             newWindow.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
             newWindow.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
 
-            let newHostingView = NSHostingView(rootView: content)
+            let newHostingView = makeHostingView(rootView: content)
             newHostingView.frame = NSRect(origin: .zero, size: frame.size)
             newHostingView.wantsLayer = true
             newHostingView.layer?.backgroundColor = NSColor.clear.cgColor

@@ -21,6 +21,7 @@ final class ShareViewController: NSViewController {
             }
         )
         let host = NSHostingView(rootView: root)
+        host.sizingOptions = []
         host.frame = NSRect(x: 0, y: 0, width: 420, height: 300)
         view = host
         preferredContentSize = host.frame.size

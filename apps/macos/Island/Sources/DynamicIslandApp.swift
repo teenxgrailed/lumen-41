@@ -332,12 +332,10 @@ final class IslandAppDelegate: NSObject {
         let newX = (centerX - (roundedWidth / 2)).rounded()
         let newY = (screenFrame.origin.y + screenFrame.height - roundedHeight).rounded()
 
-        window.setFrame(NSRect(
-            x: newX,
-            y: newY,
-            width: roundedWidth,
-            height: roundedHeight
-        ), display: false)
+        let target = NSRect(x: newX, y: newY, width: roundedWidth, height: roundedHeight)
+        if window.frame != target {
+            window.setFrame(target, display: false)
+        }
         
         if changeAlpha {
             window.alphaValue = 1
@@ -864,7 +862,6 @@ final class IslandAppDelegate: NSObject {
 
         // Skip weather under UI testing: prepareLocationAccess prompts for Location.
         if Defaults[.enableLockScreenWeatherWidget] && !AppRuntimeEnvironment.isUITesting {
-            LockScreenWeatherManager.shared.prepareLocationAccess()
             Task { @MainActor in
                 await LockScreenWeatherManager.shared.refresh(force: true)
             }
@@ -1122,7 +1119,7 @@ final class IslandAppDelegate: NSObject {
             window.title = "Onboarding"
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
-            window.contentView = NSHostingView(rootView: OnboardingView(
+            window.contentView = makeHostingView(rootView: OnboardingView(
                 onFinish: {
                     window.orderOut(nil)
                     NSApp.setActivationPolicy(.regular)

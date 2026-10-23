@@ -358,6 +358,11 @@ describe("remote MCP endpoint", () => {
   });
 
   it("needt_get type=mail returns metadata only, never the body", async () => {
+    // Mail is personal: it answers from the personal workspace only.
+    jest.mocked(resolveWorkspaceAccess).mockResolvedValue({
+      ...workspace,
+      workspaceKind: WorkspaceKind.PERSONAL,
+    });
     (prisma.mailMessage.findFirst as jest.Mock).mockImplementation(
       async ({ select }) =>
         Object.fromEntries(

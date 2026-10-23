@@ -13,8 +13,15 @@ import { WorkspaceRole } from "@prisma/client";
 import { canPlanMyDay } from "@/lib/entitlements";
 
 import type { AgentStreamEvent } from "../agent/events";
-import { runAgentTurn, runConfirmedToolCall } from "../agent/loop";
+import {
+  MAX_WRITES_PER_TURN,
+  WRITE_LIMIT_MESSAGE,
+  isMutatingToolCall,
+  runAgentTurn,
+  runConfirmedToolCall,
+} from "../agent/loop";
 import type { AgentTurnEvent, AgentTurnRequest, SchedulerAI } from "../types";
+import { unwrapUntrusted } from "../untrusted";
 
 const mockState = { db: createFakePrisma() };
 
@@ -252,12 +259,12 @@ describe("agent loop: tool calls are ops, and ops are undoable", () => {
     ]);
     await turn(ai).run();
     const tools = requests[1].messages.filter((m) => m.role === "tool");
-    expect(JSON.parse((tools[0] as { content: string }).content)).toMatchObject(
-      {
-        ok: false,
-        error: "ambiguous",
-      }
-    );
+    expect(
+      JSON.parse(unwrapUntrusted((tools[0] as { content: string }).content))
+    ).toMatchObject({
+      ok: false,
+      error: "ambiguous",
+    });
     expect(taskRow(db, solo.id as string).status).toBe("completed");
   });
 
@@ -270,7 +277,9 @@ describe("agent loop: tool calls are ops, and ops are undoable", () => {
     expect(db.tables.task).toHaveLength(0);
     expect(result.changed).toBe(false);
     const message = requests[1].messages.at(-1) as { content: string };
-    expect(JSON.parse(message.content).error).toMatch(/Invalid arguments/);
+    expect(JSON.parse(unwrapUntrusted(message.content)).error).toMatch(
+      /Invalid arguments/
+    );
   });
 
   it("keeps a viewer from every write", async () => {
@@ -342,7 +351,9 @@ describe("agent loop: tool calls are ops, and ops are undoable", () => {
     expect(result.actions).toHaveLength(1);
     expect(result.actions[0].label).toBe("Placed 1 task");
     const toolMessage = requests[1].messages.at(-1) as { content: string };
-    expect(JSON.parse(toolMessage.content).placed[0]).toMatchObject({
+    expect(
+      JSON.parse(unwrapUntrusted(toolMessage.content)).placed[0]
+    ).toMatchObject({
       title: "Taxes",
       moved: false,
     });
@@ -358,5 +369,77 @@ describe("agent loop: tool calls are ops, and ops are undoable", () => {
     const result = await turn(ai).run();
     expect(result.actions).toHaveLength(0);
     expect(scheduleAllTasksForUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("agent loop: a turn can only change so much", () => {
+  const creates = (count: number, prefix = "c") =>
+    Array.from({ length: count }, (_, i) =>
+      call(`${prefix}${i}`, "create_task", { title: `Task ${prefix}${i}` })
+    );
+
+  it("runs the first writes, refuses the rest, and says so", async () => {
+    const { ai, requests } = scripted([
+      creates(MAX_WRITES_PER_TURN + 5),
+      [say("should never be asked for")],
+    ]);
+    const t = turn(ai);
+    const result = await t.run();
+
+    expect(db.tables.task).toHaveLength(MAX_WRITES_PER_TURN);
+    expect(result.actions).toHaveLength(MAX_WRITES_PER_TURN);
+    expect(result.writeLimitReached).toBe(true);
+    expect(result.text).toBe(WRITE_LIMIT_MESSAGE);
+    // The turn ends there: the model is not called again to keep going.
+    expect(requests).toHaveLength(1);
+    expect(t.events.at(-1)).toMatchObject({
+      type: "token",
+      value: WRITE_LIMIT_MESSAGE,
+    });
+  });
+
+  it("counts writes across the model's round trips, not per step", async () => {
+    const { ai, requests } = scripted([
+      creates(6, "a"),
+      creates(6, "b"),
+      [say("unreachable")],
+    ]);
+    const result = await turn(ai).run();
+    expect(db.tables.task).toHaveLength(MAX_WRITES_PER_TURN);
+    expect(result.writeLimitReached).toBe(true);
+    expect(requests).toHaveLength(2);
+  });
+
+  it("does not count reads", async () => {
+    const reads = Array.from({ length: 30 }, (_, i) =>
+      call(`r${i}`, "list_habits", {})
+    );
+    const { ai } = scripted([
+      reads,
+      creates(MAX_WRITES_PER_TURN),
+      [say("Done.")],
+    ]);
+    const result = await turn(ai).run();
+    expect(result.writeLimitReached).toBe(false);
+    expect(db.tables.task).toHaveLength(MAX_WRITES_PER_TURN);
+    expect(result.text).toBe("Done.");
+  });
+
+  it("tells reads from writes for the legacy tools too", () => {
+    expect(isMutatingToolCall("create_task", {})).toBe(true);
+    expect(isMutatingToolCall("list_tasks", {})).toBe(false);
+    expect(isMutatingToolCall("search_mail", { query: "x" })).toBe(false);
+    expect(isMutatingToolCall("get_message", { messageId: "m" })).toBe(false);
+    expect(isMutatingToolCall("manage_projects", { action: "list" })).toBe(
+      false
+    );
+    expect(isMutatingToolCall("manage_projects", { action: "create" })).toBe(
+      true
+    );
+    expect(isMutatingToolCall("create_task_from_email", {})).toBe(true);
+    expect(isMutatingToolCall("update_work_hours", {})).toBe(true);
+    expect(isMutatingToolCall("remember", {})).toBe(true);
+    // Anything it does not know counts as a change.
+    expect(isMutatingToolCall("something_new", {})).toBe(true);
   });
 });
