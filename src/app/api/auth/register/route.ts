@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/signups";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
+import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
 import { prisma } from "@/lib/prisma";
 import { publicRequestUrl } from "@/lib/public-url";
 import {
@@ -26,6 +27,9 @@ const registrationSchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(8).max(128),
   name: z.string().trim().max(100).optional(),
+  // The browser's zone and language: the account starts in the right time.
+  timeZone: z.string().max(64).optional(),
+  locale: z.string().max(35).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -103,6 +107,7 @@ export async function POST(request: NextRequest) {
           create: {
             theme: "dark",
             timeZone: "UTC",
+            ...signupLocaleSettings(parsed.data),
           },
         },
         autoScheduleSettings: {

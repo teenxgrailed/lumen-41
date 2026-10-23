@@ -22,6 +22,7 @@ import {
 } from "@/lib/auth/sign-in-provider-ids";
 import { logger } from "@/lib/logger";
 import { isIosApp } from "@/lib/native";
+import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
 
@@ -183,7 +184,11 @@ export function V3SignInRoute({
           const response = await fetch("/api/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password: input.password }),
+            body: JSON.stringify({
+              email,
+              password: input.password,
+              ...browserLocale(),
+            }),
           });
           const body = (await response.json().catch(() => ({}))) as {
             error?: string;
