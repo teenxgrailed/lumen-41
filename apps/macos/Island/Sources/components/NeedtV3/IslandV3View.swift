@@ -394,6 +394,7 @@ struct IslandV3Standby: View {
                     IslandRing(progress: remaining / max(1, total), size: 40, line: 3, color: IslandV3Palette.yellow, track: Color.white.opacity(0.12), drawIn: false)
                     Text("0:\(String(format: "%02d", Int(remaining.rounded(.up))))")
                         .font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
+                        .frame(width: 30)
                 }
                 Button("Skip") { model.skip() }
                     .buttonStyle(IslandCapsuleButtonStyle())

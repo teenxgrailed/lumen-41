@@ -19,7 +19,8 @@ final class LockScreenWeatherManager: ObservableObject {
         observeAccessoryChanges()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.locationProvider.prepareAuthorization()
+            // No Location prompt here: it is asked on the first lock screen
+            // showing of the widget, or when the person turns the widget on.
             _ = await self.refresh(force: true)
         }
     }
