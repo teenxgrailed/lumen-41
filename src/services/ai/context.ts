@@ -14,6 +14,9 @@ import { prisma } from "@/lib/prisma";
 import { isLearningEnabled, listMemoriesForUse, touchMemories } from "./memory";
 import { runLearning } from "./memory-learning";
 import { assembleAgentSystemPrompt } from "./system-prompt";
+import { oneLine } from "./untrusted";
+
+const TITLE_MAX = 120;
 
 export async function getTodayScheduleSummary(
   userId: string,
@@ -34,11 +37,19 @@ export async function getTodayScheduleSummary(
         ...workspaceDataScopeWhere(workspace, userId),
         isArchived: false,
         status: { not: "completed" },
-        OR: [
+        // The person's own day: what is assigned to them, and what they
+        // created and left unassigned. A shared workspace also holds the
+        // other members' tasks, and their titles are not this person's day.
+        AND: [
+          { OR: [{ assigneeId: userId }, { assigneeId: null, userId }] },
           {
-            scheduledStart: { gte: dayStart, lte: dayEnd },
+            OR: [
+              {
+                scheduledStart: { gte: dayStart, lte: dayEnd },
+              },
+              { deadline: { gte: dayStart, lte: dayEnd } },
+            ],
           },
-          { deadline: { gte: dayStart, lte: dayEnd } },
         ],
       },
       orderBy: [{ scheduledStart: "asc" }, { priorityLevel: "desc" }],
@@ -98,7 +109,9 @@ export async function getTodayScheduleSummary(
           const time = task.scheduledStart
             ? formatInTimeZone(task.scheduledStart, zone, "HH:mm")
             : "unscheduled";
-          return `${time} ${task.title}`;
+          // A title is text someone typed or a sync brought in: keep it to
+          // one short line so it cannot break the schedule apart.
+          return `${time} ${oneLine(task.title, TITLE_MAX)}`;
         })
         .join("; ")
     : "No scheduled tasks today.";
@@ -142,5 +155,7 @@ export async function buildAgentPromptForUser(
     },
   });
   await touchMemories(userId, workspace.workspaceId, result.usedMemoryIds);
-  return result.prompt;
+  // `systemPrompt` holds instructions only. `contextBlock` (today's schedule
+  // and memories, quoted as data) is sent as the first user message.
+  return { systemPrompt: result.prompt, contextBlock: result.contextBlock };
 }

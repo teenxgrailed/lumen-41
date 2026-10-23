@@ -89,7 +89,9 @@ describe("AI archive confirmation", () => {
       userId: "user-1",
       workspace,
     });
-    jest.mocked(buildAgentPromptForUser).mockResolvedValue("system");
+    jest
+      .mocked(buildAgentPromptForUser)
+      .mockResolvedValue({ systemPrompt: "system", contextBlock: "" });
     const configured = {
       settings: {
         allowParseTasks: true,
