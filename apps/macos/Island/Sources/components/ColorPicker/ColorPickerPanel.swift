@@ -105,7 +105,7 @@ class ColorPickerPanel: NSPanel {
             ColorPickerPanelManager.shared.hideColorPickerPanel()
         }
         
-        let hostingView = NSHostingView(rootView: panelView)
+        let hostingView = makeHostingView(rootView: panelView)
         applyColorPickerCornerMask(hostingView, radius: 12)
         contentView = hostingView
         

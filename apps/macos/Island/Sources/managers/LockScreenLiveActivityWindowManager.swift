@@ -162,7 +162,7 @@ class LockScreenLiveActivityWindowManager {
             hostingView.rootView = overlayView
             hostingView.frame = CGRect(origin: .zero, size: targetFrame.size)
         } else {
-            let view = NSHostingView(rootView: overlayView)
+            let view = makeHostingView(rootView: overlayView)
             view.frame = CGRect(origin: .zero, size: targetFrame.size)
             hostingView = view
             window.contentView = view

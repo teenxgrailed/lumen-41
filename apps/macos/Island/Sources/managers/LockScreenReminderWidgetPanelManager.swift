@@ -55,8 +55,8 @@ final class LockScreenReminderWidgetPanelManager {
         }
 
         let view = LockScreenReminderWidget(snapshot: snapshot)
-        let hostingView = NSHostingView(rootView: view)
-        let fittingSize = hostingView.fittingSize
+        let hostingView = makeHostingView(rootView: view)
+        let fittingSize = idealHostingSize(of: view)
         hostingView.frame = NSRect(origin: .zero, size: fittingSize)
 
         let window = ensureWindow()

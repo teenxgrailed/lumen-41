@@ -12,6 +12,25 @@ enum IslandV3Format {
     }()
 
     static func time(_ date: Date) -> String { hm.string(from: date) }
+
+    /// The speaker glyph for a volume; fixed-width at the call sites so the
+    /// row does not shift as it changes.
+    static func speakerSymbol(_ volume: Double) -> String {
+        switch volume {
+        case ..<0.005: return "speaker.slash.fill"
+        case ..<0.34: return "speaker.fill"
+        case ..<0.67: return "speaker.wave.1.fill"
+        case ..<0.9: return "speaker.wave.2.fill"
+        default: return "speaker.wave.3.fill"
+        }
+    }
+
+    static func airpodsSymbol(_ name: String) -> String {
+        let n = name.lowercased()
+        if n.contains("max") { return "airpodsmax" }
+        if n.contains("airpods") { return "airpodspro" }
+        return "headphones"
+    }
 }
 
 /// The island: one black shape, laid out once, never rebuilt. Each state is a
@@ -96,11 +115,24 @@ struct IslandV3View: View {
                 m: m,
                 left: {
                     HStack(spacing: 6) {
-                        Image(systemName: "airpodspro").font(.system(size: 12, weight: .semibold))
+                        Image(systemName: IslandV3Format.airpodsSymbol(d.airpodsName))
+                            .font(.system(size: 12, weight: .semibold)).frame(width: 18)
                         Text(d.airpodsName).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     }
                 },
-                right: { Text("Connected").font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.7)) }
+                right: {
+                    // The level is shown only when the system reports one; the
+                    // slot has one fixed width either way.
+                    Group {
+                        if let percent = d.airpodsPercent {
+                            Text("\(percent)%").monospacedDigit()
+                        } else {
+                            Text("Connected").foregroundStyle(Color.white.opacity(0.7))
+                        }
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 66, alignment: .trailing)
+                }
             )
         }
         IslandV3Layer(on: c == .charge) {
@@ -112,18 +144,19 @@ struct IslandV3View: View {
                         Text("Charging").font(.system(size: 12, weight: .semibold))
                     }
                 },
-                right: { Text("\(d.chargePercent)%").font(.system(size: 12, weight: .semibold)).monospacedDigit() }
+                right: { Text("\(d.chargePercent)%").font(.system(size: 12, weight: .semibold)).monospacedDigit().frame(width: 40, alignment: .trailing) }
             )
         }
         IslandV3Layer(on: c == .hudv) {
             IslandEars(
                 m: m,
-                left: { Image(systemName: "speaker.wave.2.fill").font(.system(size: 12, weight: .semibold)) },
+                left: { Image(systemName: IslandV3Format.speakerSymbol(d.volume)).font(.system(size: 12, weight: .semibold)).frame(width: 20) },
                 right: {
                     HStack(spacing: 8) {
                         IslandV3Meter(value: d.volume).frame(width: 56)
                         Text("\(Int((d.volume * 100).rounded()))")
                             .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                            .frame(width: 26, alignment: .trailing)
                     }
                 }
             )
@@ -328,6 +361,7 @@ struct IslandV3LiveRow: View {
                         }
                         Text(IslandV3Format.clock(left))
                             .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                            .frame(width: 46, alignment: .trailing)
                     }
                 }
             )
@@ -394,6 +428,7 @@ struct IslandV3Standby: View {
                     IslandRing(progress: remaining / max(1, total), size: 40, line: 3, color: IslandV3Palette.yellow, track: Color.white.opacity(0.12), drawIn: false)
                     Text("0:\(String(format: "%02d", Int(remaining.rounded(.up))))")
                         .font(.system(size: 10.5, weight: .semibold)).monospacedDigit()
+                        .frame(width: 30)
                 }
                 Button("Skip") { model.skip() }
                     .buttonStyle(IslandCapsuleButtonStyle())
@@ -439,7 +474,7 @@ struct IslandV3Peek: View {
             .foregroundStyle(Color.white)
             .padding(.leading, 18).padding(.trailing, 16)
             .padding(.top, bar + 4)
-            .frame(height: bar + 4 + 62 + 12, alignment: .top)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -498,7 +533,7 @@ struct IslandV3Peek: View {
         return Group {
             ZStack {
                 IslandRing(progress: d.progress(at: now), size: 42, line: 4, color: .white, track: Color.white.opacity(0.14), comet: true)
-                Text("\(left / 60)").font(.system(size: 15, weight: .bold)).monospacedDigit()
+                Text("\(left / 60)").font(.system(size: 15, weight: .bold)).monospacedDigit().frame(width: 30)
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -514,8 +549,11 @@ struct IslandV3Peek: View {
                 }
                 .frame(height: 4).padding(.vertical, 3)
                 HStack {
-                    Text("\(IslandV3Format.clock(left)) left" + (d.focusEnd.map { " · ends \(IslandV3Format.time($0))" } ?? ""))
-                        .monospacedDigit()
+                    HStack(spacing: 3) {
+                        Text(IslandV3Format.clock(left)).monospacedDigit().frame(width: 44, alignment: .leading)
+                        Text("left" + (d.focusEnd.map { " · ends \(IslandV3Format.time($0))" } ?? ""))
+                            .monospacedDigit()
+                    }
                     Spacer(minLength: 10)
                     if let next = d.next { Text("Next: \(next.shortTitle) \(next.timeLabel)").lineLimit(1) }
                 }
