@@ -99,9 +99,10 @@ def add_to_home_screen(w, h):
         text = " ".join(haystack(e) for e in els)
 
         def exact(*names):
-            for e in els:
-                if label(e) in names and tapped.get(label(e), 0) < 3:
-                    return e
+            for n in names:
+                for e in els:
+                    if label(e) == n and tapped.get(n, 0) < 3:
+                        return e
             return None
         add = next((e for e in els if label(e) == "add" and e.get("enabled", True)), None)
         if add and ("home screen" in text or "web app" in text):
@@ -149,9 +150,21 @@ def launch_icon(name, w, h):
             time.sleep(8)
             return True
         save_debug(f"home-{page}", describe())
+        if page == 1:
+            break
         swipe(w * 0.85, h * 0.5, w * 0.15, h * 0.5, 0.3)
         time.sleep(2)
-    return False
+    # SpringBoard often gives idb no elements: Spotlight finds the app by name
+    home()
+    home()
+    tap(w / 2, h * 0.82)  # the Search pill above the dock
+    time.sleep(4)
+    type_slowly(name)
+    time.sleep(4)
+    save_debug("spotlight", describe())
+    idb("ui", "key", "40")  # Return opens the top hit
+    time.sleep(10)
+    return True
 
 
 def front_app():

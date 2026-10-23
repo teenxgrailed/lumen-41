@@ -81,7 +81,8 @@ jobs:
       - name: Safari, then Add to Home Screen
         timeout-minutes: 15
         run: |
-          set -x
+          set +e -x
+          export WI_TRACE=1
           mkdir -p debug
           xcrun simctl launch "$UDID" com.apple.mobilesafari; sleep 15
           xcrun simctl openurl "$UDID" http://127.0.0.1:3000/; sleep 20
@@ -90,10 +91,12 @@ jobs:
           python3 .github/safari/wi.py pages > debug/wi-pages-safari.json; cat debug/wi-pages-safari.json | head -80
           python3 .github/safari/wi.py eval --safari 'return {st: navigator.standalone, ih: innerHeight, sh: screen.height, url: location.href, r: document.getElementById("in").getBoundingClientRect().toJSON()}'
           python3 .github/safari/ui.py a2hs; echo "a2hs exit $?"
+          unset WI_TRACE
           python3 .github/safari/ui.py launch Probe; echo "launch exit $?"
           sleep 5
           python3 .github/safari/ui.py front
           xcrun simctl io "$UDID" screenshot debug/standalone-0.png
+          export WI_TRACE=1
           python3 .github/safari/wi.py pages > debug/wi-pages-standalone.json; head -80 debug/wi-pages-standalone.json
           python3 .github/safari/wi.py eval --webapp 'return {st: navigator.standalone, ih: innerHeight, iw: innerWidth, sh: screen.height, url: location.href, r: document.getElementById("in").getBoundingClientRect().toJSON(), dm: matchMedia("(display-mode: standalone)").matches}'
           python3 .github/safari/ui.py labels standalone-0
@@ -112,7 +115,7 @@ jobs:
       - name: Web Clip fallback
         timeout-minutes: 10
         run: |
-          set -x
+          set +e -x
           python3 .github/safari/ui.py webclip ClipB http://127.0.0.1:3000/b.html public/icons/apple-touch-icon.png
           python3 .github/safari/ui.py launch ClipB; echo "launch exit $?"
           sleep 5

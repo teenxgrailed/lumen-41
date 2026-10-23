@@ -16,6 +16,11 @@ UDID = os.environ.get("UDID", "booted")
 SAFARI = "com.apple.mobilesafari"
 
 
+def trace(*a):
+    if os.environ.get("WI_TRACE"):
+        print("wi", *a, file=sys.stderr, flush=True)
+
+
 def sock_path():
     p = os.environ.get("RWI_SOCKET")
     if p:
@@ -47,11 +52,13 @@ class WI:
         self.pump(lambda: self.apps, 5)
 
     def send(self, sel, arg):
+        trace(">", sel, {k: v for k, v in arg.items() if k != "WIRSocketDataKey"}, arg.get("WIRSocketDataKey", b"")[:300])
         body = plistlib.dumps({"__selector": sel, "__argument": arg}, fmt=plistlib.FMT_BINARY)
         self.s.sendall(struct.pack(">I", len(body)) + body)
 
     def handle(self, msg):
         sel, arg = msg.get("__selector"), msg.get("__argument") or {}
+        trace("<", sel, str({k: v for k, v in arg.items() if k not in ("WIRApplicationIconKey",)})[:400])
         if sel == "_rpc_reportConnectedApplicationList:":
             self.apps.update(arg.get("WIRApplicationDictionaryKey") or {})
         elif sel in ("_rpc_applicationConnected:", "_rpc_applicationUpdated:"):
@@ -97,10 +104,12 @@ class WI:
         return a.get("WIRApplicationBundleIdentifierKey", "")
 
     def pages(self):
-        for app_id in list(self.apps):
+        ready = [a for a, v in self.apps.items()
+                 if v.get("WIRIsApplicationReadyKey", True) and not str(v.get("WIRApplicationBundleIdentifierKey", "")).startswith("process-")]
+        for app_id in ready:
             self.send("_rpc_forwardGetListing:", {"WIRConnectionIdentifierKey": self.conn,
                                                    "WIRApplicationIdentifierKey": app_id})
-        self.pump(lambda: len(self.listings) >= len(self.apps), 4)
+        self.pump(lambda: len(self.listings) >= len(ready), 4)
         out = []
         for app_id, listing in self.listings.items():
             a = self.apps.get(app_id) or {}
@@ -125,8 +134,7 @@ class WI:
 
     def attach(self, app, page):
         self.app, self.page = app, page
-        self.send("_rpc_forwardSocketSetup:", {**self._base(), "WIRAutomaticallyPause": False,
-                                               "WIRMessageDataTypeChunkSupportedKey": 0})
+        self.send("_rpc_forwardSocketSetup:", {**self._base(), "WIRAutomaticallyPause": False})
 
         def created():
             for m in self.data:
@@ -167,6 +175,9 @@ class WI:
         return found["m"]
 
     def close(self):
+        if not hasattr(self, "app"):
+            self.s.close()
+            return
         try:
             self.send("_rpc_forwardDidClose:", self._base())
         except Exception:
@@ -186,8 +197,9 @@ def pick(pages, want, url):
 def evaluate(js, want=None, url=None, tries=4):
     last = None
     for _ in range(tries):
-        wi = WI()
+        wi = None
         try:
+            wi = WI()
             p = pick(wi.pages(), want, url)
             if not p:
                 last = "no matching page"
@@ -207,7 +219,8 @@ def evaluate(js, want=None, url=None, tries=4):
             last = str(e)
             time.sleep(2)
         finally:
-            wi.close()
+            if wi:
+                wi.close()
     raise SystemExit(f"eval failed: {last}")
 
 
