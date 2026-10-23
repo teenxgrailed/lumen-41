@@ -1,6 +1,11 @@
 import {
+  isPageInPrivateTree,
+  withoutPrivateTrees,
+} from "@/services/pages/ai-page-access";
+import {
   type PageActor,
   pageActorCanAccess as actorCanAccess,
+  pageActorIsAi as actorIsAi,
   pageActorScope as actorPageScope,
   pageActorUserId as actorUserId,
   pageActorWorkspaceId as actorWorkspaceId,
@@ -44,7 +49,7 @@ export async function listPages(
   }
 ) {
   const tagIds = [...new Set(options?.tagIds ?? [])];
-  const pages = await prisma.page.findMany({
+  const found = await prisma.page.findMany({
     where: {
       ...actorPageScope(actor),
       trashedAt: options?.trashed ? { not: null } : null,
@@ -97,6 +102,8 @@ export async function listPages(
       { updatedAt: "desc" },
     ],
   });
+  // The AI agent and MCP callers never see a page in a private tree.
+  const pages = actorIsAi(actor) ? await withoutPrivateTrees(found) : found;
   // Only the ids the scoped query above returned: the preview does no access
   // check of its own.
   const previews =
@@ -130,10 +137,14 @@ export function pageShareFlags(
 }
 
 export async function getPage(actor: PageActor, pageId: string) {
-  return prisma.page.findFirst({
+  const page = await prisma.page.findFirst({
     where: { id: pageId, ...actorPageScope(actor), trashedAt: null },
     include: pageDetailInclude,
   });
+  if (page && actorIsAi(actor) && (await isPageInPrivateTree(page.id))) {
+    return null;
+  }
+  return page;
 }
 
 /**

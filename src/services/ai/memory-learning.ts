@@ -1,3 +1,4 @@
+import { withoutPrivateTrees } from "@/services/pages/ai-page-access";
 import { pageActorScope } from "@/services/pages/page-model";
 import { AgentMemoryKind, AgentMemorySource } from "@prisma/client";
 import { z } from "zod";
@@ -306,7 +307,7 @@ export async function buildContentExcerpt(
   const since = new Date(
     newDate().getTime() - CONTENT_WINDOW_DAYS * 86_400_000
   );
-  const [pages, mail] = await Promise.all([
+  const [candidates, mail] = await Promise.all([
     prisma.page.findMany({
       where: {
         ...pageActorScope({ userId, workspace }),
@@ -319,6 +320,7 @@ export async function buildContentExcerpt(
       orderBy: { updatedAt: "desc" },
       take: MAX_PAGES,
       select: {
+        id: true,
         title: true,
         blocks: {
           orderBy: { position: "asc" },
@@ -339,6 +341,9 @@ export async function buildContentExcerpt(
     }),
   ]);
 
+  // The query above only looks one level up; a page anywhere under a private
+  // page is private too and never goes to the provider.
+  const pages = await withoutPrivateTrees(candidates);
   const parts: string[] = [];
   if (pages.length) {
     parts.push("DOCUMENTS");
@@ -389,6 +394,11 @@ export async function extractContentMemories(
   if (!(await isLearningEnabled(userId))) return 0;
 
   const facts = parseExtractedFacts(raw);
+  //todo: a fact read from mail or a document is saved, and used by Ask, as soon
+  // as the model returns it, so a hostile mail can plant a standing "memory".
+  // These should be saved as suggested and used only once the person approves
+  // them (a product decision, owner to confirm). Until then the prompt quotes
+  // memories as data (see system-prompt.ts).
   for (const fact of facts) {
     await rememberForUser(userId, workspace.workspaceId, {
       kind: fact.kind,

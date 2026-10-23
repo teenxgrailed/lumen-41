@@ -1893,7 +1893,7 @@ export function PageWorkspace({
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPrivate: true }),
+        body: JSON.stringify({ isPrivate: false }),
       }
     );
     if (!response.ok) {
