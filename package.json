@@ -31,6 +31,7 @@
     "test:style:update": "playwright test --config=playwright.style.config.ts --update-snapshots=all",
     "mcp:needt": "node mcp/needt-mcp-server.mjs",
     "check:branding": "node scripts/check-branding.mjs",
+    "check:changelog": "node scripts/check-changelog-edit.mjs",
     "check:agent-handoffs": "node scripts/check-agent-handoffs.mjs",
     "check:collaboration-runtime": "node scripts/check-collaboration-runtime.mjs",
     "check:runtime-shas": "node scripts/check-runtime-shas.mjs",

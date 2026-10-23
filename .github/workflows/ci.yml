@@ -112,16 +112,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Warn when a PR edits CHANGELOG.md directly
+      - name: Fail when a PR edits CHANGELOG.md directly
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' | grep -qx 'CHANGELOG.md'; then
-            echo "::warning file=CHANGELOG.md::Do not edit CHANGELOG.md in a PR; add changelog.d/<slug>.md instead (see changelog.d/README.md)."
-          fi
+          gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate \
+            --jq '.[] | {filename, status, patch} | tojson' > "$RUNNER_TEMP/pr-files.ndjson"
+          gh api "repos/$REPO/pulls/$PR_NUMBER/commits" --paginate \
+            --jq '.[].commit.message | split("\n")[0]' > "$RUNNER_TEMP/pr-subjects.txt"
+          node scripts/check-changelog-edit.mjs \
+            --pr-files "$RUNNER_TEMP/pr-files.ndjson" \
+            --subjects "$RUNNER_TEMP/pr-subjects.txt"
       - run: npm ci
       - run: npx prisma generate
       - run: npx prisma migrate deploy
