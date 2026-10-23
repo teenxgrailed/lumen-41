@@ -124,7 +124,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                      |
 | `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call                |
 | `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                       |
-| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                                                    |
+| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`; with `taskIds` or `scope` (today, overdue) and optional `days` it runs `task.spread` instead                                                                                      |
 | `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                         |
 | `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, fullTime, dependsOnId, originPageId; other fields are refused                                                   |
 | `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                   |
@@ -872,30 +872,31 @@ curl -X POST http://localhost:3000/api/connect/ops/task.create \
 }
 ```
 
-| Operation              | Risk       | Input                                                                                                  | Undo                                 |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `task.list`            | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                      | —                                    |
-| `task.get`             | read       | `taskId`                                                                                               | —                                    |
-| `schedule.get_day`     | read       | `date` (YYYY-MM-DD, user's time zone)                                                                  | —                                    |
-| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `autoSchedule`      | archives the task                    |
-| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes` | writes the previous values back      |
-| `task.complete`        | reversible | `taskId` (recurring series are refused for now)                                                        | previous status                      |
-| `task.uncomplete`      | reversible | `taskId`, `status` (todo, in_progress)                                                                 | completed with its original time     |
-| `task.archive`         | reversible | `taskId`                                                                                               | unarchives with placement and blocks |
-| `task.unarchive`       | reversible | `taskId`                                                                                               | archives again                       |
-| `task.move_to_day`     | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                          | previous dates and blocks            |
-| `schedule.auto`        | reversible | `{}`                                                                                                   | every task it moved goes back        |
-| `project.create`       | reversible | `name`, `description`, `color`, `icon`                                                                 | archives the project                 |
-| `project.archive`      | reversible | `projectId`                                                                                            | previous status                      |
-| `mail.to_task`         | reversible | `messageId`, `title`, `estimateMinutes`                                                                | archives the task                    |
-| `habit.log`            | reversible | `habitId`, `date` (default today)                                                                      | clears the day                       |
-| `habit.unlog`          | reversible | `habitId`, `date` (default today)                                                                      | marks the day again                  |
-| `personal.list`        | read       | `from`, `to` (ISO; adds every occurrence in the range), `includeArchived`                              | —                                    |
-| `personal.create`      | reversible | `kind`, `title`, `emoji`, `color`, `start`, `end` or `minutes`, `rrule`                                | removes the block                    |
-| `personal.update`      | reversible | `blockId` plus any of `title`, `emoji`, `color`, `start`, `end`, `rrule` (null stops the repeat)       | writes the previous values back      |
-| `personal.delete`      | reversible | `blockId`                                                                                              | brings the block back                |
-| `personal.mark_event`  | reversible | `eventId`, `kind`, `title`, `emoji`                                                                    | removes the linked block             |
-| `personal.set_default` | reversible | `kind`, `enabled`, `at` (HH:mm), `minutes`, `days` (0 = Sunday)                                        | restores the previous default        |
+| Operation              | Risk       | Input                                                                                                                                                  | Undo                                 |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| `task.list`            | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                                                                      | —                                    |
+| `task.get`             | read       | `taskId`                                                                                                                                               | —                                    |
+| `schedule.get_day`     | read       | `date` (YYYY-MM-DD, user's time zone)                                                                                                                  | —                                    |
+| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `autoSchedule`                                                      | archives the task                    |
+| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`                                                 | writes the previous values back      |
+| `task.complete`        | reversible | `taskId` (recurring series are refused for now)                                                                                                        | previous status                      |
+| `task.uncomplete`      | reversible | `taskId`, `status` (todo, in_progress)                                                                                                                 | completed with its original time     |
+| `task.archive`         | reversible | `taskId`                                                                                                                                               | unarchives with placement and blocks |
+| `task.unarchive`       | reversible | `taskId`                                                                                                                                               | archives again                       |
+| `task.move_to_day`     | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                                                                          | previous dates and blocks            |
+| `task.spread`          | reversible | `taskIds` or `scope` (today: no time today; overdue: due before today), `days` (1–14, default 7). Each task goes to the first day from today with room | every task it moved goes back        |
+| `schedule.auto`        | reversible | `{}`                                                                                                                                                   | every task it moved goes back        |
+| `project.create`       | reversible | `name`, `description`, `color`, `icon`                                                                                                                 | archives the project                 |
+| `project.archive`      | reversible | `projectId`                                                                                                                                            | previous status                      |
+| `mail.to_task`         | reversible | `messageId`, `title`, `estimateMinutes`                                                                                                                | archives the task                    |
+| `habit.log`            | reversible | `habitId`, `date` (default today)                                                                                                                      | clears the day                       |
+| `habit.unlog`          | reversible | `habitId`, `date` (default today)                                                                                                                      | marks the day again                  |
+| `personal.list`        | read       | `from`, `to` (ISO; adds every occurrence in the range), `includeArchived`                                                                              | —                                    |
+| `personal.create`      | reversible | `kind`, `title`, `emoji`, `color`, `start`, `end` or `minutes`, `rrule`                                                                                | removes the block                    |
+| `personal.update`      | reversible | `blockId` plus any of `title`, `emoji`, `color`, `start`, `end`, `rrule` (null stops the repeat)                                                       | writes the previous values back      |
+| `personal.delete`      | reversible | `blockId`                                                                                                                                              | brings the block back                |
+| `personal.mark_event`  | reversible | `eventId`, `kind`, `title`, `emoji`                                                                                                                    | removes the linked block             |
+| `personal.set_default` | reversible | `kind`, `enabled`, `at` (HH:mm), `minutes`, `days` (0 = Sunday)                                                                                        | restores the previous default        |
 
 Errors are JSON `{ "error", "code" }`: `INVALID_INPUT` (400, with
 `details`), `FORBIDDEN` (403, a viewer cannot write), `OP_NOT_FOUND` or

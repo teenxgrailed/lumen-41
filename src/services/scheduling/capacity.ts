@@ -63,7 +63,8 @@ export function workingWindowsForRange(
   }).flat();
 }
 
-function occupiedMinutes(window: Window, busy: Window[]) {
+/** Minutes of `window` that `busy` covers, overlaps counted once. */
+export function occupiedMinutes(window: Window, busy: Window[]) {
   const intersections = busy
     .map((item) => ({
       start: item.start > window.start ? item.start : window.start,
