@@ -546,3 +546,4 @@
    the sign-in link is an anchor, the design's is a button. */
 .ob3 a.ob3-link, .ob3 a.ob3-link:hover { color: var(--ink2); text-decoration: none; }
 .ob3 a.ob3-link:hover { color: var(--ink); }
+.ob3 .ob3-note a, .ob3 .ob3-note a:hover { color: var(--ink2); text-decoration: underline; text-underline-offset: 2px; }

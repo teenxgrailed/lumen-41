@@ -170,14 +170,14 @@
 /* ── EVERY PRESS ANSWERS ────────────────────────────────────────────────
    A control that does not move under the finger reads as a picture of a
    control. 90ms down, spring back up. */
-.needt-v2 button:where(:not(.ob3 button)),
+.needt-v2 button,
 .needt-v2 .btn,
 .needt-v2 [role="menuitem"],
 .needt-v2 .nt-nav-row,
 .needt-v2 .nt-chip {
   transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.24, 1), background-color var(--transition-hover), box-shadow 0.2s cubic-bezier(0.2, 0.9, 0.24, 1), color var(--transition-hover);
 }
-.needt-v2 button:where(:not(.ob3 button)):active,
+.needt-v2 button:active,
 .needt-v2 .btn:active,
 .needt-v2 [role="menuitem"]:active,
 .needt-v2 .nt-nav-row:active { transform: scale(0.965); transition-duration: 0.09s; }
