@@ -42,10 +42,20 @@ let client: QueryClient;
 let fetchMock: jest.Mock;
 let latest: Completion;
 
+let options: Parameters<typeof useCompletion>[0] = {};
 function Probe() {
-  latest = useCompletion();
+  latest = useCompletion(options);
   return null;
 }
+
+const list = (...done: boolean[]) =>
+  done.map((d, i) => ({ id: "ab"[i], title: "T", done: d }));
+const remote = (...done: boolean[]) =>
+  act(() => {
+    client.setQueryData(qk.tasks({}), list(...done));
+    // the query client hands its notice to a zero-delay timer
+    jest.advanceTimersByTime(1);
+  });
 
 const ok = () =>
   Promise.resolve({
@@ -78,6 +88,7 @@ const flush = () =>
 beforeEach(() => {
   jest.useFakeTimers();
   reduced = false;
+  options = {};
   success.mockClear();
   fetchMock = jest.fn(ok);
   (globalThis as { fetch?: unknown }).fetch = fetchMock;
@@ -202,5 +213,113 @@ describe("useCompletion", () => {
     await flush();
     expect(latest.phase).toEqual({});
     expect(success).not.toHaveBeenCalled();
+  });
+
+  it("a row in an open-only list leaves after the strike even when completed tasks are kept", async () => {
+    view("always");
+    options = { leaves: (t) => t.id === "a" };
+    mount();
+    act(() => latest.check(task));
+    expect(latest.phase).toEqual({ a: "strike" });
+    expect(latest.departing).toEqual({ a: true });
+    tick(STRIKE_HOLD_MS + 10);
+    expect(latest.phase).toEqual({ a: "collapse" });
+    tick(FOLD_MS);
+    expect(latest.phase).toEqual({});
+    expect(latest.departing).toEqual({});
+    await flush();
+  });
+
+  it("a row that stays struck is not marked as departing", async () => {
+    view("always");
+    options = { leaves: () => false };
+    mount();
+    act(() => latest.check(task));
+    expect(latest.departing).toEqual({});
+    await flush();
+  });
+
+  it("Undo inside the window puts the row back for good", async () => {
+    view("hide");
+    mount();
+    act(() => latest.check(task));
+    await flush();
+    tick(STRIKE_HOLD_MS + 10);
+    expect(latest.phase).toEqual({ a: "collapse" });
+    await act(async () => {
+      success.mock.calls[0][1].action.onClick();
+    });
+    expect(latest.phase).toEqual({});
+    tick(STRIKE_HOLD_MS + FOLD_MS + 100);
+    expect(latest.phase).toEqual({});
+  });
+
+  describe("a task closed by another writer", () => {
+    it("folds without the strike hold and is gone after the fold (Completed: hide)", () => {
+      view("hide");
+      mount();
+      remote(false, false);
+      expect(latest.phase).toEqual({});
+      remote(true, false);
+      expect(latest.phase).toEqual({ a: "collapse" });
+      expect(latest.hold(list(true, false))[0].done).toBe(false);
+      tick(FOLD_MS - 10);
+      expect(latest.phase).toEqual({ a: "collapse" });
+      tick(20);
+      expect(latest.phase).toEqual({});
+    });
+
+    it("does nothing on the first read of the list", () => {
+      view("hide");
+      mount();
+      remote(true, false);
+      expect(latest.phase).toEqual({});
+    });
+
+    it("leaves a kept row alone unless the screen says it leaves", () => {
+      view("always");
+      mount();
+      remote(false, false);
+      remote(true, false);
+      expect(latest.phase).toEqual({});
+    });
+
+    it("folds a kept row the screen says leaves", () => {
+      view("always");
+      options = { leaves: (t) => t.id === "b" };
+      mount();
+      remote(false, false);
+      remote(true, true);
+      expect(latest.phase).toEqual({ b: "collapse" });
+    });
+
+    it("is cancelled when it is reopened before the fold ends", () => {
+      view("hide");
+      mount();
+      remote(false);
+      remote(true);
+      expect(latest.phase).toEqual({ a: "collapse" });
+      remote(false);
+      expect(latest.phase).toEqual({});
+    });
+
+    it("does not animate under reduced motion", () => {
+      reduced = true;
+      view("hide");
+      mount();
+      remote(false);
+      remote(true);
+      expect(latest.phase).toEqual({});
+    });
+
+    it("leaves a row this screen is already playing to its own timers", async () => {
+      view("hide");
+      mount();
+      remote(false);
+      act(() => latest.check(task));
+      remote(true);
+      expect(latest.phase).toEqual({ a: "strike" });
+      await flush();
+    });
   });
 });
