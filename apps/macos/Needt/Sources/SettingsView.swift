@@ -10,8 +10,35 @@ struct SettingsView: View {
                 .tabItem { Label("Focus", systemImage: "scope") }
             IslandSettingsPane()
                 .tabItem { Label("Island", systemImage: "rectangle.topthird.inset.filled") }
+            AboutSettingsPane()
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 500, height: 560)
+    }
+}
+
+private struct AboutSettingsPane: View {
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Version", value: Updater.versionString)
+                if Updater.isAvailableInThisBuild {
+                    LabeledContent("Updates") {
+                        Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                            .disabled(!Updater.shared.isConfigured)
+                    }
+                }
+            } header: {
+                Text("About")
+            } footer: {
+                if Updater.isAvailableInThisBuild {
+                    Text(Updater.shared.isConfigured
+                        ? "Needt checks for updates once a day."
+                        : "Updates are off in this build.")
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
