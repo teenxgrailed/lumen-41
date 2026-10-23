@@ -126,12 +126,15 @@ export function trayState(input: {
   nowHour: number;
   focus: FocusRow | null | undefined;
   nowMs?: number;
+  /** Settings -> Desktop -> Dock badge: off sends overdue 0 (no badge). */
+  dockBadge?: boolean;
 }): DesktopTrayState | null {
   if (!input.tasks) return null;
   const nowMs = input.nowMs ?? newDate().getTime();
   return {
     open: badgeCount(input.tasks, input.today),
-    overdue: overdueCount(input.tasks, input.today),
+    overdue:
+      input.dockBadge === false ? 0 : overdueCount(input.tasks, input.today),
     next: nextTasks(input.tasks, input.today, input.nowHour),
     focus: focusLine(input.focus, nowMs),
     focusRun: focusRunOf(input.focus, nowMs, input.tasks),

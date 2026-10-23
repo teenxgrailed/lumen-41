@@ -35,6 +35,13 @@ import { AlertsSection } from "./AlertsSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { DataSection } from "./DataSection";
 import { DaySection } from "./DaySection";
+import {
+  AppSection,
+  IslandSection,
+  MacFocusSection,
+  SiriSection,
+  WidgetsSection,
+} from "./DesktopSections";
 import { KeysSection } from "./KeysSection";
 import { PlanSection } from "./PlanSection";
 import { FocusSection, GeneralSection, TasksSection } from "./PrefSections";
@@ -45,6 +52,7 @@ import {
   SETTINGS_NAV,
   type SectionId,
   accentFromPrefs,
+  isDesktopSection,
   isPro,
   planInfo,
   sectionOf,
@@ -64,6 +72,11 @@ const NAV_GLYPHS: Record<string, GlyphName> = {
   focus: "focus",
   alerts: "bell",
   keys: "api",
+  app: "devices",
+  island: "island",
+  mfocus: "focus-moon",
+  widgets: "boards",
+  siri: "spark",
   connections: "connect",
   data: "import",
   about: "help",
@@ -142,6 +155,16 @@ const Body = memo(function Body({ section }: { section: SectionId }) {
       return <AlertsSection />;
     case "keys":
       return <KeysSection />;
+    case "app":
+      return <AppSection />;
+    case "island":
+      return <IslandSection />;
+    case "mfocus":
+      return <MacFocusSection />;
+    case "widgets":
+      return <WidgetsSection />;
+    case "siri":
+      return <SiriSection />;
     case "data":
       return <DataSection />;
     case "about":
@@ -263,7 +286,7 @@ export function SettingsSheet() {
         <PhoneSettings
           open={open}
           onClose={close}
-          page={list ? null : section}
+          page={list || isDesktopSection(section) ? null : section}
           onPage={phonePage}
           saved={saved}
           menu={menu}
