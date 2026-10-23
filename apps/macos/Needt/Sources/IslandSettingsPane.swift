@@ -18,6 +18,7 @@ struct IslandSettingsPane: View {
     @Default(.enableHaptics) private var haptics
     @Default(.playLowBatteryAlertSound) private var batterySound
     @Default(.enableLockSounds) private var lockSounds
+    @Default(.lockScreenMusicFullscreenVideoArtwork) private var animatedArtwork
 
     private var isPro: Bool { entitlement.isPro }
 
@@ -89,10 +90,29 @@ struct IslandSettingsPane: View {
             }
             .disabled(!isPro || !enabled)
 
+            Section {
+                // The only place Apple Music access is asked for.
+                Toggle("Animated cover art from Apple Music", isOn: $animatedArtwork)
+                    .onChange(of: animatedArtwork) { _, on in
+                        if on { Task { _ = await AnimatedArtworkManager.shared.requestAuthorization() } }
+                    }
+            } header: {
+                Text("Music")
+            } footer: {
+                Text("Off by default: the island shows the static cover. Turning this on asks macOS for access to Apple Music, only to look up the moving cover for the song that is playing.")
+            }
+            .disabled(!isPro || !enabled)
+
             Section("Feedback") {
                 Toggle("Haptics", isOn: $haptics)
                 Toggle("Low battery sound", isOn: $batterySound)
                 Toggle("Lock and unlock sounds", isOn: $lockSounds)
+                #if !APPSTORE
+                // Accessibility is asked for here and never at launch.
+                Button("Show volume and brightness in the island…") {
+                    MediaKeyInterceptor.shared.requestAccessibilityAndStart()
+                }
+                #endif
             }
             .disabled(!isPro || !enabled)
 

@@ -49,7 +49,17 @@ export function PkTopBand({ className }: { className?: string }) {
    loops at rest", MOTION.md). Compositor-only (`translate` / `transform` CSS
    animations), and only while the band is live: on screen, the tab visible.
    Reduced motion = still dots. */
-export function pkFogLive(el: Element | null) {
+export function pkFogLive(
+  el: Element | null,
+  /**
+   * Watch whether the band is on screen. Off for the phone's fog: its host is
+   * a fixed, zero-height element parked above the bottom edge
+   * (phone-ground.css), and an IntersectionObserver can report a box with no
+   * area as not seen, which parks the dots for good. A fixed band is on screen
+   * whenever the tab is visible.
+   */
+  observe = true
+) {
   if (!el || typeof document === "undefined") return undefined;
   let seen = true;
   const sync = () => {
@@ -58,7 +68,7 @@ export function pkFogLive(el: Element | null) {
       el.setAttribute("data-pk-live", v);
   };
   const io =
-    typeof IntersectionObserver === "function"
+    observe && typeof IntersectionObserver === "function"
       ? new IntersectionObserver((es) => {
           seen = es[es.length - 1].isIntersecting;
           sync();
@@ -84,7 +94,7 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
     },
     [fogRef]
   );
-  useEffect(() => pkFogLive(own.current), []);
+  useEffect(() => pkFogLive(own.current, false), []);
   return (
     <div
       ref={setEl}

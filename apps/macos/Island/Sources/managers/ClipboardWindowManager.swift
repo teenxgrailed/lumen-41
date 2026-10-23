@@ -49,7 +49,7 @@ class ClipboardWindowManager: ObservableObject {
         
         // Set the content view
         let contentView = ClipboardWindow()
-        let hostingView = NSHostingView(rootView: contentView)
+        let hostingView = makeHostingView(rootView: contentView)
         window.contentView = hostingView
         
         // Handle window closing
