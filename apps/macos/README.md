@@ -90,32 +90,72 @@ for the native sidebar, content stays opaque).
 - Downloads from the page are not handled yet (a navigation that is not a page
   does nothing).
 
-## Auto-update (Sparkle 2): what the owner does
+## Auto-update (Sparkle 2) and releasing
 
-The app asks `https://needt.app/desktop/appcast.xml`. It only checks once a
-public key is set; no key is generated or stored in this repository.
+The direct build (`Needt`) updates itself with Sparkle 2: a check once a day
+(`SUScheduledCheckInterval`), **Needt > Check for Updates…**, and the version
+plus a Check button in **Settings > About**. The App Store build compiles
+Sparkle out (the `APPSTORE` flag) and shows none of this.
 
-1. On a Mac with the Sparkle tools (from the Sparkle release or SPM artifacts
-   `bin/`), generate the EdDSA keypair once:
+The updater stays off, with a log line (`Updates are off`, subsystem
+`app.needt.mac`), when the build has no `SUPublicEDKey`. It never crashes.
 
-   ```bash
-   ./bin/generate_keys
-   ```
+How it fits together:
 
-   It stores the private key in the login Keychain and prints the public key.
-   Back up the private key (`./bin/generate_keys -x private-key-file`) in the
-   password manager; losing it means shipping a new key by a full reinstall.
+| Piece | Where |
+| --- | --- |
+| Release workflow | `.github/workflows/macos-release.yml` (tag `mac-vX.Y.Z` or run by hand with a version) |
+| Zip | GitHub Release `mac-vX.Y.Z`, asset `Needt-X.Y.Z.zip` |
+| Appcast | release `mac-appcast`, asset `appcast.xml`, replaced on every release |
+| Feed URL in the app | `https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml` (`SUFeedURL` in `project.yml`) |
+| Public key in the app | build setting `SPARKLE_PUBLIC_ED_KEY`, filled from the repository variable `SPARKLE_ED_PUBLIC_KEY` |
+| Private key | secret `SPARKLE_ED_PRIVATE_KEY`, read only by the "Sign the zip" step |
 
-2. Put the public key in `apps/macos/project.yml`, `SPARKLE_PUBLIC_ED_KEY`
-   (a public key is safe to commit), or pass it as a build setting in CI.
-3. Add the private key as a GitHub Actions secret `SPARKLE_PRIVATE_KEY`. The
-   release workflow (not written yet) signs each zip with
-   `./bin/sign_update`, writes `appcast.xml` (`generate_appcast`) and uploads
-   both next to the download.
-4. Publish `appcast.xml` at `https://needt.app/desktop/appcast.xml`.
+The appcast is a release asset, not a page on needt.app: the repository is
+public, the URL is stable, and no landing deploy is involved. If it should live
+on `https://needt.app/...` later, change `SUFeedURL` and copy the asset into
+`landing-site/` from the workflow.
 
-Updates also need a Developer ID signed and notarized app (below); Sparkle
-refuses to replace an app signed by a different identity.
+`CFBundleShortVersionString` is the tag (`mac-v0.2.0` gives `0.2.0`) and
+`CFBundleVersion` is the workflow run number, which only grows. Both go in as
+build settings, so the Share extension and the widgets match the app.
+
+### One-time setup (the owner, on a Mac)
+
+Run `generate_keys` from the Sparkle release (`bin/generate_keys` in
+`Sparkle-2.6.4.tar.xz` from github.com/sparkle-project/Sparkle/releases). It
+keeps the private key in the login Keychain and prints the public key.
+
+```bash
+./bin/generate_keys -x ~/needt-sparkle-private.key
+gh secret set SPARKLE_ED_PRIVATE_KEY -R teenxgrails/needt < ~/needt-sparkle-private.key
+gh variable set SPARKLE_ED_PUBLIC_KEY -R teenxgrails/needt --body "<public key printed by generate_keys>"
+```
+
+Then keep the private key only in the password manager and delete the file.
+Never paste it anywhere else, never commit it. Losing it means shipping a new
+key by a full reinstall. Release with
+`git tag mac-v0.2.0 && git push origin mac-v0.2.0`, or run "macOS release" from
+the Actions tab. Without the secret or the variable the workflow stops at its
+first step with a message saying which one is missing.
+
+### Unsigned builds and Gatekeeper
+
+There is no Apple Developer account yet, so releases are unsigned (ad-hoc
+signed so Apple Silicon will start them). Sparkle verifies every update with
+the EdDSA signature, so updates install, but:
+
+- The first install from the zip is blocked by Gatekeeper. Open it once with
+  right-click > Open, or `xattr -dr com.apple.quarantine /Applications/Needt.app`.
+- An update that Sparkle downloads may be quarantined the same way. If Needt
+  does not reopen after an update, run the same `xattr` command once.
+- Once a Developer ID exists, add the secrets named at the top of
+  `macos-release.yml`; its "Developer ID sign and notarize (hook)" step (never
+  run yet) then signs, notarizes and staples. Sparkle will not replace an app
+  signed by one identity with one signed by another, so make the switch before
+  people rely on updates, and expect one manual reinstall for copies installed
+  from unsigned builds.
+
 
 ## Widgets
 
