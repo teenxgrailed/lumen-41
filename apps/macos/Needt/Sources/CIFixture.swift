@@ -14,6 +14,10 @@ import NeedtKit
 enum CIFixture {
     nonisolated static let enabled = CommandLine.arguments.contains("--ci-fixture-data")
 
+    /// Posted at fixed phases so the island runs each moment, the hover peek and
+    /// the volume HUD during the soak (userInfo["mode"]).
+    nonisolated static let momentNotification = Notification.Name("app.needt.ci-fixture.island-moment")
+
     /// A full cycle is 20 steps, one step every 3 seconds (a minute).
     private static let cycle = 20
     private static var step = 0
@@ -67,6 +71,10 @@ enum CIFixture {
             focusEndsAt: focusing && !paused ? focusEnd.map { $0.timeIntervalSince1970 * 1000 } : nil,
             focusTitle: focusing ? focusTitle : nil
         )
+        let moments = [4: "music", 6: "airpods", 8: "charge", 10: "volume", 16: "peek", 17: "unpeek", 18: "airpods-no-level"]
+        if let mode = moments[phase] {
+            NotificationCenter.default.post(name: momentNotification, object: nil, userInfo: ["mode": mode])
+        }
         tray.setFixtureSuggestion(focusing ? nil : FocusSuggestion(taskId: "fx-0", title: titles[0], minutes: 25))
         tray.apply(state)
         FileHandle.standardError.write(Data("[ci-fixture] step \(step) tasks \(open.count) focus \(focusing)\n".utf8))

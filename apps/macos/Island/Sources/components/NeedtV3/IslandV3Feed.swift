@@ -45,6 +45,7 @@ final class IslandV3Feed {
         watchPower()
         watchAudio()
         watchBluetooth()
+        watchFixtureMoments()
 
         refreshPrefs()
         refreshTasks()
@@ -216,9 +217,11 @@ final class IslandV3Feed {
             .receive(on: RunLoop.main)
             .sink { [weak self] title, artist, playing, art in
                 guard let self else { return }
-                let was = self.model.data.music.isPlaying
+                let was = self.model.data.music
                 self.model.data.music = IslandV3Music(title: title, artist: artist, isPlaying: playing, art: art)
-                if playing && !was { self.model.moment(.music) }
+                // A moment when playback starts and when the song changes;
+                // album art arriving late for the same song is not one.
+                if playing && (!was.isPlaying || (was.title != title && !title.isEmpty)) { self.model.moment(.music) }
             }
             .store(in: &cancellables)
     }
@@ -254,12 +257,59 @@ final class IslandV3Feed {
         #endif
     }
 
+    /// CI soak: the fixture asks for each moment, the hover peek and the
+    /// volume HUD in turn, so the soak exercises every shape change without a
+    /// person, a device or a mouse.
+    private func watchFixtureMoments() {
+        guard CIFixture.enabled else { return }
+        NotificationCenter.default.publisher(for: CIFixture.momentNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] note in
+                guard let self else { return }
+                switch note.userInfo?["mode"] as? String {
+                case "music":
+                    self.model.data.music = IslandV3Music(title: "Night Swim", artist: "Fixture", isPlaying: true, art: nil)
+                    self.model.fixtureMoment(.music)
+                case "airpods":
+                    self.model.data.airpodsName = "AirPods Pro"
+                    self.model.data.airpodsPercent = 82
+                    self.model.fixtureMoment(.airpods)
+                case "airpods-no-level":
+                    self.model.data.airpodsName = "Fixture Headphones"
+                    self.model.data.airpodsPercent = nil
+                    self.model.fixtureMoment(.airpods)
+                case "charge":
+                    self.model.data.chargePercent = 64
+                    self.model.fixtureMoment(.charge)
+                case "volume":
+                    self.model.data.volume = min(1, (self.model.data.volume + 0.21).truncatingRemainder(dividingBy: 1.05))
+                    self.model.fixtureMoment(.hudv)
+                case "peek": self.model.fixturePeek(true)
+                case "unpeek": self.model.fixturePeek(false)
+                default: break
+                }
+            }
+            .store(in: &cancellables)
+    }
+
     private func watchBluetooth() {
         #if !APPSTORE
         bluetooth = IslandV3BluetoothWatcher { [weak self] name in
             Task { @MainActor in
-                self?.model.data.airpodsName = name
-                self?.model.moment(.airpods)
+                guard let self else { return }
+                self.model.data.airpodsName = name
+                self.model.data.airpodsPercent = IslandV3Power.accessoryPercent(named: name)
+                self.model.moment(.airpods)
+                // The level shows up in the power sources a moment after the
+                // connection; look again while the moment is on screen.
+                for _ in 0..<2 {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    guard self.model.data.airpodsName == name else { return }
+                    if let percent = IslandV3Power.accessoryPercent(named: name) {
+                        self.model.data.airpodsPercent = percent
+                        return
+                    }
+                }
             }
         }
         #endif
