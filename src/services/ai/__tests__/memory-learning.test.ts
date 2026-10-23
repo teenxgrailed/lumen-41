@@ -42,6 +42,22 @@ jest.mock("../memory", () => ({
 }));
 jest.mock("../settings", () => ({ getPreparedSchedulerAI: jest.fn() }));
 
+type TestPage = {
+  id: string;
+  parentId: string | null;
+  isPrivate: boolean;
+  title: string;
+  blocks: Array<{ content: { text: string } }>;
+};
+let mockPages: TestPage[] = [];
+// Every page that exists, including a private one the content query skips.
+const treePages: TestPage[] = [
+  { id: "p1", parentId: null, isPrivate: false, title: "", blocks: [] },
+  { id: "journal", parentId: null, isPrivate: true, title: "", blocks: [] },
+  { id: "daily", parentId: "journal", isPrivate: false, title: "", blocks: [] },
+  { id: "nested", parentId: "daily", isPrivate: false, title: "", blocks: [] },
+];
+
 const enabled = isLearningEnabled as jest.Mock;
 const prepared = getPreparedSchedulerAI as jest.Mock;
 const workspace = { workspaceId: "ws-1" } as WorkspaceAccess;
@@ -68,12 +84,23 @@ function ai(text: string) {
 beforeEach(() => {
   jest.clearAllMocks();
   enabled.mockResolvedValue(true);
-  (prisma.page.findMany as jest.Mock).mockResolvedValue([
+  // Page rows the content query returns; a query by id answers with their
+  // place in the tree, the way the private-tree check asks for it.
+  mockPages = [
     {
+      id: "p1",
+      parentId: null,
+      isPrivate: false,
       title: "Weekly plan",
       blocks: [{ content: { text: "Gym every Tuesday morning" } }],
     },
-  ]);
+  ];
+  (prisma.page.findMany as jest.Mock).mockImplementation(
+    async (args: { where?: { id?: { in?: string[] } } }) =>
+      args.where?.id?.in
+        ? treePages.filter((page) => args.where!.id!.in!.includes(page.id))
+        : mockPages
+  );
   (prisma.mailMessage.findMany as jest.Mock).mockResolvedValue([
     {
       subject: "German course: lesson 4",
@@ -213,6 +240,23 @@ describe("extraction from documents and mail metadata", () => {
     expect(
       (prisma.page.findMany as jest.Mock).mock.calls[0][0].where
     ).toMatchObject({ isPrivate: false, trashedAt: null });
+  });
+
+  it("leaves out a page anywhere under a private page, not just a direct child", async () => {
+    mockPages = [
+      ...mockPages,
+      {
+        id: "nested",
+        parentId: "daily",
+        isPrivate: false,
+        title: "Therapy notes",
+        blocks: [{ content: { text: "Private grandchild text" } }],
+      },
+    ];
+    const excerpt = await buildContentExcerpt("user-1", workspace);
+    expect(excerpt).toContain("Gym every Tuesday morning");
+    expect(excerpt).not.toContain("Therapy notes");
+    expect(excerpt).not.toContain("Private grandchild text");
   });
 
   it("saves what the mocked model returns, as document and mail memories", async () => {

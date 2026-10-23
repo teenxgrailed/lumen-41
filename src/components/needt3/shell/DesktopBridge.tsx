@@ -193,6 +193,32 @@ function DesktopBridgeInApp() {
     };
   }, []);
 
+  // The window is the frame: nothing above the panes may scroll. desktop-app.css
+  // clips those containers; this puts back anything an engine still moved
+  // (the document, or a container that ignores `overflow: clip`).
+  useEffect(() => {
+    if (!isDesktopApp()) return undefined;
+    const FRAME = ".needt-v3, .needt-v3 .app, .shell-app-row, .shell-app-stack";
+    const hold = (e: Event) => {
+      const t = e.target;
+      if (
+        t === document ||
+        t === document.documentElement ||
+        t === document.body
+      ) {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        return;
+      }
+      if (!(t instanceof HTMLElement) || !t.matches(FRAME)) return;
+      if (t.scrollTop !== 0) t.scrollTop = 0;
+      if (t.scrollLeft !== 0) t.scrollLeft = 0;
+    };
+    document.addEventListener("scroll", hold, true);
+    return () => document.removeEventListener("scroll", hold, true);
+  }, []);
+
   // The top bar's left end is translucent only while the sidebar is open.
   useEffect(() => {
     if (!isDesktopApp()) return undefined;

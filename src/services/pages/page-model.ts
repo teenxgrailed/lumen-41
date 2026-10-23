@@ -1,3 +1,4 @@
+import { isPageInPrivateTree } from "@/services/pages/ai-page-access";
 import { PageAccessRole, Prisma } from "@prisma/client";
 
 import {
@@ -17,7 +18,17 @@ export type PageActor =
   | {
       userId: string;
       workspace?: WorkspaceAccess;
+      /**
+       * Set for the AI agent and for MCP/connector callers. Such an actor
+       * neither reads nor writes a page in a private tree (see
+       * `ai-page-access.ts`); a person using the app is never flagged.
+       */
+      ai?: boolean;
     };
+
+export function pageActorIsAi(actor: PageActor) {
+  return typeof actor !== "string" && actor.ai === true;
+}
 
 export function pageActorUserId(actor: PageActor) {
   return typeof actor === "string" ? actor : actor.userId;
@@ -44,7 +55,9 @@ export async function pageActorCanAccess(
       select: { id: true },
     });
   }
-  return resolvePageAccess(actor, pageId, role, options);
+  const access = await resolvePageAccess(actor, pageId, role, options);
+  if (access && actor.ai && (await isPageInPrivateTree(pageId))) return null;
+  return access;
 }
 
 export async function pageActorCanAccessInTransaction(
@@ -102,7 +115,9 @@ export async function pageActorCanAccessInTransaction(
         (page.isPrivate || !workspaceRole
           ? null
           : inheritedPageRole(workspaceRole)));
-  return role && pageRoleAtLeast(role, requiredRole) ? { id: page.id } : null;
+  if (!role || !pageRoleAtLeast(role, requiredRole)) return null;
+  if (actor.ai && (await isPageInPrivateTree(pageId, tx))) return null;
+  return { id: page.id };
 }
 
 export function pageActorWorkspaceId(actor: PageActor) {
