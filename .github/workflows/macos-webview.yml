@@ -161,7 +161,8 @@ jobs:
           set -euo pipefail
           HOST=http://127.0.0.1:3000
           JAR="$RUNNER_TEMP/jar.txt"
-          CSRF="$(curl -fsS -c "$JAR" -b "$JAR" "$HOST/api/auth/csrf" | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrfToken"])')"
+          curl -fsS -c "$JAR" -b "$JAR" -o "$RUNNER_TEMP/csrf.json" "$HOST/api/auth/csrf"
+          CSRF="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["csrfToken"])' "$RUNNER_TEMP/csrf.json")"
           curl -sS -c "$JAR" -b "$JAR" -o /dev/null -w "callback %{http_code}\n" \
             -X POST "$HOST/api/auth/callback/credentials" \
             --data-urlencode "csrfToken=$CSRF" \
@@ -169,7 +170,8 @@ jobs:
             --data-urlencode "password=$PROBE_PASSWORD" \
             --data-urlencode "callbackUrl=$HOST/today" \
             --data-urlencode "json=true"
-          curl -fsS -b "$JAR" "$HOST/api/auth/session" | python3 -c "import json,sys; u=(json.load(sys.stdin).get('user') or {}); print('session for', u.get('email')); sys.exit(0 if u.get('email')=='$PROBE_EMAIL' else 1)"
+          curl -fsS -b "$JAR" -o "$RUNNER_TEMP/session.json" "$HOST/api/auth/session"
+          python3 -c "import json,sys; u=(json.load(open(sys.argv[1])).get('user') or {}); print('session for', u.get('email')); sys.exit(0 if u.get('email')==sys.argv[2] else 1)" "$RUNNER_TEMP/session.json" "$PROBE_EMAIL"
           awk -F'\t' '$6 ~ /^next-auth\.session-token/ {print $6"="$7}' "$JAR" | head -n 1 > "$RUNNER_TEMP/cookie.txt"
           test -s "$RUNNER_TEMP/cookie.txt"
           echo "cookie $(cut -d= -f1 "$RUNNER_TEMP/cookie.txt"), $(wc -c < "$RUNNER_TEMP/cookie.txt") bytes"
