@@ -138,7 +138,7 @@ final class MusicControlWindowManager {
             hostingView.rootView = overlay
             return hostingView
         }
-        let view = NSHostingView(rootView: overlay)
+        let view = makeHostingView(rootView: overlay)
         hostingView = view
         return view
     }
@@ -173,8 +173,8 @@ final class MusicControlWindowManager {
     }
 
     private func measuredSize(for hosting: NSHostingView<MusicControlOverlay>) -> CGSize {
-        let size = hosting.fittingSize
-        return CGSize(width: ceil(size.width), height: ceil(size.height))
+        // The hosting view publishes no size (sizingOptions = []); measure a probe.
+        idealHostingSize(of: hosting.rootView)
     }
 
     private func resolveScreen(from viewModel: DynamicIslandViewModel) -> NSScreen? {
