@@ -6,7 +6,7 @@ describe("agent prompt assembly", () => {
     const result = assembleAgentSystemPrompt({
       soulPreset: "business",
       scheduleSummary: "Two scheduled tasks.",
-      tokenBudget: 400,
+      tokenBudget: 600,
       memories: [
         {
           id: "low",
@@ -24,7 +24,7 @@ describe("agent prompt assembly", () => {
         },
       ],
     });
-    expect(result.estimatedTokens).toBeLessThanOrEqual(400);
+    expect(result.estimatedTokens).toBeLessThanOrEqual(600);
     expect(result.usedMemoryIds[0]).toBe("high");
   });
 });

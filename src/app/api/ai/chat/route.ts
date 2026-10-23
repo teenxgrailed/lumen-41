@@ -21,6 +21,7 @@ import {
   AIChatRequest,
   AIChatToolCall,
 } from "@/services/ai/types";
+import { untrustedBlock } from "@/services/ai/untrusted";
 import { publicHostedAiUsage } from "@/services/ai/usage";
 import { WorkspaceRole } from "@prisma/client";
 
@@ -258,15 +259,20 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const history = await recentMessages(
+  const stored = await recentMessages(
     conversation.id,
     auth.workspace!.workspaceId
   );
-  const systemPrompt = await buildAgentPromptForUser(
+  const { systemPrompt, contextBlock } = await buildAgentPromptForUser(
     auth.userId,
     settings.soulPreset,
     auth.workspace!
   );
+  // Today's schedule and memories are data, not instructions: they go in as a
+  // quoted block ahead of the conversation, never in the system role.
+  const history: AIChatMessage[] = contextBlock
+    ? [{ role: "user", content: contextBlock }, ...stored]
+    : stored;
   if (ai.streamTurn) {
     // Providers that can stream tool calls run the multi-step agent: every
     // write is an op (logged, undoable) and progress streams as it happens.
@@ -354,7 +360,7 @@ export async function POST(request: NextRequest) {
           ...history,
           {
             role: "assistant",
-            content: `Server tool result (${toolResult.toolName}): ${toolResult.text}`,
+            content: `Server tool result (${toolResult.toolName}):\n${untrustedBlock("tool_result", toolResult.text)}`,
           },
         ]
       : history,
