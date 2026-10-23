@@ -1,5 +1,14 @@
 import { NextRequest } from "next/server";
 
+import { GET as blockingActiveGet } from "@/app/api/blocking/active/route";
+import {
+  DELETE as blockingProfileDelete,
+  PATCH as blockingProfilePatch,
+} from "@/app/api/blocking/profiles/[id]/route";
+import {
+  GET as blockingProfilesGet,
+  POST as blockingProfilesPost,
+} from "@/app/api/blocking/profiles/route";
 import { POST as controlPost } from "@/app/api/connect/control/route";
 import { POST as opsPost } from "@/app/api/connect/ops/[name]/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
@@ -16,6 +25,7 @@ import {
   publicMemory,
   updateMemoryForUser,
 } from "@/services/ai/memory";
+import { blockingProfileFields } from "@/services/blocking/profile";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
@@ -28,6 +38,10 @@ import {
   getMoodboard,
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
+import {
+  AI_PAGE_NOT_EDITABLE,
+  AI_PAGE_UNAVAILABLE,
+} from "@/services/pages/ai-page-access";
 import {
   appendPageBlocks,
   createPage,
@@ -166,19 +180,23 @@ export function toolError(payload: unknown): McpToolResult {
   return { ...toolResult(payload), isError: true };
 }
 
-type RouteHandler = (request: NextRequest) => Promise<Response | undefined>;
+type RouteHandler<P extends Record<string, string>> = (
+  request: NextRequest,
+  context: { params: Promise<P> }
+) => Promise<Response | undefined>;
 
 /**
  * Runs an existing connector route in-process with the caller's own
  * Authorization and workspace headers, so authentication, workspace scoping
  * and confirmation rules stay defined once, in the route.
  */
-async function callRoute(
+async function callRoute<P extends Record<string, string>>(
   ctx: McpToolContext,
-  handler: RouteHandler,
+  handler: RouteHandler<P>,
   path: string,
-  method: "GET" | "POST",
-  body?: unknown
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  body?: unknown,
+  params: P = {} as P
 ): Promise<McpToolResult> {
   const headers = new Headers({ "content-type": "application/json" });
   const authorization = ctx.request.headers.get("authorization");
@@ -195,8 +213,12 @@ async function callRoute(
     new NextRequest(url, {
       method,
       headers,
-      body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
-    })
+      body:
+        method === "GET" || method === "DELETE"
+          ? undefined
+          : JSON.stringify(body ?? {}),
+    }),
+    { params: Promise.resolve(params) }
   );
   if (!response) return toolError({ status: 500, error: "No response" });
   const text = await response.text();
@@ -324,6 +346,27 @@ function sliceAfter<T extends { id: string }>(
   return page(rows.slice(start, start + args.limit + 1), args.limit);
 }
 
+/**
+ * Calendars, personal time and mail belong to the person, not to a workspace.
+ * A token or grant limited to a Team workspace must not reach them, so they
+ * answer only from the personal workspace, as calendar events already do.
+ */
+function personalOnlyList(what: string) {
+  return {
+    items: [],
+    nextCursor: null,
+    note: `${what} are personal; switch to the personal workspace to read them.`,
+  };
+}
+
+/**
+ * MCP callers read and write pages as AI actors: pages in a private tree are
+ * never listed, read, searched, appended to or used as a parent.
+ */
+function mcpPageActor(ctx: McpToolContext, workspace: WorkspaceAccess) {
+  return { userId: ctx.userId, workspace, ai: true };
+}
+
 async function listRows(
   type: ListType,
   ctx: McpToolContext,
@@ -399,6 +442,7 @@ async function listRows(
         args.limit
       );
     case "calendar":
+      if (!personal) return personalOnlyList("Calendars");
       return page(
         await prisma.calendarFeed.findMany({
           where: {
@@ -413,7 +457,7 @@ async function listRows(
         args.limit
       );
     case "page":
-      return sliceAfter(await listPages({ userId, workspace }), args);
+      return sliceAfter(await listPages(mcpPageActor(ctx, workspace)), args);
     case "moodboard":
       // Slim rows: the app's list also carries member emails and previews.
       return sliceAfter(
@@ -428,6 +472,7 @@ async function listRows(
         args
       );
     case "personal_time":
+      if (!personal) return personalOnlyList("Personal time blocks");
       return page(
         (
           await prisma.personalBlock.findMany({
@@ -458,6 +503,7 @@ async function listRows(
         args.limit
       );
     case "mail": {
+      if (!personal) return personalOnlyList("Mail messages");
       const rows = await listMailMessages({
         userId,
         take: args.limit,
@@ -509,15 +555,17 @@ async function getRow(
         where: { id, feed: { userId } },
       });
     case "calendar":
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.calendarFeed.findFirst({
         where: { id, userId },
         select: calendarSelect,
       });
     case "page":
-      return getPage({ userId, workspace }, id);
+      return getPage(mcpPageActor(ctx, workspace), id);
     case "habit":
       return prisma.habit.findFirst({ where: { id, ...scope, userId } });
     case "mail":
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.mailMessage.findFirst({
         where: { id, account: { userId } },
         // Metadata only: mail.read never includes message bodies.
@@ -526,6 +574,7 @@ async function getRow(
     case "moodboard":
       return getMoodboard({ userId, workspace }, id);
     case "personal_time": {
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       const block = await prisma.personalBlock.findFirst({
         where: { id, userId },
         select: personalBlockSelect,
@@ -555,7 +604,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_search",
     description:
-      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope.",
+      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope and only in the personal workspace. Private pages are never searched.",
     annotations: { readOnlyHint: true, destructiveHint: false },
     input: z.object({
       query: z.string().min(1).describe("Text to look for."),
@@ -574,8 +623,12 @@ export const MCP_TOOLS: McpTool[] = [
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
-      // Without mail.read, mail is simply not searched (not an error).
-      const types = ctx.auth.scopes.includes("mail.read")
+      // Without mail.read, or outside the personal workspace, mail is simply
+      // not searched (not an error): mail belongs to the person.
+      const mailAllowed =
+        ctx.auth.scopes.includes("mail.read") &&
+        access.workspace.workspaceKind === WorkspaceKind.PERSONAL;
+      const types = mailAllowed
         ? args.types
         : (args.types ?? [...SEARCHABLE_TYPES]).filter((t) => t !== "mail");
       return toolResult({
@@ -585,6 +638,7 @@ export const MCP_TOOLS: McpTool[] = [
           query: args.query,
           take: args.limit,
           types,
+          ai: true,
         }),
       });
     },
@@ -644,7 +698,13 @@ export const MCP_TOOLS: McpTool[] = [
       if ("error" in access) return access.error;
       const row = await getRow(args.type, args.id, ctx, access.workspace);
       if (!row) {
-        return toolError({ status: 404, error: `${args.type} not found` });
+        return toolError({
+          status: 404,
+          error:
+            args.type === "page"
+              ? AI_PAGE_UNAVAILABLE
+              : `${args.type} not found`,
+        });
       }
       return toolResult(row);
     },
@@ -684,6 +744,12 @@ export const MCP_TOOLS: McpTool[] = [
       entry: entrySchema
         .optional()
         .describe("The very first small step, about two minutes."),
+      fullTime: z
+        .boolean()
+        .optional()
+        .describe(
+          "Do for the full time: a focus session on it runs its whole length instead of ending when the task is ticked. Leave unset for auto (on for habit and repeating tasks)."
+        ),
       subtasks: subtaskListSchema
         .optional()
         .describe(
@@ -841,7 +907,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z
         .object({
@@ -890,6 +956,13 @@ const WRITE_TOOLS: McpTool[] = [
             .nullable()
             .optional()
             .describe("The very first small step; null clears it."),
+          fullTime: z
+            .boolean()
+            .nullable()
+            .optional()
+            .describe(
+              "Do for the full time: true keeps a focus session running its whole length when the task is ticked, false ends it at once; null = auto (on for habit and repeating tasks)."
+            ),
           dependsOnId: z
             .string()
             .min(1)
@@ -933,6 +1006,7 @@ const WRITE_TOOLS: McpTool[] = [
           status: args.status,
           projectId: args.projectId,
           entry: args.entry,
+          fullTime: args.fullTime,
           dependsOnId: args.dependsOnId,
           originPageId: args.originPageId,
         });
@@ -1235,7 +1309,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_create_page",
       description:
-        "Create a page in the active workspace, optionally under a parent page you can edit, with an optional Markdown or plain-text body.",
+        "Create a page in the active workspace, optionally under a parent page you can edit (never one in a private tree), with an optional Markdown or plain-text body.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z.object({
         title: z.string().min(1).max(240),
@@ -1246,7 +1320,7 @@ const WRITE_TOOLS: McpTool[] = [
       async invoke(ctx, args) {
         const access = await writeAccess(ctx);
         if ("error" in access) return access.error;
-        const actor = { userId: ctx.userId, workspace: access.workspace };
+        const actor = mcpPageActor(ctx, access.workspace);
         const blocks = args.body
           ? pageBlocksFromText(args.body, args.format)
           : [];
@@ -1281,7 +1355,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_append_page",
       description:
-        "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history.",
+        "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history. Pages in a private tree cannot be edited.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z.object({
         id: z.string().min(1).describe("Page id."),
@@ -1297,7 +1371,7 @@ const WRITE_TOOLS: McpTool[] = [
         }
         try {
           const written = await appendPageBlocks(
-            { userId: ctx.userId, workspace: access.workspace },
+            mcpPageActor(ctx, access.workspace),
             args.id,
             blocks,
             PageAuthor.AI
@@ -1305,7 +1379,7 @@ const WRITE_TOOLS: McpTool[] = [
           if (!written) {
             return toolError({
               status: 404,
-              error: "Page not found, or you cannot edit it.",
+              error: AI_PAGE_NOT_EDITABLE,
             });
           }
           return toolResult(pageSummary(written, blocks.length));
@@ -1460,6 +1534,73 @@ const WRITE_TOOLS: McpTool[] = [
 ];
 
 MCP_TOOLS.push(...WRITE_TOOLS);
+
+/**
+ * Focus blocking: profiles of sites and apps that the browser extension and
+ * the Mac app block while a focus session, a matching calendar event or a
+ * task block of a chosen project is under way. Pro, behind `focus_blocking`.
+ */
+MCP_TOOLS.push(
+  defineTool({
+    name: "needt_blocking",
+    description:
+      "Focus blocking. view 'active' (default): what is blocked right now — mode (BLOCKLIST blocks the sites and apps listed, ALLOWLIST blocks everything else), sites, apps, until, and which profiles hold and why. view 'profiles': every blocking profile with its triggers. Pro.",
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    input: z.object({
+      view: z.enum(["active", "profiles"]).default("active"),
+    }),
+    invoke: (ctx, args) =>
+      args.view === "profiles"
+        ? callRoute(ctx, blockingProfilesGet, "/api/blocking/profiles", "GET")
+        : callRoute(ctx, blockingActiveGet, "/api/blocking/active", "GET"),
+  }),
+  defineTool({
+    name: "needt_blocking_profile",
+    description:
+      "Create, change or delete a focus blocking profile. A profile blocks its sites (host names, '*.example.com' for subdomains) and macOS apps (bundle ids) while any trigger holds: onFocusSession (a focus session runs), eventKeywords (a calendar event whose title contains one), calendarFeedIds (any event on those calendars), projectIds (a scheduled block of a task in those projects). mode ALLOWLIST blocks everything except the lists. update changes only the fields given. Pro.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    },
+    input: z.object({
+      action: z.enum(["create", "update", "delete"]),
+      id: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Profile id, for update and delete."),
+      name: blockingProfileFields.name.optional(),
+      sites: z.array(z.string()).optional(),
+      apps: z.array(z.string()).optional(),
+      mode: z.enum(["BLOCKLIST", "ALLOWLIST"]).optional(),
+      onFocusSession: z.boolean().optional(),
+      eventKeywords: z.array(z.string()).optional(),
+      calendarFeedIds: z.array(z.string()).optional(),
+      projectIds: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+    }),
+    async invoke(ctx, args) {
+      const { action, id, ...fields } = args;
+      if (action === "create") {
+        return callRoute(
+          ctx,
+          blockingProfilesPost,
+          "/api/blocking/profiles",
+          "POST",
+          fields
+        );
+      }
+      if (!id) return toolError({ status: 400, error: "id is required" });
+      const path = `/api/blocking/profiles/${encodeURIComponent(id)}`;
+      return action === "delete"
+        ? callRoute(ctx, blockingProfileDelete, path, "DELETE", undefined, {
+            id,
+          })
+        : callRoute(ctx, blockingProfilePatch, path, "PATCH", fields, { id });
+    },
+  })
+);
 
 MCP_TOOLS.unshift(
   defineTool({

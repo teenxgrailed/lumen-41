@@ -1,4 +1,6 @@
-import type { CSSProperties } from "react";
+"use client";
+
+import { type FocusGift, useFocusGift } from "@/lib/needt3/focus-early";
 
 export interface HaTime {
   /** "6 h 12" */
@@ -9,35 +11,101 @@ export interface HaTime {
   used: number;
   plan: number;
   now: number;
+  /** When the working day ends ("18:00"). */
+  ends?: string;
   /** Overbooked: by how much ("40 min") and when the day ends ("23:40"). */
   over?: { by: string; ends: string };
+  /** Overbooked: the part that does not fit, as a share of the working day. */
+  overFrac?: number;
+  /** Length of the working day in minutes (sizes the green slice). */
+  dayMinutes?: number;
 }
 
 /**
- * 7 - the time-left bar: a thin line, done (ink), still planned (mark), a now
- * tick. Overbooked, the planned part turns red and one line says by how much.
- * Draws nothing when there is nothing to compare.
+ * 7 - the time-left bar, drawn on the working day: what is behind (a quiet
+ * solid stretch), what is still planned (solid ink), what is still free
+ * (a dashed track), a now tick. Overbooked, the day's end gets a tick and the
+ * part that does not fit runs on past it as red dashes; one line says by how
+ * much. Draws nothing when there is nothing to compare.
  */
 export function HaTimeLeft({
   t,
   onMoveOne,
+  gift: giftProp,
 }: {
   t: HaTime | null | undefined;
   /** Overbooked: "Move one" (shown only when something can answer it). */
   onMoveOne?: () => void;
+  /**
+   * A focus ended early: the minutes it gave back show as a green slice right
+   * after "now" for ~2.4 s, then join "free". Not drawn when overbooked.
+   * Left out, it follows the shared slice (`useFocusGift`).
+   */
+  gift?: FocusGift | null;
 }) {
+  const live = useFocusGift((s) => s.gift);
+  const gift = giftProp === undefined ? live : giftProp;
   if (!t) return null;
-  const pct = (v: number) =>
-    `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  // The axis is the working day; overbooked, it grows by what does not fit.
+  const over = t.over ? clamp(t.overFrac ?? 0) : 0;
+  const k = 1 / (1 + over);
+  const pc = (v: number) => `${Math.round(v * 1000) / 10}%`;
+  const at = (v: number) => pc(clamp(v) * k);
+  const now = clamp(t.now);
+  // The returned minutes, as a share of the working day, that fit after now.
+  const give =
+    gift && !t.over && t.dayMinutes && t.dayMinutes > 0
+      ? Math.min(gift.minutes / t.dayMinutes, 1 - now)
+      : 0;
+  const plan = Math.min(clamp(t.plan), 1 - now - give);
+  const ends = t.ends ?? t.over?.ends;
   const bar = (
-    <div className="ha-tl-bar">
-      <span className="used" style={{ width: pct(t.used) }} />
-      <span className="plan" style={{ width: pct(t.plan) }} />
-      <span
-        className="now"
-        style={{ "--now": Math.min(1, Math.max(0, t.now)) } as CSSProperties}
-      />
-    </div>
+    <>
+      <div className="ha-tl-bar" aria-hidden>
+        <span className="past" style={{ width: at(now) }} />
+        {give > 0 ? (
+          <span
+            key={gift?.key}
+            className="fd-gift"
+            data-fd-gift=""
+            style={{ left: at(now), width: at(give) }}
+          />
+        ) : null}
+        <span
+          className="plan"
+          style={{ left: at(now + give), width: at(plan) }}
+        />
+        {t.over ? (
+          <span
+            className="spill"
+            style={{ left: at(1), width: pc(over * k) }}
+          />
+        ) : (
+          <span
+            className="free"
+            style={{
+              left: at(now + give + plan),
+              width: at(1 - now - give - plan),
+            }}
+          />
+        )}
+        {t.over ? <span className="end" style={{ left: at(1) }} /> : null}
+        <span className="now" style={{ left: at(now) }} />
+      </div>
+      <div className="ha-tl-ticks" aria-hidden>
+        {k * (1 - now) > 0.2 ? (
+          <span className="at-now" style={{ left: at(now) }}>
+            now
+          </span>
+        ) : null}
+        {ends ? (
+          <span className="at-end" style={{ left: at(1) }}>
+            {ends}
+          </span>
+        ) : null}
+      </div>
+    </>
   );
   if (t.over)
     return (
@@ -79,6 +147,11 @@ export function HaTimeLeft({
           <b>{t.planned}</b> planned
         </span>
         <span>
+          {give > 0 && gift ? (
+            <span key={gift.key} className="fd-back" data-fd-back="">
+              +{gift.minutes} min&nbsp;&nbsp;
+            </span>
+          ) : null}
           <b>{t.free}</b> free
         </span>
       </div>

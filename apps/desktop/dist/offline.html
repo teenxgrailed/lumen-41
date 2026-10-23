@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Needt</title>
+    <!--
+      Shown instead of a browser error page when the app starts or reloads with
+      no connection (spec: additions-2/desktop-chrome, dk-off). Bundled with the
+      app. It checks for the network every 10 s and returns to Needt by itself.
+    -->
+    <style>
+      :root {
+        --ground: #fcfdfe;
+        --fg: 26, 28, 30;
+        --ink-2: rgba(var(--fg), 0.7);
+        --ink-3: rgba(var(--fg), 0.4);
+        --raise: rgba(var(--fg), 0.04);
+        --line: rgba(var(--fg), 0.08);
+        --primary-bg: #1a1c1e;
+        --primary-fg: #ffffff;
+        --accent-rgb: 46, 109, 233;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #202022;
+          --fg: 236, 236, 236;
+          --ink-2: rgba(var(--fg), 0.75);
+          --raise: rgba(var(--fg), 0.06);
+          --line: rgba(var(--fg), 0.1);
+          --primary-bg: #ffffff;
+          --primary-fg: #111214;
+          --accent-rgb: 113, 178, 255;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--ground);
+        color: rgb(var(--fg));
+        font:
+          13px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+        overflow: hidden;
+      }
+      .drag {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 52px;
+      }
+      /* spec dk-off: centred column under the 52 px bar */
+      main {
+        position: fixed;
+        inset: 52px 0 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 40px;
+      }
+      .ic {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: var(--raise);
+        display: grid;
+        place-items: center;
+      }
+      .ic svg {
+        width: 30px;
+        height: 30px;
+        color: var(--ink-2);
+      }
+      h2 {
+        margin: 18px 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      p {
+        margin: 0 0 18px;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--ink-2);
+        max-width: 36ch;
+      }
+      .btn {
+        min-width: 200px;
+        height: 40px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 11px;
+        background: var(--primary-bg);
+        color: var(--primary-fg);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1;
+        cursor: default;
+      }
+      .btn:active {
+        opacity: 0.85;
+      }
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
+      }
+      small {
+        margin-top: 12px;
+        font-size: 12px;
+        line-height: 1;
+        color: var(--ink-3);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="drag" data-tauri-drag-region></div>
+    <main>
+      <span class="ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 9.5a14 14 0 0 1 18 0M6.5 13a9 9 0 0 1 11 0M10 16.5a4 4 0 0 1 4 0M12 20h.01M3 3l18 18" />
+        </svg>
+      </span>
+      <h2>You’re offline</h2>
+      <p>Needt needs a connection to sign in the first time. After that it opens offline and syncs when you’re back.</p>
+      <button id="retry" type="button" class="btn">Try again</button>
+      <small>Retrying every 10 s</small>
+    </main>
+    <script>
+      (function () {
+        var boot = window.__needtDesktop || {};
+        var home = "https://use.needt.app/today";
+        try {
+          var candidate = new URL(boot.home || home);
+          if (candidate.protocol === "https:" || candidate.hostname === "localhost") {
+            home = candidate.href;
+          }
+        } catch (_) {}
+        var busy = false;
+        function check() {
+          if (busy) return;
+          busy = true;
+          // no-cors: only reachability matters, not the answer.
+          var timer = setTimeout(function () {
+            busy = false;
+          }, 6000);
+          fetch(new URL("/api/health", home).href, {
+            mode: "no-cors",
+            cache: "no-store",
+          })
+            .then(function () {
+              window.location.replace(home);
+            })
+            .catch(function () {})
+            .then(function () {
+              clearTimeout(timer);
+              busy = false;
+            });
+        }
+        document.getElementById("retry").addEventListener("click", check);
+        window.addEventListener("online", check);
+        setInterval(check, 10000);
+      })();
+    </script>
+  </body>
+</html>

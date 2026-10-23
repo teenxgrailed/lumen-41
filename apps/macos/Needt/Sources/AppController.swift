@@ -1,0 +1,222 @@
+import AppKit
+import Carbon.HIToolbox
+import NeedtKit
+import SwiftUI
+
+/// Owns the windows and what flows between them: the start window, the main
+/// window, quick add, the menu-bar state and the sign-in.
+@MainActor
+final class AppController {
+    static let shared = AppController()
+
+    let auth = AuthFlow()
+    let tray = TrayStore()
+    let quickAdd = QuickAddController()
+
+    private var main: MainWindowController?
+    private var startWindow: NSWindow?
+    private var settingsWindow: NSWindow?
+    private var hotKey: GlobalHotKey?
+    /// A main window made for a sign-in that has not finished stays hidden
+    /// until the page reports it is signed in.
+    private var revealOnSignIn = false
+
+    var hasStartWindow: Bool { startWindow?.isVisible ?? false }
+
+    // MARK: launch
+
+    func start() {
+        hotKey = GlobalHotKey(
+            keyCode: kVK_Space,
+            modifiers: cmdKey | shiftKey
+        ) { [weak self] in
+            self?.showQuickAdd()
+        }
+        if auth.isSignedInBefore {
+            SessionSync.push(force: true)
+            showMain()
+        } else {
+            showStart()
+        }
+    }
+
+    // MARK: main window
+
+    /// "Open Needt": the main window, else the start window, else launch again.
+    func showMain() {
+        if let main {
+            main.show()
+            return
+        }
+        if let startWindow, startWindow.isVisible {
+            startWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        guard auth.isSignedInBefore else {
+            showStart()
+            return
+        }
+        let controller = MainWindowController(url: Config.homeURL)
+        main = controller
+        controller.show()
+    }
+
+    /// The app's theme, reported by the page: the main window's appearance
+    /// follows it ("system" hands it back to macOS).
+    func setWindowTheme(_ theme: String) {
+        main?.window?.appearance = switch theme {
+        case "dark": NSAppearance(named: .darkAqua)
+        case "light": NSAppearance(named: .aqua)
+        default: nil
+        }
+    }
+
+    /// The deep link brought a code: load the completion page in the main
+    /// window (made now if there is none), but keep it hidden until signed in.
+    func loadSignInCompletion(_ url: URL) {
+        if let main {
+            main.web.load(url)
+            if main.window?.isVisible == true { main.show() } else { revealOnSignIn = true }
+            return
+        }
+        let controller = MainWindowController(url: url)
+        main = controller
+        revealOnSignIn = true
+    }
+
+    /// The page reported a session: the start window has done its job.
+    func signInFinished() {
+        if revealOnSignIn {
+            revealOnSignIn = false
+            main?.show()
+        }
+        if let startWindow {
+            startWindow.orderOut(nil)
+            self.startWindow = nil
+        }
+    }
+
+    /// The completion page never reported a session: forget the half-made window.
+    func discardUnfinishedMain() {
+        guard revealOnSignIn else { return }
+        revealOnSignIn = false
+        main?.window?.orderOut(nil)
+        main?.window?.delegate = nil
+        main?.window?.contentView = nil
+        main = nil
+    }
+
+    // MARK: start window
+
+    func showStart() {
+        if let startWindow {
+            startWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Needt"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
+        let hosting = makeHostingView(rootView: StartView(auth: auth).frame(width: 440, height: 520))
+        window.contentView = hosting
+        window.center()
+        startWindow = window
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.startWindow = nil }
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Signed out: the start window first, then drop the main window.
+    func showStartAfterSignOut() {
+        showStart()
+        if let controller = main {
+            controller.window?.delegate = nil
+            controller.window?.orderOut(nil)
+            controller.window?.contentView = nil
+            main = nil
+        }
+        revealOnSignIn = false
+    }
+
+    // MARK: commands
+
+    /// Hands a command to the web app (`DesktopCommand` in src/lib/desktop.ts).
+    /// Nothing happens without a main window: commands never create one.
+    func sendCommand(_ command: [String: Any]) {
+        guard let main else { return }
+        main.show()
+        main.send(command)
+    }
+
+    func navigate(_ path: String) {
+        sendCommand(["type": "navigate", "path": path])
+    }
+
+    /// View, Reload.
+    func reload() {
+        main?.web.reload()
+    }
+
+    /// A Spotlight click on a task: open the window, then ask the page for it.
+    /// A window made just now has no page to receive the command yet.
+    func openTask(id: String) {
+        guard auth.isSignedInBefore, TrayState.validID(id) else { return }
+        let fresh = main == nil
+        showMain()
+        if fresh {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                self.sendCommand(["type": "open-task", "id": id])
+            }
+        } else {
+            sendCommand(["type": "open-task", "id": id])
+        }
+    }
+
+    func showQuickAdd() {
+        guard auth.isSignedInBefore, Connectivity.shared.isOnline else { return }
+        quickAdd.show()
+    }
+
+    /// The Mac settings window (focus Shortcuts, island), apart from the web
+    /// app's settings. An AppKit window, fixed 500 x 560, whose hosting view
+    /// has no sizing options: nothing SwiftUI-owned.
+    func showMacSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let settingsWindow {
+            settingsWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 560),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Needt Settings"
+        window.isReleasedWhenClosed = false
+        window.contentView = makeHostingView(rootView: SettingsView())
+        window.setContentSize(NSSize(width: 500, height: 560))
+        window.center()
+        settingsWindow = window
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func openWebsite() {
+        NSWorkspace.shared.open(Config.site)
+    }
+}

@@ -11,12 +11,18 @@ import {
   useState,
 } from "react";
 
+import { skipToken, useQuery } from "@tanstack/react-query";
+
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
+import { haptic } from "@/lib/native";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
+import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
+
+import { FOLD_MS, STRIKE_HOLD_MS, remoteChanges } from "./completion-logic";
 
 /**
  * THE COMPLETION — what happens on screen when a task is ticked. One shared
@@ -39,10 +45,8 @@ import { notify } from "@/lib/notifications";
  */
 export type CompletionPhase = "strike" | "collapse";
 
-/** How long a struck row is held before it folds away (Completed: hide). */
-export const STRIKE_HOLD_MS = 1000;
-/** The fold itself; the row is gone when it ends. */
-export const FOLD_MS = 320;
+/** Struck for STRIKE_HOLD_MS, folded for FOLD_MS: 900 ms in all. */
+export { FOLD_MS, STRIKE_HOLD_MS };
 
 type Closable = Pick<V3Task, "id" | "done" | "title">;
 
@@ -55,14 +59,38 @@ function without<T>(m: Record<string, T>, id: string) {
   return next;
 }
 
-export function useCompletion() {
+export interface CompletionOptions {
+  /**
+   * Rows the screen draws in a list that only holds OPEN tasks (Home's
+   * Overdue and Inbox) leave after the strike whatever Completed tasks is set
+   * to: there is nowhere for them to stay struck.
+   */
+  leaves?: (t: Closable) => boolean;
+}
+
+export function useCompletion(options: CompletionOptions = {}) {
   const { completed } = useTaskView();
   const toggle = useToggleTask();
   const reduced = useNeedtReducedMotion();
   const [phase, setPhase] = useState<Record<string, CompletionPhase>>({});
   const timers = useRef<Record<string, number[]>>({});
-  const live = useRef({ completed, toggle, reduced, phase });
-  live.current = { completed, toggle, reduced, phase };
+  // rows that will leave the page once the strike is over (the others stay
+  // struck where they are)
+  const [departing, setDeparting] = useState<Record<string, true>>({});
+  const live = useRef({
+    completed,
+    toggle,
+    reduced,
+    phase,
+    leaves: options.leaves,
+  });
+  live.current = {
+    completed,
+    toggle,
+    reduced,
+    phase,
+    leaves: options.leaves,
+  };
 
   const clear = useCallback((id: string) => {
     (timers.current[id] ?? []).forEach((t) => window.clearTimeout(t));
@@ -76,9 +104,55 @@ export function useCompletion() {
     (id: string) => {
       clear(id);
       setPhase((m) => without(m, id));
+      setDeparting((m) => without(m, id));
     },
     [clear]
   );
+
+  // A task another writer closed (a second device, the MCP, the API) does not
+  // blink out: it folds like any other, without the pop. Compared while
+  // rendering, so the row never has a frame with the data changed and the
+  // phase not yet set. The cache is only read here (nothing is fetched).
+  const tasks = useQuery({
+    queryKey: qk.tasks({}),
+    queryFn: skipToken,
+  }).data as readonly Pick<V3Task, "id" | "done" | "title">[] | undefined;
+  const [seen, setSeen] = useState(tasks);
+  if (tasks !== seen) {
+    setSeen(tasks);
+    const { closed, reopened } = remoteChanges(seen, tasks, phase);
+    if (!reduced) {
+      const fold = closed.filter(
+        (id) =>
+          completed === "hide" ||
+          options.leaves?.(
+            tasks?.find((t) => t.id === id) as Pick<
+              V3Task,
+              "id" | "done" | "title"
+            >
+          )
+      );
+      if (fold.length) {
+        setPhase((m) => ({
+          ...m,
+          ...Object.fromEntries(fold.map((id) => [id, "collapse" as const])),
+        }));
+        setDeparting((m) => ({
+          ...m,
+          ...Object.fromEntries(fold.map((id) => [id, true as const])),
+        }));
+      }
+    }
+    if (reopened.length) {
+      setPhase((m) => reopened.reduce(without, m));
+      setDeparting((m) => reopened.reduce(without, m));
+    }
+  }
+  useEffect(() => {
+    for (const [id, p] of Object.entries(phase))
+      if (p === "collapse" && !timers.current[id])
+        timers.current[id] = [window.setTimeout(() => drop(id), FOLD_MS)];
+  }, [phase, drop]);
 
   /**
    * Tick or untick. The write goes out first, always (optimistic, one Undo);
@@ -109,9 +183,11 @@ export function useCompletion() {
           .catch(none);
         return;
       }
+      void haptic("success");
       if (!calm) {
         setPhase((m) => ({ ...m, [t.id]: "strike" }));
-        if (mode === "hide")
+        if (mode === "hide" || live.current.leaves?.(t)) {
+          setDeparting((m) => ({ ...m, [t.id]: true }));
           timers.current[t.id] = [
             window.setTimeout(
               () =>
@@ -120,6 +196,7 @@ export function useCompletion() {
             ),
             window.setTimeout(() => drop(t.id), STRIKE_HOLD_MS + FOLD_MS),
           ];
+        }
       }
       void write
         .toggle(t)
@@ -151,8 +228,8 @@ export function useCompletion() {
   );
 
   return useMemo(
-    () => ({ phase, check, hold, drop }),
-    [phase, check, hold, drop]
+    () => ({ phase, departing, check, hold, drop }),
+    [phase, departing, check, hold, drop]
   );
 }
 

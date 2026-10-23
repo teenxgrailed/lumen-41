@@ -22,7 +22,6 @@ export {
   type PkButtonKind,
   type PkGlyphSize,
 } from "./Material";
-export { PkPullDown, type PkPullProps, type PullHit } from "./PullDown";
 export {
   PkClip,
   PkRow,

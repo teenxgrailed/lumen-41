@@ -1,8 +1,35 @@
+import { assertPublicHost } from "@/services/oauth/safe-fetch";
 import { DAVClient } from "tsdav";
 
 import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "CalDAVUtils";
+
+/** Answer for a server address that points at a non-public host. */
+export const CALDAV_HOST_NOT_ALLOWED =
+  "This server address is not allowed. Use the address of a CalDAV server that is reachable on the public internet.";
+
+/**
+ * Whether `url` names a host on the public internet. Only the host is judged:
+ * http:// and any port stay allowed for a public self-hosted server, but an
+ * address that is, or resolves to, a private, loopback, link-local or
+ * reserved one is refused — the server would otherwise connect to its own
+ * network for whoever typed it in. An unparseable address is refused too (the
+ * client could not use it anyway). The reason is logged, never returned.
+ */
+export async function isPublicCalDAVUrl(url: unknown): Promise<boolean> {
+  try {
+    await assertPublicHost(new URL(String(url)).hostname);
+    return true;
+  } catch (error) {
+    await logger.warn(
+      "CalDAV server address refused",
+      { reason: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+    return false;
+  }
+}
 
 /** Whether a CalDAV login failure was a connection or an authentication error. */
 export type CalDAVErrorKind = "connection" | "auth";
@@ -76,8 +103,13 @@ function collectErrorSignals(error: unknown): string[] {
       break;
     }
     if (typeof current === "object") {
-      const obj = current as { message?: unknown; code?: unknown; cause?: unknown };
-      if (typeof obj.message === "string") signals.push(obj.message.toLowerCase());
+      const obj = current as {
+        message?: unknown;
+        code?: unknown;
+        cause?: unknown;
+      };
+      if (typeof obj.message === "string")
+        signals.push(obj.message.toLowerCase());
       if (typeof obj.code === "string") signals.push(obj.code.toLowerCase());
       if (obj.cause === current) break; // guard against self-reference
       current = obj.cause;

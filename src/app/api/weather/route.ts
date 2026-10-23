@@ -4,6 +4,7 @@ import { cleanCity, weatherFor } from "@/services/weather/open-meteo";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { parseCityPlace } from "@/lib/needt3/city";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "WeatherAPI";
@@ -32,7 +33,11 @@ export async function GET(request: NextRequest) {
     if (!city)
       return NextResponse.json({ weather: null }, { headers: NO_STORE });
     return NextResponse.json(
-      { weather: await weatherFor(city) },
+      {
+        weather: await weatherFor(city, {
+          place: parseCityPlace(prefs.cityPlace),
+        }),
+      },
       { headers: NO_STORE }
     );
   } catch (error) {

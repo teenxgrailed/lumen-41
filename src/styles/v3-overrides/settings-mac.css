@@ -1,0 +1,694 @@
+/* Settings -> Desktop: the Mac app's settings (App, Island, Focus, Widgets,
+ * Siri & Shortcuts). HAND-WRITTEN, not vendored. Ported 1:1 from
+ * additions-2/settings-desktop (desktop.css + playground.css); the `sd-` and
+ * `pg-` names are component names and stay. Everything else in the section is
+ * the sheet's own classes. Scoped under .needt-v3.
+ */
+
+/* sd-grip / sd-lead: the lead marks of a row (drag handle, glyph, system tile) */
+.needt-v3 .sd-grip {
+  display: grid;
+  grid-template-columns: 3px 3px;
+  gap: 2px;
+  padding: 0 2px;
+  color: var(--text-quaternary);
+  cursor: grab;
+  touch-action: none;
+}
+.needt-v3 .sd-grip i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.needt-v3 .sd-lead {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--fill-4);
+}
+.needt-v3 .sd-lead.sys {
+  background: var(--c);
+  color: #fff;
+}
+.needt-v3 .sd-lead.sys svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* sd-styles: the widget style picker, 8 tiles in the theme-tile anatomy */
+.needt-v3 .sd-styles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.needt-v3 .sd-style {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+  text-align: left;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .sd-style i {
+  display: block;
+  aspect-ratio: 1.55;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ring);
+  transition: box-shadow var(--transition-hover);
+}
+.needt-v3 .sd-style[aria-pressed="true"] i {
+  box-shadow: var(--accent) 0 0 0 2px;
+}
+.needt-v3 .sd-style[aria-pressed="true"] {
+  color: var(--text-primary);
+}
+.needt-v3 .sd-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.needt-v3 .sd-dis {
+  opacity: 0.5;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .needt-v3 .sd-styles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* sd-play: the live island (playground.css) */
+.needt-v3 .pg {
+  position: relative;
+  flex: none;
+  height: 250px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  user-select: none;
+  box-shadow: var(--shadow-ring);
+  background:
+    radial-gradient(90% 120% at 15% 0%, #8e86d8, transparent 60%),
+    radial-gradient(70% 90% at 100% 100%, #e39ac0, transparent 60%),
+    linear-gradient(160deg, #3d3a86, #1e1c48);
+  font:
+    500 12px/1.3 -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    system-ui,
+    sans-serif;
+  color: #fff;
+}
+.needt-v3 .pg-bar0 {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: rgba(15, 12, 40, 0.28);
+  backdrop-filter: blur(10px);
+  font-size: 11.5px;
+}
+.needt-v3 .pg-bar0 b {
+  font-weight: 700;
+}
+.needt-v3 .pg-sp {
+  flex: 1;
+}
+.needt-v3 .pg-isl {
+  --w: 204px;
+  --h: 22px;
+  --r: 9px;
+  --tx: 0px;
+  --g: 1;
+  --sp: cubic-bezier(0.34, 1.36, 0.5, 1);
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 3;
+  width: calc(var(--w) * var(--g));
+  height: var(--h);
+  transform: translateX(calc(-50% + var(--tx)));
+  transition:
+    width 0.55s var(--sp),
+    height 0.5s var(--sp),
+    transform 0.35s var(--sp);
+}
+.needt-v3 .pg-sh {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 8px;
+}
+.needt-v3 .pg-sh.l {
+  left: -8px;
+  background: radial-gradient(circle at 0 100%, transparent 7.5px, #000 8px);
+}
+.needt-v3 .pg-sh.r {
+  right: -8px;
+  background: radial-gradient(circle at 100% 100%, transparent 7.5px, #000 8px);
+}
+.needt-v3 .pg-box {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  border-radius: 0 0 var(--r) var(--r);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.6);
+  transition:
+    border-radius 0.5s var(--sp),
+    transform 0.25s var(--sp);
+}
+.needt-v3 .pg-cam {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3a3f5a, #0b0c12 70%);
+}
+.needt-v3 .pg-c {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(5px);
+  transform: scale(0.95);
+  transition:
+    opacity 0.15s,
+    filter 0.2s,
+    transform 0.25s;
+}
+.needt-v3 .pg-isl[data-st="live"] .pg-c-live,
+.needt-v3 .pg-isl[data-st="idleInfo"] .pg-c-idle,
+.needt-v3 .pg-isl[data-st="peek"] .pg-c-peek,
+.needt-v3 .pg-isl[data-st="open"] .pg-c-open,
+.needt-v3 .pg-isl[data-st="drop"] .pg-c-drop,
+.needt-v3 .pg-isl[data-st="dropped"] .pg-c-drop,
+.needt-v3 .pg-isl[data-st="hud"] .pg-c-hud,
+.needt-v3 .pg-isl[data-st="standby"] .pg-c-standby {
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
+  transform: none;
+  transition:
+    opacity 0.28s 0.14s,
+    filter 0.35s 0.12s,
+    transform 0.45s 0.1s var(--sp);
+}
+.needt-v3 .pg-isl.leaving .pg-c {
+  opacity: 0 !important;
+  transition: opacity 0.1s !important;
+}
+.needt-v3 .pg-c-live,
+.needt-v3 .pg-c-idle,
+.needt-v3 .pg-c-hud {
+  left: 10px;
+  right: 10px;
+  top: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 11px;
+}
+.needt-v3 .pg-c-live > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.needt-v3 .pg-mut {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+.needt-v3 .pg-c-hud {
+  justify-content: center;
+  gap: 8px;
+}
+.needt-v3 .pg-hb {
+  width: 120px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.needt-v3 .pg-hb i {
+  display: block;
+  height: 100%;
+  background: #fff;
+  border-radius: 3px;
+  transition: width 0.15s;
+}
+.needt-v3 .pg-c-peek {
+  left: 14px;
+  right: 14px;
+  top: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .pg-pt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.needt-v3 .pg-pt small {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.needt-v3 .pg-pt b {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .pg-live {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #30d158;
+}
+.needt-v3 .pg-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  margin-top: 3px;
+}
+.needt-v3 .pg-bar i {
+  display: block;
+  width: 28%;
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  position: relative;
+  overflow: hidden;
+}
+.needt-v3 .pg-bar i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 60%;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+  animation: pgsh 2.2s ease-in-out infinite;
+}
+@keyframes pgsh {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+.needt-v3 .pg-c-open {
+  left: 12px;
+  right: 12px;
+  top: 26px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .pg-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.needt-v3 .pg-tab {
+  position: relative;
+  z-index: 1;
+  padding: 3px 10px;
+  border-radius: 7px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.needt-v3 .pg-tab.on,
+.needt-v3 .pg-tab:hover {
+  color: #fff;
+}
+.needt-v3 .pg-ink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.16);
+  transition:
+    transform 0.35s var(--sp),
+    width 0.35s var(--sp);
+  pointer-events: none;
+}
+.needt-v3 .pg-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px 0 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 10.5px;
+}
+.needt-v3 .pg-chip i {
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: radial-gradient(circle at 30% 30%, #ff9a6a, #c0397a 50%, #3b1d6e);
+}
+.needt-v3 .pg-more {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 9px;
+  margin-left: 6px;
+}
+.needt-v3 .pg-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  animation: pgin 0.4s var(--sp) both;
+}
+@keyframes pgin {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+    filter: blur(3px);
+  }
+}
+.needt-v3 .pg-hero {
+  width: 128px;
+  flex: none;
+  border-radius: 14px;
+  padding: 10px;
+  background: linear-gradient(160deg, #26232f, #16151b);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .pg-hero span {
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .pg-hero b {
+  font-size: 12px;
+}
+.needt-v3 .pg-hero small {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.needt-v3 .pg-hero.big {
+  width: auto;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.needt-v3 .pg-hero.big b {
+  font-size: 18px;
+}
+.needt-v3 .pg-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .pg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  animation: pgin 0.4s var(--sp) both;
+  animation-delay: var(--d);
+  transition: background 0.15s;
+}
+.needt-v3 .pg-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.needt-v3 .pg-row i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--c);
+  transition:
+    background 0.2s,
+    transform 0.25s var(--sp);
+}
+.needt-v3 .pg-row:hover i {
+  transform: scale(1.15);
+}
+.needt-v3 .pg-row span {
+  flex: 1;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .pg-row small {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.needt-v3 .pg-row.done i {
+  background: var(--c);
+}
+.needt-v3 .pg-row.done span {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.4);
+}
+.needt-v3 .pg-week {
+  flex: 1;
+  display: flex;
+  gap: 5px;
+}
+.needt-v3 .pg-week span {
+  flex: 1;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 6px 0;
+}
+.needt-v3 .pg-week i {
+  width: 12px;
+  height: calc(var(--v) * 70px + 3px);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #a596ff, #6a5af0);
+  transform-origin: bottom;
+  animation: pggrow 0.6s var(--sp) both;
+  animation-delay: var(--d);
+}
+@keyframes pggrow {
+  from {
+    transform: scaleY(0);
+  }
+}
+.needt-v3 .pg-week small {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.needt-v3 .pg-empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+.needt-v3 .pg-c-drop {
+  left: 14px;
+  right: 14px;
+  top: 22px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.needt-v3 .pg-dropi {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: #ff9f0a;
+  color: #000;
+  font-size: 12px;
+  animation: pgbob 0.8s ease-in-out infinite;
+}
+@keyframes pgbob {
+  50% {
+    transform: translateY(2px);
+  }
+}
+.needt-v3 .pg-isl[data-st="dropped"] .pg-dropi {
+  background: #30d158;
+  animation: none;
+}
+.needt-v3 .pg-c-standby {
+  left: 14px;
+  right: 10px;
+  top: 24px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .pg-sb {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .pg-sb small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd60a;
+}
+.needt-v3 .pg-sb b {
+  font-size: 12px;
+}
+.needt-v3 .pg-go {
+  height: 24px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #0a84ff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  cursor: pointer;
+  animation: pggo 1.4s ease-in-out infinite;
+}
+@keyframes pggo {
+  50% {
+    box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
+  }
+}
+.needt-v3 .pg-tick {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  animation: pgtick 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes pgtick {
+  to {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+.needt-v3 .pg-files {
+  position: absolute;
+  left: 18px;
+  bottom: 34px;
+  display: flex;
+  gap: 14px;
+}
+.needt-v3 .pg-file,
+.needt-v3 .pg-ghost {
+  width: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: grab;
+  touch-action: none;
+}
+.needt-v3 .pg-file b,
+.needt-v3 .pg-ghost b {
+  width: 34px;
+  height: 42px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--c) 80%, #fff),
+    var(--c)
+  );
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .pg-file small,
+.needt-v3 .pg-ghost small {
+  font-size: 10px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .pg-file.lift {
+  opacity: 0.35;
+}
+.needt-v3 .pg-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  transform: scale(1.06) rotate(-3deg);
+  font:
+    500 12px -apple-system,
+    system-ui,
+    sans-serif;
+  color: #fff;
+}
+.needt-v3 .pg-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.65);
+}
+.needt-v3 .pg-off {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(10, 10, 20, 0.35);
+}
+.needt-v3 .pg.is-off .pg-off {
+  display: grid;
+}
+.needt-v3 .pg.is-off .pg-isl {
+  --w: 120px !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pg-isl,
+  .needt-v3 .pg-box,
+  .needt-v3 .pg-c {
+    transition-duration: 0.01s !important;
+  }
+}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
+import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
@@ -549,6 +551,19 @@ export async function PUT(
         event: "task.completed",
         payload: { taskId: updatedTask.id, title: updatedTask.title },
       });
+      // Done ends the task's running focus; the minutes saved go back to the day.
+      const focus = await endFocusForCompletedTask({
+        userId,
+        task: updatedTask,
+      });
+      if (focus.ended) {
+        await scheduleAllTasksForUser(userId, {
+          workspaceId:
+            auth.workspace?.dataScope.mode === "workspace"
+              ? auth.workspace.workspaceId
+              : undefined,
+        });
+      }
     }
 
     await completeOfflineMutation(offlineRecordId);

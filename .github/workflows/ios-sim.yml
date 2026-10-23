@@ -1,0 +1,108 @@
+name: ios-sim
+
+# Builds the Capacitor iOS shell (apps/ios) for the Simulator without signing,
+# runs it for a few seconds and keeps the .app and a screenshot as artifacts.
+# The App scheme also builds the WidgetKit extension (NeedtWidgets: widgets,
+# Controls, Live Activity) and embeds it; the build below checks it is inside.
+# No Apple Developer account is needed for any step here.
+
+on:
+  push:
+    paths:
+      - "apps/ios/**"
+      - "apps/shared/**"
+      - ".github/workflows/ios-sim.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/ios/package-lock.json
+
+      - name: Install Capacitor packages
+        run: npm ci
+
+      - name: Sync native project
+        run: npx cap sync ios
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build for the Simulator (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tail -n 60
+
+      - name: Widget extension is embedded and configured
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Debug-iphonesimulator/App.app
+          EXT="$APP/PlugIns/NeedtWidgets.appex"
+          test -d "$EXT"
+          plutil -p "$EXT/Info.plist" | grep -E "com.apple.widgetkit-extension|app.needt.ios.widgets"
+          plutil -p "$APP/Info.plist" | grep -E "NSSupportsLiveActivities|needt"
+          ls "$EXT"
+
+      - name: Boot a Simulator
+        run: |
+          set -euo pipefail
+          # newest available iOS runtime, then an iPhone type that runtime supports
+          RUNTIME_ID=$(xcrun simctl list runtimes -j | jq -r '
+            [.runtimes[] | select(.isAvailable == true and (.identifier | test("iOS")))]
+            | sort_by(.version | split(".") | map(tonumber)) | last | .identifier')
+          DEVICE_TYPE=$(xcrun simctl list runtimes -j | jq -r --arg r "$RUNTIME_ID" '
+            [.runtimes[] | select(.identifier == $r) | .supportedDeviceTypes[]
+              | select(.productFamily == "iPhone")] | last | .identifier')
+          echo "runtime=$RUNTIME_ID device=$DEVICE_TYPE"
+          UDID=$(xcrun simctl create needt-ci "$DEVICE_TYPE" "$RUNTIME_ID")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Install and launch
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl install booted "$APP"
+          xcrun simctl launch booted app.needt.ios
+          sleep 20
+          mkdir -p out
+          xcrun simctl io booted screenshot out/needt-ios-sim.png
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-simulator.app.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-ios-simulator
+          path: |
+            apps/ios/out/needt-ios-sim.png
+            apps/ios/out/Needt-simulator.app.zip
+          if-no-files-found: warn

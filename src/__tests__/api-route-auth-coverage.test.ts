@@ -15,7 +15,7 @@ const API_ROOT = join(__dirname, "..", "app", "api");
 
 /** Helpers that reject an unauthenticated request. */
 const AUTH_CALL =
-  /\b(authenticateRequest|authenticateAccountRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
+  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
 
 const HANDLER =
   /^export\s+(?:(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b|const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b)/gm;
@@ -41,6 +41,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "PWA share_target fallback: redirects to /share with the text and link, saves nothing",
   "auth/[...nextauth]/route.ts": "NextAuth handler, rate limited",
   "auth/register/route.ts": "signup, rate limited",
+  "auth/desktop/exchange/route.ts":
+    "desktop sign-in handoff: single-use 60 s code bound to a PKCE verifier, same-origin JSON with a header, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",
   "auth/reset-password/request/route.ts": "rate limited, no account oracle",
   "auth/reset-password/reset/route.ts": "single-use token, rate limited",

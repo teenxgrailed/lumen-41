@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Needt</title>
+    <!--
+      The start window (spec: additions-2/desktop-chrome, dk-start). Bundled with
+      the app, so it opens at once and offline. Nothing here talks to the network:
+      the buttons ask the shell to open the system browser (needt://start-sign-in
+      is caught by the shell's navigation guard and never loads), and the shell
+      tells this page how the sign-in is going through window.__needtWelcome:
+        "browser"  the browser is open, waiting
+        "back"     the browser handed a code back; the session is being made
+        "error"    the link expired or did not go through
+        "idle"     start again
+      Values are the design system's: one text colour at a ladder alpha, one
+      hairline, no solid accent on a button. The primary button is ink, not accent.
+    -->
+    <style>
+      @font-face {
+        font-family: Exposure;
+        src: url("ExposureVAR.woff2") format("woff2");
+        font-weight: 100 900;
+        font-display: block;
+      }
+      :root {
+        --ground: #fcfdfe;
+        --fg: 26, 28, 30;
+        --ink-2: rgba(var(--fg), 0.7);
+        --ink-3: rgba(var(--fg), 0.4);
+        --raise: rgba(var(--fg), 0.04);
+        --line: rgba(var(--fg), 0.08);
+        --success: #098926;
+        --primary-bg: #1a1c1e;
+        --primary-fg: #ffffff;
+        --accent-rgb: 46, 109, 233;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #202022;
+          --fg: 236, 236, 236;
+          --ink-2: rgba(var(--fg), 0.75);
+          --raise: rgba(var(--fg), 0.06);
+          --line: rgba(var(--fg), 0.1);
+          --success: #279936;
+          --primary-bg: #ffffff;
+          --primary-fg: #111214;
+          --accent-rgb: 113, 178, 255;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--ground);
+        color: rgb(var(--fg));
+        font:
+          13px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+        overflow: hidden;
+      }
+      /* the title bar is the window's drag handle (the traffic lights sit over it) */
+      .drag {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 52px;
+      }
+      main {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px;
+      }
+      .ic {
+        width: 112px;
+        height: 112px;
+        border-radius: 25px;
+        box-shadow: 0 24px 44px -18px rgba(18, 16, 40, 0.55);
+      }
+      h1 {
+        margin: 22px 0 6px;
+        font: 400 40px/1 Exposure, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        letter-spacing: -0.02em;
+        font-variation-settings: "EXPO" -20;
+      }
+      p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--ink-2);
+        max-width: 30ch;
+      }
+      .acts {
+        margin-top: 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+      }
+      .btn {
+        height: 36px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 11px;
+        background: var(--raise);
+        color: rgb(var(--fg));
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: default;
+      }
+      .btn:active {
+        background: var(--line);
+      }
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
+      }
+      .btn.is-primary {
+        background: var(--primary-bg);
+        color: var(--primary-fg);
+        min-width: 200px;
+        height: 40px;
+      }
+      .btn.is-primary:active {
+        opacity: 0.85;
+      }
+      .btn.is-text {
+        background: none;
+        color: var(--ink-2);
+        height: 28px;
+        font-size: 13px;
+      }
+      .btn.is-text:hover {
+        color: rgb(var(--fg));
+      }
+      .spin {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--line);
+        border-top-color: rgb(var(--fg));
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spin {
+          animation-duration: 3s;
+        }
+      }
+      .steps {
+        margin-top: 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: left;
+        width: 100%;
+        max-width: 280px;
+      }
+      .steps div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--ink-2);
+      }
+      .steps div b {
+        color: rgb(var(--fg));
+        font-weight: 500;
+      }
+      .steps .n {
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: var(--raise);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1;
+        color: rgb(var(--fg));
+        flex: none;
+      }
+      .steps .n.ok {
+        background: var(--success);
+        color: #fff;
+      }
+      .foot {
+        position: fixed;
+        bottom: 18px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 11.5px;
+        line-height: 1;
+        color: var(--ink-3);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="drag" data-tauri-drag-region></div>
+    <main>
+      <img class="ic" src="needt-icon-midnight.svg" alt="" width="112" height="112" />
+      <h1>Needt</h1>
+
+      <section id="idle">
+        <p>Tasks, calendar and docs in one place.</p>
+        <div class="acts">
+          <button id="sign-in" type="button" class="btn is-primary">Sign in</button>
+          <button id="create" type="button" class="btn is-text">Create an account</button>
+        </div>
+      </section>
+
+      <section id="browser" hidden>
+        <p>We opened your browser. Sign in there and come back — this window will pick it up.</p>
+        <div class="steps">
+          <div><span class="n ok">✓</span><b>Browser opened</b></div>
+          <div><span class="n">2</span>Sign in with Google, Apple or email</div>
+          <div><span class="n">3</span>Return to Needt</div>
+        </div>
+        <div class="acts">
+          <button id="again" type="button" class="btn">Open the browser again</button>
+          <button id="cancel" type="button" class="btn is-text">Cancel</button>
+        </div>
+      </section>
+
+      <section id="back" hidden>
+        <p>Signing you in…</p>
+        <div class="acts"><span class="spin" role="status" aria-label="Signing you in"></span></div>
+      </section>
+
+      <section id="error" hidden>
+        <p>That sign-in link expired. Try again — it only takes a second.</p>
+        <div class="acts">
+          <button id="retry" type="button" class="btn is-primary">Sign in again</button>
+        </div>
+      </section>
+    </main>
+    <div class="foot" id="foot">needt.app</div>
+    <script>
+      (function () {
+        var sections = ["idle", "browser", "back", "error"];
+        var boot = window.__needtDesktopBoot || {};
+        if (boot.version) {
+          document.getElementById("foot").textContent = "Version " + boot.version + " · needt.app";
+        }
+        function show(name) {
+          sections.forEach(function (id) {
+            document.getElementById(id).hidden = id !== name;
+          });
+        }
+        // The shell catches these navigations; the page itself never changes.
+        function ask(what) {
+          window.location.href = "needt://" + what;
+        }
+        function signIn() {
+          show("browser");
+          ask("start-sign-in");
+        }
+        document.getElementById("sign-in").addEventListener("click", signIn);
+        // The browser's sign-in page offers account creation as well.
+        document.getElementById("create").addEventListener("click", signIn);
+        document.getElementById("again").addEventListener("click", function () {
+          ask("start-sign-in");
+        });
+        document.getElementById("retry").addEventListener("click", signIn);
+        document.getElementById("cancel").addEventListener("click", function () {
+          show("idle");
+          ask("cancel-sign-in");
+        });
+        // Called by the shell (webview eval) as the sign-in moves along.
+        window.__needtWelcome = function (state) {
+          if (sections.indexOf(state) >= 0) show(state);
+        };
+      })();
+    </script>
+  </body>
+</html>

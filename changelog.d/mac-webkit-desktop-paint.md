@@ -1,0 +1,1 @@
+- Mac app: the Connections sky fills its whole box, the Connections title no longer sits on its subtitle, the notification corner is only as big as its toast, and Ask Needt opens from a visible pill. The app also idles more when nothing moves.

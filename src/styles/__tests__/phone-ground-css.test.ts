@@ -1,8 +1,7 @@
 /**
- * The phone screen covers the whole display. The scope is `h-dvh`, which in an
- * installed iOS PWA ends above the bottom of the display and left a flat band
- * of the html colour under the dock. The phone scope is fixed to the viewport
- * and its ground sits on a fixed layer of its own.
+ * The phone page scrolls like a document (owner decision 2026-10-20). Nothing
+ * that paints is fixed to the top or bottom edge at rest, so Safari 26 paints
+ * its bars from the page colour, which is the app theme's ground.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,78 +17,124 @@ function rule(selector: string): string {
   return css.slice(start, css.indexOf("}", start));
 }
 
-describe("phone screen background layer", () => {
-  it("the phone scope is fixed to the viewport, not sized by dvh", () => {
+describe("phone page ground", () => {
+  it("the scope is not fixed and is not sized by a fixed height", () => {
     const body = rule('.needt-v3[data-ui="phone"]');
-    expect(body).toContain("position: fixed");
-    expect(body).toContain("inset: 0");
+    expect(body).not.toContain("position: fixed");
+    expect(body).not.toContain("inset: 0");
+    expect(body).toContain("background: var(--v2p-ground)");
+    expect(css).not.toContain('[data-ui="phone"]::before');
+    expect(css).not.toContain("v3-edge-tint");
+  });
+
+  it("html and body wear the ground and grow with the page", () => {
+    const body = rule(
+      'html:has(.needt-v3[data-ui="phone"]),\nhtml:has(.needt-v3[data-ui="phone"]) body'
+    );
+    expect(body).toContain("background-color: #f6f6f3 !important");
     expect(body).toContain("height: auto");
-    expect(body).not.toMatch(/dvh|svh|\bvh\b/);
-    expect(body).toContain("background: var(--v2p-ground)");
+    const dark = rule(
+      'html:has(.needt-v3[data-ui="phone"][data-theme="dark"]),\nhtml:has(.needt-v3[data-ui="phone"][data-theme="dark"]) body,\nhtml:has(.needt-v3[data-ui="phone"][data-theme="dim"]),\nhtml:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body'
+    );
+    expect(dark).toContain("background-color: #141416 !important");
   });
 
-  it("the ground is a fixed inset-0 layer behind the content", () => {
-    const body = rule('.needt-v3[data-ui="phone"]::before');
-    expect(body).toContain("position: fixed");
-    // bleeds past the viewport, so the ground is real pixels under Safari's bars
-    expect(body).toMatch(/inset: -\d+px 0/);
-    expect(body).toContain("z-index: -1");
-    expect(body).toContain("background: var(--v2p-ground)");
-    expect(body).toContain("pointer-events: none");
+  it("the screen has no inner scroller", () => {
+    const scroll = rule('.needt-v3[data-ui="phone"] .pk-scroll');
+    expect(scroll).toContain("overflow: visible");
+    expect(scroll).toContain("padding-top: var(--v3-top)");
+    expect(css).toContain("--v3-top: max(52px, env(safe-area-inset-top, 0px))");
   });
 
-  it("the elements Safari samples at the two edges are opaque theme-driven strips", () => {
-    expect(css).toContain("2147483000");
-    expect(rule('.needt-v3[data-ui="phone"] .v3-edge-tint.is-top')).toContain(
-      "background-color: var(--v3-edge-top)"
+  it("the layers that stay put are fixed, and only those", () => {
+    const fixed = rule(
+      '.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
+    );
+    expect(fixed).toContain("position: fixed");
+  });
+
+  it("no full-width fixed layer touches an edge", () => {
+    // the band and the fog hosts have no height; the paint is in children
+    expect(rule('.needt-v3[data-ui="phone"] .pk-topband')).toContain(
+      "height: 0"
+    );
+    expect(rule('.needt-v3[data-ui="phone"] .pk-fog')).toContain("height: 0");
+    // the full-screen layers stand in from both edges
+    const inset = rule(
+      '.needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),\n.needt-v3[data-ui="phone"] :is(.pk-sheet-layer, .nva)'
+    );
+    expect(inset).toContain("top: var(--v3-edge)");
+    expect(inset).toContain("bottom: var(--v3-edge)");
+    expect(css).toContain("--v3-edge: 8px");
+  });
+
+  it("on iOS no paint reaches the display edge: the gaps are 6 px top, 5 px bottom", () => {
+    // Safari 26 samples the top (~4 px) and bottom (~3 px) once and keeps the
+    // tint, even for absolute children of a zero-height fixed host.
+    expect(css).toMatch(
+      /@supports \(-webkit-touch-callout: none\) \{\s*\.needt-v3\[data-ui="phone"\] \{\s*--v3-gap-top: 6px;\s*--v3-gap-bot: 5px;/
+    );
+    expect(css).toContain("--v3-gap-top: 0px");
+    expect(css).toContain("--v3-gap-bot: 0px");
+    expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
+      "height: calc(var(--ps-top-h) - var(--v3-gap-top))"
     );
     expect(
-      rule('.needt-v3[data-ui="phone"] .v3-edge-tint.is-bottom')
-    ).toContain("background-color: var(--v3-edge-bottom)");
+      rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots)')
+    ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
+    expect(
+      rule(
+        '.needt-v3[data-ui="phone"] .pk-scrim > *,\n.needt-v3[data-ui="phone"] .nva-scrim'
+      )
+    ).toContain("calc(var(--v3-gap-top) - var(--v3-edge))");
   });
 
-  it("bottom-anchored phone chrome keeps its distance by the safe-area inset", () => {
+  it("bottom-anchored phone chrome floats above the safe-area inset", () => {
     for (const [sel, px] of [
-      [".nva-body", 10],
       [".pd-actbar", 26],
-      [".pov-snack", 112],
       [".ma-menu-pill", 14],
     ] as const) {
       expect(rule(`.needt-v3[data-ui="phone"] ${sel}`)).toContain(
         `bottom: calc(${px}px + var(--v3-sab))`
       );
     }
+    expect(rule('.needt-v3[data-ui="phone"] .pov-snack')).toContain(
+      "bottom: calc(92px + var(--v3-dock-lift) + var(--v3-sab))"
+    );
+    // the dock sits 30 px above the display edge (54 px more in a Safari tab)
+    expect(rule('.needt-v3[data-ui="phone"] .nva-body')).toContain(
+      "bottom: calc(10px + var(--v3-dock-lift) - var(--v3-edge))"
+    );
+    expect(rule('.needt-v3[data-ui="phone"] .nva')).toContain(
+      "padding-bottom: var(--v3-dock-lift)"
+    );
+    expect(css).toContain("--v3-dock-lift: 20px");
+    expect(css).toContain("--v3-dock-lift: 74px");
     expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(
       "padding-bottom: var(--v3-sab)"
+    );
+    expect(rule('.needt-v3[data-ui="phone"] .pk-tail')).toContain(
+      "112px + var(--v3-dock-lift)"
     );
     expect(css).toContain("--v3-sab: env(safe-area-inset-bottom, 0px)");
   });
 
-  it("the sign-in scope is fixed to the viewport too", () => {
+  it("the sign-in scope is fixed to the viewport (unchanged)", () => {
     const auth = readFileSync(
       path.join(process.cwd(), "src/components/needt3/auth/AuthScope.tsx"),
       "utf8"
     );
     expect(auth).toContain("fixed inset-0");
-    expect(auth).not.toContain("h-dvh");
   });
 
-  it("the scope still carries the h-dvh utility the rule overrides", () => {
+  it("the scope grows with the page on the phone and is dvh-tall off it", () => {
     const root = readFileSync(
       path.join(process.cwd(), "src/components/needt3/root/V3Root.tsx"),
       "utf8"
     );
-    expect(root).toContain("h-dvh");
+    expect(root).toContain('ui === "phone" ? "min-h-dvh"');
+    expect(root).toContain("h-dvh min-h-0 overflow-hidden");
     expect(root).toContain("data-ui={ui}");
-  });
-});
-
-describe("edge colours for the browser bars", () => {
-  it("registers both as colours and re-points them per layer", () => {
-    expect(css).toContain("@property --v3-edge-top");
-    expect(css).toContain("@property --v3-edge-bottom");
-    expect(css).toContain(":has(.pk-scrim.is-open, .pk-sheet-layer.is-open) {");
-    expect(css).toContain(':has(.pk-pull[data-pk-pull="open"]) {');
-    expect(css).toContain("--v3-edge-top: var(--sky-ground)");
+    expect(root).toContain("PHONE_GROUND[resolved.side]");
   });
 });

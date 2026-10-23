@@ -116,6 +116,7 @@ function buildPlan(userId, workspaceId) {
     ["AIOAuthState", "aIOAuthState", uid],
     ["OAuthToken", "oAuthToken", uid],
     ["OAuthAuthorizationCode", "oAuthAuthorizationCode", uid],
+    ["DesktopAuthCode", "desktopAuthCode", uid],
     ["ImportItemMap", "importItemMap", uid],
     ["ImportRun", "importRun", wsOnly],
 
@@ -266,6 +267,8 @@ function buildPlan(userId, workspaceId) {
     ["AutoScheduleSettings", "autoScheduleSettings", uid],
     ["SchedulingPreferences", "schedulingPreferences", uid],
     ["FocusPreferences", "focusPreferences", uid],
+    ["EnergyProfile", "energyProfile", uid],
+    ["BlockingProfile", "blockingProfile", uid],
     ["EnergyProfileWindow", "energyProfileWindow", uid],
     ["FlexibleHoursOverride", "flexibleHoursOverride", uid],
     ["WorkScheduleWindow", "workScheduleWindow", { schedule: uid }],

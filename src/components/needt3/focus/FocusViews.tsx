@@ -34,6 +34,7 @@ import { useTaskParts, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 
 import { GlassCard } from "../scenes";
+import { FdEarlyAsk } from "./FdEarlyAsk";
 import * as copy from "./strings";
 import type { FocusController } from "./useFocusController";
 
@@ -661,6 +662,16 @@ function FcRun({ ctl }: { ctl: FocusController }) {
             />
           </span>
         </GlassCard>
+      ) : null}
+
+      {ctl.askingFullTime && task ? (
+        <FdEarlyAsk
+          title={task.title}
+          leftMin={ctl.fullTimeLeftMin ?? 0}
+          plannedMin={run.plannedMinutes}
+          onKeep={ctl.keepGoingFullTime}
+          onEnd={() => void ctl.endFullTimeNow()}
+        />
       ) : null}
 
       {task && !run.isBreak ? (

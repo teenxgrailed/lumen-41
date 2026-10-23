@@ -36,7 +36,6 @@ import {
   PkSection,
   PkSheet,
   pkCx,
-  pkReduced,
 } from "../kit";
 import { usePhoneOverlays } from "../overlays/store";
 import { PlaceState } from "../place-state/PlaceState";
@@ -49,7 +48,6 @@ import {
   dayLine,
   historyDots,
   phoneHabitRow,
-  searchHabits,
   streakFigure,
   streakLabel,
 } from "./model";
@@ -505,29 +503,6 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
     });
   };
 
-  const pull = {
-    search: (q: string) =>
-      searchHabits(list, q).map((h) => ({
-        id: h.id,
-        title: h.title,
-        meta: phoneHabitRow(h, checkins, today).meta.split(" · ")[0],
-      })),
-    onPick: (hit: { id: string }) => {
-      const el = sc.current?.querySelector(`[data-phb-habit="${hit.id}"]`);
-      el?.scrollIntoView({
-        block: "center",
-        behavior: pkReduced() ? "auto" : "smooth",
-      });
-    },
-    onAdd: (q: string) => {
-      if (q.trim()) void ctl.create(q);
-      else ctl.openNew();
-    },
-    placeholder: t.PhbHabits.search_or_add_a_habit,
-    hint: t.PhbHabits.habits_by_name_enter_makes_a_new_one,
-    addLabel: (q: string) => (q ? `New habit “${q}”` : t.PhbHabits.new_habit),
-  };
-
   const head: ReactNode =
     list.length || quota.text ? (
       <div
@@ -593,7 +568,6 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
             {t.PhbHabits.new}
           </PkButton>
         }
-        onPull={pull}
         scrollRef={(el) => {
           sc.current = el;
         }}

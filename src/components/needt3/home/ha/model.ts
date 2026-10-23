@@ -128,8 +128,13 @@ export function haTimeOf(o: {
   return {
     planned,
     ...(left.over
-      ? { over: { by: dur(left.overBy) || "0 min", ends: clock(o.end) } }
+      ? {
+          over: { by: dur(left.overBy) || "0 min", ends: clock(o.end) },
+          overFrac: Math.min(1, left.overBy / (span * 60)),
+        }
       : { free: dur(left.free - left.planned) || "0 min" }),
+    ends: clock(o.end),
+    dayMinutes: span * 60,
     used: now,
     plan,
     now,

@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, island v3: the hover peek is now exactly 480 x 108 (and Standby
+  480 x 88) as in the design, with the 0.26 s anticipation stretch before it;
+  the AirPods moment shows the battery level when macOS lists it (otherwise
+  just "Connected"); the Music moment also fires when the song changes; the
+  Volume HUD page follows the system volume (direct download only); the Tools
+  page has a Weather tile that needs a signed build (shows "Needs signing"
+  otherwise).
+- iPhone: widgets for Today (small, medium, large), Next event, Focus timer,
+  Habits (Free shows 3) and Quick add, Lock Screen widgets, and Controls for
+  Add task and Start focus; each widget has eight looks you pick in its Edit
+  menu (D · Ink by default; tinted, clear and Lock Screen always use the Ink
+  layout); the focus block shows as a Live Activity (compact ring and timer,
+  one outlined Pause, ends with the run); titles stay off the Lock Screen
+  unless you turn "Show titles on Lock Screen" on.
+- Mac app: widgets on the desktop and in Notification Center (Today in small,
+  medium, large and extra large; Next event, Focus timer, Habits, Quick add)
+  with eight looks to pick per widget.
+- Mac app, island v3 (Pro): one black shape that morphs between states (on
+  plan, manual change, focus running, warning, standby, peek, open, moments),
+  with Today / Week / Focus and a modules grid. Reads `prefs.island` from the
+  user settings. `NeedtKit` gains `IslandPrefs`, `IslandCadence`,
+  `IslandOverrides` and `IslandWeek`. Rolls back with the `needtIslandV3`
+  default.
+
+- Mac app: the traffic lights are centred on the page's sidebar toggle (the
+  page reports its top-bar centre) and the toggle starts 16 pt after the zoom
+  button.
+- Mac app: the notch island is part of Needt (Pro). Focus, Next (next task and
+  event) and Add (quick add) sit before Music and Files; focus can be paused or
+  ended from the notch ("Done 5 min early"). On a Mac without a notch the
+  island is a black pill at the top centre. Settings has an Island pane
+  (on/off, modules and their order, open on hover or click, displays, sounds
+  and haptics); on Free the pane is read-only. The App Store build has no
+  private interfaces (no volume or brightness HUD, no system sensors) and plays
+  Apple Music and Spotify only. The direct-download build is no longer
+  sandboxed. The island is derived from Atoll and boring.notch (GPL v3), so the
+  source of the Mac app is offered under GPL v3.
+- Phone: the pull-down plate (search and quick add from the top of a screen) is
+  gone; pages scroll normally. The dock (pill, + and focus buttons) sits 30 px
+  above the screen edge, 84 px in a Safari tab where the tab bar floats under it.
+- Phone: the top and bottom edges follow the new phone-shell design. The
+  collapsed header is the place icon and title, centred, over a three-step
+  blur that fades in as you scroll; the fog under the dock is 128 px (deeper
+  in a Safari tab).
+- Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
+  start and end focus, what's today, what's next, replan day, log habit) and
+  your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to
+  switch a macOS Focus on or off, and a macOS Focus can suggest or start the
+  focus task (Focus filter); the menu bar shows "24:10 · task" only while a
+  focus runs; "Add to Needt" in the Share menu turns a link or text into a
+  task; offline, the menu shows the last day read-only ("Offline · updated
+  14:05") and writes say why they are off; the app is sandboxed and has a Mac
+  App Store configuration without the updater.
+- Place switches show the skeleton of the place being opened (after 150 ms, in
+  the page's own slot, not a full-screen card) instead of the old screen frozen
+  while the server answers; desktop and phone, still under reduced motion.
+- Phone document editor: the format bar is a floating pill with side margins
+  above the keyboard, the page no longer springs when you tap it, and typing
+  does less work (no relayout per keyboard frame, no blur re-render of the
+  backdrop while editing, one scroll read per frame).
+- Installed iPhone app: manifest no longer offers `minimal-ui`, and server redirects are always https, so iOS has no reason to wrap the app in the Safari controller.
+- Mac app, rebuilt natively (Swift, `apps/macos`): the same Needt interface in
+  a native window with a transparent title bar, a menu-bar item (focus
+  countdown, today's next tasks), a Dock badge for overdue tasks, a global
+  quick add on Shift-Command-Space, native notifications and automatic
+  updates (Sparkle, switched on once signed). The Tauri build remains for
+  Windows.
+- iOS app: the Midnight icon is the app icon (with iOS 18 dark and tinted
+  looks), the other twelve are alternate icons you pick in Settings →
+  Appearance, the launch screen is the ground colour with the Midnight mark,
+  and sign-in is Apple, then Google, then email, done in the system browser
+  sheet and handed back with a one-time code.
+- Desktop app, chrome redone to the new design: the start window (440 x 520)
+  shows each step of the browser sign-in (browser opened, signing you in, link
+  expired); on a Mac the sidebar lets the desktop show through (vibrancy; the
+  content stays opaque) and the sidebar toggle sits next to the traffic lights;
+  the menu-bar item is the Needt mark alone until a focus runs, then it shows
+  the time left, and its menu can pause or end the focus; the Dock badge counts
+  overdue tasks only; Quick add is a borderless card above other apps (Enter
+  adds, Cmd+Enter adds and opens, Tab switches task, event, doc, Esc closes);
+  the offline page follows the new design and retries every 10 seconds. Nothing
+  changes in the browser.
+- Focus and Done: ticking a task during its focus ends the focus. The notice
+  "Done 12 min early" now has Undo (it opens the task again; the focus itself is
+  not resumed, start a new one), and Home's time-left bar shows the returned
+  minutes as a green slice right after now for 2.4 s. "Do for the full time" is
+  a switch with an Auto tag: habits and repeating tasks are always full time
+  (no stored choice turns it off), a one-off defaults to off. Ticking a
+  full-time task early asks "N min left" with Keep going (primary) and End now.
+  The phone focus button shows whole minutes, a dashed ring with two bars when
+  paused, and a warm breathing ring in the last 2 minutes.
+
+- Desktop app (macOS, Windows): it opens on its own start window instead of a
+  web page, and signing in happens in your browser (so Google works) and
+  returns to the app with a one-time code; the app then opens straight to
+  Today and remembers you. On a Mac the window now uses the native title bar
+  inset over Needt's own top bar, with a native menu (New task, Quick add,
+  Today, Calendar, Tasks, Docs, Toggle sidebar, Reload), a menu-bar menu with
+  today's next three tasks and a running focus session, and a Dock badge with
+  today's open count. Starting with no connection shows an offline page that
+  returns by itself. Nothing changes in the browser.
+
 - Phone, Safari 26: the status bar and the bottom toolbar now take the colour of
   the in-app theme (not the opposite one, not a stale one) and change the moment
   the theme does. The ground also runs under both bars.

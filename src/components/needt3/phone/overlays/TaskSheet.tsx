@@ -20,6 +20,15 @@ import {
 
 import { clock } from "@/lib/needt3/day";
 import { addDays, at as hourAt } from "@/lib/needt3/derive";
+import {
+  FULL_TIME_AUTO_TAG,
+  FULL_TIME_HINT_OFF,
+  FULL_TIME_HINT_ON,
+  FULL_TIME_LABEL,
+  FULL_TIME_OFF,
+  FULL_TIME_ROW,
+  FULL_TIME_VALUE_ON,
+} from "@/lib/needt3/full-time";
 import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
@@ -73,7 +82,7 @@ import {
 import { usePkToday } from "./today";
 import { useAutosave } from "./useAutosave";
 
-type SchedPick = "placement" | "chunk" | "deadline" | "hours";
+type SchedPick = "placement" | "chunk" | "fullTime" | "deadline" | "hours";
 
 /** Not in the prototype's extracted strings (its phone sheet has no Repeat). */
 const REPEAT = "Repeat";
@@ -244,7 +253,8 @@ function TaskSheetBody({
     k: SchedPick,
     label: string,
     value: string,
-    muted?: boolean
+    muted?: boolean,
+    locked?: boolean
   ) => (
     <button
       type="button"
@@ -252,14 +262,21 @@ function TaskSheetBody({
       onClick={() => setPick(k)}
       aria-haspopup="dialog"
       data-pov-srow={k}
+      disabled={locked}
     >
       <span className="pov-srow-label">{label}</span>
       <span className={pkCx("pov-srow-value", muted && "is-muted")}>
         {value}
       </span>
-      <span className="pov-srow-chev" aria-hidden="true">
-        <LuChevronRight size={14} />
-      </span>
+      {locked ? (
+        <span className="fd-phone fd-auto" data-fd-auto="">
+          {FULL_TIME_AUTO_TAG}
+        </span>
+      ) : (
+        <span className="pov-srow-chev" aria-hidden="true">
+          <LuChevronRight size={14} />
+        </span>
+      )}
     </button>
   );
 
@@ -314,6 +331,29 @@ function TaskSheetBody({
               {c ? `${c} min` : pickCopy.dont_split}
             </PovPickRow>
           ))}
+        </>
+      ),
+    },
+    fullTime: {
+      title: FULL_TIME_LABEL,
+      body: (
+        <>
+          <PovPickRow
+            on={!t.fullTimeOn}
+            onClick={() => choose({ fullTime: false })}
+            hint={FULL_TIME_HINT_OFF}
+            data={{ "data-pov-pick-opt": "off" }}
+          >
+            {FULL_TIME_OFF}
+          </PovPickRow>
+          <PovPickRow
+            on={!!t.fullTimeOn}
+            onClick={() => choose({ fullTime: true })}
+            hint={FULL_TIME_HINT_ON}
+            data={{ "data-pov-pick-opt": "on" }}
+          >
+            {FULL_TIME_LABEL}
+          </PovPickRow>
         </>
       ),
     },
@@ -727,6 +767,13 @@ function TaskSheetBody({
                 copy.min_work_block,
                 chunkWords(t),
                 t.splitAllowed && !t.chunk
+              )}
+              {schedRow(
+                "fullTime",
+                FULL_TIME_ROW,
+                t.fullTimeOn ? FULL_TIME_VALUE_ON : FULL_TIME_OFF,
+                !t.fullTimeOn,
+                !!t.fullTimeAuto
               )}
               {schedRow(
                 "deadline",

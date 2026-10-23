@@ -39,7 +39,27 @@ it("looks up the saved city", async () => {
   (weatherFor as jest.Mock).mockResolvedValue({ city: "Kyiv", temp: 14 });
   const res = await call();
   expect((await res.json()).weather).toEqual({ city: "Kyiv", temp: 14 });
-  expect(weatherFor).toHaveBeenCalledWith("Kyiv");
+  expect(weatherFor).toHaveBeenCalledWith("Kyiv", { place: null });
   expect(find.mock.calls[0][0].where).toEqual({ userId: "u1" });
   expect(res.headers.get("cache-control")).toContain("no-store");
+});
+
+it("uses the coordinates of a picked city, and ignores a broken place", async () => {
+  const place = {
+    name: "Springfield",
+    admin1: "Illinois",
+    country: "United States",
+    countryCode: "US",
+    latitude: 39.8,
+    longitude: -89.64,
+  };
+  find.mockResolvedValue({ prefs: { city: "Springfield", cityPlace: place } });
+  (weatherFor as jest.Mock).mockResolvedValue({ city: "Springfield" });
+  await call();
+  expect(weatherFor).toHaveBeenLastCalledWith("Springfield", { place });
+  find.mockResolvedValue({
+    prefs: { city: "Springfield", cityPlace: { name: "X", latitude: 999 } },
+  });
+  await call();
+  expect(weatherFor).toHaveBeenLastCalledWith("Springfield", { place: null });
 });

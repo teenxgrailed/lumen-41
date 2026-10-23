@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -8,6 +8,8 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
 import { logger } from "@/lib/logger";
+import { announceEarlyFinish, parseFocusEnded } from "@/lib/needt3/focus-early";
+import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 import {
@@ -33,6 +35,14 @@ export function useRealtimeSync(): void {
   const { status } = useAppSession();
   const { activeWorkspace } = useWorkspace();
   const workspaceId = activeWorkspace?.workspace.id;
+  // Undo on "Done N min early" opens the task again; the handler below lives
+  // in a long-lived effect, so it reads the mutation through a ref.
+  const updateTask = useUpdateTask();
+  const reopenRef = useRef<(taskId: string) => Promise<unknown>>(
+    async () => undefined
+  );
+  reopenRef.current = (taskId) =>
+    updateTask.mutateAsync({ id: taskId, patch: { done: false } });
 
   useEffect(() => {
     if (status !== "authenticated" || !workspaceId) return;
@@ -67,13 +77,16 @@ export function useRealtimeSync(): void {
     // Every open device refreshes its Focus UI; the notice is silent and only
     // shown while the "Focus ended" setting is on.
     const onFocusEnded = (event: Event) => {
-      let data: { sessionId?: string; status?: string; message?: string } = {};
-      try {
-        data = JSON.parse((event as MessageEvent<string>).data);
-      } catch {
-        // A malformed event still refreshes the session below.
-      }
+      const data = parseFocusEnded((event as MessageEvent<string>).data);
       void queryClient.invalidateQueries({ queryKey: qk.focusSession() });
+      // Ended because its task was marked done: the timer goes on every
+      // device, and the saved minutes changed the plan (Home's time left).
+      if (data.status === "early" || data.status === "done") {
+        refreshTasks();
+        if (data.status === "early") {
+          announceEarlyFinish(data, (id) => reopenRef.current(id));
+        }
+      }
       if (data.status === "notify") {
         notify.success("Focus done", {
           description: data.message,

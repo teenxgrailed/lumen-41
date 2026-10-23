@@ -1,0 +1,392 @@
+name: macOS
+
+# Unsigned builds of the native Mac app (apps/macos, SwiftUI/AppKit around a
+# WKWebView, with the notch island compiled in from apps/macos/Island) and a
+# test run of the shared Swift package (apps/shared/NeedtKit).
+# Two builds run side by side: Needt (direct download, full island, Sparkle)
+# and NeedtAppStore (sandboxed, no private interfaces, no Sparkle).
+# Not part of the release pipeline: nothing here signs, notarizes or publishes.
+# The Windows app is still the Tauri one (desktop.yml).
+on:
+  push:
+    paths:
+      - "apps/macos/**"
+      - "apps/shared/**"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: needt-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Needt.app (unsigned, direct)
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: NeedtKit tests
+        working-directory: apps/shared/NeedtKit
+        run: swift test
+
+      # Regression guard for the "Update Constraints in Window" crash: every
+      # hosting view in apps/macos must publish no size into its window, and no
+      # SwiftUI scene (MenuBarExtra, Settings, WindowGroup) may exist.
+      - name: Every hosting view has sizingOptions = [] and no SwiftUI scene exists
+        working-directory: apps/macos
+        run: python3 scripts/check-hosting-views.py
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      - name: Build (no signing)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme Needt \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | tail -n 80
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build.log | sort -u | head -80 || true
+
+      - name: App Store build has no Sparkle, direct build embeds the Share extension
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme NeedtAppStore \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-appstore \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tail -n 40
+          STORE=build-appstore/Build/Products/Release/Needt.app
+          DIRECT=build/Build/Products/Release/Needt.app
+          test -d "$STORE"
+          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtWidgets.appex"
+          plutil -p "$DIRECT/Contents/PlugIns/NeedtWidgets.appex/Contents/Info.plist" | grep -E "com.apple.widgetkit-extension"
+          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
+            echo "Sparkle is inside the App Store build"; exit 1
+          fi
+          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
+          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
+            echo "Sparkle symbols are inside the App Store build"; exit 1
+          fi
+          test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
+
+      - name: Entitlements and private APIs
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import plistlib, sys
+          def load(name):
+              with open(f"Generated/{name}.entitlements", "rb") as f:
+                  return plistlib.load(f)
+          failed = False
+          for name in ("Needt", "NeedtAppStore", "NeedtShare", "NeedtWidgets"):
+              e = load(name)
+              print(name, sorted(e))
+              need = ["com.apple.security.network.client",
+                      "com.apple.security.application-groups"]
+              # The direct build is unsandboxed on purpose (the full island).
+              if name != "Needt":
+                  need.append("com.apple.security.app-sandbox")
+              if name not in ("NeedtShare", "NeedtWidgets"):
+                  need.append("com.apple.security.files.user-selected.read-only")
+              for key in need:
+                  if not e.get(key):
+                      print("missing", name, key); failed = True
+              if not any("app.needt.mac" in g for g in e.get("com.apple.security.application-groups", [])):
+                  print("no app group in", name); failed = True
+          if "com.apple.security.temporary-exception.mach-lookup.global-name" in load("NeedtAppStore"):
+              print("App Store entitlements carry a temporary exception"); failed = True
+          sys.exit(1 if failed else 0)
+          PY
+          # No private API: no KVC into WebKit/AppKit internals, no private selectors by string.
+          if grep -rnE 'drawsBackground|setValue\(.*forKey:|_setDrawsBackground|NSSelectorFromString|dlsym|objc_getClass' Needt Share Widgets; then
+            echo "private API pattern found"; exit 1
+          fi
+
+      - name: Zip Needt.app
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Release/Needt.app
+          test -d "$APP"
+          plutil -p "$APP/Contents/Info.plist" | head -40
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-macos-unsigned.zip
+
+      - name: Direct build embeds Sparkle and the Share extension
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          DIRECT=build/Build/Products/Release/Needt.app
+          test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
+          test -d "$DIRECT/Contents/PlugIns/NeedtWidgets.appex"
+          plutil -p "$DIRECT/Contents/PlugIns/NeedtWidgets.appex/Contents/Info.plist" | grep -E "com.apple.widgetkit-extension"
+          test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
+          # The island's GPL licence and acknowledgements ship in the app.
+          test -f "$DIRECT/Contents/Resources/LICENSE.txt"
+          test -f "$DIRECT/Contents/Resources/ACKNOWLEDGEMENTS.md"
+
+      - name: Entitlements
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import plistlib, sys
+          def load(name):
+              with open(f"Generated/{name}.entitlements", "rb") as f:
+                  return plistlib.load(f)
+          failed = False
+          for name in ("Needt", "NeedtAppStore", "NeedtShare", "NeedtWidgets"):
+              e = load(name)
+              print(name, sorted(e))
+              # The direct build is unsandboxed on purpose (the full island);
+              # the App Store build and the extension must be sandboxed.
+              need = ["com.apple.security.network.client",
+                      "com.apple.security.application-groups"]
+              if name != "Needt":
+                  need.append("com.apple.security.app-sandbox")
+              if name not in ("NeedtShare", "NeedtWidgets"):
+                  need.append("com.apple.security.files.user-selected.read-only")
+              for key in need:
+                  if not e.get(key):
+                      print("missing", name, key); failed = True
+              if not any("app.needt.mac" in g for g in e.get("com.apple.security.application-groups", [])):
+                  print("no app group in", name); failed = True
+          store = load("NeedtAppStore")
+          if "com.apple.security.temporary-exception.mach-lookup.global-name" in store:
+              print("App Store entitlements carry a temporary exception"); failed = True
+          if "com.apple.security.cs.disable-library-validation" in store:
+              print("App Store entitlements disable library validation"); failed = True
+          sys.exit(1 if failed else 0)
+          PY
+
+      # Best effort: start the app for a few seconds and report whether it
+      # stayed up. A runner has no signed-in person, so this shows the start
+      # window; it proves the app launches, not that sign-in works.
+      - name: Launch smoke test
+        continue-on-error: true
+        working-directory: apps/macos
+        run: |
+          set -u
+          APP=build/Build/Products/Release/Needt.app
+          mkdir -p out
+          # Signed-in behaviour without an account: --ci-fixture-data feeds the
+          # menu-bar item and the island tasks and a focus run that change every
+          # 3 s, so the first-data-arrives path runs (the real-Mac crash).
+          "$APP/Contents/MacOS/Needt" --ci-fixture-data > out/launch.log 2>&1 &
+          PID=$!
+          sleep 20
+          screencapture -x out/needt-start-window.png || true
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "Needt is running after 20 s (pid $PID)"
+            kill "$PID" || true
+          else
+            echo "Needt exited early"
+            cat out/launch.log
+            exit 1
+          fi
+          STEPS=$(grep -c "^\[ci-fixture\] step" out/launch.log || true)
+          echo "fixture updates applied: $STEPS"
+          test "$STEPS" -ge 5
+
+      # Draws every island v3 state once (ImageRenderer, fixture data, no
+      # account, no window) so the result can be compared with the HTML lab
+      # (additions-2/widgets/index.html). Not a gate: the app build is.
+      - name: Render island states to PNG
+        continue-on-error: true
+        working-directory: apps/macos
+        run: |
+          set -u
+          APP=build/Build/Products/Release/Needt.app
+          mkdir -p out/island
+          "$APP/Contents/MacOS/Needt" --render-island-states out/island > out/island-render.log 2>&1 || true
+          tail -n 20 out/island-render.log
+          ls out/island | wc -l
+
+      # Soak: the app runs with fixture data (fake Pro, tasks and a focus run
+      # that change every 3 s, menu-bar item and island fed) for minutes and
+      # must not crash. The Update Constraints loop and a launch-time permission prompt
+      # both showed up only on a real Mac, after a few seconds of running.
+      - name: Signed-in soak with fixture data (v3 for 3 min, classic notch for 90 s)
+        working-directory: apps/macos
+        run: |
+          set -u
+          APP=build/Build/Products/Release/Needt.app
+          REPORTS="$HOME/Library/Logs/DiagnosticReports"
+          mkdir -p out "$REPORTS"
+          ls "$REPORTS" > out/reports-before.txt 2>/dev/null || true
+          defaults write app.needt.mac needtIslandEnabled -bool true
+          run_soak() {
+            NAME="$1"; SECONDS_TOTAL="$2"
+            echo "== $NAME for ${SECONDS_TOTAL}s"
+            "$APP/Contents/MacOS/Needt" --ci-fake-pro --ci-fixture-data > "out/soak-$NAME.log" 2>&1 &
+            PID=$!
+            ELAPSED=0
+            while [ "$ELAPSED" -lt "$SECONDS_TOTAL" ]; do
+              sleep 5; ELAPSED=$((ELAPSED + 5))
+              if ! kill -0 "$PID" 2>/dev/null; then
+                echo "Needt exited after ${ELAPSED}s ($NAME)"; tail -n 40 "out/soak-$NAME.log"
+                return 1
+              fi
+              if [ "$ELAPSED" -eq 30 ]; then screencapture -x "out/soak-$NAME-30s.png" || true; fi
+            done
+            screencapture -x "out/soak-$NAME-end.png" || true
+            kill "$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+            # The fixture changes menu-bar and island data every 3 s: the
+            # soak only means something if those updates really ran.
+            STEPS=$(grep -c "^\[ci-fixture\] step" "out/soak-$NAME.log" || true)
+            echo "$NAME: fixture updates applied: $STEPS"
+            if [ "$STEPS" -lt $((SECONDS_TOTAL / 3 - 5)) ]; then
+              echo "too few fixture updates ($NAME)"; return 1
+            fi
+            return 0
+          }
+          STATUS=0
+          defaults write app.needt.mac needtIslandV3 -bool true
+          run_soak v3 180 || STATUS=1
+          defaults write app.needt.mac needtIslandV3 -bool false
+          run_soak classic 90 || STATUS=1
+          defaults delete app.needt.mac needtIslandV3 || true
+          sleep 8
+          ls "$REPORTS" > out/reports-after.txt 2>/dev/null || true
+          NEW=$(comm -13 out/reports-before.txt out/reports-after.txt | grep -E "^Needt.*\.(ips|crash)$" || true)
+          if [ -n "$NEW" ]; then
+            echo "New crash reports:"; echo "$NEW"
+            for f in $NEW; do cp "$REPORTS/$f" out/ || true; done
+            STATUS=1
+          fi
+          # A permission prompt at launch is a defect: the first-use rule.
+          if grep -iE "would like to access|TCC" out/soak-*.log; then
+            echo "A permission request appeared in the app log"; STATUS=1
+          fi
+          exit "$STATUS"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-island-states
+          path: |
+            apps/macos/out/island/*.png
+            apps/macos/out/island-render.log
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-macos-unsigned
+          path: |
+            apps/macos/out/Needt-macos-unsigned.zip
+            apps/macos/out/needt-start-window.png
+            apps/macos/out/launch.log
+            apps/macos/out/soak-*.log
+            apps/macos/out/soak-*.png
+            apps/macos/out/Needt*.ips
+            apps/macos/out/Needt*.crash
+            apps/macos/build.log
+          if-no-files-found: warn
+
+  appstore:
+    name: Build NeedtAppStore (unsigned, sandboxed)
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      # Runs before the build: it reads project.yml and the sources, so a
+      # private interface fails fast and does not need a compile to find.
+      - name: No private interface in the sources compiled into NeedtAppStore
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-private-api.py
+
+      - name: Build NeedtAppStore (no signing)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme NeedtAppStore \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-appstore \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build-appstore.log | tail -n 60
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build-appstore.log | sort -u | head -120 || true
+
+      - name: App Store build has no Sparkle and no private framework
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          STORE=build-appstore/Build/Products/Release/Needt.app
+          test -d "$STORE"
+          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
+          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
+          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
+            echo "Sparkle is inside the App Store build"; exit 1
+          fi
+          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
+          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
+            echo "Sparkle symbols are inside the App Store build"; exit 1
+          fi
+          # Linked libraries: nothing from PrivateFrameworks.
+          otool -L "$STORE/Contents/MacOS/Needt" | tee "$RUNNER_TEMP/store-libs.txt"
+          if grep -q "PrivateFrameworks" "$RUNNER_TEMP/store-libs.txt"; then
+            echo "The App Store binary links a private framework"; exit 1
+          fi
+          # Private paths and symbols named in the binary.
+          if grep -E "PrivateFrameworks|SkyLight|MediaRemote|IOReport|DisplayServices|CoreBrightness" "$RUNNER_TEMP/store-strings.txt" | head -20 | grep .; then
+            echo "A private interface is named in the App Store binary"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-macos-appstore-log
+          path: apps/macos/build-appstore.log
+          if-no-files-found: warn

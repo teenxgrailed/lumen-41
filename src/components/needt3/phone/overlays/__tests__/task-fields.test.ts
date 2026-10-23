@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { V3Task } from "@/lib/needt3/map";
 
 import { scheduleSummary, sizeWords } from "../taskModel";
@@ -28,5 +30,24 @@ describe("the folded Scheduling line names the hours", () => {
     expect(scheduleSummary(t, "2026-10-16", "Personal")).toBe(
       "Auto · personal"
     );
+  });
+});
+
+describe("the phone sheet's 'Do for the full time' choice", () => {
+  const src = readFileSync(
+    "src/components/needt3/phone/overlays/TaskSheet.tsx",
+    "utf8"
+  );
+
+  it("is a Scheduling row with an off and an on choice, written as fullTime", () => {
+    expect(src).toContain('"fullTime"');
+    expect(src).toContain("choose({ fullTime: false })");
+    expect(src).toContain("choose({ fullTime: true })");
+    expect(src).toContain("title: FULL_TIME_LABEL");
+  });
+
+  it("is locked, with the Auto tag, for a habit's task or a repeating one", () => {
+    expect(src).toContain("!!t.fullTimeAuto");
+    expect(src).toContain("{FULL_TIME_AUTO_TAG}");
   });
 });

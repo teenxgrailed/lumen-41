@@ -1,4 +1,5 @@
 import { createLocalEvent } from "@/services/connectors/local-events";
+import { AI_PAGE_NOT_EDITABLE } from "@/services/pages/ai-page-access";
 import {
   appendPageBlocks,
   createPage,
@@ -294,8 +295,16 @@ export const eventRestore = defineOp({
 const pageText = z.string().trim().min(1).max(PAGE_TEXT_MAX_LENGTH);
 const pageFormat = z.enum(["markdown", "plain"]).default("markdown");
 
+/**
+ * The agent and MCP callers act on pages as AI actors: a page in a private
+ * tree is neither read nor written, and a page cannot be filed under one.
+ */
 function pageActor(ctx: OpContext) {
-  return { userId: ctx.userId, workspace: ctx.workspace };
+  return {
+    userId: ctx.userId,
+    workspace: ctx.workspace,
+    ai: ctx.actor !== "user",
+  };
 }
 
 function pageAuthor(ctx: OpContext) {
@@ -348,7 +357,12 @@ export const pageCreate = defineOp({
       });
     } catch (error) {
       if (error instanceof Error && error.message === "Parent page not found") {
-        throw new OpError("NOT_FOUND", error.message);
+        throw new OpError(
+          "NOT_FOUND",
+          actor.ai
+            ? `${error.message}, or it is private. Private pages are never available to AI.`
+            : error.message
+        );
       }
       throw error;
     }
@@ -401,7 +415,12 @@ export const pageAppend = defineOp({
     }
     const page = await getPage(actor, input.pageId);
     if (!page) {
-      throw new OpError("NOT_FOUND", "Page not found, or you cannot edit it");
+      throw new OpError(
+        "NOT_FOUND",
+        actor.ai
+          ? AI_PAGE_NOT_EDITABLE
+          : "Page not found, or you cannot edit it"
+      );
     }
     const knownIds = new Set(page.blocks.map((block) => block.id));
     let written;
@@ -411,7 +430,12 @@ export const pageAppend = defineOp({
       pageWriteFailure(error);
     }
     if (!written) {
-      throw new OpError("NOT_FOUND", "Page not found, or you cannot edit it");
+      throw new OpError(
+        "NOT_FOUND",
+        actor.ai
+          ? AI_PAGE_NOT_EDITABLE
+          : "Page not found, or you cannot edit it"
+      );
     }
     const appendedIds = written.blocks
       .map((block) => block.id)

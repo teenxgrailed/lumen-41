@@ -1,0 +1,40 @@
+[package]
+name = "needt-desktop"
+version = "0.1.0"
+description = "Needt desktop app: a Tauri shell around https://use.needt.app"
+authors = ["Needt"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "needt_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+# macos-private-api: a transparent window on macOS (the sidebar vibrancy). It must
+# match "macOSPrivateApi" in tauri.conf.json. Not for the Mac App Store, which
+# the app is not on.
+tauri = { version = "2.12", features = ["tray-icon", "image-png", "macos-private-api"] }
+# deep-link: a second launch with a needt:// link reaches the running app.
+tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
+tauri-plugin-deep-link = "2.4"
+tauri-plugin-global-shortcut = "2.4"
+tauri-plugin-window-state = "2.5"
+tauri-plugin-notification = "2.7"
+tauri-plugin-opener = "2.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Sign-in handoff (PKCE): random verifier, sha256 challenge.
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

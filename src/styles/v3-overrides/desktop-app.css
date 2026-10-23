@@ -1,0 +1,191 @@
+/* The desktop app (apps/desktop).
+ *
+ * DesktopBridge sets `data-desktop` on <html> inside the Tauri shell and
+ * nowhere else, so none of this reaches a browser tab. Spec:
+ * additions-2/desktop-chrome (dk-chrome.css / dk-chrome.jsx, 21.10.26).
+ *
+ * TITLE BAR. On macOS the title bar is the app's own top bar: the window's
+ * traffic lights sit over its left end (the shell places them at x 18, y 20),
+ * so the bar leaves that room and the sidebar toggle starts at x 78 (its
+ * 18 px icon is centred at x 93, level with the lights). The whole 52 px bar
+ * is the drag region (DesktopBridge marks it); its buttons, the search field
+ * and the menus are not. Windows keeps its native title bar and needs nothing.
+ *
+ * VIBRANCY (macOS only; owner decision 21.10.26, which lifts PORT.md section
+ * 0's opaque-ground rule for the native sidebar and nothing else). The shell
+ * makes the window transparent with the under-window material behind it and
+ * reports it (`data-vibrancy="on"`, set only when the shell really did). The
+ * sidebar then lets the desktop through, blurred and tinted; the content
+ * panes, the top bar to the right of the sidebar and everything that floats
+ * stay opaque. Windows, a browser, and a page served to a shell without
+ * vibrancy never match these rules.
+ */
+
+html[data-desktop="mac"] .needt-v3 .shell-tab-bar-tab-bar {
+  padding-left: 76px;
+}
+
+/* Swift shell: lights at x 18, 20 pt apart, 14 pt wide, so the zoom button
+ * ends at 72. The toggle starts 16 pt later (88) = bar padding 86 plus the
+ * button row's 2 px frame. */
+html[data-desktop="mac"][data-desktop-shell="swift"]
+  .needt-v3
+  .shell-tab-bar-tab-bar {
+  padding-left: 86px;
+}
+
+/* FIXED FRAME. In the desktop app the window is the frame: the top bar stays,
+ * the panes scroll, the document never does (as in a browser tab).
+ *
+ * Measured the other way (100dvh) the Swift shell's WKWebView laid the scope
+ * out taller than the area it shows, the document became scrollable and a
+ * wheel at the end of a pane carried the whole page up under the traffic
+ * lights; focus and scrollIntoView did the same to the overflow:hidden
+ * containers. So, on the desktop UI (700 px and wider; the phone keeps its
+ * document scroll, phone-ground.css):
+ *  - the scope is pinned to the window (`fixed`, inset 0), whatever dvh says;
+ *  - html and body do not scroll;
+ *  - the frame's containers CLIP instead of hide: `overflow: clip` is not a
+ *    scroll container, so nothing can scroll it programmatically. */
+html[data-desktop-shell="swift"]:has(.needt-v3[data-ui="desktop"]),
+html[data-desktop-shell="swift"]:has(.needt-v3[data-ui="desktop"]) body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+html[data-desktop-shell="swift"] .needt-v3[data-ui="desktop"] {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+}
+html[data-desktop] .needt-v3[data-ui="desktop"],
+html[data-desktop] .needt-v3[data-ui="desktop"] .app,
+html[data-desktop] .needt-v3[data-ui="desktop"] .shell-app-row,
+html[data-desktop] .needt-v3[data-ui="desktop"] .shell-app-stack {
+  overflow: clip;
+}
+
+/* The window frame is chrome, not a page: nothing in it selects or rubber-bands. */
+html[data-desktop] body {
+  overscroll-behavior: none;
+}
+html[data-desktop] .needt-v3 .tab-bar,
+html[data-desktop] .needt-v3 .sb-shell {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Scrollbars appear only over the thing that scrolls, the way a Mac app's do. */
+html[data-desktop] .needt-v3 ::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+html[data-desktop] .needt-v3 :hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+/* ---- Vibrancy: the sidebar column ------------------------------------- */
+
+/* The page behind the app is the window's own material now. */
+html[data-desktop="mac"][data-vibrancy="on"],
+html[data-desktop="mac"][data-vibrancy="on"] body {
+  background: transparent !important;
+}
+html[data-desktop="mac"][data-vibrancy="on"] .ambient-backdrop {
+  display: none;
+}
+
+/* The tint over the material, and the 1 px edge against the content. */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 {
+  --dk-tint: rgba(246, 246, 248, 0.62);
+  --dk-edge: rgba(0, 0, 0, 0.08);
+}
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3[data-theme="dark"] {
+  --dk-tint: rgba(28, 28, 32, 0.58);
+  --dk-edge: rgba(255, 255, 255, 0.07);
+}
+
+/* The wide rail only: the floating rail (narrow windows) and the document rail
+   keep their opaque ground. */
+html[data-desktop="mac"][data-vibrancy="on"]
+  .needt-v3
+  .shell-app-row-2
+  .shell-sidebar-stack {
+  background: var(--dk-tint);
+  box-shadow: inset -1px 0 0 var(--dk-edge);
+}
+
+/* The top bar is the page's ground ... */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .tab-bar {
+  background: var(--background);
+}
+/* ... except over the open, wide sidebar, where it is the same tinted glass
+   as the column below it. */
+@media (min-width: 1100px) {
+  html[data-desktop="mac"][data-vibrancy="on"][data-sidebar="open"]
+    .needt-v3
+    .tab-bar {
+    background: linear-gradient(
+      to right,
+      var(--dk-tint) var(--sidebar-w),
+      var(--background) var(--sidebar-w)
+    );
+  }
+}
+
+/* What used to lean on the page's colour behind it stays opaque. */
+html[data-desktop="mac"][data-vibrancy="on"] .needt-v3 .chat-dock-slot {
+  background: var(--background);
+}
+
+/* THE CORNER (Ask Needt pill). The pill's elevation is a separate "shade"
+ * element behind a clip-path'd shell (corner.css), so the two are painted by
+ * different layers. In the Swift shell's WKWebView they fell out of step: the
+ * shade (a 142x40 box with only a shadow, ~160x46 with its halo) kept painting
+ * at the corner while the pill on top of it did not, which showed as an empty
+ * rounded rectangle over the right end of the last task row. One layer for
+ * the whole anchor keeps them together. */
+html[data-desktop] .needt-v3 .v3c-anchor {
+  will-change: transform;
+}
+
+/* Ask Needt is anchored to the window, not to the bottom of the scope. The
+ * scope used to be 100dvh high; where the web view's dvh runs past the area it
+ * shows (the Swift shell), 20 px above the scope's bottom edge is below the
+ * window and the pill was out of sight. `fixed` measures from what is shown.
+ * Nothing in the scope is transformed, so this is the same place elsewhere. */
+html[data-desktop] .needt-v3[data-ui="desktop"] .chat-agent-anchor {
+  position: fixed;
+  bottom: 20px;
+}
+
+/* NO BACKDROP BLUR IN THE SWIFT SHELL. A backdrop-filter re-reads and blurs
+ * what is behind it on every frame its layer or anything under it changes;
+ * in WKWebView that, over a window-sized page that is also animating (a
+ * sheet sliding in over the Today sky), is what made Settings and the menus
+ * open late. These surfaces are already 78-92% opaque, so they go solid
+ * instead of blurred: the same look without the cost. */
+html[data-desktop-shell="swift"] .needt-v3 .sb-acct,
+html[data-desktop-shell="swift"] .needt-v3 .st-banner,
+html[data-desktop-shell="swift"] .needt-v3 .mb-bar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--surface-raised);
+}
+html[data-desktop-shell="swift"] .needt-v3 .cn-sticky.is-stuck,
+html[data-desktop-shell="swift"] .needt-v3 .cn-sheet-col.is-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* LESS WORK PER FRAME IN THE SWIFT SHELL. Text on a sky carried an 18 px
+ * blurred halo; the sky repaints at 15 fps, and each repaint re-rasterised
+ * every halo over it. The 1 px shadow stays for legibility. Cards that float
+ * over a sky already have their own opaque surface. */
+html[data-desktop-shell="swift"] .needt-v3 .px-on-sky {
+  text-shadow: 0 1px 2px var(--px-shadow);
+}
+/* An idle sky stops drawing; its grain layer has nothing to animate either. */
+html[data-desktop-shell="swift"] .needt-v3 .px-sky {
+  contain: paint;
+}

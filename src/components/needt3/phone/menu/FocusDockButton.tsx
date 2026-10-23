@@ -16,13 +16,32 @@ const C = 2 * Math.PI * R;
 /** Matches `.nva-focus-btn`'s transition; the button leaves the DOM after it. */
 const OUT_MS = 240;
 
-/** What the ring's centre says: the clock, or whole minutes once it is long. */
+/** The last stretch of a session: the ring turns warm and the button breathes. */
+export const ENDING_SEC = 120;
+
+/**
+ * What the ring's centre says: whole minutes left (the design's "18"), rounded
+ * up so the last minute reads 1; past an hour "90m"; a session with no planned
+ * length counts up as a clock.
+ */
 export function dockLabel(run: {
   leftSec: number | null;
   elapsedSec: number;
 }): string {
-  const sec = run.leftSec ?? run.elapsedSec;
-  return sec >= 3600 ? `${Math.ceil(sec / 60)}m` : clockOf(run as never);
+  if (run.leftSec == null) return clockOf(run as never);
+  const min = Math.max(0, Math.ceil(run.leftSec / 60));
+  return min >= 60 ? `${min}m` : String(min);
+}
+
+/** running | paused | ending (a countdown in its last 2 minutes, not paused). */
+export function dockState(run: {
+  paused: boolean;
+  leftSec: number | null;
+}): "running" | "paused" | "ending" {
+  if (run.paused) return "paused";
+  if (run.leftSec != null && run.leftSec > 0 && run.leftSec <= ENDING_SEC)
+    return "ending";
+  return "running";
 }
 
 /**
@@ -55,16 +74,24 @@ export function FocusDockButton() {
   const r = run ?? last;
   if (!mounted || !r) return null;
   const label = dockLabel(r);
-  const paused = r.paused;
+  const state = dockState(r);
+  const paused = state === "paused";
+  const spoken =
+    r.leftSec == null
+      ? label
+      : `${Math.max(0, Math.ceil(r.leftSec / 60))} min left`;
   return (
     <button
       type="button"
       className={
-        "nva-focus-btn" + (shown ? " is-in" : "") + (paused ? " is-paused" : "")
+        "nva-focus-btn" +
+        (shown ? " is-in" : "") +
+        (paused ? " is-paused" : "") +
+        (state === "ending" ? " is-ending" : "")
       }
       data-assistant-avoid=""
-      data-nva-focus={paused ? "paused" : "live"}
-      aria-label={`Focus session, ${label}${r.leftSec == null ? "" : " left"}${paused ? ", paused" : ""} — open`}
+      data-nva-focus={state === "running" ? "live" : state}
+      aria-label={`Focus session, ${spoken}${paused ? ", paused" : ""} — open`}
       aria-haspopup="dialog"
       tabIndex={shown ? 0 : -1}
       onClick={() => setOpen(true)}
@@ -99,6 +126,12 @@ export function FocusDockButton() {
         />
       </svg>
       <span className="nva-focus-time">{label}</span>
+      {paused ? (
+        <span className="fd-pz" aria-hidden="true">
+          <i />
+          <i />
+        </span>
+      ) : null}
     </button>
   );
 }

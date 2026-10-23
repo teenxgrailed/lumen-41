@@ -648,16 +648,28 @@ describe("the editor's action bar", () => {
     expect(css).not.toMatch(/\[aria-label="Page editing actions"\]\s*\{/);
   });
 
-  it("is fixed to the bottom of the screen and hidden until the editor has focus", () => {
+  it("floats as a pill with side margins at the bottom of the screen and is hidden until the editor has focus", () => {
     const css = read("src/app/globals.css");
     const rule = css.slice(
       css.indexOf(".needt-page-bar {"),
       css.indexOf("}", css.indexOf(".needt-page-bar {"))
     );
     expect(rule).toContain("position: fixed");
-    expect(rule).toMatch(/bottom:\s*0;/);
+    expect(rule).toMatch(/left:\s*10px;/);
+    expect(rule).toMatch(/right:\s*10px;/);
+    expect(rule).toMatch(/border-radius:\s*24px;/);
     expect(css).toMatch(
       /\.needt-page-bar\[data-shown="false"\]\s*\{[^}]*visibility:\s*hidden/
+    );
+  });
+
+  it("keeps the editor from springing and from re-blurring a document-tall layer while typing", () => {
+    const css = read("src/styles/v3-overrides/docs.css");
+    expect(css).toMatch(
+      /\.pd-reader-scroll\s*\{[^}]*overscroll-behavior:\s*none/
+    );
+    expect(css).toMatch(
+      /\.pd-reader\.is-editing \.pd-doc\.is-blur::before\s*\{[^}]*filter:\s*none/
     );
   });
 });

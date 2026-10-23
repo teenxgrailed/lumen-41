@@ -33,6 +33,7 @@ import {
   trapTab,
 } from "./focus";
 import { type EndReason, onGestureAbort, pkTrack } from "./pointer";
+import { pkEdgeInset, pkLockScroll } from "./scroll";
 import { usePkInverse } from "./theme";
 import { pkClamp, pkCx, pkMarkMoving, pkReduced } from "./util";
 
@@ -317,7 +318,7 @@ export function PkSheet({
     if (!el || !ly) return;
     const oldShut = S.H + 24;
     const wasShut = !S.open && S.target >= oldShut - 0.5;
-    S.FH = ly.clientHeight;
+    S.FH = ly.clientHeight + 2 * pkEdgeInset(ly);
     if (S.ds) el.style.height = `${Math.round(S.ds[S.ds.length - 1] * S.FH)}px`;
     else el.style.height = "";
     S.H = el.offsetHeight;
@@ -429,6 +430,8 @@ export function PkSheet({
   useEffect(() => {
     if (!open) return undefined;
     const opener = document.activeElement as HTMLElement | null;
+    // The page behind the sheet holds still (and keeps its offset on release).
+    const unlock = pkLockScroll();
     const id = stackPush();
     const sheetEl = sheet.current;
     let raf = requestAnimationFrame(() => {
@@ -459,6 +462,7 @@ export function PkSheet({
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", k);
       stackRemove(id);
+      unlock();
       // back to the opener, unless the person already moved on
       const here = document.activeElement;
       if (

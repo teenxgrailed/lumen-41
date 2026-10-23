@@ -5,6 +5,8 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { clearFocusGift, showFocusGift } from "@/lib/needt3/focus-early";
+
 import { HaBrief } from "../ha/HaBrief";
 import { HaHabits } from "../ha/HaHabits";
 import { HaHighlight } from "../ha/HaHighlight";
@@ -240,5 +242,102 @@ describe("HaWeather and HaTimeLeft", () => {
     expect(host.textContent).toContain("Overbooked by 40 min");
     expect(host.querySelector(".ha-tl.is-over")).toBeTruthy();
     expect(host.querySelector(".ha-tl-warn button")).toBeNull();
+  });
+  it("time left: the bar draws done, planned, free and the day's end", async () => {
+    await render(
+      h(HaTimeLeft, {
+        t: {
+          planned: "3 h",
+          free: "2 h",
+          used: 0.25,
+          plan: 0.5,
+          now: 0.25,
+          ends: "18:00",
+        },
+      })
+    );
+    const style = (sel: string) =>
+      (host.querySelector(sel) as HTMLElement).style;
+    expect(style(".ha-tl-bar .past").width).toBe("25%");
+    expect(style(".ha-tl-bar .plan").left).toBe("25%");
+    expect(style(".ha-tl-bar .plan").width).toBe("50%");
+    expect(style(".ha-tl-bar .free").left).toBe("75%");
+    expect(host.querySelector(".ha-tl-bar .spill")).toBeNull();
+    expect(host.querySelector(".ha-tl-ticks .at-end")?.textContent).toBe(
+      "18:00"
+    );
+  });
+  it("time left: a green slice of the returned minutes sits right after now, and +N min says so", async () => {
+    const base = {
+      planned: "3 h",
+      free: "2 h",
+      used: 0.25,
+      plan: 0.5,
+      now: 0.25,
+      dayMinutes: 600,
+    };
+    await render(h(HaTimeLeft, { t: base, gift: { minutes: 12, key: 1 } }));
+    const style = (sel: string) =>
+      (host.querySelector(sel) as HTMLElement).style;
+    // 12 of 600 working minutes = 2 %, starting at now; the plan and the free
+    // track make room for it
+    expect(style(".ha-tl-bar .fd-gift").left).toBe("25%");
+    expect(style(".ha-tl-bar .fd-gift").width).toBe("2%");
+    expect(style(".ha-tl-bar .plan").left).toBe("27%");
+    expect(style(".ha-tl-bar .free").left).toBe("77%");
+    expect(host.querySelector("[data-fd-back]")?.textContent).toContain(
+      "+12 min"
+    );
+    // gone: the bar is the plain one again
+    await render(h(HaTimeLeft, { t: base, gift: null }));
+    expect(host.querySelector(".fd-gift")).toBeNull();
+    expect(host.querySelector("[data-fd-back]")).toBeNull();
+    expect(style(".ha-tl-bar .plan").left).toBe("25%");
+  });
+  it("time left: follows the shared slice when no gift is passed, and draws none when overbooked", async () => {
+    const t = {
+      planned: "3 h",
+      free: "2 h",
+      used: 0.25,
+      plan: 0.5,
+      now: 0.25,
+      dayMinutes: 600,
+    };
+    await render(h(HaTimeLeft, { t }));
+    expect(host.querySelector(".fd-gift")).toBeNull();
+    await act(async () => showFocusGift(12));
+    expect(host.querySelector(".fd-gift")).toBeTruthy();
+    await act(async () => clearFocusGift());
+    expect(host.querySelector(".fd-gift")).toBeNull();
+    await act(async () => showFocusGift(12));
+    await render(
+      h(HaTimeLeft, {
+        t: { ...t, free: undefined, over: { by: "1 h", ends: "18:00" } },
+      })
+    );
+    expect(host.querySelector(".fd-gift")).toBeNull();
+    await act(async () => clearFocusGift());
+  });
+  it("time left: overbooked, the day's end is a tick and the rest runs past it", async () => {
+    await render(
+      h(HaTimeLeft, {
+        t: {
+          planned: "9 h",
+          used: 0.5,
+          plan: 0.5,
+          now: 0.5,
+          ends: "18:00",
+          over: { by: "1 h", ends: "18:00" },
+          overFrac: 1,
+        },
+      })
+    );
+    const style = (sel: string) =>
+      (host.querySelector(sel) as HTMLElement).style;
+    // the whole axis is two working days wide: the day ends at its middle
+    expect(style(".ha-tl-bar .end").left).toBe("50%");
+    expect(style(".ha-tl-bar .spill").left).toBe("50%");
+    expect(style(".ha-tl-bar .spill").width).toBe("50%");
+    expect(host.querySelector(".ha-tl-bar .free")).toBeNull();
   });
 });

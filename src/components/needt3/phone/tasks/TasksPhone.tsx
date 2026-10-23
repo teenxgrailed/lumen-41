@@ -2,19 +2,10 @@
 
 import { useMemo } from "react";
 
-import {
-  addedLabel,
-  createDraft,
-  durLabel,
-  moveOverdue,
-} from "@/lib/needt3/day";
+import { durLabel, moveOverdue } from "@/lib/needt3/day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import {
-  useCreateTask,
-  useTasks,
-  useUpdateTask,
-} from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import {
@@ -26,7 +17,6 @@ import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
 import { PkButton, PkEmpty, PkNumber, PkScreen, PkSection, pkCx } from "../kit";
 import { snack } from "../overlays/snack";
-import { usePhoneOverlays } from "../overlays/store";
 import { usePkToday } from "../overlays/today";
 import { TaskParam } from "./TaskParam";
 import {
@@ -38,7 +28,6 @@ import {
   ptkHeader,
   ptkModel,
   ptkSpecs,
-  taskHits,
 } from "./model";
 import { PtkBar, cappedRows } from "./parts";
 import { EMPTY, copy } from "./strings";
@@ -46,7 +35,6 @@ import { useTaskRows } from "./useTaskRows";
 
 const NO_TASKS: V3Task[] = [];
 const NO_PROJECTS: V3Project[] = [];
-const none = () => undefined;
 
 /**
  * The tab the person was on last, kept while the app stays open and seeded
@@ -100,9 +88,7 @@ function TasksBody({
     state.setTab(id);
   };
   const { fold, flip } = state;
-  const openTask = usePhoneOverlays((s) => s.openTask);
   const update = useUpdateTask();
-  const create = useCreateTask();
 
   const R = useTaskRows({ today, projects });
   const taskView = useTaskView();
@@ -171,26 +157,6 @@ function TasksBody({
     </>
   );
 
-  /* Pull down: search a title, open it, or Enter adds to today. */
-  const addToday = (title: string) => {
-    const text = title.trim();
-    if (!text) return;
-    create
-      .mutateAsync({ draft: createDraft({ title: text }, today) })
-      .then(({ result, undo }) =>
-        snack(addedLabel(result ?? { dueDate: today }, today), undo)
-      )
-      .catch(none);
-  };
-  const pull = {
-    search: (q: string) => taskHits(m.live, q, today),
-    onPick: (hit: { id: string }) => {
-      const t = m.live.find((x) => x.id === hit.id);
-      if (t) openTask(t);
-    },
-    onAdd: addToday,
-  };
-
   /* Overdue → today, one write per task; the snack and its one Undo cover the
      moves that landed (a 409 on one row leaves that row, and only that row,
      where it was). */
@@ -220,7 +186,6 @@ function TasksBody({
       sub={sub}
       head={head}
       headClass="ptk-head"
-      onPull={pull}
     >
       <div key={tab} ref={dz.ref} className="ptk-swap" data-ptk-view={tab}>
         {m.sections.map((s) => (
