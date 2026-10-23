@@ -68,6 +68,27 @@ describe("phone page ground", () => {
     expect(css).toContain("--v3-edge: 8px");
   });
 
+  it("on iOS no paint reaches the display edge: the gaps are 6 px top, 5 px bottom", () => {
+    // Safari 26 samples the top (~4 px) and bottom (~3 px) once and keeps the
+    // tint, even for absolute children of a zero-height fixed host.
+    expect(css).toMatch(
+      /@supports \(-webkit-touch-callout: none\) \{\s*\.needt-v3\[data-ui="phone"\] \{\s*--v3-gap-top: 6px;\s*--v3-gap-bot: 5px;/
+    );
+    expect(css).toContain("--v3-gap-top: 0px");
+    expect(css).toContain("--v3-gap-bot: 0px");
+    expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
+      "height: calc(var(--ps-top-h) - var(--v3-gap-top))"
+    );
+    expect(
+      rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots)')
+    ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
+    expect(
+      rule(
+        '.needt-v3[data-ui="phone"] .pk-scrim > *,\n.needt-v3[data-ui="phone"] .nva-scrim'
+      )
+    ).toContain("calc(var(--v3-gap-top) - var(--v3-edge))");
+  });
+
   it("bottom-anchored phone chrome floats above the safe-area inset", () => {
     for (const [sel, px] of [
       [".pd-actbar", 26],

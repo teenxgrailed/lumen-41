@@ -109,7 +109,7 @@ export function CustomizeSidebar({
   open: boolean;
   onClose: () => void;
 }) {
-  const [prefs, setPrefs] = useSidebarPrefs();
+  const [prefs, setPrefs, defaults = DEFAULT_PREFS] = useSidebarPrefs();
   const tiles = prefs.places.filter((p) => p.on).length;
   return (
     <Sheet
@@ -160,7 +160,7 @@ export function CustomizeSidebar({
       <button
         className="shell-customize-sidebar-button"
         type="button"
-        onClick={() => void setPrefs(() => DEFAULT_PREFS)}
+        onClick={() => void setPrefs(() => defaults)}
       >
         Reset to default
       </button>

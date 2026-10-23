@@ -26,7 +26,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { BrandIcon } from "../../brand";
 import { type GlyphName } from "../../glyphs/Glyph";
 import {
-  type SectionId,
+  type PhoneSectionId,
   isPro,
   planInfo,
   readPref,
@@ -302,8 +302,8 @@ export interface PhoneSettingsProps {
   open: boolean;
   onClose: () => void;
   /** The page on show; `null` is the list. Owned by the sheet above the face switch. */
-  page: SectionId | null;
-  onPage: (page: SectionId | null) => void;
+  page: PhoneSectionId | null;
+  onPage: (page: PhoneSectionId | null) => void;
   /** Changes each time a write lands; the header says "Saved" for a moment. */
   saved: number;
   /** The Menu page is on show (it has no desktop section). Owned above the face switch. */

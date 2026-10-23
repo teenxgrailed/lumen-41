@@ -49,7 +49,7 @@ actor AnimatedArtworkManager {
             return nil
         }
 
-        guard await requestMusicAuthorization() else {
+        guard hasMusicAuthorization() else {
             return nil
         }
 
@@ -84,12 +84,17 @@ actor AnimatedArtworkManager {
 
     // MARK: - MusicKit Authorization
 
-    private func requestMusicAuthorization() async -> Bool {
-        let status = MusicAuthorization.currentStatus
-        if status == .authorized { return true }
+    /// Never asks. Fetching animated artwork only works once the person has
+    /// allowed it; without that the island keeps the static artwork.
+    private func hasMusicAuthorization() -> Bool {
+        MusicAuthorization.currentStatus == .authorized
+    }
 
-        let newStatus = await MusicAuthorization.request()
-        return newStatus == .authorized
+    /// Asks for Apple Music access. Called only when the person turns on
+    /// "Animated cover art from Apple Music" in Settings, never at launch.
+    func requestAuthorization() async -> Bool {
+        if hasMusicAuthorization() { return true }
+        return await MusicAuthorization.request() == .authorized
     }
 
     // MARK: - Song Search

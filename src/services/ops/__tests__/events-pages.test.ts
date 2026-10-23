@@ -272,4 +272,54 @@ describe("page ops", () => {
       runOp("page.append", { pageId: "nope", text: "x" }, opts())
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+
+  it("the agent and MCP act on pages as AI actors, and say why a page is out of reach", async () => {
+    jest.mocked(getPage).mockResolvedValue(null as never);
+    for (const actor of ["agent", "mcp"] as const) {
+      jest.mocked(getPage).mockClear();
+      await expect(
+        runOp(
+          "page.append",
+          { pageId: "private-one", text: "x" },
+          { ...opts(), actor }
+        )
+      ).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: expect.stringMatching(/private/),
+      });
+      expect(jest.mocked(getPage).mock.calls[0][0]).toMatchObject({
+        userId: OWNER_ID,
+        ai: true,
+      });
+    }
+  });
+
+  it("a person's own page writes are not held to the AI boundary", async () => {
+    jest.mocked(getPage).mockResolvedValue(null as never);
+    await expect(
+      runOp(
+        "page.append",
+        { pageId: "mine", text: "x" },
+        { ...opts(), actor: "user" }
+      )
+    ).rejects.toMatchObject({
+      message: "Page not found, or you cannot edit it",
+    });
+    expect(jest.mocked(getPage).mock.calls[0][0]).toMatchObject({ ai: false });
+  });
+
+  it("page.create under a private page is refused for the agent", async () => {
+    jest
+      .mocked(createPage)
+      .mockRejectedValue(new Error("Parent page not found"));
+    await expect(
+      runOp("page.create", { title: "Child", parentId: "daily-note" }, opts())
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: expect.stringMatching(/private/),
+    });
+    expect(jest.mocked(createPage).mock.calls[0][0]).toMatchObject({
+      ai: true,
+    });
+  });
 });

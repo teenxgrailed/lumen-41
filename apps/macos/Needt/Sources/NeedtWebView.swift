@@ -47,7 +47,7 @@ final class NeedtWebView: NSObject, WKNavigationDelegate, WKUIDelegate {
 
         self.webView = webView
         self.handler = handler
-        self.offlineHost = NSHostingView(rootView: OfflineView(retry: {}))
+        self.offlineHost = makeHostingView(rootView: OfflineView(retry: {}))
         super.init()
         offlineHost.rootView = OfflineView(retry: { [weak self] in self?.retryNow() })
         offlineHost.isHidden = true
