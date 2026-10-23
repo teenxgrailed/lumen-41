@@ -14,6 +14,9 @@ test.skip(
   ({ viewport }) => (viewport?.width ?? 0) < 768,
   "The phone settings sheet has no Desktop group."
 );
+// The PWA service worker answers /api/tasks from the network once it controls
+// the page, past page.route: the preview would show the seeded user's tasks.
+test.use({ serviceWorkers: "block" });
 
 const STYLES = [
   ["A", "Sky"],
