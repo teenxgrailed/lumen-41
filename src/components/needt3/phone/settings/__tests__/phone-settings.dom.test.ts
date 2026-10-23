@@ -606,6 +606,26 @@ describe("Free keeps its gates", () => {
     ).toBe(false);
   });
 
+  it("Plan: no Start trial button unless the account can still have one", async () => {
+    await mount("plan");
+    expect(q("[data-ps-start-trial]")).toBeNull();
+  });
+
+  it("Plan: an eligible Free account starts the trial in place", async () => {
+    routes[URLS.billing] = billing({ trialEligible: true });
+    await mount("plan");
+    await tap(q("[data-ps-start-trial]"));
+    expect(writes.map((w) => [w.method, w.url])).toEqual([
+      ["POST", "/api/billing/trial"],
+    ]);
+    expect(mockNotify).toHaveBeenCalledWith(
+      "success",
+      expect.stringContaining("trial has started"),
+      expect.anything()
+    );
+    expect(usePhoneOverlays.getState().paywall).toBe(false);
+  });
+
   it("prices come from the pricing module, not the page", async () => {
     await mount("plan");
     const text = host.textContent ?? "";
