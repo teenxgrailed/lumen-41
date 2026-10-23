@@ -143,7 +143,7 @@ private final class ExtensionLockScreenWidgetWindowPool {
         let descriptor = payload.descriptor
         let isNewWindow = windows[payload.id] == nil
         let window = ensureWindow(for: payload.id)
-        let hosting = NSHostingView(rootView: ExtensionLockScreenWidgetView(payload: payload))
+        let hosting = makeHostingView(rootView: ExtensionLockScreenWidgetView(payload: payload))
         hosting.frame = NSRect(origin: .zero, size: descriptor.size)
         hosting.wantsLayer = true
         hosting.layer?.masksToBounds = true

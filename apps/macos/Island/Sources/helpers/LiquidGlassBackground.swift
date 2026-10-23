@@ -202,7 +202,7 @@ public struct LiquidGlassBackground<Content: View>: NSViewRepresentable {
             glass.setValue(cornerRadius, forKey: "cornerRadius")
             callPrivateVariantSetter(on: glass, value: variant.rawValue)
 
-            let hosting = NSHostingView(rootView: AnyView(content))
+            let hosting = makeHostingView(rootView: AnyView(content))
             hosting.translatesAutoresizingMaskIntoConstraints = false
             glass.setValue(hosting, forKey: "contentView")
 
@@ -224,7 +224,7 @@ public struct LiquidGlassBackground<Content: View>: NSViewRepresentable {
         let fallback = NSVisualEffectView()
         fallback.material = .underWindowBackground
 
-        let hosting = NSHostingView(rootView: content)
+        let hosting = makeHostingView(rootView: content)
         hosting.translatesAutoresizingMaskIntoConstraints = false
         fallback.addSubview(hosting)
         NSLayoutConstraint.activate([

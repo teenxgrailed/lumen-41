@@ -18,7 +18,13 @@ struct IslandV3ModuleBody: View {
         case .clip: IslandV3ClipboardModule()
         case .dev: IslandV3DevicesModule()
         case .tools: IslandV3ToolsModule()
-        case .hud: IslandV3HUDModule(model: model)
+        case .hud:
+            // Direct download only: the volume path is not in the App Store build.
+            #if APPSTORE
+            EmptyView()
+            #else
+            IslandV3HUDModule(model: model)
+            #endif
         }
     }
 }
@@ -414,11 +420,13 @@ struct IslandV3DevicesModule: View {
     }
 }
 
-// MARK: - Tools (Timer, Mirror)
+// MARK: - Tools (Timer, Mirror, Weather)
 
 struct IslandV3ToolsModule: View {
     @State private var end: Date?
     @State private var minutes = 5
+    @ObservedObject private var weather = IslandV3Weather.shared
+    @Environment(\.islandStatic) private var isStatic
 
     var body: some View {
         HStack(spacing: 10) {
@@ -427,6 +435,7 @@ struct IslandV3ToolsModule: View {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let left = end.map { max(0, Int($0.timeIntervalSince(context.date).rounded(.up))) } ?? minutes * 60
                     Text(IslandV3Format.clock(left)).font(.system(size: 26, weight: .semibold)).monospacedDigit()
+                        .frame(width: 84, alignment: .leading)
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -443,13 +452,23 @@ struct IslandV3ToolsModule: View {
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06)))
             VStack(alignment: .leading, spacing: 3) {
                 Text("Mirror").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.5))
-                IslandV3MirrorView().clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Group {
+                    if isStatic {
+                        // The CI renderer never opens the camera.
+                        Color(white: 0.12).overlay(Image(systemName: "camera.fill").foregroundStyle(Color.white.opacity(0.3)))
+                    } else {
+                        IslandV3MirrorView()
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06)))
+            IslandV3WeatherTile(weather: weather)
         }
         .frame(height: 140)
+        .onAppear { if !isStatic { weather.refresh() } }
     }
 }
 
@@ -501,20 +520,28 @@ final class IslandV3MirrorNSView: NSView {
 
 // MARK: - HUD (direct build)
 
+#if !APPSTORE
 struct IslandV3HUDModule: View {
     @ObservedObject var model: IslandV3Model
-    @State private var volume = IslandV3Audio.shared.volume ?? 0.5
 
     var body: some View {
+        let volume = model.data.volume
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                Image(systemName: volume < 0.01 ? "speaker.slash.fill" : "speaker.wave.2.fill").frame(width: 22)
-                Slider(value: Binding(get: { volume }, set: { volume = IslandV3Audio.shared.set($0) }), in: 0...1)
+                Image(systemName: IslandV3Format.speakerSymbol(volume)).frame(width: 24)
+                Slider(value: Binding(get: { model.data.volume }, set: { model.data.volume = IslandV3Audio.shared.set($0) }), in: 0...1)
                 Text("\(Int((volume * 100).rounded()))%").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.55)).monospacedDigit().frame(width: 40, alignment: .trailing)
             }
-            Text("Scroll over the closed island to change the volume.")
-                .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.55))
+            HStack {
+                Text(IslandV3Audio.shared.outputName.map { "Output · \($0)" } ?? "Output")
+                    .lineLimit(1)
+                Spacer(minLength: 10)
+                Text("Scroll over the closed island to change it")
+            }
+            .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.55))
         }
         .padding(.top, 6)
+        .onAppear { if let v = IslandV3Audio.shared.volume { model.data.volume = v } }
     }
 }
+#endif
