@@ -7,6 +7,8 @@
  * `prefs.sidebarTiles` (every place id in order); while no `sidebar` layout
  * has been saved, that list decides the tiles.
  */
+import { PLAN_LIMITS } from "@/lib/plan-limits";
+
 import type { ArtName } from "../menu/Art";
 
 export type PlaceId =
@@ -139,6 +141,38 @@ export const DEFAULT_PREFS: SidebarPrefs = {
   collapsed: {},
 };
 
+/**
+ * Places Free has nothing in: `PLAN_LIMITS.FREE.mailboxes` is 0, so Mailbox
+ * sits under More (its page keeps the connect / upgrade empty state) and the
+ * next place takes the tile. Only defaults change; a saved layout is the
+ * person's own and is never rewritten.
+ */
+export const FREE_UNTILED: readonly PlaceId[] =
+  PLAN_LIMITS.FREE.mailboxes === 0 ? ["mail"] : [];
+
+/** `ids` as rows: the first five that Free can use are on, the rest off. */
+function tileRows(ids: readonly PlaceId[], free: boolean) {
+  let on = 0;
+  return ids.map((id) => {
+    const tile = on < TILES_MAX && !(free && FREE_UNTILED.includes(id));
+    if (tile) on += 1;
+    return { id, on: tile };
+  });
+}
+
+export const FREE_DEFAULT_PREFS: SidebarPrefs = {
+  ...DEFAULT_PREFS,
+  places: tileRows(
+    PLACES.map((p) => p.id),
+    true
+  ),
+};
+
+/** The default layout for the person's plan (`free`: kind is "free"). */
+export function defaultPrefs(free = false): SidebarPrefs {
+  return free ? FREE_DEFAULT_PREFS : DEFAULT_PREFS;
+}
+
 const PLACE_IDS = new Set<string>(PLACES.map((p) => p.id));
 const SECTION_IDS = new Set<string>(SECTIONS.map((s) => s.id));
 
@@ -171,8 +205,8 @@ function cleanList<T extends string>(
  * Saved prefs keep their order and choices; places that did not exist when
  * they were saved are appended (off), unknown places drop out.
  */
-export function mergePrefs(saved: unknown): SidebarPrefs {
-  if (!isRecord(saved)) return DEFAULT_PREFS;
+export function mergePrefs(saved: unknown, free = false): SidebarPrefs {
+  if (!isRecord(saved)) return defaultPrefs(free);
   const places = cleanList<PlaceId>(saved.places, PLACE_IDS);
   for (const p of PLACES)
     if (!places.some((x) => x.id === p.id))
@@ -186,7 +220,7 @@ export function mergePrefs(saved: unknown): SidebarPrefs {
     for (const id of SECTION_IDS)
       if (saved.collapsed[id] === true) collapsed[id as SectionId] = true;
   return {
-    places: Array.isArray(saved.places) ? places : DEFAULT_PREFS.places,
+    places: Array.isArray(saved.places) ? places : defaultPrefs(free).places,
     sections,
     collapsed,
   };
@@ -196,7 +230,10 @@ export function mergePrefs(saved: unknown): SidebarPrefs {
  * Onboarding's list as a layout: the first five on, the rest off, in order;
  * places the list leaves out follow, off. `null` when the list is unusable.
  */
-export function prefsFromTiles(want: unknown): SidebarPrefs | null {
+export function prefsFromTiles(
+  want: unknown,
+  free = false
+): SidebarPrefs | null {
   if (!Array.isArray(want)) return null;
   const ids = want.filter(
     (id, i): id is PlaceId =>
@@ -205,23 +242,25 @@ export function prefsFromTiles(want: unknown): SidebarPrefs | null {
   if (!ids.length) return null;
   return {
     ...DEFAULT_PREFS,
-    places: ids
-      .map((id, i) => ({ id, on: i < TILES_MAX }))
-      .concat(
-        PLACES.filter((p) => !ids.includes(p.id)).map((p) => ({
-          id: p.id,
-          on: false,
-        }))
-      ),
+    places: tileRows(ids, free).concat(
+      PLACES.filter((p) => !ids.includes(p.id)).map((p) => ({
+        id: p.id,
+        on: false,
+      }))
+    ),
   };
 }
 
-/** The layout to draw: a saved one, else onboarding's tiles, else default. */
+/**
+ * The layout to draw: a saved one, else onboarding's tiles, else the default
+ * for the plan (`free` keeps `FREE_UNTILED` places off the tiles).
+ */
 export function prefsFromSettings(
-  prefs: Record<string, unknown> | undefined
+  prefs: Record<string, unknown> | undefined,
+  free = false
 ): SidebarPrefs {
-  if (prefs && isRecord(prefs.sidebar)) return mergePrefs(prefs.sidebar);
-  return prefsFromTiles(prefs?.sidebarTiles) ?? DEFAULT_PREFS;
+  if (prefs && isRecord(prefs.sidebar)) return mergePrefs(prefs.sidebar, free);
+  return prefsFromTiles(prefs?.sidebarTiles, free) ?? defaultPrefs(free);
 }
 
 export function splitPlaces(prefs: SidebarPrefs) {

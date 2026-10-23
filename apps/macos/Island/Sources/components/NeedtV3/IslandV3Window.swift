@@ -338,7 +338,7 @@ final class IslandV3Controller {
         display.shrinkWork?.cancel()
         if growOnly {
             frame = frame.union(panel.frame)
-            panel.setFrame(frame, display: false)
+            Self.apply(frame, to: panel)
             let work = DispatchWorkItem { [weak self, weak display] in
                 guard let self, let display else { return }
                 self.place(display, for: display.model.targetSize, growOnly: false)
@@ -346,6 +346,16 @@ final class IslandV3Controller {
             display.shrinkWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
         } else {
+            Self.apply(frame, to: panel)
+        }
+    }
+
+    /// Never resize a window inside a layout pass (the shape size is driven by
+    /// SwiftUI state), and not at all when nothing changed.
+    private static func apply(_ frame: NSRect, to panel: NSPanel) {
+        guard panel.frame != frame else { return }
+        DispatchQueue.main.async { [weak panel] in
+            guard let panel, panel.frame != frame else { return }
             panel.setFrame(frame, display: false)
         }
     }

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 import { LuCheck } from "react-icons/lu";
 
-import { openBillingPortal } from "@/lib/needt3/hooks/account";
+import { openBillingPortal, startTrial } from "@/lib/needt3/hooks/account";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
@@ -56,14 +56,18 @@ export function planHint(kind: string) {
  * sheet, whose call to action is `paywallCta` (it honours the server's
  * `billing_checkout` switch); nothing here starts a checkout.
  *
- * //todo: starting the 14-day trial: it is granted at sign-up, there is no
- * route to start one later, so there is no "Start trial" button. License key,
- * billing help and the plan-state previewer of the prototype are not drawn.
+ * A Free account that has not had its trial yet (`trialEligible`) gets "Start
+ * 14-day free trial", the same `POST /api/billing/trial` the desktop's Plan
+ * section calls (`startTrial`).
+ *
+ * //todo: license key, billing help and the plan-state previewer of the
+ * prototype are not drawn.
  */
 export function PlanPage() {
   const { upgrade } = usePs();
   const plan = usePlan();
   const [busy, setBusy] = useState(false);
+  const [starting, setStarting] = useState(false);
   const going = useRef(false);
   const b = plan.data;
   const kind = b?.kind ?? "free";
@@ -82,6 +86,27 @@ export function PlanPage() {
     } finally {
       going.current = false;
       setBusy(false);
+    }
+  };
+
+  const trial = async () => {
+    if (going.current) return;
+    going.current = true;
+    setStarting(true);
+    try {
+      const r = await startTrial();
+      if (r.ok) {
+        await plan.refetch();
+        notify.success(`Your ${P.trialDays}-day Pro trial has started`, {
+          description: "No card needed.",
+        });
+      } else {
+        notify.error(r.error);
+        void plan.refetch();
+      }
+    } finally {
+      going.current = false;
+      setStarting(false);
     }
   };
 
@@ -126,9 +151,20 @@ export function PlanPage() {
             billing is switched on.
           </span>
         ) : null}
-        {kind === "free" || kind === "trial" ? (
+        {kind === "free" && b?.trialEligible ? (
           <PkButton
             kind="primary"
+            block
+            disabled={starting}
+            onClick={() => void trial()}
+            data-ps-start-trial=""
+          >
+            {starting ? "Starting your trial…" : P.trialCta}
+          </PkButton>
+        ) : null}
+        {kind === "free" || kind === "trial" ? (
+          <PkButton
+            kind={kind === "free" && b?.trialEligible ? "quiet" : "primary"}
             block
             onClick={() => upgrade()}
             data-ps-see-plans=""

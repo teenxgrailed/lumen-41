@@ -57,10 +57,15 @@ export function nvaGeom(fw: number, fh: number): NvaGeom {
   const cardH = Math.min(fullH, 478);
   const PW = 236;
   const PH = 64;
-  const PB = 28;
+  // The pill's bottom edge stands PB above the menu frame's bottom, which is
+  // `--v3-dock-lift` above the display edge less the layer's 8 px edge inset
+  // (phone-ground.css): 20 - 8 + 18 = 30 px in an installed app, 74 - 8 + 18 =
+  // 84 px in a Safari tab (additions-2/phone-shell .ps-dock). It was 28, which
+  // put the dock 10 px too high in both.
+  const PB = 18;
   const HW = 64;
   const HH = 22;
-  const HB = 18;
+  const HB = 8;
   const tileW = (W - 28 - 16) / 3;
   return {
     fw,

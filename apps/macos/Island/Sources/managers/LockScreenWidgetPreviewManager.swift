@@ -207,7 +207,7 @@ final class LockScreenWidgetPreviewManager: ObservableObject {
             showsTimer: Defaults[.enableLockScreenTimerWidget],
             showsMediaPanel: Defaults[.enableLockScreenMediaWidget]
         )
-        let hosting = NSHostingView(rootView: scene)
+        let hosting = makeHostingView(rootView: scene)
         hosting.frame = NSRect(origin: .zero, size: frame.size)
         hosting.autoresizingMask = [.width, .height]
         previewHostingView = hosting
@@ -236,7 +236,7 @@ final class LockScreenWidgetPreviewManager: ObservableObject {
         if let hosting = previewHostingView {
             hosting.rootView = scene
         } else if let window = previewWindow {
-            let hosting = NSHostingView(rootView: scene)
+            let hosting = makeHostingView(rootView: scene)
             hosting.frame = NSRect(origin: .zero, size: window.frame.size)
             hosting.autoresizingMask = [.width, .height]
             previewHostingView = hosting
