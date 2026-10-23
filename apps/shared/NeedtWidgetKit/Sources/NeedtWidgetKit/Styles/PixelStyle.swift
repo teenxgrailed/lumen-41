@@ -44,7 +44,7 @@ struct PixelCells: View {
     var width: CGFloat? = nil
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: gap), count: cols), spacing: gap) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 1), spacing: gap), count: cols), spacing: gap) {
             ForEach(Array(levels.enumerated()), id: \.offset) { _, l in
                 cellView(l).aspectRatio(1, contentMode: .fit)
             }
