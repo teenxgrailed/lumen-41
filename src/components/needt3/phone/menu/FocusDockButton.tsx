@@ -8,10 +8,11 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useFocusRun } from "../../focus/useFocusController";
 
-/** Ring geometry: a 54 px button, the stroke 2.5 px inside its edge. */
+/** Ring geometry (fd-focus.css `.fd-fbtn svg.r`): a 54 px ring inset 5 px in
+ * the 64 px button, r 25, stroke 3. */
 const SIZE = 54;
-const STROKE = 2.5;
-const R = (SIZE - STROKE) / 2 - 3;
+const STROKE = 3;
+const R = 25;
 const C = 2 * Math.PI * R;
 /** Matches `.nva-focus-btn`'s transition; the button leaves the DOM after it. */
 const OUT_MS = 240;
@@ -117,7 +118,7 @@ export function FocusDockButton() {
           cy={SIZE / 2}
           r={R}
           fill="none"
-          stroke="var(--accent)"
+          stroke="var(--nva-lav)"
           strokeWidth={STROKE}
           strokeLinecap="round"
           strokeDasharray={C}
