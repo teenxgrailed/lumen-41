@@ -95,12 +95,16 @@ def check(name, theme, before=None):
         f"innerHeight={s.get('innerHeight')} screen={s.get('screenH')} path={s.get('path')} "
         f"dockGap={s.get('dockGap')} ground={s.get('ground')} theme={s.get('theme')} "
         f"scrollY={s.get('scrollY')} chrome={chrome} topText={top[:6]}")
-    shrunk = BASE.get("innerHeight") and s.get("innerHeight") and s["innerHeight"] < BASE["innerHeight"] - 4
-    if chrome or s.get("standalone") is False or shrunk:
-        msg = f"{name}: Safari chrome (native {chrome}, standalone={s.get('standalone')}, innerHeight {s.get('innerHeight')} vs {BASE.get('innerHeight')})"
+    if chrome or s.get("standalone") is False:
+        msg = f"{name}: Safari chrome (native/top text {chrome}, standalone={s.get('standalone')}, innerHeight {s.get('innerHeight')})"
         PROBLEMS.append(msg)
         print(f"::error title=Safari chrome in the installed app::{msg}", flush=True)
         ui.save_debug(f"chrome-{name}", els)
+    if BASE.get("innerHeight") and s.get("innerHeight") and s["innerHeight"] < BASE["innerHeight"] - 4:
+        msg = (f"{name}: the viewport shrank to {s['innerHeight']} of {BASE['innerHeight']} px "
+               f"(the bottom {BASE['innerHeight'] - s['innerHeight']} px of the display are outside the page)")
+        PROBLEMS.append(msg)
+        print(f"::error title=Viewport shrank in the installed app::{msg}", flush=True)
     r = sh("python3", os.path.join(HERE, "edges.py"), path, theme)
     for line in r.stdout.splitlines():
         if line.startswith("EDGE"):
@@ -151,7 +155,11 @@ def rect(selectors):
     return js(f"""
 for (const s of {sel}) {{
   for (const el of document.querySelectorAll(s)) {{
-    const r = el.getBoundingClientRect();
+    let r = el.getBoundingClientRect();
+    if (r.width > 4 && (r.bottom > innerHeight || r.top < 0)) {{
+      el.scrollIntoView({{block: 'center'}});
+      r = el.getBoundingClientRect();
+    }}
     if (r.width > 4 && r.height > 4 && r.bottom > 0 && r.top < innerHeight)
       return {{s, x: r.left + r.width / 2, y: r.top + r.height / 2}};
   }}
@@ -181,20 +189,11 @@ def place(pid):
 
 # ---------------------------------------------------------------- commands
 
-SIGNOUT_JS = """
-const x = new XMLHttpRequest(); x.open('GET', '/api/auth/csrf', false); x.send();
-const t = JSON.parse(x.responseText).csrfToken;
-const y = new XMLHttpRequest(); y.open('POST', '/api/auth/signout', false);
-y.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-y.send('csrfToken=' + encodeURIComponent(t) + '&json=true');
-return y.status;
-"""
-# An installed app has its own cookie jar, so it starts signed out. A signed-out
-# /today is redirected by the middleware to the public origin, which on the
-# runner is not 127.0.0.1: the app would open in Safari's in-app view. So the
-# page added to the Home Screen is the sign-in page itself (signed out first
-# in the tab, or it would forward to /today).
-START = "/auth/signin?callbackUrl=%2Ftoday"
+# Where the app is installed from. iOS 26 copies Safari's cookies into the new
+# web app, so the signed-in tab gives a signed-in app; when it does not, the
+# signed-out /today would be redirected by the middleware to the public origin
+# (not 127.0.0.1 on the runner), so the Web Clip fallback starts at sign-in.
+START = "/today"
 
 
 def openurl(path):
@@ -207,8 +206,6 @@ def openurl(path):
 
 def install():
     sh("xcrun", "simctl", "ui", UDID, "appearance", "light")
-    openurl("/today")
-    log(f"install: Safari tab sign-out -> {js(SIGNOUT_JS, 'safari')}")
     openurl(START)
     w, h = ui.screen()
     method, name = None, NAME
@@ -219,7 +216,7 @@ def install():
         if ui.launch_icon(name, w, h):
             method = "share-sheet"
     if not method:
-        ui.install_webclip(NAME, HOST + START, "public/icons/apple-touch-icon.png")
+        ui.install_webclip(NAME, HOST + "/auth/signin?callbackUrl=%2Ftoday", "public/icons/apple-touch-icon.png")
         if ui.launch_icon(NAME, w, h):
             method = "webclip"
     time.sleep(10)
@@ -280,15 +277,17 @@ def scenarios():
         time.sleep(3)
         go("/today")
         check(f"standalone-{theme}-01-today-top", theme)
-        ui.idb("ui", "swipe", "201", "542", "201", "140", "--duration", "0.25", check=False)
+        ui.idb("ui", "swipe", "201", "542", "201", "140", "--duration", "0.5", check=False)
         time.sleep(2)
         check(f"standalone-{theme}-02-today-scrolled", theme)
         go("/tasks")
         check(f"standalone-{theme}-03-tasks-top", theme)
-        for _ in range(12):
-            ui.idb("ui", "swipe", "201", "542", "201", "140", "--duration", "0.25", check=False)
+        for _ in range(3):
+            ui.idb("ui", "swipe", "201", "542", "201", "140", "--duration", "0.5", check=False)
             time.sleep(0.5)
-        time.sleep(1)
+        # a fast swipe on a row can land as a tap; the rest of the way by script
+        js("window.scrollTo(0, document.documentElement.scrollHeight); return 1")
+        time.sleep(2)
         check(f"standalone-{theme}-04-tasks-bottom", theme)
         go("/settings#appearance")
         check(f"standalone-{theme}-05-settings-sheet", theme)
@@ -298,6 +297,13 @@ def scenarios():
         time.sleep(2.5)
         sh("xcrun", "simctl", "io", UDID, "screenshot", f"shots/standalone-{theme}-06-pull-down.png")
         p.wait(timeout=60)
+        r = sh("python3", os.path.join(HERE, "edges.py"), f"shots/standalone-{theme}-06-pull-down.png", theme)
+        log(f"standalone-{theme}-06-pull-down (finger down, no page state):")
+        for line in r.stdout.splitlines():
+            if line.startswith("EDGE"):
+                log("  " + line)
+        if r.returncode == 1:
+            PROBLEMS.append(f"standalone-{theme}-06-pull-down: edge band")
         time.sleep(2)
         # the Focus button only exists while a session runs
         sh("npx", "tsx", os.path.join(HERE, "seed-focus.ts"), "running", timeout=120)
@@ -323,18 +329,20 @@ def nav():
     prev = check("standalone-nav-3-doc", "light", prev)
     tap_sel(["[data-nva-open]"], "every place")
     time.sleep(2)
-    tap_sel(['[data-nva-tile="settings"]', '[data-nva-row="settings"]'], "settings")
+    # Settings is the profile row at the end of the menu's list
+    tap_sel(['[data-nva-tile="settings"]', '[data-nva-row="settings"]', '[data-nva-row="profile"]'], "settings")
     time.sleep(3)
     prev = check("standalone-nav-4-settings", "light", prev)
-    # back: close the sheet the way a person does (the edge swipe), then history
-    w, h = ui.screen()
-    ui.swipe(2, h * 0.5, w * 0.7, h * 0.5, 0.3)
-    time.sleep(4)
-    prev = check("standalone-nav-5-back-swipe", "light", prev)
+    # back: the app's own back / close control, as a person would
+    if not tap_sel(['[aria-label="Back"]', '[aria-label^="Back"]', '[aria-label="Close"]',
+                    '[aria-label^="Close"]'], "back"):
+        js("history.back(); return 1")
+    time.sleep(3)
+    prev = check("standalone-nav-5-back", "light", prev)
     js("history.back(); return 1")
     time.sleep(3)
     painted()
-    check("standalone-nav-6-back", "light", prev)
+    check("standalone-nav-6-history-back", "light", prev)
     finish()
 
 
