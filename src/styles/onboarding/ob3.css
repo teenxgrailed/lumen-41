@@ -58,7 +58,7 @@
 @keyframes ob3-stage-b { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
 .ob3-h { margin: 0; font: 400 clamp(36px, 5.6vw, 60px)/1.04 var(--display); letter-spacing: -.025em; text-wrap: balance; text-shadow: 0 0 28px rgba(255,255,255,.55); }
 .ob3-h em { font-style: italic; }
-.ob3-w { display: inline-block; animation: ob3-word .7s var(--ease) backwards; animation-delay: calc(var(--i) * 55ms); }
+.ob3-w { display: inline-block; white-space: pre; animation: ob3-word .7s var(--ease) backwards; animation-delay: calc(var(--i) * 55ms); }
 @keyframes ob3-word { from { opacity: 0; transform: translateY(.35em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 .ob3-sub { margin: 14px 0 0; max-width: 480px; color: var(--ink2); font-size: 16px; text-wrap: pretty; animation: ob3-rise .6s var(--ease) both .25s; }
 .ob3-body { width: 100%; margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
