@@ -13,8 +13,8 @@ import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 
 import { type BrandId, brandIdForConnection } from "../../brand";
 import {
+  type PhoneSectionId,
   SECTION_TITLES,
-  type SectionId,
   hourLabel,
 } from "../../settings/derive";
 import type { MenuPlaceId } from "../menu/places";
@@ -22,7 +22,7 @@ import type { MenuPlaceId } from "../menu/places";
 /* ---------- pages ---------- */
 
 /** A drill-in page of the phone sheet: the desktop's sections, plus the pill. */
-export type PsPageId = SectionId | "menu";
+export type PsPageId = PhoneSectionId | "menu";
 
 export const PS_TITLES: Record<PsPageId, string> = {
   ...SECTION_TITLES,
