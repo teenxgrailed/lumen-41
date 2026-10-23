@@ -30,7 +30,6 @@ import type { WorkState } from "../../work/useWorkState";
 import { PkDropZone, usePkDrag } from "../drag";
 import { PkButton, PkEmpty, PkNumber, PkScreen, PkSection } from "../kit";
 import { snack } from "../overlays/snack";
-import { usePhoneOverlays } from "../overlays/store";
 import { usePkToday } from "../overlays/today";
 import { TaskParam } from "./TaskParam";
 import {
@@ -40,10 +39,8 @@ import {
   deletedLabel,
   openInProjects,
   projectGroups,
-  projectHits,
   projectRow,
   projectSpecs,
-  taskHits,
 } from "./model";
 import {
   PtkActions,
@@ -185,17 +182,10 @@ function ProjectList({
 }) {
   const openN = openInProjects(tasks, projects);
   const c = copy.PtkProjects;
-  const pull = {
-    search: (q: string) => projectHits(projects, tasks, q),
-    onPick: (hit: { id: string }) => onPick(hit.id),
-    placeholder: c.search_projects,
-    hint: c.projects_by_any_word_in_their_name,
-  };
   return (
     <PkScreen
       screen="projects"
       title={c.projects}
-      onPull={pull}
       sub={
         projects.length ? (
           <span className="ptk-sub">
@@ -240,7 +230,6 @@ function ProjectPageView({
   const router = useRouter();
   const today = usePkToday();
   const hue = projectHue(p);
-  const openTask = usePhoneOverlays((s) => s.openTask);
   const create = useCreateTask();
   const updateProject = useUpdateProject();
   const archive = useArchiveProject();
@@ -328,18 +317,6 @@ function ProjectPageView({
       .then(({ undo }) => snack(SAY.saved, undo), none);
   };
 
-  const pull = {
-    search: (q: string) => taskHits(mine, q, today),
-    onPick: (hit: { id: string }) => {
-      const t = mine.find((x) => x.id === hit.id);
-      if (t) openTask(t);
-    },
-    onAdd: addTitle,
-    placeholder: `Search or add to ${p.name}`,
-    hint: copy.PtkProjectPage.this_projects_tasks_by_any_word_enter_ad,
-    addLabel: (q: string) => (q ? `Add “${q}”` : `Add to ${p.name}`),
-  };
-
   const c = copy.PtkProjectPage;
   const head = (
     <div className="ptk-ph" data-ptk-page={p.id}>
@@ -393,7 +370,6 @@ function ProjectPageView({
         compactTitle={p.name}
         head={head}
         headClass="ptk-head is-page"
-        onPull={pull}
       >
         <div className="ptk-add">
           <span className="ptk-add-plus" aria-hidden="true">

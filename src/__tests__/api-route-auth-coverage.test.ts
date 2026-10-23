@@ -15,7 +15,7 @@ const API_ROOT = join(__dirname, "..", "app", "api");
 
 /** Helpers that reject an unauthenticated request. */
 const AUTH_CALL =
-  /\b(authenticateRequest|authenticateAccountRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
+  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
 
 const HANDLER =
   /^export\s+(?:(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b|const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b)/gm;

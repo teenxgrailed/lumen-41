@@ -18,7 +18,7 @@
  * - Content runs under the status bar (`--v3-top`) and under the toolbar /
  *   home indicator (`--v3-sab` plus the dock's tail).
  * - Layers that must stay put while the page scrolls (the blur bands, the fog,
- *   the dock, sheets and their scrim, the pull-down plate) are `fixed`, but only
+ *   the dock, sheets and their scrim) are `fixed`, but only
  *   as translucent glass or while a sheet is open: no opaque fill at an edge.
  *
  * The hex values are `--v2p-ground` of themes.css and PHONE_GROUND of
@@ -49,10 +49,31 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   --v3-sab: env(safe-area-inset-bottom, 0px);
   /* Where content starts: the design's 52 px status bar, or the real inset. */
   --v3-top: max(52px, env(safe-area-inset-top, 0px));
+  /* The dock (pill, + button, focus button) floats with its bottom edge 30 px
+   * above the display edge (additions-2/phone-shell .ps-dock); 10 px of that
+   * is the menu's own margin, the rest is the lift. In a Safari tab the compact
+   * tab bar floats under the dock, so it lifts 54 px more (.ps.is-safari). */
+  --v3-dock-lift: 20px;
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
   /* The collapsed header's row; the top band is sized from it. */
   --v3-compact-h: 44px;
+  /* How far the blur / tint / fog paint stops short of the display edge. 0
+   * everywhere but iOS, which sets it below. */
+  --v3-gap-top: 0px;
+  --v3-gap-bot: 0px;
+}
+/* iOS only (budget mode, owner-confirmed on the landing and in #327): Safari
+ * samples the paint at the top (~4 px) and bottom (~3 px) edge once and keeps
+ * that tint for its status bar and toolbar, even when the paint is an
+ * absolute child of a zero-height fixed host. So no layer reaches the edge:
+ * the page ground (html / body, static) shows in the last few px and the bars
+ * take it. */
+@supports (-webkit-touch-callout: none) {
+  .needt-v3[data-ui="phone"] {
+    --v3-gap-top: 6px;
+    --v3-gap-bot: 5px;
+  }
 }
 
 /* No ancestor of the page clips it vertically or fixes its height. Sideways
@@ -75,7 +96,10 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   padding-top: var(--v3-top);
 }
 .needt-v3[data-ui="phone"] .pk-tail {
-  height: calc(132px + var(--v3-sab));
+  height: calc(112px + var(--v3-dock-lift));
+}
+html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
+  --v3-dock-lift: 74px;
 }
 
 /* Layers that stay put while the page scrolls.
@@ -89,13 +113,11 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
  * - the top band and the bottom fog are fixed HOSTS with no height, parked
  *   at the inner edge of their band; the blur, wash and dots are absolute
  *   children that reach the screen edge from there (children are not read);
- * - the pull-down plate is an absolute child of such a zero-height host;
  * - the scrim, the sheet layer, the menu and the screen sweep stand
  *   `--v3-edge` (8 px) in from both edges, and the paint of each reaches out
  *   to the edge from there (the menu and the sheet add the offset back when
  *   they measure the screen). */
-.needt-v3[data-ui="phone"]
-  :is(.pk-topband, .pk-fog, .pk-pull-host, .pk-compact),
+.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact),
 .needt-v3[data-ui="phone"]
   :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen) {
   position: fixed;
@@ -104,83 +126,46 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   top: var(--v3-top);
   height: var(--v3-compact-h);
 }
-/* Top band, sized from the compact header's own variables so the two cannot
- * drift: full strength from the display edge to 16 px below the compact
- * title's bottom edge (--pk-band-solid), then a 24 px fade (--pk-band-h).
- * The host has no height; the blur and the tint are absolute children that
- * reach up to the display edge. */
+/* Top band (phone-shell .ps-top, painted in phone-shell.css): 104 px, or the
+ * status inset plus 52 px where the inset is larger. The host has no height;
+ * the blur steps and the tint are absolute children that reach up to the
+ * display edge from the host's top, which is the band's inner edge. */
 .needt-v3[data-ui="phone"] .pk-topband {
-  --pk-band-solid: calc(var(--v3-top) + var(--v3-compact-h) + 16px);
-  --pk-band-h: calc(var(--pk-band-solid) + 24px);
-  --pk-band-mask: linear-gradient(
-    to bottom,
-    #000 0,
-    #000 var(--pk-band-solid),
-    transparent var(--pk-band-h)
-  );
-  top: var(--pk-band-h);
+  --ps-top-h: max(104px, calc(var(--v3-top) + 52px));
+  top: var(--ps-top-h);
   height: 0;
 }
 .needt-v3[data-ui="phone"] .pk-topband > * {
   inset: auto 0 0 0;
-  height: var(--pk-band-h);
+  height: calc(var(--ps-top-h) - var(--v3-gap-top));
 }
-/* One blur (24 px, strong enough that row text under the title is not
- * legible) and a ground tint at 78%, both fading out together. */
-.needt-v3[data-ui="phone"] .pk-topband .pk-blur.is-1,
-.needt-v3[data-ui="phone"] .pk-topband .pk-blur.is-2 {
-  display: none;
-}
-.needt-v3[data-ui="phone"] .pk-topband .pk-blur.is-3 {
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
-  -webkit-mask-image: var(--pk-band-mask);
-  mask-image: var(--pk-band-mask);
-}
-.needt-v3[data-ui="phone"] .pk-topband-wash {
-  background: var(--v2p-ground);
-  -webkit-mask-image: var(--pk-band-mask);
-  mask-image: var(--pk-band-mask);
-  /* a plain opacity cannot be used: the scroll drives opacity on this child */
-}
-/* Bottom fog: its box reaches the display edge; the dots keep their place
- * from its top. */
+/* Bottom fog (phone-shell .ps-bot, painted in phone-shell.css): its box
+ * reaches the display edge; the dots keep their place from the bottom. */
 .needt-v3[data-ui="phone"] .pk-fog {
-  --pk-fog-h: calc(132px + var(--v3-sab));
+  /* 128 px to the screen edge, or the dock's own tail where the inset is big */
+  --ps-fog-h: max(128px, calc(94px + var(--v3-sab)));
   top: auto;
-  bottom: var(--pk-fog-h);
+  bottom: var(--ps-fog-h);
   height: 0;
   overflow: visible;
 }
+/* In a Safari tab the compact tab bar floats under the dock: the fog goes
+ * deeper (PWARegister writes data-display-mode). */
+html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
+  --ps-fog-h: 170px;
+}
 .needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots) {
   inset: 0 0 auto 0;
-  height: var(--pk-fog-h);
+  height: calc(var(--ps-fog-h) - var(--v3-gap-bot));
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-1 {
-  top: calc(40px + var(--v3-sab));
+  top: calc(var(--ps-fog-h) - 92px);
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-2 {
-  top: calc(60px + var(--v3-sab));
+  top: calc(var(--ps-fog-h) - 72px);
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-3 {
-  top: calc(82px + var(--v3-sab));
-}
-/* The pull-down plate (PullDown wraps it in the host). */
-.needt-v3 .pk-pull-host {
-  display: contents;
-}
-.needt-v3[data-ui="phone"] .pk-pull-host {
-  display: block;
-  left: 0;
-  right: 0;
-  top: var(--v3-edge);
-  height: 0;
-  z-index: 51;
-  pointer-events: none;
-}
-.needt-v3[data-ui="phone"] .pk-pull-host > .pk-pull {
-  top: calc(-1 * var(--v3-edge));
-  pointer-events: auto;
+  top: calc(var(--ps-fog-h) - 50px);
 }
 /* Scrim and screen sweep: in from the edges, the paint out to them. */
 .needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),
@@ -190,7 +175,8 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 }
 .needt-v3[data-ui="phone"] .pk-scrim > *,
 .needt-v3[data-ui="phone"] .nva-scrim {
-  inset: calc(-1 * var(--v3-edge)) 0;
+  inset: calc(var(--v3-gap-top) - var(--v3-edge)) 0
+    calc(var(--v3-gap-bot) - var(--v3-edge)) 0;
 }
 .needt-v3[data-ui="phone"] .nva-glass {
   top: calc(-1 * var(--v3-edge));
@@ -201,17 +187,17 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
  * bar, the snackbar, sheets. The menu measures its own padding-bottom to size
  * its geometry. */
 .needt-v3[data-ui="phone"] .nva {
-  padding-bottom: var(--v3-sab);
+  padding-bottom: var(--v3-dock-lift);
   box-sizing: border-box;
 }
 .needt-v3[data-ui="phone"] .nva-body {
-  bottom: calc(10px + var(--v3-sab) - var(--v3-edge));
+  bottom: calc(10px + var(--v3-dock-lift) - var(--v3-edge));
 }
 .needt-v3[data-ui="phone"] .pd-actbar {
   bottom: calc(26px + var(--v3-sab));
 }
 .needt-v3[data-ui="phone"] .pov-snack {
-  bottom: calc(112px + var(--v3-sab));
+  bottom: calc(92px + var(--v3-dock-lift) + var(--v3-sab));
 }
 .needt-v3[data-ui="phone"] .ma-menu-pill {
   bottom: calc(14px + var(--v3-sab));

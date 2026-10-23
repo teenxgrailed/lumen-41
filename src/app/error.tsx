@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { APP_NAME } from "@/lib/app-config";
-import { inter } from "@/lib/fonts";
 import { logger } from "@/lib/logger";
 import { getAppVersion, getVersionGithubUrl } from "@/lib/version";
 
@@ -42,7 +41,7 @@ export default function Error({
       <head>
         <meta name="description" content="An error occurred" />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <div className="needt-page-depth flex min-h-dvh flex-col items-center justify-center p-4 text-center text-[var(--text-primary)]">
           <h1 className="mb-4 text-4xl font-bold">Something went wrong!</h1>
           <p className="mb-6">An unexpected error has occurred.</p>

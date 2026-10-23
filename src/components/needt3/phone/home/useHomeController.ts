@@ -57,7 +57,11 @@ export function useHomeController() {
   const [tab, setTab] = useState<HomeTab>("day");
   // the shared completion (task/useCompletion): the rows' strike and fold, and
   // the timers that end them, live here for the same reason as the rest
-  const completion = useCompletion();
+  // Overdue and Inbox only hold open tasks, so a row ticked there leaves after
+  // its strike whatever Completed tasks says; the desktop face fills the ref
+  // with the ids it draws there.
+  const leavesRef = useRef<(t: { id: string }) => boolean>(() => false);
+  const completion = useCompletion({ leaves: (t) => leavesRef.current(t) });
   const leaving: Record<string, HomePhase> = completion.phase;
   const [back, setBack] = useState<Record<string, boolean>>({});
   const closed = useRef<string[]>([]);
@@ -117,6 +121,7 @@ export function useHomeController() {
     setTab,
     leaving,
     completion,
+    leavesRef,
     back,
     setBack,
     closed,

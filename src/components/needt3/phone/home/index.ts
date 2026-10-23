@@ -9,4 +9,3 @@ export {
   type TaskHit,
 } from "./model";
 export { CappedRows, PhoneState, hasContent } from "./parts";
-export { useTaskPull } from "./pull";

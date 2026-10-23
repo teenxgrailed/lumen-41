@@ -48,7 +48,7 @@ describe("phone page ground", () => {
 
   it("the layers that stay put are fixed, and only those", () => {
     const fixed = rule(
-      '.needt-v3[data-ui="phone"]\n  :is(.pk-topband, .pk-fog, .pk-pull-host, .pk-compact),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
+      '.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
     );
     expect(fixed).toContain("position: fixed");
   });
@@ -59,9 +59,6 @@ describe("phone page ground", () => {
       "height: 0"
     );
     expect(rule('.needt-v3[data-ui="phone"] .pk-fog')).toContain("height: 0");
-    expect(rule('.needt-v3[data-ui="phone"] .pk-pull-host')).toContain(
-      "height: 0"
-    );
     // the full-screen layers stand in from both edges
     const inset = rule(
       '.needt-v3[data-ui="phone"] :is(.pk-scrim, .pk-sweep.is-screen),\n.needt-v3[data-ui="phone"] :is(.pk-sheet-layer, .nva)'
@@ -71,22 +68,53 @@ describe("phone page ground", () => {
     expect(css).toContain("--v3-edge: 8px");
   });
 
+  it("on iOS no paint reaches the display edge: the gaps are 6 px top, 5 px bottom", () => {
+    // Safari 26 samples the top (~4 px) and bottom (~3 px) once and keeps the
+    // tint, even for absolute children of a zero-height fixed host.
+    expect(css).toMatch(
+      /@supports \(-webkit-touch-callout: none\) \{\s*\.needt-v3\[data-ui="phone"\] \{\s*--v3-gap-top: 6px;\s*--v3-gap-bot: 5px;/
+    );
+    expect(css).toContain("--v3-gap-top: 0px");
+    expect(css).toContain("--v3-gap-bot: 0px");
+    expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
+      "height: calc(var(--ps-top-h) - var(--v3-gap-top))"
+    );
+    expect(
+      rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots)')
+    ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
+    expect(
+      rule(
+        '.needt-v3[data-ui="phone"] .pk-scrim > *,\n.needt-v3[data-ui="phone"] .nva-scrim'
+      )
+    ).toContain("calc(var(--v3-gap-top) - var(--v3-edge))");
+  });
+
   it("bottom-anchored phone chrome floats above the safe-area inset", () => {
     for (const [sel, px] of [
-      [".nva-body", 10],
       [".pd-actbar", 26],
-      [".pov-snack", 112],
       [".ma-menu-pill", 14],
     ] as const) {
       expect(rule(`.needt-v3[data-ui="phone"] ${sel}`)).toContain(
-        `bottom: calc(${px}px + var(--v3-sab)${sel === ".nva-body" ? " - var(--v3-edge)" : ""})`
+        `bottom: calc(${px}px + var(--v3-sab))`
       );
     }
+    expect(rule('.needt-v3[data-ui="phone"] .pov-snack')).toContain(
+      "bottom: calc(92px + var(--v3-dock-lift) + var(--v3-sab))"
+    );
+    // the dock sits 30 px above the display edge (54 px more in a Safari tab)
+    expect(rule('.needt-v3[data-ui="phone"] .nva-body')).toContain(
+      "bottom: calc(10px + var(--v3-dock-lift) - var(--v3-edge))"
+    );
+    expect(rule('.needt-v3[data-ui="phone"] .nva')).toContain(
+      "padding-bottom: var(--v3-dock-lift)"
+    );
+    expect(css).toContain("--v3-dock-lift: 20px");
+    expect(css).toContain("--v3-dock-lift: 74px");
     expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(
       "padding-bottom: var(--v3-sab)"
     );
     expect(rule('.needt-v3[data-ui="phone"] .pk-tail')).toContain(
-      "132px + var(--v3-sab)"
+      "112px + var(--v3-dock-lift)"
     );
     expect(css).toContain("--v3-sab: env(safe-area-inset-bottom, 0px)");
   });

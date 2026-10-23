@@ -19,7 +19,12 @@ public enum SharedContainer {
 
     /// The shared directory for Needt's own files, created on demand.
     public static func directory(fileManager: FileManager = .default) -> URL {
-        let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: groupID)
+        // Only a build signed with a real team has its group; asking for the
+        // fallback group from an unsigned build makes macOS hold the first file
+        // access behind a consent prompt the person never sees, and the app
+        // hangs at launch. Unsigned builds use Application Support.
+        let entitled = groupID != fallbackGroupID
+        let base = (entitled ? fileManager.containerURL(forSecurityApplicationGroupIdentifier: groupID) : nil)
             ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let url = base.appendingPathComponent("Needt", isDirectory: true)
         try? fileManager.createDirectory(at: url, withIntermediateDirectories: true)

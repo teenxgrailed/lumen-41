@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, island v3: the hover peek is now exactly 480 x 108 (and Standby
+  480 x 88) as in the design, with the 0.26 s anticipation stretch before it;
+  the AirPods moment shows the battery level when macOS lists it (otherwise
+  just "Connected"); the Music moment also fires when the song changes; the
+  Volume HUD page follows the system volume (direct download only); the Tools
+  page has a Weather tile that needs a signed build (shows "Needs signing"
+  otherwise).
+- iPhone: widgets for Today (small, medium, large), Next event, Focus timer,
+  Habits (Free shows 3) and Quick add, Lock Screen widgets, and Controls for
+  Add task and Start focus; each widget has eight looks you pick in its Edit
+  menu (D · Ink by default; tinted, clear and Lock Screen always use the Ink
+  layout); the focus block shows as a Live Activity (compact ring and timer,
+  one outlined Pause, ends with the run); titles stay off the Lock Screen
+  unless you turn "Show titles on Lock Screen" on.
+- Mac app: widgets on the desktop and in Notification Center (Today in small,
+  medium, large and extra large; Next event, Focus timer, Habits, Quick add)
+  with eight looks to pick per widget.
+- Mac app, island v3 (Pro): one black shape that morphs between states (on
+  plan, manual change, focus running, warning, standby, peek, open, moments),
+  with Today / Week / Focus and a modules grid. Reads `prefs.island` from the
+  user settings. `NeedtKit` gains `IslandPrefs`, `IslandCadence`,
+  `IslandOverrides` and `IslandWeek`. Rolls back with the `needtIslandV3`
+  default.
+
+- Mac app: the traffic lights are centred on the page's sidebar toggle (the
+  page reports its top-bar centre) and the toggle starts 16 pt after the zoom
+  button.
+- Mac app: the notch island is part of Needt (Pro). Focus, Next (next task and
+  event) and Add (quick add) sit before Music and Files; focus can be paused or
+  ended from the notch ("Done 5 min early"). On a Mac without a notch the
+  island is a black pill at the top centre. Settings has an Island pane
+  (on/off, modules and their order, open on hover or click, displays, sounds
+  and haptics); on Free the pane is read-only. The App Store build has no
+  private interfaces (no volume or brightness HUD, no system sensors) and plays
+  Apple Music and Spotify only. The direct-download build is no longer
+  sandboxed. The island is derived from Atoll and boring.notch (GPL v3), so the
+  source of the Mac app is offered under GPL v3.
+- Phone: the pull-down plate (search and quick add from the top of a screen) is
+  gone; pages scroll normally. The dock (pill, + and focus buttons) sits 30 px
+  above the screen edge, 84 px in a Safari tab where the tab bar floats under it.
+- Phone: the top and bottom edges follow the new phone-shell design. The
+  collapsed header is the place icon and title, centred, over a three-step
+  blur that fades in as you scroll; the fog under the dock is 128 px (deeper
+  in a Safari tab).
 - Mac app: Siri, Spotlight and Shortcuts actions (add task, complete task,
   start and end focus, what's today, what's next, replan day, log habit) and
   your open tasks in Spotlight; a Needt focus can run a Shortcut you choose to

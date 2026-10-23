@@ -6,10 +6,12 @@ import {
   NAV_FLAT,
   SECTION_TITLES,
   SETTINGS_NAV,
+  type SectionId,
   accentLocked,
   fmtHour,
   hourOf,
   hourOptions,
+  isDesktopSection,
   isPro,
   parseWorkDays,
   planInfo,
@@ -52,6 +54,21 @@ describe("deep links", () => {
     expect(sectionOf("#nope")).toBe("account");
     expect(sectionOf(null)).toBe("account");
     expect(sectionOf("plan")).toBe("plan");
+  });
+  it("the Desktop group follows Preferences and holds the five Mac sections", () => {
+    const names = SETTINGS_NAV.map((g) => g.group);
+    expect(names.indexOf("Desktop")).toBe(names.indexOf("Preferences") + 1);
+    const desktop = SETTINGS_NAV.find((g) => g.group === "Desktop");
+    expect(desktop?.items.map((i) => i.id)).toEqual([
+      "app",
+      "island",
+      "mfocus",
+      "widgets",
+      "siri",
+    ]);
+    expect(
+      desktop?.items.every((i) => isDesktopSection(i.id as SectionId))
+    ).toBe(true);
   });
   it("every nav row is a titled section or a jump", () => {
     for (const g of SETTINGS_NAV)

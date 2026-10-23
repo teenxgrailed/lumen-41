@@ -140,48 +140,74 @@ jobs:
           tmo 60 idb list-targets
 
       - name: Sign in through the sign-in form
-        timeout-minutes: 15
-        continue-on-error: true
+        timeout-minutes: 25
         run: |
           set +e
           set -uo pipefail
           mkdir -p shots debug
+          # One host everywhere: the session cookie and the CSRF check are bound to
+          # NEXTAUTH_URL (127.0.0.1); a page opened on localhost never signs in.
+          HOST=http://127.0.0.1:3000
+          export PGPASSWORD=needt
+          tmo() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+          PSQL="tmo 20 psql -h localhost -U needt -d needt_test -tAq"
           # openurl right after boot can time out (code 60): retry
           openurl() {
             for i in 1 2 3 4 5 6; do
-              xcrun simctl openurl "$UDID" "$1" && return 0
+              tmo 60 xcrun simctl openurl "$UDID" "$1" && return 0
               sleep 10
             done
             return 1
           }
-          xcrun simctl launch "$UDID" com.apple.mobilesafari || true
-          sleep 20
           # the simulator is slow on a shared runner: wait until Safari has painted
           # a real page (a blank or error page is a tiny JPEG)
           loaded() {
             for i in $(seq 1 40); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              tmo 30 xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
               [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && return 0
               sleep 3
             done
             return 1
           }
-          # the first touch after a boot is swallowed (seen in a typing test):
-          # spend it on a throwaway load of the same page
-          openurl "http://127.0.0.1:3000/auth/signin?warm=1"
-          loaded || echo "warm-up page did not paint"
-          python3 .github/safari/ui.py tapxy 201 385
-          sleep 10
-          python3 .github/safari/ui.py text w
-          sleep 15
-          openurl http://127.0.0.1:3000/auth/signin
+          # server-side proof of a sign-in: the credentials provider stamps
+          # User.lastAuthenticatedAt, which the seed leaves empty
+          signed_in() {
+            [ "$($PSQL -c "select count(*) from \"User\" where email='$PROBE_EMAIL' and \"lastAuthenticatedAt\" is not null")" = "1" ]
+          }
+          OK=0
+          for attempt in 1 2 3 4; do
+            echo "=== sign-in attempt $attempt"
+            $PSQL -c "update \"User\" set \"lastAuthenticatedAt\"=null where email='$PROBE_EMAIL'"
+            [ "$attempt" = 1 ] && { tmo 60 xcrun simctl launch "$UDID" com.apple.mobilesafari || true; sleep 15; }
+            # the first touch after a boot is swallowed (seen in a typing test):
+            # spend it on a throwaway load of the same page
+            openurl "$HOST/auth/signin?warm=$attempt"
+            loaded || echo "warm-up page did not paint"
+            tmo 120 python3 .github/safari/ui.py tapxy 201 250
+            sleep 10
+            openurl "$HOST/auth/signin"
+            sleep 5
+            loaded || echo "sign-in page did not paint"
+            sleep 3
+            tmo 30 xcrun simctl io "$UDID" screenshot "shots/00-signin-$attempt.png"
+            tmo 420 python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
+            for i in $(seq 1 18); do signed_in && { OK=1; break; }; sleep 5; done
+            tmo 30 xcrun simctl io "$UDID" screenshot "shots/00-after-signin-$attempt.png"
+            [ "$OK" = 1 ] && break
+            echo "attempt $attempt: the server saw no sign-in"
+            tail -n 15 "$RUNNER_TEMP/next.log"
+          done
+          if [ "$OK" != 1 ]; then
+            python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
+            echo "::error::Could not sign in through the form after 4 attempts; the screens would be sign-in pages"
+            exit 1
+          fi
+          echo "signed in on attempt $attempt"
+          # let the app load past the sign-in redirect on the one host
+          openurl "$HOST/today"
+          loaded || true
           sleep 5
-          loaded || echo "sign-in page did not paint"
-          sleep 3
-          xcrun simctl io "$UDID" screenshot shots/00-signin.png
-          python3 .github/safari/ui.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-          sleep 60
-          xcrun simctl io "$UDID" screenshot shots/00-after-signin.png
+          cp "shots/00-after-signin-$attempt.png" shots/00-after-signin.png
           python3 .github/safari/ui.py dump > debug/after-signin-describe.json || true
 
       - name: Rows for the scroll scenarios
@@ -211,9 +237,46 @@ jobs:
             python3 .github/safari/ui.py up 12; sleep 1; shot "$theme-04-tasks-bottom"
             open_url "/settings#appearance"; shot "$theme-05-settings-sheet"
             open_url /tasks
-            python3 .github/safari/ui.py pull 0.2; sleep 1; shot "$theme-06-pulldown-half"
+            python3 .github/safari/ui.py up 1; sleep 1; shot "$theme-06-tasks-mid"
           done
         # a scenario that goes wrong must not hide the shots already taken
+        continue-on-error: true
+
+      # The phone Focus button (additions-2/focus-done, fd-): drawn only while a
+      # session runs. The shots above are the idle state (no button); these are
+      # running, paused and ending, light and dark.
+      - name: Focus button states
+        timeout-minutes: 20
+        run: |
+          set -uo pipefail
+          open_url() {
+            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
+            for i in $(seq 1 30); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
+              sleep 3
+            done
+            sleep 3
+          }
+          # the fog dots drift (1.2 px/s): two shots 8 s apart must differ
+          npx tsx .github/safari/seed-focus.ts none
+          xcrun simctl ui "$UDID" appearance light
+          open_url /today
+          xcrun simctl io "$UDID" screenshot "shots/08-fog-a.png"
+          sleep 8
+          xcrun simctl io "$UDID" screenshot "shots/08-fog-b.png"
+          if cmp -s shots/08-fog-a.png shots/08-fog-b.png; then echo "FOG DOTS STILL"; else echo "fog dots move"; fi
+          for state in running paused ending; do
+            for theme in light dark; do
+              npx tsx .github/safari/seed-focus.ts "$state"
+              xcrun simctl ui "$UDID" appearance "$theme"
+              sleep 2
+              open_url /today
+              sleep 2
+              xcrun simctl io "$UDID" screenshot "shots/$theme-07-focus-$state.png"
+            done
+          done
+          npx tsx .github/safari/seed-focus.ts none
         continue-on-error: true
 
       - name: Keep the server log

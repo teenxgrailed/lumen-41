@@ -57,6 +57,11 @@ jest.mock("@/lib/queue/enqueue", () => ({
 jest.mock("@/services/ai/encryption", () => ({
   encryptSecret: () => "ciphertext-imap-credentials",
 }));
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  ...jest.requireActual("@/services/oauth/safe-fetch"),
+  // The mailbox host is not looked up in DNS here.
+  assertPublicHost: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("imapflow", () => ({
   ImapFlow: jest.fn().mockImplementation(() => ({
     connect: jest.fn().mockResolvedValue(undefined),

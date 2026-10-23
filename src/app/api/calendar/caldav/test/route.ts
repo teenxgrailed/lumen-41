@@ -6,11 +6,13 @@ import { requireAuth } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 
 import {
+  CALDAV_HOST_NOT_ALLOWED,
   classifyCalDAVError,
   createCalDAVClient,
   fetchCalDAVCalendars,
   formatAbsoluteUrl,
   handleFastmailPath,
+  isPublicCalDAVUrl,
   loginToCalDAVServer,
 } from "../utils";
 
@@ -37,6 +39,17 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json(
         { error: "Server URL, username, and password are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!(await isPublicCalDAVUrl(serverUrl))) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: CALDAV_HOST_NOT_ALLOWED,
+          details: CALDAV_HOST_NOT_ALLOWED,
+        },
         { status: 400 }
       );
     }

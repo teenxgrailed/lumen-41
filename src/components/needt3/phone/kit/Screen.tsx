@@ -11,28 +11,34 @@ import {
 } from "react";
 
 import { PkGlyph } from "./Material";
-import { PkPullDown, type PkPullProps } from "./PullDown";
-import { pkAdoptDocumentScroll } from "./scroll";
+import { pkAdoptDocumentScroll, pkPsK } from "./scroll";
 import { pkClamp, pkCx } from "./util";
 
 export { PkScrim } from "./Scrim";
 
-/* ══ Blur bands ═══════════════════════════════════════════════════════════
-   ONE backdrop blur (10 px) masked toward the edge, so content melts into
-   frosted glass (the prototype stacked three: blur on blur is what rule 12
-   forbids on a phone). The bands must not sit under an ancestor with opacity /
-   filter / mask, or the blur sees nothing — fades go through --pk-*-k on the
-   layer itself. */
-export function PkBlurLayers() {
-  return <span className="pk-blur is-2" />;
+/* ══ Blur bands (additions-2/phone-shell, ps-) ═══════════════════════════
+   Progressive blur in masked steps: three at the top (3 / 9 / 20 px), two in
+   the fog (4 / 14 px), each fading in from the band's inner edge, plus a tint.
+   The bands must not sit under an ancestor with opacity / filter / mask, or
+   the blur sees nothing — the fade (--ps-k, --pk-fog-k) goes on each layer
+   itself (phone-shell.css). The steps wear `pk-blur` so the rest-while-moving
+   and rest-while-hidden rules (phone-perf.css, motion.css) still reach them. */
+export function PkBlurLayers({ steps = 3 }: { steps?: 2 | 3 }) {
+  return (
+    <>
+      <span className="pk-blur b b1" />
+      <span className="pk-blur b b2" />
+      {steps === 3 ? <span className="pk-blur b b3" /> : null}
+    </>
+  );
 }
 
-/** The top band alone (PkScreen has one): the progressive blur at the status bar. */
+/** The top band alone (PkScreen has one): three masked blur steps and a tint at the status bar. */
 export function PkTopBand({ className }: { className?: string }) {
   return (
-    <div className={pkCx("pk-topband", className)} aria-hidden="true">
-      <PkBlurLayers />
-      <span className="pk-topband-wash" />
+    <div className={pkCx("pk-topband ps-top", className)} aria-hidden="true">
+      <PkBlurLayers steps={3} />
+      <span className="pk-topband-wash t" />
     </div>
   );
 }
@@ -43,7 +49,17 @@ export function PkTopBand({ className }: { className?: string }) {
    loops at rest", MOTION.md). Compositor-only (`translate` / `transform` CSS
    animations), and only while the band is live: on screen, the tab visible.
    Reduced motion = still dots. */
-export function pkFogLive(el: Element | null) {
+export function pkFogLive(
+  el: Element | null,
+  /**
+   * Watch whether the band is on screen. Off for the phone's fog: its host is
+   * a fixed, zero-height element parked above the bottom edge
+   * (phone-ground.css), and an IntersectionObserver can report a box with no
+   * area as not seen, which parks the dots for good. A fixed band is on screen
+   * whenever the tab is visible.
+   */
+  observe = true
+) {
   if (!el || typeof document === "undefined") return undefined;
   let seen = true;
   const sync = () => {
@@ -52,7 +68,7 @@ export function pkFogLive(el: Element | null) {
       el.setAttribute("data-pk-live", v);
   };
   const io =
-    typeof IntersectionObserver === "function"
+    observe && typeof IntersectionObserver === "function"
       ? new IntersectionObserver((es) => {
           seen = es[es.length - 1].isIntersecting;
           sync();
@@ -78,11 +94,16 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
     },
     [fogRef]
   );
-  useEffect(() => pkFogLive(own.current), []);
+  useEffect(() => pkFogLive(own.current, false), []);
   return (
-    <div ref={setEl} className="pk-fog" aria-hidden="true" data-pk-live="0">
-      <PkBlurLayers />
-      <span className="pk-fog-wash" />
+    <div
+      ref={setEl}
+      className="pk-fog ps-bot"
+      aria-hidden="true"
+      data-pk-live="0"
+    >
+      <PkBlurLayers steps={2} />
+      <span className="pk-fog-wash t" />
       <span className="pk-fog-dots is-1" />
       <span className="pk-fog-dots is-2" />
       <span className="pk-fog-dots is-3" />
@@ -104,8 +125,6 @@ export interface PkScreenProps {
   /** More header content under `sub` (Home's big figures). */
   head?: ReactNode;
   headClass?: string;
-  /** Pull down at the top drops the pull-down plate (search, or add). */
-  onPull?: Omit<PkPullProps, "scroller">;
   /** `data-pk-screen` value, for tests and CSS hooks. */
   screen?: string;
   /** Receives the scroll container. */
@@ -132,7 +151,6 @@ export function PkScreen({
   right,
   head,
   headClass,
-  onPull,
   screen,
   scrollRef,
   tail,
@@ -158,8 +176,9 @@ export function PkScreen({
     [scroller]
   );
 
-  // On scroll only: the top band fades in, the large title hands over to the
-  // compact one, the bottom fog shows while there is content under it.
+  // On scroll only: --ps-k = clamp((scrollY - 8) / 44, 0, 1) drives the top
+  // band, the small title and the large title's hand-over (phone-shell); the
+  // bottom fog shows while there is content under it.
   useLayoutEffect(() => {
     const el = scroller;
     const r = root.current;
@@ -167,23 +186,23 @@ export function PkScreen({
     let last = "";
     const read = () => {
       const y = el.scrollTop;
-      const band = pkClamp(y / 24, 0, 1);
-      const kl = pkClamp((y - 6) / 22, 0, 1);
-      const kt = pkClamp((y - 20) / 24, 0, 1);
+      const k = pkPsK(y);
       const left = el.scrollHeight - el.clientHeight - y;
       const fog = pkClamp((left - 40) / 60, 0, 1);
-      const key =
-        band.toFixed(3) + kl.toFixed(3) + kt.toFixed(3) + fog.toFixed(3);
+      const key = k.toFixed(3) + fog.toFixed(3);
       if (key === last) return;
       last = key;
-      r.style.setProperty("--pk-band", band.toFixed(3));
-      r.style.setProperty("--pk-kl", kl.toFixed(3));
-      r.style.setProperty("--pk-kt", kt.toFixed(3));
+      r.style.setProperty("--ps-k", k.toFixed(3));
+      // kept for the docs back button (phone-docs.css), which still reads it
+      r.style.setProperty("--pk-kt", k.toFixed(3));
       r.style.setProperty("--pk-fog-k", fog.toFixed(3));
-      r.setAttribute("data-pk-collapsed", kt > 0.5 ? "1" : "0");
+      r.setAttribute("data-pk-collapsed", k > 0.5 ? "1" : "0");
+      // The large title is transformed only once it starts to hand over: a
+      // transform at rest would make it the containing block of fixed children.
+      r.setAttribute("data-ps-on", k > 0.001 ? "1" : "0");
       // The fog's drift and both bands' backdrop blur rest while they are faded out.
       r.setAttribute("data-pk-fog-on", fog > 0.01 ? "1" : "0");
-      r.setAttribute("data-pk-band-on", band > 0.01 ? "1" : "0");
+      r.setAttribute("data-pk-band-on", k > 0.01 ? "1" : "0");
     };
     read();
     el.addEventListener("scroll", read, { passive: true });
@@ -209,6 +228,7 @@ export function PkScreen({
       data-pk-collapsed="0"
       data-pk-fog-on="0"
       data-pk-band-on="0"
+      data-ps-on="0"
     >
       <div ref={setSc} className="pk-scroll">
         <div className="pk-content">
@@ -255,12 +275,12 @@ export function PkScreen({
       </div>
       <PkTopBand />
       {small ? (
-        <div className="pk-compact" aria-hidden="true">
+        <div className="pk-compact ps-title" aria-hidden="true">
           {hasGlyph ? (
             <PkGlyph
               place={glyph}
               kind={glyphKind}
-              size={22}
+              size={20}
               className="pk-compact-glyph"
             />
           ) : null}
@@ -268,7 +288,6 @@ export function PkScreen({
         </div>
       ) : null}
       <PkFog />
-      {onPull ? <PkPullDown scroller={scroller} {...onPull} /> : null}
     </div>
   );
 }

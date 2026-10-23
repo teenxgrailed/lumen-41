@@ -139,3 +139,20 @@
     transition: none;
   }
 }
+
+/* The Next up card, between Done and the card moving on to the next task: the
+   title is struck and dims (a decoration, so it follows every wrapped line). */
+.needt-v3 .ha-hl-in .ha-hl-title {
+  transition: color 280ms ease;
+}
+.needt-v3 .ha-hl-in.is-completing .ha-hl-title,
+.needt-v3 .ha-hl-in.is-completing .ha-hl-open {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ha-hl-in .ha-hl-title {
+    transition: none;
+  }
+}
