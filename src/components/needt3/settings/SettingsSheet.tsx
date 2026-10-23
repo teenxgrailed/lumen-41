@@ -2,6 +2,7 @@
 
 import {
   type KeyboardEvent,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -97,7 +98,42 @@ export function useHydrateLook() {
   }, [data, setLook]);
 }
 
-function Body({ section }: { section: SectionId }) {
+/** The sheet's entrance (`nx-sheet` 280ms) plus a little: the sky waits for it. */
+const ENTRANCE_MS = 320;
+
+/**
+ * False on the opening render, true after `frames` animation frames (or `ms`
+ * milliseconds when given) of the sheet being open; false again once it
+ * closes. Opening Settings used to mount the section and start the plan
+ * card's sky in the same frame the sheet began to slide in, which a WKWebView
+ * paints as a stall. The frame the sheet draws first is now the cheap one.
+ */
+function useAfterOpen(open: boolean, { frames = 2, ms = 0 } = {}) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!open) {
+      setReady(false);
+      return undefined;
+    }
+    if (ms > 0) {
+      const id = window.setTimeout(() => setReady(true), ms);
+      return () => window.clearTimeout(id);
+    }
+    let left = frames;
+    let raf = 0;
+    const tick = () => {
+      left -= 1;
+      if (left <= 0) setReady(true);
+      else raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, [open, frames, ms]);
+  return ready;
+}
+
+/** One section. Memoised: the sheet re-renders for "Saved" and the pick, not for this. */
+const Body = memo(function Body({ section }: { section: SectionId }) {
   switch (section) {
     case "account":
       return <AccountSection />;
@@ -134,7 +170,7 @@ function Body({ section }: { section: SectionId }) {
     case "about":
       return <AboutSection />;
   }
-}
+});
 
 /**
  * Settings (SettingsScreen.jsx): a sheet over whatever page is open, opened
@@ -161,6 +197,10 @@ export function SettingsSheet() {
   const [menu, setMenu] = useState(false);
   const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   const [saved, setSaved] = useState(0);
+  // The section body mounts two frames after the sheet, the sky after its
+  // entrance (it is parked until then: no frames drawn while the sheet moves).
+  const bodyReady = useAfterOpen(open, { frames: 2 });
+  const skyReady = useAfterOpen(open, { ms: ENTRANCE_MS });
   const navRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // How far the open section is scrolled, kept here so the other face opens
@@ -189,7 +229,7 @@ export function SettingsSheet() {
     if (ui === "desktop" && open && panelRef.current) {
       panelRef.current.scrollTop = sectionY.current;
     }
-  }, [ui, open, section]);
+  }, [ui, open, section, bodyReady]);
 
   useEffect(() => {
     if (!saved) return undefined;
@@ -307,7 +347,13 @@ export function SettingsSheet() {
             data-px-scope
             onClick={() => pick("plan")}
           >
-            <PxSky variant="d" scene="promo" intensity={0.9} horizon="none" />
+            <PxSky
+              variant="d"
+              scene="promo"
+              intensity={0.9}
+              horizon="none"
+              parked={!skyReady}
+            />
             <span className="settings-layer">
               <span className="base-row">
                 <span className="px-display px-on-sky settings-px-calm">
@@ -413,7 +459,7 @@ export function SettingsSheet() {
             }}
             className="settings-enter scroll-inner settings-enter-2"
           >
-            <Body section={section} />
+            {bodyReady ? <Body section={section} /> : null}
           </div>
         </div>
       </Sheet>
