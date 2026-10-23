@@ -1,0 +1,46 @@
+/* Needt tokens (src/styles/needt-ds-tokens.css): one ink at ladder alphas,
+   13px and 12px chrome type, the accent only as a mark. */
+:root {
+  --fg-rgb: 26, 28, 30;
+  --accent: #2e6de9;
+  --bg: #fcfdfe;
+  --raised: #ffffff;
+  --text-primary: rgba(var(--fg-rgb), 1);
+  --text-secondary: rgba(var(--fg-rgb), 0.85);
+  --text-tertiary: rgba(var(--fg-rgb), 0.7);
+  --text-quaternary: rgba(var(--fg-rgb), 0.55);
+  --text-muted: rgba(var(--fg-rgb), 0.4);
+  --fill-3: rgba(var(--fg-rgb), 0.04);
+  --fill-4: rgba(var(--fg-rgb), 0.06);
+  --fill-6: rgba(var(--fg-rgb), 0.12);
+  --ring: rgba(var(--fg-rgb), 0.08) 0 0 0 1px;
+  --focus: rgba(46, 109, 233, 0.4) 0 0 0 2px inset;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fg-rgb: 236, 238, 240; --bg: #151618; --raised: #1e1f22; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text-primary);
+  font: 400 13px/18px -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+}
+.meta { font-size: 12px; line-height: 16px; color: var(--text-quaternary); }
+.label { font-size: 12px; line-height: 16px; color: var(--text-secondary); }
+.row { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; min-height: 32px; }
+input, select, textarea {
+  font: inherit; color: var(--text-primary); background: var(--fill-3);
+  border: 0; border-radius: 6px; padding: 6px 8px; width: 100%; outline: none;
+}
+input:focus, select:focus, textarea:focus { box-shadow: var(--focus); }
+button {
+  font-family: inherit; font-size: 13px; line-height: 18px; font-weight: 500; color: var(--text-secondary);
+  background: var(--fill-3); border: 0; border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+button:hover { background: var(--fill-4); }
+button:active { background: var(--fill-6); }
+button.primary { color: var(--text-primary); box-shadow: var(--ring); background: var(--raised); }
+.mark { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); vertical-align: 2px; margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
+.chip { font-size: 12px; line-height: 16px; color: var(--text-tertiary); background: var(--fill-3); border-radius: 4px; padding: 2px 6px; }
+.status { font-size: 12px; line-height: 16px; color: var(--text-quaternary); min-height: 16px; }

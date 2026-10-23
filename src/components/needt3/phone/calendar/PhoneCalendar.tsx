@@ -31,7 +31,6 @@ import {
 } from "../../starter-game/StarterGameSlot";
 import { usePhoneClock } from "../home/clock";
 import { PhoneState, hasContent } from "../home/parts";
-import { useTaskPull } from "../home/pull";
 import {
   PkButton,
   PkEmpty,
@@ -148,7 +147,6 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const d = calDay(day);
   const week = weekOf(day, startDay);
   const grid = monthGrid(day, startDay);
-  const pull = useTaskPull(tasks, today);
 
   const step = (k: -1 | 1) =>
     setPicked(view === "month" ? stepMonth(day, k) : addDays(day, 7 * k));
@@ -351,7 +349,6 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       headClass="is-cal"
       right={seg}
       sub={sub}
-      onPull={ready ? pull : undefined}
     >
       {/* a list skeleton: the "calendar" one is the desktop's seven-column week grid */}
       <PhoneState query={query} screen="calendar" />

@@ -96,7 +96,6 @@ import { usePhoneOverlays } from "../overlays/store";
 import { usePhoneClock } from "./clock";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
-import { useTaskPull } from "./pull";
 import type { HomeController } from "./useHomeController";
 
 const copy = strings["mobile-v2-plates.jsx"];
@@ -303,8 +302,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     });
   };
 
-  const pull = useTaskPull(all, today);
-
   const openNote = async () => {
     const id = await dailyNote.open();
     if (id) router.push(`/pages/${id}`);
@@ -399,7 +396,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       title={copy.V2pHome.today}
       sub={dateLine}
       head={head}
-      onPull={ready ? pull : undefined}
     >
       <PhoneState query={tasksQuery} screen="today" />
       <SampleBanner />
@@ -426,10 +422,6 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
                   calendarItems
                 ),
               })}
-              onPull={(id) => {
-                const p = finishPicks.find((x) => x.task.id === id);
-                if (p) void finish.doToday(p);
-              }}
               onEndDay={finish.show}
               onSeeTomorrow={
                 v.open(v.sec.next).length ? seeTomorrow : undefined

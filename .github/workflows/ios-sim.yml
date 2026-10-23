@@ -2,12 +2,15 @@ name: ios-sim
 
 # Builds the Capacitor iOS shell (apps/ios) for the Simulator without signing,
 # runs it for a few seconds and keeps the .app and a screenshot as artifacts.
+# The App scheme also builds the WidgetKit extension (NeedtWidgets: widgets,
+# Controls, Live Activity) and embeds it; the build below checks it is inside.
 # No Apple Developer account is needed for any step here.
 
 on:
   push:
     paths:
       - "apps/ios/**"
+      - "apps/shared/**"
       - ".github/workflows/ios-sim.yml"
   workflow_dispatch:
 
@@ -57,6 +60,16 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build | tail -n 60
+
+      - name: Widget extension is embedded and configured
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Debug-iphonesimulator/App.app
+          EXT="$APP/PlugIns/NeedtWidgets.appex"
+          test -d "$EXT"
+          plutil -p "$EXT/Info.plist" | grep -E "com.apple.widgetkit-extension|app.needt.ios.widgets"
+          plutil -p "$APP/Info.plist" | grep -E "NSSupportsLiveActivities|needt"
+          ls "$EXT"
 
       - name: Boot a Simulator
         run: |

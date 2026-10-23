@@ -33,6 +33,8 @@ public struct ReadResult<Value: Sendable>: Sendable {
 public final class OfflineCache: @unchecked Sendable {
     public enum Key: String, Sendable, CaseIterable {
         case tray, today, tasks
+        /// The widgets' one combined snapshot (`WidgetSnapshot`).
+        case widget
     }
 
     private let directory: URL

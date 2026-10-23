@@ -5,7 +5,6 @@ import { templatesMeta } from "../../places/derive";
 import type { TemplatesController } from "../../places/useTemplatesController";
 import { PkButton, PkEmpty, PkScreen } from "../kit";
 import { PhoneState } from "./Parts";
-import { templateHits } from "./logic";
 
 const tp = strings["places.jsx"].TemplatesScreen;
 
@@ -49,15 +48,6 @@ export function TemplatesPhone({ c }: { c: TemplatesController }) {
       title="Templates"
       glyph="templates"
       sub={templatesMeta(list.length)}
-      onPull={{
-        search: (q) => templateHits(list, q),
-        onPick: (h) => {
-          const t = list.find((x) => x.id === h.id);
-          if (t) void makePage(t.id, t.name);
-        },
-        placeholder: "Search templates",
-        hint: "Templates by name. Pick one to start a page from it.",
-      }}
     >
       <PhoneState query={templates} screen="templates">
         {!list.length ? (

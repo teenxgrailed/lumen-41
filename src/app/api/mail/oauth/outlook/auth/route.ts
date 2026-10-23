@@ -4,6 +4,10 @@ import { routeErrorResponse } from "@/lib/api/route-error";
 import { getOutlookCredentials } from "@/lib/auth";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
+import {
+  createMailOAuthSession,
+  setMailOAuthCookies,
+} from "@/lib/mail/oauth-state";
 import { OUTLOOK_MAIL_OAUTH_SCOPES } from "@/lib/mail/scopes";
 import { MICROSOFT_GRAPH_AUTH_ENDPOINTS } from "@/lib/outlook";
 
@@ -28,6 +32,7 @@ export async function GET(request: NextRequest) {
       );
     }
     const redirectUrl = `${process.env.NEXTAUTH_URL}/api/mail/oauth/outlook/callback`;
+    const session = createMailOAuthSession();
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
@@ -35,10 +40,14 @@ export async function GET(request: NextRequest) {
       response_mode: "query",
       prompt: "consent",
       scope: OUTLOOK_MAIL_OAUTH_SCOPES.join(" "),
+      state: session.state,
+      code_challenge: session.codeChallenge,
+      code_challenge_method: "S256",
     });
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       `${MICROSOFT_GRAPH_AUTH_ENDPOINTS.auth}?${params}`
     );
+    return setMailOAuthCookies(response, "outlook", auth.userId, session);
   } catch (error) {
     return routeErrorResponse(
       error,

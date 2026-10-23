@@ -1,3 +1,5 @@
+import { UnsafeFetchError, safeFetch } from "@/services/oauth/safe-fetch";
+
 import {
   AnthropicProvider,
   CustomProvider,
@@ -5,6 +7,11 @@ import {
   createSchedulerAI,
 } from "../providers";
 import { AIChatRequest } from "../types";
+
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  ...jest.requireActual("@/services/oauth/safe-fetch"),
+  safeFetch: jest.fn(),
+}));
 
 const chatRequest: AIChatRequest = {
   systemPrompt: "You are Needt.",
@@ -112,18 +119,20 @@ describe("AI provider chat adapters", () => {
 
   it("streams OpenAI-compatible SSE chat deltas", async () => {
     const onUsage = jest.fn();
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response(
-        [
-          'data: {"choices":[{"delta":{"content":"Hel"}}]}',
-          'data: {"choices":[{"delta":{"content":"lo"}}]}',
-          'data: {"choices":[],"usage":{"prompt_tokens":9,"completion_tokens":2}}',
-          "data: [DONE]",
-          "",
-        ].join("\n\n"),
-        { status: 200, headers: { "Content-Type": "text/event-stream" } }
-      )
-    );
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          [
+            'data: {"choices":[{"delta":{"content":"Hel"}}]}',
+            'data: {"choices":[{"delta":{"content":"lo"}}]}',
+            'data: {"choices":[],"usage":{"prompt_tokens":9,"completion_tokens":2}}',
+            "data: [DONE]",
+            "",
+          ].join("\n\n"),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } }
+        )
+      );
     const provider = new OpenAIProvider({
       provider: "OPENAI",
       apiKey: "test-key",
@@ -145,14 +154,16 @@ describe("AI provider chat adapters", () => {
   });
 
   it("does not request streaming usage for BYOK providers", async () => {
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response(
-        ['data: {"choices":[{"delta":{"content":"Hello"}}]}', ""].join(
-          "\n\n"
-        ),
-        { status: 200, headers: { "Content-Type": "text/event-stream" } }
-      )
-    );
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          ['data: {"choices":[{"delta":{"content":"Hello"}}]}', ""].join(
+            "\n\n"
+          ),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } }
+        )
+      );
     const provider = new OpenAIProvider({
       provider: "OPENAI",
       apiKey: "user-key",
@@ -165,7 +176,6 @@ describe("AI provider chat adapters", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(body).not.toHaveProperty("stream_options");
   });
-
 
   it("caps OpenAI-compatible completions only when configured", async () => {
     const fetchMock = mockFetchOnce({
@@ -220,18 +230,20 @@ describe("AI provider chat adapters", () => {
 
   it("streams Anthropic content_block_delta text", async () => {
     const onUsage = jest.fn();
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response(
-        [
-          'data: {"type":"message_start","message":{"usage":{"input_tokens":13,"output_tokens":0}}}',
-          'data: {"type":"content_block_delta","delta":{"text":"Sch"}}',
-          'data: {"type":"content_block_delta","delta":{"text":"eduled"}}',
-          'data: {"type":"message_delta","usage":{"output_tokens":3}}',
-          "",
-        ].join("\n\n"),
-        { status: 200, headers: { "Content-Type": "text/event-stream" } }
-      )
-    );
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          [
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":13,"output_tokens":0}}}',
+            'data: {"type":"content_block_delta","delta":{"text":"Sch"}}',
+            'data: {"type":"content_block_delta","delta":{"text":"eduled"}}',
+            'data: {"type":"message_delta","usage":{"output_tokens":3}}',
+            "",
+          ].join("\n\n"),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } }
+        )
+      );
     const provider = new AnthropicProvider({
       provider: "ANTHROPIC",
       apiKey: "test-key",
@@ -248,10 +260,15 @@ describe("AI provider chat adapters", () => {
   });
 
   it("uses Custom AI chat endpoints with optional bearer auth", async () => {
-    const fetchMock = mockFetchOnce({
-      name: "create_task",
-      arguments: { title: "Plan week" },
-    });
+    const guarded = jest.mocked(safeFetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          name: "create_task",
+          arguments: { title: "Plan week" },
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      )
+    );
     const provider = new CustomProvider({
       provider: "CUSTOM",
       customUrl: "https://needt-ai.example/",
@@ -263,12 +280,59 @@ describe("AI provider chat adapters", () => {
       arguments: { title: "Plan week" },
     });
 
-    expect(fetchMock.mock.calls[0][0]).toBe(
-      "https://needt-ai.example/chat/tool"
-    );
-    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+    expect(guarded.mock.calls[0][0]).toBe("https://needt-ai.example/chat/tool");
+    expect(guarded.mock.calls[0][1]?.headers).toMatchObject({
       Authorization: "Bearer custom-key",
     });
+  });
+
+  it("holds a person's Custom AI address to public hosts without leaking why", async () => {
+    jest
+      .mocked(safeFetch)
+      .mockRejectedValue(
+        new UnsafeFetchError("The host resolves to a non-public address.")
+      );
+    const plain = jest.fn();
+    global.fetch = plain;
+    const provider = new CustomProvider({
+      provider: "CUSTOM",
+      customUrl: "http://169.254.169.254/latest",
+    });
+
+    const failure = await provider.suggestSchedule({} as never).then(
+      () => null,
+      (error: Error) => error
+    );
+
+    expect(failure?.message).toBe("Custom AI endpoint could not be reached");
+    expect(plain).not.toHaveBeenCalled();
+  });
+
+  it("lets the operator's own AI_CUSTOM_URL stay on the internal network", async () => {
+    jest.mocked(safeFetch).mockClear();
+    const saved = process.env.AI_CUSTOM_URL;
+    process.env.AI_CUSTOM_URL = "http://ai-gateway:8080";
+    try {
+      const fetchMock = mockFetchOnce({
+        summary: "ok",
+        moves: [],
+        warnings: [],
+      });
+      const provider = new CustomProvider({
+        provider: "CUSTOM",
+        customUrl: "http://ai-gateway:8080",
+      });
+
+      await provider.suggestSchedule({} as never);
+
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        "http://ai-gateway:8080/schedule"
+      );
+      expect(safeFetch).not.toHaveBeenCalled();
+    } finally {
+      if (saved === undefined) delete process.env.AI_CUSTOM_URL;
+      else process.env.AI_CUSTOM_URL = saved;
+    }
   });
 
   it("configures Grok and GLM as OpenAI-compatible providers", async () => {
