@@ -29,7 +29,11 @@ POST only, protocol versions `2025-11-25`, `2025-06-18`, `2025-03-26`,
 With a personal token:
 
 1. Settings -> Personal API -> Generate token (shown once; rotating it
-   disconnects every agent).
+   disconnects every agent). A token works for one year and is then refused
+   with `401` like an unknown one; the settings screen and
+   `GET /api/connector-settings` (`tokenExpiresAt`, `tokenExpired`) show the
+   date. Tokens made before 2026-10-23 have `tokenExpiresAt: null` and do not
+   expire until they are rotated.
 2. Connect:
 
 ```bash

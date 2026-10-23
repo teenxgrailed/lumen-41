@@ -30,7 +30,7 @@ export { generateConnectorToken, hashConnectorToken } from "./auth-tokens";
 export function revokeConnectorTokens(userId: string) {
   return prisma.connectorSettings.updateMany({
     where: { userId, tokenHash: { not: null } },
-    data: { tokenHash: null, tokenPreview: null },
+    data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
   });
 }
 

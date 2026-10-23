@@ -86,6 +86,38 @@ describe("authenticateBearer", () => {
     ]);
   });
 
+  it("refuses a personal token past its expiry, keeps one without a date", async () => {
+    const at = (offsetMs: number) => new Date(Date.now() + offsetMs);
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: at(-1_000),
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toBeNull();
+
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: at(60_000),
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toMatchObject({ userId: "user-1", kind: "personal" });
+
+    // Made before expiry existed: null keeps working.
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: null,
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toMatchObject({ userId: "user-1" });
+    expect(findUnique).toHaveBeenLastCalledWith({
+      where: { tokenHash: hashConnectorToken(PERSONAL) },
+      select: { userId: true, tokenExpiresAt: true },
+    });
+  });
+
   it("accepts the scheme in any case and refuses anything else", async () => {
     await expect(
       authenticateBearer(request(`bearer ${PERSONAL}`))
