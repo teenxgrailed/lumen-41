@@ -248,7 +248,7 @@ def serve():
         def do_POST(self):
             q = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             out, err = None, None
-            for _ in range(3):
+            for _ in range(2):
                 try:
                     wi = conn()
                     if wi is None:
@@ -285,7 +285,7 @@ def evaluate(js, want=None, url=None, tries=2):
     import urllib.request
     body = json.dumps({"js": js, "want": want, "url": url}).encode()
     last = None
-    for i in range(tries + 3):
+    for i in range(tries + 2):
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{PORT}/", data=body, method="POST")
             r = json.loads(urllib.request.urlopen(req, timeout=180).read())

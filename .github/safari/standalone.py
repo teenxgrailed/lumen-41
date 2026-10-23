@@ -41,9 +41,9 @@ def sh(*cmd, timeout=150):
         return subprocess.CompletedProcess(cmd, 124, "", "timeout")
 
 
-def js(code, want="webapp"):
+def js(code, want="webapp", url="127.0.0.1:3000"):
     try:
-        return wi.evaluate(code, want, "127.0.0.1:3000")["value"]
+        return wi.evaluate(code, want, url)["value"]
     except SystemExit as e:
         print("wi:", e, flush=True)
         return None
@@ -181,24 +181,50 @@ def place(pid):
 
 # ---------------------------------------------------------------- commands
 
-def install():
-    sh("xcrun", "simctl", "ui", UDID, "appearance", "light")
+SIGNOUT_JS = """
+const x = new XMLHttpRequest(); x.open('GET', '/api/auth/csrf', false); x.send();
+const t = JSON.parse(x.responseText).csrfToken;
+const y = new XMLHttpRequest(); y.open('POST', '/api/auth/signout', false);
+y.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+y.send('csrfToken=' + encodeURIComponent(t) + '&json=true');
+return y.status;
+"""
+# An installed app has its own cookie jar, so it starts signed out. A signed-out
+# /today is redirected by the middleware to the public origin, which on the
+# runner is not 127.0.0.1: the app would open in Safari's in-app view. So the
+# page added to the Home Screen is the sign-in page itself (signed out first
+# in the tab, or it would forward to /today).
+START = "/auth/signin?callbackUrl=%2Ftoday"
+
+
+def openurl(path):
     for _ in range(4):
-        if sh("xcrun", "simctl", "openurl", UDID, HOST + "/today", timeout=60).returncode == 0:
+        if sh("xcrun", "simctl", "openurl", UDID, HOST + path, timeout=60).returncode == 0:
             break
         time.sleep(10)
     time.sleep(20)
+
+
+def install():
+    sh("xcrun", "simctl", "ui", UDID, "appearance", "light")
+    openurl("/today")
+    log(f"install: Safari tab sign-out -> {js(SIGNOUT_JS, 'safari')}")
+    openurl(START)
     w, h = ui.screen()
-    method = None
-    if ui.add_to_home_screen(w, h) and ui.launch_icon(NAME, w, h):
-        method = "share-sheet"
-    else:
-        ui.install_webclip(NAME, HOST + "/today", "public/icons/apple-touch-icon.png")
+    method, name = None, NAME
+    got = ui.add_to_home_screen(w, h)
+    if got:
+        name = got if isinstance(got, str) else NAME
+        log(f"install: Add to Home Screen made an icon named {name!r}")
+        if ui.launch_icon(name, w, h):
+            method = "share-sheet"
+    if not method:
+        ui.install_webclip(NAME, HOST + START, "public/icons/apple-touch-icon.png")
         if ui.launch_icon(NAME, w, h):
             method = "webclip"
     time.sleep(10)
-    s = state()
-    log(f"install: method={method} front={ui.front_app()} state={json.dumps(s)}")
+    where = js("return location.href", "webapp", None)
+    log(f"install: method={method} front={ui.front_app()} at={where!r}")
     with open("debug/standalone-method.txt", "w") as f:
         f.write(f"{method}\n")
     ui.save_debug("standalone-launched", ui.describe())
@@ -227,14 +253,14 @@ def signin_once(email, password):
         js("location.assign('/auth/signin'); return 1")
         time.sleep(8)
     painted_form = False
-    for _ in range(20):
+    for _ in range(5):
         if rect(['input[type="email"]', 'input[name="email"]']):
             painted_form = True
             break
         time.sleep(3)
     if not painted_form:
-        log("signin: no form found through Web Inspector; tab coordinates")
-        sh("python3", os.path.join(HERE, "ui.py"), "signin", email, password, timeout=420)
+        where = js("return location.href", "webapp", None)
+        log(f"signin: no form found through Web Inspector (the app is at {where!r})")
         return
     for sel, text in ((['input[type="email"]', 'input[name="email"]'], email),
                       (['input[type="password"]'], password)):

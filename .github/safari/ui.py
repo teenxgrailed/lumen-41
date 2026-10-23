@@ -108,6 +108,11 @@ def ocr(tag, w, h):
     return words
 
 
+STOCK = {"calendar", "health", "maps", "messages", "news", "photos", "reminders", "safari", "search",
+         "settings", "wallet", "contacts", "files", "fitness", "preview", "utilities folder", "watch",
+         "app store", "camera", "clock", "home screen", "dock", "page 1 of 2", "page 2 of 2"}
+
+
 def add_to_home_screen(w, h):
     """Safari: More (...) > Share > View More > Add to Home Screen > Add.
     Safari's own bar and menu are in idb's accessibility dump; the share sheet
@@ -140,8 +145,13 @@ def add_to_home_screen(w, h):
                     time.sleep(2)
             tap(*add_xy)
             time.sleep(8)
-            save_debug("a2hs-added", describe())
-            return True
+            els = describe()
+            save_debug("a2hs-added", els)
+            # iOS lands on the Home Screen page with the new icon: its name is
+            # the label no stock app has
+            new = sorted({label(e) for e in els if e.get("type") != "Application"} - STOCK - {""})
+            print("new icon(s):", new, flush=True)
+            return new[0] if new else True
         if any("view bookmarks, share menu" in l for l in labels) and once("tip"):
             # a one-time Safari tip bubble over the bar swallows the next tap
             x = el("close") or el("dismiss popup")
