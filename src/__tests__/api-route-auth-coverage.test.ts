@@ -49,6 +49,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/email-verification/confirm/route.ts": "single-use token",
   "account/export/download/route.ts": "single-use hashed token, expires",
   "billing/webhook/route.ts": "Creem webhook, signature verified by SDK",
+  "csp-report/route.ts":
+    "browsers post CSP reports without credentials; logs a reduced line only, size capped, rate limited",
   "webhooks/google/route.ts": "Google channel id, resource id and token match",
   "webhooks/outlook/route.ts": "Outlook subscription id and clientState match",
   "public/booking/[slug]/route.ts": "public booking page, rate limited",
