@@ -1,0 +1,337 @@
+name: macOS release
+
+# Builds the direct-download Needt.app, signs the zip for Sparkle, publishes a
+# GitHub Release and refreshes the appcast the installed app polls.
+#
+# Trigger: push a tag `mac-vX.Y.Z`, or run this workflow by hand with a version.
+#
+# Needs (see apps/macos/README.md, "Updates"):
+#   secret   SPARKLE_ED_PRIVATE_KEY   Sparkle EdDSA private key (generate_keys)
+#   variable SPARKLE_ED_PUBLIC_KEY    the matching public key, baked into the app
+# Optional, for Developer ID signing and notarization (not set up yet):
+#   secrets  MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD, MACOS_SIGN_IDENTITY,
+#            NOTARY_APPLE_ID, NOTARY_TEAM_ID, NOTARY_PASSWORD
+#
+# Appcast location: the release tagged `mac-appcast` holds one asset,
+# appcast.xml, replaced on every release. Stable URL (the repository is public):
+#   https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml
+on:
+  push:
+    tags:
+      - "mac-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, e.g. 0.2.0 (becomes tag mac-v0.2.0)"
+        required: true
+        type: string
+
+# Two releases must not rewrite the appcast at the same time.
+concurrency:
+  group: needt-macos-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  SPARKLE_VERSION: "2.6.4"
+  APPCAST_TAG: mac-appcast
+
+jobs:
+  release:
+    name: Build, sign, publish
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Version from the tag
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            VERSION="${REF_NAME#mac-v}"
+          else
+            VERSION="${INPUT_VERSION#mac-v}"
+            VERSION="${VERSION#v}"
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' is not X.Y.Z"; exit 1
+          fi
+          {
+            echo "version=$VERSION"
+            echo "tag=mac-v$VERSION"
+            # CFBundleVersion must only ever grow: Sparkle compares it.
+            echo "build=${{ github.run_number }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Signing key and public key are set
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "::error::Secret SPARKLE_ED_PRIVATE_KEY is not set. Generate keys once with Sparkle's generate_keys, then: gh secret set SPARKLE_ED_PRIVATE_KEY (see apps/macos/README.md). Nothing was built."
+            exit 1
+          fi
+          if [ -z "$SPARKLE_ED_PUBLIC_KEY" ]; then
+            echo "::error::Repository variable SPARKLE_ED_PUBLIC_KEY is not set. Without it the shipped app never updates: gh variable set SPARKLE_ED_PUBLIC_KEY (see apps/macos/README.md). Nothing was built."
+            exit 1
+          fi
+
+      - name: Tag does not exist yet (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists"; exit 1
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      # Version and public key are build settings, so the app, the Share
+      # extension and the widgets all carry the same numbers.
+      - name: Build Needt.app (direct)
+        working-directory: apps/macos
+        env:
+          SPARKLE_ED_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}
+          VERSION: ${{ steps.v.outputs.version }}
+          BUILD: ${{ steps.v.outputs.build }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme Needt \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD" \
+            SPARKLE_PUBLIC_ED_KEY="$SPARKLE_ED_PUBLIC_KEY" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | tail -n 60
+
+      - name: Built app carries the version, the key and the feed
+        working-directory: apps/macos
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          BUILD: ${{ steps.v.outputs.build }}
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Release/Needt.app
+          PLIST="$APP/Contents/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")" = "$VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")" = "$BUILD"
+          KEY="$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$PLIST")"
+          test -n "$KEY"
+          if [[ "$KEY" == "\$("* ]]; then
+            echo "::error::SUPublicEDKey was not substituted"; exit 1
+          fi
+          /usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$PLIST"
+          test -d "$APP/Contents/Frameworks/Sparkle.framework"
+
+      # ---- HOOK: Developer ID signing + notarization -------------------------
+      # Runs only when all of these secrets exist; today none do, so the app is
+      # shipped unsigned (ad-hoc below). UNTESTED: it has never run. Once the
+      # Apple Developer account exists, add the secrets listed at the top of
+      # this file and check the first run's log. Sparkle refuses to replace an
+      # app signed by one identity with one signed by another, so switch to
+      # Developer ID before real users depend on updates, not after.
+      - name: Developer ID sign and notarize (hook)
+        id: devid
+        working-directory: apps/macos
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CERT_P12" ] || [ -z "$SIGN_IDENTITY" ] || [ -z "$NOTARY_APPLE_ID" ] || [ -z "$NOTARY_TEAM_ID" ] || [ -z "$NOTARY_PASSWORD" ]; then
+            echo "Developer ID secrets are not set: skipping (app stays unsigned)."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          APP=build/Build/Products/Release/Needt.app
+          KC="$RUNNER_TEMP/release.keychain-db"
+          KC_PASSWORD="$(uuidgen)"
+          printf '%s' "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASSWORD" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASSWORD" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASSWORD" "$KC"
+          security list-keychains -d user -s "$KC" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # Inside out: Sparkle's helpers, then extensions, then the app. The
+          # entitlements files are the ones xcodegen wrote to Generated/.
+          for item in \
+            "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc" \
+            "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc" \
+            "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate" \
+            "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app" \
+            "$APP/Contents/Frameworks/Sparkle.framework"; do
+            [ -e "$item" ] && codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$item"
+          done
+          codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
+            --entitlements Generated/NeedtShare.entitlements "$APP/Contents/PlugIns/NeedtShare.appex"
+          codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
+            --entitlements Generated/NeedtWidgets.entitlements "$APP/Contents/PlugIns/NeedtWidgets.appex"
+          codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" \
+            --entitlements Generated/Needt.entitlements "$APP"
+          codesign --verify --deep --strict "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --wait
+          xcrun stapler staple "$APP"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      # Without a Developer ID an arm64 app still needs some signature to
+      # launch; ad-hoc is the minimum. Gatekeeper still warns (see README).
+      - name: Ad-hoc sign (unsigned release)
+        if: steps.devid.outputs.signed != 'true'
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build/Build/Products/Release/Needt.app
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep "$APP"
+
+      - name: Zip
+        id: zip
+        working-directory: apps/macos
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ZIP="out/Needt-$VERSION.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Release/Needt.app "$ZIP"
+          echo "zip=apps/macos/$ZIP" >> "$GITHUB_OUTPUT"
+          ls -l "$ZIP"
+
+      - name: Sign the zip for Sparkle
+        id: sign
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          ZIP: ${{ steps.zip.outputs.zip }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP/sparkle"
+          # The key goes in on stdin; it is never written to disk or printed.
+          OUT="$(printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle/bin/sign_update" --ed-key-file - "$ZIP")"
+          SIG="$(printf '%s' "$OUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')"
+          LEN="$(printf '%s' "$OUT" | sed -n 's/.*length="\([^"]*\)".*/\1/p')"
+          if [ -z "$SIG" ] || [ -z "$LEN" ]; then
+            echo "::error::sign_update returned no signature"; exit 1
+          fi
+          echo "::add-mask::$SIG"
+          {
+            echo "signature=$SIG"
+            echo "length=$LEN"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+          VERSION: ${{ steps.v.outputs.version }}
+          ZIP: ${{ steps.zip.outputs.zip }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            gh release create "$TAG" "$ZIP" \
+              --target "$GITHUB_SHA" \
+              --title "Needt for Mac $VERSION" \
+              --notes "Needt for Mac $VERSION. Installed copies update themselves; to install fresh, download Needt-$VERSION.zip, unzip and move Needt.app to Applications."
+          fi
+
+      - name: Update the appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+          VERSION: ${{ steps.v.outputs.version }}
+          BUILD: ${{ steps.v.outputs.build }}
+          SIGNATURE: ${{ steps.sign.outputs.signature }}
+          LENGTH: ${{ steps.sign.outputs.length }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/appcast"
+          cd "$RUNNER_TEMP/appcast"
+          if gh release view "$APPCAST_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "$APPCAST_TAG" -R "$GITHUB_REPOSITORY" -p appcast.xml --clobber || true
+          fi
+          python3 - <<'PY'
+          import os, re, email.utils, xml.etree.ElementTree as ET
+          SP = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+          ET.register_namespace("sparkle", SP)
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag, version, build = os.environ["TAG"], os.environ["VERSION"], os.environ["BUILD"]
+          url = f"https://github.com/{repo}/releases/download/{tag}/Needt-{version}.zip"
+          if os.path.exists("appcast.xml"):
+              root = ET.parse("appcast.xml").getroot()
+              channel = root.find("channel")
+          else:
+              root = ET.Element("rss", {"version": "2.0"})
+              channel = ET.SubElement(root, "channel")
+              ET.SubElement(channel, "title").text = "Needt for Mac"
+          # Replace an item for the same version (re-run), keep older ones.
+          for item in list(channel.findall("item")):
+              v = item.find(f"{{{SP}}}shortVersionString")
+              if v is not None and v.text == version:
+                  channel.remove(item)
+          item = ET.Element("item")
+          ET.SubElement(item, "title").text = f"Version {version}"
+          ET.SubElement(item, "pubDate").text = email.utils.formatdate(usegmt=True)
+          ET.SubElement(item, f"{{{SP}}}version").text = build
+          ET.SubElement(item, f"{{{SP}}}shortVersionString").text = version
+          ET.SubElement(item, f"{{{SP}}}minimumSystemVersion").text = "14.6"
+          ET.SubElement(item, f"{{{SP}}}releaseNotesLink").text = f"https://github.com/{repo}/releases/tag/{tag}"
+          ET.SubElement(item, "enclosure", {
+              "url": url,
+              "length": os.environ["LENGTH"],
+              "type": "application/octet-stream",
+              f"{{{SP}}}edSignature": os.environ["SIGNATURE"],
+          })
+          # Newest first, right after the channel header elements.
+          first = channel.find("item")
+          idx = list(channel).index(first) if first is not None else len(list(channel))
+          channel.insert(idx, item)
+          ET.indent(root)
+          ET.ElementTree(root).write("appcast.xml", xml_declaration=True, encoding="utf-8")
+          PY
+          cat appcast.xml
+          if ! gh release view "$APPCAST_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$APPCAST_TAG" -R "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --prerelease \
+              --title "Mac appcast (do not delete)" \
+              --notes "Holds appcast.xml, the feed installed copies of Needt for Mac read for updates. Replaced by the macOS release workflow."
+          fi
+          gh release upload "$APPCAST_TAG" appcast.xml -R "$GITHUB_REPOSITORY" --clobber
+
+      - name: The published appcast is reachable
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/download/${APPCAST_TAG}/appcast.xml" | head -n 20
