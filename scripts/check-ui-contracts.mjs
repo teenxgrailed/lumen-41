@@ -142,26 +142,21 @@ for (const integrationPath of ["src/app/globals.css", "tailwind.config.ts"]) {
   }
 }
 
-const focusPath = "src/components/focus/FocusTimerPanel.tsx";
-const focus = await source(focusPath);
-requireText(focusPath, 'data-testid="focus-flat-canvas"', focus);
-for (const retired of [
-  "needt-panel-depth",
-  "rounded-[22px]",
-  "rounded-[18px]",
-]) {
-  forbidText(focusPath, retired, focus);
-}
-
+// The pre-v3 Focus, Chat and Quick add screens are retired: /focus, /chat and
+// /quick-add redirect to Today (next.config.js), which opens the v3 surface.
 for (const retired of [
   "src/components/today/TodayView.tsx",
   "src/components/today/DayTimeline.tsx",
+  "src/components/focus/FocusTimerPanel.tsx",
+  "src/app/(app)/focus/page.tsx",
+  "src/app/(app)/chat/page.tsx",
+  "src/app/(app)/quick-add/page.tsx",
 ]) {
   try {
     await access(join(ROOT, retired));
-    failures.push(`${retired}: retired Today surface still exists`);
+    failures.push(`${retired}: retired pre-v3 surface still exists`);
   } catch {
-    // Expected: the production route uses the ported Needt Home.
+    // Expected: the production routes use the ported Needt Home.
   }
 }
 

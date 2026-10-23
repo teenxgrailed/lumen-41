@@ -1,6 +1,8 @@
 /**
  * /docs → /pages (temporary, 307) and which 404 an unknown address gets.
  */
+import { launchActionOf } from "@/components/needt3/root/PwaBridge";
+
 import { missingRouteFace } from "@/lib/needt3/not-found";
 
 jest.mock("@sentry/nextjs", () => ({
@@ -27,6 +29,31 @@ describe("next.config redirects", () => {
         { source: "/docs/:id", destination: "/pages/:id", permanent: false },
       ])
     );
+  });
+
+  it("sends the retired pre-v3 screens to their v3 equivalents on Today", async () => {
+    const list = await config.redirects();
+    expect(list).toEqual(
+      expect.arrayContaining([
+        { source: "/chat", destination: "/today?launch=ask", permanent: false },
+        { source: "/focus", destination: "/today", permanent: false },
+        {
+          source: "/quick-add",
+          destination: "/today?launch=new-task",
+          permanent: false,
+        },
+      ])
+    );
+    // the launch values are the ones PwaBridge opens
+    for (const r of list.filter((x) => x.destination.includes("launch="))) {
+      const search = r.destination.slice(r.destination.indexOf("?"));
+      expect(launchActionOf(search)).not.toBeNull();
+    }
+    // a page left behind would never render, and would only mislead
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    for (const dir of ["chat", "focus", "quick-add"])
+      expect(fs.existsSync(`src/app/(app)/${dir}`)).toBe(false);
   });
 
   it("/pages/[id] exists for the redirect to land on", () => {
