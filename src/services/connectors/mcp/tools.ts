@@ -39,6 +39,10 @@ import {
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
 import {
+  AI_PAGE_NOT_EDITABLE,
+  AI_PAGE_UNAVAILABLE,
+} from "@/services/pages/ai-page-access";
+import {
   appendPageBlocks,
   createPage,
   getPage,
@@ -342,6 +346,27 @@ function sliceAfter<T extends { id: string }>(
   return page(rows.slice(start, start + args.limit + 1), args.limit);
 }
 
+/**
+ * Calendars, personal time and mail belong to the person, not to a workspace.
+ * A token or grant limited to a Team workspace must not reach them, so they
+ * answer only from the personal workspace, as calendar events already do.
+ */
+function personalOnlyList(what: string) {
+  return {
+    items: [],
+    nextCursor: null,
+    note: `${what} are personal; switch to the personal workspace to read them.`,
+  };
+}
+
+/**
+ * MCP callers read and write pages as AI actors: pages in a private tree are
+ * never listed, read, searched, appended to or used as a parent.
+ */
+function mcpPageActor(ctx: McpToolContext, workspace: WorkspaceAccess) {
+  return { userId: ctx.userId, workspace, ai: true };
+}
+
 async function listRows(
   type: ListType,
   ctx: McpToolContext,
@@ -417,6 +442,7 @@ async function listRows(
         args.limit
       );
     case "calendar":
+      if (!personal) return personalOnlyList("Calendars");
       return page(
         await prisma.calendarFeed.findMany({
           where: {
@@ -431,7 +457,7 @@ async function listRows(
         args.limit
       );
     case "page":
-      return sliceAfter(await listPages({ userId, workspace }), args);
+      return sliceAfter(await listPages(mcpPageActor(ctx, workspace)), args);
     case "moodboard":
       // Slim rows: the app's list also carries member emails and previews.
       return sliceAfter(
@@ -446,6 +472,7 @@ async function listRows(
         args
       );
     case "personal_time":
+      if (!personal) return personalOnlyList("Personal time blocks");
       return page(
         (
           await prisma.personalBlock.findMany({
@@ -476,6 +503,7 @@ async function listRows(
         args.limit
       );
     case "mail": {
+      if (!personal) return personalOnlyList("Mail messages");
       const rows = await listMailMessages({
         userId,
         take: args.limit,
@@ -527,15 +555,17 @@ async function getRow(
         where: { id, feed: { userId } },
       });
     case "calendar":
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.calendarFeed.findFirst({
         where: { id, userId },
         select: calendarSelect,
       });
     case "page":
-      return getPage({ userId, workspace }, id);
+      return getPage(mcpPageActor(ctx, workspace), id);
     case "habit":
       return prisma.habit.findFirst({ where: { id, ...scope, userId } });
     case "mail":
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.mailMessage.findFirst({
         where: { id, account: { userId } },
         // Metadata only: mail.read never includes message bodies.
@@ -544,6 +574,7 @@ async function getRow(
     case "moodboard":
       return getMoodboard({ userId, workspace }, id);
     case "personal_time": {
+      if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       const block = await prisma.personalBlock.findFirst({
         where: { id, userId },
         select: personalBlockSelect,
@@ -573,7 +604,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_search",
     description:
-      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope.",
+      "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope and only in the personal workspace. Private pages are never searched.",
     annotations: { readOnlyHint: true, destructiveHint: false },
     input: z.object({
       query: z.string().min(1).describe("Text to look for."),
@@ -592,8 +623,12 @@ export const MCP_TOOLS: McpTool[] = [
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
-      // Without mail.read, mail is simply not searched (not an error).
-      const types = ctx.auth.scopes.includes("mail.read")
+      // Without mail.read, or outside the personal workspace, mail is simply
+      // not searched (not an error): mail belongs to the person.
+      const mailAllowed =
+        ctx.auth.scopes.includes("mail.read") &&
+        access.workspace.workspaceKind === WorkspaceKind.PERSONAL;
+      const types = mailAllowed
         ? args.types
         : (args.types ?? [...SEARCHABLE_TYPES]).filter((t) => t !== "mail");
       return toolResult({
@@ -603,6 +638,7 @@ export const MCP_TOOLS: McpTool[] = [
           query: args.query,
           take: args.limit,
           types,
+          ai: true,
         }),
       });
     },
@@ -662,7 +698,13 @@ export const MCP_TOOLS: McpTool[] = [
       if ("error" in access) return access.error;
       const row = await getRow(args.type, args.id, ctx, access.workspace);
       if (!row) {
-        return toolError({ status: 404, error: `${args.type} not found` });
+        return toolError({
+          status: 404,
+          error:
+            args.type === "page"
+              ? AI_PAGE_UNAVAILABLE
+              : `${args.type} not found`,
+        });
       }
       return toolResult(row);
     },
@@ -1267,7 +1309,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_create_page",
       description:
-        "Create a page in the active workspace, optionally under a parent page you can edit, with an optional Markdown or plain-text body.",
+        "Create a page in the active workspace, optionally under a parent page you can edit (never one in a private tree), with an optional Markdown or plain-text body.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z.object({
         title: z.string().min(1).max(240),
@@ -1278,7 +1320,7 @@ const WRITE_TOOLS: McpTool[] = [
       async invoke(ctx, args) {
         const access = await writeAccess(ctx);
         if ("error" in access) return access.error;
-        const actor = { userId: ctx.userId, workspace: access.workspace };
+        const actor = mcpPageActor(ctx, access.workspace);
         const blocks = args.body
           ? pageBlocksFromText(args.body, args.format)
           : [];
@@ -1313,7 +1355,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_append_page",
       description:
-        "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history.",
+        "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history. Pages in a private tree cannot be edited.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z.object({
         id: z.string().min(1).describe("Page id."),
@@ -1329,7 +1371,7 @@ const WRITE_TOOLS: McpTool[] = [
         }
         try {
           const written = await appendPageBlocks(
-            { userId: ctx.userId, workspace: access.workspace },
+            mcpPageActor(ctx, access.workspace),
             args.id,
             blocks,
             PageAuthor.AI
@@ -1337,7 +1379,7 @@ const WRITE_TOOLS: McpTool[] = [
           if (!written) {
             return toolError({
               status: 404,
-              error: "Page not found, or you cannot edit it.",
+              error: AI_PAGE_NOT_EDITABLE,
             });
           }
           return toolResult(pageSummary(written, blocks.length));

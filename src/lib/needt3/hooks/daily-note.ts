@@ -122,8 +122,9 @@ export function useDailyNote(day: string) {
       const { page } = await sendJson<{ page: PageRow }>(
         "/api/pages",
         "POST",
-        // private: the day's note is the person's own, not the workspace's
-        { title: dailyNoteTitle(day), isPrivate: true }
+        // not private: the assistant never reads a Private page, and a day's
+        // note is the thing it should be able to read. Turn Private on per page.
+        { title: dailyNoteTitle(day), isPrivate: false }
       );
       qc.setQueryData(qk.dailyNote(day), true);
       void qc.invalidateQueries({ queryKey: qk.docs() });
