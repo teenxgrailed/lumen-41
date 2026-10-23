@@ -1,5 +1,14 @@
 import { NextRequest } from "next/server";
 
+import { GET as blockingActiveGet } from "@/app/api/blocking/active/route";
+import {
+  DELETE as blockingProfileDelete,
+  PATCH as blockingProfilePatch,
+} from "@/app/api/blocking/profiles/[id]/route";
+import {
+  GET as blockingProfilesGet,
+  POST as blockingProfilesPost,
+} from "@/app/api/blocking/profiles/route";
 import { POST as controlPost } from "@/app/api/connect/control/route";
 import { POST as opsPost } from "@/app/api/connect/ops/[name]/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
@@ -16,6 +25,7 @@ import {
   publicMemory,
   updateMemoryForUser,
 } from "@/services/ai/memory";
+import { blockingProfileFields } from "@/services/blocking/profile";
 import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
@@ -170,19 +180,23 @@ export function toolError(payload: unknown): McpToolResult {
   return { ...toolResult(payload), isError: true };
 }
 
-type RouteHandler = (request: NextRequest) => Promise<Response | undefined>;
+type RouteHandler<P extends Record<string, string>> = (
+  request: NextRequest,
+  context: { params: Promise<P> }
+) => Promise<Response | undefined>;
 
 /**
  * Runs an existing connector route in-process with the caller's own
  * Authorization and workspace headers, so authentication, workspace scoping
  * and confirmation rules stay defined once, in the route.
  */
-async function callRoute(
+async function callRoute<P extends Record<string, string>>(
   ctx: McpToolContext,
-  handler: RouteHandler,
+  handler: RouteHandler<P>,
   path: string,
-  method: "GET" | "POST",
-  body?: unknown
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  body?: unknown,
+  params: P = {} as P
 ): Promise<McpToolResult> {
   const headers = new Headers({ "content-type": "application/json" });
   const authorization = ctx.request.headers.get("authorization");
@@ -199,8 +213,12 @@ async function callRoute(
     new NextRequest(url, {
       method,
       headers,
-      body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
-    })
+      body:
+        method === "GET" || method === "DELETE"
+          ? undefined
+          : JSON.stringify(body ?? {}),
+    }),
+    { params: Promise.resolve(params) }
   );
   if (!response) return toolError({ status: 500, error: "No response" });
   const text = await response.text();
@@ -1516,6 +1534,73 @@ const WRITE_TOOLS: McpTool[] = [
 ];
 
 MCP_TOOLS.push(...WRITE_TOOLS);
+
+/**
+ * Focus blocking: profiles of sites and apps that the browser extension and
+ * the Mac app block while a focus session, a matching calendar event or a
+ * task block of a chosen project is under way. Pro, behind `focus_blocking`.
+ */
+MCP_TOOLS.push(
+  defineTool({
+    name: "needt_blocking",
+    description:
+      "Focus blocking. view 'active' (default): what is blocked right now — mode (BLOCKLIST blocks the sites and apps listed, ALLOWLIST blocks everything else), sites, apps, until, and which profiles hold and why. view 'profiles': every blocking profile with its triggers. Pro.",
+    annotations: { readOnlyHint: true, destructiveHint: false },
+    input: z.object({
+      view: z.enum(["active", "profiles"]).default("active"),
+    }),
+    invoke: (ctx, args) =>
+      args.view === "profiles"
+        ? callRoute(ctx, blockingProfilesGet, "/api/blocking/profiles", "GET")
+        : callRoute(ctx, blockingActiveGet, "/api/blocking/active", "GET"),
+  }),
+  defineTool({
+    name: "needt_blocking_profile",
+    description:
+      "Create, change or delete a focus blocking profile. A profile blocks its sites (host names, '*.example.com' for subdomains) and macOS apps (bundle ids) while any trigger holds: onFocusSession (a focus session runs), eventKeywords (a calendar event whose title contains one), calendarFeedIds (any event on those calendars), projectIds (a scheduled block of a task in those projects). mode ALLOWLIST blocks everything except the lists. update changes only the fields given. Pro.",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    },
+    input: z.object({
+      action: z.enum(["create", "update", "delete"]),
+      id: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Profile id, for update and delete."),
+      name: blockingProfileFields.name.optional(),
+      sites: z.array(z.string()).optional(),
+      apps: z.array(z.string()).optional(),
+      mode: z.enum(["BLOCKLIST", "ALLOWLIST"]).optional(),
+      onFocusSession: z.boolean().optional(),
+      eventKeywords: z.array(z.string()).optional(),
+      calendarFeedIds: z.array(z.string()).optional(),
+      projectIds: z.array(z.string()).optional(),
+      enabled: z.boolean().optional(),
+    }),
+    async invoke(ctx, args) {
+      const { action, id, ...fields } = args;
+      if (action === "create") {
+        return callRoute(
+          ctx,
+          blockingProfilesPost,
+          "/api/blocking/profiles",
+          "POST",
+          fields
+        );
+      }
+      if (!id) return toolError({ status: 400, error: "id is required" });
+      const path = `/api/blocking/profiles/${encodeURIComponent(id)}`;
+      return action === "delete"
+        ? callRoute(ctx, blockingProfileDelete, path, "DELETE", undefined, {
+            id,
+          })
+        : callRoute(ctx, blockingProfilePatch, path, "PATCH", fields, { id });
+    },
+  })
+);
 
 MCP_TOOLS.unshift(
   defineTool({

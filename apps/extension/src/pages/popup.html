@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Add to Needt</title>
+  <link rel="stylesheet" href="base.css" />
+  <style>
+    body { width: 340px; padding: 12px; display: grid; gap: 8px; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hint { font-size: 12px; line-height: 16px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <input id="title" placeholder="Task… tomorrow 2h #project !high" autofocus />
+  <div id="chips" class="chips"></div>
+  <select id="project"><option value="">No project</option></select>
+  <div class="actions">
+    <button id="add" class="primary">Add task</button>
+    <button id="page">Add this page</button>
+    <button id="tabs">Save tabs to project</button>
+  </div>
+  <div id="status" class="status"></div>
+  <div class="hint">Alt+Shift+N opens this. Right-click a selection or a link to add it.</div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
