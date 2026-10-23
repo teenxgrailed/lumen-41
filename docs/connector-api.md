@@ -59,6 +59,14 @@ that needs a scope the token lacks gets `403` with
 `WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
 scope; search without `mail.read` simply leaves mail out.
 
+MCP never reaches a Private page, or any page filed under one, whoever owns it:
+`needt_search`, `needt_list` and `needt_get` leave it out, and
+`needt_create_page` and `needt_append_page` refuse it (the answer is the same
+as for a page that does not exist). The assistant inside Needt keeps the same
+line. Calendars, personal time and mail belong to the person, not to a
+workspace, so over MCP they answer only from the personal workspace, never from
+a Team workspace.
+
 The same token rules apply to the `/api/connect/*` routes below: reads need
 `needt.read`, writes `needt.write`.
 
@@ -663,11 +671,12 @@ does not say when to leave: Needt has no real travel time to base that on.
 
 On Sundays Home offers a short review: the week's wins (from `/api/stats`),
 leftovers to move to Monday, a date or the Inbox, and three focuses for next
-week. Saving it creates a private page titled `Weekly review · 18 October 2026`
-(the Sunday's date) with the sections _Wins_, _Moved_ and _Focus for next week_,
-written through `POST /api/pages` and `POST /api/pages/:id/append`. It is an
-ordinary page, so it is readable and writable through the pages API and the MCP
-page tools like any other; find it by title with `GET /api/pages?q=Weekly review`.
+week. Saving it creates a page (not Private, so the assistant and MCP can read
+it) titled `Weekly review · 18 October 2026` (the Sunday's date) with the
+sections _Wins_, _Moved_ and _Focus for next week_, written through
+`POST /api/pages` and `POST /api/pages/:id/append`. It is an ordinary page, so
+it is readable and writable through the pages API and the MCP page tools like
+any other; find it by title with `GET /api/pages?q=Weekly review`.
 Home shows the offer once per Sunday while no page with that title exists.
 
 ## Imports

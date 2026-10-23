@@ -36,6 +36,11 @@ export async function searchWorkspace(input: {
   query: string;
   take: number;
   types?: readonly SearchableType[];
+  /**
+   * The caller is an AI tool (MCP). Pages in a private tree are then left
+   * out; the in-app command palette leaves this unset.
+   */
+  ai?: boolean;
 }): Promise<SearchHit[]> {
   const q = input.query.trim();
   if (!q) return [];
@@ -80,7 +85,7 @@ export async function searchWorkspace(input: {
       : [],
     types.has("page")
       ? listPages(
-          { userId: input.userId, workspace: input.workspace },
+          { userId: input.userId, workspace: input.workspace, ai: input.ai },
           { search: q }
         ).then((rows) => rows.slice(0, take))
       : [],

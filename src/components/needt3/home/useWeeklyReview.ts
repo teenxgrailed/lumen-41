@@ -40,7 +40,7 @@ interface PageRow {
 
 /**
  * The Sunday review: whether it is offered (Sunday, not yet written this week,
- * not put off today), its state, and saving it as a private page in the
+ * not put off today), its state, and saving it as a page (not Private) in the
  * person's documents ("Weekly review · 19 October 2026"), which is theirs to
  * read through the pages API like any other. Leftovers move as in End day.
  */
@@ -123,7 +123,9 @@ export function useWeeklyReview(o: {
       });
       const { page } = await sendJson<{ page: PageRow }>("/api/pages", "POST", {
         title,
-        isPrivate: true,
+        // not private: the assistant never reads a Private page. Turn Private
+        // on per page.
+        isPrivate: false,
       });
       await sendJson(`/api/pages/${page.id}/append`, "POST", {
         text: reviewMarkdown({
