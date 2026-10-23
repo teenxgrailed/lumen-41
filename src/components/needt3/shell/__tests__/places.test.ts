@@ -1,7 +1,12 @@
+import { PLAN_LIMITS } from "@/lib/plan-limits";
+
 import {
   DEFAULT_PREFS,
+  FREE_DEFAULT_PREFS,
+  FREE_UNTILED,
   PLACES,
   TILES_MAX,
+  defaultPrefs,
   foldSection,
   mergePrefs,
   moreAlign,
@@ -119,6 +124,74 @@ describe("sidebar layout", () => {
     expect(placeForPath("/projects/p1")).toBe("projects");
     expect(placeForPath("/tasksx")).toBeNull();
     expect(placeForPath("/connections")).toBeNull();
+  });
+});
+
+describe("Free plan layout", () => {
+  it("Free has no mailboxes, so Mailbox is the place kept off the tiles", () => {
+    expect(PLAN_LIMITS.FREE.mailboxes).toBe(0);
+    expect(FREE_UNTILED).toEqual(["mail"]);
+  });
+
+  it("Free's default puts Mailbox under More and Projects on the tiles", () => {
+    const { tiles, rest } = splitPlaces(prefsFromSettings(undefined, true));
+    expect(ids(tiles)).toEqual([
+      "today",
+      "calendar",
+      "tasks",
+      "docs",
+      "projects",
+    ]);
+    expect(tiles).toHaveLength(TILES_MAX);
+    expect(ids(rest)[0]).toBe("mail");
+    expect(defaultPrefs(true)).toBe(FREE_DEFAULT_PREFS);
+  });
+
+  it("paid, trial and an unknown plan keep Mailbox on the tiles", () => {
+    expect(defaultPrefs(false)).toBe(DEFAULT_PREFS);
+    expect(prefsFromSettings(undefined)).toBe(DEFAULT_PREFS);
+    expect(ids(splitPlaces(prefsFromSettings({}, false)).tiles)).toContain(
+      "mail"
+    );
+  });
+
+  it("onboarding's list on Free skips Mailbox and fills the fifth tile", () => {
+    const { tiles, rest } = splitPlaces(
+      prefsFromSettings(
+        {
+          sidebarTiles: [
+            "mail",
+            "today",
+            "tasks",
+            "habits",
+            "docs",
+            "calendar",
+          ],
+        },
+        true
+      )
+    );
+    expect(ids(tiles)).toEqual([
+      "today",
+      "tasks",
+      "habits",
+      "docs",
+      "calendar",
+    ]);
+    expect(ids(rest)[0]).toBe("mail");
+  });
+
+  it("a layout the person saved is left as they set it, even on Free", () => {
+    const saved = {
+      sidebar: {
+        places: [
+          { id: "mail", on: true },
+          { id: "today", on: true },
+        ],
+      },
+    };
+    const { tiles } = splitPlaces(prefsFromSettings(saved, true));
+    expect(ids(tiles)).toEqual(["mail", "today"]);
   });
 });
 
