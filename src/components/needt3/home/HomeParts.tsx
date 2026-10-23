@@ -8,6 +8,7 @@ import { LuWandSparkles } from "react-icons/lu";
 import { Art } from "@/components/needt3/menu/Art";
 import { lockedBadgeProps } from "@/components/needt3/paywall/Pro";
 import { Task } from "@/components/needt3/task/Task";
+import type { CompletionPhase } from "@/components/needt3/task/useCompletion";
 
 import type { V3Task } from "@/lib/needt3/map";
 
@@ -406,7 +407,7 @@ export function InboxCard({
 }: {
   list: readonly V3Task[];
   total: number;
-  phase: Readonly<Record<string, string>>;
+  phase: Readonly<Record<string, CompletionPhase>>;
   onCheck: (t: V3Task) => void;
   onOpen: (id: string) => void;
   onAll: () => void;
@@ -424,16 +425,24 @@ export function InboxCard({
       </header>
       {list.length ? (
         list.map((t) => (
-          <Task
+          // `.hd-row` is the desk row's fold: the height closes through
+          // grid-template-rows, so the rows below slide up
+          <div
             key={t.id}
-            layout="row"
-            density="mini"
-            task={t}
-            className="hd-inbox-row hd-inbox-item"
-            onToggle={() => onCheck(t)}
-            onOpen={onOpen}
-            style={{ opacity: phase[t.id] === "collapse" ? 0 : 1 }}
-          />
+            className={`hd-row${phase[t.id] === "collapse" ? " is-collapsing" : ""}`}
+          >
+            <div>
+              <Task
+                layout="row"
+                density="mini"
+                task={t}
+                phase={phase[t.id]}
+                className="hd-inbox-row hd-inbox-item"
+                onToggle={() => onCheck(t)}
+                onOpen={onOpen}
+              />
+            </div>
+          </div>
         ))
       ) : (
         <p className="hd-inbox-none">
