@@ -105,6 +105,10 @@ class WI:
         return a.get("WIRApplicationBundleIdentifierKey", "")
 
     def pages(self):
+        if not self.apps:
+            self.send("_rpc_getConnectedApplications:", {"WIRConnectionIdentifierKey": self.conn})
+            if not self.pump(lambda: self.apps, 4):
+                raise SystemExit("the inspector reports no applications on this connection")
         ready = [a for a, v in self.apps.items()
                  if not str(v.get("WIRApplicationBundleIdentifierKey", "")).startswith("process-")]
         for app_id in ready:
@@ -226,6 +230,7 @@ PORT = int(os.environ.get("WI_PORT", "9333"))
 
 def serve():
     from http.server import BaseHTTPRequestHandler, HTTPServer
+    os.environ["WI_TRACE"] = "1"
     state = {"wi": None}
 
     def conn():
@@ -252,9 +257,11 @@ def serve():
                     out, err = eval_on(wi, q["js"], q.get("want"), q.get("url"))
                     if out:
                         break
+                    print("eval:", err, flush=True)
                     time.sleep(2)
                 except (SystemExit, OSError) as e:
                     err = f"connection lost: {e}"
+                    print(err, "- reconnecting", flush=True)
                     try:
                         state["wi"].s.close()
                     except Exception:
@@ -267,8 +274,8 @@ def serve():
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, *a):
-            print("wi serve:", *a, flush=True)
+        def log_message(self, fmt, *a):
+            print("wi serve:", fmt % a, flush=True)
 
     HTTPServer(("127.0.0.1", PORT), H).serve_forever()
 
