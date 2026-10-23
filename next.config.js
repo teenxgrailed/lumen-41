@@ -14,16 +14,6 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
-  // The application is private; only the landing on needt.app is indexable.
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-    ];
-  },
-
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -61,11 +51,6 @@ const nextConfig = {
     "yjs",
   ],
 
-  // The self-hosted design-system fonts never change under a given name: each
-  // filename in public/fonts/ds/ carries a hash of its content, so a changed
-  // font ships under a new URL. That makes a year-long immutable cache safe.
-  // Scoped to /fonts/ds/ because the other files under /fonts/ are not
-  // content-addressed and would be served stale after a change.
   // Documents live at /pages; /docs (the name people and old links use) was a
   // 404. Temporary (307), so /docs stays free for public API docs later.
   async redirects() {
@@ -75,8 +60,16 @@ const nextConfig = {
     ];
   },
 
+  // One headers() only: a second key in this object literal silently replaces
+  // the first (the global X-Robots-Tag was lost that way).
   async headers() {
     return [
+      {
+        // The application is private; only the landing on needt.app is
+        // indexable. middleware.ts sets the same header on every response too.
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
       {
         // The OAuth consent page must never be framed (clickjacking).
         source: "/oauth/:path*",
@@ -89,6 +82,12 @@ const nextConfig = {
         ],
       },
       {
+        // The self-hosted design-system fonts never change under a given
+        // name: each filename in public/fonts/ds/ carries a hash of its
+        // content, so a changed font ships under a new URL. That makes a
+        // year-long immutable cache safe. Scoped to /fonts/ds/ because the
+        // other files under /fonts/ are not content-addressed and would be
+        // served stale after a change.
         source: "/fonts/ds/:file*",
         headers: [
           {
