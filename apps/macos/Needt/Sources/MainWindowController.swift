@@ -10,6 +10,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
     static let titleBarHeight: CGFloat = 52
 
     let web: NeedtWebView
+    /// Where the page says its top-bar controls are centred (points from the
+    /// window's top). Nil until the page reports; then the constants apply.
+    private var reportedBarCenter: CGFloat?
 
     init(url: URL) {
         let window = NSWindow(
@@ -62,8 +65,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
 
     // MARK: traffic lights
 
-    /// Moves the three buttons to (18, 20) from the top-left corner and makes
-    /// the title bar 52 pt tall so they are not clipped. The system lays them
+    /// Moves the three buttons to x 18 from the left, vertically centred on the
+    /// page's top-bar controls (52 pt bar centre until the page reports), and
+    /// makes the title bar tall enough that they are not clipped. The system lays them
     /// out again on resize and full screen, so this runs after those too.
     func positionTrafficLights() {
         guard let window,
@@ -74,14 +78,17 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
         else { return }
         guard !window.styleMask.contains(.fullScreen) else { return }
 
-        let height = Self.titleBarHeight
+        // Centre of the lights, from the window's top: the page's own toggle
+        // when it has reported, else the middle of the default 52 pt bar.
+        let center = reportedBarCenter ?? Self.titleBarHeight / 2
+        let height = max(Self.titleBarHeight, ceil(center + close.frame.height / 2))
         var frame = bar.frame
         frame.size.height = height
         frame.origin.y = window.frame.height - height
         bar.frame = frame
 
         let pitch: CGFloat = 20
-        let y = (height - close.frame.height) / 2
+        let y = height - center - close.frame.height / 2
         for (index, button) in [close, mini, zoom].enumerated() {
             button.setFrameOrigin(NSPoint(x: Self.trafficLightOrigin.x + CGFloat(index) * pitch, y: y))
         }
@@ -104,6 +111,12 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
     func bridgeDidRequestDrag(_ event: NSEvent?) {
         guard let window, let event, event.type == .leftMouseDown else { return }
         window.performDrag(with: event)
+    }
+
+    func bridgeDidReportTopBarCenter(_ y: CGFloat) {
+        guard reportedBarCenter == nil || abs(reportedBarCenter! - y) > 0.25 else { return }
+        reportedBarCenter = y
+        positionTrafficLights()
     }
 
     func bridgeDidRequestZoom() {

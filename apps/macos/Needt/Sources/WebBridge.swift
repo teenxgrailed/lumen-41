@@ -151,11 +151,14 @@ enum WebBridge {
 protocol BridgeHost: AnyObject {
     func bridgeDidRequestDrag(_ event: NSEvent?)
     func bridgeDidRequestZoom()
+    /// The page's top-bar control centre, in points from the window's top edge.
+    func bridgeDidReportTopBarCenter(_ y: CGFloat)
 }
 
 extension BridgeHost {
     func bridgeDidRequestDrag(_ event: NSEvent?) {}
     func bridgeDidRequestZoom() {}
+    func bridgeDidReportTopBarCenter(_ y: CGFloat) {}
 }
 
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
@@ -210,6 +213,12 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         case "needt-tray-state":
             if let payload, let state = TrayState.parse(json: payload) {
                 AppController.shared.tray.report(state)
+            }
+        case "needt-topbar-center":
+            // The vertical centre of the page's sidebar toggle: the traffic
+            // lights are centred on it so they line up with the page's controls.
+            if let y = (payload as? NSNumber)?.doubleValue, y.isFinite, y > 8, y < 120 {
+                host?.bridgeDidReportTopBarCenter(CGFloat(y))
             }
         case "needt-signed-in":
             AppController.shared.auth.signedIn()

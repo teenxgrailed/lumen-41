@@ -1,7 +1,11 @@
-import { AutoScheduleSettings, Task } from "@prisma/client";
+import { AutoScheduleSettings, SubscriptionPlan, Task } from "@prisma/client";
 
 import { addDays, newDate } from "@/lib/date-utils";
+import { getPlan } from "@/lib/entitlements";
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import { ENERGY_CURVE } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
+import { type Chronotype, isChronotype } from "@/lib/needt3/chronotype";
 import { prisma } from "@/lib/prisma";
 
 import { useSettingsStore } from "@/store/settings";
@@ -86,6 +90,19 @@ export class SchedulingService {
   }
 
   private userTimeZone?: string;
+  private chronotype: Chronotype | null = null;
+
+  /** The chronotype curve, only for Pro people with `energy_curve` on. */
+  private async loadChronotype(userId: string): Promise<void> {
+    this.chronotype = null;
+    if (!(await isFeatureEnabled(ENERGY_CURVE, userId))) return;
+    if ((await getPlan(userId)) === SubscriptionPlan.FREE) return;
+    const profile = await prisma.energyProfile.findUnique({
+      where: { userId },
+      select: { chronotype: true },
+    });
+    if (isChronotype(profile?.chronotype)) this.chronotype = profile.chronotype;
+  }
 
   private async loadUserTimeZone(userId: string): Promise<void> {
     const userSettings = await prisma.userSettings.findUnique({
@@ -119,7 +136,8 @@ export class SchedulingService {
     const manager = new TimeSlotManagerImpl(
       settings,
       this.calendarService,
-      this.userTimeZone
+      this.userTimeZone,
+      this.chronotype
     );
 
     this.endMetric("getTimeSlotManager", startTime);
@@ -138,6 +156,7 @@ export class SchedulingService {
 
     // Resolve the user's timezone so work hours apply in their local time
     await this.loadUserTimeZone(userId);
+    await this.loadChronotype(userId);
 
     // Get initial scores for all tasks
     const timeSlotManager = this.getTimeSlotManager();
