@@ -177,3 +177,15 @@ html[data-desktop-shell="swift"] .needt-v3 .cn-sheet-col.is-glass {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+
+/* LESS WORK PER FRAME IN THE SWIFT SHELL. Text on a sky carried an 18 px
+ * blurred halo; the sky repaints at 15 fps, and each repaint re-rasterised
+ * every halo over it. The 1 px shadow stays for legibility. Cards that float
+ * over a sky already have their own opaque surface. */
+html[data-desktop-shell="swift"] .needt-v3 .px-on-sky {
+  text-shadow: 0 1px 2px var(--px-shadow);
+}
+/* An idle sky stops drawing; its grain layer has nothing to animate either. */
+html[data-desktop-shell="swift"] .needt-v3 .px-sky {
+  contain: paint;
+}

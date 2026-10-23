@@ -38,6 +38,7 @@ export function HaHighlight({
   count = 1,
   locked,
   late,
+  completing,
   onYes,
   onAnother,
   onUpgrade,
@@ -57,6 +58,8 @@ export function HaHighlight({
   locked?: boolean;
   /** nextup: the task is overdue (the one place red is a word, never a fill). */
   late?: boolean;
+  /** nextup: Done was just pressed; the title is struck until the card moves on. */
+  completing?: boolean;
   onYes?: () => void;
   onAnother?: () => void;
   onUpgrade?: () => void;
@@ -87,7 +90,11 @@ export function HaHighlight({
       </span>
     );
   const body: ReactNode = (
-    <div className="ha-hl-in" key={state + card.id + index} data-ha-hl={state}>
+    <div
+      className={haCx("ha-hl-in", completing && "is-completing")}
+      key={state + card.id + index}
+      data-ha-hl={state}
+    >
       <div className="ha-hl-top">
         {kicker}
         {card.time ? <span className="ha-hl-time">{card.time}</span> : null}

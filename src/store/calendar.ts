@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 
 import { APP_NAME } from "@/lib/app-config";
 import { newDate, normalizeAllDayDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import { DEFAULT_TASK_COLOR } from "@/lib/task-utils";
 
 import { useTaskStore } from "@/store/task";
@@ -16,6 +17,12 @@ import {
   CalendarView,
   CalendarViewState,
 } from "@/types/calendar";
+
+const LOG_SOURCE = "CalendarStore";
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
 
 // Separate store for view preferences that will be persisted in localStorage
 interface ViewStore extends CalendarViewState {
@@ -157,7 +164,6 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
   ) => {
     const { events } = get();
     const expandedEvents: CalendarEvent[] = [];
-    // console.log("Total events in store:", events.length);
 
     events.forEach((event) => {
       // Convert event dates to Date objects if they're not already
@@ -220,8 +226,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
             }
           });
         } catch (error) {
-          console.error("Failed to parse recurrence rule:", error);
-          console.log("recurrenceRule:", event.recurrenceRule);
+          logger.warn(
+            "Failed to parse recurrence rule",
+            { eventId: event.id, error: errorMessage(error) },
+            LOG_SOURCE
+          );
           // If we can't parse the rule, just show the original event
           if (eventStart <= end && eventEnd >= start) {
             expandedEvents.push({
@@ -234,7 +243,6 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       }
     });
 
-    // console.log("Returning expanded events:", expandedEvents.length);
     return expandedEvents;
   },
 
@@ -291,7 +299,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         await get().syncFeed(id);
       }
     } catch (error) {
-      console.error("Failed to add feed:", error);
+      logger.error(
+        "Failed to add feed",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -327,7 +339,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         events: state.events.filter((event) => event.feedId !== id),
       }));
     } catch (error) {
-      console.error("Failed to remove feed:", error);
+      logger.error(
+        "Failed to remove feed",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -368,7 +384,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error("Failed to toggle feed:", error);
+      logger.error(
+        "Failed to toggle feed",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -409,7 +429,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error("Failed to update feed:", error);
+      logger.error(
+        "Failed to update feed",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -512,7 +536,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       // For other calendars, throw an error
       throw new Error("Unsupported calendar type");
     } catch (error) {
-      console.error("Failed to add event:", error);
+      logger.error(
+        "Failed to add event",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -525,7 +553,6 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       const feed = get().feeds.find((f) => f.id === event.feedId);
       if (!feed) return;
 
-      // console.log("Updating event:", { id, updates, mode });
       // For Google Calendar feeds, use the Google Calendar API
       if (feed.type === "GOOGLE") {
         const response = await fetch(`/api/calendar/google/events`, {
@@ -589,7 +616,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       // For other calendars, throw an error
       throw new Error("Unsupported calendar type");
     } catch (error) {
-      console.error("Failed to update event:", error);
+      logger.error(
+        "Failed to update event",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -652,7 +683,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       const { triggerScheduleAllTasks } = useTaskStore.getState();
       await triggerScheduleAllTasks();
     } catch (error) {
-      console.error("Failed to remove event:", error);
+      logger.error(
+        "Failed to remove event",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       throw error;
     }
   },
@@ -704,7 +739,11 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       const { triggerScheduleAllTasks } = useTaskStore.getState();
       await triggerScheduleAllTasks();
     } catch (error) {
-      console.error("Failed to sync feed:", error);
+      logger.error(
+        "Failed to sync feed",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       // Update feed with error
       await get().updateFeed(id, {
         error: error instanceof Error ? error.message : "Unknown error",
@@ -729,30 +768,26 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
       set({ isLoading: true, error: undefined });
 
       // Load feeds
-      // console.log("Fetching feeds...");
       const feedsResponse = await fetch("/api/feeds");
       if (!feedsResponse.ok) {
         throw new Error("Failed to load feeds from database");
       }
       const feeds = await feedsResponse.json();
-      // console.log("Loaded feeds:", feeds);
 
       // Load events
-      // console.log("Fetching events...");
       const eventsResponse = await fetch("/api/events");
       if (!eventsResponse.ok) {
         throw new Error("Failed to load events from database");
       }
       const events = await eventsResponse.json();
-      // console.log("Loaded events:", events);
 
-      // console.log("Setting state with loaded data:", {
-      //   feeds: feeds.length,
-      //   events: events.length,
-      // });
       set({ feeds, events });
     } catch (error) {
-      console.error("Failed to load data from database:", error);
+      logger.error(
+        "Failed to load data from database",
+        { error: errorMessage(error) },
+        LOG_SOURCE
+      );
       set({ error: error instanceof Error ? error.message : "Unknown error" });
     } finally {
       set({ isLoading: false });
@@ -981,7 +1016,6 @@ export const useCalendarStore = create<CalendarStore>()((set, get) => ({
 
   // Get both events and tasks for the calendar
   getAllCalendarItems: (start: Date, end: Date) => {
-    // console.log("Getting all calendar items:", { start, end });
     const events = get().getExpandedEvents(start, end);
     const taskEvents = get().getTasksAsEvents(start, end);
     return [...events, ...taskEvents];
