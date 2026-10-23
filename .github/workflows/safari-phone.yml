@@ -242,6 +242,43 @@ jobs:
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
 
+      # The phone Focus button (additions-2/focus-done, fd-): drawn only while a
+      # session runs. The shots above are the idle state (no button); these are
+      # running, paused and ending, light and dark.
+      - name: Focus button states
+        timeout-minutes: 20
+        run: |
+          set -uo pipefail
+          open_url() {
+            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
+            for i in $(seq 1 30); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
+              sleep 3
+            done
+            sleep 3
+          }
+          # the fog dots drift (1.2 px/s): two shots 8 s apart must differ
+          npx tsx .github/safari/seed-focus.ts none
+          xcrun simctl ui "$UDID" appearance light
+          open_url /today
+          xcrun simctl io "$UDID" screenshot "shots/08-fog-a.png"
+          sleep 8
+          xcrun simctl io "$UDID" screenshot "shots/08-fog-b.png"
+          if cmp -s shots/08-fog-a.png shots/08-fog-b.png; then echo "FOG DOTS STILL"; else echo "fog dots move"; fi
+          for state in running paused ending; do
+            npx tsx .github/safari/seed-focus.ts "$state"
+            for theme in light dark; do
+              xcrun simctl ui "$UDID" appearance "$theme"
+              sleep 2
+              open_url /today
+              sleep 2
+              xcrun simctl io "$UDID" screenshot "shots/$theme-07-focus-$state.png"
+            done
+          done
+          npx tsx .github/safari/seed-focus.ts none
+        continue-on-error: true
+
       - name: Keep the server log
         if: always()
         run: cp "$RUNNER_TEMP/next.log" next.log || true
