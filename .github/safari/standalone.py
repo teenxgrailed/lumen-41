@@ -80,13 +80,21 @@ def check(name, theme, before=None):
     sh("xcrun", "simctl", "io", UDID, "screenshot", path)
     s = state()
     chrome, els = native_chrome()
+    # Safari's in-app view is a remote view idb cannot see: its bar shows the
+    # host name at the top, which OCR reads
+    w, h = ui.screen()
+    os.makedirs("debug", exist_ok=True)
+    sh("cp", path, f"debug/ocr-{name}.png")
+    top = [t for t, _, y in ui.ocr(f"ocr-{name}", w, h) if y < 130]
+    chrome += [f"top text {t!r}" for t in top if "127.0.0.1" in t or "localhost" in t]
     if "innerHeight" not in BASE and s.get("innerHeight"):
         BASE["innerHeight"] = s["innerHeight"]
     with open("debug/standalone-state.jsonl", "a") as f:
         f.write(json.dumps({"shot": name, "state": s, "native": chrome}) + "\n")
     log(f"{name}: standalone={s.get('standalone')} displayMode={s.get('displayMode')} "
         f"innerHeight={s.get('innerHeight')} screen={s.get('screenH')} path={s.get('path')} "
-        f"dockGap={s.get('dockGap')} ground={s.get('ground')} native={chrome}")
+        f"dockGap={s.get('dockGap')} ground={s.get('ground')} theme={s.get('theme')} "
+        f"scrollY={s.get('scrollY')} chrome={chrome} topText={top[:6]}")
     shrunk = BASE.get("innerHeight") and s.get("innerHeight") and s["innerHeight"] < BASE["innerHeight"] - 4
     if chrome or s.get("standalone") is False or shrunk:
         msg = f"{name}: Safari chrome (native {chrome}, standalone={s.get('standalone')}, innerHeight {s.get('innerHeight')} vs {BASE.get('innerHeight')})"
