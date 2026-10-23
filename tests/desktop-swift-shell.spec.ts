@@ -74,10 +74,14 @@ function swiftBridge() {
 async function openToday(
   browser: Browser,
   scheme: "light" | "dark",
-  viewport: { width: number; height: number } = { width: 1440, height: 900 }
+  viewport: { width: number; height: number; dpr?: number } = {
+    width: 1440,
+    height: 900,
+  }
 ): Promise<{ page: Page; close: () => Promise<void> }> {
   const context = await browser.newContext({
-    viewport,
+    viewport: { width: viewport.width, height: viewport.height },
+    deviceScaleFactor: viewport.dpr ?? 1,
     colorScheme: scheme,
     serviceWorkers: "block",
     baseURL: BASE,
@@ -378,6 +382,8 @@ for (const engine of ENGINES) {
 const SIZES = [
   { width: 1440, height: 900 },
   { width: 2000, height: 1300 },
+  // The owner's Mac: a 2000x1300 window on a Retina screen.
+  { width: 2000, height: 1300, dpr: 2 },
 ] as const;
 
 async function skyReport(page: Page) {
@@ -445,7 +451,7 @@ async function skyReport(page: Page) {
 
 for (const engine of ENGINES) {
   for (const size of SIZES) {
-    test(`Swift shell paints, ${engine.name}, ${size.width}x${size.height}`, async ({
+    test(`Swift shell paints, ${engine.name}, ${size.width}x${size.height}@${"dpr" in size ? size.dpr : 1}`, async ({
       baseURL,
     }, testInfo) => {
       void baseURL;
@@ -457,7 +463,8 @@ for (const engine of ENGINES) {
         return;
       }
       mkdirSync(SHOTS, { recursive: true });
-      const tag = `${engine.name}-${size.width}`;
+      const dpr = "dpr" in size ? size.dpr : 1;
+      const tag = `${engine.name}-${size.width}x${dpr}`;
       const shot = async (page: Page, name: string) => {
         const path = join(SHOTS, `paint-${tag}-${name}.png`);
         await page.screenshot({ path });
@@ -500,6 +507,9 @@ for (const engine of ENGINES) {
         // Resting corner: the pill (142x40), never wider than one toast (376).
         expect.soft(corner!.visible[0]).toBeLessThanOrEqual(376);
         expect.soft(corner!.visible[1]).toBeLessThanOrEqual(54 * 4 + 28);
+        // The corner's own box is never bigger than one toast either.
+        expect.soft(corner!.anchor.width).toBeLessThanOrEqual(376);
+        expect.soft(corner!.anchor.height).toBeLessThanOrEqual(54 * 4 + 28);
         expect.soft(corner!.probeIsShell).toBe(false);
 
         // Ask Needt opens.
