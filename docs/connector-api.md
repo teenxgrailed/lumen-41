@@ -137,8 +137,9 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                       |
 | `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                           |
 | `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                         |
-| `needt_blocking`             | `needt.read`                                   | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking                                                                           |
-| `needt_blocking_profile`     | `needt.write`                                  | Create, update (only the fields given) or delete a focus blocking profile                                                                                                                          |
+
+| `needt_blocking` | `needt.read` | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking |
+| `needt_blocking_profile` | `needt.write` | Create, update (only the fields given) or delete a focus blocking profile |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -1096,6 +1097,41 @@ query) and marks with `POST /api/notifications/read`, using the signed-in
 session instead of a token. `GET /api/notifications` without `feed=1` is the
 older nudge delivery the corner tip uses; it marks what it returns as
 delivered, so do not poll it from a script.
+
+## Quick-add parsing
+
+Pro. Session or bearer token. Saves nothing: it turns a line of text into
+task fields, so every surface (browser extension, island, bots, scripts)
+reads quick-add the same way.
+
+```bash
+curl -X POST https://use.needt.app/api/quick-add/parse \
+  -H "Authorization: Bearer $NEEDT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "text": "Call Anna tomorrow at 3pm 30m #Work !high" }'
+```
+
+```json
+{
+  "title": "Call Anna",
+  "start": "2026-10-22T12:00:00.000Z",
+  "estimatedMinutes": 30,
+  "priorityLevel": "HIGH",
+  "project": "Work",
+  "tokens": [{ "kind": "date", "text": "tomorrow at 3pm", "index": 10 }, …],
+  "timeZone": "Europe/Kyiv"
+}
+```
+
+- Dates and times are parsed in English, Russian, Ukrainian, German, French,
+  Spanish, Italian, Portuguese and Dutch (chrono-node), in `timeZone` (default:
+  the person's own).
+- A time gives `start`; a day without a time gives `deadline` at the end of
+  that day.
+- `2h`, `90m`, `1.5ч`, `30 мин` give `estimatedMinutes`.
+- `!low`, `!medium`, `!high`, `!urgent` (or `!1`–`!4`) give `priorityLevel`.
+- `#name` gives `project`, which the caller matches to a project id.
+- `tokens` lists what was read, with each token's position in the original
+  text, so inputs can highlight them.
 
 ## Energy curve
 
