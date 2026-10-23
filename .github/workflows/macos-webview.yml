@@ -76,7 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           APP=build-ci/Build/Products/Release/Needt.app
-          strings "$APP/Contents/MacOS/Needt" | grep -q -- "--ci-session-cookie"
+          strings "$APP/Contents/MacOS/Needt" > "$RUNNER_TEMP/ci-strings.txt"
+          grep -q -- "--ci-session-cookie" "$RUNNER_TEMP/ci-strings.txt"
           mkdir -p out
           ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-ci.zip
 
