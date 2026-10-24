@@ -66,9 +66,12 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
 /* iOS only (budget mode, owner-confirmed on the landing and in #327): Safari
  * samples the paint at the top (~4 px) and bottom (~3 px) edge once and keeps
  * that tint for its status bar and toolbar, even when the paint is an
- * absolute child of a zero-height fixed host. So no layer reaches the edge:
- * the page ground (html / body, static) shows in the last few px and the bars
- * take it. */
+ * absolute child of a zero-height fixed host. What it samples is a colour, so
+ * only the layers that paint one (the band's tint, the fog's wash, the scrim)
+ * stop short of the edge and the page ground (html / body, static) shows in
+ * the last few px. The blur steps paint no colour of their own (transparent,
+ * a masked backdrop-filter): they run to the display edge, so what scrolls
+ * under the status bar is blurred, not a sharp sliver of a row. */
 @supports (-webkit-touch-callout: none) {
   .needt-v3[data-ui="phone"] {
     --v3-gap-top: 6px;
@@ -137,7 +140,21 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
 }
 .needt-v3[data-ui="phone"] .pk-topband > * {
   inset: auto 0 0 0;
+  height: var(--ps-top-h);
+}
+.needt-v3[data-ui="phone"] .pk-topband > :not(.pk-blur) {
   height: calc(var(--ps-top-h) - var(--v3-gap-top));
+}
+/* In a Safari tab the layout viewport (and so `top: 0` of anything fixed)
+ * starts below the status bar, ~62 px on a Dynamic Island iPhone, while the
+ * page still scrolls under the status bar. The blur steps reach that far past
+ * the viewport top too, so what scrolls there is blurred (probe shot
+ * *-02-today-scrolled). Only the blur: it has no colour for Safari to read. */
+html[data-display-mode="browser"]
+  .needt-v3[data-ui="phone"]
+  .pk-topband
+  > .pk-blur {
+  height: calc(var(--ps-top-h) + 72px);
 }
 /* Bottom fog (phone-shell .ps-bot, painted in phone-shell.css): its box
  * reaches the display edge; the dots keep their place from the bottom. */
@@ -156,6 +173,9 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
 }
 .needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots) {
   inset: 0 0 auto 0;
+  height: var(--ps-fog-h);
+}
+.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots, .pk-blur) {
   height: calc(var(--ps-fog-h) - var(--v3-gap-bot));
 }
 .needt-v3[data-ui="phone"] .pk-fog-dots.is-1 {
@@ -178,7 +198,10 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
   inset: calc(var(--v3-gap-top) - var(--v3-edge)) 0
     calc(var(--v3-gap-bot) - var(--v3-edge)) 0;
 }
-.needt-v3[data-ui="phone"] .nva-glass {
+/* Menu A places these in display coordinates (its geometry adds the inset
+ * back), but `.nva` stands `--v3-edge` in from the top: shift them back out,
+ * or New task and the Focus button sit 8 px below the pill's centre. */
+.needt-v3[data-ui="phone"] :is(.nva-glass, .nva-add, .nva-focus) {
   top: calc(-1 * var(--v3-edge));
 }
 

@@ -1036,18 +1036,22 @@
   white-space: nowrap;
 }
 
-/* The Focus button: the mirror of "New task" on the pill's other side, drawn
- * only while a session runs. `.nva-focus` is placed by Menu (the same
- * transform channel as `.nva-add`, mirrored); `.nva-focus-btn` is the glass
- * with the time-left ring. The accent is the ring's mark, never a fill. The
- * size, glass and rim are `.nva-add`'s. */
+/* The Focus button, drawn only while a session runs: 64 px, 10 px left of the
+ * pill, and New task steps out (additions-2/focus-done `.fd-dockrow`).
+ * `.nva-focus` is placed by Menu (the same transform channel as `.nva-add`);
+ * `.nva-focus-btn` is the glass with the time-left ring. The accent is the
+ * ring's mark, never a fill. The glass and rim are `.nva-add`'s. */
 .needt-v3 .nva-focus {
   position: absolute;
   left: 0;
   top: 0;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   pointer-events: none;
+}
+/* the focus row's pill has no separator before the dot grid (`.fd-dock`) */
+.needt-v3 .nva.is-focus .nva-hair {
+  visibility: hidden;
 }
 .needt-v3 .nva.is-away .nva-focus,
 .needt-v3 .nva.is-morph .nva-focus {
@@ -1055,11 +1059,11 @@
 }
 .needt-v3 .nva-focus-btn {
   position: relative;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border: 0;
-  border-radius: 27px;
+  border-radius: 32px;
   isolation: isolate;
   display: grid;
   place-items: center;
@@ -1099,13 +1103,14 @@
 }
 .needt-v3 .nva-focus-ring {
   position: absolute;
-  inset: 0;
+  inset: 5px;
 }
 .needt-v3 .nva-focus-arc {
   transition: stroke-dashoffset 1s linear;
 }
 .needt-v3 .nva-focus-time {
   position: relative;
+  /* the design's 14 px is a chrome size the house scale has not (13 / 12) */
   font: 600 13px/1 var(--font-sans);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
