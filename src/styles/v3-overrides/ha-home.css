@@ -236,6 +236,11 @@
 .needt-v3 .ha-tl-warn { margin-top: 6px; display: flex; align-items: center; gap: 8px; font: 400 13px/1.35 var(--font-sans); color: var(--ha-ink-2); }
 .needt-v3 .ha-tl-warn i { width: 6px; height: 6px; border-radius: 3px; background: var(--ha-alert); flex: none; }
 .needt-v3 .ha-tl-warn button { margin-left: auto; }
+/* Spread across the week: its own row under the warning, aligned with its words. */
+.needt-v3 .ha-tl-warn:has(.ha-tl-act) { flex-wrap: wrap; row-gap: 0; }
+.needt-v3 .ha-tl-warn .ha-tl-act { flex: 0 0 calc(100% - 14px); margin-left: 14px; padding: 0; height: 28px; justify-content: flex-start; color: var(--ha-ink); }
+.needt-v3 .ha-tl-warn .ha-tl-act + button { margin-left: 8px; }
+.needt-v3 .ha-tl-warn .ha-tl-act[disabled] { color: var(--ha-ink-3); }
 
 /* ── 8 · Personal time band ────────────────────────────────────────────── */
 .needt-v3 .ha-tline { position: relative; }
@@ -277,6 +282,10 @@
 /* v2 tweaks after first render */
 .needt-v3 .ha-hl-title { overflow-wrap: break-word; word-break: normal; hyphens: none; }
 .needt-v3 .ha-phone .ha-hl-title { font-size: 23px; }
+/* A long title keeps the card's height: two lines, then an ellipsis (the
+   whole title is the h2's tooltip). The clamp sits on the text itself: a
+   button is one atomic box, so a clamp on the h2 cannot cut through it. */
+.needt-v3 .ha-hl-tx { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .needt-v3 .ha-hl-ask { flex-wrap: wrap; row-gap: 10px; padding: 12px 12px 12px 14px; }
 .needt-v3 .ha-hl-ask span { flex: 1 1 100%; }
 .needt-v3 .ha-hl-ask .ha-hl-dots { flex: none; margin-left: auto; }
@@ -290,7 +299,7 @@
 /* Port glue (no new colour, no new size): the title opens the task, an
    overdue Next up says so in the alert colour, the PRO pill inside a filled
    button swaps its ground, and the phone pieces stack with the design's gap. */
-.needt-v3 .ha-hl-open { display: inline; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.needt-v3 .ha-hl-open { display: block; max-width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
 .needt-v3 .ha-kicker.is-late { color: var(--ha-alert); }
 .needt-v3 .ha-btn.is-primary .pro-badge { background: var(--ha-ground); color: var(--ha-ink); box-shadow: none; }
 .needt-v3 .ha-ph-stack { display: flex; flex-direction: column; gap: 16px; }
