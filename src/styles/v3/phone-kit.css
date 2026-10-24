@@ -43,8 +43,6 @@
    frame's status bar (ios-frame z 10), over rows (z 1). */
 .needt-v3 .pk-topband { position: absolute; left: 0; right: 0; top: 0; height: 116px; z-index: 9; pointer-events: none; }
 .needt-v3 .pk-topband > * { position: absolute; inset: 0; opacity: var(--pk-band); }
-.needt-v3 .pk-topband .pk-blur { --pk-dir: to top; }
-.needt-v3 .pk-topband-wash { background: linear-gradient(to bottom, var(--pk-mist) 0%, var(--pk-mist) 45%, var(--pk-fog-0) 100%); }
 .needt-v3 .pk-compact { position: absolute; left: 64px; right: 64px; top: 52px; height: 44px; z-index: 9; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .needt-v3 .pk-compact-title { font: 600 17px/22px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   opacity: var(--pk-kt); transform: translateY(calc((1 - var(--pk-kt)) * 8px)); }

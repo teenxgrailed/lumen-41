@@ -118,14 +118,13 @@ describe("phone page ground", () => {
     );
     expect(css).toContain("--v3-gap-top: 0px");
     expect(css).toContain("--v3-gap-bot: 0px");
-    // the tint and the wash (a colour) stop short of the edge ...
-    expect(
-      rule('.needt-v3[data-ui="phone"] .pk-topband > :not(.pk-blur)')
-    ).toContain("height: calc(var(--ps-top-h) - var(--v3-gap-top))");
+    // the fog's wash (a colour) stops short of the edge; the top band has
+    // no coloured layer left at all (one blur, owner decision 2026-10-24) ...
+    expect(css).not.toContain(".pk-topband > :not(.pk-blur)");
     expect(
       rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots, .pk-blur)')
     ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
-    // ... the blur steps (no colour of their own) run to it, so nothing
+    // ... the blur layers (no colour of their own) run to it, so nothing
     // scrolled shows sharp in the last few px
     expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
       "height: var(--ps-top-h);"

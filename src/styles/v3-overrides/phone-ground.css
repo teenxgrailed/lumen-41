@@ -89,7 +89,7 @@ html[data-ground="page"]:has(
   --v3-edge: 8px;
   /* The collapsed header's row; the top band is sized from it. */
   --v3-compact-h: 44px;
-  /* How far the blur / tint / fog paint stops short of the display edge. 0
+  /* How far the coloured paint (fog wash, scrim) stops short of the display edge. 0
    * everywhere but iOS, which sets it below. */
   --v3-gap-top: 0px;
   --v3-gap-bot: 0px;
@@ -98,11 +98,11 @@ html[data-ground="page"]:has(
  * samples the paint at the top (~4 px) and bottom (~3 px) edge once and keeps
  * that tint for its status bar and toolbar, even when the paint is an
  * absolute child of a zero-height fixed host. What it samples is a colour, so
- * only the layers that paint one (the band's tint, the fog's wash, the scrim)
- * stop short of the edge and the page ground (html / body, static) shows in
- * the last few px. The blur steps paint no colour of their own (transparent,
- * a masked backdrop-filter): they run to the display edge, so what scrolls
- * under the status bar is blurred, not a sharp sliver of a row. */
+ * only the layers that paint one (the fog's wash, the scrim) stop short of
+ * the edge and the page ground (html / body, static) shows in the last few
+ * px. The blur layers paint no colour of their own (transparent, a masked
+ * backdrop-filter): they run to the display edge, so what scrolls under the
+ * status bar is blurred, not a sharp sliver of a row. */
 @supports (-webkit-touch-callout: none) {
   .needt-v3[data-ui="phone"] {
     --v3-gap-top: 6px;
@@ -176,13 +176,15 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
   height: var(--v3-compact-h);
 }
 /* Top band (phone-shell .ps-top, painted in phone-shell.css): the status
- * row plus 52 px for the collapsed header, so 104 px in the installed app
- * (`--v3-top` is at least 52 there) and 52 px in a Safari tab, where the
- * header starts at the top of the viewport. The host has no height; the blur
- * steps and the tint are absolute children that reach up to the display edge
- * from the host's top, which is the band's inner edge. */
+ * row plus 64 px for the collapsed header, so 116 px in the installed app
+ * (`--v3-top` is at least 52 there) and 64 px in a Safari tab, where the
+ * header starts at the top of the viewport. The host has no height; its one
+ * blur layer is an absolute child that reaches up to the display edge from
+ * the host's top, which is the band's inner edge. The layer paints no colour
+ * (a masked backdrop-filter), so it runs to the edge: nothing scrolled shows
+ * sharp in the last few px, and Safari has no colour to sample there. */
 .needt-v3[data-ui="phone"] .pk-topband {
-  --ps-top-h: calc(var(--v3-top) + 52px);
+  --ps-top-h: calc(var(--v3-top) + 64px);
   top: var(--ps-top-h);
   height: 0;
 }
@@ -190,14 +192,11 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
   inset: auto 0 0 0;
   height: var(--ps-top-h);
 }
-.needt-v3[data-ui="phone"] .pk-topband > :not(.pk-blur) {
-  height: calc(var(--ps-top-h) - var(--v3-gap-top));
-}
 /* In a Safari tab the layout viewport (and so `top: 0` of anything fixed)
  * starts below the status bar, ~62 px on a Dynamic Island iPhone, while the
- * page still scrolls under the status bar. The blur steps reach that far past
+ * page still scrolls under the status bar. The blur reaches that far past
  * the viewport top too, so what scrolls there is blurred (probe shot
- * *-02-today-scrolled). Only the blur: it has no colour for Safari to read. */
+ * *-02-today-scrolled). It has no colour for Safari to read. */
 html[data-display-mode="browser"]
   .needt-v3[data-ui="phone"]
   .pk-topband
