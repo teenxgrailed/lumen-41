@@ -10,6 +10,11 @@ Authorization: Bearer needt_...
 Content-Type: application/json
 ```
 
+Some routes below are what the app's own screens call and are marked
+**Session only**: they answer the signed-in browser session (the NextAuth
+cookie) and refuse a `needt_...` token with `401`. Use the `/api/connect/*`
+routes or MCP from scripts and agents.
+
 ## MCP (Claude Code, Claude Desktop, claude.ai, ChatGPT)
 
 Needt runs a remote MCP server (Streamable HTTP, stateless, JSON responses,
@@ -68,7 +73,8 @@ workspace, so over MCP they answer only from the personal workspace, never from
 a Team workspace.
 
 The same token rules apply to the `/api/connect/*` routes below: reads need
-`needt.read`, writes `needt.write`.
+`needt.read`, writes `needt.write`. Writes there share the limit of 30 a
+minute per person that `/api/mcp` has.
 
 ### OAuth (claude.ai, ChatGPT, Claude Code)
 
@@ -111,31 +117,33 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                         | Scope                                          | What it does                                                                                                                                                                                       |
-| ---------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                               |
-| `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                    |
-| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page             |
-| `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                       |
-| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call |
-| `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                        |
-| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                                     |
-| `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                          |
-| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, fullTime, dependsOnId, originPageId; other fields are refused                                    |
-| `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                    |
-| `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                                 |
-| `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                             |
-| `needt_create_event`         | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                                    |
-| `needt_create_page`          | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                               |
-| `needt_append_page`          | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                               |
-| `needt_log_habit`            | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                                        |
-| `needt_create_personal_time` | `needt.write`                                  | Keep time for the person (lunch, break, walk, dinner, gym, party, rest, custom); no task is ever scheduled in it. See Personal time                                                                |
-| `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                                   |
-| `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                                |
-| `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                                 |
-| `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                       |
-| `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                           |
-| `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                         |
+| Tool                         | Scope                                          | What it does                                                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                                              |
+| `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                                   |
+| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                            |
+| `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                      |
+| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call                |
+| `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                       |
+| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`                                                                                                                                                                                    |
+| `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                         |
+| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, fullTime, dependsOnId, originPageId; other fields are refused                                                   |
+| `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                   |
+| `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                                                |
+| `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                                            |
+| `needt_attach_file`          | `needt.write`                                  | Attach an image (JPEG, PNG, WebP, GIF) or a PDF to a task from `contentBase64`, up to 4 MB and ten per task; the type is read from the bytes. `POST /api/connect/ops/task.attach`; the answer carries the undo id |
+| `needt_remove_attachment`    | `needt.write`                                  | Remove a file from a task by `attachmentId` (ids are in `needt_get` with `type: task`). The file is deleted for good, so it needs `confirm: true`. `POST /api/connect/ops/task.detach`                            |
+| `needt_create_event`         | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                                                   |
+| `needt_create_page`          | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                                              |
+| `needt_append_page`          | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                                              |
+| `needt_log_habit`            | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                                                       |
+| `needt_create_personal_time` | `needt.write`                                  | Keep time for the person (lunch, break, walk, dinner, gym, party, rest, custom); no task is ever scheduled in it. See Personal time                                                                               |
+| `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                                                  |
+| `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                                               |
+| `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                                                |
+| `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                                      |
+| `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                                          |
+| `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                                        |
 
 | `needt_blocking` | `needt.read` | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking |
 | `needt_blocking_profile` | `needt.write` | Create, update (only the fields given) or delete a focus blocking profile |
@@ -347,6 +355,8 @@ role; reading needs none beyond membership.
 
 ## Week focus
 
+**Session only.**
+
 The up to three focuses a person picks in the Sunday review for the week
 ahead. They are the first candidates for that week's daily highlight (Home
 offers a task that matches one before any other). Stored per user, workspace
@@ -491,6 +501,8 @@ curl https://use.needt.app/api/connect/today \
 ```
 
 ## Stats
+
+**Session only.**
 
 ```
 GET /api/stats?range=week|month
@@ -638,6 +650,8 @@ horizon, dueDay?, firstStep? }`; `suggestions` holds up to one extra tile per
   same op is callable at `/api/connect/ops/starter.create`.
 
 ## Weather
+
+**Session only.**
 
 ```
 GET /api/weather
@@ -840,6 +854,12 @@ curl http://localhost:3000/api/connect/ops \
 Returns `{ "ops": [{ "name", "description", "risk", "input" }] }`, where
 `input` is a JSON Schema. Unknown fields are rejected.
 
+The token needs the scope the risk implies: `needt.read` for a `read`
+operation, `needt.write` for any other (so a read-only token gets `403
+insufficient_scope` on every write, `task.detach` included), and `mail.read`
+as well for `mail.to_task`, which copies a message into a task. Writes count
+against 30 a minute per person, the same limit as `/api/mcp`.
+
 Run one with its input as the body:
 
 ```bash
@@ -1006,6 +1026,8 @@ curl -X POST http://localhost:3000/api/agent/actions/ACTION_ID/undo \
   is overwritten; each conflict names the row and both versions.
 - `422 { "status": "not_undoable", "reason" }` for `no_inverse`, `expired`,
   or `failed`.
+
+Undo changes data, so a token needs `needt.write` to call either undo route.
 
 `POST /api/agent/runs/RUN_ID/undo` undoes every action of an agent run,
 newest first. It stops at the first conflict and returns `409` with
@@ -1258,6 +1280,19 @@ end of the day" counts from the task's `completedAt`.
 Steps are numbered by position: the task's `entry` (its first two-minute step),
 when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
 step in a list is the same write as `needt_complete_subtask`.
+
+## Time zone, week start and clock
+
+`timeZone` (IANA), `weekStartDay` (`monday` / `sunday`) and `timeFormat`
+(`12h` / `24h`) are columns of the same `/api/user-settings` row. A new account
+starts in the zone its browser reports: `POST /api/auth/register` (and the
+first-run `POST /api/setup`) take optional `timeZone` and `locale` (a BCP 47
+tag such as `de-DE`; the week start and clock are derived from it). An account
+that still sits at the `UTC` default is moved once, on its first signed-in
+load, to the browser's zone, and a still-default Sunday / 12h follows the
+browser language. `prefs.tzAutoSet: true` records that this has happened; a
+client that sets the zone itself should set it too, so nothing replaces the
+value later.
 
 ## Moodboard items
 

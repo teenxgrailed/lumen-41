@@ -267,6 +267,15 @@ export function useOnboarding({
     } catch {
       /* Today still opens; setup can be shown again */
     }
+    try {
+      await sendJson("/api/onboarding", "POST", {});
+    } catch (error) {
+      void logger.warn(
+        "Onboarding completion not recorded",
+        { error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
+      );
+    }
     // A buy link that sent this person to sign up goes on where it was going.
     router.push(takePostAuthPath() ?? "/today");
   }

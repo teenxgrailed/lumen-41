@@ -219,13 +219,22 @@ jobs:
         env:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
+      - name: Upload task-completion motion frames
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: completion-frames
+          path: test-results/completion-frames
+          if-no-files-found: ignore
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-swift-shell-shots
           path: desktop-shots
           if-no-files-found: ignore
-      - if: failure()
+      # Always: the onboarding spec attaches a screenshot of every screen
+      # (desktop and phone) for visual review, not only on failure.
+      - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-e2e-report

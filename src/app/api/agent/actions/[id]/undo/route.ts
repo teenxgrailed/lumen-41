@@ -15,7 +15,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const auth = await authenticateAgentRequest(request, LOG_SOURCE);
+  const auth = await authenticateAgentRequest(request, LOG_SOURCE, {
+    write: true,
+  });
   if (auth.response) return auth.response;
   try {
     const result = await undoAction(id, auth.userId, auth.actor);

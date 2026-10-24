@@ -46,7 +46,7 @@ describe("nvaGeom", () => {
 describe("nvaShape", () => {
   it("the pill: 236 x 64, centred, radius is half its height", () => {
     const s = nvaShape(g, 0, 0);
-    expect(s).toEqual({ x: 67, y: 694, w: 236, h: 64, r: 32 });
+    expect(s).toEqual({ x: 67, y: 704, w: 236, h: 64, r: 32 });
   });
 
   it("the card: the full width, 478 tall, sitting on the bottom margin", () => {
@@ -70,7 +70,7 @@ describe("nvaShape", () => {
     expect(s.w).toBe(64);
     expect(s.h).toBe(22);
     expect(s.r).toBe(11);
-    expect(s.y).toBe(746);
+    expect(s.y).toBe(756);
   });
 
   it("the width leads and the height follows on the way to the card", () => {
@@ -88,7 +88,7 @@ describe("nvaShape", () => {
 describe("nvaClipPath", () => {
   it("is an inset with the radius, the only thing that resizes", () => {
     expect(nvaClipPath(g, nvaShape(g, 0, 0))).toBe(
-      "inset(694.00px 67.00px 18.00px 67.00px round 32.00px)"
+      "inset(704.00px 67.00px 8.00px 67.00px round 32.00px)"
     );
     expect(nvaClipPath(g, nvaShape(g, 1, 1))).toBe(
       "inset(0.00px 0.00px 0.00px 0.00px round 32.00px)"
@@ -264,14 +264,14 @@ describe("nvaFrame", () => {
     expect(f.icons[0].scale).toBe(1);
     expect(f.glass).toEqual({
       x: 10 + 67,
-      y: 844 - 10 - 776 + 694,
+      y: 844 - 10 - 776 + 704,
       sx: 1,
       sy: 1,
       opacity: 1,
     });
     expect(f.add.opacity).toBe(1);
     expect(f.add.x).toBe(10 + 67 + 236 + 8);
-    expect(f.add.y).toBe(844 - 10 - 776 + 694 + (64 - NVA_ADD) / 2);
+    expect(f.add.y).toBe(844 - 10 - 776 + 704 + (64 - NVA_ADD) / 2);
     expect(f.tiles.opacity).toBe(0);
     expect(f.rowsVisible).toBe(false);
     expect(f.pillbits.opacity).toBe(1);

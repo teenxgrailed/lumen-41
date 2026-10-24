@@ -494,8 +494,10 @@ struct LockScreenWeatherWidget: View {
 			calendarRowVisible = shouldShowCalendarRow
 
 			Task {
-				await calendarManager.checkCalendarAuthorization()
-				await calendarManager.checkReminderAuthorization()
+				// Calendar access is asked for only when the calendar row is on.
+				if lockScreenShowCalendarEvent {
+					await calendarManager.checkCalendarAuthorization()
+				}
 				await calendarManager.updateLockScreenEvents(force: true)
 			}
 

@@ -38,6 +38,11 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
 jest.mock("@/lib/realtime/publish", () => ({
   publishRealtimeEventSafe: jest.fn(),
 }));
+// Writes are rate limited per person; the limiter needs Redis.
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: () => ({}),
+  enforceRateLimits: async () => null,
+}));
 jest.mock("@/services/weather/open-meteo", () => ({
   cleanCity: (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null,

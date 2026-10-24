@@ -304,7 +304,8 @@ describe("finishing", () => {
     await act(async () => {
       await ob.finish(true);
     });
-    expect(sendJson).not.toHaveBeenCalled();
+    expect(sendJson).toHaveBeenCalledTimes(1);
+    expect(sendJson).toHaveBeenCalledWith("/api/onboarding", "POST", {});
     expect(push).toHaveBeenCalledWith("/today");
   });
 

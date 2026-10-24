@@ -17,7 +17,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { MarkProvider } from "../../../settings/SettingsContext";
-import type { SectionId } from "../../../settings/derive";
+import type { PhoneSectionId } from "../../../settings/derive";
 import { PkTheme } from "../../kit";
 import type { MenuPlaceId } from "../../menu/places";
 import { usePhoneOverlays } from "../../overlays/store";
@@ -155,8 +155,8 @@ let client: QueryClient;
 const onClose = jest.fn();
 const onMark = jest.fn();
 
-function Harness({ initial }: { initial: SectionId | null }) {
-  const [page, setPage] = useState<SectionId | null>(initial);
+function Harness({ initial }: { initial: PhoneSectionId | null }) {
+  const [page, setPage] = useState<PhoneSectionId | null>(initial);
   const [menu, setMenu] = useState(false);
   const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   return h(
@@ -190,7 +190,7 @@ const flush = async () => {
       await new Promise((r) => setTimeout(r, 0));
     });
 };
-const mount = async (initial: SectionId | null = null) => {
+const mount = async (initial: PhoneSectionId | null = null) => {
   await act(async () => {
     root.render(h(Harness, { initial, key: String(initial) }));
   });
@@ -604,6 +604,26 @@ describe("Free keeps its gates", () => {
         String(c[0]).includes("checkout")
       )
     ).toBe(false);
+  });
+
+  it("Plan: no Start trial button unless the account can still have one", async () => {
+    await mount("plan");
+    expect(q("[data-ps-start-trial]")).toBeNull();
+  });
+
+  it("Plan: an eligible Free account starts the trial in place", async () => {
+    routes[URLS.billing] = billing({ trialEligible: true });
+    await mount("plan");
+    await tap(q("[data-ps-start-trial]"));
+    expect(writes.map((w) => [w.method, w.url])).toEqual([
+      ["POST", "/api/billing/trial"],
+    ]);
+    expect(mockNotify).toHaveBeenCalledWith(
+      "success",
+      expect.stringContaining("trial has started"),
+      expect.anything()
+    );
+    expect(usePhoneOverlays.getState().paywall).toBe(false);
   });
 
   it("prices come from the pricing module, not the page", async () => {

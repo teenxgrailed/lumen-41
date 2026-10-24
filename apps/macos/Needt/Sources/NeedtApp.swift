@@ -1,23 +1,23 @@
 import AppKit
 import NeedtKit
-import SwiftUI
 
+/// Plain AppKit entry point. There is no SwiftUI `App`: a SwiftUI scene
+/// owns a window whose hosting view publishes its size, which loops in
+/// "Update Constraints in Window" when the content changes size. The
+/// menu-bar item is `StatusItemController`, the Settings window is
+/// `AppController.showMacSettings`; both are AppKit.
 @main
-struct NeedtApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+enum NeedtMain {
+    private static var delegate: AppDelegate?
 
-    var body: some Scene {
-        // Windows are AppKit (see AppController); SwiftUI owns the menu-bar item.
-        MenuBarExtra {
-            MenuBarContent(tray: AppController.shared.tray)
-        } label: {
-            MenuBarLabel(tray: AppController.shared.tray)
-        }
-        .menuBarExtraStyle(.menu)
-
-        Settings {
-            SettingsView()
-        }
+    @MainActor
+    static func main() {
+        let app = NSApplication.shared
+        let appDelegate = AppDelegate()
+        delegate = appDelegate
+        app.delegate = appDelegate
+        app.setActivationPolicy(.regular)
+        app.run()
     }
 }
 
@@ -52,9 +52,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppController.shared.start()
         #endif
         IslandHost.begin()
+        StatusItemController.shared.start(tray: AppController.shared.tray)
+        CIFixture.start(tray: AppController.shared.tray)
         Task { await AppController.shared.tray.focusFilterChanged() }
-        // SwiftUI installs its own menu bar around the scene; keep ours on top.
-        DispatchQueue.main.async { [weak self] in self?.installMainMenu() }
+    }
+
+    /// The island (and anything else) asks for Settings with this action.
+    @MainActor
+    @objc func showSettingsWindow(_ sender: Any?) {
+        AppController.shared.showMacSettings()
     }
 
     @MainActor

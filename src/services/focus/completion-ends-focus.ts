@@ -72,6 +72,8 @@ export async function endFocusForCompletedTask(input: {
       userId,
       sessionId: session.id,
       completed: true,
+      // The session was found by this task, which the caller just completed.
+      taskScope: { id: task.id },
     });
     if (!finalized) return { ended: false, reason: "none" };
 

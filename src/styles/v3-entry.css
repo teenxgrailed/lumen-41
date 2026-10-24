@@ -48,3 +48,5 @@
 @import "./v3-overrides/app-icon-picker.css";
 @import "./v3-overrides/ios-sign.css";
 @import "./v3-overrides/route-loading.css";
+@import "./v3-overrides/settings-mac.css";
+@import "./v3-overrides/whats-new.css";

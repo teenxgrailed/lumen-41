@@ -37,23 +37,12 @@ jobs:
         working-directory: apps/shared/NeedtKit
         run: swift test
 
-      # Regression guard for the Update Constraints crash: the notch panel's
-      # hosting view must not feed its ideal size back into its window.
-      - name: Island hosting view has no sizing options
+      # Regression guard for the "Update Constraints in Window" crash: every
+      # hosting view in apps/macos must publish no size into its window, and no
+      # SwiftUI scene (MenuBarExtra, Settings, WindowGroup) may exist.
+      - name: Every hosting view has sizingOptions = [] and no SwiftUI scene exists
         working-directory: apps/macos
-        run: |
-          set -euo pipefail
-          grep -n "hosting.sizingOptions = \[\]" Island/Sources/DynamicIslandApp.swift
-          if grep -n "window.contentView = FirstMouseHostingView" Island/Sources/DynamicIslandApp.swift; then
-            echo "FirstMouseHostingView must get sizingOptions = [] before it becomes contentView"; exit 1
-          fi
-
-      # Island v3 hosts its SwiftUI view the same way.
-      - name: Island v3 hosting view has no sizing options
-        working-directory: apps/macos
-        run: |
-          set -euo pipefail
-          grep -n "sizingOptions = \[\]" Island/Sources/components/NeedtV3/IslandV3Window.swift
+        run: python3 scripts/check-hosting-views.py
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -225,18 +214,24 @@ jobs:
           set -u
           APP=build/Build/Products/Release/Needt.app
           mkdir -p out
-          "$APP/Contents/MacOS/Needt" > out/launch.log 2>&1 &
+          # Signed-in behaviour without an account: --ci-fixture-data feeds the
+          # menu-bar item and the island tasks and a focus run that change every
+          # 3 s, so the first-data-arrives path runs (the real-Mac crash).
+          "$APP/Contents/MacOS/Needt" --ci-fixture-data > out/launch.log 2>&1 &
           PID=$!
-          sleep 12
+          sleep 20
           screencapture -x out/needt-start-window.png || true
           if kill -0 "$PID" 2>/dev/null; then
-            echo "Needt is running after 12 s (pid $PID)"
+            echo "Needt is running after 20 s (pid $PID)"
             kill "$PID" || true
           else
             echo "Needt exited early"
             cat out/launch.log
             exit 1
           fi
+          STEPS=$(grep -c "^\[ci-fixture\] step" out/launch.log || true)
+          echo "fixture updates applied: $STEPS"
+          test "$STEPS" -ge 5
 
       # Draws every island v3 state once (ImageRenderer, fixture data, no
       # account, no window) so the result can be compared with the HTML lab
@@ -251,6 +246,65 @@ jobs:
           "$APP/Contents/MacOS/Needt" --render-island-states out/island > out/island-render.log 2>&1 || true
           tail -n 20 out/island-render.log
           ls out/island | wc -l
+
+      # Soak: the app runs with fixture data (fake Pro, tasks and a focus run
+      # that change every 3 s, menu-bar item and island fed) for minutes and
+      # must not crash. The Update Constraints loop and a launch-time permission prompt
+      # both showed up only on a real Mac, after a few seconds of running.
+      - name: Signed-in soak with fixture data (v3 for 3 min, classic notch for 90 s)
+        working-directory: apps/macos
+        run: |
+          set -u
+          APP=build/Build/Products/Release/Needt.app
+          REPORTS="$HOME/Library/Logs/DiagnosticReports"
+          mkdir -p out "$REPORTS"
+          ls "$REPORTS" > out/reports-before.txt 2>/dev/null || true
+          defaults write app.needt.mac needtIslandEnabled -bool true
+          run_soak() {
+            NAME="$1"; SECONDS_TOTAL="$2"
+            echo "== $NAME for ${SECONDS_TOTAL}s"
+            "$APP/Contents/MacOS/Needt" --ci-fake-pro --ci-fixture-data > "out/soak-$NAME.log" 2>&1 &
+            PID=$!
+            ELAPSED=0
+            while [ "$ELAPSED" -lt "$SECONDS_TOTAL" ]; do
+              sleep 5; ELAPSED=$((ELAPSED + 5))
+              if ! kill -0 "$PID" 2>/dev/null; then
+                echo "Needt exited after ${ELAPSED}s ($NAME)"; tail -n 40 "out/soak-$NAME.log"
+                return 1
+              fi
+              if [ "$ELAPSED" -eq 30 ]; then screencapture -x "out/soak-$NAME-30s.png" || true; fi
+            done
+            screencapture -x "out/soak-$NAME-end.png" || true
+            kill "$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+            # The fixture changes menu-bar and island data every 3 s: the
+            # soak only means something if those updates really ran.
+            STEPS=$(grep -c "^\[ci-fixture\] step" "out/soak-$NAME.log" || true)
+            echo "$NAME: fixture updates applied: $STEPS"
+            if [ "$STEPS" -lt $((SECONDS_TOTAL / 3 - 5)) ]; then
+              echo "too few fixture updates ($NAME)"; return 1
+            fi
+            return 0
+          }
+          STATUS=0
+          defaults write app.needt.mac needtIslandV3 -bool true
+          run_soak v3 180 || STATUS=1
+          defaults write app.needt.mac needtIslandV3 -bool false
+          run_soak classic 90 || STATUS=1
+          defaults delete app.needt.mac needtIslandV3 || true
+          sleep 8
+          ls "$REPORTS" > out/reports-after.txt 2>/dev/null || true
+          NEW=$(comm -13 out/reports-before.txt out/reports-after.txt | grep -E "^Needt.*\.(ips|crash)$" || true)
+          if [ -n "$NEW" ]; then
+            echo "New crash reports:"; echo "$NEW"
+            for f in $NEW; do cp "$REPORTS/$f" out/ || true; done
+            STATUS=1
+          fi
+          # A permission prompt at launch is a defect: the first-use rule.
+          if grep -iE "would like to access|TCC" out/soak-*.log; then
+            echo "A permission request appeared in the app log"; STATUS=1
+          fi
+          exit "$STATUS"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -269,6 +323,10 @@ jobs:
             apps/macos/out/Needt-macos-unsigned.zip
             apps/macos/out/needt-start-window.png
             apps/macos/out/launch.log
+            apps/macos/out/soak-*.log
+            apps/macos/out/soak-*.png
+            apps/macos/out/Needt*.ips
+            apps/macos/out/Needt*.crash
             apps/macos/build.log
           if-no-files-found: warn
 
