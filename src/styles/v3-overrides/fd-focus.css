@@ -83,7 +83,7 @@
 /* ── 4 · Phone focus button: paused and ending (the running look is nva-focus-btn's) ── */
 .needt-v3 .nva-focus-btn.is-paused .nva-focus-arc { stroke-dasharray: 3 5; opacity: .5; }
 .needt-v3 .nva-focus-btn.is-paused .nva-focus-time { transform: translateY(-5px); }
-.needt-v3 .nva-focus-btn .fd-pz { position: absolute; bottom: 11px; display: flex; gap: 2px; }
+.needt-v3 .nva-focus-btn .fd-pz { position: absolute; bottom: 13px; display: flex; gap: 2px; }
 .needt-v3 .nva-focus-btn .fd-pz i { width: 2.5px; height: 7px; border-radius: 1px; background: var(--nva-ink); opacity: .8; }
 .needt-v3 .nva-focus-btn.is-ending .nva-focus-arc { stroke: #ffb57a; }
 .needt-v3 .nva-focus-btn.is-ending.is-in { animation: fd-breathe 2s ease-in-out 3; }

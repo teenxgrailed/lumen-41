@@ -79,7 +79,7 @@ describe("POST /api/auth/reset-password/reset", () => {
     );
     expect(mocked.connectorSettings.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", tokenHash: { not: null } },
-      data: { tokenHash: null, tokenPreview: null },
+      data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
     });
   });
 

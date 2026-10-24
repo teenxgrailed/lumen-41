@@ -77,6 +77,188 @@ def type_slowly(text):
         time.sleep(1.5)
 
 
+def label(e):
+    return (e.get("AXLabel") or "").strip().lower()
+
+
+def save_debug(tag, els):
+    os.makedirs("debug", exist_ok=True)
+    with open(f"debug/{tag}.json", "w") as f:
+        json.dump(els, f, indent=1)
+    subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"debug/{tag}.png"], capture_output=True, timeout=150)
+    print(tag, "labels:", sorted({label(e) for e in els if label(e)})[:80], flush=True)
+
+
+OCR_BIN = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "probe-ocr")
+
+
+def ocr(tag, w, h):
+    """Text on debug/<tag>.png (Vision), as (lowercase text, x, y) in points."""
+    if not os.path.exists(OCR_BIN):
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr.swift")
+        subprocess.run(["swiftc", "-O", src, "-o", OCR_BIN], capture_output=True, timeout=600)
+    try:
+        r = subprocess.run([OCR_BIN, f"debug/{tag}.png"], capture_output=True, text=True, timeout=120)
+        items = json.loads(r.stdout)
+    except Exception as e:
+        print("ocr failed:", e, flush=True)
+        return []
+    words = [(i["text"].strip().lower(), i["x"] * w, i["y"] * h) for i in items]
+    print(tag, "ocr:", [t for t, _, _ in words][:60], flush=True)
+    return words
+
+
+STOCK = {"calendar", "health", "maps", "messages", "news", "photos", "reminders", "safari", "search",
+         "settings", "wallet", "contacts", "files", "fitness", "preview", "utilities folder", "watch",
+         "app store", "camera", "clock", "home screen", "dock", "page 1 of 2", "page 2 of 2"}
+
+
+def add_to_home_screen(w, h):
+    """Safari: More (...) > Share > View More > Add to Home Screen > Add.
+    Safari's own bar and menu are in idb's accessibility dump; the share sheet
+    is a remote view that is not, so its rows are found by their text (OCR)."""
+    tapped = {}
+
+    def once(key, limit=3):
+        tapped[key] = tapped.get(key, 0) + 1
+        return tapped[key] <= limit
+
+    for step in range(18):
+        els = describe()
+        tag = f"a2hs-{step:02d}"
+        save_debug(tag, els)
+        labels = {label(e) for e in els}
+        words = ocr(tag, w, h)
+
+        def word(pred):
+            return next(((x, y) for t, x, y in words if pred(t)), None)
+
+        def el(name):
+            return next((e for e in els if label(e) == name), None)
+
+        add = el("add")
+        add_xy = centre(add) if add else word(lambda t: t == "add")
+        if add_xy and once("add", 2):
+            for e in els:  # the iOS 26 sheet's "Open as Web App" switch must be on
+                if "web app" in label(e) and str(e.get("AXValue")) in ("0", "off"):
+                    tap(*centre(e))
+                    time.sleep(2)
+            tap(*add_xy)
+            time.sleep(8)
+            els = describe()
+            save_debug("a2hs-added", els)
+            # iOS lands on the Home Screen page with the new icon: its name is
+            # the label no stock app has
+            new = sorted({label(e) for e in els if e.get("type") != "Application"} - STOCK - {""})
+            print("new icon(s):", new, flush=True)
+            return new[0] if new else True
+        if any("view bookmarks, share menu" in l for l in labels) and once("tip"):
+            # a one-time Safari tip bubble over the bar swallows the next tap
+            x = el("close") or el("dismiss popup")
+            tap(*centre(x))
+            time.sleep(3)
+            continue
+        target = word(lambda t: t.startswith("add to home") or t == "add to home screen")
+        if target and once("a2hs"):
+            tap(*target)
+        elif (target := word(lambda t: t == "view more")) and once("view more"):
+            tap(*target)
+        elif el("share") and once("share"):
+            tap(*centre(el("share")))
+        elif el("more") and once("more"):
+            tap(*centre(el("more")))
+        else:
+            # the action list of the share sheet: scroll it up
+            swipe(w / 2, h * 0.85, w / 2, h * 0.45, 0.4)
+        time.sleep(4)
+    return False
+
+
+def home():
+    idb("ui", "button", "HOME", check=False)
+    time.sleep(3)
+
+
+def find_icon(name):
+    for e in describe():
+        if name.lower() in label(e) and e.get("type") != "Application":
+            return e
+    return None
+
+
+def launch_icon(name, w, h):
+    """Home Screen, find the icon by its label (swipe through the pages), tap it."""
+    home()
+    home()  # a second press lands on the first page
+    for page in range(5):
+        e = find_icon(name)
+        if e:
+            print("icon", json.dumps(e)[:400], flush=True)
+            tap(*centre(e))
+            time.sleep(8)
+            return True
+        save_debug(f"home-{page}", describe())
+        if page == 1:
+            break
+        swipe(w * 0.85, h * 0.5, w * 0.15, h * 0.5, 0.3)
+        time.sleep(2)
+    # SpringBoard often gives idb no elements: read the icon names from the
+    # screen, then Spotlight
+    home()
+    home()
+    save_debug("home-ocr", [])
+    hit = next(((x, y) for t, x, y in ocr("home-ocr", w, h) if t == name.lower()), None)
+    if hit:
+        tap(hit[0], hit[1] - 40)  # the icon sits above its name
+        time.sleep(10)
+        if front_app() not in (None, "", "Springboard", "SpringBoard"):
+            return True
+    for attempt in range(3):
+        home()
+        home()
+        tap(w / 2, h * 0.82)  # the Search pill above the dock
+        time.sleep(5)
+        type_slowly(name)
+        time.sleep(5)
+        save_debug(f"spotlight-{attempt}", describe())
+        idb("ui", "key", "40")  # Return opens the top hit
+        time.sleep(10)
+        app = front_app()
+        print("front app after Spotlight:", app, flush=True)
+        if app and app.lower() not in ("springboard", "spotlight", "safari", "search"):
+            return True
+    return False
+
+
+def front_app():
+    for e in describe():
+        if e.get("type") == "Application":
+            return e.get("AXLabel")
+    return None
+
+
+def install_webclip(title, url, icon):
+    """The fallback: a FullScreen Web Clip written into the simulator's data
+    folder (what a com.apple.webClip.managed profile leaves), then SpringBoard
+    restarted so it reads the clips again."""
+    import plistlib, shutil, uuid
+    base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{UDID}/data/Library/WebClips")
+    d = os.path.join(base, uuid.uuid4().hex.upper() + ".webclip")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "Info.plist"), "wb") as f:
+        plistlib.dump({"Title": title, "URL": url, "FullScreen": True, "IsRemovable": True,
+                       "IconIsPrecomposed": True, "IconIsScreenShotBased": False,
+                       "WebClipStatusBarStyle": "UIStatusBarStyleBlackTranslucent",
+                       "ClassicMode": False, "ContentMode": "Mobile"}, f)
+    if icon and os.path.exists(icon):
+        shutil.copy(icon, os.path.join(d, "icon.png"))
+    print("webclip at", d, flush=True)
+    r = subprocess.run(["xcrun", "simctl", "spawn", UDID, "launchctl", "stop", "com.apple.SpringBoard"],
+                       capture_output=True, text=True, timeout=60)
+    print("respring:", r.returncode, r.stdout, r.stderr, flush=True)
+    time.sleep(20)
+
+
 if __name__ == "__main__":
     cmd, args = sys.argv[1], sys.argv[2:]
     if cmd == "dump":
@@ -97,6 +279,20 @@ if __name__ == "__main__":
         idb("ui", "text", args[0], check=False)
     elif cmd == "tapxy":
         tap(float(args[0]), float(args[1]))
+    elif cmd == "a2hs":
+        sys.exit(0 if add_to_home_screen(w, h) else 1)
+    elif cmd == "launch":  # args: icon label
+        sys.exit(0 if launch_icon(args[0], w, h) else 1)
+    elif cmd == "webclip":  # args: title url [icon.png]
+        install_webclip(args[0], args[1], args[2] if len(args) > 2 else None)
+    elif cmd == "home":
+        home()
+    elif cmd == "front":
+        print(front_app())
+    elif cmd == "labels":  # args: tag
+        save_debug(args[0] if args else "labels", describe())
+    elif cmd == "back":  # the edge swipe from the left
+        swipe(2, h * 0.5, w * 0.7, h * 0.5, 0.3)
     elif cmd == "key":
         idb("ui", "key", args[0])
     elif cmd == "signin":

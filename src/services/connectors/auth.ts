@@ -12,6 +12,7 @@ import {
 import { bearerChallenge } from "@/lib/mcp-config";
 import type { McpScope } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 import {
   type BearerAuth,
@@ -30,7 +31,7 @@ export { generateConnectorToken, hashConnectorToken } from "./auth-tokens";
 export function revokeConnectorTokens(userId: string) {
   return prisma.connectorSettings.updateMany({
     where: { userId, tokenHash: { not: null } },
-    data: { tokenHash: null, tokenPreview: null },
+    data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
   });
 }
 
@@ -124,13 +125,32 @@ export async function authorizeConnectorWorkspace(
   }
 }
 
+/** Per person, `/api/connect/*` calls that change something (as on `/api/mcp`). */
+export const CONNECT_WRITE_LIMIT_PER_MINUTE = 30;
+
+export interface ConnectorRequestOptions {
+  /**
+   * Scopes the call needs beyond the one its role implies, e.g. `mail.read`
+   * for an op that copies mail into a task.
+   */
+  extraScopes?: readonly McpScope[];
+  /**
+   * The call changes data although the workspace is resolved at VIEWER (an
+   * undo resolves the workspace the action ran in): it still needs
+   * `needt.write` and counts against the write limit.
+   */
+  write?: boolean;
+}
+
 /**
  * Authenticates a `/api/connect/*` call with any bearer kind, checks the
- * scope its role needs, and resolves the workspace (bound for OAuth).
+ * scopes it needs (the role's own, plus any `options` add), limits writes per
+ * person, and resolves the workspace (bound for OAuth).
  */
 export async function authenticateConnectorRequest(
   request: NextRequest,
-  requiredRole: WorkspaceRole
+  requiredRole: WorkspaceRole,
+  options: ConnectorRequestOptions = {}
 ): Promise<
   | {
       userId: string;
@@ -149,9 +169,28 @@ export async function authenticateConnectorRequest(
       ),
     };
   }
-  const scope = scopeForRole(requiredRole);
-  if (!hasScopes(bearer, [scope])) {
-    return { response: insufficientScopeResponse([scope]) };
+  const needed = new Set<McpScope>([
+    scopeForRole(requiredRole),
+    ...(options.extraScopes ?? []),
+  ]);
+  if (options.write) needed.add("needt.write");
+  const scopes = [...needed];
+  if (!hasScopes(bearer, scopes)) {
+    return { response: insufficientScopeResponse(scopes) };
+  }
+  if (needed.has("needt.write")) {
+    const limited = await enforceRateLimits(
+      [
+        accountRule(
+          bearer.userId,
+          "connect:write",
+          CONNECT_WRITE_LIMIT_PER_MINUTE,
+          60
+        ),
+      ],
+      { route: new URL(request.url).pathname, userId: bearer.userId }
+    );
+    if (limited) return { response: limited };
   }
   const auth = await authorizeConnectorWorkspace(
     request,

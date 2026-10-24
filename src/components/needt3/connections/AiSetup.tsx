@@ -2,11 +2,12 @@
 
 import { FiCopy, FiKey } from "react-icons/fi";
 
+import { formatShortDate } from "@/lib/date-utils";
 import { notify } from "@/lib/notifications";
 
 import { BrandIcon, brandIdFor } from "../brand";
 import { AI_META, type AiToolId, maskToken, richParts, stepData } from "./mcp";
-import type { McpConnect } from "./useMcpConnect";
+import type { McpConnect, TokenExpiry } from "./useMcpConnect";
 
 async function copy(text: string, what: string) {
   try {
@@ -34,6 +35,17 @@ export function CopyRow({ value, what }: { value: string; what: string }) {
       </button>
     </div>
   );
+}
+
+/**
+ * When the current token stops working. A token made before expiry existed has
+ * no date and keeps working until it is rotated.
+ */
+function expiryLine(expiry: TokenExpiry | null): string {
+  if (!expiry) return "";
+  if (!expiry.at) return "It does not expire. ";
+  const when = formatShortDate(expiry.at, true);
+  return expiry.expired ? `It expired ${when}. ` : `It expires ${when}. `;
 }
 
 /** The access token: one click makes it, shown once with Copy. */
@@ -71,10 +83,13 @@ export function TokenStep({ mcp }: { mcp: McpConnect }) {
       <span className="cn-meta">
         {mcp.token
           ? `Copy it now, it is not shown again (${maskToken(mcp.token)}).`
-          : mcp.hasToken
-            ? "You already have a token; it can't be shown again."
-            : "Treat it like a password."}{" "}
-        A new token disconnects every agent using the old one.
+          : mcp.tokenExpiry?.expired
+            ? "Tools using your token are disconnected."
+            : mcp.hasToken
+              ? "You already have a token; it can't be shown again."
+              : "Treat it like a password."}{" "}
+        <span data-cn-token-expiry="">{expiryLine(mcp.tokenExpiry)}</span>A new
+        token disconnects every agent using the old one.
       </span>
     </div>
   );

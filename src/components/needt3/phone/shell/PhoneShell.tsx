@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { useFocusSession } from "@/lib/needt3/hooks/focus";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 
@@ -112,6 +113,8 @@ export function PhoneShell() {
   const side = usePkSide();
   const session = useSession();
   const plan = usePlan();
+  // A running session switches the dock to the focus-done row.
+  const focusOn = !!useFocusSession().data;
   const settings = useSettings();
   const counts = usePhoneCounts();
   const composerOpen = useNeedt3Ui((s) => s.composerOpen);
@@ -180,6 +183,7 @@ export function PhoneShell() {
         me={me}
         away={away}
         focus={<FocusDockButton />}
+        focusOn={focusOn}
         morph={morph}
         onPick={onPick}
         onSettings={onSettings}

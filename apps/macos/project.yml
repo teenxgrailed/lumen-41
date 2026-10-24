@@ -79,6 +79,9 @@ targets:
       - path: Island/LottieAnimations
       - path: Island/LICENSE.txt
       - path: Island/ACKNOWLEDGEMENTS.md
+      # The CI harness: empty unless the build sets NEEDT_CI_CONDITION=NEEDT_CI
+      # (.github/workflows/macos-webview.yml only; never a release build).
+      - path: CI
     dependencies:
       - package: Sparkle
       - package: NeedtKit
@@ -166,6 +169,9 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Empty: CI passes NEEDT_CI_CONDITION=NEEDT_CI to compile apps/macos/CI.
+        NEEDT_CI_CONDITION: ""
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) $(NEEDT_CI_CONDITION)"
 
   # The Mac App Store build: same sources, no Sparkle (the APPSTORE flag and
   # the missing package keep every updater out), no mach-lookup exception.

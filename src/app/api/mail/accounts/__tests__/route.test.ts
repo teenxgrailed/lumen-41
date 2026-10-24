@@ -85,9 +85,40 @@ describe("POST /api/mail/accounts", () => {
         host: "imap.example.com",
         port: 143,
         secure: false,
+        doSTARTTLS: true,
       })
     );
     expect(response.status).toBe(201);
+  });
+
+  it("opens port 993 with implicit TLS and no STARTTLS option", async () => {
+    await POST(account);
+
+    const options = imap.mock.calls[0][0];
+    expect(options).toMatchObject({ port: 993, secure: true });
+    expect(options).not.toHaveProperty("doSTARTTLS");
+  });
+
+  it("refuses port 993 without SSL/TLS before any connection", async () => {
+    const response = await POST({ ...account, secure: false });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/Turn SSL\/TLS on/);
+    expect(imap).not.toHaveBeenCalled();
+  });
+
+  it("names the missing encryption when the server offers no STARTTLS", async () => {
+    connect.mockRejectedValue(
+      Object.assign(new Error("Server does not support STARTTLS"), {
+        tlsFailed: true,
+      })
+    );
+
+    const response = await POST({ ...account, port: 143, secure: false });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatch(/encrypted connection/);
+    expect(prisma.mailAccount.upsert).not.toHaveBeenCalled();
   });
 
   it("refuses a host on the internal network before any connection", async () => {

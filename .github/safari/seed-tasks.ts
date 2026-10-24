@@ -30,7 +30,15 @@ async function main() {
         dueDate: new Date(),
       },
     });
-  console.log(`seeded 30 tasks for ${email} in ${member?.workspaceId}`);
+  // A doc for the installed app's navigation scenario (Home > Tasks > a doc).
+  await prisma.page.create({
+    data: {
+      userId: user.id,
+      workspaceId: member?.workspaceId,
+      title: "Probe doc",
+    },
+  });
+  console.log(`seeded 30 tasks and a doc for ${email} in ${member?.workspaceId}`);
 }
 
 main()

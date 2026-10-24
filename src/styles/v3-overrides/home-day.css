@@ -39,3 +39,8 @@
 .needt-v3 .v2p-notes-btn:disabled {
   cursor: progress;
 }
+
+/* Overdue: Spread and Move to today side by side; the one with the weight is
+   the raised button, the other plain words. */
+.needt-v3 .hd-late-acts { display: inline-flex; align-items: center; gap: 4px; }
+.needt-v3 .v2p-late-acts { display: inline-flex; align-items: center; gap: 2px; }

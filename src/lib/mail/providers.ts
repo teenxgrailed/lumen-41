@@ -2,6 +2,7 @@ import { decryptSecret } from "@/services/ai/encryption";
 import { ImapFlow } from "imapflow";
 
 import { newDate } from "@/lib/date-utils";
+import { imapConnectionOptions } from "@/lib/mail/imap-tls";
 import {
   gmailBodyHtml,
   mapGmailMessage,
@@ -280,11 +281,7 @@ async function withImapClient<T>(
 ) {
   const credentials = imapCredentials(account);
   const client = new ImapFlow({
-    host: credentials.host,
-    port: credentials.port,
-    secure: credentials.secure,
-    auth: { user: credentials.username, pass: credentials.password },
-    logger: false,
+    ...imapConnectionOptions(credentials),
     maxIdleTime: 4 * 60 * 1_000,
   });
   await client.connect();

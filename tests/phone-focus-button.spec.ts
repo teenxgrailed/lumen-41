@@ -6,9 +6,9 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 
 /**
  * The phone's Focus button: a round glass button left of the dock pill, drawn
- * only while a session runs. It must not touch the pill or the New task
- * button at the narrow widths, must line up with New task, and opens the
- * Focus sheet. `PHONE_SHOTS=<dir>` also writes screenshots (light and dark).
+ * only while a session runs. At the narrow widths the row is the design's
+ * (additions-2/focus-done: 64 px button, 10 px, 232 px pill, centred, no New
+ * task), and the button opens the Focus sheet. `PHONE_SHOTS=<dir>` also writes screenshots (light and dark).
  */
 for (const width of [375, 390]) {
   for (const scheme of ["light", "dark"] as const) {
@@ -62,15 +62,19 @@ for (const width of [375, 390]) {
 
       const box = async (sel: string) =>
         (await page.locator(sel).boundingBox())!;
+      // additions-2/focus-done .fd-dockrow: a 64 px button 10 px left of a
+      // 232 px pill, the pair centred, and no New task button.
       const f = await box(".nva-focus-btn");
-      const a = await box(".nva-add");
       const p = await box("[data-nva-pill]");
-      expect(f.width).toBeCloseTo(a.width, 0);
-      expect(f.y + f.height / 2).toBeCloseTo(a.y + a.height / 2, 0);
+      expect(f.width).toBeCloseTo(64, 0);
+      expect(f.height).toBeCloseTo(64, 0);
+      expect(p.width).toBeCloseTo(232, 0);
+      expect(f.y + f.height / 2).toBeCloseTo(p.y + p.height / 2, 0);
       expect(f.x).toBeGreaterThanOrEqual(0);
-      expect(f.x + f.width).toBeLessThanOrEqual(p.x + 0.5);
-      expect(a.x).toBeGreaterThanOrEqual(p.x + p.width - 0.5);
-      expect(a.x + a.width).toBeLessThanOrEqual(width);
+      expect(p.x - (f.x + f.width)).toBeCloseTo(10, 0);
+      expect(p.x + p.width).toBeLessThanOrEqual(width);
+      expect(f.x).toBeCloseTo(width - (p.x + p.width), 0);
+      await expect(page.locator(".nva-add")).toBeHidden();
 
       const dir = process.env.PHONE_SHOTS;
       if (dir) {

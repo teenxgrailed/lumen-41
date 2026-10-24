@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
-import { TaskBusyStatus, WorkspaceRole } from "@prisma/client";
+import {
+  isForeignDependency,
+  parseTaskCreate,
+} from "@/services/tasks/task-input";
+import { WorkspaceRole } from "@prisma/client";
 import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -137,24 +141,21 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const json = await request.json();
+    // Only the columns a client may write get past this; the body is never
+    // spread into Prisma as it came (see services/tasks/task-input.ts).
+    const body: unknown = await request.json();
+    const input = parseTaskCreate(body);
+    if (!input.ok) return new NextResponse(input.error, { status: 400 });
+    const v3 = parseV3Fields(taskV3FieldsSchema, body);
+    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
     const {
       tagIds,
       recurrenceRule,
       scheduleId,
       assigneeId: requestedAssigneeId,
-      ...taskData
-    } = json;
-    delete taskData.workspaceId;
-    delete taskData.userId;
-    delete taskData.assignee;
-    delete taskData.activities;
-    delete taskData.recurrenceMasterId;
-    delete taskData.recurrenceInstanceAt;
-    const v3 = parseV3Fields(taskV3FieldsSchema, taskData);
-    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
-    Object.assign(taskData, expandOriginPage(v3.data));
-    delete taskData.originPageId;
+      ...columns
+    } = input.data;
+    const taskData = { ...columns, ...expandOriginPage(v3.data) };
     if (v3.data.originPageId) {
       const refusal = await originPageRefusal(auth, v3.data.originPageId);
       if (refusal) return refusal;
@@ -175,19 +176,6 @@ export async function POST(request: NextRequest) {
       return new NextResponse("Invalid label", { status: 400 });
     }
     if (
-      taskData.busyStatus !== undefined &&
-      !Object.values(TaskBusyStatus).includes(taskData.busyStatus)
-    ) {
-      return new NextResponse("Invalid busy status", { status: 400 });
-    }
-    if (
-      taskData.stageId !== undefined &&
-      taskData.stageId !== null &&
-      typeof taskData.stageId !== "string"
-    ) {
-      return new NextResponse("Invalid stage", { status: 400 });
-    }
-    if (
       taskData.projectId &&
       (!workspaceId ||
         !(await prisma.project.findFirst({
@@ -196,6 +184,16 @@ export async function POST(request: NextRequest) {
         })))
     ) {
       return new NextResponse("Invalid workspace project", { status: 400 });
+    }
+    if (
+      taskData.dependsOnId &&
+      (await isForeignDependency({
+        userId,
+        workspace: auth.workspace,
+        dependsOnId: taskData.dependsOnId,
+      }))
+    ) {
+      return new NextResponse("Invalid dependency", { status: 400 });
     }
     if (
       assigneeId === null &&

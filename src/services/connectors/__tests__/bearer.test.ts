@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
+  CONNECT_WRITE_LIMIT_PER_MINUTE,
   authenticateConnectorRequest,
   scopeForRole,
 } from "@/services/connectors/auth";
@@ -14,6 +15,7 @@ import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
 import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -31,10 +33,15 @@ jest.mock("@/lib/auth/email-verification-access", () => ({
     .fn()
     .mockResolvedValue({ required: false, verified: true }),
 }));
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: jest.fn((_value, namespace, limit) => ({ namespace, limit })),
+  enforceRateLimits: jest.fn().mockResolvedValue(null),
+}));
 
 const findUnique = prisma.connectorSettings.findUnique as jest.Mock;
 const PERSONAL = "needt_personal-connector-token-value";
 const OAUTH = "ext_other-kind-token-value";
+const WRITER = "ext_writer-without-mail-token";
 
 function request(authorization?: string, query = "") {
   return new NextRequest(`http://localhost/api/connect/tasks${query}`, {
@@ -49,6 +56,18 @@ registerBearerResolver(async (token) =>
         kind: "oauth",
         clientId: "client-1",
         scopes: ["needt.read"],
+        workspaceId: "workspace-bound",
+      }
+    : null
+);
+// Consented to read and write, not to mail.
+registerBearerResolver(async (token) =>
+  token === WRITER
+    ? {
+        userId: "user-3",
+        kind: "oauth",
+        clientId: "client-2",
+        scopes: ["needt.read", "needt.write"],
         workspaceId: "workspace-bound",
       }
     : null
@@ -84,6 +103,38 @@ describe("authenticateBearer", () => {
       "needt.write",
       "mail.read",
     ]);
+  });
+
+  it("refuses a personal token past its expiry, keeps one without a date", async () => {
+    const at = (offsetMs: number) => new Date(Date.now() + offsetMs);
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: at(-1_000),
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toBeNull();
+
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: at(60_000),
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toMatchObject({ userId: "user-1", kind: "personal" });
+
+    // Made before expiry existed: null keeps working.
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: null,
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${PERSONAL}`))
+    ).resolves.toMatchObject({ userId: "user-1" });
+    expect(findUnique).toHaveBeenLastCalledWith({
+      where: { tokenHash: hashConnectorToken(PERSONAL) },
+      select: { userId: true, tokenExpiresAt: true },
+    });
   });
 
   it("accepts the scheme in any case and refuses anything else", async () => {
@@ -171,5 +222,69 @@ describe("authenticateConnectorRequest", () => {
         requestedWorkspaceId: "workspace-7",
       })
     );
+  });
+
+  it("asks for the extra scopes a call names, on top of its role's", async () => {
+    const withoutMail = await authenticateConnectorRequest(
+      request(`Bearer ${WRITER}`),
+      WorkspaceRole.EDITOR,
+      { extraScopes: ["mail.read"] }
+    );
+    expect(withoutMail.response?.status).toBe(403);
+    await expect(withoutMail.response?.json()).resolves.toMatchObject({
+      error: "insufficient_scope",
+      scope: expect.stringContaining("mail.read"),
+    });
+
+    const withMail = await authenticateConnectorRequest(
+      request(`Bearer ${PERSONAL}`),
+      WorkspaceRole.EDITOR,
+      { extraScopes: ["mail.read"] }
+    );
+    expect(withMail.response).toBeUndefined();
+  });
+
+  it("needs the write scope for a call marked as a write, whatever its role", async () => {
+    const readOnly = await authenticateConnectorRequest(
+      request(`Bearer ${OAUTH}`),
+      WorkspaceRole.VIEWER,
+      { write: true }
+    );
+    expect(readOnly.response?.status).toBe(403);
+    expect(resolveWorkspaceAccess).not.toHaveBeenCalled();
+
+    const writer = await authenticateConnectorRequest(
+      request(`Bearer ${WRITER}`),
+      WorkspaceRole.VIEWER,
+      { write: true }
+    );
+    expect(writer.response).toBeUndefined();
+  });
+
+  it("rate limits each person's writes, never their reads", async () => {
+    await authenticateConnectorRequest(
+      request(`Bearer ${WRITER}`),
+      WorkspaceRole.VIEWER
+    );
+    expect(enforceRateLimits).not.toHaveBeenCalled();
+
+    jest.mocked(resolveWorkspaceAccess).mockClear();
+    jest
+      .mocked(enforceRateLimits)
+      .mockResolvedValueOnce(
+        NextResponse.json({ error: "Too many attempts." }, { status: 429 })
+      );
+    const limited = await authenticateConnectorRequest(
+      request(`Bearer ${WRITER}`),
+      WorkspaceRole.EDITOR
+    );
+    expect(limited.response?.status).toBe(429);
+    expect(accountRule).toHaveBeenCalledWith(
+      "user-3",
+      "connect:write",
+      CONNECT_WRITE_LIMIT_PER_MINUTE,
+      60
+    );
+    expect(resolveWorkspaceAccess).not.toHaveBeenCalled();
   });
 });
