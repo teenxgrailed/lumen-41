@@ -198,7 +198,10 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
   inset: calc(var(--v3-gap-top) - var(--v3-edge)) 0
     calc(var(--v3-gap-bot) - var(--v3-edge)) 0;
 }
-.needt-v3[data-ui="phone"] .nva-glass {
+/* Menu A places these in display coordinates (its geometry adds the inset
+ * back), but `.nva` stands `--v3-edge` in from the top: shift them back out,
+ * or New task and the Focus button sit 8 px below the pill's centre. */
+.needt-v3[data-ui="phone"] :is(.nva-glass, .nva-add, .nva-focus) {
   top: calc(-1 * var(--v3-edge));
 }
 
