@@ -36,8 +36,11 @@ function releaseHeading(version, date) {
 
 /** Whether the changelog already has a `## [<version>]` section. */
 function hasRelease(md, version) {
-  const escaped = String(version).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^## \\[${escaped}\\]`, "m").test(md);
+  const heading = `## [${version}]`;
+  return md
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .some((line) => line.startsWith(heading));
 }
 
 /**
