@@ -14,6 +14,7 @@ import {
   expandPersonalBlocks,
 } from "@/lib/personal-time";
 import { type DayBand, dayBands, quickStart } from "@/lib/personal-time-days";
+import type { PersonalPatch } from "@/lib/personal-time-edit";
 
 import { ApiError, fetchJson, sendJson } from "./core";
 import { useTimeZone } from "./settings";
@@ -198,6 +199,35 @@ export function useQuickPersonal() {
       );
     },
     [tz, create]
+  );
+}
+
+/**
+ * Change a block (`PATCH /api/personal-blocks/:id`, the `personal.update` op the
+ * agent also runs). The patch is only what changed; a repeating block changes
+ * as a whole, every repeat together. Resolves to whether it was saved.
+ */
+export function useUpdatePersonal() {
+  const refresh = useRefresh();
+  const notice = useUndoNotice();
+  return useCallback(
+    async (block: { id: string; title: string }, patch: PersonalPatch) => {
+      if (!Object.keys(patch).length) return true;
+      try {
+        const run = await sendJson<WriteResponse>(
+          `/api/personal-blocks/${block.id}`,
+          "PATCH",
+          patch
+        );
+        refresh();
+        notice(`Saved ${run.result.block?.title ?? block.title}`, run);
+        return true;
+      } catch (error) {
+        failNotice(error, "Could not save that.");
+        return false;
+      }
+    },
+    [refresh, notice]
   );
 }
 

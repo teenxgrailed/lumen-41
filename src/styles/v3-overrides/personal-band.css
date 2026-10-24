@@ -143,6 +143,84 @@
   gap: 6px;
 }
 
+/* Changing a block: one form for the peek and the phone's sheet. Every row is
+   a 12px label column and a control; the same geometry in both. */
+.needt-v3 .pb-peek.is-editing {
+  width: 288px;
+}
+.needt-v3 .pb-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.needt-v3 .pb-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.needt-v3 .pb-edit-label {
+  flex: none;
+  width: 52px;
+  color: var(--text-quaternary);
+  font-size: 12px;
+}
+.needt-v3 .pb-edit-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--fill-3);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.needt-v3 .pb-edit-input:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 .pb-edit-note {
+  margin: 0;
+  color: var(--text-quaternary);
+  font-size: 12px;
+}
+.needt-v3 .pb-edit-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 6px;
+}
+/* On the phone the same rows are touch size, and the field is 16px so iOS does
+   not zoom the page when it takes focus. */
+.needt-v3[data-ui="phone"] .pb-edit {
+  gap: 10px;
+}
+.needt-v3[data-ui="phone"] .pb-edit-row {
+  min-height: 44px;
+}
+.needt-v3[data-ui="phone"] .pb-edit-label {
+  width: 64px;
+}
+.needt-v3[data-ui="phone"] .pb-edit-input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+.needt-v3[data-ui="phone"] .pb-edit .pb-default-day {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.needt-v3[data-ui="phone"] .pb-edit .pb-default-days {
+  gap: 4px;
+}
+
 /* The empty-slot menu beside a draft event. */
 .needt-v3 .pb-slotmenu {
   position: fixed;
