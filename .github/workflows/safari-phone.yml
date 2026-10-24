@@ -16,6 +16,11 @@ on:
         required: false
         default: main
         type: string
+      quick:
+        description: Stop after the focus-row and top-edge checks (skips the tab-layout and installed-app steps, about an hour)
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: safari-phone-${{ github.ref }}
@@ -314,175 +319,239 @@ jobs:
       # machine load sampled into debug/load.log). A phase that hangs leaves every
       # earlier phase's shots and the log.
       - name: Safari layouts, prepare
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh prepare
         continue-on-error: true
 
       - name: Safari layouts, compact viewport
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-compact-viewport
           path: |
-            shots/layout-compact-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-compact-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, compact today
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-compact-today
           path: |
-            shots/layout-compact-01*\n            shots/layout-compact-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-compact-01*
+            shots/layout-compact-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, compact tasks
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-compact-tasks
           path: |
-            shots/layout-compact-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-compact-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, set top
+        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh set top
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-top-set
           path: |
-            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, top viewport
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-top-viewport
           path: |
-            shots/layout-top-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-top-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, top today
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-top-today
           path: |
-            shots/layout-top-01*\n            shots/layout-top-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-top-01*
+            shots/layout-top-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, top tasks
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-top-tasks
           path: |
-            shots/layout-top-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-top-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, set bottom
+        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh set bottom
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-bottom-set
           path: |
-            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, bottom viewport
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-bottom-viewport
           path: |
-            shots/layout-bottom-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-bottom-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, bottom today
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-bottom-today
           path: |
-            shots/layout-bottom-01*\n            shots/layout-bottom-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-bottom-01*
+            shots/layout-bottom-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, bottom tasks
+        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-bottom-tasks
           path: |
-            shots/layout-bottom-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layout-bottom-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, Compact back + verdict
+        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh finish
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
+        if: ${{ always() && !inputs.quick }}
         with:
           name: safari-phone-layouts-summary
           path: |
-            shots/layouts-summary.txt\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+            shots/layouts-summary.txt
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       # The installed app (Add to Home Screen, standalone). The owner's bands,
       # the Safari controls after leaving Home and the top band show there, not
       # in a tab: in a tab `top: 0` sits 62 px under the status bar.
       - name: Install the app to the Home Screen
+        if: ${{ !inputs.quick }}
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py install
         continue-on-error: true
 
       - name: Sign in inside the installed app
+        if: ${{ !inputs.quick }}
         timeout-minutes: 20
         run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
         continue-on-error: true
@@ -490,11 +559,13 @@ jobs:
       # nav first: the scenarios seed a Focus session, whose end would open
       # the session-complete sheet in the middle of the walk
       - name: Installed app, Home > Tasks > a doc > Settings > back
+        if: ${{ !inputs.quick }}
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py nav
         continue-on-error: true
 
       - name: Installed app, scenarios light and dark
+        if: ${{ !inputs.quick }}
         timeout-minutes: 30
         run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
@@ -530,6 +601,7 @@ jobs:
           if [ "${{ steps.head.outcome }}" != "success" ]; then
             echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1
           fi
+          if [ "${{ inputs.quick }}" = "true" ]; then exit 0; fi
           if [ ! -s debug/standalone-method.txt ] || [ "$(head -1 debug/standalone-method.txt)" = "None" ]; then
             echo "::error::The app could not be installed to the Home Screen"; exit 1
           fi
