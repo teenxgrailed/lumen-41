@@ -240,7 +240,7 @@ describe("where a sign-in lands", () => {
     });
   });
 
-  it("a new account goes on to first-run setup (the onboarding)", async () => {
+  it("a new account goes on to the onboarding resolver", async () => {
     signup = { ok: true, body: { enabled: true } };
     signIn.mockResolvedValue({ ok: true });
     await mount();
@@ -256,7 +256,42 @@ describe("where a sign-in lands", () => {
       "/api/auth/register",
       expect.objectContaining({ method: "POST" })
     );
-    expect(went).toBe("/setup");
+    // The register mock says nothing about the flow: the resolver decides.
+    expect(went).toBe("/api/onboarding/resume");
+  });
+
+  it("a new account goes where the server says (onboarding_v3 on: /start)", async () => {
+    // One fetch mock answers both the signup probe and the register call.
+    signup = { ok: true, body: { enabled: true, next: "/start" } };
+    signIn.mockResolvedValue({ ok: true });
+    await mount();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-switch]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+    expect(went).toBe("/start");
+  });
+
+  it("ignores a next path that is not an onboarding entry", async () => {
+    signup = {
+      ok: true,
+      body: { enabled: true, next: "https://evil.example" },
+    };
+    signIn.mockResolvedValue({ ok: true });
+    await mount();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-switch]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+    expect(went).toBe("/api/onboarding/resume");
   });
 
   it("a returning person goes where they were going, never through setup", async () => {

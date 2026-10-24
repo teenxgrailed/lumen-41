@@ -34,6 +34,7 @@ import { weekStartOf } from "@/lib/needt3/week-focus";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { StatsCard, StatsSheet } from "../../home/Stats";
@@ -414,6 +415,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       head={head}
     >
       <PhoneState query={tasksQuery} screen="today" />
+      <OnboardingResumeBanner />
       <SampleBanner />
       {ready && review.show ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />

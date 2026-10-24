@@ -21,16 +21,7 @@ describe("hosted AI soft-limit UI contract", () => {
   it("does not render hosted allowance counts in chat", () => {
     expect(source).not.toMatch(/actions left|remaining\}\s*\/\s*\{.*limit/i);
   });
-
-  it("surfaces task-parsing notices in every visible consumer", () => {
-    // SmartPlanningPanel and the old AI settings page were this notice's other
-    // consumers; both are gone, so quick-add is the one surface left to check.
-    for (const path of [
-      "src/app/(app)/quick-add/page.tsx",
-    ]) {
-      const consumer = readFileSync(join(process.cwd(), path), "utf8");
-      expect(consumer).toContain("data.notice");
-      expect(consumer).toContain('dedupeKey: "hosted-ai-status"');
-    }
-  });
+  // The task-parsing notice's last screen consumer, the pre-v3 /quick-add
+  // page, is gone (/quick-add opens the v3 composer); /api/ai/parse-tasks
+  // still returns `notice` for API clients.
 });

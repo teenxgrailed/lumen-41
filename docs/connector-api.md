@@ -73,7 +73,8 @@ workspace, so over MCP they answer only from the personal workspace, never from
 a Team workspace.
 
 The same token rules apply to the `/api/connect/*` routes below: reads need
-`needt.read`, writes `needt.write`.
+`needt.read`, writes `needt.write`. Writes there share the limit of 30 a
+minute per person that `/api/mcp` has.
 
 ### OAuth (claude.ai, ChatGPT, Claude Code)
 
@@ -853,6 +854,12 @@ curl http://localhost:3000/api/connect/ops \
 Returns `{ "ops": [{ "name", "description", "risk", "input" }] }`, where
 `input` is a JSON Schema. Unknown fields are rejected.
 
+The token needs the scope the risk implies: `needt.read` for a `read`
+operation, `needt.write` for any other (so a read-only token gets `403
+insufficient_scope` on every write, `task.detach` included), and `mail.read`
+as well for `mail.to_task`, which copies a message into a task. Writes count
+against 30 a minute per person, the same limit as `/api/mcp`.
+
 Run one with its input as the body:
 
 ```bash
@@ -1020,6 +1027,8 @@ curl -X POST http://localhost:3000/api/agent/actions/ACTION_ID/undo \
   is overwritten; each conflict names the row and both versions.
 - `422 { "status": "not_undoable", "reason" }` for `no_inverse`, `expired`,
   or `failed`.
+
+Undo changes data, so a token needs `needt.write` to call either undo route.
 
 `POST /api/agent/runs/RUN_ID/undo` undoes every action of an agent run,
 newest first. It stops at the first conflict and returns `409` with
@@ -1272,6 +1281,19 @@ end of the day" counts from the task's `completedAt`.
 Steps are numbered by position: the task's `entry` (its first two-minute step),
 when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
 step in a list is the same write as `needt_complete_subtask`.
+
+## Time zone, week start and clock
+
+`timeZone` (IANA), `weekStartDay` (`monday` / `sunday`) and `timeFormat`
+(`12h` / `24h`) are columns of the same `/api/user-settings` row. A new account
+starts in the zone its browser reports: `POST /api/auth/register` (and the
+first-run `POST /api/setup`) take optional `timeZone` and `locale` (a BCP 47
+tag such as `de-DE`; the week start and clock are derived from it). An account
+that still sits at the `UTC` default is moved once, on its first signed-in
+load, to the browser's zone, and a still-default Sunday / 12h follows the
+browser language. `prefs.tzAutoSet: true` records that this has happened; a
+client that sets the zone itself should set it too, so nothing replaces the
+value later.
 
 ## Moodboard items
 

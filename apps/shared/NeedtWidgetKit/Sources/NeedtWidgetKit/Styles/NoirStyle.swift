@@ -46,7 +46,7 @@ struct DotMatrix: View {
     var gap: CGFloat = 5
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: gap), count: cols), spacing: gap) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 1), spacing: gap), count: cols), spacing: gap) {
             ForEach(Array(dots.enumerated()), id: \.offset) { _, d in
                 dot(d).aspectRatio(1, contentMode: .fit)
             }
@@ -130,6 +130,7 @@ struct NoirToday: View {
             }
             .frame(width: 16, height: 16)
         }
+        .foregroundStyle(NoirStyle.cream)   // a dark style: the titles stay light in the light theme too
         .padding(.horizontal, 10).padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(on ? 0.14 : 0.06))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(on ? 0.2 : 0.08), lineWidth: 0.5)))
@@ -161,7 +162,7 @@ struct NoirToday: View {
             ZStack(alignment: .topLeading) {
                 VStack(alignment: .leading, spacing: 0) {
                     header()
-                    list(3, time: true).padding(.top, 10)
+                    list(2, time: true).padding(.top, 10)
                     Spacer(minLength: 0)
                 }
                 .padding(16).padding(.trailing, 134)
@@ -204,10 +205,12 @@ struct NoirNext: View {
 
     private func small(_ e: WidgetEvent) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(hhmm(e.start)).font(noirNum(c, 34)).monospacedDigit()
-                Spacer()
-                HStack(spacing: 4) { NoirCap(text: "IN"); UntilText(date: e.start).font(c.fonts.mono.font(10.5, weight: .medium)).textCase(.uppercase).foregroundStyle(NoirStyle.cream.opacity(0.55)) }
+            // The time and the countdown do not fit on one line in the fallback mono font: stack them.
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hhmm(e.start)).font(noirNum(c, 34)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.55)
+                // UntilText already reads "in 40 min": no extra IN caption.
+                UntilText(date: e.start).font(c.fonts.mono.font(10.5, weight: .medium)).textCase(.uppercase)
+                    .foregroundStyle(NoirStyle.cream.opacity(0.55)).lineLimit(1)
             }
             Spacer(minLength: 0)
             Text(e.title).font(c.fonts.body.font(13, weight: .semibold)).lineLimit(1).titleSensitive(c.showTitles)
@@ -277,8 +280,11 @@ struct NoirFocus: View {
                 Spacer(minLength: 0)
                 CountdownText(focus: f, font: c.fonts.display.font(44, weight: .black)).foregroundStyle(NoirStyle.cream)
                     .shadow(color: NoirStyle.cream.opacity(0.18), radius: 8).minimumScaleFactor(0.6).lineLimit(1)
-                Text("\(f.title.map { String($0.prefix(14)) } ?? "Focus") · \(f.plannedMinutes ?? 25) min").font(c.fonts.t12()).foregroundStyle(.white.opacity(0.5)).padding(.top, 4)
-                    .titleSensitive(c.showTitles).lineLimit(1)
+                HStack(spacing: 0) {
+                    Text(f.title ?? "Focus").lineLimit(1).titleSensitive(c.showTitles)
+                    Text(" · \(f.plannedMinutes ?? 25) min").lineLimit(1).fixedSize()
+                }
+                .font(c.fonts.t12()).foregroundStyle(.white.opacity(0.5)).padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .foregroundStyle(NoirStyle.cream)
