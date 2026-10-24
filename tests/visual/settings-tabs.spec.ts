@@ -41,8 +41,19 @@ async function settleSettings(page: import("@playwright/test").Page) {
   await expect(page.locator(".animate-pulse, .glass-skeleton")).toHaveCount(0, {
     timeout: 15_000,
   });
+  // A button left focused by the navigation (Account's "Sign out of all
+  // devices" on the phone) would draw its focus ring into the shot.
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  });
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(350);
 }
+
+/** The session's 30-day expiry, counted from the fixed test clock. */
+const VISUAL_SESSION_EXPIRES = new Date(
+  new Date(VISUAL_TEST_NOW).getTime() + 30 * 24 * 60 * 60 * 1000
+).toISOString();
 
 async function prepareSettings(page: import("@playwright/test").Page) {
   await page.clock.setFixedTime(new Date(VISUAL_TEST_NOW));
@@ -62,6 +73,23 @@ async function prepareSettings(page: import("@playwright/test").Page) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ hostedAvailable: true, hasApiKey: false }),
+    });
+  });
+  // Account's "signed in until …" comes from the session's expiry, which the
+  // server counts from its own clock; read it from the fixed test clock.
+  await page.route("**/api/auth/session", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json().catch(() => null)) as Record<
+      string,
+      unknown
+    > | null;
+    if (!body || typeof body !== "object" || !("expires" in body)) {
+      await route.fulfill({ response });
+      return;
+    }
+    await route.fulfill({
+      response,
+      json: { ...body, expires: VISUAL_SESSION_EXPIRES },
     });
   });
   await signInVisualUser(page);
