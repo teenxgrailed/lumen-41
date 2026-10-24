@@ -288,6 +288,8 @@ def evaluate(js, want=None, url=None, tries=2):
     for i in range(tries + 2):
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{PORT}/", data=body, method="POST")
+            # the probe's own loopback `serve` process; the URL is a constant
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             r = json.loads(urllib.request.urlopen(req, timeout=180).read())
         except OSError as e:
             last = f"no wi serve: {e}"
