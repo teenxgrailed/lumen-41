@@ -17,28 +17,27 @@ import { pkClamp, pkCx } from "./util";
 export { PkScrim } from "./Scrim";
 
 /* ══ Blur bands (additions-2/phone-shell, ps-) ═══════════════════════════
-   Progressive blur in masked steps: three at the top (3 / 9 / 20 px), two in
-   the fog (4 / 14 px), each fading in from the band's inner edge, plus a tint.
+   The fog under the dock is progressive blur in two masked steps (4 / 14 px)
+   plus a wash. The top band is one blur layer (owner decision 2026-10-24),
+   masked so it fades out at its lower edge, with no colour of its own.
    The bands must not sit under an ancestor with opacity / filter / mask, or
    the blur sees nothing — the fade (--ps-k, --pk-fog-k) goes on each layer
-   itself (phone-shell.css). The steps wear `pk-blur` so the rest-while-moving
+   itself (phone-shell.css). The layers wear `pk-blur` so the rest-while-moving
    and rest-while-hidden rules (phone-perf.css, motion.css) still reach them. */
-export function PkBlurLayers({ steps = 3 }: { steps?: 2 | 3 }) {
+export function PkBlurLayers() {
   return (
     <>
       <span className="pk-blur b b1" />
       <span className="pk-blur b b2" />
-      {steps === 3 ? <span className="pk-blur b b3" /> : null}
     </>
   );
 }
 
-/** The top band alone (PkScreen has one): three masked blur steps and a tint at the status bar. */
+/** The top band alone (PkScreen has one): one blur layer under the status bar and the small title. */
 export function PkTopBand({ className }: { className?: string }) {
   return (
     <div className={pkCx("pk-topband ps-top", className)} aria-hidden="true">
-      <PkBlurLayers steps={3} />
-      <span className="pk-topband-wash t" />
+      <span className="pk-blur b" />
     </div>
   );
 }
@@ -102,7 +101,7 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
       aria-hidden="true"
       data-pk-live="0"
     >
-      <PkBlurLayers steps={2} />
+      <PkBlurLayers />
       <span className="pk-fog-wash t" />
       <span className="pk-fog-dots is-1" />
       <span className="pk-fog-dots is-2" />
@@ -140,7 +139,7 @@ export interface PkScreenProps {
 /**
  * The phone screen: content that the document scrolls (momentum, nothing
  * fixed at the edges) under a 52 px status bar, a large title that hands over to a
- * compact one over a progressive top blur, and a bottom fog behind the menu
+ * compact one over a top blur band, and a bottom fog behind the menu
  * pill. Scroll only changes custom properties on the root (no layout), and
  * only when the clamped values change.
  */
