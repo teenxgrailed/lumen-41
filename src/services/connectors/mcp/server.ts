@@ -158,7 +158,7 @@ export async function handleMcpMessage(
         capabilities: { tools: { listChanged: false } },
         serverInfo: MCP_SERVER_INFO,
         instructions:
-          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_whoami to see the account, scopes and workspaces; find things with needt_search or needt_list, read with needt_get, change with needt_update_task, needt_complete_task, needt_create_task, needt_add_subtasks, needt_complete_subtask, needt_create_event, needt_create_page, needt_append_page, needt_log_habit and needt_control. Break non-trivial work into subtasks: needt_create_task takes entry (the first small step) and subtasks in the order they are done, and the task itself is the closing step. Every tool takes an optional workspaceId.",
+          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_whoami to see the account, scopes and workspaces; find things with needt_search or needt_list, read with needt_get, change with needt_update_task, needt_complete_task, needt_create_task, needt_add_subtasks, needt_complete_subtask, needt_create_event, needt_create_page, needt_append_page, needt_log_habit and needt_control. Break non-trivial work into subtasks: needt_create_task takes entry (the first small step) and subtasks in the order they are done, and the task itself is the closing step. The scheduler places tasks by itself, but you can place one: start on needt_create_task or needt_update_task puts it at that time and pins it so the scheduler leaves it; pinned: false hands it back. Every tool takes an optional workspaceId.",
       });
     case "ping":
       return result(id, {});

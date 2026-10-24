@@ -15,6 +15,10 @@ import {
   checkLabelsAndHours,
   parseRepeatRule,
 } from "@/services/tasks/task-fields";
+import {
+  planPlacement,
+  writeFrozenPlacement,
+} from "@/services/tasks/task-placement";
 import { WorkspaceRole } from "@prisma/client";
 
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -182,6 +186,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: checked.error }, { status: 400 });
   }
 
+  if (body.start != null && typeof body.start !== "string") {
+    return NextResponse.json(
+      { error: "start must be an ISO 8601 date-time" },
+      { status: 400 }
+    );
+  }
+  if (body.autoSchedule != null && typeof body.autoSchedule !== "boolean") {
+    return NextResponse.json(
+      { error: "autoSchedule must be true or false" },
+      { status: 400 }
+    );
+  }
+  const estimatedMinutes = Number.isFinite(Number(body.estimatedMinutes))
+    ? Math.round(Number(body.estimatedMinutes))
+    : undefined;
+  // `start` places and pins it as a drop on the calendar does;
+  // `autoSchedule: false` keeps the scheduler off it.
+  const placement = await planPlacement({
+    userId,
+    schedulingUserId: userId,
+    task: {
+      scheduledStart: null,
+      scheduledEnd: null,
+      estimatedMinutes: estimatedMinutes ?? null,
+      duration: null,
+    },
+    placement: {
+      start: typeof body.start === "string" ? body.start : undefined,
+      autoSchedule:
+        typeof body.autoSchedule === "boolean" ? body.autoSchedule : undefined,
+    },
+  });
+  if (placement && !placement.ok) {
+    return NextResponse.json(
+      { error: placement.error },
+      { status: placement.status }
+    );
+  }
+  const placed = placement?.data ?? {};
+  const deadline = body.deadline ? new Date(body.deadline) : null;
+
   const task = await prisma.task.create({
     data: {
       userId,
@@ -191,14 +236,12 @@ export async function POST(request: NextRequest) {
       description:
         typeof body.description === "string" ? body.description.trim() : null,
       status: TaskStatus.TODO,
-      duration: Number.isFinite(Number(body.estimatedMinutes))
-        ? Math.round(Number(body.estimatedMinutes))
-        : undefined,
-      estimatedMinutes: Number.isFinite(Number(body.estimatedMinutes))
-        ? Math.round(Number(body.estimatedMinutes))
-        : undefined,
-      deadline: body.deadline ? new Date(body.deadline) : null,
-      dueDate: body.deadline ? new Date(body.deadline) : null,
+      duration: estimatedMinutes,
+      estimatedMinutes,
+      deadline,
+      // A deadline is also the due date; a placed task without one is due
+      // on its placed day.
+      dueDate: deadline ?? placed.dueDate ?? null,
       priorityLevel: isPriority(body.priorityLevel)
         ? body.priorityLevel
         : "MEDIUM",
@@ -224,9 +267,11 @@ export async function POST(request: NextRequest) {
       entry: entry.data,
       fullTime: typeof body.fullTime === "boolean" ? body.fullTime : null,
       parts: partsCreateData(normalizeSubtasks(subtasks.data)),
-      isAutoScheduled: true,
-      autoScheduled: true,
-      scheduleLocked: false,
+      isAutoScheduled: placed.isAutoScheduled ?? true,
+      autoScheduled: placed.autoScheduled ?? true,
+      scheduleLocked: placed.scheduleLocked ?? false,
+      scheduledStart: placed.scheduledStart,
+      scheduledEnd: placed.scheduledEnd,
       isFrozen: false,
       isRecurring: recurrenceRule !== null,
       recurrenceRule,
@@ -239,6 +284,14 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+
+  if (placement?.ok && placement.frozen) {
+    await writeFrozenPlacement({
+      taskId: task.id,
+      userId,
+      ...placement.frozen,
+    });
+  }
 
   await scheduleAllTasksForUser(userId, {
     workspaceId:
