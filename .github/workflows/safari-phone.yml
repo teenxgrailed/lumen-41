@@ -88,6 +88,17 @@ jobs:
           cat "$RUNNER_TEMP/next.log"
           exit 1
 
+      # What iOS reads on Add to Home Screen, in the HTML the server sends to a
+      # phone: the manifest and apple-mobile-web-app-* tags inside <head>, and
+      # redirects that stay on 127.0.0.1. Judged in the verdict, after the shots.
+      - name: Install tags in <head>
+        id: head
+        run: |
+          set -o pipefail
+          mkdir -p debug
+          python3 .github/safari/head.py http://127.0.0.1:3000 / /today /auth/signin /tasks 2>&1 | tee debug/install-head.txt
+        continue-on-error: true
+
       - name: Install idb
         run: |
           set -euo pipefail
@@ -295,14 +306,16 @@ jobs:
         run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
         continue-on-error: true
 
-      - name: Installed app, scenarios light and dark
-        timeout-minutes: 30
-        run: python3 .github/safari/standalone.py scenarios
-        continue-on-error: true
-
+      # nav first: the scenarios seed a Focus session, whose end would open
+      # the session-complete sheet in the middle of the walk
       - name: Installed app, Home > Tasks > a doc > Settings > back
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py nav
+        continue-on-error: true
+
+      - name: Installed app, scenarios light and dark
+        timeout-minutes: 30
+        run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
 
       # Pixel checks on the shots (web content is not in the accessibility
@@ -339,6 +352,10 @@ jobs:
         if: always()
         run: |
           cat shots/standalone-report.txt 2>/dev/null || true
+          cat debug/install-head.txt 2>/dev/null || true
+          if [ "${{ steps.head.outcome }}" != "success" ]; then
+            echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1
+          fi
           if [ ! -s debug/standalone-method.txt ] || [ "$(head -1 debug/standalone-method.txt)" = "None" ]; then
             echo "::error::The app could not be installed to the Home Screen"; exit 1
           fi

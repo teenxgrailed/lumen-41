@@ -8,7 +8,11 @@ import { Providers } from "@/components/providers";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
 
 import "./globals.css";
-import { metadata as baseMetadata, viewport as baseViewport } from "./metadata";
+import {
+  INSTALL_HEAD,
+  metadata as baseMetadata,
+  viewport as baseViewport,
+} from "./metadata";
 
 export const metadata = baseMetadata;
 export const viewport = baseViewport;
@@ -34,6 +38,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Install tags in the shell's <head>, not in the streamed metadata
+         * (see INSTALL_HEAD): iOS reads them when the page is added. */}
+        <link rel="manifest" href={INSTALL_HEAD.manifest} />
+        {INSTALL_HEAD.meta.map((m) => (
+          <meta key={m.name} name={m.name} content={m.content} />
+        ))}
+        <link rel="apple-touch-icon" {...INSTALL_HEAD.appleTouchIcon} />
         <Script
           id="theme-init"
           strategy="beforeInteractive"

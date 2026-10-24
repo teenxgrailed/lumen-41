@@ -161,6 +161,27 @@ export function ReaderPhone({
     };
   }, []);
 
+  // The page's paper runs to the top of the display. On iOS the status bar
+  // and toolbar take the colour at the edge, so the document's ground is the
+  // paper while this page is open (phone-ground.css `data-ground="page"`):
+  // static for the page, switched when it opens and closes, never animated.
+  // On a backdrop the paper starts below the band and the ground stays.
+  const groundVars = bd ? null : pageVars(s, read);
+  const groundL = groundVars?.["--dt-page-l"] ?? "";
+  const groundD = groundVars?.["--dt-page-d"] ?? "";
+  useLayoutEffect(() => {
+    if (!groundL || !groundD) return undefined;
+    const html = document.documentElement;
+    html.style.setProperty("--v3-page-ground-l", groundL);
+    html.style.setProperty("--v3-page-ground-d", groundD);
+    html.setAttribute("data-ground", "page");
+    return () => {
+      html.removeAttribute("data-ground");
+      html.style.removeProperty("--v3-page-ground-l");
+      html.style.removeProperty("--v3-page-ground-d");
+    };
+  }, [groundL, groundD]);
+
   // Native focus events on the root: the editor is portalled in (DocumentFace),
   // so React's synthetic focus events would not reach this component.
   useEffect(() => {
