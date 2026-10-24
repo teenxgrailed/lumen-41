@@ -226,6 +226,13 @@ return {title: document.title, readyState: document.readyState,
     if got:
         name = got if isinstance(got, str) else NAME
         log(f"install: Add to Home Screen made an icon named {name!r}")
+        if name.strip().lower() != NAME.lower():
+            msg = (f"the Add to Home Screen sheet named the app {name!r}, not {NAME!r}: "
+                   "iOS did not read apple-mobile-web-app-title")
+            log("PROBLEM: " + msg)
+            print(f"::error title=Install name::{msg}", flush=True)
+            with open("debug/standalone-problems.txt", "a") as f:
+                f.write(msg + "\n")
         if ui.launch_icon(name, w, h):
             method = "share-sheet"
     if not method:
