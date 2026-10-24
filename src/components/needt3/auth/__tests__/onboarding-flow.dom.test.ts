@@ -196,10 +196,15 @@ describe("desktop", () => {
     expect(next().textContent).toBe("Open my day");
   });
 
-  it("Skip setup creates no sample and opens Today", async () => {
+  it("Skip setup creates no sample, records the finish and opens Today", async () => {
     await show("desktop");
     await click(q("[data-ob-skip]")!);
-    expect(sendJson).not.toHaveBeenCalled();
+    expect(sendJson).not.toHaveBeenCalledWith(
+      "/api/onboarding/sample",
+      expect.anything(),
+      expect.anything()
+    );
+    expect(sendJson).toHaveBeenCalledWith("/api/onboarding", "POST", {});
     expect(push).toHaveBeenCalledWith("/today");
   });
 });

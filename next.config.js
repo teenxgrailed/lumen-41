@@ -57,6 +57,15 @@ const nextConfig = {
     return [
       { source: "/docs", destination: "/pages", permanent: false },
       { source: "/docs/:id", destination: "/pages/:id", permanent: false },
+      // The pre-v3 screens are gone; old links, bookmarks and the legacy nav
+      // open the v3 equivalent on Today (PwaBridge reads `launch`).
+      { source: "/chat", destination: "/today?launch=ask", permanent: false },
+      { source: "/focus", destination: "/today", permanent: false },
+      {
+        source: "/quick-add",
+        destination: "/today?launch=new-task",
+        permanent: false,
+      },
     ];
   },
 

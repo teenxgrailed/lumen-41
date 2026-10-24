@@ -23,6 +23,7 @@ import {
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { ONBOARDING_RESUME_PATH } from "@/lib/onboarding/paths";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
 
@@ -45,8 +46,11 @@ const LOG_SOURCE = "AuthOptions";
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 export const SESSION_UPDATE_AGE_SECONDS = 24 * 60 * 60;
 
-/** Where a brand-new account lands: first-run setup (the v3 onboarding). */
-export const NEW_ACCOUNT_PATH = "/setup";
+/**
+ * Where a brand-new account lands: the resolver that picks `/start` or
+ * `/setup` per user from the `onboarding_v3` flag.
+ */
+export const NEW_ACCOUNT_PATH = ONBOARDING_RESUME_PATH;
 
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
@@ -195,8 +199,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     pages: {
       signIn: "/auth/signin",
       error: "/auth/signin",
-      /* An OAuth return that just created the account goes to first-run
-         setup, as a credentials sign-up already does (V3SignInRoute). A
+      /* An OAuth return that just created the account goes to onboarding
+         (`/start` or `/setup`, by flag), as a credentials sign-up does. A
          returning person never sees it: NextAuth only uses this when the
          adapter created the user on this very callback. */
       newUser: NEW_ACCOUNT_PATH,

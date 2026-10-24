@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { APP_NAME } from "@/lib/app-config";
+import { browserLocale } from "@/lib/needt3/locale-defaults";
 
 import { useSetupStore } from "@/store/setup";
 
@@ -70,6 +71,7 @@ export function SetupForm() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
+          ...browserLocale(),
         }),
       });
 

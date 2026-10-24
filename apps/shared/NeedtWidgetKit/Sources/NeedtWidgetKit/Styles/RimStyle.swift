@@ -244,6 +244,18 @@ struct RimFocus: View {
         return AnyView(content(f))
     }
 
+    /// The small pill holds about 14 characters: cut at a word and end with an ellipsis, never mid-word.
+    static func pillTitle(_ t: String, limit: Int = 14) -> String {
+        guard t.count > limit else { return t }
+        var out = ""
+        for w in t.split(separator: " ") {
+            let next = out.isEmpty ? String(w) : out + " " + w
+            if next.count > limit - 1 { break }
+            out = next
+        }
+        return (out.isEmpty ? String(t.prefix(limit - 1)) : out) + "…"
+    }
+
     @ViewBuilder
     private func content(_ f: WidgetFocus) -> some View {
         FullBleed { size in
@@ -277,7 +289,7 @@ struct RimFocus: View {
                                 FocusRing(focus: f, diameter: 84, lineWidth: 4, tint: .white.opacity(0.95), track: .white.opacity(0.2))
                                 CountdownText(focus: f, font: hbig(c, 22)).foregroundStyle(.white).minimumScaleFactor(0.6).frame(width: 60)
                             }
-                            RimCopy(title: String((f.title ?? "Focus").prefix(14)), symbol: nil).titleSensitive(c.showTitles)
+                            RimCopy(title: Self.pillTitle(f.title ?? "Focus"), symbol: nil).titleSensitive(c.showTitles)
                         }
                         .padding(12).frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
