@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Page, type Response, expect, test } from "@playwright/test";
 
 import { VISUAL_TEST_NOW } from "./fixtures";
 import { signInVisualUser } from "./helpers";
@@ -65,12 +65,24 @@ async function prepare(page: Page, theme: "dark" | "light") {
     });
   });
   await signInVisualUser(page);
-  // After signInVisualUser, so it wins over the helper's empty feed.
+  // After signInVisualUser, so it wins over the helper's empty feed. Like the
+  // server, the feed has nothing unseen once the seen marker is written: a
+  // refetch after that (the workspace's first resolve resets every query on
+  // a cold load) must not bring the dot back.
+  let seen = false;
+  page.on("request", (req) => {
+    if (
+      req.method() === "PATCH" &&
+      req.url().includes("/api/user-settings") &&
+      (req.postData() ?? "").includes("whatsNewSeen")
+    )
+      seen = true;
+  });
   await page.route("**/api/whats-new", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(FEED),
+      body: JSON.stringify(seen ? { ...FEED, unseen: [] } : FEED),
     });
   });
   const res = await page.request.patch("/api/user-settings", {
@@ -101,17 +113,25 @@ for (const theme of ["dark", "light"] as const) {
       "The account menu is the desktop sidebar's."
     );
     await prepare(page, theme);
-    // Marking the feed seen writes into the loaded settings; opened before
-    // they arrive, the write is skipped and the dot comes back (a cold first
-    // test in a worker hit this).
-    const settingsLoaded = page.waitForResponse(
+    // Marking the feed seen writes into the loaded settings; with none in the
+    // cache the write is skipped and the dot comes back. On a cold load the
+    // workspace's first resolve resets every query (settings included), so
+    // wait for that resolve and the settings refetch it starts.
+    const settingsGet = (r: Response) =>
+      r.url().includes("/api/user-settings") &&
+      r.request().method() === "GET" &&
+      r.ok();
+    const settingsLoaded = page.waitForResponse(settingsGet);
+    const workspaceResolved = page.waitForResponse(
       (r) =>
-        r.url().includes("/api/user-settings") &&
-        r.request().method() === "GET" &&
-        r.ok()
+        r.url().includes("/api/workspaces") && r.request().method() === "GET"
     );
     await page.goto("/today", { waitUntil: "domcontentloaded" });
     await settingsLoaded;
+    await workspaceResolved;
+    await page
+      .waitForResponse(settingsGet, { timeout: 3_000 })
+      .catch(() => undefined);
 
     const profile = page.locator("[data-sb-profile]");
     await expect(profile.locator("[data-sb-news-dot]")).toBeVisible();
