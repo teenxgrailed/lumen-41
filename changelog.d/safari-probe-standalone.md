@@ -1,0 +1,1 @@
+- Safari probe: also installs the app to the simulator Home Screen (Share, Add to Home Screen) and shoots it standalone, light and dark, with an edge-band check of the top and bottom rows and a check for Safari's in-app chrome after navigating.
