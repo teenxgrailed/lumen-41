@@ -23,7 +23,10 @@ const config = {
     "^marked$": markedUmd,
   },
   setupFiles: ["<rootDir>/jest.setup.cjs"],
-  testMatch: ["<rootDir>/src/**/__tests__/**/*.test.ts"],
+  testMatch: [
+    "<rootDir>/src/**/__tests__/**/*.test.ts",
+    "<rootDir>/scripts/**/__tests__/**/*.test.ts",
+  ],
   transform: {
     // isolatedModules keeps jest memory bounded: type-checking is covered by
     // `tsc --noEmit`, so tests only need transpilation.
