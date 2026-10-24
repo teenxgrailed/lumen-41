@@ -85,6 +85,14 @@ describe("public URL helpers", () => {
     );
   });
 
+  it("Next keeps the middleware's Location host (no 127.0.0.1 -> localhost)", () => {
+    // NextURL rewrites 127.0.0.1 to localhost when it re-parses a same-host
+    // redirect; skipMiddlewareUrlNormalize turns that re-parse off
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const config = require("../../next.config.js");
+    expect(config.skipMiddlewareUrlNormalize).toBe(true);
+  });
+
   it("never trusts a loopback request.url behind the production proxy", () => {
     process.env.NEXTAUTH_URL = "https://use.needt.app";
     const headers = new Headers({ host: "use.needt.app" });
