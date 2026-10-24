@@ -71,8 +71,8 @@ export const MAX_ENTRIES = 120;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Released sections dated before this are FluidCalendar's, from before Needt
- * forked it; they are not Needt news.
+ * Released sections dated before this belong to the upstream project, from
+ * before Needt forked it; they are not Needt news.
  */
 export const RELEASES_SINCE = "2026-10-01";
 

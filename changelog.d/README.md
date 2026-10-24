@@ -34,7 +34,7 @@ rename that heading to the release, in this exact form:
 ```
 
 What's new also reads every such dated release section from 2026-10-01 on
-(older ones are FluidCalendar's), dated by the heading, so the feed shows the
+(older ones are the upstream project's), dated by the heading, so the feed shows the
 last release plus the fragments added since. Keep the markers: they keep each
 entry's id (so it is not shown as new twice) and keep `chore-*` fragments out
 of the app. Hand-written bullets in a release section are shown too; a bullet

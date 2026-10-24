@@ -187,7 +187,7 @@ const CHANGELOG = [
   "",
   "## [1.3.0] 2025-03-25",
   "",
-  "- FluidCalendar.",
+  "- Upstream.",
   "",
   "## [1.2.3]",
   "",
