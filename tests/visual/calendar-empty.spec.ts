@@ -43,8 +43,10 @@ async function prepare(page: Page, theme: "dark" | "light", state: Case) {
       ? route.fulfill(json([]))
       : route.continue()
   );
-  // The quiet hint is for a week with nothing in it, tasks included.
-  if (state === "quiet") {
+  // The quiet hint is for a week with nothing in it, tasks included. The
+  // phone is shot as a first run (no tasks yet), so the card sits right under
+  // the day instead of below the fold.
+  if (state === "quiet" || (page.viewportSize()?.width ?? 0) < 768) {
     await page.route("**/api/tasks", (route) =>
       route.request().method() === "GET"
         ? route.fulfill(json([]))
