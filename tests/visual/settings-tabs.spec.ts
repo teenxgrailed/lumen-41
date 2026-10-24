@@ -146,38 +146,136 @@ test("every Settings tab stays visually consistent", async ({ page }) => {
   }
 });
 
-// //todo: v3 Notifications has no browser-push opt-in at all (its "Desktop
-// notification" switches are the worker's columns), so there is no switch to
-// disable and no "setup is incomplete" line. Bring this back when the v3
-// section gets the push subscription the old NotificationSettings had.
-test.fixme(
-  "unavailable browser push stays honest in Settings",
-  async ({ page }) => {
-    await prepareSettings(page);
-    await page.goto("/settings#notifications", {
-      waitUntil: "domcontentloaded",
+/*
+ * Browser push in Settings → Notifications (desktop and phone): the "This
+ * device" row says what the browser allows and offers only the button that
+ * can work. The permission and the subscription are the browser's, so they are
+ * set up here: `Notification.permission` is pinned, and for "granted" the
+ * service worker registration hands back a stored subscription.
+ */
+type PushSetup = {
+  permission: NotificationPermission;
+  configured: boolean;
+  subscribed?: boolean;
+};
+
+async function preparePush(
+  page: import("@playwright/test").Page,
+  setup: PushSetup
+) {
+  await page.addInitScript((s: PushSetup) => {
+    Object.defineProperty(Notification, "permission", {
+      configurable: true,
+      get: () => s.permission,
     });
-    await expect(page).toHaveURL(/#notifications$/);
-    await expect(
-      page.locator("#settings-panel > h2").filter({ hasText: "Alerts" })
-    ).toBeVisible();
+    if (!s.subscribed) return;
+    const endpoint = "https://push.example.test/visual-device";
+    const subscription = {
+      endpoint,
+      toJSON: () => ({ endpoint, keys: { p256dh: "p256dh", auth: "auth" } }),
+      unsubscribe: async () => true,
+    };
+    const registration = {
+      active: {},
+      pushManager: {
+        getSubscription: async () => subscription,
+        subscribe: async () => subscription,
+      },
+    };
+    Object.defineProperty(navigator.serviceWorker, "getRegistration", {
+      configurable: true,
+      value: async () => registration,
+    });
+  }, setup);
+  await page.route("**/api/push-subscriptions", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: "{}",
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        configured: setup.configured,
+        publicKey: setup.configured ? "BFakeVisualVapidPublicKey" : null,
+      }),
+    });
+  });
+}
 
-    const browserNotifications = page
-      .getByText("Browser notifications:", { exact: true })
-      .locator("..")
-      .getByRole("switch");
-    await expect(browserNotifications).toBeDisabled();
-    await expect(browserNotifications).toHaveAttribute("aria-checked", "false");
-    await expect(
-      page.getByText(
-        "Push delivery setup is incomplete on this Needt server. Browser notifications are unavailable. Email reminders still work."
-      )
-    ).toBeVisible();
+async function openNotifications(page: import("@playwright/test").Page) {
+  await page.goto("/settings#alerts", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(settingsSection(page, "Notifications")).toBeVisible();
+  return page.getByRole("dialog", { name: "Settings" });
+}
 
-    await settleSettings(page);
-    await expect(page).toHaveScreenshot("settings-notifications.png");
-  }
-);
+test("browser push, permission not asked yet, offers to enable", async ({
+  page,
+}) => {
+  await preparePush(page, { permission: "default", configured: true });
+  await prepareSettings(page);
+  const sheet = await openNotifications(page);
+  await expect(sheet.getByText("Notifications on this device")).toBeVisible();
+  await expect(
+    sheet.getByRole("button", { name: "Enable notifications" })
+  ).toBeEnabled();
+  await settleSettings(page);
+  await expect(page).toHaveScreenshot("settings-push-default.png");
+});
+
+test("browser push, permission granted, can test and turn off", async ({
+  page,
+}) => {
+  await preparePush(page, {
+    permission: "granted",
+    configured: true,
+    subscribed: true,
+  });
+  await prepareSettings(page);
+  const sheet = await openNotifications(page);
+  await expect(sheet.getByText("Notifications are on")).toBeVisible();
+  await expect(
+    sheet.getByRole("button", { name: "Send test notification" })
+  ).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Turn off" })).toBeVisible();
+  await settleSettings(page);
+  await expect(page).toHaveScreenshot("settings-push-granted.png");
+});
+
+test("browser push, permission denied, says where to allow it", async ({
+  page,
+}) => {
+  await preparePush(page, { permission: "denied", configured: true });
+  await prepareSettings(page);
+  const sheet = await openNotifications(page);
+  await expect(sheet.getByText("Blocked in the browser")).toBeVisible();
+  await expect(
+    sheet.getByText(/Allow them in the site settings/)
+  ).toBeVisible();
+  await expect(
+    sheet.getByRole("button", { name: "Enable notifications" })
+  ).toHaveCount(0);
+  await settleSettings(page);
+  await expect(page).toHaveScreenshot("settings-push-denied.png");
+});
+
+test("unavailable browser push stays honest in Settings", async ({ page }) => {
+  await preparePush(page, { permission: "default", configured: false });
+  await prepareSettings(page);
+  const sheet = await openNotifications(page);
+  await expect(sheet.getByText("Not available on this server")).toBeVisible();
+  await expect(
+    sheet.getByText("Push delivery is not set up here yet.")
+  ).toBeVisible();
+  await expect(
+    sheet.getByRole("button", { name: "Enable notifications" })
+  ).toHaveCount(0);
+});
 
 test("Billing renders the failed-payment recovery path", async ({ page }) => {
   await page.route("**/api/billing", async (route) => {
