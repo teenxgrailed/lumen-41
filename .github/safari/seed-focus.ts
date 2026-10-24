@@ -14,8 +14,9 @@ async function main() {
   if (state === "none") return;
   const planned = 25;
   const now = Date.now();
-  // running: 7 min in (18 left); paused: the same, paused now; ending: 24 min in
-  const inMin = state === "ending" ? 22.5 : 7;
+  // running: 7 min in (18 left); paused: the same, paused now; ending: 105 s
+  // left (the last 2 minutes), seeded right before its shot
+  const inMin = state === "ending" ? 23.25 : 7;
   await prisma.focusSession.create({
     data: {
       userId: user.id,
