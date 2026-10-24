@@ -114,7 +114,9 @@ for (const theme of ["dark", "light"] as const) {
     await menu.getByRole("menuitem", { name: "What's new" }).click();
 
     const sheet = page.getByRole("dialog", { name: "What's new in Needt" });
-    await expect(sheet.getByText("15 Jul 2026")).toBeVisible();
+    await expect(
+      sheet.getByRole("heading", { name: "15 Jul 2026" })
+    ).toBeVisible();
     await expect(sheet.locator("[data-wn-new]")).toHaveCount(3);
     // Opening it records the newest day as seen: the avatar's dot goes.
     await expect(profile.locator("[data-sb-news-dot]")).toHaveCount(0);
