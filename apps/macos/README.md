@@ -32,6 +32,29 @@ right-click, Open.
 
 Debug builds can point at a local web app: `NEEDT_URL=http://localhost:3000`.
 
+### CI harness (real WKWebView screenshots)
+
+`.github/workflows/macos-webview.yml` photographs the real app on a macOS
+runner, because Playwright's WebKit on Linux does not show the WKWebView-only
+bugs. It builds the direct app with `NEEDT_CI_CONDITION=NEEDT_CI`, which
+compiles `CI/CIHarness.swift` (otherwise an empty file; the release workflows
+never set it, and `macos.yml` fails if a release-style binary contains its
+flags). That build accepts:
+
+- `--ci-base-url http://127.0.0.1:3000`: loopback http only.
+- `--ci-session-cookie <name=value | @file>`: a `next-auth.session-token`
+  cookie put into `WKWebsiteDataStore.default()` before the main window loads.
+  The real sign-in (system browser, then `needt://auth?code=`) cannot be
+  clicked through on a runner, so CI signs in through the credentials endpoint
+  and passes the cookie.
+- Commands as distributed notifications `app.needt.mac.ci` (`needt-ci send
+size:1440x900`, `load:/today`, `key:cmd+j`, `wheel:15`, `probe:<file>`, ...),
+  sent by `.github/macos-webview/NeedtCI.swift`.
+
+The artifact `needt-webview-shots` holds the window screenshots
+(`screencapture -l`), DOM measurements taken inside the WKWebView, and
+`results.txt`.
+
 ## What it does (parity with the Tauri Mac app)
 
 | Feature         | How                                                                                                                                                                                            |
@@ -102,14 +125,14 @@ The updater stays off, with a log line (`Updates are off`, subsystem
 
 How it fits together:
 
-| Piece | Where |
-| --- | --- |
-| Release workflow | `.github/workflows/macos-release.yml` (tag `mac-vX.Y.Z` or run by hand with a version) |
-| Zip | GitHub Release `mac-vX.Y.Z`, asset `Needt-X.Y.Z.zip` |
-| Appcast | release `mac-appcast`, asset `appcast.xml`, replaced on every release |
-| Feed URL in the app | `https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml` (`SUFeedURL` in `project.yml`) |
-| Public key in the app | build setting `SPARKLE_PUBLIC_ED_KEY`, filled from the repository variable `SPARKLE_ED_PUBLIC_KEY` |
-| Private key | secret `SPARKLE_ED_PRIVATE_KEY`, read only by the "Sign the zip" step |
+| Piece                 | Where                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Release workflow      | `.github/workflows/macos-release.yml` (tag `mac-vX.Y.Z` or run by hand with a version)                          |
+| Zip                   | GitHub Release `mac-vX.Y.Z`, asset `Needt-X.Y.Z.zip`                                                            |
+| Appcast               | release `mac-appcast`, asset `appcast.xml`, replaced on every release                                           |
+| Feed URL in the app   | `https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml` (`SUFeedURL` in `project.yml`) |
+| Public key in the app | build setting `SPARKLE_PUBLIC_ED_KEY`, filled from the repository variable `SPARKLE_ED_PUBLIC_KEY`              |
+| Private key           | secret `SPARKLE_ED_PRIVATE_KEY`, read only by the "Sign the zip" step                                           |
 
 The appcast is a release asset, not a page on needt.app: the repository is
 public, the URL is stable, and no landing deploy is involved. If it should live
@@ -156,7 +179,6 @@ the EdDSA signature, so updates install, but:
   people rely on updates, and expect one manual reinstall for copies installed
   from unsigned builds.
 
-
 ## Widgets
 
 `Widgets/Sources` is a WidgetKit extension (`NeedtWidgets`, bundle id
@@ -197,16 +219,16 @@ data in `apps/shared/NeedtKit`.
 
 ## System integration
 
-| Feature         | How                                                                                                                                                                                                                      |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Feature         | How                                                                                                                                                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | App Intents     | `Needt/Sources/Intents`: Add task, Complete task, Start focus, End focus, What's today, What's next, Replan day, Log habit, with phrases for Siri and Spotlight. Same HTTP API as the web app, signed in by the session vault |
-| Spotlight       | Open tasks are indexed (CoreSpotlight, up to 200); a click opens the task in the main window                                                                                                                              |
-| Focus to macOS  | Settings, Focus: the name of a Shortcut to run when a Needt focus starts and one for when it ends (`shortcuts://run-shortcut`). Make them with the Set Focus action                                                       |
-| macOS to Needt  | System Settings, Focus, Focus Filters, Needt: suggest the next task of a project in the menu, or start the focus. Unverified on a real Mac: whether the system also calls the filter with its defaults when the Focus ends |
-| Menu bar text   | `24:10 · task` only while a focus runs (`Text(timerInterval:)`, no timer in the app); the icon alone otherwise                                                                                                            |
-| Share extension | `Share/`: URL or text, title = page title or first line, link in the notes                                                                                                                                                |
-| Offline         | `NeedtKit.OfflineCache` keeps the last day report and task list; the menu and the offline screen show them read-only with "Offline · updated HH:mm"; Quick add, pause, end and start focus are disabled. No edit queue      |
-| Sandbox         | Every target has `app-sandbox`, `network.client`, `application-groups`; the apps also `files.user-selected.read-only` and camera and microphone for the page                                                              |
+| Spotlight       | Open tasks are indexed (CoreSpotlight, up to 200); a click opens the task in the main window                                                                                                                                  |
+| Focus to macOS  | Settings, Focus: the name of a Shortcut to run when a Needt focus starts and one for when it ends (`shortcuts://run-shortcut`). Make them with the Set Focus action                                                           |
+| macOS to Needt  | System Settings, Focus, Focus Filters, Needt: suggest the next task of a project in the menu, or start the focus. Unverified on a real Mac: whether the system also calls the filter with its defaults when the Focus ends    |
+| Menu bar text   | `24:10 · task` only while a focus runs (`Text(timerInterval:)`, no timer in the app); the icon alone otherwise                                                                                                                |
+| Share extension | `Share/`: URL or text, title = page title or first line, link in the notes                                                                                                                                                    |
+| Offline         | `NeedtKit.OfflineCache` keeps the last day report and task list; the menu and the offline screen show them read-only with "Offline · updated HH:mm"; Quick add, pause, end and start focus are disabled. No edit queue        |
+| Sandbox         | Every target has `app-sandbox`, `network.client`, `application-groups`; the apps also `files.user-selected.read-only` and camera and microphone for the page                                                                  |
 
 The session for intents and the Share extension is copied from the web view
 into `NeedtKit.CookieVault`: a 0600 file in the App Group container (the
@@ -252,10 +274,10 @@ read the menu bar's `TrayStore` and write through `NeedtAPI`.
 
 Two builds from the same sources:
 
-| Target | Island | Sandbox | Updates |
-| --- | --- | --- | --- |
-| `Needt` | all of it | no (the full island needs it) | Sparkle |
-| `NeedtAppStore` | minus everything in the `excludes` of its `Island/Sources` entry in `project.yml`; inert stand-ins in `Island/AppStore` | yes | none |
+| Target          | Island                                                                                                                  | Sandbox                       | Updates |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------- |
+| `Needt`         | all of it                                                                                                               | no (the full island needs it) | Sparkle |
+| `NeedtAppStore` | minus everything in the `excludes` of its `Island/Sources` entry in `project.yml`; inert stand-ins in `Island/AppStore` | yes                           | none    |
 
 `scripts/check-appstore-private-api.py` (run by CI) fails when a source
 compiled into `NeedtAppStore` names a private interface. Music in the App
