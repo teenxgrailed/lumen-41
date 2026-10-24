@@ -1,0 +1,243 @@
+name: macOS WKWebView
+
+# The native Mac app (apps/macos) in a real WKWebView on a macOS runner,
+# photographed with screencapture: the bugs that only WebKit inside AppKit
+# shows (Playwright WebKit on Linux does not) become visible in CI.
+#
+#  - app:     builds the direct Needt.app with the CI harness compiled in
+#             (NEEDT_CI_CONDITION=NEEDT_CI, apps/macos/CI). Release builds
+#             never set it; macos.yml checks that.
+#  - webview: a throwaway Postgres/Redis/Next server on the runner (the same
+#             CI-only secrets as safari-phone.yml, nothing touches
+#             production), seeded data, a session from the credentials
+#             endpoint, then the app is launched against it and driven by
+#             .github/macos-webview/run.py. It waits for the app job's
+#             artifact, so both builds run at the same time.
+#
+# Artifact `needt-webview-shots`: shots/, probes/ (DOM measurements from
+# inside the WKWebView), results.txt, logs. Lines marked FAIL gate the job;
+# BUG lines are the owner-reported symptoms, reported without failing.
+on:
+  push:
+    paths:
+      - "apps/macos/**"
+      - ".github/macos-webview/**"
+      - ".github/workflows/macos-webview.yml"
+      - "src/styles/v3-overrides/desktop-app.css"
+      - "src/components/needt3/shell/DesktopBridge.tsx"
+      - "src/lib/desktop.ts"
+  workflow_dispatch:
+
+concurrency:
+  group: needt-macos-webview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Build Needt.app with the CI harness
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      - name: Build (no signing, CI harness on)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme Needt \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-ci \
+            NEEDT_CI_CONDITION=NEEDT_CI \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build-ci.log | tail -n 60
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build-ci.log | sort -u | head -80 || true
+
+      - name: Zip the CI app
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build-ci/Build/Products/Release/Needt.app
+          strings "$APP/Contents/MacOS/Needt" > "$RUNNER_TEMP/ci-strings.txt"
+          grep -q -- "--ci-session-cookie" "$RUNNER_TEMP/ci-strings.txt"
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-ci.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: needt-ci-app
+          path: apps/macos/out/Needt-ci.zip
+          retention-days: 3
+
+  webview:
+    name: Real WKWebView screenshots
+    runs-on: macos-26
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_test
+      DIRECT_URL: postgresql://needt:needt@localhost:5432/needt_test
+      SHADOW_DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_shadow
+      REDIS_URL: redis://localhost:6379
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_SECRET: needt-ci-only-secret-not-valid-outside-github-actions
+      RATE_LIMIT_HASH_SECRET: needt-ci-rate-limit-hash-secret
+      NODE_OPTIONS: --max-old-space-size=5120
+      PROBE_EMAIL: ci-pro@needt.local
+      PROBE_PASSWORD: Needt-ci-Password1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Start PostgreSQL and Redis
+        run: |
+          set -euo pipefail
+          brew install postgresql@16 redis
+          brew services start postgresql@16
+          brew services start redis
+          PGBIN="$(brew --prefix postgresql@16)/bin"
+          echo "$PGBIN" >> "$GITHUB_PATH"
+          for i in $(seq 1 30); do "$PGBIN/pg_isready" -h localhost && break; sleep 2; done
+          "$PGBIN/psql" -h localhost -d postgres -c "CREATE ROLE needt LOGIN SUPERUSER PASSWORD 'needt'"
+          "$PGBIN/createdb" -h localhost -O needt needt_test
+          "$PGBIN/createdb" -h localhost -O needt needt_shadow
+          redis-cli ping
+
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/ci-seed.ts
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build and start the web app
+        run: |
+          set -euo pipefail
+          npm run build
+          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          disown
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/next.log"
+          exit 1
+
+      # The app's own sign-in goes through the system browser and a needt://
+      # link, which a runner cannot click through. Sign in through the web
+      # app's credentials endpoint instead (what the sign-in form posts) and
+      # hand the session cookie to the CI build (--ci-session-cookie).
+      - name: Session for the app
+        run: |
+          set -euo pipefail
+          HOST=http://127.0.0.1:3000
+          JAR="$RUNNER_TEMP/jar.txt"
+          curl -fsS -c "$JAR" -b "$JAR" -o "$RUNNER_TEMP/csrf.json" "$HOST/api/auth/csrf"
+          CSRF="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["csrfToken"])' "$RUNNER_TEMP/csrf.json")"
+          curl -sS -c "$JAR" -b "$JAR" -o /dev/null -w "callback %{http_code}\n" \
+            -X POST "$HOST/api/auth/callback/credentials" \
+            --data-urlencode "csrfToken=$CSRF" \
+            --data-urlencode "email=$PROBE_EMAIL" \
+            --data-urlencode "password=$PROBE_PASSWORD" \
+            --data-urlencode "callbackUrl=$HOST/today" \
+            --data-urlencode "json=true"
+          curl -fsS -b "$JAR" -o "$RUNNER_TEMP/session.json" "$HOST/api/auth/session"
+          python3 -c "import json,sys; u=(json.load(open(sys.argv[1])).get('user') or {}); print('session for', u.get('email')); sys.exit(0 if u.get('email')==sys.argv[2] else 1)" "$RUNNER_TEMP/session.json" "$PROBE_EMAIL"
+          awk -F'\t' '$6 ~ /^next-auth\.session-token/ {print $6"="$7}' "$JAR" | head -n 1 > "$RUNNER_TEMP/cookie.txt"
+          test -s "$RUNNER_TEMP/cookie.txt"
+          echo "cookie $(cut -d= -f1 "$RUNNER_TEMP/cookie.txt"), $(wc -c < "$RUNNER_TEMP/cookie.txt") bytes"
+          # The first signed-in API request creates the personal workspace the
+          # seeded rows belong to.
+          curl -fsS -b "$JAR" -o /dev/null -w "tasks %{http_code}\n" "$HOST/api/tasks"
+
+      - name: Data for the screens
+        run: npx tsx .github/macos-webview/seed.ts
+
+      - name: Helper tool
+        run: |
+          set -euo pipefail
+          swiftc -O .github/macos-webview/NeedtCI.swift -o "$RUNNER_TEMP/needt-ci"
+          "$RUNNER_TEMP/needt-ci" display 2000 1300 || true
+
+      # The app job builds at the same time; take its artifact when it lands.
+      - name: Wait for the CI app
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/app"
+          for i in $(seq 1 90); do
+            if gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n needt-ci-app -D "$RUNNER_TEMP/app" >/dev/null 2>&1; then
+              ditto -x -k "$RUNNER_TEMP/app/Needt-ci.zip" "$RUNNER_TEMP/app"
+              test -d "$RUNNER_TEMP/app/Needt.app" && exit 0
+            fi
+            STATE="$(gh run view "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" --json jobs --jq '.jobs[] | select(.name == "Build Needt.app with the CI harness") | .conclusion')"
+            if [ -n "$STATE" ] && [ "$STATE" != "success" ]; then echo "app job: $STATE"; exit 1; fi
+            sleep 20
+          done
+          echo "the CI app never arrived"; exit 1
+
+      - name: Screens
+        timeout-minutes: 15
+        run: |
+          set -uo pipefail
+          xattr -dr com.apple.quarantine "$RUNNER_TEMP/app/Needt.app" || true
+          mkdir -p webview
+          python3 -I .github/macos-webview/run.py "$RUNNER_TEMP/app/Needt.app" "$RUNNER_TEMP/needt-ci" "$RUNNER_TEMP/cookie.txt" webview
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Real WKWebView (Needt.app CI build)"
+            echo '```'
+            cat webview/results.txt 2>/dev/null || echo "no results"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cp "$RUNNER_TEMP/next.log" webview/next.log 2>/dev/null || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-webview-shots
+          path: webview
+          if-no-files-found: warn
+
+      - name: Assertions
+        run: |
+          set -euo pipefail
+          test -s webview/results.txt
+          ls webview/shots/*-1-home.png >/dev/null
+          if grep -E "^FAIL" webview/results.txt; then exit 1; fi
+          echo "BUG lines (owner-reported symptoms seen in this run, not gating):"
+          grep -E "^BUG" webview/results.txt || echo "none"
