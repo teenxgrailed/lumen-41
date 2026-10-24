@@ -58,6 +58,16 @@ describe("phone page ground", () => {
     expect(reader).toContain('html.removeAttribute("data-ground")');
   });
 
+  it("the installed app's document is at least the whole screen tall", () => {
+    // a scroll-locked page was 100dvh, the small viewport on a fresh load,
+    // and iOS shrank innerHeight to it (the sheet stopped 62 pt short)
+    const at = css.indexOf("@media (display-mode: standalone)");
+    expect(at).toBeGreaterThanOrEqual(0);
+    const block = css.slice(at, css.indexOf("}\n}", at));
+    expect(block).toContain('html:has(.needt-v3[data-ui="phone"])');
+    expect(block).toContain("min-height: 100lvh");
+  });
+
   it("the dock's shadow stops at the bottom paint gap", () => {
     const body = rule('.needt-v3[data-ui="phone"] .nva-shadow');
     expect(body).toContain(

@@ -43,6 +43,18 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background-color: #141416 !important;
 }
 
+/* The installed app: iOS sizes the visual viewport from the document. A
+ * short or scroll-locked document (a sheet open: body is position: fixed,
+ * pk scroll lock) is 100dvh tall, and on a fresh load dvh is the small
+ * viewport (812 of 874 pt on an iPhone 17 Pro, the status bar's 62 pt off),
+ * so innerHeight stuck at 812 and every fixed layer, the sheet and its scrim
+ * stopped 62 pt above the bottom. 100lvh is the whole screen there. */
+@media (display-mode: standalone) {
+  html:has(.needt-v3[data-ui="phone"]) {
+    min-height: 100lvh;
+  }
+}
+
 /* A page whose own paper reaches the top edge (the document reader without a
  * backdrop) is the ground while it is open: ReaderPhone writes the paper's
  * light / dark pair onto <html> with data-ground="page". Same rule as above,
