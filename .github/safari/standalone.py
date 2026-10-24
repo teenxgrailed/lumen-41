@@ -12,7 +12,7 @@ innerHeight through Web Inspector (wi.py), plus the native controls idb sees
 shots/standalone-report.txt; a band or Safari chrome is an ::error::.
 Pages are reached by location.assign in the scenarios and by real taps on the
 menu in nav (its targets are found through Web Inspector, the touch is idb)."""
-import json, os, re, subprocess, sys, time
+import json, os, re, signal, subprocess, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ui  # noqa: E402
@@ -29,16 +29,15 @@ CHROME = ("done", "address", "reload", "url", "open in safari", "back", "forward
 
 
 def log(line):
-    print(line, flush=True)
+    ui.stamp(line)
     with open(REPORT, "a") as f:
         f.write(line + "\n")
 
 
-def sh(*cmd, timeout=150):
-    try:
-        return subprocess.run(list(cmd), capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
+def sh(*cmd, timeout=90):
+    # every external call is killed (with its process group) after `timeout`
+    # seconds and reports returncode 124; nothing here can block the step
+    return ui.hard_run(cmd, timeout=timeout)
 
 
 def js(code, want="webapp", url="127.0.0.1:3000"):
@@ -363,10 +362,18 @@ def scenarios():
         log("  viewport 4 s later: " + json.dumps(js(VIEWPORT_JS)))
         # pull-down, shot while the finger is still down
         go("/today")
-        p = subprocess.Popen(["idb", "ui", "swipe", "201", "140", "201", "520", "--duration", "4", "--udid", UDID])
+        p = subprocess.Popen(["idb", "ui", "swipe", "201", "140", "201", "520", "--duration", "4", "--udid", UDID],
+                             stdin=subprocess.DEVNULL, start_new_session=True)
         time.sleep(2.5)
-        sh("xcrun", "simctl", "io", UDID, "screenshot", f"shots/standalone-{theme}-06-pull-down.png")
-        p.wait(timeout=60)
+        sh("xcrun", "simctl", "io", UDID, "screenshot", f"shots/standalone-{theme}-06-pull-down.png", timeout=60)
+        try:
+            p.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            ui.stamp("pull-down swipe did not return; killing it")
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                pass
         r = sh("python3", os.path.join(HERE, "edges.py"), f"shots/standalone-{theme}-06-pull-down.png", theme)
         log(f"standalone-{theme}-06-pull-down (finger down, no page state):")
         for line in r.stdout.splitlines():
@@ -426,9 +433,29 @@ def finish():
         log("no edge band, no Safari chrome")
 
 
+# Seconds each command may take, a little under its step's timeout-minutes in
+# safari-phone.yml: the script ends itself, with a log line and a problem for
+# the verdict, instead of being killed by the runner without a word.
+BUDGET = {"install": 780, "signin": 1080, "nav": 780, "scenarios": 1620}
+
+
+def out_of_time(cmd):
+    def handler(signum, frame):
+        msg = f"standalone.py {cmd} used its {BUDGET[cmd]} s budget and was stopped"
+        log("PROBLEM: " + msg)
+        print(f"::error title=Installed app probe stalled::{msg}", flush=True)
+        with open("debug/standalone-problems.txt", "a") as f:
+            f.write(msg + "\n")
+        os._exit(3)
+    return handler
+
+
 if __name__ == "__main__":
     os.makedirs("shots", exist_ok=True)
     os.makedirs("debug", exist_ok=True)
     cmd, args = sys.argv[1], sys.argv[2:]
+    signal.signal(signal.SIGALRM, out_of_time(cmd))
+    signal.alarm(BUDGET[cmd])
+    ui.stamp("standalone.py", cmd, "starts, budget", BUDGET[cmd], "s")
     {"install": lambda: install(), "signin": lambda: signin(*args),
      "scenarios": lambda: scenarios(), "nav": lambda: nav()}[cmd]()

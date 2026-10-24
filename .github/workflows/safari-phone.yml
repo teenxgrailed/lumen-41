@@ -228,27 +228,23 @@ jobs:
         timeout-minutes: 25
         run: |
           set -uo pipefail
-          open_url() {
-            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
+          . .github/safari/lib.sh   # tmo, say, run, shot, open_url: every call under a timeout, logged
+          open_path() {
+            curl -fsS -m 20 -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
+            open_url "http://127.0.0.1:3000$1"
             sleep 3
           }
-          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
+          up() { run $((60 + 30 * $1)) "scroll up $1" python3 .github/safari/ui.py up "$1"; }
           for theme in light dark; do
-            xcrun simctl ui "$UDID" appearance "$theme"
+            run 60 "appearance $theme" xcrun simctl ui "$UDID" appearance "$theme"
             sleep 2
-            open_url /today;               shot "$theme-01-today-top"
-            python3 .github/safari/ui.py up 2; sleep 1; shot "$theme-02-today-scrolled"
-            open_url /tasks;               shot "$theme-03-tasks-top"
-            python3 .github/safari/ui.py up 12; sleep 1; shot "$theme-04-tasks-bottom"
-            open_url "/settings#appearance"; shot "$theme-05-settings-sheet"
-            open_url /tasks
-            python3 .github/safari/ui.py up 1; sleep 1; shot "$theme-06-tasks-mid"
+            open_path /today;               shot "$theme-01-today-top"
+            up 2; sleep 1; shot "$theme-02-today-scrolled"
+            open_path /tasks;               shot "$theme-03-tasks-top"
+            up 12; sleep 1; shot "$theme-04-tasks-bottom"
+            open_path "/settings#appearance"; shot "$theme-05-settings-sheet"
+            open_path /tasks
+            up 1; sleep 1; shot "$theme-06-tasks-mid"
           done
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
@@ -260,37 +256,30 @@ jobs:
         timeout-minutes: 20
         run: |
           set -uo pipefail
-          open_url() {
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
-            sleep 3
-          }
+          . .github/safari/lib.sh   # tmo, say, run, shot, open_url: every call under a timeout, logged
+          open_path() { open_url "http://127.0.0.1:3000$1"; sleep 3; }
           # the fog dots drift (1.2 px/s): two shots 8 s apart must differ
-          npx tsx .github/safari/seed-focus.ts none
-          xcrun simctl ui "$UDID" appearance light
-          open_url /today
-          xcrun simctl io "$UDID" screenshot "shots/08-fog-a.png"
+          tmo 120 npx tsx .github/safari/seed-focus.ts none
+          run 60 "appearance light" xcrun simctl ui "$UDID" appearance light
+          open_path /today
+          shot 08-fog-a
           sleep 8
-          xcrun simctl io "$UDID" screenshot "shots/08-fog-b.png"
+          shot 08-fog-b
           if cmp -s shots/08-fog-a.png shots/08-fog-b.png; then echo "FOG DOTS STILL"; else echo "fog dots move"; fi
           for state in running paused ending; do
             for theme in light dark; do
-              xcrun simctl ui "$UDID" appearance "$theme"
+              run 60 "appearance $theme" xcrun simctl ui "$UDID" appearance "$theme"
               sleep 2
               # a slow first load can outlive the 2-minute ending window: warm
               # the page, then seed and load it again right before the shot
-              open_url /today
-              npx tsx .github/safari/seed-focus.ts "$state"
-              open_url /today
+              open_path /today
+              tmo 120 npx tsx .github/safari/seed-focus.ts "$state"
+              open_path /today
               sleep 2
-              xcrun simctl io "$UDID" screenshot "shots/$theme-07-focus-$state.png"
+              shot "$theme-07-focus-$state"
             done
           done
-          npx tsx .github/safari/seed-focus.ts none
+          tmo 120 npx tsx .github/safari/seed-focus.ts none
         continue-on-error: true
 
       # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
@@ -300,49 +289,25 @@ jobs:
       # scrolled. The dock is lifted only with the bar at the bottom. Compact
       # is set back at the end: the install below drives Compact's menu.
       - name: Safari tab layouts, Compact / Top / Bottom
-        timeout-minutes: 40
-        run: |
-          set -uo pipefail
-          mkdir -p shots debug
-          npx tsx .github/safari/boot-js.ts > "$RUNNER_TEMP/viewport-boot.js"
-          (python3 .github/safari/layout.py serve "$RUNNER_TEMP/viewport-boot.js" > debug/viewport-serve.log 2>&1 &)
-          sleep 2
-          open_url() {
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
-            sleep 3
-          }
-          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
-          xcrun simctl ui "$UDID" appearance light
-          for L in compact top bottom; do
-            TAG="$L"
-            if [ "$L" != compact ] && ! python3 .github/safari/layout.py set "$L"; then
-              echo "::warning::could not set the $L layout; its readings are tagged $L-unset"
-              TAG="$L-unset"
-            fi
-            xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
-            sleep 2
-            python3 .github/safari/layout.py mark "$L at rest"
-            open_url "http://127.0.0.1:8000/?layout=$TAG"
-            sleep 6
-            shot "layout-$L-00-viewport"
-            python3 .github/safari/layout.py mark "$L scrolled"
-            python3 .github/safari/ui.py up 3; sleep 5
-            shot "layout-$L-00b-viewport-scrolled"
-            open_url "http://127.0.0.1:3000/today"; shot "layout-$L-01-today-top"
-            python3 .github/safari/ui.py up 2; sleep 2; shot "layout-$L-02-today-scrolled"
-            open_url "http://127.0.0.1:3000/tasks"
-            python3 .github/safari/ui.py up 12; sleep 2; shot "layout-$L-04-tasks-bottom"
-          done
-          python3 .github/safari/layout.py set compact || echo "::warning::could not set Compact back"
-          xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
-          python3 .github/safari/layout.py summary | tee shots/layouts-summary.txt
-          python3 .github/safari/layout.py verdict | tee -a shots/layouts-summary.txt
+        # .github/safari/layouts.sh: every simctl/idb call under a timeout, each
+        # layout cut at 15 min, every action timestamped into debug/layouts.log
+        timeout-minutes: 50
+        run: bash .github/safari/layouts.sh all
         continue-on-error: true
+
+      # Uploaded right away, not only at the end: a stalled or cancelled run
+      # after this point still leaves the layout shots and the log.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts
+          path: |
+            shots/layout-*
+            shots/layouts-summary.txt
+            debug/layouts.log
+            debug/viewport*
+            debug/layout-*
+          if-no-files-found: warn
 
       # The installed app (Add to Home Screen, standalone). The owner's bands,
       # the Safari controls after leaving Home and the top band show there, not
@@ -372,12 +337,18 @@ jobs:
       # Pixel checks on the shots (web content is not in the accessibility
       # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
       # fully on screen and apart from the pill, no New task. The top 4 pt of
-      # every shot: no sharp list text (page ground, or blurred).
+      # every shot: no sharp list text (page ground, or blurred). The focus
+      # verdict is over the rows of the dock, not one pixel row: the fog dots
+      # under the dock close the gap on single rows. The self-test runs the
+      # check on synthetic docks first (dots bridging passes, a real overlap fails).
       - name: Check the focus row and the top edge
         run: |
-          set -euo pipefail
-          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
-          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
+          set -uo pipefail
+          rc=0
+          python3 -I .github/safari/check-shots.py selftest || rc=1
+          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png || rc=1
+          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png || rc=1
+          exit $rc
 
       - name: Keep the server log
         if: always()
