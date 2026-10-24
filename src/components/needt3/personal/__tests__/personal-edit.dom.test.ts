@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
 import type { ApiPersonalBlock } from "@/lib/needt3/hooks/personal";
+import { qk } from "@/lib/needt3/query-keys";
 
 import { PersonalEditForm } from "../PersonalEditForm";
 
@@ -81,6 +82,8 @@ beforeEach(() => {
     }
   );
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // the person's zone is already loaded when a block is opened in the app
+  client.setQueryData(qk.settings(), { timeZone: "Europe/Zurich" });
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
