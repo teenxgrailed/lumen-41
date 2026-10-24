@@ -73,10 +73,15 @@ function swiftBridge() {
 
 async function openToday(
   browser: Browser,
-  scheme: "light" | "dark"
+  scheme: "light" | "dark",
+  viewport: { width: number; height: number; dpr?: number } = {
+    width: 1440,
+    height: 900,
+  }
 ): Promise<{ page: Page; close: () => Promise<void> }> {
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
+    viewport: { width: viewport.width, height: viewport.height },
+    deviceScaleFactor: viewport.dpr ?? 1,
     colorScheme: scheme,
     serviceWorkers: "block",
     baseURL: BASE,
@@ -360,6 +365,222 @@ for (const engine of ENGINES) {
           ratio: 1,
         });
         await shot(page, "3-final");
+      } finally {
+        await close();
+        await browser.close();
+      }
+    });
+  }
+}
+
+/* ── WebKit paint checks (Mac app, large windows) ───────────────────────────
+ * The owner's WKWebView showed: a sky that stops at a hard vertical edge, the
+ * Connections title on top of its subtitle, a tall ghost panel over Home where
+ * the notification corner is, and an Ask pill that was an empty rectangle.
+ * Each is a box measurement, so it can be held in CI without a person looking.
+ * Measurements are printed as JSON so a failing run says what it saw. */
+const SIZES = [
+  { width: 1440, height: 900 },
+  { width: 2000, height: 1300 },
+  // The owner's Mac: a 2000x1300 window on a Retina screen.
+  { width: 2000, height: 1300, dpr: 2 },
+] as const;
+
+async function skyReport(page: Page) {
+  return page.evaluate(() => {
+    const out: Array<Record<string, unknown>> = [];
+    for (const root of Array.from(
+      document.querySelectorAll<HTMLElement>(".px-sky")
+    )) {
+      const rr = root.getBoundingClientRect();
+      if (rr.width < 40 || rr.height < 40) continue;
+      const cv = root.querySelector<HTMLCanvasElement>(".px-canvas");
+      const dv = root.querySelector<HTMLCanvasElement>(".px-dotscreen");
+      if (!cv || !dv) continue;
+      const cr = cv.getBoundingClientRect();
+      const dr = dv.getBoundingClientRect();
+      const strips = 10;
+      const distinct: number[] = [];
+      const dots: number[] = [];
+      try {
+        const cx = cv.getContext("2d");
+        if (cx && cv.width > 1) {
+          const d = cx.getImageData(0, 0, cv.width, cv.height).data;
+          for (let k = 0; k < strips; k++) {
+            const x0 = Math.floor((cv.width * k) / strips);
+            const x1 = Math.floor((cv.width * (k + 1)) / strips);
+            const seen = new Set<number>();
+            for (let y = 0; y < cv.height; y++)
+              for (let x = x0; x < x1; x++) {
+                const o = (y * cv.width + x) * 4;
+                seen.add((d[o] << 16) | (d[o + 1] << 8) | d[o + 2]);
+              }
+            distinct.push(seen.size);
+          }
+        }
+        const dx = dv.getContext("2d");
+        if (dx && dv.width > 1) {
+          const d = dx.getImageData(0, 0, dv.width, dv.height).data;
+          for (let k = 0; k < strips; k++) {
+            const x0 = Math.floor((dv.width * k) / strips);
+            const x1 = Math.floor((dv.width * (k + 1)) / strips);
+            let n = 0;
+            for (let y = 0; y < dv.height; y += 2)
+              for (let x = x0; x < x1; x += 2)
+                if (d[(y * dv.width + x) * 4 + 3] > 0) n++;
+            dots.push(n);
+          }
+        }
+      } catch {
+        /* unreadable canvas: report what we have */
+      }
+      out.push({
+        where: root.closest("[data-v3-screen]")?.getAttribute("data-v3-screen"),
+        root: [rr.left, rr.top, rr.width, rr.height].map(Math.round),
+        canvas: [cr.left, cr.top, cr.width, cr.height].map(Math.round),
+        dot: [dr.left, dr.top, dr.width, dr.height].map(Math.round),
+        backing: [cv.width, cv.height, dv.width, dv.height],
+        dpr: devicePixelRatio,
+        distinct,
+        dots,
+      });
+    }
+    return out;
+  });
+}
+
+for (const engine of ENGINES) {
+  for (const size of SIZES) {
+    test(`Swift shell paints, ${engine.name}, ${size.width}x${size.height}@${"dpr" in size ? size.dpr : 1}`, async ({
+      baseURL,
+    }, testInfo) => {
+      void baseURL;
+      let browser: Browser;
+      try {
+        browser = await launch(engine.type);
+      } catch (error) {
+        test.skip(true, `${engine.name} is not installed: ${String(error)}`);
+        return;
+      }
+      mkdirSync(SHOTS, { recursive: true });
+      const dpr = "dpr" in size ? size.dpr : 1;
+      const tag = `${engine.name}-${size.width}x${dpr}`;
+      const shot = async (page: Page, name: string) => {
+        const path = join(SHOTS, `paint-${tag}-${name}.png`);
+        await page.screenshot({ path });
+        await testInfo.attach(`${tag}-${name}`, {
+          path,
+          contentType: "image/png",
+        });
+      };
+      const { page, close } = await openToday(browser, "light", size);
+      try {
+        // Home: the corner is the pill's box and nothing more.
+        await page.waitForTimeout(1500);
+        await shot(page, "1-home");
+        const corner = await page.evaluate(() => {
+          const shell = document.querySelector<HTMLElement>(".v3c-shell");
+          const anchor = document.querySelector<HTMLElement>(".v3c-anchor");
+          if (!shell || !anchor) return null;
+          const r = shell.getBoundingClientRect();
+          const cs = getComputedStyle(shell);
+          const m = /inset\(([\d.]+)px [\d.]+px [\d.]+px ([\d.]+)px/.exec(
+            cs.clipPath
+          );
+          const top = m ? Number(m[1]) : 0;
+          const left = m ? Number(m[2]) : 0;
+          // What is painted at the shell's unclipped top-left corner?
+          const probe = document.elementFromPoint(r.left + 6, r.top + 6);
+          return {
+            clipPath: cs.clipPath,
+            frame: [r.width, r.height].map(Math.round),
+            visible: [r.width - left, r.height - top].map(Math.round),
+            probeIsShell: !!probe && shell.contains(probe),
+            anchor: anchor.getBoundingClientRect().toJSON(),
+            vw: innerWidth,
+            vh: innerHeight,
+          };
+        });
+        console.log(`CORNER ${tag} ${JSON.stringify(corner)}`);
+        expect.soft(corner).not.toBeNull();
+        // Either the box is exactly what it shows, or a clip hides the rest.
+        const clipped = corner!.clipPath !== "none";
+        if (!clipped) {
+          expect
+            .soft(corner!.frame[0])
+            .toBeLessThanOrEqual(corner!.visible[0] + 1);
+          expect
+            .soft(corner!.frame[1])
+            .toBeLessThanOrEqual(corner!.visible[1] + 1);
+        }
+        // Resting corner: the pill (142x40), never wider than one toast (376).
+        expect.soft(corner!.visible[0]).toBeLessThanOrEqual(376);
+        expect.soft(corner!.visible[1]).toBeLessThanOrEqual(54 * 4 + 28);
+        // The corner's own box is never bigger than one toast either.
+        expect.soft(corner!.anchor.width).toBeLessThanOrEqual(376);
+        expect.soft(corner!.anchor.height).toBeLessThanOrEqual(54 * 4 + 28);
+        if (clipped) expect.soft(corner!.probeIsShell).toBe(false);
+
+        // Ask Needt opens.
+        const p = await pill(page);
+        expect.soft(p?.onTop).toBe(true);
+        expect.soft(p?.text ?? "").toContain("Ask Needt");
+        await page.locator("[data-chat-pill]").click();
+        await page.waitForTimeout(900);
+        await shot(page, "2-ask-open");
+        await expect
+          .soft(page.locator("[data-chat-panel]").first())
+          .toBeVisible();
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(500);
+
+        // Connections: the sky fills its box; title and subtitle are apart.
+        await page.goto("/connections").catch(() => undefined);
+        await page.locator("[data-cn-screen]").waitFor({ timeout: 60_000 });
+        await page.waitForTimeout(3500);
+        await shot(page, "3-connections");
+        const skies = await skyReport(page);
+        console.log(`SKY ${tag} ${JSON.stringify(skies)}`);
+        expect.soft(skies.length).toBeGreaterThan(0);
+        for (const s of skies) {
+          const root = s.root as number[];
+          for (const key of ["canvas", "dot"] as const) {
+            const b = s[key] as number[];
+            expect.soft(Math.abs(b[0] - root[0])).toBeLessThanOrEqual(2);
+            expect.soft(Math.abs(b[1] - root[1])).toBeLessThanOrEqual(2);
+            expect.soft(Math.abs(b[2] - root[2])).toBeLessThanOrEqual(2);
+            expect.soft(Math.abs(b[3] - root[3])).toBeLessThanOrEqual(2);
+          }
+          // The painted pixels reach the right edge, not only the left 40%.
+          const distinct = s.distinct as number[];
+          if (distinct.length) {
+            const left = Math.max(...distinct.slice(0, 4));
+            const right = Math.max(...distinct.slice(-3));
+            expect.soft(right).toBeGreaterThan(left * 0.25);
+          }
+        }
+        const h = await page.evaluate(() => {
+          const t = document.querySelector<HTMLElement>(".cn-h1");
+          const sub = document.querySelector<HTMLElement>(".cn-screen-text-5");
+          if (!t || !sub) return null;
+          const a = t.getBoundingClientRect();
+          const b = sub.getBoundingClientRect();
+          // The glyphs, not just the line box.
+          const range = document.createRange();
+          range.selectNodeContents(t);
+          const g = range.getBoundingClientRect();
+          return {
+            title: [a.top, a.bottom].map(Math.round),
+            glyphs: [g.top, g.bottom].map(Math.round),
+            sub: [b.top, b.bottom].map(Math.round),
+            fontFamily: getComputedStyle(t).fontFamily,
+            lineHeight: getComputedStyle(t).lineHeight,
+          };
+        });
+        console.log(`TITLE ${tag} ${JSON.stringify(h)}`);
+        expect.soft(h).not.toBeNull();
+        expect.soft(h!.title[1]).toBeLessThanOrEqual(h!.sub[0]);
+        expect.soft(h!.glyphs[1]).toBeLessThanOrEqual(h!.sub[0] + 1);
       } finally {
         await close();
         await browser.close();

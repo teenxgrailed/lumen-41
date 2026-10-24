@@ -1,0 +1,1 @@
+Phone (iPhone Safari and the installed app): the blurred top band, the bottom fog and the menu scrim stop a few pixels short of the display edge, so the status bar and the toolbar take the page colour again instead of a tinted strip.

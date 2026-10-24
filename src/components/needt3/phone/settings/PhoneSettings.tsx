@@ -26,7 +26,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { BrandIcon } from "../../brand";
 import { type GlyphName } from "../../glyphs/Glyph";
 import {
-  type SectionId,
+  type PhoneSectionId,
   isPro,
   planInfo,
   readPref,
@@ -39,6 +39,7 @@ import { AccountPage, useSignOut } from "./AccountPage";
 import { AppearancePage } from "./AppearancePage";
 import { DayPage } from "./DayPage";
 import { MenuPage } from "./MenuPage";
+import { PhoneWhatsNew } from "./PhoneWhatsNew";
 import { PlanPage } from "./PlanPage";
 import {
   PS_LIST,
@@ -169,7 +170,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
       case "keys":
         return "With a keyboard";
       case "about":
-        return "Terms, privacy";
+        return "What's new, help, terms";
     }
   };
 
@@ -302,8 +303,8 @@ export interface PhoneSettingsProps {
   open: boolean;
   onClose: () => void;
   /** The page on show; `null` is the list. Owned by the sheet above the face switch. */
-  page: SectionId | null;
-  onPage: (page: SectionId | null) => void;
+  page: PhoneSectionId | null;
+  onPage: (page: PhoneSectionId | null) => void;
   /** Changes each time a write lands; the header says "Saved" for a moment. */
   saved: number;
   /** The Menu page is on show (it has no desktop section). Owned above the face switch. */
@@ -350,6 +351,7 @@ export function PhoneSettings({
   if (open && !live) setLive(true);
   const [dir, setDir] = useState<"in" | "out" | null>(null);
   const [spec, setSpec] = useState<PsPickSpec | null>(null);
+  const [news, setNews] = useState(false);
   const stage = useRef<HTMLDivElement>(null);
   const listY = useRef(0);
   const current: PsPageId | null = menu ? "menu" : page;
@@ -402,7 +404,7 @@ export function PhoneSettings({
       const act = escAction({
         open,
         onPage: true,
-        pickerOpen: !!spec,
+        pickerOpen: !!spec || news,
         otherSheetOpen: usePhoneOverlays.getState().paywall !== false,
       });
       if (act !== "back") return;
@@ -412,7 +414,7 @@ export function PhoneSettings({
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
-  }, [open, current, spec, back]);
+  }, [open, current, spec, news, back]);
 
   const ctx = useMemo(
     () => ({
@@ -425,6 +427,7 @@ export function PhoneSettings({
       },
       pill,
       setPill: onPill,
+      news: () => setNews(true),
     }),
     [onClose, router, pill, onPill]
   );
@@ -458,6 +461,7 @@ export function PhoneSettings({
           setLive(false);
           setDir(null);
           setSpec(null);
+          setNews(false);
         }}
         detents={[0.92]}
         label="Settings"
@@ -489,6 +493,7 @@ export function PhoneSettings({
         ) : null}
       </PkSheet>
       <PsPicker spec={spec} onClose={() => setSpec(null)} />
+      <PhoneWhatsNew open={open && news} onClose={() => setNews(false)} />
     </PsProvider>
   );
 }

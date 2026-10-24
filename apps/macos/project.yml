@@ -146,7 +146,7 @@ targets:
         NSDownloadsFolderUsageDescription: Needt reads your Downloads folder to show download progress in the island.
         NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
         NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
-        NSAppleMusicUsageDescription: Needt uses Apple Music to fetch animated artwork.
+        NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
         # The fixed release "mac-appcast" holds the one appcast.xml, replaced by
         # .github/workflows/macos-release.yml on every release.
         SUFeedURL: https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml
@@ -306,7 +306,7 @@ targets:
         NSDownloadsFolderUsageDescription: Needt reads your Downloads folder to show download progress in the island.
         NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
         NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
-        NSAppleMusicUsageDescription: Needt uses Apple Music to fetch animated artwork.
+        NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac

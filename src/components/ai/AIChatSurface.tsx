@@ -75,6 +75,8 @@ const prompts = [
   "Summarize my day",
 ];
 
+//todo: pre-v3 chat. /chat now redirects to Today's Ask panel; the last user
+// is AIChatOverlay in the legacy AppShell. Delete both with that shell.
 export function AIChatSurface({ compact = false }: AIChatSurfaceProps) {
   const [settings, setSettings] = useState<AISettingsResponse | null>(null);
   const [conversations, setConversations] = useState<AiConversation[]>([]);

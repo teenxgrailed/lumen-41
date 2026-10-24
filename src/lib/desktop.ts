@@ -30,6 +30,20 @@ export function isDesktopApp(): boolean {
 }
 
 /**
+ * True in the native Mac app (the Swift shell), the only place the Desktop
+ * settings (island, quick add, widgets, Siri) apply. The shell sets
+ * `window.__needtNative`; DesktopBridge also marks `<html data-desktop-shell>`.
+ * False in a browser tab, on Windows and in the Tauri shell.
+ */
+export function isMacApp(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    !!(window as unknown as { __needtNative?: unknown }).__needtNative ||
+    document.documentElement.dataset.desktopShell === "swift"
+  );
+}
+
+/**
  * Show a native OS notification. Resolves to true when the desktop app took
  * it, false when not in the desktop app or permission is not granted, so the
  * caller can fall back to its normal path.
@@ -161,4 +175,16 @@ export function emitDesktopEvent(name: string, payload?: unknown): void {
   } catch {
     /* a shell without events has no tray to update */
   }
+}
+
+/**
+ * True inside the native Mac app's WKWebView. Its bridge script sets
+ * `window.__needtNative` before the page runs, so this is safe to read in an
+ * effect (not during server render).
+ */
+export function isSwiftShellWindow(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as unknown as { __needtNative?: unknown }).__needtNative
+  );
 }

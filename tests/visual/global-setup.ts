@@ -1,4 +1,4 @@
-import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
+import { Prisma, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 import { newDate } from "@/lib/date-utils";
@@ -148,6 +148,22 @@ export async function resetVisualSettings(userId: string) {
       },
     }),
   ]);
+  // An established account: its zone is chosen, so the first-run locale
+  // write (LocaleFirstRun) never fires mid-screenshot. Merged, not replaced,
+  // so other prefs a spec relies on stay as they are.
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { prefs: true },
+  });
+  const prefs =
+    row?.prefs && typeof row.prefs === "object" && !Array.isArray(row.prefs)
+      ? (row.prefs as Record<string, unknown>)
+      : {};
+  if (prefs.tzAutoSet !== true)
+    await prisma.userSettings.update({
+      where: { userId },
+      data: { prefs: { ...prefs, tzAutoSet: true } as Prisma.InputJsonObject },
+    });
 }
 
 export default async function globalSetup() {
