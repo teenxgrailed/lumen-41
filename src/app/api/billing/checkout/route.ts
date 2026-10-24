@@ -27,15 +27,34 @@ import {
 
 const LOG_SOURCE = "CreemCheckoutAPI";
 
+/** `from: "onboarding"` returns the buyer to the onboarding's last screen. */
+const fromSchema = z.literal("onboarding").optional();
+
 const checkoutSchema = z.discriminatedUnion("plan", [
   z.object({
     plan: z.literal("pro"),
     interval: z.enum(["month", "year"]),
+    from: fromSchema,
   }),
   z.object({
     plan: z.literal("lifetime"),
+    from: fromSchema,
   }),
 ]);
+
+/**
+ * Whether checkout can open for this account right now (keys set and the
+ * billing flag on). The onboarding's card step asks before it offers a card,
+ * so a closed checkout reads as "opens soon", not as an error.
+ */
+export async function GET(request: NextRequest) {
+  const auth = await authenticateRequest(request, LOG_SOURCE);
+  if ("response" in auth) return auth.response;
+  const available =
+    isCreemConfigured() &&
+    (await isFeatureEnabled(BILLING_CHECKOUT, auth.userId));
+  return NextResponse.json({ available });
+}
 
 function checkoutRequestId(
   userId: string,
@@ -112,9 +131,11 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_APP_URL?.trim() ||
       process.env.NEXTAUTH_URL?.trim() ||
       publicAppUrl("/", request).origin;
-    const successUrl = new URL("/settings", appUrl);
+    const onboarding = parsed.data.from === "onboarding";
+    const successUrl = new URL(onboarding ? "/start" : "/settings", appUrl);
     successUrl.searchParams.set("billing", "success");
-    successUrl.hash = "billing";
+    if (onboarding) successUrl.searchParams.set("step", "opening");
+    else successUrl.hash = "billing";
 
     const lifetimeReservation =
       selection.plan === "lifetime"
