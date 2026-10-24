@@ -14,6 +14,13 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
+  // Middleware redirects keep the host they were given. By default Next
+  // re-parses a same-host Location through NextURL, which rewrites 127.0.0.1
+  // and [::1] to "localhost": another origin, so an installed app opened on
+  // 127.0.0.1 left its scope and showed Safari's chrome. There is no Pages
+  // Router, so the /_next/data normalisation this also turns off is unused.
+  skipMiddlewareUrlNormalize: true,
+
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],

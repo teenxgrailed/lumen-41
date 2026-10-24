@@ -1,4 +1,4 @@
-import { metadata, viewport } from "@/app/metadata";
+import { INSTALL_HEAD, metadata, viewport } from "@/app/metadata";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -16,12 +16,33 @@ describe("PWA native feel", () => {
     expect(Array.isArray(viewport.themeColor)).toBe(true);
   });
 
-  it("uses a translucent iOS status bar and a PNG touch icon", () => {
-    expect(metadata.appleWebApp).toMatchObject({
-      capable: true,
-      statusBarStyle: "black-translucent",
+  it("uses a translucent iOS status bar, the install name and a PNG touch icon", () => {
+    const meta = Object.fromEntries(
+      INSTALL_HEAD.meta.map((m) => [m.name, m.content])
+    );
+    expect(meta).toMatchObject({
+      "apple-mobile-web-app-capable": "yes",
+      "mobile-web-app-capable": "yes",
+      "apple-mobile-web-app-title": "Needt",
+      "apple-mobile-web-app-status-bar-style": "black-translucent",
     });
-    expect(JSON.stringify(metadata.icons)).toContain("apple-touch-icon.png");
+    expect(INSTALL_HEAD.manifest).toBe("/manifest.webmanifest");
+    expect(INSTALL_HEAD.appleTouchIcon.href).toContain("apple-touch-icon.png");
+  });
+
+  it("keeps the install tags out of the streamed metadata", () => {
+    // Next streams `metadata` into <body> for browsers; a second copy there
+    // is what iOS can read instead of the one in <head>
+    expect(metadata.manifest).toBeUndefined();
+    expect(metadata.appleWebApp).toBeUndefined();
+    expect(metadata.other).toBeUndefined();
+    expect(JSON.stringify(metadata.icons)).not.toContain("apple-touch-icon");
+    const layout = readFileSync(
+      join(process.cwd(), "src/app/layout.tsx"),
+      "utf8"
+    );
+    expect(layout).toContain("INSTALL_HEAD.manifest");
+    expect(layout).toContain("INSTALL_HEAD.meta.map");
   });
 
   it("ships a standalone manifest with raster icons", () => {

@@ -43,6 +43,36 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background-color: #141416 !important;
 }
 
+/* The installed app: iOS sizes the visual viewport from the document. A
+ * short or scroll-locked document (a sheet open: body is position: fixed,
+ * pk scroll lock) is 100dvh tall, and on a fresh load dvh is the small
+ * viewport (812 of 874 pt on an iPhone 17 Pro, the status bar's 62 pt off),
+ * so innerHeight stuck at 812 and every fixed layer, the sheet and its scrim
+ * stopped 62 pt above the bottom. 100lvh is the whole screen there. */
+@media (display-mode: standalone) {
+  html:has(.needt-v3[data-ui="phone"]) {
+    min-height: 100lvh;
+  }
+}
+
+/* A page whose own paper reaches the top edge (the document reader without a
+ * backdrop) is the ground while it is open: ReaderPhone writes the paper's
+ * light / dark pair onto <html> with data-ground="page". Same rule as above,
+ * body = the page's top colour, static per page. */
+html[data-ground="page"]:has(.needt-v3[data-ui="phone"]),
+html[data-ground="page"]:has(.needt-v3[data-ui="phone"]) body {
+  background-color: var(--v3-page-ground-l, #f6f6f3) !important;
+}
+html[data-ground="page"]:has(
+    .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  ),
+html[data-ground="page"]:has(
+    .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  )
+  body {
+  background-color: var(--v3-page-ground-d, #141416) !important;
+}
+
 .needt-v3[data-ui="phone"] {
   background: var(--v2p-ground);
   /* The home-indicator inset (0 outside an installed app). */
@@ -222,6 +252,16 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
  * or New task and the Focus button sit 8 px below the pill's centre. */
 .needt-v3[data-ui="phone"] :is(.nva-glass, .nva-add, .nva-focus) {
   top: calc(-1 * var(--v3-edge));
+}
+/* The dock's shadow (0 18px 28px under a pill 30 px off the edge) reaches the
+ * display edge and greys the bottom rows in the middle. It stops where the
+ * paint budget does: .nva-shadow fills .nva-body, whose bottom sits
+ * 10 px + the dock lift above the display edge (.nva-body below). Off iOS
+ * the gap is 0 and the clip is the screen's own edge. */
+.needt-v3[data-ui="phone"] .nva-shadow {
+  clip-path: inset(
+    -100vh -48px calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift)) -48px
+  );
 }
 
 /* Everything anchored to the bottom floats above it by a gap plus the inset:

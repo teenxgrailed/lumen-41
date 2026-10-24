@@ -39,6 +39,42 @@ describe("phone page ground", () => {
     expect(dark).toContain("background-color: #141416 !important");
   });
 
+  it("a page whose paper reaches the top makes that paper the ground", () => {
+    const light = rule(
+      'html[data-ground="page"]:has(.needt-v3[data-ui="phone"]),\nhtml[data-ground="page"]:has(.needt-v3[data-ui="phone"]) body'
+    );
+    expect(light).toContain("var(--v3-page-ground-l, #f6f6f3) !important");
+    expect(css).toContain("var(--v3-page-ground-d, #141416) !important");
+    // switched per page, never animated
+    expect(light).not.toContain("transition");
+    const reader = readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/needt3/phone/docs/ReaderPhone.tsx"
+      ),
+      "utf8"
+    );
+    expect(reader).toContain('html.setAttribute("data-ground", "page")');
+    expect(reader).toContain('html.removeAttribute("data-ground")');
+  });
+
+  it("the installed app's document is at least the whole screen tall", () => {
+    // a scroll-locked page was 100dvh, the small viewport on a fresh load,
+    // and iOS shrank innerHeight to it (the sheet stopped 62 pt short)
+    const at = css.indexOf("@media (display-mode: standalone)");
+    expect(at).toBeGreaterThanOrEqual(0);
+    const block = css.slice(at, css.indexOf("}\n}", at));
+    expect(block).toContain('html:has(.needt-v3[data-ui="phone"])');
+    expect(block).toContain("min-height: 100lvh");
+  });
+
+  it("the dock's shadow stops at the bottom paint gap", () => {
+    const body = rule('.needt-v3[data-ui="phone"] .nva-shadow');
+    expect(body).toContain(
+      "calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift))"
+    );
+  });
+
   it("the screen has no inner scroller", () => {
     const scroll = rule('.needt-v3[data-ui="phone"] .pk-scroll');
     expect(scroll).toContain("overflow: visible");

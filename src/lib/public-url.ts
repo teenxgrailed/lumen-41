@@ -52,6 +52,25 @@ function forwardedOrigin(request: PublicUrlRequest): string | null {
 }
 
 /**
+ * The origin the browser itself asked for, when that is a loopback or dev
+ * host. An installed app opened on 127.0.0.1 that is redirected to
+ * localhost (or to the configured public host) has left its scope and shows
+ * Safari's chrome. Read from the Host / X-Forwarded-Host header only, never
+ * from request.url: behind a proxy that is the container's own address.
+ */
+function localRequestOrigin(request: PublicUrlRequest): string | null {
+  const host =
+    request.headers?.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers?.get("host")?.trim();
+  if (!host) return null;
+  const proto =
+    request.headers?.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+    new URL(request.url).protocol.replace(/:$/, "");
+  const origin = originOf(`${proto}://${host}`);
+  return origin && isLocalHost(new URL(origin).hostname) ? origin : null;
+}
+
+/**
  * Builds redirects from the configured public application origin while
  * preserving only the request path. Reverse proxies may expose an internal
  * container hostname through request.url, which must never reach callbacks.
@@ -69,4 +88,17 @@ export function publicRequestUrl(request: PublicUrlRequest): URL {
 
 export function publicAppUrl(pathname: string, request: PublicUrlRequest): URL {
   return new URL(pathname, publicRequestUrl(request).origin);
+}
+
+/**
+ * A redirect inside the app (sign-in, home): on a loopback or dev host the
+ * origin the browser asked for, so an installed app stays in its scope;
+ * everywhere else the public origin, as publicAppUrl.
+ */
+export function appRedirectUrl(
+  pathname: string,
+  request: PublicUrlRequest
+): URL {
+  const local = localRequestOrigin(request);
+  return local ? new URL(pathname, local) : publicAppUrl(pathname, request);
 }
