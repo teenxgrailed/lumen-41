@@ -65,12 +65,24 @@ async function prepare(page: Page, theme: "dark" | "light") {
     });
   });
   await signInVisualUser(page);
-  // After signInVisualUser, so it wins over the helper's empty feed.
+  // After signInVisualUser, so it wins over the helper's empty feed. Like the
+  // server, the feed has nothing unseen once the seen marker is written: a
+  // refetch after that (the workspace's first resolve resets every query on
+  // a cold load) must not bring the dot back.
+  let seen = false;
+  page.on("request", (req) => {
+    if (
+      req.method() === "PATCH" &&
+      req.url().includes("/api/user-settings") &&
+      (req.postData() ?? "").includes("whatsNewSeen")
+    )
+      seen = true;
+  });
   await page.route("**/api/whats-new", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(FEED),
+      body: JSON.stringify(seen ? { ...FEED, unseen: [] } : FEED),
     });
   });
   const res = await page.request.patch("/api/user-settings", {
