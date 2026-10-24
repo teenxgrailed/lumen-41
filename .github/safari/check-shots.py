@@ -17,11 +17,30 @@ import os, struct, subprocess, sys, tempfile
 PT = 402.0  # the probe's iPhone Pro is 402 pt wide; the scale follows the PNG
 
 
+class ShotError(Exception):
+    """A shot that cannot be read (missing, empty, sips failed): reported as a
+    failure of that shot, not a traceback that hides the other shots."""
+
+
 def load(path):
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        raise ShotError(f"{path}: the shot is missing or empty (the screenshot call timed out?)")
+    b = None
     with tempfile.TemporaryDirectory() as d:
         bmp = os.path.join(d, "s.bmp")
-        subprocess.run(["sips", "-s", "format", "bmp", path, "--out", bmp], check=True, capture_output=True)
-        b = open(bmp, "rb").read()
+        err = ""
+        for attempt in range(3):  # sips on a loaded runner can fail once
+            try:
+                r = subprocess.run(["sips", "-s", "format", "bmp", path, "--out", bmp],
+                                   capture_output=True, text=True, timeout=180)
+                if os.path.exists(bmp):
+                    b = open(bmp, "rb").read()
+                    break
+                err = (r.stdout + r.stderr).strip()[-200:]
+            except subprocess.TimeoutExpired:
+                err = "sips timed out"
+    if b is None:
+        raise ShotError(f"{path}: sips could not convert the shot ({err})")
     off = struct.unpack_from("<I", b, 10)[0]
     w, h = struct.unpack_from("<ii", b, 18)
     bpp = struct.unpack_from("<H", b, 28)[0]
@@ -191,7 +210,10 @@ if __name__ == "__main__":
     fn = {"focus": check_focus, "edge": check_edge}[cmd]
     errs = []
     for p in paths:
-        errs += fn(p)
+        try:
+            errs += fn(p)
+        except ShotError as e:
+            errs.append(str(e))
     for e in errs:
         print("FAIL", e)
     sys.exit(1 if errs else 0)

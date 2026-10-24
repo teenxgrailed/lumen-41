@@ -2,6 +2,8 @@
 # Shared by the probe's shell steps (source it). Every call that can block on a
 # simulator that stopped answering goes through `tmo`, so one stuck simctl/idb
 # call costs its limit, not the step; every action is logged with a timestamp.
+# Workflow steps run `bash -e`: a timed-out call (rc 142) must not end the step.
+set +e
 T0=$SECONDS
 PROBE_LOG="${PROBE_LOG:-debug/probe.log}"
 mkdir -p "$(dirname "$PROBE_LOG")"

@@ -17,7 +17,7 @@ on:
         default: main
         type: string
       quick:
-        description: Stop after the focus-row and top-edge checks (skips the tab-layout and installed-app steps, about an hour)
+        description: Skip the installed-app steps (about 40 min, and the part that stalls most)
         required: false
         default: false
         type: boolean
@@ -319,19 +319,17 @@ jobs:
       # machine load sampled into debug/load.log). A phase that hangs leaves every
       # earlier phase's shots and the log.
       - name: Safari layouts, prepare
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh prepare
         continue-on-error: true
 
       - name: Safari layouts, compact viewport
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-compact-viewport
           path: |
@@ -343,13 +341,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, compact today
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-compact-today
           path: |
@@ -362,13 +359,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, compact tasks
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots compact tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-compact-tasks
           path: |
@@ -380,13 +376,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, set top
-        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh set top
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-top-set
           path: |
@@ -397,13 +392,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, top viewport
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-top-viewport
           path: |
@@ -415,13 +409,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, top today
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-top-today
           path: |
@@ -434,13 +427,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, top tasks
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots top tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-top-tasks
           path: |
@@ -452,13 +444,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, set bottom
-        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh set bottom
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-bottom-set
           path: |
@@ -469,13 +460,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, bottom viewport
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-bottom-viewport
           path: |
@@ -487,13 +477,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, bottom today
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom today
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-bottom-today
           path: |
@@ -506,13 +495,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, bottom tasks
-        if: ${{ !inputs.quick }}
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh shots bottom tasks
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-bottom-tasks
           path: |
@@ -524,13 +512,12 @@ jobs:
           if-no-files-found: warn
 
       - name: Safari layouts, Compact back + verdict
-        if: ${{ !inputs.quick }}
         timeout-minutes: 12
         run: bash .github/safari/layouts.sh finish
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && !inputs.quick }}
+        if: always()
         with:
           name: safari-phone-layouts-summary
           path: |
