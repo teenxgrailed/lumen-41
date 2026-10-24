@@ -1,0 +1,109 @@
+/* additions-2/onboarding/ob3-desk.css — look "Sky + board" (21.10.26). Loaded after ob3.css.
+   The Sky look stays as it was; on desktop (≥ 900 px) the picking screens become a
+   Connections board: a fixed-width grid of word tiles, the picked tile goes dark, a row of
+   pills under the board (Back · Deselect all / Shuffle · Continue), and the week comes out
+   as solved groups — one flat colour band per day. Phone keeps the v3 layout.
+   No theme switch: dark only while Needt plans, for the gift and while it opens. */
+.ob3.look-desk { transition: background-color .8s ease; }
+.ob3.look-desk .ob3-sky { transition: filter 1.2s, opacity .8s; }
+.ob3.look-desk.is-dark .ob3-sky { transition: background .8s; }
+
+@container ob3 (min-width: 900px) {
+  .look-desk {
+    --board: 624px; --tile-h: 80px; --tile: rgba(255,255,255,.62); --tile-on: #2e2a5c; --tile-on-ink: #fff;
+    --gy: #F9DF6D; --gg: #A0C35A; --gb: #B0C4EF; --gp: #BA81C5;
+  }
+  .look-desk.is-dark { --tile: rgba(255,255,255,.08); --tile-on: #e9e6ff; --tile-on-ink: #17162b; }
+
+  /* the board: same width on every picking screen */
+  .look-desk .ob3-stage.s-cats, .look-desk .ob3-stage.s-tasks, .look-desk .ob3-stage.s-priority, .look-desk .ob3-stage.s-repeats { max-width: var(--board); }
+  .look-desk .ob3-h { font-size: 44px; }
+  .look-desk .ob3-sub { font-size: 16px; }
+
+  /* areas = 12 word tiles, 4 × 3 */
+  .look-desk .ob3-cats { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .look-desk .ob3-cat { min-height: var(--tile-h); height: var(--tile-h); padding: 8px; border-radius: 10px; align-items: center; justify-content: center; text-align: center; gap: 0; background: var(--tile);
+    transition: background-color .18s, color .18s, transform .18s var(--spring); }
+  .look-desk .ob3-cat:hover { transform: none; background: rgba(255,255,255,.82); }
+  .look-desk.is-dark .ob3-cat:hover { background: rgba(255,255,255,.14); }
+  .look-desk .ob3-cat-ic, .look-desk .ob3-cat-tick, .look-desk .ob3-cat small { display: none; }
+  .look-desk .ob3-cat b { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; line-height: 1.15; }
+  .look-desk .ob3-cat.is-on { background: var(--tile-on); color: var(--tile-on-ink); box-shadow: none; animation: ob3-press .22s ease; }
+  @keyframes ob3-press { 40% { transform: scale(.94); } 100% { transform: none; } }
+
+  /* tasks = word tiles, 4 across, length under the word */
+  .look-desk .ob3-tabs { justify-content: center; }
+  .look-desk .ob3-tasks { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .look-desk .ob3-task { grid-template-columns: 1fr; justify-items: center; align-content: center; text-align: center; min-height: var(--tile-h); padding: 8px 8px; border-radius: 10px; background: var(--tile);
+    transition: background-color .18s, color .18s; }
+  .look-desk .ob3-task-box { display: none; }
+  .look-desk .ob3-task b { white-space: normal; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; line-height: 1.15; }
+  .look-desk .ob3-task small { margin-top: 3px; font-size: 12px; }
+  .look-desk .ob3-task.is-on { background: var(--tile-on); color: var(--tile-on-ink); box-shadow: none; animation: ob3-press .22s ease; }
+  .look-desk .ob3-task.is-on small { color: inherit; opacity: .7; }
+  .look-desk .ob3-task.is-own { outline: 2px dashed var(--cc); outline-offset: -2px; }
+  .look-desk .ob3-add { max-width: var(--board); }
+
+  /* the pill row under the board */
+  .look-desk .ob3-foot { grid-template-columns: 1fr; justify-items: center; padding-bottom: 28px; }
+  .look-desk .ob3-foot > .ob3-back-sp, .look-desk .ob3-foot > span:last-child:empty { display: none; }
+  .look-desk .ob3-foot { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 10px; }
+  .look-desk .ob3-foot-info { flex: 1 1 100%; text-align: center; margin: 0 0 2px; }
+  .look-desk .ob3-back { width: auto; height: 52px; padding: 0 22px; border-radius: 26px; display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1.5px solid var(--ink); color: var(--ink); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; font-weight: 600; }
+  .look-desk .ob3-back svg { display: none; } .look-desk .ob3-back-t { display: inline; }
+  .look-desk .ob3-back:hover { background: var(--ink); color: var(--card-solid); transform: none; }
+  .look-desk .ob3-foot-c { width: auto; }
+  .look-desk .ob3-foot-row { width: auto; }
+  .look-desk .ob3-sec { display: inline-flex; }
+  .look-desk .ob3-pill { height: 52px; }
+  .look-desk .ob3-cta { height: 52px; min-width: 150px; padding: 0 26px; }
+  .look-desk .ob3-cta svg { display: none; }
+  .look-desk .ob3-alt-reshuffle { display: none; }
+
+  /* priority: tiles in a row, tap order shows as the number */
+  .look-desk .ob3-rank { max-width: var(--board); display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .look-desk .ob3-rank-it { flex-direction: column; justify-content: center; height: 104px; gap: 4px; text-align: center; background: var(--tile); border-radius: 10px; box-shadow: none; position: relative; }
+  .look-desk .ob3-rank-it .ob3-cat-ic { display: none; }
+  .look-desk .ob3-rank-it b { flex: none; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; }
+  .look-desk .ob3-rank-n { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; font-size: 13px; }
+  .look-desk .ob3-rank-it.is-on { background: var(--cc); color: #fff; box-shadow: none; }
+  .look-desk .ob3-rank-it.is-on small { color: inherit; opacity: .85; }
+  .look-desk .ob3-rank-it.is-on .ob3-rank-n { background: #fff; color: var(--cc); }
+
+  /* week: solved groups — one band per day, the day's tasks in a line */
+  .look-desk .s-week .ob3-days { max-width: var(--board); background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .look-desk .ob3-day { border: 0; border-radius: 10px; padding: 14px 18px; background: var(--gy); color: #17162b; text-align: center; animation: ob3-solve-in .5s var(--spring) both; animation-delay: calc(var(--i) * 90ms); }
+  .look-desk .ob3-day:nth-child(4n+2) { background: var(--gg); } .look-desk .ob3-day:nth-child(4n+3) { background: var(--gb); } .look-desk .ob3-day:nth-child(4n+4) { background: var(--gp); }
+  @keyframes ob3-solve-in { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+  .look-desk .ob3-day h3 { font: 800 15px/1.2 var(--font); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 6px; }
+  .look-desk .ob3-day h3 small { font: 500 12.5px var(--font); text-transform: none; letter-spacing: 0; opacity: .65; color: inherit; }
+  .look-desk .ob3-day { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 4px; }
+  .look-desk .ob3-day h3 { flex: 1 1 100%; }
+  .look-desk .ob3-li { width: auto; padding: 3px 8px; gap: 5px; color: #17162b; font-size: 13px; border-radius: 6px; }
+  .look-desk .ob3-li small { width: auto; color: inherit; opacity: .6; }
+  .look-desk .ob3-li i, .look-desk .ob3-li .dur { display: none; }
+  .look-desk .ob3-li b { font-weight: 700; } .look-desk .ob3-li b span { color: inherit; opacity: .6; }
+  .look-desk .ob3-li:not(:last-child)::after { content: "·"; margin-left: 6px; opacity: .45; }
+  .look-desk .ob3-li.ev { color: #17162b; opacity: .5; } .look-desk .ob3-li.ev b { font-weight: 500; }
+  .look-desk .ob3-li.is-pick { background: rgba(0,0,0,.1); }
+}
+
+/* desktop: the buttons sit right under the board, not at the bottom of the screen */
+@container ob3 (min-width: 900px) {
+  .look-desk .ob3-main { flex: 0 1 auto; padding-bottom: 8px; }
+  .look-desk .ob3-foot { margin-bottom: auto; padding-top: 18px; }
+}
+
+/* week, day by day: day on the left, the day's tasks as chips on the right */
+@container ob3 (min-width: 900px) {
+  .look-desk .ob3-day { display: grid; grid-template-columns: 118px 1fr; align-items: start; gap: 6px 14px; text-align: left; padding: 14px 16px; }
+  .look-desk .ob3-day h3 { margin: 4px 0 0; display: flex; flex-direction: column; gap: 2px; }
+  .look-desk .ob3-day h3 small { font-size: 12px; }
+  .look-desk .ob3-day > :not(h3) { grid-column: 2; }
+  .look-desk .ob3-day { grid-auto-flow: row dense; }
+  .look-desk .ob3-daychips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .look-desk .ob3-li { background: rgba(255,255,255,.55); padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+  .look-desk .ob3-li:not(:last-child)::after { content: none; }
+  .look-desk .ob3-li.ev { background: transparent; box-shadow: inset 0 0 0 1px rgba(23,22,43,.2) !important; opacity: .65; }
+  .look-desk .ob3-li.is-pick { background: #fff; }
+}

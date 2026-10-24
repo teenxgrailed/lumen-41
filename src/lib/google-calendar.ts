@@ -4,7 +4,14 @@ import { useSettingsStore } from "@/store/settings";
 
 import { newDate, newDateFromYMD } from "./date-utils";
 import { createGoogleOAuthClient } from "./google";
+import { logger } from "./logger";
 import { TokenManager } from "./token-manager";
+
+const LOG_SOURCE = "GoogleCalendar";
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
 
 type GoogleEvent = calendar_v3.Schema$Event;
 
@@ -12,7 +19,6 @@ export async function getGoogleCalendarClient(
   accountId: string,
   userId: string
 ) {
-  console.log("Creating Google Calendar client");
   const tokenManager = TokenManager.getInstance();
 
   // Get tokens for the account
@@ -61,8 +67,7 @@ export async function createGoogleEvent(
   }
 ) {
   const calendar = await getGoogleCalendarClient(accountId, userId);
-  const timeZone =
-    event.timeZone || useSettingsStore.getState().user.timeZone;
+  const timeZone = event.timeZone || useSettingsStore.getState().user.timeZone;
 
   // Format recurrence rule for Google Calendar
   const recurrence =
@@ -118,8 +123,7 @@ export async function updateGoogleEvent(
   }
 ) {
   const calendar = await getGoogleCalendarClient(accountId, userId);
-  const timeZone =
-    event.timeZone || useSettingsStore.getState().user.timeZone;
+  const timeZone = event.timeZone || useSettingsStore.getState().user.timeZone;
 
   try {
     // Get the event to check if it's part of a series
@@ -251,7 +255,11 @@ export async function updateGoogleEvent(
     });
     return response.data;
   } catch (error) {
-    console.error("Failed to update Google Calendar event:", error);
+    logger.error(
+      "Failed to update Google Calendar event",
+      { calendarId, eventId, error: errorMessage(error) },
+      LOG_SOURCE
+    );
     throw error;
   }
 }
@@ -312,7 +320,11 @@ export async function deleteGoogleEvent(
       eventId,
     });
   } catch (error) {
-    console.error("Failed to delete Google Calendar event:", error);
+    logger.error(
+      "Failed to delete Google Calendar event",
+      { calendarId, eventId, error: errorMessage(error) },
+      LOG_SOURCE
+    );
     throw error;
   }
 }
@@ -332,22 +344,12 @@ export default async function getGoogleEvent(
       eventId,
     });
     const event = eventResponse.data;
-    console.log("Got event:", {
-      id: event.id,
-      recurringEventId: event.recurringEventId,
-      hasRecurrence: !!event.recurrence,
-    });
-
     // Initialize instances array
     let instances: GoogleEvent[] = [];
     let masterEvent = event;
 
     // If this is an instance of a recurring event
     if (event.recurringEventId) {
-      console.log(
-        "This is an instance, fetching master event:",
-        event.recurringEventId
-      );
       try {
         // Get the master event
         const masterResponse = await googleCalendarClient.events.get({
@@ -355,12 +357,16 @@ export default async function getGoogleEvent(
           eventId: event.recurringEventId,
         });
         masterEvent = masterResponse.data;
-        console.log("Got master event:", {
-          id: masterEvent.id,
-          hasRecurrence: !!masterEvent.recurrence,
-        });
       } catch (error) {
-        console.error("Failed to get master event:", error);
+        logger.warn(
+          "Failed to get master event, using the instance",
+          {
+            eventId: event.id ?? null,
+            recurringEventId: event.recurringEventId,
+            error: errorMessage(error),
+          },
+          LOG_SOURCE
+        );
         // If we can't get the master event, use the instance
         masterEvent = event;
       }
@@ -368,7 +374,6 @@ export default async function getGoogleEvent(
 
     // If this is a recurring event (either master or we found the master)
     if (masterEvent.recurrence) {
-      console.log("Getting instances for recurring event", masterEvent.id);
       const instancesResponse = await googleCalendarClient.events.instances({
         calendarId,
         eventId: masterEvent.id || "", // Ensure non-null string
@@ -380,8 +385,12 @@ export default async function getGoogleEvent(
         ).toISOString(),
       });
       if (instancesResponse && instancesResponse.data) {
-        console.log("Found instances:", instancesResponse.data.items?.length);
         instances = instancesResponse.data.items || [];
+        logger.debug(
+          "Fetched recurring event instances",
+          { eventId: masterEvent.id ?? null, count: instances.length },
+          LOG_SOURCE
+        );
       }
     }
 
@@ -390,7 +399,11 @@ export default async function getGoogleEvent(
       instances,
     };
   } catch (error) {
-    console.error("Failed to sync Google Calendar event:", error);
+    logger.error(
+      "Failed to sync Google Calendar event",
+      { calendarId, eventId, error: errorMessage(error) },
+      LOG_SOURCE
+    );
     throw error;
   }
 }

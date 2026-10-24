@@ -176,3 +176,15 @@ export function emitDesktopEvent(name: string, payload?: unknown): void {
     /* a shell without events has no tray to update */
   }
 }
+
+/**
+ * True inside the native Mac app's WKWebView. Its bridge script sets
+ * `window.__needtNative` before the page runs, so this is safe to read in an
+ * effect (not during server render).
+ */
+export function isSwiftShellWindow(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as unknown as { __needtNative?: unknown }).__needtNative
+  );
+}

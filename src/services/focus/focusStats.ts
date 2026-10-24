@@ -9,6 +9,12 @@ import {
 import { addDays, formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import {
+  FocusTaskNotFoundError,
+  type FocusTaskScope,
+  scopedTaskId,
+} from "./task-scope";
+
 export interface WeeklyFocusReport {
   focusMinutes: number;
   sessionsCompleted: number;
@@ -117,6 +123,8 @@ async function estimateAccuracy(userId: string): Promise<number> {
 export async function recordFocusSession(input: {
   userId: string;
   taskId?: string | null;
+  /** Required so no caller can book time on a task it never checked. */
+  taskScope: FocusTaskScope;
   mode: FocusSessionMode;
   plannedMinutes?: number | null;
   elapsedMinutes: number;
@@ -125,10 +133,16 @@ export async function recordFocusSession(input: {
   startedAt: Date;
   endedAt: Date;
 }) {
+  let taskId: string | null = null;
+  if (input.taskId) {
+    taskId = await scopedTaskId(input.taskId, input.taskScope);
+    if (!taskId) throw new FocusTaskNotFoundError();
+  }
+
   const session = await prisma.focusSession.create({
     data: {
       userId: input.userId,
-      taskId: input.taskId || null,
+      taskId,
       mode: input.mode,
       plannedMinutes: input.plannedMinutes ?? null,
       elapsedMinutes: input.elapsedMinutes,
@@ -139,17 +153,17 @@ export async function recordFocusSession(input: {
     },
   });
 
-  if (input.taskId && input.elapsedMinutes > 0) {
+  if (taskId && input.elapsedMinutes > 0) {
     await prisma.timeEntry.create({
       data: {
-        taskId: input.taskId,
+        taskId,
         userId: input.userId,
         startedAt: input.startedAt,
         endedAt: input.endedAt,
         source: TimeEntrySource.focus,
       },
     });
-    await recomputeTaskActuals(input.taskId);
+    await recomputeTaskActuals(taskId);
   }
 
   await recomputeFocusStats(input.userId);

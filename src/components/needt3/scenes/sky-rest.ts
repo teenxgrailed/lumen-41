@@ -108,7 +108,7 @@ export class RestMachine {
 
   constructor(
     private readonly now: () => number,
-    private readonly restMs = REST_MS
+    readonly restMs = REST_MS
   ) {
     this.last = now();
   }
@@ -175,14 +175,14 @@ function attach(m: RestMachine) {
   const wake = () => {
     const wasIdle = m.idle;
     m.touch();
-    if (wasIdle) arm(REST_MS + 50);
+    if (wasIdle) arm(m.restMs + 50);
   };
   const vis = () => {
     if (!document.hidden) wake();
   };
   names.forEach((n) => window.addEventListener(n, wake, opts));
   document.addEventListener("visibilitychange", vis, { passive: true });
-  arm(REST_MS + 50);
+  arm(m.restMs + 50);
   return () => {
     names.forEach((n) => window.removeEventListener(n, wake, opts));
     document.removeEventListener("visibilitychange", vis);
@@ -195,11 +195,14 @@ function attach(m: RestMachine) {
  * Join the shared detector. Listeners exist only while at least one sky is
  * mounted. Returns the machine (read `.idle`) and a release function.
  */
-export function joinRest(listener: RestListener): {
+export function joinRest(
+  listener: RestListener,
+  restMs?: number
+): {
   rest: RestMachine;
   leave: () => void;
 } {
-  if (!machine) machine = new RestMachine(() => performance.now());
+  if (!machine) machine = new RestMachine(() => performance.now(), restMs);
   const m = machine;
   if (m.size === 0) detach = attach(m);
   const off = m.subscribe(listener);

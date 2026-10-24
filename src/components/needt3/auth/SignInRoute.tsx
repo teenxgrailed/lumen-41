@@ -22,8 +22,13 @@ import {
 } from "@/lib/auth/sign-in-provider-ids";
 import { logger } from "@/lib/logger";
 import { isIosApp } from "@/lib/native";
+import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
+import {
+  ONBOARDING_RESUME_PATH,
+  isOnboardingEntry,
+} from "@/lib/onboarding/paths";
 
 import { brandGlyph, brandMonoGlyph } from "../brand";
 import { PhoneAuth } from "../phone/auth";
@@ -130,6 +135,7 @@ export function V3SignInRoute({
   const typed = React.useRef("");
   /** A new account goes on to setup; a returning one to where it was going. */
   const dest = React.useRef(safeCallbackUrl);
+  const newAccount = React.useRef(false);
   const leaving = React.useRef(false);
 
   /* A full load, not a router push: the session cookie is new and every server
@@ -141,7 +147,7 @@ export function V3SignInRoute({
     leaving.current = true;
     // A returning person is going where the link went; only a new account
     // still has setup and confirmation ahead of it.
-    if (dest.current !== "/setup") takePostAuthPath();
+    if (!newAccount.current) takePostAuthPath();
     window.location.href = dest.current;
   }, []);
 
@@ -176,18 +182,30 @@ export function V3SignInRoute({
     }): Promise<AuthResult> => {
       const email = input.email.trim().toLowerCase();
       typed.current = email;
-      dest.current = input.mode === "signup" ? "/setup" : safeCallbackUrl;
+      newAccount.current = input.mode === "signup";
+      /* The server says which onboarding a new account gets; without an
+         answer the resolver decides once the session exists. */
+      dest.current = newAccount.current
+        ? ONBOARDING_RESUME_PATH
+        : safeCallbackUrl;
 
       if (input.mode === "signup") {
         try {
           const response = await fetch("/api/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password: input.password }),
+            body: JSON.stringify({
+              email,
+              password: input.password,
+              ...browserLocale(),
+            }),
           });
           const body = (await response.json().catch(() => ({}))) as {
             error?: string;
+            next?: unknown;
           };
+          if (typeof body.next === "string" && isOnboardingEntry(body.next))
+            dest.current = body.next;
           if (!response.ok) {
             if (response.status === 409) return { ok: false, reason: "taken" };
             return {

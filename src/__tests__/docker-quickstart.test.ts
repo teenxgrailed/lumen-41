@@ -348,7 +348,7 @@ describe("production root redirect", () => {
 
   it("leaves the auth-aware root redirect to the server page", () => {
     expect(homePage).toContain(
-      'redirect(session ? "/calendar" : "/auth/signin")'
+      'redirect(session ? "/today" : "/auth/signin")'
     );
     expect(middleware).toContain('if (pathname === "/")');
   });
