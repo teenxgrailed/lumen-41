@@ -1,9 +1,11 @@
 /**
- * What's new: the `changelog.d/*.md` fragments turned into the small feed the
- * app shows (Settings → About, the account menu, the help menu).
+ * What's new: the `changelog.d/*.md` fragments and the newest released
+ * sections of `CHANGELOG.md` turned into the small feed the app shows
+ * (Settings → About, the account menu, the help menu). Reading the releases
+ * keeps the feed full after `npm run changelog:collect` empties changelog.d.
  *
- * Pure and deterministic: the same fragments and dates always give the same
- * feed, byte for byte. `scripts/whats-new.ts` reads the files and their dates
+ * Pure and deterministic: the same fragments, dates and changelog always give
+ * the same feed, byte for byte. `scripts/whats-new.ts` reads the files and their dates
  * from git and writes the result to `public/whats-new.json` before a build.
  */
 import { newDate } from "@/lib/date-utils";
@@ -19,8 +21,33 @@ export interface WhatsNewFragment {
   at?: string | null;
 }
 
+/** A part of a released section: one collected fragment, or hand-written. */
+export interface WhatsNewReleasePart {
+  /** The fragment's file name from the collector's marker, or null. */
+  name: string | null;
+  text: string;
+  /**
+   * When the fragment file was added (ISO), if git still knows. Only orders
+   * the parts inside a release, newest first; the entries keep the release's
+   * date.
+   */
+  at?: string | null;
+}
+
+/** One `## [x.y.z] — YYYY-MM-DD` section of CHANGELOG.md. */
+export interface WhatsNewRelease {
+  version: string;
+  /** "YYYY-MM-DD", from the heading. */
+  date: string;
+  parts: WhatsNewReleasePart[];
+}
+
 export interface WhatsNewEntry {
-  /** Stable: the fragment's slug and the bullet's position in it. */
+  /**
+   * Stable: the fragment's slug and the bullet's position in it, the same
+   * before and after the fragment is collected into a release. A hand-written
+   * release bullet is `v<version>-<n>`.
+   */
   id: string;
   text: string;
 }
@@ -42,6 +69,18 @@ export const EMPTY_FEED: WhatsNewFeed = { version: 1, groups: [] };
 export const MAX_ENTRIES = 120;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Released sections dated before this belong to the upstream project, from
+ * before Needt forked it; they are not Needt news.
+ */
+export const RELEASES_SINCE = "2026-10-01";
+
+const RELEASE_HEADING =
+  /^##\s+\[(\d+\.\d+\.\d+[^\]]*)\]\s*(?:[—–-]\s*)?\[?(\d{4}-\d{2}-\d{2})?/;
+/** `scripts/changelog-collect.mjs` writes these around collected fragments. */
+const SOURCE_MARK = /^<!--\s*changelog\.d\/([^\s/]+\.md)\s*-->$/;
+const SOURCE_END = /^<!--\s*\/changelog\.d\s*-->$/;
 
 /** Markdown inline marks out, so the line reads as plain text. */
 export function plainText(md: string) {
@@ -118,30 +157,148 @@ function compareFragments(a: WhatsNewFragment, b: WhatsNewFragment) {
   return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
 }
 
+/**
+ * The dated release sections of CHANGELOG.md from `since` on, in file order
+ * (newest first). `## [Unreleased]`, undated sections and older ones are
+ * skipped. Text after the collector's `<!-- changelog.d/<name> -->` marker,
+ * up to the next marker, belongs to that fragment; the rest is hand-written.
+ */
+export function parseChangelog(
+  md: string,
+  since: string = RELEASES_SINCE
+): WhatsNewRelease[] {
+  const out: WhatsNewRelease[] = [];
+  let release: WhatsNewRelease | null = null;
+  let name: string | null = null;
+  let lines: string[] = [];
+  const closePart = () => {
+    if (release && lines.some((l) => l.trim())) {
+      release.parts.push({ name, text: lines.join("\n") });
+    }
+    name = null;
+    lines = [];
+  };
+  const closeRelease = () => {
+    closePart();
+    if (release && release.parts.length > 0) out.push(release);
+    release = null;
+  };
+  for (const raw of md.replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trimEnd();
+    if (/^##\s/.test(line)) {
+      closeRelease();
+      const head = RELEASE_HEADING.exec(line);
+      const date = head?.[2];
+      if (head && date && date >= since) {
+        release = { version: head[1].trim(), date, parts: [] };
+      }
+      continue;
+    }
+    if (!release) continue;
+    const mark = SOURCE_MARK.exec(line.trim());
+    if (mark || SOURCE_END.test(line.trim())) {
+      closePart();
+      name = mark ? mark[1] : null;
+      continue;
+    }
+    lines.push(line);
+  }
+  closeRelease();
+  return out;
+}
+
+interface Block {
+  date: string | null;
+  entries: WhatsNewEntry[];
+}
+
+/** Released entries, minus `chore-*` fragments and text already listed. */
+function releaseBlocks(
+  releases: readonly WhatsNewRelease[],
+  ids: Set<string>,
+  texts: Set<string>
+): Block[] {
+  const blocks: Block[] = [];
+  for (const r of releases) {
+    if (!DAY.test(r.date)) continue;
+    const entries: WhatsNewEntry[] = [];
+    let loose = 0;
+    // Dated parts newest first, then the rest in file order (sort is stable).
+    const parts = [...r.parts].sort((a, b) => {
+      const at = a.at ?? "";
+      const bt = b.at ?? "";
+      if (at === bt) return 0;
+      if (!at) return 1;
+      if (!bt) return -1;
+      return at < bt ? 1 : -1;
+    });
+    for (const p of parts) {
+      if (p.name !== null && !isShown({ name: p.name })) continue;
+      const slug = p.name === null ? null : slugOf(p.name);
+      parseFragment(p.text).forEach((text, i) => {
+        let id =
+          slug === null ? `v${r.version}-${++loose}` : `${slug}-${i + 1}`;
+        if (ids.has(id)) id = `v${r.version}-${id}`;
+        if (texts.has(text) || ids.has(id)) return;
+        texts.add(text);
+        ids.add(id);
+        entries.push({ id, text });
+      });
+    }
+    if (entries.length > 0) blocks.push({ date: r.date, entries });
+  }
+  return blocks;
+}
+
+export interface CompileOptions {
+  /** CHANGELOG.md release sections, newest first (`parseChangelog`). */
+  releases?: readonly WhatsNewRelease[];
+  maxEntries?: number;
+}
+
 export function compileWhatsNew(
   fragments: readonly WhatsNewFragment[],
-  maxEntries = MAX_ENTRIES
+  { releases = [], maxEntries = MAX_ENTRIES }: CompileOptions = {}
 ): WhatsNewFeed {
   const sorted = fragments
     .filter(isShown)
     .map((f) => ({ ...f, date: f.date && DAY.test(f.date) ? f.date : null }))
     .sort(compareFragments);
+  const ids = new Set<string>();
+  const texts = new Set<string>();
+  const blocks: Block[] = sorted.map((f) => {
+    const slug = slugOf(f.name);
+    const entries = parseFragment(f.text).map((text, i) => {
+      const id = `${slug}-${i + 1}`;
+      ids.add(id);
+      texts.add(text);
+      return { id, text };
+    });
+    return { date: f.date, entries };
+  });
+  // A release dated the same day as a fragment is older than it (the fragment
+  // was added after the collect); the sort is stable, so ties keep this order.
+  const merged = [...blocks, ...releaseBlocks(releases, ids, texts)].sort(
+    (a, b) => {
+      if (a.date === b.date) return 0;
+      if (a.date === null) return 1;
+      if (b.date === null) return -1;
+      return a.date < b.date ? 1 : -1;
+    }
+  );
   const groups: WhatsNewGroup[] = [];
   let count = 0;
-  for (const f of sorted) {
+  for (const block of merged) {
     if (count >= maxEntries) break;
-    const lines = parseFragment(f.text).slice(0, maxEntries - count);
-    if (lines.length === 0) continue;
+    const entries = block.entries.slice(0, maxEntries - count);
+    if (entries.length === 0) continue;
     let group = groups[groups.length - 1];
-    if (!group || group.date !== f.date) {
-      group = { date: f.date, entries: [] };
+    if (!group || group.date !== block.date) {
+      group = { date: block.date, entries: [] };
       groups.push(group);
     }
-    const slug = slugOf(f.name);
-    lines.forEach((text, i) =>
-      group.entries.push({ id: `${slug}-${i + 1}`, text })
-    );
-    count += lines.length;
+    group.entries.push(...entries);
+    count += entries.length;
   }
   return { version: 1, groups };
 }
