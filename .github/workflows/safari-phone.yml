@@ -282,47 +282,13 @@ jobs:
           npx tsx .github/safari/seed-focus.ts none
         continue-on-error: true
 
-      # The installed app (Add to Home Screen, standalone). The owner's bands,
-      # the Safari controls after leaving Home and the top band show there, not
-      # in a tab: in a tab `top: 0` sits 62 px under the status bar.
-      - name: Install the app to the Home Screen
-        timeout-minutes: 15
-        run: python3 .github/safari/standalone.py install
-        continue-on-error: true
-
-      - name: Sign in inside the installed app
-        timeout-minutes: 20
-        run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
-        continue-on-error: true
-
-      - name: Installed app, scenarios light and dark
-        timeout-minutes: 30
-        run: python3 .github/safari/standalone.py scenarios
-        continue-on-error: true
-
-      - name: Installed app, Home > Tasks > a doc > Settings > back
-        timeout-minutes: 15
-        run: python3 .github/safari/standalone.py nav
-        continue-on-error: true
-
-      # Pixel checks on the shots (web content is not in the accessibility
-      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
-      # fully on screen and apart from the pill, no New task. The top 4 pt of
-      # every shot: no sharp list text (page ground, or blurred).
-      - name: Check the focus row and the top edge
-        run: |
-          set -euo pipefail
-          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
-          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
-
       # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
       # scenarios above run in the default, Compact. Per layout: the viewport
       # numbers and data-safari-bar from the app's own pre-paint script
       # (viewport.html runs VIEWPORT_BOOT_SCRIPT), then the app at rest and
       # scrolled. The dock is lifted only with the bar at the bottom. Compact
-      # is set back at the end, for whatever drives Safari's menu after this.
+      # is set back at the end: the install below drives Compact's menu.
       - name: Safari tab layouts, Compact / Top / Bottom
-        if: always()
         timeout-minutes: 40
         run: |
           set -uo pipefail
@@ -364,6 +330,39 @@ jobs:
           python3 .github/safari/layout.py summary | tee shots/layouts-summary.txt
           python3 .github/safari/layout.py verdict | tee -a shots/layouts-summary.txt
         continue-on-error: true
+
+      # The installed app (Add to Home Screen, standalone). The owner's bands,
+      # the Safari controls after leaving Home and the top band show there, not
+      # in a tab: in a tab `top: 0` sits 62 px under the status bar.
+      - name: Install the app to the Home Screen
+        timeout-minutes: 15
+        run: python3 .github/safari/standalone.py install
+        continue-on-error: true
+
+      - name: Sign in inside the installed app
+        timeout-minutes: 20
+        run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
+        continue-on-error: true
+
+      - name: Installed app, scenarios light and dark
+        timeout-minutes: 30
+        run: python3 .github/safari/standalone.py scenarios
+        continue-on-error: true
+
+      - name: Installed app, Home > Tasks > a doc > Settings > back
+        timeout-minutes: 15
+        run: python3 .github/safari/standalone.py nav
+        continue-on-error: true
+
+      # Pixel checks on the shots (web content is not in the accessibility
+      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
+      # fully on screen and apart from the pill, no New task. The top 4 pt of
+      # every shot: no sharp list text (page ground, or blurred).
+      - name: Check the focus row and the top edge
+        run: |
+          set -euo pipefail
+          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
+          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
 
       - name: Keep the server log
         if: always()
