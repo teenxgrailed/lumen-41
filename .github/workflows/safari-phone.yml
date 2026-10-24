@@ -282,6 +282,26 @@ jobs:
           tmo 120 npx tsx .github/safari/seed-focus.ts none
         continue-on-error: true
 
+      # Pixel checks on the shots (web content is not in the accessibility
+      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
+      # fully on screen and apart from the pill, no New task. The top 4 pt of
+      # every shot: no sharp list text (page ground, or blurred). The focus
+      # verdict is over the rows of the dock, not one pixel row: the fog dots
+      # under the dock close the gap on single rows. The self-test runs the
+      # check on synthetic docks first (dots bridging passes, a real overlap fails).
+      - name: Check the focus row and the top edge
+        id: pixels
+        # run here, ahead of the long layout and installed-app steps, which a
+        # stalled simulator can cut short; judged in the last step below
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          rc=0
+          python3 -I .github/safari/check-shots.py selftest || rc=1
+          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png || rc=1
+          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png || rc=1
+          exit $rc
+
       # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
       # scenarios above run in the default, Compact. Per layout: the viewport
       # numbers and data-safari-bar from the app's own pre-paint script
@@ -290,28 +310,51 @@ jobs:
       # is set back at the end: the install below drives Compact's menu.
       # One step per phase, each followed by an upload that runs even when the
       # step stalls or times out (.github/safari/layouts.sh: every simctl / idb
-      # call under a timeout, every action timestamped into debug/layouts.log).
-      # A phase that hangs leaves every earlier phase's shots and the log.
+      # call under a timeout, every action timestamped into debug/layouts.log,
+      # machine load sampled into debug/load.log). A phase that hangs leaves every
+      # earlier phase's shots and the log.
       - name: Safari layouts, prepare
         timeout-minutes: 10
         run: bash .github/safari/layouts.sh prepare
         continue-on-error: true
 
-      - name: Safari layouts, Compact shots
-        timeout-minutes: 20
-        run: bash .github/safari/layouts.sh shots compact
+      - name: Safari layouts, compact viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: safari-phone-layouts-compact
+          name: safari-phone-layouts-compact-viewport
           path: |
-            shots/layout-compact-*
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            shots/layout-compact-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, compact today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-compact-today
+          path: |
+            shots/layout-compact-01*\n            shots/layout-compact-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, compact tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-compact-tasks
+          path: |
+            shots/layout-compact-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, set top
@@ -324,27 +367,46 @@ jobs:
         with:
           name: safari-phone-layouts-top-set
           path: |
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
-      - name: Safari layouts, top shots
-        timeout-minutes: 20
-        run: bash .github/safari/layouts.sh shots top
+      - name: Safari layouts, top viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: safari-phone-layouts-top
+          name: safari-phone-layouts-top-viewport
           path: |
-            shots/layout-top-*
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            shots/layout-top-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-today
+          path: |
+            shots/layout-top-01*\n            shots/layout-top-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-tasks
+          path: |
+            shots/layout-top-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, set bottom
@@ -357,27 +419,46 @@ jobs:
         with:
           name: safari-phone-layouts-bottom-set
           path: |
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
-      - name: Safari layouts, bottom shots
-        timeout-minutes: 20
-        run: bash .github/safari/layouts.sh shots bottom
+      - name: Safari layouts, bottom viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom viewport
         continue-on-error: true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: safari-phone-layouts-bottom
+          name: safari-phone-layouts-bottom-viewport
           path: |
-            shots/layout-bottom-*
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            shots/layout-bottom-00*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-today
+          path: |
+            shots/layout-bottom-01*\n            shots/layout-bottom-02*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-tasks
+          path: |
+            shots/layout-bottom-04*\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
       - name: Safari layouts, Compact back + verdict
@@ -390,11 +471,7 @@ jobs:
         with:
           name: safari-phone-layouts-summary
           path: |
-            shots/layouts-summary.txt
-            debug/layouts.log
-            debug/layout-*
-            debug/viewport*
-            debug/load.log
+            shots/layouts-summary.txt\n            debug/layouts.log\n            debug/layout-*\n            debug/viewport*\n            debug/load.log
           if-no-files-found: warn
 
       # The installed app (Add to Home Screen, standalone). The owner's bands,
@@ -422,22 +499,6 @@ jobs:
         run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
 
-      # Pixel checks on the shots (web content is not in the accessibility
-      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
-      # fully on screen and apart from the pill, no New task. The top 4 pt of
-      # every shot: no sharp list text (page ground, or blurred). The focus
-      # verdict is over the rows of the dock, not one pixel row: the fog dots
-      # under the dock close the gap on single rows. The self-test runs the
-      # check on synthetic docks first (dots bridging passes, a real overlap fails).
-      - name: Check the focus row and the top edge
-        run: |
-          set -uo pipefail
-          rc=0
-          python3 -I .github/safari/check-shots.py selftest || rc=1
-          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png || rc=1
-          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png || rc=1
-          exit $rc
-
       - name: Keep the server log
         if: always()
         run: cp "$RUNNER_TEMP/next.log" next.log || true
@@ -463,6 +524,9 @@ jobs:
         run: |
           cat shots/standalone-report.txt 2>/dev/null || true
           cat debug/install-head.txt 2>/dev/null || true
+          if [ "${{ steps.pixels.outcome }}" != "success" ]; then
+            echo "::error::The pixel checks on the shots failed (step: Check the focus row and the top edge)"; exit 1
+          fi
           if [ "${{ steps.head.outcome }}" != "success" ]; then
             echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1
           fi
