@@ -1,3 +1,4 @@
+import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { OnboardingAnswers } from "@/lib/onboarding/answers";
 import type { WeekPlan } from "@/lib/onboarding/plan";
 import type { CommitResult } from "@/lib/onboarding/server";
@@ -122,10 +123,12 @@ export async function registerEmail(
   password: string,
   name: string
 ) {
+  // The account starts in the browser's zone, week and clock, not UTC.
   const res = await post("/api/auth/register", {
     email,
     password,
     ...(name ? { name } : {}),
+    ...browserLocale(),
   });
   await json(res);
 }

@@ -70,6 +70,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
 import { StatsSheet } from "./Stats";
@@ -652,6 +653,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
+          <OnboardingResumeBanner />
           <SampleBanner />
           {review.show ? (
             <ReviewCard onStart={review.start} onLater={review.later} />

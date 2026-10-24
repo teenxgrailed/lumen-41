@@ -1,6 +1,12 @@
 import { getServerSession } from "next-auth/next";
+import { redirect } from "next/navigation";
 
 import { Ob3Flow } from "@/components/onboarding/Ob3Flow";
+import {
+  ACCOUNT_STEP_INDEX,
+  STEPS3,
+  isStep,
+} from "@/components/onboarding/ob3-steps";
 
 import { APP_NAME } from "@/lib/app-config";
 import { getAuthOptions } from "@/lib/auth/auth-options";
@@ -27,6 +33,10 @@ export default async function StartPage({
   const { step } = await searchParams;
   const session = await getServerSession(await getAuthOptions());
   const userId = session?.user?.id ?? null;
+  // Every screen after "account" needs one; without it the flow resumes there.
+  if (!userId && isStep(step) && STEPS3.indexOf(step) > ACCOUNT_STEP_INDEX) {
+    redirect("/start?step=account");
+  }
   const user = userId
     ? await prisma.user.findUnique({
         where: { id: userId },
