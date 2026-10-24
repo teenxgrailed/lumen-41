@@ -105,6 +105,11 @@ export interface MenuProps {
   away?: boolean;
   /** The Focus button beside the pill (PhoneShell's FocusDockButton); the menu only places it. */
   focus?: React.ReactNode;
+  /**
+   * A focus session runs: the dock takes the focus-done row (64 px focus
+   * button left of a 232 px pill, no New task button), centred.
+   */
+  focusOn?: boolean;
   /** The composer is growing out of the pill: the pill steps out. */
   morph?: boolean;
   /** A place was chosen (a route, or Ask Needt). Settings goes to onSettings. */
@@ -233,7 +238,8 @@ function fling(S: State, el: HTMLElement, v: number, onFrame: () => void) {
 }
 
 export function Menu(props: MenuProps) {
-  const { side, screen, tiles, counts, me, away, morph, focus } = props;
+  const { side, screen, tiles, counts, me, away, morph, focus, focusOn } =
+    props;
   const top = tiles.slice(0, 3);
   const rows = menuRows(top);
   const [mode, setMode] = useState<NvaMode>("pill");
@@ -594,6 +600,15 @@ export function Menu(props: MenuProps) {
     [R, S, jump, run, sizeGlass]
   );
 
+  /* A focus session starts or ends: the same frame, the other dock row. */
+  useLayoutEffect(() => {
+    const g = S.g;
+    if (!g || g.focus === !!focusOn) return;
+    S.g = nvaGeom(g.fw, g.fh, !!focusOn);
+    sizeGlass(S.glassHid, true);
+    paint();
+  }, [S, focusOn, paint, sizeGlass]);
+
   /* Size: the frame's screen box. One ResizeObserver, on the menu and its list. */
   useLayoutEffect(() => {
     const el = R.root;
@@ -605,7 +620,8 @@ export function Menu(props: MenuProps) {
       const sab = parseFloat(getComputedStyle(el).paddingBottom) || 0;
       const g = nvaGeom(
         el.clientWidth || r.width,
-        (el.clientHeight || r.height) - sab + 2 * pkEdgeInset(el)
+        (el.clientHeight || r.height) - sab + 2 * pkEdgeInset(el),
+        !!propsRef.current.focusOn
       );
       S.g = g;
       el.style.setProperty("--nva-w", `${g.W}px`);
@@ -920,7 +936,8 @@ export function Menu(props: MenuProps) {
         "nva " +
         (side === "dark" ? "is-dark" : "is-light") +
         (away ? " is-away" : "") +
-        (morph ? " is-morph" : "")
+        (morph ? " is-morph" : "") +
+        (focusOn ? " is-focus" : "")
       }
       data-nva-mode={mode}
       data-nav-variant="A"

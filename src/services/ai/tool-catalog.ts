@@ -13,6 +13,11 @@ type ToolEntry = {
   definition: AIChatToolDefinition;
   schema: z.ZodType<Record<string, unknown>>;
   dangerous?: boolean;
+  /**
+   * Writes workspace data without needing a confirmation (a `dangerous` tool
+   * is confirmed first). Either way it needs an Editor or Owner seat.
+   */
+  mutates?: boolean;
 };
 
 const object = <Shape extends z.ZodRawShape>(shape: Shape) =>
@@ -33,6 +38,7 @@ const jsonObject = (
 
 export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
   create_task: {
+    mutates: true,
     schema: object({
       title: z.string().min(1).max(160),
       estimatedMinutes: z.number().min(5).max(1440).optional(),
@@ -84,6 +90,7 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
     },
   },
   add_subtasks: {
+    mutates: true,
     schema: object({
       ...taskRef,
       subtasks: subtaskListSchema.min(1),
@@ -108,6 +115,7 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
     },
   },
   complete_subtask: {
+    mutates: true,
     schema: object({
       ...taskRef,
       subtaskTitle: z.string().min(1).max(SUBTASK_TITLE_MAX).optional(),
@@ -236,6 +244,7 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
     },
   },
   propose_page_changes: {
+    mutates: true,
     schema: object({
       pageId: z.string().min(1),
       summary: z.string().min(1).max(500),
@@ -319,6 +328,7 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
     },
   },
   create_task_from_email: {
+    mutates: true,
     schema: object({
       messageId: z.string().min(1),
       title: z.string().max(160).optional(),
@@ -462,4 +472,17 @@ export function isDangerousAgentTool(
 ) {
   if (name === "manage_projects" && args?.action === "list") return false;
   return Boolean(AGENT_TOOL_CATALOG[name]?.dangerous);
+}
+
+/** Whether a tool writes workspace data without asking first. */
+export function isMutatingAgentTool(name: string) {
+  return Boolean(AGENT_TOOL_CATALOG[name]?.mutates);
+}
+
+/** Whether a tool changes data (confirmed or not), so a viewer may not run it. */
+export function agentToolNeedsEditor(
+  name: string,
+  args?: Record<string, unknown>
+) {
+  return isDangerousAgentTool(name, args) || isMutatingAgentTool(name);
 }

@@ -5,6 +5,10 @@ import {
   generateConnectorToken,
   hashConnectorToken,
 } from "@/services/connectors/auth";
+import {
+  connectorTokenExpiresAt,
+  isConnectorTokenExpired,
+} from "@/services/connectors/auth-tokens";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
@@ -18,6 +22,13 @@ function publicSettings(
   return {
     hasToken: Boolean(settings.tokenHash),
     tokenPreview: settings.tokenPreview,
+    // Null for a token made before expiry existed: it does not expire.
+    tokenExpiresAt: settings.tokenHash
+      ? (settings.tokenExpiresAt?.toISOString() ?? null)
+      : null,
+    tokenExpired:
+      Boolean(settings.tokenHash) &&
+      isConnectorTokenExpired(settings.tokenExpiresAt),
     webhookUrl: settings.webhookUrl,
     webhookSchedule: settings.webhookSchedule,
     webhookTaskComplete: settings.webhookTaskComplete,
@@ -56,6 +67,7 @@ export async function POST(request: NextRequest) {
       data: {
         tokenHash: hashConnectorToken(token),
         tokenPreview: `${token.slice(0, 10)}...${token.slice(-4)}`,
+        tokenExpiresAt: connectorTokenExpiresAt(),
       },
     });
 

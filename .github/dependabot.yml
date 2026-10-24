@@ -1,0 +1,39 @@
+# Weekly dependency PRs. Minor and patch updates arrive as one grouped PR per
+# ecosystem; majors come one per package so each gets its own review.
+# Security updates (Dependabot alerts) are separate and not delayed by this.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # A release must be a week old before it is proposed, so a hijacked
+    # package version is usually pulled before it reaches a PR. Security
+    # updates are not delayed.
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: chore(ci)

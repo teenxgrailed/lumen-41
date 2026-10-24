@@ -40,6 +40,15 @@ GitHub Actions exposes required `security`, `quality-gates`, `schema-drift`,
 `e2e`, and conditionally executed `visual-style` statuses. Production
 publishing is triggered only by a successful CI run on `main`.
 
+`security` runs Semgrep on findings new since the merge base with `main` (a
+full-tree scan still reports 28 older findings; see the comment in `ci.yml`).
+The non-required `supply-chain` job runs `scripts/check-npm-audit.mjs`
+(`npm audit --omit=dev` failing on high or critical advisories not accepted in
+`.github/npm-audit-allowlist.json`, where each entry has a reason and a
+`reviewBy` date) and gitleaks over a pull request's commits. Dependabot
+(`.github/dependabot.yml`) opens weekly grouped minor/patch PRs for npm and
+GitHub Actions, for releases at least 7 days old.
+
 `npm run check:branding` is part of CI. Product copy and internal event names
 use Needt only; legal attribution is the explicit exception.
 

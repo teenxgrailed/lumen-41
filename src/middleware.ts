@@ -5,6 +5,12 @@ import type { NextRequest } from "next/server";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { mcpHost } from "@/lib/mcp-config";
 import { appRedirectUrl } from "@/lib/public-url";
+import { contentSecurityPolicy } from "@/lib/security/csp";
+
+const CSP_REPORT_ONLY = contentSecurityPolicy({
+  collaborationUrl: process.env.NEXT_PUBLIC_COLLABORATION_URL,
+  development: process.env.NODE_ENV === "development",
+});
 
 // List of public routes that don't require authentication
 const publicRoutes = [
@@ -200,6 +206,14 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 export async function middleware(request: NextRequest) {
   const response = await handle(request);
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  // Report-only: browsers report violations to /api/csp-report and block
+  // nothing. API responses are not documents, so they go without it.
+  if (!request.nextUrl.pathname.startsWith("/api/")) {
+    response.headers.set(
+      "Content-Security-Policy-Report-Only",
+      CSP_REPORT_ONLY
+    );
+  }
   return response;
 }
 

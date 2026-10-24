@@ -19,6 +19,15 @@ export const NVA_TOP = 58;
 /** The create button beside the pill: a little smaller than the pill (64). */
 export const NVA_ADD = 54;
 export const NVA_ADD_GAP = 8;
+/**
+ * While a focus session runs (additions-2/focus-done `.fd-dockrow`): a 64 px
+ * focus button left of the pill, 10 px apart, and no New task button. The pill
+ * holds four 50 px slots (the three places and Every place), gap 4, padding
+ * 0 10: 232 px; the row is 64 + 10 + 232 = 306 px, centred.
+ */
+export const NVA_FOCUS = 64;
+export const NVA_FOCUS_GAP = 10;
+export const NVA_FOCUS_PW = 232;
 
 export const nvaClamp = (v: number, a: number, b: number) =>
   Math.max(a, Math.min(b, v));
@@ -46,16 +55,27 @@ export interface NvaGeom {
   HB: number;
   /** One tile's width in the card. */
   tileW: number;
+  /** A focus session runs: the `.fd-dockrow` layout (no New task button). */
+  focus: boolean;
+  /** How far the pill sits right of centre, so the focus row is centred. */
+  PX: number;
+  /** The first pill slot's centre from the pill's left edge (step 54). */
+  S0: number;
+  /** The pill's end (hairline + dot grid box) from the pill's right edge. */
+  BE: number;
   /** Track length from the pill to the card. */
   range: number;
 }
 
-export function nvaGeom(fw: number, fh: number): NvaGeom {
+export function nvaGeom(fw: number, fh: number, focus = false): NvaGeom {
   const M = 10;
   const W = fw - 2 * M;
   const fullH = fh - NVA_TOP - M;
   const cardH = Math.min(fullH, 478);
-  const PW = 236;
+  // Idle: the pill (236) between nothing and New task. Focus: the
+  // `.fd-dock` (232) right of the focus button, the pair centred.
+  const PW = focus ? NVA_FOCUS_PW : 236;
+  const PX = focus ? (NVA_FOCUS + NVA_FOCUS_GAP) / 2 : 0;
   const PH = 64;
   // The pill's bottom edge stands PB above the menu frame's bottom, which is
   // `--v3-dock-lift` above the display edge less the layer's 8 px edge inset
@@ -82,6 +102,13 @@ export function nvaGeom(fw: number, fh: number): NvaGeom {
     HB,
     tileW,
     range: cardH - PH,
+    focus,
+    PX,
+    // `.fd-dock span` 50 px slots after 10 px padding: centres at 35 + 54 i,
+    // the dot grid (the fourth) at 197, 35 short of the right edge, which is
+    // 65 for the 60 px end box (hairline 1 + 7, dots 44, centre at 30).
+    S0: focus ? 35 : 34,
+    BE: focus ? 65 : 60,
   };
 }
 
@@ -103,6 +130,7 @@ export function nvaShape(g: NvaGeom, p: number, t: number): NvaBox {
   let h: number;
   let b: number;
   let r: number;
+  let dx: number;
   if (p >= 0) {
     const pc = Math.min(p, 1);
     const over = Math.max(0, p - 1);
@@ -110,6 +138,7 @@ export function nvaShape(g: NvaGeom, p: number, t: number): NvaBox {
     const eh = Math.pow(pc, 1.12); // ... the height follows
     const ch = nvaLerp(g.cardH, g.fullH, t);
     w = nvaLerp(g.PW, g.W, ew);
+    dx = g.PX * (1 - ew);
     h = nvaLerp(g.PH, ch, eh) + over * 140;
     b = nvaLerp(g.PB - g.M, 0, eh);
     r = nvaLerp(g.PH / 2, 38, Math.min(1, pc * 1.4)) - t * 6;
@@ -117,11 +146,12 @@ export function nvaShape(g: NvaGeom, p: number, t: number): NvaBox {
     const q = Math.min(-p, 1);
     const under = Math.max(0, -p - 1);
     w = nvaLerp(g.PW, g.HW, q);
+    dx = g.PX * (1 - q);
     h = nvaLerp(g.PH, g.HH, q);
     b = nvaLerp(g.PB - g.M, g.HB - g.M, q) - under * 14;
     r = h / 2;
   }
-  const x = (g.W - w) / 2;
+  const x = (g.W - w) / 2 + dx;
   const y = g.fullH - b - h;
   return { x, y, w, h, r };
 }
@@ -137,7 +167,7 @@ export function nvaClipPath(g: NvaGeom, s: NvaBox) {
 /** Where icon i sits in the pill. */
 export function nvaPillSlot(g: NvaGeom, i: number) {
   return {
-    x: (g.W - g.PW) / 2 + 34 + i * 54,
+    x: (g.W - g.PW) / 2 + g.PX + g.S0 + i * 54,
     y: g.fullH - (g.PB - g.M) - g.PH / 2,
   };
 }
@@ -411,7 +441,7 @@ export function nvaFrame(
     open,
     icons,
     pillbits: {
-      x: s.x + s.w - 60,
+      x: s.x + s.w - g.BE,
       y: s.y + s.h / 2 - 22,
       opacity: pillOp,
     },
@@ -423,15 +453,16 @@ export function nvaFrame(
       sy: s.h / glass.h,
       opacity: glassK,
     },
+    // While a focus session runs there is no New task button (fd-dockrow).
     add: {
       x: g.M + s.x + s.w + NVA_ADD_GAP,
       y: g.fh - g.M - g.fullH + s.y + (s.h - NVA_ADD) / 2,
       scale: nvaLerp(0.6, 1, pillOp),
-      opacity: pillOp,
+      opacity: g.focus ? 0 : pillOp,
     },
     focus: {
-      x: g.M + s.x - NVA_ADD_GAP - NVA_ADD,
-      y: g.fh - g.M - g.fullH + s.y + (s.h - NVA_ADD) / 2,
+      x: g.M + s.x - NVA_FOCUS_GAP - NVA_FOCUS,
+      y: g.fh - g.M - g.fullH + s.y + (s.h - NVA_FOCUS) / 2,
       scale: nvaLerp(0.6, 1, pillOp),
       opacity: pillOp,
     },

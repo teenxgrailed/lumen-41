@@ -1,5 +1,6 @@
 import {
   NVA_ADD,
+  NVA_FOCUS,
   nvaClipPath,
   nvaDragKind,
   nvaDragSprings,
@@ -349,5 +350,53 @@ describe("staggers", () => {
     expect(nvaHeadK(0, 1)).toBe(0);
     expect(nvaHeadK(12, 1)).toBe(0.5);
     expect(nvaHeadK(100, 0.4)).toBe(0.4);
+  });
+});
+
+describe("the focus row (additions-2/focus-done .fd-dockrow)", () => {
+  // The design's row: 64 focus button, gap 10, 232 pill = 306, centred.
+  for (const fw of [320, 375, 390, 402]) {
+    it(`at ${fw} px: the focus button and the pill fit, centred, 10 apart`, () => {
+      const fg = nvaGeom(fw, 844, true);
+      const f = nvaFrame(fg, 0, 0, { w: fg.PW, h: fg.PH });
+      const pillL = fg.M + f.shape.x;
+      const pillR = pillL + f.shape.w;
+      expect(f.shape.w).toBe(232);
+      expect(f.shape.h).toBe(64);
+      expect(f.focus.x).toBeGreaterThanOrEqual(0);
+      expect(f.focus.x + NVA_FOCUS).toBe(pillL - 10);
+      expect(pillR).toBeLessThanOrEqual(fw);
+      expect(f.focus.x).toBeCloseTo(fw - pillR, 6);
+      // one centre line with the pill
+      expect(f.focus.y + NVA_FOCUS / 2).toBeCloseTo(
+        fg.fh - fg.M - fg.fullH + f.shape.y + 32,
+        6
+      );
+      // no New task button while a session runs
+      expect(f.add.opacity).toBe(0);
+      expect(f.focus.opacity).toBe(1);
+    });
+  }
+
+  it("four 50 px slots: the three places and the dot grid, 54 apart", () => {
+    const fg = nvaGeom(390, 844, true);
+    const f = nvaFrame(fg, 0, 0, { w: fg.PW, h: fg.PH });
+    const x0 = f.shape.x;
+    expect(nvaPillSlot(fg, 0).x - x0).toBe(35);
+    expect(nvaPillSlot(fg, 2).x - x0).toBe(35 + 2 * 54);
+    // the dot grid's centre (30 px into its 60 px end box) is the fourth slot
+    expect(f.pillbits.x + 30 - x0).toBe(35 + 3 * 54);
+  });
+
+  it("the card still opens to the full width, centred", () => {
+    const fg = nvaGeom(390, 844, true);
+    const s = nvaShape(fg, 1, 0);
+    expect(s.x).toBe(0);
+    expect(s.w).toBe(370);
+  });
+
+  it("idle keeps the shipped dock: 236 pill, New task, no shift", () => {
+    expect(nvaShape(nvaGeom(390, 844, false), 0, 0)).toEqual(nvaShape(g, 0, 0));
+    expect(g.focus).toBe(false);
   });
 });

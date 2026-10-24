@@ -104,7 +104,7 @@ describe("phone page ground", () => {
     expect(css).toContain("--v3-edge: 8px");
   });
 
-  it("on iOS no paint reaches the display edge: the gaps are 6 px top, 5 px bottom", () => {
+  it("on iOS no colour reaches the display edge: the gaps are 6 px top, 5 px bottom", () => {
     // Safari 26 samples the top (~4 px) and bottom (~3 px) once and keeps the
     // tint, even for absolute children of a zero-height fixed host.
     expect(css).toMatch(
@@ -112,12 +112,28 @@ describe("phone page ground", () => {
     );
     expect(css).toContain("--v3-gap-top: 0px");
     expect(css).toContain("--v3-gap-bot: 0px");
+    // the tint and the wash (a colour) stop short of the edge ...
+    expect(
+      rule('.needt-v3[data-ui="phone"] .pk-topband > :not(.pk-blur)')
+    ).toContain("height: calc(var(--ps-top-h) - var(--v3-gap-top))");
+    expect(
+      rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots, .pk-blur)')
+    ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
+    // ... the blur steps (no colour of their own) run to it, so nothing
+    // scrolled shows sharp in the last few px
     expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
-      "height: calc(var(--ps-top-h) - var(--v3-gap-top))"
+      "height: var(--ps-top-h);"
     );
     expect(
       rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots)')
-    ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
+    ).toContain("height: var(--ps-fog-h);");
+    // in a Safari tab fixed `top: 0` is below the status bar: the blur
+    // reaches past it, over the strip the page scrolls under
+    expect(
+      rule(
+        'html[data-display-mode="browser"]\n  .needt-v3[data-ui="phone"]\n  .pk-topband\n  > .pk-blur'
+      )
+    ).toContain("height: calc(var(--ps-top-h) + 72px)");
     expect(
       rule(
         '.needt-v3[data-ui="phone"] .pk-scrim > *,\n.needt-v3[data-ui="phone"] .nva-scrim'

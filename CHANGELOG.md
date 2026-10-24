@@ -135,11 +135,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Connected on the Connections screen (the card looked for provider `google`
   while the mailbox reports `gmail`), and returning to the Mailbox says the
   account is connected.
-- The app host is no longer indexed by search engines: every response carries
-  `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
-  a robots noindex meta tag, and robots.txt lets crawlers reach the public
-  entry pages (sign-in, privacy, terms, subprocessors) so they can see it.
-
 - Document text is readable on every page style, in Light, Dark and Time: the
   ink now always clears 4.5:1 on the page (whatever Text colour was chosen),
   and a page whose colours could not be read yet no longer starts without a
@@ -153,7 +148,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the "/" block sheet sits above it, page text always selects, checklist boxes
   have a 44px tap area, and the caret scrolls clear of the toolbar.
 
-- The AI tools tab no longer needs `NEXT_PUBLIC_MCP_OAUTH_URL`: the OAuth host defaults to `https://mcp.needt.app/mcp` (that variable is baked in by CI, not Coolify, so setting it in Coolify had no effect).
 - Documents no longer lag while you type. Three things ran on every keystroke:
   the whole page was turned into JSON and written to local storage, a
   collaborator's caret move (which fires on each of your keystrokes) re-rendered
@@ -172,6 +166,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where that ink cannot be read on the page in the current theme (light text on
   the white page in Light, dark text on the grey page in Dark), the page uses Auto
   ink for that theme.
+
+## [0.9.0] — 2025-12-31 (pre-launch, inherited: the hand-written entries from the FluidCalendar fork to mid-October 2026; dated 2025-12-31 so What's new skips it)
+
+- The app host is no longer indexed by search engines: every response carries
+  `X-Robots-Tag: noindex, nofollow` (now set in middleware too), every page has
+  a robots noindex meta tag, and robots.txt lets crawlers reach the public
+  entry pages (sign-in, privacy, terms, subprocessors) so they can see it.
+- The AI tools tab no longer needs `NEXT_PUBLIC_MCP_OAUTH_URL`: the OAuth host defaults to `https://mcp.needt.app/mcp` (that variable is baked in by CI, not Coolify, so setting it in Coolify had no effect).
 - Mail is read-only. Connecting Gmail asks only for `gmail.readonly` and
   Outlook only for `Mail.Read`; Needt no longer changes anything in a
   mailbox. Marking read and archiving are kept in Needt only and survive

@@ -101,7 +101,7 @@ describe("POST /api/account/sessions/revoke", () => {
     ]);
     expect(db.connectorSettings.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", tokenHash: { not: null } },
-      data: { tokenHash: null, tokenPreview: null },
+      data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
     });
     expect(userModel.update).toHaveBeenCalledWith({
       where: { id: "user-1" },

@@ -16,7 +16,23 @@
 .needt-v3 .nx-btn.c2-page:hover { width: 32px; padding: 0; color: var(--text-secondary); }
 .needt-v3 .c2-seg { width: 170px; }
 .needt-v3 .c2-seg.is-narrow { width: 150px; }
-.needt-v3 .c2-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 16px; }
+.needt-v3 .c2-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 16px; }
+
+/* The empty week (CalEmpty): a card over the grid, low on it where the
+   evening hours are, so the morning's blocks stay in view. The layer lets
+   clicks through to the grid; only the card takes them. Ring-first, no lift. */
+.needt-v3 .c2-empty { position: absolute; inset: auto 16px 40px; display: flex; justify-content: center; pointer-events: none; z-index: 3; }
+.needt-v3 .c2-empty.is-quiet { inset: 50% 16px auto; transform: translateY(-50%); }
+.needt-v3 .c2-empty-card { pointer-events: auto; display: flex; align-items: center; gap: 10px; max-width: min(640px, 100%); padding: 8px 8px 8px 12px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-ring-strong); }
+.needt-v3 .c2-empty-icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: var(--fill-2); color: var(--text-tertiary); }
+.needt-v3 .c2-empty-text { flex: 1 1 auto; min-width: 0; font: var(--type-ui); color: var(--text-secondary); text-wrap: pretty; }
+.needt-v3 .c2-empty-acts { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.needt-v3 .c2-empty-hint { padding: 0 10px; height: 28px; display: inline-flex; align-items: center; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-ring); font: var(--type-ui); color: var(--text-tertiary); }
+@media (max-width: 899px) {
+  .needt-v3 .c2-empty-card { flex-wrap: wrap; }
+  .needt-v3 .c2-empty-text { flex-basis: calc(100% - 38px); }
+  .needt-v3 .c2-empty-acts { margin-left: auto; }
+}
 .needt-v3 .c2-rel { position: relative; }
 .needt-v3 .c2-meta { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 

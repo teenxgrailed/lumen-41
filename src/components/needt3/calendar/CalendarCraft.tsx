@@ -48,6 +48,7 @@ import { StarterGameSlot } from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
 import { TaskViewGear } from "../task/TaskViewGear";
 import { CompletionScope, useCompletion } from "../task/useCompletion";
+import { CalEmpty } from "./CalEmpty";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
 import { type WeekHandle, WeekView } from "./WeekView";
@@ -58,6 +59,7 @@ import {
   canEditEvent,
   hideDoneTitle,
 } from "./blocks";
+import { calendarEmptyState } from "./empty";
 import { daySpan, freeSlot, spanLabel, weekStart } from "./layout";
 import { workHoursOf } from "./strip";
 
@@ -384,6 +386,15 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     },
   };
 
+  // the empty week's card or hint; it steps aside while a draft is open
+  const empty = draft
+    ? null
+    : calendarEmptyState({
+        feeds: calendars,
+        items: [...timed, ...loose],
+        days: (view === "week" ? weekDays : agendaDays).map((d) => d.date),
+      });
+
   const pagerLabel = view === "days" ? "days" : narrow ? "days" : "week";
   const content = (
     <div className="c2-stack">
@@ -530,6 +541,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onPersonal={onPersonal}
             />
           )}
+          <CalEmpty state={empty} onAdd={newEvent} />
         </div>
       </StScreen>
       {personalPeek ? (

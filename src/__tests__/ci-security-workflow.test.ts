@@ -14,4 +14,10 @@ describe("CI security workflow", () => {
     expect(workflow).not.toContain("SEMGREP_BASELINE_COMMIT");
     expect(workflow).not.toContain('zero_sha="');
   });
+
+  it("gates production dependencies and scans PR commits for secrets", () => {
+    expect(workflow).toContain("run: node scripts/check-npm-audit.mjs");
+    // Third-party actions are pinned to a commit, never a moving tag.
+    expect(workflow).toMatch(/uses: gitleaks\/gitleaks-action@[0-9a-f]{40} #/);
+  });
 });

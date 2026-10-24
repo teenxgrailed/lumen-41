@@ -279,9 +279,12 @@ jobs:
           if cmp -s shots/08-fog-a.png shots/08-fog-b.png; then echo "FOG DOTS STILL"; else echo "fog dots move"; fi
           for state in running paused ending; do
             for theme in light dark; do
-              npx tsx .github/safari/seed-focus.ts "$state"
               xcrun simctl ui "$UDID" appearance "$theme"
               sleep 2
+              # a slow first load can outlive the 2-minute ending window: warm
+              # the page, then seed and load it again right before the shot
+              open_url /today
+              npx tsx .github/safari/seed-focus.ts "$state"
               open_url /today
               sleep 2
               xcrun simctl io "$UDID" screenshot "shots/$theme-07-focus-$state.png"
@@ -314,6 +317,16 @@ jobs:
         timeout-minutes: 30
         run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
+
+      # Pixel checks on the shots (web content is not in the accessibility
+      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
+      # fully on screen and apart from the pill, no New task. The top 4 pt of
+      # every shot: no sharp list text (page ground, or blurred).
+      - name: Check the focus row and the top edge
+        run: |
+          set -euo pipefail
+          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
+          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
 
       - name: Keep the server log
         if: always()
