@@ -207,6 +207,19 @@ def openurl(path):
 def install():
     sh("xcrun", "simctl", "ui", UDID, "appearance", "light")
     openurl(START)
+    # what iOS can read for the install: the name and display mode come from
+    # the manifest / apple-mobile-web-app-* tags when it sees them, else the
+    # icon is named after <title> and opens as a plain web clip
+    log("install: the page Safari adds: " + json.dumps(js("""
+const q = (s) => document.querySelector(s);
+const where = (el) => el ? (el.closest('head') ? 'head' : 'body') : null;
+return {title: document.title, readyState: document.readyState,
+        manifest: where(q('link[rel="manifest"]')),
+        appleTitle: (q('meta[name="apple-mobile-web-app-title"]') || {}).content || null,
+        appleTitleIn: where(q('meta[name="apple-mobile-web-app-title"]')),
+        capable: where(q('meta[name="apple-mobile-web-app-capable"]')),
+        statusBar: (q('meta[name="apple-mobile-web-app-status-bar-style"]') || {}).content || null};
+""", "safari")))
     w, h = ui.screen()
     method, name = None, NAME
     got = ui.add_to_home_screen(w, h)
@@ -220,8 +233,16 @@ def install():
         if ui.launch_icon(NAME, w, h):
             method = "webclip"
     time.sleep(10)
-    where = js("return location.href", "webapp", None)
-    log(f"install: method={method} front={ui.front_app()} at={where!r}")
+    where = js("return {href: location.href, displayMode: matchMedia('(display-mode: standalone)').matches,"
+               " standalone: navigator.standalone, innerHeight, screenH: screen.height}", "webapp", None)
+    log(f"install: method={method} front={ui.front_app()} app={json.dumps(where)}")
+    if where and not where.get("displayMode"):
+        msg = (f"the installed app is not in display-mode standalone (named {name!r}, innerHeight "
+               f"{where.get('innerHeight')} of {where.get('screenH')}): iOS made a plain web clip")
+        log("PROBLEM: " + msg)
+        print(f"::error title=Installed without the manifest::{msg}", flush=True)
+        with open("debug/standalone-problems.txt", "a") as f:
+            f.write(msg + "\n")
     with open("debug/standalone-method.txt", "w") as f:
         f.write(f"{method}\n")
     ui.save_debug("standalone-launched", ui.describe())
