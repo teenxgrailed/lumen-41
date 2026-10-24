@@ -15,6 +15,7 @@ import {
   isForeignDependency,
   parseTaskUpdate,
 } from "@/services/tasks/task-input";
+import { writeFrozenPlacement } from "@/services/tasks/task-placement";
 import { deleteTaskForever } from "@/services/tasks/trash";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import { type Prisma, type Task, WorkspaceRole } from "@prisma/client";
@@ -466,28 +467,18 @@ export async function PUT(
       });
     }
 
-    // A manually placed task is represented by one frozen block. Keeping the
-    // block relation in sync here makes Calendar, Space, Focus, and connector
-    // reads all observe the same placement without a second storage model.
+    // A manually placed task is one frozen block (services/tasks/task-placement).
     if (
       updates.scheduleLocked === true &&
       updates.scheduledStart &&
       updates.scheduledEnd
     ) {
-      await prisma.$transaction([
-        prisma.scheduledBlock.deleteMany({ where: { taskId: id } }),
-        prisma.scheduledBlock.create({
-          data: {
-            taskId: id,
-            userId: schedulingUserId,
-            start: newDate(updates.scheduledStart),
-            end: newDate(updates.scheduledEnd),
-            chunkIndex: 0,
-            chunkCount: 1,
-            isFrozen: true,
-          },
-        }),
-      ]);
+      await writeFrozenPlacement({
+        taskId: id,
+        userId: schedulingUserId,
+        start: newDate(updates.scheduledStart),
+        end: newDate(updates.scheduledEnd),
+      });
 
       updatedTask =
         (await prisma.task.findUnique({
