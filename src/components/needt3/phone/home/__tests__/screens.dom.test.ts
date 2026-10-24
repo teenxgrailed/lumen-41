@@ -680,14 +680,45 @@ describe("Calendar", () => {
   });
 
   it("a day with nothing says so", () => {
+    // the week has an event (today's), the picked day has nothing
     client.setQueryData(qk.tasks({}), []);
+    mount(PhoneCalendar);
+    click(q("[data-v2p-day='2026-09-04']"));
+    expect(host.textContent).toContain("Nothing planned");
+    expect(host.textContent).toContain("A free day.");
+    expect(qa("[data-v2p-cal-empty]")).toHaveLength(0);
+  });
+
+  const noEvents = (feeds: { type: string }[]) => {
     client.setQueryData(
       qk.events({ from: "2026-08-31", to: "2026-10-12" }),
       []
     );
+    client.setQueryData(
+      [...qk.events(), "calendars"],
+      feeds.map((f, i) => ({ id: `f${i}`, name: "Cal", enabled: true, ...f }))
+    );
+  };
+
+  it("an unconnected week with no event offers to connect or add one", () => {
+    noEvents([{ type: "LOCAL" }]);
     mount(PhoneCalendar);
-    expect(host.textContent).toContain("Nothing planned");
-    expect(host.textContent).toContain("A free day.");
+    const card = q("[data-v2p-cal-empty='connect']");
+    expect(card.textContent).toContain("No calendar here yet.");
+    expect(q("[data-v2p-cal-connect]").getAttribute("href")).toBe(
+      "/connections"
+    );
+    click(q("[data-v2p-cal-add]"));
+    expect(usePhoneOverlays.getState().newEvent).not.toBeNull();
+  });
+
+  it("a connected week with nothing in it says so, quietly", () => {
+    client.setQueryData(qk.tasks({}), []);
+    noEvents([{ type: "GOOGLE" }]);
+    mount(PhoneCalendar);
+    expect(qa("[data-v2p-cal-empty]")).toHaveLength(0);
+    expect(host.textContent).toContain("Nothing this week");
+    expect(host.textContent).not.toContain("A free day.");
   });
 
   it("the Starter game's card sits where the free day's line is", () => {
