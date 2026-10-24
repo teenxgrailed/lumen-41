@@ -1,6 +1,13 @@
 import AppKit
 import WebKit
 
+#if NEEDT_CI
+/// CI builds only: a window AppKit does not shrink to a small runner screen.
+private typealias MainNSWindow = CIUnconstrainedWindow
+#else
+private typealias MainNSWindow = NSWindow
+#endif
+
 /// The main window: the web interface under a transparent, full-size title
 /// bar. The page's own top bar is the title bar; the traffic lights sit over
 /// its left end at (18, 20), and `data-tauri-drag-region` elements drag it.
@@ -15,7 +22,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate, BridgeHo
     private var reportedBarCenter: CGFloat?
 
     init(url: URL) {
-        let window = NSWindow(
+        let window = MainNSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,

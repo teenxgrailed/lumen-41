@@ -13,8 +13,8 @@ import {
   HostedAiQueueError,
 } from "@/services/ai/slow-queue";
 import {
+  agentToolNeedsEditor,
   getAgentToolDefinitions,
-  isDangerousAgentTool,
 } from "@/services/ai/tool-catalog";
 import {
   AIChatMessage,
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
 
   if (
     selectedTool &&
-    isDangerousAgentTool(selectedTool.name, selectedTool.arguments) &&
+    agentToolNeedsEditor(selectedTool.name, selectedTool.arguments) &&
     auth.workspace?.role === WorkspaceRole.VIEWER
   ) {
     return NextResponse.json(

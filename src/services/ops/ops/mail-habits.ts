@@ -21,6 +21,8 @@ export const mailToTask = defineOp({
   description:
     "Create a follow-up task from a synced mail message. Undo archives the task.",
   risk: "reversible",
+  // Copies the message's sender, subject and snippet into the task.
+  scopes: ["mail.read"],
   input: z
     .object({
       messageId: z.string().min(1),
