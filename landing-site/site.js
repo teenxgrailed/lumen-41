@@ -149,7 +149,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const updGo = () => {
     const pl = $(".pw-plan.on"); if (!pl || !go) return;
     const note = $(".pw-cta p"); if (note) note.textContent = pl.dataset.plan === "free"
-      ? "No card. Free stays free — and your account starts with 14 days of Pro as a gift."
+      ? "Free stays free — and your account starts with 14 days of Pro as a gift. Add a card only if you keep Pro."
       : "Secure checkout. You sign in (or create your account) first, then pay. Cancel any time; refunds within 14 days.";
     if (pl.dataset.plan === "free") { go.href = window.NEEDT_SIGNUP || APP + "/auth/signin"; go.textContent = "Start free"; }
     else if (pl.dataset.plan === "lifetime") { go.href = APP + "/settings?section=billing&checkout=lifetime"; go.textContent = "Buy Lifetime — $149 once"; }
