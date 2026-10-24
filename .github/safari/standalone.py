@@ -57,7 +57,8 @@ return {standalone: navigator.standalone === true,
         displayMode: matchMedia('(display-mode: standalone)').matches,
         innerHeight, innerWidth, screenH: screen.height, path: location.pathname + location.hash,
         ground: cs.backgroundColor, theme: (document.querySelector('.needt-v3') || {}).dataset?.theme,
-        dockGap: r ? Math.round(innerHeight - r.bottom) : null, scrollY: Math.round(scrollY)};
+        dockGap: r ? Math.round(innerHeight - r.bottom) : null, scrollY: Math.round(scrollY),
+        sheet: !!document.querySelector('.pk-sheet-layer.is-open')};
 """
 
 # why the layout viewport is shorter than the screen (the Settings sheet case)
@@ -142,6 +143,10 @@ def check(name, theme, before=None):
         # scrolled: the page's own content runs under the status bar (budget
         # mode, phone-ground.css); only paint layers must stop short of it
         log("  top edge is scrolled content, not a layer: not a band")
+    elif r.returncode == 1 and s.get("sheet") and all(": bottom " in ln for ln in bands):
+        # an open sheet covers the screen to its bottom edge, as on iOS; the
+        # scrim above it and the top edge stay in the paint budget
+        log("  bottom edge is the open sheet, which covers the screen: not a band")
     elif r.returncode == 1:
         PROBLEMS.append(f"{name}: edge band")
         print(r.stdout[r.stdout.find("::error"):], flush=True)

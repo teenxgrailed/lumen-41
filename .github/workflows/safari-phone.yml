@@ -303,14 +303,16 @@ jobs:
         run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
         continue-on-error: true
 
-      - name: Installed app, scenarios light and dark
-        timeout-minutes: 30
-        run: python3 .github/safari/standalone.py scenarios
-        continue-on-error: true
-
+      # nav first: the scenarios seed a Focus session, whose end would open
+      # the session-complete sheet in the middle of the walk
       - name: Installed app, Home > Tasks > a doc > Settings > back
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py nav
+        continue-on-error: true
+
+      - name: Installed app, scenarios light and dark
+        timeout-minutes: 30
+        run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
 
       - name: Keep the server log
