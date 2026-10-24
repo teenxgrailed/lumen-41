@@ -37,7 +37,10 @@ describe("PWA native feel", () => {
     expect(metadata.appleWebApp).toBeUndefined();
     expect(metadata.other).toBeUndefined();
     expect(JSON.stringify(metadata.icons)).not.toContain("apple-touch-icon");
-    const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+    const layout = readFileSync(
+      join(process.cwd(), "src/app/layout.tsx"),
+      "utf8"
+    );
     expect(layout).toContain("INSTALL_HEAD.manifest");
     expect(layout).toContain("INSTALL_HEAD.meta.map");
   });
