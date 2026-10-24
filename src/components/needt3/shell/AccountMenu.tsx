@@ -11,7 +11,10 @@ import { signOut, useSession } from "next-auth/react";
 
 import { createPortal } from "react-dom";
 import {
+  LuArrowUpRight,
+  LuBookOpen,
   LuChevronsUpDown,
+  LuKeyboard,
   LuLink,
   LuLogOut,
   LuPalette,
@@ -20,6 +23,7 @@ import {
   LuUsers,
 } from "react-icons/lu";
 
+import { openHelp } from "@/lib/needt3/help";
 import { type V3PlanKind, usePlan } from "@/lib/needt3/hooks/plan";
 import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
@@ -72,6 +76,7 @@ function AcctRow({
   onClick,
   soon,
   dot,
+  out,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -80,6 +85,8 @@ function AcctRow({
   soon?: boolean;
   /** Something new behind the row (the accent mark). */
   dot?: boolean;
+  /** The row opens another site in a new tab. */
+  out?: boolean;
 }) {
   return (
     <button
@@ -97,6 +104,10 @@ function AcctRow({
         <span className="sb-acct-soon">Soon</span>
       ) : kbd ? (
         <kbd className="sb-acct-kbd">{kbd}</kbd>
+      ) : out ? (
+        <span className="sb-acct-kbd sb-acct-out" aria-hidden="true">
+          <LuArrowUpRight size={14} />
+        </span>
       ) : null}
     </button>
   );
@@ -115,9 +126,9 @@ function placeAt(el: HTMLElement | null) {
 /**
  * The person, top-left: avatar, name and a plan pill on one 32px line. Opens
  * the account menu: who you are + plan, Settings, Appearance, Invite, Teams,
- * What's new, Sign out. The avatar carries a dot
+ * What's new, Help, Keyboard shortcuts, Sign out. The avatar carries a dot
  * while What's new has entries this person has not opened. The top bar's ?
- * menu opens it too.
+ * menu offers the same three.
  */
 export function AccountMenu() {
   const session = useSession();
@@ -389,6 +400,18 @@ export function AccountMenu() {
                 label="What's new"
                 dot={unseenNews}
                 onClick={run(() => shell.openWhatsNew())}
+              />
+              <AcctRow
+                icon={<LuBookOpen size={16} />}
+                label="Help"
+                out
+                onClick={run(openHelp)}
+              />
+              <AcctRow
+                icon={<LuKeyboard size={16} />}
+                label="Keyboard shortcuts"
+                kbd="?"
+                onClick={run(() => shell.openKeys())}
               />
               <span className="sb-acct-sep" role="separator" />
               <AcctRow

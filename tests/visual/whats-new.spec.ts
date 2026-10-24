@@ -107,6 +107,10 @@ for (const theme of ["dark", "light"] as const) {
     await expect(profile.locator("[data-sb-news-dot]")).toBeVisible();
     await profile.click();
     const menu = page.getByRole("menu", { name: "Account" });
+    await expect(menu.getByRole("menuitem", { name: "Help" })).toBeVisible();
+    await expect(
+      menu.getByRole("menuitem", { name: "Keyboard shortcuts" })
+    ).toBeVisible();
     await menu.getByRole("menuitem", { name: "What's new" }).click();
 
     const sheet = page.getByRole("dialog", { name: "What's new in Needt" });
@@ -129,6 +133,11 @@ for (const theme of ["dark", "light"] as const) {
 
     const open = page.locator("[data-ps-news-open]");
     await expect(open).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Settings" }).getByText("Help", {
+        exact: true,
+      })
+    ).toBeVisible();
     await open.click();
 
     const sheet = page.getByRole("dialog", { name: "What's new" });

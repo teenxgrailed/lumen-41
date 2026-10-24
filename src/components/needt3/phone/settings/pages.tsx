@@ -6,6 +6,7 @@ import { LuDownload } from "react-icons/lu";
 
 import { currentBuildLabel } from "@/lib/build-info";
 import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
+import { openHelp } from "@/lib/needt3/help";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -419,7 +420,7 @@ export function KeysPage() {
 /**
  * The build is the SHA baked in at release (`lib/build-info`). What's new
  * opens its sheet over this one (with the accent mark while something is
- * unopened).
+ * unopened); Help opens the guides on the website in a new tab.
  */
 export function AboutPage() {
   const { news } = usePs();
@@ -437,6 +438,7 @@ export function AboutPage() {
         onOpen={news}
         data={{ "data-ps-news-open": "" }}
       />
+      <PsRow title="Help" out onOpen={openHelp} />
       <PsRow title="Terms" out onOpen={() => window.open("/terms", "_blank")} />
       <PsRow
         title="Privacy"

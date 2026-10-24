@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import {
   LuBell,
   LuBellOff,
+  LuBookOpen,
   LuBug,
   LuCircleHelp,
   LuEllipsis,
@@ -20,6 +21,7 @@ import {
 
 import { isToday, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { openHelp } from "@/lib/needt3/help";
 import {
   type FeedItem,
   fetchEarlier,
@@ -482,14 +484,23 @@ export function TopIcons() {
     shell.openWhatsNew();
   };
 
-  /* The prototype's menu (topbar.jsx TB_HELP) also has Send feedback,
-     Frequently asked questions and Markdown shortcuts. The prototype only
-     toasts "opens in the browser" for them; there is no page or route behind
-     any of the three yet, so they are not drawn. //todo: add them in the
-     prototype's order (feedback first, FAQ after What's new, Markdown last)
-     once the pages exist. */
+  /* The prototype's menu (topbar.jsx TB_HELP) also has Send feedback and
+     Markdown shortcuts. The prototype only toasts "opens in the browser" for
+     them; there is no page or route behind either yet, so they are not
+     drawn. Its FAQ is Help: the guides on the website, in a new tab.
+     //todo: add them in the prototype's order (feedback first, Markdown
+     last) once the pages exist. */
   const help: [React.ReactNode, string, () => void, boolean, string?][] = [
     [<LuSparkles key="i" size={15} />, "What's new", openNews, unseenNews],
+    [
+      <LuBookOpen key="i" size={15} />,
+      "Help",
+      () => {
+        setWhich(null);
+        openHelp();
+      },
+      false,
+    ],
     [
       <LuBug key="i" size={15} />,
       "Report a problem",

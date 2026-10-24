@@ -108,3 +108,7 @@
   border-radius: 3px;
   background: var(--accent);
 }
+.needt-v3 .sb-acct-out {
+  display: grid;
+  place-items: center;
+}
