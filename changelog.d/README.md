@@ -19,6 +19,10 @@ Rules:
 - Only user-facing changes need a fragment.
 - Pick a slug that is unlikely to collide (feature name, not `fix`).
 - `README.md` is ignored by the collector.
+- The app's What's new lists every fragment, dated by the commit that added
+  it (`scripts/whats-new.ts`, run before `dev` and `build`). Write it for
+  the person using Needt. Name internal housekeeping `chore-<slug>.md`: it
+  still goes into `CHANGELOG.md` but is not shown in the app.
 
 At release time run `npm run changelog:collect`. It moves every fragment into
 `CHANGELOG.md` under `## [Unreleased]` and deletes the fragment files.

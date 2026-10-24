@@ -103,6 +103,8 @@ export const qk = {
 
   connections: () => [V3, "connections"] as const,
   settings: () => [V3, "settings"] as const,
+  /** The changelog feed and what is unseen (`GET /api/whats-new`). */
+  whatsNew: () => [V3, "whats-new"] as const,
   plan: () => [V3, "plan"] as const,
   aiAvailability: () => [V3, "ai-availability"] as const,
   nudges: () => [V3, "nudges"] as const,
