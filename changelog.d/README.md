@@ -42,4 +42,14 @@ last release plus the fragments added since. Keep the markers: they keep each
 entry's id (so it is not shown as new twice) and keep `chore-*` fragments out
 of the app. Hand-written bullets in a release section are shown too; a bullet
 whose text matches a fragment's is listed once.
-CI warns (does not fail) when a PR edits `CHANGELOG.md` directly.
+
+CI fails a PR that edits `CHANGELOG.md` directly (`quality-gates`, step
+"Fail when a PR edits CHANGELOG.md directly"). A PR may change it only when:
+
+- its title or a commit subject starts with `release:` (or `release(`);
+- every changed line is a `## [x.y.z]` release heading; or
+- it is a fragment compile: every added line comes from a `changelog.d`
+  fragment the same PR deletes (or is its `<!-- changelog.d/<name> -->`
+  marker), which is exactly what `npm run changelog:collect` produces.
+
+Run the same check locally with `npm run check:changelog`.
