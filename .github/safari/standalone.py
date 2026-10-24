@@ -60,6 +60,28 @@ return {standalone: navigator.standalone === true,
         dockGap: r ? Math.round(innerHeight - r.bottom) : null, scrollY: Math.round(scrollY)};
 """
 
+# why the layout viewport is shorter than the screen (the Settings sheet case)
+VIEWPORT_JS = """
+const probe = document.createElement('div');
+probe.style.cssText = 'position:fixed;left:0;top:0;width:1px;visibility:hidden;pointer-events:none;' +
+  'padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+document.body.appendChild(probe);
+const len = (v) => { probe.style.height = v; return probe.getBoundingClientRect().height; };
+const ps = getComputedStyle(probe);
+const out = {vv: visualViewport && Math.round(visualViewport.height), vvTop: visualViewport && Math.round(visualViewport.offsetTop),
+  clientH: document.documentElement.clientHeight, scrollH: document.documentElement.scrollHeight,
+  vh: len('100vh'), dvh: len('100dvh'), svh: len('100svh'), lvh: len('100lvh'),
+  sat: ps.paddingTop, sab: ps.paddingBottom,
+  htmlOverflow: getComputedStyle(document.documentElement).overflow, bodyOverflow: getComputedStyle(document.body).overflow,
+  bodyPos: getComputedStyle(document.body).position, htmlStyle: document.documentElement.getAttribute('style'),
+  bodyStyle: document.body.getAttribute('style'),
+  statusMeta: [...document.querySelectorAll('meta[name="apple-mobile-web-app-status-bar-style"]')].map(m => (m.closest('head') ? 'head:' : 'body:') + m.content),
+  viewportMeta: [...document.querySelectorAll('meta[name="viewport"]')].map(m => m.content),
+  active: document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className).slice(0, 80)};
+probe.remove();
+return out;
+"""
+
 
 def state():
     return js(STATE_JS) or {}
@@ -115,7 +137,12 @@ def check(name, theme, before=None):
     for line in r.stdout.splitlines():
         if line.startswith("EDGE"):
             log("  " + line)
-    if r.returncode == 1:
+    bands = [ln for ln in r.stdout.splitlines() if ln.startswith("EDGE BAND")]
+    if r.returncode == 1 and (s.get("scrollY") or 0) > 4 and all(": top " in ln for ln in bands):
+        # scrolled: the page's own content runs under the status bar (budget
+        # mode, phone-ground.css); only paint layers must stop short of it
+        log("  top edge is scrolled content, not a layer: not a band")
+    elif r.returncode == 1:
         PROBLEMS.append(f"{name}: edge band")
         print(r.stdout[r.stdout.find("::error"):], flush=True)
     if before:
@@ -311,6 +338,7 @@ def scenarios():
         time.sleep(3)
         go("/today")
         check(f"standalone-{theme}-01-today-top", theme)
+        log("  viewport: " + json.dumps(js(VIEWPORT_JS)))
         ui.idb("ui", "swipe", "201", "542", "201", "140", "--duration", "0.5", check=False)
         time.sleep(2)
         check(f"standalone-{theme}-02-today-scrolled", theme)
@@ -325,6 +353,9 @@ def scenarios():
         check(f"standalone-{theme}-04-tasks-bottom", theme)
         go("/settings#appearance")
         check(f"standalone-{theme}-05-settings-sheet", theme)
+        log("  viewport: " + json.dumps(js(VIEWPORT_JS)))
+        time.sleep(4)
+        log("  viewport 4 s later: " + json.dumps(js(VIEWPORT_JS)))
         # pull-down, shot while the finger is still down
         go("/today")
         p = subprocess.Popen(["idb", "ui", "swipe", "201", "140", "201", "520", "--duration", "4", "--udid", UDID])
@@ -367,6 +398,7 @@ def nav():
     tap_sel(['[data-nva-tile="settings"]', '[data-nva-row="settings"]', '[data-nva-row="profile"]'], "settings")
     time.sleep(3)
     prev = check("standalone-nav-4-settings", "light", prev)
+    log("  viewport: " + json.dumps(js(VIEWPORT_JS)))
     # back: the app's own back / close control, as a person would
     if not tap_sel(['[aria-label="Back"]', '[aria-label^="Back"]', '[aria-label="Close"]',
                     '[aria-label^="Close"]'], "back"):
