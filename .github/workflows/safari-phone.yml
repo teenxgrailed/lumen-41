@@ -319,13 +319,15 @@ jobs:
           shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
           xcrun simctl ui "$UDID" appearance light
           for L in compact top bottom; do
-            if [ "$L" != compact ]; then
-              python3 .github/safari/layout.py set "$L" || echo "::warning::could not set the $L layout"
+            TAG="$L"
+            if [ "$L" != compact ] && ! python3 .github/safari/layout.py set "$L"; then
+              echo "::warning::could not set the $L layout; its readings are tagged $L-unset"
+              TAG="$L-unset"
             fi
             xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
             sleep 2
             python3 .github/safari/layout.py mark "$L at rest"
-            open_url "http://127.0.0.1:8000/?layout=$L"
+            open_url "http://127.0.0.1:8000/?layout=$TAG"
             sleep 6
             shot "layout-$L-00-viewport"
             python3 .github/safari/layout.py mark "$L scrolled"

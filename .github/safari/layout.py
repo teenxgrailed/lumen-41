@@ -83,31 +83,49 @@ def set_layout(name):
         dump(f"layout-{name}-{tag}-miss", ui.describe())
         return None
 
+    def open_row(pred, tag, swipes):
+        # a touch can be swallowed (the first one after a launch often is):
+        # tap again while the row is still on screen
+        for attempt in range(3):
+            row = find_scroll(pred, tag, swipes)
+            if not row:
+                return False
+            ui.tap(*ui.centre(row))
+            time.sleep(5)
+            if not any(pred(x) for x in ui.describe()):
+                return True
+        dump(f"layout-{name}-{tag}-stuck", ui.describe())
+        return False
+
+    def options():
+        return any(lab(x) in ("compact", "bottom", "top") for x in ui.describe())
+
+    def selected():
+        return any(lab(x) in want and "Selected" in (x.get("traits") or []) for x in ui.describe())
+
     run("xcrun", "simctl", "terminate", udid, "com.apple.mobilesafari")
     run("xcrun", "simctl", "terminate", udid, "com.apple.Preferences")
     time.sleep(2)
     run("xcrun", "simctl", "launch", udid, "com.apple.Preferences")
     time.sleep(8)
     # Settings may come back on the Safari page it was left on
-    if not any(lab(x) in ("compact", "bottom", "top") for x in ui.describe()):
-        apps = find_scroll(lambda x: x.get("AXUniqueId") == "com.apple.settings.apps" or lab(x) == "apps", "apps", 12)
-        if not apps:
+    if not options():
+        if not open_row(lambda x: x.get("AXUniqueId") == "com.apple.settings.apps", "apps", 12):
             return False
-        ui.tap(*ui.centre(apps))
-        time.sleep(5)
-        saf = find_scroll(lambda x: lab(x) == "safari" and x.get("type") != "Application", "safari", 25)
-        if not saf:
+        if not open_row(lambda x: lab(x) == "safari" and x.get("type") not in ("Application", "Heading"), "safari", 25):
             return False
-        ui.tap(*ui.centre(saf))
-        time.sleep(5)
-    hit = find_scroll(lambda x: lab(x) in want, "option", 14)
-    if not hit:
-        return False
-    ui.tap(*ui.centre(hit))
-    time.sleep(3)
+    for attempt in range(3):
+        hit = find_scroll(lambda x: lab(x) in want, "option", 14)
+        if not hit:
+            return False
+        ui.tap(*ui.centre(hit))
+        time.sleep(3)
+        if selected():
+            break
+    ok = selected()
     dump(f"layout-{name}", ui.describe())
     run("xcrun", "simctl", "terminate", udid, "com.apple.Preferences")
-    return True
+    return ok
 
 
 KEYS = ("bar", "displayMode", "innerH", "screenH", "lvh", "svh", "sab", "fixedBottom")
@@ -143,7 +161,10 @@ def verdict():
     for layout, want in EXPECT.items():
         got = seen.get(layout)
         print(f"{layout}: data-safari-bar {sorted(map(str, got or []))} (want {want})")
-        if got != {want}:
+        if got is None:
+            # Settings could not be driven: nothing was measured in this layout
+            print(f"::warning title=Safari tab layout::{layout}: not measured (the layout could not be set)")
+        elif got != {want}:
             bad.append(f"{layout}: data-safari-bar was {sorted(map(str, got or []))}, want {want}")
     for b in bad:
         print(f"::error title=Safari tab layout::{b}", flush=True)
