@@ -12,7 +12,7 @@ innerHeight through Web Inspector (wi.py), plus the native controls idb sees
 shots/standalone-report.txt; a band or Safari chrome is an ::error::.
 Pages are reached by location.assign in the scenarios and by real taps on the
 menu in nav (its targets are found through Web Inspector, the touch is idb)."""
-import json, os, subprocess, sys, time
+import json, os, re, subprocess, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ui  # noqa: E402
@@ -105,7 +105,13 @@ def check(name, theme, before=None):
                f"(the bottom {BASE['innerHeight'] - s['innerHeight']} px of the display are outside the page)")
         PROBLEMS.append(msg)
         print(f"::error title=Viewport shrank in the installed app::{msg}", flush=True)
-    r = sh("python3", os.path.join(HERE, "edges.py"), path, theme)
+    # the edge must be the page's own ground (html's background), which a
+    # page whose paper reaches the top switches to that paper
+    ground = []
+    m = re.match(r"rgba?\((\d+),\s*(\d+),\s*(\d+)", s.get("ground") or "")
+    if m:
+        ground = ["#%02x%02x%02x" % tuple(int(v) for v in m.groups())]
+    r = sh("python3", os.path.join(HERE, "edges.py"), path, theme, *ground)
     for line in r.stdout.splitlines():
         if line.startswith("EDGE"):
             log("  " + line)

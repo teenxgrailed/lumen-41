@@ -43,6 +43,24 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
   background-color: #141416 !important;
 }
 
+/* A page whose own paper reaches the top edge (the document reader without a
+ * backdrop) is the ground while it is open: ReaderPhone writes the paper's
+ * light / dark pair onto <html> with data-ground="page". Same rule as above,
+ * body = the page's top colour, static per page. */
+html[data-ground="page"]:has(.needt-v3[data-ui="phone"]),
+html[data-ground="page"]:has(.needt-v3[data-ui="phone"]) body {
+  background-color: var(--v3-page-ground-l, #f6f6f3) !important;
+}
+html[data-ground="page"]:has(
+    .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  ),
+html[data-ground="page"]:has(
+    .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"])
+  )
+  body {
+  background-color: var(--v3-page-ground-d, #141416) !important;
+}
+
 .needt-v3[data-ui="phone"] {
   background: var(--v2p-ground);
   /* The home-indicator inset (0 outside an installed app). */
