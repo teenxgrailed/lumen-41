@@ -22,7 +22,7 @@ describe("phone shell (ps-)", () => {
     expect(pkPsK(900)).toBe(1);
   });
 
-  it("the top band is one blur layer that fades out at its lower edge, 104 px (52 in a Safari tab)", () => {
+  it("the top band is one blur layer that fades out at its lower edge, 116 px (64 in a Safari tab)", () => {
     // owner decision 2026-10-24: one plain blur, no steps, no tint
     const start = shell.indexOf(".ps-top > .pk-blur {");
     expect(start).toBeGreaterThanOrEqual(0);
@@ -36,7 +36,7 @@ describe("phone shell (ps-)", () => {
     expect(shell).not.toContain(".ps-top > .t");
     expect(shell).not.toContain("--ps-tint");
     // --v3-top is at least 52 px in the installed app, 0 in a Safari tab
-    expect(ground).toContain("--ps-top-h: calc(var(--v3-top) + 52px)");
+    expect(ground).toContain("--ps-top-h: calc(var(--v3-top) + 64px)");
   });
 
   it("the top band renders a single blur span and nothing else", () => {

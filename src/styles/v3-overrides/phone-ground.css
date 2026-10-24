@@ -176,15 +176,15 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
   height: var(--v3-compact-h);
 }
 /* Top band (phone-shell .ps-top, painted in phone-shell.css): the status
- * row plus 52 px for the collapsed header, so 104 px in the installed app
- * (`--v3-top` is at least 52 there) and 52 px in a Safari tab, where the
+ * row plus 64 px for the collapsed header, so 116 px in the installed app
+ * (`--v3-top` is at least 52 there) and 64 px in a Safari tab, where the
  * header starts at the top of the viewport. The host has no height; its one
  * blur layer is an absolute child that reaches up to the display edge from
  * the host's top, which is the band's inner edge. The layer paints no colour
  * (a masked backdrop-filter), so it runs to the edge: nothing scrolled shows
  * sharp in the last few px, and Safari has no colour to sample there. */
 .needt-v3[data-ui="phone"] .pk-topband {
-  --ps-top-h: calc(var(--v3-top) + 52px);
+  --ps-top-h: calc(var(--v3-top) + 64px);
   top: var(--ps-top-h);
   height: 0;
 }

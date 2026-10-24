@@ -3,7 +3,7 @@
  * The page scrolls (phone-ground.css). Three things sit on it:
  *   .ps-top   the collapsed header: ONE blur layer (owner decision
  *             2026-10-24, replacing the spec's three steps and tint), from the
- *             very top edge to 14 px past the small title, masked so it fades
+ *             very top edge to 26 px past the small title, masked so it fades
  *             to nothing at its lower edge. No colour of its own, so it may
  *             reach the display edge under budget mode. Its strength follows
  *             --ps-k = clamp((scrollY - 8) / 44, 0, 1), written on the screen
