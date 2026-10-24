@@ -10,7 +10,10 @@
   "scripts": {
     "agent:context": "node scripts/agent-context.mjs",
     "changelog:collect": "node scripts/changelog-collect.mjs",
+    "whats-new": "tsx scripts/whats-new.ts",
+    "predev": "tsx scripts/whats-new.ts",
     "dev": "next dev",
+    "prebuild": "tsx scripts/whats-new.ts",
     "build": "next build",
     "postbuild": "node scripts/check-production-artifacts.mjs",
     "build:worker": "esbuild src/worker/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/worker/index.js --external:@prisma/client --external:.prisma --external:@block65/webcrypto-web-push",

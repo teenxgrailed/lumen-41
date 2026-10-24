@@ -40,6 +40,16 @@ export async function freezeNeedtNow(page: import("@playwright/test").Page) {
 
 export async function signInVisualUser(page: import("@playwright/test").Page) {
   await freezeNeedtNow(page);
+  // What's new is compiled from changelog.d, which every pull request adds
+  // to; served live, the avatar's dot would come and go between runs. Specs
+  // that show the feed register their own fixture after this one.
+  await page.route("**/api/whats-new", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ groups: [], unseen: [], marker: null }),
+    });
+  });
   await page.addInitScript(() => {
     sessionStorage.setItem("needt-ai-companion-intro-seen", "1");
   });

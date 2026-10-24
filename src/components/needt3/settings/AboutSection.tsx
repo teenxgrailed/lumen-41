@@ -3,6 +3,7 @@
 import { FiChevronRight, FiExternalLink } from "react-icons/fi";
 
 import { currentBuildLabel } from "@/lib/build-info";
+import { openHelp } from "@/lib/needt3/help";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -11,9 +12,9 @@ import { SGroup, SRow } from "./kit";
 
 /**
  * What's new opens the sidebar's WhatsNew panel (Settings leaves first, as
- * the sheet sinks); Terms and Privacy open the pages.
+ * the sheet sinks); Help opens the guides on the website in a new tab; Terms
+ * and Privacy open the pages.
  * Version is the build SHA baked in at release (`lib/build-info`).
- * //todo: the Help centre (no URL yet).
  */
 export function AboutSection() {
   const shell = useShellApi();
@@ -29,6 +30,9 @@ export function AboutSection() {
         }}
       >
         <FiChevronRight size={14} aria-hidden />
+      </SRow>
+      <SRow title="Help" onClick={openHelp}>
+        <FiExternalLink size={14} aria-hidden />
       </SRow>
       <SRow title="Terms" onClick={() => window.open("/terms", "_blank")}>
         <FiExternalLink size={14} aria-hidden />
