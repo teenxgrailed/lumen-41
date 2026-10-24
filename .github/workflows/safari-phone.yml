@@ -288,25 +288,113 @@ jobs:
       # (viewport.html runs VIEWPORT_BOOT_SCRIPT), then the app at rest and
       # scrolled. The dock is lifted only with the bar at the bottom. Compact
       # is set back at the end: the install below drives Compact's menu.
-      - name: Safari tab layouts, Compact / Top / Bottom
-        # .github/safari/layouts.sh: every simctl/idb call under a timeout, each
-        # layout cut at 15 min, every action timestamped into debug/layouts.log
-        timeout-minutes: 50
-        run: bash .github/safari/layouts.sh all
+      # One step per phase, each followed by an upload that runs even when the
+      # step stalls or times out (.github/safari/layouts.sh: every simctl / idb
+      # call under a timeout, every action timestamped into debug/layouts.log).
+      # A phase that hangs leaves every earlier phase's shots and the log.
+      - name: Safari layouts, prepare
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh prepare
         continue-on-error: true
 
-      # Uploaded right away, not only at the end: a stalled or cancelled run
-      # after this point still leaves the layout shots and the log.
+      - name: Safari layouts, Compact shots
+        timeout-minutes: 20
+        run: bash .github/safari/layouts.sh shots compact
+        continue-on-error: true
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: safari-phone-layouts
+          name: safari-phone-layouts-compact
           path: |
-            shots/layout-*
+            shots/layout-compact-*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, set top
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh set top
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-set
+          path: |
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top shots
+        timeout-minutes: 20
+        run: bash .github/safari/layouts.sh shots top
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top
+          path: |
+            shots/layout-top-*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, set bottom
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh set bottom
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-set
+          path: |
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom shots
+        timeout-minutes: 20
+        run: bash .github/safari/layouts.sh shots bottom
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom
+          path: |
+            shots/layout-bottom-*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, Compact back + verdict
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh finish
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-summary
+          path: |
             shots/layouts-summary.txt
             debug/layouts.log
-            debug/viewport*
             debug/layout-*
+            debug/viewport*
+            debug/load.log
           if-no-files-found: warn
 
       # The installed app (Add to Home Screen, standalone). The owner's bands,
