@@ -74,10 +74,19 @@ import {
   subtaskListSchema,
   subtaskSelect,
 } from "@/services/tasks/subtasks";
+import { placementFields } from "@/services/tasks/task-placement";
 import {
   type TaskFieldPatch,
   updateTaskFields,
 } from "@/services/tasks/task-update";
+import {
+  energy,
+  labelIds,
+  priorityOrNone,
+  repeatRule,
+  taskFieldPatchFrom,
+  taskUpdateFields,
+} from "@/services/tasks/task-update-input";
 import { PageAuthor, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
@@ -585,20 +594,6 @@ async function getRow(
 }
 
 /** NONE is "No priority". */
-const priorityOrNone = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]);
-const energy = z.enum(["LOW", "MEDIUM", "HIGH"]);
-const repeatRule = z
-  .string()
-  .min(1)
-  .max(500)
-  .describe(
-    "RRULE text, e.g. FREQ=DAILY, FREQ=WEEKLY;BYDAY=MO,WE or FREQ=MONTHLY."
-  );
-const labelIds = z
-  .array(z.string().min(1))
-  .max(50)
-  .describe("Label ids (your own tags); the task ends up with exactly these.");
-
 /** The single MCP tool catalogue. The stdio bridge has no list of its own. */
 export const MCP_TOOLS: McpTool[] = [
   defineTool({
@@ -711,7 +706,7 @@ export const MCP_TOOLS: McpTool[] = [
   }),
   defineTool({
     name: "needt_create_task",
-    description: `Create an auto-scheduled task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
+    description: `Create a task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. By default the scheduler picks the time; give start to place the task at a time yourself and pin it there, or autoSchedule: false to keep it off the calendar. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
     annotations: { readOnlyHint: false, destructiveHint: false },
     input: z.object({
       title: z
@@ -767,6 +762,10 @@ export const MCP_TOOLS: McpTool[] = [
         .describe(
           "A page in this workspace the task came from; the page's to-do and the task then tick together."
         ),
+      start: placementFields.start,
+      autoSchedule: placementFields.autoSchedule.describe(
+        "false keeps the scheduler off this task: it gets no time until you give it one. Default true; a task created with start is pinned and not auto-scheduled."
+      ),
     }),
     invoke: (ctx, args) =>
       callRoute(ctx, createTaskPost, "/api/connect/tasks", "POST", args),
@@ -851,11 +850,6 @@ export const MCP_TOOLS: McpTool[] = [
   }),
 ];
 
-const taskStatus = z.enum([
-  TaskStatus.TODO,
-  TaskStatus.IN_PROGRESS,
-  TaskStatus.COMPLETED,
-]);
 const isoDate = z.string().min(1);
 const pageText = z
   .string()
@@ -936,109 +930,19 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards.",
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z
         .object({
           id: z.string().min(1).describe("Task id."),
-          title: z.string().min(1).max(500).optional(),
-          description: z.string().max(20_000).nullable().optional(),
-          dueDate: isoDate
-            .nullable()
-            .optional()
-            .describe(
-              "ISO 8601; null clears it. Moves the deadline too when the two were equal."
-            ),
-          deadline: isoDate
-            .nullable()
-            .optional()
-            .describe(
-              "ISO 8601 hard deadline the scheduler must beat; null clears it. Set it only to make it differ from dueDate."
-            ),
-          estimatedMinutes: z
-            .number()
-            .int()
-            .min(1)
-            .max(24 * 60)
-            .nullable()
-            .optional(),
-          priority: priorityOrNone.optional(),
-          recurrenceRule: repeatRule.nullable().optional(),
-          labelIds: labelIds.optional(),
-          scheduleId: z
-            .string()
-            .min(1)
-            .nullable()
-            .optional()
-            .describe(
-              "Hours: one of your work schedule ids; null = the default."
-            ),
-          energy: energy.optional(),
-          status: taskStatus.optional(),
-          projectId: z
-            .string()
-            .min(1)
-            .nullable()
-            .optional()
-            .describe("Project in the same workspace; null removes it."),
-          entry: entrySchema
-            .nullable()
-            .optional()
-            .describe("The very first small step; null clears it."),
-          fullTime: z
-            .boolean()
-            .nullable()
-            .optional()
-            .describe(
-              "Do for the full time: true keeps a focus session running its whole length when the task is ticked, false ends it at once; null = auto (on for habit and repeating tasks)."
-            ),
-          dependsOnId: z
-            .string()
-            .min(1)
-            .nullable()
-            .optional()
-            .describe(
-              "Id of an open task this one waits on; null clears it. Loops are refused."
-            ),
-          originPageId: z
-            .string()
-            .min(1)
-            .nullable()
-            .optional()
-            .describe("The page the task came from; null detaches it."),
+          ...taskUpdateFields,
         })
         .strict(),
       async invoke(ctx, args) {
-        const dueDate =
-          args.dueDate == null ? args.dueDate : newDate(args.dueDate);
-        if (dueDate && Number.isNaN(dueDate.getTime())) {
-          return toolError({ status: 400, error: "dueDate must be ISO 8601" });
-        }
-        const deadline =
-          args.deadline == null ? args.deadline : newDate(args.deadline);
-        if (deadline && Number.isNaN(deadline.getTime())) {
-          return toolError({ status: 400, error: "deadline must be ISO 8601" });
-        }
-        return updateTask(ctx, args.id, {
-          title: args.title,
-          description: args.description,
-          dueDate,
-          deadline,
-          estimatedMinutes: args.estimatedMinutes,
-          ...(args.priority === "NONE"
-            ? { noPriority: true }
-            : { priorityLevel: args.priority }),
-          recurrenceRule: args.recurrenceRule,
-          tagIds: args.labelIds,
-          scheduleId: args.scheduleId,
-          energyRequired: args.energy,
-          status: args.status,
-          projectId: args.projectId,
-          entry: args.entry,
-          fullTime: args.fullTime,
-          dependsOnId: args.dependsOnId,
-          originPageId: args.originPageId,
-        });
+        const { id, ...body } = args;
+        const parsed = taskFieldPatchFrom(body);
+        if (!parsed.ok) return toolError({ status: 400, error: parsed.error });
+        return updateTask(ctx, id, parsed.patch);
       },
     },
     ["tasks-updated"]
