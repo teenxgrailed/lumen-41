@@ -22,12 +22,33 @@ describe("phone shell (ps-)", () => {
     expect(pkPsK(900)).toBe(1);
   });
 
-  it("the top band is three masked blur steps, 104 px (52 in a Safari tab)", () => {
-    expect(shell).toContain("blur(3px)");
-    expect(shell).toContain("blur(9px)");
-    expect(shell).toContain("blur(20px) saturate(1.4)");
+  it("the top band is one blur layer that fades out at its lower edge, 104 px (52 in a Safari tab)", () => {
+    // owner decision 2026-10-24: one plain blur, no steps, no tint
+    const start = shell.indexOf(".ps-top > .pk-blur {");
+    expect(start).toBeGreaterThanOrEqual(0);
+    const body = shell.slice(start, shell.indexOf("}", start));
+    expect(body).toContain("backdrop-filter: blur(20px) saturate(1.2);");
+    expect(body).toContain(
+      "mask: linear-gradient(to top, transparent 0, #000 24px);"
+    );
+    expect(body).not.toMatch(/background/);
+    expect(shell).not.toContain(".ps-top .pk-blur.b");
+    expect(shell).not.toContain(".ps-top > .t");
+    expect(shell).not.toContain("--ps-tint");
     // --v3-top is at least 52 px in the installed app, 0 in a Safari tab
     expect(ground).toContain("--ps-top-h: calc(var(--v3-top) + 52px)");
+  });
+
+  it("the top band renders a single blur span and nothing else", () => {
+    const screen = readFileSync(
+      path.join(process.cwd(), "src/components/needt3/phone/kit/Screen.tsx"),
+      "utf8"
+    );
+    const start = screen.indexOf("export function PkTopBand");
+    const body = screen.slice(start, screen.indexOf("\n}\n", start));
+    expect(body.match(/<span /g)).toHaveLength(1);
+    expect(body).toContain('<span className="pk-blur b" />');
+    expect(body).not.toContain("PkBlurLayers");
   });
 
   it("the fog is 128 px, 170 px with Safari's tab bar at the bottom", () => {
@@ -41,20 +62,8 @@ describe("phone shell (ps-)", () => {
     expect(shell).not.toMatch(/background(-color)?:\s*(#|rgb|var\(--v2p)/);
   });
 
-  it("the blur steps are ps-shell.css's masked backdrop-filters, stop for stop, and paint nothing", () => {
+  it("the fog's blur steps are ps-shell.css's masked backdrop-filters, stop for stop, and paint nothing", () => {
     for (const [step, mask] of [
-      [
-        ".ps-top .pk-blur.b1",
-        "linear-gradient(to top, transparent 0, #000 28px)",
-      ],
-      [
-        ".ps-top .pk-blur.b2",
-        "linear-gradient(to top, transparent 10px, #000 44px)",
-      ],
-      [
-        ".ps-top .pk-blur.b3",
-        "linear-gradient(to top, transparent 22px, #000 60px)",
-      ],
       [
         ".ps-bot .pk-blur.b1",
         "linear-gradient(to bottom, transparent 0, #000 46px)",

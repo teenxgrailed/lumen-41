@@ -1,10 +1,13 @@
 /* Phone shell edges (additions-2/phone-shell, ps-shell.css, 21.10.26).
  *
  * The page scrolls (phone-ground.css). Three things sit on it:
- *   .ps-top   the collapsed header: progressive blur in three masked steps and
- *             a tint, from the very top edge to 14 px past the small title.
- *             Its strength follows --ps-k = clamp((scrollY - 8) / 44, 0, 1),
- *             written on the screen root by PkScreen.
+ *   .ps-top   the collapsed header: ONE blur layer (owner decision
+ *             2026-10-24, replacing the spec's three steps and tint), from the
+ *             very top edge to 14 px past the small title, masked so it fades
+ *             to nothing at its lower edge. No colour of its own, so it may
+ *             reach the display edge under budget mode. Its strength follows
+ *             --ps-k = clamp((scrollY - 8) / 44, 0, 1), written on the screen
+ *             root by PkScreen.
  *   .ps-title the small centred title (place glyph + name). The large title
  *             (.pk-head-row, .pk-sub) shrinks away as it arrives.
  *   .ps-bot   the fog under the dock: 128 px to the screen edge (170 in a
@@ -26,17 +29,11 @@
  * are new. */
 
 .needt-v3[data-ui="phone"] {
-  --ps-tint: rgba(246, 246, 243, 0.78); /* the ground at .78 */
-  --ps-tint-strong: rgba(246, 246, 243, 0.96);
-  --ps-hair: rgba(18, 18, 20, 0.06);
   --ps-fog: rgba(246, 246, 243, 0.97);
   --ps-fog-0: rgba(246, 246, 243, 0);
   --ps-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
 }
 .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"]) {
-  --ps-tint: rgba(20, 20, 22, 0.74);
-  --ps-tint-strong: rgba(20, 20, 22, 0.95);
-  --ps-hair: rgba(255, 255, 255, 0.07);
   --ps-fog: rgba(20, 20, 22, 0.97);
   --ps-fog-0: rgba(20, 20, 22, 0);
 }
@@ -46,35 +43,13 @@
   opacity: var(--ps-k, var(--pk-band, 0));
   transition: opacity 120ms linear;
 }
-/* three blur steps, each masked so the blur fades in from the bottom edge up */
-.needt-v3[data-ui="phone"] .ps-top .pk-blur.b1 {
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  -webkit-mask: linear-gradient(to top, transparent 0, #000 28px);
-  mask: linear-gradient(to top, transparent 0, #000 28px);
-}
-.needt-v3[data-ui="phone"] .ps-top .pk-blur.b2 {
-  -webkit-backdrop-filter: blur(9px);
-  backdrop-filter: blur(9px);
-  -webkit-mask: linear-gradient(to top, transparent 10px, #000 44px);
-  mask: linear-gradient(to top, transparent 10px, #000 44px);
-}
-.needt-v3[data-ui="phone"] .ps-top .pk-blur.b3 {
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-mask: linear-gradient(to top, transparent 22px, #000 60px);
-  mask: linear-gradient(to top, transparent 22px, #000 60px);
-}
-/* tint: strong behind the clock and the title (text under it is never
-   legible), then gone */
-.needt-v3[data-ui="phone"] .ps-top > .t {
-  background: linear-gradient(
-    to bottom,
-    var(--ps-tint-strong) 0,
-    var(--ps-tint-strong) 80%,
-    var(--ps-tint) 88%,
-    var(--ps-fog-0) 100%
-  );
+/* one blur layer: full strength from the top edge down to the small title,
+   then masked out over the band's last 24 px, so the band has no edge */
+.needt-v3[data-ui="phone"] .ps-top > .pk-blur {
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-mask: linear-gradient(to top, transparent 0, #000 24px);
+  mask: linear-gradient(to top, transparent 0, #000 24px);
 }
 /* the blur rests while the band is faded out (motion.css rests it at 0 too,
    but this sheet's selectors are more specific) */
