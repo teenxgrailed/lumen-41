@@ -12,6 +12,7 @@ import { daysOfRule } from "@/lib/personal-time";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
+import { PersonalEditForm } from "./PersonalEditForm";
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -32,7 +33,8 @@ export interface PeekAnchor {
 }
 
 /**
- * The small card beside a band: what it is, when, and how to take it away.
+ * The small card beside a band: what it is, when, and how to change or take it
+ * away. Edit swaps the card's body for the form in place (name, time, repeat).
  * Removing is undoable (the notice carries Undo), so it needs no second ask.
  */
 export function PersonalPeek({
@@ -50,6 +52,7 @@ export function PersonalPeek({
   const block = usePersonalBlocks().data?.blocks.find(
     (b) => b.id === band.blockId
   );
+  const [editing, setEditing] = useState(false);
   const [pos, setPos] = useState({ left: anchor.right + 8, top: anchor.top });
   useLayoutEffect(() => {
     const el = ref.current;
@@ -63,7 +66,7 @@ export function PersonalPeek({
         Math.min(anchor.top, window.innerHeight - el.offsetHeight - 8)
       ),
     });
-  }, [anchor]);
+  }, [anchor, editing]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -91,34 +94,79 @@ export function PersonalPeek({
       role="dialog"
       aria-label={`${band.title}, personal time`}
       data-pb-peek={band.blockId}
-      className="nx-pop pb-peek"
+      className={`nx-pop pb-peek${editing ? " is-editing" : ""}`}
       style={{ left: pos.left, top: pos.top }}
     >
       <div className="pb-peek-head">
         <span aria-hidden="true">{band.emoji}</span>
         <span className="pb-peek-title">{band.title}</span>
       </div>
-      <div className="pb-peek-meta">
-        {bandTimeLabel(band)} · {meta}
-        <br />
-        Kept for you. No task is placed here, and it stays in Needt.
-      </div>
-      <div className="pb-peek-foot">
-        <button type="button" className="nx-btn nx-btn-text" onClick={onClose}>
-          Close
-        </button>
-        <button
-          type="button"
-          className="nx-btn nx-btn-secondary"
-          data-pb-remove=""
-          onClick={() => {
-            onClose();
-            void remove({ id: band.blockId, title: band.title });
-          }}
-        >
-          {repeats && !band.linked ? "Remove all" : "Remove"}
-        </button>
-      </div>
+      {editing && block ? (
+        <PersonalEditForm
+          block={block}
+          onDone={(saved) => (saved ? onClose() : setEditing(false))}
+          actions={({ save, cancel, saving, problem }) => (
+            <div className="pb-peek-foot">
+              <button
+                type="button"
+                className="nx-btn nx-btn-text"
+                onClick={cancel}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="nx-btn nx-btn-secondary"
+                data-pb-save=""
+                disabled={saving || !!problem}
+                onClick={(e) => {
+                  e.preventDefault();
+                  save();
+                }}
+              >
+                Save
+              </button>
+            </div>
+          )}
+        />
+      ) : (
+        <>
+          <div className="pb-peek-meta">
+            {bandTimeLabel(band)} · {meta}
+            <br />
+            Kept for you. No task is placed here, and it stays in Needt.
+          </div>
+          <div className="pb-peek-foot">
+            <button
+              type="button"
+              className="nx-btn nx-btn-text"
+              onClick={onClose}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn-text"
+              data-pb-edit-open=""
+              disabled={!block}
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary"
+              data-pb-remove=""
+              onClick={() => {
+                onClose();
+                void remove({ id: band.blockId, title: band.title });
+              }}
+            >
+              {repeats && !band.linked ? "Remove all" : "Remove"}
+            </button>
+          </div>
+        </>
+      )}
     </div>,
     container
   );

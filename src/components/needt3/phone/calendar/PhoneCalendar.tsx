@@ -9,7 +9,10 @@ import { LuPlus } from "react-icons/lu";
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
-import { useDeletePersonal } from "@/lib/needt3/hooks/personal";
+import {
+  useDeletePersonal,
+  usePersonalBlocks,
+} from "@/lib/needt3/hooks/personal";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
@@ -27,6 +30,7 @@ import {
 import { CAL_EMPTY_COPY, calendarEmptyState } from "../../calendar/empty";
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
 import { PersonalDayBands } from "../../personal/PersonalBand";
+import { PersonalEditForm } from "../../personal/PersonalEditForm";
 import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
 import {
   StarterGameSlot,
@@ -97,6 +101,10 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const shownBand = band ?? heldBand.current;
   const [keeping, setKeeping] = useState(false);
   const removePersonal = useDeletePersonal();
+  const [editingBand, setEditingBand] = useState(false);
+  const shownBlock = usePersonalBlocks().data?.blocks?.find(
+    (b) => b.id === shownBand?.blockId
+  );
 
   const tasksQuery = useTasks();
   const range = visibleRange(day, startDay);
@@ -517,30 +525,67 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
         title={shownBand ? `${shownBand.emoji} ${shownBand.title}` : ""}
         meta={shownBand ? bandTimeLabel(shownBand) : null}
         className="pov-event"
+        onShut={() => setEditingBand(false)}
         footer={
-          <>
-            <PkButton kind="quiet" onClick={() => setBand(null)}>
-              Close
-            </PkButton>
-            <PkButton
-              kind="primary"
-              data-pb-remove=""
-              onClick={() => {
-                const b = shownBand;
-                setBand(null);
-                if (b) void removePersonal({ id: b.blockId, title: b.title });
-              }}
-            >
-              {shownBand?.repeating && !shownBand.linked
-                ? "Remove all"
-                : "Remove"}
-            </PkButton>
-          </>
+          editingBand ? undefined : (
+            <>
+              <PkButton kind="quiet" onClick={() => setBand(null)}>
+                Close
+              </PkButton>
+              <PkButton
+                kind="quiet"
+                data-pb-edit-open=""
+                disabled={!shownBlock}
+                onClick={() => setEditingBand(true)}
+              >
+                Edit
+              </PkButton>
+              <PkButton
+                kind="primary"
+                data-pb-remove=""
+                onClick={() => {
+                  const b = shownBand;
+                  setBand(null);
+                  if (b) void removePersonal({ id: b.blockId, title: b.title });
+                }}
+              >
+                {shownBand?.repeating && !shownBand.linked
+                  ? "Remove all"
+                  : "Remove"}
+              </PkButton>
+            </>
+          )
         }
       >
-        <p className="pb-peek-meta">
-          Kept for you. No task is placed here, and it stays in Needt.
-        </p>
+        {editingBand && shownBlock ? (
+          <PersonalEditForm
+            key={shownBlock.id}
+            block={shownBlock}
+            onDone={(saved) => {
+              if (saved) setBand(null);
+              else setEditingBand(false);
+            }}
+            actions={({ save, cancel, saving, problem }) => (
+              <div className="pb-edit-foot">
+                <PkButton kind="quiet" onClick={cancel}>
+                  Cancel
+                </PkButton>
+                <PkButton
+                  kind="primary"
+                  data-pb-save=""
+                  disabled={saving || !!problem}
+                  onClick={save}
+                >
+                  Save
+                </PkButton>
+              </div>
+            )}
+          />
+        ) : (
+          <p className="pb-peek-meta">
+            Kept for you. No task is placed here, and it stays in Needt.
+          </p>
+        )}
       </PkSheet>
     </PkScreen>
   );

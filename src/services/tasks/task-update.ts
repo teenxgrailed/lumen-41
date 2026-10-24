@@ -14,6 +14,11 @@ import {
   checkLabelsAndHours,
   parseRepeatRule,
 } from "@/services/tasks/task-fields";
+import {
+  type PlacementInput,
+  planPlacement,
+  writeFrozenPlacement,
+} from "@/services/tasks/task-placement";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type {
   Prisma,
@@ -41,8 +46,12 @@ import { TaskStatus } from "@/types/task";
 
 const LOG_SOURCE = "task-update-service";
 
-/** The task fields an external caller may change; nothing else is written. */
-export interface TaskFieldPatch {
+/**
+ * The task fields an external caller may change; nothing else is written.
+ * `start`, `pinned` and `autoSchedule` place the task by hand (see
+ * services/tasks/task-placement).
+ */
+export interface TaskFieldPatch extends PlacementInput {
   title?: string;
   description?: string | null;
   dueDate?: Date | null;
@@ -215,6 +224,22 @@ export async function updateTaskFields(input: {
     updates.originId = patch.originPageId || null;
   }
 
+  const placement = await planPlacement({
+    userId,
+    schedulingUserId: task.assigneeId,
+    task,
+    placement: patch,
+    estimatedMinutes: patch.estimatedMinutes,
+  });
+  if (placement && !placement.ok) return placement;
+  if (placement) {
+    const { dueDate, ...placed } = placement.data;
+    Object.assign(updates, placed);
+    // The placed day becomes the due day, as in the app; an explicit dueDate
+    // in the same write wins and the deadline is left alone.
+    if (dueDate && patch.dueDate === undefined) updates.dueDate = dueDate;
+  }
+
   const wasCompleted = task.status === TaskStatus.COMPLETED;
   const completing = patch.status === TaskStatus.COMPLETED && !wasCompleted;
   if (patch.status && patch.status !== task.status) {
@@ -272,6 +297,14 @@ export async function updateTaskFields(input: {
       undefined,
       mapping.id
     );
+  }
+
+  if (placement?.ok && placement.frozen && task.assigneeId) {
+    await writeFrozenPlacement({
+      taskId,
+      userId: task.assigneeId,
+      ...placement.frozen,
+    });
   }
 
   if (task.assigneeId) schedulePushTaskBlock(task.assigneeId, taskId);
