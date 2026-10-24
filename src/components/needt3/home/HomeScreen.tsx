@@ -116,11 +116,13 @@ import {
 } from "./ha";
 import { useHaBrief } from "./ha/useHaBrief";
 import { highlightTask } from "./highlight";
+import { anytimeOpen, lateMovable, spreadLeads } from "./spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
 import { useFinishDay } from "./useFinishDay";
 import { useHighlightSuggest } from "./useHighlightSuggest";
 import { useHomeStats } from "./useHomeStats";
+import { useSpread } from "./useSpread";
 import { useWeeklyReview } from "./useWeeklyReview";
 
 /**
@@ -328,6 +330,15 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ),
     openTasks: dayOpen,
   });
+  // Overbooked: Spread gives today's untimed tasks (and, from the Overdue
+  // section, the late ones) the next days with room; one Undo puts them back.
+  const spreader = useSpread();
+  const overbooked = !!left?.over;
+  const anytimeIds = anytimeOpen(dayOpen, today)
+    .filter((t) => t.id !== hlOpenId)
+    .map((t) => t.id);
+  const lateIds = lateMovable(lateOpen).map((t) => t.id);
+  const spreadFirst = spreadLeads(overbooked, lateIds.length);
   const city = readPref(settings.data?.prefs, "city");
   const weather = useWeather(city);
   const wx = haWeatherOf({
@@ -561,15 +572,29 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       count={lateShown.length}
       open={!fold.late}
       onToggle={flip("late")}
-      note="These were due before today — move them or let them go."
+      note="Move to today puts them all on today. Spread gives each one the next day with room this week."
       action={
-        <button
-          type="button"
-          className="nx-btn nx-btn-sm nx-btn-secondary hd-move-today"
-          onClick={() => void moveToToday()}
-        >
-          Move to today
-        </button>
+        <span className="hd-late-acts">
+          {lateIds.length ? (
+            <button
+              type="button"
+              className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-secondary" : "nx-btn-text"} hd-spread`}
+              data-hd-spread=""
+              disabled={spreader.busy}
+              aria-busy={spreader.busy || undefined}
+              onClick={() => void spreader.spread(lateIds)}
+            >
+              Spread
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-text" : "nx-btn-secondary"} hd-move-today`}
+            onClick={() => void moveToToday()}
+          >
+            Move to today
+          </button>
+        </span>
       }
     >
       <Capped list={lateShown} render={(t) => row(t, true)} />
@@ -786,7 +811,15 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                             {stats.done} of {stats.total}
                           </span>
                         </div>
-                        <HaTimeLeft t={timeCard} />
+                        <HaTimeLeft
+                          t={timeCard}
+                          onSpread={
+                            anytimeIds.length
+                              ? () => void spreader.spread(anytimeIds)
+                              : undefined
+                          }
+                          spreadBusy={spreader.busy}
+                        />
                       </div>
                     </HaScope>
                   ) : null}

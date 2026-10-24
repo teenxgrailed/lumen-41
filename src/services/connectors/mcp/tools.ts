@@ -786,11 +786,40 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_reschedule",
     description:
-      "Re-run the scheduler and send the schedule.changed webhook if one is configured.",
+      "Re-run the scheduler and send the schedule.changed webhook if one is configured. With taskIds or scope it spreads those tasks over the coming days instead: each goes to the first day from today with room for it (working hours less events, personal time and what is already on that day). scope: today takes today's tasks with no time today, overdue the open tasks due before today. One that fits nowhere stays; the due day moves; the answer lists what moved and carries actionId for undo.",
     annotations: { readOnlyHint: false, destructiveHint: false },
-    input: z.object({}),
-    invoke: (ctx) =>
-      callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
+    input: z.object({
+      taskIds: z
+        .array(z.string().min(1))
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("Spread these tasks. Leave out to re-run the scheduler."),
+      scope: z
+        .enum(["today", "overdue"])
+        .optional()
+        .describe("Spread a set instead of naming tasks."),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(14)
+        .optional()
+        .describe("Days to spread over, today included. Default 7."),
+    }),
+    invoke: (ctx, args) =>
+      args.taskIds || args.scope
+        ? callRoute(
+            ctx,
+            (req) =>
+              opsPost(req, {
+                params: Promise.resolve({ name: "task.spread" }),
+              }),
+            "/api/connect/ops/task.spread",
+            "POST",
+            args
+          )
+        : callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
   }),
   defineTool({
     name: "needt_control",
