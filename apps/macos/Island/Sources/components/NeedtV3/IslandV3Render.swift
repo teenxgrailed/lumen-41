@@ -23,7 +23,18 @@ enum IslandV3Render {
         var module: IslandModuleID?
         var focus = true
         var override = false
+        /// The hover anticipation stretch (the shape grows 4.5 % x 12 % before the peek).
+        var pre = false
+        /// nil = the system reports no level for the device (shows "Connected").
+        var airpodsPercent: Int? = 82
+        var airpodsName = "AirPods Pro"
+        var volume = 0.64
+        var weather: IslandV3WeatherState?
     }
+
+    /// The lab's Weather tile numbers (Zurich, 14 degrees, cloudy, H 16 L 8).
+    /// Fixture only: a real reading needs a signed build. [unverified]
+    static let weatherFixture = IslandV3WeatherReading(place: "Zürich", temperature: 14, condition: "Cloudy", high: 16, low: 8)
 
     static func cases() -> [Case] {
         var list: [Case] = [
@@ -48,9 +59,20 @@ enum IslandV3Render {
             Case(name: "19-drop-to-shelf", mode: .drop, focus: false),
             Case(name: "20-dropped", mode: .dropped, focus: false)
         ]
+        let firstModule = 21
         for (i, id) in IslandModuleID.allCases.enumerated() {
-            list.append(Case(name: String(format: "%02d-module-%@", 21 + i, id.rawValue), mode: .open, tab: .module, module: id))
+            var c = Case(name: String(format: "%02d-module-%@", firstModule + i, id.rawValue), mode: .open, tab: .module, module: id)
+            if id == .tools { c.weather = .needsSigning }  // what an unsigned build (CI) shows
+            list.append(c)
         }
+        // New in this pass: the peek stretch, the moments with and without a
+        // level, a muted volume, and the Weather tile in its two outcomes.
+        list.append(Case(name: "28-hover-stretch", mode: .idle, focus: false, pre: true))
+        list.append(Case(name: "29-airpods-no-level", mode: .airpods, airpodsPercent: nil, airpodsName: "Magic Headphones"))
+        list.append(Case(name: "30-volume-muted", mode: .hudv, volume: 0))
+        list.append(Case(name: "31-volume-full", mode: .hudv, volume: 1))
+        list.append(Case(name: "32-module-tools-weather", mode: .open, tab: .module, module: .tools, weather: .ready(weatherFixture)))
+        list.append(Case(name: "33-module-tools-weather-needs-location", mode: .open, tab: .module, module: .tools, weather: .needsLocation))
         return list
     }
 
@@ -86,6 +108,10 @@ enum IslandV3Render {
             d.override = IslandOverride(text: "You moved Gym to 19:00", taskIds: ["3"], count: 1)
         }
         d.music = IslandV3Music(title: "Night Swim", artist: "Example Artist", isPlaying: true, art: nil)
+        d.airpodsName = c.airpodsName
+        d.airpodsPercent = c.airpodsPercent
+        d.volume = c.volume
+        d.chargePercent = 64
         d.dropText = c.mode == .dropped ? "brief.pdf is on the Shelf" : "Drop to Shelf"
         return d
     }
@@ -94,6 +120,8 @@ enum IslandV3Render {
         let model = IslandV3Model(metrics: metrics, preview: true)
         model.data = fixture(c)
         model.showForRender(c.mode, tab: c.tab, module: c.module)
+        model.pre = c.pre
+        if let weather = c.weather { IslandV3Weather.shared.state = weather }
         let width: CGFloat = 840
         let height: CGFloat = 400
         return ZStack(alignment: .top) {
@@ -118,7 +146,7 @@ enum IslandV3Render {
         for (suffix, metrics) in [("notch", IslandV3Metrics.previewNotch), ("pill", IslandV3Metrics.pill)] {
             for c in cases() {
                 // The pill is only worth a look in the states people see most.
-                if suffix == "pill", !["01-on-plan", "03-focus-running", "04-warning", "05-standby", "07-peek-focus", "10-open-today"].contains(c.name) { continue }
+                if suffix == "pill", !["01-on-plan", "03-focus-running", "04-warning", "05-standby", "07-peek-focus", "10-open-today", "28-hover-stretch"].contains(c.name) { continue }
                 let renderer = ImageRenderer(content: view(for: c, metrics: metrics))
                 renderer.scale = 2
                 guard let image = renderer.nsImage,

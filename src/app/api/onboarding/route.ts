@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
+import { markOnboardingComplete } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "OnboardingAPI";
@@ -35,4 +36,15 @@ export async function GET(request: NextRequest) {
       { id: "task", complete: hasTask > 0 },
     ],
   });
+}
+
+/**
+ * Marks onboarding finished (`User.onboardingCompletedAt`), from either flow.
+ * The first finish keeps its date; calling it again changes nothing.
+ */
+export async function POST(request: NextRequest) {
+  const auth = await authenticateRequest(request, LOG_SOURCE);
+  if ("response" in auth) return auth.response;
+  await markOnboardingComplete(auth.userId);
+  return NextResponse.json({ completed: true });
 }

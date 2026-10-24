@@ -8,7 +8,8 @@
 //   - the PR title or a commit subject starts with "release:" or "release(";
 //   - every changed line is a "## [...]" release heading;
 //   - every added line comes from a changelog.d fragment the PR deletes and
-//     only headings are removed (what `npm run changelog:collect` produces).
+//     only headings are removed (what `npm run changelog:collect` produces,
+//     including its `<!-- changelog.d/<name> -->` markers).
 //
 // CI:    node scripts/check-changelog-edit.mjs --pr-files files.ndjson --subjects subjects.txt
 //        (files.ndjson: one {filename,status,patch} per line from the PR files
@@ -20,6 +21,8 @@ import { readFileSync } from "node:fs";
 const CHANGELOG = "CHANGELOG.md";
 const FRAGMENT = /^changelog\.d\/(?!readme\.md$)[^/]+\.md$/i;
 const HEADING = /^## \[/;
+// `npm run changelog:collect` puts one of these before each collected fragment.
+const MARKER = /^<!-- changelog\.d\/[^/]+\.md -->$/;
 const RELEASE = /^release[:(]/i;
 
 function arg(name) {
@@ -88,7 +91,7 @@ function verdict() {
   const fromFragments = new Set(pr.deletedFragmentLines);
   const stray = [
     ...patchLines(pr.patch, "+").filter(
-      (l) => !HEADING.test(l) && !fromFragments.has(l)
+      (l) => !HEADING.test(l) && !MARKER.test(l) && !fromFragments.has(l)
     ),
     ...patchLines(pr.patch, "-").filter((l) => !HEADING.test(l)),
   ];

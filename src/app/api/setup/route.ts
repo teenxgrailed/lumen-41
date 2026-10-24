@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 import { logger } from "@/lib/logger";
+import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
 import { prisma } from "@/lib/prisma";
 import { migrateExistingData } from "@/lib/setup-migration";
 import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
@@ -84,9 +85,15 @@ export async function POST(request: Request) {
           userId: adminUser.id,
           theme: "dark",
           defaultView: "week",
-          timeZone: "America/New_York", // Default timezone
+          // The schema defaults until the form sends the browser's zone and
+          // language; without them the first signed-in load fills them in.
+          timeZone: "UTC",
           weekStartDay: "sunday",
           timeFormat: "12h",
+          ...signupLocaleSettings({
+            timeZone: body.timeZone,
+            locale: body.locale,
+          }),
         },
       }),
 

@@ -6,6 +6,7 @@ import { hash } from "bcryptjs";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import { areSignupsOpen } from "@/lib/auth/signups";
 import { sendEmailVerification } from "@/lib/email/email-verification";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth/public-signup", () => ({
@@ -27,6 +28,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: { user: { create: jest.fn() } },
 }));
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
+jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
 
 function registrationRequest(body: unknown) {
   return new NextRequest("http://localhost/api/auth/register", {
@@ -126,6 +128,102 @@ describe("public registration", () => {
     expect(sendEmailVerification).toHaveBeenCalledWith({
       userId: "user-1",
       baseUrl: new URL(process.env.NEXTAUTH_URL ?? "http://localhost").origin,
+    });
+  });
+
+  it("starts the account in the browser's zone, week and clock", async () => {
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+    jest.mocked(hash).mockResolvedValue("password-hash" as never);
+    jest
+      .mocked(prisma.user.create)
+      .mockResolvedValue({ id: "user-1" } as never);
+
+    const response = await POST(
+      registrationRequest({
+        email: "user@example.com",
+        password: "secure-password",
+        timeZone: "Europe/Berlin",
+        locale: "de-DE",
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userSettings: {
+            create: expect.objectContaining({
+              timeZone: "Europe/Berlin",
+              weekStartDay: "monday",
+              timeFormat: "24h",
+              prefs: { tzAutoSet: true },
+            }),
+          },
+        }),
+      })
+    );
+  });
+
+  it("ignores a zone the runtime does not know", async () => {
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+    jest.mocked(hash).mockResolvedValue("password-hash" as never);
+    jest
+      .mocked(prisma.user.create)
+      .mockResolvedValue({ id: "user-1" } as never);
+
+    await POST(
+      registrationRequest({
+        email: "user@example.com",
+        password: "secure-password",
+        timeZone: "Mars/Olympus",
+        locale: "de-DE",
+      })
+    );
+
+    const created = jest.mocked(prisma.user.create).mock.calls[0][0] as {
+      data: { userSettings: { create: Record<string, unknown> } };
+    };
+    expect(created.data.userSettings.create).toEqual({
+      theme: "dark",
+      timeZone: "UTC",
+    });
+  });
+
+  describe("where the new account goes next (onboarding_v3)", () => {
+    beforeEach(() => {
+      jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+      jest.mocked(hash).mockResolvedValue("password-hash" as never);
+      jest
+        .mocked(prisma.user.create)
+        .mockResolvedValue({ id: "user-1" } as never);
+    });
+    const register = () =>
+      POST(
+        registrationRequest({
+          email: "user@example.com",
+          password: "secure-password",
+        })
+      );
+
+    it("sends it to /start when the flag is on for that user", async () => {
+      jest.mocked(isFeatureEnabled).mockResolvedValue(true);
+      const response = await register();
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ next: "/start" });
+      expect(isFeatureEnabled).toHaveBeenCalledWith("onboarding_v3", "user-1");
+    });
+
+    it("sends it to /setup when the flag is off", async () => {
+      jest.mocked(isFeatureEnabled).mockResolvedValue(false);
+      const response = await register();
+      await expect(response.json()).resolves.toMatchObject({ next: "/setup" });
+    });
+
+    it("falls back to /setup when the flag cannot be read", async () => {
+      jest.mocked(isFeatureEnabled).mockRejectedValue(new Error("db down"));
+      const response = await register();
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ next: "/setup" });
     });
   });
 });

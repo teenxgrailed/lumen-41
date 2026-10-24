@@ -44,6 +44,8 @@ interface PsCtx {
   /** The Menu page's half-filled pill; null = what is saved. Owned above the face switch. */
   pill: MenuPlaceId[] | null;
   setPill: (pill: MenuPlaceId[] | null) => void;
+  /** Open What's new in its own sheet over this one. */
+  news: () => void;
 }
 
 const Ctx = createContext<PsCtx>({
@@ -52,6 +54,7 @@ const Ctx = createContext<PsCtx>({
   leave: () => undefined,
   pill: null,
   setPill: () => undefined,
+  news: () => undefined,
 });
 export const PsProvider = Ctx.Provider;
 export const usePs = () => useContext(Ctx);

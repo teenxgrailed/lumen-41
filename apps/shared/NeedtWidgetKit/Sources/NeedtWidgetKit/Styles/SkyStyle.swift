@@ -114,7 +114,9 @@ struct SkyToday: View {
         FullBleed { size in
             ZStack(alignment: .topLeading) {
                 SkyClouds(size: size, night: t.night)
-                SkyArc(p: 0.45, size: size, l: 0.14, b: 0.84, night: t.night, sun: t.sun)
+                // Lab A1 lands the sun on the Next glass; the default arc height with the sun a little later in the day
+                // puts it to the right of the number, clear of both the text and the glass.
+                SkyArc(p: 0.62, size: size, l: 0.14, b: 0.62, night: t.night, sun: t.sun)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         Text(model.weekday).font(c.fonts.t13(.semibold)).foregroundStyle(t.ink)
@@ -147,7 +149,8 @@ struct SkyToday: View {
         FullBleed { size in
             ZStack(alignment: .topLeading) {
                 SkyClouds(size: size, night: t.night)
-                SkyArc(p: 0.45, size: CGSize(width: 150, height: size.height), l: 0.3, b: 1.1, night: t.night, sun: t.sun)
+                // Lab A2 puts the sun at y 96, on top of the "left" label; the arc sits 0.22 lower so it clears the text.
+                SkyArc(p: 0.45, size: CGSize(width: 150, height: size.height), l: 0.3, b: 1.32, night: t.night, sun: t.sun)
                     .frame(width: 150, height: size.height).clipped()
                 VStack(alignment: .leading, spacing: 0) {
                     Text(model.weekday).font(c.fonts.t13(.semibold))
@@ -160,7 +163,7 @@ struct SkyToday: View {
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(t.ink)
-                .frame(width: 118, alignment: .leading)
+                .frame(width: 104, alignment: .leading)
                 .padding(16)
                 .frame(width: size.width, height: size.height, alignment: .topLeading)
                 VStack(alignment: .leading, spacing: 7) {
@@ -173,9 +176,9 @@ struct SkyToday: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)
-                .frame(width: 176, height: size.height - 20, alignment: .topLeading)
+                .frame(width: 190, height: size.height - 20, alignment: .topLeading)
                 .lit(t.glassFill, radius: 20, rim: t.glassRim)
-                .offset(x: size.width - 10 - 176, y: 10)
+                .offset(x: size.width - 10 - 190, y: 10)
             }
         }
         .widgetURL(NeedtLink.today)
@@ -295,7 +298,8 @@ struct SkyFocus: View {
         FullBleed { size in
             ZStack(alignment: .topLeading) {
                 SkyClouds(size: size, night: t.night)
-                SkyArc(p: f.progress(at: c.now), size: size, l: 0.06, b: 1.5, night: t.night, sun: t.sun)
+                // Lab A6 runs the arc through the title; 0.25 lower it passes between the title and the time.
+                SkyArc(p: f.progress(at: c.now), size: size, l: 0.06, b: 1.75, night: t.night, sun: t.sun)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Focus").font(c.fonts.t12()).foregroundStyle(t.a2)
                     Text(f.title ?? "Focus").font(c.fonts.t13(.semibold)).lineLimit(1).titleSensitive(c.showTitles)

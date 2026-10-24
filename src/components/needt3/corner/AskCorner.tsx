@@ -63,6 +63,7 @@ import {
   cornerIsland,
 } from "@/lib/assistant-position";
 import { newDate } from "@/lib/date-utils";
+import { isSwiftShellWindow } from "@/lib/desktop";
 import {
   useFillFreeTime,
   useIncomingNudges,
@@ -215,9 +216,16 @@ function Corner() {
 
   const pill = CORNER_PILL;
   const islandSize = cornerIsland(view.rows.length, !!counted);
-  const frame = cornerFrame(pill, islandSize);
   const state = island ? "island" : "pill";
   const shape = state === "island" ? islandSize : pill;
+  /* The native Mac app (WKWebView) did not honour the clip: the shell painted
+     at its largest size, a tall surface over the page with a toast drawn in
+     it, and an empty white box where the pill belongs. There the shell is laid
+     out at the shape it shows, with no clip-path, and is not drawn at all
+     while the panel is open. */
+  const [swift, setSwift] = React.useState(false);
+  React.useEffect(() => setSwift(isSwiftShellWindow()), []);
+  const frame = swift ? shape : cornerFrame(pill, islandSize);
 
   /* ---- the nudge tip ---- */
   const incoming = useIncomingNudges(true);
@@ -472,7 +480,9 @@ function Corner() {
         style={{
           width: frame.w,
           height: frame.h,
-          clipPath: cornerClip(shape, frame),
+          clipPath: swift ? undefined : cornerClip(shape, frame),
+          borderRadius: swift ? shape.r : undefined,
+          visibility: swift && open ? "hidden" : undefined,
         }}
       >
         <div

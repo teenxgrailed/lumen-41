@@ -70,6 +70,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
 import { StatsSheet } from "./Stats";
@@ -168,6 +169,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     setFold,
     leaving,
     completion,
+    leavesRef,
     back,
     setBack,
     skipped,
@@ -185,7 +187,17 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     () => splitHome(allTasks, today, taskView),
     [allTasks, today, taskView]
   );
-  const { late, inbox } = split;
+  // Overdue and Inbox list open tasks only, so a ticked row would leave them
+  // at once. A row still playing its exit reads as open there (hold), and the
+  // fold takes it out.
+  const { hold } = completion;
+  const heldSplit = useMemo(
+    () => splitHome(hold(allTasks), today, taskView),
+    [hold, allTasks, today, taskView]
+  );
+  const { late, inbox } = heldSplit;
+  leavesRef.current = (t) =>
+    late.some((x) => x.id === t.id) || inbox.some((x) => x.id === t.id);
   // heavy tasks first in the high-energy hours, light ones later; only on the
   // default (time) order, never over a sort the person chose
   const day =
@@ -206,6 +218,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     (!t.done || !!leaving[t.id]) && t.id !== hlOpenId;
   const lateOpen = late.filter((t) => !leaving[t.id]);
   const dayOpen = day.filter((t) => !t.done && !leaving[t.id]);
+  // Next up keeps the task just ticked on its card while it is struck, then
+  // moves on as the row folds. A row that stays struck in its list does not
+  // hold the card.
+  const stays = (t: V3Task) =>
+    leaving[t.id] === "strike" && !!completion.departing[t.id];
+  const pickLate = late.filter((t) => !leaving[t.id] || stays(t));
+  const pickDay = day.filter((t) => (!t.done && !leaving[t.id]) || stays(t));
   const stats = dayStats(day);
   const state = dayState(day, late.length, leavingIds);
   const closedDay = state === "closed";
@@ -214,11 +233,12 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   );
   const sections = closedDay ? [] : sectionsOf(day, shown, today);
   const lateShown = late.filter(shown);
+  const inboxOpen = inbox.filter((t) => !leaving[t.id]);
   const inboxShown = inbox.filter(shown);
 
   const pick = pickNextUp(
-    lateOpen.filter((t) => t.id !== hlOpenId),
-    dayOpen.filter((t) => t.id !== hlOpenId),
+    pickLate.filter((t) => t.id !== hlOpenId),
+    pickDay.filter((t) => t.id !== hlOpenId),
     skipped
   );
   const canPlan = allTasks.some((t) => !t.done && !t.isFixed);
@@ -244,7 +264,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     today
   );
   // A finished day offers the best next tasks (not the one already on Next up)
-  const finish = useFinishDay({ late, day, today });
+  const finish = useFinishDay({ late: lateOpen, day, today });
   const finishPicks = closedDay
     ? pickFinishNext(
         allTasks,
@@ -356,11 +376,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       .join(" · ");
   const restToday = Math.max(
     0,
-    dayOpen.length + lateOpen.length - (pick ? 1 : 0)
+    dayOpen.length + lateOpen.length - (pick && !leaving[pick.task.id] ? 1 : 0)
   );
   const nextSub = !pick
     ? ""
-    : lateOpen.includes(pick.task)
+    : pickLate.includes(pick.task)
       ? nextUpNote(pick, nowHour, today)
       : hlSub(pick.task, restToday ? `then ${restToday} more today` : "") ||
         nextUpNote(pick, nowHour, today);
@@ -454,7 +474,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
   /** Move every open overdue task onto today; one Undo puts them all back. */
   const moveToToday = async () => {
-    const list = late.filter((t) => !t.done);
+    const list = late.filter((t) => !t.done && !leaving[t.id]);
     if (!list.length) return;
     // each move stands alone: one failure (already reported and rolled back
     // by the mutation) must not take the others' Undo with it
@@ -633,6 +653,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
 
       <StScreen query={tasksQuery} screen="today" kind="list">
         <div ref={scrollRef} className="scroll-inner hd-scroll">
+          <OnboardingResumeBanner />
           <SampleBanner />
           {review.show ? (
             <ReviewCard onStart={review.start} onLater={review.later} />
@@ -666,7 +687,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     focusMinutes: homeStats.week?.days.find(
                       (d) => d.date === today
                     )?.focusMinutes,
-                    open: { late: lateOpen.length, inbox: inbox.length },
+                    open: { late: lateOpen.length, inbox: inboxOpen.length },
                     picks: finishPicks,
                     freeMinutes: freeMinutesLeft(
                       cap,
@@ -716,7 +737,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               <HaScope>
                 <HaHighlight
                   state="nextup"
-                  late={lateOpen.includes(pick.task)}
+                  late={pickLate.includes(pick.task)}
+                  completing={leaving[pick.task.id] === "strike"}
                   card={haTaskCard(pick.task, today, nextSub)}
                   onSkip={
                     pick.canSkip
@@ -751,7 +773,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                   done={totals.done}
                   planned={totals.planned}
                   cap={totals.cap}
-                  overdue={late.length}
+                  overdue={lateOpen.length}
                 />
               ) : (
                 <>
@@ -931,7 +953,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               )}
               <InboxCard
                 list={inboxShown.slice(0, 3)}
-                total={inbox.length}
+                total={inboxOpen.length}
                 phase={leaving}
                 onCheck={(t) => checkById(t.id)}
                 onOpen={open}

@@ -315,3 +315,15 @@
 .needt-v3[data-theme="dark"] .cn-pill[data-cn-pill="disconnected"] {
   color: color-mix(in oklch, var(--destructive) 75%, var(--color-white));
 }
+
+/* The hero title is 76 px Exposure at line-height 0.96. In WKWebView the
+ * font's own ascent and descent run past that line box and the glyphs sat on
+ * the subtitle under it. The title gets a roomier line box and its own gap,
+ * and nothing in the column may shrink into the next. */
+.needt-v3 .cn-screen-col > * {
+  flex-shrink: 0;
+}
+.needt-v3 .cn-h1.cn-screen-text-4 {
+  line-height: 1.1;
+  padding-bottom: 6px;
+}
