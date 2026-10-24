@@ -260,6 +260,7 @@ export function createFakePrisma() {
           isAutoScheduled: false,
           autoScheduled: false,
           scheduleLocked: false,
+          noSlot: false,
           isArchived: false,
           archivedAt: null,
           completedAt: null,

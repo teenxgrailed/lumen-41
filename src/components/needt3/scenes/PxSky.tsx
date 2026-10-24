@@ -63,6 +63,8 @@ export interface PxSkyProps {
   engine?: MutableRefObject<SkyEngine | null>;
   /** A lower frame rate for an accent sky (the phone's: 15). */
   fps?: number;
+  /** Idle time before the sky stops (default 12 s). */
+  restMs?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -86,6 +88,7 @@ export function PxSky({
   parked,
   engine,
   fps,
+  restMs,
   className,
   style,
   children,
@@ -114,6 +117,7 @@ export function PxSky({
         clouds,
         scene,
         fps,
+        restMs,
         mood: L.mood || undefined,
         dark: L.dark,
         parked: L.parked,
@@ -127,7 +131,17 @@ export function PxSky({
       eng.current = null;
       if (engine && engine.current === e) engine.current = null;
     };
-  }, [variant, intensity, interactive, horizon, clouds, scene, fps, engine]);
+  }, [
+    variant,
+    intensity,
+    interactive,
+    horizon,
+    clouds,
+    scene,
+    fps,
+    restMs,
+    engine,
+  ]);
 
   /* mood / dark change in place (no remount); parked starts / stops frames. */
   useEffect(() => {

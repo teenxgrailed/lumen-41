@@ -5,9 +5,9 @@
  * notices); the action toasts, a compact pill at the bottom centre, carry
  * everything you did and its Undo (`toast`, the default).
  *
- * `NeedtCorner` composes the stack with `ChatCorner`, the design's chat pill.
  * The application already has a companion and a chat overlay of its own in
- * that corner, so only the stack is mounted here — two pills would be two
+ * that corner, so only the stack is mounted here (the design's chat pill,
+ * `ChatCorner`, was never mounted and is gone) — two pills would be two
  * products.
  *
  * `.needt-v2` with a `data-theme` is the scope the design's tokens resolve

@@ -142,6 +142,16 @@ jobs:
           ref: ${{ needs.changes.outputs.sha }}
       - name: Verify checked-out release commit
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      # What's new dates each changelog.d fragment by the commit that added
+      # it. The image build has no .git, so the log goes into the build
+      # context for scripts/whats-new.ts (run by prebuild) to read.
+      - name: Date the changelog fragments for What's new
+        if: matrix.target == 'production'
+        run: |
+          git fetch --unshallow --quiet origin \
+            || echo "::warning::Could not fetch history; What's new will be undated."
+          git log --diff-filter=A --format=%x00%cI --name-only -- changelog.d \
+            > .whats-new-git-log
       - name: Validate build-time configuration
         if: matrix.target == 'production'
         env:

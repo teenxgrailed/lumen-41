@@ -40,6 +40,39 @@ describe("phone shell (ps-)", () => {
     expect(shell).not.toMatch(/background(-color)?:\s*(#|rgb|var\(--v2p)/);
   });
 
+  it("the blur steps are ps-shell.css's masked backdrop-filters, stop for stop, and paint nothing", () => {
+    for (const [step, mask] of [
+      [
+        ".ps-top .pk-blur.b1",
+        "linear-gradient(to top, transparent 0, #000 28px)",
+      ],
+      [
+        ".ps-top .pk-blur.b2",
+        "linear-gradient(to top, transparent 10px, #000 44px)",
+      ],
+      [
+        ".ps-top .pk-blur.b3",
+        "linear-gradient(to top, transparent 22px, #000 60px)",
+      ],
+      [
+        ".ps-bot .pk-blur.b1",
+        "linear-gradient(to bottom, transparent 0, #000 46px)",
+      ],
+      [
+        ".ps-bot .pk-blur.b2",
+        "linear-gradient(to bottom, transparent 30px, #000 88px)",
+      ],
+    ]) {
+      const start = shell.indexOf(`${step} {`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const body = shell.slice(start, shell.indexOf("}", start));
+      expect(body).toContain(`mask: ${mask};`);
+      expect(body).toContain("backdrop-filter: blur(");
+      // Safari samples colour: a blur step has none, so it may reach the edge
+      expect(body).not.toMatch(/background/);
+    }
+  });
+
   it("the fade is on each layer, never on the band hosts", () => {
     expect(shell).toContain(".ps-top > *");
     expect(shell).not.toMatch(/\.pk-topband \{[^}]*opacity/);

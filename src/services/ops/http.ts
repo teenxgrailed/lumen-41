@@ -35,17 +35,20 @@ export function opErrorResponse(error: unknown, logSource: string) {
 /**
  * Accepts either a `needt_` connector bearer token (external tools) or the
  * signed-in session. The workspace is resolved at VIEWER; each op and undo
- * enforces the role it needs.
+ * enforces the role it needs. `write` marks a call that changes data (an
+ * undo): a bearer token then needs `needt.write`, not just read access.
  */
 export async function authenticateAgentRequest(
   request: NextRequest,
-  logSource: string
+  logSource: string,
+  options: { write?: boolean } = {}
 ) {
   const header = request.headers.get("authorization");
   if (header?.startsWith("Bearer ")) {
     const auth = await authenticateConnectorRequest(
       request,
-      WorkspaceRole.VIEWER
+      WorkspaceRole.VIEWER,
+      { write: options.write }
     );
     if (auth.response) return { response: auth.response };
     return {

@@ -352,7 +352,9 @@ export function PkRow({
   const body = (
     <>
       <span className="pk-row-main">
-        <span className="pk-row-title">{title}</span>
+        <span className="pk-row-title" title={title}>
+          {title}
+        </span>
         {meta ? <span className="pk-row-meta">{meta}</span> : null}
       </span>
       {time ? <span className="pk-row-time">{time}</span> : null}

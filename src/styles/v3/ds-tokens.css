@@ -661,7 +661,7 @@
 .needt-v3 a { color: var(--accent); text-decoration: none; }
 .needt-v3 a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 
-.needt-v3 button,
+.needt-v3 button:where(:not(.ob3 button)),
 .needt-v3 input,
 .needt-v3 select,
 .needt-v3 textarea { font: inherit; color: inherit; }

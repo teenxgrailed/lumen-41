@@ -11,14 +11,13 @@ import {
   planRecurringCompletion,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
+import {
+  isForeignDependency,
+  parseTaskUpdate,
+} from "@/services/tasks/task-input";
 import { deleteTaskForever } from "@/services/tasks/trash";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
-import {
-  type Prisma,
-  type Task,
-  TaskBusyStatus,
-  WorkspaceRole,
-} from "@prisma/client";
+import { type Prisma, type Task, WorkspaceRole } from "@prisma/client";
 import { RRule } from "rrule";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -159,31 +158,25 @@ export async function PUT(
       );
     }
 
+    // Only the columns a client may write get past this; the body is never
+    // spread into Prisma as it came (see services/tasks/task-input.ts). A
+    // client echoing the task back from a read loses what has its own route
+    // (parts, waits, files) or is the server's (owner, workspace, archive time).
+    const input = parseTaskUpdate(json);
+    if (!input.ok) return new NextResponse(input.error, { status: 400 });
+    const v3 = parseV3Fields(taskV3FieldsSchema, json);
+    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
     const {
       tagIds,
       projectId,
       scheduleId,
       bypassBlockedHours,
       assigneeId: requestedAssigneeId,
-      ...updates
-    } = json;
-    delete updates.project;
-    delete updates.userId;
-    delete updates.workspaceId;
-    delete updates.assignee;
-    delete updates.activities;
-    // GET now includes these; a client echoing the task back must not write
-    // them through the task (they have their own routes).
-    delete updates.parts;
-    delete updates.waits;
-    delete updates.attachments;
-    delete updates.archivedAt;
-    delete updates.recurrenceMasterId;
-    delete updates.recurrenceInstanceAt;
-    const v3 = parseV3Fields(taskV3FieldsSchema, updates);
-    if (!v3.ok) return new NextResponse(v3.error, { status: 400 });
-    Object.assign(updates, expandOriginPage(v3.data));
-    delete updates.originPageId;
+      ...columns
+    } = input.data;
+    const fields = { ...columns, ...expandOriginPage(v3.data) };
+    // The archive time is the server's: set below when `isArchived` changes.
+    const updates: typeof fields & { archivedAt?: Date | null } = fields;
     if (v3.data.originPageId) {
       const refusal = await originPageRefusal(auth, v3.data.originPageId);
       if (refusal) return refusal;
@@ -210,18 +203,19 @@ export async function PUT(
     if (await hasForeignTagIds(userId, tagIds)) {
       return new NextResponse("Invalid label", { status: 400 });
     }
+    // A client echoing the task back sends its current link: only a new one
+    // needs to be a task of this workspace.
     if (
-      updates.busyStatus !== undefined &&
-      !Object.values(TaskBusyStatus).includes(updates.busyStatus)
+      updates.dependsOnId &&
+      updates.dependsOnId !== task.dependsOnId &&
+      (await isForeignDependency({
+        userId,
+        workspace: auth.workspace,
+        dependsOnId: updates.dependsOnId,
+        taskId: id,
+      }))
     ) {
-      return new NextResponse("Invalid busy status", { status: 400 });
-    }
-    if (
-      updates.stageId !== undefined &&
-      updates.stageId !== null &&
-      typeof updates.stageId !== "string"
-    ) {
-      return new NextResponse("Invalid stage", { status: 400 });
+      return new NextResponse("Invalid dependency", { status: 400 });
     }
     if (
       projectId &&
@@ -433,7 +427,9 @@ export async function PUT(
             },
           },
         }),
-      },
+        // Scalar keys beside relation writes: the shape this route has always
+        // sent, which Prisma's checked / unchecked union types cannot express.
+      } as Prisma.TaskUncheckedUpdateInput,
       include: {
         tags: true,
         project: true,

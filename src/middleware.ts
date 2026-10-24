@@ -29,6 +29,9 @@ const publicRoutes = [
   "/auth/reset-password",
   "/auth/error",
   "/api/auth/register",
+  // Onboarding: the screens before the account, and the planner they call.
+  "/start",
+  "/api/onboarding/plan",
   "/api/waitlist",
   // Public seat counter for the landing page; read-only, cached, CORS-limited.
   "/api/lifetime-seats",

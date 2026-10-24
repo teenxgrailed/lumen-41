@@ -74,10 +74,11 @@ surface against authenticated, server-authorized workspace data. Desktop and
 mobile keep independent responsive compositions; task and habit writes require
 Editor access, and unfinished fixture-only forms stay out of production.
 
-Focus is rendered as a single flat, state-stable canvas in
-`src/components/focus/FocusTimerPanel.tsx`. The server remains authoritative
-for session phase and elapsed time; the client keeps timer feedback, duration
-scrubbing, and the throttled live countdown in one consistent geometry.
+Focus is the v3 Focus surface opened from Today; the pre-v3 `/focus`,
+`/chat` and `/quick-add` screens are retired and `next.config.js` redirects
+them to `/today` (`?launch=ask` / `?launch=new-task` open Ask and the
+composer). The server remains authoritative for session phase and elapsed
+time.
 
 The AI companion stores normalized coordinates through
 `src/lib/assistant-position.ts`, so resize and orientation changes preserve the

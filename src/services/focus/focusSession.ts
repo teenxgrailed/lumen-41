@@ -16,6 +16,11 @@ import { TaskStatus } from "@/types/task";
 
 import { syncFocusEndJob } from "./focus-end-job";
 import { recomputeFocusStats } from "./focusStats";
+import {
+  FocusTaskNotFoundError,
+  type FocusTaskScope,
+  scopedTaskId,
+} from "./task-scope";
 
 const LOG_SOURCE = "focusSession";
 /** Only the strict modes (TIMEOUT, Pro) make ending early wait. */
@@ -72,6 +77,8 @@ export async function getActiveSession(
 export async function startSession(input: {
   userId: string;
   taskId?: string | null;
+  /** Required so no caller can bind a session to a task it never checked. */
+  taskScope: FocusTaskScope;
   mode: FocusSessionMode;
   plannedMinutes?: number | null;
   source?: string;
@@ -84,10 +91,16 @@ export async function startSession(input: {
     throw new ActiveFocusSessionError();
   }
 
+  let taskId: string | null = null;
+  if (input.taskId) {
+    taskId = await scopedTaskId(input.taskId, input.taskScope);
+    if (!taskId) throw new FocusTaskNotFoundError();
+  }
+
   const session = await prisma.focusSession.create({
     data: {
       userId: input.userId,
-      taskId: input.taskId || null,
+      taskId,
       mode: input.mode,
       plannedMinutes: input.plannedMinutes ?? null,
       elapsedMinutes: 0,
@@ -209,6 +222,13 @@ export async function finalizeSession(input: {
   sessionId: string;
   completed: boolean;
   markTaskDone?: boolean;
+  /**
+   * The tasks this caller may change. The session always ends; its task is
+   * only written to (time entry, focused minutes, done) when it is found
+   * inside this scope, so a caller that cannot edit it, or that works in
+   * another workspace, leaves it alone.
+   */
+  taskScope: FocusTaskScope;
 }): Promise<FocusSession | null> {
   const session = await prisma.focusSession.findFirst({
     where: { id: input.sessionId, userId: input.userId, endedAt: null },
@@ -283,15 +303,24 @@ export async function finalizeSession(input: {
 
   await syncFocusEndJob(finalized);
 
+  // Only a task found inside the caller's scope is written to; `taskId` below
+  // is the id that lookup returned.
+  const taskId = session.taskId
+    ? await scopedTaskId(session.taskId, input.taskScope)
+    : null;
+  if (session.taskId && !taskId) {
+    logger.warn(
+      "Focus session task is outside the caller's scope; left untouched",
+      { sessionId: session.id, taskId: session.taskId },
+      LOG_SOURCE
+    );
+  }
+
   // Time spent counts whether the clock ran out or the person stopped early.
-  if (
-    session.taskId &&
-    session.phase === FocusSessionPhase.FOCUS &&
-    minutes > 0
-  ) {
+  if (taskId && session.phase === FocusSessionPhase.FOCUS && minutes > 0) {
     await prisma.timeEntry.create({
       data: {
-        taskId: session.taskId,
+        taskId,
         userId: input.userId,
         startedAt: session.startedAt,
         endedAt,
@@ -299,15 +328,15 @@ export async function finalizeSession(input: {
       },
     });
     await prisma.task.update({
-      where: { id: session.taskId },
+      where: { id: taskId },
       data: { actualFocusedMinutes: { increment: minutes } },
     });
-    await recomputeTaskActuals(session.taskId);
+    await recomputeTaskActuals(taskId);
   }
 
-  if (session.taskId && input.markTaskDone) {
+  if (taskId && input.markTaskDone) {
     await prisma.task.update({
-      where: { id: session.taskId },
+      where: { id: taskId },
       data: { status: TaskStatus.COMPLETED, completedAt: endedAt },
     });
   }

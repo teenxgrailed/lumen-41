@@ -11,7 +11,10 @@ import { signOut, useSession } from "next-auth/react";
 
 import { createPortal } from "react-dom";
 import {
+  LuArrowUpRight,
+  LuBookOpen,
   LuChevronsUpDown,
+  LuKeyboard,
   LuLink,
   LuLogOut,
   LuPalette,
@@ -20,7 +23,9 @@ import {
   LuUsers,
 } from "react-icons/lu";
 
+import { openHelp } from "@/lib/needt3/help";
 import { type V3PlanKind, usePlan } from "@/lib/needt3/hooks/plan";
+import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 import { notify } from "@/lib/notifications";
 
@@ -31,6 +36,7 @@ import { useExit } from "../ctx/useExit";
 import { openPaywall } from "../paywall";
 import { planInfo } from "../settings/derive";
 import { Avatar, initialsOf } from "./Avatar";
+import { useShellApi } from "./ShellContext";
 
 /** The full plan line (the pill's title). */
 export function planLine(kind: V3PlanKind, daysLeft: number | null) {
@@ -69,12 +75,18 @@ function AcctRow({
   kbd,
   onClick,
   soon,
+  dot,
+  out,
 }: {
   icon: React.ReactNode;
   label: string;
   kbd?: string;
   onClick?: () => void;
   soon?: boolean;
+  /** Something new behind the row (the accent mark). */
+  dot?: boolean;
+  /** The row opens another site in a new tab. */
+  out?: boolean;
 }) {
   return (
     <button
@@ -87,10 +99,15 @@ function AcctRow({
     >
       <span className="sb-acct-ico">{icon}</span>
       <span className="sb-acct-label">{label}</span>
+      {dot ? <span className="sb-acct-dot" data-acct-dot="" /> : null}
       {soon ? (
         <span className="sb-acct-soon">Soon</span>
       ) : kbd ? (
         <kbd className="sb-acct-kbd">{kbd}</kbd>
+      ) : out ? (
+        <span className="sb-acct-kbd sb-acct-out" aria-hidden="true">
+          <LuArrowUpRight size={14} />
+        </span>
       ) : null}
     </button>
   );
@@ -109,7 +126,9 @@ function placeAt(el: HTMLElement | null) {
 /**
  * The person, top-left: avatar, name and a plan pill on one 32px line. Opens
  * the account menu: who you are + plan, Settings, Appearance, Invite, Teams,
- * Sign out. Help lives in the top bar's ? button, not here.
+ * What's new, Help, Keyboard shortcuts, Sign out. The avatar carries a dot
+ * while What's new has entries this person has not opened. The top bar's ?
+ * menu offers the same three.
  */
 export function AccountMenu() {
   const session = useSession();
@@ -117,6 +136,8 @@ export function AccountMenu() {
   const theme = useNeedt3Ui((s) => s.theme);
   const setTheme = useNeedt3Ui((s) => s.setTheme);
   const openSettings = useNeedt3Ui((s) => s.openSettings);
+  const shell = useShellApi();
+  const unseenNews = useWhatsNewUnseen();
   const container = useV3PortalContainer();
   const [open, setOpen] = useState(false);
   const [shown, leaving] = useExit(open, 140);
@@ -248,12 +269,20 @@ export function AccountMenu() {
           }
         }}
       >
-        <Avatar
-          initials={initialsOf(name)}
-          name={name}
-          size={22}
-          src={user?.image}
-        />
+        <span className="sb-profile-avatar">
+          <Avatar
+            initials={initialsOf(name)}
+            name={name}
+            size={22}
+            src={user?.image}
+          />
+          <span
+            className="shell-dot-layer sb-profile-dot"
+            aria-hidden="true"
+            data-sb-news-dot={unseenNews ? "" : undefined}
+            style={{ transform: unseenNews ? "scale(1)" : "scale(0)" }}
+          />
+        </span>
         <span className="sb-profile-text">
           <span className="sb-profile-name">{name}</span>
           {plan.data ? (
@@ -365,6 +394,25 @@ export function AccountMenu() {
                 onClick={run(() => void invite())}
               />
               <AcctRow icon={<LuUsers size={16} />} label="Teams" soon />
+              <span className="sb-acct-sep" role="separator" />
+              <AcctRow
+                icon={<LuSparkles size={16} />}
+                label="What's new"
+                dot={unseenNews}
+                onClick={run(() => shell.openWhatsNew())}
+              />
+              <AcctRow
+                icon={<LuBookOpen size={16} />}
+                label="Help"
+                out
+                onClick={run(openHelp)}
+              />
+              <AcctRow
+                icon={<LuKeyboard size={16} />}
+                label="Keyboard shortcuts"
+                kbd="?"
+                onClick={run(() => shell.openKeys())}
+              />
               <span className="sb-acct-sep" role="separator" />
               <AcctRow
                 icon={<LuLogOut size={16} />}

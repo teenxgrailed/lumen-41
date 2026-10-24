@@ -34,6 +34,7 @@ import { weekStartOf } from "@/lib/needt3/week-focus";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { StatsCard, StatsSheet } from "../../home/Stats";
@@ -69,11 +70,13 @@ import {
 } from "../../home/ha";
 import { useHaBrief } from "../../home/ha/useHaBrief";
 import { highlightTask } from "../../home/highlight";
+import { anytimeOpen, lateMovable, spreadLeads } from "../../home/spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
 import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
+import { useSpread } from "../../home/useSpread";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
 import { openPaywall } from "../../paywall/store";
 import {
@@ -100,6 +103,12 @@ import type { HomeController } from "./useHomeController";
 
 const copy = strings["mobile-v2-plates.jsx"];
 const none = () => undefined;
+/** A spread's answer as the phone says things: one snack, its Undo. */
+const sayOnPhone = (
+  headline: string,
+  _detail?: string,
+  undo?: () => Promise<unknown>
+) => void snack(headline, undo);
 
 /**
  * HOME on the phone (mobile-v2-plates.jsx `V2pHome`). Help over report: the
@@ -205,6 +214,14 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     ),
     openTasks: v.open(v.sec.day),
   });
+  // Overbooked: Spread gives today's untimed tasks (and, from Overdue, the
+  // late ones) the next days with room; the snack's Undo puts them back.
+  const spreader = useSpread(sayOnPhone);
+  const spreadAnytime = anytimeOpen(v.open(v.sec.day), today)
+    .filter((t) => t.id !== lift)
+    .map((t) => t.id);
+  const spreadLate = lateMovable(v.open(v.sec.late)).map((t) => t.id);
+  const spreadFirst = spreadLeads(!!left?.over, spreadLate.length);
   const city = readPref(useSettings().data?.prefs, "city");
   const weather = useWeather(city);
   const wx = haWeatherOf({
@@ -398,6 +415,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       head={head}
     >
       <PhoneState query={tasksQuery} screen="today" />
+      <OnboardingResumeBanner />
       <SampleBanner />
       {ready && review.show ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
@@ -490,6 +508,12 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               start: hourOfClock(workCap.start),
               end: hourOfClock(workCap.end),
             })}
+            onSpread={
+              spreadAnytime.length
+                ? () => void spreader.spread(spreadAnytime)
+                : undefined
+            }
+            spreadBusy={spreader.busy}
           />
         </div>
       ) : null}
@@ -515,9 +539,23 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               tone="late"
               count={v.lateRows.length}
               action={
-                <PkButton kind="chip" onClick={moveToToday}>
-                  {copy.V2pHome.move_to_today}
-                </PkButton>
+                <span className="v2p-late-acts">
+                  {spreadLate.length ? (
+                    <PkButton
+                      kind={spreadFirst ? "chip" : "ghost"}
+                      disabled={spreader.busy}
+                      onClick={() => void spreader.spread(spreadLate)}
+                    >
+                      Spread
+                    </PkButton>
+                  ) : null}
+                  <PkButton
+                    kind={spreadFirst ? "ghost" : "chip"}
+                    onClick={moveToToday}
+                  >
+                    {copy.V2pHome.move_to_today}
+                  </PkButton>
+                </span>
               }
             >
               <CappedRows

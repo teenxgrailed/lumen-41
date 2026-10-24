@@ -88,8 +88,17 @@ async function prepare(
     });
   }
   await signInVisualUser(page);
+  // The widget style is a stored pref of the shared visual user, and the
+  // widget preview spec clicks every tile: pin the default ("D") so the
+  // Widgets screenshot does not depend on which spec ran last. `prefs`
+  // replaces the stored map, so merge into what is there.
+  const current = await page.request.get("/api/user-settings");
+  expect(current.ok()).toBeTruthy();
+  const { prefs } = (await current.json()) as {
+    prefs?: Record<string, unknown>;
+  };
   const res = await page.request.patch("/api/user-settings", {
-    data: { theme: opts.theme },
+    data: { theme: opts.theme, prefs: { ...prefs, widgetStyle: "D" } },
   });
   expect(res.ok()).toBeTruthy();
 }
@@ -102,6 +111,12 @@ for (const theme of ["dark", "light"] as const) {
       await page.goto(`/settings#${id}`, { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/today$/);
       await expect(title(page, name)).toBeVisible();
+      if (id === "widgets") {
+        // The preview swaps its sample week for the seeded tasks once loaded.
+        await expect(
+          page.getByText("Today's medium widget with your next tasks.")
+        ).toBeVisible();
+      }
       await settle(page);
       await expect(page).toHaveScreenshot(
         `settings-desktop-${id}-${theme}.png`

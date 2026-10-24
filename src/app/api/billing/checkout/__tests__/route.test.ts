@@ -155,4 +155,30 @@ describe("Lifetime checkout route", () => {
     expect(response!.status).toBe(502);
     expect(attachLifetimeCheckout).not.toHaveBeenCalled();
   });
+
+  it("sends an onboarding buyer back to the last onboarding screen", async () => {
+    createCheckout.mockResolvedValue({
+      id: "checkout_2",
+      checkoutUrl: "https://creem.test/checkout_2",
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: "pro",
+          interval: "year",
+          from: "onboarding",
+        }),
+      })
+    );
+
+    expect(response!.status).toBe(200);
+    const sent = createCheckout.mock.calls[0][0] as { successUrl: string };
+    const url = new URL(sent.successUrl);
+    expect(url.pathname).toBe("/start");
+    expect(url.searchParams.get("billing")).toBe("success");
+    expect(url.searchParams.get("step")).toBe("opening");
+  });
 });

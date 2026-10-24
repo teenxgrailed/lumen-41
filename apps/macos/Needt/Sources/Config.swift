@@ -12,6 +12,9 @@ enum Config {
     /// The web app. Debug builds can aim at a local server:
     /// `NEEDT_URL=http://localhost:3000`.
     static var base: URL {
+        #if NEEDT_CI
+        if let url = CIHarness.baseURL { return url }
+        #endif
         #if DEBUG
         if let value = ProcessInfo.processInfo.environment["NEEDT_URL"], let url = URL(string: value) {
             return url
@@ -47,6 +50,9 @@ enum Config {
     static func isTrustedHost(_ host: String, scheme: String) -> Bool {
         let h = host.lowercased()
         if scheme == "https" && (h == "needt.app" || h.hasSuffix(".needt.app")) { return true }
+        #if NEEDT_CI
+        if CIHarness.isBase(host: h, scheme: scheme) { return true }
+        #endif
         #if DEBUG
         return h == base.host?.lowercased() && scheme == base.scheme
         #else
@@ -55,6 +61,9 @@ enum Config {
     }
 
     private static func isDevHost(_ url: URL) -> Bool {
+        #if NEEDT_CI
+        if CIHarness.isBase(host: url.host, scheme: url.scheme) { return true }
+        #endif
         #if DEBUG
         return url.host == base.host && url.scheme == base.scheme
         #else

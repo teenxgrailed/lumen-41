@@ -2550,6 +2550,9 @@ model UserSettings {
   learnedContentAt  DateTime?
   // Learned lines the person deleted (`workspaceId:sourceKey`); not recomputed until Forget all.
   learnedSkips      String[]  @default([])
+  // Onboarding v3 (ob3): the answers behind the first week, as the API validates
+  // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
+  onboarding        Json?
 
   @@index([userId])
 }
