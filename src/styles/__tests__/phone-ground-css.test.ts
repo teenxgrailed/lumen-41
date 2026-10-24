@@ -58,6 +58,13 @@ describe("phone page ground", () => {
     expect(reader).toContain('html.removeAttribute("data-ground")');
   });
 
+  it("the dock's shadow stops at the bottom paint gap", () => {
+    const body = rule('.needt-v3[data-ui="phone"] .nva-shadow');
+    expect(body).toContain(
+      "calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift))"
+    );
+  });
+
   it("the screen has no inner scroller", () => {
     const scroll = rule('.needt-v3[data-ui="phone"] .pk-scroll');
     expect(scroll).toContain("overflow: visible");

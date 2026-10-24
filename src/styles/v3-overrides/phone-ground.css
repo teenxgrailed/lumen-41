@@ -199,6 +199,16 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
 .needt-v3[data-ui="phone"] .nva-glass {
   top: calc(-1 * var(--v3-edge));
 }
+/* The dock's shadow (0 18px 28px under a pill 30 px off the edge) reaches the
+ * display edge and greys the bottom rows in the middle. It stops where the
+ * paint budget does: .nva-shadow fills .nva-body, whose bottom sits
+ * 10 px + the dock lift above the display edge (.nva-body below). Off iOS
+ * the gap is 0 and the clip is the screen's own edge. */
+.needt-v3[data-ui="phone"] .nva-shadow {
+  clip-path: inset(
+    -100vh -48px calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift)) -48px
+  );
+}
 
 /* Everything anchored to the bottom floats above it by a gap plus the inset:
  * the dock (menu A, with the + button and the focus button), the doc action
