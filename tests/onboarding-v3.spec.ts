@@ -1,5 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { createV3User, signInAs } from "./helpers/v3-user";
+
 /**
  * Onboarding v3 (/start). Walks the screens before the account on the real
  * planner, checks the desktop board geometry the design fixes, and attaches a
@@ -29,6 +31,9 @@ const SCREENS = [
   "card",
 ] as const;
 
+/** Screens after "account" belong to an account; they are shot signed in. */
+const NEEDS_ACCOUNT = new Set<string>(["plans", "card"]);
+
 async function shot(
   page: Page,
   label: string,
@@ -51,6 +56,9 @@ for (const [name, viewport] of [
 
     for (const step of SCREENS) {
       test(`screen ${step}`, async ({ page }, testInfo) => {
+        if (NEEDS_ACCOUNT.has(step)) {
+          await signInAs(page, await createV3User(`ob3-${step}`));
+        }
         await page.goto(`/start?step=${step}`);
         await expect(page.locator(".ob3")).toBeVisible();
         await expect(page.locator(".ob3")).toHaveAttribute("data-step", step);
@@ -84,6 +92,14 @@ for (const [name, viewport] of [
     });
   });
 }
+
+test("a signed-out visitor cannot skip past the account screen", async ({
+  page,
+}) => {
+  await page.goto("/start?step=card");
+  await expect(page).toHaveURL(/\/start\?step=account$/);
+  await expect(page.locator(".ob3")).toHaveAttribute("data-step", "account");
+});
 
 test.describe("onboarding v3 · desktop board", () => {
   test.use({ viewport: DESKTOP });

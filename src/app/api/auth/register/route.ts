@@ -13,6 +13,7 @@ import {
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
 import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
+import { SETUP_PATH, onboardingEntryPath } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
 import { publicRequestUrl } from "@/lib/public-url";
 import {
@@ -142,8 +143,11 @@ export async function POST(request: NextRequest) {
         LOG_SOURCE
       );
     }
+    /* Which onboarding this account starts in (`onboarding_v3`, per user). A
+       flag read that fails is the old flow, never a failed sign-up. */
+    const next = await onboardingEntryPath(user.id).catch(() => SETUP_PATH);
     return NextResponse.json(
-      { success: true, emailVerificationPending: true },
+      { success: true, emailVerificationPending: true, next },
       { status: 201 }
     );
   } catch (error) {

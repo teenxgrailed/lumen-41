@@ -6,6 +6,7 @@ import { z } from "zod";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { onboardingAnswersSchema, planBlocker } from "@/lib/onboarding/answers";
+import { markOnboardingComplete } from "@/lib/onboarding/entry";
 import { commitOnboarding, readSavedAnswers } from "@/lib/onboarding/server";
 import {
   accountRule,
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
       answers,
       timeZone: parsed.data.timeZone,
     });
+    // The week is written: /start is finished (Today stops guarding).
+    await markOnboardingComplete(auth.userId);
     return NextResponse.json(result);
   } catch (error) {
     logger.error(

@@ -6,6 +6,7 @@ import { hash } from "bcryptjs";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import { areSignupsOpen } from "@/lib/auth/signups";
 import { sendEmailVerification } from "@/lib/email/email-verification";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/auth/public-signup", () => ({
@@ -27,6 +28,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: { user: { create: jest.fn() } },
 }));
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
+jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
 
 function registrationRequest(body: unknown) {
   return new NextRequest("http://localhost/api/auth/register", {
@@ -184,6 +186,44 @@ describe("public registration", () => {
     expect(created.data.userSettings.create).toEqual({
       theme: "dark",
       timeZone: "UTC",
+    });
+  });
+
+  describe("where the new account goes next (onboarding_v3)", () => {
+    beforeEach(() => {
+      jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+      jest.mocked(hash).mockResolvedValue("password-hash" as never);
+      jest
+        .mocked(prisma.user.create)
+        .mockResolvedValue({ id: "user-1" } as never);
+    });
+    const register = () =>
+      POST(
+        registrationRequest({
+          email: "user@example.com",
+          password: "secure-password",
+        })
+      );
+
+    it("sends it to /start when the flag is on for that user", async () => {
+      jest.mocked(isFeatureEnabled).mockResolvedValue(true);
+      const response = await register();
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ next: "/start" });
+      expect(isFeatureEnabled).toHaveBeenCalledWith("onboarding_v3", "user-1");
+    });
+
+    it("sends it to /setup when the flag is off", async () => {
+      jest.mocked(isFeatureEnabled).mockResolvedValue(false);
+      const response = await register();
+      await expect(response.json()).resolves.toMatchObject({ next: "/setup" });
+    });
+
+    it("falls back to /setup when the flag cannot be read", async () => {
+      jest.mocked(isFeatureEnabled).mockRejectedValue(new Error("db down"));
+      const response = await register();
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toMatchObject({ next: "/setup" });
     });
   });
 });
