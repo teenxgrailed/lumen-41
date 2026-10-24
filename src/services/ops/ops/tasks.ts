@@ -1,5 +1,13 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import {
+  SPREAD_DEFAULT_DAYS,
+  spreadAcrossDays,
+  spreadMinutes,
+  spreadOrder,
+  taskDayInZone,
+} from "@/services/scheduling/spread";
+import { loadSpreadDays } from "@/services/scheduling/spread-capacity";
+import {
   TASK_ATTACHMENT_MAX_BYTES,
   TaskAttachmentError,
   addTaskAttachment,
@@ -22,7 +30,7 @@ import type { Prisma } from "@prisma/client";
 import { RRule } from "rrule";
 import { z } from "zod";
 
-import { newDate } from "@/lib/date-utils";
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
@@ -39,6 +47,7 @@ import {
   findScopedTask,
   isoOrNull,
   moveInstantToDay,
+  nextDayKey,
   publishTasksUpdated,
   startOfZonedDay,
   taskInclude,
@@ -47,7 +56,7 @@ import {
   userTimeZone,
 } from "../helpers";
 import { defineOp } from "../types";
-import type { OpContext } from "../types";
+import type { OpContext, TouchedRow } from "../types";
 
 const taskId = z.string().min(1);
 /** NONE is "No priority"; it is stored in the legacy `priority` column. */
@@ -72,6 +81,8 @@ const recurrenceRule = z
   );
 const estimate = z.number().int().min(5).max(1440);
 const OPEN_STATUSES = ["todo", "in_progress"] as const;
+/** The most tasks one spread (or its undo) moves. */
+const SPREAD_MAX_TASKS = 100;
 
 /** One scheduled chunk, as stored in snapshots for exact restores. */
 const blockSnapshot = z
@@ -895,6 +906,215 @@ export const taskRestore = defineOp({
   },
 });
 
+/** Inverse-only: writes several task snapshots back, as one undo. */
+export const taskRestoreMany = defineOp({
+  name: "task.restore_many",
+  description: "Write several stored task snapshots back. Used only by undo.",
+  risk: "reversible",
+  internal: true,
+  input: z
+    .object({
+      items: z.array(taskRestore.input).min(1).max(SPREAD_MAX_TASKS),
+    })
+    .strict(),
+  async run(ctx, input) {
+    const owners = await ctx.tx.task.findMany({
+      where: {
+        id: { in: input.items.map((item) => item.taskId) },
+        ...ctx.scope,
+      },
+      select: { id: true, assigneeId: true },
+    });
+    const outputs = [];
+    for (const item of input.items) {
+      outputs.push(await taskRestore.run(ctx, item));
+    }
+    return {
+      result: {
+        restoredTaskIds: outputs.map((output) => output.result.task.id),
+      },
+      before: { taskIds: input.items.map((item) => item.taskId) },
+      inverse: {
+        op: "task.restore_many",
+        input: {
+          items: outputs.map((output) => output.inverse?.input),
+        },
+      },
+      touched: outputs.flatMap((output) => output.touched ?? []),
+      afterCommit: [
+        ...owners.map(
+          (task) => () =>
+            schedulePushTaskBlock(task.assigneeId ?? ctx.userId, task.id)
+        ),
+        publishTasksUpdated(ctx.userId),
+      ],
+    };
+  },
+});
+
+type SpreadRow = { taskId: string; title: string; date: string };
+
+export const taskSpread = defineOp({
+  name: "task.spread",
+  description:
+    "Spread open tasks over the coming days: each goes to the first day, from today, that still has room for it (that day's working hours less events, personal time and the tasks already on it). Give taskIds, or scope: today (today's tasks with no time today) or overdue (open tasks due before today). One that fits today stays on today; one that fits nowhere stays where it is. The due day moves and a placed task keeps its time of day. Undo puts every task back.",
+  risk: "reversible",
+  input: z
+    .object({
+      taskIds: z.array(taskId).min(1).max(SPREAD_MAX_TASKS).optional(),
+      scope: z.enum(["today", "overdue"]).optional(),
+      days: z.number().int().min(1).max(14).optional(),
+    })
+    .strict()
+    .refine((value) => !value.taskIds !== !value.scope, {
+      message: "Give either taskIds or scope",
+    }),
+  async run(ctx, input) {
+    const timeZone = await userTimeZone(ctx.tx, ctx.userId);
+    const now = newDate();
+    const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
+    const todayStart = startOfZonedDay(today, timeZone);
+    const tomorrowStart = startOfZonedDay(nextDayKey(today), timeZone);
+    const found = await ctx.tx.task.findMany({
+      where: {
+        ...ctx.scope,
+        isArchived: false,
+        noSlot: false,
+        scheduleLocked: false,
+        status: { in: [...OPEN_STATUSES] },
+        ...(input.taskIds
+          ? { id: { in: input.taskIds } }
+          : input.scope === "overdue"
+            ? { dueDate: { lt: tomorrowStart } }
+            : {
+                OR: [
+                  { dueDate: { gte: todayStart, lt: tomorrowStart } },
+                  { scheduledStart: { gte: todayStart, lt: tomorrowStart } },
+                ],
+              }),
+      },
+      include: { ...taskInclude, project: { select: { status: true } } },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
+      take: SPREAD_MAX_TASKS,
+    });
+    const timedToday = (task: (typeof found)[number]) =>
+      !!task.scheduledStart &&
+      formatInTimeZone(task.scheduledStart, timeZone, "yyyy-MM-dd") === today;
+    const candidates = found.filter((task) => {
+      if (task.project?.status === "archived") return false;
+      if (input.taskIds) return true;
+      const day = taskDayInZone(task, today, timeZone);
+      return input.scope === "overdue"
+        ? !!day && day < today
+        : day === today && !timedToday(task);
+    });
+    const asked = input.taskIds;
+    const ordered = spreadOrder(
+      asked
+        ? [...candidates].sort(
+            (a, b) => asked.indexOf(a.id) - asked.indexOf(b.id)
+          )
+        : candidates
+    );
+
+    const days = await loadSpreadDays({
+      userId: ctx.userId,
+      workspace: ctx.workspace,
+      timeZone,
+      today,
+      days: input.days ?? SPREAD_DEFAULT_DAYS,
+      now,
+      exclude: new Set(ordered.map((task) => task.id)),
+    });
+    const plan = spreadAcrossDays(
+      ordered.map((task) => ({ id: task.id, minutes: spreadMinutes(task) })),
+      days
+    );
+
+    const byId = new Map(ordered.map((task) => [task.id, task]));
+    const moved: SpreadRow[] = [];
+    const stayed: SpreadRow[] = [];
+    const items: Array<{
+      taskId: string;
+      fields: RestorableFields;
+      blocks: BlockSnapshot[];
+    }> = [];
+    const touchedRows: TouchedRow[] = [];
+    for (const { id, date } of plan.placed) {
+      const task = byId.get(id)!;
+      if (taskDayInZone(task, today, timeZone) === date) {
+        stayed.push({ taskId: id, title: task.title, date });
+        continue;
+      }
+      const fields = pickRestorable(task, [
+        "dueDate",
+        "deadline",
+        "scheduledStart",
+        "scheduledEnd",
+      ]);
+      const blocks = await snapshotBlocks(ctx, task.id);
+      const dueDate = startOfZonedDay(date, timeZone);
+      const data: Prisma.TaskUncheckedUpdateInput = { dueDate };
+      const deadline = deadlineForPatch(task, { dueDate });
+      if (deadline !== undefined) data.deadline = deadline;
+      let shiftMs = 0;
+      if (task.scheduledStart && task.scheduledEnd) {
+        const start = moveInstantToDay(task.scheduledStart, date, timeZone);
+        shiftMs = start.getTime() - task.scheduledStart.getTime();
+        data.scheduledStart = start;
+        data.scheduledEnd = newDate(task.scheduledEnd.getTime() + shiftMs);
+      }
+      const updated = await ctx.tx.task.update({
+        where: { id: task.id },
+        data: { ...data, ...activity(ctx, "UPDATED", task.workspaceId) },
+        select: { id: true, updatedAt: true },
+      });
+      if (shiftMs && blocks.length) {
+        await replaceBlocks(
+          ctx,
+          task.id,
+          blocks.map((block) => ({
+            ...block,
+            start: newDate(
+              newDate(block.start).getTime() + shiftMs
+            ).toISOString(),
+            end: newDate(newDate(block.end).getTime() + shiftMs).toISOString(),
+          }))
+        );
+      }
+      items.push({ taskId: task.id, fields, blocks });
+      touchedRows.push(touched("task", updated, task));
+      moved.push({ taskId: id, title: task.title, date });
+    }
+
+    return {
+      result: {
+        today,
+        moved,
+        stayed,
+        unplaced: plan.unplaced.map((id) => ({
+          taskId: id,
+          title: byId.get(id)!.title,
+        })),
+      },
+      before: { items },
+      inverse: items.length
+        ? { op: "task.restore_many", input: { items } }
+        : null,
+      touched: touchedRows,
+      afterCommit: items.length
+        ? [
+            ...moved.map(({ taskId: id }) => {
+              const owner = byId.get(id)!.assigneeId ?? ctx.userId;
+              return () => schedulePushTaskBlock(owner, id);
+            }),
+            publishTasksUpdated(ctx.userId),
+          ]
+        : [],
+    };
+  },
+});
+
 /** Base64 of a 4 MB file is a third longer. */
 const ATTACHMENT_BASE64_MAX =
   Math.ceil((TASK_ATTACHMENT_MAX_BYTES * 4) / 3) + 8;
@@ -993,6 +1213,8 @@ export const taskOps = [
   taskUnarchive,
   taskMoveToDay,
   taskRestore,
+  taskRestoreMany,
+  taskSpread,
   taskAttach,
   taskDetach,
   taskAttachmentRemove,
