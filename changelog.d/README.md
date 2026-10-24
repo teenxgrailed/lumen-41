@@ -24,7 +24,10 @@ Rules:
   the person using Needt. Name internal housekeeping `chore-<slug>.md`: it
   still goes into `CHANGELOG.md` but is not shown in the app.
 
-At release time run `npm run changelog:collect`. It moves every fragment into
+At release time run `npm run release:prepare -- <version>` (see
+`docs/RELEASING.md`): it does the two steps below and the version bumps.
+
+`npm run changelog:collect` moves every fragment into
 `CHANGELOG.md` under `## [Unreleased]`, each after a
 `<!-- changelog.d/<name> -->` marker, and deletes the fragment files. Then
 rename that heading to the release, in this exact form:
