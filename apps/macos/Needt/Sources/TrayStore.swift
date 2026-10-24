@@ -58,14 +58,20 @@ final class TrayStore: ObservableObject {
     }
 
     func apply(_ next: TrayState) {
-        SessionSync.push()
-        if next != .empty, next != state || updatedAt == nil {
+        if !CIFixture.enabled { SessionSync.push() }
+        if !CIFixture.enabled, next != .empty, next != state || updatedAt == nil {
             cache.save(next, for: .tray)
             updatedAt = Date()
         }
         state = next
         updateDockBadge()
-        refreshDesktopPrefs()
+        if !CIFixture.enabled { refreshDesktopPrefs() }
+    }
+
+    /// CI fixture only (`--ci-fixture-data`): the "Start focus: task" suggestion.
+    func setFixtureSuggestion(_ value: FocusSuggestion?) {
+        guard CIFixture.enabled else { return }
+        suggestion = value
     }
 
     /// Re-reads the account's prefs at most once a minute (the tray report is

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mac app, island v3: the hover peek is now exactly 480 x 108 (and Standby
+  480 x 88) as in the design, with the 0.26 s anticipation stretch before it;
+  the AirPods moment shows the battery level when macOS lists it (otherwise
+  just "Connected"); the Music moment also fires when the song changes; the
+  Volume HUD page follows the system volume (direct download only); the Tools
+  page has a Weather tile that needs a signed build (shows "Needs signing"
+  otherwise).
 - iPhone: widgets for Today (small, medium, large), Next event, Focus timer,
   Habits (Free shows 3) and Quick add, Lock Screen widgets, and Controls for
   Add task and Start focus; each widget has eight looks you pick in its Edit

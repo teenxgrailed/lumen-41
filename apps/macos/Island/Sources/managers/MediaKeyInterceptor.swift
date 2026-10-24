@@ -80,10 +80,6 @@ final class MediaKeyInterceptor {
             return true
         }
 
-#if canImport(ApplicationServices)
-        requestAccessibilityPermissionIfNeeded()
-#endif
-
         guard let systemDefinedType = systemDefinedEventType else {
             NSLog("❌ Unable to resolve system-defined event type")
             return false
@@ -232,6 +228,14 @@ final class MediaKeyInterceptor {
 
 #if canImport(ApplicationServices)
 extension MediaKeyInterceptor {
+    /// Never called at launch: start() runs without Accessibility access and
+    /// simply fails to tap. The person asks for it from Settings, Island.
+    @discardableResult
+    func requestAccessibilityAndStart() -> Bool {
+        requestAccessibilityPermissionIfNeeded()
+        return start()
+    }
+
     private func requestAccessibilityPermissionIfNeeded() {
         guard !AXIsProcessTrusted(), !didRequestAccessibilityPrompt else { return }
         if AppRuntimeEnvironment.isUITesting { return }

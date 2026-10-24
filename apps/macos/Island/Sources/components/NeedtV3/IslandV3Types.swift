@@ -129,9 +129,10 @@ enum IslandV3Geometry {
             return IslandV3Size(width: (m.hasNotch ? m.notchWidth : 186) + 46, height: bar, radius: 12)
         case .live: return closed(312, 13)
         case .warn: return closed(430, 15)
-        case .standby, .go: return IslandV3Size(width: 480, height: bar + 88, radius: 26)
+        case .standby, .go: return IslandV3Size(width: 480, height: 88 + extra, radius: 26)
         case .drop, .dropped: return IslandV3Size(width: 340, height: 64 + extra, radius: 22)
-        case .peek: return IslandV3Size(width: 480, height: bar + 108, radius: 30)
+        // The lab's SHAPE table is the whole shape, bar included: peek 480 x 108.
+        case .peek: return IslandV3Size(width: 480, height: 108 + extra, radius: 30)
         case .open:
             return IslandV3Size(width: 680, height: openHeight(tab: tab, module: module) + extra, radius: 36)
         case .done: return closed(440, 15)
@@ -255,6 +256,8 @@ struct IslandV3Data: Equatable {
     var override: IslandOverride?
     var music = IslandV3Music()
     var airpodsName = "AirPods Pro"
+    /// nil when the system does not report a level for the device (no private API is used to get one).
+    var airpodsPercent: Int?
     var chargePercent = 64
     var volume: Double = 0.64
     var earlyMinutes = 12

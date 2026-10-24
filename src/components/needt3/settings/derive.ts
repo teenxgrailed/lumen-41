@@ -18,8 +18,17 @@ export type SectionId =
   | "focus"
   | "alerts"
   | "keys"
+  | "app"
+  | "island"
+  | "mfocus"
+  | "widgets"
+  | "siri"
   | "data"
   | "about";
+
+/** The Desktop group: the Mac app's sections. The phone has none of them. */
+export type DesktopSectionId = "app" | "island" | "mfocus" | "widgets" | "siri";
+export type PhoneSectionId = Exclude<SectionId, DesktopSectionId>;
 
 export interface NavItem {
   id: SectionId | "connections";
@@ -52,6 +61,16 @@ export const SETTINGS_NAV: readonly {
     ],
   },
   {
+    group: "Desktop",
+    items: [
+      { id: "app", name: "App" },
+      { id: "island", name: "Island" },
+      { id: "mfocus", name: "Focus" },
+      { id: "widgets", name: "Widgets" },
+      { id: "siri", name: "Siri & Shortcuts" },
+    ],
+  },
+  {
     group: "",
     items: [
       { id: "connections", name: "Connections", jump: "/connections" },
@@ -69,6 +88,11 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   appearance: "Appearance",
   alerts: "Notifications",
   keys: "Shortcuts",
+  app: "App",
+  island: "Island",
+  mfocus: "Focus",
+  widgets: "Widgets",
+  siri: "Siri & Shortcuts",
   data: "Data & privacy",
   account: "Account",
   plan: "Plan & billing",
@@ -79,6 +103,13 @@ export const SECTION_TITLES: Record<SectionId, string> = {
 export const NAV_FLAT: readonly SectionId[] = SETTINGS_NAV.flatMap((g) =>
   g.items.filter((i) => !i.jump).map((i) => i.id as SectionId)
 );
+
+export const isDesktopSection = (id: SectionId): id is DesktopSectionId =>
+  id === "app" ||
+  id === "island" ||
+  id === "mfocus" ||
+  id === "widgets" ||
+  id === "siri";
 
 export const DEFAULT_SECTION: SectionId = "account";
 
@@ -479,6 +510,73 @@ export function planningSummary(opts: {
 /* ---------- UI-only preferences (UserSettings.prefs) ---------- */
 
 /**
+ * Settings → Desktop (the Mac app reads these from `UserSettings.prefs`; the
+ * web only stores them). Flat keys, every value a boolean or a string so
+ * `readPref` can type-check it. Documented in docs/handoff/desktop-prefs.md.
+ */
+export const DESKTOP_PREF_DEFAULTS = {
+  /* App */
+  macLogin: true,
+  macKeepRunning: true,
+  /** Quick add hotkey: modifiers then the key, space-separated ("⌥ Space"). */
+  macQuickAddKeys: "⌥ Space",
+  macQuickAddPlan: true,
+  /** "focus" | "always" | "off" */
+  macMenuIcon: "focus",
+  /** "overdue" | "today" | "off" */
+  macDockBadge: "overdue",
+  /* Island */
+  islandShow: true,
+  islandToday: true,
+  islandWeek: true,
+  islandFocus: true,
+  islandMusic: true,
+  islandCalendar: true,
+  islandShelf: true,
+  islandClipboard: false,
+  islandDevices: true,
+  islandTools: false,
+  islandHud: false,
+  /** The More modules, in order, comma-separated. */
+  islandModuleOrder: "music,calendar,shelf,clipboard,devices,tools,hud",
+  islandMomentNow: true,
+  islandMomentAirpods: true,
+  islandMomentCharging: true,
+  islandMomentDone: true,
+  /** Minutes before the next block: "off" | "2" | "5" | "10" */
+  islandWarning: "5",
+  /** Seconds before the next block: "off" | "15" | "30" | "60" */
+  islandStandby: "30",
+  islandQuietStandby: true,
+  /** Show nothing while the day is on plan. */
+  islandOnPlanQuiet: true,
+  /** "hover" | "off" */
+  islandPeek: "hover",
+  /** Seconds: "0.1" | "0.3" | "0.6" | "1" */
+  islandHoverDelay: "0.3",
+  /** "click" | "hover" */
+  islandOpenOn: "click",
+  /** "built-in" | "all" | "main" */
+  islandDisplays: "built-in",
+  islandPill: true,
+  islandHideFullScreen: true,
+  islandSounds: false,
+  islandHaptics: true,
+  /* Focus */
+  /** "off" | "dnd" | "work" | "personal" */
+  macFocusMode: "dnd",
+  macFocusSuggest: true,
+  macMenuTimer: true,
+  macLiveActivity: true,
+  /* Widgets */
+  /** A | B | C | D | E | F | G | H */
+  widgetStyle: "D",
+  widgetTitlesLocked: false,
+  /** "3" | "5" | "all" (Free is held to 3) */
+  widgetHabits: "all",
+} as const;
+
+/**
  * Keys the sheet stores in `UserSettings.prefs` (01-data-map open question 6:
  * UI-only keys in one map; anything the server reads gets a typed column).
  * Nothing reads them yet except the screens named next to each; they exist
@@ -505,6 +603,7 @@ export const PREF_DEFAULTS = {
   city: "",
   offline: true,
   usage: true,
+  ...DESKTOP_PREF_DEFAULTS,
 } as const;
 
 export type PrefKey = keyof typeof PREF_DEFAULTS;

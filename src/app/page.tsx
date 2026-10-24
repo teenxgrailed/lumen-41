@@ -9,5 +9,7 @@ export default async function HomePage() {
   const authOptions = await getAuthOptions();
   const session = await getServerSession(authOptions);
 
-  redirect(session ? "/calendar" : "/auth/signin");
+  // Home is /today: the PWA start_url, onboarding finish and the dock's Home
+  // all land there, so the bare address must too.
+  redirect(session ? "/today" : "/auth/signin");
 }

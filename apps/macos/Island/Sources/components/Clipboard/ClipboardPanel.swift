@@ -65,7 +65,7 @@ class ClipboardPanel: NSPanel {
             self.close()
         }
         
-        let hostingView = NSHostingView(rootView: contentView)
+        let hostingView = makeHostingView(rootView: contentView)
         applyClipboardCornerMask(hostingView, radius: 12)
         self.contentView = hostingView
         

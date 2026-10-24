@@ -19,7 +19,24 @@ Rules:
 - Only user-facing changes need a fragment.
 - Pick a slug that is unlikely to collide (feature name, not `fix`).
 - `README.md` is ignored by the collector.
+- The app's What's new lists every fragment, dated by the commit that added
+  it (`scripts/whats-new.ts`, run before `dev` and `build`). Write it for
+  the person using Needt. Name internal housekeeping `chore-<slug>.md`: it
+  still goes into `CHANGELOG.md` but is not shown in the app.
 
 At release time run `npm run changelog:collect`. It moves every fragment into
-`CHANGELOG.md` under `## [Unreleased]` and deletes the fragment files.
+`CHANGELOG.md` under `## [Unreleased]`, each after a
+`<!-- changelog.d/<name> -->` marker, and deletes the fragment files. Then
+rename that heading to the release, in this exact form:
+
+```
+## [1.0.0] — 2026-10-25
+```
+
+What's new also reads every such dated release section from 2026-10-01 on
+(older ones are the upstream project's), dated by the heading, so the feed shows the
+last release plus the fragments added since. Keep the markers: they keep each
+entry's id (so it is not shown as new twice) and keep `chore-*` fragments out
+of the app. Hand-written bullets in a release section are shown too; a bullet
+whose text matches a fragment's is listed once.
 CI warns (does not fail) when a PR edits `CHANGELOG.md` directly.

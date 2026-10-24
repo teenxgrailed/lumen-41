@@ -108,3 +108,7 @@ Content height and label fixes/**/*.woff2
 Needt - Design : App, Landing/uploads/
 Needt - Design : App, Landing/screenshots/
 Needt - Design : App, Landing/**/*.woff2
+
+# What's new feed, compiled from changelog.d before dev and build
+/public/whats-new.json
+/.whats-new-git-log

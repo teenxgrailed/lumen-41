@@ -234,6 +234,30 @@ final class IslandV3Model: ObservableObject {
         set(mode)
     }
 
+    /// CI soak only (`--ci-fixture-data`): the same transitions a real moment
+    /// takes, without the prefs filter or a device.
+    func fixtureMoment(_ mode: IslandV3Mode) {
+        guard !isPreview, shapeMode.isResting || shapeMode.isMoment else { return }
+        set(mode)
+    }
+
+    /// CI soak only: the hover path without a mouse. Stretch for 0.26 s, then
+    /// peek; `false` lets go.
+    func fixturePeek(_ on: Bool) {
+        guard !isPreview else { return }
+        if on {
+            guard shapeMode.isResting || shapeMode.isMoment else { return }
+            withAnimation(.easeOut(duration: 0.26)) { pre = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) { [weak self] in
+                guard let self else { return }
+                withAnimation(.easeOut(duration: 0.2)) { self.pre = false }
+                if self.shapeMode.isResting || self.shapeMode.isMoment { self.set(.peek) }
+            }
+        } else if shapeMode == .peek {
+            settleToResting()
+        }
+    }
+
     // MARK: - pointer
 
     /// The target rectangle of the shape in screen coordinates, set by the
@@ -273,7 +297,8 @@ final class IslandV3Model: ObservableObject {
         guard shapeMode.isResting || shapeMode.isMoment else { return }
         guard prefs.peek || prefs.openOn == .hover else { return }
         withAnimation(.easeOut(duration: 0.26)) { pre = true }
-        let delay = prefs.hoverDelay
+        // The stretch (0.26 s) always finishes before the peek starts.
+        let delay = max(prefs.hoverDelay, 0.26)
         hoverWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.hovering else { return }

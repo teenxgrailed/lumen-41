@@ -31,3 +31,29 @@ export const ENERGY_CURVE = "energy_curve";
  * Off unless a FeatureFlag row turns it on; Pro only on top of that.
  */
 export const FOCUS_BLOCKING = "focus_blocking";
+
+/**
+ * Where a new account starts: the 18-screen `/start` onboarding when on,
+ * first-run `/setup` when off. Off unless a FeatureFlag row turns it on;
+ * per-user rollout and overrides apply (`isFeatureEnabled`), so one account
+ * can be moved onto it before everybody else. Read for new accounts and by the
+ * Today resume guard; people who already finished onboarding are never sent
+ * anywhere.
+ */
+export const ONBOARDING_V3 = "onboarding_v3";
+
+/**
+ * Every flag the code reads, with what it does. The admin API lists these and
+ * creates the row on the first write, so a flag with no row yet (default off)
+ * can still be turned on from `/api/admin/feature-flags/[key]`.
+ */
+export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
+  [BILLING_CHECKOUT]: "The paywall's checkout button.",
+  [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
+  [ENERGY_CURVE]: "Chronotype energy curve in auto-scheduling (Pro).",
+  [FOCUS_BLOCKING]: "Focus blocking profiles (Pro).",
+  [ONBOARDING_V3]: "New accounts start in /start instead of /setup.",
+};
+
+export const isKnownFeatureFlag = (key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(KNOWN_FEATURE_FLAGS, key);

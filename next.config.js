@@ -14,16 +14,6 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: require("./package.json").version,
   },
 
-  // The application is private; only the landing on needt.app is indexable.
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-      },
-    ];
-  },
-
   // Disable all development indicators
   devIndicators: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -61,22 +51,34 @@ const nextConfig = {
     "yjs",
   ],
 
-  // The self-hosted design-system fonts never change under a given name: each
-  // filename in public/fonts/ds/ carries a hash of its content, so a changed
-  // font ships under a new URL. That makes a year-long immutable cache safe.
-  // Scoped to /fonts/ds/ because the other files under /fonts/ are not
-  // content-addressed and would be served stale after a change.
   // Documents live at /pages; /docs (the name people and old links use) was a
   // 404. Temporary (307), so /docs stays free for public API docs later.
   async redirects() {
     return [
       { source: "/docs", destination: "/pages", permanent: false },
       { source: "/docs/:id", destination: "/pages/:id", permanent: false },
+      // The pre-v3 screens are gone; old links, bookmarks and the legacy nav
+      // open the v3 equivalent on Today (PwaBridge reads `launch`).
+      { source: "/chat", destination: "/today?launch=ask", permanent: false },
+      { source: "/focus", destination: "/today", permanent: false },
+      {
+        source: "/quick-add",
+        destination: "/today?launch=new-task",
+        permanent: false,
+      },
     ];
   },
 
+  // One headers() only: a second key in this object literal silently replaces
+  // the first (the global X-Robots-Tag was lost that way).
   async headers() {
     return [
+      {
+        // The application is private; only the landing on needt.app is
+        // indexable. middleware.ts sets the same header on every response too.
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
       {
         // The OAuth consent page must never be framed (clickjacking).
         source: "/oauth/:path*",
@@ -89,6 +91,12 @@ const nextConfig = {
         ],
       },
       {
+        // The self-hosted design-system fonts never change under a given
+        // name: each filename in public/fonts/ds/ carries a hash of its
+        // content, so a changed font ships under a new URL. That makes a
+        // year-long immutable cache safe. Scoped to /fonts/ds/ because the
+        // other files under /fonts/ are not content-addressed and would be
+        // served stale after a change.
         source: "/fonts/ds/:file*",
         headers: [
           {

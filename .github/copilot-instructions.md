@@ -86,7 +86,7 @@ type-check on staged files) also exists in `package.json`.
 - **No em dashes** in copy; use hyphens, commas, or rephrase.
 - Keep changes minimal and scoped; don't refactor unrelated code. Don't remove `//todo`
   comments; add them for deferred work.
-- **Update `CHANGELOG.md`** under `[Unreleased]` for any user-facing change.
+- **Add a `changelog.d/<short-slug>.md` fragment** for any user-facing change. Never edit `CHANGELOG.md` directly in a PR (CI fails it); it is compiled at release time.
 
 ## Where things live
 

@@ -46,8 +46,8 @@ final class LockScreenWeatherPanelManager {
         }
 
         let view = LockScreenWeatherWidget(snapshot: snapshot)
-        let hostingView = NSHostingView(rootView: view)
-        let fittingSize = hostingView.fittingSize
+        let hostingView = makeHostingView(rootView: view)
+        let fittingSize = idealHostingSize(of: view)
         if snapshot.widgetStyle == .inline {
             lastInlineBaselineHeight = max(lastInlineBaselineHeight, fittingSize.height)
         }

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Moves every changelog.d/*.md fragment (except README.md) into CHANGELOG.md
-// under "## [Unreleased]" and deletes the fragments.
+// under "## [Unreleased]" and deletes the fragments. Each fragment is preceded
+// by a `<!-- changelog.d/<name> -->` marker (invisible when rendered) so the
+// What's new compiler keeps its entry ids and still hides `chore-*` ones once
+// the section is released; `<!-- /changelog.d -->` closes the block.
 import {
   existsSync,
   readFileSync,
@@ -27,8 +30,10 @@ if (files.length === 0) {
 }
 
 const entries = files
-  .map((f) => readFileSync(join(dir, f), "utf8").trim())
-  .filter(Boolean);
+  .map((f) => ({ f, text: readFileSync(join(dir, f), "utf8").trim() }))
+  .filter(({ text }) => text)
+  .map(({ f, text }) => `<!-- changelog.d/${f} -->\n${text}`)
+  .concat("<!-- /changelog.d -->");
 
 const changelog = readFileSync(changelogPath, "utf8");
 const match = /^## \[Unreleased\][^\n]*\n/im.exec(changelog);
