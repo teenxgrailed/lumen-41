@@ -125,7 +125,7 @@ def summary():
             print(f"\n## {o['mark']}")
             last = None
             continue
-        key = tuple(json.dumps(o.get(k)) for k in KEYS + ("scrollY",))
+        key = tuple(json.dumps(o.get(k)) for k in KEYS)
         if key == last:
             continue
         last = key
