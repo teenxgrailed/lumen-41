@@ -92,6 +92,10 @@
 .needt-v3 .v2p-wd-dot.is-on { background: var(--v2p-ink-3); }
 .needt-v3 .v2p-wd.is-on .v2p-wd-dot.is-on { background: var(--v2p-ink-2); }
 
+/* The empty week (calendar/empty.ts): two pills side by side, each its own width. */
+.needt-v3 .v2p-cal-empty .pk-empty-action { flex-wrap: wrap; gap: 8px; }
+.needt-v3 .v2p-cal-empty .pk-empty-action .pk-btn { flex: 0 0 auto; }
+
 .needt-v3 .v2p-dayhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 12px; row-gap: 2px; padding: 22px 2px 12px; }
 .needt-v3 .v2p-dayhead-name { font: 600 22px/26px var(--font-sans); letter-spacing: -0.03em; }
 .needt-v3 .v2p-dayhead-meta { font: 400 13px/17px var(--font-sans); color: var(--v2p-ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
