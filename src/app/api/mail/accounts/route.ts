@@ -12,6 +12,12 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { listMailAccounts } from "@/lib/mail-db";
+import {
+  IMAP_PLAINTEXT_REFUSED,
+  imapConnectionOptions,
+  imapTlsProblem,
+  isImapTlsFailure,
+} from "@/lib/mail/imap-tls";
 import { prisma } from "@/lib/prisma";
 import { enqueueMailSync, ensureMailSyncSchedule } from "@/lib/queue/enqueue";
 
@@ -56,6 +62,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { address, ...credentials } = parsed.data;
+  const tlsProblem = imapTlsProblem(credentials);
+  if (tlsProblem) {
+    return NextResponse.json({ error: tlsProblem }, { status: 400 });
+  }
   const entitlement = await canAddMailbox(auth.userId, {
     provider: MailProvider.IMAP,
     address,
@@ -82,13 +92,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  const client = new ImapFlow({
-    host: credentials.host,
-    port: credentials.port,
-    secure: credentials.secure,
-    auth: { user: credentials.username, pass: credentials.password },
-    logger: false,
-  });
+  const client = new ImapFlow(imapConnectionOptions(credentials));
   try {
     await client.connect();
     await client.logout();
@@ -98,8 +102,14 @@ export async function POST(request: NextRequest) {
       { error: error instanceof Error ? error.message : String(error) },
       LOG_SOURCE
     );
+    // The host already passed the public-host check, so naming the missing
+    // encryption tells a probe nothing about the internal network.
     return NextResponse.json(
-      { error: "Could not connect to this IMAP account." },
+      {
+        error: isImapTlsFailure(error)
+          ? IMAP_PLAINTEXT_REFUSED
+          : "Could not connect to this IMAP account.",
+      },
       { status: 400 }
     );
   }

@@ -2455,16 +2455,19 @@ model AiMessage {
 }
 
 model ConnectorSettings {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()"))
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash           String?  @unique
+  id                  String    @id @default(dbgenerated("gen_random_uuid()"))
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash           String?   @unique
   tokenPreview        String?
+  /// When the personal token stops working. Null: a token made before
+  /// expiry existed, which keeps working until it is rotated.
+  tokenExpiresAt      DateTime?
   webhookUrl          String?
-  webhookSchedule     Boolean  @default(false)
-  webhookTaskComplete Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  webhookSchedule     Boolean   @default(false)
+  webhookTaskComplete Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([userId])
   @@index([tokenHash])

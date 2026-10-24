@@ -2,6 +2,7 @@ import { ImapFlow } from "imapflow";
 
 import { logger } from "@/lib/logger";
 import { getMailAccountForSync } from "@/lib/mail-db";
+import { imapConnectionOptions } from "@/lib/mail/imap-tls";
 import { imapCredentials } from "@/lib/mail/providers";
 import { enqueueMailSync } from "@/lib/queue/enqueue";
 
@@ -19,11 +20,7 @@ export async function ensureImapIdleWatcher(accountId: string): Promise<void> {
 
   const credentials = imapCredentials(account);
   const client = new ImapFlow({
-    host: credentials.host,
-    port: credentials.port,
-    secure: credentials.secure,
-    auth: { user: credentials.username, pass: credentials.password },
-    logger: false,
+    ...imapConnectionOptions(credentials),
     maxIdleTime: IDLE_RESTART_INTERVAL_MS,
   });
   clients.set(accountId, client);

@@ -10,7 +10,7 @@ import {
 } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
 
-import { hashConnectorToken } from "./auth-tokens";
+import { hashConnectorToken, isConnectorTokenExpired } from "./auth-tokens";
 
 /**
  * Who a bearer token speaks for. Every route that external tools call — the
@@ -20,6 +20,7 @@ import { hashConnectorToken } from "./auth-tokens";
  *
  * - `personal`: the `needt_…` connector token from Settings › Connectors.
  *   It acts for its owner with every scope and is not tied to a workspace.
+ *   A token past its `tokenExpiresAt` is refused like an unknown one.
  * - `oauth`: an access token issued to an OAuth client
  *   (`src/services/oauth`), with the scopes and the workspace the person
  *   consented to, bound to the canonical MCP resource.
@@ -59,9 +60,9 @@ async function personalToken(token: string): Promise<BearerAuth | null> {
   if (!token.startsWith(PERSONAL_PREFIX)) return null;
   const settings = await prisma.connectorSettings.findUnique({
     where: { tokenHash: hashConnectorToken(token) },
-    select: { userId: true },
+    select: { userId: true, tokenExpiresAt: true },
   });
-  return settings
+  return settings && !isConnectorTokenExpired(settings.tokenExpiresAt)
     ? {
         userId: settings.userId,
         scopes: [...PERSONAL_TOKEN_SCOPES],

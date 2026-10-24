@@ -1,0 +1,221 @@
+{
+  "$comment": "High/critical npm audit advisories accepted for now. scripts/check-npm-audit.mjs fails CI on any advisory not listed here and on any entry past reviewBy. Each entry says why the risk is acceptable; delete it when the fix lands.",
+  "advisories": [
+    {
+      "id": "GHSA-27r3-jxmh-p828",
+      "package": "body-parser",
+      "severity": "high",
+      "title": "body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+      "reason": "Transitive via express inside @modelcontextprotocol/sdk (creem); no express server runs in Needt, and no code in src or mcp imports express or body-parser.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-22jm-h49p-29qw",
+      "package": "@modelcontextprotocol/sdk",
+      "severity": "high",
+      "title": "MCP TypeScript SDK: Experimental tasks were not tied to the session that created them",
+      "reason": "Transitive via the creem billing SDK, which bundles an MCP server Needt never starts; Needt's own MCP server does not use this package. Clears when creem ships a newer SDK.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-46jr-4wx8-v453",
+      "package": "@modelcontextprotocol/sdk",
+      "severity": "high",
+      "title": "MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation",
+      "reason": "Transitive via the creem billing SDK, which bundles an MCP server Needt never starts; Needt's own MCP server does not use this package. Clears when creem ships a newer SDK.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-6qxp-vccf-f47h",
+      "package": "@modelcontextprotocol/sdk",
+      "severity": "high",
+      "title": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+      "reason": "Transitive via the creem billing SDK, which bundles an MCP server Needt never starts; Needt's own MCP server does not use this package. Clears when creem ships a newer SDK.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-mchm-gjx6-7h55",
+      "package": "@sentry/nextjs",
+      "severity": "critical",
+      "title": "Sentry-Javascript: Middleware Bypass when using Tunnel route",
+      "reason": "Affects only the Sentry tunnel route, which next.config.js does not configure (no tunnelRoute). Bump to >=10.75.2 after launch.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-j95f-988m-3j2f",
+      "package": "@tiptap/core",
+      "severity": "high",
+      "title": "Tiptap: Quadratic ReDoS in block and inline Markdown attribute parsing",
+      "reason": "Markdown attribute ReDoS; the fix is in @tiptap 3.30.5, a minor upgrade of 13 editor packages from 3.28 with no 3.28.x patch. Scheduled after launch.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-6j4f-fj2g-mc7p",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "reason": "Build-time only: glob/minimatch inside the Sentry bundler plugin and tailwindcss; never sees user input at runtime.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-qhr7-859c-m2p7",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "reason": "Build-time only: glob/minimatch inside the Sentry bundler plugin and tailwindcss; never sees user input at runtime.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-5jgf-p345-68v8",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to host confusion via skipped IDN canonicalization on scheme-relative references",
+      "reason": "Transitive via ajv inside @modelcontextprotocol/sdk (creem); Needt does not use it to parse or fetch URLs. SSRF defence is src/services/oauth/safe-fetch.ts.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-f65p-4m7j-42xc",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to server-side request forgery via malformed IPv6 normalization",
+      "reason": "Transitive via ajv inside @modelcontextprotocol/sdk (creem); Needt does not use it to parse or fetch URLs. SSRF defence is src/services/oauth/safe-fetch.ts.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-fph4-wmhf-6fwf",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to server-side request forgery via repeated hostname percent-decoding",
+      "reason": "Transitive via ajv inside @modelcontextprotocol/sdk (creem); Needt does not use it to parse or fetch URLs. SSRF defence is src/services/oauth/safe-fetch.ts.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-jqff-g426-hqxp",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to host confusion via percent-encoded scheme normalization",
+      "reason": "Transitive via ajv inside @modelcontextprotocol/sdk (creem); Needt does not use it to parse or fetch URLs. SSRF defence is src/services/oauth/safe-fetch.ts.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-qw65-cvwx-89v3",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to authority injection via an unvalidated port in serialize",
+      "reason": "Transitive via ajv inside @modelcontextprotocol/sdk (creem); Needt does not use it to parse or fetch URLs. SSRF defence is src/services/oauth/safe-fetch.ts.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-r5fr-rjxr-66jc",
+      "package": "lodash-es",
+      "severity": "high",
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "reason": "Client bundle via mermaid (Excalidraw); Needt never calls _.template, the affected function.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-28wg-ghj8-5hjv",
+      "package": "nanoid",
+      "severity": "high",
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "reason": "Client bundle via Excalidraw and mermaid; ids there are not security tokens and sizes are constants. Fix needs an Excalidraw major.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-2v37-7h3g-55p8",
+      "package": "nanoid",
+      "severity": "high",
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "reason": "Client bundle via Excalidraw and mermaid; ids there are not security tokens and sizes are constants. Fix needs an Excalidraw major.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-xwg4-73v4-xw9w",
+      "package": "nanoid",
+      "severity": "high",
+      "title": "nanoid: Integer Overflow or Wraparound",
+      "reason": "Client bundle via Excalidraw and mermaid; ids there are not security tokens and sizes are constants. Fix needs an Excalidraw major.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-2x7j-588g-ccc2",
+      "package": "nodemailer",
+      "severity": "high",
+      "title": "Nodemailer: Quadratic (O(n²)) time complexity in addressparser allows remote denial of service via a crafted address list",
+      "reason": "Pulled by @auth/core and next-auth for their email sign-in provider, which Needt does not configure; no code in src imports nodemailer. Fix needs nodemailer 10.x outside next-auth's range.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-v53p-9fqp-m79j",
+      "package": "nodemailer",
+      "severity": "high",
+      "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "reason": "Pulled by @auth/core and next-auth for their email sign-in provider, which Needt does not configure; no code in src imports nodemailer. Fix needs nodemailer 10.x outside next-auth's range.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-6g55-p6wh-862q",
+      "package": "postcss",
+      "severity": "high",
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "reason": "Build-time only (tailwindcss and Next's bundled postcss) over CSS from this repository; no user CSS is processed.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-r28c-9q8g-f849",
+      "package": "postcss",
+      "severity": "high",
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "reason": "Build-time only (tailwindcss and Next's bundled postcss) over CSS from this repository; no user CSS is processed.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-jqcg-44mw-7w3h",
+      "package": "proxy-addr",
+      "severity": "critical",
+      "title": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "reason": "Transitive via express inside @modelcontextprotocol/sdk (creem); no express server runs in Needt, so no trust-proxy decision uses it.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-f88m-g3jw-g9cj",
+      "package": "sharp",
+      "severity": "high",
+      "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591",
+      "reason": "Optional dependency of next; next 15.5.28 disables AVIF optimisation with sharp 0.34 and next.config.js configures no remote images. Bump to 0.35.5 after launch.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-rgj7-g3m4-5g8c",
+      "package": "sharp",
+      "severity": "high",
+      "title": "sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+      "reason": "Optional dependency of next; next 15.5.28 disables AVIF optimisation with sharp 0.34 and next.config.js configures no remote images. Bump to 0.35.5 after launch.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-wq5f-xc86-pv6w",
+      "package": "sharp",
+      "severity": "high",
+      "title": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+      "reason": "Optional dependency of next; next 15.5.28 disables AVIF optimisation with sharp 0.34 and next.config.js configures no remote images. Bump to 0.35.5 after launch.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-68fv-2mgg-jv7q",
+      "package": "source-map-js",
+      "severity": "high",
+      "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "reason": "Build-time only via sass (Excalidraw) and postcss; parses source maps from this repository.",
+      "reviewBy": "2026-11-30"
+    },
+    {
+      "id": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "severity": "high",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "reason": "Root zod is 3.x (fix only in zod 4, a major migration); the 4.x copies are inside creem and @modelcontextprotocol/sdk. Request bodies reach zod after the route's own size limits.",
+      "reviewBy": "2026-11-30"
+    }
+  ]
+}

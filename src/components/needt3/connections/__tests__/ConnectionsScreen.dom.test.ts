@@ -164,7 +164,12 @@ beforeEach(() => {
       if (url === "/api/connector-settings")
         return ok(
           init?.method === "POST"
-            ? { hasToken: true, token: "needt_secret_token_123" }
+            ? {
+                hasToken: true,
+                token: "needt_secret_token_123",
+                tokenExpiresAt: "2027-10-23T12:00:00.000Z",
+                tokenExpired: false,
+              }
             : { hasToken: false }
         );
       return ok({});
@@ -528,6 +533,9 @@ describe("the AI tools tab", () => {
     expect(code).toContain("/api/mcp");
     expect(code).not.toContain("needt_secret_token_123"); // masked on screen
     expect(document.body.textContent).toContain("disconnects every agent");
+    expect(
+      document.body.querySelector("[data-cn-token-expiry]")?.textContent
+    ).toBe("It expires 23 Oct 2027. ");
   });
   it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
     planKind = "monthly";
