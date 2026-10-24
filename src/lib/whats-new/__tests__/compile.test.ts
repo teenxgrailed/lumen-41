@@ -3,6 +3,7 @@ import {
   type WhatsNewFragment,
   compileWhatsNew,
   datesFromGitLog,
+  parseChangelog,
   parseFeed,
   parseFragment,
   plainText,
@@ -134,7 +135,7 @@ describe("compileWhatsNew", () => {
     const many = Array.from({ length: 5 }, (_, i) =>
       frag(`f${i}.md`, "- one\n- two", `2026-10-0${i + 1}`)
     );
-    const feed = compileWhatsNew(many, 3);
+    const feed = compileWhatsNew(many, { maxEntries: 3 });
     expect(feed.groups.flatMap((g) => g.entries.map((e) => e.id))).toEqual([
       "f4-1",
       "f4-2",
@@ -145,6 +146,177 @@ describe("compileWhatsNew", () => {
 
   it("returns an empty feed for no fragments", () => {
     expect(compileWhatsNew([])).toEqual({ version: 1, groups: [] });
+  });
+});
+
+// What `npm run changelog:collect` writes, after the heading is renamed.
+const CHANGELOG = [
+  "# Changelog",
+  "",
+  "## [Unreleased]",
+  "",
+  "- Not released yet.",
+  "",
+  "## [1.0.1] — 2026-10-27",
+  "",
+  "<!-- changelog.d/hotfix.md -->",
+  "- Sync recovers.",
+  "<!-- /changelog.d -->",
+  "",
+  "## [1.0.0] — 2026-10-25",
+  "",
+  "<!-- changelog.d/app-icon-picker.md -->",
+  "- Pick an app icon.",
+  "<!-- changelog.d/chore-dead-code.md -->",
+  "- Dead code removed.",
+  "<!-- changelog.d/pages.md -->",
+  "- Pages export as",
+  "  Markdown.",
+  "- Pages print.",
+  "<!-- /changelog.d -->",
+  "",
+  "- Hand-written `bullet`.",
+  "",
+  "### Fixed",
+  "",
+  "- A fix.",
+  "",
+  "## [1.0.0-beta] 2026-09-30",
+  "",
+  "- Too old.",
+  "",
+  "## [1.3.0] 2025-03-25",
+  "",
+  "- FluidCalendar.",
+  "",
+  "## [1.2.3]",
+  "",
+  "- Undated.",
+  "",
+].join("\n");
+
+describe("parseChangelog", () => {
+  it("reads dated releases from the floor on, newest first, by marker", () => {
+    expect(parseChangelog(CHANGELOG)).toEqual([
+      {
+        version: "1.0.1",
+        date: "2026-10-27",
+        parts: [{ name: "hotfix.md", text: "- Sync recovers." }],
+      },
+      {
+        version: "1.0.0",
+        date: "2026-10-25",
+        parts: [
+          { name: "app-icon-picker.md", text: "- Pick an app icon." },
+          { name: "chore-dead-code.md", text: "- Dead code removed." },
+          {
+            name: "pages.md",
+            text: "- Pages export as\n  Markdown.\n- Pages print.",
+          },
+          {
+            name: null,
+            text: "\n- Hand-written `bullet`.\n\n### Fixed\n\n- A fix.\n",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("accepts an en dash, a hyphen or no separator before the date", () => {
+    const read = (h: string) =>
+      parseChangelog(`${h}\n\n- X\n`).map((r) => [r.version, r.date]);
+    expect(read("## [1.1.0] – 2026-11-02")).toEqual([["1.1.0", "2026-11-02"]]);
+    expect(read("## [1.1.0] - 2026-11-02")).toEqual([["1.1.0", "2026-11-02"]]);
+    expect(read("## [1.1.0] 2026-11-02")).toEqual([["1.1.0", "2026-11-02"]]);
+    expect(read("## [1.1.0]")).toEqual([]);
+  });
+
+  it("is empty without released sections", () => {
+    expect(parseChangelog("# Changelog\n\n## [Unreleased]\n\n- A\n")).toEqual(
+      []
+    );
+    expect(parseChangelog("")).toEqual([]);
+  });
+});
+
+describe("compileWhatsNew with releases", () => {
+  const releases = parseChangelog(CHANGELOG);
+
+  it("shows the last releases when changelog.d is empty", () => {
+    expect(compileWhatsNew([], { releases })).toEqual({
+      version: 1,
+      groups: [
+        {
+          date: "2026-10-27",
+          entries: [{ id: "hotfix-1", text: "Sync recovers." }],
+        },
+        {
+          date: "2026-10-25",
+          entries: [
+            { id: "app-icon-picker-1", text: "Pick an app icon." },
+            { id: "pages-1", text: "Pages export as Markdown." },
+            { id: "pages-2", text: "Pages print." },
+            { id: "v1.0.0-1", text: "Hand-written bullet." },
+            { id: "v1.0.0-2", text: "A fix." },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("lists new fragments first and a shared text once", () => {
+    const feed = compileWhatsNew(
+      [
+        frag("later.md", "- Later.", "2026-10-25", "2026-10-25T20:00:00Z"),
+        frag("again.md", "- Pages print.", "2026-10-28"),
+        frag("hotfix.md", "- Same name, new text.", "2026-10-28"),
+      ],
+      { releases }
+    );
+    const ids = feed.groups.map((g) => [g.date, g.entries.map((e) => e.id)]);
+    expect(ids).toEqual([
+      ["2026-10-28", ["again-1", "hotfix-1"]],
+      ["2026-10-27", ["v1.0.1-hotfix-1"]],
+      [
+        "2026-10-25",
+        ["later-1", "app-icon-picker-1", "pages-1", "v1.0.0-1", "v1.0.0-2"],
+      ],
+    ]);
+  });
+
+  it("orders a release by when its fragments were added, newest first", () => {
+    const feed = compileWhatsNew([], {
+      releases: [
+        {
+          version: "1.0.0",
+          date: "2026-10-25",
+          parts: [
+            { name: null, text: "- Loose." },
+            { name: "a.md", text: "- A", at: "2026-10-10T00:00:00.000Z" },
+            { name: "b.md", text: "- B" },
+            { name: "c.md", text: "- C", at: "2026-10-20T00:00:00.000Z" },
+          ],
+        },
+      ],
+    });
+    expect(feed.groups[0].entries.map((e) => e.id)).toEqual([
+      "c-1",
+      "a-1",
+      "v1.0.0-1",
+      "b-1",
+    ]);
+  });
+
+  it("caps fragments and releases together", () => {
+    const feed = compileWhatsNew([frag("a.md", "- A", "2026-10-30")], {
+      releases,
+      maxEntries: 3,
+    });
+    expect(feed.groups.flatMap((g) => g.entries.map((e) => e.id))).toEqual([
+      "a-1",
+      "hotfix-1",
+      "app-icon-picker-1",
+    ]);
   });
 });
 
