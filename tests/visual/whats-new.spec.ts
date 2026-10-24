@@ -101,7 +101,17 @@ for (const theme of ["dark", "light"] as const) {
       "The account menu is the desktop sidebar's."
     );
     await prepare(page, theme);
+    // Marking the feed seen writes into the loaded settings; opened before
+    // they arrive, the write is skipped and the dot comes back (a cold first
+    // test in a worker hit this).
+    const settingsLoaded = page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/user-settings") &&
+        r.request().method() === "GET" &&
+        r.ok()
+    );
     await page.goto("/today", { waitUntil: "domcontentloaded" });
+    await settingsLoaded;
 
     const profile = page.locator("[data-sb-profile]");
     await expect(profile.locator("[data-sb-news-dot]")).toBeVisible();
