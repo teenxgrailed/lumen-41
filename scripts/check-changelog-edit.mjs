@@ -21,8 +21,9 @@ import { readFileSync } from "node:fs";
 const CHANGELOG = "CHANGELOG.md";
 const FRAGMENT = /^changelog\.d\/(?!readme\.md$)[^/]+\.md$/i;
 const HEADING = /^## \[/;
-// `npm run changelog:collect` puts one of these before each collected fragment.
-const MARKER = /^<!-- changelog\.d\/[^/]+\.md -->$/;
+// `npm run changelog:collect` puts one of these before each collected fragment
+// and closes the block with `<!-- /changelog.d -->`.
+const MARKER = /^<!-- (changelog\.d\/[^/]+\.md|\/changelog\.d) -->$/;
 const RELEASE = /^release[:(]/i;
 
 function arg(name) {
