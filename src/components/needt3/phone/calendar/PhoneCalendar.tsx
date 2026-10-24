@@ -2,6 +2,8 @@
 
 import { type ReactNode, useMemo, useRef, useState } from "react";
 
+import Link from "next/link";
+
 import { LuPlus } from "react-icons/lu";
 
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
@@ -22,6 +24,7 @@ import {
   type CalTimed,
   calendarItems,
 } from "../../calendar/blocks";
+import { CAL_EMPTY_COPY, calendarEmptyState } from "../../calendar/empty";
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
@@ -319,14 +322,49 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     </PkSection>
   ) : null;
   const starter = useStarterGameCard();
+  // the empty week (calendar/empty.ts), on the schedule only: the month grid
+  // is not a week
+  const weekEmpty =
+    view === "schedule"
+      ? calendarEmptyState({
+          feeds: calendars,
+          items: [...timed, ...loose],
+          days: week.map((w) => w.date),
+        })
+      : null;
+  const freeDay =
+    !plan.timed.length && !plan.allDay.length && !starter.show && !starter.hold;
   const empty = (
     <>
       <StarterGameSlot screen="calendar" />
-      {!plan.timed.length &&
-      !plan.allDay.length &&
-      !starter.show &&
-      !starter.hold ? (
-        <PkEmpty line={copy.a_free_day_pull_down_to_add_something_to} />
+      {weekEmpty === "connect" ? (
+        <div className="v2p-cal-empty" data-v2p-cal-empty="connect">
+          <PkEmpty
+            line={CAL_EMPTY_COPY.line}
+            action={
+              <>
+                <Link
+                  className="pk-btn is-primary is-small"
+                  href="/connections"
+                  data-v2p-cal-connect=""
+                >
+                  <span className="pk-btn-cut">{CAL_EMPTY_COPY.connect}</span>
+                </Link>
+                <PkButton small onClick={newEvent} data-v2p-cal-add="">
+                  {CAL_EMPTY_COPY.add}
+                </PkButton>
+              </>
+            }
+          />
+        </div>
+      ) : freeDay ? (
+        <PkEmpty
+          line={
+            weekEmpty === "quiet"
+              ? CAL_EMPTY_COPY.quiet
+              : copy.a_free_day_pull_down_to_add_something_to
+          }
+        />
       ) : null}
     </>
   );
