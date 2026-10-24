@@ -24,6 +24,7 @@ import {
   writeLookCookie,
 } from "@/lib/needt3/look-boot";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
+import { VIEWPORT_BOOT_SCRIPT } from "@/lib/needt3/safari-bar";
 import {
   type TimeReading,
   placeFromTz,
@@ -255,6 +256,12 @@ export function V3Root({
         {/* First child: settles System and Time before anything below paints. */}
         <script
           dangerouslySetInnerHTML={{ __html: LOOK_BOOT_SCRIPT }}
+          suppressHydrationWarning
+        />
+        {/* Then where Safari's bars are (data-display-mode, data-safari-bar on
+         * <html>), so the dock and the header never move after hydration. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: VIEWPORT_BOOT_SCRIPT }}
           suppressHydrationWarning
         />
         <PhoneUiProvider value={ui}>

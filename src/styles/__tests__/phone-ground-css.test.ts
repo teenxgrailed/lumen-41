@@ -43,7 +43,13 @@ describe("phone page ground", () => {
     const scroll = rule('.needt-v3[data-ui="phone"] .pk-scroll');
     expect(scroll).toContain("overflow: visible");
     expect(scroll).toContain("padding-top: var(--v3-top)");
+    // the installed app: the design's 52 px status row, or the real inset
     expect(css).toContain("--v3-top: max(52px, env(safe-area-inset-top, 0px))");
+    // a Safari tab: the status row is Safari's and outside the page (inset
+    // 0), so the header hugs Safari's bar, like Budget's .nd-main
+    expect(
+      rule('html[data-display-mode="browser"] .needt-v3[data-ui="phone"]')
+    ).toContain("--v3-top: env(safe-area-inset-top, 0px)");
   });
 
   it("the layers that stay put are fixed, and only those", () => {
@@ -125,7 +131,17 @@ describe("phone page ground", () => {
       "padding-bottom: var(--v3-dock-lift)"
     );
     expect(css).toContain("--v3-dock-lift: 20px");
-    expect(css).toContain("--v3-dock-lift: 74px");
+    // lifted only with Safari's tab bar at the bottom (Compact / Bottom); the
+    // Top layout, the installed app and unknown keep the design's 30 px
+    expect(
+      rule(
+        'html[data-display-mode="browser"][data-safari-bar="bottom"]\n  .needt-v3[data-ui="phone"]'
+      )
+    ).toContain("--v3-dock-lift: 74px");
+    expect(css.match(/--v3-dock-lift: 74px/g)).toHaveLength(1);
+    expect(css).not.toMatch(
+      /html\[data-display-mode="browser"\] \.needt-v3\[data-ui="phone"\] \{[^}]*--v3-dock-lift/
+    );
     expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(
       "padding-bottom: var(--v3-sab)"
     );

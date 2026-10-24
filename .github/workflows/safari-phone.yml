@@ -315,6 +315,56 @@ jobs:
           python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
           python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
 
+      # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
+      # scenarios above run in the default, Compact. Per layout: the viewport
+      # numbers and data-safari-bar from the app's own pre-paint script
+      # (viewport.html runs VIEWPORT_BOOT_SCRIPT), then the app at rest and
+      # scrolled. The dock is lifted only with the bar at the bottom. Compact
+      # is set back at the end, for whatever drives Safari's menu after this.
+      - name: Safari tab layouts, Compact / Top / Bottom
+        if: always()
+        timeout-minutes: 40
+        run: |
+          set -uo pipefail
+          mkdir -p shots debug
+          npx tsx .github/safari/boot-js.ts > "$RUNNER_TEMP/viewport-boot.js"
+          (python3 .github/safari/layout.py serve "$RUNNER_TEMP/viewport-boot.js" > debug/viewport-serve.log 2>&1 &)
+          sleep 2
+          open_url() {
+            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "$1" && break; sleep 10; done; sleep 4
+            for i in $(seq 1 30); do
+              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
+              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
+              sleep 3
+            done
+            sleep 3
+          }
+          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
+          xcrun simctl ui "$UDID" appearance light
+          for L in compact top bottom; do
+            if [ "$L" != compact ]; then
+              python3 .github/safari/layout.py set "$L" || echo "::warning::could not set the $L layout"
+            fi
+            xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
+            sleep 2
+            python3 .github/safari/layout.py mark "$L at rest"
+            open_url "http://127.0.0.1:8000/?layout=$L"
+            sleep 6
+            shot "layout-$L-00-viewport"
+            python3 .github/safari/layout.py mark "$L scrolled"
+            python3 .github/safari/ui.py up 3; sleep 5
+            shot "layout-$L-00b-viewport-scrolled"
+            open_url "http://127.0.0.1:3000/today"; shot "layout-$L-01-today-top"
+            python3 .github/safari/ui.py up 2; sleep 2; shot "layout-$L-02-today-scrolled"
+            open_url "http://127.0.0.1:3000/tasks"
+            python3 .github/safari/ui.py up 12; sleep 2; shot "layout-$L-04-tasks-bottom"
+          done
+          python3 .github/safari/layout.py set compact || echo "::warning::could not set Compact back"
+          xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
+          python3 .github/safari/layout.py summary | tee shots/layouts-summary.txt
+          python3 .github/safari/layout.py verdict | tee -a shots/layouts-summary.txt
+        continue-on-error: true
+
       - name: Keep the server log
         if: always()
         run: cp "$RUNNER_TEMP/next.log" next.log || true
