@@ -53,6 +53,7 @@ import {
   PRO_ADDS,
   STEPS3,
   type Step3,
+  clampStepForSession,
   giftEndFromNow,
   isStep,
   longDate,
@@ -155,9 +156,12 @@ export function Ob3Flow({
   session: Ob3Session | null;
   startStep?: string;
 }) {
+  /* Read inside `go`, so a sign-up that just succeeded can move on before
+     the next render; the server's session prop is only the starting value. */
+  const signedIn = useRef(Boolean(session));
   const [k, setK] = useState(() => {
     const i = isStep(startStep) ? STEPS3.indexOf(startStep) : 0;
-    return Math.max(0, i);
+    return clampStepForSession(Math.max(0, i), signedIn.current);
   });
   const [dir, setDir] = useState(1);
   const [a, setA] = useState<OnboardingAnswers>(startingAnswers);
@@ -231,7 +235,12 @@ export function Ob3Flow({
     (n: number) => {
       setDir(n > k ? 1 : -1);
       setPick(null);
-      setK(Math.max(0, Math.min(STEPS3.length - 1, n)));
+      setK(
+        clampStepForSession(
+          Math.max(0, Math.min(STEPS3.length - 1, n)),
+          signedIn.current
+        )
+      );
       if (mainRef.current) mainRef.current.scrollTop = 0;
     },
     [k]
@@ -350,6 +359,7 @@ export function Ob3Flow({
         redirect: false,
       });
       if (r?.error) throw new Error("Could not sign you in.");
+      signedIn.current = true;
       setAcct("email");
       goTo("verify");
     } catch (e) {

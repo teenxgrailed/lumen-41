@@ -33,9 +33,10 @@ jest.mock("@/lib/trials/trial-service", () => ({
 }));
 
 describe("a brand-new OAuth account", () => {
-  it("is sent to first-run setup; NextAuth uses this only for a new user", async () => {
+  it("is sent to the onboarding resolver; NextAuth uses this only for a new user", async () => {
     const options = await getAuthOptions();
-    expect(options.pages?.newUser).toBe("/setup");
+    // The resolver picks /start or /setup per user (onboarding_v3).
+    expect(options.pages?.newUser).toBe("/api/onboarding/resume");
   });
 });
 

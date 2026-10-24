@@ -38,6 +38,17 @@ export const PHASES: ReadonlyArray<readonly [string, readonly Step3[]]> = [
 /** The page is dark only while Needt plans, for the gift and while it opens. */
 export const DARK_STEPS: readonly Step3[] = ["thinking", "gift", "opening"];
 
+/**
+ * Everything after "account" belongs to an account: confirming it, the gift,
+ * the plan, the card and writing the week. Without a session the flow stops
+ * on "account" (the page redirects there, the client clamps to it).
+ */
+export const ACCOUNT_STEP_INDEX = STEPS3.indexOf("account");
+
+/** The furthest screen a visitor may stand on, with or without a session. */
+export const clampStepForSession = (index: number, signedIn: boolean) =>
+  signedIn ? index : Math.min(index, ACCOUNT_STEP_INDEX);
+
 export const isStep = (v: unknown): v is Step3 =>
   typeof v === "string" && (STEPS3 as readonly string[]).includes(v);
 
