@@ -27,6 +27,17 @@ jest.mock("@/lib/prisma", () => ({
     },
   },
 }));
+// The editor's create_task publishes and schedules a push; with REDIS_URL set
+// (CI) the real modules open a Redis connection and Jest never exits.
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEvent: jest.fn(),
+}));
+jest.mock("@/lib/task-block-push", () => ({
+  schedulePushTaskBlock: jest.fn(),
+}));
+jest.mock("@/services/connectors/webhooks", () => ({
+  sendConnectorWebhook: jest.fn(),
+}));
 
 const workspace = (role: string) =>
   ({
