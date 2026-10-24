@@ -10,6 +10,7 @@
   "scripts": {
     "agent:context": "node scripts/agent-context.mjs",
     "changelog:collect": "node scripts/changelog-collect.mjs",
+    "release:prepare": "node scripts/release-prepare.mjs",
     "whats-new": "tsx scripts/whats-new.ts",
     "predev": "tsx scripts/whats-new.ts",
     "dev": "next dev",
