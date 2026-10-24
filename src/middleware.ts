@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 import { authSecret } from "@/lib/auth/auth-secret";
 import { mcpHost } from "@/lib/mcp-config";
-import { publicAppUrl } from "@/lib/public-url";
+import { appRedirectUrl } from "@/lib/public-url";
 
 // List of public routes that don't require authentication
 const publicRoutes = [
@@ -122,7 +122,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 
   // Redirect /login to /auth/signin to prevent redirect loops
   if (pathname === "/login") {
-    return NextResponse.redirect(publicAppUrl("/auth/signin", request));
+    return NextResponse.redirect(appRedirectUrl("/auth/signin", request));
   }
 
   // Special handling for the setup page to prevent loops with auth
@@ -169,7 +169,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
 
   // If there's no token, redirect to the sign-in page
   if (!token) {
-    const url = publicAppUrl("/auth/signin", request);
+    const url = appRedirectUrl("/auth/signin", request);
     url.searchParams.set(
       "callbackUrl",
       `${request.nextUrl.pathname}${request.nextUrl.search}`
@@ -181,7 +181,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
   if (adminRoutes.some((route) => pathname.startsWith(route))) {
     // If the user is not an admin, redirect to the home page
     if (token.role !== "admin") {
-      return NextResponse.redirect(publicAppUrl("/", request));
+      return NextResponse.redirect(appRedirectUrl("/", request));
     }
   }
 
