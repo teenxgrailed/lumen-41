@@ -1281,6 +1281,19 @@ Steps are numbered by position: the task's `entry` (its first two-minute step),
 when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
 step in a list is the same write as `needt_complete_subtask`.
 
+## Time zone, week start and clock
+
+`timeZone` (IANA), `weekStartDay` (`monday` / `sunday`) and `timeFormat`
+(`12h` / `24h`) are columns of the same `/api/user-settings` row. A new account
+starts in the zone its browser reports: `POST /api/auth/register` (and the
+first-run `POST /api/setup`) take optional `timeZone` and `locale` (a BCP 47
+tag such as `de-DE`; the week start and clock are derived from it). An account
+that still sits at the `UTC` default is moved once, on its first signed-in
+load, to the browser's zone, and a still-default Sunday / 12h follows the
+browser language. `prefs.tzAutoSet: true` records that this has happened; a
+client that sets the zone itself should set it too, so nothing replaces the
+value later.
+
 ## Moodboard items
 
 A moodboard's references (the grid the board page and the phone wall draw).
