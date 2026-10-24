@@ -22,17 +22,18 @@ describe("phone shell (ps-)", () => {
     expect(pkPsK(900)).toBe(1);
   });
 
-  it("the top band is three masked blur steps, 104 px", () => {
+  it("the top band is three masked blur steps, 104 px (52 in a Safari tab)", () => {
     expect(shell).toContain("blur(3px)");
     expect(shell).toContain("blur(9px)");
     expect(shell).toContain("blur(20px) saturate(1.4)");
-    expect(ground).toContain("--ps-top-h: max(104px,");
+    // --v3-top is at least 52 px in the installed app, 0 in a Safari tab
+    expect(ground).toContain("--ps-top-h: calc(var(--v3-top) + 52px)");
   });
 
-  it("the fog is 128 px, 170 px in a Safari tab", () => {
+  it("the fog is 128 px, 170 px with Safari's tab bar at the bottom", () => {
     expect(ground).toContain("--ps-fog-h: max(128px,");
     expect(ground).toMatch(
-      /html\[data-display-mode="browser"\] \.needt-v3\[data-ui="phone"\] \.pk-fog \{\s*--ps-fog-h: 170px/
+      /html\[data-display-mode="browser"\]\[data-safari-bar="bottom"\]\s+\.needt-v3\[data-ui="phone"\]\s+\.pk-fog \{\s*--ps-fog-h: 170px/
     );
   });
 

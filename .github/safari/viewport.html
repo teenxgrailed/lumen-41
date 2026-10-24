@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#f6f6f3" />
+    <title>viewport</title>
+    <!-- the app's own pre-paint script (src/lib/needt3/safari-bar.ts), served by layout.py -->
+    <script src="/boot.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f6f6f3;
+        font: 14px -apple-system, system-ui;
+      }
+      #tall {
+        height: 5000px;
+        background: repeating-linear-gradient(#f6f6f3 0 100px, #e4e4ee 100px 200px);
+      }
+      .fx {
+        position: fixed;
+        width: 14%;
+        background: rgba(255, 0, 0, 0.55);
+      }
+      #fb { left: 43%; bottom: 0; height: 16px; }
+      #ft { left: 43%; top: 0; height: 16px; background: rgba(0, 0, 255, 0.55); }
+      #full { left: 0; width: 6px; top: 0; bottom: 0; background: rgba(0, 160, 0, 0.5); }
+      .abs { position: absolute; left: 10px; top: 0; width: 1px; }
+      #vh { height: 100vh; }
+      #svh { height: 100svh; }
+      #lvh { height: 100lvh; }
+      #dvh { height: 100dvh; }
+      #probe {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        visibility: hidden;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+          env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      #out {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 30%;
+        font: 12px/1.35 ui-monospace, Menlo, monospace;
+        background: rgba(255, 255, 255, 0.9);
+        color: #000;
+        white-space: pre-wrap;
+        padding: 6px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="tall"></div>
+    <div id="vh" class="abs"></div>
+    <div id="svh" class="abs"></div>
+    <div id="lvh" class="abs"></div>
+    <div id="dvh" class="abs"></div>
+    <div id="fb" class="fx"></div>
+    <div id="ft" class="fx"></div>
+    <div id="full" class="fx"></div>
+    <div id="probe"></div>
+    <div id="out"></div>
+    <script>
+      (function () {
+        var q = new URLSearchParams(location.search);
+        var layout = q.get("layout") || "?";
+        var n = 0;
+        function rect(id) {
+          var b = document.getElementById(id).getBoundingClientRect();
+          return [Math.round(b.top), Math.round(b.bottom)];
+        }
+        function h(id) {
+          return Math.round(document.getElementById(id).getBoundingClientRect().height);
+        }
+        function snap(why) {
+          var p = getComputedStyle(document.getElementById("probe"));
+          var vv = window.visualViewport || {};
+          return {
+            why: why,
+            n: n++,
+            layout: layout,
+            t: Date.now(),
+            scrollY: Math.round(scrollY),
+            innerH: innerHeight,
+            innerW: innerWidth,
+            outerH: outerHeight,
+            screenH: screen.height,
+            availH: screen.availHeight,
+            clientH: document.documentElement.clientHeight,
+            vvH: Math.round(vv.height * 10) / 10,
+            vvTop: Math.round(vv.offsetTop * 10) / 10,
+            vvPageTop: Math.round(vv.pageTop),
+            sat: p.paddingTop,
+            sab: p.paddingBottom,
+            fixedBottom: rect("fb"),
+            fixedTop: rect("ft"),
+            fixedFull: rect("full"),
+            vh: h("vh"),
+            svh: h("svh"),
+            lvh: h("lvh"),
+            dvh: h("dvh"),
+            standalone: navigator.standalone === true,
+            dmStandalone: matchMedia("(display-mode: standalone)").matches,
+            dmBrowser: matchMedia("(display-mode: browser)").matches,
+            bar: document.documentElement.getAttribute("data-safari-bar"),
+            displayMode: document.documentElement.getAttribute("data-display-mode"),
+          };
+        }
+        var last = "";
+        function send(why) {
+          var s = snap(why);
+          var key = JSON.stringify(Object.assign({}, s, { why: 0, n: 0, t: 0 }));
+          if (key === last && why !== "load" && why !== "poll") return;
+          last = key;
+          var txt = JSON.stringify(s, null, 0).replace(/,"/g, ',\n"');
+          document.getElementById("out").textContent = txt;
+          try {
+            fetch("/log", { method: "POST", body: JSON.stringify(s), keepalive: true });
+          } catch (e) {}
+        }
+        send("load");
+        setTimeout(function () { send("load+1s"); }, 1000);
+        setTimeout(function () { send("load+3s"); }, 3000);
+        var tm = 0;
+        addEventListener("scroll", function () {
+          send("scroll");
+          clearTimeout(tm);
+          tm = setTimeout(function () { send("scroll-settled"); }, 400);
+        }, { passive: true });
+        addEventListener("resize", function () { send("resize"); });
+        if (window.visualViewport) {
+          visualViewport.addEventListener("resize", function () { send("vv-resize"); });
+          visualViewport.addEventListener("scroll", function () { send("vv-scroll"); });
+        }
+        setInterval(function () { send("poll"); }, 2000);
+      })();
+    </script>
+  </body>
+</html>

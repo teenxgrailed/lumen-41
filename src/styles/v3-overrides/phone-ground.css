@@ -77,12 +77,13 @@ html[data-ground="page"]:has(
   background: var(--v2p-ground);
   /* The home-indicator inset (0 outside an installed app). */
   --v3-sab: env(safe-area-inset-bottom, 0px);
-  /* Where content starts: the design's 52 px status bar, or the real inset. */
+  /* Where content starts: the design's 52 px status bar, or the real inset.
+   * In a Safari tab it is the inset alone (below). */
   --v3-top: max(52px, env(safe-area-inset-top, 0px));
   /* The dock (pill, + button, focus button) floats with its bottom edge 30 px
    * above the display edge (additions-2/phone-shell .ps-dock); 10 px of that
-   * is the menu's own margin, the rest is the lift. In a Safari tab the compact
-   * tab bar floats under the dock, so it lifts 54 px more (.ps.is-safari). */
+   * is the menu's own margin, the rest is the lift. With Safari's tab bar at
+   * the bottom of a tab it lifts 54 px more (below). */
   --v3-dock-lift: 20px;
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
@@ -131,7 +132,22 @@ html[data-ground="page"]:has(
 .needt-v3[data-ui="phone"] .pk-tail {
   height: calc(112px + var(--v3-dock-lift));
 }
+/* In a Safari tab the status bar is Safari's own and lies outside the page
+ * (the inset is 0): the header starts at the top of the viewport, right under
+ * Safari's bar, like Budget's `.nd-main`. The design's 52 px stay for the
+ * installed app. `data-display-mode` and `data-safari-bar` are written before
+ * the first paint by VIEWPORT_BOOT_SCRIPT (src/lib/needt3/safari-bar.ts). */
 html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
+  --v3-top: env(safe-area-inset-top, 0px);
+}
+/* The dock lifts above Safari's tab bar only where that bar is at the bottom
+ * (Compact and Bottom layouts, .ps.is-safari of the design). With the address
+ * bar on top (Top layout) the bottom toolbar takes its own room and hides on
+ * scroll, after which the page reaches the display edge (the bottom inset
+ * becomes 34 px): the dock keeps the design's 30 px there, as in the
+ * installed app. Unknown (no attribute) is the design's 30 px too. */
+html[data-display-mode="browser"][data-safari-bar="bottom"]
+  .needt-v3[data-ui="phone"] {
   --v3-dock-lift: 74px;
 }
 
@@ -159,12 +175,14 @@ html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
   top: var(--v3-top);
   height: var(--v3-compact-h);
 }
-/* Top band (phone-shell .ps-top, painted in phone-shell.css): 104 px, or the
- * status inset plus 52 px where the inset is larger. The host has no height;
- * the blur steps and the tint are absolute children that reach up to the
- * display edge from the host's top, which is the band's inner edge. */
+/* Top band (phone-shell .ps-top, painted in phone-shell.css): the status
+ * row plus 52 px for the collapsed header, so 104 px in the installed app
+ * (`--v3-top` is at least 52 there) and 52 px in a Safari tab, where the
+ * header starts at the top of the viewport. The host has no height; the blur
+ * steps and the tint are absolute children that reach up to the display edge
+ * from the host's top, which is the band's inner edge. */
 .needt-v3[data-ui="phone"] .pk-topband {
-  --ps-top-h: max(104px, calc(var(--v3-top) + 52px));
+  --ps-top-h: calc(var(--v3-top) + 52px);
   top: var(--ps-top-h);
   height: 0;
 }
@@ -196,9 +214,10 @@ html[data-display-mode="browser"]
   height: 0;
   overflow: visible;
 }
-/* In a Safari tab the compact tab bar floats under the dock: the fog goes
- * deeper (PWARegister writes data-display-mode). */
-html[data-display-mode="browser"] .needt-v3[data-ui="phone"] .pk-fog {
+/* With Safari's tab bar at the bottom the dock is lifted: the fog goes deeper. */
+html[data-display-mode="browser"][data-safari-bar="bottom"]
+  .needt-v3[data-ui="phone"]
+  .pk-fog {
   --ps-fog-h: 170px;
 }
 .needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots) {
