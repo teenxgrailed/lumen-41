@@ -14,6 +14,7 @@ import {
   useSetPrefs,
   useSettings,
 } from "@/lib/needt3/hooks/settings";
+import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { notify } from "@/lib/notifications";
 
 import { CityField } from "../../settings/CityField";
@@ -24,7 +25,7 @@ import { PkButton } from "../kit";
 import { PhoneMemoriesGroup } from "./MemoriesGroup";
 import { PhonePushGroup } from "./PushGroup";
 import { LINK_OPTIONS, SOUND_OPTIONS } from "./model";
-import { PsGroup, PsPick, PsRow, PsSwitch } from "./parts";
+import { PsGroup, PsPick, PsRow, PsSwitch, usePs } from "./parts";
 
 const noop = () => undefined;
 
@@ -416,14 +417,26 @@ export function KeysPage() {
 }
 
 /**
- * The build is the SHA baked in at release (`lib/build-info`).
- * //todo: What's new and the Help centre (no URL yet) are missing on the
- * desktop too.
+ * The build is the SHA baked in at release (`lib/build-info`). What's new
+ * opens its sheet over this one (with the accent mark while something is
+ * unopened).
  */
 export function AboutPage() {
+  const { news } = usePs();
+  const unseen = useWhatsNewUnseen();
   return (
     <PsGroup>
       <PsRow title="Version" value={currentBuildLabel()} />
+      <PsRow
+        title="What's new"
+        value={
+          unseen ? (
+            <span className="sb-acct-dot" aria-label="New" role="img" />
+          ) : null
+        }
+        onOpen={news}
+        data={{ "data-ps-news-open": "" }}
+      />
       <PsRow title="Terms" out onOpen={() => window.open("/terms", "_blank")} />
       <PsRow
         title="Privacy"

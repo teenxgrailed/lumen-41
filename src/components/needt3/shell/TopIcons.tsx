@@ -26,6 +26,7 @@ import {
   useMarkNotificationsRead,
   useNotificationFeed,
 } from "@/lib/needt3/hooks/notifications";
+import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -33,10 +34,11 @@ import { agoLabel, safeHref } from "../corner/nudge-tip";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { Sheet } from "../ctx/Sheet";
 import { useExit } from "../ctx/useExit";
-import { Art, type ArtName } from "../menu/Art";
+import { Art } from "../menu/Art";
 import { Tooltip } from "../menu/Tooltip";
 import { Avatar, initialsOf } from "./Avatar";
 import { useShellApi } from "./ShellContext";
+import { WhatsNewList, dayLabel, useWhatsNewOpening } from "./WhatsNewList";
 import { artFor, splitLead, whenLabel } from "./notes-format";
 
 const LOG_SOURCE = "v3-notes-panel";
@@ -379,21 +381,11 @@ export function NotesPanel({ close }: { close: () => void }) {
   );
 }
 
-const NEWS: [ArtName, string, string][] = [
-  [
-    "home",
-    "Home is a page",
-    "Your day as a Daily Note: habits on one line, tasks written into the page.",
-  ],
-  ["mail", "Mailbox", "Every message can become a task in one click."],
-  [
-    "work",
-    "Customize the sidebar",
-    "Pick your tiles, hide the rest in More, drag to reorder.",
-  ],
-  ["template", "Right click everywhere", "Pin, open and hide — with Undo."],
-];
-
+/**
+ * What's new: the changelog fragments, newest day first (`/api/whats-new`).
+ * Opening it records the newest day as seen, which clears the dot on the
+ * account avatar and in the help menu.
+ */
 export function WhatsNew({
   open,
   onClose,
@@ -401,18 +393,22 @@ export function WhatsNew({
   open: boolean;
   onClose: () => void;
 }) {
+  const feed = useWhatsNewOpening(open);
+  const newest = feed.data?.groups.find((g) => g.date)?.date ?? null;
   return (
     <Sheet
       open={open}
       onClose={onClose}
       title="What's new in Needt"
       scrimClassName="base-scrim nx-scrim"
-      className="shell-whats-new-stack nx-sheet"
+      className="shell-whats-new-stack nx-sheet wn-sheet"
     >
       <header className="shell-whats-new-row">
         <span className="base-stack">
           <span className="shell-whats-new-text">What&apos;s new in Needt</span>
-          <span className="base-meta">6 October 2026</span>
+          {newest ? (
+            <span className="base-meta">Updated {dayLabel(newest)}</span>
+          ) : null}
         </span>
         <button
           type="button"
@@ -423,22 +419,9 @@ export function WhatsNew({
           <LuX size={13} />
         </button>
       </header>
-      {NEWS.map(([art, t, s], k) => (
-        <div
-          className="nx-swap shell-whats-new-row-2"
-          key={t}
-          style={{
-            animationDuration: "260ms",
-            animationDelay: `${80 + k * 50}ms`,
-          }}
-        >
-          <Art name={art} size={40} />
-          <span className="base-stack shell-day-menu-span">
-            <span className="shell-whats-new-text-2">{t}</span>
-            <span className="shell-notes-panel-text-3">{s}</span>
-          </span>
-        </div>
-      ))}
+      <div className="scroll-inner wn-scroll">
+        <WhatsNewList {...feed} />
+      </div>
       <button
         type="button"
         className="nx-btn nx-btn-primary shell-whats-new-btn"
@@ -448,17 +431,6 @@ export function WhatsNew({
       </button>
     </Sheet>
   );
-}
-
-const SEEN_KEY = "needt3.whatsNew.seen";
-const NEWS_ID = "2026-10-06";
-
-function readSeen() {
-  try {
-    return window.localStorage.getItem(SEEN_KEY) === NEWS_ID;
-  } catch {
-    return true;
-  }
 }
 
 /** A panel anchored under its trigger's right edge. */
@@ -480,14 +452,13 @@ export function TopIcons() {
   const unread = unreadCount > 0;
   const container = useV3PortalContainer();
   const [which, setWhich] = useState<"bell" | "help" | null>(null);
-  const [seenNew, setSeenNew] = useState(true);
+  const unseenNews = useWhatsNewUnseen();
   const [bellRef, bellAt] = useAnchored(which === "bell");
   const [helpRef, helpAt] = useAnchored(which === "help");
   const panel = useRef<HTMLDivElement>(null);
   const [shownBell, leavingBell] = useExit(which === "bell", 130);
   const [shownHelp, leavingHelp] = useExit(which === "help", 130);
 
-  useLayoutEffect(() => setSeenNew(readSeen()), []);
   useLayoutEffect(() => {
     if (!which) return undefined;
     const away = (e: MouseEvent) => {
@@ -508,12 +479,6 @@ export function TopIcons() {
 
   const openNews = () => {
     setWhich(null);
-    setSeenNew(true);
-    try {
-      window.localStorage.setItem(SEEN_KEY, NEWS_ID);
-    } catch {
-      /* storage blocked: the dot comes back next visit */
-    }
     shell.openWhatsNew();
   };
 
@@ -524,7 +489,7 @@ export function TopIcons() {
      prototype's order (feedback first, FAQ after What's new, Markdown last)
      once the pages exist. */
   const help: [React.ReactNode, string, () => void, boolean, string?][] = [
-    [<LuSparkles key="i" size={15} />, "What's new", openNews, !seenNew],
+    [<LuSparkles key="i" size={15} />, "What's new", openNews, unseenNews],
     [
       <LuBug key="i" size={15} />,
       "Report a problem",
@@ -571,7 +536,7 @@ export function TopIcons() {
       style={iconBtn(which === "help")}
     >
       <LuCircleHelp size={18} />
-      <Dot show={!seenNew} />
+      <Dot show={unseenNews} />
     </button>
   );
 

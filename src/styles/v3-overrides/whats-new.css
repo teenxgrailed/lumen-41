@@ -1,0 +1,110 @@
+/* What's new (the changelog feed) and the account menu's news mark.
+ *
+ * The sheet keeps the prototype's frame (.shell-whats-new-stack: 440 wide,
+ * radius 22, title 20) and lists the feed under it at chrome size: a day
+ * label, then one 13px line per change. A change this person has not opened
+ * carries the accent as a 6px mark, never as a fill. The same list sits in
+ * the phone's sheet over Settings.
+ */
+.needt-v3 .wn-sheet {
+  max-height: min(640px, calc(100vh - 64px));
+}
+.needt-v3 .wn-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.needt-v3 .wn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.needt-v3 .wn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .wn-day {
+  margin: 0;
+}
+.needt-v3 .wn-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.needt-v3 .wn-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-secondary);
+}
+.needt-v3 .wn-item[data-wn-new] {
+  color: var(--text-primary);
+}
+.needt-v3 .wn-mark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--fill-5);
+}
+.needt-v3 .wn-item[data-wn-new] .wn-mark {
+  background: var(--accent);
+}
+.needt-v3 .wn-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.needt-v3 .wn-empty {
+  margin: 0;
+  padding: 16px 0;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+
+/* Phone: the list inside its own sheet over Settings. */
+.needt-v3 .wn-phone {
+  padding: 4px 4px 24px;
+}
+.needt-v3 .wn-phone .wn-item {
+  font: 400 15px/20px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .wn-phone .wn-item[data-wn-new] {
+  color: var(--v2p-ink);
+}
+.needt-v3 .wn-phone .wn-mark {
+  margin-top: 7px;
+}
+.needt-v3 .wn-phone .wn-empty {
+  font: 400 13px/17px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+
+/* Account menu: the avatar's dot, and the same mark on its What's new row. */
+.needt-v3 .sb-profile-avatar {
+  position: relative;
+  flex: none;
+  display: grid;
+}
+.needt-v3 .sb-profile-avatar .sb-profile-dot {
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+}
+.needt-v3 .sb-acct-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent);
+}
