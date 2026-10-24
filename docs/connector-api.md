@@ -245,8 +245,7 @@ dragging it onto the calendar does in the app:
 
 ```bash
 curl -X PATCH http://localhost:3000/api/connect/tasks/TASK_ID \
-  -H "Authorization: Bearer needt_REPLACE_ME" \
-  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $NEEDT_TOKEN" -H "Content-Type: application/json" \
   -d '{ "start": "2026-10-25T14:00", "estimatedMinutes": 60 }'
 # -> { "changed": true, "task": { "scheduledStart": "…", "scheduleLocked": true, "scheduledBlocks": [ … ] } }
 ```
