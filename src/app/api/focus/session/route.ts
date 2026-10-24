@@ -12,6 +12,10 @@ import {
   startSession,
 } from "@/services/focus/focusSession";
 import {
+  FocusTaskNotFoundError,
+  focusTaskScope,
+} from "@/services/focus/task-scope";
+import {
   FocusSessionMode,
   FocusSessionPhase,
   FocusStrictnessMode,
@@ -62,10 +66,19 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const action = body.action as string;
+  // A session writes to its task (time, done), so a task id is only used
+  // inside the caller's workspace and needs an editor seat.
+  const taskScope = focusTaskScope(auth.workspace, auth.userId);
 
   try {
     switch (action) {
       case "start": {
+        if (typeof body.taskId === "string" && body.taskId && !taskScope) {
+          return NextResponse.json(
+            { error: "WORKSPACE_ROLE_REQUIRED" },
+            { status: 403 }
+          );
+        }
         const strictness = Object.values(FocusStrictnessMode).includes(
           body.strictness
         )
@@ -83,6 +96,7 @@ export async function POST(request: NextRequest) {
         const session = await startSession({
           userId: auth.userId,
           taskId: typeof body.taskId === "string" ? body.taskId : null,
+          taskScope,
           mode: parseMode(body.mode),
           plannedMinutes:
             body.plannedMinutes == null
@@ -133,6 +147,7 @@ export async function POST(request: NextRequest) {
           sessionId: String(body.sessionId),
           completed: Boolean(body.completed),
           markTaskDone: Boolean(body.markTaskDone),
+          taskScope,
         });
         return NextResponse.json({ session });
       }
@@ -146,6 +161,9 @@ export async function POST(request: NextRequest) {
         { error: "ACTIVE_FOCUS_SESSION" },
         { status: 409 }
       );
+    }
+    if (error instanceof FocusTaskNotFoundError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
     }
     if (error instanceof FocusExitError) {
       return NextResponse.json(

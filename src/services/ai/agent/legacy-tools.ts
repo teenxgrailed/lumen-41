@@ -8,6 +8,7 @@ import {
 import { createReschedulePreview } from "@/services/ai/reschedule-preview";
 import {
   isDangerousAgentTool,
+  isMutatingAgentTool,
   validateAgentToolCall,
 } from "@/services/ai/tool-catalog";
 import { AIChatToolCall, SchedulerAI } from "@/services/ai/types";
@@ -17,6 +18,7 @@ import {
   startSession,
 } from "@/services/focus/focusSession";
 import { getWeeklyFocusReport } from "@/services/focus/focusStats";
+import { focusTaskScope } from "@/services/focus/task-scope";
 import {
   type PageActor,
   createAiProposal,
@@ -29,7 +31,7 @@ import {
   partsCreateData,
   setSubtaskDone,
 } from "@/services/tasks/subtasks";
-import { FocusSessionMode, Prisma } from "@prisma/client";
+import { FocusSessionMode, Prisma, WorkspaceRole } from "@prisma/client";
 
 import {
   type WorkspaceAccess,
@@ -153,6 +155,19 @@ export async function executeTool(
     };
   }
   call = { ...call, arguments: validatedArguments };
+
+  // Every caller gets this, not just the chat route: a tool that writes
+  // workspace data needs an Editor or Owner seat.
+  if (
+    workspace.role === WorkspaceRole.VIEWER &&
+    isMutatingAgentTool(call.name)
+  ) {
+    return {
+      text: "An Editor or Owner role is required for this action.",
+      toolName: call.name,
+      requiresConfirm: false,
+    };
+  }
 
   logger.info(
     "Executing AI agent tool",
@@ -571,11 +586,14 @@ export async function executeTool(
 
     case "start_focus_session": {
       const taskId = stringArg(call.arguments, "taskId");
+      const taskScope = focusTaskScope(workspace, userId);
       if (
         taskId &&
-        !(await prisma.task.findFirst({
-          where: { id: taskId, ...scope, isArchived: false },
-        }))
+        !(taskScope
+          ? await prisma.task.findFirst({
+              where: { id: taskId, ...taskScope, isArchived: false },
+            })
+          : null)
       ) {
         return {
           text: "I could not find that task for this focus session.",
@@ -586,6 +604,7 @@ export async function executeTool(
       const session = await startSession({
         userId,
         taskId,
+        taskScope,
         mode: (stringArg(call.arguments, "mode") ||
           "POMODORO") as FocusSessionMode,
         plannedMinutes: numberArg(call.arguments, "plannedMinutes"),
@@ -608,6 +627,7 @@ export async function executeTool(
             sessionId,
             completed: booleanArg(call.arguments, "completed") ?? true,
             markTaskDone: booleanArg(call.arguments, "markTaskDone") ?? false,
+            taskScope: focusTaskScope(workspace, userId),
           })
         : null;
       return {

@@ -73,7 +73,8 @@ workspace, so over MCP they answer only from the personal workspace, never from
 a Team workspace.
 
 The same token rules apply to the `/api/connect/*` routes below: reads need
-`needt.read`, writes `needt.write`.
+`needt.read`, writes `needt.write`. Writes there share the limit of 30 a
+minute per person that `/api/mcp` has.
 
 ### OAuth (claude.ai, ChatGPT, Claude Code)
 
@@ -853,6 +854,12 @@ curl http://localhost:3000/api/connect/ops \
 Returns `{ "ops": [{ "name", "description", "risk", "input" }] }`, where
 `input` is a JSON Schema. Unknown fields are rejected.
 
+The token needs the scope the risk implies: `needt.read` for a `read`
+operation, `needt.write` for any other (so a read-only token gets `403
+insufficient_scope` on every write, `task.detach` included), and `mail.read`
+as well for `mail.to_task`, which copies a message into a task. Writes count
+against 30 a minute per person, the same limit as `/api/mcp`.
+
 Run one with its input as the body:
 
 ```bash
@@ -1019,6 +1026,8 @@ curl -X POST http://localhost:3000/api/agent/actions/ACTION_ID/undo \
   is overwritten; each conflict names the row and both versions.
 - `422 { "status": "not_undoable", "reason" }` for `no_inverse`, `expired`,
   or `failed`.
+
+Undo changes data, so a token needs `needt.write` to call either undo route.
 
 `POST /api/agent/runs/RUN_ID/undo` undoes every action of an agent run,
 newest first. It stops at the first conflict and returns `409` with

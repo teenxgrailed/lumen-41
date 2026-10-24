@@ -59,6 +59,7 @@ describe("a task done during its focus", () => {
       userId: "u1",
       sessionId: "s1",
       completed: true,
+      taskScope: { id: "t1" },
     });
     expect(out).toEqual({
       ended: true,
