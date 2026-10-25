@@ -25,6 +25,12 @@ import {
   partsCreateData,
   subtaskListSchema,
 } from "@/services/tasks/subtasks";
+import {
+  hasPlacement,
+  placementFields,
+  planPlacement,
+  writeFrozenPlacement,
+} from "@/services/tasks/task-placement";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import type { Prisma } from "@prisma/client";
 import { RRule } from "rrule";
@@ -121,6 +127,9 @@ const restorableFields = z
     scheduledStart: isoOrNull,
     scheduledEnd: isoOrNull,
     scheduleLocked: z.boolean(),
+    isAutoScheduled: z.boolean(),
+    autoScheduled: z.boolean(),
+    scheduleScore: z.number().nullable(),
     startDate: isoOrNull,
     lastCompletedDate: isoOrNull,
   })
@@ -248,6 +257,14 @@ async function assertProjectUsable(ctx: OpContext, projectId: string) {
   }
 }
 
+/** A refused placement as an op error: 409 is a conflict, the rest bad input. */
+function placementError(plan: { status: number; error: string }) {
+  return new OpError(
+    plan.status === 409 ? "CONFLICT" : "INVALID_INPUT",
+    plan.error
+  );
+}
+
 // ---------------------------------------------------------------- read ops
 
 export const taskList = defineOp({
@@ -305,7 +322,7 @@ export const taskGet = defineOp({
 export const taskCreate = defineOp({
   name: "task.create",
   description:
-    "Create a task. Undo archives it. Scheduling is separate: call schedule.auto to place it.",
+    "Create a task. Undo archives it. With start (ISO 8601, or a wall-clock time in the user's zone) the task is placed at that time and pinned there, as a drop on the calendar does, and autoSchedule defaults to false; without it, scheduling is separate: call schedule.auto to place it.",
   risk: "reversible",
   input: z
     .object({
@@ -318,7 +335,8 @@ export const taskCreate = defineOp({
       estimateMinutes: estimate.optional(),
       recurrenceRule: recurrenceRule.optional(),
       scheduleId: z.string().min(1).optional(),
-      autoSchedule: z.boolean().default(true),
+      start: placementFields.start,
+      autoSchedule: placementFields.autoSchedule,
       entry: entrySchema.optional(),
       subtasks: subtaskListSchema.optional(),
       dependsOnId: z.string().min(1).optional(),
@@ -341,6 +359,20 @@ export const taskCreate = defineOp({
       ? normalizeRecurrenceRule(input.recurrenceRule)
       : undefined;
     const due = input.dueDate ? newDate(input.dueDate) : undefined;
+    // `start` places and pins it as the calendar does (see task-placement).
+    const plan = await planPlacement({
+      userId: ctx.userId,
+      schedulingUserId: ctx.userId,
+      task: {
+        scheduledStart: null,
+        scheduledEnd: null,
+        estimatedMinutes: input.estimateMinutes ?? null,
+        duration: null,
+      },
+      placement: { start: input.start, autoSchedule: input.autoSchedule },
+    });
+    if (plan && !plan.ok) throw placementError(plan);
+    const placed = plan?.data ?? {};
     const task = await ctx.tx.task.create({
       data: {
         userId: ctx.userId,
@@ -363,14 +395,17 @@ export const taskCreate = defineOp({
         parts: partsCreateData(subtasks),
         estimatedMinutes: input.estimateMinutes,
         duration: input.estimateMinutes,
-        dueDate: due,
+        // A placed task without a due date is due on its placed day.
+        dueDate: due ?? placed.dueDate,
         deadline: due,
         // Same as /api/connect/tasks: the scheduler may place it. Unlike that
         // route nothing is placed yet, so autoScheduled stays false until
         // schedule.auto (or the next scheduler run) places it.
-        isAutoScheduled: input.autoSchedule,
+        isAutoScheduled: placed.isAutoScheduled ?? input.autoSchedule ?? true,
         autoScheduled: false,
-        scheduleLocked: false,
+        scheduleLocked: placed.scheduleLocked ?? false,
+        scheduledStart: placed.scheduledStart,
+        scheduledEnd: placed.scheduledEnd,
         ...(input.tagIds?.length
           ? { tags: { connect: input.tagIds.map((id) => ({ id })) } }
           : {}),
@@ -393,12 +428,24 @@ export const taskCreate = defineOp({
       ),
       skipDuplicates: true,
     });
+    if (plan?.ok && plan.frozen) {
+      await writeFrozenPlacement(
+        { taskId: task.id, userId: ctx.userId, ...plan.frozen },
+        ctx.tx
+      );
+    }
     return {
       result: { task: taskView(task) },
       before: null,
+      // Archiving releases the placed time and its block along with the task.
       inverse: { op: "task.archive", input: { taskId: task.id } },
       touched: [touched("task", task, null)],
-      afterCommit: [publishTasksUpdated(ctx.userId)],
+      afterCommit: [
+        ...(plan?.ok && plan.frozen
+          ? [() => schedulePushTaskBlock(ctx.userId, task.id)]
+          : []),
+        publishTasksUpdated(ctx.userId),
+      ],
     };
   },
 });
@@ -406,7 +453,7 @@ export const taskCreate = defineOp({
 export const taskUpdate = defineOp({
   name: "task.update",
   description:
-    "Change a task's title, notes, due date, deadline (follows the due date unless set), priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Undo writes the previous values back.",
+    "Change a task's title, notes, due date, deadline (follows the due date unless set), priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Placement: start places the task at that time and pins it (the due day becomes that day), pinned pins it where it is or hands it back to the scheduler, autoSchedule turns the scheduler on or off for it; a blocked-out time is refused. Undo writes the previous values back, the placement and its pinned block included.",
   risk: "reversible",
   input: z
     .object({
@@ -421,6 +468,7 @@ export const taskUpdate = defineOp({
       estimateMinutes: estimate.nullable().optional(),
       recurrenceRule: recurrenceRule.nullable().optional(),
       scheduleId: z.string().min(1).nullable().optional(),
+      ...placementFields,
     })
     .strict()
     .refine((value) => Object.keys(value).length > 1, {
@@ -511,8 +559,41 @@ export const taskUpdate = defineOp({
     }
     if (input.tagIds) await assertTagsOwned(ctx, input.tagIds);
 
+    // Placing by hand goes through the rule the connector and the app share.
+    const placementInput = {
+      start: input.start,
+      pinned: input.pinned,
+      autoSchedule: input.autoSchedule,
+    };
+    const placing = hasPlacement(placementInput);
+    let frozen: { start: Date; end: Date } | null = null;
+    if (placing) {
+      const plan = await planPlacement({
+        userId: ctx.userId,
+        schedulingUserId: task.assigneeId,
+        task,
+        placement: placementInput,
+        estimatedMinutes: input.estimateMinutes,
+      });
+      if (plan && !plan.ok) throw placementError(plan);
+      if (plan) {
+        const { dueDate, ...placed } = plan.data;
+        Object.assign(data, placed);
+        keys.push(...(Object.keys(placed) as (keyof RestorableFields)[]));
+        // The placed day becomes the due day, as in the app; an explicit
+        // dueDate in the same call wins and the deadline is left alone.
+        if (dueDate && input.dueDate === undefined) {
+          data.dueDate = dueDate;
+          keys.push("dueDate");
+        }
+        frozen = plan.frozen;
+      }
+    }
+
     const fields = pickRestorable(task, keys);
     const previousTagIds = task.tags.map((tag) => tag.id);
+    // The frozen block replaces every block of the task, so undo puts them all back.
+    const blocks = frozen ? await snapshotBlocks(ctx, task.id) : undefined;
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: {
@@ -524,20 +605,37 @@ export const taskUpdate = defineOp({
       },
       include: taskInclude,
     });
+    if (frozen && task.assigneeId) {
+      await writeFrozenPlacement(
+        { taskId: task.id, userId: task.assigneeId, ...frozen },
+        ctx.tx
+      );
+    }
+    const schedulingUserId = task.assigneeId ?? ctx.userId;
 
     return {
       result: { task: taskView(updated) },
-      before: { fields, ...(input.tagIds ? { tagIds: previousTagIds } : {}) },
+      before: {
+        fields,
+        ...(input.tagIds ? { tagIds: previousTagIds } : {}),
+        ...(blocks ? { blocks } : {}),
+      },
       inverse: {
         op: "task.restore",
         input: {
           taskId: task.id,
           fields,
           ...(input.tagIds ? { tagIds: previousTagIds } : {}),
+          ...(blocks ? { blocks } : {}),
         },
       },
       touched: [touched("task", updated, task)],
-      afterCommit: [publishTasksUpdated(ctx.userId)],
+      afterCommit: [
+        ...(placing
+          ? [() => schedulePushTaskBlock(schedulingUserId, task.id)]
+          : []),
+        publishTasksUpdated(ctx.userId),
+      ],
     };
   },
 });
