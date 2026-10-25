@@ -1,1 +1,0 @@
-- Switching on "Anyone with the link" on a moodboard now updates the Share dialog at once (it kept saying Private and showed no Copy link until reopened).

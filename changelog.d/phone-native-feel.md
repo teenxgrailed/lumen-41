@@ -1,6 +1,0 @@
-- Home on the phone showed yesterday's date after the installed app had been asleep, and its "week 42" disagreed with the calendar's "week 41". The day and the week number now come from one place, follow your time zone and week start, and are re-read whenever the app comes back to the screen.
-- The phone no longer shows a lighter strip under the bottom bar: the page behind the screen, the browser bar colour and the app's splash colour are the screen's own colour, in light and dark.
-- "All done for today" is no longer shown while an Inbox or overdue task is still open.
-- Swipe a task row right to complete it, or left to reveal Schedule and Delete (Home, Tasks, projects). The row follows your finger with a rubber band, and Android phones give a short buzz at the threshold and on complete.
-- Share to Needt: on Android, share text, a link or a picture from any app to Needt and save it as a task, a doc or a moodboard item, in a project. iPhone does not let a home-screen app receive shares.
-- Long-press the app icon for New task, Today and Ask Needt. The icon badge shows today's open tasks plus overdue ones where the device supports it.

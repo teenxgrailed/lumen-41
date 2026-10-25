@@ -1,3 +1,0 @@
-- A task with a hard deadline is never placed outside your work hours any more; if it does not fit before the deadline it stays unplaced and is reported as missing the deadline.
-- Calendar events marked free or transparent, and events whose invitation you declined, no longer block scheduling or count as busy time in the week capacity.
-- Signing in on a browser another account used for notifications moves that browser's push subscription to you instead of failing.

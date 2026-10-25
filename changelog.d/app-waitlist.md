@@ -1,1 +1,0 @@
-- The download form on the landing page can now join the Mac and iPhone waitlists (`POST /api/waitlist` with `app`).

@@ -1,1 +1,0 @@
-- Settings → Notifications has a "This device" row: enable notifications from a tap, see whether they are on, blocked, unsupported or need Needt added to the Home Screen (iPhone), and send a test notification. Overdue-task alerts are now pushed to your devices when you are away from the app, and tapping a notification opens the right page in the window you already have open.

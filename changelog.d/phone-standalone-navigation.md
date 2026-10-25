@@ -1,1 +1,0 @@
-Phone: a test now fails the build if the app navigates to itself by an absolute or http:// URL, or opens an app path in a new window (the way an installed iPhone app drops into Safari's in-app browser).

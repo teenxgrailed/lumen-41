@@ -7,6 +7,883 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-10-25
+
+<!-- changelog.d/admin-01-shell.md -->
+- Admin panel: one `/admin` frame with a left nav (a row of tabs on a phone) in
+  the v3 design, shared by Integrations (`/admin/system`) and Operations
+  (`/admin/operations`). Inputs on the admin pages no longer render black on
+  the Light theme: the admin scope now maps the older shadcn tokens onto the
+  person's theme, so Light, Dark and Time all follow.
+<!-- changelog.d/admin-02-overview.md -->
+- Admin Users (`/admin/users`): search accounts by email and open one to see
+  plan, trial end, created, last sign-in, role and connected provider names
+  (never tokens). Each action asks first and is recorded in the new
+  `AdminAuditLog` table (additive): make or remove admin, extend the trial,
+  grant or revoke Pro for N days or Lifetime as a free comp (stored in the
+  existing subscription row; Creem is never called), sign out of all devices,
+  and delete the account through the existing deletion service (type the email
+  to confirm). An admin cannot remove their own role or delete themselves.
+  `GET /api/admin/users`, `GET /api/admin/users/:id`,
+  `POST /api/admin/users/:id/actions`.
+
+- Admin Overview (`/admin`): users total and new in 7 days, active trials, Pro,
+  Lifetime and Free counts, waitlist size, and the app and worker build SHAs
+  (a warning when they differ). `GET /api/admin/overview` (admin only). Users
+  now carry a `createdAt` (additive column; older accounts are backfilled from
+  their trial start where there is one).
+<!-- changelog.d/ai-private-pages.md -->
+- The assistant and connected AI tools (MCP: Claude, ChatGPT and others) no
+  longer read, search or write Private pages, or any page filed under one.
+  New daily notes, weekly reviews and pages made from a template are not
+  Private by default, so the assistant can read them; turn Private on for a
+  page to keep it out of reach. Pages that already exist keep their setting.
+  Text from mail, calendar events, pages and other people's tasks is
+  now handed to the assistant as quoted data it never takes orders from, the
+  assistant's "today" only lists your own tasks, and one request can make at
+  most 10 changes. Calendars, personal time and mail answer over MCP only from
+  your personal workspace, not from a Team workspace.
+<!-- changelog.d/app-icon-picker.md -->
+- App icon: pick one of 13 Needt icons in Settings, Appearance, App icon
+  (desktop and phone), and once for everyone in a "New icons for Needt" popup.
+  Midnight, Ink, Sky and Paper are free; the other nine come with Pro (a trial
+  counts) and open the paywall on Free. The choice follows you to every
+  device, and changes the browser tab icon, the touch icon and the Needt mark
+  in the app. The home-screen icon of an installed web app updates after you
+  re-add Needt. Midnight is now the default icon everywhere, including the
+  iOS and desktop app icons.
+<!-- changelog.d/app-waitlist.md -->
+- The download form on the landing page can now join the Mac and iPhone waitlists (`POST /api/waitlist` with `app`).
+<!-- changelog.d/auto-schedule-settings-allowlist.md -->
+- Auto-schedule settings accept only the preferences a person can edit, and the
+  calendar scheduled tasks are pushed to must be one of their own.
+<!-- changelog.d/board-link-share-state.md -->
+- Switching on "Anyone with the link" on a moodboard now updates the Share dialog at once (it kept saying Private and showed no Copy link until reopened).
+<!-- changelog.d/calendar-24h-strip.md -->
+- The Calendar's Week shows all 24 hours and scrolls sideways a day at a time,
+  like Notion Calendar: a trackpad swipe or Shift + wheel glides through days
+  and settles on a day column, the arrows glide a week, Today glides back, and
+  the date range in the header follows the scroll. The days are endless (only
+  the columns near the screen are drawn). Hours outside your working hours and
+  non-working days are shaded, and the grid opens with the current time about
+  a third from the top. On the phone, swiping the day moves to the next or the
+  previous day.
+<!-- changelog.d/calendar-empty-week.md -->
+- Calendar: with no calendar connected and no event in the week, a card over
+  the week offers to connect a calendar or add an event, on the desktop and the
+  phone. It goes as soon as either exists. A connected week with nothing in it
+  says "Nothing this week".
+<!-- changelog.d/calendar-shade-per-day-hours.md -->
+- The calendar now shades off-hours from each weekday's own working hours: the break between two ranges is shaded too, and days off are shaded all day.
+<!-- changelog.d/changelog-fragments.md -->
+- Changelog entries now go into one file per pull request under
+  `changelog.d/`, collected into `CHANGELOG.md` at release time with
+  `npm run changelog:collect`. This ends the merge conflicts every PR had on
+  `CHANGELOG.md`.
+<!-- changelog.d/checkout-deeplinks.md -->
+- Buy links from the landing page (`/settings?section=billing&checkout=pro-year|pro-month|lifetime`) open Plan & billing and start that checkout; signing in or signing up on the way brings you back to the same link.
+<!-- changelog.d/chore-dead-code-flags.md -->
+- Removed the pre-v3 UI now that design v3 is on for everyone: the
+  `design_v3` flag branches (every signed-in route is the v3 frame; the sign-in,
+  reset-password and confirm-email screens are v3), the old needt v2 screens
+  (Today, Calendar, Workspace, Docs, Settings, mobile, auth), the old settings
+  panels, task modal, boards UI, and the tests and visual baselines that only
+  covered them. The `design_v3` FeatureFlag row stays in the database.
+<!-- changelog.d/chore-fluidcalendar-leftovers.md -->
+- Removed the last FluidCalendar leftovers: the Help link now points at
+  Needt, the setup store's storage key is `needt-setup-storage` (the setup
+  checklist state resets once), and the dead upstream publish workflow is
+  gone. LICENSE and NOTICE keep the fork's MIT attribution.
+- Import tasks from CalDAV servers (Baikal, Nextcloud, Fastmail, etc.): a connected CalDAV account's task collections (calendars that expose `VTODO`) can be mapped to a project and their tasks imported into Needt. Import is one-way for now - title, description, due/start dates, status, priority, and recurrence are read from the server, and an external-owned field cleared upstream (e.g. a completed task reopened) is cleared locally too so the import mirrors the server (#144)
+- Fixed CalDAV events created or updated in Needt appearing at the wrong time in other calendar clients (Thunderbird, Home Assistant) when their timezone differs from the server's. Timed events are now serialized with an explicit timezone (`DTSTART;TZID=<zone>` plus a generated `VTIMEZONE`, falling back to UTC `Z` when no timezone is known) instead of floating local time, so recurring events also keep their wall-clock time across DST and the `TZ` environment-variable workaround is no longer needed (#135)
+<!-- changelog.d/chore-release-prepare.md -->
+- Releases are prepared by `npm run release:prepare -- <version> [date]`:
+  collects the fragments, dates the release heading, bumps the web, Mac and
+  iOS versions, checks What's new and writes `docs/releases/<version>.md`.
+  The launch-day runbook is `docs/RELEASING.md`.
+<!-- changelog.d/chrome-extension.md -->
+- Needt for Chrome (`apps/extension`, not yet in the Web Store): add a page, link or selection as an
+  auto-scheduled task (Alt+Shift+N, quick-add syntax), block your focus profile's sites while a focus
+  block runs, a YouTube filter that keeps only videos on your current goal, a new tab with your next
+  event and top tasks, and project tabs that reopen when the project's focus block starts.
+  `GET /api/extension/projects` lists open projects for a bearer token.
+<!-- changelog.d/collab-socket-wiring.md -->
+- Documents and moodboards now sync in real time and save: the collaboration provider was moved onto a private socket that never connected, so edits stayed in a local draft.
+<!-- changelog.d/connections-admin-hints-api-tile.md -->
+- Connections: configuration hints (`COMPOSIO_API_KEY` and other environment
+  names) are for admins only. The connect-start answers of Composio apps and
+  both mailboxes now say "<App> isn't available yet." to everyone else.
+- Connections: the "Needt API" tile now opens a sheet to create a personal
+  access token, copy the MCP URL (`https://mcp.needt.app/mcp`) and open the
+  connector API docs, on desktop and phone. It uses the existing
+  `/api/connector-settings` route.
+<!-- changelog.d/connector-place-and-pin-tasks.md -->
+- Claude and other connected apps can now put a task at a time you name and
+  pin it there, so the scheduler leaves it alone, or hand it back to the
+  scheduler: `start`, `pinned` and `autoSchedule` on `needt_create_task`,
+  `needt_update_task` and the new `PATCH /api/connect/tasks/:id`.
+<!-- changelog.d/desktop-app.md -->
+- Needt desktop app preview builds for macOS and Windows: tray icon, global quick-add shortcut, native notifications.
+<!-- changelog.d/doc-title-pagehide.md -->
+- A document title typed without leaving the field is no longer lost when the tab is reloaded or closed.
+<!-- changelog.d/dock-settings-glyph-sizes.md -->
+- Phone dock glyphs are 30 px (were 32). Settings icons are 28 px on the phone
+  and 20 px on desktop, and Appearance, General and Data use the tune, settings
+  and import glyphs from the design spec.
+<!-- changelog.d/edge-debug-panel.md -->
+- Opt-in `?edgedebug` panel that reports what sits at the screen edges, for the Safari bar bands.
+<!-- changelog.d/energy-curve.md -->
+- Energy curve (Pro, behind the `energy_curve` flag): pick a chronotype (lark, neutral, owl) with
+  `PUT /api/energy/profile`. Auto-scheduling then puts heavy work in that curve's peak and light work in
+  the after-lunch dip, unless you set your own energy hours.
+<!-- changelog.d/failed-write-one-notice.md -->
+- A change the server refuses (ticking a task, renaming a doc) is now sent once and says "Could not … Your change was reverted." once, instead of being retried and stacking a second notice.
+<!-- changelog.d/feat-account-home-gaps.md -->
+- Settings → Account, desktop and phone: a Sign-in methods card lists how you
+  sign in (password and linked Google, Apple, GitHub, Microsoft, Discord, X,
+  LinkedIn, ChatGPT); the password row mails a reset link. Devices names this
+  device and when its session ends, and holds "Sign out of all devices".
+  Data & privacy exports tasks as CSV as well as JSON
+  (`GET /api/export/tasks?format=csv`); About shows the build.
+- Home, desktop and phone: Plan my day now runs the real scheduler (preview,
+  apply, one Undo) instead of opening Ask, still a Pro action. The Streak
+  card shows "n days closed", derived from the tasks. "Notes for the day"
+  opens today's note, a private document created on first use.
+<!-- changelog.d/feat-ask-agent-tools-undo.md -->
+- Ask now acts through the same operations as the MCP connector. It can create,
+  change, move, complete and delete tasks, add and change calendar events,
+  create and append to pages, and log habits; each change is recorded and listed
+  under the reply with Undo, plus Undo all for the whole reply. Deleting asks
+  first. Replies stream with a progress line while a tool runs, and can take
+  several steps. New operations `event.create`, `event.update`, `event.delete`,
+  `page.create` and `page.append` are available to connectors as well, and
+  `task.create` accepts `entry`, `subtasks` and `dependsOnId`. Providers that
+  cannot stream tool calls keep the previous single-step behaviour.
+<!-- changelog.d/feat-ask-ai-provider-config.md -->
+- Ask: the hosted AI endpoint can point at Z.ai (Zhipu) directly through
+  `NEEDT_AI_BASE_URL` and `NEEDT_AI_MODEL`; the default stays GLM 5.3 Flash on
+  OpenRouter. OpenRouter-only routing options are no longer sent to other hosts.
+  See `docs/operations/ai-provider.md`.
+<!-- changelog.d/feat-ask-plan-day.md -->
+- Plan my day (Home button and strip, and Ask) now runs the scheduler as one
+  recorded action and says where each task went ("Today 09:30–10:15 Taxes") and
+  which did not fit, with one Undo. Pro and Lifetime only; the server refuses
+  Free (`POST /api/ai/plan-day`). Ask can plan the day too (`plan_day`).
+<!-- changelog.d/feat-ask-retrieval.md -->
+- Ask can now find things across everything you keep: tasks, projects, calendar
+  events, pages (titles and text), habits, moodboards and mail (sender, subject
+  and date only). It searches first, reads only the one or two objects it needs,
+  and links what it used in the answer. Scoped by workspace and page or board
+  access; mail stays read-only and message bodies are read only through the
+  existing mail tool. New agent tools: `search`, `get`, `list_events`.
+<!-- changelog.d/feat-centered-notices-pro-modal-import.md -->
+- What you just did ("Focus started · 25 min on …", "Placed at 14:00 · 3 Sep
+  [Undo]") now appears as a compact pill at the bottom centre, inverted against
+  the page: dark on Light, white on Dark, and on the phone above the bottom
+  bar. The Ask Needt corner still carries Needt's own nudges. This also fixes
+  confirmations and errors never showing on the phone.
+- The Pro sheet ("Get more out of Needt") now opens from every locked PRO pill,
+  Plan my day and Week load on Home, instead of sending you to Settings. For a
+  Free account that has not had a trial its button reads "Start 14-day free
+  trial" and starts it without a card (`POST /api/billing/trial`), also in
+  Settings › Plan and on the phone. Paid plans still say checkout opens soon
+  while `billing_checkout` is off.
+- The sidebar has an Import button next to Create. A CSV of tasks imports now;
+  From Notion starts the Notion import when it is set up. Markdown files,
+  Google Docs and calendar files (.ics) are listed as "Soon": nothing backs
+  them yet.
+<!-- changelog.d/feat-composer-expand.md -->
+- The quick-add line writes the repeat it understood ("every friday" becomes a
+  weekly task that starts on the next Friday) and has an expand button: ⌘↵ or
+  the corner button adds the task and opens it in the full task dialog. Enter
+  still adds and stays.
+<!-- changelog.d/feat-connect-today-widget-api.md -->
+- Connector token API for widgets: `GET /api/connect/today` (one payload:
+  counts, next task, Daily Highlight, habits, next event, next personal-time
+  block, free minutes, weather line), `GET /api/connect/highlight`,
+  `GET /api/connect/habits/today` and `POST /api/connect/habits/:id/toggle-today`.
+  "Today" is the day in your saved time zone.
+<!-- changelog.d/feat-docs-editor-blocks-2.md -->
+- Document editor: **Toggle, Callout and Columns are real blocks.** A Toggle
+  folds the blocks under its title (the arrow remembers open or closed on this
+  device); a Callout has an icon and a colour (the document palette) and holds
+  any blocks; Columns are two or three side by side, resizable by their divider
+  (arrow keys work too) and stacked on a phone. They go in empty from `/` with
+  the caret inside, instead of asking for text in a dialog. Pages saved with the
+  old, uneditable Callout/Toggle/Columns blocks open as the new blocks (text
+  kept) and are rewritten in the new shape on the next save.
+<!-- changelog.d/feat-docs-editor-colors-4.md -->
+- Document editor: the selection bar gets **Underline**, **Text colour** and
+  **Highlight**. Colours are the document hues (Umber, Wine, Plum, Navy,
+  Forest), stored by name and drawn in the reading that is legible on the page
+  (pale hues on a dark page); `==text==` and Mod+Shift+H highlight, and the phone
+  Format sheet has the same colours.
+<!-- changelog.d/feat-docs-editor-export-5.md -->
+- Document export: Page options gets **Export as Markdown** (a `.md` download
+  of the page as it is on screen) and **Export as PDF** (the browser's print
+  with the page alone on the paper, in its own style). The same Markdown is
+  served by `GET /api/pages/:id/export?format=md` (same access as the page
+  itself; documented in `docs/connector-api.md`).
+<!-- changelog.d/feat-docs-editor-fixes-1.md -->
+- Document editor, first pass: **Link** in the selection bar (and in the
+  context menu and the phone Format sheet) now links the selected text, with
+  **Mod+K**; the Link block is only used when nothing is selected. The `/` menu
+  opens at the start of any word, not only in an empty line, and says "No
+  blocks match" instead of vanishing. Images can be pasted or dropped into a
+  page (same upload as the Image block). `/pages/<id>#<blockId>` now scrolls to
+  and marks that block. Tables (and special blocks) keep a stable `blockId`
+  between saves, and a table is stored as type `TABLE`.
+<!-- changelog.d/feat-docs-editor-tables-3.md -->
+- Document editor tables: a bar over the table while the caret is in it adds a
+  row above or below, adds a column left or right, deletes the row, column or
+  the whole table (the last row or column deletes the table), and switches the
+  header row and header column. Tab and Shift+Tab move between cells, and Tab in
+  the last cell adds a row. Column borders show the resize cursor and handle.
+<!-- changelog.d/feat-docs-style-gates-6.md -->
+- Free and Pro document styles: all four fonts and three page colours (White,
+  Paper, Graphite) stay free; a backdrop, a cover (drawn art or your own
+  picture), the other page colours and every All Styles preset but Default are
+  Pro. The Style panel and the phone Page Style sheet mark them with a lock and
+  open the paywall, and the pages API refuses them on a free plan
+  (`UPGRADE_REQUIRED`, keys `backdrop`, `page`, `cover`). What a page already
+  has is kept after a downgrade, and a free plan can still remove a cover.
+<!-- changelog.d/feat-habits-history.md -->
+- Habits: a past day can be marked or unmarked
+  (`PUT/DELETE /api/habits/:id/completions/:date`, up to 400 days back). On the
+  phone each habit has a "Past days" panel with its last four months, and
+  streaks count past 14 days; on the desktop, pick one habit in "Last four
+  months" and click a past dot.
+<!-- changelog.d/feat-icloud-guide.md -->
+- The Apple / iCloud connect dialog now walks through creating an app-specific
+  password step by step (with Apple's labels, a button that opens
+  account.apple.com, three schematic sketches and a "Not working?" list), and
+  failures say what to do: wrong password type, no calendars found, or iCloud
+  unreachable. Same steps in docs/help/connect-icloud.md.
+<!-- changelog.d/feat-moodboard-controls.md -->
+- Moodboards: Import from Pinterest (Pro). Connect Pinterest read-only from a
+  board's Add menu (or Connections), pick one of your boards, and its Pins are
+  copied onto the moodboard as pictures that keep their Pin link. An optional
+  "Keep in sync" adds new Pins once a day and never removes anything; if
+  Pinterest revokes access the tile says "Needs attention" until you
+  reconnect. The disabled "Coming soon" Pinterest rows are gone. Setup:
+  `docs/operations/pinterest.md`.
+<!-- changelog.d/feat-per-day-hours.md -->
+- Working hours are now set per weekday in Settings > Your day: each day has
+  its own switch and hours, and a second range for a lunch break (for example
+  9:00-13:00 and 14:00-18:00). The calendar shading, auto-scheduling, capacity
+  and free-time nudges all follow the per-day hours. The phone settings have
+  the same per-day editor. The "Plan on weekends" switch is gone: Saturday and
+  Sunday are ordinary days now, and people who had weekends on keep them.
+- New setting: Time format (12-hour or 24-hour) under Calendar, on desktop and
+  phone. The calendar already read it; there was no control for it.
+<!-- changelog.d/feat-recurring-next.md -->
+- Recurring tasks now work end to end. Completing one (in the app, through
+  `PUT /api/tasks/:id`, the `task.complete` op or `needt_complete_task`) records
+  that occurrence as a finished task and moves the same task to its next date,
+  keeping its time of day. The series is anchored on the task's own date, so
+  "every week" no longer follows the weekday you happen to tick it on, "every
+  day" no longer skips a day, and ticking an overdue task lands it on a coming
+  date. The Repeat chip gains Custom: every N days, weeks or months, on chosen
+  weekdays. `task.complete` no longer refuses recurring tasks, and Undo puts the
+  date back and removes the recorded occurrence.
+<!-- changelog.d/feat-shared-sortable.md -->
+- Reordering works the same everywhere on desktop: Customize Sidebar (Places
+  and Sections), subtasks in the task dialog and the moodboard wall now share
+  one sortable list. The row follows the pointer (transform only), the others
+  slide aside, it drops where the gap shows, text no longer selects while
+  dragging, the grip shows a grab cursor, and Space, the arrows and Space
+  again reorder from the keyboard with a spoken position. A failed save puts
+  the old order back.
+<!-- changelog.d/feat-status-banners.md -->
+- The desktop top bar now shows the offline pill, and status banners appear
+  under it: "Google Calendar / Gmail access was revoked" with Reconnect (when
+  every calendar of an account fails to sync, or a mailbox is in error),
+  "AI paused" when the monthly AI allowance is spent, and "AI is temporarily
+  unavailable" when no AI key is configured for the person or the server.
+  `GET /api/accounts` gains `needsReconnect`.
+<!-- changelog.d/feat-sync-now.md -->
+- Connections: "Sync now" on a connected calendar or mailbox (the card menu on
+  the desktop, the account sheet on the phone). It queues the worker's sync job
+  (`POST /api/accounts/:id/sync` for calendars, the existing
+  `POST /api/mail/sync` for mail) and says the sync started.
+<!-- changelog.d/feat-task-dialog-complete.md -->
+- Tasks gain the fields the v3 task dialog needs, readable and writable through
+  the task API, the connector ops and the MCP tools: labels (`tagIds` /
+  `labelIds`), repeat (`recurrenceRule`, validated; the `isRecurring` flag now
+  follows it on `PUT /api/tasks/:id`), hours (`scheduleId`), "No priority"
+  (`priority: "none"` on the API, `NONE` in ops and MCP), `createdAt` in the
+  task view, and files: `GET`/`POST /api/tasks/:id/attachments` and
+  `GET`/`DELETE …/:attachmentId` (images and PDF, 4 MB, ten per task, bytes in
+  Postgres, served `nosniff`), plus `task.attach` / `task.detach` ops and the
+  `needt_attach_file` / `needt_remove_attachment` tools. Linking a label that
+  is not yours is refused.
+<!-- changelog.d/feat-task-dialog-ui2.md -->
+- The task dialog and the phone task sheet now have Labels, Repeat, Hours (your
+  work schedules, shown once you have two or more), a "No priority" choice and
+  Attachments (images and PDF, 4 MB each, ten per task). The dialog also shows
+  when the task was created, and its Start focus button on the first step
+  starts a focus session on it. A task synced from Outlook or Google Tasks
+  shows its title and repeat read-only, since the next sync overwrites them.
+<!-- changelog.d/first-run-sample-day.md -->
+- First run: setup is three short steps (what you use Needt for: Work, Study,
+  Personal or Side project; connect a calendar, only the providers this server
+  can run; your working hours, day by day), plus an Import step when Todoist or
+  Notion is configured. Then you land on Today with a sample day matching the
+  first use you picked: a project, six tasks (one overdue, one with subtasks),
+  a "Start here" document and a habit. Examples are marked, never count toward
+  Free limits, and one "Clear examples" button (Today, or Settings under Data)
+  removes them all. `POST` / `DELETE /api/onboarding/sample` (and the token form
+  under `/api/connect`) do the same from outside. Existing accounts are not
+  given examples.
+<!-- changelog.d/first-run-time-zone.md -->
+- New accounts start in the browser's time zone, with the week starting on
+  Monday and a 24-hour clock where the browser language uses them, instead of
+  UTC, Sunday and 12h. Accounts still at the UTC default are moved once on
+  their next signed-in load; a zone someone picked is never replaced.
+<!-- changelog.d/fix-mail-held-tabs-fainter.md -->
+- The Mailbox's held Sent and Drafts tabs are fainter: the one text colour at
+  its disabled alpha instead of a stacked opacity. They stay disabled, and the
+  tooltip still says the folder is not synced yet. (The phone Mailbox has no
+  Sent or Drafts tabs.)
+<!-- changelog.d/fix-oauth-resource-alias.md -->
+- Adding Needt to claude.ai or ChatGPT with the older URL
+  `https://use.needt.app/api/mcp` now works: OAuth accepts it as an alias of
+  `https://mcp.needt.app/mcp`, and tokens issued for either URL work at both
+  endpoints. Any other resource is still refused.
+<!-- changelog.d/fix-release-deploys-newest.md -->
+- Production deploys no longer stall while merges keep landing. A release used
+  to stand down unless its commit was still the head of main, and with a
+  25-minute build and merges every few minutes none ever deployed (production
+  sat at 4c9c2ee). Now the newest finished build deploys unless production
+  already runs it or a descendant: the deploy script pins the Coolify
+  application to the built commit first (needs the token's `write` ability;
+  without it, it deploys the head of main if its images are already in GHCR).
+<!-- changelog.d/fix-screen-layout-width-2.md -->
+- Docs, Trash, Moodboards, Templates and Shared keep their header, grids and
+  lists in the same content column as Tasks on wide windows; the Trash list
+  fills that column instead of stopping at two thirds.
+<!-- changelog.d/fix-screen-layout-width.md -->
+- Tasks, Projects and a project page now use one content width: task rows fill
+  the same column as the header and the project tiles, with time, duration and
+  project at the right edge instead of floating in the middle on wide windows.
+<!-- changelog.d/fix-task-deadline-follows-due.md -->
+- Fix: moving a task's due date through Ask or the Needt connector now moves its
+  deadline with it when the two were the same date, so the scheduler stops
+  placing the task by the old one. `needt_update_task` and `task.update` also
+  accept `deadline` to set it on its own.
+<!-- changelog.d/focus-blocking-profiles.md -->
+- Focus blocking profiles (Pro, behind the `focus_blocking` flag): name the sites and Mac apps to
+  block while a focus session runs, a matching calendar event is on, or a task of a chosen project is
+  scheduled. `GET /api/blocking/active` says what to block right now and why; profiles live at
+  `/api/blocking/profiles` and in the `needt_blocking` / `needt_blocking_profile` MCP tools.
+<!-- changelog.d/focus-done-ends-session.md -->
+- Marking a task done ends its running Focus session on every device and path
+  (app, API, MCP, connector). Finishing early shows "Done 12 min early" and gives
+  the saved minutes back to the day.
+- New task setting "Do for the full time" (`fullTime`, on by default for habit
+  and repeating tasks): ticking the task asks "N min left: keep going or end
+  now" instead of ending the session. Available in the task dialog, on the
+  phone, the task API and the MCP tools.
+<!-- changelog.d/focus-done-prompt.md -->
+- When a Focus session on a task ends (the clock runs out or you stop early), Needt asks "Done with <task>?" with Done, Not yet and, after a finished timer, +15 min. Done closes the task and offers Undo; leaving without answering keeps the question as one notice. The Focus ended push gains a "Mark done" action that closes the task without opening the app, and tapping the push (the only option on iOS) opens the app straight on the question.
+<!-- changelog.d/focus-ended-notification.md -->
+- Needt tells you when a Focus session ends: a push saying "Focus done" with the task and length, and a quiet notice in any open window. The session you paused, extended or ended early is followed, and Settings → Notifications has a "Focus ended" switch (on by default).
+- Settings → Notifications no longer offers Daily plan and Weekly review: nothing sent them. Overdue tasks and Focus ended remain.
+<!-- changelog.d/free-dock-mailbox.md -->
+- On the Free plan, Mailbox now sits under More instead of taking one of the
+  five sidebar tiles, since Free has no mailboxes; Projects takes its place.
+  A layout you saved yourself is left as it is.
+<!-- changelog.d/home-daily-highlight.md -->
+- Home: pick one task as today's highlight (the task menu, "Make highlight"). It is
+  shown big at the top of Home with a one-tap Complete and Start focus, and is
+  lifted out of the lists below. Stored per day and readable through
+  `GET /api/highlight`.
+<!-- changelog.d/home-endday-nudge.md -->
+- Home: in the last 30 minutes of your working day (per-day hours) a one-line
+  prompt offers End day; dismiss it for the day. End day is also in the + menu.
+<!-- changelog.d/home-energy-order.md -->
+- Energy-aware order: a task's energy (high / medium / low) now shapes the day.
+  On Home, tasks without an hour are ordered heavy-first during your high-energy
+  hours and light-first after them; the scheduler keeps heavy tasks to those hours
+  and light ones later. Set the hours in Settings, Your day (the morning by default).
+<!-- changelog.d/home-finish-day.md -->
+- Home: when today's tasks are done, the "All done" banner becomes a compact
+  card with the 2–3 best next tasks (from overdue, tomorrow and the Inbox) and
+  a one-tap "Do today". "End day" opens a short shutdown: what got done,
+  leftovers to move to tomorrow, a date or the Inbox, and a note for tomorrow
+  that is saved into tomorrow's daily note. The card no longer says "All done"
+  while overdue or Inbox tasks are still open. New `POST /api/pages/:id/append`.
+<!-- changelog.d/home-ha-data.md -->
+- The three focuses picked in the Sunday review are now saved for the week
+  ahead (`/api/week-focus`, documented in the Connector API) and become the
+  first candidates for the day's highlight.
+- Highlight suggestions come with a one-line reason each. With Pro, the agent
+  picks and words them (`/api/ai/highlight-suggestions`, once a day, counted as
+  one AI action); without it the same suggestions come from the usual rules.
+- The morning brief now shows until 11:00 or the first task you finish,
+  whichever comes first (it was until noon).
+- The first-event line on Home no longer says when to leave: Needt has no real
+  travel time, so it shows only the weather and the first event.
+<!-- changelog.d/home-ha-desktop.md -->
+- Desktop Home follows the new design: the Highlight card takes the Next up
+  slot (the agent's suggestion with its reason, set, or plain Next up), Today
+  with the time-left bar and Habits sit on the right, This week sits above the
+  schedule, the weather and first event are beside the date and the morning
+  brief is one line under the header. Free sees the brief and the suggestion's
+  Yes with PRO.
+<!-- changelog.d/home-ha-phone.md -->
+- Phone Home has the new look for its top: habits as pills (emoji, N/target
+  with a ring for weekly ones), one Highlight card in place of Next up and the
+  separate suggestion row (the agent's suggestion with its reason, Yes or
+  Another; set; or plain Next up), then the morning brief, weather with the
+  first event, and the time-left bar. Free sees the brief and the suggestion's
+  Yes with PRO; a tap opens the plans. The brief also shows the note End day
+  left the evening before.
+<!-- changelog.d/home-ha-wire.md -->
+- Home's End day, All done, schedule and weekly review use the new design on
+  the phone and the desktop: the End day and review sheets, the all-done card
+  with "Pull something in", and personal time as striped bands among the
+  schedule rows. What they do is unchanged (moves, the note for tomorrow in
+  tomorrow's daily note, Undo).
+- The weekly review now asks for exactly three focuses picked from your open
+  tasks and projects (no typing). They are saved as references in
+  `/api/week-focus` (a `taskId` or a `projectId` with its name), and the day's
+  highlight suggestions use those ids. Older title-only entries are still read.
+<!-- changelog.d/home-highlight-suggest.md -->
+- Home: in the morning, with no highlight set, a one-line suggestion offers the
+  most important task due today. Tap Yes to make it the highlight, or Another
+  for a different one.
+<!-- changelog.d/home-morning-brief.md -->
+- Home (Pro): in the morning, Ask writes a 2–3 line brief at the top of Home: what
+  matters today, what is overdue, how much free time is left. Written once a day
+  through the usual hosted AI allowance, cached, and dismissible. Free accounts
+  and accounts without working AI see nothing. New `/api/ai/morning-brief`.
+<!-- changelog.d/home-phone-habits-dup.md -->
+- Phone Home: the old collapsible Habits section is gone; the row of habit circles
+  under the date replaces it.
+<!-- changelog.d/home-phone-habits-row.md -->
+- Phone Home: a row of habit circles under the date (emoji or initial, a ring for
+  the week so far). Tap to keep today; it scrolls when there are many and is
+  hidden when you have no habits.
+<!-- changelog.d/home-polish-city-picker.md -->
+- Settings, General: the weather City is now a picker. Type a few letters, choose a city from the list (name, region, country), and the weather uses its exact location. A cross clears it. Same picker on the phone. Only what you type is sent, through our server.
+- Home: the Today card's time bar now shows planned time as a solid stretch, free time as a dashed track and, when the day is overbooked, the part that does not fit as red dashes past a marked end of the day.
+- Home: the header no longer repeats "Today · week N", and the weather line sits level with the date heading.
+<!-- changelog.d/home-schedule-band-slot.md -->
+- Home: the day timeline has a slot above its rows for the personal-time band
+  (nothing shows until the band lands).
+<!-- changelog.d/home-spread-across-week.md -->
+- An overbooked day on Home now offers a way out: "Spread across the week" on
+  the time-left card gives today's untimed tasks the next days that still have
+  room (each day's own working hours, less events, personal time and what is
+  already on it), and Overdue has Spread beside Move to today, with Spread
+  first when today is already full. One Undo puts every task back. The same
+  spread is the `task.spread` operation in the API and `needt_reschedule` with
+  `taskIds` or `scope` in MCP.
+- Next up's title stops at two lines with an ellipsis, and the whole title
+  shows on hover; phone rows show theirs on hover too.
+<!-- changelog.d/home-stats.md -->
+- Home: a small "This week" card (done count, seven bars with the best day marked,
+  your streak) that replaces the Streak card and hides itself when there is
+  nothing to show. Tap it for the full stats: week or month, done per day, by
+  project, best weekday and Focus minutes. New `GET /api/stats?range=week|month`.
+<!-- changelog.d/home-time-left-personal.md -->
+- Home: the time-left line takes your personal time (lunch, a walk) out of the free
+  time, and the phone's day shows the same quiet personal bands as the desktop.
+<!-- changelog.d/home-time-left.md -->
+- Home: a thin time-left line compares what is planned today with the working
+  time that remains, and warns softly when the day is overbooked.
+<!-- changelog.d/home-weather-line.md -->
+- Weather on Home: add a City in Settings, General and a tiny line shows today's weather
+  (Open-Meteo, no key) and the first event of the day, with when to leave if it has
+  a location. Empty by default, and then nothing shows. Only the city name is sent;
+  your device location is never used. New `GET /api/weather`.
+<!-- changelog.d/home-weekly-review.md -->
+- Sundays on Home: a short weekly review. See the week's wins, move what is left over
+  (Monday, a date or the Inbox) and pick three focuses for next week. It is saved as
+  a page, "Weekly review · <date>", reachable through the pages API.
+<!-- changelog.d/imap-require-tls.md -->
+- IMAP mailboxes connect only over an encrypted session: SSL/TLS on port 993 or
+  STARTTLS on port 143. A server that offers neither is refused with a message
+  that says so, and an existing IMAP mailbox whose server has no STARTTLS stops
+  syncing instead of sending its password in plaintext.
+<!-- changelog.d/inline-subtasks.md -->
+- Task lists show subtasks inline: under the title a row shows its next step
+  ("Step 2: Draft the page", numbered by position, the first two-minute step is
+  Step 1), and a tap on the 0/3 count unfolds every step with a tick of its own.
+  Works on Home, Tasks, the Calendar peek and the phone. The task view gear has a
+  Subtasks choice (Next step + expand, All steps open, Count only) that replaces
+  the old on/off; an old "off" reads as Count only. The big "+" in a project
+  page's header is gone: the "Add a task" row below it is the one place to add.
+<!-- changelog.d/ios-install-head.md -->
+- Adding Needt to the iPhone Home Screen always installs the app: the sheet
+  names it "Needt" and it opens full screen, without Safari's address bar
+  after you leave Home. The install tags no longer arrive late in the page.
+<!-- changelog.d/ios-install-redirect-host.md -->
+- Signing in on a local or test host keeps you on the address you opened, so
+  an installed app there no longer drops into Safari's controls.
+<!-- changelog.d/landing-glyphs-dock-settings.md -->
+- The phone dock and Settings (phone and desktop) use the landing icon set: larger bare icons in the dock with no tile behind them, and a glyph per Settings section.
+<!-- changelog.d/learn-about-me.md -->
+- Settings has a new switch, "Let Needt learn about me", off by default. When
+  on, Needt learns your work habits from your tasks, keeps preferences you tell
+  Ask, and picks up short facts from your documents and mail subjects (never
+  mail bodies). Ask, the morning brief and the scheduler use them: blocks follow
+  how long your tasks really take. Settings, Memories lists every line with its
+  source and date, and you can edit, delete or forget all. Also through
+  `/api/ai/memories` and MCP.
+<!-- changelog.d/legacy-routes-redirect.md -->
+- The old Chat, Focus and Quick add screens are gone: `/chat` opens Ask on
+  Today, `/focus` opens Today and `/quick-add` opens the new-task composer.
+<!-- changelog.d/lifetime-seats.md -->
+- A public seat counter for the Lifetime plan (`GET /api/lifetime-seats`) feeds the landing page.
+<!-- changelog.d/mac-app-fixed-frame.md -->
+- Mac app: the window is a fixed frame again. The top bar stays put and only
+  the panes scroll; the sidebar no longer slides up under the window buttons.
+- Mac app: Ask Needt is back in the bottom-right corner, and the empty rounded
+  box that floated over the last task row is gone.
+- Mac app: Settings and the menus open faster (the section and the plan card's
+  sky load after the sheet has appeared; no background blur in the app).
+<!-- changelog.d/mac-webkit-desktop-paint.md -->
+- Mac app: the Connections sky fills its whole box, the Connections title no longer sits on its subtitle, the notification corner is only as big as its toast, and Ask Needt opens from a visible pill. The app also idles more when nothing moves.
+<!-- changelog.d/mail-oauth-state-pkce.md -->
+- Connecting a Gmail or Outlook mailbox now verifies the sign-in came from your
+  own browser (OAuth state and PKCE), so a crafted link can no longer attach
+  someone else's mailbox to your account.
+<!-- changelog.d/mcp-writes-live-refresh.md -->
+- Changes made through the Needt connector (MCP) or an AI assistant, such as ticking a subtask, adding subtasks, completing or editing a task, logging a habit, or writing a page, now show up in the open app at once instead of after a reload. Subtask changes also update the task's last-changed time.
+<!-- changelog.d/memories-phone.md -->
+- Settings, Data on the phone has the Memories group: the "Let Needt learn about
+  me" switch, the list of what Needt learned, edit, delete and Forget all.
+<!-- changelog.d/memory-tombstones.md -->
+- A work-habit memory you delete in Settings, Memories no longer comes back at
+  the next recompute. Forget all resets that.
+<!-- changelog.d/moodboard-cover-fidelity.md -->
+- Moodboards: the phone board cover now fills its fourth cell (the list sent three
+  references, the cover draws four), a link cell on it takes its site's hue, and the
+  desktop cover tints a link that has no picture by its site, as in the design.
+<!-- changelog.d/moodboard-item-comments.md -->
+- Moodboards: comment on a reference. The reference sheet (desktop and phone)
+  shows a thread with Resolve and Delete; editors write, viewers read. The
+  board's owner and earlier commenters are told in their notifications. API:
+  `/api/moodboards/:id/items/:itemId/comments` (docs/connector-api.md).
+<!-- changelog.d/moodboards-share-notification.md -->
+- Moodboards: a person invited to a board now sees "<name> shared <board> with
+  you" in their notifications, linking to the board.
+<!-- changelog.d/morning-brief-count-and-length.md -->
+- The morning brief keeps the leading count ("14 tasks open today") and is now two short sentences at most.
+<!-- changelog.d/onboarding-v3-flag.md -->
+- New accounts can start in the 18-screen `/start` onboarding instead of
+  `/setup`, behind the server flag `onboarding_v3` (off by default; per-user
+  overrides apply). Finishing either flow now records
+  `User.onboardingCompletedAt`, and someone the flag is on for who opens Today
+  with nothing set up is sent into the flow once, then sees a banner they can
+  close. Admins can list every flag at `GET /api/admin/feature-flags` and turn
+  on a flag that has no row yet.
+<!-- changelog.d/onboarding-v3.md -->
+- New 18-screen onboarding at `/start` (desktop and phone): pick your areas,
+  tasks and repeats, rank what matters, set your days and rhythm, watch Needt
+  plan next week with the real scheduler, then save it with an account. The
+  answers, the plan preview and the final write are all in the API
+  (`POST /api/onboarding/plan`, `GET`/`PUT /api/onboarding/answers`,
+  `POST /api/onboarding/commit`).
+- The 14-day Pro gift starts when the email is confirmed. Choosing Pro or
+  Lifetime asks for a card through Creem (Pro is charged when the gift ends,
+  Lifetime now); Free needs no card, and "Continue without a subscription"
+  keeps the gift and then drops to Free. Checkout stays behind the billing flag.
+<!-- changelog.d/one-sync-status.md -->
+- One quiet sync status in the top bar of every screen, on desktop and phone: a
+  dot and one word (Saved fades to the dot; Syncing…; Offline with the number
+  of changes waiting; Error). Click for the details and Retry. On a document or
+  board it also reads the live provider, and a draft kept only on this device
+  shows as an error rather than Saved. It replaces the document's separate dot
+  and "Saved", and the old offline pill. Your own avatar is no longer shown in
+  a document; only other people in it appear.
+- The document rail's second sidebar button (the layout icon) is gone. The
+  panel icon in the top bar, with its ⌘\ shortcut, is the one sidebar toggle.
+<!-- changelog.d/ops-task-placement-undo.md -->
+- Placing, pinning and unpinning a task through the operations API
+  (`task.update` and `task.create` with `start`, `pinned`, `autoSchedule`) now
+  works like the connector and the app, and can be undone: the previous
+  time, pin and scheduled blocks come back exactly.
+<!-- changelog.d/personal-band-drag-resize.md -->
+- Personal time can be moved and resized on the calendar grid: drag a band
+  to a new time, or pull its bottom edge to change when it ends. It snaps to
+  15 minutes and is never shorter than that. A repeating block asks first,
+  because every repeat moves with it; a block marked on a calendar event stays
+  put and follows the event.
+<!-- changelog.d/personal-home-band.md -->
+- Home shows your personal time (Lunch, a Walk and so on) as a calm band above
+  today's schedule, and on the phone's Today.
+<!-- changelog.d/personal-time-edit.md -->
+- Personal time can be changed. Open a block on the calendar (the card on the
+  desktop, the sheet on the phone), tap Edit and change its name, when it
+  starts and ends, and the days it repeats on. A repeating block changes as a
+  whole; a block marked on a calendar event keeps the event's time and only
+  takes a new name. Before this a block could only be made or removed. Undo
+  puts the old values back.
+<!-- changelog.d/personal-time.md -->
+- Personal time: keep Lunch, a Break, a Walk, Dinner, the Gym, a Party or Rest
+  for yourself. Needt never schedules a task in it, Plan my day included, and it
+  stays inside Needt (nothing is written to Google or iCloud). Add one with a
+  tap from Create, from an empty slot on the calendar, or by asking Ask; set
+  repeating defaults (for example Lunch on weekdays at 13:00) under Settings,
+  Your day; or mark any calendar event as personal time. It shows as a calm,
+  tinted band on the calendar (desktop and phone) and in Home's day. Dragging a
+  task into it asks first. Readable and writable through the API, MCP and Ask,
+  with Undo.
+  New accounts start with Lunch kept on weekdays, 13:00 to 14:00; edit it under
+  Settings, Your day.
+<!-- changelog.d/personal-token-expiry.md -->
+- Personal `needt_` access tokens now expire one year after they are created.
+  Settings › Connections shows when the current token expires; a token made
+  before this change keeps working until it is rotated.
+<!-- changelog.d/phone-bands-budget.md -->
+Phone (iPhone Safari and the installed app): the blurred top band, the bottom fog and the menu scrim stop a few pixels short of the display edge, so the status bar and the toolbar take the page colour again instead of a tinted strip.
+<!-- changelog.d/phone-bottom-band.md -->
+- The phone app fills the whole screen in the installed iOS app: the flat band under the dock is gone on every screen.
+<!-- changelog.d/phone-browser-bars-tint.md -->
+- In Safari, the bars above and below the phone screen take the colour that is under each edge of the current screen, including while a sheet or the search plate is open.
+<!-- changelog.d/phone-doc-keyboard-bar.md -->
+- Editing a document on iPhone: the formatting bar now sits directly on the keyboard (it used to stay behind it), shows only while the page has focus, and the line you type is kept above it.
+- The block grip no longer appears over the words you are selecting: a long press in the left gutter opens it, and typing or selecting puts it away.
+- The darker strip under the bar in a document is gone: the bar no longer floats above a reserved dock gap.
+<!-- changelog.d/phone-dock-bottom-offset.md -->
+Phone: the dock stands 30 px above the display edge in an installed app and 84 px in a Safari tab, as the design says (it stood 10 px higher).
+<!-- changelog.d/phone-dock-shadow-edge.md -->
+- On iPhone, the dock's shadow no longer greys the bottom edge of the screen
+  in the light theme.
+<!-- changelog.d/phone-docs-editor.md -->
+- Tasks inside documents. A checklist item can be a real Needt task: type `[]`
+  (no space inside) or choose Task from the `/` menu or the phone bar&apos;s
+  block menu. It gets a Task with the page as its origin as soon as it has
+  words (in the page&apos;s project when it has one), so it shows up in Today,
+  Tasks and the project. Ticking the item completes the task and completing the
+  task ticks the item; the date chip at the end of the line is the task&apos;s
+  due date; renaming either renames both. Taking the item out of the page asks
+  whether to delete the task too or keep it. `[ ] ` and `[x] ` still make a
+  plain checklist item. The old Task block is now Task link.
+- The phone editing bar above the keyboard holds a block type menu (Text,
+  Headings, lists, Task, Toggle, Callout, Quote, Code, Divider, Image, Table),
+  bold, italic, underline, strikethrough, link, colour and highlight, indent
+  and outdent, undo and redo, Insert and a button that puts the keyboard away.
+  It rides on the keyboard from the visual viewport without waiting a frame,
+  ignores the overshoot of a dragged page and a zoomed page, so it no longer
+  jumps while the page scrolls, and it now sits above the dock at rest.
+- The `/` menu puts the entries named by what you typed first (`/task` lands
+  on Task, not Checklist).
+- Export as Markdown and Export as PDF in the document card menu on the phone
+  and the desktop (PDF opens the page and prints it).
+<!-- changelog.d/phone-docs-menu.md -->
+- Docs on the phone and the desktop card menu share one set of actions: Rename,
+  Move to project, Pin or Unpin, Duplicate (a copy with the same text, cover,
+  style and project), Share (the Share sheet, with the publish switch), Copy
+  link and Move to Trash, each with Undo. On the phone they are the
+  long-press sheet. Cards below the fold draw their page lazily and their cover
+  pictures load lazily.
+- Tasks can name the page they came from: `originPageId` on `GET`, `POST` and
+  `PUT /api/tasks`, `GET` and `POST /api/connect/tasks`, and `originPageId` on
+  `needt_list`, `needt_create_task` and `needt_update_task`. `GET /api/tasks`
+  takes `?originPageId=<page id>` to list the tasks from one page. It is a
+  shorthand for the existing `originKind: "doc"` and `originId` columns, so
+  nothing in the schema changes.
+<!-- changelog.d/phone-document-scroll.md -->
+- Phone: pages scroll like an ordinary web page instead of inside a fixed
+  frame, so Safari 26 no longer paints a solid band behind the status bar and
+  the bottom toolbar, in the browser and in the installed app. The page colour
+  is the theme's ground and changes the moment the theme does; content runs
+  under both bars, the dock floats above the bottom, and a sheet holds the page
+  still and gives back its scroll position.
+<!-- changelog.d/phone-edge-blur.md -->
+- Phone (iPhone Safari and the installed app): the top and bottom blur now run
+  to the display edge, so rows scrolled under the status bar are blurred
+  instead of showing as a sharp sliver; only the tinted layers still stop a few
+  pixels short so the bars keep the page colour.
+<!-- changelog.d/phone-edge-layers.md -->
+Phone: the blurred band at the top and the fog at the bottom reach the very screen edge again (behind the status bar and the Safari toolbar), and the pull-down plate no longer paints a band at the top. Full-screen fixed layers now stand 8 px in from the edges so Safari 26 has nothing to tint its bars from.
+<!-- changelog.d/phone-focus-button-bottom-strip.md -->
+- iPhone: a round Focus button with a time-left ring appears left of the dock while a focus session runs (a paused session shows a quiet ring); tapping it opens the Focus sheet. The bottom fog now reaches the display edge, so no strip shows under the dock.
+<!-- changelog.d/phone-focus-dock-row.md -->
+- Phone: while a focus session runs, the dock becomes the focus row from the
+  design: a 64 px focus button left of a four-slot pill, centred, with no New
+  task button (hold the pill to add a task), so the ring never runs off a
+  narrow screen or into the pill.
+<!-- changelog.d/phone-fog-dots-drift.md -->
+Phone: the fog dots under the dock move again (the live check no longer depends on an intersection observer reading a zero-height fixed box).
+<!-- changelog.d/phone-home-done-card.md -->
+- Phone Home, finished day: the headline stays on one line with End day and See tomorrow under it, and "Pull something in" lists the next tasks in the same rows as the rest of Home, with a small Today action.
+<!-- changelog.d/phone-native-feel.md -->
+- Home on the phone showed yesterday's date after the installed app had been asleep, and its "week 42" disagreed with the calendar's "week 41". The day and the week number now come from one place, follow your time zone and week start, and are re-read whenever the app comes back to the screen.
+- The phone no longer shows a lighter strip under the bottom bar: the page behind the screen, the browser bar colour and the app's splash colour are the screen's own colour, in light and dark.
+- "All done for today" is no longer shown while an Inbox or overdue task is still open.
+- Swipe a task row right to complete it, or left to reveal Schedule and Delete (Home, Tasks, projects). The row follows your finger with a rubber band, and Android phones give a short buzz at the threshold and on complete.
+- Share to Needt: on Android, share text, a link or a picture from any app to Needt and save it as a task, a doc or a moodboard item, in a project. iPhone does not let a home-screen app receive shares.
+- Long-press the app icon for New task, Today and Ask Needt. The icon badge shows today's open tasks plus overdue ones where the device supports it.
+<!-- changelog.d/phone-nothing-fixed-at-top.md -->
+- On the phone nothing is pinned to the top of the screen any more: the blur
+  band and the small title that replaced the large one while you scrolled are
+  gone. Content scrolls under the status bar and Safari's bar, and the large
+  title scrolls away with the page.
+<!-- changelog.d/phone-plan-start-trial.md -->
+- The phone Plan page now offers "Start 14-day free trial" to a Free account
+  that has not had its trial yet, as the desktop Plan section does.
+<!-- changelog.d/phone-reader-ground.md -->
+- On iPhone, an open document without a backdrop no longer shows a band at
+  the top: the page behind the status bar takes the document's paper colour.
+<!-- changelog.d/phone-safari-bar-layout.md -->
+- Phone in a Safari tab: the header now sits right under Safari's bar instead
+  of below an empty strip, and with Safari's address bar at the top (Settings >
+  Apps > Safari > Tabs > Top) the dock sits at the bottom of the screen instead
+  of floating above it. The dock and the header no longer shift a moment after
+  the page loads.
+<!-- changelog.d/phone-standalone-navigation.md -->
+Phone: a test now fails the build if the app navigates to itself by an absolute or http:// URL, or opens an app path in a new window (the way an installed iPhone app drops into Safari's in-app browser).
+<!-- changelog.d/phone-standalone-sheet-height.md -->
+- In the installed iPhone app, a sheet opened from a link (such as Settings)
+  covers the whole screen again instead of stopping above the bottom.
+<!-- changelog.d/phone-top-band-2.md -->
+Phone: the collapsed header now sits on a full-strength 24 px blur with a 78% ground tint from the display edge down to 16 px below it, then a 24 px fade, so no row text is legible behind the title. The band is sized from the header's own height.
+<!-- changelog.d/phone-top-band.md -->
+Phone: the installed app now declares apple-mobile-web-app-capable so iOS honours the translucent status bar (content and the blurred band reach the top edge), and the top band is one soft tint instead of a solid slab.
+<!-- changelog.d/phone-top-one-blur.md -->
+- Phone: the top of the screen is one soft blur that fades out under the
+  header, with no white sheet, line or glow behind the status bar, in the
+  installed app and in Safari.
+<!-- changelog.d/phone-viewport-short.md -->
+- The installed iPhone app keeps the screen to the very bottom of the display even when iOS reports a viewport shorter than the screen.
+<!-- changelog.d/push-notifications-setup.md -->
+- Settings → Notifications has a "This device" row: enable notifications from a tap, see whether they are on, blocked, unsupported or need Needt added to the Home Screen (iPhone), and send a test notification. Overdue-task alerts are now pushed to your devices when you are away from the app, and tapping a notification opens the right page in the window you already have open.
+<!-- changelog.d/quick-add-parse.md -->
+- Quick-add parsing for every surface (Pro): `POST /api/quick-add/parse` turns "Call Anna tomorrow at
+  3pm 30m #Work !high" into a title, a start or deadline in your time zone, a duration, a priority
+  and a project. Dates are read in nine languages, including Russian and Ukrainian.
+<!-- changelog.d/review-1019-phone-fog-streak-starter-gap.md -->
+- Phone: the dotted fog behind the dock now reaches the bottom of the display
+  on phones with a home indicator instead of stopping about 40 px above it.
+- Phone: the Starter game card no longer touches the card above it on Home.
+- Home: the week card says "1 day" for a one-day streak, not "1 days".
+<!-- changelog.d/root-to-today.md -->
+- Opening the bare app address while signed in now lands on Today, the same
+  Home the dock, the installed app and onboarding use.
+<!-- changelog.d/route-error-boundaries.md -->
+- A screen that fails to render now shows a small card inside the app with
+  Retry and Go home, instead of taking over the whole page.
+<!-- changelog.d/safari-probe-focus-fog.md -->
+Safari probe: also shoots the phone Focus button (running, paused, ending, light and dark) and checks that the fog dots move.
+<!-- changelog.d/safari-probe-standalone.md -->
+- Safari probe: also installs the app to the simulator Home Screen (Share, Add to Home Screen) and shoots it standalone, light and dark, with an edge-band check of the top and bottom rows and a check for Safari's in-app chrome after navigating.
+<!-- changelog.d/scheduler-all-calendars-caldav-sweep.md -->
+- Every enabled calendar now blocks scheduling, including the Needt calendar
+  that MCP-created events land in and calendars added after the settings were
+  saved; only a calendar you switch off is ignored. Planned tasks no longer sit
+  inside such an event.
+- CalDAV calendars sync every 15 minutes in the background, and a calendar that
+  keeps failing shows "Calendar sync failing" in Connections instead of going
+  quiet. A finished sync job no longer stops the next one from being queued.
+<!-- changelog.d/scheduler-clock-change-hang.md -->
+- Fixed the scheduler hanging forever when a search reached a 23- or 25-hour clock-change day (for example 25 Oct 2026 in Europe). Auto-scheduling and Plan my day now step by calendar day, and every day-by-day search stops after 400 days.
+<!-- changelog.d/scheduler-local-hours.md -->
+- Auto-scheduling now reads high-energy hours and "morning / afternoon / evening" preferences on
+  your own clock. Before, they were compared in the server's time zone, so heavy tasks could land
+  hours away from your energy window.
+<!-- changelog.d/scheduler-user-timezone.md -->
+- Planned tasks now land inside your own work hours: the scheduler read hours, weekdays, overrides and the capacity numbers in server time (UTC), so 09:00-17:00 in Zurich was planned as 11:00-19:00. "Today" in the AI day summary follows your time zone too.
+<!-- changelog.d/scheduling-work-hours-busy.md -->
+- A task with a hard deadline is never placed outside your work hours any more; if it does not fit before the deadline it stays unplaced and is reported as missing the deadline.
+- Calendar events marked free or transparent, and events whose invitation you declined, no longer block scheduling or count as busy time in the week capacity.
+- Signing in on a browser another account used for notifications moves that browser's push subscription to you instead of failing.
+<!-- changelog.d/security-authz-hardening-2026-10-21.md -->
+- Security hardening: a connector or OAuth token with read access only can no
+  longer change data through the operations API (`/api/connect/ops`) or undo
+  actions; writes there need the write scope, mail operations need the mail
+  scope, and writes over `/api/connect` share the 30-a-minute limit that
+  `/api/mcp` already had. Creating or editing a task accepts only the task's
+  own fields, so a request can no longer attach reminders or other records to
+  it, and a task can only wait on a task of its own workspace. A focus
+  session can only be started on, book time to, or finish a task in the
+  workspace you are in, and a viewer can run the timer but not touch a task
+  through it. A viewer can no longer have the AI assistant create tasks,
+  subtasks, mail follow-ups or page proposals.
+<!-- changelog.d/security-quick-wins-2026-10-21.md -->
+- Security hardening: files on a shared page link no longer run script (SVG
+  and other non-picture files download, and every response is sandboxed),
+  uploads keep their type only for PNG, JPEG, GIF, WebP and AVIF, task titles
+  and names are escaped in reminder and password-reset emails, and password
+  reset links are stored hashed. A reset link requested before this update
+  stops working; request a new one.
+<!-- changelog.d/settings-desktop-group.md -->
+- Settings has a Desktop group (App, Island, Focus, Widgets, Siri & Shortcuts) for the Mac app, with a live island preview. Outside the Mac app each section points to the Mac app. The Dock badge can be turned off.
+<!-- changelog.d/settings-widgets-preview.md -->
+- Settings -> Desktop -> Widgets now has a live preview: pick a style tile and the Today medium widget appears in that style, light and dark, with your next tasks for today (a sample day until you plan some).
+<!-- changelog.d/shell-motion-smooth.md -->
+- Closing and opening the left sidebar no longer stutters, and the Ask panel
+  keeps its 220ms glide: the page now slides or is revealed with a transform
+  instead of re-laying-out on every frame.
+<!-- changelog.d/ssrf-outbound-targets.md -->
+- Addresses you enter for outbound connections now have to be public: the connector webhook URL, a custom AI endpoint, CalDAV and IMAP servers, and web-push endpoints are refused when they point at (or resolve to) a private, loopback, link-local or other internal address. Public servers keep working over http or https and on any port.
+<!-- changelog.d/starter-game-data.md -->
+- Starter game, part 1 (data and API): new `GET/PATCH /api/starter-game`
+  (hidden for 7 days or for good, fewer than five open tasks), the one agent
+  request `POST /api/starter-game/plan` and `POST /api/starter-game/create`,
+  which creates the sorted tasks, habits and projects as one undoable action
+  (new op `starter.create`). Pro, Lifetime and trial only.
+<!-- changelog.d/starter-game-entry.md -->
+- Starter game, part 2 (entry card): with fewer than five open tasks, Home,
+  Calendar and Tasks show "Sort out your day", "Fill your week" or "Empty your
+  head" in place of the empty state. "Not now" hides it for 7 days, "Don't show
+  again" for good. On Free it wears PRO and "Try with Pro" opens the plans.
+<!-- changelog.d/starter-game-flow.md -->
+- Starter game, part 3 (the game): Start opens three questions (what you do,
+  what is burning this week with dictation where the browser can listen, what you
+  want to do regularly). One agent request turns the answers into 12 to 16 tiles
+  that you drag into Today, This week, Habit or Project; tap a tile to edit it.
+  Create makes the tasks, habits and projects (each with a first step) in one
+  undoable action, and the summary offers Plan my day with Undo.
+<!-- changelog.d/task-complete-animation.md -->
+- Ticking a task is no longer abrupt. The box fills with a small pop, the
+  title is struck through with a line drawn across it, and, depending on
+  Completed tasks in the task view, the row stays or folds away after about a
+  second while the rows below slide up. Undo is in the notice that follows.
+  The same completion plays on Home, Tasks, project pages and the Calendar
+  (and the phone's check pops too); with reduced motion on, rows leave at once.
+<!-- changelog.d/task-complete-exit.md -->
+- Ticking a task on Home now finishes smoothly: the check pops, the title is
+  struck, then the row folds away and the list closes the gap (about 0.9 s in
+  all). This includes Overdue, Inbox and the Next up card, whose rows used to
+  vanish at once. Undo inside that moment keeps the row. A task closed from
+  another device or through the API folds the same way, without the pop.
+  Reduce Motion turns it all off.
+<!-- changelog.d/task-view-settings.md -->
+- A gear at the top right of Home, Tasks and the Calendar opens the task view:
+  one setting for every task list. Choose whether completed tasks leave at
+  once, stay until the end of the day or stay; which details a row shows
+  (subtasks, duration, project); how lists are sorted (time, priority, due
+  date) and, on Tasks, grouped (date, project, priority); and whether overdue
+  tasks come first. It is saved in your settings (`prefs.taskView`) and can be
+  read and written through `/api/user-settings`.
+<!-- changelog.d/turbopack-highlight.md -->
+- Dev: `next dev --turbopack` builds again; the Find match colour is injected by
+  the Find panel instead of a `::highlight()` rule Turbopack's CSS parser rejects.
+<!-- changelog.d/unused-dependencies.md -->
+- Removed 19 dependencies nothing imports any more (react-hook-form,
+  react-datepicker, react-aria, axios, @azure/msal-node, and others left over
+  from the old UI).
+<!-- changelog.d/whats-new-help.md -->
+- What's new lists the latest changes from the changelog, day by day, newest
+  first, instead of four fixed notes. Open it from the account menu, the ?
+  menu or Settings, About (on the phone, Settings, About, What's new). The
+  avatar carries a dot while there are changes you have not opened; opening
+  the list clears it on every device. The list is also at GET /api/whats-new.
+- Help: the account menu, the ? menu and Settings, About (desktop and phone)
+  have a Help row that opens the guides at needt.app/learn in a new tab. The
+  account menu also lists Keyboard shortcuts.
+<!-- changelog.d/whats-new-releases.md -->
+- What's new keeps showing the latest release after a release day, dated by
+  the release, followed by everything added since.
+<!-- changelog.d/widgets-layout-audit.md -->
+- Widgets: the Sky sun no longer sits on top of the "left" label, the task list or the focus title; Sky task titles get more room. Pixel and Noir grids no longer run past the widget margin, Noir task titles stay readable in the light theme, the Noir and Rim small widgets no longer cut titles mid-word, the Cat Today panel reaches the edge, and the Next timeline blocks keep their full titles.
+<!-- /changelog.d -->
+
 - Mac app, island v3: the hover peek is now exactly 480 x 108 (and Standby
   480 x 88) as in the design, with the 0.26 s anticipation stretch before it;
   the AirPods moment shows the battery level when macOS lists it (otherwise

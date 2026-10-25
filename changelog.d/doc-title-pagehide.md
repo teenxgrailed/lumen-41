@@ -1,1 +1,0 @@
-- A document title typed without leaving the field is no longer lost when the tab is reloaded or closed.
