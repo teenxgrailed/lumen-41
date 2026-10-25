@@ -52,7 +52,14 @@ def serve(boot_js):
 
 
 def run(*c):
-    return subprocess.run(list(c), capture_output=True, text=True, timeout=120)
+    # killed with its process group after 60 s, returncode 124; never raises, never hangs
+    import ui
+    return ui.hard_run(c, timeout=60)
+
+
+def say(*a):
+    import ui
+    ui.stamp(*a)
 
 
 def dump(tag, els):
@@ -60,7 +67,7 @@ def dump(tag, els):
     with open(f"debug/{tag}.json", "w") as f:
         json.dump(els, f, indent=1)
     run("xcrun", "simctl", "io", os.environ["UDID"], "screenshot", f"debug/{tag}.png")
-    print(tag, [e.get("AXLabel") for e in els if e.get("AXLabel")][:60], flush=True)
+    say(tag, [e.get("AXLabel") for e in els if e.get("AXLabel")][:60])
 
 
 def lab(x):
@@ -71,9 +78,21 @@ def set_layout(name):
     import ui
     udid = os.environ["UDID"]
     want = {"compact": ["compact"], "bottom": ["bottom", "tab bar"], "top": ["top", "single tab"]}[name]
+    # Driving Settings is a walk of idb calls on a slow simulator: it gets a time
+    # budget, and gives up (layout NOT set, the readings tagged -unset) past it
+    deadline = time.time() + int(os.environ.get("LAYOUT_SET_BUDGET", "420"))
+
+    def out_of_time():
+        if time.time() > deadline:
+            say(f"set {name}: out of time budget")
+            return True
+        return False
 
     def find_scroll(pred, tag, swipes):
         for i in range(swipes):
+            if out_of_time():
+                return None
+            say(f"set {name}: looking for {tag}, pass {i + 1}/{swipes}")
             els = ui.describe()
             hit = next((x for x in els if pred(x) and 90 < x["frame"]["y"] < 780), None)
             if hit:
@@ -87,6 +106,8 @@ def set_layout(name):
         # a touch can be swallowed (the first one after a launch often is):
         # tap again while the row is still on screen
         for attempt in range(3):
+            if out_of_time():
+                return False
             row = find_scroll(pred, tag, swipes)
             if not row:
                 return False
@@ -103,6 +124,7 @@ def set_layout(name):
     def selected():
         return any(lab(x) in want and "Selected" in (x.get("traits") or []) for x in ui.describe())
 
+    say(f"set {name}: start, budget", os.environ.get("LAYOUT_SET_BUDGET", "420"), "s")
     run("xcrun", "simctl", "terminate", udid, "com.apple.mobilesafari")
     run("xcrun", "simctl", "terminate", udid, "com.apple.Preferences")
     time.sleep(2)
@@ -115,6 +137,8 @@ def set_layout(name):
         if not open_row(lambda x: lab(x) == "safari" and x.get("type") not in ("Application", "Heading"), "safari", 25):
             return False
     for attempt in range(3):
+        if out_of_time():
+            return False
         hit = find_scroll(lambda x: lab(x) in want, "option", 14)
         if not hit:
             return False
@@ -173,6 +197,15 @@ def verdict():
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
+    if cmd == "set":
+        # backstop under the budget: SIGALRM ends the process even inside a blocking call
+        import signal
+
+        def _stop(signum, frame):
+            print("layout set: hard stop, the layout was NOT set", flush=True)
+            os._exit(124)
+        signal.signal(signal.SIGALRM, _stop)
+        signal.alarm(int(os.environ.get("LAYOUT_SET_BUDGET", "420")) + 120)
     if cmd == "serve":
         serve(sys.argv[2])
     elif cmd == "set":

@@ -1,18 +1,58 @@
 #!/usr/bin/env python3
 """Tiny idb helper for the Safari phone probe. Usage: ui.py <cmd> [args]
 Everything here drives the Simulator through the UI, like a person would."""
-import json, os, subprocess, sys, time
+import json, os, signal, subprocess, sys, time
 
 UDID = os.environ["UDID"]
+# One call that blocks (a hung idb gRPC, a simctl that never returns) must not
+# hold the step: every external command here is killed, with its whole process
+# group, after this many seconds.
+CALL_TIMEOUT = int(os.environ.get("PROBE_CALL_TIMEOUT", "90"))
+_T0 = time.time()
+
+
+def stamp(*a):
+    """A flushed log line with the wall clock and seconds since this process started."""
+    print(f"[{time.strftime('%H:%M:%S')} +{time.time() - _T0:.0f}s]", *a, flush=True)
+
+
+def hard_run(cmd, timeout=None, check=False):
+    """subprocess.run that cannot hang: new process group, SIGKILL for the whole
+    group on a timeout (capture_output + a grandchild holding the pipe would make
+    run()'s own timeout wait forever). A timeout is returncode 124, never raised."""
+    timeout = timeout or CALL_TIMEOUT
+    cmd = list(cmd)
+    p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, start_new_session=True)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            out, err = p.communicate(timeout=5)
+        except Exception:
+            out, err = "", ""
+        stamp("TIMEOUT after", timeout, "s:", " ".join(cmd)[:160])
+        return subprocess.CompletedProcess(cmd, 124, out or "", "timeout")
+    if check and p.returncode:
+        raise subprocess.CalledProcessError(p.returncode, cmd, out, err)
+    return subprocess.CompletedProcess(cmd, p.returncode, out, err)
+
+
+def simctl(*args, timeout=60):
+    return hard_run(["xcrun", "simctl", *args], timeout=timeout)
+
+
+def screenshot(path, timeout=30):
+    return simctl("io", UDID, "screenshot", path, timeout=timeout)
 
 
 def idb(*args, check=True):
-    print("idb", *args, flush=True)
-    try:
-        return subprocess.run(["idb", *args, "--udid", UDID], capture_output=True, text=True, check=check, timeout=150)
-    except subprocess.TimeoutExpired:
-        print("idb timed out", flush=True)
-        return subprocess.CompletedProcess(args, 124, "", "timeout")
+    stamp("idb", *args)
+    return hard_run(["idb", *args, "--udid", UDID], check=check)
 
 
 def describe():
@@ -85,7 +125,7 @@ def save_debug(tag, els):
     os.makedirs("debug", exist_ok=True)
     with open(f"debug/{tag}.json", "w") as f:
         json.dump(els, f, indent=1)
-    subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"debug/{tag}.png"], capture_output=True, timeout=150)
+    screenshot(f"debug/{tag}.png")
     print(tag, "labels:", sorted({label(e) for e in els if label(e)})[:80], flush=True)
 
 
@@ -96,9 +136,9 @@ def ocr(tag, w, h):
     """Text on debug/<tag>.png (Vision), as (lowercase text, x, y) in points."""
     if not os.path.exists(OCR_BIN):
         src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr.swift")
-        subprocess.run(["swiftc", "-O", src, "-o", OCR_BIN], capture_output=True, timeout=600)
+        hard_run(["swiftc", "-O", src, "-o", OCR_BIN], timeout=600)
     try:
-        r = subprocess.run([OCR_BIN, f"debug/{tag}.png"], capture_output=True, text=True, timeout=120)
+        r = hard_run([OCR_BIN, f"debug/{tag}.png"], timeout=120)
         items = json.loads(r.stdout)
     except Exception as e:
         print("ocr failed:", e, flush=True)
@@ -253,8 +293,7 @@ def install_webclip(title, url, icon):
     if icon and os.path.exists(icon):
         shutil.copy(icon, os.path.join(d, "icon.png"))
     print("webclip at", d, flush=True)
-    r = subprocess.run(["xcrun", "simctl", "spawn", UDID, "launchctl", "stop", "com.apple.SpringBoard"],
-                       capture_output=True, text=True, timeout=60)
+    r = simctl("spawn", UDID, "launchctl", "stop", "com.apple.SpringBoard")
     print("respring:", r.returncode, r.stdout, r.stderr, flush=True)
     time.sleep(20)
 
@@ -297,7 +336,7 @@ if __name__ == "__main__":
         idb("ui", "key", args[0])
     elif cmd == "signin":
         email, password = args
-        shot = lambda n: subprocess.run(["xcrun", "simctl", "io", UDID, "screenshot", f"shots/signin-{n}.png"], capture_output=True, timeout=150)
+        shot = lambda n: screenshot(f"shots/signin-{n}.png")
         # web content is not exposed to accessibility: coordinates it is. The
         # simulator has no GPU on a runner, so wait after each event. The email
         # field is tapped, typed into, then the password field is tapped (Tab did

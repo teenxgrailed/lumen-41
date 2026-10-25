@@ -16,6 +16,11 @@ on:
         required: false
         default: main
         type: string
+      quick:
+        description: Skip the installed-app steps (about 40 min, and the part that stalls most)
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: safari-phone-${{ github.ref }}
@@ -228,27 +233,23 @@ jobs:
         timeout-minutes: 25
         run: |
           set -uo pipefail
-          open_url() {
-            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
+          . .github/safari/lib.sh   # tmo, say, run, shot, open_url: every call under a timeout, logged
+          open_path() {
+            curl -fsS -m 20 -o /dev/null http://127.0.0.1:3000/auth/signin || { echo "SERVER DOWN before $1"; tail -n 30 "$RUNNER_TEMP/next.log"; }
+            open_url "http://127.0.0.1:3000$1"
             sleep 3
           }
-          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
+          up() { run $((60 + 30 * $1)) "scroll up $1" python3 .github/safari/ui.py up "$1"; }
           for theme in light dark; do
-            xcrun simctl ui "$UDID" appearance "$theme"
+            run 60 "appearance $theme" xcrun simctl ui "$UDID" appearance "$theme"
             sleep 2
-            open_url /today;               shot "$theme-01-today-top"
-            python3 .github/safari/ui.py up 2; sleep 1; shot "$theme-02-today-scrolled"
-            open_url /tasks;               shot "$theme-03-tasks-top"
-            python3 .github/safari/ui.py up 12; sleep 1; shot "$theme-04-tasks-bottom"
-            open_url "/settings#appearance"; shot "$theme-05-settings-sheet"
-            open_url /tasks
-            python3 .github/safari/ui.py up 1; sleep 1; shot "$theme-06-tasks-mid"
+            open_path /today;               shot "$theme-01-today-top"
+            up 2; sleep 1; shot "$theme-02-today-scrolled"
+            open_path /tasks;               shot "$theme-03-tasks-top"
+            up 12; sleep 1; shot "$theme-04-tasks-bottom"
+            open_path "/settings#appearance"; shot "$theme-05-settings-sheet"
+            open_path /tasks
+            up 1; sleep 1; shot "$theme-06-tasks-mid"
           done
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
@@ -260,38 +261,51 @@ jobs:
         timeout-minutes: 20
         run: |
           set -uo pipefail
-          open_url() {
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "http://127.0.0.1:3000$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
-            sleep 3
-          }
+          . .github/safari/lib.sh   # tmo, say, run, shot, open_url: every call under a timeout, logged
+          open_path() { open_url "http://127.0.0.1:3000$1"; sleep 3; }
           # the fog dots drift (1.2 px/s): two shots 8 s apart must differ
-          npx tsx .github/safari/seed-focus.ts none
-          xcrun simctl ui "$UDID" appearance light
-          open_url /today
-          xcrun simctl io "$UDID" screenshot "shots/08-fog-a.png"
+          tmo 120 npx tsx .github/safari/seed-focus.ts none
+          run 60 "appearance light" xcrun simctl ui "$UDID" appearance light
+          open_path /today
+          shot 08-fog-a
           sleep 8
-          xcrun simctl io "$UDID" screenshot "shots/08-fog-b.png"
+          shot 08-fog-b
           if cmp -s shots/08-fog-a.png shots/08-fog-b.png; then echo "FOG DOTS STILL"; else echo "fog dots move"; fi
           for state in running paused ending; do
             for theme in light dark; do
-              xcrun simctl ui "$UDID" appearance "$theme"
+              run 60 "appearance $theme" xcrun simctl ui "$UDID" appearance "$theme"
               sleep 2
               # a slow first load can outlive the 2-minute ending window: warm
               # the page, then seed and load it again right before the shot
-              open_url /today
-              npx tsx .github/safari/seed-focus.ts "$state"
-              open_url /today
+              open_path /today
+              tmo 120 npx tsx .github/safari/seed-focus.ts "$state"
+              open_path /today
               sleep 2
-              xcrun simctl io "$UDID" screenshot "shots/$theme-07-focus-$state.png"
+              shot "$theme-07-focus-$state"
             done
           done
-          npx tsx .github/safari/seed-focus.ts none
+          tmo 120 npx tsx .github/safari/seed-focus.ts none
         continue-on-error: true
+
+      # Pixel checks on the shots (web content is not in the accessibility
+      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
+      # fully on screen and apart from the pill, no New task. (No check on the
+      # top edge: nothing is fixed at the top, content scrolls under the status
+      # bar, owner decision 2026-10-25.) The focus
+      # verdict is over the rows of the dock, not one pixel row: the fog dots
+      # under the dock close the gap on single rows. The self-test runs the
+      # check on synthetic docks first (dots bridging passes, a real overlap fails).
+      - name: Check the focus row
+        id: pixels
+        # run here, ahead of the long layout and installed-app steps, which a
+        # stalled simulator can cut short; judged in the last step below
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          rc=0
+          python3 -I .github/safari/check-shots.py selftest || rc=1
+          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png || rc=1
+          exit $rc
 
       # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
       # scenarios above run in the default, Compact. Per layout: the viewport
@@ -299,60 +313,232 @@ jobs:
       # (viewport.html runs VIEWPORT_BOOT_SCRIPT), then the app at rest and
       # scrolled. The dock is lifted only with the bar at the bottom. Compact
       # is set back at the end: the install below drives Compact's menu.
-      - name: Safari tab layouts, Compact / Top / Bottom
-        timeout-minutes: 40
-        run: |
-          set -uo pipefail
-          mkdir -p shots debug
-          npx tsx .github/safari/boot-js.ts > "$RUNNER_TEMP/viewport-boot.js"
-          (python3 .github/safari/layout.py serve "$RUNNER_TEMP/viewport-boot.js" > debug/viewport-serve.log 2>&1 &)
-          sleep 2
-          open_url() {
-            for t in 1 2 3 4; do xcrun simctl openurl "$UDID" "$1" && break; sleep 10; done; sleep 4
-            for i in $(seq 1 30); do
-              xcrun simctl io "$UDID" screenshot --type=jpeg "$RUNNER_TEMP/probe.jpg" >/dev/null 2>&1
-              [ "$(stat -f%z "$RUNNER_TEMP/probe.jpg" 2>/dev/null || echo 0)" -gt 150000 ] && break
-              sleep 3
-            done
-            sleep 3
-          }
-          shot() { xcrun simctl io "$UDID" screenshot "shots/$1.png"; }
-          xcrun simctl ui "$UDID" appearance light
-          for L in compact top bottom; do
-            TAG="$L"
-            if [ "$L" != compact ] && ! python3 .github/safari/layout.py set "$L"; then
-              echo "::warning::could not set the $L layout; its readings are tagged $L-unset"
-              TAG="$L-unset"
-            fi
-            xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
-            sleep 2
-            python3 .github/safari/layout.py mark "$L at rest"
-            open_url "http://127.0.0.1:8000/?layout=$TAG"
-            sleep 6
-            shot "layout-$L-00-viewport"
-            python3 .github/safari/layout.py mark "$L scrolled"
-            python3 .github/safari/ui.py up 3; sleep 5
-            shot "layout-$L-00b-viewport-scrolled"
-            open_url "http://127.0.0.1:3000/today"; shot "layout-$L-01-today-top"
-            python3 .github/safari/ui.py up 2; sleep 2; shot "layout-$L-02-today-scrolled"
-            open_url "http://127.0.0.1:3000/tasks"
-            python3 .github/safari/ui.py up 12; sleep 2; shot "layout-$L-04-tasks-bottom"
-          done
-          python3 .github/safari/layout.py set compact || echo "::warning::could not set Compact back"
-          xcrun simctl terminate "$UDID" com.apple.mobilesafari || true
-          python3 .github/safari/layout.py summary | tee shots/layouts-summary.txt
-          python3 .github/safari/layout.py verdict | tee -a shots/layouts-summary.txt
+      # One step per phase, each followed by an upload that runs even when the
+      # step stalls or times out (.github/safari/layouts.sh: every simctl / idb
+      # call under a timeout, every action timestamped into debug/layouts.log,
+      # machine load sampled into debug/load.log). A phase that hangs leaves every
+      # earlier phase's shots and the log.
+      - name: Safari layouts, prepare
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh prepare
         continue-on-error: true
+
+      - name: Safari layouts, compact viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact viewport
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-compact-viewport
+          path: |
+            shots/layout-compact-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, compact today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-compact-today
+          path: |
+            shots/layout-compact-01*
+            shots/layout-compact-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, compact tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots compact tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-compact-tasks
+          path: |
+            shots/layout-compact-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, set top
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh set top
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-set
+          path: |
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top viewport
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-viewport
+          path: |
+            shots/layout-top-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-today
+          path: |
+            shots/layout-top-01*
+            shots/layout-top-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, top tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots top tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-top-tasks
+          path: |
+            shots/layout-top-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, set bottom
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh set bottom
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-set
+          path: |
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom viewport
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom viewport
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-viewport
+          path: |
+            shots/layout-bottom-00*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom today
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom today
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-today
+          path: |
+            shots/layout-bottom-01*
+            shots/layout-bottom-02*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, bottom tasks
+        timeout-minutes: 10
+        run: bash .github/safari/layouts.sh shots bottom tasks
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-bottom-tasks
+          path: |
+            shots/layout-bottom-04*
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
+
+      - name: Safari layouts, Compact back + verdict
+        timeout-minutes: 12
+        run: bash .github/safari/layouts.sh finish
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: safari-phone-layouts-summary
+          path: |
+            shots/layouts-summary.txt
+            debug/layouts.log
+            debug/layout-*
+            debug/viewport*
+            debug/load.log
+          if-no-files-found: warn
 
       # The installed app (Add to Home Screen, standalone). The owner's bands,
       # the Safari controls after leaving Home and the top band show there, not
       # in a tab: in a tab `top: 0` sits 62 px under the status bar.
       - name: Install the app to the Home Screen
+        if: ${{ !inputs.quick }}
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py install
         continue-on-error: true
 
       - name: Sign in inside the installed app
+        if: ${{ !inputs.quick }}
         timeout-minutes: 20
         run: python3 .github/safari/standalone.py signin "$PROBE_EMAIL" "$PROBE_PASSWORD"
         continue-on-error: true
@@ -360,24 +546,16 @@ jobs:
       # nav first: the scenarios seed a Focus session, whose end would open
       # the session-complete sheet in the middle of the walk
       - name: Installed app, Home > Tasks > a doc > Settings > back
+        if: ${{ !inputs.quick }}
         timeout-minutes: 15
         run: python3 .github/safari/standalone.py nav
         continue-on-error: true
 
       - name: Installed app, scenarios light and dark
+        if: ${{ !inputs.quick }}
         timeout-minutes: 30
         run: python3 .github/safari/standalone.py scenarios
         continue-on-error: true
-
-      # Pixel checks on the shots (web content is not in the accessibility
-      # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
-      # fully on screen and apart from the pill, no New task. (No check on the
-      # top edge: nothing is fixed at the top, content scrolls under the status
-      # bar, owner decision 2026-10-25.)
-      - name: Check the focus row
-        run: |
-          set -euo pipefail
-          python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
 
       - name: Keep the server log
         if: always()
@@ -401,12 +579,20 @@ jobs:
       # in the installed app fails the run, with what was measured.
       - name: Installed app verdict
         if: always()
+        env:
+          PIXELS_OUTCOME: ${{ steps.pixels.outcome }}
+          HEAD_OUTCOME: ${{ steps.head.outcome }}
+          QUICK: ${{ inputs.quick }}
         run: |
           cat shots/standalone-report.txt 2>/dev/null || true
           cat debug/install-head.txt 2>/dev/null || true
-          if [ "${{ steps.head.outcome }}" != "success" ]; then
+          if [ "$PIXELS_OUTCOME" != "success" ]; then
+            echo "::error::The pixel checks on the shots failed (step: Check the focus row)"; exit 1
+          fi
+          if [ "$HEAD_OUTCOME" != "success" ]; then
             echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1
           fi
+          if [ "$QUICK" = "true" ]; then exit 0; fi
           if [ ! -s debug/standalone-method.txt ] || [ "$(head -1 debug/standalone-method.txt)" = "None" ]; then
             echo "::error::The app could not be installed to the Home Screen"; exit 1
           fi
