@@ -80,6 +80,44 @@
   padding-top: 0;
 }
 
+/* A band of the person's own can be picked up (the drag's grab cursor beats
+   the button's pointer) and pulled by its bottom edge; one marked on a
+   calendar event has no drag attributes and keeps the plain cursor. */
+.needt-v3 .pb-band[data-drag-src] {
+  cursor: grab;
+}
+.needt-v3 .pb-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  cursor: ns-resize;
+}
+.needt-v3 .pb-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 24px;
+  height: 3px;
+  margin-left: -12px;
+  border-radius: 2px;
+  background: var(--fill-6);
+  opacity: 0;
+}
+.needt-v3 .pb-band:hover .pb-resize::after,
+.needt-v3 [data-pb-resizing] .pb-resize::after,
+.needt-v3[data-pb-resizing] .pb-resize::after {
+  opacity: 1;
+}
+.needt-v3[data-pb-resizing],
+.needt-v3[data-pb-resizing] * {
+  cursor: ns-resize !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* In a list (Home's day, the phone): a quiet row. */
 .needt-v3 .pb-band[data-variant="row"] {
   min-height: 36px;
