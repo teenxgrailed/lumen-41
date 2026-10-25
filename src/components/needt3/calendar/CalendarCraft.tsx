@@ -517,6 +517,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onRename={onRename}
               onDelete={onDelete}
               dragProps={drag?.dragProps}
+              resizeProps={drag?.resizeProps}
               personal={personal}
               onPersonal={onPersonal}
               onPersonalPreset={onPersonalPreset}

@@ -18,7 +18,9 @@ import type { PersonalPreset } from "@/lib/personal-time";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
+import { PERSONAL_DRAG_PREFIX, bandIsDraggable } from "../drag/personal-drop";
 import type { DragProps } from "../drag/useDrag";
+import type { ResizeProps } from "../drag/usePersonalResize";
 import { PersonalBand } from "../personal/PersonalBand";
 import { PersonalSlotMenu } from "../personal/PersonalSlotMenu";
 import { Task } from "../task/Task";
@@ -264,6 +266,8 @@ export interface WeekViewProps {
   onRename: (b: CalItem, title: string) => void;
   onDelete: (b: CalItem) => void;
   dragProps?: DragProps;
+  /** The bottom-edge handle of a personal time band (the drag host's). */
+  resizeProps?: ResizeProps;
   /** Personal time by day (usePersonalBands): drawn as quiet bands behind the blocks. */
   personal?: ReadonlyMap<string, readonly DayBand[]>;
   onPersonal?: (band: DayBand, el: HTMLElement) => void;
@@ -294,6 +298,7 @@ interface ColumnProps {
   peekId: string | null;
   hover: Hover;
   dragProps?: DragProps;
+  resizeProps?: ResizeProps;
   bands?: readonly DayBand[];
   onBand?: (band: DayBand, el: HTMLElement) => void;
   onPreset?: (preset: PersonalPreset) => void;
@@ -317,6 +322,7 @@ const DayColumn = memo(function DayColumn({
   peekId,
   hover,
   dragProps,
+  resizeProps,
   bands,
   onBand,
   onPreset,
@@ -391,6 +397,26 @@ const DayColumn = memo(function DayColumn({
             top: band.from * C2_H,
             height: (band.to - band.from) * C2_H,
           }}
+          /* a block of its own can be picked up and moved, and pulled by its
+             end (not the slice that stops at midnight); one marked on an
+             event follows the event and stays put */
+          drag={
+            bandIsDraggable(band) && dragProps
+              ? dragProps(
+                  {
+                    id: `${PERSONAL_DRAG_PREFIX}${band.blockId}`,
+                    title: band.title,
+                  },
+                  "move"
+                )
+              : undefined
+          }
+          onResize={
+            bandIsDraggable(band) && resizeProps && band.to < 24
+              ? resizeProps({ blockId: band.blockId, hourH: C2_H })
+                  .onPointerDown
+              : undefined
+          }
           onOpen={(e) => {
             e.stopPropagation();
             onBand?.(band, e.currentTarget);
@@ -487,6 +513,7 @@ export function WeekView({
   onRename,
   onDelete,
   dragProps,
+  resizeProps,
   personal,
   onPersonal,
   onPersonalPreset,
@@ -822,6 +849,7 @@ export function WeekView({
                   peekId={peekId}
                   hover={hover}
                   dragProps={dragProps}
+                  resizeProps={resizeProps}
                   bands={personal?.get(date)}
                   onBand={onPersonal}
                   onPreset={onPersonalPreset}
