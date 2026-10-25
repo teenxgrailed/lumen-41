@@ -1,1 +1,0 @@
-- The morning brief keeps the leading count ("14 tasks open today") and is now two short sentences at most.

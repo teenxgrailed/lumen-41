@@ -1,1 +1,0 @@
-- The calendar now shades off-hours from each weekday's own working hours: the break between two ranges is shaded too, and days off are shaded all day.

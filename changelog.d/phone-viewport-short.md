@@ -1,1 +1,0 @@
-- The installed iPhone app keeps the screen to the very bottom of the display even when iOS reports a viewport shorter than the screen.

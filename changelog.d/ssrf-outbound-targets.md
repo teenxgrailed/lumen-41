@@ -1,1 +1,0 @@
-- Addresses you enter for outbound connections now have to be public: the connector webhook URL, a custom AI endpoint, CalDAV and IMAP servers, and web-push endpoints are refused when they point at (or resolve to) a private, loopback, link-local or other internal address. Public servers keep working over http or https and on any port.

@@ -1,1 +1,0 @@
-- The phone app fills the whole screen in the installed iOS app: the flat band under the dock is gone on every screen.

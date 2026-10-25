@@ -1,1 +1,0 @@
-- A change the server refuses (ticking a task, renaming a doc) is now sent once and says "Could not … Your change was reverted." once, instead of being retried and stacking a second notice.

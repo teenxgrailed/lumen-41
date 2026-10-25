@@ -1,1 +1,0 @@
-Phone: the installed app now declares apple-mobile-web-app-capable so iOS honours the translucent status bar (content and the blurred band reach the top edge), and the top band is one soft tint instead of a solid slab.

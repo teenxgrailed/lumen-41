@@ -1,1 +1,0 @@
-- Settings -> Desktop -> Widgets now has a live preview: pick a style tile and the Today medium widget appears in that style, light and dark, with your next tasks for today (a sample day until you plan some).
