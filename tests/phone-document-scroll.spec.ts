@@ -262,19 +262,6 @@ test("the document scrolls and the last row clears the dock", async () => {
   await browser.close();
 });
 
-test("the header collapses with the page scroll", async () => {
-  const browser = await launch();
-  const { page } = await phone(browser, "dark", "dark", { tasks: 30 });
-  await open(page, "/tasks", "[data-pk-screen='tasks']");
-  const screen = page.locator("[data-pk-screen='tasks']");
-  await expect(screen).toHaveAttribute("data-pk-collapsed", "0");
-  await scrollTo(page, 300);
-  await expect(screen).toHaveAttribute("data-pk-collapsed", "1");
-  await scrollTo(page, 0);
-  await expect(screen).toHaveAttribute("data-pk-collapsed", "0");
-  await browser.close();
-});
-
 // todo: flaky in CI (scrollY reads 0 right after open); verify on device, then re-enable.
 test.fixme("a sheet holds the page still and returns its offset", async () => {
   const browser = await launch();
@@ -289,17 +276,13 @@ test.fixme("a sheet holds the page still and returns its offset", async () => {
   const sheet = page.locator(".pk-sheet-layer.is-open");
   await sheet.waitFor();
   await page.waitForTimeout(600);
-  // pinned: the body is fixed at the offset, the screen behind keeps its header
+  // pinned: the body is fixed at the offset
   const held = await page.evaluate(() => ({
     position: getComputedStyle(document.body).position,
     top: document.body.style.top,
-    collapsed: document
-      .querySelector("[data-pk-screen='tasks']")
-      ?.getAttribute("data-pk-collapsed"),
   }));
   expect(held.position).toBe("fixed");
   expect(held.top).toBe(`-${before}px`);
-  expect(held.collapsed).toBe("1");
   // a wheel / drag outside the sheet does not move what is behind
   await page.mouse.move(195, 30);
   await page.mouse.wheel(0, 400);
@@ -360,7 +343,7 @@ for (const app of ["light", "dark"] as const) {
     };
     await shot("home-top");
 
-    // the header collapsed over the blurred band
+    // scrolled: content under the status bar, nothing fixed at the top
     await scrollTo(page, 400);
     expect(await edgeCandidates(page), "collapsed").toEqual([]);
     await shot("home-collapsed");
