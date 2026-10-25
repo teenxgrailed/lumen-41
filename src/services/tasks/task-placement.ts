@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import {
@@ -236,24 +237,32 @@ export async function planPlacement(input: {
  * block relation in sync makes Calendar, Space, Focus, and connector reads
  * all observe the same placement without a second storage model.
  */
-export async function writeFrozenPlacement(input: {
-  taskId: string;
-  userId: string;
-  start: Date;
-  end: Date;
-}) {
+export async function writeFrozenPlacement(
+  input: {
+    taskId: string;
+    userId: string;
+    start: Date;
+    end: Date;
+  },
+  /** The caller's own transaction (the ops layer); omitted, this opens one. */
+  client?: Pick<Prisma.TransactionClient, "scheduledBlock">
+) {
+  const data = {
+    taskId: input.taskId,
+    userId: input.userId,
+    start: input.start,
+    end: input.end,
+    chunkIndex: 0,
+    chunkCount: 1,
+    isFrozen: true,
+  };
+  if (client) {
+    await client.scheduledBlock.deleteMany({ where: { taskId: input.taskId } });
+    await client.scheduledBlock.create({ data });
+    return;
+  }
   await prisma.$transaction([
     prisma.scheduledBlock.deleteMany({ where: { taskId: input.taskId } }),
-    prisma.scheduledBlock.create({
-      data: {
-        taskId: input.taskId,
-        userId: input.userId,
-        start: input.start,
-        end: input.end,
-        chunkIndex: 0,
-        chunkCount: 1,
-        isFrozen: true,
-      },
-    }),
+    prisma.scheduledBlock.create({ data }),
   ]);
 }
