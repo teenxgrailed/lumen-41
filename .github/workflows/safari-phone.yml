@@ -371,13 +371,13 @@ jobs:
 
       # Pixel checks on the shots (web content is not in the accessibility
       # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
-      # fully on screen and apart from the pill, no New task. The top 4 pt of
-      # every shot: no sharp list text (page ground, or blurred).
-      - name: Check the focus row and the top edge
+      # fully on screen and apart from the pill, no New task. (No check on the
+      # top edge: nothing is fixed at the top, content scrolls under the status
+      # bar, owner decision 2026-10-25.)
+      - name: Check the focus row
         run: |
           set -euo pipefail
           python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png
-          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png
 
       - name: Keep the server log
         if: always()

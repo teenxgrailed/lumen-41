@@ -124,17 +124,17 @@ describe("kit markup", () => {
     expect(out).toContain("pk-btn-cut");
   });
 
-  it("PkScreen: title, compact title, top band, fog, tail", () => {
+  it("PkScreen: title, fog, tail, nothing fixed at the top", () => {
     const out = html(
       h(PkScreen, { title: "Tasks", sub: "3 open", screen: "tasks" }, "body")
     );
     expect(out).toContain('data-pk-screen="tasks"');
     expect(out).toContain('<h1 class="pk-title">Tasks</h1>');
-    expect(out).toContain("pk-compact-title");
-    expect(out).toContain("pk-topband");
+    expect(out).not.toContain("pk-compact");
+    expect(out).not.toContain("pk-topband");
     expect(out).toContain("pk-fog");
     expect(out).toContain("pk-tail");
-    expect(out).toContain('data-pk-band-on="0"');
+    expect(out).toContain('data-pk-fog-on="0"');
     expect(html(h(PkScreen, { title: "T", tail: false }))).not.toContain(
       "pk-tail"
     );

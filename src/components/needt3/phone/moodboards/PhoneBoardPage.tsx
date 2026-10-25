@@ -295,7 +295,6 @@ export function PhoneBoardPage({
       <div className="phb-mb-stage is-board">
         <PkScreen
           screen="moodboard"
-          compactTitle={b?.title || UNTITLED_BOARD}
           head={head}
           headClass="phb-bh-head"
           className="phb-board-screen"
