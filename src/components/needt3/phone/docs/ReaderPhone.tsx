@@ -30,7 +30,7 @@ import { backdropVars } from "../../docs/backdrop";
 import { fontOf, pageVars, styleOf } from "../../docs/style";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { screenState } from "../../states/status";
-import { PkFog, PkTopBand } from "../kit/Screen";
+import { PkFog } from "../kit/Screen";
 import { pkCx } from "../kit/util";
 import { snack } from "../overlays/snack";
 import { usePhoneCover } from "../shell/cover";
@@ -107,8 +107,8 @@ export function ReaderPhone({
     enabled: !typing && !menu && sheet === null,
   });
 
-  // The band, the compact title and the fog follow the scroll (custom
-  // properties on the root, written only when a clamped value changes).
+  // The fog follows the scroll (a custom property on the root, written only
+  // when the clamped value changes).
   useLayoutEffect(() => {
     const el = scroller.current;
     const r = root.current;
@@ -116,13 +116,10 @@ export function ReaderPhone({
     let last = "";
     const readScroll = () => {
       const v = scrollVars(el.scrollTop, el.scrollHeight, el.clientHeight);
-      const key = `${v.band.toFixed(3)}${v.kt.toFixed(3)}${v.fog.toFixed(3)}`;
+      const key = v.fog.toFixed(3);
       if (key === last) return;
       last = key;
-      r.style.setProperty("--pk-band", v.band.toFixed(3));
-      r.style.setProperty("--pk-kt", v.kt.toFixed(3));
-      r.style.setProperty("--pk-fog-k", v.fog.toFixed(3));
-      r.setAttribute("data-pk-band-on", v.band > 0.01 ? "1" : "0");
+      r.style.setProperty("--pk-fog-k", key);
       r.setAttribute("data-pk-fog-on", v.fog > 0.01 ? "1" : "0");
     };
     readScroll();
@@ -315,7 +312,6 @@ export function ReaderPhone({
         data-pd-reader={pageId}
         data-pd-mode={typing ? "edit" : "read"}
         data-pk-screen="doc"
-        data-pk-band-on="0"
         data-pk-fog-on="0"
       >
         <div ref={scroller} className="pd-reader-scroll">
@@ -370,10 +366,6 @@ export function ReaderPhone({
               </article>
             </div>
           )}
-        </div>
-        <PkTopBand />
-        <div className="pk-compact" aria-hidden="true">
-          <span className="pk-compact-title">{doc?.title || "Untitled"}</span>
         </div>
         <div className="pd-bar">
           <PdGlass

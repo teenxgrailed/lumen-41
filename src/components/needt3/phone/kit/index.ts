@@ -36,7 +36,6 @@ export {
   PkFog,
   PkScreen,
   PkScrim,
-  PkTopBand,
   pkFogLive,
   type PkScreenProps,
 } from "./Screen";

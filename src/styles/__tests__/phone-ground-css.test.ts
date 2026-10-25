@@ -90,16 +90,23 @@ describe("phone page ground", () => {
 
   it("the layers that stay put are fixed, and only those", () => {
     const fixed = rule(
-      '.needt-v3[data-ui="phone"] :is(.pk-topband, .pk-fog, .pk-compact),\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
+      '.needt-v3[data-ui="phone"] .pk-fog,\n.needt-v3[data-ui="phone"]\n  :is(.pk-scrim, .pk-sheet-layer, .nva, .pk-sweep.is-screen)'
     );
     expect(fixed).toContain("position: fixed");
   });
 
+  it("nothing is fixed at the top of the screen: no top band, no small title (owner decision 2026-10-25)", () => {
+    for (const gone of [
+      "pk-topband",
+      "pk-compact",
+      "--ps-top-h",
+      "--v3-compact-h",
+    ])
+      expect(css).not.toContain(gone);
+  });
+
   it("no full-width fixed layer touches an edge", () => {
-    // the band and the fog hosts have no height; the paint is in children
-    expect(rule('.needt-v3[data-ui="phone"] .pk-topband')).toContain(
-      "height: 0"
-    );
+    // the fog host has no height; the paint is in children
     expect(rule('.needt-v3[data-ui="phone"] .pk-fog')).toContain("height: 0");
     // the full-screen layers stand in from both edges
     const inset = rule(
@@ -118,27 +125,14 @@ describe("phone page ground", () => {
     );
     expect(css).toContain("--v3-gap-top: 0px");
     expect(css).toContain("--v3-gap-bot: 0px");
-    // the fog's wash (a colour) stops short of the edge; the top band has
-    // no coloured layer left at all (one blur, owner decision 2026-10-24) ...
-    expect(css).not.toContain(".pk-topband > :not(.pk-blur)");
+    // the fog's wash (a colour) stops short of the edge ...
     expect(
       rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots, .pk-blur)')
     ).toContain("height: calc(var(--ps-fog-h) - var(--v3-gap-bot))");
-    // ... the blur layers (no colour of their own) run to it, so nothing
-    // scrolled shows sharp in the last few px
-    expect(rule('.needt-v3[data-ui="phone"] .pk-topband > *')).toContain(
-      "height: var(--ps-top-h);"
-    );
+    // ... the blur layers (no colour of their own) run to it
     expect(
       rule('.needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots)')
     ).toContain("height: var(--ps-fog-h);");
-    // in a Safari tab fixed `top: 0` is below the status bar: the blur
-    // reaches past it, over the strip the page scrolls under
-    expect(
-      rule(
-        'html[data-display-mode="browser"]\n  .needt-v3[data-ui="phone"]\n  .pk-topband\n  > .pk-blur'
-      )
-    ).toContain("height: calc(var(--ps-top-h) + 72px)");
     expect(
       rule(
         '.needt-v3[data-ui="phone"] .pk-scrim > *,\n.needt-v3[data-ui="phone"] .nva-scrim'

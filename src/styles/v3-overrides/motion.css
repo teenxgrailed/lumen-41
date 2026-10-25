@@ -178,10 +178,9 @@
 }
 
 /* ───────── P1 · phone kit (phone-kit.jsx, styles/phone-kit.css) ─────────
- * Rule 12 (phone perf): the progressive blur bands keep their backdrop-filter
- * only while they are seen. PkScreen sets data-pk-band-on / data-pk-fog-on from
- * the scroll position, so a screen at rest does not carry six live blurs. */
-.needt-v3 .pk-screen[data-pk-band-on="0"] .pk-topband .pk-blur,
+ * Rule 12 (phone perf): the progressive blur band keeps its backdrop-filter
+ * only while it is seen. PkScreen sets data-pk-fog-on from the scroll
+ * position, so a screen at rest does not carry live blurs. */
 .needt-v3 .pk-screen[data-pk-fog-on="0"] .pk-fog .pk-blur {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -288,9 +287,9 @@
   );
 }
 /* While a sheet or the pull-down moves (PkSheet / PkPullDown mark the host
- * with data-pk-moving) the screen's own band and fog blurs rest: the mover's
+ * with data-pk-moving) the screen's own fog blur rests: the mover's
  * scrim is the one blur. */
-.needt-v3 [data-pk-moving] :is(.pk-topband, .pk-fog) .pk-blur {
+.needt-v3 [data-pk-moving] .pk-fog .pk-blur {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

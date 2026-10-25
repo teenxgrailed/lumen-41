@@ -201,9 +201,8 @@ export function edgeRelease(
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 /**
- * The reader's scroll variables for a scroll offset: the top band (0..1), the
- * compact title (0..1, once the large title is mostly under the band) and the
- * bottom fog (1 while there is more to scroll).
+ * The reader's scroll variables for a scroll offset: the bottom fog (1 while
+ * there is more to scroll).
  */
 export function scrollVars(
   y: number,
@@ -211,8 +210,6 @@ export function scrollVars(
   clientHeight: number
 ) {
   return {
-    band: clamp(y / 24, 0, 1),
-    kt: clamp((y - 72) / 28, 0, 1),
     fog: clamp((scrollHeight - clientHeight - y - 40) / 60, 0, 1),
   };
 }

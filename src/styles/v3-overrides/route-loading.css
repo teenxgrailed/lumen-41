@@ -17,8 +17,7 @@
   animation: v3-route-loading-in 160ms ease-out 150ms backwards;
 }
 .needt-v3[data-ui="phone"] .st-route-loading {
-  padding: calc(var(--v3-top, 0px) + var(--v3-compact-h, 44px) + 16px) 16px
-    calc(var(--v3-sab, 0px) + 96px);
+  padding: calc(var(--v3-top, 0px) + 16px) 16px calc(var(--v3-sab, 0px) + 96px);
 }
 @keyframes v3-route-loading-in {
   from {
