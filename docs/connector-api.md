@@ -913,8 +913,8 @@ curl -X POST http://localhost:3000/api/connect/ops/task.create \
 | `task.list`            | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                                                                      | —                                    |
 | `task.get`             | read       | `taskId`                                                                                                                                               | —                                    |
 | `schedule.get_day`     | read       | `date` (YYYY-MM-DD, user's time zone)                                                                                                                  | —                                    |
-| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `autoSchedule`                                                      | archives the task                    |
-| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`                                                 | writes the previous values back      |
+| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `autoSchedule`                                             | archives the task                    |
+| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `pinned`, `autoSchedule`              | writes the previous values back      |
 | `task.complete`        | reversible | `taskId` (recurring series are refused for now)                                                                                                        | previous status                      |
 | `task.uncomplete`      | reversible | `taskId`, `status` (todo, in_progress)                                                                                                                 | completed with its original time     |
 | `task.archive`         | reversible | `taskId`                                                                                                                                               | unarchives with placement and blocks |
@@ -948,8 +948,28 @@ Notes on specific operations:
 
 - `task.create` sets the same defaults as the app: default reminders for
   your plan, `MEDIUM` priority, and `autoSchedule: true` (the scheduler may
-  place it). It does not schedule; the task is placed by `schedule.auto` or
-  the next scheduler run. `notes` are sanitized like the app's editor.
+  place it). Without `start` it does not schedule; the task is placed by
+  `schedule.auto` or the next scheduler run. `notes` are sanitized like the
+  app's editor.
+- `start`, `pinned` and `autoSchedule` place a task by hand, with the same
+  rule as `needt_update_task` and `PATCH /api/connect/tasks/:id`
+  (`task.update` takes all three, `task.create` takes `start` and
+  `autoSchedule`). `start` is an ISO 8601 time, with an offset
+  (`2026-10-25T14:00:00+02:00`) or a wall-clock time read in your time zone
+  (`2026-10-25T14:00`). The task is placed there for its estimate (30 minutes
+  when it has none) and pinned, its due day becomes that day (a `dueDate` in
+  the same call wins) and `autoSchedule` defaults to `false`. `pinned: true`
+  pins a task that already has a time where it is (`409 CONFLICT` when it has
+  none); `pinned: false` hands it back to the scheduler. `start` together
+  with `pinned: false`, an unreadable time, a task nobody is assigned to, and
+  a time you blocked out ("This time is blocked out") are refused with
+  `INVALID_INPUT` (400) and change nothing. These ops write the task and its pinned
+  block but do not run the scheduler: call `schedule.auto` afterwards to
+  place a task you handed back. Undo of `task.update` writes back what the
+  placement changed (`scheduledStart`, `scheduledEnd`, `scheduleLocked`,
+  `isAutoScheduled`, `autoScheduled`, `scheduleScore`, the due day) and, when
+  `start` replaced them, the task's previous scheduled blocks exactly; undo of
+  `task.create` archives the task and releases its block.
 - `schedule.auto` compares the schedule before and after it runs. A change
   made by anything else in that window is treated as part of the run and is
   undone with it.
