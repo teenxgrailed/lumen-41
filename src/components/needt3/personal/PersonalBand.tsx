@@ -1,6 +1,12 @@
 "use client";
 
-import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+import type {
+  CSSProperties,
+  HTMLAttributes,
+  KeyboardEvent,
+  MouseEvent,
+  PointerEvent,
+} from "react";
 
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import type { PersonalTone } from "@/lib/personal-time";
@@ -21,6 +27,10 @@ export interface PersonalBandProps {
   blockId?: string;
   style?: CSSProperties;
   onOpen?: (event: MouseEvent<HTMLElement>) => void;
+  /** The drag attributes that let the band be picked up and moved (the grid only). */
+  drag?: HTMLAttributes<HTMLElement>;
+  /** Pressing the bottom edge pulls the end up or down (the grid only). */
+  onResize?: (event: PointerEvent<HTMLElement>) => void;
 }
 
 /**
@@ -41,6 +51,8 @@ export function PersonalBand({
   blockId,
   style,
   onOpen,
+  drag,
+  onResize,
 }: PersonalBandProps) {
   const label = `${title}, personal time${time ? `, ${time}` : ""}`;
   const key = (e: KeyboardEvent<HTMLElement>) => {
@@ -61,6 +73,7 @@ export function PersonalBand({
       aria-label={label}
       role={onOpen ? "button" : "group"}
       tabIndex={onOpen ? 0 : undefined}
+      {...drag}
       onClick={onOpen}
       onKeyDown={key}
     >
@@ -73,6 +86,14 @@ export function PersonalBand({
           {time ? <span className="pb-time">{time}</span> : null}
         </>
       )}
+      {onResize ? (
+        <span
+          aria-hidden="true"
+          className="pb-resize"
+          data-pb-resize={blockId ?? ""}
+          onPointerDown={onResize}
+        />
+      ) : null}
     </div>
   );
 }
