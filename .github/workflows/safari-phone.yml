@@ -579,16 +579,20 @@ jobs:
       # in the installed app fails the run, with what was measured.
       - name: Installed app verdict
         if: always()
+        env:
+          PIXELS_OUTCOME: ${{ steps.pixels.outcome }}
+          HEAD_OUTCOME: ${{ steps.head.outcome }}
+          QUICK: ${{ inputs.quick }}
         run: |
           cat shots/standalone-report.txt 2>/dev/null || true
           cat debug/install-head.txt 2>/dev/null || true
-          if [ "${{ steps.pixels.outcome }}" != "success" ]; then
+          if [ "$PIXELS_OUTCOME" != "success" ]; then
             echo "::error::The pixel checks on the shots failed (step: Check the focus row)"; exit 1
           fi
-          if [ "${{ steps.head.outcome }}" != "success" ]; then
+          if [ "$HEAD_OUTCOME" != "success" ]; then
             echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1
           fi
-          if [ "${{ inputs.quick }}" = "true" ]; then exit 0; fi
+          if [ "$QUICK" = "true" ]; then exit 0; fi
           if [ ! -s debug/standalone-method.txt ] || [ "$(head -1 debug/standalone-method.txt)" = "None" ]; then
             echo "::error::The app could not be installed to the Home Screen"; exit 1
           fi
