@@ -1,1 +1,0 @@
-- Documents and moodboards now sync in real time and save: the collaboration provider was moved onto a private socket that never connected, so edits stayed in a local draft.

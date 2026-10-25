@@ -1,1 +1,0 @@
-- iPhone: a round Focus button with a time-left ring appears left of the dock while a focus session runs (a paused session shows a quiet ring); tapping it opens the Focus sheet. The bottom fog now reaches the display edge, so no strip shows under the dock.

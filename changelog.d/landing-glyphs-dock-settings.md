@@ -1,1 +1,0 @@
-- The phone dock and Settings (phone and desktop) use the landing icon set: larger bare icons in the dock with no tile behind them, and a glyph per Settings section.
