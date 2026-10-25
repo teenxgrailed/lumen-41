@@ -289,12 +289,13 @@ jobs:
 
       # Pixel checks on the shots (web content is not in the accessibility
       # tree). The focus row (additions-2/focus-done .fd-dockrow): the button
-      # fully on screen and apart from the pill, no New task. The top 4 pt of
-      # every shot: no sharp list text (page ground, or blurred). The focus
+      # fully on screen and apart from the pill, no New task. (No check on the
+      # top edge: nothing is fixed at the top, content scrolls under the status
+      # bar, owner decision 2026-10-25.) The focus
       # verdict is over the rows of the dock, not one pixel row: the fog dots
       # under the dock close the gap on single rows. The self-test runs the
       # check on synthetic docks first (dots bridging passes, a real overlap fails).
-      - name: Check the focus row and the top edge
+      - name: Check the focus row
         id: pixels
         # run here, ahead of the long layout and installed-app steps, which a
         # stalled simulator can cut short; judged in the last step below
@@ -304,7 +305,6 @@ jobs:
           rc=0
           python3 -I .github/safari/check-shots.py selftest || rc=1
           python3 -I .github/safari/check-shots.py focus shots/*-07-focus-*.png || rc=1
-          python3 -I .github/safari/check-shots.py edge shots/light-0[1-7]-*.png shots/dark-0[1-7]-*.png || rc=1
           exit $rc
 
       # Safari's three tab-bar layouts (Settings > Apps > Safari > Tabs). The
@@ -583,7 +583,7 @@ jobs:
           cat shots/standalone-report.txt 2>/dev/null || true
           cat debug/install-head.txt 2>/dev/null || true
           if [ "${{ steps.pixels.outcome }}" != "success" ]; then
-            echo "::error::The pixel checks on the shots failed (step: Check the focus row and the top edge)"; exit 1
+            echo "::error::The pixel checks on the shots failed (step: Check the focus row)"; exit 1
           fi
           if [ "${{ steps.head.outcome }}" != "success" ]; then
             echo "::error::The install tags are not in <head> of every route, or a redirect leaves 127.0.0.1 (debug/install-head.txt)"; exit 1

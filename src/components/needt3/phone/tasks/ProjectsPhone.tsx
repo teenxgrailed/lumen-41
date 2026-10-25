@@ -365,12 +365,7 @@ function ProjectPageView({
   const addLabel = `${c.add_a_task_to} ${p.name}`;
   return (
     <>
-      <PkScreen
-        screen="project"
-        compactTitle={p.name}
-        head={head}
-        headClass="ptk-head is-page"
-      >
+      <PkScreen screen="project" head={head} headClass="ptk-head is-page">
         <div className="ptk-add">
           <span className="ptk-add-plus" aria-hidden="true">
             <LuPlus size={18} />

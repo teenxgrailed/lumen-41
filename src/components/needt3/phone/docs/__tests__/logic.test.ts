@@ -221,12 +221,8 @@ describe("edge swipe", () => {
 });
 
 describe("reader scroll", () => {
-  it("band, compact title and fog follow the offset", () => {
-    expect(scrollVars(0, 2000, 800)).toEqual({ band: 0, kt: 0, fog: 1 });
-    const mid = scrollVars(60, 2000, 800);
-    expect(mid.band).toBe(1);
-    expect(mid.kt).toBe(0);
-    expect(scrollVars(120, 2000, 800).kt).toBe(1);
+  it("the fog follows the offset", () => {
+    expect(scrollVars(0, 2000, 800)).toEqual({ fog: 1 });
     expect(scrollVars(1200, 2000, 800).fog).toBe(0);
   });
   it("short content has no fog", () => {

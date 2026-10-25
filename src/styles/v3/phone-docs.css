@@ -5,13 +5,12 @@
    ======================================================================== */
 /* phone-docs — Docs on the Plates phone (phone-docs.jsx; wave 3 09.10.26:
    the Docs home grid and the Craft-style editor).
-   The home sits on the kit (PkScreen); the page reuses the kit's top band,
-   compact title and fog (pk-topband, pk-compact, pk-fog) and Mobile.jsx's
-   page CSS (mb-doc-*, styles/mobile.css), full-bleed. The card miniature is
+   The home sits on the kit (PkScreen); the page reuses the kit's fog
+   (pk-fog) and Mobile.jsx's page CSS (mb-doc-*, styles/mobile.css), full-bleed. The card miniature is
    the desktop's (docs.css docs-mini-*). Colours: --v2p-* / --pk-* and this
    file's --pdc-* / --pdc2-* (themes.css); a page's own colours arrive per doc
-   as --dt-* (doc-style.jsx dcVars). Moving values (--pd-shade, --pk-band /
-   --pk-kt / --pk-fog-k, the page's translate, --pd-kb) are written by the
+   as --dt-* (doc-style.jsx dcVars). Moving values (--pd-shade, --pk-fog-k,
+   the page's translate, --pd-kb) are written by the
    JSX on events only.
    Blur rule (phone-kit.css): no opacity / filter / mask / clip-path on an
    ancestor of a blur layer — the page and the place under it only translate;
@@ -35,8 +34,8 @@
   color: var(--v2p-ink); font: 500 15px/1 var(--font-sans); letter-spacing: -0.01em; -webkit-tap-highlight-color: transparent; transition: transform 0.18s var(--pd-ease); }
 .needt-v3 .pd-glass:active { transform: scale(0.94); }
 .needt-v3 .pd-glass:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
-.needt-v3 .pd-back.has-label { padding: 0 calc(12px * (1 - var(--pk-kt, 0))) 0 calc(6px * (1 - var(--pk-kt, 0))); }
-.needt-v3 .pd-glass-label { display: block; max-width: calc((1 - var(--pk-kt, 0)) * 120px); overflow: hidden; white-space: nowrap; opacity: calc(1 - var(--pk-kt, 0)); }
+.needt-v3 .pd-back.has-label { padding: 0 12px 0 6px; }
+.needt-v3 .pd-glass-label { display: block; max-width: 120px; overflow: hidden; white-space: nowrap; }
 
 /* ── the home ── */
 .needt-v3 .pd-home { display: flex; flex-direction: column; gap: 14px; margin-top: -8px; }
@@ -118,9 +117,7 @@
 /* while typing, the page scrolls clear of the keyboard and its bar */
 .needt-v3 .pd-reader.is-editing .mb-doc-card { padding-bottom: calc(var(--pd-kb) + 120px); }
 .needt-v3 .pd-reader.is-selecting .mb-doc-card { padding-bottom: 160px; }
-/* the band, the compact title and the fog take the page's colour */
-.needt-v3 .pd-reader:not(.is-bd) .pk-compact-title { color: var(--pd-head); }
-.needt-v3 .pd-reader .pk-compact { left: 72px; right: 72px; top: 52px; }
+/* the fog takes the page's colour */
 .needt-v3 .pd-reader .pk-fog-wash { background: linear-gradient(to bottom, transparent 0%, transparent 30%, color-mix(in srgb, var(--pd-page) 94%, transparent) 92%); }
 
 /* ── blocks ── */

@@ -1,29 +1,21 @@
-/* Phone shell edges (additions-2/phone-shell, ps-shell.css, 21.10.26).
+/* Phone shell edge (additions-2/phone-shell, ps-shell.css, 21.10.26).
  *
- * The page scrolls (phone-ground.css). Three things sit on it:
- *   .ps-top   the collapsed header: ONE blur layer (owner decision
- *             2026-10-24, replacing the spec's three steps and tint), from the
- *             very top edge to 26 px past the small title, masked so it fades
- *             to nothing at its lower edge. No colour of its own, so it may
- *             reach the display edge under budget mode. Its strength follows
- *             --ps-k = clamp((scrollY - 8) / 44, 0, 1), written on the screen
- *             root by PkScreen.
- *   .ps-title the small centred title (place glyph + name). The large title
- *             (.pk-head-row, .pk-sub) shrinks away as it arrives.
+ * The page scrolls (phone-ground.css) and nothing is fixed at the top of it
+ * (owner decision 2026-10-25: no top blur band, no small title; content
+ * scrolls under the status bar / Safari's bar and the large title scrolls
+ * away with it). One thing sits on the page at the bottom:
  *   .ps-bot   the fog under the dock: 128 px to the screen edge (170 in a
  *             Safari tab), two masked blur steps and a tint.
  * (The spec's pull-down plate is not ported: phone screens have no pull-down.)
  *
  * Where it differs from the spec on purpose:
- *   - The fade is on each layer (.b, .t), never on .ps-top / .ps-bot: opacity
- *     on an ancestor of a backdrop-filter leaves the blur nothing to see.
+ *   - The fade is on each layer (.b, .t), never on .ps-bot: opacity on an
+ *     ancestor of a backdrop-filter leaves the blur nothing to see.
  *   - Safari 26 (confirmed on a device): no fixed element at least 80% wide
  *     with its own background-colour within a few px of the top or bottom
- *     edge. The hosts are the zero-height fixed .pk-topband / .pk-fog of
- *     phone-ground.css; every layer here is an absolute child painted with
- *     gradients and masks only.
- *   - `.ps-title` is also a class of the settings page's title row
- *     (phone-settings.css); everything that rule sets is reset below.
+ *     edge. The host is the zero-height fixed .pk-fog of phone-ground.css;
+ *     every layer here is an absolute child painted with gradients and masks
+ *     only.
  *
  * Tokens: the ground is --v2p-ground (#f6f6f3 / #141416); only --ps-* below
  * are new. */
@@ -31,68 +23,10 @@
 .needt-v3[data-ui="phone"] {
   --ps-fog: rgba(246, 246, 243, 0.97);
   --ps-fog-0: rgba(246, 246, 243, 0);
-  --ps-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
 }
 .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"]) {
   --ps-fog: rgba(20, 20, 22, 0.97);
   --ps-fog-0: rgba(20, 20, 22, 0);
-}
-
-/* ── Top: collapsed header ────────────────────────────────────────────────── */
-.needt-v3[data-ui="phone"] .ps-top > * {
-  opacity: var(--ps-k, var(--pk-band, 0));
-  transition: opacity 120ms linear;
-}
-/* one blur layer: full strength from the top edge down to the small title,
-   then masked out over the band's last 24 px, so the band has no edge */
-.needt-v3[data-ui="phone"] .ps-top > .pk-blur {
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-mask: linear-gradient(to top, transparent 0, #000 24px);
-  mask: linear-gradient(to top, transparent 0, #000 24px);
-}
-/* the blur rests while the band is faded out (motion.css rests it at 0 too,
-   but this sheet's selectors are more specific) */
-.needt-v3[data-ui="phone"] .pk-screen[data-pk-band-on="0"] .ps-top .pk-blur {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-/* the small title: place glyph + name, centred in a 36 px row */
-.needt-v3[data-ui="phone"] .pk-compact.ps-title {
-  top: calc(var(--v3-top) + 2px);
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  opacity: var(--ps-k, var(--pk-kt, 0));
-  transform: translateY(calc((1 - var(--ps-k, var(--pk-kt, 0))) * 8px));
-  transition:
-    opacity 120ms linear,
-    transform 160ms var(--ps-ease);
-}
-.needt-v3[data-ui="phone"] .pk-compact.ps-title .pk-compact-title {
-  font: 600 16px/1 var(--font-sans);
-  letter-spacing: -0.01em;
-  /* the row carries the fade and the slide */
-  opacity: 1;
-  transform: none;
-}
-.needt-v3[data-ui="phone"] .pk-compact.ps-title .pk-compact-glyph {
-  margin-right: 0;
-  opacity: 1;
-}
-/* the large title shrinks away as the small one arrives; transformed only
-   once the hand-over starts (data-ps-on), so a header at rest is not the
-   containing block of anything fixed */
-.needt-v3[data-ui="phone"]
-  .pk-screen[data-ps-on="1"]
-  :is(.pk-head-row, .pk-head > .pk-sub) {
-  transform-origin: 0 100%;
-  transform: scale(calc(1 - var(--ps-k, 0) * 0.12));
-  opacity: calc(1 - var(--ps-k, 0) * 1.4);
-  transition: opacity 120ms linear;
 }
 
 /* ── Bottom: fog under the dock ───────────────────────────────────────────── */
@@ -120,14 +54,4 @@
 .needt-v3[data-ui="phone"] .pk-screen[data-pk-fog-on="0"] .ps-bot .pk-blur {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .needt-v3[data-ui="phone"] .ps-top > *,
-  .needt-v3[data-ui="phone"] .pk-compact.ps-title,
-  .needt-v3[data-ui="phone"]
-    .pk-screen[data-ps-on="1"]
-    :is(.pk-head-row, .pk-head > .pk-sub) {
-    transition: none;
-  }
 }

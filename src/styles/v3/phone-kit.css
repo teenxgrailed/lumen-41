@@ -7,7 +7,7 @@
    Colours from themes.css: --v2p-* (ground, ink, plates, lavender) and
    --pk-* (glass, fog, mist, dots). A plate wears the OPPOSITE theme class, so
    inside it the same tokens read the other theme (menu A's card material).
-   Moving values (scroll-driven --pk-band / --pk-kt / --pk-fog-k, swipe
+   Moving values (scroll-driven --pk-fog-k, swipe
    offsets, sheet / pull positions, --pk-scrim-k) are written by the JSX;
    transitions play on events only.
    Backdrop blur: no ancestor of a .pk-blur / .pk-scrim-blur / .pk-edge-blur
@@ -19,7 +19,7 @@
 .needt-v3 .pk-pull { --pk-ease: cubic-bezier(0.2, 0.9, 0.25, 1); --pk-spring: cubic-bezier(0.22, 1.25, 0.36, 1); }
 
 /* ── the screen ── */
-.needt-v3 .pk-screen { --pk-band: 0; --pk-kl: 0; --pk-kt: 0; --pk-fog-k: 0; position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.needt-v3 .pk-screen { --pk-kl: 0; --pk-fog-k: 0; position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .needt-v3 .pk-scroll { user-select: none; -webkit-user-select: none; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   scrollbar-width: none; padding: 52px 20px 0; box-sizing: border-box; }
 .needt-v3 .pk-scroll::-webkit-scrollbar { display: none; }
@@ -37,15 +37,6 @@
   -webkit-mask-image: linear-gradient(var(--pk-dir), transparent 25%, var(--v2p-ink) 58%); mask-image: linear-gradient(var(--pk-dir), transparent 25%, var(--v2p-ink) 58%); }
 .needt-v3 .pk-blur.is-3 { -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
   -webkit-mask-image: linear-gradient(var(--pk-dir), transparent 55%, var(--v2p-ink) 85%); mask-image: linear-gradient(var(--pk-dir), transparent 55%, var(--v2p-ink) 85%); }
-
-/* 1 · top: content slides under a blur band at the status bar; the large
-   title hands over to a compact one over the glass. z 9: under the device
-   frame's status bar (ios-frame z 10), over rows (z 1). */
-.needt-v3 .pk-topband { position: absolute; left: 0; right: 0; top: 0; height: 116px; z-index: 9; pointer-events: none; }
-.needt-v3 .pk-topband > * { position: absolute; inset: 0; opacity: var(--pk-band); }
-.needt-v3 .pk-compact { position: absolute; left: 64px; right: 64px; top: 52px; height: 44px; z-index: 9; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.needt-v3 .pk-compact-title { font: 600 17px/22px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  opacity: var(--pk-kt); transform: translateY(calc((1 - var(--pk-kt)) * 8px)); }
 
 /* 2 · bottom: blur + halftone dots behind the menu pill (the card's fog) */
 .needt-v3 .pk-fog { position: absolute; left: 0; right: 0; bottom: 0; height: 132px; z-index: 9; pointer-events: none; overflow: hidden; }
@@ -280,7 +271,6 @@
 .needt-v3 .pk-btn,
 .needt-v3 .pk-sec-chev,
 .needt-v3 .pk-edge > * { transition: none; }
-  .needt-v3 .pk-compact-title { transform: none; }
 }
 
 /* ── the sky (08.10.26): the brand sky (scenes.jsx PxSky) as a small accent ──
@@ -332,10 +322,9 @@
 .needt-v3 .pk-glyph-art > *,
 .needt-v3 .pk-glyph-art .nva-glyph { width: 100%; height: 100%; }
 .needt-v3 .pk-glyph-art svg { display: block; width: 100%; height: 100%; }
-/* in the header: the big tile before the large title, a small one before the compact */
+/* in the header: the big tile before the large title */
 .needt-v3 .pk-head-glyph { margin-right: -2px; }
 .needt-v3 .pk-head-glyph + .pk-title { flex: 1; }
-.needt-v3 .pk-compact-glyph { margin-right: 8px; opacity: var(--pk-kt); }
 .needt-v3 .pk-sec-glyph { margin-right: 2px; }
 .needt-v3 .pk-sec.is-big .pk-sec-fold { align-items: center; }
 

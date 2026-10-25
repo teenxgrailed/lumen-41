@@ -176,15 +176,9 @@
 .needt-v3 .ps-screen { transition: transform 0.34s var(--pk-ease, ease); }
 .needt-v3 .ps-screen.is-under { transform: translate3d(-18%, 0, 0); }
 .needt-v3 .ps-page .pk-scroll { padding-top: 96px; }
-.needt-v3 .ps-page .pk-topband { height: 140px; }
-.needt-v3 .ps-page .pk-compact { top: 52px; left: 96px; right: 96px; }
 .needt-v3 .ps-back { position: absolute; left: 14px; top: 56px; z-index: 11; height: 36px; padding: 0 14px 0 8px; display: inline-flex; align-items: center; gap: 2px;
   color: var(--v2p-ink); font: 500 15px/1 var(--font-sans); letter-spacing: -0.01em; }
 .needt-v3 .ps-back:focus-visible { outline: 2px solid var(--v2p-lav); outline-offset: 2px; }
-.needt-v3 .ps-title { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
-.needt-v3 .ps-title-word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.needt-v3 .ps-title .ps-glyph,
-.needt-v3 .ps-title .pk-glyph { --pk-gl: 44px; }
 
 @media (prefers-reduced-motion: reduce) {
   .needt-v3 .ps-page.is-coming,

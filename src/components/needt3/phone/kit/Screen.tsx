@@ -11,34 +11,25 @@ import {
 } from "react";
 
 import { PkGlyph } from "./Material";
-import { pkAdoptDocumentScroll, pkPsK } from "./scroll";
+import { pkAdoptDocumentScroll } from "./scroll";
 import { pkClamp, pkCx } from "./util";
 
 export { PkScrim } from "./Scrim";
 
-/* ══ Blur bands (additions-2/phone-shell, ps-) ═══════════════════════════
+/* ══ Blur band (additions-2/phone-shell, ps-) ═════════════════════════════
    The fog under the dock is progressive blur in two masked steps (4 / 14 px)
-   plus a wash. The top band is one blur layer (owner decision 2026-10-24),
-   masked so it fades out at its lower edge, with no colour of its own.
-   The bands must not sit under an ancestor with opacity / filter / mask, or
-   the blur sees nothing — the fade (--ps-k, --pk-fog-k) goes on each layer
-   itself (phone-shell.css). The layers wear `pk-blur` so the rest-while-moving
-   and rest-while-hidden rules (phone-perf.css, motion.css) still reach them. */
+   plus a wash. Nothing is fixed at the top of the phone (owner decision
+   2026-10-25): content scrolls under the status bar and Safari's bar.
+   The band must not sit under an ancestor with opacity / filter / mask, or
+   the blur sees nothing — the fade (--pk-fog-k) goes on each layer itself
+   (phone-shell.css). The layers wear `pk-blur` so the rest-while-moving and
+   rest-while-hidden rules (phone-perf.css, motion.css) still reach them. */
 export function PkBlurLayers() {
   return (
     <>
       <span className="pk-blur b b1" />
       <span className="pk-blur b b2" />
     </>
-  );
-}
-
-/** The top band alone (PkScreen has one): one blur layer under the status bar and the small title. */
-export function PkTopBand({ className }: { className?: string }) {
-  return (
-    <div className={pkCx("pk-topband ps-top", className)} aria-hidden="true">
-      <span className="pk-blur b" />
-    </div>
   );
 }
 
@@ -113,10 +104,8 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
 /* ══ The screen scaffold ══════════════════════════════════════════════════ */
 
 export interface PkScreenProps {
-  /** The large title. It collapses into a compact title while the content scrolls under the status bar. */
+  /** The large title. It sits in the page flow and scrolls away with the content. */
   title?: ReactNode;
-  /** Text for the compact bar (default: the title when it is a string). */
-  compactTitle?: string;
   /** A line under the title. */
   sub?: ReactNode;
   /** A node at the right of the title row (a segmented control, a round button). */
@@ -138,14 +127,12 @@ export interface PkScreenProps {
 
 /**
  * The phone screen: content that the document scrolls (momentum, nothing
- * fixed at the edges) under a 52 px status bar, a large title that hands over to a
- * compact one over a top blur band, and a bottom fog behind the menu
- * pill. Scroll only changes custom properties on the root (no layout), and
- * only when the clamped values change.
+ * fixed at the top) from under a 52 px status bar, a large title in the page
+ * flow, and a bottom fog behind the menu pill. Scroll only changes a custom
+ * property on the root (no layout), and only when the clamped value changes.
  */
 export function PkScreen({
   title,
-  compactTitle,
   sub,
   right,
   head,
@@ -175,33 +162,21 @@ export function PkScreen({
     [scroller]
   );
 
-  // On scroll only: --ps-k = clamp((scrollY - 8) / 44, 0, 1) drives the top
-  // band, the small title and the large title's hand-over (phone-shell); the
-  // bottom fog shows while there is content under it.
+  // On scroll only: the bottom fog shows while there is content under it.
   useLayoutEffect(() => {
     const el = scroller;
     const r = root.current;
     if (!el || !r) return undefined;
     let last = "";
     const read = () => {
-      const y = el.scrollTop;
-      const k = pkPsK(y);
-      const left = el.scrollHeight - el.clientHeight - y;
+      const left = el.scrollHeight - el.clientHeight - el.scrollTop;
       const fog = pkClamp((left - 40) / 60, 0, 1);
-      const key = k.toFixed(3) + fog.toFixed(3);
+      const key = fog.toFixed(3);
       if (key === last) return;
       last = key;
-      r.style.setProperty("--ps-k", k.toFixed(3));
-      // kept for the docs back button (phone-docs.css), which still reads it
-      r.style.setProperty("--pk-kt", k.toFixed(3));
-      r.style.setProperty("--pk-fog-k", fog.toFixed(3));
-      r.setAttribute("data-pk-collapsed", k > 0.5 ? "1" : "0");
-      // The large title is transformed only once it starts to hand over: a
-      // transform at rest would make it the containing block of fixed children.
-      r.setAttribute("data-ps-on", k > 0.001 ? "1" : "0");
-      // The fog's drift and both bands' backdrop blur rest while they are faded out.
+      r.style.setProperty("--pk-fog-k", key);
+      // The fog's drift and its backdrop blur rest while it is faded out.
       r.setAttribute("data-pk-fog-on", fog > 0.01 ? "1" : "0");
-      r.setAttribute("data-pk-band-on", k > 0.01 ? "1" : "0");
     };
     read();
     el.addEventListener("scroll", read, { passive: true });
@@ -217,17 +192,13 @@ export function PkScreen({
     };
   }, [scroller]);
 
-  const small = compactTitle ?? (typeof title === "string" ? title : "");
   const hasGlyph = !!(glyph || glyphKind);
   return (
     <div
       ref={root}
       className={pkCx("pk-screen", className)}
       data-pk-screen={screen ?? ""}
-      data-pk-collapsed="0"
       data-pk-fog-on="0"
-      data-pk-band-on="0"
-      data-ps-on="0"
     >
       <div ref={setSc} className="pk-scroll">
         <div className="pk-content">
@@ -272,20 +243,6 @@ export function PkScreen({
           {tail === false ? null : <div className="pk-tail" />}
         </div>
       </div>
-      <PkTopBand />
-      {small ? (
-        <div className="pk-compact ps-title" aria-hidden="true">
-          {hasGlyph ? (
-            <PkGlyph
-              place={glyph}
-              kind={glyphKind}
-              size={20}
-              className="pk-compact-glyph"
-            />
-          ) : null}
-          <span className="pk-compact-title">{small}</span>
-        </div>
-      ) : null}
       <PkFog />
     </div>
   );
