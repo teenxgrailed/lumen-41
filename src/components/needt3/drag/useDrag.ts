@@ -60,10 +60,17 @@ export interface DragOver {
   toIx?: number;
 }
 
+/** Where the hand took hold, for a drop that moves by distance, not to a place. */
+export interface DragGrab {
+  /** The grid time (decimal hour) under the pointer when it was picked up, or null off a timeline. */
+  time: number | null;
+}
+
 export type DropHandler = (
   item: DragItem,
   over: DragOver,
-  mode: DragMode
+  mode: DragMode,
+  grab: DragGrab
 ) => void;
 
 /** What React sees of a drag: the item and the kind/place under the hand. */
@@ -138,6 +145,8 @@ interface Session {
   j: number;
   over: DragOver | null;
   overNode: Element | null;
+  /** The grid time under the pointer at pickup. */
+  grabTime: number | null;
   /** Cached rects, dropped on scroll / resize / autoscroll. */
   rects: Map<Element, Box>;
   /** The scroller around a hit element (or null), per element. */
@@ -213,6 +222,18 @@ function dragListOf(el: HTMLElement) {
   return null;
 }
 
+/** The snapped time at `y` on a timeline node, with cached geometry. */
+function timeOnTimeline(s: Session, node: Element, y: number) {
+  const r = rectOf(s, node);
+  return timelineTimeAt(y, {
+    rectTop: r.top,
+    scrollTop: node instanceof HTMLElement ? node.scrollTop : 0,
+    hourH: parseFloat(node.getAttribute("data-hour-h") ?? "") || 46,
+    start: parseFloat(node.getAttribute("data-start") ?? "") || 0,
+    offset: parseFloat(node.getAttribute("data-offset") ?? "") || 0,
+  });
+}
+
 /** The [data-drop] node under a point, resolved with cached geometry. */
 function targetAt(s: Session, x: number, y: number) {
   const el = document.elementFromPoint(x, y);
@@ -220,14 +241,7 @@ function targetAt(s: Session, x: number, y: number) {
   if (!node) return { el, over: null as DragOver | null };
   const kind = node.getAttribute("data-drop") as DragOver["kind"];
   if (kind === "timeline") {
-    const r = rectOf(s, node);
-    const time = timelineTimeAt(y, {
-      rectTop: r.top,
-      scrollTop: node instanceof HTMLElement ? node.scrollTop : 0,
-      hourH: parseFloat(node.getAttribute("data-hour-h") ?? "") || 46,
-      start: parseFloat(node.getAttribute("data-start") ?? "") || 0,
-      offset: parseFloat(node.getAttribute("data-offset") ?? "") || 0,
-    });
+    const time = timeOnTimeline(s, node, y);
     return {
       el,
       over: {
@@ -369,10 +383,16 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
         j: -1,
         over: null,
         overNode: null,
+        grabTime: null,
         rects: new Map(),
         scrollers: new WeakMap(),
         scope,
       };
+      {
+        // a band on a day grid moves by how far the hand travels: note the grid time it was taken at
+        const grid = el.closest('[data-drop="timeline"]');
+        if (grid) s.grabTime = timeOnTimeline(s, grid, a.y0);
+      }
       if (sort) {
         const lr = sort.list.getBoundingClientRect();
         const kids = Array.from(sort.list.children) as HTMLElement[];
@@ -646,7 +666,7 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
             settleSource(node, { left: s.r0.left, top });
           };
           mo.observe(q.list, { childList: true });
-          dropRef.current(s.item, over, s.mode);
+          dropRef.current(s.item, over, s.mode, { time: s.grabTime });
           window.requestAnimationFrame(() =>
             window.requestAnimationFrame(tidy)
           );
@@ -656,7 +676,7 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
       if (over) {
         /* A slot, a day, a project: commit, then the card flies into what the
            drop made (the new block) or quietly lands where it is. */
-        dropRef.current(s.item, over, s.mode);
+        dropRef.current(s.item, over, s.mode, { time: s.grabTime });
         const id = s.item.id;
         window.requestAnimationFrame(() =>
           window.requestAnimationFrame(() => {
