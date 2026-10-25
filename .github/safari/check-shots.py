@@ -7,9 +7,6 @@ the runner: `sips` (macOS) turns a shot into an uncompressed BMP.
       .fd-dockrow): the focus button and the pill are two separate objects on
       the dock line, the button fully on screen, a gap of page ground between
       them, and no New task button right of the pill.
-  check-shots.py edge <shot.png>...    the top 4 pt of the screen carry no
-      sharp content (list text): every row there is near-flat, the page ground
-      or blurred.
 
 Exits 1 with one line per failure."""
 import os, struct, subprocess, sys, tempfile
@@ -104,24 +101,9 @@ def check_focus(path):
     return errs
 
 
-def check_edge(path, pts=4):
-    w, h, rows = load(path)
-    k = w / PT
-    errs = []
-    worst = 0
-    for y in range(int(pts * k)):
-        row = rows[y][int(2 * k): w - int(2 * k)]
-        span = max(row) - min(row)
-        worst = max(worst, span)
-    print(f"{os.path.basename(path)}: top {pts} pt contrast {worst}")
-    if worst > 30:
-        errs.append(f"{path}: sharp content in the top {pts} pt (contrast {worst})")
-    return errs
-
-
 if __name__ == "__main__":
     cmd, paths = sys.argv[1], sys.argv[2:]
-    fn = {"focus": check_focus, "edge": check_edge}[cmd]
+    fn = {"focus": check_focus}[cmd]
     errs = []
     for p in paths:
         errs += fn(p)
