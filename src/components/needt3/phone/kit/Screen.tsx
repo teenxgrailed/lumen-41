@@ -91,7 +91,9 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
       ref={setEl}
       className="pk-fog ps-bot"
       aria-hidden="true"
-      data-pk-live="0"
+      // Live from the first paint: the dots must not wait for an effect to
+      // start (pkFogLive turns it off while the tab is hidden).
+      data-pk-live="1"
     >
       <PkBlurLayers />
       <span className="pk-fog-wash t" />

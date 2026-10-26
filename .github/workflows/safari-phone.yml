@@ -254,6 +254,32 @@ jobs:
         # a scenario that goes wrong must not hide the shots already taken
         continue-on-error: true
 
+      # Bottom of the screen at rest, scrolled and with the menu card open
+      # (the dock, its fog and the card's rows), light and dark. The dots button
+      # at the pill's right end opens the card; web content is not in the
+      # accessibility tree, so it is tapped by position (the compact layout).
+      - name: Dock, fog and open menu
+        timeout-minutes: 15
+        run: |
+          set -uo pipefail
+          . .github/safari/lib.sh
+          open_path() { open_url "http://127.0.0.1:3000$1"; sleep 3; }
+          read -r W H < <(python3 .github/safari/ui.py size | tail -n 1)
+          for theme in light dark; do
+            run 60 "appearance $theme" xcrun simctl ui "$UDID" appearance "$theme"
+            sleep 2
+            open_path /today
+            shot "$theme-09-dock-rest"
+            run 60 "scroll up" python3 .github/safari/ui.py up 2
+            sleep 1
+            shot "$theme-09-dock-scrolled"
+            open_path /today
+            run 60 "open the menu" python3 .github/safari/ui.py tapxy "$(python3 -c "print($W*0.719)")" "$(python3 -c "print($H*0.808)")"
+            sleep 2
+            shot "$theme-09-menu-open"
+          done
+        continue-on-error: true
+
       # The phone Focus button (additions-2/focus-done, fd-): drawn only while a
       # session runs. The shots above are the idle state (no button); these are
       # running, paused and ending, light and dark.

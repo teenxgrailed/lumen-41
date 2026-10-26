@@ -229,6 +229,8 @@ const LOOP_ALLOW: Record<string, string> = {
     "owner exception: halftone drift, only while the menu fog shows",
   ".needt-v3 .pk-fog > .pk-fog-dots":
     "owner exception: halftone drift, only while the band is live",
+  '.needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots':
+    "owner exception, faster and with a pulse (2026-10-26): same off switches, phone-shell.css",
 };
 
 describe("phone loops", () => {
