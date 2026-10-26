@@ -10,7 +10,7 @@ import { createV3User, signInAs } from "./helpers/v3-user";
  * page, which gives way and dims; to the left, mirrored; a place from the menu
  * card rises from the dock; with Reduce Motion it is a 150 ms crossfade.
  *
- * The motion is paused as soon as it starts and read at 0, 50 and 100 %
+ * The motion is paused as soon as it starts and read at 0, 50, 98 and 100 %
  * (Web Animations: `currentTime`), so the frames do not depend on timing. The
  * dock pill and the fog must not move at any of them. The stills are written
  * to test-results/page-motion-frames (uploaded with the e2e report).
@@ -18,7 +18,8 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 
 const FRAMES = path.join("test-results", "page-motion-frames");
 const WIDTH = 390;
-const STEPS = [0, 0.5, 1] as const;
+/** Start, middle, just before the end (the old page is still there) and the end. */
+const STEPS = [0, 0.5, 0.98, 1] as const;
 
 type Frame = {
   t: number;
@@ -227,6 +228,8 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   expect(fwd[1].ghost!.left).toBeLessThan(-1);
   expect(fwd[2].ghost!.left).toBeLessThan(fwd[1].ghost!.left);
   expect(fwd[2].ghost!.left).toBeGreaterThan(-WIDTH * 0.4);
+  // and it is released when the page's motion ends
+  expect(fwd[3].ghost).toBeNull();
   expect(fwd[0].ghost!.opacity).toBeGreaterThan(0.99);
   expect(fwd[2].ghost!.opacity).toBeLessThan(0.7);
   expectStill(fwd);
