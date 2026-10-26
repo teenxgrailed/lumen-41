@@ -40,7 +40,7 @@ export const GHOST_TTL_MS = 2500;
 /** How long the old page waits for the new one before it gives up the screen. */
 export const GHOST_WAIT_MS = 450;
 /** How long the stage keeps asking for the motion while the page streams in. */
-const STAGE_TTL_MS = 3000;
+const STAGE_TTL_MS = 8000;
 /** A route change this soon after a popstate is Back/Forward: Safari's own. */
 export const POP_WINDOW_MS = 800;
 

@@ -130,13 +130,17 @@ async function readFrames(page: Page, name: string): Promise<Frame[]> {
   const out: Frame[] = [];
   for (const t of STEPS) {
     out.push(
-      await page.evaluate((step) => {
+      await page.evaluate(async (step) => {
         const w = window as unknown as { __pg: Set<Animation> };
         const box = (el: Element | null) => el?.getBoundingClientRect() ?? null;
         for (const a of w.__pg) {
           const d = Number(a.effect?.getComputedTiming().duration ?? 0);
           a.currentTime = step * d;
         }
+        // let the seek reach style before anything is measured
+        await new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done))
+        );
         // the element the page change moves: the target of its own animation
         const own = [...w.__pg].find((a) =>
           (a as CSSAnimation).animationName.startsWith("v3-pg-in")
