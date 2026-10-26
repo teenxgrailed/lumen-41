@@ -217,15 +217,17 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
 .needt-v3[data-ui="phone"] :is(.nva-glass, .nva-add, .nva-focus) {
   top: calc(-1 * var(--v3-edge));
 }
-/* The dock's shadow (0 18px 28px under a pill 30 px off the edge) reaches the
- * display edge and greys the bottom rows in the middle. It stops where the
- * paint budget does: .nva-shadow fills .nva-body, whose bottom sits
- * 10 px + the dock lift above the display edge (.nva-body below). Off iOS
- * the gap is 0 and the clip is the screen's own edge. */
+/* The dock casts no shadow. Its pre-drawn shadow pieces (.nva-shadow) painted
+ * a darker, hard-edged rectangle behind the pill on the page ground (owner,
+ * 2026-10-26: x from the pill's rounded ends in, a good 30 pt above the pill
+ * down to where the clip stopped it): the straight-edge pieces are as wide as
+ * the pill's flat part and, at the resting pill, do not fade out like the
+ * rounded corners do. The design's dock is a dark pill and a round + button
+ * floating on the fog with nothing behind them; the fog is what lifts it off
+ * the page. `display: none` removes every layer of it (the pieces are painted
+ * by the menu's own frame code; they paint nothing off screen). */
 .needt-v3[data-ui="phone"] .nva-shadow {
-  clip-path: inset(
-    -100vh -48px calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift)) -48px
-  );
+  display: none;
 }
 
 /* Everything anchored to the bottom floats above it by a gap plus the inset:

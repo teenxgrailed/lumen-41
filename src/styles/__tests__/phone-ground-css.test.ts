@@ -68,11 +68,41 @@ describe("phone page ground", () => {
     expect(block).toContain("min-height: 100lvh");
   });
 
-  it("the dock's shadow stops at the bottom paint gap", () => {
-    const body = rule('.needt-v3[data-ui="phone"] .nva-shadow');
-    expect(body).toContain(
-      "calc(var(--v3-gap-bot) - 10px - var(--v3-dock-lift))"
+  it("nothing boxy sits behind the dock: no shadow pieces, no backdrop layer of its own", () => {
+    // owner 2026-10-26: the shadow's straight-edge pieces were a darker
+    // rectangle behind the pill. The dock is a pill and a round + on the fog.
+    expect(rule('.needt-v3[data-ui="phone"] .nva-shadow')).toContain(
+      "display: none"
     );
+    // the only backdrop-filter at the dock is the pill's and the + button's
+    // own glass (nav-a.css), cut to their shapes; none of the phone overrides
+    // adds a rectangular one around them
+    const decls = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) =>
+      /backdrop-filter\s*:\s*(?!none)/.test(m[2])
+    );
+    expect(decls.map((m) => m[1].trim())).toEqual([]);
+  });
+
+  it("the fog host sits under the menu, the sheets and their scrims", () => {
+    const z = (sel: string) =>
+      Number(
+        (readFileSync(
+          path.join(process.cwd(), "src/styles/v3/phone-kit.css"),
+          "utf8"
+        ).match(
+          new RegExp(`${sel.replace(/[.]/g, "\\.")} \\{[^}]*z-index: (\\d+)`)
+        ) ?? [])[1]
+      );
+    const nav = readFileSync(
+      path.join(process.cwd(), "src/styles/v3/nav-a.css"),
+      "utf8"
+    );
+    const fog = z(".needt-v3 .pk-fog");
+    const menu = Number(nav.match(/\.nva \{[^}]*z-index: (\d+)/)?.[1]);
+    expect(fog).toBeGreaterThan(0);
+    expect(menu).toBeGreaterThan(fog);
+    expect(z(".needt-v3 .pk-scrim")).toBeGreaterThan(fog);
+    expect(z(".needt-v3 .pk-sheet-layer")).toBeGreaterThan(fog);
   });
 
   it("the screen has no inner scroller", () => {

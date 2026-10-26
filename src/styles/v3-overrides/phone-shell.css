@@ -55,3 +55,76 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+
+/* ── The open menu's rows are not dotted over ─────────────────────────────────
+ * Menu A's card has its own fog at its bottom edge (nav-a.css .nva-fog: blur,
+ * wash, halftone) so the rows past the fourth melt into the card. Its dots
+ * were drawn over the rows (owner, 2026-10-26: "Mailbox", "Habits" under a
+ * dot pattern, confirmed in a Safari run of the open card). The blur and the
+ * wash keep the melt; the dots go. The screen's own fog (.pk-fog, z-index 9)
+ * is under the menu (.nva, 45), the scrims (50) and the sheets (60) already:
+ * phone-ground-css.test.ts holds that order. */
+.needt-v3[data-ui="phone"] .nva-fog-dots {
+  display: none;
+}
+
+/* ── The fog's halftone, alive ────────────────────────────────────────────────
+ * The vendored drift (phone-kit.css: 48 px per 40 / 31 / 23 s, 1.2 px/s at the
+ * slowest) is real but too slow to read as motion on a phone: the owner saw
+ * still dots (2026-10-26). Same two motions, faster, and one more:
+ *   drift  right to left by 8 cells (48 px) per cycle, seamless (the layer is
+ *          48 px wider than the band); 3 to 5 px/s, the sky's pace (MOTION.md
+ *          Drift: 5 to 14 px/s on the big sky)
+ *   bob    a hair up and down
+ *   pulse  the layer swells by a few percent and settles
+ * The three layers run at different periods, so the pattern keeps changing
+ * where they overlap. translate / transform / scale only: compositor work, no
+ * per-frame script.
+ *
+ * No `paused` in the shorthand: the dots run unless something below removes
+ * the animation (a tab that is hidden, a fog that is faded out, reduced
+ * motion). Reduced motion is the media query alone, the setting the person
+ * made in the system; nothing else turns the dots off. */
+.needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots {
+  animation:
+    v3-pk-fog-drift 16s linear infinite,
+    v3-pk-fog-bob 5s ease-in-out -2s infinite,
+    v3-pk-fog-pulse 7s ease-in-out -1s infinite;
+}
+.needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots.is-2 {
+  animation-duration: 12s, 6.5s, 9s;
+  animation-delay:
+    0s,
+    -4s,
+    -5s;
+}
+.needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots.is-3 {
+  animation-duration: 9s, 4s, 6s;
+  animation-delay:
+    0s,
+    -1s,
+    -3s;
+}
+@keyframes v3-pk-fog-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.06;
+  }
+}
+/* Off while the band is not live (tab hidden) or faded out (nothing under it
+ * to scroll to): the animation is removed, so a parked screen holds none. */
+.needt-v3[data-ui="phone"] .pk-fog:not([data-pk-live="1"]) > .pk-fog-dots,
+.needt-v3[data-ui="phone"]
+  .pk-screen[data-pk-fog-on="0"]
+  .pk-fog
+  > .pk-fog-dots {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots {
+    animation: none;
+  }
+}

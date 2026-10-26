@@ -73,4 +73,64 @@ describe("phone shell (ps-)", () => {
   it("the fade is on each layer, never on the fog host", () => {
     expect(shell).not.toMatch(/\.pk-fog \{[^}]*opacity/);
   });
+
+  it("the open menu's rows are not dotted over by the card's own fog", () => {
+    const start = shell.indexOf('.needt-v3[data-ui="phone"] .nva-fog-dots {');
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(shell.slice(start, shell.indexOf("}", start))).toContain(
+      "display: none"
+    );
+  });
+
+  describe("the fog dots move (owner 2026-10-26: they were still)", () => {
+    const dots = '.needt-v3[data-ui="phone"] .pk-fog > .pk-fog-dots';
+    const body = (sel: string) => {
+      const start = shell.indexOf(`${sel} {`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      return shell.slice(start, shell.indexOf("}", start));
+    };
+
+    it("every dot layer declares a drift, a bob and a pulse, running by default", () => {
+      const a = body(dots);
+      expect(a).toContain("v3-pk-fog-drift");
+      expect(a).toContain("v3-pk-fog-bob");
+      expect(a).toContain("v3-pk-fog-pulse");
+      expect(a).toMatch(/infinite/);
+      // no `paused` in the shorthand: nothing but an off rule stops them
+      expect(a).not.toMatch(/\bpaused\b/);
+      expect(shell).toMatch(/@keyframes v3-pk-fog-pulse/);
+      // the three layers differ, so the pattern keeps changing
+      expect(body(`${dots}.is-2`)).toContain("animation-duration");
+      expect(body(`${dots}.is-3`)).toContain("animation-duration");
+    });
+
+    it("the drift is fast enough to read as motion (at least 2 px/s)", () => {
+      const a = body(dots);
+      const s = Number(a.match(/v3-pk-fog-drift (\d+)s/)?.[1]);
+      expect(48 / s).toBeGreaterThanOrEqual(2);
+    });
+
+    it("they stop only for a hidden tab, a faded fog or the system's reduced motion", () => {
+      expect(shell).toMatch(
+        /\.pk-fog:not\(\[data-pk-live="1"\]\) > \.pk-fog-dots/
+      );
+      expect(shell).toMatch(/\.pk-screen\[data-pk-fog-on="0"\]/);
+      const at = shell.indexOf("@media (prefers-reduced-motion: reduce)");
+      expect(at).toBeGreaterThan(0);
+      // nothing else switches them off for good
+      const off = [...shell.matchAll(/([^{}]+)\{[^{}]*animation:\s*none/g)].map(
+        (m) => m[1].replace(/\s+/g, " ").trim()
+      );
+      expect(off.length).toBe(2); // the off-screen pair, then reduced motion
+    });
+
+    it("they start live: the host is live in the markup, not only after an effect", () => {
+      const screen = readFileSync(
+        path.join(process.cwd(), "src/components/needt3/phone/kit/Screen.tsx"),
+        "utf8"
+      );
+      expect(screen).toContain('data-pk-live="1"');
+      expect(screen).not.toContain('data-pk-live="0"');
+    });
+  });
 });
