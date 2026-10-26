@@ -1,0 +1,1 @@
+- The app domain (use.needt.app) lets search engines crawl every page so they see its noindex and drop URLs they had indexed; only /api/ stays disallowed.

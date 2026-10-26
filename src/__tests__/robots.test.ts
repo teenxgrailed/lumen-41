@@ -5,12 +5,12 @@ import robots from "@/app/robots";
 import { middleware } from "@/middleware";
 
 describe("robots.txt", () => {
-  it("keeps public entry pages crawlable and everything else disallowed", () => {
+  it("keeps every page crawlable so the noindex is seen, and only /api/ out", () => {
     expect(robots()).toEqual({
       rules: {
         userAgent: "*",
-        allow: ["/$", "/auth/", "/privacy", "/terms", "/subprocessors"],
-        disallow: "/",
+        allow: "/",
+        disallow: "/api/",
       },
     });
   });
