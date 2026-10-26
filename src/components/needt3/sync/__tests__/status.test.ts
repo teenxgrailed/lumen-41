@@ -18,10 +18,10 @@ describe("deriveSyncStatus", () => {
     });
   });
 
-  it("is Syncing… while a mutation, a save or the provider is working", () => {
+  it("is Saving… while a mutation, a save or the provider is working", () => {
     expect(deriveSyncStatus({ ...base, mutating: 2 })).toMatchObject({
       kind: "syncing",
-      label: "Syncing…",
+      label: "Saving…",
       waiting: "2 changes sending",
     });
     expect(deriveSyncStatus({ ...base, source: { save: "saving" } }).kind).toBe(
@@ -32,22 +32,31 @@ describe("deriveSyncStatus", () => {
     ).toBe("syncing");
   });
 
-  it("counts the queue when offline, and says nothing about a count it lacks", () => {
+  it("says changes are kept when offline, and counts the queue only in the details", () => {
+    const view = deriveSyncStatus({ ...base, online: false, queued: 3 });
+    expect(view).toMatchObject({
+      kind: "offline",
+      label: "Offline — changes kept",
+      waiting: "3 changes waiting",
+    });
     expect(
-      deriveSyncStatus({ ...base, online: false, queued: 3 })
-    ).toMatchObject({ kind: "offline", label: "Offline (3 changes waiting)" });
-    expect(deriveSyncStatus({ ...base, online: false, queued: 1 }).label).toBe(
-      "Offline (1 change waiting)"
+      deriveSyncStatus({ ...base, online: false, queued: 1 }).waiting
+    ).toBe("1 change waiting");
+    expect(
+      deriveSyncStatus({ ...base, online: false, queued: 0 }).waiting
+    ).toBe(null);
+    expect(deriveSyncStatus({ ...base, online: false }).label).toBe(
+      "Offline — changes kept"
     );
-    expect(deriveSyncStatus({ ...base, online: false, queued: 0 }).label).toBe(
-      "Offline"
-    );
-    expect(deriveSyncStatus({ ...base, online: false }).label).toBe("Offline");
   });
 
   it("shows a kept draft as an error, never as Saved", () => {
     const failed = deriveSyncStatus({ ...base, source: { save: "failed" } });
-    expect(failed).toMatchObject({ kind: "error", retryable: true });
+    expect(failed).toMatchObject({
+      kind: "error",
+      label: "Not saved",
+      retryable: true,
+    });
     expect(failed.waiting).toBe("Draft kept on this device");
     const local = deriveSyncStatus({ ...base, source: { collab: "local" } });
     expect(local).toMatchObject({ kind: "error", retryable: true });
