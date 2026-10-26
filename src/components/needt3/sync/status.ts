@@ -15,7 +15,7 @@ export interface SyncInput {
 
 export interface SyncView {
   kind: SyncKind;
-  /** The one word in the bar. */
+  /** The short label beside the dot. */
   label: string;
   /** The popover's heading. */
   title: string;
@@ -38,7 +38,7 @@ export function deriveSyncStatus(input: SyncInput): SyncView {
     const drafted = source?.save === "offline" || source?.save === "failed";
     return {
       kind: "offline",
-      label: queuedN ? `Offline (${changesLabel(queuedN)} waiting)` : "Offline",
+      label: "Offline — changes kept",
       title: "Offline",
       waiting: queuedN ? `${changesLabel(queuedN)} waiting` : null,
       detail: drafted
@@ -50,7 +50,7 @@ export function deriveSyncStatus(input: SyncInput): SyncView {
   if (source?.save === "failed") {
     return {
       kind: "error",
-      label: "Error",
+      label: "Not saved",
       title: "Not saved",
       waiting: "Draft kept on this device",
       detail: "The server has not saved your latest edit.",
@@ -70,7 +70,7 @@ export function deriveSyncStatus(input: SyncInput): SyncView {
   if (failedMutations > 0) {
     return {
       kind: "error",
-      label: "Error",
+      label: "Not saved",
       title: "Not saved",
       waiting: `${changesLabel(failedMutations)} not saved`,
       detail: "A change did not reach the server.",
@@ -85,8 +85,8 @@ export function deriveSyncStatus(input: SyncInput): SyncView {
   ) {
     return {
       kind: "syncing",
-      label: "Syncing…",
-      title: "Syncing",
+      label: "Saving…",
+      title: "Saving",
       waiting: mutating > 0 ? `${changesLabel(mutating)} sending` : null,
       detail:
         source?.collab === "connecting"

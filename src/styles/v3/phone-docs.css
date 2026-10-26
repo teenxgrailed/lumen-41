@@ -29,6 +29,7 @@
 .needt-v3 .pd-bar { position: absolute; top: 54px; left: 12px; right: 12px; height: 40px; z-index: 10; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
 .needt-v3 .pd-bar > * { pointer-events: auto; }
 .needt-v3 .pd-bar > span { pointer-events: none; }
+.needt-v3 .pd-bar > .sync-status-row { pointer-events: auto; }
 .needt-v3 .pd-glass { flex: none; min-width: 40px; height: 40px; padding: 0; box-sizing: border-box; border: 0; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center;
   background: var(--pdc-glass); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); box-shadow: var(--pk-glass-edge), var(--pdc-chip-shadow);
   color: var(--v2p-ink); font: 500 15px/1 var(--font-sans); letter-spacing: -0.01em; -webkit-tap-highlight-color: transparent; transition: transform 0.18s var(--pd-ease); }
