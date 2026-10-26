@@ -84,15 +84,17 @@ describe("phone page ground", () => {
   });
 
   it("the fog host sits under the menu, the sheets and their scrims", () => {
-    const z = (sel: string) =>
-      Number(
-        (readFileSync(
-          path.join(process.cwd(), "src/styles/v3/phone-kit.css"),
-          "utf8"
-        ).match(
-          new RegExp(`${sel.replace(/[.]/g, "\\.")} \\{[^}]*z-index: (\\d+)`)
-        ) ?? [])[1]
-      );
+    const kit = readFileSync(
+      path.join(process.cwd(), "src/styles/v3/phone-kit.css"),
+      "utf8"
+    );
+    // locate the rule by its literal selector, then read z-index from its
+    // body with a fixed regex (no pattern built from a variable)
+    const z = (sel: string) => {
+      const at = kit.indexOf(`${sel} {`);
+      const body = at < 0 ? "" : kit.slice(at, kit.indexOf("}", at));
+      return Number(body.match(/z-index: (\d+)/)?.[1]);
+    };
     const nav = readFileSync(
       path.join(process.cwd(), "src/styles/v3/nav-a.css"),
       "utf8"
