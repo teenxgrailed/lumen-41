@@ -218,8 +218,9 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   expect(fwd[0].page.left, JSON.stringify(fwd[0])).toBeGreaterThan(
     WIDTH * 0.95
   );
-  expect(fwd[1].page.left).toBeGreaterThan(WIDTH * 0.05);
-  expect(fwd[1].page.left).toBeLessThan(WIDTH * 0.95);
+  // the house ease is front-loaded: at half the time most of the way is done
+  expect(fwd[1].page.left).toBeGreaterThan(1);
+  expect(fwd[1].page.left).toBeLessThan(WIDTH * 0.5);
   expect(Math.abs(fwd[2].page.left)).toBeLessThan(1);
   // the old page gives way to the left and dims, as the new one arrives
   expect(Math.abs(fwd[0].ghost!.left)).toBeLessThan(1);
@@ -243,7 +244,8 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   expect(back[0].page.left, JSON.stringify(back[0])).toBeLessThan(
     -WIDTH * 0.95
   );
-  expect(back[1].page.left).toBeLessThan(-WIDTH * 0.05);
+  expect(back[1].page.left).toBeLessThan(-1);
+  expect(back[1].page.left).toBeGreaterThan(-WIDTH * 0.5);
   expect(Math.abs(back[2].page.left)).toBeLessThan(1);
   expect(back[2].ghost!.left).toBeGreaterThan(1);
   expectStill(back);
