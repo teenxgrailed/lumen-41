@@ -1,8 +1,9 @@
 /**
  * @jest-environment jsdom
  *
- * The one sync status in the top bar: a dot and a word for each state, the
- * quiet fade of Saved, and the popover with Retry.
+ * The save status of an editing surface: a dot and a label for each state,
+ * the quiet fade of Saved, the popover with Retry, and nothing at all where
+ * no editing surface is open.
  */
 import { act, createElement as h } from "react";
 
@@ -28,6 +29,8 @@ let client: QueryClient;
 beforeEach(() => {
   jest.useFakeTimers();
   offline = { online: true, queued: null };
+  // An editing surface is open unless a test says otherwise.
+  setSyncSource("test", {});
   client = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   });
@@ -58,7 +61,14 @@ const source = (s: SyncSource | null) => act(() => setSyncSource("test", s));
 const open = () => act(() => btn().click());
 
 describe("SyncStatus", () => {
-  it("renders exactly one status, a dot and a word", () => {
+  it("renders nothing where no editing surface is open", () => {
+    setSyncSource("test", null);
+    render();
+    expect(host.querySelector("[data-sync-status]")).toBeNull();
+    expect(host.textContent).toBe("");
+  });
+
+  it("renders exactly one status, a dot and a label", () => {
     render();
     expect(host.querySelectorAll("[data-sync-status]")).toHaveLength(1);
     expect(btn().querySelector(".sync-status-dot")).not.toBeNull();
@@ -74,7 +84,7 @@ describe("SyncStatus", () => {
     render();
     source({ save: "saving" });
     expect(kind()).toBe("syncing");
-    expect(word()).toBe("Syncing…");
+    expect(word()).toBe("Saving…");
     source({ save: "saved" });
     expect(kind()).toBe("saved");
     expect(word()).toBe("Saved");
@@ -85,14 +95,14 @@ describe("SyncStatus", () => {
     expect(btn().hasAttribute("data-sync-quiet")).toBe(true);
   });
 
-  it("Syncing… while the provider connects", () => {
+  it("Saving… while the provider connects", () => {
     render();
     source({ collab: "connecting" });
     expect(kind()).toBe("syncing");
-    expect(word()).toBe("Syncing…");
+    expect(word()).toBe("Saving…");
   });
 
-  it("Syncing… while a mutation is in flight", async () => {
+  it("Saving… while a mutation is in flight", async () => {
     render();
     let release: () => void = () => undefined;
     const gate = new Promise<void>((r) => (release = r));
@@ -111,17 +121,17 @@ describe("SyncStatus", () => {
     expect(kind()).toBe("saved");
   });
 
-  it("Offline, with the number of changes waiting", () => {
+  it("Offline says changes are kept", () => {
     offline = { online: false, queued: 3 };
     render();
     expect(kind()).toBe("offline");
-    expect(word()).toBe("Offline (3 changes waiting)");
+    expect(word()).toBe("Offline — changes kept");
   });
 
   it("Offline without a count", () => {
     offline = { online: false, queued: null };
     render();
-    expect(word()).toBe("Offline");
+    expect(word()).toBe("Offline — changes kept");
   });
 
   it("Draft kept (a failed save) is an error, not Saved", () => {

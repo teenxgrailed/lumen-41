@@ -31,6 +31,7 @@ import { copyText, openUrl } from "../../places/board/clipboard";
 import { canManage, sourceUrlOf } from "../../places/board/logic";
 import { canEditBoard } from "../../places/derive";
 import type { BoardsController } from "../../places/useBoardsController";
+import { SyncStatus } from "../../sync/SyncStatus";
 import {
   PkActions,
   type PkActs,
@@ -298,6 +299,7 @@ export function PhoneBoardPage({
           head={head}
           headClass="phb-bh-head"
           className="phb-board-screen"
+          status={<SyncStatus placement="phone" />}
         >
           <PlaceState query={boards} screen="moodboards">
             {!b ? (

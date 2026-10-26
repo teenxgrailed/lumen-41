@@ -7,6 +7,7 @@ import {
 import { BoardPage } from "../../places/board/BoardPage";
 import { useBoardsController } from "../../places/useBoardsController";
 import { usePhoneUi } from "../../root/phone-ui-context";
+import { useEditingSurface } from "../../sync/sync-source";
 import { usePhoneOverlays } from "../overlays/store";
 import { PhoneBoardPage } from "./PhoneBoardPage";
 import { PhoneBoards } from "./PhoneBoards";
@@ -46,6 +47,7 @@ export function MoodboardsRoute() {
  */
 export function MoodboardRoute({ id }: { id: string }) {
   const ui = usePhoneUi();
+  useEditingSurface(`board:${id}`);
   const onBlocked = useBlocked();
   const ctl = useBoardsController({ onBlocked });
   return ui === "phone" ? (
