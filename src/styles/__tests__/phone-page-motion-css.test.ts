@@ -147,7 +147,8 @@ describe("page change: what moves", () => {
   it("the transform sits on the screen's content, so the fixed fog stays still", () => {
     for (const a of animations()) {
       if (!/v3-pg-in-/.test(a.value)) continue;
-      expect(a.selector).toContain("> .pk-screen > .pk-scroll");
+      // however deep the place wraps its screen, never the screen's own root
+      expect(a.selector).toContain(".pk-screen > .pk-scroll:not(");
     }
     expect(source).not.toMatch(/\.pk-fog/);
   });

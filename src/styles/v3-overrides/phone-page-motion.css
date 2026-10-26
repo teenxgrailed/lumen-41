@@ -40,12 +40,19 @@
 }
 
 /* ── the page: the screen's content, or whatever else the stage holds ───────
- * Not the loading skeleton: it has its own entry, and the page that replaces
- * it must not start a second one. */
-.needt-v3[data-ui="phone"] .v2p-stage[data-pg] > .pk-screen > .pk-scroll,
+ * The screen's content is the first `.pk-scroll` under a `.pk-screen`, however
+ * deep the place wraps it (Docs puts the screen inside `.pd-place`); a stage
+ * child that holds no screen at all (the Reader) moves as a whole. Never the
+ * loading skeleton: it has its own entry, and the page that replaces it must
+ * not start a second one. The second selector is wrapped in :is() so a browser
+ * without :has() drops only that fallback. */
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg]
-  > :not(.pk-screen, .st-route-loading) {
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
   position: relative;
   z-index: 2;
 }
@@ -54,11 +61,11 @@
  * does not show through below a short list. */
 .needt-v3[data-ui="phone"]
   .v2p-stage:is([data-pg="forward"], [data-pg="back"])
-  > .pk-screen
-  > .pk-scroll,
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage:is([data-pg="forward"], [data-pg="back"])
-  > :not(.pk-screen, .st-route-loading) {
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
   background: var(--v2p-ground);
   box-sizing: border-box;
   min-height: 100dvh;
@@ -66,23 +73,29 @@
 
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="forward"]
-  > .pk-screen
-  > .pk-scroll,
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="forward"]
-  > :not(.pk-screen, .st-route-loading) {
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
   animation: v3-pg-in-fwd var(--pg-slide) var(--pg-ease) backwards;
 }
-.needt-v3[data-ui="phone"] .v2p-stage[data-pg="back"] > .pk-screen > .pk-scroll,
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="back"]
-  > :not(.pk-screen, .st-route-loading) {
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="back"]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
   animation: v3-pg-in-back var(--pg-slide) var(--pg-ease) backwards;
 }
-.needt-v3[data-ui="phone"] .v2p-stage[data-pg="rise"] > .pk-screen > .pk-scroll,
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="rise"]
-  > :not(.pk-screen, .st-route-loading) {
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="rise"]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
   /* from the dock: the viewport's bottom edge, as the page starts at the top */
   transform-origin: 50% 100dvh;
   animation: v3-pg-in-rise var(--pg-rise) var(--pg-ease) backwards;
@@ -171,12 +184,12 @@
   html:not([data-animations="off"])
     .needt-v3[data-ui="phone"]
     .v2p-stage[data-pg]
-    > .pk-screen
-    > .pk-scroll:not(#pg),
+    .pk-screen
+    > .pk-scroll:not(.pk-scroll .pk-scroll):not(#pg),
   html:not([data-animations="off"])
     .needt-v3[data-ui="phone"]
     .v2p-stage[data-pg]
-    > :not(.pk-screen, .st-route-loading):not(#pg) {
+    > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))):not(#pg) {
     animation: v3-pg-in-fade var(--pg-fade) ease-out backwards !important;
   }
   .needt-v3[data-ui="phone"] .pk-pg-ghost[data-pg] > .pk-pg-sheet {

@@ -45,6 +45,8 @@ async function open(page: Page, reducedMotion = false) {
   await expect(page.locator('[data-nva-icon="docs"]')).toBeVisible({
     timeout: 30_000,
   });
+  // the dock is laid out once it is ready; a click before that lands nowhere
+  await page.locator("[data-nva-ready]").first().waitFor({ state: "attached" });
 }
 
 /** Pauses every page-change animation the moment it starts. */
@@ -71,67 +73,80 @@ async function hold(page: Page) {
 
 /** Waits until the page's own animation (and the old page's, when there is one) is held. */
 async function held(page: Page, count: number) {
-  await page.waitForFunction(
-    (n) =>
-      (window as unknown as { __pg: Set<Animation> }).__pg.size >= n &&
-      [...(window as unknown as { __pg: Set<Animation> }).__pg].every(
-        (a) => a.playState === "paused"
-      ),
-    count,
-    { timeout: 10_000 }
-  );
-}
-
-/** Reads the screen with every held animation seeked to each step, in one go. */
-function readFrames(page: Page): Promise<Frame[]> {
-  return page.evaluate((steps) => {
-    const w = window as unknown as { __pg: Set<Animation> };
-    const out: Frame[] = [];
-    const box = (el: Element | null) => el?.getBoundingClientRect() ?? null;
-    for (const t of steps) {
-      for (const a of w.__pg) {
-        const d = Number(a.effect?.getComputedTiming().duration ?? 0);
-        a.currentTime = t * d;
-      }
+  try {
+    await page.waitForFunction(
+      (n) =>
+        (window as unknown as { __pg: Set<Animation> }).__pg.size >= n &&
+        [...(window as unknown as { __pg: Set<Animation> }).__pg].every(
+          (a) => a.playState === "paused"
+        ),
+      count,
+      { timeout: 10_000 }
+    );
+  } catch (error) {
+    const state = await page.evaluate(() => {
       const stage = document.querySelector("[data-v2p-host] > .v2p-stage");
-      const pageEl =
-        stage?.querySelector(":scope > .pk-screen > .pk-scroll") ??
-        stage?.firstElementChild ??
-        null;
-      const sheet = document.querySelector(".pk-pg-ghost > .pk-pg-sheet");
-      const fog = box(document.querySelector(".pk-fog"));
-      const pill = box(document.querySelector("[data-nva-pill]"))!;
-      const cs = pageEl ? getComputedStyle(pageEl) : null;
-      out.push({
-        t,
-        page: {
-          left: box(pageEl)?.left ?? NaN,
-          opacity: cs ? Number(cs.opacity) : NaN,
-          scale: cs ? new DOMMatrix(cs.transform).a : NaN,
-        },
-        ghost: sheet
-          ? {
-              left: box(sheet)!.left,
-              opacity: Number(getComputedStyle(sheet).opacity),
-            }
-          : null,
-        fog: fog ? { top: fog.top, left: fog.left } : null,
-        pill: { top: pill.top, left: pill.left, width: pill.width },
-        names: [...w.__pg].map((a) => (a as CSSAnimation).animationName),
-      });
-    }
-    return out;
-  }, STEPS);
+      return {
+        path: location.pathname,
+        stage: stage?.getAttribute("data-pg") ?? null,
+        ghost: !!document.querySelector(".pk-pg-ghost"),
+        first: stage?.firstElementChild?.className ?? null,
+        seen: [...(window as unknown as { __pg: Set<Animation> }).__pg].map(
+          (a) => `${(a as CSSAnimation).animationName}:${a.playState}`
+        ),
+      };
+    });
+    throw new Error(`page change not held: ${JSON.stringify(state)}`, {
+      cause: error,
+    });
+  }
 }
 
-async function stills(page: Page, name: string) {
+/**
+ * Seeks every held animation to each step in turn, reads the screen and takes
+ * a still. The last step is the end: finishing the page's animation lets the
+ * script release the old page, so it comes last.
+ */
+async function readFrames(page: Page, name: string): Promise<Frame[]> {
   await mkdir(FRAMES, { recursive: true });
+  const out: Frame[] = [];
   for (const t of STEPS) {
-    await page.evaluate((step) => {
-      const w = window as unknown as { __pg: Set<Animation> };
-      for (const a of w.__pg)
-        a.currentTime = step * Number(a.effect?.getComputedTiming().duration);
-    }, t);
+    out.push(
+      await page.evaluate((step) => {
+        const w = window as unknown as { __pg: Set<Animation> };
+        const box = (el: Element | null) => el?.getBoundingClientRect() ?? null;
+        for (const a of w.__pg) {
+          const d = Number(a.effect?.getComputedTiming().duration ?? 0);
+          a.currentTime = step * d;
+        }
+        const stage = document.querySelector("[data-v2p-host] > .v2p-stage");
+        const pageEl =
+          stage?.querySelector(".pk-screen > .pk-scroll") ??
+          stage?.firstElementChild ??
+          null;
+        const sheet = document.querySelector(".pk-pg-ghost > .pk-pg-sheet");
+        const fog = box(document.querySelector(".pk-fog"));
+        const pill = box(document.querySelector("[data-nva-pill]"))!;
+        const cs = pageEl ? getComputedStyle(pageEl) : null;
+        return {
+          t: step,
+          page: {
+            left: box(pageEl)?.left ?? NaN,
+            opacity: cs ? Number(cs.opacity) : NaN,
+            scale: cs ? new DOMMatrix(cs.transform).a : NaN,
+          },
+          ghost: sheet
+            ? {
+                left: box(sheet)!.left,
+                opacity: Number(getComputedStyle(sheet).opacity),
+              }
+            : null,
+          fog: fog ? { top: fog.top, left: fog.left } : null,
+          pill: { top: pill.top, left: pill.left, width: pill.width },
+          names: [...w.__pg].map((a) => (a as CSSAnimation).animationName),
+        };
+      }, t)
+    );
     await page
       .screenshot({
         path: path.join(FRAMES, `${name}-${Math.round(t * 100)}.png`),
@@ -139,6 +154,7 @@ async function stills(page: Page, name: string) {
       })
       .catch(() => undefined);
   }
+  return out;
 }
 
 /** Nothing the dock or the fog does may change while the page moves. */
@@ -167,9 +183,9 @@ test("a tile on the right slides in from the right, a tile on the left from the 
 
   // Home -> Docs: Docs sits right of Home in the dock
   await hold(page);
-  await page.locator('[data-nva-icon="docs"]').click();
+  await page.locator('[data-nva-icon="docs"]').dispatchEvent("click");
   await held(page, 2);
-  const fwd = await readFrames(page);
+  const fwd = await readFrames(page, "forward");
   expect(fwd[0].names.some((n) => n === "v3-pg-in-fwd")).toBe(true);
   expect(fwd[0].names.some((n) => n === "v3-pg-sheet-fwd-out")).toBe(true);
   // the page starts off the right edge, crosses and rests at 0
@@ -185,7 +201,6 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   expect(fwd[0].ghost!.opacity).toBeGreaterThan(0.99);
   expect(fwd[2].ghost!.opacity).toBeLessThan(0.7);
   expectStill(fwd);
-  await stills(page, "forward");
 
   // Docs -> Home: the other way
   await page.goto("/pages");
@@ -193,16 +208,15 @@ test("a tile on the right slides in from the right, a tile on the left from the 
     timeout: 30_000,
   });
   await hold(page);
-  await page.locator('[data-nva-icon="home"]').click();
+  await page.locator('[data-nva-icon="home"]').dispatchEvent("click");
   await held(page, 2);
-  const back = await readFrames(page);
+  const back = await readFrames(page, "back");
   expect(back[0].names.some((n) => n === "v3-pg-in-back")).toBe(true);
   expect(back[0].page.left).toBeLessThan(-WIDTH * 0.95);
   expect(back[1].page.left).toBeLessThan(-WIDTH * 0.05);
   expect(Math.abs(back[2].page.left)).toBeLessThan(1);
   expect(back[2].ghost!.left).toBeGreaterThan(1);
   expectStill(back);
-  await stills(page, "back");
 });
 
 test("a place from the menu rises from the dock, scale 0.96 to 1 and a fade", async ({
@@ -213,7 +227,7 @@ test("a place from the menu rises from the dock, scale 0.96 to 1 and a fade", as
   await page.locator("[data-nva-open]").click();
   await page.locator('[data-nva-row="calendar"]').click();
   await held(page, 1);
-  const rise = await readFrames(page);
+  const rise = await readFrames(page, "rise");
   expect(rise[0].names).toContain("v3-pg-in-rise");
   expect(rise[0].page.opacity).toBeLessThan(0.05);
   expect(rise[0].page.scale).toBeCloseTo(0.96, 2);
@@ -224,7 +238,6 @@ test("a place from the menu rises from the dock, scale 0.96 to 1 and a fade", as
   // the old page stays where it is and is covered by the new one fading in
   expect(Math.abs(rise[1].ghost!.left)).toBeLessThan(1);
   expectStill(rise);
-  await stills(page, "rise");
 });
 
 test("with Reduce Motion the page change is a 150 ms crossfade and nothing moves", async ({
@@ -232,9 +245,9 @@ test("with Reduce Motion the page change is a 150 ms crossfade and nothing moves
 }) => {
   await open(page, true);
   await hold(page);
-  await page.locator('[data-nva-icon="docs"]').click();
+  await page.locator('[data-nva-icon="docs"]').dispatchEvent("click");
   await held(page, 1);
-  const fade = await readFrames(page);
+  const fade = await readFrames(page, "fade");
   expect(fade[0].names).toEqual(["v3-pg-in-fade"]);
   const duration = await page.evaluate(
     () =>
