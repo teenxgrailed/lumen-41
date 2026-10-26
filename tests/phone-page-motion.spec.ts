@@ -154,7 +154,9 @@ async function readFrames(page: Page, name: string): Promise<Frame[]> {
         return {
           t: step,
           page: {
-            left: box(pageEl)?.left ?? NaN,
+            // not getBoundingClientRect: the screen's content answers for the
+            // document (pkAdoptDocumentScroll), so its rect never moves
+            left: cs ? new DOMMatrix(cs.transform).m41 : NaN,
             opacity: cs ? Number(cs.opacity) : NaN,
             scale: cs ? new DOMMatrix(cs.transform).a : NaN,
           },
