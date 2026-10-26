@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { PhoneOfflineIndicator } from "../../sync/PhoneOfflineIndicator";
 import { PkGlyph } from "./Material";
 import { pkAdoptDocumentScroll } from "./scroll";
 import { pkClamp, pkCx } from "./util";
@@ -120,6 +121,12 @@ export interface PkScreenProps {
   /** `false` drops the bottom spacer (default 132 px so the last row clears the pill). */
   tail?: boolean;
   className?: string;
+  /**
+   * An editing surface's save status (a board's `SyncStatus`), in the page
+   * flow above the title. Every other screen carries none; offline shows for
+   * all of them.
+   */
+  status?: ReactNode;
   glyph?: string;
   glyphKind?: string;
   children?: ReactNode;
@@ -141,6 +148,7 @@ export function PkScreen({
   scrollRef,
   tail,
   className,
+  status,
   glyph,
   glyphKind,
   children,
@@ -202,6 +210,8 @@ export function PkScreen({
     >
       <div ref={setSc} className="pk-scroll">
         <div className="pk-content">
+          <PhoneOfflineIndicator />
+          {status ? <div className="pk-sync-row">{status}</div> : null}
           {title != null || sub || head ? (
             <header className={pkCx("pk-head", headClass)}>
               {title != null && hasGlyph && right ? (

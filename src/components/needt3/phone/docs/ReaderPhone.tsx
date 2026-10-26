@@ -30,6 +30,7 @@ import { backdropVars } from "../../docs/backdrop";
 import { fontOf, pageVars, styleOf } from "../../docs/style";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { screenState } from "../../states/status";
+import { SyncStatus } from "../../sync/SyncStatus";
 import { PkFog } from "../kit/Screen";
 import { pkCx } from "../kit/util";
 import { snack } from "../overlays/snack";
@@ -377,6 +378,7 @@ export function ReaderPhone({
           >
             Docs
           </PdGlass>
+          <SyncStatus placement="phone" />
           {typing ? (
             <PdGlass
               icon={<LuCheck size={20} aria-hidden />}

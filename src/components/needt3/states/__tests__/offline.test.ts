@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 
-import { SyncStatus } from "../../sync/SyncStatus";
+import { OfflineIndicator } from "../../sync/OfflineIndicator";
 
 let mockUser: string | null = "first";
 let mockWorkspace = "workspace-a";
@@ -44,7 +44,7 @@ describe("offline count from the established scoped service-worker protocol", ()
           createElement(
             QueryClientProvider,
             { client: new QueryClient() },
-            createElement(SyncStatus)
+            createElement(OfflineIndicator)
           )
         );
       });

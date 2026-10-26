@@ -6,11 +6,11 @@ import { newDate } from "@/lib/date-utils";
 
 import { useOfflineQueue } from "../states/useOfflineQueue";
 import { type SyncKind, deriveSyncStatus } from "./status";
-import { useSyncSource } from "./sync-source";
+import { type SyncSource, useSyncSource } from "./sync-source";
 import { useMutationHealth } from "./useMutationHealth";
 
 /** How long "Saved" stays up after a save before only the dot is left. */
-export const SAVED_WORD_MS = 3500;
+export const SAVED_WORD_MS = 2000;
 
 function clock(at: number) {
   return newDate(at).toLocaleTimeString([], {
@@ -20,16 +20,34 @@ function clock(at: number) {
 }
 
 /**
- * The one sync status, in the top bar of every screen (desktop and phone): a
- * small dot and one word. Saved is quiet and fades to the dot; Syncing…,
- * Offline (n changes waiting) and the error states stay up. Click opens the
- * details, and Retry when there is something to retry. The accent is a mark
- * only, never a fill.
+ * The save state of an editing surface (a document, a page, a board): a 6 px
+ * dot and a 12 px label. The dot is ink at a ladder alpha, a ring when
+ * offline, the danger colour when something is not saved. Saved says its word
+ * for a moment and settles to the dot; the full label comes back on hover,
+ * focus or tap. Saving…, offline and the error states stay up. Click opens
+ * the details, and Retry when there is something to retry.
+ *
+ * It renders only while an editing surface has registered a sync source
+ * (`setSyncSource`), so Home, Tasks, Calendar and the rest carry no status at
+ * all; the offline signal everywhere else is `OfflineIndicator`.
  */
 export function SyncStatus({
   placement = "bar",
 }: {
   placement?: "bar" | "phone";
+}) {
+  const source = useSyncSource();
+  return source ? (
+    <SyncStatusBody placement={placement} source={source} />
+  ) : null;
+}
+
+function SyncStatusBody({
+  placement,
+  source,
+}: {
+  placement: "bar" | "phone";
+  source: SyncSource;
 }) {
   const { online, queued } = useOfflineQueue();
   const {
@@ -37,7 +55,6 @@ export function SyncStatus({
     failedMutations,
     retry: retryMutations,
   } = useMutationHealth();
-  const source = useSyncSource();
   const view = useMemo(
     () =>
       deriveSyncStatus({
@@ -106,7 +123,7 @@ export function SyncStatus({
         data-sync-quiet={hideWord ? "" : undefined}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={`Sync status: ${view.title}`}
+        aria-label={`Save status: ${view.title}`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="sync-status-dot" aria-hidden="true" />

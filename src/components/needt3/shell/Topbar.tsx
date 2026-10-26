@@ -12,6 +12,7 @@ import { useExit } from "../ctx/useExit";
 import { DocPanelToggle, DocTopRight } from "../document/DocTopRight";
 import { useOpenDocId } from "../document/open-doc";
 import { Tooltip } from "../menu/Tooltip";
+import { OfflineIndicator } from "../sync/OfflineIndicator";
 import { SyncStatus } from "../sync/SyncStatus";
 import { useShellApi } from "./ShellContext";
 import { TopIcons } from "./TopIcons";
@@ -202,6 +203,7 @@ export function Topbar() {
         />
       </span>
       <span className="base-row shell-tab-bar-row-2">
+        <OfflineIndicator />
         <SyncStatus />
         {docId ? <DocTopRight isDatabase={!!doc.data?.isDatabase} /> : null}
         <TopIcons />
