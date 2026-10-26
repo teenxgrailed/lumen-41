@@ -25,8 +25,10 @@
  *
  * Reduced motion: no movement, a 150 ms crossfade over the still copy. The
  * global reduced-motion rule (v3/base.css) forces every duration to 1 ms with
- * !important, so the crossfade out-ranks it with an id in the selector and
- * stays off when the user has switched animations off (globals.css).
+ * !important, and so does `html[data-animations="off"]` (globals.css, which
+ * MotionRuntime also writes for Reduce Motion), so the crossfade out-ranks
+ * them with an id in the selector. For the animations setting alone (not
+ * Reduce Motion) the script makes none of it: no still copy, no `data-pg`.
  */
 .needt-v3[data-ui="phone"] {
   --pg-ease: var(--nx-ease); /* cubic-bezier(0.2, 0.9, 0.24, 1) */
@@ -181,13 +183,11 @@
 
 /* ── reduced motion: no movement, a plain crossfade over the old page ───── */
 @media (prefers-reduced-motion: reduce) {
-  html:not([data-animations="off"])
-    .needt-v3[data-ui="phone"]
+  .needt-v3[data-ui="phone"]
     .v2p-stage[data-pg]
     .pk-screen
     > .pk-scroll:not(.pk-scroll .pk-scroll):not(#pg),
-  html:not([data-animations="off"])
-    .needt-v3[data-ui="phone"]
+  .needt-v3[data-ui="phone"]
     .v2p-stage[data-pg]
     > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))):not(#pg) {
     animation: v3-pg-in-fade var(--pg-fade) ease-out backwards !important;

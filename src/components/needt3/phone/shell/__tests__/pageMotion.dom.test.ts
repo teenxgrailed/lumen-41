@@ -183,6 +183,15 @@ describe("when nothing moves", () => {
     expect(stage().hasAttribute("data-pg")).toBe(false);
   });
 
+  it("Reduce Motion writes off too and still gets its crossfade", () => {
+    document.documentElement.setAttribute("data-animations", "off");
+    reduced(true);
+    pageMotionCapture();
+    pageMotionRun("forward");
+    expect(stage().getAttribute("data-pg")).toBe("forward");
+    expect(ghost()).not.toBeNull();
+  });
+
   it("with reduced motion and no copy there is nothing to cross over", () => {
     reduced(true);
     pageMotionRun("forward");

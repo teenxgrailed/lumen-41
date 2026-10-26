@@ -214,10 +214,12 @@ describe("page change: reduced motion", () => {
     );
   });
 
-  it("out-ranks the global 1 ms rule, and stays off when animations are off", () => {
+  it("out-ranks the global 1 ms rules, both of them", () => {
     const text = norm(block().toString());
-    // an id beats the global rule's seven classes; the attribute keeps the switch
+    // an id beats the base rule's seven classes and html[data-animations=off] *,
+    // which MotionRuntime also sets for Reduce Motion: no guard on the attribute,
+    // the script decides whether there is a crossfade at all
     expect(text).toContain(":not(#pg)");
-    expect(text).toContain('html:not([data-animations="off"])');
+    expect(text).not.toContain("data-animations");
   });
 });

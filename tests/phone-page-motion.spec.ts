@@ -27,6 +27,7 @@ type Frame = {
   fog: { top: number; left: number } | null;
   pill: { top: number; left: number; width: number };
   names: string[];
+  target: string;
 };
 
 async function open(page: Page, reducedMotion = false) {
@@ -102,6 +103,22 @@ async function held(page: Page, count: number) {
   }
 }
 
+/** The menu's own spring (the card closing after a pick) is not the page's motion: let it rest. */
+async function settled(page: Page) {
+  let last = "";
+  for (let i = 0; i < 20; i++) {
+    const now = await page.evaluate(() => {
+      const r = document
+        .querySelector("[data-nva-pill]")!
+        .getBoundingClientRect();
+      return `${r.top}|${r.left}|${r.width}`;
+    });
+    if (now === last) return;
+    last = now;
+    await page.waitForTimeout(120);
+  }
+}
+
 /**
  * Seeks every held animation to each step in turn, reads the screen and takes
  * a still. The last step is the end: finishing the page's animation lets the
@@ -109,6 +126,7 @@ async function held(page: Page, count: number) {
  */
 async function readFrames(page: Page, name: string): Promise<Frame[]> {
   await mkdir(FRAMES, { recursive: true });
+  await settled(page);
   const out: Frame[] = [];
   for (const t of STEPS) {
     out.push(
@@ -119,11 +137,12 @@ async function readFrames(page: Page, name: string): Promise<Frame[]> {
           const d = Number(a.effect?.getComputedTiming().duration ?? 0);
           a.currentTime = step * d;
         }
-        const stage = document.querySelector("[data-v2p-host] > .v2p-stage");
+        // the element the page change moves: the target of its own animation
+        const own = [...w.__pg].find((a) =>
+          (a as CSSAnimation).animationName.startsWith("v3-pg-in")
+        );
         const pageEl =
-          stage?.querySelector(".pk-screen > .pk-scroll") ??
-          stage?.firstElementChild ??
-          null;
+          (own?.effect as KeyframeEffect | undefined)?.target ?? null;
         const sheet = document.querySelector(".pk-pg-ghost > .pk-pg-sheet");
         const fog = box(document.querySelector(".pk-fog"));
         const pill = box(document.querySelector("[data-nva-pill]"))!;
@@ -144,6 +163,7 @@ async function readFrames(page: Page, name: string): Promise<Frame[]> {
           fog: fog ? { top: fog.top, left: fog.left } : null,
           pill: { top: pill.top, left: pill.left, width: pill.width },
           names: [...w.__pg].map((a) => (a as CSSAnimation).animationName),
+          target: pageEl ? `${pageEl.tagName}.${pageEl.className}` : "none",
         };
       }, t)
     );
@@ -189,7 +209,9 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   expect(fwd[0].names.some((n) => n === "v3-pg-in-fwd")).toBe(true);
   expect(fwd[0].names.some((n) => n === "v3-pg-sheet-fwd-out")).toBe(true);
   // the page starts off the right edge, crosses and rests at 0
-  expect(fwd[0].page.left).toBeGreaterThan(WIDTH * 0.95);
+  expect(fwd[0].page.left, JSON.stringify(fwd[0])).toBeGreaterThan(
+    WIDTH * 0.95
+  );
   expect(fwd[1].page.left).toBeGreaterThan(WIDTH * 0.05);
   expect(fwd[1].page.left).toBeLessThan(WIDTH * 0.95);
   expect(Math.abs(fwd[2].page.left)).toBeLessThan(1);
@@ -212,7 +234,9 @@ test("a tile on the right slides in from the right, a tile on the left from the 
   await held(page, 2);
   const back = await readFrames(page, "back");
   expect(back[0].names.some((n) => n === "v3-pg-in-back")).toBe(true);
-  expect(back[0].page.left).toBeLessThan(-WIDTH * 0.95);
+  expect(back[0].page.left, JSON.stringify(back[0])).toBeLessThan(
+    -WIDTH * 0.95
+  );
   expect(back[1].page.left).toBeLessThan(-WIDTH * 0.05);
   expect(Math.abs(back[2].page.left)).toBeLessThan(1);
   expect(back[2].ghost!.left).toBeGreaterThan(1);

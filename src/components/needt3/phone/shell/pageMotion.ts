@@ -97,9 +97,16 @@ interface Live {
 let pending: Pending | null = null;
 let live: Live | null = null;
 
+/**
+ * Animations switched off (the setting, or a hidden tab): no page change.
+ * MotionRuntime also writes "off" for the system's Reduce Motion, and that one
+ * still gets the 150 ms crossfade, so the attribute only counts when the system
+ * does not ask for less motion.
+ */
 const motionOff = () =>
   typeof document === "undefined" ||
-  document.documentElement.getAttribute("data-animations") === "off";
+  (!pkReduced() &&
+    document.documentElement.getAttribute("data-animations") === "off");
 
 const hostEl = () =>
   document.querySelector<HTMLElement>("[data-v2p-host]") ?? null;
