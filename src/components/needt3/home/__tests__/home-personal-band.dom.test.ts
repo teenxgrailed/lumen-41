@@ -52,7 +52,7 @@ beforeEach(() => {
   (globalThis as { fetch?: unknown }).fetch = jest.fn(async () => ({
     ok: true,
     status: 200,
-    text: async () => "{}",
+    text: async () => JSON.stringify({ blocks: [] }),
     json: async () => ({ blocks: [] }),
   }));
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
