@@ -94,6 +94,12 @@ describe("weather", () => {
     max: 14,
     code: 61,
     summary: "Light rain",
+    feelsLike: 10,
+    precipChance: 70,
+    windKph: 18,
+    sunrise: "07:12",
+    sunset: "17:31",
+    hours: [{ time: "13:00", temp: 12, code: 61, precipChance: 70 }],
   };
   it("maps a WMO code to a sky", () => {
     expect(weatherEmoji(0)).toBe("☀️");
@@ -116,6 +122,19 @@ describe("weather", () => {
       t: "12°",
       d: "light rain",
       first: "10:00",
+      detail: {
+        place: "Zurich",
+        summary: "Light rain",
+        rows: [
+          { k: "Feels like", v: "10°" },
+          { k: "High / low", v: "14° / 8°" },
+          { k: "Precipitation", v: "70%" },
+          { k: "Wind", v: "18 km/h" },
+          { k: "Sunrise", v: "07:12" },
+          { k: "Sunset", v: "17:31" },
+        ],
+        hours: [{ time: "13:00", ic: "🌧", t: "12°" }],
+      },
     });
     expect(JSON.stringify(wx)).not.toMatch(/leave/i);
   });
