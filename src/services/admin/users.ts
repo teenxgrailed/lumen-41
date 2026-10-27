@@ -15,11 +15,13 @@ export interface AdminUserRow {
   role: string;
   createdAt: string | null;
   plan: SubscriptionPlan;
+  /** Whether the email address is confirmed. */
+  verified: boolean;
+  lastSignInAt: string | null;
 }
 
 export interface AdminUserDetail extends AdminUserRow {
   isActive: boolean;
-  lastSignInAt: string | null;
   trialEndsAt: string | null;
   /** Paid (or comped) plan row, before a trial is taken into account. */
   subscription: {
@@ -52,19 +54,27 @@ function unique(values: string[]) {
  */
 export async function searchAdminUsers(
   query: string,
-  now: Date = newDate()
+  now: Date = newDate(),
+  page: { offset?: number; limit?: number } = {}
 ): Promise<AdminUserRow[]> {
   const q = plainSearch(query);
   const users = await prisma.user.findMany({
     where: q ? { email: { contains: q, mode: "insensitive" } } : undefined,
-    orderBy: [{ createdAt: { sort: "desc", nulls: "last" } }, { email: "asc" }],
-    take: USER_SEARCH_LIMIT,
+    orderBy: [
+      { createdAt: { sort: "desc", nulls: "last" } },
+      { email: "asc" },
+      { id: "asc" },
+    ],
+    ...(page.offset ? { skip: page.offset } : {}),
+    take: Math.min(page.limit ?? USER_SEARCH_LIMIT, USER_SEARCH_LIMIT * 2),
     select: {
       id: true,
       email: true,
       name: true,
       role: true,
       createdAt: true,
+      emailVerified: true,
+      lastAuthenticatedAt: true,
       subscription: {
         select: { plan: true, status: true, currentPeriodEnd: true },
       },
@@ -78,6 +88,8 @@ export async function searchAdminUsers(
     role: user.role,
     createdAt: iso(user.createdAt),
     plan: effectiveSubscriptionPlan(user.subscription, user.trialGrant, now),
+    verified: Boolean(user.emailVerified),
+    lastSignInAt: iso(user.lastAuthenticatedAt),
   }));
 }
 
@@ -94,6 +106,7 @@ export async function getAdminUserDetail(
       role: true,
       isActive: true,
       createdAt: true,
+      emailVerified: true,
       lastAuthenticatedAt: true,
       subscription: {
         select: {
@@ -123,6 +136,7 @@ export async function getAdminUserDetail(
     role: user.role,
     isActive: user.isActive,
     createdAt: iso(user.createdAt),
+    verified: Boolean(user.emailVerified),
     lastSignInAt: iso(user.lastAuthenticatedAt),
     trialEndsAt: iso(user.trialGrant?.endsAt),
     plan: effectiveSubscriptionPlan(subscription, user.trialGrant, now),
