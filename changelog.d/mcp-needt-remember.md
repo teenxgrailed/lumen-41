@@ -1,0 +1,1 @@
+- Assistants can now save a memory line with the MCP tool `needt_remember` or `POST /api/ai/memories` (needs "Let Needt learn about me" on; near-identical lines are updated, up to 500 per workspace).

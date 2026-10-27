@@ -2,10 +2,12 @@ import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/mcp/route";
 import {
+  AssistantMemoryError,
   clearAgentMemories,
   forgetForUser,
   isLearningEnabled,
   listAgentMemories,
+  rememberFromAssistant,
   updateMemoryForUser,
 } from "@/services/ai/memory";
 import {
@@ -57,6 +59,7 @@ jest.mock("@/services/ai/memory", () => ({
   forgetForUser: jest.fn(),
   isLearningEnabled: jest.fn(),
   listAgentMemories: jest.fn(),
+  rememberFromAssistant: jest.fn(),
   updateMemoryForUser: jest.fn(),
 }));
 jest.mock("@/services/connectors/webhooks", () => ({
@@ -647,6 +650,40 @@ describe("MCP write tools", () => {
       expect(clearAgentMemories).toHaveBeenCalledWith("user-1", "workspace-1");
     });
 
+    it("saves a line through needt_remember and maps the errors", async () => {
+      jest.mocked(rememberFromAssistant).mockResolvedValue({
+        memory: { ...memory, source: "assistant" },
+        updated: true,
+      } as never);
+      const ok = await call("needt_remember", {
+        content: "No meetings before 10",
+      });
+      expect(ok.isError).toBe(false);
+      expect(ok.payload).toEqual({
+        id: "m1",
+        kind: "preference",
+        content: "No meetings before 10",
+        source: "assistant",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updated: true,
+      });
+      expect(rememberFromAssistant).toHaveBeenCalledWith(
+        "user-1",
+        "workspace-1",
+        { content: "No meetings before 10", kind: "preference" }
+      );
+      jest
+        .mocked(rememberFromAssistant)
+        .mockRejectedValue(new AssistantMemoryError("off", "Memory is off."));
+      const off = await call("needt_remember", { content: "Anything" });
+      expect(off.payload).toEqual({ status: 400, error: "Memory is off." });
+      jest
+        .mocked(rememberFromAssistant)
+        .mockRejectedValue(new AssistantMemoryError("cap", "Memory is full."));
+      const full = await call("needt_remember", { content: "Anything" });
+      expect(full.payload.status).toBe(409);
+    });
+
     it("has no tool that turns learning on", async () => {
       const response = await POST(
         new NextRequest("http://localhost/api/mcp", {
@@ -664,6 +701,7 @@ describe("MCP write tools", () => {
       expect(names).toEqual(
         expect.arrayContaining([
           "needt_list_memories",
+          "needt_remember",
           "needt_update_memory",
           "needt_forget_memory",
         ])
