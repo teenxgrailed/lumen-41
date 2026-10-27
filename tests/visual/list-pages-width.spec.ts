@@ -80,9 +80,11 @@ async function expectFillsWidth(page: Page, selector: string, width: number) {
  */
 async function expectRowsAlignWithHeader(page: Page) {
   // rows load after the shell: wait for the first project cell before measuring
-  await expect(page.locator(".wk-screen .tk-cell-proj").first()).toBeVisible({
-    timeout: 20_000,
-  });
+  // (an empty cell has no height, so it is attached but never "visible")
+  await page
+    .locator(".wk-screen .tk-cell-proj")
+    .first()
+    .waitFor({ state: "attached", timeout: 20_000 });
   const gap = await page.evaluate(() => {
     const tabs = document.querySelector("[data-task-view-gear]");
     const scroll = document.querySelector<HTMLElement>(".wk-scroll");
