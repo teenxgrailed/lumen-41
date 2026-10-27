@@ -3,8 +3,7 @@
  *
  * Personal time on screen: the band is calm and tinted (never the accent),
  * sits behind the blocks of its day column, opens its own card instead of a
- * new event, and the empty-slot menu lists the presets without taking focus
- * from the draft.
+ * new event, and the draft's create card lists the presets as chips.
  */
 import { act, createRef, createElement as h } from "react";
 
@@ -15,7 +14,6 @@ import type { DayBand } from "@/lib/personal-time-days";
 
 import { type WeekHandle, WeekView } from "../../calendar/WeekView";
 import { PersonalBand, PersonalRow } from "../PersonalBand";
-import { PersonalSlotMenu } from "../PersonalSlotMenu";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -182,7 +180,7 @@ describe("Week grid with personal time", () => {
             work: { days: [1, 2, 3, 4, 5], start: 9, end: 17 },
             draft: null,
             onSlot,
-            onSave: () => undefined,
+            onCreate: () => undefined,
             onCancel: () => undefined,
             onDone: () => undefined,
             onRename: () => undefined,
@@ -225,54 +223,30 @@ describe("Week grid with personal time", () => {
     expect(onSlot).not.toHaveBeenCalled();
   });
 
-  it("lists the presets beside the draft and picks one without blurring it", () => {
-    const pick = jest.fn();
+  it("lists the presets as chips on the draft's card; a chip keeps that time", () => {
+    const onCreate = jest.fn();
     mount({
       draft: { date: "2026-09-10", at: 10, key: 1 },
-      onPersonalPreset: pick,
+      onCreate,
     });
-    const menu = document.body.querySelector(
-      "[data-pb-slot-menu]"
-    ) as HTMLElement;
-    expect(menu).not.toBeNull();
+    const card = document.body.querySelector("[data-c2-create]") as HTMLElement;
+    expect(card).not.toBeNull();
     const kinds = Array.from(
-      menu.querySelectorAll<HTMLElement>("[data-pb-preset]")
+      card.querySelectorAll<HTMLElement>("[data-pb-preset]")
     ).map((el) => el.dataset.pbPreset);
-    expect(kinds).toEqual([
-      "lunch",
-      "break",
-      "walk",
-      "dinner",
-      "gym",
-      "party",
-      "rest",
-    ]);
-    // mouse down must not move focus off the draft's input
-    const down = new MouseEvent("mousedown", {
-      bubbles: true,
-      cancelable: true,
-    });
-    menu.querySelector("[data-pb-preset]")?.dispatchEvent(down);
-    expect(down.defaultPrevented).toBe(true);
+    expect(kinds).toEqual(["lunch", "break", "walk", "dinner", "gym", "rest"]);
     act(() =>
-      (menu.querySelector('[data-pb-preset="walk"]') as HTMLElement).click()
+      (card.querySelector('[data-pb-preset="walk"]') as HTMLElement).click()
     );
-    expect(pick).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "walk", title: "Walk" })
+    // a click (no range drawn) keeps the preset's own 30 minutes
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "personal",
+        date: "2026-09-10",
+        at: 10,
+        end: 10.5,
+        preset: expect.objectContaining({ kind: "walk" }),
+      })
     );
-  });
-});
-
-describe("PersonalSlotMenu", () => {
-  it("renders nothing without an anchor to sit beside", () => {
-    act(() =>
-      root.render(
-        h(PersonalSlotMenu, {
-          anchor: createRef<HTMLElement>(),
-          onPick: () => undefined,
-        })
-      )
-    );
-    expect(document.body.querySelector("[data-pb-slot-menu]")).toBeNull();
   });
 });

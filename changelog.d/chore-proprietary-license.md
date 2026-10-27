@@ -1,0 +1,1 @@
+- Needt's own source is now proprietary (All rights reserved); FluidCalendar's MIT notice moved to THIRD_PARTY_NOTICES.md.

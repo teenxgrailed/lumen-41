@@ -81,6 +81,8 @@ export interface TaskFieldPatch extends PlacementInput {
   originPageId?: string | null;
   /** "Do for the full time": true/false is the person's choice, null = auto. */
   fullTime?: boolean | null;
+  /** The goal the task moves forward; null unlinks it. */
+  goalId?: string | null;
 }
 
 export type TaskUpdateResult =
@@ -211,6 +213,19 @@ export async function updateTaskFields(input: {
       if (!blocker.ok) return blocker;
     }
     updates.dependsOnId = patch.dependsOnId;
+  }
+
+  if (patch.goalId !== undefined) {
+    if (
+      patch.goalId &&
+      !(await prisma.goal.findFirst({
+        where: { id: patch.goalId, workspaceId, archivedAt: null },
+        select: { id: true },
+      }))
+    ) {
+      return { ok: false, status: 400, error: "Goal not found" };
+    }
+    updates.goalId = patch.goalId;
   }
 
   if (patch.originPageId !== undefined) {

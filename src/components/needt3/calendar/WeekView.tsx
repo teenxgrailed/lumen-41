@@ -14,7 +14,6 @@ import {
 } from "react";
 
 import { type ProjectLike, weekday } from "@/lib/needt3/derive";
-import type { PersonalPreset } from "@/lib/personal-time";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
@@ -22,8 +21,13 @@ import { PERSONAL_DRAG_PREFIX, bandIsDraggable } from "../drag/personal-drop";
 import type { DragProps } from "../drag/useDrag";
 import type { ResizeProps } from "../drag/usePersonalResize";
 import { PersonalBand } from "../personal/PersonalBand";
-import { PersonalSlotMenu } from "../personal/PersonalSlotMenu";
 import { Task } from "../task/Task";
+import {
+  CreateCard,
+  type CreateKind,
+  type CreateSpec,
+  type WritableCalendar,
+} from "./CreateCard";
 import type { CalItem, CalTimed } from "./blocks";
 import {
   C2_CAP,
@@ -66,86 +70,106 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const GRID_H = 24 * C2_H;
 /** How long a still scroller waits before settling onto a day column. */
 const SETTLE_MS = 110;
+/** A wheel gesture ends after this long without an event. */
+const WHEEL_IDLE_MS = 180;
 const NONE: readonly CalTimed[] = [];
 
 export interface Draft {
   date: string;
+  /** Start, decimal hours. */
   at: number;
+  /** End, decimal hours: set when the range was drawn; a click is an hour. */
+  end?: number;
+  /** What the card makes; the person's last choice when absent. */
+  kind?: CreateKind;
   key: number;
 }
 
+export const draftEnd = (d: Pick<Draft, "at" | "end">) =>
+  d.end ?? Math.min(24, d.at + 1);
+
 type DraftBlock = CalTimed & { draft: true };
 
-/** The draft: an empty block where you clicked, its title typed in place. */
+/** A press that travels this far is a range being drawn, not a click. */
+const DRAW_PX = 5;
+/** A quarter hour of the grid. */
+const QUARTER_H = C2_H / 4;
+
+/** The quarter hour at `y` px down a day column, 0–24. */
+export function quarterAt(y: number, round: "floor" | "round" = "round") {
+  const q =
+    round === "floor" ? Math.floor(y / QUARTER_H) : Math.round(y / QUARTER_H);
+  return Math.min(Math.max(q / 4, 0), 24);
+}
+
+/** A drawn range from the press and the pointer, at least a quarter hour. */
+export function drawnSpan(fromY: number, toY: number) {
+  const a = quarterAt(Math.min(fromY, toY), "floor");
+  let b = quarterAt(Math.max(fromY, toY), "round");
+  if (b - a < 0.25) b = Math.min(24, a + 0.25);
+  return { at: Math.min(a, 23.75), end: b };
+}
+
+const spanText = (at: number, end: number) => `${c2Time(at)}–${c2Time(end)}`;
+
+/** Card props the draft passes through from the screen. */
+interface DraftCard {
+  kind: CreateKind;
+  onKind: (k: CreateKind) => void;
+  onRange: (at: number, end: number) => void;
+  onCreate: (spec: CreateSpec) => void;
+  onCancel: () => void;
+  projects?: readonly ProjectLike[];
+  calendars?: readonly WritableCalendar[];
+}
+
+/** The draft: a ghost block over the chosen range, its create card beside it. */
 function DraftBlock({
   d,
   pos,
   start,
-  onSave,
-  onCancel,
-  onPreset,
+  card,
 }: {
   d: Draft;
   pos: Placed<CalTimed>;
   start: number;
-  onSave: (title: string) => void;
-  onCancel: () => void;
-  /** One tap on a personal time preset keeps that time instead. */
-  onPreset?: (preset: PersonalPreset) => void;
+  card: DraftCard;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [title, setTitle] = useState("");
-  const done = useRef(false);
-  const ref = useRef<HTMLInputElement>(null);
+  const end = draftEnd(d);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus({ preventScroll: true });
-    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    box.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }, [d.date, d.at]);
-  const finish = (keep: boolean) => {
-    if (done.current) return;
-    done.current = true;
-    if (keep && title.trim()) onSave(title.trim());
-    else onCancel();
-  };
   return (
     <div
       ref={box}
-      className="nx-pop c2-draft"
+      className="c2-draft"
       data-c2-block="draft"
       onClick={(e) => e.stopPropagation()}
       style={{
         ...c2PosStyle(pos),
         top: (d.at - start) * C2_H + 1,
-        height: C2_H - 3,
+        height: Math.max((end - d.at) * C2_H - 3, C2_MIN_H),
       }}
     >
       <span aria-hidden="true" className="c2-draft-rail" />
-      <input
-        ref={ref}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="New event"
-        aria-label="Event title"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            finish(true);
-          }
-          if (e.key === "Escape") {
-            e.preventDefault();
-            e.stopPropagation();
-            finish(false);
-          }
-        }}
-        onBlur={() => finish(true)}
-        className="c2-draft-input"
-      />
-      <div className="c2-meta">
-        {c2Time(d.at)}–{c2Time(d.at + 1)}
+      <div className="c2-meta" data-c2-draft-time="">
+        {spanText(d.at, end)}
       </div>
-      {onPreset ? <PersonalSlotMenu anchor={box} onPick={onPreset} /> : null}
+      <CreateCard
+        anchor={box}
+        date={d.date}
+        at={d.at}
+        end={end}
+        sized={d.end != null}
+        kind={d.kind ?? card.kind}
+        onKind={card.onKind}
+        onRange={card.onRange}
+        projects={card.projects}
+        calendars={card.calendars}
+        onCreate={card.onCreate}
+        onCancel={card.onCancel}
+      />
     </div>
   );
 }
@@ -258,9 +282,17 @@ export interface WeekViewProps {
   work?: WorkHours | null;
   projects?: readonly ProjectLike[];
   draft: Draft | null;
-  onSlot: (date: string, at: number) => void;
-  onSave: (title: string) => void;
+  /** A click (an hour from the half hour) or a drawn range on a day. */
+  onSlot: (date: string, at: number, end?: number) => void;
+  /** The draft's card made something. */
+  onCreate: (spec: CreateSpec) => void;
+  /** The draft's range or type changed in its card. */
+  onDraft?: (patch: Partial<Pick<Draft, "at" | "end" | "kind">>) => void;
   onCancel: () => void;
+  /** The type the card opens on when the draft names none. */
+  createKind?: CreateKind;
+  /** Calendars an event can be written to. */
+  calendars?: readonly WritableCalendar[];
   onOpen?: (id: string) => void;
   onDone: (b: CalItem) => void;
   onRename: (b: CalItem, title: string) => void;
@@ -271,8 +303,6 @@ export interface WeekViewProps {
   /** Personal time by day (usePersonalBands): drawn as quiet bands behind the blocks. */
   personal?: ReadonlyMap<string, readonly DayBand[]>;
   onPersonal?: (band: DayBand, el: HTMLElement) => void;
-  /** A personal time preset picked from the empty-slot menu. */
-  onPersonalPreset?: (preset: PersonalPreset) => void;
   /** "Personal time" on an event's peek. */
   onMarkPersonal?: (b: CalItem) => void;
   /** The first column in view changed (also once on mount). */
@@ -301,10 +331,8 @@ interface ColumnProps {
   resizeProps?: ResizeProps;
   bands?: readonly DayBand[];
   onBand?: (band: DayBand, el: HTMLElement) => void;
-  onPreset?: (preset: PersonalPreset) => void;
-  onSlot: (date: string, at: number) => void;
-  onSave: (title: string) => void;
-  onCancel: () => void;
+  onSlot: (date: string, at: number, end?: number) => void;
+  card: DraftCard;
   onMore: ReturnType<typeof useSlot>["open"];
   moreKey: string | null;
 }
@@ -325,14 +353,62 @@ const DayColumn = memo(function DayColumn({
   resizeProps,
   bands,
   onBand,
-  onPreset,
   onSlot,
-  onSave,
-  onCancel,
+  card,
   onMore,
   moreKey,
 }: ColumnProps) {
   const off = useMemo(() => offHours(weekday(date), work), [date, work]);
+  /* Press and drag down a day to draw a range (quarter hours, its time shown
+     live); let go and the create card opens on it. A press that does not
+     travel is a click: an hour from the half hour under it. */
+  const press = useRef<{ id: number; y: number; top: number } | null>(null);
+  const [drawing, setDrawing] = useState<{ at: number; end: number } | null>(
+    null
+  );
+  const yOf = (e: React.PointerEvent<HTMLElement>, top: number) =>
+    e.clientY - top;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || e.pointerType === "touch") return;
+    const t = e.target as Element;
+    if (
+      t.closest(
+        "[data-c2-block], [data-personal-band], button, a, input, [role='button']"
+      )
+    )
+      return;
+    const top = e.currentTarget.getBoundingClientRect().top;
+    press.current = { id: e.pointerId, y: yOf(e, top), top };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* a synthetic pointer */
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = press.current;
+    if (!p || p.id !== e.pointerId) return;
+    const y = yOf(e, p.top);
+    if (!drawing && Math.abs(y - p.y) < DRAW_PX) return;
+    e.preventDefault();
+    const next = drawnSpan(p.y, Math.min(Math.max(y, 0), 24 * C2_H));
+    setDrawing((cur) =>
+      cur && cur.at === next.at && cur.end === next.end ? cur : next
+    );
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = press.current;
+    if (!p || p.id !== e.pointerId) return;
+    press.current = null;
+    const span = drawing;
+    setDrawing(null);
+    if (span) onSlot(date, span.at, span.end);
+    else onSlot(date, slotAt(p.y, 0, 24));
+  };
+  const onPointerCancel = () => {
+    press.current = null;
+    setDrawing(null);
+  };
   const laid = useMemo(() => {
     const list: CalTimed[] = [...mine];
     if (draft)
@@ -340,7 +416,7 @@ const DayColumn = memo(function DayColumn({
         id: "__draft",
         date,
         at: draft.at,
-        len: 60,
+        len: Math.round((draftEnd(draft) - draft.at) * 60),
         title: "",
         draft: true,
         entry: {
@@ -364,12 +440,11 @@ const DayColumn = memo(function DayColumn({
       data-start={0}
       data-hour-h={C2_H}
       data-offset="0"
-      onClick={(e) => {
-        if ((e.target as Element).closest("[data-c2-block]")) return;
-        const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-        onSlot(date, slotAt(y, 0, 24));
-      }}
-      className={`c2-daycol${isToday ? " is-today" : ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      className={`c2-daycol${isToday ? " is-today" : ""}${drawing ? " is-drawing" : ""}`}
       style={{ width: w, transform: `translate3d(${x}px,0,0)` }}
     >
       {off.map(([a, b]) => (
@@ -432,9 +507,7 @@ const DayColumn = memo(function DayColumn({
             d={draft}
             pos={pos}
             start={0}
-            onSave={onSave}
-            onCancel={onCancel}
-            onPreset={onPreset}
+            card={card}
           />
         ) : (
           <Block
@@ -457,6 +530,21 @@ const DayColumn = memo(function DayColumn({
           style={{ left: m.left, width: m.width, top: m.at * C2_H + 2 }}
         />
       ))}
+      {drawing ? (
+        <div
+          aria-hidden="true"
+          className="c2-select"
+          data-c2-select=""
+          style={{
+            top: drawing.at * C2_H + 1,
+            height: Math.max((drawing.end - drawing.at) * C2_H - 3, C2_MIN_H),
+          }}
+        >
+          <span className="c2-select-time">
+            {spanText(drawing.at, drawing.end)}
+          </span>
+        </div>
+      ) : null}
       {isToday && nowHour != null ? (
         <span
           aria-hidden="true"
@@ -506,8 +594,11 @@ export function WeekView({
   projects,
   draft,
   onSlot,
-  onSave,
+  onCreate,
+  onDraft,
   onCancel,
+  createKind = "event",
+  calendars,
   onOpen,
   onDone,
   onRename,
@@ -516,7 +607,6 @@ export function WeekView({
   resizeProps,
   personal,
   onPersonal,
-  onPersonalPreset,
   onMarkPersonal,
   onFirst,
   onSettle,
@@ -534,8 +624,24 @@ export function WeekView({
   const frame = useRef(0);
   const idle = useRef(0);
   const pressed = useRef(false);
-  const cbs = useRef({ onFirst, onSettle, onOpen, onSlot, onSave, onCancel });
-  cbs.current = { onFirst, onSettle, onOpen, onSlot, onSave, onCancel };
+  const cbs = useRef({
+    onFirst,
+    onSettle,
+    onOpen,
+    onSlot,
+    onCreate,
+    onDraft,
+    onCancel,
+  });
+  cbs.current = {
+    onFirst,
+    onSettle,
+    onOpen,
+    onSlot,
+    onCreate,
+    onDraft,
+    onCancel,
+  };
 
   const [peek, setPeek] = useState<{ id: string; rect: Anchor } | null>(null);
   const last = useRef(peek);
@@ -763,6 +869,71 @@ export function WeekView({
     if (!quick) el.scrollTo({ left: offsetOf(i, w), behavior: "smooth" });
   }, []);
 
+  /* Sideways a day at a time: a horizontal swipe (or Shift + wheel) steps
+     whole days and glides onto the column, instead of panning the strip
+     freely. The first event of a gesture steps at once, so one wheel notch is
+     one day; the rest of the gesture steps a day per column width travelled.
+     A gesture that starts vertical stays vertical (the browser scrolls it). */
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return undefined;
+    const g = { axis: null as "x" | "y" | null, acc: 0, t: 0 };
+    const step = (dir: number) =>
+      glideTo(jumpGoal(goal.current ?? firstRef.current, dir));
+    const wheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // pinch zoom
+      const unit =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientWidth : 1;
+      const dy = e.deltaY * unit;
+      let dx = e.deltaX * unit;
+      if (e.shiftKey && Math.abs(dx) < Math.abs(dy)) dx = dy;
+      const horizontal = Math.abs(dx) > Math.abs(e.shiftKey ? 0 : dy);
+      window.clearTimeout(g.t);
+      g.t = window.setTimeout(() => {
+        g.axis = null;
+        g.acc = 0;
+      }, WHEEL_IDLE_MS);
+      if (g.axis == null) {
+        g.axis = horizontal ? "x" : "y";
+        if (g.axis === "x") {
+          e.preventDefault();
+          g.acc = 0;
+          if (Math.abs(dx) >= 1) step(Math.sign(dx));
+          return;
+        }
+      }
+      if (g.axis !== "x") return;
+      e.preventDefault();
+      g.acc += dx;
+      const per = Math.max(colRef.current, 60);
+      while (Math.abs(g.acc) >= per) {
+        const dir = Math.sign(g.acc);
+        g.acc -= dir * per;
+        step(dir);
+      }
+    };
+    /* ←/→ on the focused grid (not in a field, not in a card) move a day. */
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t?.closest?.("input, textarea, select, [contenteditable='true']") ||
+        t?.isContentEditable
+      )
+        return;
+      e.preventDefault();
+      step(e.key === "ArrowLeft" ? -1 : 1);
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    el.addEventListener("keydown", key);
+    return () => {
+      window.clearTimeout(g.t);
+      el.removeEventListener("wheel", wheel);
+      el.removeEventListener("keydown", key);
+    };
+  }, [glideTo]);
+
   useImperativeHandle(
     handle,
     () => ({
@@ -789,18 +960,34 @@ export function WeekView({
   const range = drawnRange(first, n);
   const drawn: number[] = [];
   if (colW > 0) for (let i = range.from; i <= range.to; i++) drawn.push(i);
-  const stable = useMemo(
-    () => ({
-      onSlot: (d: string, at: number) => cbs.current.onSlot(d, at),
-      onSave: (t: string) => cbs.current.onSave(t),
-      onCancel: () => cbs.current.onCancel(),
-    }),
+  const onSlotStable = useCallback(
+    (d: string, at: number, end?: number) => cbs.current.onSlot(d, at, end),
     []
+  );
+  const card = useMemo<DraftCard>(
+    () => ({
+      kind: createKind,
+      onKind: (kind) => cbs.current.onDraft?.({ kind }),
+      onRange: (at, end) => cbs.current.onDraft?.({ at, end }),
+      onCreate: (spec) => cbs.current.onCreate(spec),
+      onCancel: () => cbs.current.onCancel(),
+      projects,
+      calendars,
+    }),
+    [createKind, projects, calendars]
   );
 
   return (
     <div className="c2-week" data-c2-strip="">
-      <div ref={scroller} className="c2-wscroll" onScroll={onScroll}>
+      <div
+        ref={scroller}
+        className="c2-wscroll"
+        onScroll={onScroll}
+        tabIndex={0}
+        role="group"
+        aria-label="Week grid. Left and right arrows move a day."
+        data-c2-wscroll=""
+      >
         <div
           className="c2-wcanvas"
           style={{ width: GUTTER + colW * 2 * STRIP_SPAN }}
@@ -852,10 +1039,8 @@ export function WeekView({
                   resizeProps={resizeProps}
                   bands={personal?.get(date)}
                   onBand={onPersonal}
-                  onPreset={onPersonalPreset}
-                  onSlot={stable.onSlot}
-                  onSave={stable.onSave}
-                  onCancel={stable.onCancel}
+                  onSlot={onSlotStable}
+                  card={card}
                   onMore={sl.open}
                   moreKey={sl.slot && !sl.leaving ? sl.slot.m.key : null}
                 />

@@ -226,3 +226,16 @@ export async function canUseAdvancedNudges(userId: string) {
   const plan = await getPlan(userId);
   return { allowed: PLAN_LIMITS[plan].advancedNudges, plan };
 }
+
+/**
+ * Goals are Pro. Free can still read, edit and close the goals it already
+ * has (after a downgrade); only making a new one is refused.
+ */
+export async function canUseGoals(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].goals,
+    upgradeRequired: !PLAN_LIMITS[plan].goals,
+    plan,
+  };
+}

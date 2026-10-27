@@ -123,7 +123,7 @@ function Grid({ bands }: { bands: DayBand[] }) {
     work: { days: [1, 2, 3, 4, 5], start: 9, end: 17 },
     draft: null,
     onSlot: () => undefined,
-    onSave: () => undefined,
+    onCreate: () => undefined,
     onCancel: () => undefined,
     onDone: () => undefined,
     onRename: () => undefined,
