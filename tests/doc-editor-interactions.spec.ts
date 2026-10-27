@@ -93,7 +93,9 @@ test("Doc: a click on the page does not move it", async ({ page }) => {
         : String(n);
     };
     for (const name of ["scrollIntoView", "scrollTo", "scrollBy", "focus"]) {
-      const proto = Element.prototype as unknown as Record<
+      const proto = (name === "focus"
+        ? HTMLElement.prototype
+        : Element.prototype) as unknown as Record<
         string,
         (...a: unknown[]) => unknown
       >;
@@ -109,6 +111,16 @@ test("Doc: a click on the page does not move it", async ({ page }) => {
       };
     }
     document.addEventListener(
+      "focusin",
+      (e) => {
+        w.__log.push({
+          focusin: desc(e.target),
+          stack: String(new Error().stack).split("\n").slice(1, 6).join("|"),
+        });
+      },
+      true
+    );
+    document.addEventListener(
       "scroll",
       (e) => {
         const t = e.target as HTMLElement;
@@ -116,6 +128,8 @@ test("Doc: a click on the page does not move it", async ({ page }) => {
           scroll: desc(t),
           top: t.scrollTop,
           left: t.scrollLeft,
+          active: desc(document.activeElement),
+          stack: String(new Error().stack).split("\n").slice(1, 4).join("|"),
         });
       },
       true
