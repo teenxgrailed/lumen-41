@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
-  const body = (await request.json()) as { id?: unknown; all?: unknown };
+  const body = ((await request.json().catch(() => null)) ?? {}) as { id?: unknown; all?: unknown };
   if (body.all === true) {
     await prisma.proactiveNudge.updateMany({
       where: { userId: auth.userId, readAt: null },

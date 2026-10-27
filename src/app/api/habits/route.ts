@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     requiredRole: WorkspaceRole.EDITOR,
   });
   if ("response" in auth) return auth.response;
-  const parsed = habitInputSchema.safeParse(await request.json());
+  const parsed = habitInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid habit" }, { status: 400 });
   const entitlement = await canCreateHabit(auth.userId);

@@ -356,6 +356,67 @@ export function composerParse(
   };
 }
 
+/** The facets each type reads from the line. A doc title is only a title. */
+const FACETS_OF: Record<CoKind, ReadonlySet<CoFacetKind>> = {
+  task: new Set<CoFacetKind>([
+    "date",
+    "time",
+    "duration",
+    "deadline",
+    "repeat",
+    "priority",
+    "project",
+    "label",
+  ]),
+  habit: new Set<CoFacetKind>([
+    "date",
+    "time",
+    "duration",
+    "deadline",
+    "repeat",
+    "priority",
+    "project",
+    "label",
+  ]),
+  event: new Set<CoFacetKind>(["date", "time", "duration"]),
+  doc: new Set<CoFacetKind>(),
+};
+
+/** Whether a type reads this facet out of the sentence. */
+export const readsFacet = (kind: CoKind, facet: CoFacetKind) =>
+  FACETS_OF[kind].has(facet);
+
+/**
+ * The verdict narrowed to one type: "tomorrow 3pm" is a day and a clock in a
+ * task or an event, and plain words in a doc title. A facet the type does not
+ * read is dropped, and its words stay in the title.
+ */
+export function scopeParse(p: ComposerParse, kind: CoKind): ComposerParse {
+  if (kind === "task" || kind === "habit") return { ...p, kind };
+  const keep = FACETS_OF[kind];
+  const marks = p.marks.filter((m) => keep.has(m.kind));
+  const whole = p.text.replace(/\s+/g, " ").trim();
+  const cut = p.text.indexOf("/");
+  const body = cut < 0 ? p.text : p.text.slice(0, cut);
+  const pick = <T>(facet: CoFacetKind, v: T | null) =>
+    keep.has(facet) ? v : null;
+  return {
+    ...p,
+    kind,
+    title: kind === "doc" ? whole : unclaimed(body, marks) || p.sentence,
+    sentence: kind === "doc" ? whole : p.sentence,
+    parts: [],
+    date: pick("date", p.date),
+    time: pick("time", p.time),
+    duration: pick("duration", p.duration),
+    deadline: null,
+    repeat: null,
+    priority: null,
+    project: null,
+    marks,
+  };
+}
+
 /**
  * Cut one recognised run out of the line, tidying the spaces it leaves.
  * The pickers and chip × use this, so the sentence stays the one source of
