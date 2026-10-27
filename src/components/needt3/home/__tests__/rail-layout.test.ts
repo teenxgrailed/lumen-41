@@ -49,11 +49,15 @@ describe("Home rail", () => {
   });
 
   it("renders all five tiles inside the single rail aside", () => {
+    // the tiles are built once (in the person's order, see home-blocks.ts)
+    // and the one aside renders them
+    const defs = tsx.slice(tsx.indexOf("const railTiles"));
+    expect(defs).toMatch(
+      /data-ha-today[\s\S]*data-ha-habits[\s\S]*<HaWeek[\s\S]*<HaSchedule[\s\S]*inbox: inboxTile/
+    );
     const from = tsx.indexOf('className="hd-rail"');
     const aside = tsx.slice(from, tsx.indexOf("</aside>", from));
-    expect(aside).toMatch(
-      /data-ha-today[\s\S]*data-ha-habits[\s\S]*<HaWeek[\s\S]*<HaSchedule[\s\S]*<InboxCard/
-    );
+    expect(aside).toContain("railTiles[id]");
     expect(tsx).not.toContain("hd-side");
     expect(tsx.match(/className="hd-rail"/g)).toHaveLength(1);
   });
