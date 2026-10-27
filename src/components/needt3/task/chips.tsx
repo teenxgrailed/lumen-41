@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { FiFileText, FiMail, FiMessageSquare } from "react-icons/fi";
+import { LuPin } from "react-icons/lu";
 
 import type { TaskView } from "./view";
 
@@ -49,6 +50,22 @@ export function SourceChip({
   ) : (
     <span className={className} style={style} title={title} aria-label={title}>
       <Icon size={12} aria-hidden="true" />
+    </span>
+  );
+}
+
+/** A pinned task: a quiet pin in ink alpha, never an accent fill. */
+export function PinMark({ view }: { view: TaskView }) {
+  if (!view.pinned) return null;
+  return (
+    <span
+      className="tk-pin"
+      data-task-pin=""
+      role="img"
+      title={view.pinTitle}
+      aria-label={view.pinTitle}
+    >
+      <LuPin size={12} aria-hidden="true" />
     </span>
   );
 }

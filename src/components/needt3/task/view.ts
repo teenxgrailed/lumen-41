@@ -9,6 +9,8 @@ import {
 } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 
+import { isPinned, pinTitle } from "./pin";
+
 /**
  * A calendar event drawn by the same block / agenda look as a task
  * (task.jsx: "Calendar events go through the same block/agenda look").
@@ -66,9 +68,13 @@ export function taskView(
   const due = event ? null : dueLabel(task);
   const overdue =
     !event && !done && !!today && !!task.dueDate && task.dueDate < today;
+  const pinned = !event && isPinned(task);
   return {
     id: task.id,
     title: task.title || "",
+    /** Held at its time by hand: the scheduler will not move it. */
+    pinned,
+    pinTitle: pinned ? pinTitle(task) : undefined,
     done,
     event,
     calendarName: event ? (task.calendarName ?? "Calendar") : null,

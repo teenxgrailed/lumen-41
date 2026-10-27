@@ -123,6 +123,30 @@ describe("PkTaskSheet", () => {
     expect(out).toContain("data-pov-attach");
   });
 
+  it("offers Pin here on a timed, unpinned task and the way back once pinned", () => {
+    expect(out).toContain("data-pov-pin");
+    expect(out).toContain("Pin here");
+    expect(out).not.toContain("data-pov-unpin");
+    const pinned = html(
+      h(PkTaskSheet, {
+        task: { ...task, isFixed: true, auto: false } as V3Task,
+        open: true,
+        onClose: none,
+      })
+    );
+    expect(pinned).toContain("data-pov-unpin");
+    expect(pinned).toContain("Let Needt schedule it");
+    expect(pinned).not.toContain("Pin here");
+    const untimed = html(
+      h(PkTaskSheet, {
+        task: { ...task, scheduledStart: null, scheduledEnd: null } as V3Task,
+        open: true,
+        onClose: none,
+      })
+    );
+    expect(untimed).not.toContain("Pin here");
+  });
+
   it("keeps the title and the repeat read-only for a task synced from Outlook", () => {
     const synced = html(
       h(PkTaskSheet, {
