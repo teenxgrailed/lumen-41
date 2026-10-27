@@ -125,6 +125,12 @@ beforeEach(() => {
     max: 6,
     code: 61,
     summary: "Rain",
+    feelsLike: 1,
+    precipChance: null,
+    windKph: null,
+    sunrise: null,
+    sunset: null,
+    hours: [],
   });
   jest.mocked(resolveWorkspaceAccess).mockResolvedValue(workspace());
   db.userSettings.findUnique.mockResolvedValue({

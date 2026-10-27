@@ -5,8 +5,10 @@ import {
   PERSONAL_MIN_MINUTES,
   bandGesturePatch,
   bandIsDraggable,
+  dayDeltaBetween,
   personalHitForPlacement,
   resizeDeltaHours,
+  shiftedRule,
 } from "../personal-drop";
 
 const band = (over: Partial<DayBand> = {}): DayBand => ({
@@ -232,5 +234,123 @@ describe("resizeDeltaHours", () => {
     expect(resizeDeltaHours(5, 52)).toBe(0);
     expect(resizeDeltaHours(20, 52)).toBe(0.5);
     expect(resizeDeltaHours(100, 0)).toBe(0);
+  });
+});
+
+describe("dayDeltaBetween", () => {
+  it("counts calendar days across a week, a month and the DST change", () => {
+    expect(dayDeltaBetween("2026-10-19", "2026-10-20")).toBe(1);
+    expect(dayDeltaBetween("2026-10-21", "2026-10-19")).toBe(-2);
+    expect(dayDeltaBetween("2026-10-24", "2026-10-26")).toBe(2);
+    expect(dayDeltaBetween("2026-10-30", "2026-11-02")).toBe(3);
+    expect(dayDeltaBetween("2026-10-19", "2026-10-19")).toBe(0);
+  });
+});
+
+describe("shiftedRule", () => {
+  it("moves each weekday and wraps the week", () => {
+    expect(shiftedRule("FREQ=WEEKLY;BYDAY=MO", 1)).toBe("FREQ=WEEKLY;BYDAY=TU");
+    expect(shiftedRule("FREQ=WEEKLY;BYDAY=SU", 1)).toBe("FREQ=WEEKLY;BYDAY=MO");
+    expect(shiftedRule("FREQ=WEEKLY;BYDAY=MO", -1)).toBe(
+      "FREQ=WEEKLY;BYDAY=SU"
+    );
+    expect(shiftedRule("FREQ=WEEKLY;BYDAY=MO,WE,SU", 2)).toBe(
+      "FREQ=WEEKLY;BYDAY=TU,WE,FR"
+    );
+    expect(shiftedRule("FREQ=WEEKLY;BYDAY=TU", 8)).toBe("FREQ=WEEKLY;BYDAY=WE");
+  });
+
+  it("leaves daily and custom rules alone", () => {
+    expect(shiftedRule("FREQ=DAILY", 3)).toBe("FREQ=DAILY");
+    expect(shiftedRule("FREQ=MONTHLY;BYMONTHDAY=3", 3)).toBe(
+      "FREQ=MONTHLY;BYMONTHDAY=3"
+    );
+    expect(shiftedRule(null, 3)).toBeNull();
+  });
+});
+
+describe("bandGesturePatch: move to another day", () => {
+  it("moves a one-off block to the dropped date, keeping the time", () => {
+    expect(bandGesturePatch(block("13:00", "14:00"), TZ, "move", 0, 2)).toEqual(
+      {
+        start: zurich("2026-10-21", "13:00"),
+        end: zurich("2026-10-21", "14:00"),
+      }
+    );
+  });
+
+  it("changes day and time in one drop", () => {
+    expect(
+      bandGesturePatch(block("13:00", "14:00"), TZ, "move", 1, -1)
+    ).toEqual({
+      start: zurich("2026-10-18", "14:00"),
+      end: zurich("2026-10-18", "15:00"),
+    });
+  });
+
+  it("rotates a weekly block's weekdays by the day delta", () => {
+    const weekly = block("13:00", "14:00", { rrule: "FREQ=WEEKLY;BYDAY=MO" });
+    expect(bandGesturePatch(weekly, TZ, "move", 0, 1)).toEqual({
+      start: zurich("2026-10-20", "13:00"),
+      end: zurich("2026-10-20", "14:00"),
+      rrule: "FREQ=WEEKLY;BYDAY=TU",
+    });
+  });
+
+  it("wraps SU to MO across the week boundary, both ways", () => {
+    const sunday = {
+      start: zurich("2026-10-18", "09:00"),
+      end: zurich("2026-10-18", "10:00"),
+      sourceEventId: null,
+      rrule: "FREQ=WEEKLY;BYDAY=SU",
+    };
+    expect(bandGesturePatch(sunday, TZ, "move", 0, 1)).toEqual({
+      start: zurich("2026-10-19", "09:00"),
+      end: zurich("2026-10-19", "10:00"),
+      rrule: "FREQ=WEEKLY;BYDAY=MO",
+    });
+    const monday = block("09:00", "10:00", { rrule: "FREQ=WEEKLY;BYDAY=MO" });
+    expect(bandGesturePatch(monday, TZ, "move", 0, -1)?.rrule).toBe(
+      "FREQ=WEEKLY;BYDAY=SU"
+    );
+  });
+
+  it("ignores the day delta for a daily repeat (time only)", () => {
+    const daily = block("13:00", "14:00", { rrule: "FREQ=DAILY" });
+    expect(bandGesturePatch(daily, TZ, "move", 0, 3)).toBeNull();
+    expect(bandGesturePatch(daily, TZ, "move", 1, 3)).toEqual({
+      start: zurich("2026-10-19", "14:00"),
+      end: zurich("2026-10-19", "15:00"),
+    });
+  });
+
+  it("keeps the wall-clock time across the DST change", () => {
+    // Sat 24 Oct (UTC+2) to Mon 26 Oct (UTC+1): 13:00 stays 13:00 in Zurich
+    const sat = {
+      start: zurich("2026-10-24", "13:00"),
+      end: zurich("2026-10-24", "14:00"),
+      sourceEventId: null,
+    };
+    const patch = bandGesturePatch(sat, TZ, "move", 0, 2);
+    expect(patch).toEqual({
+      start: zurich("2026-10-26", "13:00"),
+      end: zurich("2026-10-26", "14:00"),
+    });
+    expect(patch?.start).toBe("2026-10-26T12:00:00.000Z");
+  });
+
+  it("leaves linked blocks alone and ignores the day on a resize", () => {
+    expect(
+      bandGesturePatch(
+        block("13:00", "14:00", { sourceEventId: "e1" }),
+        TZ,
+        "move",
+        0,
+        1
+      )
+    ).toBeNull();
+    expect(
+      bandGesturePatch(block("13:00", "14:00"), TZ, "resize", 0.5, 2)
+    ).toEqual({ end: zurich("2026-10-19", "14:30") });
   });
 });

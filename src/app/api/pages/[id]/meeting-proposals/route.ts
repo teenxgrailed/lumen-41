@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
   const { id } = await params;
-  const body = await request.json();
+  const body = (await request.json().catch(() => null)) ?? {};
   if (typeof body.summary !== "string") return NextResponse.json({ error: "Summary is required" }, { status: 400 });
   const proposal = await createMeetingNoteProposal(auth, id, body);
   if (!proposal) return NextResponse.json({ error: "Page not found" }, { status: 404 });

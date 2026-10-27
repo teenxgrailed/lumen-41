@@ -2,6 +2,8 @@
 
 import { type ReactNode, useState } from "react";
 
+import type { DayBand } from "@/lib/personal-time-days";
+
 import { scheduleWindow } from "../derive";
 import { HaTimeline, type HaTimelineRow } from "./HaTimeline";
 
@@ -12,11 +14,14 @@ import { HaTimeline, type HaTimelineRow } from "./HaTimeline";
 export function HaSchedule({
   rows,
   onOpen,
+  onOpenBand,
   onCalendar,
   footer,
 }: {
   rows: readonly HaTimelineRow[];
   onOpen: (id: string) => void;
+  /** A personal band was opened: the page shows its peek. */
+  onOpenBand?: (band: DayBand, el: HTMLElement) => void;
   onCalendar: () => void;
   /** Under the rows: "Keep time for you". */
   footer?: ReactNode;
@@ -33,7 +38,7 @@ export function HaSchedule({
         </button>
       </div>
       {rows.length ? (
-        <HaTimeline rows={shown} onOpen={onOpen} />
+        <HaTimeline rows={shown} onOpen={onOpen} onOpenBand={onOpenBand} />
       ) : (
         <span className="ha-meta">Nothing timed today.</span>
       )}

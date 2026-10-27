@@ -45,6 +45,12 @@ describe("weatherFor", () => {
       max: 17,
       code: 2,
       summary: "Partly cloudy",
+      feelsLike: 14,
+      precipChance: null,
+      windKph: null,
+      sunrise: null,
+      sunset: null,
+      hours: [],
     });
     const urls = f.mock.calls.map((c) => c[0]);
     expect(urls[0]).toContain("geocoding-api.open-meteo.com");
@@ -181,5 +187,63 @@ describe("the words", () => {
     expect(cleanCity("  New   York ")).toBe("New York");
     expect(cleanCity(42)).toBe("");
     expect(cleanCity("x".repeat(200))).toHaveLength(80);
+  });
+});
+
+describe("weatherFor detail", () => {
+  it("reads feels-like, rain chance, wind, sun and the next hours", async () => {
+    const rich = {
+      current: {
+        time: "2026-10-27T14:00",
+        temperature_2m: 13.6,
+        apparent_temperature: 11.4,
+        wind_speed_10m: 14.2,
+        weather_code: 2,
+      },
+      daily: {
+        temperature_2m_max: [17.2],
+        temperature_2m_min: [8.8],
+        sunrise: ["2026-10-27T07:12"],
+        sunset: ["2026-10-27T17:31"],
+        precipitation_probability_max: [40],
+      },
+      hourly: {
+        time: [
+          "2026-10-27T13:00",
+          "2026-10-27T14:00",
+          "2026-10-27T15:00",
+          "2026-10-27T16:00",
+          "2026-10-27T17:00",
+          "2026-10-27T18:00",
+          "2026-10-27T19:00",
+        ],
+        temperature_2m: [13, 14, 15, 14, 12, 11, 10],
+        weather_code: [2, 2, 3, 61, 61, 3, 0],
+        precipitation_probability: [0, 5, 10, 60, 70, 20, 0],
+      },
+    };
+    const f = jest.fn((url: string) =>
+      url.includes("geocoding") ? json(GEO) : json(rich)
+    );
+    const w = await weatherFor("Kyiv", { fetcher: f, cache: memoryCache() });
+    expect(w).toMatchObject({
+      feelsLike: 11,
+      precipChance: 40,
+      windKph: 14,
+      sunrise: "07:12",
+      sunset: "17:31",
+    });
+    expect(w?.hours.map((h) => h.time)).toEqual([
+      "15:00",
+      "16:00",
+      "17:00",
+      "18:00",
+    ]);
+    expect(w?.hours[1]).toEqual({
+      time: "16:00",
+      temp: 14,
+      code: 61,
+      precipChance: 60,
+    });
   });
 });
