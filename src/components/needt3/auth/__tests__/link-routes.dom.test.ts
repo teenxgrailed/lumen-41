@@ -208,6 +208,36 @@ describe.each(["desktop", "phone"] as const)("on the %s face", (ui) => {
       );
     });
 
+    it("another browser than the one that signed up is asked for a password, then confirms", async () => {
+      answers[CONFIRM] = {
+        status: 200,
+        body: { status: "password_required" },
+      };
+      await mountConfirm();
+      await click("[data-auth-confirm]");
+      expect(screen()).toBe("confirm-password");
+      /* Too weak: nothing is sent. */
+      const field = () =>
+        q<HTMLInputElement>('input[aria-label="New password"]')!;
+      await type(field(), "short");
+      await click("[data-auth-confirm-password]");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      answers[CONFIRM] = { status: 200, body: { status: "verified" } };
+      await type(field(), "Fresh-Pass-1");
+      await click("[data-auth-confirm-password]");
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        CONFIRM,
+        expect.objectContaining({
+          body: JSON.stringify({
+            email: "ana@x.ch",
+            token: "tok-2",
+            newPassword: "Fresh-Pass-1",
+          }),
+        })
+      );
+      expect(screen()).toBe("confirm-confirmed");
+    });
+
     it("expired → send a new link; the server's 429 is said", async () => {
       answers[CONFIRM] = { status: 200, body: { status: "expired" } };
       answers[RESEND] = { status: 429 };

@@ -10,6 +10,12 @@ import {
   SIGNUPS_CLOSED_MESSAGE,
   areSignupsOpen,
 } from "@/lib/auth/signups";
+import {
+  isUnprovenPasswordAccount,
+  replaceUnprovenPassword,
+  unprovenPasswordReplaceable,
+} from "@/lib/auth/unproven-password";
+import { newDate } from "@/lib/date-utils";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
 import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
@@ -91,6 +97,62 @@ export async function POST(request: NextRequest) {
     if (limited) return limited;
 
     const passwordHash = await hash(parsed.data.password, 12);
+
+    /* An address that registered but never confirmed holds a password nobody
+       has proven. Registering it again after a day replaces that password, so
+       a squatter cannot hold someone else's address; sooner, the answer is the
+       same as for any taken address. */
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        emailVerified: true,
+        createdAt: true,
+        accounts: {
+          where: { provider: "credentials" },
+          select: { provider: true, id_token: true },
+        },
+      },
+    });
+    if (existing) {
+      if (
+        isUnprovenPasswordAccount(existing) &&
+        unprovenPasswordReplaceable(existing.createdAt)
+      ) {
+        await replaceUnprovenPassword({
+          userId: existing.id,
+          passwordHash,
+          action: "auth.unproven_password_replaced",
+        });
+        /* The new window starts now, and links mailed earlier die. */
+        await prisma.$transaction([
+          prisma.user.update({
+            where: { id: existing.id },
+            data: { createdAt: newDate() },
+            select: { id: true },
+          }),
+          prisma.verificationToken.deleteMany({
+            where: { identifier: email },
+          }),
+        ]);
+        try {
+          await sendEmailVerification({
+            userId: existing.id,
+            baseUrl: publicRequestUrl(request).origin,
+          });
+        } catch (error) {
+          logger.error(
+            "Email verification delivery failed after replacing an unproven password",
+            {
+              userId: existing.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+            LOG_SOURCE
+          );
+        }
+      }
+      return NextResponse.json({ success: true }, { status: 201 });
+    }
 
     const user = await prisma.user.create({
       data: {

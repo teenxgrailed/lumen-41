@@ -81,8 +81,8 @@ describe("OAuth trial activation", () => {
     jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
     const options = await getAuthOptions();
     const jwt = options.callbacks?.jwt as NonNullable<
-      typeof options.callbacks
-    >["jwt"];
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
     const account = {
       provider: "google",
       type: "oauth",
