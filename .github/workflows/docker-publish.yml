@@ -23,7 +23,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/teenxgrails/needt
+  IMAGE_PREFIX: ghcr.io/teenxgrailed/needt
   # Only `changes` reads this; every later job uses the SHA it decided.
   HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
