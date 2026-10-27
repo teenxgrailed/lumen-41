@@ -10,6 +10,8 @@ import {
   POST as checkInsPost,
 } from "../[id]/check-ins/route";
 import { DELETE, PATCH, GET as getOne } from "../[id]/route";
+import { PATCH as taskPatch } from "../[id]/tasks/[taskId]/route";
+import { POST as tasksPost } from "../[id]/tasks/route";
 import { POST as convertPost } from "../convert-task/route";
 import { GET, POST } from "../route";
 
@@ -175,5 +177,56 @@ describe("/api/goals", () => {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
     expect((await GET(request("/api/goals"))).status).toBe(401);
+  });
+});
+
+describe("/api/goals/:id/tasks", () => {
+  it("adds a task to a goal, ticks it and the progress follows; links and unlinks one", async () => {
+    const created = await (
+      await POST(request("/api/goals", "POST", { title: "Run 10k" }))
+    ).json();
+    const id = created.result.goal.id;
+    const added = await tasksPost(
+      request(`/api/goals/${id}/tasks`, "POST", { title: "Buy shoes" }),
+      params(id)
+    );
+    expect(added.status).toBe(201);
+    const taskId = (await added.json()).result.task.id;
+
+    const ticked = await taskPatch(
+      request(`/api/goals/${id}/tasks/${taskId}`, "PATCH", { done: true }),
+      { params: Promise.resolve({ id, taskId }) }
+    );
+    expect(ticked.status).toBe(200);
+    const read = await (
+      await getOne(request(`/api/goals/${id}`), params(id))
+    ).json();
+    expect(read.goal.progress).toMatchObject({ done: 1, total: 1 });
+
+    const other = await mockState.db.seed("task", {
+      title: "Stretch",
+      userId: "user-1",
+      assigneeId: "user-1",
+      workspaceId: "ws-1",
+    });
+    await tasksPost(
+      request(`/api/goals/${id}/tasks`, "POST", { taskId: other.id }),
+      params(id)
+    );
+    const row = () => mockState.db.tables.task.find((t) => t.id === other.id);
+    expect(row()?.goalId).toBe(id);
+    await taskPatch(
+      request(`/api/goals/${id}/tasks/${other.id}`, "PATCH", {
+        linked: false,
+      }),
+      { params: Promise.resolve({ id, taskId: other.id as string }) }
+    );
+    expect(row()?.goalId).toBeNull();
+
+    const bad = await tasksPost(
+      request(`/api/goals/${id}/tasks`, "POST", {}),
+      params(id)
+    );
+    expect(bad.status).toBe(400);
   });
 });

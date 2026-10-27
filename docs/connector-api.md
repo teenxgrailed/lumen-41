@@ -1160,6 +1160,8 @@ DELETE /api/goals/:id                                              # goal.archiv
 GET    /api/goals/:id/check-ins                                    # last 20
 POST   /api/goals/:id/check-ins                                    # goal.check_in
 POST   /api/goals/convert-task                                     # goal.convert_from_task
+POST   /api/goals/:id/tasks           { title } | { taskId }       # task.create / task.update with goalId
+PATCH  /api/goals/:id/tasks/:taskId   { done } | { linked: false } # task.complete / uncomplete / unlink
 ```
 
 In MCP, `needt_list` and `needt_get` take `type: "goal"`; `needt_get`
