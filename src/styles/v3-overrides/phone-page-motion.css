@@ -1,0 +1,198 @@
+/* The phone's page change. HAND-WRITTEN. Owner decision 2026-10-26: the move
+ * between places (Home <-> Docs <-> a place from the menu) must be noticed.
+ * The exception to PORT.md section 6 ("only the changed element moves") is
+ * recorded in docs/handoff/design-reconciliation-2026-09-11.md.
+ *
+ *   forward  dock tile to the right of the one you were on: the new page
+ *            slides in from the right over the old one, which gives way to
+ *            the left (a short parallax) and dims
+ *   back     dock tile to the left: the same, mirrored
+ *   rise     a place from the menu card: the new page rises from the dock,
+ *            scale 0.96 -> 1, a short lift, fading in over the old one
+ *
+ * Direction is decided in shell/pageMotion.ts (pageMotionFor). The script
+ * sets `data-pg` on the stage (`.v2p-stage`) when the place changes and puts
+ * a still copy of the old page beside it (`.pk-pg-ghost`, never live: no
+ * input, no animation of its own, no glass).
+ *
+ * Only the page moves. The transform goes on the screen's content
+ * (`.pk-scroll`), not on the stage, because the fog under the dock is a
+ * `position: fixed` layer inside the screen and a transformed ancestor would
+ * carry it along. Nothing here is fixed (Safari 26 tints its bars from fixed
+ * layers at the edges), nothing has a shadow, and the only properties moved
+ * are transform and opacity. The curve is the house ease; no spring, nothing
+ * overshoots (PORT.md section 6, the agent cursor).
+ *
+ * Reduced motion: no movement, a 150 ms crossfade over the still copy. The
+ * global reduced-motion rule (v3/base.css) forces every duration to 1 ms with
+ * !important, and so does `html[data-animations="off"]` (globals.css, which
+ * MotionRuntime also writes for Reduce Motion), so the crossfade out-ranks
+ * them with an id in the selector. For the animations setting alone (not
+ * Reduce Motion) the script makes none of it: no still copy, no `data-pg`.
+ */
+.needt-v3[data-ui="phone"] {
+  --pg-ease: var(--nx-ease); /* cubic-bezier(0.2, 0.9, 0.24, 1) */
+  --pg-slide: 360ms;
+  --pg-rise: 340ms;
+  --pg-fade: 150ms;
+  --pg-parallax: 26%; /* how far the old page gives way, of the screen width */
+  --pg-dim: 0.55; /* how far the old page recedes into the ground */
+  --pg-lift: 24px;
+  --pg-rise-scale: 0.96;
+}
+
+/* ── the page: the screen's content, or whatever else the stage holds ───────
+ * The screen's content is the first `.pk-scroll` under a `.pk-screen`, however
+ * deep the place wraps it (Docs puts the screen inside `.pd-place`); a stage
+ * child that holds no screen at all (the Reader) moves as a whole. Never the
+ * loading skeleton: it has its own entry, and the page that replaces it must
+ * not start a second one. The second selector is wrapped in :is() so a browser
+ * without :has() drops only that fallback. */
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg]
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  position: relative;
+  z-index: 2;
+}
+
+/* A page that slides carries its ground and fills the screen, so the old page
+ * does not show through below a short list. */
+.needt-v3[data-ui="phone"]
+  .v2p-stage:is([data-pg="forward"], [data-pg="back"])
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage:is([data-pg="forward"], [data-pg="back"])
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  background: var(--v2p-ground);
+  box-sizing: border-box;
+  min-height: 100dvh;
+}
+
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="forward"]
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="forward"]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  animation: v3-pg-in-fwd var(--pg-slide) var(--pg-ease) backwards;
+}
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="back"]
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="back"]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  animation: v3-pg-in-back var(--pg-slide) var(--pg-ease) backwards;
+}
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="rise"]
+  .pk-screen
+  > .pk-scroll:not(.pk-scroll .pk-scroll),
+.needt-v3[data-ui="phone"]
+  .v2p-stage[data-pg="rise"]
+  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  /* from the dock: the viewport's bottom edge, as the page starts at the top */
+  transform-origin: 50% 100dvh;
+  animation: v3-pg-in-rise var(--pg-rise) var(--pg-ease) backwards;
+}
+@keyframes v3-pg-in-fwd {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+@keyframes v3-pg-in-back {
+  from {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+@keyframes v3-pg-in-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--pg-lift), 0) scale(var(--pg-rise-scale));
+  }
+}
+@keyframes v3-pg-in-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── the old page: a still copy under the new one ─────────────────────────
+ * Absolute, not fixed (nothing fixed at the edges), one screen tall at the top
+ * of the document: the new page always starts at the top. The copy inside is
+ * offset by the scroll position it was taken at. */
+.needt-v3[data-ui="phone"] .pk-pg-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100dvh;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  background: var(--v2p-ground);
+}
+.needt-v3[data-ui="phone"] .pk-pg-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+/* Frozen: a clone replays every entry it holds the moment it is inserted,
+ * and its glass would be a second live blur under the dock's. */
+.needt-v3[data-ui="phone"] .pk-pg-sheet *,
+.needt-v3[data-ui="phone"] .pk-pg-sheet *::before,
+.needt-v3[data-ui="phone"] .pk-pg-sheet *::after {
+  animation: none !important;
+  transition: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* The old page gives way when the new one starts (the script sets data-pg-go
+ * on the animationstart of the page). Held at the end until the script
+ * removes it. */
+.needt-v3[data-ui="phone"]
+  .pk-pg-ghost[data-pg="forward"][data-pg-go]
+  > .pk-pg-sheet {
+  animation: v3-pg-sheet-fwd-out var(--pg-slide) var(--pg-ease) forwards;
+}
+.needt-v3[data-ui="phone"]
+  .pk-pg-ghost[data-pg="back"][data-pg-go]
+  > .pk-pg-sheet {
+  animation: v3-pg-sheet-back-out var(--pg-slide) var(--pg-ease) forwards;
+}
+@keyframes v3-pg-sheet-fwd-out {
+  to {
+    opacity: var(--pg-dim);
+    transform: translate3d(calc(var(--pg-parallax) * -1), 0, 0);
+  }
+}
+@keyframes v3-pg-sheet-back-out {
+  to {
+    opacity: var(--pg-dim);
+    transform: translate3d(var(--pg-parallax), 0, 0);
+  }
+}
+
+/* ── reduced motion: no movement, a plain crossfade over the old page ───── */
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3[data-ui="phone"]
+    .v2p-stage[data-pg]
+    .pk-screen
+    > .pk-scroll:not(.pk-scroll .pk-scroll):not(#pg),
+  .needt-v3[data-ui="phone"]
+    .v2p-stage[data-pg]
+    > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))):not(#pg) {
+    animation: v3-pg-in-fade var(--pg-fade) ease-out backwards !important;
+  }
+  .needt-v3[data-ui="phone"] .pk-pg-ghost[data-pg] > .pk-pg-sheet {
+    animation: none !important;
+  }
+}
