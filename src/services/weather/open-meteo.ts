@@ -34,7 +34,30 @@ export interface Weather {
   code: number;
   /** "Partly cloudy". */
   summary: string;
+  /** °C, rounded: how it feels right now. */
+  feelsLike: number;
+  /** Chance of rain or snow today, 0-100; null when the service has none. */
+  precipChance: number | null;
+  /** Wind now, km/h, rounded; null when unknown. */
+  windKph: number | null;
+  /** Local "HH:MM" at the city; null when unknown. */
+  sunrise: string | null;
+  sunset: string | null;
+  /** The next few hours at the city, oldest first. */
+  hours: WeatherHour[];
 }
+
+export interface WeatherHour {
+  /** Local "HH:MM" at the city. */
+  time: string;
+  temp: number;
+  code: number;
+  /** 0-100; null when unknown. */
+  precipChance: number | null;
+}
+
+/** How many upcoming hours the detail shows. */
+export const HOURS_AHEAD = 4;
 
 /** A tiny TTL store; the default lives in this process. */
 export interface WeatherCache {
@@ -92,6 +115,50 @@ async function getJson(fetcher: Fetcher, url: string): Promise<unknown> {
 
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
+
+/** "2026-10-27T07:12" -> "07:12" (Open-Meteo local time, no zone suffix). */
+const clock = (v: unknown) => {
+  const m = typeof v === "string" ? /T(\d{2}:\d{2})/.exec(v) : null;
+  return m ? m[1] : null;
+};
+
+const percent = (v: unknown) => {
+  const n = num(v);
+  return n == null ? null : Math.max(0, Math.min(100, Math.round(n)));
+};
+
+/** The next `HOURS_AHEAD` full hours after `now`, both in the city's local time. */
+function hoursAfter(
+  now: unknown,
+  hourly:
+    | {
+        time?: unknown[];
+        temperature_2m?: unknown[];
+        weather_code?: unknown[];
+        precipitation_probability?: unknown[];
+      }
+    | undefined
+): WeatherHour[] {
+  const times = hourly?.time ?? [];
+  const at = typeof now === "string" ? now : "";
+  const out: WeatherHour[] = [];
+  for (let i = 0; i < times.length && out.length < HOURS_AHEAD; i++) {
+    const t = times[i];
+    // ISO local strings of one zone sort as text.
+    if (typeof t !== "string" || (at && t <= at)) continue;
+    const temp = num(hourly?.temperature_2m?.[i]);
+    const code = num(hourly?.weather_code?.[i]);
+    const time = clock(t);
+    if (temp == null || code == null || !time) continue;
+    out.push({
+      time,
+      temp: Math.round(temp),
+      code,
+      precipChance: percent(hourly?.precipitation_probability?.[i]),
+    });
+  }
+  return out;
+}
 
 /** The city as typed, tidied: trimmed, one line, 80 characters at most. */
 export const cleanCity = (raw: unknown) =>
@@ -186,13 +253,30 @@ export async function weatherFor(
     const body = (await getJson(
       deps.fetcher ?? fetch,
       `${FORECAST_URL}?latitude=${place.latitude}&longitude=${place.longitude}` +
-        "&current=temperature_2m,weather_code" +
-        "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto"
+        "&current=temperature_2m,weather_code,apparent_temperature,wind_speed_10m" +
+        "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max" +
+        "&hourly=temperature_2m,weather_code,precipitation_probability" +
+        "&forecast_days=2&timezone=auto"
     )) as {
-      current?: { temperature_2m?: unknown; weather_code?: unknown };
+      current?: {
+        time?: unknown;
+        temperature_2m?: unknown;
+        weather_code?: unknown;
+        apparent_temperature?: unknown;
+        wind_speed_10m?: unknown;
+      };
       daily?: {
         temperature_2m_max?: unknown[];
         temperature_2m_min?: unknown[];
+        sunrise?: unknown[];
+        sunset?: unknown[];
+        precipitation_probability_max?: unknown[];
+      };
+      hourly?: {
+        time?: unknown[];
+        temperature_2m?: unknown[];
+        weather_code?: unknown[];
+        precipitation_probability?: unknown[];
       };
     };
     const temp = num(body.current?.temperature_2m);
@@ -200,12 +284,20 @@ export async function weatherFor(
     const max = num(body.daily?.temperature_2m_max?.[0]);
     const min = num(body.daily?.temperature_2m_min?.[0]);
     if (temp == null || code == null) return null;
+    const feels = num(body.current?.apparent_temperature);
+    const wind = num(body.current?.wind_speed_10m);
     const value = {
       temp: Math.round(temp),
       min: Math.round(min ?? temp),
       max: Math.round(max ?? temp),
       code,
       summary: describeWeather(code),
+      feelsLike: Math.round(feels ?? temp),
+      precipChance: percent(body.daily?.precipitation_probability_max?.[0]),
+      windKph: wind == null ? null : Math.round(wind),
+      sunrise: clock(body.daily?.sunrise?.[0]),
+      sunset: clock(body.daily?.sunset?.[0]),
+      hours: hoursAfter(body.current?.time, body.hourly),
     };
     cache.set(key, value, FORECAST_TTL_MS);
     return { city: place.name, ...value };

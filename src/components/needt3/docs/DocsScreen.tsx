@@ -512,7 +512,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
   const c = copy.DocsScreen;
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col px-8"
+      className="flex min-h-0 flex-1 flex-col"
       data-v3-screen="docs"
     >
       {/* Craft's header: [+] title … view switcher and a ⋯ menu. Search is
