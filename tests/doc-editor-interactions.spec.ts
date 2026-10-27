@@ -106,8 +106,37 @@ test("Doc: a click on the page does not move it", async ({ page }) => {
   const top = await offset(page);
 
   // Into the text, then into the gap under the title (the page's own ground).
+  await page.evaluate(() => {
+    const w = window as unknown as { __t: unknown[] };
+    w.__t = [];
+    const sc = document.querySelector("[data-doc-page]") as HTMLElement;
+    const sh = document.querySelector("[data-doc-sheet]") as HTMLElement;
+    const t0 = performance.now();
+    const tick = () => {
+      w.__t.push([
+        Math.round(performance.now() - t0),
+        sc.scrollTop,
+        sh.getBoundingClientRect().y,
+        document.getAnimations().length,
+      ]);
+      if (performance.now() - t0 < 900) requestAnimationFrame(tick);
+    };
+    tick();
+  });
   await line.click();
   await page.waitForTimeout(700);
+  console.log(
+    "DIAG " +
+      JSON.stringify(
+        (
+          await page.evaluate(
+            () => (window as unknown as { __t: number[][] }).__t
+          )
+        ).filter(
+          (r, i, a) => i === 0 || r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2]
+        )
+      )
+  );
   expect(await sheetBox(page)).toEqual(before);
   expect(Math.abs((await offset(page)) - top)).toBeLessThanOrEqual(1);
 
