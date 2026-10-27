@@ -134,6 +134,7 @@ import {
   blockIdFromHash,
   blockInsertRange,
   boundaryPos,
+  guardFocusScroll,
   linkAtSelection,
   openBlockAt,
   rankCommands,
@@ -2267,6 +2268,11 @@ export function PageWorkspace({
   // selection is the start of the page by default, and a block picked in the
   // Insert tab belongs in the first block on screen, so the page stays put.
   const caretPlaced = useRef(false);
+  // A click into the text must not move the page: see guardFocusScroll.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return undefined;
+    return guardFocusScroll(editor.view.dom as HTMLElement);
+  }, [editor]);
   useEffect(() => {
     if (!editor) return undefined;
     const placed = () => {

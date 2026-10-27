@@ -7,3 +7,5 @@
 - Clicking in a document on the desktop no longer scrolls the page to its end
   and back: the phone editing bar, which is not drawn there, was still keeping
   the caret clear of itself.
+- Clicking into a document no longer lets the browser slide the page (and the
+  app frame sideways) to reveal the focused editor.

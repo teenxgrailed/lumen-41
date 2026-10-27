@@ -311,3 +311,71 @@ export function visibleBlockPos(editor: Editor): number {
   }
   return end;
 }
+
+/**
+ * Clicking into the text moves focus to the editor, and Chromium then scrolls
+ * the focused element into view on its own: every scrollable ancestor, both
+ * axes, a page that sat still glides several lines (and the app's frame slides
+ * sideways). ProseMirror cannot stop that (it is the browser's, not a
+ * script's: no `scrollIntoView` call exists to patch), so remember where every
+ * ancestor stood at the press and put it back if one moves while focus arrives.
+ * A wheel, a touch or a key ends the guard: the person's own scrolling is left
+ * alone, and so is a press in an editor that already has focus.
+ */
+export function guardFocusScroll(dom: HTMLElement): () => void {
+  const doc = dom.ownerDocument;
+  const win = doc.defaultView;
+  if (!win) return () => undefined;
+  type Stop = { el: Element; top: number; left: number };
+  let saved: Stop[] | null = null;
+  let winAt: { x: number; y: number } | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const end = () => {
+    saved = null;
+    winAt = null;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+  const restore = () => {
+    if (!saved) return;
+    for (const stop of saved) {
+      if (stop.el.scrollTop !== stop.top) stop.el.scrollTop = stop.top;
+      if (stop.el.scrollLeft !== stop.left) stop.el.scrollLeft = stop.left;
+    }
+    if (winAt && (win.scrollX !== winAt.x || win.scrollY !== winAt.y)) {
+      win.scrollTo({ left: winAt.x, top: winAt.y, behavior: "instant" });
+    }
+  };
+  const press = (event: MouseEvent) => {
+    if (event.button !== 0 || doc.activeElement === dom) return;
+    const stops: Stop[] = [];
+    for (let p = dom.parentElement; p; p = p.parentElement) {
+      stops.push({ el: p, top: p.scrollTop, left: p.scrollLeft });
+    }
+    saved = stops;
+    winAt = { x: win.scrollX, y: win.scrollY };
+    if (timer) clearTimeout(timer);
+    // Focus arrives with the press; a drag that autoscrolls comes later.
+    timer = setTimeout(end, 250);
+  };
+  const focused = () => {
+    restore();
+    requestAnimationFrame(restore);
+  };
+  doc.addEventListener("scroll", restore, true);
+  doc.addEventListener("wheel", end, true);
+  doc.addEventListener("touchstart", end, true);
+  doc.addEventListener("keydown", end, true);
+  dom.addEventListener("mousedown", press, true);
+  dom.addEventListener("focus", focused);
+  return () => {
+    end();
+    doc.removeEventListener("scroll", restore, true);
+    doc.removeEventListener("wheel", end, true);
+    doc.removeEventListener("touchstart", end, true);
+    doc.removeEventListener("keydown", end, true);
+    dom.removeEventListener("mousedown", press, true);
+    dom.removeEventListener("focus", focused);
+  };
+}

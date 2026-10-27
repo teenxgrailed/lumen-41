@@ -61,6 +61,7 @@ async function open(page: Page) {
   await page.goto(`/pages/${doc.id}`);
   await expect(page.locator(".needt-page-editor")).toContainText("Line 1");
   await expect(page.locator('[data-insert-command="paragraph"]')).toBeVisible();
+  await settle(page);
   return doc;
 }
 
@@ -75,6 +76,19 @@ const sheetBox = async (page: Page) =>
 const offset = (page: Page) =>
   scroller(page).evaluate((el) => (el as HTMLElement).scrollTop);
 
+// The sheet eases in when a page opens; measuring it mid-ease reads a scale of
+// 1.003 as a "move". Wait for every animation under the page to finish.
+async function settle(page: Page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined))
+    )
+  );
+}
+
 async function scrollTo(page: Page, top: number) {
   await scroller(page).evaluate((el, t) => {
     (el as HTMLElement).scrollTop = t;
@@ -83,58 +97,6 @@ async function scrollTo(page: Page, top: number) {
 }
 
 test("Doc: a click on the page does not move it", async ({ page }) => {
-  await page.addInitScript(() => {
-    const w = window as unknown as { __log: unknown[] };
-    w.__log = [];
-    const desc = (n: unknown) => {
-      const el = n as HTMLElement;
-      return el && el.tagName
-        ? `${el.tagName}.${String(el.className).slice(0, 40)}`
-        : String(n);
-    };
-    for (const name of ["scrollIntoView", "scrollTo", "scrollBy", "focus"]) {
-      const proto = (name === "focus"
-        ? HTMLElement.prototype
-        : Element.prototype) as unknown as Record<
-        string,
-        (...a: unknown[]) => unknown
-      >;
-      const orig = proto[name];
-      proto[name] = function (this: unknown, ...a: unknown[]) {
-        w.__log.push({
-          api: name,
-          on: desc(this),
-          a: JSON.stringify(a).slice(0, 60),
-          stack: String(new Error().stack).split("\n").slice(2, 5).join("|"),
-        });
-        return orig.apply(this, a);
-      };
-    }
-    document.addEventListener(
-      "focusin",
-      (e) => {
-        w.__log.push({
-          focusin: desc(e.target),
-          stack: String(new Error().stack).split("\n").slice(1, 6).join("|"),
-        });
-      },
-      true
-    );
-    document.addEventListener(
-      "scroll",
-      (e) => {
-        const t = e.target as HTMLElement;
-        w.__log.push({
-          scroll: desc(t),
-          top: t.scrollTop,
-          left: t.scrollLeft,
-          active: desc(document.activeElement),
-          stack: String(new Error().stack).split("\n").slice(1, 4).join("|"),
-        });
-      },
-      true
-    );
-  });
   await open(page);
   await scrollTo(page, 600);
 
@@ -144,19 +106,8 @@ test("Doc: a click on the page does not move it", async ({ page }) => {
   const top = await offset(page);
 
   // Into the text, then into the gap under the title (the page's own ground).
-  await page.evaluate(() => {
-    (window as unknown as { __log: unknown[] }).__log.length = 0;
-  });
   await line.click();
   await page.waitForTimeout(700);
-  console.log(
-    "DIAG " +
-      JSON.stringify(
-        await page.evaluate(
-          () => (window as unknown as { __log: unknown[] }).__log
-        )
-      )
-  );
   expect(await sheetBox(page)).toEqual(before);
   expect(Math.abs((await offset(page)) - top)).toBeLessThanOrEqual(1);
 

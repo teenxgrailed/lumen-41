@@ -11,6 +11,7 @@ import StarterKit from "@tiptap/starter-kit";
 
 import {
   boundaryPos,
+  guardFocusScroll,
   openBlockAt,
   scrollDelta,
 } from "@/components/pages/page-editor-logic";
@@ -92,5 +93,28 @@ describe("scrollDelta", () => {
   });
   it("shows the top of a line taller than the box", () => {
     expect(scrollDelta({ top: 650, bottom: 1650 }, box, 24)).toBe(526);
+  });
+});
+
+describe("guardFocusScroll", () => {
+  it("puts back a scroll the browser makes when a press focuses the editor", () => {
+    const scroller = document.createElement("div");
+    const el = document.createElement("div");
+    el.tabIndex = 0;
+    scroller.appendChild(el);
+    document.body.appendChild(scroller);
+    scroller.scrollTop = 600;
+    const stop = guardFocusScroll(el);
+    el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    scroller.scrollTop = 789; // the browser's reveal
+    scroller.dispatchEvent(new Event("scroll"));
+    expect(scroller.scrollTop).toBe(600);
+    // The person's own wheel ends the guard.
+    document.dispatchEvent(new Event("wheel"));
+    scroller.scrollTop = 700;
+    scroller.dispatchEvent(new Event("scroll"));
+    expect(scroller.scrollTop).toBe(700);
+    stop();
+    scroller.remove();
   });
 });
