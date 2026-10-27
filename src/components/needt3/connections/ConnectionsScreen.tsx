@@ -23,6 +23,8 @@ import {
   FiX,
 } from "react-icons/fi";
 
+import { usePlan } from "@/lib/needt3/hooks/plan";
+import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 
 import { BrandIcon, brandIdFor } from "../brand";
@@ -331,6 +333,7 @@ function Card({
  * …) are not drawn yet.
  */
 function AiPromo() {
+  const plan = usePlan();
   return (
     <GlassCard
       className="cn-promo nx-swap"
@@ -363,7 +366,9 @@ function AiPromo() {
             data-cn-promo-try=""
             onClick={() => openPaywall("AI tools")}
           >
-            Try Pro free for {P.trialDays} days
+            {offersTrial(plan.data)
+              ? `Try Pro free for ${P.trialDays} days`
+              : "Get Pro"}
           </button>
           <button
             type="button"

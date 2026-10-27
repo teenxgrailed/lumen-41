@@ -18,6 +18,7 @@ import { useAlerts, useSchedule } from "@/lib/needt3/hooks/account";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
+import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { ACCENTS } from "@/lib/needt3/theme";
 
@@ -264,7 +265,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
             <span className="ps-pro-mark">Pro</span>
           </span>
           <span className="ps-pro-line">
-            {`Plan my day, the Time theme, every accent and connection. ${P.trialShort}.`}
+            {`Plan my day, the Time theme, every accent and connection. ${offersTrial(plan.data) ? P.trialShort : P.plansShort}.`}
           </span>
           <PkButton
             kind="primary"
@@ -272,7 +273,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
             onClick={() => upgrade()}
             data-ps-upgrade=""
           >
-            Try Pro free
+            {offersTrial(plan.data) ? "Try Pro free" : "See plans"}
           </PkButton>
         </PkSkyPlate>
       )}
