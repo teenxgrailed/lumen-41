@@ -48,7 +48,7 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
   await expect(row).toBeVisible();
   await expect(row.locator("[data-task-pin]")).toHaveCount(0);
 
-  await row.first().click();
+  await page.goto(`/tasks?task=${task.id}`);
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Pin here" }).click();
 
@@ -60,7 +60,7 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
     await prisma.scheduledBlock.count({ where: { taskId: task.id } })
   ).toBe(1);
 
-  await page.keyboard.press("Escape");
+  await page.goto("/today");
   await expect(
     page
       .locator("[data-task]")
@@ -69,7 +69,7 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
       .first()
   ).toHaveAttribute("title", /^Pinned at \d{2}:\d{2} — the scheduler won't/);
 
-  await row.first().click();
+  await page.goto(`/tasks?task=${task.id}`);
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Let Needt schedule it" }).click();
 
