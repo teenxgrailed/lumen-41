@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { getEvent } from "@/lib/calendar-db";
 import { newDate } from "@/lib/date-utils";
@@ -110,6 +112,7 @@ export async function PATCH(
       },
     });
 
+    rescheduleRemindersSoon({ eventId: id });
     return NextResponse.json(updated);
   } catch (error) {
     logger.error(

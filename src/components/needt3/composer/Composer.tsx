@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 
 import * as Dialog from "@radix-ui/react-dialog";
 import {
+  LuAlarmClock,
   LuAlignLeft,
   LuArrowRight,
   LuCalendar,
@@ -67,6 +68,10 @@ import {
   useCreateFromTemplate,
 } from "@/lib/needt3/hooks/places";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import {
+  type ReminderSpec,
+  useReminderActions,
+} from "@/lib/needt3/hooks/reminders";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
@@ -79,6 +84,7 @@ import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { Tooltip } from "../menu/Tooltip";
 import { templatePageTitle } from "../places/derive";
+import { ReminderPicker, specLabel } from "../task/ReminderPicker";
 import {
   type CoFacetKind,
   type CoKind,
@@ -424,11 +430,14 @@ function Shelf({
   open,
   withNote,
   onPick,
+  onRemind,
 }: {
   open: boolean;
   /** Only a task keeps a description; elsewhere the row would be dropped. */
   withNote: boolean;
   onPick: (words: string | null) => void;
+  /** A task can be given a reminder before it exists. */
+  onRemind?: () => void;
 }) {
   return (
     <div
@@ -457,6 +466,24 @@ function Shelf({
                 <span className="shell-nf-card-span">{row.label}</span>
               </button>
             ))}
+            {onRemind ? (
+              <button
+                type="button"
+                tabIndex={open ? 0 : -1}
+                className="cmp-row shell-shelf-row"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={onRemind}
+              >
+                <span
+                  className="shell-shelf-grid-2"
+                  aria-hidden="true"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <LuAlarmClock size={14} />
+                </span>
+                <span className="shell-nf-card-span">Remind me…</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -517,6 +544,10 @@ export function Composer({ open, onClose }: ComposerProps) {
   const [text, setText] = useState("");
   const [scroll, setScroll] = useState(0);
   const [more, setMore] = useState(false);
+  /* A reminder chosen before the task exists; set once it is created. */
+  const [remind, setRemind] = useState<ReminderSpec | null>(null);
+  const [remindPick, setRemindPick] = useState(false);
+  const reminderActions = useReminderActions();
   const [menu, setMenu] = useState<PickKind | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [type, setType] = useState<CoKind | null>(null);
@@ -570,6 +601,8 @@ export function Composer({ open, onClose }: ComposerProps) {
     if (!open) {
       setMenu(null);
       setMore(false);
+      setRemind(null);
+      setRemindPick(false);
       return;
     }
     setText("");
@@ -676,6 +709,11 @@ export function Composer({ open, onClose }: ComposerProps) {
               await parts.add(result.id, title, i);
           } catch {
             // The parts hook has told the person; the task stays.
+          }
+          if (remind) {
+            // The actions hook tells the person if it fails; the task stays.
+            await reminderActions.create({ taskId: result.id }, remind);
+            setRemind(null);
           }
           return result.id;
         }
@@ -1074,9 +1112,40 @@ export function Composer({ open, onClose }: ComposerProps) {
                 </div>
               ) : null}
 
+              {remindPick && kind === "task" ? (
+                <ReminderPicker
+                  onPick={(spec) => {
+                    setRemind(spec);
+                    setRemindPick(false);
+                  }}
+                />
+              ) : null}
+              {remind && kind === "task" ? (
+                <div className="cmp-remind">
+                  <Chip quiet tone="var(--text-secondary)" Glyph={LuAlarmClock}>
+                    {specLabel(remind)}
+                  </Chip>
+                  <button
+                    type="button"
+                    className="rmd-remove"
+                    aria-label="Remove the reminder"
+                    onClick={() => setRemind(null)}
+                  >
+                    <LuX size={13} aria-hidden />
+                  </button>
+                </div>
+              ) : null}
               <Shelf
                 open={more}
                 withNote={kind === "task"}
+                onRemind={
+                  kind === "task"
+                    ? () => {
+                        setMore(false);
+                        setRemindPick(true);
+                      }
+                    : undefined
+                }
                 onPick={(words) => {
                   setMore(false);
                   if (words == null) {

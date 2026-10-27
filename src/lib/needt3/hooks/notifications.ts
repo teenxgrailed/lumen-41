@@ -31,13 +31,18 @@ export interface FeedItem {
     | "sync"
     | "import"
     | "reminder"
-    | "due";
+    | "due"
+    | "overdue";
   actor: string | null;
   title: string;
   body: string | null;
   at: string;
   link: string;
   unread: boolean;
+  /** The task or event behind the row (Done and Tomorrow use it). */
+  entity?: { type: "task" | "event" | "reminder"; id: string } | null;
+  /** A reminder row's reminder: snooze and edit go to it. */
+  reminderId?: string;
 }
 
 export interface FeedPage {
@@ -82,6 +87,29 @@ export function useMarkNotificationsRead() {
       } catch (error) {
         logger.warn(
           "Could not mark notifications read",
+          { error: error instanceof Error ? error.message : String(error) },
+          LOG_SOURCE
+        );
+      }
+    },
+    [qc]
+  );
+}
+
+/** Hide rows until `until` ("Tomorrow"); they come back unread. */
+export function useSnoozeNotifications() {
+  const qc = useQueryClient();
+  return useCallback(
+    async (keys: string[], until: Date) => {
+      try {
+        await sendJson("/api/notifications/snooze", "POST", {
+          keys,
+          until: until.toISOString(),
+        });
+        await qc.invalidateQueries({ queryKey: qk.nudges() });
+      } catch (error) {
+        logger.warn(
+          "Could not snooze notifications",
           { error: error instanceof Error ? error.message : String(error) },
           LOG_SOURCE
         );

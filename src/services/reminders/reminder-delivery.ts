@@ -6,6 +6,13 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { VapidVariableName, getVapidConfiguration } from "@/lib/push-config";
 
+import {
+  getNotificationPrefs,
+  shouldAlert,
+} from "../notifications/preferences";
+import { reminderFireTime } from "./reminder-time";
+import { reminderLink, reminderTitle } from "./reminders";
+
 const LOG_SOURCE = "ReminderDelivery";
 const RETRY_AFTER_MS = 5 * 60_000;
 let hasWarnedAboutMissingVapidConfiguration = false;
@@ -38,24 +45,6 @@ export async function warnIfVapidConfigurationIsMissingOnce() {
   await warnAboutMissingVapidConfigurationOnce(configuration.missingVariables);
 }
 
-function reminderTarget(reminder: {
-  kind: TaskReminderKind;
-  offsetMinutes: number;
-  task: {
-    scheduledStart: Date | null;
-    deadline: Date | null;
-    dueDate: Date | null;
-  };
-}) {
-  const anchor =
-    reminder.kind === TaskReminderKind.BEFORE_START
-      ? reminder.task.scheduledStart
-      : (reminder.task.deadline ?? reminder.task.dueDate);
-  return anchor
-    ? new Date(anchor.getTime() - reminder.offsetMinutes * 60_000)
-    : null;
-}
-
 function parseChannels(channels: unknown): Array<"push" | "email"> {
   if (!Array.isArray(channels)) return ["push", "email"];
   return channels.filter(
@@ -64,22 +53,33 @@ function parseChannels(channels: unknown): Array<"push" | "email"> {
   );
 }
 
+/** Reminders whose task or event is gone, archived or done never fire. */
+const LIVE = {
+  canceledAt: null,
+  deliveredAt: null,
+  AND: [
+    { OR: [{ taskId: null }, { task: { isArchived: false } }] },
+    { OR: [{ eventId: null }, { event: { archivedAt: null } }] },
+  ],
+};
+
+/**
+ * The minute sweep: what is due now and not delivered. The delayed job per
+ * reminder normally gets there first; this catches a job that was lost.
+ */
 export async function findDueReminderIds(now = new Date()) {
   await prisma.taskReminder.updateMany({
     where: {
       deliveryStatus: ReminderDeliveryStatus.DELIVERING,
       lastAttemptAt: { lt: new Date(now.getTime() - 15 * 60_000) },
       deliveredAt: null,
-      task: { isArchived: false },
     },
     data: { deliveryStatus: ReminderDeliveryStatus.FAILED },
   });
 
   const candidates = await prisma.taskReminder.findMany({
     where: {
-      canceledAt: null,
-      deliveredAt: null,
-      task: { isArchived: false },
+      ...LIVE,
       OR: [
         { deliveryStatus: ReminderDeliveryStatus.PENDING },
         {
@@ -87,22 +87,38 @@ export async function findDueReminderIds(now = new Date()) {
           lastAttemptAt: { lt: new Date(now.getTime() - RETRY_AFTER_MS) },
         },
       ],
+      // Only rows that can have a time: a snooze, an absolute time, a task
+      // with a start or deadline, or an event.
+      AND: [
+        {
+          OR: [
+            { snoozedUntil: { lte: now } },
+            { fireAt: { lte: now } },
+            { eventId: { not: null } },
+            { task: { scheduledStart: { not: null } } },
+            { task: { deadline: { not: null } } },
+            { task: { dueDate: { not: null } } },
+          ],
+        },
+      ],
     },
     include: {
       task: {
-        select: {
-          scheduledStart: true,
-          deadline: true,
-          dueDate: true,
-        },
+        select: { scheduledStart: true, deadline: true, dueDate: true },
       },
+      event: { select: { start: true } },
+      user: { select: { userSettings: { select: { timeZone: true } } } },
     },
+    orderBy: { updatedAt: "asc" },
     take: 500,
   });
 
   return candidates
     .filter((reminder) => {
-      const target = reminderTarget(reminder);
+      const target = reminderFireTime(
+        reminder,
+        reminder.user.userSettings?.timeZone ?? "UTC"
+      );
       return target !== null && target <= now;
     })
     .map((reminder) => reminder.id);
@@ -173,7 +189,46 @@ export async function deliverPush(
   return true;
 }
 
-export async function deliverTaskReminder(reminderId: string) {
+/** Early by this much is still on time: a delayed job can wake a little early. */
+const EARLY_MS = 5_000;
+
+export async function deliverTaskReminder(
+  reminderId: string,
+  now = new Date()
+) {
+  const peek = await prisma.taskReminder.findUnique({
+    where: { id: reminderId },
+    include: {
+      task: {
+        select: {
+          scheduledStart: true,
+          deadline: true,
+          dueDate: true,
+          status: true,
+        },
+      },
+      event: { select: { start: true } },
+      user: { select: { userSettings: { select: { timeZone: true } } } },
+    },
+  });
+  if (!peek || peek.deliveredAt || peek.canceledAt) {
+    return { delivered: false, skipped: true };
+  }
+  const timeZone = peek.user.userSettings?.timeZone ?? "UTC";
+  const target = reminderFireTime(peek, timeZone);
+  // A job scheduled for a time the task has since moved away from.
+  if (!target || target.getTime() > now.getTime() + EARLY_MS) {
+    return { delivered: false, skipped: true };
+  }
+  // Done tasks are not reminded about; the reminder is closed with them.
+  if (peek.task?.status === "completed") {
+    await prisma.taskReminder.update({
+      where: { id: reminderId },
+      data: { canceledAt: now },
+    });
+    return { delivered: false, skipped: true };
+  }
+
   const claimed = await prisma.taskReminder.updateMany({
     where: {
       id: reminderId,
@@ -185,7 +240,7 @@ export async function deliverTaskReminder(reminderId: string) {
     },
     data: {
       deliveryStatus: ReminderDeliveryStatus.DELIVERING,
-      lastAttemptAt: new Date(),
+      lastAttemptAt: now,
       attemptCount: { increment: 1 },
       lastError: null,
     },
@@ -196,6 +251,7 @@ export async function deliverTaskReminder(reminderId: string) {
     where: { id: reminderId },
     include: {
       task: { select: { id: true, title: true, isArchived: true } },
+      event: { select: { id: true, title: true, archivedAt: true } },
       user: {
         select: {
           email: true,
@@ -206,7 +262,7 @@ export async function deliverTaskReminder(reminderId: string) {
     },
   });
   if (!reminder) return { delivered: false, skipped: true };
-  if (reminder.task.isArchived) {
+  if (reminder.task?.isArchived || reminder.event?.archivedAt) {
     await prisma.taskReminder.update({
       where: { id: reminder.id },
       data: { deliveryStatus: ReminderDeliveryStatus.PENDING },
@@ -214,19 +270,31 @@ export async function deliverTaskReminder(reminderId: string) {
     return { delivered: false, skipped: true };
   }
 
+  const prefs = await getNotificationPrefs(reminder.userId);
   const channels = parseChannels(reminder.channels);
+  const title = reminderTitle(reminder);
   const payload = {
     title:
-      reminder.kind === TaskReminderKind.BEFORE_START
-        ? "Task starts soon"
-        : "Deadline approaching",
-    body: reminder.task.title,
-    url: `/today?task=${encodeURIComponent(reminder.task.id)}`,
+      reminder.kind === TaskReminderKind.AT_TIME || reminder.snoozedUntil
+        ? "Reminder"
+        : reminder.eventId
+          ? "Event starts soon"
+          : reminder.kind === TaskReminderKind.BEFORE_START
+            ? "Task starts soon"
+            : "Deadline approaching",
+    body: title,
+    url: reminderLink(reminder),
+    ...(reminder.taskId ? { taskId: reminder.taskId } : {}),
   };
 
   try {
+    // The bell shows it whatever happens here (the feed reads fired
+    // reminders); these are the interruptions Settings allow right now.
+    const pushAllowed =
+      channels.includes("push") && shouldAlert(prefs, "reminder", "push", now);
+    const emailAllowed = shouldAlert(prefs, "reminder", "email", now);
     let pushDelivered = false;
-    if (channels.includes("push")) {
+    if (pushAllowed) {
       const results = await Promise.allSettled(
         reminder.user.pushSubscriptions.map((subscription) =>
           deliverPush(subscription, payload)
@@ -237,35 +305,29 @@ export async function deliverTaskReminder(reminderId: string) {
       );
     }
 
-    // Email is both an explicit channel and the reliable fallback when web
-    // push is unavailable (notably iOS browsers without an installed PWA).
+    // Email is both an explicit channel and the fallback when web push is
+    // unavailable (notably iOS browsers without an installed PWA).
     if (
+      emailAllowed &&
       reminder.user.email &&
       reminder.user.emailVerified &&
-      (channels.includes("email") || !pushDelivered)
+      (channels.includes("email") || (pushAllowed && !pushDelivered))
     ) {
       await EmailService.sendEmail({
         to: reminder.user.email,
         ...getReminderTemplate({
-          title: `${payload.title}: ${reminder.task.title}`,
+          title: `${payload.title}: ${title}`,
           body: payload.body,
           openUrl: `${process.env.NEXTAUTH_URL ?? ""}${payload.url}`,
         }),
       });
     }
 
-    if (
-      !pushDelivered &&
-      (!reminder.user.email || !reminder.user.emailVerified)
-    ) {
-      throw new Error("No deliverable push subscription or email");
-    }
-
     await prisma.taskReminder.update({
       where: { id: reminder.id },
       data: {
         deliveryStatus: ReminderDeliveryStatus.DELIVERED,
-        deliveredAt: new Date(),
+        deliveredAt: now,
         lastError: null,
       },
     });

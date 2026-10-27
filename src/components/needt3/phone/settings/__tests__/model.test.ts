@@ -110,6 +110,18 @@ describe("summaries", () => {
       dailyPlanTime: "08:30",
       mailPlan: false,
       weeklyReview: true,
+      reminders: true,
+      mentions: true,
+      system: true,
+      channelInApp: true,
+      channelPush: true,
+      channelMac: true,
+      emailNotifications: true,
+      quietHours: false,
+      quietStart: "22:00",
+      quietEnd: "08:00",
+      digest: false,
+      digestTime: "08:00",
     };
     expect(alertsSummary(undefined)).toMatch(/focus ended/);
     expect(alertsSummary({ ...base, nudges: true, focusEnded: true })).toBe(

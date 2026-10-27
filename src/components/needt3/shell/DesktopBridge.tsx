@@ -30,6 +30,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { nextTasks, trayState } from "../root/desktopTray";
 import { readPref } from "../settings/derive";
 import { useShellApi } from "./ShellContext";
+import { useMacAlerts } from "./useMacAlerts";
 
 /** The desktop app refreshes what its menu-bar menu shows this often. */
 const REFRESH_MS = 60_000;
@@ -97,6 +98,7 @@ export function DesktopBridge() {
 }
 
 function DesktopBridgeInApp() {
+  useMacAlerts();
   const router = useRouter();
   const shell = useShellApi();
   const createDoc = useCreateDoc();
