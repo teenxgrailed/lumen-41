@@ -73,12 +73,18 @@ async function expectFillsWidth(page: Page, selector: string, width: number) {
 }
 
 /**
- * The last row column ends where the header tabs end. The list's own scrollbar
- * (if it takes layout space) is allowed for; everything else must be within 8 px.
+ * The last row column ends where the header ends: the task-view gear is the
+ * header's last control (the tabs sit one gear to its left). The list's own
+ * scrollbar (if it takes layout space) is allowed for; everything else must be
+ * within 8 px.
  */
 async function expectRowsAlignWithHeader(page: Page) {
+  // rows load after the shell: wait for the first project cell before measuring
+  await expect(page.locator(".wk-screen .tk-cell-proj").first()).toBeVisible({
+    timeout: 20_000,
+  });
   const gap = await page.evaluate(() => {
-    const tabs = document.querySelector(".wk-tabs");
+    const tabs = document.querySelector("[data-task-view-gear]");
     const scroll = document.querySelector<HTMLElement>(".wk-scroll");
     const cells = Array.from(
       document.querySelectorAll(".wk-screen .tk-cell-proj")
