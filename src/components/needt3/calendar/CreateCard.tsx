@@ -8,7 +8,7 @@ import type { ProjectLike } from "@/lib/needt3/derive";
 import { PERSONAL_PRESETS, type PersonalPreset } from "@/lib/personal-time";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
-import { V3Switch } from "../settings/kit";
+import { SSelect, V3Switch } from "../settings/kit";
 import { Seg2 } from "./Seg2";
 import { c2Time } from "./layout";
 
@@ -326,19 +326,16 @@ export function CreateCard({
             <div className="nt-row">
               <span className="nt-row-label">Project</span>
               <div className="nt-row-control">
-                <select
-                  className="nt-input"
-                  aria-label="Project"
+                <SSelect
+                  label="Project"
+                  width={200}
                   value={projectId ?? ""}
-                  onChange={(e) => setProjectId(e.target.value || null)}
-                >
-                  <option value="">Inbox</option>
-                  {(projects ?? []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setProjectId(v || null)}
+                  options={[
+                    ["", "Inbox"],
+                    ...(projects ?? []).map((p) => [p.id, p.name] as const),
+                  ]}
+                />
               </div>
             </div>
             <div className="nt-row">
@@ -357,22 +354,17 @@ export function CreateCard({
           <div className="nt-row">
             <span className="nt-row-label">Calendar</span>
             <div className="nt-row-control">
-              <select
-                className="nt-input"
-                aria-label="Calendar"
+              <SSelect
+                label="Calendar"
+                width={200}
                 value={calendarId ?? ""}
-                onChange={(e) => setCalendarId(e.target.value || null)}
-              >
-                {calendars && calendars.length > 0 ? (
-                  calendars.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">Needt</option>
-                )}
-              </select>
+                onChange={(v) => setCalendarId(v || null)}
+                options={
+                  calendars && calendars.length > 0
+                    ? calendars.map((c) => [c.id, c.name] as const)
+                    : [["", "Needt"] as const]
+                }
+              />
             </div>
           </div>
         ) : null}
