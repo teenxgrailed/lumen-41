@@ -25,6 +25,10 @@ export interface PriceStrings {
   trialCta: string;
   trialShort: string;
   trialTerms: string;
+  /** For a Free account that cannot start a trial: what Pro costs. */
+  plansShort: string;
+  /** Under a paid plan's button when no trial applies: checkout takes a card. */
+  paidShort: string;
   footnote: string;
 }
 
@@ -56,6 +60,8 @@ export function priceStrings(P: PricingInput = NEEDT_PRICING): PriceStrings {
     trialShort: `${P.trialDays} days free · no card needed`,
     trialTerms:
       "When the trial ends you go back to Free unless you choose a plan — we’ll remind you 3 days before. No card, no automatic charge.",
+    plansShort: `Pro from ${money(year / 12)}/mo`,
+    paidShort: "Paid by card at checkout",
     footnote: `Prices in ${P.currency}. Taxes may apply.`,
   };
 }

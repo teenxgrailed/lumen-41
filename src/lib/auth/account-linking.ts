@@ -3,6 +3,8 @@ import type { NextAuthOptions } from "next-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import { claimUnconfirmedAccountByProvider } from "./unproven-password";
+
 const LOG_SOURCE = "AccountLinking";
 
 /**
@@ -126,7 +128,7 @@ export async function accountLinkingGate(input: {
           email: { equals: email, mode: "insensitive" as const },
         })),
       },
-      select: { id: true, email: true },
+      select: { id: true, email: true, emailVerified: true },
       take: 3,
     });
     if (!owners.length) return true;
@@ -142,6 +144,16 @@ export async function accountLinkingGate(input: {
         { provider, userId: owners[0].id },
         LOG_SOURCE
       );
+      /* An account nobody has confirmed may hold a password set by whoever
+         registered this address first. The provider has just proven the
+         inbox, so the account is confirmed, that password is wiped and every
+         earlier session ends (unproven-password.ts). */
+      if (!owners[0].emailVerified) {
+        await claimUnconfirmedAccountByProvider({
+          userId: owners[0].id,
+          provider,
+        });
+      }
       return true;
     }
 

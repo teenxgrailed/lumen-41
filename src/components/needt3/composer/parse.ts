@@ -88,7 +88,10 @@ export interface ComposerParse {
   readonly parts: readonly string[];
   readonly kind: CoKind;
   readonly date: ComposerDay | null;
+  /** The clock the thing starts at; for a range ("3-4pm") the whole range. */
   readonly time: ComposerMinutes | null;
+  /** The clock a range ("3-4pm", "15:00–16:30") ends at; null for a bare clock. */
+  readonly end: ComposerMinutes | null;
   readonly duration: ComposerMinutes | null;
   readonly deadline: ComposerDay | null;
   readonly repeat: ComposerRepeat | null;
@@ -199,6 +202,79 @@ export function projectForSigil<P extends Pick<V3Project, "name">>(
   return null;
 }
 
+/* ── Time ranges ────────────────────────────────────────────────────────── */
+
+const RE_RANGE =
+  /(?<![\w:.])(\d{1,2})(?::(\d{2}))?\s?(am|pm)?\s?[-–—]\s?(\d{1,2})(?::(\d{2}))?\s?(am|pm)?(?![\w:])/gi;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** "15:00" for minutes from midnight. */
+export const clockWords = (minutes: number) =>
+  `${pad2(Math.floor(minutes / 60) % 24)}:${pad2(minutes % 60)}`;
+
+/** The words a range is typed back as: "15:00-16:30". */
+export const rangeWords = (start: number, end: number) =>
+  `${clockWords(start)}-${clockWords(end)}`;
+
+/** "1 h 30 min", "45 min", "2 h". */
+export function lengthLabel(minutes: number) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m} min`;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
+const to24 = (hour: number, minute: number, pm: boolean | null) => {
+  if (minute > 59) return null;
+  if (pm == null) return hour > 23 ? null : hour * 60 + minute;
+  if (hour < 1 || hour > 12) return null;
+  return ((hour % 12) + (pm ? 12 : 0)) * 60 + minute;
+};
+
+interface Range {
+  readonly span: CoSpan;
+  readonly start: number;
+  readonly end: number;
+  readonly label: string;
+}
+
+/**
+ * "3-4pm", "9:30-11am", "15:00–16:30": a start and an end clock. A side with
+ * no am/pm borrows the other's ("3-4pm" is 15:00–16:00, "11-1pm" is
+ * 11:00–13:00). Bare numbers ("2-3") are not clocks; a range needs a meridiem
+ * or a colon on both sides, and must end after it starts.
+ */
+function readRange(body: string): Range | null {
+  RE_RANGE.lastIndex = 0;
+  for (let m = RE_RANGE.exec(body); m; m = RE_RANGE.exec(body)) {
+    const [, h1, m1, a1, h2, m2, a2] = m;
+    if (!a1 && !a2 && !(m1 && m2)) continue;
+    const m1n = m1 ? Number(m1) : 0;
+    const m2n = m2 ? Number(m2) : 0;
+    const meridiem = (a2 ?? a1)?.toLowerCase();
+    const endPm = meridiem ? meridiem === "pm" : null;
+    const end = to24(Number(h2), m2n, endPm);
+    if (end == null) continue;
+    let start: number | null;
+    if (a1) start = to24(Number(h1), m1n, a1.toLowerCase() === "pm");
+    else {
+      start = to24(Number(h1), m1n, endPm);
+      /* "11-1pm": 11pm is after 1pm, so the start is the morning one. */
+      if (start != null && endPm != null && start >= end)
+        start = to24(Number(h1), m1n, !endPm);
+    }
+    if (start == null || end <= start) continue;
+    return {
+      span: { from: m.index, to: m.index + m[0].length },
+      start,
+      end,
+      label: m[0].replace(/\s+/g, "").replace(/[-–—]/, "–"),
+    };
+  }
+  return null;
+}
+
 function free(span: CoSpan, taken: readonly CoSpan[]) {
   return !taken.some((t) => span.from < t.to && t.from < span.to);
 }
@@ -244,10 +320,26 @@ export function composerParse(
   now: Date,
   projects: readonly V3Project[] = []
 ): ComposerParse {
-  const base: CoParse = coParse(text, now, composerVocabulary(projects));
   const cut = text.indexOf("/");
   const body = cut < 0 ? text : text.slice(0, cut);
+  const vocabulary = composerVocabulary(projects);
+  /* A range is read first and blanked (same length, so every span still lines
+     up) so `coParse` does not take its end for the clock. A line that also
+     names a clock of its own keeps that clock and no range. */
+  let range = readRange(body);
+  let base: CoParse = coParse(text, now, vocabulary);
+  if (range) {
+    const blank = " ".repeat(range.span.to - range.span.from);
+    const blanked = coParse(
+      text.slice(0, range.span.from) + blank + text.slice(range.span.to),
+      now,
+      vocabulary
+    );
+    if (blanked.found.time) range = null;
+    else base = blanked;
+  }
   const marks: CoMark[] = [...base.marks];
+  if (range) marks.push({ ...range.span, kind: "time" });
   const f = base.found;
 
   let project: ComposerProject | null = null;
@@ -293,13 +385,21 @@ export function composerParse(
     }
   }
 
-  let duration: ComposerMinutes | null = f.duration
+  /* A range says its own length; an explicit "for 1h" beside it is dropped. */
+  const rangeLength = range ? range.end - range.start : 0;
+  let duration: ComposerMinutes | null = range
     ? {
-        label: f.duration.label,
-        span: f.duration.span,
-        minutes: f.duration.minutes,
+        label: lengthLabel(rangeLength),
+        span: range.span,
+        minutes: rangeLength,
       }
-    : null;
+    : f.duration
+      ? {
+          label: f.duration.label,
+          span: f.duration.span,
+          minutes: f.duration.minutes,
+        }
+      : null;
   if (!duration) {
     const got = claim(body, marks, RE_BARE_DURATION, (m) => Number(m[1]) > 0);
     if (got) {
@@ -331,8 +431,13 @@ export function composerParse(
     date: f.date
       ? { label: f.date.label, span: f.date.span, day: day(f.date.on) }
       : null,
-    time: f.time
-      ? { label: f.time.label, span: f.time.span, minutes: f.time.minutes }
+    time: range
+      ? { label: range.label, span: range.span, minutes: range.start }
+      : f.time
+        ? { label: f.time.label, span: f.time.span, minutes: f.time.minutes }
+        : null,
+    end: range
+      ? { label: range.label, span: range.span, minutes: range.end }
       : null,
     duration,
     deadline: f.deadline
@@ -408,6 +513,7 @@ export function scopeParse(p: ComposerParse, kind: CoKind): ComposerParse {
     parts: [],
     date: pick("date", p.date),
     time: pick("time", p.time),
+    end: pick("time", p.end),
     duration: pick("duration", p.duration),
     deadline: null,
     repeat: null,
@@ -556,4 +662,24 @@ export function composerDraft(
   //todo: labels are not parsed from the line (the vocabulary has none); they
   // are picked in the task dialog.
   return { kind, task, parts: [...p.parts] };
+}
+
+/**
+ * Set the end of a time range in the line: "standup 3pm" + 4pm → "standup
+ * 15:00-16:00". The start is the line's clock, or 09:00 when it has none; a
+ * length typed beside it ("for 1h") is cut, since the range now says it.
+ */
+export function pickEnd(text: string, p: ComposerParse, end: number): string {
+  const start = p.time?.minutes ?? 9 * 60;
+  const words = rangeWords(start, end);
+  const cuts = [p.time, p.end, p.duration].filter(
+    (f, at, all): f is NonNullable<typeof f> =>
+      !!f && all.findIndex((g) => g?.span.from === f.span.from) === at
+  );
+  /* Back to front, so each cut leaves the spans before it where they were. */
+  let out = text;
+  for (const f of cuts.sort((a, b) => b.span.from - a.span.from))
+    out = stripFacet(out, f);
+  const base = out.replace(/\s+$/, "");
+  return base ? `${base} ${words}` : words;
 }

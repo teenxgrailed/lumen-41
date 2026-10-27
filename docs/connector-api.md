@@ -57,13 +57,15 @@ The metadata (RFC 9728) is served at
 resource `https://mcp.needt.app/mcp` and the authorization server
 `https://use.needt.app`.
 
-| Scope         | Allows                                                                                                                 |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `needt.read`  | Search, list and read tasks, projects, events, pages, habits                                                           |
-| `needt.write` | Create and change them, run the scheduler                                                                              |
-| `mail.read`   | Mail metadata (sender, subject, snippet, labels; never the body) in search, `needt_list`/`needt_get` with `type: mail` |
+| Scope              | Allows                                                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `needt.read`       | Search, list and read tasks, projects, events, pages, habits                                                           |
+| `needt.write`      | Create and change them, run the scheduler                                                                              |
+| `mail.read`        | Mail metadata (sender, subject, snippet, labels; never the body) in search, `needt_list`/`needt_get` with `type: mail` |
+| `needt.admin.read` | Read-only view of the Admin area through the `needt_admin_*` tools. Admins only; see Admin read below                  |
 
-A personal token carries all three and is not tied to a workspace. A call
+A personal token carries `needt.read`, `needt.write` and `mail.read` (never
+`needt.admin.read`) and is not tied to a workspace. A call
 that needs a scope the token lacks gets `403` with
 `WWW-Authenticate: Bearer error="insufficient_scope", scope="…"` naming every
 scope; search without `mail.read` simply leaves mail out.
@@ -164,12 +166,63 @@ editor role, so validation, plan limits and side effects match the app. Pages
 and blocks written through MCP are marked as AI-authored. MCP calls are not
 metered as AI actions.
 
+### Admin read (`needt.admin.read`)
+
+Read-only access to what the Admin area shows, for an admin's own AI client,
+without sharing a password. There are no admin write tools: nothing here can
+grant a plan, toggle a flag, delete or impersonate anyone.
+
+- **Opt-in at consent, never default.** The consent screen shows the box
+  "Read admin data: users, sign-ups, plans, flags, logs and bug reports" only
+  when the signed-in person is an admin right now, and it starts unticked.
+  It is offered even when the client did not ask for the scope (claude.ai
+  asks only for what the challenge names). The decision re-reads the role; a
+  non-admin's tick is ignored. A personal `needt_…` token never carries it.
+- **Role re-checked on every call.** Each `needt_admin_*` call reads the
+  account again (active, role `admin`, confirmed email where required). A
+  demoted or deactivated admin gets `403` at once, even with a live token.
+  Without the scope the call gets `403 insufficient_scope`.
+- **Hidden without the scope.** `tools/list` shows the admin tools only to a
+  token that carries `needt.admin.read`.
+- **Audited and limited.** Every admin read writes an `mcp.admin_read` row to
+  the admin audit log (tool, token kind, client id, filters) before the data
+  is returned. Admin calls are limited to 30 a minute per person, on top of
+  the general limits.
+- **No secrets.** Output is built field by field from the admin pages' own
+  services: no password hash, token, provider account id, payment id or
+  secret. Log metadata keys that look like credentials are dropped; long text
+  is cut.
+
+| Tool                   | Reads (same service as the admin page)                                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_admin_overview` | Overview: total users, sign-ups today (UTC) and in 7 days, confirmed vs unconfirmed email, Pro, Lifetime, active trials, Free, waitlist, `signupsOpen`, flag states; `mrr` is `null`                 |
+| `needt_admin_users`    | Users: search by part of an email (empty = newest), `page`/`limit` ≤ 50: id, email, name, role, plan, created, verified, last sign-in. `userId` gives one account and its audit trail                |
+| `needt_admin_flags`    | Feature flags incl. `signups_open`: key, on/off, rollout %, description, override count, known, persisted                                                                                            |
+| `needt_admin_logs`     | `kind: app` (default) the log viewer, filter `level`, `source`, `search`, `from`/`to`; `kind: audit` the admin audit log; `kind: jobs` Operations (queues, cron, failed runs, services). Paged, ≤ 50 |
+| `needt_admin_reports`  | Bug reports, newest first, filter `status`; attachment names and sizes, never bytes. Paged, ≤ 50                                                                                                     |
+
+Grant it to claude.ai (owner steps):
+
+1. claude.ai → Settings → Connectors → Needt → Disconnect (an existing grant
+   keeps its old scopes; it has to be made again).
+2. Connect Needt again (`https://mcp.needt.app/mcp`) and sign in to Needt as
+   the admin account.
+3. On the consent screen tick **Read admin data: users, sign-ups, plans,
+   flags, logs and bug reports**, pick the workspace, press **Allow**.
+4. In a chat, ask Claude to run `needt_whoami`: `token.scopes` lists
+   `needt.admin.read`, and the `needt_admin_*` tools appear.
+
+To withdraw it, disconnect the app in Settings › Connected apps, or remove
+the admin role. A client that refreshes with a narrower `scope` drops the
+admin scope; reconnect to get it back.
+
 ### Limits
 
 | Limit                   | Per minute |
 | ----------------------- | ---------- |
 | Every call, per person  | 120        |
 | Write tools, per person | 30         |
+| Admin tools, per person | 30         |
 | Every call, per IP      | 600        |
 
 The per-IP limit is generous because hosted clients share a few egress

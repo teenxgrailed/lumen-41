@@ -16,6 +16,7 @@ jest.mock("@/lib/prisma", () => ({
     $transaction: jest.fn(),
     user: { findUnique: jest.fn(), update: jest.fn() },
     connectorSettings: { updateMany: jest.fn() },
+    systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
 }));
 
@@ -82,6 +83,7 @@ describe("POST /api/account/sessions/revoke", () => {
       id: "user-1",
       email: "person@example.com",
       isActive: true,
+      emailVerified: new Date("2026-01-01T00:00:00Z"),
       sessionVersion: 2,
     });
     userModel.update.mockReturnValue("session-version-write");

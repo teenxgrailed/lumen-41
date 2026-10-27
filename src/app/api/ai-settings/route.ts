@@ -69,7 +69,10 @@ export async function PATCH(request: NextRequest) {
     if ("response" in auth) return auth.response;
 
     await ensureAISettings(auth.userId);
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const provider = isProvider(body.provider) ? body.provider : "NONE";
     const timeout = Number(body.requestTimeoutSeconds);
     const apiKey =

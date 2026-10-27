@@ -106,7 +106,7 @@ import {
   GOAL_UNIT_MAX,
 } from "@/lib/goals";
 import { listMailMessages } from "@/lib/mail-db";
-import type { McpScope } from "@/lib/mcp-config";
+import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
 import type { RealtimeEventType } from "@/lib/realtime/channels";
@@ -114,6 +114,7 @@ import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 import { TaskStatus } from "@/types/task";
 
+import { ADMIN_TOOLS, isAdminTool } from "./admin-tools";
 import { type JsonSchema, zodToJsonSchema } from "./json-schema";
 
 /** Hard ceiling on rows returned by one list or search call. */
@@ -1817,6 +1818,9 @@ MCP_TOOLS.unshift(
   })
 );
 
+// Read-only Admin area tools; listed and callable only with needt.admin.read.
+MCP_TOOLS.push(...ADMIN_TOOLS);
+
 /** Every tool also takes an optional workspaceId (see McpToolContext). */
 const WORKSPACE_ARG = z
   .string()
@@ -1852,16 +1856,23 @@ export function isWriteCall(tool: McpTool, args: unknown): boolean {
   return requiredScopes(tool, args).includes("needt.write");
 }
 
-export function listMcpTools(): {
+/**
+ * The tools a connection is shown. Admin tools appear only to a token that
+ * carries needt.admin.read; the role itself is checked when one is called.
+ */
+export function listMcpTools(scopes: readonly McpScope[] = []): {
   name: string;
   description: string;
   inputSchema: JsonSchema;
   annotations?: McpToolAnnotations;
 }[] {
-  return MCP_TOOLS.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: zodToJsonSchema(inputWithWorkspace(tool)),
-    annotations: tool.annotations,
-  }));
+  const admin = scopes.includes(ADMIN_READ_SCOPE);
+  return MCP_TOOLS.filter((tool) => admin || !isAdminTool(tool)).map(
+    (tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: zodToJsonSchema(inputWithWorkspace(tool)),
+      annotations: tool.annotations,
+    })
+  );
 }

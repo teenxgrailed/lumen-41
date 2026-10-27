@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const userId = auth.userId;
 
     // Parse and validate the request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const validatedData = createProviderSchema.parse(body);
     if (validatedData.type === "GOOGLE" && !GOOGLE_TASKS_SYNC_ENABLED) {
       return NextResponse.json(

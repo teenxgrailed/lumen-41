@@ -117,8 +117,11 @@
 /* topbar.jsx — static styles moved out of style={{…}} */
 .needt-v3 .shell-dot-layer { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 4px; background: var(--accent); box-shadow: var(--background) 0 0 0 2px; transition: transform 200ms var(--nx-ease); }
 .needt-v3 .shell-seg2-grid { position: relative; display: grid; padding: 3px; border-radius: 14px; background: var(--fill-3); }
-.needt-v3 .shell-seg2-layer { position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: 11px; background: var(--surface-raised); box-shadow: var(--shadow-raised); transition: transform 260ms var(--nx-ease); }
-.needt-v3 .shell-seg2-seg { position: relative; height: 32px; border: 0; background: transparent; cursor: default; transition: color 160ms ease; }
+.needt-v3 .shell-seg2-layer { position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: 11px; background: var(--surface-raised); box-shadow: var(--shadow-raised); transition: transform 200ms var(--nx-ease); }
+.needt-v3 .shell-seg2-seg { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; background: transparent; cursor: default; white-space: nowrap; font: 400 13px/18px var(--font-sans); color: var(--text-tertiary); transition: color 160ms ease; }
+.needt-v3 .shell-seg2-seg[aria-selected="true"] { font-weight: 500; color: var(--text-primary); }
+.needt-v3 .shell-seg2-count { font: 400 12px/16px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--text-quaternary); }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .shell-seg2-layer { transition: none; } }
 .needt-v3 .shell-empty-notes-swap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 8px 4px; text-align: center; }
 .needt-v3 .shell-empty-notes-stack { position: relative; display: flex; flex-direction: column; gap: 7px; width: 200px; padding: 14px; border-radius: 24px; background: color-mix(in oklch, var(--accent) 6%, transparent); }
 .needt-v3 .shell-empty-notes-row { display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 10px; border-radius: 8px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
