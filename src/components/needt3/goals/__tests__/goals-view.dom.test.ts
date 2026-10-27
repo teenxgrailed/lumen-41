@@ -171,7 +171,9 @@ describe("Goals screen", () => {
     expect(out).toContain("Set a monthly transfer");
     expect(out).toContain("from a linked project");
     expect(out).toContain("Link a task");
-    expect(out).toContain("Cancel the gym");
+    // The shared select renders only its selected label until it is opened.
+    expect(out).toContain("Link a task…");
+    expect(out).not.toContain("Cancel the gym");
     expect(out).toContain("1000 CHF · Bonus");
     expect(out).toContain("data-gl-achieve");
   });
