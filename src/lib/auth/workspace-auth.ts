@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 import { SubscriptionPlan, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
+import { ensurePersonalWorkspaceRow } from "@/lib/auth/personal-workspace";
 import { getPlan } from "@/lib/entitlements";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
@@ -89,26 +90,7 @@ function isUniqueConstraintRace(error: unknown) {
 }
 
 async function ensurePersonalWorkspace(userId: string) {
-  let workspace;
-  try {
-    workspace = await prisma.workspace.upsert({
-      where: { personalOwnerId: userId },
-      update: {},
-      create: {
-        name: "Personal Workspace",
-        kind: WorkspaceKind.PERSONAL,
-        personalOwnerId: userId,
-      },
-      select: { id: true, kind: true },
-    });
-  } catch (error) {
-    if (!isUniqueConstraintRace(error)) throw error;
-    workspace = await prisma.workspace.findUnique({
-      where: { personalOwnerId: userId },
-      select: { id: true, kind: true },
-    });
-    if (!workspace) throw error;
-  }
+  const workspace = await ensurePersonalWorkspaceRow(userId);
   let membership;
   try {
     membership = await prisma.workspaceMember.upsert({

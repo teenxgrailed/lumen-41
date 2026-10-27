@@ -65,7 +65,12 @@ describe("protected resource metadata (RFC 9728)", () => {
       await expect(response.json()).resolves.toEqual({
         resource: "https://mcp.needt.app/mcp",
         authorization_servers: ["https://use.needt.app"],
-        scopes_supported: ["needt.read", "needt.write", "mail.read"],
+        scopes_supported: [
+          "needt.read",
+          "needt.write",
+          "mail.read",
+          "needt.admin.read",
+        ],
         bearer_methods_supported: ["header"],
         resource_name: "Needt",
         resource_documentation: "https://use.needt.app/docs/connector-api",

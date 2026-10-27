@@ -66,7 +66,7 @@ describe("the call to action is the desktop paywall's", () => {
     const v = pwView("annual", plan({ kind: "free" }));
     expect(v.cta.label).toBe(`Choose Pro · ${p.yearly} / year`);
     expect(v.cta.blocked).toBeNull();
-    expect(v.cta.sub).toBe(p.trialShort);
+    expect(v.cta.sub).toBe(p.paidShort);
     expect(pwDisabled(v, online)).toBe(false);
     expect(pwView("monthly", plan({ kind: "free" })).cta.label).toBe(
       `Choose Pro · ${p.monthly} / month`

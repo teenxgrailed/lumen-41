@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     // Only the columns a client may write get past this; the body is never
     // spread into Prisma as it came (see services/tasks/task-input.ts).
-    const body: unknown = await request.json();
+    const body: unknown = await request.json().catch(() => null);
     const input = parseTaskCreate(body);
     if (!input.ok) return new NextResponse(input.error, { status: 400 });
     const v3 = parseV3Fields(taskV3FieldsSchema, body);

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       requiredRole: WorkspaceRole.EDITOR,
     });
     if ("response" in auth) return auth.response;
-    const input = requestSchema.parse(await request.json());
+    const input = requestSchema.parse(await request.json().catch(() => null));
     if (input.action === "preview") {
       return NextResponse.json(
         await createReschedulePreview(auth.userId, auth.workspace!)
