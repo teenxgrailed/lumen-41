@@ -32,6 +32,7 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
     data: {
       userId: user.id,
       workspaceId: user.workspaceId,
+      assigneeId: user.id,
       title: "Pin me down",
       status: "todo",
       dueDate: new Date(),
