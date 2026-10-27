@@ -15,23 +15,27 @@
   overflow: auto;
   overscroll-behavior-x: contain;
   scroll-behavior: auto;
+  /* No scrollbar gutter: the columns fill the card to its right edge (the
+     hour labels say where the day is; a reserved gutter was an empty strip). */
+  scrollbar-width: none;
+  outline: none;
 }
 .needt-v3 .c2-wscroll::-webkit-scrollbar {
-  width: var(--scrollbar-w-inner);
+  width: 0;
   height: 0;
 }
-.needt-v3 .c2-wscroll::-webkit-scrollbar-thumb {
-  background: transparent;
-}
-.needt-v3 .c2-wscroll:hover::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
+/* Focused for ←/→ (a day each): the ring is inside the card. */
+.needt-v3 .c2-wscroll:focus-visible {
+  box-shadow: var(--shadow-focus);
 }
 
+/* The grid ends at 24:00: no space under the last hour. */
 .needt-v3 .c2-wcanvas {
   position: relative;
-  padding-bottom: 72px;
-  min-height: 100%;
-  box-sizing: border-box;
+}
+/* The card's bottom gutter is the page's (the shell's 20px), not 20 + 16. */
+.needt-v3 .c2-body:has(> .c2-week) {
+  padding-bottom: 0;
 }
 
 /* Day heads: sticky to the top, each placed by a transform. */
@@ -78,12 +82,105 @@
   contain: layout style;
 }
 /* Hours outside working hours (and non-working days) sit on a quiet ground. */
+/* Ink at the lowest ladder alpha, so a day off reads as a quiet ground and
+   not as a grey block. Shading only follows the person's own work hours: a
+   weekend is shaded only when their week leaves it out. */
 .needt-v3 .c2-off {
   position: absolute;
   left: 0;
   right: 0;
-  background: var(--fill-3);
+  background: var(--fill-1);
   pointer-events: none;
+}
+
+/* Drawing a range: a ghost with its time, live, at quarter hours. */
+.needt-v3 .c2-daycol.is-drawing {
+  cursor: ns-resize;
+  user-select: none;
+}
+.needt-v3 .c2-select {
+  position: absolute;
+  left: 4px;
+  right: 6px;
+  z-index: 30;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--fill-4);
+  box-shadow: var(--text-tertiary) 0 0 0 1px inset;
+  pointer-events: none;
+}
+.needt-v3 .c2-select-time {
+  font: var(--type-meta);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The create card (CreateCard): beside the ghost, one form-row geometry. */
+.needt-v3 .c2-create {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  --form-label-w: 96px;
+}
+.needt-v3 .c2-create-kind .shell-seg2-grid {
+  width: 100%;
+}
+.needt-v3 .c2-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .c2-create-range {
+  gap: 6px;
+}
+.needt-v3 .c2-create-range .nt-input {
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .c2-create-dash,
+.needt-v3 .c2-create-len {
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .c2-create-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.needt-v3 .c2-create-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 8px;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .c2-create-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  font: var(--type-meta);
+  cursor: default;
+}
+.needt-v3 .c2-create-chip:hover {
+  background: var(--fill-4);
+  color: var(--text-primary);
 }
 /* The hour lines: one repeating gradient per column (a line every 52px, the
    vendored `.c2-hline` at 70%), so a column is a handful of nodes, not 30. */

@@ -10,7 +10,7 @@ import { act, createRef, createElement as h } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
-import { type WeekHandle, WeekView } from "../WeekView";
+import { type WeekHandle, WeekView, drawnSpan } from "../WeekView";
 import { STRIP_BUFFER } from "../strip";
 
 (
@@ -118,7 +118,7 @@ function mount(props: Partial<Parameters<typeof WeekView>[0]> = {}) {
           work: { days: [1, 2, 3, 4, 5], start: 9, end: 17 },
           draft: null,
           onSlot: () => undefined,
-          onSave: () => undefined,
+          onCreate: () => undefined,
           onCancel: () => undefined,
           onDone: () => undefined,
           onRename: () => undefined,
@@ -235,5 +235,60 @@ describe("Week strip", () => {
     // 85 days away: the position was set 21 days short, one glide did the rest
     expect(writes).toHaveLength(1);
     expect(days()).toContain("2026-12-01");
+  });
+
+  const wheel = (el: HTMLElement, init: WheelEventInit) => {
+    const e = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    act(() => {
+      el.dispatchEvent(e);
+    });
+    return e;
+  };
+
+  it("steps a day on a horizontal wheel, and leaves a vertical one alone", () => {
+    const { scroller, firsts } = mount();
+    const down = wheel(scroller, { deltaY: 120 });
+    expect(down.defaultPrevented).toBe(false);
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    const side = wheel(scroller, { deltaX: 40 });
+    expect(side.defaultPrevented).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(firsts.at(-1)).toBe("2026-09-08");
+    // Shift + a vertical wheel is sideways too: back a day
+    wheel(scroller, { deltaY: -100, shiftKey: true });
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(firsts.at(-1)).toBe("2026-09-07");
+  });
+
+  it("moves a day on ←/→ when the grid has focus", () => {
+    const { scroller, firsts } = mount();
+    act(() => {
+      scroller.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+      );
+    });
+    act(() => {
+      jest.advanceTimersByTime(400);
+    });
+    expect(firsts.at(-1)).toBe("2026-09-08");
+  });
+});
+
+describe("drawing a range", () => {
+  it("snaps to quarter hours and keeps at least one", () => {
+    expect(drawnSpan(14 * 52 + 3, 15.5 * 52)).toEqual({ at: 14, end: 15.5 });
+    expect(drawnSpan(15.5 * 52, 14 * 52 + 3)).toEqual({ at: 14, end: 15.5 });
+    expect(drawnSpan(10 * 52, 10 * 52 + 2)).toEqual({ at: 10, end: 10.25 });
+    expect(drawnSpan(23.9 * 52, 30 * 52)).toEqual({ at: 23.75, end: 24 });
   });
 });

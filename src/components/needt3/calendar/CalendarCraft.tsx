@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { FiChevronLeft, FiChevronRight, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { LuPlus } from "react-icons/lu";
 
 import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
@@ -18,6 +18,7 @@ import {
   useUpdateEvent,
 } from "@/lib/needt3/hooks/events";
 import {
+  useCreatePersonal,
   useMarkEventPersonal,
   usePersonalBands,
   useQuickPersonal,
@@ -29,10 +30,9 @@ import {
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useCreateTask, useTasks } from "@/lib/needt3/hooks/tasks";
 import { showsTask } from "@/lib/needt3/task-view";
 import { notify } from "@/lib/notifications";
-import type { PersonalPreset } from "@/lib/personal-time";
 import type { DayBand } from "@/lib/personal-time-days";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -46,18 +46,18 @@ import type { CalendarController } from "../phone/calendar/useCalendarController
 import { useDesignV3 } from "../root/V3Root";
 import { StarterGameSlot } from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
-import { TaskViewGear } from "../task/TaskViewGear";
+import { TaskViewGear, TaskViewToggle } from "../task/TaskViewGear";
 import { CompletionScope, useCompletion } from "../task/useCompletion";
 import { CalEmpty } from "./CalEmpty";
+import { CREATE_KINDS, type CreateKind, type CreateSpec } from "./CreateCard";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
-import { type WeekHandle, WeekView } from "./WeekView";
+import { type Draft, type WeekHandle, WeekView } from "./WeekView";
 import {
   type CalItem,
   type CalTimed,
   calendarItems,
   canEditEvent,
-  hideDoneTitle,
 } from "./blocks";
 import { calendarEmptyState } from "./empty";
 import { daySpan, freeSlot, spanLabel, weekStart } from "./layout";
@@ -167,6 +167,18 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     setNLocal(k);
     save("calDays", k);
   };
+  /* The create card opens on the type made last (prefs `calCreateKind`). */
+  const [kindLocal, setKindLocal] = useState<CreateKind | null>(null);
+  const createKind: CreateKind =
+    kindLocal ??
+    (CREATE_KINDS.some(([k]) => k === prefs.calCreateKind)
+      ? (prefs.calCreateKind as CreateKind)
+      : "event");
+  const rememberKind = (k: CreateKind) => {
+    if (k === createKind) return;
+    setKindLocal(k);
+    save("calCreateKind", k);
+  };
 
   /* What is on screen: a week (or three days from a day when narrow) and the
      Agenda's own span, both paged. */
@@ -189,6 +201,14 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const work = useMemo(() => workHoursOf(schedule), [schedule]);
   const projects = useProjects().data;
   const calendars = useCalendars().data;
+  // where an event can be written: the person's enabled Needt calendars
+  const writable = useMemo(
+    () =>
+      (calendars ?? [])
+        .filter((c) => c.type === "LOCAL" && c.enabled !== false)
+        .map((c) => ({ id: c.id, name: c.name })),
+    [calendars]
+  );
   const calendarNames = useMemo(
     () => new Map((calendars ?? []).map((c) => [c.id, c.name])),
     [calendars]
@@ -242,6 +262,8 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
 
   const personal = usePersonalBands();
   const keepPersonal = useQuickPersonal();
+  const createPersonal = useCreatePersonal();
+  const createTask = useCreateTask();
   const markPersonal = useMarkEventPersonal();
   const [personalPeek, setPersonalPeek] = useState<{
     band: DayBand;
@@ -288,29 +310,76 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       .then(({ undo }) => undoable(`Deleted ${quote(b.title)}`, undo))
       .catch(ignore);
   };
-  const onSlot = (date: string, at: number) =>
-    setDraft({ date, at, key: newDate().getTime() });
-  const onSave = (title: string) => {
-    const d = draft;
-    setDraft(null);
-    if (!d) return;
-    const startAt = stamp(d.date, d.at) ?? `${d.date}T09:00`;
-    const endAt = addMinutes(startAt, 60) ?? startAt;
-    // always a Needt (LOCAL) calendar, created once if missing — never a
-    // synced provider calendar
-    void createEvent({ title, startAt, endAt, isAllDay: false })
-      .then(({ undo }) =>
-        undoable(`Added ${quote(title)} · ${hhmm(d.at)}`, undo)
-      )
-      .catch(ignore);
+  const onSlot = (date: string, at: number, end?: number) =>
+    setDraft({ date, at, end, key: newDate().getTime() });
+  const onDraft = (patch: Partial<Pick<Draft, "at" | "end" | "kind">>) => {
+    if (patch.kind) rememberKind(patch.kind);
+    setDraft((d) => (d ? { ...d, ...patch } : d));
   };
-  /* A preset from the empty-slot menu keeps the slot that was clicked. */
-  const onPersonalPreset = (preset: PersonalPreset) => {
-    const d = draft;
+  /* The create card's spec → the same endpoints the composer and the agent
+     use: a task (pinned at the range, or placed by Needt), an event in a
+     Needt calendar, or personal time. */
+  const onCreate = (spec: CreateSpec) => {
     setDraft(null);
-    if (!d) return;
-    const at = stamp(d.date, d.at) ?? `${d.date}T09:00`;
-    void keepPersonal(preset, fromZonedTime(`${at}:00`, tz).toISOString());
+    const startAt = stamp(spec.date, spec.at) ?? `${spec.date}T09:00`;
+    const minutes = Math.max(15, Math.round((spec.end - spec.at) * 60));
+    const endAt = addMinutes(startAt, minutes) ?? startAt;
+    const when = `${hhmm(spec.at)}–${hhmm(spec.end)}`;
+    rememberKind(spec.kind);
+    if (spec.kind === "task") {
+      void createTask
+        .mutateAsync({
+          draft: {
+            title: spec.title,
+            projectId: spec.projectId,
+            estimatedMinutes: minutes,
+            dueDate: spec.date,
+            ...(spec.pin
+              ? {
+                  scheduledStart: startAt,
+                  scheduledEnd: endAt,
+                  isFixed: true,
+                  auto: false,
+                }
+              : { auto: true }),
+          },
+        })
+        .then(({ undo }) =>
+          undoable(
+            spec.pin
+              ? `Added ${quote(spec.title)} · ${when}`
+              : `Added ${quote(spec.title)}`,
+            undo
+          )
+        )
+        .catch(ignore);
+      return;
+    }
+    if (spec.kind === "event") {
+      // a Needt (LOCAL) calendar, created once if missing — never a synced one
+      void createEvent({
+        title: spec.title,
+        startAt,
+        endAt,
+        isAllDay: false,
+        calendarId: spec.calendarId,
+      })
+        .then(({ undo }) =>
+          undoable(`Added ${quote(spec.title)} · ${when}`, undo)
+        )
+        .catch(ignore);
+      return;
+    }
+    const start = fromZonedTime(`${startAt}:00`, tz).toISOString();
+    const end = fromZonedTime(`${endAt}:00`, tz).toISOString();
+    void createPersonal(
+      spec.preset
+        ? { kind: spec.preset.kind, start, end }
+        : { kind: "custom", title: spec.title || "Personal time", start, end },
+      spec.preset
+        ? `${spec.preset.emoji} ${spec.preset.title} · ${when}`
+        : undefined
+    );
   };
   const newEvent = useCallback(() => {
     setViewLocal("week");
@@ -320,6 +389,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     setDraft({
       date: today,
       at: freeSlot(timed, today, hour, 24),
+      kind: "event",
       key: newDate().getTime(),
     });
   }, [
@@ -437,7 +507,21 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
             : spanLabel(agendaDays, false)}
         </span>
         <span className="c2-head-right">
-          <TaskViewGear scope="calendar" />
+          <TaskViewGear
+            scope="calendar"
+            extra={
+              <TaskViewToggle
+                label="Hide done"
+                on={hideDone}
+                onChange={setHideDone}
+                hint={
+                  hideDone && doneHidden > 0
+                    ? `${doneHidden} done ${doneHidden === 1 ? "task" : "tasks"} hidden on the calendar.`
+                    : undefined
+                }
+              />
+            }
+          />
           <span className="c2-pager">
             {(
               [
@@ -464,22 +548,6 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
             onClick={goToday}
           >
             Today
-          </button>
-          <button
-            type="button"
-            data-c2-hide-done=""
-            aria-pressed={hideDone}
-            className={`nx-btn nx-btn-text c2-hide${narrow ? " is-icon" : ""}`}
-            aria-label="Hide done"
-            title={hideDoneTitle(hideDone, doneHidden)}
-            onClick={() => setHideDone(!hideDone)}
-          >
-            {hideDone ? (
-              <FiEyeOff size={15} aria-hidden="true" />
-            ) : (
-              <FiEye size={15} aria-hidden="true" />
-            )}
-            {narrow ? null : <span>Hide done</span>}
           </button>
           <span className={`c2-seg${narrow ? " is-narrow" : ""}`}>
             <Seg2
@@ -510,7 +578,10 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               projects={projects}
               draft={draft}
               onSlot={onSlot}
-              onSave={onSave}
+              onCreate={onCreate}
+              onDraft={onDraft}
+              createKind={createKind}
+              calendars={writable}
               onCancel={() => setDraft(null)}
               onOpen={onOpen}
               onDone={onDone}
@@ -520,7 +591,6 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               resizeProps={drag?.resizeProps}
               personal={personal}
               onPersonal={onPersonal}
-              onPersonalPreset={onPersonalPreset}
               onMarkPersonal={(b) =>
                 void markPersonal({ id: b.id, title: b.title })
               }
