@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,6 +32,14 @@ import {
 import { usePhoneCounts } from "../menu/usePhoneCounts";
 import { PhoneOverlays } from "../overlays/PhoneOverlays";
 import { useCoverActive } from "./cover";
+import {
+  POP_WINDOW_MS,
+  pageMotionCapture,
+  pageMotionDiscard,
+  pageMotionFor,
+  pageMotionRun,
+  placeKeyOf,
+} from "./pageMotion";
 
 /**
  * How long the pill stays out after the composer closes: the sheet goes back
@@ -82,7 +96,9 @@ function usePageScrollPerRoute(pathname: string) {
       window.clearTimeout(pending);
     };
   }, []);
-  useEffect(() => {
+  /* Before the first paint of the new page, so the page change (pageMotion.ts)
+   * never shows the new screen at the old offset. */
+  useLayoutEffect(() => {
     if (path.current === pathname) return undefined;
     path.current = pathname;
     const y = popped.current ? (savedScroll.get(pathname) ?? 0) : 0;
@@ -138,6 +154,56 @@ export function PhoneShell() {
     lastScreen.current = screen;
   }, [screen]);
 
+  /* A place switch moves the page with a direction (pageMotion.ts): from the
+     dock's side, or rising from the dock for a place of the menu card. Back and
+     Forward are Safari's own gesture and are left alone. */
+  const motionFrom = useRef({ key: placeKeyOf(pathname), screen });
+  const popAt = useRef(-Infinity);
+  useEffect(() => {
+    const onPop = () => {
+      popAt.current = performance.now();
+    };
+    /* A tap on an internal link into another place keeps a still copy of the
+       page first; the click still goes to the link. */
+    const onClick = (e: MouseEvent) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
+      const a = (e.target as Element | null)?.closest?.("a[href]") as
+        | HTMLAnchorElement
+        | null
+        | undefined;
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      let url: URL;
+      try {
+        url = new URL(a.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (placeKeyOf(url.pathname) === placeKeyOf(window.location.pathname))
+        return;
+      pageMotionCapture();
+    };
+    window.addEventListener("popstate", onPop);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const key = placeKeyOf(pathname);
+    const prev = motionFrom.current;
+    motionFrom.current = { key, screen };
+    if (key === prev.key) return;
+    // the first screen, a redirect into the app, or the browser's own Back
+    if (!prev.key || performance.now() - popAt.current < POP_WINDOW_MS) {
+      pageMotionDiscard();
+      return;
+    }
+    pageMotionRun(pageMotionFor(prev.screen, screen, tiles));
+  }, [pathname, screen, tiles]);
+
   /* While the menu moves, the screen under it gives up its own blur bands:
      exactly one backdrop-filter (the pill's glass) is live (motion.css P2). */
   const onMoving = useCallback((moving: boolean) => {
@@ -153,7 +219,11 @@ export function PhoneShell() {
       const ui = useNeedt3Ui.getState();
       if (action.kind === "ask") ui.setAskOpen(true);
       else if (action.kind === "settings") ui.openSettings();
-      else router.push(action.href);
+      else {
+        if (placeKeyOf(action.href) !== placeKeyOf(window.location.pathname))
+          pageMotionCapture();
+        router.push(action.href);
+      }
     },
     [router]
   );
