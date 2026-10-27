@@ -31,6 +31,8 @@ import {
   LuHourglass,
   LuLink,
   LuPaperclip,
+  LuPin,
+  LuPinOff,
   LuPlus,
   LuRepeat,
   LuSearch,
@@ -43,6 +45,13 @@ import {
 } from "react-icons/lu";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
+import {
+  canPinHere,
+  canUnpin,
+  pinPatch,
+  pinTime,
+  unpinPatch,
+} from "@/components/needt3/task/pin";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -551,6 +560,30 @@ export function TaskDialog({
   };
 
   const act = {
+    /* Pin here / back to the scheduler: one PUT through the update hook,
+       the same path as the Placement switch, with its own Undo notice. */
+    pin: async (pin: boolean) => {
+      setMenu(false);
+      if (timer.current != null) window.clearTimeout(timer.current);
+      timer.current = null;
+      const waiting = pending.current;
+      pending.current = {};
+      const r = await update
+        .mutateAsync({
+          id: t.id,
+          patch: { ...waiting, ...(pin ? pinPatch(t) : unpinPatch()) },
+        })
+        .catch(() => null);
+      if (!r) return;
+      for (const k of Object.keys(waiting) as (keyof V3TaskPatch)[])
+        changed.current.add(k);
+      notify.success(
+        pin ? `Pinned at ${pinTime(t)}` : "Needt will schedule it",
+        {
+          action: { label: "Undo", onClick: () => void r.undo() },
+        }
+      );
+    },
     duplicate: async () => {
       setMenu(false);
       try {
@@ -1220,6 +1253,18 @@ export function TaskDialog({
       act.sched,
     ],
   ];
+  if (canPinHere(t))
+    menuItems.push([
+      <LuPin key="i" size={14} aria-hidden />,
+      "Pin here",
+      () => void act.pin(true),
+    ]);
+  if (canUnpin(t))
+    menuItems.push([
+      <LuPinOff key="i" size={14} aria-hidden />,
+      "Let Needt schedule it",
+      () => void act.pin(false),
+    ]);
   if (!t.done)
     menuItems.push([
       <LuStar key="i" size={14} aria-hidden />,
