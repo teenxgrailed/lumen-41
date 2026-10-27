@@ -515,7 +515,7 @@ describe("remote MCP endpoint", () => {
     expect(control.inputSchema.properties.action.enum).toEqual([
       ...CONNECTOR_CONTROL_ACTIONS,
     ]);
-    expect(control.annotations).toEqual({
+    expect(control.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
     });

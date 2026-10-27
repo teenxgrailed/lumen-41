@@ -100,6 +100,7 @@ function isMcpHostRequest(request: NextRequest): boolean {
 const MCP_METADATA_PATHS = new Set([
   "/.well-known/oauth-protected-resource",
   "/.well-known/oauth-protected-resource/mcp",
+  "/.well-known/mcp/server-card.json",
 ]);
 
 /**

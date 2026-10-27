@@ -366,7 +366,7 @@ describe("admin tool listing", () => {
       [...ADMIN_NAMES].sort()
     );
     for (const tool of ADMIN_TOOLS) {
-      expect(tool.annotations).toEqual({
+      expect(tool.annotations).toMatchObject({
         readOnlyHint: true,
         destructiveHint: false,
       });

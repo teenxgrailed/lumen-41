@@ -124,7 +124,6 @@ async function audited(
   return result(await read());
 }
 
-const readOnly = { readOnlyHint: true, destructiveHint: false } as const;
 const adminScopes = (): McpScope[] => [ADMIN_READ_SCOPE];
 
 function defineAdminTool<S extends z.ZodTypeAny>(tool: McpTool<S>): McpTool {
@@ -141,7 +140,12 @@ export const ADMIN_TOOLS: McpTool[] = [
     name: "needt_admin_overview",
     description:
       "Admin only, read only. The Admin Overview in numbers: total users, sign-ups today and in the last 7 days, confirmed vs unconfirmed email, paying plans (Pro, Lifetime), active trials, Free, waitlist size, whether sign-ups are open, and every feature flag's state. MRR is not computed (Pro monthly and yearly are not told apart) and comes back null. Needs needt.admin.read.",
-    annotations: readOnly,
+    annotations: {
+      title: "Admin overview",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: adminScopes,
     input: z.object({}).strict(),
     invoke: (ctx) =>
@@ -178,7 +182,12 @@ export const ADMIN_TOOLS: McpTool[] = [
     name: "needt_admin_users",
     description:
       "Admin only, read only. Find accounts by part of an email (empty lists the newest), paged: id, email, name, role, plan, created, email confirmed, last sign-in. With userId, one account in full: plan and subscription state, trial end, sign-in/calendar/mail provider names, scheduled deletion, and the admin audit trail for it. Never returns password hashes, tokens, provider or payment ids. Needs needt.admin.read.",
-    annotations: readOnly,
+    annotations: {
+      title: "Admin users",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: adminScopes,
     input: z
       .object({
@@ -269,7 +278,12 @@ export const ADMIN_TOOLS: McpTool[] = [
     name: "needt_admin_flags",
     description:
       "Admin only, read only. Every feature flag the code knows plus any stored one, incl. signups_open: key, on/off, rollout %, description, how many per-person overrides, whether the code knows it and whether a row exists. Cannot change a flag. Needs needt.admin.read.",
-    annotations: readOnly,
+    annotations: {
+      title: "Admin feature flags",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: adminScopes,
     input: z.object({}).strict(),
     invoke: (ctx) =>
@@ -289,7 +303,12 @@ export const ADMIN_TOOLS: McpTool[] = [
     name: "needt_admin_logs",
     description:
       "Admin only, read only. kind app (default): the application log the admin log viewer shows, newest first, filter by level (ERROR, WARN, INFO, DEBUG), source, text and from/to (ISO time); secret-looking metadata keys are dropped. kind audit: the admin audit log (who changed which account, and MCP admin reads). kind jobs: what Operations shows — queue depth, cron state, last good run per source, recent failed scheduling runs, which services are configured. Paged, at most 50 rows. Needs needt.admin.read.",
-    annotations: readOnly,
+    annotations: {
+      title: "Admin logs",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: adminScopes,
     input: z
       .object({
@@ -419,7 +438,12 @@ export const ADMIN_TOOLS: McpTool[] = [
     name: "needt_admin_reports",
     description:
       "Admin only, read only. Bug reports people sent from the app, newest first: title, description, steps, expected/actual, severity, status, route, app version, browser, who sent it, GitHub issue link, attachment names and sizes (never the file bytes). Filter by status; paged, at most 50. Needs needt.admin.read.",
-    annotations: readOnly,
+    annotations: {
+      title: "Admin reports",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: adminScopes,
     input: z
       .object({
