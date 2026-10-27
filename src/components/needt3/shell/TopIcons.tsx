@@ -39,6 +39,7 @@ import { useExit } from "../ctx/useExit";
 import { Art } from "../menu/Art";
 import { Tooltip } from "../menu/Tooltip";
 import { Avatar, initialsOf } from "./Avatar";
+import { Seg2 } from "./Segmented";
 import { useShellApi } from "./ShellContext";
 import { WhatsNewList, dayLabel, useWhatsNewOpening } from "./WhatsNewList";
 import { artFor, splitLead, whenLabel } from "./notes-format";
@@ -77,53 +78,6 @@ function Dot({ show }: { show: boolean }) {
       aria-hidden="true"
       style={{ transform: show ? "scale(1)" : "scale(0)" }}
     />
-  );
-}
-
-/** Craft's segmented control: a white thumb slides between. */
-function Seg2({
-  value,
-  options,
-  onChange,
-}: {
-  value: string;
-  options: [string, string][];
-  onChange: (v: string) => void;
-}) {
-  const i = options.findIndex((o) => o[0] === value);
-  return (
-    <div
-      className="shell-seg2-grid"
-      style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
-    >
-      <span
-        className="shell-seg2-layer"
-        aria-hidden="true"
-        style={{
-          width: `calc((100% - 6px) / ${options.length})`,
-          transform: `translateX(${i * 100}%)`,
-        }}
-      />
-      {options.map(([id, l]) => (
-        <button
-          key={id}
-          type="button"
-          className="tb-seg shell-seg2-seg"
-          onClick={() => onChange(id)}
-          aria-pressed={value === id}
-          style={{
-            font:
-              value === id
-                ? "500 13px/18px var(--font-sans)"
-                : "400 13px/18px var(--font-sans)",
-            color:
-              value === id ? "var(--text-primary)" : "var(--text-tertiary)",
-          }}
-        >
-          {l}
-        </button>
-      ))}
-    </div>
   );
 }
 
