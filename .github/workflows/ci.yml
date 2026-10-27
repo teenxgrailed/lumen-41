@@ -319,6 +319,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx prisma generate && npx prisma migrate deploy
       - name: Build visual test application
+        # Cold build with no .next/cache restore; the default heap OOMs here.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Update Linux visual baselines
         env:

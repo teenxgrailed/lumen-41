@@ -24,7 +24,7 @@ export {
   type HaBandData,
   type HaTimelineRow,
 } from "./HaTimeline";
-export { HaWeather, type HaWx } from "./HaWeather";
+export { HaWeather, type HaWx, type HaWxDetail } from "./HaWeather";
 export {
   HaStats,
   HaWeek,
