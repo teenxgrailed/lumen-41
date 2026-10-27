@@ -12,6 +12,7 @@ import { type ReactNode, useState } from "react";
 import { LuCheck, LuFlag, LuPlus } from "react-icons/lu";
 
 import { ProBadge } from "@/components/needt3/paywall/Pro";
+import { SSelect } from "@/components/needt3/settings/kit";
 import { PlEmpty } from "@/components/needt3/states/StScreen";
 
 import {
@@ -350,22 +351,18 @@ function GoalTasks({
         />
       </div>
       {linkable.length ? (
-        <select
-          name="goal-task-link"
-          className="pl-field gl-task-link"
-          aria-label="Link a task"
+        <SSelect
+          label="Link a task"
+          width={240}
           value=""
-          onChange={(e) => {
-            if (e.target.value) onLinkTask(e.target.value);
+          onChange={(v) => {
+            if (v) onLinkTask(v);
           }}
-        >
-          <option value="">Link a task…</option>
-          {linkable.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
+          options={[
+            ["", "Link a task…"],
+            ...linkable.map((t) => [t.id, t.title] as const),
+          ]}
+        />
       ) : null}
     </div>
   );
@@ -612,19 +609,16 @@ function GoalSheet({
         </div>
         {parents.length ? (
           <Field label="Part of">
-            <select
-              name="goal-parent"
-              className="pl-field"
+            <SSelect
+              label="Part of"
+              width={240}
               value={form.parentId}
-              onChange={(e) => set({ parentId: e.target.value })}
-            >
-              <option value="">No parent goal</option>
-              {parents.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => set({ parentId: v })}
+              options={[
+                ["", "No parent goal"],
+                ...parents.map((g) => [g.id, g.title] as const),
+              ]}
+            />
           </Field>
         ) : null}
         <div className="pl-habit-sheet-row-6">
