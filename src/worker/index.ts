@@ -13,6 +13,10 @@ import {
   processImportRun,
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
+import {
+  deliverActivityPushes,
+  deliverDailyDigests,
+} from "@/services/notifications/digest";
 import { deliverNudgePushes } from "@/services/nudges/nudge-push";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { cleanupOAuth } from "@/services/oauth/cleanup";
@@ -233,6 +237,14 @@ async function processBugReportSync(job: Job<BugReportSyncJobData>) {
 async function processReminder(job: Job<ReminderJobData>) {
   if (job.data.kind === "deliver") {
     await deliverTaskReminder(job.data.reminderId);
+    return;
+  }
+  if (job.data.kind === "digest") {
+    await deliverDailyDigests();
+    return;
+  }
+  if (job.data.kind === "activity") {
+    await deliverActivityPushes();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -461,6 +473,16 @@ export async function start(): Promise<void> {
     "task-reminder-sweep",
     { every: 60_000 },
     { name: "sweep-reminders", data: { kind: "sweep" } }
+  );
+  await getReminderQueue().upsertJobScheduler(
+    "notification-digest-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-digests", data: { kind: "digest" } }
+  );
+  await getReminderQueue().upsertJobScheduler(
+    "notification-activity-push-sweep",
+    { every: 2 * 60_000 },
+    { name: "sweep-activity-pushes", data: { kind: "activity" } }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

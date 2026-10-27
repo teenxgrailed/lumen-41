@@ -1,6 +1,7 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { getPage } from "@/services/pages/page-service";
+import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { deadlineForPatch } from "@/services/tasks/deadline";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
@@ -337,5 +338,6 @@ export async function updateTaskFields(input: {
     where: { id: taskId, ...scope },
     include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
   });
+  rescheduleRemindersSoon({ taskId });
   return { ok: true, task: fresh ?? updated, changed: true };
 }

@@ -467,6 +467,7 @@ model CalendarEvent {
   masterEvent      CalendarEvent?  @relation("EventInstances", fields: [masterEventId], references: [id], onDelete: Cascade)
   instances        CalendarEvent[] @relation("EventInstances")
   recurringEventId String? // Google Calendar's recurring event ID
+  reminders        TaskReminder[]
 
   @@index([feedId])
   @@index([feedId, archivedAt])
@@ -1439,14 +1440,28 @@ model TaskDependency {
   @@index([workspaceId, removedAt])
 }
 
+/// A reminder on a task, on a calendar event, or on its own (taskId and
+/// eventId both null, with a title). BEFORE_START / BEFORE_DEADLINE fire at
+/// the anchor minus offsetMinutes, or, with atTime, at that wall time on the
+/// day of (anchor minus offsetMinutes) in the person's zone, so a moved task
+/// moves its reminder. AT_TIME fires at fireAt; its offsetMinutes is minus
+/// the fire minute since the epoch, which keeps the (taskId, kind,
+/// offsetMinutes) key unique per minute. snoozedUntil, when set, wins.
+/// The service is src/services/reminders/reminders.ts.
 model TaskReminder {
   id             String                 @id @default(cuid())
   userId         String
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  taskId         String
-  task           Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId         String?
+  task           Task?                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  eventId        String?
+  event          CalendarEvent?         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title          String?
   kind           TaskReminderKind
   offsetMinutes  Int
+  atTime         String?
+  fireAt         DateTime?
+  snoozedUntil   DateTime?
   channels       Json
   deliveryStatus ReminderDeliveryStatus @default(PENDING)
   lastAttemptAt  DateTime?
@@ -1459,6 +1474,7 @@ model TaskReminder {
 
   @@unique([taskId, kind, offsetMinutes])
   @@index([userId, deliveryStatus, deliveredAt])
+  @@index([eventId])
 }
 
 model PushSubscription {
@@ -2577,28 +2593,47 @@ model CalendarSettings {
 }
 
 model NotificationSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailNotifications    Boolean  @default(true)
-  dailyEmailEnabled     Boolean  @default(true) // Controls whether the user receives daily email updates
-  eventInvites          Boolean  @default(true)
-  eventUpdates          Boolean  @default(true)
-  eventCancellations    Boolean  @default(true)
-  eventReminders        Boolean  @default(true)
-  defaultReminderTiming String   @default("[30]") // JSON string of minutes before event
-  webPushEnabled        Boolean  @default(false)
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications    Boolean   @default(true)
+  dailyEmailEnabled     Boolean   @default(true) // Controls whether the user receives daily email updates
+  eventInvites          Boolean   @default(true)
+  eventUpdates          Boolean   @default(true)
+  eventCancellations    Boolean   @default(true)
+  eventReminders        Boolean   @default(true)
+  defaultReminderTiming String    @default("[30]") // JSON string of minutes before event
+  webPushEnabled        Boolean   @default(false)
   webPushSubscription   Json?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   // Design v3: what the worker sends.
-  dailyPlan             Boolean  @default(true)
-  dailyPlanTime         String   @default("08:30")
-  mailPlan              Boolean  @default(false)
-  nudges                Boolean  @default(false)
-  weeklyReview          Boolean  @default(true)
+  dailyPlan             Boolean   @default(true)
+  dailyPlanTime         String    @default("08:30")
+  mailPlan              Boolean   @default(false)
+  nudges                Boolean   @default(false)
+  weeklyReview          Boolean   @default(true)
   // The worker sends a push when a planned Focus session reaches its end.
-  focusEnded            Boolean  @default(true)
+  focusEnded            Boolean   @default(true)
+  // Settings -> Notifications (2026-10-27). Per type: reminders, mentions and
+  // shares, system (sync problems, imports). Overdue is `nudges`, weekly
+  // check-ins are `weeklyReview`. Channels: in-app notices, Web Push, the Mac
+  // app; email is `emailNotifications`. Quiet hours and the daily digest are
+  // wall times in the person's zone (UserSettings.timeZone).
+  reminders             Boolean   @default(true)
+  mentions              Boolean   @default(true)
+  system                Boolean   @default(true)
+  channelInApp          Boolean   @default(true)
+  channelPush           Boolean   @default(true)
+  channelMac            Boolean   @default(true)
+  quietHours            Boolean   @default(false)
+  quietStart            String    @default("22:00")
+  quietEnd              String    @default("08:00")
+  digest                Boolean   @default(false)
+  digestTime            String    @default("08:00")
+  lastDigestAt          DateTime?
+  // Activity pushes (mentions, shares, system) are sent for what arrived after this.
+  activityPushedAt      DateTime?
 
   @@index([userId])
 }
@@ -3140,6 +3175,7 @@ enum IdempotencyStatus {
 enum TaskReminderKind {
   BEFORE_START
   BEFORE_DEADLINE
+  AT_TIME
 }
 
 enum ReminderDeliveryStatus {
@@ -3437,11 +3473,13 @@ model Notification {
 /// tables on request. `key` names one feed item (for example `comment:<id>`);
 /// the key `*` holds "everything up to readAt is read".
 model NotificationRead {
-  id     String   @id @default(cuid())
-  userId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  key    String
-  readAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key          String
+  readAt       DateTime  @default(now())
+  /// "Tomorrow" on a row: the item is hidden until then.
+  snoozedUntil DateTime?
 
   @@unique([userId, key])
 }

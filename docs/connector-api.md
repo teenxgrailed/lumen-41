@@ -151,6 +151,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
 | `needt_blocking` | `needt.read` | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking |
 | `needt_blocking_profile` | `needt.write` | Create, update (only the fields given) or delete a focus blocking profile |
+| `needt_reminders` | `needt.read` for `list`, else `needt.write` | Reminders: `list`, `set` (on a task, an event, or on its own), `update`, `snooze` (`until`), `delete`. See Reminders |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -1109,7 +1110,8 @@ curl "http://localhost:3000/api/connect/notifications?group=activity&limit=20" \
       "body": "13/12 everywhere in chrome, agreed.",
       "at": "2026-10-16T09:48:00.000Z",
       "link": "/pages/PAGE_ID",
-      "unread": true
+      "unread": true,
+      "entity": null
     }
   ],
   "nextBefore": "2026-10-16T09:48:00.000Z",
@@ -1131,8 +1133,14 @@ is soonest first, in one page, and has no `nextBefore`.
 | `share`        | activity  | Someone gave you access to a page                             |
 | `sync`         | activity  | A calendar that failed to sync and needs reconnecting         |
 | `import`       | activity  | A Todoist or Notion import that finished or failed            |
-| `reminder`     | reminders | A pending task reminder, with the time it fires in `at`       |
-| `due`          | reminders | A task due within two days or overdue (up to 14 days back)    |
+| `reminder`     | activity  | A reminder that has come due (`at` is when it fired)          |
+| `overdue`      | activity  | A task past its due date (up to 14 days back)                 |
+| `reminder`     | reminders | A pending reminder, with the time it fires in `at`            |
+| `due`          | reminders | A task due within the next two days                           |
+
+`entity` is `{ "type": "task" | "event" | "reminder", "id" }` when the row is
+about one, so a tool can complete the task; reminder rows also carry
+`reminderId` for `/api/connect/reminders/:id`.
 
 `key` is stable and is what the read call takes. `link` is a path in the
 app. `unreadCount` is the number of unread activity items in the window and
@@ -1155,11 +1163,63 @@ Returns `204`. `keys` takes 1 to 200 item keys; anything else is a `400`
 with `{ "error" }`. Marking all covers items that exist now; later ones are
 unread again.
 
+Snooze rows (the bell's "Tomorrow"): they are hidden until `until` and come
+back unread. For a reminder row, snooze the reminder itself instead
+(`PATCH /api/connect/reminders/:id` with `snoozeUntil`), so it fires again.
+
+```bash
+curl -X POST http://localhost:3000/api/connect/notifications/snooze \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "keys": ["overdue:TASK_ID:1761552000000"], "until": "2026-10-28T09:00:00+01:00" }'
+```
+
 The app itself reads the same feed from `GET /api/notifications?feed=1` (same
 query) and marks with `POST /api/notifications/read`, using the signed-in
 session instead of a token. `GET /api/notifications` without `feed=1` is the
 older nudge delivery the corner tip uses; it marks what it returns as
-delivered, so do not poll it from a script.
+delivered, so do not poll it from a script. `GET /api/notifications/alerts?channel=mac&since=ISO`
+returns what may interrupt now on that channel after Settings → Notifications
+(type switches, channel, quiet hours, daily digest); the Mac app polls it.
+
+## Reminders
+
+A reminder is on a task (`taskId`), a calendar event (`eventId`), or on its
+own (`title` and `at`). The worker fires it on time as a push, a Mac
+notification or an email, as Settings → Notifications allow, and it lands in
+the bell's Activity either way.
+
+```bash
+# 10 minutes before the task starts
+curl -X POST http://localhost:3000/api/connect/reminders \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "taskId": "TASK_ID", "offsetMinutes": 10 }'
+# 1 day before, at 09:00 in your time zone
+#   -d '{ "taskId": "TASK_ID", "offsetMinutes": 1440, "atTime": "09:00" }'
+# an hour before the deadline
+#   -d '{ "taskId": "TASK_ID", "anchor": "deadline", "offsetMinutes": 60 }'
+# at a time, on its own
+#   -d '{ "title": "Call the tax office", "at": "2026-10-28T14:00:00+01:00" }'
+```
+
+Returns `201` with the reminder: `id`, `taskId`, `eventId`, `title`, `kind`
+(`BEFORE_START`, `BEFORE_DEADLINE`, `AT_TIME`), `anchor`, `offsetMinutes`,
+`atTime`, `at`, `firesAt` (snooze included), `snoozedUntil`, `status`,
+`label` ("1 day before, 09:00") and `link`. Setting the same reminder twice
+returns the one that exists. Free has one reminder per task or event; a
+second is a `403` with `UPGRADE_REQUIRED`.
+
+- `GET /api/connect/reminders?taskId=&eventId=&status=all` lists them
+  (upcoming by default, soonest first).
+- `GET`, `PATCH`, `DELETE /api/connect/reminders/:id`. `PATCH` takes the same
+  timing fields, or `{ "snoozeUntil": ISO }` to fire again then
+  (`null` clears it).
+
+Relative reminders follow their task or event: move it and the reminder
+moves; a reminder already fired on a meeting that moves later fires again. A
+completed task's reminders do not fire. The app uses the same routes at
+`/api/reminders` with the signed-in session.
 
 ## Quick-add parsing
 

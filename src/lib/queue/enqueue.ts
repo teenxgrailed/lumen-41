@@ -133,13 +133,41 @@ export async function enqueueBugReportSync(reportId: string) {
 
 export async function enqueueReminderDelivery(reminderId: string) {
   if (await skipWhenUnconfigured("reminder-delivery")) return null;
-  return getReminderQueue().add(
+  const queue = getReminderQueue();
+  // A snoozed or re-armed reminder fires again under the same id.
+  await clearFinishedJob(queue, `reminder-${reminderId}`);
+  return queue.add(
     "deliver-reminder",
     { kind: "deliver", reminderId },
     {
       jobId: `reminder-${reminderId}`,
       attempts: 6,
       backoff: { type: "exponential", delay: 30_000 },
+    }
+  );
+}
+
+/**
+ * A delayed job at the reminder's fire time. The id carries the time, so a
+ * moved reminder gets a new job and the old one, when it runs, finds the
+ * reminder not due and does nothing (deliverTaskReminder re-checks).
+ */
+export async function scheduleReminderDelivery(reminderId: string, at: Date) {
+  if (await skipWhenUnconfigured("reminder-schedule")) return null;
+  const delay = Math.max(0, at.getTime() - newDate().getTime());
+  const queue = getReminderQueue();
+  const jobId = `reminder-${reminderId}-${at.getTime()}`;
+  await clearFinishedJob(queue, jobId);
+  return queue.add(
+    "deliver-reminder",
+    { kind: "deliver", reminderId },
+    {
+      jobId,
+      delay,
+      attempts: 6,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: { age: 24 * 3_600 },
+      removeOnFail: { age: 7 * 24 * 3_600 },
     }
   );
 }

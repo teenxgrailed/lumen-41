@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
+import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import { hasForeignTagIds } from "@/services/tasks/labels";
@@ -554,6 +555,7 @@ export async function PUT(
     }
 
     await completeOfflineMutation(offlineRecordId);
+    rescheduleRemindersSoon({ taskId: id });
     return NextResponse.json(withOriginPageId(updatedTask));
   } catch (error) {
     await failOfflineMutation(offlineRecordId);

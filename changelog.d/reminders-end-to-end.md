@@ -1,0 +1,3 @@
+- Reminders work end to end: set one on a task, an event or on its own, before the start or deadline ("10 min before", "1 day before, 09:00") or at a time. It fires on time, follows its task when the task moves, stops when the task is done, and lands in the bell's Activity. Reminders can be listed, changed, snoozed and deleted from the connector API and the `needt_reminders` MCP tool.
+- Overdue tasks now show in Activity, and any row can be snoozed until tomorrow.
+- Notifications respect new settings on the server: switches for reminders, mentions and shares, and system notices; push, Mac and in-app channels; quiet hours; and a daily digest instead of a stream. Mentions, shares and sync problems can now arrive as a push.

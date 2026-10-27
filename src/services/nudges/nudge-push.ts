@@ -1,3 +1,7 @@
+import {
+  getNotificationPrefs,
+  shouldAlert,
+} from "@/services/notifications/preferences";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { logger } from "@/lib/logger";
@@ -58,7 +62,14 @@ export async function deliverNudgePushes(now = new Date()) {
 
   let pushed = 0;
   for (const [userId, items] of byUser) {
-    const chosen = items.slice(0, MAX_NUDGE_PUSHES_PER_SWEEP);
+    // Quiet hours, the digest and the push channel switch keep it in the bell.
+    const allowed = shouldAlert(
+      await getNotificationPrefs(userId),
+      "overdue",
+      "push",
+      now
+    );
+    const chosen = allowed ? items.slice(0, MAX_NUDGE_PUSHES_PER_SWEEP) : [];
     let anyDelivered = false;
     for (const nudge of chosen) {
       const results = await Promise.allSettled(
@@ -83,7 +94,7 @@ export async function deliverNudgePushes(now = new Date()) {
       where: { id: { in: items.map((nudge) => nudge.id) }, deliveredAt: null },
       data: { deliveredAt: now },
     });
-    if (!anyDelivered) {
+    if (!anyDelivered && allowed) {
       await logger.warn(
         "Nudges were not pushed to any device",
         { userId, count: items.length },

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { NotificationSettings } from "@prisma/client";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import {
@@ -10,6 +12,23 @@ import { prisma } from "@/lib/prisma";
 import { getVapidConfiguration } from "@/lib/push-config";
 
 const LOG_SOURCE = "NotificationSettingsAPI";
+
+/** Settings → Notifications: per type, channels, quiet hours, the digest. */
+function preferenceFields(settings: NotificationSettings) {
+  return {
+    reminders: settings.reminders,
+    mentions: settings.mentions,
+    system: settings.system,
+    channelInApp: settings.channelInApp,
+    channelPush: settings.channelPush,
+    channelMac: settings.channelMac,
+    quietHours: settings.quietHours,
+    quietStart: settings.quietStart,
+    quietEnd: settings.quietEnd,
+    digest: settings.digest,
+    digestTime: settings.digestTime,
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,6 +77,7 @@ export async function GET(request: NextRequest) {
       nudges: settings.nudges,
       weeklyReview: settings.weeklyReview,
       focusEnded: settings.focusEnded,
+      ...preferenceFields(settings),
     });
   } catch (error) {
     logger.error(
@@ -132,6 +152,7 @@ export async function PATCH(request: NextRequest) {
       nudges: settings.nudges,
       weeklyReview: settings.weeklyReview,
       focusEnded: settings.focusEnded,
+      ...preferenceFields(settings),
     });
   } catch (error) {
     logger.error(
