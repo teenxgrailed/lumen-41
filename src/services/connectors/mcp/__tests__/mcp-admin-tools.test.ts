@@ -112,7 +112,7 @@ jest.mock("@/services/admin/users", () => ({
     },
     providers: { signIn: ["google"], calendar: [], mail: [] },
     deletionScheduledFor: null,
-    accessToken: "ya29.leak",
+    accessToken: "leaked-access-token-fixture",
   }),
 }));
 jest.mock("@/services/admin/logs", () => ({
