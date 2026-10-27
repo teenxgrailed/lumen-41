@@ -1169,7 +1169,7 @@ back unread. For a reminder row, snooze the reminder itself instead
 
 ```bash
 curl -X POST http://localhost:3000/api/connect/notifications/snooze \
-  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Authorization: Bearer $NEEDT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "keys": ["overdue:TASK_ID:1761552000000"], "until": "2026-10-28T09:00:00+01:00" }'
 ```
@@ -1192,7 +1192,7 @@ the bell's Activity either way.
 ```bash
 # 10 minutes before the task starts
 curl -X POST http://localhost:3000/api/connect/reminders \
-  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Authorization: Bearer $NEEDT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "taskId": "TASK_ID", "offsetMinutes": 10 }'
 # 1 day before, at 09:00 in your time zone
