@@ -252,40 +252,61 @@ export function AlertsPage() {
     if (!a) return;
     void update.mutateAsync(patch).then(mark).catch(noop);
   };
+  type Key =
+    | "reminders"
+    | "nudges"
+    | "mentions"
+    | "weeklyReview"
+    | "focusEnded"
+    | "system"
+    | "channelInApp"
+    | "channelPush"
+    | "emailNotifications"
+    | "quietHours"
+    | "digest";
+  const row = (title: string, key: Key) => (
+    <PsRow
+      key={key}
+      title={title}
+      control={
+        <PsSwitch
+          label={title}
+          on={a?.[key] ?? false}
+          disabled={!a}
+          onChange={(v) => save({ [key]: v })}
+        />
+      }
+    />
+  );
   return (
     <>
       <PhonePushGroup />
-      <PsGroup
-        title="Overdue tasks"
-        hint="When a task passes its deadline and has no time yet."
-      >
-        <PsRow
-          title="Notification"
-          control={
-            <PsSwitch
-              label="Overdue notification"
-              on={a?.nudges ?? false}
-              disabled={!a}
-              onChange={(v) => save({ nudges: v })}
-            />
-          }
-        />
+      <PsGroup title="Notify me about">
+        {row("Reminders", "reminders")}
+        {row("Overdue tasks", "nudges")}
+        {row("Mentions and shares", "mentions")}
+        {row("Weekly check-ins", "weeklyReview")}
+        {row("Focus ended", "focusEnded")}
+        {row("System", "system")}
       </PsGroup>
       <PsGroup
-        title="Focus"
-        hint="When a Focus session reaches its planned end. Sent as a push, and shown here if Needt is open."
+        title="Where"
+        hint="The bell always keeps everything; these decide what also reaches you."
       >
-        <PsRow
-          title="Focus ended"
-          control={
-            <PsSwitch
-              label="Focus ended notification"
-              on={a?.focusEnded ?? true}
-              disabled={!a}
-              onChange={(v) => save({ focusEnded: v })}
-            />
-          }
-        />
+        {row("In the app", "channelInApp")}
+        {row("Push", "channelPush")}
+        {row("Email", "emailNotifications")}
+      </PsGroup>
+      <PsGroup
+        title="Quiet"
+        hint={
+          a
+            ? `Quiet hours ${a.quietStart}–${a.quietEnd}; the digest comes at ${a.digestTime}. Change the times in Settings on a computer.`
+            : undefined
+        }
+      >
+        {row("Quiet hours", "quietHours")}
+        {row("Daily digest instead of a stream", "digest")}
       </PsGroup>
     </>
   );

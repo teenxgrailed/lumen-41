@@ -44,6 +44,11 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useCreateTask: () => ({ mutateAsync: createTask }),
   useTaskParts: () => ({ add: addPart }),
 }));
+const createReminder = jest.fn();
+jest.mock("@/lib/needt3/hooks/reminders", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/reminders"),
+  useReminderActions: () => ({ create: createReminder }),
+}));
 jest.mock("@/lib/needt3/hooks/docs", () => ({
   useCreateDoc: () => ({ mutateAsync: createDoc }),
   useUpdateDoc: () => ({ mutateAsync: jest.fn() }),

@@ -43,7 +43,23 @@ jest.mock("@/lib/needt3/hooks/notifications", () => ({
     refetch,
   }),
   useMarkNotificationsRead: () => markRead,
+  useSnoozeNotifications: () => snoozeRows,
   fetchEarlier: (before: string) => fetchEarlier(before),
+}));
+const snoozeRows = jest.fn();
+const reminderActions = {
+  create: jest.fn(),
+  update: jest.fn(),
+  snooze: jest.fn(),
+  remove: jest.fn(),
+};
+jest.mock("@/lib/needt3/hooks/reminders", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/reminders"),
+  useReminderActions: () => reminderActions,
+}));
+const updateTask = jest.fn().mockResolvedValue({});
+jest.mock("@/lib/needt3/hooks/tasks", () => ({
+  useUpdateTask: () => ({ mutateAsync: updateTask }),
 }));
 
 const item = (over: Partial<FeedItem>): FeedItem => ({
@@ -71,7 +87,11 @@ function mount() {
 }
 
 const rows = () =>
-  Array.from(host.querySelectorAll<HTMLButtonElement>("[data-kind]"));
+  Array.from(host.querySelectorAll<HTMLElement>("[data-kind]"));
+const openOf = (row: HTMLElement) =>
+  row.querySelector<HTMLButtonElement>(".shell-note-open") as HTMLButtonElement;
+const act_ = (row: HTMLElement, label: string) =>
+  row.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
 const byText = (text: string) =>
   Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((b) =>
     b.textContent?.includes(text)
@@ -116,7 +136,7 @@ describe("NotesPanel", () => {
       )
     ).toEqual(["true", "false"]);
 
-    act(() => list[0].click());
+    act(() => openOf(list[0]).click());
     expect(markRead).toHaveBeenCalledWith(["comment:1"]);
     expect(push).toHaveBeenCalledWith("/pages/p1");
     expect(close).toHaveBeenCalled();
@@ -129,7 +149,7 @@ describe("NotesPanel", () => {
       items: [item({ unread: false, link: "https://evil.example" })],
     };
     mount();
-    act(() => rows()[0].click());
+    act(() => openOf(rows()[0]).click());
     expect(markRead).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/today");
   });
@@ -195,8 +215,8 @@ describe("NotesPanel", () => {
           group: "reminders",
           kind: "due",
           title: "Pay rent",
-          body: "Overdue",
-          at: new Date(Date.now() - 86_400_000).toISOString(),
+          body: "Due soon",
+          at: new Date(Date.now() + 86_400_000).toISOString(),
           link: "/today?task=t1",
           unread: false,
         }),
@@ -205,13 +225,139 @@ describe("NotesPanel", () => {
     mount();
     act(() => byText("Reminders")?.click());
     expect(host.textContent).toContain("Pay rent");
-    expect(host.textContent).toContain("Overdue");
-    act(() => rows()[0].click());
+    expect(host.textContent).toContain("Tomorrow");
+    act(() => openOf(rows()[0]).click());
     expect(push).toHaveBeenCalledWith("/today?task=t1");
     expect(markRead).not.toHaveBeenCalled();
 
     pages.reminders = { unreadCount: 0, nextBefore: null, items: [] };
     act(() => root.render(h(NotesPanel, { close })));
     expect(host.textContent).toContain("No reminders");
+  });
+
+  it("shows a quiet type glyph instead of the drawing", () => {
+    pages.activity = {
+      unreadCount: 0,
+      nextBefore: null,
+      items: [
+        item({ key: "comment:1", kind: "comment", actor: "Lena" }),
+        item({ key: "sync:1", kind: "sync" }),
+        item({ key: "nudge:1", kind: "nudge" }),
+      ],
+    };
+    mount();
+    expect(
+      rows().map((r) =>
+        r.querySelector(".shell-note-icon")?.getAttribute("data-type")
+      )
+    ).toEqual(["mention", "event", "system"]);
+    expect(host.querySelector("[data-art]")).toBeNull();
+  });
+
+  it("folds overdue tasks into one row that expands, with Tomorrow for all", () => {
+    const overdue = (id: string, minutesAgo: number) =>
+      item({
+        key: `overdue:${id}:1`,
+        kind: "overdue",
+        title: `Task ${id}`,
+        body: "Overdue",
+        at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+        entity: { type: "task", id },
+      });
+    pages.activity = {
+      unreadCount: 3,
+      nextBefore: null,
+      items: [overdue("a", 60), overdue("b", 120), overdue("c", 600)],
+    };
+    mount();
+    expect(rows()).toHaveLength(1);
+    expect(host.textContent).toContain("3 tasks overdue");
+    act(() => openOf(rows()[0]).click());
+    expect(push).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(4);
+
+    act(() => act_(rows()[0], "Tomorrow")?.click());
+    expect(snoozeRows).toHaveBeenCalledWith(
+      ["overdue:a:1", "overdue:b:1", "overdue:c:1"],
+      expect.any(Date)
+    );
+    const until = snoozeRows.mock.calls[0][1] as Date;
+    expect(until.getHours()).toBe(9);
+    expect(until.getMinutes()).toBe(0);
+  });
+
+  it("Done completes the task behind a row; Tomorrow snoozes a reminder", async () => {
+    pages.activity = {
+      unreadCount: 2,
+      nextBefore: null,
+      items: [
+        item({
+          key: "fired:r1:1",
+          kind: "reminder",
+          title: "Send the invoice",
+          entity: { type: "task", id: "t1" },
+          reminderId: "r1",
+        }),
+      ],
+    };
+    mount();
+    await act(async () => act_(rows()[0], "Done")?.click());
+    expect(updateTask).toHaveBeenCalledWith({
+      id: "t1",
+      patch: { done: true },
+    });
+    expect(markRead).toHaveBeenCalledWith(["fired:r1:1"]);
+    expect(push).not.toHaveBeenCalled();
+
+    act(() => act_(rows()[0], "Tomorrow")?.click());
+    expect(reminderActions.snooze).toHaveBeenCalledWith("r1", expect.any(Date));
+    expect(snoozeRows).not.toHaveBeenCalled();
+  });
+
+  it("offers Mark all read in the header only while something is unread", () => {
+    pages.activity = { unreadCount: 1, nextBefore: null, items: [item({})] };
+    mount();
+    act(() => byText("Mark all read")?.click());
+    expect(markRead).toHaveBeenCalledWith("all");
+    pages.activity = {
+      unreadCount: 0,
+      nextBefore: null,
+      items: [item({ unread: false })],
+    };
+    act(() => root.render(h(NotesPanel, { close })));
+    expect(byText("Mark all read")).toBeUndefined();
+  });
+
+  it("edits, snoozes and deletes a reminder from the Reminders tab", () => {
+    pages.activity = { unreadCount: 0, nextBefore: null, items: [] };
+    pages.reminders = {
+      unreadCount: 0,
+      nextBefore: null,
+      items: [
+        item({
+          key: "reminder:r1",
+          group: "reminders",
+          kind: "reminder",
+          title: "Call the tax office",
+          body: "10 min before",
+          at: new Date(Date.now() + 3_600_000).toISOString(),
+          unread: false,
+          entity: { type: "task", id: "t1" },
+          reminderId: "r1",
+        }),
+      ],
+    };
+    mount();
+    act(() => byText("Reminders")?.click());
+    const row = rows()[0];
+    act(() => act_(row, "Tomorrow")?.click());
+    expect(reminderActions.snooze).toHaveBeenCalledWith("r1", expect.any(Date));
+    act(() => act_(row, "Delete reminder")?.click());
+    expect(reminderActions.remove).toHaveBeenCalledWith("r1");
+    act(() => act_(row, "Edit reminder")?.click());
+    act(() => byText("1 hour before")?.click());
+    expect(reminderActions.update).toHaveBeenCalledWith("r1", {
+      offsetMinutes: 60,
+    });
   });
 });

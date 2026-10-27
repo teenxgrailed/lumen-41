@@ -117,6 +117,18 @@ export interface V3Alerts {
   nudges: boolean;
   weeklyReview: boolean;
   focusEnded: boolean;
+  reminders: boolean;
+  mentions: boolean;
+  system: boolean;
+  channelInApp: boolean;
+  channelPush: boolean;
+  channelMac: boolean;
+  emailNotifications: boolean;
+  quietHours: boolean;
+  quietStart: string;
+  quietEnd: string;
+  digest: boolean;
+  digestTime: string;
 }
 
 const ALERTS = [...qk.settings(), "alerts"] as const;
@@ -135,6 +147,18 @@ export function useAlerts() {
         nudges: row.nudges ?? false,
         weeklyReview: row.weeklyReview ?? true,
         focusEnded: row.focusEnded ?? true,
+        reminders: row.reminders ?? true,
+        mentions: row.mentions ?? true,
+        system: row.system ?? true,
+        channelInApp: row.channelInApp ?? true,
+        channelPush: row.channelPush ?? true,
+        channelMac: row.channelMac ?? true,
+        emailNotifications: row.emailNotifications ?? true,
+        quietHours: row.quietHours ?? false,
+        quietStart: row.quietStart ?? "22:00",
+        quietEnd: row.quietEnd ?? "08:00",
+        digest: row.digest ?? false,
+        digestTime: row.digestTime ?? "08:00",
       };
     },
     staleTime: 5 * 60_000,
