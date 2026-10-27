@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { Fragment, useCallback, useMemo, useRef } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -699,263 +699,267 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
               </HaScope>
             </div>
           ) : null}
-          <div
-            className="hd-cards ha-cards"
-            data-hd-cards=""
-            data-hd-mode={tab}
-          >
-            {tab === "day" && closedDay ? (
-              <HaScope>
-                <HaAllDone
-                  {...haAllDoneOf({
-                    count: day.length,
-                    focusMinutes: homeStats.week?.days.find(
-                      (d) => d.date === today
-                    )?.focusMinutes,
-                    open: { late: lateOpen.length, inbox: inboxOpen.length },
-                    picks: finishPicks,
-                    freeMinutes: freeMinutesLeft(
-                      cap,
-                      today,
-                      nowHour,
-                      sched.filter((x) => x.event)
-                    ),
-                  })}
-                  onPull={(id) => {
-                    const p = finishPicks.find((x) => x.task.id === id);
-                    if (p) void finish.doToday(p);
-                  }}
-                  onEndDay={finish.show}
-                  onSeeTomorrow={seeTomorrow}
-                  onUndo={undoLast}
-                />
-              </HaScope>
-            ) : tab === "day" && hlTask && !hlTask.done ? (
-              <HaScope>
-                <HaHighlight
-                  state="set"
-                  card={haTaskCard(
-                    hlTask,
-                    today,
-                    hlSub(hlTask, "the one thing for today")
-                  )}
-                  onUnset={() => void setHighlight.set(null)}
-                  onStart={() => void startFocusOn(hlTask)}
-                  onDone={() => check(hlTask)}
-                  onOpen={() => open(hlTask.id)}
-                />
-              </HaScope>
-            ) : tab === "day" && suggest.pick ? (
-              <HaScope>
-                <HaHighlight
-                  state="suggest"
-                  card={haTaskCard(suggest.pick, today, suggest.reason)}
-                  index={suggest.index}
-                  count={suggest.count}
-                  locked={pro === false}
-                  onYes={suggest.accept}
-                  onAnother={suggest.another}
-                  onUpgrade={() => openPaywall("Highlight suggestions")}
-                />
-              </HaScope>
-            ) : pick ? (
-              <HaScope>
-                <HaHighlight
-                  state="nextup"
-                  late={pickLate.includes(pick.task)}
-                  completing={leaving[pick.task.id] === "strike"}
-                  card={haTaskCard(pick.task, today, nextSub)}
-                  onSkip={
-                    pick.canSkip
-                      ? () =>
-                          setSkipped((s) =>
-                            skipNext(
-                              s,
-                              pick,
-                              [...lateOpen, ...dayOpen].filter(
-                                (t) => !s.includes(t.id)
-                              ).length
-                            )
-                          )
-                      : undefined
-                  }
-                  onStart={startFocus}
-                  onDone={() => check(pick.task)}
-                  onOpen={() => open(pick.task.id)}
-                />
-              </HaScope>
-            ) : (
-              <NextUpNone closed={closedDay} />
-            )}
-            <div
-              key={tab}
-              className="hd-side ha-side nx-swap"
-              data-hd-side={tab}
-            >
-              {tab === "week" ? (
-                <WeekStats
-                  tasks={totals.tasks}
-                  done={totals.done}
-                  planned={totals.planned}
-                  cap={totals.cap}
-                  overdue={lateOpen.length}
-                />
-              ) : (
-                <>
-                  {stats.total > 0 && timeCard ? (
-                    <HaScope>
-                      <div className="ha-card" data-ha-today="">
-                        <div className="ha-dk-card-t">
-                          <span>Today</span>
-                          <span>
-                            {stats.done} of {stats.total}
-                          </span>
-                        </div>
-                        <HaTimeLeft
-                          t={timeCard}
-                          onSpread={
-                            anytimeIds.length
-                              ? () => void spreader.spread(anytimeIds)
-                              : undefined
-                          }
-                          spreadBusy={spreader.busy}
-                        />
-                      </div>
-                    </HaScope>
-                  ) : null}
-                  {haHabits.length ? (
-                    <HaScope>
-                      <div className="ha-card" data-ha-habits="">
-                        <div className="ha-dk-card-t">
-                          <span>Habits</span>
-                          <span>
-                            {habitsKept} of {haHabits.length} kept
-                          </span>
-                        </div>
-                        <HaHabits
-                          habits={haHabits}
-                          onToggle={onHabit}
-                          onAdd={() => router.push("/habits")}
-                        />
-                      </div>
-                    </HaScope>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="hd-main" data-hd-mode={tab}>
-            <div key={tab} className="hd-list nx-swap">
-              {tab === "week" ? (
-                week.map((w) => {
-                  const list = w.tasks.filter(shown);
-                  const openN = w.tasks.filter((t) => !t.done).length;
-                  const doneN = w.tasks.length - openN;
-                  return (
-                    <Fold
-                      key={w.date}
-                      title={w.title}
-                      count={openN}
-                      open={!fold[`w${w.date}`]}
-                      onToggle={flip(`w${w.date}`)}
-                      action={
-                        doneN ? (
-                          <span className="hd-meta-t">{doneN} done</span>
-                        ) : null
-                      }
-                    >
-                      {w.events.map((e) => (
-                        <div key={`e${e.id}`} className="hd-week-ev">
-                          <span className="hd-week-ev-ico">
-                            <EventIcon />
-                          </span>
-                          <span className="hd-week-ev-title">{e.title}</span>
-                          <span className="hd-meta-t hd-num">
-                            {e.startAt.slice(11, 16)} · {dur(e.len)}
-                          </span>
-                        </div>
-                      ))}
-                      <Capped list={list} render={(t) => row(t)} />
-                      {!list.length && !w.events.length ? (
-                        <span className="hd-week-none">
-                          Nothing planned yet.
-                        </span>
-                      ) : null}
-                    </Fold>
-                  );
-                })
-              ) : (
-                <>
-                  <StarterGameSlot screen="home" />
-                  {state === "empty" && !starter.show && !starter.hold ? (
-                    <EmptyDay onNew={newTask} plan={planButton()} />
-                  ) : null}
-
-                  {taskView.overdueFirst ? lateFold : null}
-
-                  {sections.map(([name, list]) => (
-                    <Fold
-                      key={name}
-                      title={name}
-                      count={list.filter((t) => !t.done).length}
-                      open={!fold[name]}
-                      onToggle={flip(name)}
-                      action={
-                        <span className="hd-meta-t hd-num">
-                          {dur(
-                            list
-                              .filter((t) => !t.done)
-                              .reduce(
-                                (s, t) => s + (t.estimatedMinutes || 0),
-                                0
+          <div className="hd-body" data-hd-mode={tab}>
+            <div className="hd-col">
+              <div
+                className="hd-cards ha-cards"
+                data-hd-cards=""
+                data-hd-mode={tab}
+              >
+                {tab === "day" && closedDay ? (
+                  <HaScope>
+                    <HaAllDone
+                      {...haAllDoneOf({
+                        count: day.length,
+                        focusMinutes: homeStats.week?.days.find(
+                          (d) => d.date === today
+                        )?.focusMinutes,
+                        open: {
+                          late: lateOpen.length,
+                          inbox: inboxOpen.length,
+                        },
+                        picks: finishPicks,
+                        freeMinutes: freeMinutesLeft(
+                          cap,
+                          today,
+                          nowHour,
+                          sched.filter((x) => x.event)
+                        ),
+                      })}
+                      onPull={(id) => {
+                        const p = finishPicks.find((x) => x.task.id === id);
+                        if (p) void finish.doToday(p);
+                      }}
+                      onEndDay={finish.show}
+                      onSeeTomorrow={seeTomorrow}
+                      onUndo={undoLast}
+                    />
+                  </HaScope>
+                ) : tab === "day" && hlTask && !hlTask.done ? (
+                  <HaScope>
+                    <HaHighlight
+                      state="set"
+                      card={haTaskCard(
+                        hlTask,
+                        today,
+                        hlSub(hlTask, "the one thing for today")
+                      )}
+                      onUnset={() => void setHighlight.set(null)}
+                      onStart={() => void startFocusOn(hlTask)}
+                      onDone={() => check(hlTask)}
+                      onOpen={() => open(hlTask.id)}
+                    />
+                  </HaScope>
+                ) : tab === "day" && suggest.pick ? (
+                  <HaScope>
+                    <HaHighlight
+                      state="suggest"
+                      card={haTaskCard(suggest.pick, today, suggest.reason)}
+                      index={suggest.index}
+                      count={suggest.count}
+                      locked={pro === false}
+                      onYes={suggest.accept}
+                      onAnother={suggest.another}
+                      onUpgrade={() => openPaywall("Highlight suggestions")}
+                    />
+                  </HaScope>
+                ) : pick ? (
+                  <HaScope>
+                    <HaHighlight
+                      state="nextup"
+                      late={pickLate.includes(pick.task)}
+                      completing={leaving[pick.task.id] === "strike"}
+                      card={haTaskCard(pick.task, today, nextSub)}
+                      onSkip={
+                        pick.canSkip
+                          ? () =>
+                              setSkipped((s) =>
+                                skipNext(
+                                  s,
+                                  pick,
+                                  [...lateOpen, ...dayOpen].filter(
+                                    (t) => !s.includes(t.id)
+                                  ).length
+                                )
                               )
-                          )}
-                        </span>
+                          : undefined
                       }
-                    >
-                      <Capped list={list} render={(t) => row(t)} />
-                    </Fold>
-                  ))}
+                      onStart={startFocus}
+                      onDone={() => check(pick.task)}
+                      onOpen={() => open(pick.task.id)}
+                    />
+                  </HaScope>
+                ) : (
+                  <NextUpNone closed={closedDay} />
+                )}
+              </div>
 
-                  {taskView.overdueFirst ? null : lateFold}
+              <div className="hd-main" data-hd-mode={tab}>
+                <div key={tab} className="hd-list nx-swap">
+                  {tab === "week" ? (
+                    week.map((w) => {
+                      const list = w.tasks.filter(shown);
+                      const openN = w.tasks.filter((t) => !t.done).length;
+                      const doneN = w.tasks.length - openN;
+                      return (
+                        <Fold
+                          key={w.date}
+                          title={w.title}
+                          count={openN}
+                          open={!fold[`w${w.date}`]}
+                          onToggle={flip(`w${w.date}`)}
+                          action={
+                            doneN ? (
+                              <span className="hd-meta-t">{doneN} done</span>
+                            ) : null
+                          }
+                        >
+                          {w.events.map((e) => (
+                            <div key={`e${e.id}`} className="hd-week-ev">
+                              <span className="hd-week-ev-ico">
+                                <EventIcon />
+                              </span>
+                              <span className="hd-week-ev-title">
+                                {e.title}
+                              </span>
+                              <span className="hd-meta-t hd-num">
+                                {e.startAt.slice(11, 16)} · {dur(e.len)}
+                              </span>
+                            </div>
+                          ))}
+                          <Capped list={list} render={(t) => row(t)} />
+                          {!list.length && !w.events.length ? (
+                            <span className="hd-week-none">
+                              Nothing planned yet.
+                            </span>
+                          ) : null}
+                        </Fold>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <StarterGameSlot screen="home" />
+                      {state === "empty" && !starter.show && !starter.hold ? (
+                        <EmptyDay onNew={newTask} plan={planButton()} />
+                      ) : null}
 
-                  {!closedDay && state !== "empty" ? (
-                    <button
-                      type="button"
-                      className="hd-add hd-add-row"
-                      onClick={newTask}
-                    >
-                      <span className="hd-add-box" />
-                      Add a task
-                    </button>
-                  ) : null}
+                      {taskView.overdueFirst ? lateFold : null}
 
-                  {doneToday.length ? (
-                    <Fold
-                      title="Done today"
-                      count={doneToday.length}
-                      open={!fold.done}
-                      onToggle={flip("done")}
-                    >
-                      <Capped list={doneToday} render={(t) => row(t)} />
-                    </Fold>
-                  ) : null}
-                  <NotesLine
-                    has={dailyNote.exists}
-                    busy={dailyNote.busy}
-                    onOpen={() => void openNote()}
-                  />
-                </>
-              )}
+                      {sections.map(([name, list]) => (
+                        <Fold
+                          key={name}
+                          title={name}
+                          count={list.filter((t) => !t.done).length}
+                          open={!fold[name]}
+                          onToggle={flip(name)}
+                          action={
+                            <span className="hd-meta-t hd-num">
+                              {dur(
+                                list
+                                  .filter((t) => !t.done)
+                                  .reduce(
+                                    (s, t) => s + (t.estimatedMinutes || 0),
+                                    0
+                                  )
+                              )}
+                            </span>
+                          }
+                        >
+                          <Capped list={list} render={(t) => row(t)} />
+                        </Fold>
+                      ))}
+
+                      {taskView.overdueFirst ? null : lateFold}
+
+                      {!closedDay && state !== "empty" ? (
+                        <button
+                          type="button"
+                          className="hd-add hd-add-row"
+                          onClick={newTask}
+                        >
+                          <span className="hd-add-box" />
+                          Add a task
+                        </button>
+                      ) : null}
+
+                      {doneToday.length ? (
+                        <Fold
+                          title="Done today"
+                          count={doneToday.length}
+                          open={!fold.done}
+                          onToggle={flip("done")}
+                        >
+                          <Capped list={doneToday} render={(t) => row(t)} />
+                        </Fold>
+                      ) : null}
+                      <NotesLine
+                        has={dailyNote.exists}
+                        busy={dailyNote.busy}
+                        onOpen={() => void openNote()}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-
             <aside
               className="hd-rail"
               aria-label={
                 tab === "week" ? "The week at a glance" : "Today at a glance"
               }
             >
+              <Fragment key={tab}>
+                {tab === "week" ? (
+                  <WeekStats
+                    tasks={totals.tasks}
+                    done={totals.done}
+                    planned={totals.planned}
+                    cap={totals.cap}
+                    overdue={lateOpen.length}
+                  />
+                ) : (
+                  <>
+                    {stats.total > 0 && timeCard ? (
+                      <HaScope>
+                        <div className="ha-card" data-ha-today="">
+                          <div className="ha-dk-card-t">
+                            <span>Today</span>
+                            <span>
+                              {stats.done} of {stats.total}
+                            </span>
+                          </div>
+                          <HaTimeLeft
+                            t={timeCard}
+                            onSpread={
+                              anytimeIds.length
+                                ? () => void spreader.spread(anytimeIds)
+                                : undefined
+                            }
+                            spreadBusy={spreader.busy}
+                          />
+                        </div>
+                      </HaScope>
+                    ) : null}
+                    {haHabits.length ? (
+                      <HaScope>
+                        <div className="ha-card" data-ha-habits="">
+                          <div className="ha-dk-card-t">
+                            <span>Habits</span>
+                            <span>
+                              {habitsKept} of {haHabits.length} kept
+                            </span>
+                          </div>
+                          <HaHabits
+                            habits={haHabits}
+                            onToggle={onHabit}
+                            onAdd={() => router.push("/habits")}
+                          />
+                        </div>
+                      </HaScope>
+                    ) : null}
+                  </>
+                )}
+              </Fragment>
               {tab === "week" ? (
                 <WeekLoad
                   days={week}
