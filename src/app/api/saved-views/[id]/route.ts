@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   ) {
     return NextResponse.json({ error: "Editor role required" }, { status: 403 });
   }
-  const parsed = savedViewPatchSchema.safeParse(await request.json());
+  const parsed = savedViewPatchSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid saved view" }, { status: 400 });
   if (parsed.data.boardId) {
     const board = await prisma.board.findFirst({
