@@ -5,6 +5,7 @@ import {
   withCaseInsensitiveEmailLookup,
 } from "@/lib/auth/account-linking";
 import { SIGN_IN_PROVIDER_IDS } from "@/lib/auth/sign-in-provider-ids";
+import { claimUnconfirmedAccountByProvider } from "@/lib/auth/unproven-password";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => ({
@@ -13,6 +14,9 @@ jest.mock("@/lib/prisma", () => ({
     user: { findMany: jest.fn(), findFirst: jest.fn() },
   },
 }));
+jest.mock("@/lib/auth/unproven-password", () => ({
+  claimUnconfirmedAccountByProvider: jest.fn(),
+}));
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -20,7 +24,11 @@ jest.mock("@/lib/logger", () => ({
 const linked = jest.mocked(prisma.account.findUnique);
 const owners = jest.mocked(prisma.user.findMany);
 
-const OWNER = { id: "user-1", email: "Ann@Example.com" };
+const OWNER = {
+  id: "user-1",
+  email: "Ann@Example.com",
+  emailVerified: new Date("2026-01-01T00:00:00Z"),
+};
 
 /** A raw profile in which the provider vouches for `email`. */
 const VERIFIED: Record<string, Record<string, unknown>> = {
@@ -105,6 +113,49 @@ describe("verifiedProviderEmail", () => {
         verified: true,
       })
     ).toBeNull();
+  });
+});
+
+describe("accountLinkingGate and an account nobody has confirmed", () => {
+  const UNCONFIRMED = { ...OWNER, emailVerified: null };
+
+  it("a provider-verified sign-in claims it: confirmed, password wiped, earlier sessions revoked", async () => {
+    owners.mockResolvedValue([UNCONFIRMED] as never);
+    await expect(
+      accountLinkingGate({
+        provider: "google",
+        providerAccountId: "g-1",
+        profile: VERIFIED.google,
+      })
+    ).resolves.toBe(true);
+    expect(claimUnconfirmedAccountByProvider).toHaveBeenCalledWith({
+      userId: "user-1",
+      provider: "google",
+    });
+  });
+
+  it("an unverified provider email is still refused and claims nothing", async () => {
+    owners.mockResolvedValue([UNCONFIRMED] as never);
+    await expect(
+      accountLinkingGate({
+        provider: "google",
+        providerAccountId: "g-1",
+        profile: UNVERIFIED.google,
+      })
+    ).resolves.toBe(LINK_REFUSED_REDIRECT);
+    expect(claimUnconfirmedAccountByProvider).not.toHaveBeenCalled();
+  });
+
+  it("a confirmed account is joined without touching its password", async () => {
+    owners.mockResolvedValue([OWNER] as never);
+    await expect(
+      accountLinkingGate({
+        provider: "github",
+        providerAccountId: "gh-1",
+        profile: VERIFIED.github,
+      })
+    ).resolves.toBe(true);
+    expect(claimUnconfirmedAccountByProvider).not.toHaveBeenCalled();
   });
 });
 

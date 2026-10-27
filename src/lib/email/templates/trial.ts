@@ -1,17 +1,31 @@
+import { renderEmail } from "./layout";
+
 export function getTrialEmailTemplate(input: {
   milestone: "day11" | "day14";
   payUrl: string;
 }) {
   if (input.milestone === "day11") {
-    return {
+    return renderEmail({
       subject: "Your Pro trial ends in 3 days",
-      text: `Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features: ${input.payUrl}`,
-      html: `<h1>Your Pro trial ends in 3 days</h1><p>Choose Pro to keep Pro features after the trial.</p><p><a href="${input.payUrl}">Choose Pro</a></p>`,
-    };
+      preheader: "Choose Pro to keep Pro features after the trial.",
+      heading: "Your Pro trial ends in 3 days",
+      paragraphs: [
+        "Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features after that.",
+        "If you do nothing, your account moves to Free and everything you made stays where it is.",
+      ],
+      button: { label: "Choose Pro", url: input.payUrl },
+      kind: "notification",
+    });
   }
-  return {
+  return renderEmail({
     subject: "Your Pro trial has ended",
-    text: `Your Needt account is now on Free. Your data is still here. Choose Pro: ${input.payUrl}`,
-    html: `<h1>Your Pro trial has ended</h1><p>Your account is now on Free. Your data is still here.</p><p><a href="${input.payUrl}">Choose Pro</a></p>`,
-  };
+    preheader: "Your data is still here.",
+    heading: "Your Pro trial has ended",
+    paragraphs: [
+      "Your Needt account is now on Free. Your data is still here.",
+      "Choose Pro whenever you want the Pro features back.",
+    ],
+    button: { label: "Choose Pro", url: input.payUrl },
+    kind: "notification",
+  });
 }

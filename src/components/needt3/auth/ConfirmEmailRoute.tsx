@@ -15,6 +15,7 @@ import {
   LuArrowLeft,
   LuArrowRight,
   LuCircleCheck,
+  LuLock,
   LuMail,
   LuRefreshCw,
 } from "react-icons/lu";
@@ -26,13 +27,21 @@ import { useOnline } from "@/lib/needt3/use-online";
 
 import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
-import { LinkButton, LinkFoot, LinkNote, LinkShell } from "./LinkFaces";
+import {
+  LinkButton,
+  LinkFoot,
+  LinkNote,
+  LinkShell,
+  NewPasswordField,
+} from "./LinkFaces";
 import {
   CONFIRM_COPY,
   type ConfirmStep,
   type ResendOutcome,
   confirmOutcome,
   confirmedNext,
+  newPasswordProblem,
+  newPasswordText,
   resendOutcome,
 } from "./link-logic";
 
@@ -62,19 +71,41 @@ export function V3ConfirmEmailRoute({
     null
   );
 
+  /* Asked for only when this is not the browser that signed up. Never
+     logged, never stored. */
+  const [pass, setPass] = React.useState("");
+  const [tried, setTried] = React.useState(false);
+  const problem = newPasswordProblem(pass);
+  const showProblem = tried && problem !== null;
+
   async function confirm() {
     if (offline || step === "confirming") return;
+    const settingPassword = step === "password";
+    if (settingPassword) {
+      setTried(true);
+      if (problem) return;
+    }
     setStep("confirming");
     try {
       const response = await fetch("/api/auth/email-verification/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token }),
+        body: JSON.stringify(
+          settingPassword
+            ? { email, token, newPassword: pass }
+            : { email, token }
+        ),
       });
       const body = (await response.json().catch(() => ({}))) as {
         status?: unknown;
       };
-      setStep(confirmOutcome(response.ok, body.status));
+      if (settingPassword && body.status === "weak_password") {
+        setStep("password");
+        return;
+      }
+      const next = confirmOutcome(response.ok, body.status);
+      if (next !== "password") setPass("");
+      setStep(next);
     } catch (e) {
       void logger.error(
         "Email confirmation failed",
@@ -135,6 +166,29 @@ export function V3ConfirmEmailRoute({
       >
         Continue to Needt
       </LinkButton>
+    );
+  } else if (step === "password") {
+    actions = (
+      <>
+        <NewPasswordField
+          face={face}
+          value={pass}
+          onChange={setPass}
+          invalid={showProblem}
+          hint={newPasswordText(showProblem ? problem : null)}
+          onEnter={() => void confirm()}
+        />
+        <LinkButton
+          face={face}
+          primary
+          icon={LuLock}
+          onClick={() => void confirm()}
+          disabled={offline}
+          data-auth-confirm-password
+        >
+          Save password and confirm
+        </LinkButton>
+      </>
     );
   } else if (dead) {
     actions = email ? (
