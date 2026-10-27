@@ -1,0 +1,1 @@
+- Goals have their own screen (Pro; in the sidebar under More, and under More on the phone): each goal shows its progress, its why and deadline; open one to add or link tasks, tick them, answer the weekly "How's it going?" and read the check-ins so far. A project's page shows the goals it belongs to, and a task's menu can convert it to a goal, its steps becoming the goal's tasks.

@@ -119,6 +119,7 @@ const restorableFields = z
     recurrenceRule: z.string().nullable(),
     scheduleId: z.string().nullable(),
     projectId: z.string().nullable(),
+    goalId: z.string().nullable(),
     estimatedMinutes: z.number().int().nullable(),
     duration: z.number().int().nullable(),
     completedAt: isoOrNull,
@@ -250,6 +251,15 @@ async function assertScheduleOwned(
   if (!schedule) throw new OpError("INVALID_INPUT", "Unknown work schedule");
 }
 
+/** A live goal in this workspace; linking a task needs no plan. */
+async function assertGoalUsable(ctx: OpContext, goalId: string) {
+  const goal = await ctx.tx.goal.findFirst({
+    where: { id: goalId, ...ctx.scope, archivedAt: null },
+    select: { id: true },
+  });
+  if (!goal) throw new OpError("INVALID_INPUT", "Unknown goal id");
+}
+
 async function assertProjectUsable(ctx: OpContext, projectId: string) {
   const project = await findScopedProject(ctx, projectId);
   if (project.status === "archived") {
@@ -340,10 +350,12 @@ export const taskCreate = defineOp({
       entry: entrySchema.optional(),
       subtasks: subtaskListSchema.optional(),
       dependsOnId: z.string().min(1).optional(),
+      goalId: z.string().min(1).optional(),
     })
     .strict(),
   async run(ctx, input) {
     if (input.projectId) await assertProjectUsable(ctx, input.projectId);
+    if (input.goalId) await assertGoalUsable(ctx, input.goalId);
     if (input.dependsOnId) {
       const blocker = await checkBlocker(
         { userId: ctx.userId, workspace: ctx.workspace },
@@ -390,6 +402,7 @@ export const taskCreate = defineOp({
         recurrenceRule: rule,
         scheduleId: input.scheduleId,
         projectId: input.projectId,
+        ...(input.goalId ? { goalId: input.goalId } : {}),
         ...(input.dependsOnId ? { dependsOnId: input.dependsOnId } : {}),
         entry: input.entry ?? null,
         parts: partsCreateData(subtasks),
@@ -453,7 +466,7 @@ export const taskCreate = defineOp({
 export const taskUpdate = defineOp({
   name: "task.update",
   description:
-    "Change a task's title, notes, due date, deadline (follows the due date unless set), priority (NONE clears it), project, tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Placement: start places the task at that time and pins it (the due day becomes that day), pinned pins it where it is or hands it back to the scheduler, autoSchedule turns the scheduler on or off for it; a blocked-out time is refused. Undo writes the previous values back, the placement and its pinned block included.",
+    "Change a task's title, notes, due date, deadline (follows the due date unless set), priority (NONE clears it), project, goal (goalId; null unlinks), tags, estimate, repeat (an RRULE, or null to stop repeating) or hours (a work schedule id). Placement: start places the task at that time and pins it (the due day becomes that day), pinned pins it where it is or hands it back to the scheduler, autoSchedule turns the scheduler on or off for it; a blocked-out time is refused. Undo writes the previous values back, the placement and its pinned block included.",
   risk: "reversible",
   input: z
     .object({
@@ -468,6 +481,7 @@ export const taskUpdate = defineOp({
       estimateMinutes: estimate.nullable().optional(),
       recurrenceRule: recurrenceRule.nullable().optional(),
       scheduleId: z.string().min(1).nullable().optional(),
+      goalId: z.string().min(1).nullable().optional(),
       ...placementFields,
     })
     .strict()
@@ -551,6 +565,11 @@ export const taskUpdate = defineOp({
       if (input.projectId) await assertProjectUsable(ctx, input.projectId);
       data.projectId = input.projectId;
       keys.push("projectId");
+    }
+    if (input.goalId !== undefined) {
+      if (input.goalId) await assertGoalUsable(ctx, input.goalId);
+      data.goalId = input.goalId;
+      keys.push("goalId");
     }
     if (input.estimateMinutes !== undefined) {
       data.estimatedMinutes = input.estimateMinutes;

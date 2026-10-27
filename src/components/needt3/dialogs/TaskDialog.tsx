@@ -66,6 +66,7 @@ import {
 import { findListItem } from "@/lib/needt3/hooks/core";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
+import { convertTaskToGoal, undoGoalAction } from "@/lib/needt3/hooks/goals";
 import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -96,6 +97,8 @@ import {
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
+import { useIsPro } from "../paywall/Pro";
+import { openPaywall } from "../paywall/store";
 import { useDesignV3 } from "../root/V3Root";
 import { SortableItem, SortableList } from "../sortable/Sortable";
 import { useSortableList } from "../sortable/useSortableList";
@@ -229,6 +232,8 @@ export function TaskDialog({
   onClose: () => void;
 }) {
   const container = useV3PortalContainer();
+  const qc = useQueryClient();
+  const pro = useIsPro();
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const projects = useProjects().data ?? [];
@@ -627,6 +632,31 @@ export function TaskDialog({
         });
       } catch {
         /* reverted by the hook */
+      }
+    },
+    toGoal: async () => {
+      setMenu(false);
+      if (!pro) {
+        openPaywall("Goals");
+        return;
+      }
+      try {
+        const answer = await convertTaskToGoal(t.id);
+        quietClose();
+        void qc.invalidateQueries({ queryKey: qk.tasks() });
+        void qc.invalidateQueries({ queryKey: ["v3", "goals"] });
+        notify.success("Converted to a goal", {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              void undoGoalAction(answer.actionId).then(() => {
+                void qc.invalidateQueries({ queryKey: qk.tasks() });
+                void qc.invalidateQueries({ queryKey: ["v3", "goals"] });
+              }),
+          },
+        });
+      } catch {
+        notify.error("Could not convert the task to a goal. Nothing changed.");
       }
     },
     toDoc: async () => {
@@ -1210,6 +1240,11 @@ export function TaskDialog({
       <LuFileText key="i" size={14} aria-hidden />,
       "Convert to document",
       () => void act.toDoc(),
+    ],
+    [
+      <LuFlag key="i" size={14} aria-hidden />,
+      pro ? "Convert to goal" : "Convert to goal (Pro)",
+      () => void act.toGoal(),
     ],
     [<LuFolder key="i" size={14} aria-hidden />, "Move to project…", act.move],
     [

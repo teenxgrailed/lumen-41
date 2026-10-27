@@ -40,9 +40,9 @@ describe("menu places and the route map", () => {
     expect(menuAction("settings")).toEqual({ kind: "settings" });
   });
 
-  it("the order is the prototype's: 14 entries, Settings last", () => {
-    expect(MENU_ORDER).toHaveLength(14);
-    expect(new Set(MENU_ORDER).size).toBe(14);
+  it("the order is the prototype's plus Goals: 15 entries, Settings last", () => {
+    expect(MENU_ORDER).toHaveLength(15);
+    expect(new Set(MENU_ORDER).size).toBe(15);
     expect(MENU_ORDER[MENU_ORDER.length - 1]).toBe("settings");
     expect(MENU_ORDER.slice(0, 6)).toEqual([
       "home",
@@ -129,7 +129,7 @@ describe("menuRows / menuGlyphId", () => {
     expect(rows).not.toContain("home");
     expect(rows).not.toContain("docs");
     expect(rows).not.toContain("ask");
-    expect(rows).toHaveLength(11);
+    expect(rows).toHaveLength(12);
     expect(rows[0]).toBe("calendar");
     expect(rows[rows.length - 1]).toBe("settings");
   });
