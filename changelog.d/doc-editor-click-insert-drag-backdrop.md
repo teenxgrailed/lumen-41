@@ -4,3 +4,6 @@
   block at the caret and scrolls only as far as the new block needs. The
   marbled backgrounds are drawn at twice the resolution, so they are sharp on
   Retina screens.
+- Clicking in a document on the desktop no longer scrolls the page to its end
+  and back: the phone editing bar, which is not drawn there, was still keeping
+  the caret clear of itself.
