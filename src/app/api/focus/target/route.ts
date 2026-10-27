@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
-  const parsed = inputSchema.safeParse(await request.json());
+  const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid focus target" }, { status: 400 });
   const target = await prisma.weeklyFocusTarget.upsert({
     where: { userId_workspaceId: { userId: auth.userId, workspaceId: auth.workspace!.workspaceId } },

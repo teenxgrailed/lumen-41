@@ -56,7 +56,7 @@ async function handleControl(
   );
   if (!userId) return forbidden();
 
-  const body = (await request.json()) as Record<string, unknown>;
+  const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const action = body.action;
   if (!isConnectorControlAction(action)) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
