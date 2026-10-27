@@ -1967,9 +1967,11 @@ MCP_TOOLS.push(
       description:
         'Reminders. action "list" (default): upcoming reminders, or one task\'s or event\'s with taskId / eventId; status "all" includes fired ones. "set": a new reminder on taskId or eventId, relative (offsetMinutes before the anchor: the task\'s start, or its deadline with anchor "deadline"; atTime "09:00" with offsetMinutes 1440 is "1 day before, 09:00") or absolute with at (ISO 8601); a reminder on its own needs title and at. "update": change when it fires (same fields). "snooze": fire again at until. "delete": remove it. A moved task or event moves its relative reminders; a completed task\'s reminders do not fire.',
       annotations: {
+        title: "Manage reminders",
         readOnlyHint: false,
         destructiveHint: true,
         idempotentHint: false,
+        openWorldHint: false,
       },
       scopes: (args) =>
         (args.action ?? "list") === "list" ? ["needt.read"] : ["needt.write"],
