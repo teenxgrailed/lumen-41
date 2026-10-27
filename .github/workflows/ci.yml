@@ -252,6 +252,8 @@ jobs:
       - run: npx tsx prisma/ci-seed.ts
       - run: npx playwright install --with-deps
       - name: Build E2E application
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Run E2E and collaboration authorization smoke
         env:
