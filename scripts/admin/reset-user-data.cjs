@@ -179,6 +179,10 @@ function buildPlan(userId, workspaceId) {
     ["HabitCompletion", "habitCompletion", viaWs("habit")],
     ["Habit", "habit", wsOnly],
 
+    // Goals (Task.goalId is ON DELETE SET NULL; GoalProject cascades)
+    ["GoalCheckIn", "goalCheckIn", any(uid, viaWs("goal"))],
+    ["Goal", "goal", any(ws, uid)],
+
     // Pages, documents, page databases
     ["MeetingNoteProposal", "meetingNoteProposal", any(ws, { page: G })],
     ["PageView", "pageView", any(uid, { page: G })],

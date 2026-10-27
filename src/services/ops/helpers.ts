@@ -187,6 +187,7 @@ export function taskView(task: {
   deadline: Date | null;
   priorityLevel: string;
   projectId: string | null;
+  goalId?: string | null;
   estimatedMinutes: number | null;
   scheduledStart: Date | null;
   scheduledEnd: Date | null;
@@ -219,6 +220,7 @@ export function taskView(task: {
     scheduleId: task.scheduleId ?? null,
     createdAt: task.createdAt ? task.createdAt.toISOString() : null,
     projectId: task.projectId,
+    goalId: task.goalId ?? null,
     estimateMinutes: task.estimatedMinutes,
     scheduledStart: iso(task.scheduledStart),
     scheduledEnd: iso(task.scheduledEnd),

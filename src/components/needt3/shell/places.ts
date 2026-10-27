@@ -18,6 +18,7 @@ export type PlaceId =
   | "docs"
   | "mail"
   | "projects"
+  | "goals"
   | "moodboards"
   | "habits"
   | "templates"
@@ -75,6 +76,13 @@ export const PLACES: readonly ShellPlace[] = [
     art: "work",
     sub: "Every task, by project",
     href: "/projects",
+  },
+  {
+    id: "goals",
+    label: "Goals",
+    art: "focus",
+    sub: "What you are working towards",
+    href: "/goals",
   },
   {
     id: "moodboards",
