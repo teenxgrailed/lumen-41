@@ -75,7 +75,7 @@ test.describe("calendar week: create, hide done, sideways", () => {
 
     const card = page.locator("[data-c2-create]");
     await expect(card).toBeVisible();
-    await card.getByRole("button", { name: "Task", exact: true }).click();
+    await card.getByRole("tab", { name: "Task", exact: true }).click();
     await expect(card.locator("[data-c2-create-len]")).toHaveText("1 h 30 min");
     await expect(
       card.getByRole("switch", { name: "Pin at this time" })
