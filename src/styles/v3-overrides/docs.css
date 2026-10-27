@@ -107,10 +107,12 @@
 /* While the keyboard is up the page's bottom room belongs to PhoneEditBar
  * (it pads the scroller by the keyboard plus the pill). The vendored rule
  * added the keyboard's height to the card as well, which re-laid the whole
- * editor on every visual-viewport frame; the editor's own bottom padding is
- * all the card needs. */
+ * editor on every visual-viewport frame. The card keeps the bottom padding it
+ * has at rest (mobile.css `.mb-doc-card`): changing it on focus shortened the
+ * document under a finger that had just tapped near its end, the scroller
+ * clamped, and the page jumped on the tap. */
 .needt-v3 .pd-reader.is-editing .mb-doc-card {
-  padding-bottom: 24px;
+  padding-bottom: 140px;
 }
 
 /* The blurred backdrop is a 22 px filter on a layer as tall as the whole

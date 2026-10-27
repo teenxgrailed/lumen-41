@@ -69,4 +69,19 @@ describe("doc-opened.css", () => {
       );
     });
   });
+
+  it("keeps the page's scroller from gliding on its own", () => {
+    expect(
+      decls(".needt-v3 .docs-document-screen-3", "scroll-behavior")
+    ).toEqual(["auto"]);
+  });
+
+  it("styles the Insert drag with tokens only", () => {
+    expect(decls(".needt-v3 .docs-insert-drop-line", "background")).toEqual([
+      "var(--accent)",
+    ]);
+    expect(decls(".needt-v3 .docs-insert-ghost", "pointer-events")).toEqual([
+      "none",
+    ]);
+  });
 });

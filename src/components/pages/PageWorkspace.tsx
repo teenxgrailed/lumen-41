@@ -130,12 +130,17 @@ import {
   pageBlocksFromDocument,
 } from "@/components/pages/page-document";
 import {
+  NO_SCROLL,
   blockIdFromHash,
   blockInsertRange,
+  boundaryPos,
   linkAtSelection,
+  openBlockAt,
   rankCommands,
   revealBlock,
+  revealPosition,
   slashAtSelection,
+  visibleBlockPos,
 } from "@/components/pages/page-editor-logic";
 import { downloadMarkdown, printPage } from "@/components/pages/page-export";
 import {
@@ -500,7 +505,7 @@ const PAGE_PERMISSION_OPTIONS = [
 
 function removeSlashText(editor: Editor) {
   const hit = slashAtSelection(editor);
-  const chain = editor.chain().focus();
+  const chain = editor.chain().focus(null, NO_SCROLL);
   return hit ? chain.deleteRange({ from: hit.from, to: hit.to }) : chain;
 }
 
@@ -1991,7 +1996,7 @@ export function PageWorkspace({
       },
       { type: "paragraph" },
     ];
-    const chain = editor.chain().focus();
+    const chain = editor.chain().focus(null, NO_SCROLL);
     if (range) chain.insertContentAt(range, content).run();
     else chain.insertContent(content).run();
     pendingRange.current = null;
@@ -2027,7 +2032,7 @@ export function PageWorkspace({
         if (range.replace || range.atEnd) content.push({ type: "paragraph" });
         editor
           .chain()
-          .focus()
+          .focus(null, NO_SCROLL)
           .insertContentAt({ from: range.from, to: range.to }, content)
           .run();
       } catch (error) {
@@ -2145,7 +2150,7 @@ export function PageWorkspace({
     if (range.atEnd) content.push({ type: "paragraph" });
     editor
       .chain()
-      .focus()
+      .focus(null, NO_SCROLL)
       .insertContentAt({ from: range.from, to: range.to }, content)
       .setTextSelection(range.from + CONTAINER_CARET_OFFSET[command])
       .run();
@@ -2174,13 +2179,13 @@ export function PageWorkspace({
       command === "FORM"
     ) {
       if (editor.isActive("blockquote")) {
-        editor.chain().focus().lift("blockquote").run();
+        editor.chain().focus(null, NO_SCROLL).lift("blockquote").run();
       }
       if (editor.isActive("listItem")) {
-        editor.chain().focus().liftListItem("listItem").run();
+        editor.chain().focus(null, NO_SCROLL).liftListItem("listItem").run();
       }
       if (editor.isActive("taskItem")) {
-        editor.chain().focus().liftListItem("taskItem").run();
+        editor.chain().focus(null, NO_SCROLL).liftListItem("taskItem").run();
       }
       if (command === "PAGE_MENTION") {
         void fetch("/api/pages/search?q=")
@@ -2208,7 +2213,9 @@ export function PageWorkspace({
       return;
     }
 
-    const chain = fromSlash ? removeSlashText(editor) : editor.chain().focus();
+    const chain = fromSlash
+      ? removeSlashText(editor)
+      : editor.chain().focus(null, NO_SCROLL);
     if (command === "paragraph") chain.setParagraph().run();
     else if (command === "heading1") chain.toggleHeading({ level: 1 }).run();
     else if (command === "heading2") chain.toggleHeading({ level: 2 }).run();
@@ -2256,16 +2263,45 @@ export function PageWorkspace({
   useEffect(() => {
     commandRef.current = applyCommand;
   });
+  // Whether the person has put the caret in the text yet: until then the
+  // selection is the start of the page by default, and a block picked in the
+  // Insert tab belongs in the first block on screen, so the page stays put.
+  const caretPlaced = useRef(false);
+  useEffect(() => {
+    if (!editor) return undefined;
+    const placed = () => {
+      caretPlaced.current = true;
+    };
+    editor.on("focus", placed);
+    return () => {
+      editor.off("focus", placed);
+    };
+  }, [editor]);
   useEffect(() => {
     if (!inV3 || isDatabase) return undefined;
     const on = (event: Event) => {
       const detail = (
-        event as CustomEvent<{ pageId?: string; command?: string }>
+        event as CustomEvent<{
+          pageId?: string;
+          command?: string;
+          index?: number;
+        }>
       ).detail;
       if (!detail || detail.pageId !== pageId || !canEdit || !editor) return;
       const known = COMMANDS.find((command) => command.id === detail.command);
       if (!known) return;
+      // The block goes where it was dropped, or at the caret (after the block
+      // the caret is in), and the page scrolls only as far as it must to show
+      // it: nothing when it is on screen already.
+      const at =
+        typeof detail.index === "number"
+          ? boundaryPos(editor.state.doc, detail.index)
+          : caretPlaced.current
+            ? editor.state.selection.from
+            : visibleBlockPos(editor);
+      openBlockAt(editor, at);
       commandRef.current(known.id, false);
+      revealPosition(editor, editor.state.selection.from);
     };
     window.addEventListener(PAGE_COMMAND_EVENT, on);
     return () => window.removeEventListener(PAGE_COMMAND_EVENT, on);
@@ -2957,7 +2993,7 @@ export function PageWorkspace({
         )}
         onClick={(event) => {
           if (event.target === event.currentTarget)
-            editor?.commands.focus("end");
+            editor?.commands.focus("end", NO_SCROLL);
         }}
       >
         <div className="mb-2 flex h-7 items-center gap-3 text-[12px] text-[var(--text-muted)] opacity-100 transition-opacity sm:opacity-0 sm:group-hover/page:opacity-100 sm:group-focus-within/page:opacity-100">
@@ -3055,7 +3091,7 @@ export function PageWorkspace({
           data-ctx-editor=""
           onClick={(event) => {
             if (event.target === event.currentTarget)
-              editor?.commands.focus("end");
+              editor?.commands.focus("end", NO_SCROLL);
           }}
         >
           <EditorContent editor={editor} />

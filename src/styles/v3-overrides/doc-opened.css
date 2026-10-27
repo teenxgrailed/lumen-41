@@ -14,6 +14,14 @@
  * `[data-doc-sheet]`, so the old shell and the phone reader are untouched.
  */
 
+/* The page's scroller does not animate scrolls it did not ask for: the browser
+ * reveals the caret on a click or a focus, and `.scroll-inner` is smooth, so a
+ * tap on the page glided it (the page "sprang"). The outline and the find bar
+ * pass `behavior: "smooth"` themselves where a glide is wanted. */
+.needt-v3 .docs-document-screen-3 {
+  scroll-behavior: auto;
+}
+
 /* ───────── the editor's frame becomes the page ───────── */
 .needt-v3 [data-doc-sheet] {
   position: relative;
@@ -1199,4 +1207,35 @@
     margin: -10px -6px -14px -14px;
     padding: 14px 6px 14px 14px;
   }
+}
+
+/* ───────── dragging a block from the Insert tab onto the page ───────── */
+.needt-v3 .docs-insert-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  border-radius: var(--radius-md);
+  opacity: 0.92;
+  will-change: transform;
+}
+.needt-v3 .docs-insert-ghost[data-over="no"] {
+  opacity: 0.5;
+}
+.needt-v3 .docs-insert-drop-line {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.needt-v3[data-insert-dragging],
+.needt-v3[data-insert-dragging] * {
+  cursor: grabbing;
+  -webkit-user-select: none;
+  user-select: none;
 }
