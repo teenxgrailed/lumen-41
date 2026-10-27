@@ -157,13 +157,13 @@ describe("Composer: each type is its own form", () => {
     expect(goButton().textContent).toContain("Add task");
   });
 
-  it("Event: New event, date, time, length and calendar, no priority, a location field", () => {
+  it("Event: New event, date, start, end, length and calendar, no priority, a location field", () => {
     mount();
     act(() => tab("Event").click());
     expect(field().placeholder).toBe("New event");
     expect(field().getAttribute("aria-label")).toBe("Event name");
     const foot = footLabels();
-    expect(foot).toEqual(["Date", "Time", "Duration", "Needt"]);
+    expect(foot).toEqual(["Date", "Time", "End", "Duration", "Needt"]);
     expect(foot).not.toContain("Priority");
     expect(foot).not.toContain("Project");
     expect(q('input[aria-label="Location"]')).not.toBeNull();
@@ -303,5 +303,52 @@ describe("Composer: Enter makes the current type", () => {
     await act(async () => enter());
     expect(createDoc).toHaveBeenCalledTimes(1);
     expect(createDoc.mock.calls[0][0].draft.title).toBeUndefined();
+  });
+});
+
+describe("Composer: an Event runs from a start to an end", () => {
+  it('reads "3-4pm" as a range and shows the length as the duration chip', () => {
+    mount();
+    act(() => tab("Event").click());
+    type("standup tomorrow 3-4pm");
+    const chips = Array.from(document.querySelectorAll(".cmp-chip")).map(
+      (c) => c.textContent
+    );
+    expect(chips.join("|")).toContain("3–4pm");
+    expect(chips.join("|")).toContain("1 h");
+    const foot = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".cmp-foot .cmp-btn")
+    ).map((b) => b.textContent);
+    expect(foot).toContain("3 pm");
+    expect(foot).toContain("4 pm");
+  });
+
+  it("makes the event from the start to the end", async () => {
+    mount();
+    act(() => tab("Event").click());
+    type("standup tomorrow 15:00-16:30");
+    enter();
+    await act(async () => undefined);
+    expect(createEvent).toHaveBeenCalledTimes(1);
+    expect(createEvent.mock.calls[0][0]).toMatchObject({
+      title: "standup",
+      startAt: expect.stringMatching(/T15:00$/),
+      endAt: expect.stringMatching(/T16:30$/),
+    });
+  });
+
+  it("the End picker writes a range into the line", () => {
+    mount();
+    act(() => tab("Event").click());
+    type("standup 3pm");
+    const end = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".cmp-foot .cmp-btn")
+    ).find((b) => b.textContent === "End")!;
+    act(() => end.click());
+    const row = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    ).find((r) => r.textContent?.startsWith("4:30 pm"))!;
+    act(() => row.click());
+    expect(field().value).toBe("standup 15:00-16:30");
   });
 });
