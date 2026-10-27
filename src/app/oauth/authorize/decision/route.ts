@@ -17,6 +17,7 @@ import {
   limitAuthorize,
 } from "@/services/oauth/limits";
 
+import { isAdminUserId } from "@/lib/auth/admin-role";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { publicAppUrl } from "@/lib/public-url";
 import { requestIp } from "@/lib/security/rate-limit";
@@ -83,10 +84,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const scopes = grantedScopes(authz.scopes, {
-    write: form.get("write") === "on",
-    mail: form.get("mail") === "on",
-  });
+  const wantsAdmin = form.get("admin") === "on";
+  const scopes = grantedScopes(
+    authz.scopes,
+    {
+      write: form.get("write") === "on",
+      mail: form.get("mail") === "on",
+      admin: wantsAdmin,
+    },
+    // The role is read again here, never trusted from the rendered form.
+    { isAdmin: wantsAdmin && (await isAdminUserId(userId)) }
+  );
   if (!scopes.length) {
     return NextResponse.redirect(
       clientRedirect(authz.redirectUri, {

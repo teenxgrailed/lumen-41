@@ -85,9 +85,13 @@ import {
   type CoMark,
   type ComposerFacet,
   type ComposerParse,
+  clockWords,
   composerDraft,
   composerParse,
+  lengthLabel,
+  pickEnd,
   pickFacet,
+  rangeWords,
   readsFacet,
   scopeParse,
   stripFacet,
@@ -123,14 +127,15 @@ const TONE: Record<CoFacetKind, string> = {
 type PickKind =
   | "date"
   | "time"
+  | "end"
   | "duration"
   | "priority"
   | "project"
   | "calendar"
   | "template";
 
-/** Pickers that set state beside the line rather than writing words into it. */
-type StatePick = "calendar" | "template";
+/** Pickers that set state beside the line, or write more than one facet. */
+type StatePick = "calendar" | "template" | "end";
 
 interface PickRow {
   label: string;
@@ -171,6 +176,7 @@ const PICK: Record<
 
 const PICK_TITLE: Record<PickKind, string> = {
   time: "Start time",
+  end: "End time",
   calendar: "Calendar",
   template: "Template",
   date: S.CO_PICK.date,
@@ -219,6 +225,13 @@ const MORE: {
   },
   { label: "Repeat", Icon: LuRepeat, tone: ACCENT, words: "every day" },
 ];
+
+/** "4:30 pm" for minutes from midnight. */
+function clock12(minutes: number) {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+}
 
 /** What each type is called in the line, its name field and its button. */
 const COPY: Record<CoKind, { placeholder: string; field: string; go: string }> =
@@ -738,6 +751,44 @@ export function Composer({ open, onClose }: ComposerProps) {
     onPick: (id: string) => void;
     onClear: () => void;
   }
+  /* The end of an Event: picked as a length from its start, written back into
+     the line as a range ("15:00-16:00") so the sentence stays the one truth. */
+  const startAt = p.time?.minutes ?? 9 * 60;
+  const endPick: Custom = {
+    value: p.end ? clock12(p.end.minutes) : null,
+    rows: [30, 60, 90, 120, 180]
+      .filter((o) => startAt + o < 24 * 60)
+      .map(
+        (o): PickRow => ({
+          label: `${clock12(startAt + o)} · ${lengthLabel(o)}`,
+          Icon: LuClock,
+          words: String(startAt + o),
+        })
+      ),
+    onPick: (words) => edit((t) => pickEnd(t, p, Number(words))),
+    onClear: () =>
+      edit((t) => pickFacet(t, p.time, p.time ? clockWords(startAt) : "")),
+  };
+  /* With a range in the line, the Time button moves it, keeping its length. */
+  const startPick: Custom | undefined = p.end
+    ? {
+        value: clock12(startAt),
+        rows: PICK.time.filter((r): r is PickRow => r != null),
+        onPick: (words) => {
+          const at = composerParse(words, newDate()).time?.minutes;
+          if (at == null || !p.end) return;
+          const len = p.end.minutes - startAt;
+          edit((t) =>
+            pickFacet(
+              t,
+              p.time,
+              rangeWords(at, Math.min(at + len, 24 * 60 - 1))
+            )
+          );
+        },
+        onClear: () => edit((t) => stripFacet(t, p.time)),
+      }
+    : undefined;
   const footBtn = (
     k: PickKind,
     Glyph: Icon,
@@ -745,7 +796,7 @@ export function Composer({ open, onClose }: ComposerProps) {
     tone: string,
     custom?: Custom
   ) => {
-    const word = k === "calendar" || k === "template" ? null : k;
+    const word = k === "calendar" || k === "template" || k === "end" ? null : k;
     const value = custom
       ? custom.value
       : word
@@ -1043,7 +1094,8 @@ export function Composer({ open, onClose }: ComposerProps) {
               {kind === "event" ? (
                 <>
                   {footBtn("date", LuCalendar, T.date, ACCENT)}
-                  {footBtn("time", LuClock, "Time", ACCENT)}
+                  {footBtn("time", LuClock, "Time", ACCENT, startPick)}
+                  {footBtn("end", LuClock, "End", ACCENT, endPick)}
                   {footBtn(
                     "duration",
                     LuHourglass,

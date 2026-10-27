@@ -216,11 +216,11 @@ describe("Tasks across the 700 px swap", () => {
 
     render(client, "desktop", null);
     expect(host.querySelector(".ptk-seg")).toBeNull();
-    expect(q(".wk-tabbtn.is-on").textContent).toContain("Upcoming");
+    expect(q("[role=tab][aria-selected=true]").textContent).toContain("Upcoming");
 
     // changed on the desktop face ...
     act(() => {
-      [...host.querySelectorAll<HTMLElement>(".wk-tabbtn")]
+      [...host.querySelectorAll<HTMLElement>(".wk-tabs [role=tab]")]
         .find((b) => b.textContent?.startsWith("Inbox"))!
         .click();
     });

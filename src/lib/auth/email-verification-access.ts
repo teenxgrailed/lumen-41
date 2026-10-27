@@ -13,7 +13,7 @@ export async function getEmailVerificationStatus(userId: string) {
   return {
     email: user?.email ?? null,
     verified: Boolean(user?.emailVerified),
-    required: settings?.requireEmailVerificationBeforeAccess ?? false,
+    required: settings?.requireEmailVerificationBeforeAccess ?? true,
   };
 }
 
@@ -21,5 +21,5 @@ export async function requiresEmailVerificationBeforeAccess(): Promise<boolean> 
   const settings = await prisma.systemSettings.findFirst({
     select: { requireEmailVerificationBeforeAccess: true },
   });
-  return settings?.requireEmailVerificationBeforeAccess ?? false;
+  return settings?.requireEmailVerificationBeforeAccess ?? true;
 }

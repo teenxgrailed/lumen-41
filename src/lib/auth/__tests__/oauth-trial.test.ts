@@ -60,7 +60,7 @@ describe("OAuth trial activation", () => {
         type: "oauth",
         providerAccountId: "google-1",
       },
-      profile: undefined,
+      profile: { email: "oauth@example.com", email_verified: true },
       isNewUser: true,
       trigger: "signIn",
     } as never);
@@ -74,5 +74,33 @@ describe("OAuth trial activation", () => {
       userId: "db-user-1",
       email: "oauth@example.com",
     });
+  });
+
+  it("leaves the email unconfirmed when the provider does not vouch for it", async () => {
+    jest.mocked(markEmailVerifiedAndStartTrial).mockClear();
+    jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
+    const options = await getAuthOptions();
+    const jwt = options.callbacks?.jwt as NonNullable<
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
+    const account = {
+      provider: "google",
+      type: "oauth",
+      providerAccountId: "google-2",
+    };
+    const user = { id: "db-user-2", email: "oauth@example.com", role: "user" };
+    const unverified = { email: "oauth@example.com", email_verified: false };
+    const otherAddress = { email: "else@example.com", email_verified: true };
+    for (const profile of [unverified, otherAddress, undefined]) {
+      await jwt({
+        token: {},
+        user,
+        account,
+        profile,
+        isNewUser: true,
+        trigger: "signIn",
+      } as never);
+    }
+    expect(markEmailVerifiedAndStartTrial).not.toHaveBeenCalled();
   });
 });

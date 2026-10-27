@@ -1,6 +1,7 @@
 import { PropsWithChildren } from "react";
 
 import { PWARegister } from "@/components/pwa/PWARegister";
+import { StaleDeploymentPrompt } from "@/components/pwa/StaleDeploymentPrompt";
 
 import { CustomizationRuntime } from "./CustomizationRuntime";
 import { MotionRuntime } from "./MotionRuntime";
@@ -21,6 +22,7 @@ export function Providers({ children }: PropsWithChildren) {
                 <RealtimeSyncProvider>
                   {children}
                   <PWARegister />
+                  <StaleDeploymentPrompt />
                 </RealtimeSyncProvider>
               </WorkspaceProvider>
             </SessionProvider>

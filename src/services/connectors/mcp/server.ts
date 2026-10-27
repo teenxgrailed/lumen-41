@@ -163,7 +163,7 @@ export async function handleMcpMessage(
     case "ping":
       return result(id, {});
     case "tools/list":
-      return result(id, { tools: listMcpTools() });
+      return result(id, { tools: listMcpTools(ctx.auth.scopes) });
     case "tools/call":
       return callTool(ctx, id, params);
     default:

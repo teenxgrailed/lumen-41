@@ -58,7 +58,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   try {
     const { id } = await params;
-    const body = (await request.json()) as { blockerTaskId?: unknown };
+    const body = ((await request.json().catch(() => null)) ?? {}) as {
+      blockerTaskId?: unknown;
+    };
     if (typeof body.blockerTaskId !== "string") {
       return NextResponse.json(
         { error: "blockerTaskId is required" },

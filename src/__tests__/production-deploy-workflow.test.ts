@@ -198,7 +198,7 @@ describe("production deployment workflow", () => {
       // Pinned to the deployed commit, never a moving tag a cache could hold.
       expect(dockerfile).toContain("ARG SOURCE_COMMIT\n");
       expect(dockerfile).toContain(
-        `FROM ghcr.io/teenxgrails/needt-${app}:\${SOURCE_COMMIT}`
+        `FROM ghcr.io/teenxgrailed/needt-${app}:\${SOURCE_COMMIT}`
       );
       expect(dockerfile).not.toMatch(/^RUN /m);
     }

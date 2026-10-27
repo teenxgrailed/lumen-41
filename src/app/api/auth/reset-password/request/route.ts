@@ -20,7 +20,7 @@ const LOG_SOURCE = "ResetPasswordRequestAPI";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { email } = (await request.json().catch(() => null)) ?? {};
 
     if (!email) {
       logger.warn("Missing email in password reset request", {}, LOG_SOURCE);

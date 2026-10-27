@@ -6,4 +6,4 @@
 # If the image for this commit does not exist yet, the pull fails and the
 # running container stays up.
 ARG SOURCE_COMMIT
-FROM ghcr.io/teenxgrails/needt-worker:${SOURCE_COMMIT}
+FROM ghcr.io/teenxgrailed/needt-worker:${SOURCE_COMMIT}

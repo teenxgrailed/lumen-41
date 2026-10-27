@@ -35,6 +35,7 @@ import { TaskDialogHost } from "../dialogs/TaskDialog";
 import { PhoneProjects, PhoneTasks, phoneTab } from "../phone/tasks";
 import { useDesignV3 } from "../root/V3Root";
 import { usePhoneUi } from "../root/phone-ui-context";
+import { Segmented } from "../shell/Segmented";
 import {
   StarterGameSlot,
   useStarterGameCard,
@@ -311,22 +312,17 @@ function WorkScreenContent({
           </span>
         ) : null}
         {isProjects ? null : (
-          <span className="wk-tabs">
-            {tabs.map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                className={`wk-tab wk-tabbtn${tab === id ? " is-on" : ""}`}
-                onClick={() => setTab(id)}
-                aria-pressed={tab === id}
-              >
-                {label}
-                {m.counts[id] ? (
-                  <span className="wk-meta wk-num">{m.counts[id]}</span>
-                ) : null}
-              </button>
-            ))}
-          </span>
+          <Segmented
+            className="wk-tabs"
+            label="Tasks view"
+            value={tab}
+            onChange={setTab}
+            options={tabs.map(([id, label]) => ({
+              id,
+              label,
+              count: m.counts[id],
+            }))}
+          />
         )}
         {isProjects ? null : <TaskViewGear scope="tasks" />}
       </header>

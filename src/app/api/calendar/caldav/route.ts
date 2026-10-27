@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const json = await request.json();
+    const json = (await request.json().catch(() => null)) ?? {};
     const { accountId, calendarId } = json;
 
     // Validate required fields

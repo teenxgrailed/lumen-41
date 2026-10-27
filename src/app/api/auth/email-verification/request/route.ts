@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     [
       ipRule(request, "email-verification:ip", 10, 60 * 60),
       accountRule(rateLimitIdentity, "email-verification:account", 3, 60 * 60),
+      // Resend cooldown: one mail a minute, matching the screen's countdown.
+      accountRule(rateLimitIdentity, "email-verification:cooldown", 1, 60),
     ],
     { route: request.nextUrl.pathname }
   );

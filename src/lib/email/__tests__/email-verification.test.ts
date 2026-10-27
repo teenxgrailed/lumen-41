@@ -1,3 +1,6 @@
+import { revokeConnectorTokens } from "@/services/connectors/auth";
+
+import { forgetSessionState } from "@/lib/auth/session-version";
 import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import {
@@ -16,6 +19,8 @@ const tx = {
     findUnique: jest.fn(),
     update: jest.fn(),
   },
+  account: { updateMany: jest.fn() },
+  adminAuditLog: { create: jest.fn() },
   subscription: { upsert: jest.fn() },
   trialGrant: {
     createMany: jest.fn(),
@@ -33,6 +38,15 @@ jest.mock("@/lib/prisma", () => ({
       deleteMany: jest.fn(),
     },
   },
+}));
+jest.mock("bcryptjs", () => ({
+  hash: jest.fn().mockResolvedValue("new-password-hash"),
+}));
+jest.mock("@/services/connectors/auth", () => ({
+  revokeConnectorTokens: jest.fn().mockResolvedValue({ count: 0 }),
+}));
+jest.mock("@/lib/auth/session-version", () => ({
+  forgetSessionState: jest.fn(),
 }));
 jest.mock("@/lib/email/email-service", () => ({
   EmailService: { sendEmail: jest.fn() },
@@ -52,7 +66,11 @@ describe("email verification confirmation", () => {
     tx.user.findUnique.mockResolvedValue({
       id: "user-1",
       email: "person@example.com",
+      emailVerified: null,
+      accounts: [],
     });
+    tx.account.updateMany.mockResolvedValue({ count: 1 });
+    tx.adminAuditLog.create.mockResolvedValue({});
     tx.user.update.mockResolvedValue({});
     tx.subscription.upsert.mockResolvedValue({});
     tx.trialGrant.findFirst.mockResolvedValue(null);
@@ -83,6 +101,88 @@ describe("email verification confirmation", () => {
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { emailVerified: newDate("2026-09-16T12:00:00.000Z") },
+    });
+  });
+
+  describe("an account created with a password nobody has proven yet", () => {
+    const now = newDate("2026-09-16T12:00:00.000Z");
+    const link = (extra: object = {}) => ({
+      email: "person@example.com",
+      token: "raw-token",
+      now,
+      ...extra,
+    });
+
+    beforeEach(() => {
+      tx.verificationToken.findUnique.mockResolvedValue({
+        identifier: "person@example.com",
+        token: "stored-hash",
+        expires: newDate("2026-09-17T11:00:00.000Z"),
+      });
+      tx.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        email: "person@example.com",
+        emailVerified: null,
+        accounts: [{ provider: "credentials", id_token: "attacker-hash" }],
+      });
+    });
+
+    it("in the signing-up browser keeps the password and the sessions", async () => {
+      await expect(
+        confirmEmailVerification(link({ sameSession: true }))
+      ).resolves.toEqual({ status: "verified", trial: true });
+      expect(tx.account.updateMany).not.toHaveBeenCalled();
+      expect(tx.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { emailVerified: now },
+      });
+      expect(revokeConnectorTokens).not.toHaveBeenCalled();
+    });
+
+    it("in any other browser asks for a password and spends nothing", async () => {
+      await expect(
+        confirmEmailVerification(link({ sameSession: false }))
+      ).resolves.toEqual({ status: "password_required", trial: false });
+      expect(tx.user.update).not.toHaveBeenCalled();
+      expect(tx.account.updateMany).not.toHaveBeenCalled();
+      expect(tx.verificationToken.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("in any other browser, with a new password: replaces it, signs every earlier session out, logs it", async () => {
+      await expect(
+        confirmEmailVerification(
+          link({ sameSession: false, newPassword: "Fresh-Pass-1" })
+        )
+      ).resolves.toEqual({ status: "verified", trial: true });
+      expect(tx.account.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", provider: "credentials" },
+        data: { id_token: "new-password-hash" },
+      });
+      expect(tx.user.update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { emailVerified: now, sessionVersion: { increment: 1 } },
+      });
+      expect(tx.adminAuditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          targetUserId: "user-1",
+          action: "auth.unproven_password_reset_on_confirm",
+        }),
+      });
+      expect(forgetSessionState).toHaveBeenCalledWith("user-1");
+      expect(revokeConnectorTokens).toHaveBeenCalledWith("user-1");
+    });
+
+    it("an account with no password (provider sign-up) confirms anywhere", async () => {
+      tx.user.findUnique.mockResolvedValue({
+        id: "user-1",
+        email: "person@example.com",
+        emailVerified: null,
+        accounts: [],
+      });
+      await expect(
+        confirmEmailVerification(link({ sameSession: false }))
+      ).resolves.toEqual({ status: "verified", trial: true });
+      expect(tx.account.updateMany).not.toHaveBeenCalled();
     });
   });
 

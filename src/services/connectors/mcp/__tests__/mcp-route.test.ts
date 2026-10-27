@@ -161,8 +161,11 @@ describe("remote MCP endpoint", () => {
       rpc({ jsonrpc: "2.0", id: 2, method: "tools/list" })
     );
     const { result } = await list.json();
+    // A personal token never carries needt.admin.read: admin tools stay hidden.
     expect(result.tools.map((tool: { name: string }) => tool.name)).toEqual(
-      MCP_TOOLS.map((tool) => tool.name)
+      MCP_TOOLS.filter((tool) => !tool.name.startsWith("needt_admin_")).map(
+        (tool) => tool.name
+      )
     );
     expect(result.tools[0].name).toBe("needt_whoami");
     for (const tool of result.tools) {

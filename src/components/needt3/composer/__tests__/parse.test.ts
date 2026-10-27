@@ -4,6 +4,7 @@ import type { V3Project } from "@/lib/needt3/map";
 import {
   composerDraft,
   composerParse,
+  pickEnd,
   pickFacet,
   projectForSigil,
   stripFacet,
@@ -252,5 +253,53 @@ describe("line edits", () => {
 
   it("unclaimed tidies spaces and punctuation", () => {
     expect(unclaimed("a b, c", [{ from: 2, to: 3 }])).toBe("a, c");
+  });
+});
+
+describe("composerParse: time ranges", () => {
+  const read = (t: string) => composerParse(t, NOW, PROJECTS);
+
+  it.each([
+    ["standup 3-4pm", 15 * 60, 16 * 60],
+    ["standup 3pm-4:30pm", 15 * 60, 16 * 60 + 30],
+    ["standup 15:00–16:30", 15 * 60, 16 * 60 + 30],
+    ["standup 9:30-11am", 9 * 60 + 30, 11 * 60],
+    ["standup 11-1pm", 11 * 60, 13 * 60],
+    ["standup 11am - 12pm", 11 * 60, 12 * 60],
+  ])("%s", (line, start, end) => {
+    const p = read(line);
+    expect(p.time?.minutes).toBe(start);
+    expect(p.end?.minutes).toBe(end);
+    expect(p.duration?.minutes).toBe(end - start);
+    expect(p.title).toBe("standup");
+  });
+
+  it("drafts an event from the range", () => {
+    const d = composerDraft(read("standup tomorrow 3-4pm"), NOW, "event");
+    expect(d).toMatchObject({
+      kind: "event",
+      event: { startAt: "2026-09-02T15:00", endAt: "2026-09-02T16:00" },
+    });
+  });
+
+  it("is not fooled by bare numbers, backwards ranges or a second clock", () => {
+    expect(read("read pages 2-3").end).toBeNull();
+    expect(read("standup 16:00-15:00").end).toBeNull();
+    expect(read("standup 3-4pm at 5pm").end).toBeNull();
+  });
+
+  it("a single clock still has no end", () => {
+    const p = read("standup 3pm");
+    expect(p.end).toBeNull();
+    expect(p.time?.minutes).toBe(15 * 60);
+  });
+
+  it("pickEnd rewrites the clock into a range and drops a typed length", () => {
+    const p = read("standup 3pm for 1h");
+    expect(pickEnd("standup 3pm for 1h", p, 16 * 60 + 30)).toBe(
+      "standup 15:00-16:30"
+    );
+    const bare = read("standup");
+    expect(pickEnd("standup", bare, 10 * 60)).toBe("standup 09:00-10:00");
   });
 });

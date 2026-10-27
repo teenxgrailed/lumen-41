@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { queryAdminLogs } from "@/services/admin/logs";
 import { Prisma } from "@prisma/client";
 
 import { requireAdmin } from "@/lib/auth/api-auth";
@@ -38,51 +39,26 @@ export async function GET(request: NextRequest) {
       LOG_SOURCE
     );
 
-    // Build where clause
-    const where: Prisma.LogWhereInput = {};
-    if (level) where.level = level;
-    if (source) where.source = source;
-    if (from || to) {
-      where.timestamp = {};
-      if (from) where.timestamp.gte = new Date(from);
-      if (to) where.timestamp.lte = new Date(to);
-    }
-    if (search) {
-      where.OR = [
-        { message: { contains: search, mode: "insensitive" } },
-        { source: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    // Get total count for pagination
-    const total = await prisma.log.count({ where });
-
-    // Get logs with pagination
-    const logs = await prisma.log.findMany({
-      where,
-      orderBy: { timestamp: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
+    const result = await queryAdminLogs({
+      page,
+      limit,
+      level,
+      source,
+      from,
+      to,
+      search,
     });
 
     logger.debug(
       "Successfully fetched logs",
       {
-        totalLogs: String(total),
-        returnedLogs: String(logs.length),
+        totalLogs: String(result.pagination.total),
+        returnedLogs: String(result.logs.length),
       },
       LOG_SOURCE
     );
 
-    return NextResponse.json({
-      logs,
-      pagination: {
-        total,
-        pages: Math.ceil(total / limit),
-        current: page,
-        limit,
-      },
-    });
+    return NextResponse.json(result);
   } catch (error) {
     logger.error(
       "Failed to fetch logs",
