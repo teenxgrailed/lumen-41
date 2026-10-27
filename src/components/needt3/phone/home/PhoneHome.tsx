@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -30,6 +30,7 @@ import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
+import type { DayBand } from "@/lib/personal-time-days";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
@@ -93,6 +94,7 @@ import {
   pkDotSweep,
   pkReduced,
 } from "../kit";
+import { PersonalBandSheet } from "../overlays/PersonalBandSheet";
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
@@ -200,6 +202,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   });
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
+  const [band, setBand] = useState<DayBand | null>(null);
   const workCap = capacityFrom(prefs);
   const left = timeLeft({
     capacity: freeMinutesLeft(workCap, today, nowHour, []),
@@ -521,7 +524,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       {ready && personal.length ? (
         <div className="ha-phone ha-ph-stack ha-ph-bands" data-ha-bands="">
           {personal.map((b) => (
-            <HaBand key={b.key} b={haBandOf(b)} />
+            <HaBand key={b.key} b={haBandOf(b)} onOpen={(x) => setBand(x)} />
           ))}
         </div>
       ) : null}
@@ -629,6 +632,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         onClose={stats.close}
         {...stats.sheet}
       />
+      <PersonalBandSheet band={band} onClose={() => setBand(null)} />
     </PkScreen>
   );
 }
