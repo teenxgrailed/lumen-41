@@ -49,7 +49,10 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
   await expect(row.locator("[data-task-pin]")).toHaveCount(0);
 
   await page.goto(`/tasks?task=${task.id}`);
-  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "More", exact: true })
+    .click();
   await page.getByRole("menuitem", { name: "Pin here" }).click();
 
   await expect
@@ -70,7 +73,10 @@ test("a task is pinned from its menu and handed back to the scheduler", async ({
   ).toHaveAttribute("title", /^Pinned at \d{2}:\d{2} — the scheduler won't/);
 
   await page.goto(`/tasks?task=${task.id}`);
-  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "More", exact: true })
+    .click();
   await page.getByRole("menuitem", { name: "Let Needt schedule it" }).click();
 
   await expect
