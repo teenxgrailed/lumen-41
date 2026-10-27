@@ -1,0 +1,1 @@
+- Tasks: the project column in task rows now ends at the same right edge as the header tabs on wide windows, instead of stopping about 100 px short.

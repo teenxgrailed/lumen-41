@@ -72,12 +72,47 @@ async function expectFillsWidth(page: Page, selector: string, width: number) {
   expect(right).toBeLessThanOrEqual(width);
 }
 
+/**
+ * The last row column ends where the header ends: the task-view gear is the
+ * header's last control (the tabs sit one gear to its left). The list's own
+ * scrollbar (if it takes layout space) is allowed for; everything else must be
+ * within 8 px.
+ */
+async function expectRowsAlignWithHeader(page: Page) {
+  // rows load after the shell: wait for the first project cell before measuring
+  // (an empty cell has no height, so it is attached but never "visible")
+  await page
+    .locator(".wk-screen .tk-cell-proj")
+    .first()
+    .waitFor({ state: "attached", timeout: 20_000 });
+  const gap = await page.evaluate(() => {
+    const tabs = document.querySelector("[data-task-view-gear]");
+    const scroll = document.querySelector<HTMLElement>(".wk-scroll");
+    const cells = Array.from(
+      document.querySelectorAll(".wk-screen .tk-cell-proj")
+    );
+    if (!tabs || !scroll || !cells.length) return null;
+    const cell = cells.find((c) => c.querySelector(".tk-ellip")) ?? cells[0];
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    const content = range.getBoundingClientRect();
+    const right = content.width
+      ? content.right
+      : cell.getBoundingClientRect().right;
+    const bar = scroll.offsetWidth - scroll.clientWidth;
+    return tabs.getBoundingClientRect().right - bar - right;
+  });
+  expect(gap).not.toBeNull();
+  expect(Math.abs(gap ?? 999)).toBeLessThanOrEqual(8);
+}
+
 for (const width of WIDTHS) {
   test(`Tasks fills the window at ${width} px`, async ({ page }) => {
     await prepare(page, width);
     await page.goto("/tasks", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".wk-screen")).toBeVisible({ timeout: 20_000 });
     await expectFillsWidth(page, ".wk-screen", width);
+    await expectRowsAlignWithHeader(page);
     await settle(page);
     await expect(page).toHaveScreenshot(`list-width-tasks-${width}.png`);
   });
