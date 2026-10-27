@@ -15,10 +15,15 @@
 
 /* ---------- frames: dock column / narrow sheet / corner panel ---------- */
 .needt-v3 .chat-box { position: relative; display: flex; flex-direction: column; border-radius: 20px; background: var(--surface-raised); overflow: hidden; isolation: isolate; }
-.needt-v3 .chat-frame-panel { flex: none; width: 360px; height: 100%; box-sizing: border-box; padding: 0 20px 20px 0; display: flex; }
+.needt-v3 .chat-frame-panel { flex: none; width: 100%; height: 100%; box-sizing: border-box; padding: 0; display: flex; }
 .needt-v3 .chat-frame-layer { position: absolute; inset: 0; z-index: 740; background: var(--nx-scrim); }
-.needt-v3 .chat-dock-card { flex: 1; min-width: 0; box-shadow: var(--shadow-ring); transform-origin: 100% 100%; animation: v3-chat-spring-in 460ms var(--chat-spring) backwards; }
-.needt-v3 .chat-dock-card.is-leaving { animation: v3-chat-spring-out 200ms var(--chat-out) forwards; pointer-events: none; }
+/* The docked panel is the left rail's twin: a flat column on the page colour
+   that fades and slides 12px in (260ms) and out (180ms). */
+.needt-v3 .chat-dock-card { flex: 1; min-width: 0; border-radius: 0; background: var(--background); box-shadow: none; animation: v3-ask-dock-in 260ms var(--nx-ease) backwards; }
+.needt-v3 .chat-dock-card.is-leaving { animation: v3-ask-dock-out 180ms ease forwards; pointer-events: none; }
+@keyframes v3-ask-dock-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes v3-ask-dock-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(12px); } }
+.needt-v3 .chat-dock-card .chat-head { background-color: color-mix(in oklab, var(--background) 74%, transparent); }
 .needt-v3 .chat-sheet { position: absolute; top: 0; right: 12px; bottom: 12px; width: min(380px, calc(100% - 24px)); z-index: 750; box-shadow: var(--shadow-floating);
   animation: v3-chat-sheet-in 420ms var(--chat-spring) backwards; }
 .needt-v3 .chat-sheet.is-leaving { animation: v3-chat-sheet-out 200ms var(--chat-out) forwards; pointer-events: none; }

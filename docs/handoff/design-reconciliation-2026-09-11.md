@@ -252,3 +252,29 @@ inverted against the page (the prototype's `ToastLayer`: `--text-primary` fill,
 `--background` ink), per the owner's mockups. This overrides PORT.md §6 for
 that kind of notice only. The growing island in the Ask Needt corner is
 unchanged and still carries the product's own nudges (`surface: "island"`).
+
+## Owner ruling, 2026-10-26: the phone's page change moves
+
+PORT.md §6 says the element that changed moves and nothing else does, and the
+prototype swaps the stage by key between places (MOTION.md, "Phone screens":
+no transition between places, only the halftone sweep). On the phone that was
+too subtle to notice. The owner asked for a stronger page change, so this is
+an exception to §6 for **moving between places on the phone**, and for that
+only:
+
+| Move                                               | What happens                                                                                             | Time   |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| To a dock tile on the right of the one you were on | the new page slides in from the right over the old one, which gives way 26% to the left and dims to 0.55 | 360 ms |
+| To a dock tile on the left                         | the same, mirrored                                                                                       | 360 ms |
+| To a place that is not a dock tile (the menu card) | the new page rises from the dock: scale 0.96 to 1, a 24 px lift, fading in over the old one              | 340 ms |
+| Reduced motion                                     | no movement, a crossfade over the old page                                                               | 150 ms |
+
+The curve is the house ease (`--nx-ease`). Nothing overshoots, so §6's rule
+against oscillation is kept. What does **not** change: the dock, the fog under
+it, the sync dot and every sheet stay still (only the page moves, which is why
+the transform sits on the screen's content and not on the stage), only
+`transform` and `opacity` move, nothing is fixed or shadowed, and the
+halftone sweep is unchanged. Back/Forward in the browser is left to Safari's
+own gesture. Everything else in §6 (rise-and-settle for a changed element, the
+55 ms stagger, living motion) stands. Source: `phone/shell/pageMotion.ts`,
+`styles/v3-overrides/phone-page-motion.css`.

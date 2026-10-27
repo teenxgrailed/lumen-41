@@ -58,6 +58,35 @@
 }
 @keyframes v3-page-dock-out {
   from {
-    clip-path: inset(0 360px 0 0);
+    clip-path: inset(0 var(--ask-w, 300px) 0 0);
   }
+}
+
+/* The dock's left edge: a 6px strip you drag to resize (ChatDockSlot). */
+.needt-v3 .chat-dock-edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.needt-v3 .chat-dock-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.needt-v3 .chat-dock-edge:hover::after,
+.needt-v3 .chat-dock-edge:focus-visible::after,
+.needt-v3 .chat-dock-edge[data-dragging]::after {
+  opacity: 0.5;
 }
