@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { readJsonBody, runGoalOp } from "@/services/goals/http";
 import { OpError } from "@/services/ops";
-import { opErrorResponse } from "@/services/ops/http";
+import { authenticateAgentRequest, opErrorResponse } from "@/services/ops/http";
 
 const LOG_SOURCE = "goals-tasks-route";
 
@@ -15,12 +15,16 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params;
+  const auth = await authenticateAgentRequest(request, LOG_SOURCE, {
+    write: true,
+  });
+  if (auth.response) return auth.response;
   const parsed = await readJsonBody(request, LOG_SOURCE);
   if ("response" in parsed) return parsed.response;
   const { title, taskId } = parsed.body;
   if (typeof taskId === "string" && taskId) {
     return runGoalOp(
-      request,
+      auth,
       LOG_SOURCE,
       "task.update",
       { taskId, goalId: id },
@@ -29,7 +33,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
   if (typeof title === "string" && title.trim()) {
     return runGoalOp(
-      request,
+      auth,
       LOG_SOURCE,
       "task.create",
       { title: title.trim(), goalId: id },
