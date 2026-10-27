@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 /**
  * What the open document or board tells the one sync status in the top bar.
@@ -48,4 +48,15 @@ export function useSyncSource(): SyncSource | null {
     () => current,
     () => null
   );
+}
+
+/**
+ * Mark the screen as an editing surface that has nothing of its own to report
+ * (a board's grid): the save status shows, driven by the app's writes alone.
+ */
+export function useEditingSurface(key: string) {
+  useEffect(() => {
+    setSyncSource(key, {});
+    return () => setSyncSource(key, null);
+  }, [key]);
 }

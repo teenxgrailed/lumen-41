@@ -48,6 +48,8 @@ const query = (data: unknown) => ({
   refetch: jest.fn(),
 });
 
+// The save status has its own tests (sync/__tests__); it needs the session.
+jest.mock("../../../sync/SyncStatus", () => ({ SyncStatus: () => null }));
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));

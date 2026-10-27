@@ -3,13 +3,17 @@
  *
  * One way to hide the sidebar: the panel icon in the top bar, on a plain
  * screen and with a document open. Nothing else in the bar carries the
- * toggle (the document rail used to have a second, layout-icon button), and
- * the top bar shows exactly one sync status.
+ * toggle (the document rail used to have a second, layout-icon button).
+ *
+ * The save status is for editing surfaces only: the top bar carries none on a
+ * plain screen, exactly one while a document, page or board has registered a
+ * sync source, and the offline pill (never both) when the connection is lost.
  */
 import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { setSyncSource } from "../../sync/sync-source";
 import { ShellContext } from "../ShellContext";
 import { Topbar } from "../Topbar";
 
@@ -26,8 +30,15 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   useDoc: () => ({ data: { title: "Launch", isDatabase: false } }),
 }));
 jest.mock("../TopIcons", () => ({ TopIcons: () => null }));
-jest.mock("../../sync/SyncStatus", () => ({
-  SyncStatus: () => h("span", { "data-sync-status": "saved" }),
+jest.mock("../../states/useOfflineQueue", () => ({
+  useOfflineQueue: () => ({ online: navigator.onLine, queued: null }),
+}));
+jest.mock("../../sync/useMutationHealth", () => ({
+  useMutationHealth: () => ({
+    mutating: 0,
+    failedMutations: 0,
+    retry: jest.fn(),
+  }),
 }));
 jest.mock("../../document/DocTopRight", () => ({
   DocTopRight: () => null,
@@ -47,7 +58,16 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  act(() => setSyncSource("test", null));
+  setOnline(true);
 });
+
+function setOnline(value: boolean) {
+  Object.defineProperty(navigator, "onLine", {
+    configurable: true,
+    value,
+  });
+}
 
 const render = () =>
   act(() => {
@@ -81,9 +101,39 @@ describe("Topbar sidebar toggle", () => {
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
   });
 
-  it("shows exactly one sync status", () => {
-    path = "/pages/p1";
+  it.each(["/", "/tasks", "/calendar"])("carries no save status on %s", (p) => {
+    path = p;
     render();
-    expect(host.querySelectorAll("[data-sync-status]")).toHaveLength(1);
+    expect(host.querySelector("[data-sync-status]")).toBeNull();
+    expect(host.querySelector("[data-st-offline]")).toBeNull();
+  });
+
+  it.each(["/pages/p1", "/moodboards/b1"])(
+    "shows exactly one save status on %s",
+    (p) => {
+      path = p;
+      act(() => setSyncSource("test", { save: "saved" }));
+      render();
+      expect(host.querySelectorAll("[data-sync-status]")).toHaveLength(1);
+    }
+  );
+
+  it("shows the offline pill on a plain screen, and not the save status", () => {
+    setOnline(false);
+    path = "/tasks";
+    render();
+    expect(host.querySelectorAll("[data-st-offline]")).toHaveLength(1);
+    expect(host.querySelector("[data-sync-status]")).toBeNull();
+  });
+
+  it("says offline through the save status on an editing surface, not the pill", () => {
+    setOnline(false);
+    path = "/pages/p1";
+    act(() => setSyncSource("test", { save: "offline" }));
+    render();
+    expect(host.querySelector("[data-st-offline]")).toBeNull();
+    expect(
+      host.querySelector("[data-sync-status]")?.getAttribute("data-sync-status")
+    ).toBe("offline");
   });
 });
