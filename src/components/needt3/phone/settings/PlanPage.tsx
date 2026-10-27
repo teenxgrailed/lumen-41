@@ -6,6 +6,7 @@ import { LuCheck } from "react-icons/lu";
 
 import { openBillingPortal, startTrial } from "@/lib/needt3/hooks/account";
 import { usePlan } from "@/lib/needt3/hooks/plan";
+import { offersTrial } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
@@ -19,11 +20,11 @@ const P = priceStrings();
 /** The plan card's second line (the desktop's, word for word). */
 export function planLine(
   kind: string,
-  b: { trialDaysLeft?: number | null } | undefined
+  b: { trialDaysLeft?: number | null; trialEligible?: boolean } | undefined
 ) {
   switch (kind) {
     case "free":
-      return `${P.trialShort}.`;
+      return `${offersTrial({ kind, trialEligible: b?.trialEligible }) ? P.trialShort : P.plansShort}.`;
     case "trial":
       return `${b?.trialDaysLeft ?? 0} days left of your trial`;
     case "lifetime":
@@ -131,7 +132,7 @@ export function PlanPage() {
             </span>
           </span>
         ) : null}
-        {kind === "free" || kind === "trial" ? (
+        {offersTrial(b) || kind === "trial" ? (
           <span className="ps-plan-terms" data-ps-trial-terms="">
             {P.trialTerms}
           </span>

@@ -36,7 +36,7 @@ const resetSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const result = resetSchema.safeParse(body);
 
     if (!result.success) {

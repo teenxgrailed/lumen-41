@@ -55,7 +55,7 @@ jest.mock("@/services/imports/notion/client", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    workspace: { upsert: jest.fn(), findUnique: jest.fn() },
+    workspace: { createMany: jest.fn(), findUnique: jest.fn() },
     workspaceMember: { upsert: jest.fn(), findUnique: jest.fn() },
     importRun: {
       findFirst: jest.fn(),
@@ -107,7 +107,7 @@ describe("Notion OAuth routes", () => {
       sessionVersion: 0,
     } as never);
     jest
-      .mocked(prisma.workspace.upsert)
+      .mocked(prisma.workspace.findUnique)
       .mockResolvedValue({ id: PERSONAL, kind: "PERSONAL" } as never);
     jest
       .mocked(prisma.workspaceMember.upsert)

@@ -6,6 +6,7 @@ import { authSecret } from "@/lib/auth/auth-secret";
 import { mcpHost } from "@/lib/mcp-config";
 import { appRedirectUrl } from "@/lib/public-url";
 import { contentSecurityPolicy } from "@/lib/security/csp";
+import { isBogusActionId } from "@/lib/stale-deployment";
 
 const CSP_REPORT_ONLY = contentSecurityPolicy({
   collaborationUrl: process.env.NEXT_PUBLIC_COLLABORATION_URL,
@@ -204,6 +205,11 @@ async function handle(request: NextRequest): Promise<NextResponse> {
  * and rewrites included) gets it here as well.
  */
 export async function middleware(request: NextRequest) {
+  // Nothing of ours sends a build SHA as a server action id; refuse it here
+  // instead of letting Next log "Failed to find Server Action" for it.
+  if (isBogusActionId(request.headers.get("next-action"))) {
+    return new NextResponse(null, { status: 400 });
+  }
   const response = await handle(request);
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
   // Report-only: browsers report violations to /api/csp-report and block

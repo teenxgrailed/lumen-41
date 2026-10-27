@@ -1,5 +1,6 @@
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
+import { areSignupsOpen } from "@/lib/auth/signups";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +14,38 @@ export interface AdminOverview {
   plans: { pro: number; lifetime: number; free: number };
   waitlist: number;
   generatedAt: string;
+}
+
+export interface AdminSignupStats {
+  signupsToday: number;
+  signupsLast7Days: number;
+  verified: number;
+  unverified: number;
+  signupsOpen: boolean;
+}
+
+/**
+ * Sign-up counts the MCP admin overview adds to the Overview page's numbers:
+ * accounts made since UTC midnight and in the last 7 days, confirmed versus
+ * unconfirmed email, and whether registration is open (`signups_open`).
+ */
+export async function getAdminSignupStats(
+  now: Date = newDate()
+): Promise<AdminSignupStats> {
+  const midnight = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const [signupsToday, signupsLast7Days, verified, unverified, signupsOpen] =
+    await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: midnight } } }),
+      prisma.user.count({
+        where: { createdAt: { gte: addCalendarDays(now, -7) } },
+      }),
+      prisma.user.count({ where: { emailVerified: { not: null } } }),
+      prisma.user.count({ where: { emailVerified: null } }),
+      areSignupsOpen(),
+    ]);
+  return { signupsToday, signupsLast7Days, verified, unverified, signupsOpen };
 }
 
 /** Same rule as `effectiveSubscriptionPlan`: paid and active, or cancelled but still inside the paid period. */

@@ -17,6 +17,7 @@ import { FiArrowUpRight, FiCheck, FiX } from "react-icons/fi";
 
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
+import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -368,7 +369,9 @@ export function SettingsSheet() {
                   </span>
                   <span className="settings-text">
                     {kind === "free"
-                      ? `${P.trialDays} days free · no card`
+                      ? offersTrial(plan.data)
+                        ? `${P.trialDays} days free · no card`
+                        : P.plansShort
                       : kind === "lifetime"
                         ? "Pro for good."
                         : kind === "yearly"

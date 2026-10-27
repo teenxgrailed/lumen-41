@@ -35,6 +35,7 @@ import {
   checkoutSelection,
   freeIncludes,
   lifetimeLeftPct,
+  offersTrial,
   paywallCta,
   paywallPick,
   proIncludes,
@@ -183,9 +184,12 @@ function Plans({
 function Scene({
   onClose,
   feature,
+  trial,
 }: {
   onClose: () => void;
   feature: string | null;
+  /** The account can still start the free trial (`offersTrial`). */
+  trial: boolean;
 }) {
   const D = priceStrings();
   return (
@@ -221,8 +225,9 @@ function Scene({
               out of Needt
             </h2>
             <span className="px-on-sky pw-scene-text-2">
-              AI planning and Pro limits — free for {D.trialDays} days, no card
-              needed. Then back to Free unless you choose a plan.
+              {trial
+                ? `AI planning and Pro limits — free for ${D.trialDays} days, no card needed. Then back to Free unless you choose a plan.`
+                : `AI planning and Pro limits. ${D.plansShort}, or Lifetime for ${D.lifetime}.`}
             </span>
           </div>
           <div className="pw-collage pw-scene-box" aria-hidden="true">
@@ -414,7 +419,7 @@ export function Paywall({
         <div className="pw-sky">
           <PxSky variant="b" intensity={1.05} />
         </div>
-        <Scene onClose={onClose} feature={feature} />
+        <Scene onClose={onClose} feature={feature} trial={offersTrial(plan)} />
         <div className="pw-body scroll-inner">
           <div className="pw-freeline" data-pw-free>
             <span className="pw-freeline-tag">
