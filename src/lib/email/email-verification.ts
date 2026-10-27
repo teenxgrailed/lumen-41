@@ -10,6 +10,7 @@ import {
 
 import { EmailService } from "./email-service";
 import { getEmailVerificationTemplate } from "./templates/email-verification";
+import { getWelcomeTemplate } from "./templates/notifications";
 
 const LOG_SOURCE = "EmailVerification";
 const TOKEN_TTL_HOURS = 24;
@@ -40,10 +41,7 @@ export async function sendEmailVerification(input: {
     data: { identifier: email, token: hash, expires },
   });
 
-  const verificationUrl = new URL(
-    "/auth/confirm-email",
-    input.baseUrl
-  );
+  const verificationUrl = new URL("/auth/confirm-email", input.baseUrl);
   verificationUrl.searchParams.set("email", email);
   verificationUrl.searchParams.set("token", rawToken);
   const template = getEmailVerificationTemplate({
@@ -79,7 +77,7 @@ export async function confirmEmailVerification(input: {
   const hash = tokenHash(input.token);
   const now = input.now ?? newDate();
 
-  return runTrialTransaction(async (tx) => {
+  const result = await runTrialTransaction(async (tx) => {
     const verification = await tx.verificationToken.findUnique({
       where: { identifier_token: { identifier: email, token: hash } },
     });
@@ -107,6 +105,53 @@ export async function confirmEmailVerification(input: {
       now,
     });
     await tx.verificationToken.deleteMany({ where: { identifier: email } });
-    return { status: "verified" as const, trial: Boolean(grant) };
+    return {
+      status: "verified" as const,
+      trial: Boolean(grant),
+      userId: user.id,
+    };
   });
+  if (result.status === "verified") {
+    await sendWelcomeEmail({
+      userId: result.userId,
+      email,
+      trialStarted: result.trial,
+    });
+  }
+  return { status: result.status, trial: result.trial };
+}
+
+/** Best effort: a failed welcome mail never undoes a confirmed address. */
+async function sendWelcomeEmail(input: {
+  userId: string;
+  email: string;
+  trialStarted: boolean;
+}) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { name: true },
+    });
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      "http://localhost:3000";
+    await EmailService.sendEmail({
+      to: input.email,
+      ...getWelcomeTemplate({
+        name: user?.name || "there",
+        appUrl: baseUrl,
+        trialStarted: input.trialStarted,
+      }),
+    });
+  } catch (error) {
+    await logger.warn(
+      "Welcome email failed",
+      {
+        userId: input.userId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      LOG_SOURCE
+    );
+  }
 }
