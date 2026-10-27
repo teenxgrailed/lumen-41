@@ -11,6 +11,14 @@ import {
 } from "@/app/api/blocking/profiles/route";
 import { POST as controlPost } from "@/app/api/connect/control/route";
 import { POST as opsPost } from "@/app/api/connect/ops/[name]/route";
+import {
+  DELETE as reminderDelete,
+  PATCH as reminderPatch,
+} from "@/app/api/connect/reminders/[id]/route";
+import {
+  GET as remindersGet,
+  POST as remindersPost,
+} from "@/app/api/connect/reminders/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
 import {
   GET as scheduleGet,
@@ -1944,6 +1952,109 @@ MCP_TOOLS.push(
         : callRoute(ctx, blockingProfilePatch, path, "PATCH", fields, { id });
     },
   })
+);
+
+/**
+ * Reminders on tasks, events, or on their own; the worker fires them on time
+ * as a push, a Mac notification or an email (Settings → Notifications
+ * decide), and they land in the bell's Activity. Same service as
+ * /api/reminders and /api/connect/reminders.
+ */
+MCP_TOOLS.push(
+  defineTool(
+    {
+      name: "needt_reminders",
+      description:
+        'Reminders. action "list" (default): upcoming reminders, or one task\'s or event\'s with taskId / eventId; status "all" includes fired ones. "set": a new reminder on taskId or eventId, relative (offsetMinutes before the anchor: the task\'s start, or its deadline with anchor "deadline"; atTime "09:00" with offsetMinutes 1440 is "1 day before, 09:00") or absolute with at (ISO 8601); a reminder on its own needs title and at. "update": change when it fires (same fields). "snooze": fire again at until. "delete": remove it. A moved task or event moves its relative reminders; a completed task\'s reminders do not fire.',
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+      },
+      scopes: (args) =>
+        (args.action ?? "list") === "list" ? ["needt.read"] : ["needt.write"],
+      input: z.object({
+        action: z
+          .enum(["list", "set", "update", "snooze", "delete"])
+          .default("list"),
+        id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Reminder id, for update, snooze and delete."),
+        taskId: z.string().min(1).optional(),
+        eventId: z.string().min(1).optional(),
+        title: z.string().min(1).max(500).optional(),
+        at: z
+          .string()
+          .optional()
+          .describe("ISO 8601 time for an absolute reminder."),
+        anchor: z.enum(["start", "deadline"]).optional(),
+        offsetMinutes: z.number().int().min(0).max(43_200).optional(),
+        atTime: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+          .optional(),
+        until: z.string().optional().describe("ISO 8601 time, for snooze."),
+        status: z.enum(["upcoming", "all"]).optional(),
+      }),
+      async invoke(ctx, args) {
+        const { action, id, until, status, ...fields } = args;
+        if (action === "list") {
+          const query = new URLSearchParams();
+          if (fields.taskId) query.set("taskId", fields.taskId);
+          if (fields.eventId) query.set("eventId", fields.eventId);
+          if (status) query.set("status", status);
+          const qs = query.toString();
+          return callRoute(
+            ctx,
+            remindersGet,
+            qs ? `/api/connect/reminders?${qs}` : "/api/connect/reminders",
+            "GET"
+          );
+        }
+        if (action === "set") {
+          return callRoute(
+            ctx,
+            remindersPost,
+            "/api/connect/reminders",
+            "POST",
+            fields
+          );
+        }
+        if (!id) return toolError({ status: 400, error: "id is required" });
+        const path = `/api/connect/reminders/${encodeURIComponent(id)}`;
+        if (action === "delete") {
+          return callRoute(ctx, reminderDelete, path, "DELETE", undefined, {
+            id,
+          });
+        }
+        if (action === "snooze") {
+          if (!until) {
+            return toolError({ status: 400, error: "until is required" });
+          }
+          return callRoute(
+            ctx,
+            reminderPatch,
+            path,
+            "PATCH",
+            { snoozeUntil: until },
+            { id }
+          );
+        }
+        const { at, anchor, offsetMinutes, atTime, title } = fields;
+        return callRoute(
+          ctx,
+          reminderPatch,
+          path,
+          "PATCH",
+          { at, anchor, offsetMinutes, atTime, title },
+          { id }
+        );
+      },
+    },
+    (args) => ((args.action ?? "list") === "list" ? [] : ["tasks-updated"])
+  )
 );
 
 MCP_TOOLS.unshift(

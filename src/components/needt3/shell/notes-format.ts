@@ -2,17 +2,30 @@
 import { format, isToday, isTomorrow, newDate } from "@/lib/date-utils";
 import type { FeedItem } from "@/lib/needt3/hooks/notifications";
 
-import type { ArtName } from "../menu/Art";
+export type NoteType = "task" | "event" | "reminder" | "mention" | "system";
 
-/** The drawing beside a row that was not written by a person. */
-export function artFor(kind: FeedItem["kind"]): ArtName {
-  switch (kind) {
+/**
+ * The quiet glyph beside a row: what it is about. Reminders keep the alarm
+ * whatever they are on; a calendar that needs reconnecting is an event.
+ */
+export function noteType(item: Pick<FeedItem, "kind" | "entity">): NoteType {
+  switch (item.kind) {
+    case "reminder":
+      return "reminder";
+    case "overdue":
+    case "due":
+      return "task";
+    case "comment":
+    case "share":
+      return "mention";
     case "sync":
       return "event";
-    case "import":
-      return "import";
     default:
-      return "task";
+      return item.entity?.type === "task"
+        ? "task"
+        : item.entity?.type === "event"
+          ? "event"
+          : "system";
   }
 }
 

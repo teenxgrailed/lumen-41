@@ -9,6 +9,10 @@ import { prisma } from "@/lib/prisma";
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     proactiveNudge: { findMany: jest.fn(), updateMany: jest.fn() },
+    notificationSettings: {
+      findUnique: jest.fn().mockResolvedValue({ nudges: true }),
+    },
+    userSettings: { findUnique: jest.fn().mockResolvedValue(null) },
   },
 }));
 jest.mock("@/lib/logger", () => ({
