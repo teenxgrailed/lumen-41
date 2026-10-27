@@ -133,7 +133,12 @@ test.describe("calendar week: create, hide done, sideways", () => {
       (r) =>
         r.url().includes("/api/user-settings") && r.request().method() !== "GET"
     );
-    await toggle.click();
+    // the switch input is visually hidden; a person presses its track
+    await page
+      .locator("label.nt-switch")
+      .filter({ has: toggle })
+      .locator(".nt-switch-track")
+      .click();
     expect((await saved).ok()).toBe(true);
     await expect(toggle).toBeChecked();
 
