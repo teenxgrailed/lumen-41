@@ -6,7 +6,7 @@ import { LuX } from "react-icons/lu";
 
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
-import { isPro } from "@/lib/needt3/paywall";
+import { isPro, offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 
 import { PxBadge, PxSky } from "../scenes";
@@ -63,7 +63,9 @@ export function PromoCard() {
             <PxBadge>Pro</PxBadge>
           </span>
           <span className="pw-promo-line" data-px-calm>
-            Try Pro free for {priceStrings().trialDays} days — no card.
+            {offersTrial(plan)
+              ? `Try Pro free for ${priceStrings().trialDays} days — no card.`
+              : `AI planning, themes and more. ${priceStrings().plansShort}.`}
           </span>
         </span>
         <button

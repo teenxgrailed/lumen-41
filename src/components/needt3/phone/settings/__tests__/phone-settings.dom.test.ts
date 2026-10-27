@@ -587,7 +587,8 @@ describe("Free keeps its gates", () => {
 
   it("Plan: See plans and the price rows open the paywall; nothing starts a checkout", async () => {
     await mount("plan");
-    expect(q("[data-ps-trial-terms]")).not.toBeNull();
+    // This account cannot start a trial, so the trial's terms are not shown.
+    expect(q("[data-ps-trial-terms]")).toBeNull();
     await tap(q("[data-ps-see-plans]"));
     expect(usePhoneOverlays.getState().paywall).toBe(true);
     usePhoneOverlays.setState({ paywall: false });
@@ -614,6 +615,7 @@ describe("Free keeps its gates", () => {
   it("Plan: an eligible Free account starts the trial in place", async () => {
     routes[URLS.billing] = billing({ trialEligible: true });
     await mount("plan");
+    expect(q("[data-ps-trial-terms]")).not.toBeNull();
     await tap(q("[data-ps-start-trial]"));
     expect(writes.map((w) => [w.method, w.url])).toEqual([
       ["POST", "/api/billing/trial"],

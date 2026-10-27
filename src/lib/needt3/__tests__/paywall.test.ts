@@ -3,6 +3,7 @@ import {
   freeIncludes,
   isPro,
   lifetimeLeftPct,
+  offersTrial,
   paywallCta,
   paywallPick,
   planLine,
@@ -55,11 +56,20 @@ describe("checkout", () => {
 });
 
 describe("paywall call to action", () => {
-  it("sends a free person to checkout and describes the trial", () => {
+  it("sends a free person with no trial left to checkout, which takes a card", () => {
     const cta = paywallCta("annual", { kind: "free", ...open });
     expect(cta.label).toBe("Choose Pro · $59 / year");
-    expect(cta.sub).toBe(PRICE.trialShort);
+    expect(cta.sub).toBe(PRICE.paidShort);
+    expect(cta.sub).not.toMatch(/no card/i);
     expect(cta.blocked).toBeNull();
+  });
+
+  it("offers the trial only to a free account the server says can start one", () => {
+    expect(offersTrial({ kind: "free", trialEligible: true })).toBe(true);
+    expect(offersTrial({ kind: "free", trialEligible: false })).toBe(false);
+    expect(offersTrial({ kind: "free" })).toBe(false);
+    expect(offersTrial({ kind: "trial", trialEligible: true })).toBe(false);
+    expect(offersTrial(null)).toBe(false);
   });
 
   it("explains what happens when the trial ends, to someone in one", () => {
