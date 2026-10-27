@@ -3269,6 +3269,8 @@ enum AgentMemorySource {
   habit
   document
   mail
+  /// Written by an assistant through the MCP tool or the public API.
+  assistant
 }
 
 enum MailProvider {

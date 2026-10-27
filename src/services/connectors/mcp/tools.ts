@@ -18,11 +18,14 @@ import {
 } from "@/app/api/connect/schedule/route";
 import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
 import {
+  AssistantMemoryError,
+  assistantMemoryResult,
   clearAgentMemories,
   forgetForUser,
   isLearningEnabled,
   listAgentMemories,
   publicMemory,
+  rememberFromAssistant,
   updateMemoryForUser,
 } from "@/services/ai/memory";
 import { blockingProfileFields } from "@/services/blocking/profile";
@@ -1433,6 +1436,42 @@ const WRITE_TOOLS: McpTool[] = [
         listAgentMemories(ctx.userId, access.workspace.workspaceId),
       ]);
       return toolResult({ enabled, memories: memories.map(publicMemory) });
+    },
+  }),
+  defineTool({
+    name: "needt_remember",
+    description:
+      'Save one durable line about the person (a stated preference, a pattern, a goal or a stable fact) so Needt and later chats can use it. Use it when the person tells you something lasting about how they work or what they want. A near-identical line is updated instead of added. Never save secrets or credentials, health data, other people\'s personal data, or one-off details. Needs "Let Needt learn about me" on, which is switched only in the app. Remove lines with needt_forget_memory.',
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+    input: z.object({
+      content: z.string().trim().min(1).max(500),
+      kind: z
+        .enum(["preference", "pattern", "goal", "fact"])
+        .default("preference"),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      try {
+        const result = await rememberFromAssistant(
+          ctx.userId,
+          access.workspace.workspaceId,
+          args
+        );
+        return toolResult(assistantMemoryResult(result));
+      } catch (error) {
+        if (error instanceof AssistantMemoryError) {
+          return toolError({
+            status: error.code === "cap" ? 409 : 400,
+            error: error.message,
+          });
+        }
+        throw error;
+      }
     },
   }),
   defineTool({

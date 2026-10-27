@@ -148,6 +148,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                                                                                                                                           |
 | `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                                                                                                                                            |
 | `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                                                                                                                                  |
+| `needt_remember`             | `needt.write`                                  | Save one memory line: `content` (1-500 characters), `kind` (`preference` default, `pattern`, `goal`, `fact`). Source `assistant`; a near-identical line of the same kind is updated (`updated: true`); needs the learning switch on; 500 such lines per workspace                                             |
 | `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                                                                                                                                      |
 | `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                                                                                                                                    |
 
@@ -656,6 +657,7 @@ export, and is deleted with the account.
 
 ```
 GET    /api/ai/memories
+POST   /api/ai/memories   { "content": "...", "kind": "preference" }
 PATCH  /api/ai/memories   { "enabled": true }
 PATCH  /api/ai/memories   { "enabled": false, "memories": "keep" | "delete" }
 PATCH  /api/ai/memories   { "memoryId": "...", "content": "...", "kind": "preference" }
@@ -665,8 +667,24 @@ DELETE /api/ai/memories   { "all": true }
 
 - `GET` returns `{ "enabled", "memories": [{ id, kind, content, source,
 createdAt, updatedAt }] }` for the current workspace. `kind` is `preference`,
-  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`
-  or `inferred`.
+  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`,
+  `inferred` or `assistant`.
+- `POST { content, kind? }` saves one line with source `assistant` and returns
+  `{ id, kind, content, source, createdAt, updated }` (`201` for a new line,
+  `200` with `updated: true` when a near-identical line of the same kind, compared
+  case-, whitespace- and trailing-punctuation-insensitively, was updated). `kind`
+  defaults to `preference`. The line is the person's own and later learning never
+  replaces it. Answers `400` while the switch is off or for credential, money or
+  health text, and `409` past 500 assistant-written lines per workspace (delete
+  some first). The MCP tool `needt_remember` does the same.
+
+  ```
+  curl -X POST http://localhost:3000/api/ai/memories \
+    --oauth2-bearer "$NEEDT_TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d '{"content":"No meetings before 10","kind":"preference"}'
+  ```
+
 - `PATCH { enabled }` flips the switch. Turning it off keeps the memories
   unless `"memories": "delete"` (every workspace). Turning it on starts a first
   learning pass in the background.

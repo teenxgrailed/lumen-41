@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
 
-import { DELETE, GET, PATCH } from "@/app/api/ai/memories/route";
+import { DELETE, GET, PATCH, POST } from "@/app/api/ai/memories/route";
 import {
+  AssistantMemoryError,
   clearAgentMemories,
   clearAllAgentMemories,
   forgetForUser,
   isLearningEnabled,
   listAgentMemories,
+  rememberFromAssistant,
   setLearningEnabled,
   updateMemoryForUser,
 } from "@/services/ai/memory";
@@ -25,6 +27,7 @@ jest.mock("@/services/ai/memory", () => ({
   forgetForUser: jest.fn(),
   isLearningEnabled: jest.fn(),
   listAgentMemories: jest.fn(),
+  rememberFromAssistant: jest.fn(),
   setLearningEnabled: jest.fn(),
   updateMemoryForUser: jest.fn(),
 }));
@@ -184,5 +187,45 @@ describe("DELETE /api/ai/memories", () => {
 
   it("needs a target", async () => {
     expect((await call(DELETE, req("DELETE", {}))).status).toBe(400);
+  });
+});
+
+describe("POST /api/ai/memories", () => {
+  it("saves a line (201), reports an update (200) and maps errors", async () => {
+    (rememberFromAssistant as jest.Mock).mockResolvedValue({
+      memory: { ...row, source: "assistant" },
+      updated: false,
+    });
+    const created = await call(
+      POST,
+      req("POST", { content: "No meetings before 10" })
+    );
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual({
+      id: "m1",
+      kind: "preference",
+      content: "No meetings before 10",
+      source: "assistant",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updated: false,
+    });
+    expect(rememberFromAssistant).toHaveBeenCalledWith("u1", "ws-1", {
+      content: "No meetings before 10",
+      kind: "preference",
+    });
+    (rememberFromAssistant as jest.Mock).mockResolvedValue({
+      memory: row,
+      updated: true,
+    });
+    expect((await call(POST, req("POST", { content: "x" }))).status).toBe(200);
+    (rememberFromAssistant as jest.Mock).mockRejectedValue(
+      new AssistantMemoryError("off", "Memory is off.")
+    );
+    expect((await call(POST, req("POST", { content: "x" }))).status).toBe(400);
+    (rememberFromAssistant as jest.Mock).mockRejectedValue(
+      new AssistantMemoryError("cap", "full")
+    );
+    expect((await call(POST, req("POST", { content: "x" }))).status).toBe(409);
+    expect((await call(POST, req("POST", { content: "" }))).status).toBe(400);
   });
 });
