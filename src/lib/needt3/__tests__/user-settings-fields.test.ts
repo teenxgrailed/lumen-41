@@ -45,3 +45,30 @@ describe("user settings: prefs.appIcon and prefs.seenIconPicker", () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe("user settings: prefs.homeBlocks", () => {
+  it("accepts a valid setting", () => {
+    const prefs = {
+      homeBlocks: { habits: false, weather: false, order: ["inbox", "week"] },
+      city: "Berlin",
+    };
+    const r = parseV3Fields(userSettingsV3FieldsSchema, { prefs });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data).toEqual({ prefs });
+  });
+
+  it("rejects a bad flag, a bad tile and an unknown key (a 400)", () => {
+    for (const homeBlocks of [
+      { habits: "no" },
+      { order: ["calendar"] },
+      { nope: true },
+      [],
+    ]) {
+      const r = parseV3Fields(userSettingsV3FieldsSchema, {
+        prefs: { homeBlocks },
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error).toContain("homeBlocks");
+    }
+  });
+});

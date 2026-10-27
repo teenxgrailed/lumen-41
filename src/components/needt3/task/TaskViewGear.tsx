@@ -5,6 +5,12 @@ import { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { FiSettings } from "react-icons/fi";
 
+import { HomeBlocksForm } from "@/components/needt3/home/HomeBlocksForm";
+
+import {
+  useHomeBlocks,
+  useSetHomeBlocks,
+} from "@/lib/needt3/hooks/home-blocks";
 import { useSetTaskView, useTaskView } from "@/lib/needt3/hooks/task-view";
 import type {
   CompletedMode,
@@ -158,6 +164,8 @@ export function TaskViewForm({
 export function TaskViewGear({ scope }: { scope: TaskViewScope }) {
   const view = useTaskView();
   const set = useSetTaskView();
+  const blocks = useHomeBlocks();
+  const setBlocks = useSetHomeBlocks();
   const container = useV3PortalContainer();
   const [open, setOpen] = useState(false);
   const [shown, leaving] = useExit(open, 130);
@@ -190,6 +198,12 @@ export function TaskViewGear({ scope }: { scope: TaskViewScope }) {
               onChange={(p) => void set(p)}
               scope={scope}
             />
+            {scope === "home" ? (
+              <HomeBlocksForm
+                blocks={blocks}
+                onChange={(p) => void setBlocks(p)}
+              />
+            ) : null}
           </Popover.Content>
         </Popover.Portal>
       ) : null}
