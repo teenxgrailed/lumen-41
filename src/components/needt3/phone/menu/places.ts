@@ -22,6 +22,7 @@ export type MenuPlaceId =
   | "habits"
   | "moodboards"
   | "projects"
+  | "goals"
   | "templates"
   | "shared"
   | "trash"
@@ -42,6 +43,7 @@ export const MENU_ORDER: readonly MenuPlaceId[] = [
   "habits",
   "moodboards",
   "projects",
+  "goals",
   "templates",
   "shared",
   "trash",
@@ -59,6 +61,7 @@ const SHELL_ID: Partial<Record<MenuPlaceId, PlaceId>> = {
   habits: "habits",
   moodboards: "moodboards",
   projects: "projects",
+  goals: "goals",
   templates: "templates",
   shared: "shared",
   trash: "trash",
@@ -144,6 +147,7 @@ const FROM_SAVED: Record<string, MenuPlaceId> = {
   moodboards: "moodboards",
   boards: "moodboards",
   projects: "projects",
+  goals: "goals",
   templates: "templates",
   shared: "shared",
   trash: "trash",
