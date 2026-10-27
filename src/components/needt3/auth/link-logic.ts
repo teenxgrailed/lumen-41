@@ -44,6 +44,7 @@ export function resetOutcome(status: number): ResetOutcome {
 export type ConfirmStep =
   | "ready"
   | "confirming"
+  | "password"
   | "confirmed"
   | "expired"
   | "invalid"
@@ -53,8 +54,14 @@ export type ConfirmStep =
 export function confirmOutcome(
   ok: boolean,
   status: unknown
-): Extract<ConfirmStep, "confirmed" | "expired" | "invalid" | "error"> {
+): Extract<
+  ConfirmStep,
+  "confirmed" | "password" | "expired" | "invalid" | "error"
+> {
   if (ok && status === "verified") return "confirmed";
+  /* Not the browser that signed up: the server wants a new password first and
+     has not spent the link. */
+  if (ok && status === "password_required") return "password";
   if (status === "expired") return "expired";
   if (status === "error") return "error";
   return "invalid";
@@ -98,6 +105,12 @@ export const CONFIRM_COPY: Readonly<
     a: "Confirm your",
     b: "email",
     line: (mail) => `Confirm ${mail} to start 14 days of Pro.`,
+  },
+  password: {
+    a: "Set a",
+    b: "password",
+    line: (mail) =>
+      `Choose the password for ${mail}. Anything signed in before is signed out.`,
   },
   confirmed: {
     a: "Email",

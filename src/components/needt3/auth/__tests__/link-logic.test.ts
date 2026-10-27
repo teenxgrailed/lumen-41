@@ -36,6 +36,7 @@ describe("what the server answered", () => {
   it("confirm: only an ok 'verified' confirms", () => {
     expect(confirmOutcome(true, "verified")).toBe("confirmed");
     expect(confirmOutcome(false, "verified")).toBe("invalid");
+    expect(confirmOutcome(true, "password_required")).toBe("password");
     expect(confirmOutcome(true, "expired")).toBe("expired");
     expect(confirmOutcome(false, "error")).toBe("error");
     expect(confirmOutcome(true, "invalid")).toBe("invalid");

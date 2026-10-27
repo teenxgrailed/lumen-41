@@ -5,6 +5,7 @@ import { hash } from "bcryptjs";
 
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import { areSignupsOpen } from "@/lib/auth/signups";
+import { replaceUnprovenPassword } from "@/lib/auth/unproven-password";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +26,15 @@ jest.mock("@/lib/email/email-verification", () => ({
   sendEmailVerification: jest.fn(),
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { create: jest.fn() } },
+  prisma: {
+    user: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    verificationToken: { deleteMany: jest.fn() },
+    $transaction: jest.fn(),
+  },
+}));
+jest.mock("@/lib/auth/unproven-password", () => ({
+  ...jest.requireActual("@/lib/auth/unproven-password"),
+  replaceUnprovenPassword: jest.fn(),
 }));
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
 jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
@@ -224,6 +233,77 @@ describe("public registration", () => {
       const response = await register();
       expect(response.status).toBe(201);
       await expect(response.json()).resolves.toMatchObject({ next: "/setup" });
+    });
+  });
+
+  describe("an address that registered but never confirmed", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const unconfirmed = (ageMs: number, password: string | null = "old") => ({
+      id: "user-9",
+      emailVerified: null,
+      createdAt: new Date(Date.now() - ageMs),
+      accounts: [{ provider: "credentials", id_token: password }],
+    });
+
+    beforeEach(() => {
+      jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+      jest.mocked(hash).mockResolvedValue("new-hash" as never);
+      jest.mocked(prisma.$transaction).mockResolvedValue([] as never);
+    });
+
+    const register = () =>
+      POST(
+        registrationRequest({
+          email: "victim@example.com",
+          password: "new-password",
+        })
+      );
+
+    it("after 24 hours a new registration replaces the unproven password and mails a fresh link", async () => {
+      jest
+        .mocked(prisma.user.findUnique)
+        .mockResolvedValue(unconfirmed(25 * 60 * 60 * 1000) as never);
+      const response = await register();
+      expect(response.status).toBe(201);
+      expect(replaceUnprovenPassword).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "user-9",
+          passwordHash: "new-hash",
+          action: "auth.unproven_password_replaced",
+        })
+      );
+      expect(sendEmailVerification).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-9" })
+      );
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("sooner than that nothing changes and the answer is the same", async () => {
+      jest
+        .mocked(prisma.user.findUnique)
+        .mockResolvedValue(unconfirmed(DAY - 60_000) as never);
+      const response = await register();
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toEqual({ success: true });
+      expect(replaceUnprovenPassword).not.toHaveBeenCalled();
+      expect(sendEmailVerification).not.toHaveBeenCalled();
+    });
+
+    it("a confirmed account is never touched, however old", async () => {
+      jest.mocked(prisma.user.findUnique).mockResolvedValue({
+        ...unconfirmed(30 * DAY),
+        emailVerified: new Date(),
+      } as never);
+      await register();
+      expect(replaceUnprovenPassword).not.toHaveBeenCalled();
+    });
+
+    it("an unconfirmed account that has no password (provider sign-up) is left alone", async () => {
+      jest
+        .mocked(prisma.user.findUnique)
+        .mockResolvedValue(unconfirmed(30 * DAY, null) as never);
+      await register();
+      expect(replaceUnprovenPassword).not.toHaveBeenCalled();
     });
   });
 });

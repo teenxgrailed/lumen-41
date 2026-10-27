@@ -1,5 +1,9 @@
+import { revokeConnectorTokens } from "@/services/connectors/auth";
+import { hash as hashPassword } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 
+import { forgetSessionState } from "@/lib/auth/session-version";
+import { isUnprovenPasswordAccount } from "@/lib/auth/unproven-password";
 import { addHours, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -68,14 +72,28 @@ export async function sendEmailVerification(input: {
   return { sent: true } as const;
 }
 
+/**
+ * `sameSession`: the request carries a live session of this very account, the
+ * browser that signed up. Anyone else confirming (a fresh browser, the inbox
+ * owner who may never have set the password on the account) must choose a new
+ * password, and every session that existed before is signed out; until they do
+ * the answer is `password_required` and the link is not spent. Without this, a
+ * stranger who registered the address first would keep their password and open
+ * session on the account the real owner just confirmed.
+ */
 export async function confirmEmailVerification(input: {
   email: string;
   token: string;
   now?: Date;
+  sameSession?: boolean;
+  newPassword?: string;
 }) {
   const email = input.email.trim().toLowerCase();
   const hash = tokenHash(input.token);
   const now = input.now ?? newDate();
+  const newPasswordHash = input.newPassword
+    ? await hashPassword(input.newPassword, 12)
+    : null;
 
   const result = await runTrialTransaction(async (tx) => {
     const verification = await tx.verificationToken.findUnique({
@@ -91,13 +109,44 @@ export async function confirmEmailVerification(input: {
 
     const user = await tx.user.findUnique({
       where: { email },
-      select: { id: true, email: true },
+      select: {
+        id: true,
+        email: true,
+        emailVerified: true,
+        accounts: {
+          where: { provider: "credentials" },
+          select: { provider: true, id_token: true },
+        },
+      },
     });
     if (!user?.email) return { status: "invalid" as const, trial: false };
 
+    const unproven = isUnprovenPasswordAccount(user);
+    const replacePassword = unproven && !input.sameSession;
+    if (replacePassword && !newPasswordHash) {
+      return { status: "password_required" as const, trial: false };
+    }
+    if (replacePassword && newPasswordHash) {
+      await tx.account.updateMany({
+        where: { userId: user.id, provider: "credentials" },
+        data: { id_token: newPasswordHash },
+      });
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: null,
+          targetUserId: user.id,
+          action: "auth.unproven_password_reset_on_confirm",
+          details: {},
+        },
+      });
+    }
     await tx.user.update({
       where: { id: user.id },
-      data: { emailVerified: now },
+      data: {
+        emailVerified: now,
+        /* Every session issued before the confirmation ends. */
+        ...(replacePassword ? { sessionVersion: { increment: 1 } } : {}),
+      },
     });
     const grant = await startTrialForVerifiedUser(tx, {
       userId: user.id,
@@ -109,8 +158,13 @@ export async function confirmEmailVerification(input: {
       status: "verified" as const,
       trial: Boolean(grant),
       userId: user.id,
+      sessionsRevoked: replacePassword,
     };
   });
+  if (result.status === "verified" && result.sessionsRevoked) {
+    forgetSessionState(result.userId);
+    await revokeConnectorTokens(result.userId);
+  }
   if (result.status === "verified") {
     await sendWelcomeEmail({
       userId: result.userId,
