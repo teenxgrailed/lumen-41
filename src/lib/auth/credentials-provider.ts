@@ -4,7 +4,6 @@ import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
-import { requiresEmailVerificationBeforeAccess } from "./email-verification-access";
 import { isPublicSignupEnabled } from "./public-signup";
 
 const LOG_SOURCE = "CredentialsProvider";
@@ -64,17 +63,10 @@ export async function authenticateUser(email: string, password: string) {
       return null;
     }
 
-    if (
-      !user.emailVerified &&
-      (await requiresEmailVerificationBeforeAccess())
-    ) {
-      logger.warn(
-        "Authentication blocked pending email verification",
-        { userId: user.id },
-        LOG_SOURCE
-      );
-      return null;
-    }
+    /* An unconfirmed account may sign in: sign-up signs the person straight in
+       and waits on the "Check your inbox" screen. What it cannot do is use the
+       app or the API; the (app) layout and api-auth refuse it until the email
+       is confirmed (email-verification-access.ts). */
     // Recorded only once the sign-in is actually going to succeed; a blocked
     // attempt must not count as proof of identity for reauthentication.
     await prisma.user.update({

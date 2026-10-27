@@ -1,4 +1,3 @@
-import { APP_NAME } from "@/lib/app-config";
 import { logger } from "@/lib/logger";
 
 import { EmailService } from "./email-service";
@@ -28,13 +27,12 @@ export async function sendPasswordResetEmail({
     const resetLink = `${baseUrl}/auth/reset-password?token=${resetToken}`;
 
     // Get the email template
-    const html = getPasswordResetTemplate(name, resetLink, expirationDate);
+    const template = getPasswordResetTemplate(name, resetLink, expirationDate);
 
     // Send the email using the appropriate service
     const { jobId } = await EmailService.sendEmail({
       to: email,
-      subject: `Reset Your ${APP_NAME} Password`,
-      html,
+      ...template,
     });
 
     logger.info("Password reset email sent", { jobId }, LOG_SOURCE);

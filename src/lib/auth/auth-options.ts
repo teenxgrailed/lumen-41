@@ -5,6 +5,8 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 
 import {
   accountLinkingGate,
+  normalizeEmail,
+  verifiedProviderEmail,
   withCaseInsensitiveEmailLookup,
 } from "@/lib/auth/account-linking";
 import { authSecret } from "@/lib/auth/auth-secret";
@@ -125,7 +127,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
       },
       // This branch's jwt supersedes main's: it keeps token.sub and the role
       // instead of early-returning a fresh token object that dropped both.
-      async jwt({ token: incoming, account, user }) {
+      async jwt({ token: incoming, account, user, profile }) {
         let token = incoming;
         // Sessions issued before the provider tokens were dropped still carry
         // them; strip them so they stop riding along in the cookie.
@@ -157,10 +159,19 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
             });
           }
           if (account.type === "oauth" && user?.id && user.email) {
-            await markEmailVerifiedAndStartTrial({
-              userId: user.id,
-              email: user.email,
-            });
+            /* Confirmed only when the provider itself vouches for this very
+               address (email_verified and the like). Otherwise the person
+               confirms by mail like everyone else. */
+            const vouched = verifiedProviderEmail(
+              account.provider,
+              profile as Record<string, unknown> | undefined
+            );
+            if (vouched && vouched === normalizeEmail(user.email)) {
+              await markEmailVerifiedAndStartTrial({
+                userId: user.id,
+                email: user.email,
+              });
+            }
             await prisma.userSettings.upsert({
               where: { userId: user.id },
               update: {},

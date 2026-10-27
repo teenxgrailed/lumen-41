@@ -1,7 +1,7 @@
 import { ReminderDeliveryStatus, TaskReminderKind } from "@prisma/client";
 
 import { EmailService } from "@/lib/email/email-service";
-import { escapeHtml } from "@/lib/email/templates/email-verification";
+import { getReminderTemplate } from "@/lib/email/templates/notifications";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { VapidVariableName, getVapidConfiguration } from "@/lib/push-config";
@@ -246,9 +246,11 @@ export async function deliverTaskReminder(reminderId: string) {
     ) {
       await EmailService.sendEmail({
         to: reminder.user.email,
-        subject: `${payload.title}: ${reminder.task.title}`,
-        text: `${payload.body}\n\nOpen Needt: ${process.env.NEXTAUTH_URL ?? ""}${payload.url}`,
-        html: `<p>${escapeHtml(payload.body)}</p><p><a href="${escapeHtml(`${process.env.NEXTAUTH_URL ?? ""}${payload.url}`)}">Open in Needt</a></p>`,
+        ...getReminderTemplate({
+          title: `${payload.title}: ${reminder.task.title}`,
+          body: payload.body,
+          openUrl: `${process.env.NEXTAUTH_URL ?? ""}${payload.url}`,
+        }),
       });
     }
 
