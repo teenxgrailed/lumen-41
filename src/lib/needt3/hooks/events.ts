@@ -164,8 +164,14 @@ export function useCreateEvent() {
   const lifecycle = useEventLifecycle();
   return useCallback(
     async (
-      fields: Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay">
+      fields: Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay"> & {
+        /** A Needt calendar the person picked; else the first, created if missing. */
+        calendarId?: string | null;
+      }
     ) => {
+      const { calendarId, ...rest } = fields;
+      if (calendarId)
+        return lifecycle.mutateAsync({ create: { ...rest, calendarId } });
       let calendar: ApiFeed;
       try {
         calendar = await writableCalendar(qc);
@@ -179,7 +185,7 @@ export function useCreateEvent() {
         throw error;
       }
       return lifecycle.mutateAsync({
-        create: { ...fields, calendarId: calendar.id },
+        create: { ...rest, calendarId: calendar.id },
       });
     },
     [qc, lifecycle]
