@@ -20,6 +20,7 @@ const SCOPE: Record<string, string> = {
   "needt.read": "read",
   "needt.write": "write",
   "mail.read": "mail",
+  "needt.admin.read": "admin (read)",
 };
 
 /** Cards that match the search and the Connected / All apps toggle. */
