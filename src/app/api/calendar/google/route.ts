@@ -154,7 +154,9 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
-    const { accountId, calendarId, name, color } = (await request.json()) as {
+    const { accountId, calendarId, name, color } = ((await request
+      .json()
+      .catch(() => null)) ?? {}) as {
       accountId?: string;
       calendarId?: string;
       name?: string;
@@ -233,7 +235,9 @@ export async function PUT(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
-    const { feedId } = (await request.json()) as { feedId?: string };
+    const { feedId } = ((await request.json().catch(() => null)) ?? {}) as {
+      feedId?: string;
+    };
     if (!feedId) {
       return NextResponse.json(
         { error: "Feed ID is required" },

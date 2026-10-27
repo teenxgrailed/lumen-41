@@ -171,7 +171,7 @@ test.describe("no-card Pro trial", () => {
         type: "oauth",
         providerAccountId: `google-${runId}`,
       },
-      profile: undefined,
+      profile: { email, email_verified: true },
       isNewUser: true,
       trigger: "signIn",
     } as never);

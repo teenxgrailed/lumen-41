@@ -76,6 +76,8 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
     (pick !== "lifetime" &&
       (kind === "monthly" || kind === "yearly") &&
       plan !== null);
+  /* "No card needed" is true only of the trial; a checkout takes a card. */
+  const paidSub = offersTrial(plan) ? PRICE.trialShort : PRICE.paidShort;
   const base: Omit<PaywallCta, "blocked" | "action"> =
     pick === "lifetime"
       ? {
@@ -85,11 +87,11 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
       : pick === "monthly"
         ? {
             label: `Choose Pro · ${PRICE.monthly} / month`,
-            sub: kind === "trial" ? TRIAL_AFTER : PRICE.trialShort,
+            sub: kind === "trial" ? TRIAL_AFTER : paidSub,
           }
         : {
             label: `Choose Pro · ${PRICE.yearly} / year`,
-            sub: kind === "trial" ? TRIAL_AFTER : PRICE.trialShort,
+            sub: kind === "trial" ? TRIAL_AFTER : paidSub,
           };
 
   if (kind === "lifetime") {
@@ -155,6 +157,21 @@ export function planLine(plan: Pick<V3Plan, "kind" | "trialDaysLeft">): string {
     default:
       return "Free";
   }
+}
+
+/**
+ * Whether this account can still start the free trial: Free, address
+ * confirmed, and no trial yet under it (`trialEligible` from the server).
+ * Every "Try Pro free for N days" line asks this first, so an account whose
+ * trial has ended is not offered another one.
+ */
+export function offersTrial(
+  plan:
+    | (Pick<V3Plan, "kind"> & Partial<Pick<V3Plan, "trialEligible">>)
+    | null
+    | undefined
+): boolean {
+  return plan?.kind === "free" && plan.trialEligible === true;
 }
 
 /** Pro features are on for the trial and every paid plan. */

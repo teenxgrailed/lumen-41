@@ -6,6 +6,10 @@ import {
   insufficientScopeResponse,
 } from "@/services/connectors/bearer";
 import {
+  MCP_ADMIN_LIMIT_PER_MINUTE,
+  adminCallAllowed,
+} from "@/services/connectors/mcp/admin-tools";
+import {
   batchRejectedResponse,
   handleMcpMessage,
   parseErrorResponse,
@@ -13,7 +17,11 @@ import {
 } from "@/services/connectors/mcp/server";
 import { isWriteCall, requiredScopes } from "@/services/connectors/mcp/tools";
 
-import { bearerChallenge, mcpResource } from "@/lib/mcp-config";
+import {
+  ADMIN_READ_SCOPE,
+  bearerChallenge,
+  mcpResource,
+} from "@/lib/mcp-config";
 import { publicAppUrl } from "@/lib/public-url";
 import {
   accountRule,
@@ -129,6 +137,18 @@ export async function POST(request: NextRequest) {
   if (call) {
     const needed = requiredScopes(call.tool, call.args);
     if (!hasScopes(auth, needed)) return insufficientScopeResponse(needed);
+    if (needed.includes(ADMIN_READ_SCOPE)) {
+      // The scope was granted to an admin; the role is read again on every
+      // call, so a demoted or deactivated admin is refused at once.
+      if (!(await adminCallAllowed({ userId: auth.userId, auth }))) {
+        return jsonRpcError(403, "Forbidden: admin role required");
+      }
+      const adminLimited = await enforceRateLimits(
+        [accountRule(auth.userId, "mcp:admin", MCP_ADMIN_LIMIT_PER_MINUTE, 60)],
+        { route: ROUTE, userId: auth.userId }
+      );
+      if (adminLimited) return adminLimited;
+    }
     if (isWriteCall(call.tool, call.args)) {
       const writeLimited = await enforceRateLimits(
         [accountRule(auth.userId, "mcp:write", MCP_WRITE_LIMIT_PER_MINUTE, 60)],

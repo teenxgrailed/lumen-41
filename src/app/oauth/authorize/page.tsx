@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+import { isAdminUserId } from "@/lib/auth/admin-role";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
@@ -105,7 +106,10 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   }
 
   const { request } = result;
-  const workspaces = await consentWorkspaces(session.user.id);
+  const [workspaces, offerAdmin] = await Promise.all([
+    consentWorkspaces(session.user.id),
+    isAdminUserId(session.user.id),
+  ]);
   const redirectHost = new URL(request.redirectUri).host;
   const origin = clientOrigin(request.client, request.redirectUri);
   const wantsWrite = request.scopes.includes("needt.write");
@@ -169,6 +173,19 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
                 {SCOPE_LABELS["mail.read"]}
                 <span className="block text-[12px] text-muted-foreground">
                   Off unless you tick it. Message bodies are not shared.
+                </span>
+              </span>
+            </label>
+          ) : null}
+          {offerAdmin ? (
+            <label className="flex items-start gap-2" data-consent-admin>
+              <input type="checkbox" name="admin" className="mt-0.5" />
+              <span>
+                {SCOPE_LABELS["needt.admin.read"]}
+                <span className="block text-[12px] text-muted-foreground">
+                  Off unless you tick it. Read only: it cannot change plans,
+                  flags or accounts. Every read is recorded in the admin audit
+                  log.
                 </span>
               </span>
             </label>

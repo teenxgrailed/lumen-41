@@ -260,12 +260,12 @@ if (packageJson.name !== "needt") {
 }
 requireText(
   "package.json",
-  "ghcr.io/teenxgrails/needt:main",
+  "ghcr.io/teenxgrailed/needt:main",
   JSON.stringify(packageJson)
 );
 requireText(
   "docker-compose.yml",
-  "ghcr.io/teenxgrails/needt:main",
+  "ghcr.io/teenxgrailed/needt:main",
   await source("docker-compose.yml")
 );
 requireText(

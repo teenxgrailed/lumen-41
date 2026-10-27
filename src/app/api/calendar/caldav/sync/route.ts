@@ -22,7 +22,10 @@ export async function PUT(req: NextRequest) {
 
     const userId = auth.userId;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const { feedId } = body;
 
     logger.info(
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const body = await request.json();
+    const body = (await request.json().catch(() => null)) ?? {};
     const { accountId, calendarId, name, color } = body;
 
     if (!accountId || !calendarId) {
