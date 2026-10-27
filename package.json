@@ -50,7 +50,7 @@
     "verify:needt-data-layer": "tsx scripts/verify-needt-data-layer.ts",
     "start:prod": "infisical run --token=\"$INFISICAL_TOKEN\" --projectId=\"$PROJECT_ID\" --env=\"$INFISICAL_SECRET_ENV\" --domain=\"$INFISICAL_API_URL\" -- next start",
     "prisma:update": "infisical run --token=\"$INFISICAL_TOKEN\" --projectId=\"$PROJECT_ID\" --env=\"$INFISICAL_SECRET_ENV\" --domain=\"$INFISICAL_API_URL\" -- npx prisma generate && infisical run --token=\"$INFISICAL_TOKEN\" --projectId=\"$PROJECT_ID\" --env=\"$INFISICAL_SECRET_ENV\" --domain=\"$INFISICAL_API_URL\" -- npx prisma migrate deploy",
-    "docker:publish": "docker build -t ghcr.io/teenxgrails/needt:main -f docker/production/Dockerfile . && docker push ghcr.io/teenxgrails/needt:main",
+    "docker:publish": "docker build -t ghcr.io/teenxgrailed/needt:main -f docker/production/Dockerfile . && docker push ghcr.io/teenxgrailed/needt:main",
     "prepare": "husky",
     "tokens:check": "node scripts/check-design-tokens.mjs"
   },
@@ -172,7 +172,8 @@
   },
   "overrides": {
     "y-protocols": "$y-protocols",
-    "yjs": "$yjs"
+    "yjs": "$yjs",
+    "@modelcontextprotocol/sdk": "^1.30.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

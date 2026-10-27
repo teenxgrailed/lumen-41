@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/teenxgrails/needt:main
+    image: ghcr.io/teenxgrailed/needt:main
     ports:
       - "3000:3000"
     env_file:
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ghcr.io/teenxgrails/needt:main
+    image: ghcr.io/teenxgrailed/needt:main
     command: ["node", "dist/worker/index.js"]
     env_file:
       - .env
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
 
   collaboration:
-    image: ghcr.io/teenxgrails/needt:main
+    image: ghcr.io/teenxgrailed/needt:main
     command: ["node", "dist/collaboration/index.mjs"]
     ports:
       - "1234:1234"
