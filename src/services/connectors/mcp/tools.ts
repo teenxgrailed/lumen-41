@@ -38,6 +38,7 @@ import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
+import { type GoalRow, loadGoalViews } from "@/services/goals/progress";
 import {
   HabitCompletionDateError,
   setHabitCompletionToday,
@@ -46,6 +47,7 @@ import {
   getMoodboard,
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
+import { OpError, runOp } from "@/services/ops";
 import {
   AI_PAGE_NOT_EDITABLE,
   AI_PAGE_UNAVAILABLE,
@@ -104,6 +106,13 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
+import {
+  GOAL_AREAS,
+  GOAL_NOTE_MAX,
+  GOAL_PROJECTS_MAX,
+  GOAL_TITLE_MAX,
+  GOAL_UNIT_MAX,
+} from "@/lib/goals";
 import { listMailMessages } from "@/lib/mail-db";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
@@ -305,6 +314,7 @@ const LIST_TYPES = [
   "mail",
   "moodboard",
   "personal_time",
+  "goal",
 ] as const;
 type ListType = (typeof LIST_TYPES)[number];
 
@@ -506,6 +516,24 @@ async function listRows(
         ).map(personalBlockView),
         args.limit
       );
+    case "goal": {
+      const rows = page(
+        (await prisma.goal.findMany({
+          where: {
+            ...scope,
+            ...(args.includeArchived ? {} : { archivedAt: null }),
+          },
+          orderBy: order,
+          take,
+          ...cursorArgs(args.cursor),
+        })) as GoalRow[],
+        args.limit
+      );
+      return {
+        ...rows,
+        items: await loadGoalViews(prisma, scope, rows.items),
+      };
+    }
     case "habit":
       return page(
         await prisma.habit.findMany({
@@ -582,6 +610,18 @@ async function getRow(
       return getPage(mcpPageActor(ctx, workspace), id);
     case "habit":
       return prisma.habit.findFirst({ where: { id, ...scope, userId } });
+    case "goal":
+      try {
+        const read = await runOp(
+          "goal.get",
+          { goalId: id },
+          { userId, workspace, actor: "mcp" }
+        );
+        return read.result;
+      } catch (error) {
+        if (error instanceof OpError && error.code === "NOT_FOUND") return null;
+        throw error;
+      }
     case "mail":
       if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.mailMessage.findFirst({
@@ -650,7 +690,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it).",
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -665,7 +705,7 @@ export const MCP_TOOLS: McpTool[] = [
         .boolean()
         .optional()
         .describe(
-          "Include archived tasks, projects, events, calendars and habits."
+          "Include archived tasks, projects, events, calendars, habits and goals."
         ),
       from: z
         .string()
@@ -692,7 +732,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role).",
+      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins).",
     annotations: { readOnlyHint: true, destructiveHint: false },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
@@ -770,6 +810,13 @@ export const MCP_TOOLS: McpTool[] = [
         .optional()
         .describe(
           "A page in this workspace the task came from; the page's to-do and the task then tick together."
+        ),
+      goalId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "The goal this task moves forward (needt_list type goal); its progress counts the task."
         ),
       start: placementFields.start,
       autoSchedule: placementFields.autoSchedule.describe(
@@ -939,7 +986,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, goalId (the goal it moves forward; null unlinks), entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
       annotations: { readOnlyHint: false, destructiveHint: false },
       input: z
         .object({
@@ -1476,6 +1523,190 @@ const WRITE_TOOLS: McpTool[] = [
 ];
 
 MCP_TOOLS.push(...WRITE_TOOLS);
+
+/** Runs a goal op through /api/connect/ops, with the caller's own token. */
+function goalOp(ctx: McpToolContext, name: string, body: unknown) {
+  return callRoute(
+    ctx,
+    (req) => opsPost(req, { params: Promise.resolve({ name }) }),
+    `/api/connect/ops/${name}`,
+    "POST",
+    body
+  );
+}
+
+function payloadOf(result: McpToolResult): unknown {
+  try {
+    return JSON.parse(result.content[0]?.text ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+const goalArea = z
+  .string()
+  .min(1)
+  .max(40)
+  .describe(`Life area: ${GOAL_AREAS.join(", ")}, or a short custom label.`);
+const goalCheckInSchedule = z
+  .object({
+    enabled: z.boolean().optional(),
+    weekday: z
+      .number()
+      .int()
+      .min(0)
+      .max(6)
+      .optional()
+      .describe("0 = Sunday … 6 = Saturday. Default Monday."),
+    hour: z
+      .number()
+      .int()
+      .min(0)
+      .max(23)
+      .optional()
+      .describe("Hour in the person's time zone. Default 9."),
+  })
+  .strict()
+  .describe('When Needt asks "How\'s <goal>?" each week.');
+const goalManual = {
+  targetValue: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Manual target, e.g. 2500 (with unit CHF)."),
+  currentValue: z.number().nullable().optional(),
+  unit: z.string().min(1).max(GOAL_UNIT_MAX).nullable().optional(),
+  percent: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .nullable()
+    .optional()
+    .describe("Manual progress 0-100 when there is no target."),
+};
+
+/**
+ * Goals: their own object, never a task. Progress comes from linked tasks
+ * (goalId on a task, or a linked project), else the manual value, else the
+ * subgoals. Pro to create; every write answers with actionId for undo.
+ */
+MCP_TOOLS.push(
+  defineTool(
+    {
+      name: "needt_create_goal",
+      description:
+        "Create a goal (Pro): what the person is working towards, with description (the why), deadline, area, parentId (one level of subgoals), projectIds (their tasks count towards it) and manual progress (targetValue + currentValue + unit, or percent) for goals no task measures. A goal is never scheduled; link tasks with goalId on needt_create_task or needt_update_task. The answer carries actionId for undo.",
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z
+        .object({
+          title: z.string().min(1).max(GOAL_TITLE_MAX),
+          description: z.string().max(20000).optional(),
+          deadline: z.string().min(1).optional().describe("ISO 8601."),
+          area: goalArea.optional(),
+          parentId: z.string().min(1).optional(),
+          projectIds: z
+            .array(z.string().min(1))
+            .max(GOAL_PROJECTS_MAX)
+            .optional(),
+          ...goalManual,
+          checkIn: goalCheckInSchedule.optional(),
+        })
+        .strict(),
+      invoke: (ctx, args) => goalOp(ctx, "goal.create", args),
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_update_goal",
+      description:
+        'Change a goal: title, description, deadline, area, status (active, achieved, dropped), parentId, projectIds (the full set), manual progress (targetValue, currentValue, unit, percent; null clears), checkInSchedule. Give checkIn to record an answer to "How\'s <goal>?" (value, percent and/or note, kept as a dated history entry; value or percent becomes the manual progress). archive: true archives the goal. Each part answers with its own actionId for undo.',
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z
+        .object({
+          id: z.string().min(1).describe("Goal id."),
+          title: z.string().min(1).max(GOAL_TITLE_MAX).optional(),
+          description: z.string().max(20000).nullable().optional(),
+          deadline: z.string().min(1).nullable().optional(),
+          area: goalArea.nullable().optional(),
+          status: z.enum(["active", "achieved", "dropped"]).optional(),
+          parentId: z.string().min(1).nullable().optional(),
+          projectIds: z
+            .array(z.string().min(1))
+            .max(GOAL_PROJECTS_MAX)
+            .optional(),
+          ...goalManual,
+          checkInSchedule: goalCheckInSchedule.optional(),
+          checkIn: z
+            .object({
+              value: z.number().optional(),
+              percent: z.number().int().min(0).max(100).optional(),
+              note: z.string().min(1).max(GOAL_NOTE_MAX).optional(),
+            })
+            .strict()
+            .optional(),
+          archive: z.boolean().optional(),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const { id, checkIn, checkInSchedule, archive, ...fields } = args;
+        const results: Record<string, unknown> = {};
+        const update = {
+          ...fields,
+          ...(checkInSchedule ? { checkIn: checkInSchedule } : {}),
+        };
+        if (Object.keys(update).length > 0) {
+          const updated = await goalOp(ctx, "goal.update", {
+            goalId: id,
+            ...update,
+          });
+          if (updated.isError) return updated;
+          results.update = payloadOf(updated);
+        }
+        if (checkIn) {
+          const checked = await goalOp(ctx, "goal.check_in", {
+            goalId: id,
+            ...checkIn,
+          });
+          if (checked.isError) return checked;
+          results.checkIn = payloadOf(checked);
+        }
+        if (archive) {
+          const archived = await goalOp(ctx, "goal.archive", { goalId: id });
+          if (archived.isError) return archived;
+          results.archive = payloadOf(archived);
+        }
+        if (Object.keys(results).length === 0) {
+          return toolError({ status: 400, error: "Nothing to change" });
+        }
+        return toolResult(results);
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_convert_task_to_goal",
+      description:
+        'Turn a task into a goal (Pro). The goal takes the task\'s title (a leading "GOAL:" is dropped), description, due date as deadline and project; each subtask becomes a task linked to the goal (ticked ones stay done); the original task is archived. One actionId undoes all of it.',
+      annotations: { readOnlyHint: false, destructiveHint: false },
+      input: z
+        .object({
+          taskId: z.string().min(1),
+          area: goalArea.optional(),
+          parentId: z
+            .string()
+            .min(1)
+            .optional()
+            .describe("Make it a subgoal of this goal."),
+        })
+        .strict(),
+      invoke: (ctx, args) => goalOp(ctx, "goal.convert_from_task", args),
+    },
+    ["tasks-updated"]
+  )
+);
 
 /**
  * Focus blocking: profiles of sites and apps that the browser extension and

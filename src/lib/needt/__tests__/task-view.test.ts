@@ -109,6 +109,7 @@ const baseRow: NeedtTaskRow = {
   originQuote: null,
   splitAllowed: true,
   fullTime: null,
+  goalId: null,
 
   project: null,
   parts: [],
@@ -179,11 +180,7 @@ describe("toNeedtTask", () => {
 
   it("does not group a late UTC task onto the server's calendar day", () => {
     const scheduledStart = new Date("2026-09-04T23:30:00.000Z");
-    const t = toNeedtTask(
-      row({ scheduledStart }),
-      NOW,
-      "America/Los_Angeles"
-    );
+    const t = toNeedtTask(row({ scheduledStart }), NOW, "America/Los_Angeles");
     expect(t.time).toBe("16:30");
     expect(t.scheduledOn).toBe("2026-09-04");
     expect(t.at).toBe(16.5);

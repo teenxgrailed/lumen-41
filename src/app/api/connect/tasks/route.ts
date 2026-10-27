@@ -132,6 +132,25 @@ export async function POST(request: NextRequest) {
       );
     }
   }
+  if (body.goalId != null) {
+    const goal =
+      typeof body.goalId === "string"
+        ? await prisma.goal.findFirst({
+            where: {
+              id: body.goalId,
+              workspaceId: workspace.workspaceId,
+              archivedAt: null,
+            },
+            select: { id: true },
+          })
+        : null;
+    if (!goal) {
+      return NextResponse.json(
+        { error: "goalId is not a goal in this workspace" },
+        { status: 400 }
+      );
+    }
+  }
   if (body.originPageId != null) {
     const origin =
       typeof body.originPageId === "string"
@@ -261,6 +280,7 @@ export async function POST(request: NextRequest) {
       ...(typeof body.dependsOnId === "string"
         ? { dependsOnId: body.dependsOnId }
         : {}),
+      ...(typeof body.goalId === "string" ? { goalId: body.goalId } : {}),
       ...(typeof body.originPageId === "string"
         ? { originKind: DOC_ORIGIN, originId: body.originPageId }
         : {}),
