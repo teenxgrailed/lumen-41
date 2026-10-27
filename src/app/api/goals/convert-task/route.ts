@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { readJsonBody, runGoalOp } from "@/services/goals/http";
+import { authenticateAgentRequest } from "@/services/ops/http";
 
 const LOG_SOURCE = "goals-convert-task-route";
 
@@ -10,9 +11,13 @@ const LOG_SOURCE = "goals-convert-task-route";
  * task is archived; the `actionId` undoes all of it.
  */
 export async function POST(request: NextRequest) {
+  const auth = await authenticateAgentRequest(request, LOG_SOURCE, {
+    write: true,
+  });
+  if (auth.response) return auth.response;
   const parsed = await readJsonBody(request, LOG_SOURCE);
   if ("response" in parsed) return parsed.response;
-  return runGoalOp(request, LOG_SOURCE, "goal.convert_from_task", parsed.body, {
+  return runGoalOp(auth, LOG_SOURCE, "goal.convert_from_task", parsed.body, {
     write: true,
     status: 201,
   });

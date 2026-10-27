@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { readJsonBody, runGoalOp } from "@/services/goals/http";
+import { authenticateAgentRequest } from "@/services/ops/http";
 
 const LOG_SOURCE = "goals-route";
 
@@ -11,6 +12,8 @@ const LOG_SOURCE = "goals-route";
  * session or a `needt_` token.
  */
 export async function GET(request: NextRequest) {
+  const auth = await authenticateAgentRequest(request, LOG_SOURCE);
+  if (auth.response) return auth.response;
   const params = request.nextUrl.searchParams;
   const input: Record<string, unknown> = {};
   for (const key of ["status", "parentId", "projectId"]) {
@@ -20,13 +23,17 @@ export async function GET(request: NextRequest) {
   if (params.get("includeArchived") === "true") input.includeArchived = true;
   const limit = Number(params.get("limit"));
   if (Number.isInteger(limit) && limit > 0) input.limit = limit;
-  return runGoalOp(request, LOG_SOURCE, "goal.list", input);
+  return runGoalOp(auth, LOG_SOURCE, "goal.list", input);
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authenticateAgentRequest(request, LOG_SOURCE, {
+    write: true,
+  });
+  if (auth.response) return auth.response;
   const parsed = await readJsonBody(request, LOG_SOURCE);
   if ("response" in parsed) return parsed.response;
-  return runGoalOp(request, LOG_SOURCE, "goal.create", parsed.body, {
+  return runGoalOp(auth, LOG_SOURCE, "goal.create", parsed.body, {
     write: true,
     status: 201,
   });

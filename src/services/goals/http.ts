@@ -1,16 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { OpError, runOp } from "@/services/ops";
-import { authenticateAgentRequest, opErrorResponse } from "@/services/ops/http";
+import {
+  type authenticateAgentRequest,
+  opErrorResponse,
+} from "@/services/ops/http";
+
+/** What `authenticateAgentRequest` answers once it let the request in. */
+export type GoalAuth = Exclude<
+  Awaited<ReturnType<typeof authenticateAgentRequest>>,
+  { response: NextResponse }
+>;
 
 /**
- * The /api/goals routes: the signed-in session (the app) or a `needt_`
- * connector token (scripts, agents), each running the goal ops, so the rules
- * and the undo log are the same everywhere. A token needs `needt.write` to
- * change anything.
+ * The /api/goals routes: each authenticates itself with
+ * `authenticateAgentRequest` (the signed-in session for the app, or a
+ * `needt_` connector token; a token needs `needt.write` to change anything,
+ * so a write passes `{ write: true }`), then runs a goal op here, so the
+ * rules and the undo log are the same everywhere.
  */
 export async function runGoalOp(
-  request: NextRequest,
+  auth: GoalAuth,
   logSource: string,
   name: string,
   input: unknown,
@@ -20,15 +30,11 @@ export async function runGoalOp(
     pick?: (result: unknown) => unknown;
   } = {}
 ) {
-  const auth = await authenticateAgentRequest(request, logSource, {
-    write: options.write,
-  });
-  if (auth.response) return auth.response;
   try {
     const run = await runOp(name, input, {
-      userId: auth.userId,
+      userId: auth.userId!,
       workspace: auth.workspace!,
-      actor: auth.actor,
+      actor: auth.actor!,
     });
     const body = options.write
       ? run
