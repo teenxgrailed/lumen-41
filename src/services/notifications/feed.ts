@@ -10,7 +10,16 @@
  * a fixed handful of queries however many items there are. Read state lives in
  * `NotificationRead` (one row per item key, plus `*` for "all up to here").
  */
-import { TaskReminderKind } from "@prisma/client";
+import {
+  reminderFireTime,
+  reminderLabel,
+  safeZone,
+} from "@/services/reminders/reminder-time";
+import {
+  reminderInclude,
+  reminderLink,
+  reminderTitle,
+} from "@/services/reminders/reminders";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
@@ -38,7 +47,14 @@ export type FeedKind =
   | "sync"
   | "import"
   | "reminder"
-  | "due";
+  | "due"
+  | "overdue";
+
+/** What a row is about, so the bell can offer Done and Tomorrow. */
+export interface FeedEntity {
+  type: "task" | "event" | "reminder";
+  id: string;
+}
 
 export interface FeedItem {
   /** Stable id of the item; pass it to the read endpoint. */
@@ -54,6 +70,10 @@ export interface FeedItem {
   /** A same-origin path. */
   link: string;
   unread: boolean;
+  /** The task or event behind the row, when there is one. */
+  entity: FeedEntity | null;
+  /** The reminder behind a reminder row: edit, delete and snooze use it. */
+  reminderId?: string;
 }
 
 export interface FeedPage {
@@ -64,7 +84,10 @@ export interface FeedPage {
   unreadCount: number;
 }
 
-type Candidate = Omit<FeedItem, "unread"> & { readByOwner?: boolean };
+type Candidate = Omit<FeedItem, "unread" | "entity"> & {
+  readByOwner?: boolean;
+  entity?: FeedEntity | null;
+};
 
 /** A same-origin path, or the fallback: a link from data is never trusted. */
 export function safeLink(link: string | null | undefined, fallback = "/today") {
@@ -122,28 +145,50 @@ function inputTitle(input: unknown): string | null {
   return null;
 }
 
-/** Same arithmetic as the reminder worker: anchor time minus the offset. */
-export function reminderFiresAt(reminder: {
-  kind: TaskReminderKind;
-  offsetMinutes: number;
-  task: {
-    scheduledStart: Date | null;
-    deadline: Date | null;
-    dueDate: Date | null;
-  };
-}): Date | null {
-  const anchor =
-    reminder.kind === TaskReminderKind.BEFORE_START
-      ? reminder.task.scheduledStart
-      : (reminder.task.deadline ?? reminder.task.dueDate);
-  return anchor
-    ? newDate(anchor.getTime() - reminder.offsetMinutes * 60_000)
-    : null;
+/** Same arithmetic as the reminder worker (services/reminders/reminder-time). */
+export function reminderFiresAt(
+  reminder: Parameters<typeof reminderFireTime>[0],
+  timeZone = "UTC"
+): Date | null {
+  return reminderFireTime(reminder, timeZone);
 }
 
 interface Scope {
   userId: string;
   workspace?: WorkspaceAccess;
+  timeZone: string;
+}
+
+const isPersonal = (scope: Scope) =>
+  scope.workspace?.dataScope.mode !== "workspace";
+
+/** A reminder's task, when it has one, must be in the scope's workspace. */
+function reminderScope(scope: Scope) {
+  const taskWhere = {
+    isArchived: false,
+    ...workspaceOnly(scope),
+  };
+  return isPersonal(scope)
+    ? {
+        OR: [
+          { taskId: null, eventId: null },
+          { eventId: { not: null }, event: { archivedAt: null } },
+          { task: taskWhere },
+        ],
+      }
+    : { task: taskWhere };
+}
+
+function reminderEntity(r: {
+  id: string;
+  taskId: string | null;
+  eventId: string | null;
+}): FeedEntity {
+  return r.taskId
+    ? { type: "task", id: r.taskId }
+    : r.eventId
+      ? { type: "event", id: r.eventId }
+      : { type: "reminder", id: r.id };
 }
 
 function workspaceOnly(scope: Scope) {
@@ -154,7 +199,8 @@ function workspaceOnly(scope: Scope) {
 
 async function activityCandidates(
   scope: Scope,
-  since: Date
+  since: Date,
+  now: Date
 ): Promise<Candidate[]> {
   const { userId } = scope;
   const pageAccess = {
@@ -171,6 +217,8 @@ async function activityCandidates(
     boardShares,
     feeds,
     imports,
+    fired,
+    overdue,
   ] = await Promise.all([
     prisma.proactiveNudge.findMany({
       where: { userId, createdAt: { gte: since } },
@@ -318,6 +366,33 @@ async function activityCandidates(
         finishedAt: true,
       },
     }),
+    // Reminders that have come due: the bell is where they land, whether or
+    // not the worker pushed them (Settings may have kept them quiet).
+    prisma.taskReminder.findMany({
+      where: {
+        userId,
+        canceledAt: null,
+        AND: [
+          { OR: [{ deliveredAt: { gte: since } }, { deliveredAt: null }] },
+          reminderScope(scope),
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: FEED_SOURCE_CAP * 2,
+      include: reminderInclude,
+    }),
+    prisma.task.findMany({
+      where: {
+        isArchived: false,
+        status: { not: "completed" },
+        ...workspaceOnly(scope),
+        OR: [{ userId }, { assigneeId: userId }],
+        dueDate: { gte: addCalendarDays(now, -14), lt: now },
+      },
+      orderBy: { dueDate: "desc" },
+      take: FEED_SOURCE_CAP,
+      select: { id: true, title: true, dueDate: true },
+    }),
   ]);
 
   const out: Candidate[] = [];
@@ -450,6 +525,39 @@ async function activityCandidates(
       link: "/connections",
     });
   }
+  for (const r of fired ?? []) {
+    if (r.task && r.task.status === "completed") continue;
+    const fires = reminderFireTime(r, scope.timeZone);
+    if (!fires || fires > now || fires < since) continue;
+    out.push({
+      key: `fired:${r.id}:${fires.getTime()}`,
+      group: "activity",
+      kind: "reminder",
+      actor: null,
+      title: reminderTitle(r),
+      body: r.snoozedUntil
+        ? "Snoozed reminder"
+        : reminderLabel({ ...r, onEvent: !!r.eventId }, scope.timeZone),
+      at: fires.toISOString(),
+      link: reminderLink(r),
+      entity: reminderEntity(r),
+      reminderId: r.id,
+    });
+  }
+  for (const t of overdue ?? []) {
+    if (!t.dueDate) continue;
+    out.push({
+      key: `overdue:${t.id}:${t.dueDate.getTime()}`,
+      group: "activity",
+      kind: "overdue",
+      actor: null,
+      title: t.title,
+      body: "Overdue",
+      at: t.dueDate.toISOString(),
+      link: `/today?task=${encodeURIComponent(t.id)}`,
+      entity: { type: "task", id: t.id },
+    });
+  }
   return out;
 }
 
@@ -458,8 +566,7 @@ async function reminderCandidates(
   now: Date
 ): Promise<Candidate[]> {
   const { userId } = scope;
-  const horizon = addCalendarDays(now, 7);
-  const earliest = newDate(now.getTime() - 24 * 3_600_000);
+  const horizon = addCalendarDays(now, 30);
   const taskScope = {
     isArchived: false,
     status: { not: "completed" },
@@ -472,33 +579,17 @@ async function reminderCandidates(
         userId,
         canceledAt: null,
         deliveredAt: null,
-        deliveryStatus: "PENDING",
-        task: { ...taskScope, ...mine },
+        deliveryStatus: { in: ["PENDING", "FAILED"] },
+        ...reminderScope(scope),
       },
       take: FEED_SOURCE_CAP * 2,
-      select: {
-        id: true,
-        kind: true,
-        offsetMinutes: true,
-        taskId: true,
-        task: {
-          select: {
-            title: true,
-            scheduledStart: true,
-            deadline: true,
-            dueDate: true,
-          },
-        },
-      },
+      include: reminderInclude,
     }),
     prisma.task.findMany({
       where: {
         ...taskScope,
         ...mine,
-        dueDate: {
-          gte: addCalendarDays(now, -14),
-          lte: addCalendarDays(now, 2),
-        },
+        dueDate: { gte: now, lte: addCalendarDays(now, 2) },
       },
       orderBy: { dueDate: "asc" },
       take: FEED_SOURCE_CAP,
@@ -509,32 +600,35 @@ async function reminderCandidates(
   const out: Candidate[] = [];
   const withReminder = new Set<string>();
   for (const r of reminders) {
-    const fires = reminderFiresAt(r);
-    if (!fires || fires < earliest || fires > horizon) continue;
-    withReminder.add(r.taskId);
+    if (r.task && r.task.status === "completed") continue;
+    const fires = reminderFireTime(r, scope.timeZone);
+    if (!fires || fires <= now || fires > horizon) continue;
+    if (r.taskId) withReminder.add(r.taskId);
     out.push({
       key: `reminder:${r.id}`,
       group: "reminders",
       kind: "reminder",
       actor: null,
-      title: r.task.title,
-      body:
-        r.kind === TaskReminderKind.BEFORE_START ? "Starts soon" : "Due soon",
+      title: reminderTitle(r),
+      body: reminderLabel({ ...r, onEvent: !!r.eventId }, scope.timeZone),
       at: fires.toISOString(),
-      link: `/today?task=${encodeURIComponent(r.taskId)}`,
+      link: reminderLink(r),
+      entity: reminderEntity(r),
+      reminderId: r.id,
     });
   }
   for (const t of due) {
-    if (!t.dueDate || withReminder.has(t.id)) continue;
+    if (!t.dueDate || t.dueDate < now || withReminder.has(t.id)) continue;
     out.push({
       key: `due:${t.id}`,
       group: "reminders",
       kind: "due",
       actor: null,
       title: t.title,
-      body: t.dueDate < now ? "Overdue" : "Due soon",
+      body: "Due soon",
       at: t.dueDate.toISOString(),
       link: `/today?task=${encodeURIComponent(t.id)}`,
+      entity: { type: "task", id: t.id },
     });
   }
   return out;
@@ -557,11 +651,19 @@ export async function getNotificationFeed(input: {
     Math.max(input.limit ?? FEED_DEFAULT_LIMIT, 1),
     FEED_MAX_LIMIT
   );
-  const scope: Scope = { userId: input.userId, workspace: input.workspace };
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: input.userId },
+    select: { timeZone: true },
+  });
+  const scope: Scope = {
+    userId: input.userId,
+    workspace: input.workspace,
+    timeZone: safeZone(settings?.timeZone),
+  };
   const since = addCalendarDays(now, -FEED_WINDOW_DAYS);
 
   const [activity, reminders] = await Promise.all([
-    activityCandidates(scope, since),
+    activityCandidates(scope, since, now),
     input.group === "reminders"
       ? reminderCandidates(scope, now)
       : Promise.resolve([]),
@@ -571,20 +673,36 @@ export async function getNotificationFeed(input: {
   const reads = keys.length
     ? await prisma.notificationRead.findMany({
         where: { userId: input.userId, key: { in: [...keys, ALL_READ_KEY] } },
-        select: { key: true, readAt: true },
+        select: { key: true, readAt: true, snoozedUntil: true },
       })
     : [];
-  const readKeys = new Set(reads.map((r) => r.key));
-  const allReadAt = reads.find((r) => r.key === ALL_READ_KEY)?.readAt ?? null;
+  const readAt = new Map<string, Date>();
+  const snoozed = new Map<string, Date>();
+  for (const r of reads) {
+    readAt.set(r.key, r.readAt);
+    if (r.snoozedUntil) snoozed.set(r.key, r.snoozedUntil);
+  }
+  const allReadAt = readAt.get(ALL_READ_KEY) ?? null;
 
   const withState = activity
-    .map<FeedItem>(({ readByOwner, ...item }) => ({
-      ...item,
-      unread:
-        !readByOwner &&
-        !readKeys.has(item.key) &&
-        !(allReadAt && newDate(item.at) <= allReadAt),
-    }))
+    // "Tomorrow" hides a row until then; it comes back unread.
+    .filter((item) => {
+      const until = snoozed.get(item.key);
+      return !until || until <= now;
+    })
+    .map<FeedItem>(({ readByOwner, entity, ...item }) => {
+      const until = snoozed.get(item.key);
+      const read = readAt.get(item.key);
+      return {
+        ...item,
+        entity: entity ?? null,
+        unread: until
+          ? !(read && read > until)
+          : !readByOwner &&
+            !read &&
+            !(allReadAt && newDate(item.at) <= allReadAt),
+      };
+    })
     .sort((a, b) =>
       a.at < b.at ? 1 : a.at > b.at ? -1 : a.key < b.key ? -1 : 1
     );
@@ -592,7 +710,12 @@ export async function getNotificationFeed(input: {
 
   if (input.group === "reminders") {
     const items = reminders
-      .map<FeedItem>((r) => ({ ...r, unread: false }))
+      // Reminder rows carry no read state; readByOwner is never set on them.
+      .map<FeedItem>(({ entity, ...r }) => ({
+        ...r,
+        entity: entity ?? null,
+        unread: false,
+      }))
       .sort((a, b) => (a.at < b.at ? -1 : 1))
       .slice(0, limit);
     return { items, nextBefore: null, unreadCount };
@@ -648,10 +771,64 @@ export async function markNotificationsRead(input: {
     data: keys.map((key) => ({ userId: input.userId, key, readAt: now })),
     skipDuplicates: true,
   });
+  // A row that came back from a snooze is read again by a fresh mark.
+  await prisma.notificationRead.updateMany({
+    where: {
+      userId: input.userId,
+      key: { in: keys },
+      snoozedUntil: { not: null, lte: now },
+    },
+    data: { readAt: now, snoozedUntil: null },
+  });
   logger.debug(
     "Notifications marked read",
     { count: result.count },
     LOG_SOURCE
   );
   return { marked: result.count };
+}
+
+/** "Tomorrow" on rows that are not reminders: hidden until `until`. */
+export async function snoozeNotifications(input: {
+  userId: string;
+  keys: unknown;
+  until: Date;
+  now?: Date;
+}): Promise<{ snoozed: number }> {
+  const now = input.now ?? newDate();
+  if (
+    !Array.isArray(input.keys) ||
+    input.keys.length === 0 ||
+    input.keys.length > MAX_KEYS ||
+    !input.keys.every(
+      (k) =>
+        typeof k === "string" &&
+        k.length > 0 &&
+        k.length <= MAX_KEY_LENGTH &&
+        k !== ALL_READ_KEY
+    )
+  ) {
+    throw new NotificationReadError(
+      `Send { "keys": [1 to ${MAX_KEYS} item keys], "until": ISO time }.`
+    );
+  }
+  if (Number.isNaN(input.until.getTime()) || input.until <= now) {
+    throw new NotificationReadError("until must be a future ISO time.");
+  }
+  const keys = [...new Set(input.keys as string[])];
+  await prisma.$transaction(
+    keys.map((key) =>
+      prisma.notificationRead.upsert({
+        where: { userId_key: { userId: input.userId, key } },
+        create: {
+          userId: input.userId,
+          key,
+          readAt: now,
+          snoozedUntil: input.until,
+        },
+        update: { readAt: now, snoozedUntil: input.until },
+      })
+    )
+  );
+  return { snoozed: keys.length };
 }

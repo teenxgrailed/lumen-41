@@ -42,7 +42,10 @@ export interface BugReportSyncJobData {
 
 export type ReminderJobData =
   | { kind: "sweep" }
-  | { kind: "deliver"; reminderId: string };
+  | { kind: "deliver"; reminderId: string }
+  /** Daily digests and pushes for mentions, shares and system rows. */
+  | { kind: "digest" }
+  | { kind: "activity" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

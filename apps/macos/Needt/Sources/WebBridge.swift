@@ -77,7 +77,7 @@ enum WebBridge {
           },
           sendNotification: function (options) {
             options = options || {};
-            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || '') });
+            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || ''), url: typeof options.url === 'string' ? options.url : '' });
           }
         }
       };
@@ -194,7 +194,11 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         case "notification.request":
             reply(await Notifier.shared.request() ? "granted" : "denied", nil)
         case "notification.send":
-            Notifier.shared.send(title: body["title"] as? String ?? "", body: body["body"] as? String ?? "")
+            Notifier.shared.send(
+                title: body["title"] as? String ?? "",
+                body: body["body"] as? String ?? "",
+                path: body["url"] as? String
+            )
             reply(nil, nil)
         case "drag":
             host?.bridgeDidRequestDrag(NSApp.currentEvent)

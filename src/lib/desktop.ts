@@ -11,7 +11,12 @@
 interface TauriNotificationApi {
   isPermissionGranted?: () => Promise<boolean>;
   requestPermission?: () => Promise<"granted" | "denied" | "default">;
-  sendNotification?: (options: { title: string; body?: string }) => void;
+  sendNotification?: (options: {
+    title: string;
+    body?: string;
+    /** A same-origin path the Mac app opens when the notification is clicked. */
+    url?: string;
+  }) => void;
 }
 
 interface TauriGlobal {
@@ -50,7 +55,8 @@ export function isMacApp(): boolean {
  */
 export async function sendDesktopNotification(
   title: string,
-  body?: string
+  body?: string,
+  url?: string
 ): Promise<boolean> {
   const api = tauriGlobal()?.notification;
   if (!api?.sendNotification) return false;
@@ -60,7 +66,9 @@ export async function sendDesktopNotification(
       granted = (await api.requestPermission?.()) === "granted";
     }
     if (!granted) return false;
-    api.sendNotification({ title, body });
+    api.sendNotification(
+      url && /^\/(?!\/)/.test(url) ? { title, body, url } : { title, body }
+    );
     return true;
   } catch {
     return false;

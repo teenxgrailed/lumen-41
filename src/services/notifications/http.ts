@@ -3,12 +3,15 @@
 import { NextResponse } from "next/server";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
+import { newDate } from "@/lib/date-utils";
 
+import { alertsSince } from "./alerts";
 import {
   type FeedGroup,
   NotificationReadError,
   getNotificationFeed,
   markNotificationsRead,
+  snoozeNotifications,
 } from "./feed";
 
 export async function feedResponse(
@@ -67,4 +70,62 @@ export async function readResponse(userId: string, request: Request) {
     throw error;
   }
   return new NextResponse(null, { status: 204 });
+}
+
+/** `{ keys, until }`: hides feed rows until `until` ("Tomorrow"). */
+export async function snoozeResponse(userId: string, request: Request) {
+  let body: { keys?: unknown; until?: unknown };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Body must be JSON" }, { status: 400 });
+  }
+  try {
+    const result = await snoozeNotifications({
+      userId,
+      keys: body.keys,
+      until: newDate(typeof body.until === "string" ? body.until : NaN),
+    });
+    return NextResponse.json(result);
+  } catch (error) {
+    if (error instanceof NotificationReadError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    throw error;
+  }
+}
+
+/**
+ * What may interrupt on a channel now (`?channel=mac&since=ISO`): the rows
+ * that arrived since `since`, after Settings → Notifications decided. The
+ * Mac app polls it and shows each as a system notification.
+ */
+export async function alertsResponse(
+  auth: { userId: string; workspace?: WorkspaceAccess },
+  params: URLSearchParams
+) {
+  const channel = params.get("channel") ?? "mac";
+  if (channel !== "mac" && channel !== "inApp") {
+    return NextResponse.json(
+      { error: "channel must be mac or inApp" },
+      { status: 400 }
+    );
+  }
+  const since = params.get("since");
+  const sinceDate = since ? newDate(since) : null;
+  if (since && Number.isNaN(sinceDate?.getTime())) {
+    return NextResponse.json(
+      { error: "since must be an ISO time" },
+      { status: 400 }
+    );
+  }
+  const result = await alertsSince({
+    userId: auth.userId,
+    workspace: auth.workspace,
+    channel,
+    since: sinceDate,
+  });
+  return NextResponse.json(result, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

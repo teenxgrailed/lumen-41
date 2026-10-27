@@ -13,6 +13,7 @@ import {
 import * as Dialog from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  LuAlarmClock,
   LuArchive,
   LuArrowRight,
   LuBan,
@@ -69,6 +70,7 @@ import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
 import { convertTaskToGoal, undoGoalAction } from "@/lib/needt3/hooks/goals";
 import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import { useReminderActions, useReminders } from "@/lib/needt3/hooks/reminders";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
   useCreateLabel,
@@ -102,6 +104,7 @@ import { openPaywall } from "../paywall/store";
 import { useDesignV3 } from "../root/V3Root";
 import { SortableItem, SortableList } from "../sortable/Sortable";
 import { useSortableList } from "../sortable/useSortableList";
+import { ReminderPicker } from "../task/ReminderPicker";
 import { TaskDialogCalendar } from "./TaskDialogCalendar";
 import {
   type ChipBox,
@@ -138,6 +141,7 @@ type PopKey =
   | "priority"
   | "labels"
   | "repeat"
+  | "remind"
   | "deadline"
   | "more";
 interface Pop {
@@ -263,6 +267,8 @@ export function TaskDialog({
   const [schedOpen, setSchedOpen] = useSchedOpen();
   const [flash, setFlash] = useState(0);
   const checkTick = useTick(t.done, t.id);
+  const taskReminders = useReminders({ taskId: t.id });
+  const reminderActions = useReminderActions();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -469,6 +475,17 @@ export function TaskDialog({
       value: repeatText,
       empty: "Repeat",
       title: provider ? `Repeat is set in ${provider}` : "Repeat",
+    },
+    {
+      k: "remind",
+      glyph: <LuAlarmClock size={13} aria-hidden />,
+      value: (() => {
+        const list = taskReminders.data ?? [];
+        if (!list.length) return null;
+        return list.length === 1 ? list[0].label : `${list.length} reminders`;
+      })(),
+      empty: "Remind",
+      title: "Remind me",
     },
     //todo Who (workspace members) chip.
   ];
@@ -1066,6 +1083,20 @@ export function TaskDialog({
         </div>
       );
     }
+    if (pop.key === "remind")
+      return (
+        <ReminderPicker
+          current={taskReminders.data ?? []}
+          onPick={(spec) =>
+            void reminderActions
+              .create({ taskId: t.id }, spec)
+              .then(() => taskReminders.refetch())
+          }
+          onRemove={(id) =>
+            void reminderActions.remove(id).then(() => taskReminders.refetch())
+          }
+        />
+      );
     if (pop.key === "repeat") {
       const current = repeatKey(t.repeat);
       return (
