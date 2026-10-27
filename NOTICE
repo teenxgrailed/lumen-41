@@ -9,5 +9,5 @@ Novel is licensed under the Apache License, Version 2.0.
 Copyright Novel contributors.
 
 This notice does not replace the upstream Apache-2.0 license terms. Needt's
-own source remains licensed as stated in the repository LICENSE, and upstream
-FluidCalendar attribution remains preserved.
+own source is proprietary (see LICENSE); upstream
+FluidCalendar attribution is preserved in THIRD_PARTY_NOTICES.md.
