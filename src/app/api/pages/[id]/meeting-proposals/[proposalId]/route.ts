@@ -12,7 +12,7 @@ type RouteContext = { params: Promise<{ id: string; proposalId: string }> };
 const inputSchema = z.object({ decision: z.enum(["approve", "reject"]) });
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const parsed = inputSchema.safeParse(await request.json());
+  const parsed = inputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
   const auth = await authenticateRequest(request, LOG_SOURCE, {

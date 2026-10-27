@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   if ("response" in auth) return auth.response;
   const { userId, workspace } = auth;
 
-  const body = await request.json();
+  const body = (await request.json().catch(() => null)) ?? {};
   if (typeof body.title !== "string" || !body.title.trim()) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }

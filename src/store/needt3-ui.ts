@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { CHAT_DOCK_W, clampDockW } from "@/lib/assistant-position";
 import {
   type AccentId,
   DEFAULT_ACCENT,
@@ -40,6 +41,10 @@ export interface Needt3UiState {
   paletteOpen: boolean;
   composerOpen: boolean;
   askOpen: boolean;
+  /** Ask was left docked open on the desktop (restored on the next visit). */
+  askRemembered: boolean;
+  /** The docked Ask panel's width, dragged from its left edge. */
+  askWidth: number;
   focusOpen: boolean;
   theme: ThemeChoice;
   accent: AccentId;
@@ -57,6 +62,8 @@ export interface Needt3UiState {
   setPaletteOpen: (open: boolean) => void;
   setComposerOpen: (open: boolean) => void;
   setAskOpen: (open: boolean) => void;
+  setAskRemembered: (remembered: boolean) => void;
+  setAskWidth: (width: number) => void;
   setFocusOpen: (open: boolean) => void;
   setTheme: (theme: ThemeChoice) => void;
   setAccent: (accent: AccentId) => void;
@@ -77,6 +84,8 @@ export const useNeedt3Ui = create<Needt3UiState>()(
       paletteOpen: false,
       composerOpen: false,
       askOpen: false,
+      askRemembered: false,
+      askWidth: CHAT_DOCK_W,
       focusOpen: false,
       theme: DEFAULT_THEME,
       accent: DEFAULT_ACCENT,
@@ -94,6 +103,8 @@ export const useNeedt3Ui = create<Needt3UiState>()(
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setComposerOpen: (composerOpen) => set({ composerOpen }),
       setAskOpen: (askOpen) => set({ askOpen }),
+      setAskRemembered: (askRemembered) => set({ askRemembered }),
+      setAskWidth: (askWidth) => set({ askWidth: clampDockW(askWidth) }),
       setFocusOpen: (focusOpen) => set({ focusOpen }),
       setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
       setAccent: (accent) => set({ accent: normalizeAccent(accent) }),
@@ -113,6 +124,8 @@ export const useNeedt3Ui = create<Needt3UiState>()(
       version: 1,
       partialize: (s) => ({
         sidebarOpen: s.sidebarOpen,
+        askRemembered: s.askRemembered,
+        askWidth: s.askWidth,
         theme: s.theme,
         accent: s.accent,
       }),
@@ -124,6 +137,11 @@ export const useNeedt3Ui = create<Needt3UiState>()(
             typeof p.sidebarOpen === "boolean"
               ? p.sidebarOpen
               : current.sidebarOpen,
+          askRemembered:
+            typeof p.askRemembered === "boolean"
+              ? p.askRemembered
+              : current.askRemembered,
+          askWidth: clampDockW(p.askWidth ?? current.askWidth),
           theme: normalizeTheme(p.theme ?? current.theme),
           accent: normalizeAccent(p.accent ?? current.accent),
         };

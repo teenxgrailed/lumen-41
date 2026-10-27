@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
   const { key } = await params;
-  const body = (await request.json()) as {
+  const body = ((await request.json().catch(() => null)) ?? {}) as {
     enabled?: unknown;
     rolloutPercentage?: unknown;
     userId?: unknown;
