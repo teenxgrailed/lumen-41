@@ -80,7 +80,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const userId = auth.userId;
-    const updates = await request.json();
+    const updates = await request.json().catch(() => null);
+    if (!updates || typeof updates !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const v3 = parseV3Fields(notificationSettingsV3FieldsSchema, updates);
     if (!v3.ok) {
       return NextResponse.json({ error: v3.error }, { status: 400 });

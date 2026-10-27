@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
     const denied = await requireAuth(request);
     if (denied) return denied;
 
-    const { serverUrl, username, password, path } = await request.json();
+    const { serverUrl, username, password, path } =
+      (await request.json().catch(() => null)) ?? {};
 
     // Validate required fields
     if (!serverUrl || !username || !password) {

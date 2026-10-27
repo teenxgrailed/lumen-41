@@ -3,7 +3,7 @@
 #
 # Images are built and pushed by CI; Coolify only pulls and restarts.
 # Each Coolify resource builds `docker/runtime/<app>.Dockerfile`, a single
-# `FROM ghcr.io/teenxgrails/needt-<app>:${SOURCE_COMMIT}`: Coolify passes the
+# `FROM ghcr.io/teenxgrailed/needt-<app>:${SOURCE_COMMIT}`: Coolify passes the
 # commit it deploys, so the "build" is a pull of the image for that commit.
 #
 # Which commit Coolify deploys:
@@ -52,13 +52,13 @@ call() {
 image_exists() {
   local token accept
   token=$(curl --silent --max-time 30 --user "x-access-token:${GITHUB_TOKEN:-}" \
-    "https://ghcr.io/token?service=ghcr.io&scope=repository:teenxgrails/needt-$image:pull" |
+    "https://ghcr.io/token?service=ghcr.io&scope=repository:teenxgrailed/needt-$image:pull" |
     jq -r '.token // empty' 2>/dev/null || true)
   [ -n "$token" ] || return 1
   accept='application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.docker.distribution.manifest.list.v2+json'
   [ "$(curl --silent --max-time 30 --output /dev/null --write-out '%{http_code}' --head \
     --header "Authorization: Bearer $token" --header "Accept: $accept" \
-    "https://ghcr.io/v2/teenxgrails/needt-$image/manifests/$1")" = 200 ]
+    "https://ghcr.io/v2/teenxgrailed/needt-$image/manifests/$1")" = 200 ]
 }
 
 pin=$(call PATCH "$api/applications/$uuid" "{\"git_commit_sha\":\"$DEPLOY_SHA\"}")

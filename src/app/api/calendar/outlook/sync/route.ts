@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const userId = auth.userId;
 
-    const body = await req.json();
+    const body = (await req.json().catch(() => null)) ?? {};
     const { accountId, calendarId, name, color } = body;
 
     if (!accountId || !calendarId) {
@@ -129,7 +129,7 @@ export async function PUT(req: NextRequest) {
 
     const userId = auth.userId;
 
-    const body = await req.json();
+    const body = (await req.json().catch(() => null)) ?? {};
     const { feedId } = body;
 
     if (!feedId) {

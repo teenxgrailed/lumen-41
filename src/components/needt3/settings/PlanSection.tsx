@@ -13,6 +13,7 @@ import {
   startTrial,
 } from "@/lib/needt3/hooks/account";
 import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
+import { offersTrial } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
@@ -143,7 +144,7 @@ export function PlanSection() {
               <span className="settings-text-7">Your plan · {info.name}</span>
               <span className="settings-text-8">
                 {kind === "free"
-                  ? `${P.trialShort}.`
+                  ? `${offersTrial(b) ? P.trialShort : P.plansShort}.`
                   : kind === "trial"
                     ? `${b?.trialDaysLeft ?? 0} days left of your trial`
                     : kind === "lifetime"
@@ -232,7 +233,7 @@ export function PlanSection() {
               </SBtn>
             </span>
           ) : null}
-          {kind === "free" || kind === "trial" ? (
+          {offersTrial(b) || kind === "trial" ? (
             <span className="settings-trial-terms" data-settings-trial-terms>
               {P.trialTerms}
             </span>

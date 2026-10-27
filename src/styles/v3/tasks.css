@@ -176,9 +176,7 @@
 .needt-v3 .wk-screen { flex: 1; min-height: 0; width: 100%; max-width: 1240px; display: flex; flex-direction: column; }
 .needt-v3 .wk-head { flex: none; display: flex; align-items: center; gap: 12px; height: 60px; }
 .needt-v3 .wk-title { margin: 0; font: var(--type-page-title); color: var(--text-primary); }
-.needt-v3 .wk-tabs { margin-left: auto; display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-raised); }
-.needt-v3 .wk-tabbtn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 0; border-radius: var(--radius-lg); cursor: default; font: var(--type-ui); }
-.needt-v3 .wk-tabbtn.is-on { font: var(--type-ui-medium); }
+.needt-v3 .wk-tabs { margin-left: auto; display: inline-grid; }
 .needt-v3 .wk-meta { font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .wk-num { font-variant-numeric: tabular-nums; }
 .needt-v3 .wk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

@@ -11,9 +11,21 @@
  *   cookie lives.
  */
 
-/** Scopes a token can carry. Mail is metadata only and needs its own consent. */
-export const MCP_SCOPES = ["needt.read", "needt.write", "mail.read"] as const;
+/**
+ * Scopes a token can carry. Mail is metadata only and needs its own consent.
+ * `needt.admin.read` is the read-only view of the Admin area: never a
+ * default, never on a personal token, offered at consent only to an admin,
+ * and the admin role is checked again on every call.
+ */
+export const MCP_SCOPES = [
+  "needt.read",
+  "needt.write",
+  "mail.read",
+  "needt.admin.read",
+] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
+
+export const ADMIN_READ_SCOPE = "needt.admin.read" satisfies McpScope;
 
 const DEFAULT_RESOURCE = "https://mcp.needt.app/mcp";
 const DEFAULT_ISSUER = "https://use.needt.app";

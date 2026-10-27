@@ -2679,7 +2679,7 @@ model SystemSettings {
   logRetention                         Json? // Retention periods per log level
   logDestination                       String   @default("db") // db, file, both
   publicSignup                         Boolean  @default(true) // Whether public signup is enabled
-  requireEmailVerificationBeforeAccess Boolean  @default(false)
+  requireEmailVerificationBeforeAccess Boolean  @default(true)
   disableHomepage                      Boolean  @default(false) // Whether to disable the homepage and redirect to login/calendar
   resendApiKey                         String? // API key for Resend email service
   createdAt                            DateTime @default(now())

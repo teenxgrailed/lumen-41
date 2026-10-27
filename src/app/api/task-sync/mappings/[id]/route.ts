@@ -142,7 +142,7 @@ export async function PATCH(
     }
 
     // Parse request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const validatedData = mappingPatchSchema.parse(body);
 
     // Create an update object only with fields that are provided
