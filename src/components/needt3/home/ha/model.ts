@@ -207,6 +207,8 @@ export function haBandOf(b: DayBand): HaBandData {
     n: b.title,
     time: bandTimeLabel(b),
     hue: TONE_HUE[b.tone] ?? TONE_HUE.neutral,
+    blockId: b.blockId,
+    band: b,
   };
 }
 

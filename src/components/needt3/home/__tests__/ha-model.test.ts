@@ -294,11 +294,12 @@ describe("the day's timeline", () => {
     ...over,
   });
   it("draws a personal block as a band in a palette colour, never a raw one", () => {
-    expect(haBandOf(band())).toEqual({
+    expect(haBandOf(band())).toMatchObject({
       e: "🍽",
       n: "Lunch",
       time: "12:30–13:15",
       hue: "var(--info)",
+      blockId: "b1",
     });
     expect(haBandOf(band({ tone: "neutral" })).hue).toBe(
       "var(--text-tertiary)"
