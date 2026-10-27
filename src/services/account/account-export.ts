@@ -3,9 +3,9 @@ import { DataExportStatus } from "@prisma/client";
 import { createHash, randomBytes } from "node:crypto";
 import { gzipSync } from "node:zlib";
 
-import { APP_NAME } from "@/lib/app-config";
 import { addHours, newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
+import { getAccountExportTemplate } from "@/lib/email/templates/notifications";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -476,9 +476,7 @@ export async function processAccountExport(requestId: string): Promise<void> {
     const link = `${publicAppUrl()}/api/account/export/download?token=${encodeURIComponent(token)}`;
     await EmailService.sendEmail({
       to: request.user.email,
-      subject: `Your ${APP_NAME} data export is ready`,
-      text: `Your account archive is ready. Download it within ${EXPORT_TTL_HOURS} hours: ${link}`,
-      html: `<p>Your account archive is ready.</p><p><a href="${link}">Download your archive</a></p><p>This one-use link expires in ${EXPORT_TTL_HOURS} hours.</p>`,
+      ...getAccountExportTemplate({ link, ttlHours: EXPORT_TTL_HOURS }),
     });
     await logger.info("Account export generated", { requestId }, LOG_SOURCE);
   } catch (error) {

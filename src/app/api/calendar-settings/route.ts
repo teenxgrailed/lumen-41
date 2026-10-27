@@ -47,7 +47,10 @@ export async function PATCH(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const updates = await request.json();
+    const updates = await request.json().catch(() => null);
+    if (!updates || typeof updates !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     const settings = await prisma.calendarSettings.upsert({
       where: { userId },

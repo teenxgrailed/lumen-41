@@ -55,6 +55,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { type PeekAnchor, PersonalPeek } from "../personal/PersonalPeek";
 import { PersonalDay } from "../personal/PersonalQuickAdd";
+import { Segmented } from "../shell/Segmented";
 import {
   StarterGameSlot,
   useStarterGameCard,
@@ -668,22 +669,18 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
           </span>
         </div>
         <span className="hd-head-right">
-          <span role="tablist" className="wk-tabs hd-tabs">
-            {tabs.map(([id, label, n]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                data-hd-tab={id}
-                className={`wk-tab wk-tabbtn${tab === id ? " is-on" : ""}`}
-                onClick={() => setTab(id)}
-                aria-selected={tab === id}
-              >
-                {label}
-                {n ? <span className="hd-meta-t hd-num">{n}</span> : null}
-              </button>
-            ))}
-          </span>
+          <Segmented
+            className="wk-tabs hd-tabs"
+            label="Home view"
+            value={tab}
+            onChange={setTab}
+            options={tabs.map(([id, label, count]) => ({
+              id,
+              label,
+              count,
+              attrs: { "data-hd-tab": id },
+            }))}
+          />
           {planButton(false, true)}
           <TaskViewGear scope="home" />
         </span>

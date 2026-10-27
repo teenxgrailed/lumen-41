@@ -15,7 +15,9 @@ export type AdminAuditAction =
   | "user.sign_out_everywhere"
   | "user.delete"
   | "promo.create"
-  | "promo.deactivate";
+  | "promo.deactivate"
+  /** A read through the MCP admin tools (`needt.admin.read`). */
+  | "mcp.admin_read";
 
 type Writer = Pick<Prisma.TransactionClient, "adminAuditLog">;
 

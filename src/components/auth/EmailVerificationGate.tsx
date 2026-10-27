@@ -10,7 +10,26 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { notify } from "@/lib/notifications";
+
+/** Seconds before "Send again" works again; the server enforces the same. */
+export const RESEND_COOLDOWN_SECONDS = 60;
+
+/** Inbox shortcuts for the common providers; nothing for an unknown domain. */
+export function inboxLinks(
+  email: string | null
+): { label: string; href: string }[] {
+  const domain = email?.split("@")[1]?.toLowerCase() ?? "";
+  const gmail = { label: "Open Gmail", href: "https://mail.google.com/" };
+  const outlook = {
+    label: "Open Outlook",
+    href: "https://outlook.live.com/mail/",
+  };
+  if (domain === "gmail.com" || domain === "googlemail.com") return [gmail];
+  if (/^(outlook|hotmail|live|msn)\./.test(domain)) return [outlook];
+  return email ? [gmail, outlook] : [];
+}
 
 /**
  * The banner's height, published on <html> while it shows, so a full-height
@@ -35,6 +54,7 @@ export function EmailVerificationGate({
     initialStatus
   );
   const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const bannerRef = useRef<HTMLDivElement>(null);
   const showBanner = Boolean(status?.email && !status.verified);
 
@@ -47,6 +67,27 @@ export function EmailVerificationGate({
   useEffect(() => {
     if (initialStatus) void loadStatus();
   }, [initialStatus, loadStatus]);
+
+  // The screen moves on by itself once the link was opened on any device.
+  const blocked = Boolean(status?.required && !status.verified);
+  useEffect(() => {
+    if (!blocked) return undefined;
+    const id = setInterval(() => {
+      void fetch("/api/auth/email-verification/status")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((next: VerificationStatus | null) => {
+          if (next?.verified) window.location.reload();
+        })
+        .catch(() => undefined);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [blocked]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   // One observer on one element: the banner wraps to two lines on a narrow
   // phone, and the frame below must follow its real height.
@@ -81,6 +122,7 @@ export function EmailVerificationGate({
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Could not send email");
       notify.success("Verification email sent");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
       notify.error(
         error instanceof Error ? error.message : "Could not send email"
@@ -91,20 +133,49 @@ export function EmailVerificationGate({
   }
 
   if (status?.required && !status.verified) {
+    const links = inboxLinks(status.email);
     return (
       <div className="grid min-h-dvh place-items-center bg-[var(--surface-base)] px-6">
-        <div className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6 text-center">
-          <h1 className="text-xl font-semibold">Confirm your email</h1>
+        <div
+          className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6 text-center"
+          data-testid="check-inbox"
+        >
+          <h1 className="text-xl font-semibold">Check your inbox</h1>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            Confirm {status.email ?? "your email"} before entering Needt.
+            We sent a link to {status.email ?? "your email"}. Open it to start
+            using Needt. This page moves on by itself.
           </p>
+          {links.length > 0 && (
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {links.map((link) => (
+                <Button key={link.href} asChild variant="outline">
+                  <a href={link.href} target="_blank" rel="noopener noreferrer">
+                    {link.label}
+                  </a>
+                </Button>
+              ))}
+            </div>
+          )}
           <Button
-            className="mt-5"
-            disabled={sending}
+            className="mt-3"
+            disabled={sending || cooldown > 0}
             onClick={() => void resend()}
           >
-            {sending ? "Sending…" : "Resend confirmation email"}
+            {sending
+              ? "Sending…"
+              : cooldown > 0
+                ? `Send again in ${cooldown}s`
+                : "Send again"}
           </Button>
+          <div className="mt-4">
+            <button
+              type="button"
+              className="text-xs text-[var(--text-secondary)] underline"
+              onClick={() => void signOutOfNeedt("/start")}
+            >
+              Use another email
+            </button>
+          </div>
         </div>
       </div>
     );

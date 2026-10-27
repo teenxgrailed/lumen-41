@@ -19,7 +19,11 @@ export async function POST(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const { feedId, ...eventData } = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const { feedId, ...eventData } = body;
 
     logger.info(
       "Creating new CalDAV event",
@@ -136,7 +140,11 @@ export async function PUT(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const { eventId, mode, ...updates } = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const { eventId, mode, ...updates } = body;
     if (mode !== undefined && mode !== "single" && mode !== "series") {
       return NextResponse.json(
         { error: "Invalid update mode" },
@@ -258,7 +266,11 @@ export async function DELETE(request: NextRequest) {
 
     const userId = auth.userId;
 
-    const { eventId, mode } = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const { eventId, mode } = body;
     if (mode !== undefined && mode !== "single" && mode !== "series") {
       return NextResponse.json(
         { error: "Invalid delete mode" },

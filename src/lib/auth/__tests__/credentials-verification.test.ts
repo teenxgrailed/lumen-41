@@ -25,7 +25,7 @@ const unverifiedUser = {
   ],
 };
 
-describe("credentials verification feature flag", () => {
+describe("credentials sign-in and email confirmation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest
@@ -34,24 +34,18 @@ describe("credentials verification feature flag", () => {
     jest.mocked(compare).mockResolvedValue(true as never);
   });
 
-  it("allows immediate Free access while the flag is off", async () => {
-    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
-      requireEmailVerificationBeforeAccess: false,
-    } as never);
-    await expect(
-      authenticateUser(" Person@Example.com ", "password")
-    ).resolves.toMatchObject({ id: "user-1" });
-    expect(prisma.user.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { email: "person@example.com" } })
-    );
-  });
-
-  it("blocks product sign-in while the flag is on", async () => {
-    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
-      requireEmailVerificationBeforeAccess: true,
-    } as never);
-    await expect(
-      authenticateUser("person@example.com", "password")
-    ).resolves.toBeNull();
-  });
+  it.each([true, false])(
+    "signs an unconfirmed account in (flag %s): the app and API gate it, not the session",
+    async (required) => {
+      jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
+        requireEmailVerificationBeforeAccess: required,
+      } as never);
+      await expect(
+        authenticateUser(" Person@Example.com ", "password")
+      ).resolves.toMatchObject({ id: "user-1" });
+      expect(prisma.user.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { email: "person@example.com" } })
+      );
+    }
+  );
 });

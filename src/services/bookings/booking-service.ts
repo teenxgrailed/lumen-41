@@ -1,6 +1,5 @@
-import { createHash, randomBytes } from "crypto";
-
 import { IdempotencyStatus, Prisma } from "@prisma/client";
+import { createHash, randomBytes } from "crypto";
 
 import { APP_NAME } from "@/lib/app-config";
 import {
@@ -11,6 +10,7 @@ import {
   newDate,
 } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
+import { getBookingConfirmationTemplate } from "@/lib/email/templates/notifications";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -25,28 +25,22 @@ function parseAvailability(value: unknown): Availability {
   const result: Availability = {};
   for (const [day, windows] of Object.entries(value)) {
     if (!Array.isArray(windows)) continue;
-    result[day] = windows.filter(
-      (window): window is AvailabilityWindow =>
-        Boolean(
-          window &&
-            typeof window === "object" &&
-            "start" in window &&
-            "end" in window &&
-            typeof window.start === "string" &&
-            typeof window.end === "string" &&
-            window.start < window.end
-        )
+    result[day] = windows.filter((window): window is AvailabilityWindow =>
+      Boolean(
+        window &&
+          typeof window === "object" &&
+          "start" in window &&
+          "end" in window &&
+          typeof window.start === "string" &&
+          typeof window.end === "string" &&
+          window.start < window.end
+      )
     );
   }
   return result;
 }
 
-function overlaps(
-  start: Date,
-  end: Date,
-  busyStart: Date,
-  busyEnd: Date
-) {
+function overlaps(start: Date, end: Date, busyStart: Date, busyEnd: Date) {
   return start < busyEnd && end > busyStart;
 }
 
@@ -126,11 +120,7 @@ export async function getBookingSlots(
   );
   const slots: Array<{ start: string; end: string }> = [];
 
-  for (
-    let date = firstDate;
-    date <= lastDate;
-    date = addDays(date, 1)
-  ) {
+  for (let date = firstDate; date <= lastDate; date = addDays(date, 1)) {
     const dateKey = formatInTimeZone(date, "UTC", "yyyy-MM-dd");
     const dayOfWeek = String(
       Number(
@@ -142,11 +132,7 @@ export async function getBookingSlots(
       ) % 7
     );
     for (const window of availability[dayOfWeek] ?? []) {
-      const windowStart = zonedDateTime(
-        dateKey,
-        window.start,
-        page.timeZone
-      );
+      const windowStart = zonedDateTime(dateKey, window.start, page.timeZone);
       const windowEnd = zonedDateTime(dateKey, window.end, page.timeZone);
       for (
         let start = windowStart;
@@ -345,9 +331,11 @@ export async function createBooking(input: {
     });
     void EmailService.sendEmail({
       to: input.guestEmail,
-      subject: `Confirmed: ${page.title}`,
-      text: `Your booking is confirmed for ${booking.start.toISOString()}.\n\nCancel: ${process.env.NEXTAUTH_URL ?? ""}/book/cancel/${cancelToken}`,
-      html: `<p>Your booking is confirmed for <strong>${booking.start.toISOString()}</strong>.</p><p><a href="${process.env.NEXTAUTH_URL ?? ""}/book/cancel/${cancelToken}">Cancel booking</a></p>`,
+      ...getBookingConfirmationTemplate({
+        title: page.title,
+        startIso: booking.start.toISOString(),
+        cancelUrl: `${process.env.NEXTAUTH_URL ?? ""}/book/cancel/${cancelToken}`,
+      }),
     }).catch((error) =>
       logger.error("Booking confirmation email failed", { error }, LOG_SOURCE)
     );
