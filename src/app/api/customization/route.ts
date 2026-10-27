@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { Prisma } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import {
+  DEFAULT_CUSTOMIZATION,
+  ensureUserCustomization,
+} from "@/lib/customization-db";
 import { parseDesignTokens } from "@/lib/design-tokens";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "customization-api";
-
-const DEFAULT_CUSTOMIZATION = {
-  accentColor: "#6366F1",
-  backgroundTint: "#0E0E10",
-  density: "comfortable",
-  sidebarWidth: 244,
-  radius: 8,
-  fontFamily: "system",
-  eventChipStyle: "flat",
-  animationsEnabled: true,
-  themePreset: "needt",
-};
 
 function cleanHex(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
@@ -37,11 +30,7 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
 
-    const customization = await prisma.userCustomization.upsert({
-      where: { userId: auth.userId },
-      update: {},
-      create: { userId: auth.userId, ...DEFAULT_CUSTOMIZATION },
-    });
+    const customization = await ensureUserCustomization(auth.userId);
 
     return NextResponse.json(customization);
   } catch (error) {
@@ -133,10 +122,10 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const customization = await prisma.userCustomization.upsert({
+    await ensureUserCustomization(auth.userId);
+    const customization = await prisma.userCustomization.update({
       where: { userId: auth.userId },
-      update: data,
-      create: { userId: auth.userId, ...DEFAULT_CUSTOMIZATION, ...data },
+      data,
     });
 
     return NextResponse.json(customization);

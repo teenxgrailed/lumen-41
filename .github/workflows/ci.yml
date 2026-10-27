@@ -162,6 +162,9 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npx tsx prisma/ci-seed.ts
       - run: npm run type-check
+        env:
+          # tsc hit the default ~2 GB heap and died with exit 134 on main.
+          NODE_OPTIONS: --max-old-space-size=6144
       - run: npm run lint
       - run: npm run check:branding
       - run: npm run check:ui-contracts
@@ -249,6 +252,8 @@ jobs:
       - run: npx tsx prisma/ci-seed.ts
       - run: npx playwright install --with-deps
       - name: Build E2E application
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Run E2E and collaboration authorization smoke
         env:
@@ -319,6 +324,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx prisma generate && npx prisma migrate deploy
       - name: Build visual test application
+        # Cold build with no .next/cache restore; the default heap OOMs here.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Update Linux visual baselines
         env:

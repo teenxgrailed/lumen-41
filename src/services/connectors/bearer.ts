@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { resolveAccessToken } from "@/services/oauth/grants";
 
 import {
+  ADMIN_READ_SCOPE,
   MCP_SCOPES,
   type McpScope,
   challengeScope,
@@ -35,8 +36,14 @@ export interface BearerAuth {
   clientId?: string;
 }
 
-/** A personal connector token can do everything its owner can. */
-export const PERSONAL_TOKEN_SCOPES: McpScope[] = [...MCP_SCOPES];
+/**
+ * A personal connector token can do everything its owner can in their own
+ * data. It never carries the admin read scope: that is granted only through
+ * OAuth consent, by an admin, ticked by hand.
+ */
+export const PERSONAL_TOKEN_SCOPES: McpScope[] = MCP_SCOPES.filter(
+  (scope) => scope !== ADMIN_READ_SCOPE
+);
 
 const PERSONAL_PREFIX = "needt_";
 

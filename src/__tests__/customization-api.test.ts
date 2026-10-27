@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
 
 import { PATCH } from "@/app/api/customization/route";
+import { Prisma } from "@prisma/client";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -10,19 +11,26 @@ jest.mock("@/lib/auth/api-auth", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    userCustomization: { upsert: jest.fn() },
+    userCustomization: {
+      findUnique: jest.fn(),
+      createMany: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 
 const customizations = prisma.userCustomization as unknown as {
-  upsert: jest.Mock;
+  findUnique: jest.Mock;
+  createMany: jest.Mock;
+  update: jest.Mock;
 };
 
 describe("customization API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(authenticateRequest).mockResolvedValue({ userId: "user-1" });
-    customizations.upsert.mockResolvedValue({ userId: "user-1" });
+    customizations.findUnique.mockResolvedValue({ userId: "user-1" });
+    customizations.update.mockResolvedValue({ userId: "user-1" });
   });
 
   it("accepts the nullable design token value returned by the settings API", async () => {
@@ -38,9 +46,9 @@ describe("customization API", () => {
     if (!response) throw new Error("Expected a response");
 
     expect(response.status).toBe(200);
-    expect(customizations.upsert).toHaveBeenCalledWith(
+    expect(customizations.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: expect.objectContaining({ designTokens: Prisma.DbNull }),
+        data: expect.objectContaining({ designTokens: Prisma.DbNull }),
       })
     );
   });
