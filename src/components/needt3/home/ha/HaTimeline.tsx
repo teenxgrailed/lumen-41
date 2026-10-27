@@ -1,4 +1,6 @@
-import { type CSSProperties, Fragment } from "react";
+import { type CSSProperties, Fragment, type KeyboardEvent } from "react";
+
+import type { DayBand } from "@/lib/personal-time-days";
 
 import { haCx } from "./ui";
 
@@ -10,6 +12,10 @@ export interface HaBandData {
   time: string;
   /** A colour of the block (its palette token, resolved). */
   hue: string;
+  /** The personal block this band draws: the id the peek and sheet open by. */
+  blockId: string;
+  /** The block's day, as the calendar's own peek and sheet take it. */
+  band: DayBand;
 }
 
 export interface HaTimelineRow {
@@ -38,13 +44,31 @@ export interface HaTimelineRow {
  * block's own hue, emoji and name, a MINE tag. Never a checkbox, never a task
  * row.
  */
-export function HaBand({ b }: { b: HaBandData }) {
+export function HaBand({
+  b,
+  onOpen,
+}: {
+  b: HaBandData;
+  /** Opens the block's peek (desktop) or sheet (phone). */
+  onOpen?: (band: DayBand, el: HTMLElement) => void;
+}) {
+  const key = (e: KeyboardEvent<HTMLElement>) => {
+    if (!onOpen || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    onOpen(b.band, e.currentTarget);
+  };
   return (
     <div
       className="ha-band"
       style={{ "--hue": b.hue } as CSSProperties}
       aria-label={`Personal time: ${b.n}, ${b.time}`}
       data-ha-band=""
+      data-personal-band={b.blockId}
+      data-linked={b.band.linked ? "" : undefined}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen ? (e) => onOpen(b.band, e.currentTarget) : undefined}
+      onKeyDown={key}
     >
       <span className="ha-band-e" aria-hidden="true">
         {b.e}
@@ -62,10 +86,13 @@ export function HaBand({ b }: { b: HaBandData }) {
 export function HaTimeline({
   rows,
   onOpen,
+  onOpenBand,
 }: {
   rows: readonly HaTimelineRow[];
   /** A task row was tapped. */
   onOpen?: (id: string) => void;
+  /** A personal band was tapped, or reached by keyboard and opened. */
+  onOpenBand?: (band: DayBand, el: HTMLElement) => void;
 }) {
   if (!rows.length) return null;
   return (
@@ -78,7 +105,7 @@ export function HaTimeline({
             {r.bare ? (
               <span />
             ) : r.band ? (
-              <HaBand b={r.band} />
+              <HaBand b={r.band} onOpen={onOpenBand} />
             ) : r.task ? (
               <div
                 className={haCx(

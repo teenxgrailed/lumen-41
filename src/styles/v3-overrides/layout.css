@@ -1,20 +1,16 @@
-/* One content width per screen.
- *
- * The vendored sheets cap Tasks/Projects at 1240 px (.wk-screen) but cap the
- * lists inside it at 820 px, so on a wide window the header and the project
- * tiles span the screen while the rows stop two thirds of the way, leaving the
- * time / duration / project columns floating in the middle. A list now fills
- * the screen column: the title cell (.tk-desk-body, flex: 1) grows and the
- * meta cells (.tk-dmeta) sit on the right edge, under the tabs above.
- * Screens that put a rail next to their list (Home) keep the list cap on
- * purpose: the rail takes the rest of the width there.
- */
+/* 27.10.26: no screen is capped any more. List-style pages (Tasks, Projects,
+ * Docs, Boards, Templates, Shared, Trash, Habits) run to the right edge of the
+ * window with the same gutter as on the left (--v3-gutter on top of the
+ * shell's own 20 px), so a 2000 px window is used instead of a 1240 px column.
+ * Reading widths stay where they mean something: the document sheet, the
+ * mail body, settings. The old 1240 px cap
+ * (.wk-screen, .pl-page > *, the Habits grid, Docs) is overridden here. */
 :root {
-  --v3-content-max: 1240px;
+  --v3-gutter: 26px;
 }
 
 .needt-v3 .wk-screen {
-  max-width: var(--v3-content-max);
+  max-width: none;
 }
 
 .needt-v3 .wk-list,
@@ -23,25 +19,47 @@
   max-width: none;
 }
 
-/* The head and the tabs end at the screen edge; the list ends there too. */
+/* The head ends at the gutter; the project chips and the list scroll to the
+ * window edge and keep the same gutter as padding, so nothing is cut short. */
+.needt-v3 .wk-head {
+  padding-right: var(--v3-gutter);
+}
+.needt-v3 .wk-cards {
+  padding-right: var(--v3-gutter);
+}
 .needt-v3 .wk-scroll {
-  padding-right: 0;
+  padding-right: var(--v3-gutter);
 }
 
 /* Places (Trash, Moodboards, Templates, Shared) and Docs share the same
- * left-aligned content column as Tasks: header, banner, grids and lists end
- * at the same right edge instead of stretching to the window on wide screens.
- * The scroll container itself stays full width so its scrollbar sits at the
- * window edge. Trash's list was capped at 820 px; it now fills the column. */
+ * gutters as Tasks. The scroll container itself stays full width so its
+ * scrollbar sits at the window edge. */
+.needt-v3 .pl-page {
+  padding-left: var(--v3-gutter);
+  padding-right: var(--v3-gutter);
+}
+
 .needt-v3 .pl-page > * {
-  max-width: var(--v3-content-max);
+  max-width: none;
 }
 
 .needt-v3 .pl-trash-col-2 {
   max-width: none;
 }
 
+.needt-v3 .pl-habits-col {
+  padding-left: var(--v3-gutter);
+  padding-right: var(--v3-gutter);
+}
+
+.needt-v3 .pl-habits-grid,
+.needt-v3 .pl-habits-today {
+  max-width: none;
+}
+
 .needt-v3 [data-v3-screen="docs"] {
   width: 100%;
-  max-width: calc(var(--v3-content-max) + 64px); /* + the px-8 gutters */
+  max-width: none;
+  padding-left: var(--v3-gutter);
+  padding-right: var(--v3-gutter);
 }

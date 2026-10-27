@@ -104,6 +104,47 @@ async function drag(page: Page, from: { x: number; y: number }, dy: number) {
   await page.mouse.up();
 }
 
+const DAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+
+const dayOf = (iso: string) => formatInTimeZone(newDate(iso), TZ, "yyyy-MM-dd");
+
+/**
+ * The visible day column next to the band's own: tomorrow's, or yesterday's
+ * on the last day of the week. Returns its centre x and the day step (+1/-1).
+ */
+async function neighbourColumn(page: Page, today: string) {
+  const at = (n: number) =>
+    new Date(Date.parse(`${today}T12:00:00Z`) + n * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  for (const step of [1, -1]) {
+    const col = page.locator(`[data-drop="timeline"][data-date="${at(step)}"]`);
+    if (await col.count()) {
+      const box = (await col.first().boundingBox())!;
+      return { x: box.x + box.width / 2, step };
+    }
+  }
+  throw new Error("no neighbouring day column");
+}
+
+/** Press at `from`, travel to (x, y), release. */
+async function dragTo(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number }
+) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  const steps = 10;
+  for (let i = 1; i <= steps; i += 1) {
+    await page.mouse.move(
+      from.x + ((to.x - from.x) * i) / steps,
+      from.y + ((to.y - from.y) * i) / steps
+    );
+  }
+  await page.mouse.up();
+}
+
 /** An hour of the grid is 52px; a quarter hour is 13px. */
 const HOUR = 52;
 
@@ -195,5 +236,97 @@ test.describe("personal time: move and resize on the grid", () => {
     expect(clock(after.start)).toBe("11:00");
     expect(clock(after.end)).toBe("12:00");
     expect(after.rrule).toBe("FREQ=DAILY");
+  });
+
+  test("dropping a one-off band on the next column moves its day", async ({
+    page,
+  }) => {
+    await seed(page, "personal-drag-day");
+    const id = await keepWalk(page, null);
+    const band = await openCalendar(page, id);
+    const today = dayOf((await readBlock(page, id)).start);
+    const { x, step } = await neighbourColumn(page, today);
+    const box = (await band.boundingBox())!;
+    const moved = patched(page, id);
+    await dragTo(
+      page,
+      { x: box.x + box.width / 2, y: box.y + 14 },
+      { x, y: box.y + 14 }
+    );
+    expect((await moved).status()).toBe(200);
+
+    const after = await readBlock(page, id);
+    const want = new Date(Date.parse(`${today}T12:00:00Z`) + step * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    expect(dayOf(after.start)).toBe(want);
+    expect(clock(after.start)).toBe("10:00");
+    expect(clock(after.end)).toBe("11:00");
+    expect(after.rrule).toBeNull();
+  });
+
+  test("a weekly band moves its weekday, and the dialog names it", async ({
+    page,
+  }) => {
+    await seed(page, "personal-drag-weekday");
+    const today = formatInTimeZone(newDate(), TZ, "yyyy-MM-dd");
+    const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+    const id = await keepWalk(page, `FREQ=WEEKLY;BYDAY=${DAY_CODES[dow]}`);
+    const band = await openCalendar(page, id);
+    const { x, step } = await neighbourColumn(page, today);
+    const box = (await band.boundingBox())!;
+    await dragTo(
+      page,
+      { x: box.x + box.width / 2, y: box.y + 14 },
+      { x, y: box.y + 14 }
+    );
+
+    const ask = page.locator("[data-pb-drop-confirm]");
+    await expect(ask).toHaveText("Move every repeat");
+    const names = [
+      "Sundays",
+      "Mondays",
+      "Tuesdays",
+      "Wednesdays",
+      "Thursdays",
+      "Fridays",
+      "Saturdays",
+    ];
+    const next = (((dow + step) % 7) + 7) % 7;
+    await expect(page.getByText(`lands on ${names[next]}`)).toBeVisible();
+    const moved = patched(page, id);
+    await ask.click();
+    expect((await moved).status()).toBe(200);
+
+    const after = await readBlock(page, id);
+    expect(after.rrule).toBe(`FREQ=WEEKLY;BYDAY=${DAY_CODES[next]}`);
+    expect(clock(after.start)).toBe("10:00");
+  });
+
+  test("a daily band dropped on another column only keeps its time", async ({
+    page,
+  }) => {
+    await seed(page, "personal-drag-daily");
+    const id = await keepWalk(page, "FREQ=DAILY");
+    const band = await openCalendar(page, id);
+    const today = dayOf((await readBlock(page, id)).start);
+    const { x } = await neighbourColumn(page, today);
+    const box = (await band.boundingBox())!;
+    const from = { x: box.x + box.width / 2, y: box.y + 14 };
+    // same time, other column: nothing to write, so no dialog and no PATCH
+    let writes = 0;
+    page.on("request", (r) => {
+      if (
+        r.method() === "PATCH" &&
+        r.url().endsWith(`/api/personal-blocks/${id}`)
+      )
+        writes += 1;
+    });
+    await dragTo(page, from, { x, y: from.y });
+    await expect(page.locator("[data-pb-drop-confirm]")).toBeHidden();
+    expect(writes).toBe(0);
+    const after = await readBlock(page, id);
+    expect(after.rrule).toBe("FREQ=DAILY");
+    expect(dayOf(after.start)).toBe(today);
   });
 });

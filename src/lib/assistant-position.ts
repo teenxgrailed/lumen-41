@@ -115,10 +115,20 @@ export function isNormalizedAssistantPosition(
 
 /**
  * Ask Needt open on a wide window: the width of the column it docks into, at
- * the right of the shell's main row (prototype App.jsx, `data-chat-dock`).
+ * the right of the shell's main row (prototype App.jsx, `data-chat-dock`). The
+ * default is the left rail's width; the person's own width is remembered.
  * Below SB_NARROW it is a sheet over a scrim and the column stays 0.
  */
-export const CHAT_DOCK_W = 360;
+export const CHAT_DOCK_W = 300;
+/** The dock can be dragged between these (its left edge, like a rail). */
+export const CHAT_DOCK_MIN = 260;
+export const CHAT_DOCK_MAX = 560;
+
+/** A stored or dragged dock width, brought into range (NaN falls back). */
+export function clampDockW(w: unknown): number {
+  if (typeof w !== "number" || !Number.isFinite(w)) return CHAT_DOCK_W;
+  return Math.min(CHAT_DOCK_MAX, Math.max(CHAT_DOCK_MIN, Math.round(w)));
+}
 
 /** Inset of the corner from both window edges. */
 export const CORNER_GUTTER = 20;
