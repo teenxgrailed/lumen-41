@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   });
   if ("response" in auth) return auth.response;
   const { id } = await params;
-  const body = (await request.json()) as {
+  const body = ((await request.json().catch(() => null)) ?? {}) as {
     kind?: unknown;
     offsetMinutes?: unknown;
     channels?: unknown;

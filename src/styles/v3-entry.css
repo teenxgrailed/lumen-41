@@ -39,6 +39,7 @@
 @import "./v3-overrides/phone-ground.css";
 @import "./v3-overrides/phone-shell.css";
 @import "./v3-overrides/phone-swipe.css";
+@import "./v3-overrides/phone-page-motion.css";
 @import "./v3-overrides/desktop-app.css";
 @import "./v3-overrides/desktop-quick-add.css";
 @import "./v3-overrides/home-extras.css";

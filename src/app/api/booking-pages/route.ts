@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     );
   }
-  const body = (await request.json()) as {
+  const body = ((await request.json().catch(() => null)) ?? {}) as {
     title?: unknown;
     slug?: unknown;
     description?: unknown;

@@ -14,18 +14,48 @@ export interface TaskInBandAsk {
 
 /** A band of a repeating block moved or resized: every repeat changes with it. */
 export interface SeriesChangeAsk {
-  series: { title: string; emoji: string; change: "move" | "resize" };
+  series: {
+    title: string;
+    emoji: string;
+    change: "move" | "resize";
+    /** The weekdays (0 = Sunday) a move put the repeat on, when it changed day. */
+    days?: number[];
+  };
 }
 
 export type PersonalDropAsk = TaskInBandAsk | SeriesChangeAsk;
 
+const WEEKDAYS = [
+  "Sundays",
+  "Mondays",
+  "Tuesdays",
+  "Wednesdays",
+  "Thursdays",
+  "Fridays",
+  "Saturdays",
+];
+
+/** "Tuesdays", "Tuesdays and Thursdays", "Mondays, Wednesdays and Fridays". */
+export function weekdayList(days: readonly number[]) {
+  // Monday first, the way a week reads
+  const names = [...days]
+    .sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
+    .map((d) => WEEKDAYS[d]);
+  return names.length > 1
+    ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
+    : (names[0] ?? "");
+}
+
 function words(ask: PersonalDropAsk) {
   if ("series" in ask) {
-    const { title, emoji, change } = ask.series;
+    const { title, emoji, change, days } = ask.series;
     return {
       label: "Change a repeating personal time",
       title: "This one repeats",
-      sub: `${emoji} ${title} repeats, so every repeat ${change === "move" ? "moves" : "changes"} with it.`,
+      sub:
+        change === "move" && days?.length
+          ? `${emoji} ${title} repeats, so every repeat moves with it and lands on ${weekdayList(days)}.`
+          : `${emoji} ${title} repeats, so every repeat ${change === "move" ? "moves" : "changes"} with it.`,
       confirm: change === "move" ? "Move every repeat" : "Resize every repeat",
       kind: "series",
     };

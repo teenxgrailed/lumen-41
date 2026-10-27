@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useMemo, useRef } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -49,9 +49,11 @@ import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
 import { notify } from "@/lib/notifications";
+import type { DayBand } from "@/lib/personal-time-days";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { type PeekAnchor, PersonalPeek } from "../personal/PersonalPeek";
 import { PersonalDay } from "../personal/PersonalQuickAdd";
 import {
   StarterGameSlot,
@@ -317,6 +319,17 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ai: pro === true && aiAvailable.data === true,
   });
   const personal = usePersonalDay(today);
+  const [bandPeek, setBandPeek] = useState<{
+    band: DayBand;
+    anchor: PeekAnchor;
+  } | null>(null);
+  const openBand = useCallback((band: DayBand, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setBandPeek({
+      band,
+      anchor: { top: r.top, left: r.left, right: r.right },
+    });
+  }, []);
   const left = timeLeft({
     capacity: freeMinutesLeft(cap, today, nowHour, []),
     blocked: blockedMinutes(
@@ -982,6 +995,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                         hueOf,
                       })}
                       onOpen={open}
+                      onOpenBand={openBand}
                       onCalendar={() => router.push("/calendar")}
                       footer={<PersonalDay date={today} bands={false} />}
                     />
@@ -1007,6 +1021,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         onClose={homeStats.close}
         {...homeStats.sheet}
       />
+      {bandPeek ? (
+        <PersonalPeek
+          key={bandPeek.band.key}
+          band={bandPeek.band}
+          anchor={bandPeek.anchor}
+          onClose={() => setBandPeek(null)}
+        />
+      ) : null}
     </div>
   );
 }

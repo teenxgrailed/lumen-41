@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   });
   if ("response" in auth) return auth.response;
 
-  const body = await request.json();
+  const body = (await request.json().catch(() => null)) ?? {};
   const taskId = typeof body.taskId === "string" ? body.taskId : "";
   const action = typeof body.action === "string" ? body.action : "";
 

@@ -11,6 +11,7 @@ import {
   fromZonedTime,
   newDate,
 } from "@/lib/date-utils";
+import { daysOfRule, weeklyRule } from "@/lib/personal-time";
 import { type DayBand, bandAt } from "@/lib/personal-time-days";
 import type { EditableBlock, PersonalPatch } from "@/lib/personal-time-edit";
 
@@ -80,17 +81,55 @@ const clockOf = (minutes: number) => {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 };
 
+/** Whole days from one "YYYY-MM-DD" to another (calendar days, so DST never skews it). */
+export function dayDeltaBetween(from: string, to: string) {
+  const at = (d: string) => {
+    const [y, m, day] = d.split("-").map(Number);
+    return Date.UTC(y, m - 1, day);
+  };
+  return Math.round((at(to) - at(from)) / 86_400_000);
+}
+
+/** A "YYYY-MM-DD" moved by whole calendar days. */
+function shiftDay(day: string, days: number) {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The rule with every weekday moved by `days`, wrapping the week (SU + 1 =
+ * MO). A daily rule and any rule that is not a plain weekly one stay as they
+ * are: only the time of day follows the drop there.
+ */
+export function shiftedRule(rule: string | null, days: number) {
+  const of = daysOfRule(rule);
+  if (!rule || !of || of.length === 7) return rule;
+  return weeklyRule(of.map((d) => (((d + days) % 7) + 7) % 7)) ?? rule;
+}
+
+/** Whether a day change moves this block's weekdays (a one-off, or a plain weekly rule). */
+function followsDay(rule: string | null) {
+  if (!rule) return true;
+  const of = daysOfRule(rule);
+  return Boolean(of) && of!.length < 7;
+}
+
 /**
  * What a move or a resize writes, or null when it changes nothing (or cannot
  * be done: a block linked to an event, or one a day long or longer).
  * `deltaHours` is how far the pointer travelled in hours of the grid; it is
  * snapped here, so a caller may pass the raw difference of two pointer times.
+ * `dayDelta` is how many columns the drop crossed: a one-off block moves to
+ * that day, a weekly one moves its weekdays by it, a daily one ignores it.
  */
 export function bandGesturePatch(
-  block: Pick<EditableBlock, "start" | "end" | "sourceEventId">,
+  block: Pick<EditableBlock, "start" | "end" | "sourceEventId"> & {
+    rrule?: string | null;
+  },
   timeZone: string,
   gesture: BandGesture,
-  deltaHours: number
+  deltaHours: number,
+  dayDelta = 0
 ): PersonalPatch | null {
   if (block.sourceEventId) return null;
   const start = newDate(block.start);
@@ -103,17 +142,24 @@ export function bandGesturePatch(
   const step = PERSONAL_MIN_MINUTES;
   const delta = Math.round((deltaHours * 60) / step) * step;
   if (gesture === "move") {
-    if (delta === 0) return null;
+    const days = followsDay(block.rrule ?? null) ? dayDelta : 0;
+    if (delta === 0 && days === 0) return null;
     const to = Math.min(
       DAY_MINUTES - step,
       Math.max(0, Math.round((from + delta) / step) * step)
     );
-    if (to === from) return null;
-    const next = fromZonedTime(`${day}T${clockOf(to)}:00`, timeZone);
-    return {
+    if (to === from && days === 0) return null;
+    const next = fromZonedTime(
+      `${shiftDay(day, days)}T${clockOf(to)}:00`,
+      timeZone
+    );
+    const patch: PersonalPatch = {
       start: next.toISOString(),
       end: addMinutes(next, length).toISOString(),
     };
+    if (block.rrule && days !== 0)
+      patch.rrule = shiftedRule(block.rrule ?? null, days);
+    return patch;
   }
   const end = Math.round((from + length + delta) / step) * step;
   const kept = Math.min(
