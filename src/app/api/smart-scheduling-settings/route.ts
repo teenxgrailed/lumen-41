@@ -225,7 +225,10 @@ export async function PATCH(request: NextRequest) {
 
     await ensureSmartSchedulingSettings(auth.userId);
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const preferences = sanitizePreferences(body.preferences);
     const energyProfile = sanitizeEnergyWindows(body.energyProfile);
 

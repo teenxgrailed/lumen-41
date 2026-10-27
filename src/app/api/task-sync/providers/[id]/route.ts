@@ -141,7 +141,7 @@ export async function PATCH(
     }
 
     // Parse and validate the request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const validatedData = updateProviderSchema.parse(body);
     if (validatedData.defaultProjectId) {
       if (auth.workspace?.role === WorkspaceRole.VIEWER) {

@@ -44,7 +44,11 @@ export async function PATCH(
       );
     }
 
-    const updates = (await request.json()) as UpdateRequest;
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const updates = body as UpdateRequest;
 
     // Update only local properties
     const updatedFeed = await prisma.calendarFeed.update({
