@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { Prisma } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -62,7 +63,10 @@ export async function PATCH(request: NextRequest) {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const data = {
       ...("accentColor" in body && {
         accentColor: cleanHex(

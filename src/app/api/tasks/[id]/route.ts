@@ -145,7 +145,10 @@ export async function PUT(
       return NextResponse.json({ error: "PROJECT_ARCHIVED" }, { status: 409 });
     }
 
-    const json = await request.json();
+    const json = await request.json().catch(() => null);
+    if (!json || typeof json !== "object") {
+      return new NextResponse("Invalid JSON body", { status: 400 });
+    }
     logger.info(`Update payload for task ${id}`, { payload: json }, LOG_SOURCE);
 
     if (
