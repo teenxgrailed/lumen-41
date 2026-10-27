@@ -102,6 +102,7 @@ type EventVars =
   | {
       create: Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay"> & {
         calendarId: string;
+        location?: string | null;
       };
     }
   | { remove: string }
@@ -131,9 +132,10 @@ export function useEventLifecycle() {
         return sendJson<ApiEvent>(`/api/events/${vars.restore}`, "PATCH", {
           restore: true,
         });
-      const { calendarId, ...fields } = vars.create;
+      const { calendarId, location, ...fields } = vars.create;
       return sendJson<ApiEvent>("/api/events", "POST", {
         feedId: calendarId,
+        ...(location ? { location } : {}),
         ...eventPatchToApi(fields, tz, fields.isAllDay),
       });
     },
@@ -164,11 +166,16 @@ export function useCreateEvent() {
   const lifecycle = useEventLifecycle();
   return useCallback(
     async (
-      fields: Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay">
+      fields: Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay"> & {
+        /** A calendar the person picked; else the default writable one. */
+        calendarId?: string | null;
+        location?: string | null;
+      }
     ) => {
-      let calendar: ApiFeed;
+      const { calendarId, ...rest } = fields;
+      let calendar: Pick<ApiFeed, "id">;
       try {
-        calendar = await writableCalendar(qc);
+        calendar = calendarId ? { id: calendarId } : await writableCalendar(qc);
       } catch (error) {
         notify.error("Could not find a calendar for this event.");
         void logger.error(
@@ -179,7 +186,7 @@ export function useCreateEvent() {
         throw error;
       }
       return lifecycle.mutateAsync({
-        create: { ...fields, calendarId: calendar.id },
+        create: { ...rest, calendarId: calendar.id },
       });
     },
     [qc, lifecycle]

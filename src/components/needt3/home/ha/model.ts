@@ -30,7 +30,7 @@ import type { HaHabit } from "./HaHabits";
 import type { HaCard } from "./HaHighlight";
 import type { HaTime } from "./HaTimeLeft";
 import type { HaBandData, HaTimelineRow } from "./HaTimeline";
-import type { HaWx } from "./HaWeather";
+import type { HaWx, HaWxDetail } from "./HaWeather";
 import type { HaWeekData } from "./HaWeek";
 
 const EMOJI = /^\p{Extended_Pictographic}/u;
@@ -82,6 +82,29 @@ export function weatherEmoji(code: number): string {
   return "";
 }
 
+/** The hover card under the weather: what the one-line summary leaves out. */
+export function haWeatherDetail(w: Weather): HaWxDetail {
+  const rows: HaWxDetail["rows"] = [
+    { k: "Feels like", v: `${w.feelsLike}°` },
+    { k: "High / low", v: `${w.max}° / ${w.min}°` },
+  ];
+  if (w.precipChance != null)
+    rows.push({ k: "Precipitation", v: `${w.precipChance}%` });
+  if (w.windKph != null) rows.push({ k: "Wind", v: `${w.windKph} km/h` });
+  if (w.sunrise) rows.push({ k: "Sunrise", v: w.sunrise });
+  if (w.sunset) rows.push({ k: "Sunset", v: w.sunset });
+  return {
+    place: w.city,
+    summary: w.summary,
+    rows,
+    hours: (w.hours ?? []).map((h) => ({
+      time: h.time,
+      ic: weatherEmoji(h.code),
+      t: `${h.temp}°`,
+    })),
+  };
+}
+
 /**
  * The weather and first-event line. Hidden without a saved city; with one,
  * whichever of the weather and the first event is known.
@@ -99,6 +122,7 @@ export function haWeatherOf(o: {
           ic: weatherEmoji(w.code),
           t: `${w.temp}°`,
           d: w.summary.toLocaleLowerCase(),
+          detail: haWeatherDetail(w),
         }
       : {}),
     ...(o.first ? { first: o.first.at } : {}),
@@ -207,6 +231,8 @@ export function haBandOf(b: DayBand): HaBandData {
     n: b.title,
     time: bandTimeLabel(b),
     hue: TONE_HUE[b.tone] ?? TONE_HUE.neutral,
+    blockId: b.blockId,
+    band: b,
   };
 }
 

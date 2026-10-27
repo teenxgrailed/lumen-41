@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   });
   if ("response" in auth) return auth.response;
   const { id } = await params;
-  const body: unknown = await request.json();
+  const body: unknown = await request.json().catch(() => null);
   if (body && typeof body === "object" && "archived" in body) {
     return restoreHabit(id, body, auth);
   }

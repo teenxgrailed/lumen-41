@@ -1,0 +1,118 @@
+/* Weather detail card on Home (27.10.26): opens under the "☀ 17° clear" line on
+ * hover or focus. One raised card, 12 / 13 px, greys are one ink at ladder
+ * alphas, no accent. */
+.needt-v3 .ha-wx {
+  position: relative;
+}
+.needt-v3 .ha-wx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: inherit;
+  cursor: default;
+}
+.needt-v3 .ha-wx-btn:hover {
+  background: var(--fill-2);
+}
+.needt-v3 .ha-wx-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.needt-v3 .ha-wx-card {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 264px;
+  padding: 12px 14px 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: var(--radius-xl, 12px);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  color: var(--text-primary);
+  font: 400 12px/16px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  white-space: normal;
+}
+.needt-v3 .ha-wx-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.needt-v3 .ha-wx-card-head b {
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .ha-wx-card-head span {
+  color: var(--text-tertiary);
+}
+.needt-v3 .ha-wx-card-rows {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.needt-v3 .ha-wx-card-rows > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.needt-v3 .ha-wx-card-rows dt {
+  color: var(--text-tertiary);
+}
+.needt-v3 .ha-wx-card-rows dd {
+  margin: 0;
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .ha-wx-card-hours {
+  margin: 0;
+  padding: 10px 0 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .ha-wx-card-hours li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.needt-v3 .ha-wx-card-hours li > span:first-child {
+  color: var(--text-tertiary);
+}
+.needt-v3 .ha-wx-card-hours b {
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .needt-v3 .ha-wx-card {
+    animation: ha-wx-card-in 120ms var(--nx-ease, ease-out);
+  }
+}
+@keyframes ha-wx-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
