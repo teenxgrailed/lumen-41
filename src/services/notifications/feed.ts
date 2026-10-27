@@ -94,6 +94,11 @@ const OP_PHRASE: Record<string, string> = {
   "mail.to_task": "turned a message into a task",
   "habit.log": "logged a habit",
   "habit.unlog": "cleared a habit day",
+  "goal.create": "added a goal",
+  "goal.update": "edited a goal",
+  "goal.archive": "archived a goal",
+  "goal.check_in": "checked in on a goal",
+  "goal.convert_from_task": "turned a task into a goal",
 };
 
 const OP_LINK: Record<string, string> = {
@@ -102,6 +107,7 @@ const OP_LINK: Record<string, string> = {
   project: "/projects",
   mail: "/tasks",
   habit: "/habits",
+  goal: "/goals",
 };
 
 export function opPhrase(op: string): string {

@@ -20,6 +20,8 @@ export interface PlanLimits {
   advancedNudges: boolean;
   /** Active (non-archived) habits; a trial counts as Pro. */
   habits: number | null;
+  /** Goals with progress and the weekly check-in (owner decision 2026-10-27). */
+  goals: boolean;
 }
 
 export const PLAN_LIMITS = {
@@ -36,6 +38,7 @@ export const PLAN_LIMITS = {
     bookingPages: 1,
     advancedNudges: false,
     habits: 3,
+    goals: false,
   },
   PRO: {
     calendars: null,
@@ -50,6 +53,7 @@ export const PLAN_LIMITS = {
     bookingPages: null,
     advancedNudges: true,
     habits: null,
+    goals: true,
   },
   LIFETIME: {
     calendars: null,
@@ -64,5 +68,6 @@ export const PLAN_LIMITS = {
     bookingPages: null,
     advancedNudges: true,
     habits: null,
+    goals: true,
   },
 } as const satisfies Record<SubscriptionPlan, PlanLimits>;

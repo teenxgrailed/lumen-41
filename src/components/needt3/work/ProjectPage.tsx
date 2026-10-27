@@ -18,6 +18,7 @@ import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { ProjectGoals } from "../goals/ProjectGoals";
 import { Task } from "../task/Task";
 import { FlowItem, useFlowTick } from "./FlowItem";
 import { blockedIds, flowSteps } from "./flow";
@@ -218,6 +219,7 @@ export function ProjectPage({
           />
         </span>
       </div>
+      <ProjectGoals projectId={p.id} />
       <label
         className="wk-padd"
         data-wk-padd
