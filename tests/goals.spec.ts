@@ -45,7 +45,9 @@ test.describe("Goals", () => {
     await expect(task).toBeVisible();
     await expect(panel.locator("[data-gl-percent]")).toHaveText("0%");
 
-    await task.getByRole("checkbox").check();
+    // The box follows the server (no optimistic flip), so click and wait for
+    // the progress instead of `check()`, which demands an instant state change.
+    await task.getByRole("checkbox").click();
     await expect(panel.locator("[data-gl-percent]")).toHaveText("100%");
     await expect(
       page.locator("[data-gl-goal]", { hasText: "Run 10k" })
