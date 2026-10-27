@@ -65,6 +65,7 @@ test.describe("account export and deletion lifecycle", () => {
       data: {
         email: ownerEmail,
         name: "Lifecycle owner",
+        emailVerified: newDate(),
         lastAuthenticatedAt: newDate(),
       },
     });

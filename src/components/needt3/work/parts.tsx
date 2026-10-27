@@ -200,46 +200,4 @@ export function PageAddButton({
   return <RichMenu width={300} trigger={button} items={items} />;
 }
 
-/** Craft's segmented control ($P/topbar.jsx Seg2), chrome type 13 px. */
-export function Seg2<K extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: K;
-  options: readonly [K, string][];
-  onChange: (v: K) => void;
-}) {
-  const i = options.findIndex((o) => o[0] === value);
-  return (
-    <div
-      className="shell-seg2-grid"
-      style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
-    >
-      <span
-        className="shell-seg2-layer"
-        aria-hidden="true"
-        style={{
-          width: `calc((100% - 6px) / ${options.length})`,
-          transform: `translateX(${i * 100}%)`,
-        }}
-      />
-      {options.map(([id, l]) => (
-        <button
-          key={id}
-          type="button"
-          className="tb-seg shell-seg2-seg"
-          onClick={() => onChange(id)}
-          aria-pressed={value === id}
-          style={{
-            font: `${value === id ? 500 : 400} 13px/18px var(--font-sans)`,
-            color:
-              value === id ? "var(--text-primary)" : "var(--text-tertiary)",
-          }}
-        >
-          {l}
-        </button>
-      ))}
-    </div>
-  );
-}
+export { Seg2 } from "../shell/Segmented";

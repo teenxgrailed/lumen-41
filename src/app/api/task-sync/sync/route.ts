@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const userId = auth.userId;
 
     // Parse the request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parseResult = syncRequestSchema.safeParse(body);
 
     if (!parseResult.success) {

@@ -222,9 +222,12 @@ async function scrollMainPane(page: Page) {
 async function ghosts(page: Page) {
   return page.evaluate(() => {
     const out: string[] = [];
+    // The selection thumb inside a segmented control is a painted, rounded,
+    // empty box on purpose; it sits in the control, not floating over the page.
     const known = (el: Element) =>
       el.closest(".v3c-anchor") !== null ||
-      el.closest("[data-v3-portals]") !== null;
+      el.closest("[data-v3-portals]") !== null ||
+      el.matches("[data-seg-thumb]");
     for (const el of Array.from(
       document.querySelectorAll(".needt-v3 *")
     ) as HTMLElement[]) {
