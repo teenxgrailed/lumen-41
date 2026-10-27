@@ -24,6 +24,7 @@ import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
+import { daysOfRule } from "@/lib/personal-time";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import {
@@ -35,6 +36,7 @@ import {
   type BandGesture,
   PERSONAL_DRAG_PREFIX,
   bandGesturePatch,
+  dayDeltaBetween,
   personalHitForPlacement,
 } from "./personal-drop";
 import {
@@ -97,10 +99,13 @@ export function V3DragProvider({ children }: PropsWithChildren) {
       blockId: string,
       gesture: BandGesture,
       hours: number,
-      back?: () => void
+      back?: () => void,
+      dayDelta = 0
     ) => {
       const block = blocks?.find((b) => b.id === blockId);
-      const patch = block ? bandGesturePatch(block, tz, gesture, hours) : null;
+      const patch = block
+        ? bandGesturePatch(block, tz, gesture, hours, dayDelta)
+        : null;
       if (!block || !patch) {
         back?.();
         return;
@@ -116,6 +121,11 @@ export function V3DragProvider({ children }: PropsWithChildren) {
               title: block.title,
               emoji: block.emoji ?? "",
               change: gesture,
+              // a weekly block that changed weekday names its new day(s)
+              days:
+                gesture === "move" && patch.rrule
+                  ? (daysOfRule(patch.rrule) ?? undefined)
+                  : undefined,
             },
           },
           run: write,
@@ -146,7 +156,9 @@ export function V3DragProvider({ children }: PropsWithChildren) {
           changeBlock(
             item.id.slice(PERSONAL_DRAG_PREFIX.length),
             "move",
-            over.time - grab.time
+            over.time - grab.time,
+            undefined,
+            over.date && grab.date ? dayDeltaBetween(grab.date, over.date) : 0
           );
         return;
       }

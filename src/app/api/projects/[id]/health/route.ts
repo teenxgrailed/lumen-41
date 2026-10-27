@@ -45,7 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     requiredRole: WorkspaceRole.EDITOR,
   });
   if ("response" in auth) return auth.response;
-  const parsed = updateSchema.safeParse(await request.json());
+  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid health update" }, { status: 400 });
   const { id } = await params;
   const existing = await prisma.project.findFirst({

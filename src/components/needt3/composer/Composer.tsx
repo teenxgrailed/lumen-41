@@ -42,7 +42,9 @@ import {
   LuFlag,
   LuFolder,
   LuHourglass,
+  LuLayoutTemplate,
   LuListPlus,
+  LuMapPin,
   LuMaximize2,
   LuRepeat,
   LuSun,
@@ -51,11 +53,21 @@ import {
 } from "react-icons/lu";
 
 import { newDate, toLocalDateKey } from "@/lib/date-utils";
+import { BUILTIN_TEMPLATES } from "@/lib/needt3/builtin-templates";
 import { dayLabel } from "@/lib/needt3/derive";
-import { useCreateDoc } from "@/lib/needt3/hooks/docs";
-import { useCreateEvent } from "@/lib/needt3/hooks/events";
+import {
+  useCreateDoc,
+  useTemplates,
+  useUpdateDoc,
+} from "@/lib/needt3/hooks/docs";
+import { useCalendars, useCreateEvent } from "@/lib/needt3/hooks/events";
 import { useCreateHabit } from "@/lib/needt3/hooks/habits";
+import {
+  useCreateFromBuiltin,
+  useCreateFromTemplate,
+} from "@/lib/needt3/hooks/places";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -66,6 +78,7 @@ import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { Tooltip } from "../menu/Tooltip";
+import { templatePageTitle } from "../places/derive";
 import {
   type CoFacetKind,
   type CoKind,
@@ -75,6 +88,8 @@ import {
   composerDraft,
   composerParse,
   pickFacet,
+  readsFacet,
+  scopeParse,
   stripFacet,
 } from "./parse";
 
@@ -105,7 +120,17 @@ const TONE: Record<CoFacetKind, string> = {
 };
 
 /** The facets a footer picker can set. */
-type PickKind = "date" | "duration" | "priority" | "project";
+type PickKind =
+  | "date"
+  | "time"
+  | "duration"
+  | "priority"
+  | "project"
+  | "calendar"
+  | "template";
+
+/** Pickers that set state beside the line rather than writing words into it. */
+type StatePick = "calendar" | "template";
 
 interface PickRow {
   label: string;
@@ -114,7 +139,10 @@ interface PickRow {
   tone?: string;
 }
 
-const PICK: Record<Exclude<PickKind, "project">, (PickRow | null)[]> = {
+const PICK: Record<
+  Exclude<PickKind, "project" | StatePick>,
+  (PickRow | null)[]
+> = {
   date: [
     { label: "Today", Icon: LuSun, words: "today" },
     { label: "Tomorrow", Icon: LuSunrise, words: "tomorrow" },
@@ -124,6 +152,11 @@ const PICK: Record<Exclude<PickKind, "project">, (PickRow | null)[]> = {
     { label: "Monday", Icon: LuCalendar, words: "monday" },
     { label: "Friday", Icon: LuCalendar, words: "friday" },
   ],
+  time: ["9am", "10am", "12pm", "2pm", "3pm", "5pm"].map((w) => ({
+    label: w,
+    Icon: LuClock,
+    words: w,
+  })),
   duration: ["15 min", "30 min", "45 min", "1 h", "2 h"].map((w) => ({
     label: w,
     Icon: LuClock,
@@ -137,6 +170,9 @@ const PICK: Record<Exclude<PickKind, "project">, (PickRow | null)[]> = {
 };
 
 const PICK_TITLE: Record<PickKind, string> = {
+  time: "Start time",
+  calendar: "Calendar",
+  template: "Template",
   date: S.CO_PICK.date,
   duration: S.CO_PICK.duration,
   priority: S.CO_PICK.priority,
@@ -183,6 +219,15 @@ const MORE: {
   },
   { label: "Repeat", Icon: LuRepeat, tone: ACCENT, words: "every day" },
 ];
+
+/** What each type is called in the line, its name field and its button. */
+const COPY: Record<CoKind, { placeholder: string; field: string; go: string }> =
+  {
+    task: { placeholder: T.new_task, field: T.task_name, go: T.add_task },
+    event: { placeholder: "New event", field: "Event name", go: T.add_event },
+    doc: { placeholder: "Untitled doc", field: "Doc title", go: "Create doc" },
+    habit: { placeholder: "New habit", field: "Habit name", go: T.add_habit },
+  };
 
 /** The prototype's flight runs 460 ms; snapped to the scale (MOTION V-D17). */
 const FLIGHT_MS = 280;
@@ -407,7 +452,7 @@ function Shelf({
 }
 
 /** What the sentence was understood to say, as chips (label order fixed). */
-function chipsOf(p: ComposerParse) {
+function chipsOf(p: ComposerParse, kind: CoKind) {
   const chips: {
     key: string;
     Glyph: Icon;
@@ -421,7 +466,8 @@ function chipsOf(p: ComposerParse) {
     tone: string,
     facet: ComposerFacet | null
   ) => {
-    if (facet) chips.push({ key, Glyph, tone, label: facet.label, facet });
+    if (facet && readsFacet(kind, key as CoFacetKind))
+      chips.push({ key, Glyph, tone, label: facet.label, facet });
   };
   add("date", LuCalendar, ACCENT, p.date);
   add("time", LuClock, ACCENT, p.time);
@@ -430,7 +476,7 @@ function chipsOf(p: ComposerParse) {
   add("repeat", LuRepeat, "var(--info)", p.repeat);
   add("priority", LuFlag, "var(--destructive)", p.priority);
   add("project", LuFolder, hueOf(p.project), p.project);
-  if (p.parts.length)
+  if (p.parts.length && readsFacet(kind, "label"))
     chips.push({
       key: "parts",
       Glyph: LuListPlus,
@@ -461,6 +507,12 @@ export function Composer({ open, onClose }: ComposerProps) {
   const [menu, setMenu] = useState<PickKind | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [type, setType] = useState<CoKind | null>(null);
+  /* Per-type fields. They live beside the line, not in it: a doc has no
+     "tomorrow" and an event's place is not a facet of the sentence. */
+  const [calendarId, setCalendarId] = useState<string | null>(null);
+  const [location, setLocation] = useState("");
+  const [docProject, setDocProject] = useState<string | null>(null);
+  const [template, setTemplate] = useState<string | null>(null);
   const [flight, setFlight] = useState<{ title: string; key: number } | null>(
     null
   );
@@ -474,12 +526,32 @@ export function Composer({ open, onClose }: ComposerProps) {
   const createDoc = useCreateDoc();
   const createHabit = useCreateHabit();
   const createEvent = useCreateEvent();
+  const updateDoc = useUpdateDoc();
+  const zone = useTimeZone();
+  const fromBuiltin = useCreateFromBuiltin();
+  const fromSaved = useCreateFromTemplate();
+  const { data: feeds = [] } = useCalendars();
+  const { data: saved = [] } = useTemplates();
 
-  const p = useMemo(
+  const said = useMemo(
     () => composerParse(text, newDate(), projects),
     [text, projects]
   );
-  const kind = type ?? p.kind;
+  const kind = type ?? said.kind;
+  /* The sentence read as the chosen type: only a task or an event reads days
+     and clocks, so a doc title keeps them as words. */
+  const p = useMemo(() => scopeParse(said, kind), [said, kind]);
+  /* v3 writes only into Needt (LOCAL) calendars; synced ones are read-only. */
+  const calendars = useMemo(
+    () => feeds.filter((f) => f.type === "LOCAL" && f.enabled !== false),
+    [feeds]
+  );
+  const templateName =
+    BUILTIN_TEMPLATES.find((b) => b.id === template)?.title ??
+    saved.find((t) => t.id === template)?.name ??
+    null;
+  const calendar =
+    calendars.find((f) => f.id === calendarId) ?? calendars[0] ?? null;
 
   useEffect(() => {
     if (!open) {
@@ -491,6 +563,10 @@ export function Composer({ open, onClose }: ComposerProps) {
     setScroll(0);
     setType(null);
     setNote(null);
+    setLocation("");
+    setDocProject(null);
+    setTemplate(null);
+    setCalendarId(null);
   }, [open]);
 
   /* A picker closes on any press outside the footer. */
@@ -518,7 +594,8 @@ export function Composer({ open, onClose }: ComposerProps) {
     refocus();
   }
 
-  const facetOf = (k: PickKind): ComposerFacet | null => p[k];
+  const facetOf = (k: Exclude<PickKind, StatePick>): ComposerFacet | null =>
+    p[k];
 
   /** Makes what the line said; for a task, its id (so it can be opened). */
   async function create(
@@ -533,13 +610,39 @@ export function Composer({ open, onClose }: ComposerProps) {
       });
     try {
       if (draft.kind === "doc") {
-        const { undo } = await createDoc.mutateAsync({ draft: draft.doc });
-        undoable("Doc created", undo);
+        const projectId = docProject;
+        const title = draft.doc.title || undefined;
+        /* A template with no title is named as the Templates screen names it. */
+        const named =
+          title ?? templatePageTitle(templateName ?? "", newDate(), zone);
+        const made = template
+          ? template.startsWith("builtin:")
+            ? await fromBuiltin.mutateAsync({
+                builtinId: template,
+                title: named,
+              })
+            : await fromSaved.mutateAsync({
+                templateId: template,
+                title: named,
+              })
+          : await createDoc.mutateAsync({ draft: { title, projectId } });
+        if (!made.result) return null;
+        if (template && projectId)
+          await updateDoc.mutateAsync({
+            id: made.result.id,
+            patch: { projectId },
+          });
+        undoable("Doc created", made.undo);
+        return made.result.id;
       } else if (draft.kind === "habit") {
         const { undo } = await createHabit.mutateAsync({ draft: draft.habit });
         undoable("Habit added", undo);
       } else if (draft.kind === "event") {
-        const { undo } = await createEvent(draft.event);
+        const { undo } = await createEvent({
+          ...draft.event,
+          calendarId: calendar?.id ?? null,
+          location: location.trim() || null,
+        });
         undoable("Added to Calendar", undo);
       } else {
         const { result, undo } = await createTask.mutateAsync({
@@ -573,10 +676,20 @@ export function Composer({ open, onClose }: ComposerProps) {
   /** Enter adds and stays; ⌘↵ (or the expand button) adds a task and opens it in full. */
   function commit(openAfter = false) {
     const line = text.trim();
-    if (!line) return;
-    const parse = composerParse(line, newDate(), projects);
-    const as = type ?? parse.kind;
+    const as = type ?? said.kind;
+    /* A doc may be made untitled; the others need words. */
+    if (!line && as !== "doc") return;
+    const parse = scopeParse(composerParse(line, newDate(), projects), as);
     const made = create(parse, as, note);
+    if (as === "doc") {
+      /* A doc opens once it exists; a failure leaves the sheet as it was. */
+      void made.then((id) => {
+        if (!id) return;
+        router.push(`/pages/${encodeURIComponent(id)}`);
+        onClose();
+      });
+      return;
+    }
     if (openAfter && as === "task") {
       void made.then((id) => {
         if (id) router.push(`/tasks?task=${encodeURIComponent(id)}`);
@@ -596,19 +709,51 @@ export function Composer({ open, onClose }: ComposerProps) {
     setScroll(0);
     setType(null);
     setNote(null);
+    setLocation("");
     setMenu(null);
     input.current?.focus();
   }
 
+  /** Switch the type; the typed words stay (⌘1/2/3, the tabs, arrows). */
+  function selectKind(k: CoKind, focus = true) {
+    setType(k === said.kind ? null : k);
+    setMenu(null);
+    setMore(false);
+    if (focus) refocus();
+  }
+
   if (!shown || !container) return null;
   const out = leaving ? " is-leaving" : "";
-  const chips = chipsOf(p);
-  const assumeToday = !p.date && !p.repeat && !!text.trim();
+  const chips = chipsOf(p, kind);
+  const assumeToday =
+    (kind === "task" || kind === "habit" || kind === "event") &&
+    !p.date &&
+    !p.repeat &&
+    !!text.trim();
 
-  const footBtn = (k: PickKind, Glyph: Icon, label: string, tone: string) => {
-    const value = facetOf(k)?.label ?? null;
-    const rows =
-      k === "project"
+  /** A picker whose choice is state beside the line, not words in it. */
+  interface Custom {
+    value: string | null;
+    rows: PickRow[];
+    onPick: (id: string) => void;
+    onClear: () => void;
+  }
+  const footBtn = (
+    k: PickKind,
+    Glyph: Icon,
+    label: string,
+    tone: string,
+    custom?: Custom
+  ) => {
+    const word = k === "calendar" || k === "template" ? null : k;
+    const value = custom
+      ? custom.value
+      : word
+        ? (facetOf(word)?.label ?? null)
+        : null;
+    const rows = custom
+      ? custom.rows
+      : k === "project"
         ? projects.map(
             (pr: V3Project): PickRow => ({
               label: pr.name,
@@ -617,7 +762,7 @@ export function Composer({ open, onClose }: ComposerProps) {
               tone: hueOf(pr),
             })
           )
-        : PICK[k];
+        : PICK[k as Exclude<PickKind, "project" | StatePick>];
     return (
       <span className="shell-mini-month-div">
         <button
@@ -644,8 +789,16 @@ export function Composer({ open, onClose }: ComposerProps) {
           kind={k}
           rows={rows}
           current={value}
-          onPick={(words) => edit((t) => pickFacet(t, facetOf(k), words))}
-          onClear={() => edit((t) => stripFacet(t, facetOf(k)))}
+          onPick={(words) =>
+            custom
+              ? (setMenu(null), custom.onPick(words), refocus())
+              : word && edit((t) => pickFacet(t, facetOf(word), words))
+          }
+          onClear={() =>
+            custom
+              ? (setMenu(null), custom.onClear(), refocus())
+              : word && edit((t) => stripFacet(t, facetOf(word)))
+          }
         />
       </span>
     );
@@ -664,6 +817,16 @@ export function Composer({ open, onClose }: ComposerProps) {
             className={`cmp-sheet nx-sheet${out}`}
             forceMount
             aria-describedby={undefined}
+            onKeyDown={(e) => {
+              /* ⌘1 / ⌘2 / ⌘3 pick Task / Event / Doc from anywhere in the sheet. */
+              if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+              const at = Number(e.key) - 1;
+              if (!Number.isInteger(at) || at < 0 || at >= SEGMENTS.length)
+                return;
+              e.preventDefault();
+              e.stopPropagation();
+              selectKind(SEGMENTS[at]);
+            }}
             onInteractOutside={(e) => {
               /* Undo on a notice is outside the sheet (press and focus) but
                  must not close it: the person is still capturing. */
@@ -691,7 +854,9 @@ export function Composer({ open, onClose }: ComposerProps) {
               }
             }}
           >
-            <Dialog.Title className="sr-only">{T.new_task}</Dialog.Title>
+            <Dialog.Title className="sr-only">
+              {COPY[kind].placeholder}
+            </Dialog.Title>
             {flight ? (
               <span key={flight.key} className="co-flight">
                 {flight.title}
@@ -700,18 +865,37 @@ export function Composer({ open, onClose }: ComposerProps) {
             <div className="cmp-body">
               <div className="base-row">
                 <div className="cmp-seg" role="tablist" aria-label={T.kind}>
-                  {SEGMENTS.map((k) => {
+                  {SEGMENTS.map((k, at) => {
                     const { Icon: Glyph, label } = KINDS[k];
+                    const roving = SEGMENTS.includes(kind)
+                      ? kind === k
+                      : at === 0;
                     return (
                       <button
                         key={k}
                         type="button"
                         role="tab"
                         aria-selected={kind === k}
+                        aria-keyshortcuts={`Meta+${at + 1} Control+${at + 1}`}
+                        tabIndex={roving ? 0 : -1}
                         className={kind === k ? "is-on" : ""}
-                        onClick={() => {
-                          setType(k === p.kind ? null : k);
-                          refocus();
+                        onClick={() => selectKind(k)}
+                        onKeyDown={(e) => {
+                          const step =
+                            e.key === "ArrowRight"
+                              ? 1
+                              : e.key === "ArrowLeft"
+                                ? -1
+                                : 0;
+                          if (!step || e.metaKey || e.ctrlKey || e.altKey)
+                            return;
+                          e.preventDefault();
+                          const to =
+                            (at + step + SEGMENTS.length) % SEGMENTS.length;
+                          selectKind(SEGMENTS[to], false);
+                          e.currentTarget.parentElement
+                            ?.querySelectorAll<HTMLElement>('[role="tab"]')
+                            [to]?.focus();
                         }}
                       >
                         <Glyph size={13} />
@@ -743,8 +927,8 @@ export function Composer({ open, onClose }: ComposerProps) {
                   className="co-input"
                   value={text}
                   spellCheck={false}
-                  aria-label={T.task_name}
-                  placeholder={T.new_task}
+                  aria-label={COPY[kind].field}
+                  placeholder={COPY[kind].placeholder}
                   onChange={(e) => {
                     setText(e.target.value);
                     setScroll(e.target.scrollLeft);
@@ -783,6 +967,27 @@ export function Composer({ open, onClose }: ComposerProps) {
                   >
                     <LuX size={13} />
                   </button>
+                </div>
+              ) : null}
+
+              {/* An event's place: its own field, not a word in the sentence. */}
+              {kind === "event" ? (
+                <div className="co-note shell-composer-note">
+                  <LuMapPin size={14} aria-hidden="true" />
+                  <input
+                    className="shell-composer-textarea"
+                    value={location}
+                    spellCheck={false}
+                    aria-label="Location"
+                    placeholder="Location"
+                    onChange={(e) => setLocation(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        commit();
+                      }
+                    }}
+                  />
                 </div>
               ) : null}
 
@@ -835,29 +1040,112 @@ export function Composer({ open, onClose }: ComposerProps) {
             </div>
 
             <div className="cmp-foot" ref={foot}>
-              {footBtn("date", LuCalendar, T.date, ACCENT)}
-              {footBtn(
-                "duration",
-                LuClock,
-                T.duration,
-                "var(--text-secondary)"
+              {kind === "event" ? (
+                <>
+                  {footBtn("date", LuCalendar, T.date, ACCENT)}
+                  {footBtn("time", LuClock, "Time", ACCENT)}
+                  {footBtn(
+                    "duration",
+                    LuHourglass,
+                    T.duration,
+                    "var(--text-secondary)"
+                  )}
+                  {footBtn(
+                    "calendar",
+                    LuCalendarDays,
+                    "Calendar",
+                    "var(--text-secondary)",
+                    {
+                      value: calendar?.name ?? null,
+                      rows: calendars.map(
+                        (f): PickRow => ({
+                          label: f.name,
+                          Icon: LuCalendarDays,
+                          words: f.id,
+                          tone: f.color ?? ACCENT,
+                        })
+                      ),
+                      onPick: setCalendarId,
+                      onClear: () => setCalendarId(null),
+                    }
+                  )}
+                </>
+              ) : kind === "doc" ? (
+                <>
+                  {footBtn("project", LuFolder, T.project, ACCENT, {
+                    value:
+                      projects.find((pr) => pr.id === docProject)?.name ?? null,
+                    rows: projects.map(
+                      (pr: V3Project): PickRow => ({
+                        label: pr.name,
+                        Icon: LuFolder,
+                        words: pr.id,
+                        tone: hueOf(pr),
+                      })
+                    ),
+                    onPick: setDocProject,
+                    onClear: () => setDocProject(null),
+                  })}
+                  {footBtn(
+                    "template",
+                    LuLayoutTemplate,
+                    "Template",
+                    "var(--text-secondary)",
+                    {
+                      value: templateName,
+                      rows: [
+                        ...BUILTIN_TEMPLATES.map(
+                          (b): PickRow => ({
+                            label: b.title,
+                            Icon: LuLayoutTemplate,
+                            words: b.id,
+                          })
+                        ),
+                        ...saved.map(
+                          (t): PickRow => ({
+                            label: t.name,
+                            Icon: LuLayoutTemplate,
+                            words: t.id,
+                          })
+                        ),
+                      ],
+                      onPick: setTemplate,
+                      onClear: () => setTemplate(null),
+                    }
+                  )}
+                </>
+              ) : (
+                <>
+                  {footBtn("date", LuCalendar, T.date, ACCENT)}
+                  {footBtn(
+                    "duration",
+                    LuClock,
+                    T.duration,
+                    "var(--text-secondary)"
+                  )}
+                  {footBtn("project", LuFolder, T.project, hueOf(p.project))}
+                  {footBtn(
+                    "priority",
+                    LuFlag,
+                    T.priority,
+                    "var(--destructive)"
+                  )}
+                  <Tooltip label={T.more} side="top">
+                    <button
+                      type="button"
+                      className={`cmp-btn cmp-icon${more ? " is-open" : ""}`}
+                      aria-label={T.more}
+                      aria-expanded={more}
+                      onClick={() => {
+                        setMenu(null);
+                        setMore(!more);
+                      }}
+                    >
+                      <LuEllipsis size={15} />
+                    </button>
+                  </Tooltip>
+                </>
               )}
-              {footBtn("project", LuFolder, T.project, hueOf(p.project))}
-              {footBtn("priority", LuFlag, T.priority, "var(--destructive)")}
-              <Tooltip label={T.more} side="top">
-                <button
-                  type="button"
-                  className={`cmp-btn cmp-icon${more ? " is-open" : ""}`}
-                  aria-label={T.more}
-                  aria-expanded={more}
-                  onClick={() => {
-                    setMenu(null);
-                    setMore(!more);
-                  }}
-                >
-                  <LuEllipsis size={15} />
-                </button>
-              </Tooltip>
               <span className="shell-composer-row-2">
                 {kind === "task" ? (
                   <Tooltip label="Open as a full task · ⌘↵" side="top">
@@ -882,16 +1170,10 @@ export function Composer({ open, onClose }: ComposerProps) {
                 <button
                   type="button"
                   className="nx-btn nx-btn-primary cmp-go"
-                  disabled={!text.trim()}
+                  disabled={!text.trim() && kind !== "doc"}
                   onClick={() => commit()}
                 >
-                  {kind === "event"
-                    ? T.add_event
-                    : kind === "doc"
-                      ? T.add_doc
-                      : kind === "habit"
-                        ? T.add_habit
-                        : T.add_task}
+                  {COPY[kind].go}
                   <kbd className="cmp-kbd" aria-hidden="true">
                     ↵
                   </kbd>

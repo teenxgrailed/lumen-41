@@ -95,6 +95,23 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const phoneRef = useRef(phone);
   phoneRef.current = phone;
 
+  // Ask docks like the rail, so it is remembered like the rail: a desktop
+  // window that left it open opens with it open. Only the wide desktop reads
+  // or writes the memory (the phone's sheet and the narrow sheet never do).
+  const narrowRef = useRef(narrow);
+  narrowRef.current = narrow;
+  useEffect(() => {
+    const ui = useNeedt3Ui.getState();
+    if (!phoneRef.current && window.innerWidth >= SB_NARROW) {
+      if (ui.askRemembered) ui.setAskOpen(true);
+    }
+    return useNeedt3Ui.subscribe((s, prev) => {
+      if (s.askOpen === prev.askOpen) return;
+      if (phoneRef.current || narrowRef.current) return;
+      s.setAskRemembered(s.askOpen);
+    });
+  }, []);
+
   // Entering or leaving the narrow width starts with the float closed.
   useEffect(() => setFloat(false), [narrow]);
   // Choosing a place from the floating rail is the end of its errand.
