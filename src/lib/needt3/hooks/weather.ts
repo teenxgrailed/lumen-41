@@ -17,6 +17,17 @@ export interface Weather {
   max: number;
   code: number;
   summary: string;
+  feelsLike: number;
+  precipChance: number | null;
+  windKph: number | null;
+  sunrise: string | null;
+  sunset: string | null;
+  hours: {
+    time: string;
+    temp: number;
+    code: number;
+    precipChance: number | null;
+  }[];
 }
 
 /**

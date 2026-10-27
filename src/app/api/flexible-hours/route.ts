@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
-  const body = (await request.json()) as Record<string, unknown>;
+  const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
   const date = parseDate(body.date);
   const kind = Object.values(FlexibleHoursOverrideKind).includes(
     body.kind as FlexibleHoursOverrideKind

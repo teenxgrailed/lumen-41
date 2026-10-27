@@ -11,8 +11,9 @@
  * the pill.
  *
  * Open, Ask Needt is not in the corner any more: it is a full-height panel
- * docked on the right (the shell's `data-chat-dock` slot, 360 px; a sheet over
- * a scrim below 1100 px), portalled into the slot so the page reflows beside
+ * docked on the right like the left rail (the shell's `data-chat-dock` slot,
+ * 300 px by default, dragged wider or narrower and remembered; a sheet over a
+ * scrim below 1100 px), portalled into the slot so the page reflows beside
  * it. The pill steps away while it is open.
  *
  * The tip is what the nudge job noticed ("2 hours opened up"): a painted-sky
@@ -381,9 +382,18 @@ function Corner() {
     setOpen(false);
   };
   const onPanelKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (narrow) {
       close();
+      return;
+    }
+    // Docked, the panel is a column like the rail: Esc hands the focus back
+    // to the page and leaves the panel where it is (⌘J or its X closes it).
+    const page = document.querySelector<HTMLElement>("main");
+    if (page) {
+      if (!page.hasAttribute("tabindex")) page.tabIndex = -1;
+      page.focus({ preventScroll: true });
     }
   };
   const panel = (

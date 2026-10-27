@@ -62,6 +62,8 @@ export interface DragOver {
 
 /** Where the hand took hold, for a drop that moves by distance, not to a place. */
 export interface DragGrab {
+  /** The date of the column it was taken in, or null off a timeline. */
+  date: string | null;
   /** The grid time (decimal hour) under the pointer when it was picked up, or null off a timeline. */
   time: number | null;
 }
@@ -147,6 +149,7 @@ interface Session {
   overNode: Element | null;
   /** The grid time under the pointer at pickup. */
   grabTime: number | null;
+  grabDate: string | null;
   /** Cached rects, dropped on scroll / resize / autoscroll. */
   rects: Map<Element, Box>;
   /** The scroller around a hit element (or null), per element. */
@@ -384,6 +387,7 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
         over: null,
         overNode: null,
         grabTime: null,
+        grabDate: null,
         rects: new Map(),
         scrollers: new WeakMap(),
         scope,
@@ -391,7 +395,10 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
       {
         // a band on a day grid moves by how far the hand travels: note the grid time it was taken at
         const grid = el.closest('[data-drop="timeline"]');
-        if (grid) s.grabTime = timeOnTimeline(s, grid, a.y0);
+        if (grid) {
+          s.grabTime = timeOnTimeline(s, grid, a.y0);
+          s.grabDate = grid.getAttribute("data-date");
+        }
       }
       if (sort) {
         const lr = sort.list.getBoundingClientRect();
@@ -666,7 +673,10 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
             settleSource(node, { left: s.r0.left, top });
           };
           mo.observe(q.list, { childList: true });
-          dropRef.current(s.item, over, s.mode, { time: s.grabTime });
+          dropRef.current(s.item, over, s.mode, {
+            time: s.grabTime,
+            date: s.grabDate,
+          });
           window.requestAnimationFrame(() =>
             window.requestAnimationFrame(tidy)
           );
@@ -676,7 +686,10 @@ export function useDrag(onDrop: DropHandler, container: HTMLElement | null) {
       if (over) {
         /* A slot, a day, a project: commit, then the card flies into what the
            drop made (the new block) or quietly lands where it is. */
-        dropRef.current(s.item, over, s.mode, { time: s.grabTime });
+        dropRef.current(s.item, over, s.mode, {
+          time: s.grabTime,
+          date: s.grabDate,
+        });
         const id = s.item.id;
         window.requestAnimationFrame(() =>
           window.requestAnimationFrame(() => {

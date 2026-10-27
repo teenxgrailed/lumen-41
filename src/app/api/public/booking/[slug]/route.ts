@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
-  const body = (await request.json()) as {
+  const body = ((await request.json().catch(() => null)) ?? {}) as {
     guestName?: unknown;
     guestEmail?: unknown;
     start?: unknown;
