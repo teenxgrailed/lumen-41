@@ -51,6 +51,7 @@ export const TOUCHED_MODELS = [
   "event",
   "page",
   "personalBlock",
+  "goal",
 ] as const;
 export type TouchedModel = (typeof TOUCHED_MODELS)[number];
 

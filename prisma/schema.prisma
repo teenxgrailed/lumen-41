@@ -198,6 +198,8 @@ model User {
   projectHealthUpdates   ProjectHealthUpdate[]     @relation("ProjectHealthUpdateAuthor")
   habits                 Habit[]
   personalBlocks         PersonalBlock[]
+  goals                  Goal[]
+  goalCheckIns           GoalCheckIn[]
   weeklyFocusTargets     WeeklyFocusTarget[]
   meetingNoteProposals   MeetingNoteProposal[]     @relation("MeetingNoteProposalCreator")
   closedDays             ClosedDay[]
@@ -240,6 +242,7 @@ model Workspace {
   projectHealthUpdates ProjectHealthUpdate[]
   habits               Habit[]
   personalBlocks       PersonalBlock[]
+  goals                Goal[]
   dailyHighlights      DailyHighlight[]
   weekFocuses          WeekFocus[]
   weeklyFocusTargets   WeeklyFocusTarget[]
@@ -564,6 +567,7 @@ model Project {
   stages           ProjectStage[]
   blockers         ProjectBlocker[]
   habits           Habit[]
+  goalLinks        GoalProject[]
   healthStatus     ProjectHealthStatus   @default(UNKNOWN)
   healthVersion    Int                   @default(0)
   healthUpdatedAt  DateTime?
@@ -964,6 +968,10 @@ model Task {
   /// null = auto (see effectiveFullTime in src/lib/needt3/full-time.ts).
   fullTime               Boolean?
   attachments            TaskAttachment[]
+  /// The goal this task moves forward (src/services/goals). A goal is never a
+  /// task: only linked tasks are scheduled, the goal itself never is.
+  goalId                 String?
+  goal                   Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   @@unique([recurrenceMasterId, recurrenceInstanceAt])
   @@unique([habitId, habitOccurrenceAt])
@@ -1005,6 +1013,7 @@ model Task {
   @@index([habitId, habitOccurrenceAt])
   @@index([userId, trashedAt])
   @@index([originKind, originId])
+  @@index([goalId])
 }
 
 /// One level only — a part can be promoted to a task, never nested further
@@ -1080,6 +1089,81 @@ model Habit {
   @@index([userId, archivedAt])
   @@index([scheduleId])
   @@index([projectId])
+}
+
+/// A goal: what a person is working towards, with a why, an optional
+/// deadline and a life area. Never a task: the scheduler, Focus, Today and
+/// Plan my day do not read this table. Progress comes from linked tasks
+/// (Task.goalId, or the tasks of a linked project), else from the manual
+/// value below, else from its subgoals (src/services/goals/progress.ts).
+model Goal {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title          String
+  description    String? // The why.
+  deadline       DateTime?
+  // work|money|health|learning|home|relationships|personal, or a custom label.
+  area           String?
+  status         String        @default("active") // active|achieved|dropped
+  achievedAt     DateTime?
+  // One level of subgoals: a goal with a parent cannot have children.
+  parentId       String?
+  parent         Goal?         @relation("GoalChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Goal[]        @relation("GoalChildren")
+  position       Float         @default(0)
+  // Manual progress, used when no task is linked: a target with a current
+  // value and unit (2500 / 2500 CHF), or a 0-100 percentage.
+  targetValue    Float?
+  currentValue   Float?
+  unit           String?
+  manualPercent  Int?
+  // Weekly check-in: weekday (0 = Sunday) and hour in the person's zone.
+  checkInEnabled Boolean       @default(true)
+  checkInWeekday Int           @default(1)
+  checkInHour    Int           @default(9)
+  lastCheckInAt  DateTime?
+  // The task this goal was converted from, if any.
+  sourceTaskId   String?
+  archivedAt     DateTime?
+  projects       GoalProject[]
+  tasks          Task[]
+  checkIns       GoalCheckIn[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([workspaceId, archivedAt, status])
+  @@index([userId, archivedAt])
+  @@index([parentId])
+}
+
+model GoalProject {
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([goalId, projectId])
+  @@index([projectId])
+}
+
+/// One answer to the weekly "How's <goal>?": the value or percentage the
+/// person gave, and a note. History, never edited.
+model GoalCheckIn {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value     Float?
+  percent   Int?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([goalId, createdAt])
 }
 
 model HabitCompletion {
@@ -3155,6 +3239,7 @@ enum ProactiveNudgeType {
   MISSED_FOCUS
   DEADLINE_UNREACHABLE
   FREE_TIME
+  GOAL_CHECKIN
 }
 
 enum BookingStatus {

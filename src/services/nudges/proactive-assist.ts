@@ -6,10 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
+import { goalCheckInDrafts } from "../goals/check-in";
 import { describeGap, longestFreeGap } from "./free-time";
 
 type NudgeDraft = {
   taskId?: string;
+  /** Dedupe subject when the nudge is not about a task (a goal check-in). */
+  subject?: string;
   type: ProactiveNudgeType;
   timeWindow: string;
   title: string;
@@ -275,9 +278,11 @@ export async function generateProactiveNudges(now = new Date()) {
       }
     }
 
-    for (const draft of drafts) {
+    drafts.push(...(await goalCheckInDrafts(user.id, timeZone, now)));
+
+    for (const { subject, ...draft } of drafts) {
       const dedupeKey = [
-        draft.taskId ?? "day",
+        subject ?? draft.taskId ?? "day",
         draft.type,
         draft.timeWindow,
       ].join(":");
