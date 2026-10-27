@@ -1,0 +1,1 @@
+- Dropping a personal time band on another day's column now moves it there: a one-off block moves to that date, a weekly one moves its weekdays by the same number of days (the dialog names the new day), a daily one only changes time.
