@@ -12,6 +12,7 @@ import { UNDO_WINDOW_DAYS } from "./constants";
 import { OpError } from "./errors";
 import { toJson } from "./helpers";
 import { zodToJsonSchema } from "./json-schema";
+import { createBatchOps } from "./ops/batch";
 import { eventPageOps } from "./ops/events-pages";
 import { goalOps } from "./ops/goals";
 import { mailHabitOps } from "./ops/mail-habits";
@@ -53,6 +54,11 @@ for (const op of [
 ] as OpDefinition[]) {
   if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
   registry.set(op.name, op);
+}
+// Composite ops run other ops, so they are given the registry to look them up.
+for (const op of createBatchOps((name) => registry.get(name))) {
+  if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
+  registry.set(op.name, op as OpDefinition);
 }
 
 /** Looks up a public op. Internal (inverse-only) ops are not returned. */

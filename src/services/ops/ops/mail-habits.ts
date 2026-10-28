@@ -4,6 +4,7 @@ import {
 } from "@/services/habits/habit-service";
 import { z } from "zod";
 
+import { newDate } from "@/lib/date-utils";
 import { getMailMessage } from "@/lib/mail-db";
 
 import { OpError } from "../errors";
@@ -126,4 +127,87 @@ export const habitUnlog = defineOp({
   run: (ctx, input) => setHabitDay(ctx, input, false),
 });
 
-export const mailHabitOps = [mailToTask, habitLog, habitUnlog];
+const habitRowId = z.string().min(1);
+
+async function findScopedHabit(
+  ctx: OpContext,
+  habitId: string,
+  options: { archived: boolean }
+) {
+  const habit = await ctx.tx.habit.findFirst({
+    where: {
+      id: habitId,
+      ...ctx.scope,
+      userId: ctx.userId,
+      archivedAt: options.archived ? { not: null } : null,
+    },
+    select: { id: true, title: true, isActive: true, updatedAt: true },
+  });
+  return habit;
+}
+
+export const habitArchive = defineOp({
+  name: "habit.archive",
+  description:
+    "Delete a habit: it stops showing and counting, and its history is kept. Undo brings it back.",
+  risk: "reversible",
+  input: z.object({ habitId: habitRowId }).strict(),
+  async run(ctx, input) {
+    const habit = await findScopedHabit(ctx, input.habitId, {
+      archived: false,
+    });
+    if (!habit) throw new OpError("NOT_FOUND", "Habit not found");
+    const updated = await ctx.tx.habit.update({
+      where: { id: habit.id },
+      data: { archivedAt: newDate(), isActive: false },
+      select: { id: true, title: true, updatedAt: true },
+    });
+    return {
+      result: { habit: { id: habit.id, title: habit.title }, changed: true },
+      before: { archived: false, isActive: habit.isActive },
+      inverse: {
+        op: "habit.restore",
+        input: { habitId: habit.id, isActive: habit.isActive },
+      },
+      touched: [touched("habit", updated, habit)],
+      afterCommit: [publishTasksUpdated(ctx.userId)],
+    };
+  },
+});
+
+/** Inverse-only: brings an archived habit back as it was. */
+export const habitRestore = defineOp({
+  name: "habit.restore",
+  description: "Bring an archived habit back. Used only by undo.",
+  risk: "reversible",
+  internal: true,
+  input: z
+    .object({ habitId: habitRowId, isActive: z.boolean().default(true) })
+    .strict(),
+  async run(ctx, input) {
+    const habit = await findScopedHabit(ctx, input.habitId, {
+      archived: true,
+    });
+    if (!habit) throw new OpError("NOT_FOUND", "Habit not found");
+    const updated = await ctx.tx.habit.update({
+      where: { id: habit.id },
+      data: { archivedAt: null, isActive: input.isActive },
+      select: { id: true, title: true, updatedAt: true },
+    });
+    return {
+      result: { habit: { id: habit.id, title: habit.title } },
+      before: { archived: true },
+      inverse: { op: "habit.archive", input: { habitId: habit.id } },
+      touched: [touched("habit", updated, habit)],
+      afterCommit: [publishTasksUpdated(ctx.userId)],
+    };
+  },
+});
+
+export const mailHabitOps = [
+  mailToTask,
+  habitLog,
+  habitUnlog,
+  habitArchive,
+  habitRestore,
+];

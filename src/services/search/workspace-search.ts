@@ -56,6 +56,7 @@ export async function searchWorkspace(input: {
           where: {
             ...scope,
             isArchived: false,
+            trashedAt: null,
             OR: [{ title: contains }, { description: contains }],
           },
           take,

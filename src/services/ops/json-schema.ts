@@ -90,6 +90,13 @@ function convert(schema: z.ZodTypeAny): JsonSchema {
       return zodToJsonSchema(
         (schema as z.ZodEffects<z.ZodTypeAny>).innerType()
       );
+    case z.ZodFirstPartyTypeKind.ZodRecord:
+      return {
+        type: "object",
+        additionalProperties: zodToJsonSchema(
+          (schema as z.ZodRecord).valueSchema
+        ),
+      };
     default:
       return {};
   }

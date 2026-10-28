@@ -125,7 +125,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
 | Tool                         | Scope                                          | What it does                                                                                                                                                                                                                                                                                                  |
 | ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                                                                                                                                          |
+| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces, and `plan`: `FREE`, `PRO` or `LIFETIME`, `trial` (Pro from the free trial) and `features` (goals, aiAgent, planMyDay, focusStats, advancedFocusModes, advancedNudges) and `limits`. Owner and admin roles do not change the plan        |
 | `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                                                                                                                               |
 | `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time, goal); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                                                                                                                  |
 | `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                                                                                                                  |
@@ -158,6 +158,11 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_create_goal` | `needt.write` | Create a goal (Pro). See Goals |
 | `needt_update_goal` | `needt.write` | Change a goal, record a check-in (`checkIn`), change its weekly check-in (`checkInSchedule`) or archive it (`archive: true`). See Goals |
 | `needt_convert_task_to_goal` | `needt.write` | Turn a task into a goal; its subtasks become linked tasks (Pro, one undo). See Goals |
+| `needt_delete` | `needt.write` | Delete to Trash / archive: `type` + `ids`, or mixed `items: [{ type, id }]`, up to 100. `type` is `task`, `page`, `project`, `habit`, `event` or `goal`. Restorable; answers with `actionId`. See Delete |
+| `needt_undo` | `needt.write` | Undo a write by `actionId` (seven days). See Undo |
+| `needt_bulk` | `needt.write` | Up to 100 operations (`task.update`, `task.complete`, `project.update`, ...) in one transaction, one write, one undo. See Bulk changes |
+| `needt_create_project` | `needt.write` | Create a project: `name`, `description`, `color`, `icon` |
+| `needt_update_project` | `needt.write` | Change a project (`name`, `description`, `color`, `icon`, `archived`); only the fields given change |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -228,7 +233,12 @@ admin scope; reconnect to get it back.
 | Every call, per IP      | 600        |
 
 The per-IP limit is generous because hosted clients share a few egress
-addresses. Over a limit the answer is `429` with `Retry-After`.
+addresses. Over a limit the answer is `429` with `Retry-After`. A tool call
+over the write limit is answered `200` with a tool error instead, so the model
+sees it: `{ "error": "RATE_LIMITED", "retryAfterSeconds": 17, "message": "..." }`
+(the `Retry-After` header is set too). A bulk call, an `ids` array or
+`needt_delete` with 100 items counts as one write, so a reorganisation of
+hundreds of tasks is a handful of calls.
 
 ## Create Task
 
@@ -999,6 +1009,13 @@ curl -X POST http://localhost:3000/api/connect/ops/task.create \
 | `schedule.auto`          | reversible | `{}`                                                                                                                                                   | every task it moved goes back              |
 | `project.create`         | reversible | `name`, `description`, `color`, `icon`                                                                                                                 | archives the project                       |
 | `project.archive`        | reversible | `projectId`                                                                                                                                            | previous status                            |
+| `project.update`         | reversible | `projectId` plus any of `name`, `description`, `color`, `icon` (null clears the last three), `archived`                                                | previous values                            |
+| `task.trash`             | reversible | `taskId` (to Trash; its time is released)                                                                                                              | out of Trash with placement and blocks     |
+| `page.trash`             | reversible | `pageId` (a page you can edit; not a Private tree)                                                                                                     | out of Trash                               |
+| `habit.archive`          | reversible | `habitId`                                                                                                                                              | brings the habit back                      |
+| `event.delete`           | reversible | `eventId` (Needt calendars only)                                                                                                                       | brings the event back                      |
+| `item.delete`            | reversible | `items: [{ type, id }]`, up to 100. See Delete                                                                                                         | everything it deleted comes back           |
+| `batch.run`              | reversible | `operations: [{ op, input }]`, up to 100; `onError` (`abort`, `skip`). See Bulk changes                                                                | every applied step is reversed             |
 | `mail.to_task`           | reversible | `messageId`, `title`, `estimateMinutes`                                                                                                                | archives the task                          |
 | `habit.log`              | reversible | `habitId`, `date` (default today)                                                                                                                      | clears the day                             |
 | `habit.unlog`            | reversible | `habitId`, `date` (default today)                                                                                                                      | marks the day again                        |
@@ -1151,6 +1168,12 @@ or a custom label up to 40 characters) and a `status` (`active`, `achieved`,
 overdue lists and Plan my day never read goals. Only the tasks linked to a
 goal are planned.
 
+- **Plan**: creating a goal needs Pro (Lifetime and the free trial count).
+  On Free the call is refused with `UPGRADE_REQUIRED` (403) and `details`
+  `{ plan, requiredPlan: "PRO", feature: "goals", upgrade: "Settings > Plan" }`;
+  the message says which plan the account is on and where to upgrade.
+  `needt_whoami` shows the plan up front. Reading, editing and archiving goals
+  that already exist stays open on Free.
 - **Subgoals** go one level deep (`parentId` names a top-level goal).
 - **Projects**: `projectIds` links projects; every task in them counts towards
   the goal. A project's header shows its goals.
@@ -1239,6 +1262,77 @@ PATCH  /api/goals/:id/tasks/:taskId   { done } | { linked: false } # task.comple
 In MCP, `needt_list` and `needt_get` take `type: "goal"`; `needt_get`
 returns `{ goal, subgoals, tasks, checkIns }`.
 
+## Delete
+
+Deleting never destroys: it moves the thing where the app can bring it back.
+
+| `type`    | What happens                                                                                    |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| `task`    | To Trash (30 days, then purged). Its scheduled time is released and the scheduler leaves it be. |
+| `page`    | To Trash (30 days). Pages the assistant cannot reach (Private tree) are reported as not found.  |
+| `project` | Archived. Its tasks stay.                                                                       |
+| `habit`   | Archived (history kept).                                                                        |
+| `goal`    | Archived.                                                                                       |
+| `event`   | Hidden. Only events of a Needt calendar; synced Google, Outlook and CalDAV events are refused.  |
+
+Over REST, `POST /api/connect/ops/item.delete` with `{ "items": [{ "type":
+"task", "id": "..." }] }` (up to 100). Over MCP, `needt_delete`. Both answer:
+
+```json
+{
+  "op": "item.delete",
+  "result": {
+    "deleted": [{ "type": "task", "id": "...", "title": "Old idea" }],
+    "failed": [
+      {
+        "type": "task",
+        "id": "...",
+        "code": "NOT_FOUND",
+        "error": "Task not found"
+      }
+    ],
+    "counts": { "deleted": 1, "failed": 1 }
+  },
+  "actionId": "...",
+  "undoable": true
+}
+```
+
+An id that is not the caller's, is in another workspace, or is not found goes
+to `failed`; the rest still go. Ids repeated in one call are deleted once.
+`actionId` undoes the whole call (see Undo); tasks and pages can also be
+restored from Trash in the app. Tasks in Trash are left out of `needt_list`,
+`needt_search`, `/api/connect/tasks` and `task.list`.
+
+## Bulk changes
+
+`POST /api/connect/ops/batch.run` (MCP: `needt_bulk`) runs up to 100
+reversible operations in order as one write:
+
+```json
+{
+  "operations": [
+    { "op": "task.update", "input": { "taskId": "...", "projectId": "..." } },
+    { "op": "task.complete", "input": { "taskId": "..." } }
+  ],
+  "onError": "abort"
+}
+```
+
+- It counts as one write against the 30 a minute, is applied in one
+  transaction, and is logged as one action: one `actionId` undoes every step
+  (newest first).
+- `onError: "abort"` (default) rolls everything back at the first failing step
+  and answers with that step's error (`Step 2 (task.update): Task not found`).
+  `"skip"` applies the steps that work and lists the failures per step.
+- Only reversible operations with no extra scope can be batched (no reads, no
+  `mail.to_task`, no `schedule.auto`, no nested batches). The scheduler is not
+  run; call `schedule.auto` afterwards.
+- Page operations own their transaction, so they run after the others and are
+  always reported per step, never aborting the rest.
+- `needt_complete_task` takes `ids` (up to 100) and runs them through the same
+  path; `needt_delete` is `item.delete`.
+
 ## Undo
 
 Every write is recorded in the action log with its inverse, computed when it
@@ -1258,6 +1352,7 @@ curl -X POST http://localhost:3000/api/agent/actions/ACTION_ID/undo \
   or `failed`.
 
 Undo changes data, so a token needs `needt.write` to call either undo route.
+Over MCP, `needt_undo` takes the `actionId`.
 
 `POST /api/agent/runs/RUN_ID/undo` undoes every action of an agent run,
 newest first. It stops at the first conflict and returns `409` with
