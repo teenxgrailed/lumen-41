@@ -1,0 +1,1 @@
+- Home is denser: a shorter header, tighter gaps between the lists and between the right-hand tiles, less padding inside the tiles, and Next up is only as tall as its content.

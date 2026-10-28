@@ -309,7 +309,7 @@
 
 /* Desktop Home: the design's grid in the summary row (Highlight, then Today
    and Habits on the right), the brief and the weather where the old lines were. */
-.needt-v3 .ha-dk-card-t { font: 500 12px/1 var(--font-sans); color: var(--ha-ink-2); display: flex; justify-content: space-between; margin-bottom: 12px; }
+.needt-v3 .ha-dk-card-t { font: 500 12px/1 var(--font-sans); color: var(--ha-ink-2); display: flex; justify-content: space-between; margin-bottom: var(--space-8); }
 /* Desktop Home layout (2026-10-27): the screen runs from the sidebar to the
    right edge with one gutter on both sides (the shell adds 20 px, this adds 24
    so the header, the lists and the rail share the same two edges, 44 px). The
@@ -319,20 +319,41 @@
    top level with the focus card. Under 900 px of content (a ~1200 px window
    with the sidebar open) the rail drops under the left column. */
 .needt-v3 .hd-home.hd-screen { max-width: none; align-self: stretch; box-sizing: border-box; padding-inline: 24px; }
-.needt-v3 .hd-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--hd-rail-w, 360px); column-gap: 32px; align-items: start; padding: 6px 0 48px; }
-.needt-v3 .hd-col { min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+.needt-v3 .hd-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--hd-rail-w, 360px); column-gap: var(--space-20); align-items: start; padding: var(--space-4) 0 48px; }
+.needt-v3 .hd-col { min-width: 0; display: flex; flex-direction: column; gap: var(--space-20); }
 .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1fr); padding: 0; margin: 0; }
 .needt-v3 .hd-col > .hd-main { padding: 0; }
 .needt-v3 .hd-col .hd-list { max-width: none; }
 /* Every rail tile off: no rail, the main column takes the full width. */
 .needt-v3 .hd-body[data-hd-rail="off"] { grid-template-columns: minmax(0, 1fr); }
-.needt-v3 .hd-body > .hd-rail { min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.needt-v3 .hd-body > .hd-rail { min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-8); }
 .needt-v3 .hd-body > .hd-rail > * { width: auto; min-width: 0; max-width: none; margin: 0; box-sizing: border-box; }
 @container hdhome (max-width: 899px) {
-  .needt-v3 .hd-body { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
+  .needt-v3 .hd-body { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-20); }
   .needt-v3 .hd-body > .hd-rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); max-width: none; }
 }
 .needt-v3 .ha-dk-pad { margin: 2px 4px 8px 26px; }
+/* Density (2026-10-28): Home reads tighter. The header is a control and a
+   gutter tall (48 px, was 60), the lists and the rail sit on the spacing
+   steps (20 between blocks, 16 between sections, 8 between rail tiles), every
+   rail tile shares one padding (11 / 16, was 18 or 14 / 12) and Next up takes
+   the height of its content (no 196 px floor). Section heads are the small
+   control height. Phone is a separate face and is unchanged. */
+.needt-v3 .hd-home .hd-head { height: calc(var(--control-h) + var(--space-16)); }
+.needt-v3 .hd-col .hd-list { gap: var(--space-16); }
+.needt-v3 .hd-home .hd-fold-head { height: var(--control-h-sm); margin-bottom: 0; }
+.needt-v3 .hd-home .hd-fold-note { margin: 0 0 var(--space-4); }
+.needt-v3 .hd-rail .ha-card, .needt-v3 .hd-rail .hd-panel { padding: var(--space-11) var(--space-16); }
+.needt-v3 .hd-rail .hd-inbox-head { padding-bottom: var(--space-4); }
+.needt-v3 .hd-rail .ha-sched-more { margin-top: var(--space-4); }
+.needt-v3 .hd-rail .ha-week-f { margin-top: var(--space-8); }
+.needt-v3 .hd-rail .ha-bars { margin-top: var(--space-8); }
+.needt-v3 .hd-rail .ha-tl-bar { margin-top: var(--space-8); }
+.needt-v3 .hd-rail .ha-tl-ticks { margin-top: var(--space-4); }
+.needt-v3 .hd-cards .ha-hl-in { padding: var(--space-16) var(--space-20); min-height: 0; }
+.needt-v3 .hd-cards .ha-hl-title { margin-top: var(--space-8); }
+.needt-v3 .hd-cards .ha-hl-acts { padding-top: var(--space-8); }
+.needt-v3 .hd-cards .hd-card-next > .tk-card-plate { min-height: 0; padding: var(--space-16) var(--space-20); }
 /* Beside the heading the weather sits on the heading's own baseline, lifted so
    the middle of its figures is the middle of the heading's capitals (not the
    middle of the line box, which sits low). */

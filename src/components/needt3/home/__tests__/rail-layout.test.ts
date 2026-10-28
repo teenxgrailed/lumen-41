@@ -31,11 +31,11 @@ describe("Home rail", () => {
     expect(screen).toMatch(/padding-inline: 24px/);
   });
 
-  it("gives every tile the rail's width and one 16 px gap", () => {
+  it("gives every tile the rail's width and one 8 px gap", () => {
     const rail = rule(".needt-v3 .hd-body > .hd-rail");
     expect(rail).toMatch(/flex-direction: column/);
     expect(rail).toMatch(/align-items: stretch/);
-    expect(rail).toMatch(/gap: 16px/);
+    expect(rail).toMatch(/gap: var\(--space-8\)/);
     const tile = rule(".needt-v3 .hd-body > .hd-rail > *");
     expect(tile).toMatch(/width: auto/);
     expect(tile).toMatch(/max-width: none/);
