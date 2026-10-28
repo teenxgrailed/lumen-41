@@ -1,8 +1,8 @@
 import {
   FALLBACK_APP_VERSION,
-  GITHUB_REPO_URL,
+  PUBLIC_CHANGELOG_URL,
   getAppVersion,
-  getVersionGithubUrl,
+  getVersionHref,
 } from "@/lib/version";
 
 describe("version helpers", () => {
@@ -43,18 +43,16 @@ describe("version helpers", () => {
     });
   });
 
-  describe("getVersionGithubUrl", () => {
-    // The link must always resolve to a real GitHub page. Not every package
-    // version has a published GitHub release tag (e.g. 0.1.0 has none), so the
-    // badge links to the repository root - always valid, and exactly "the
-    // github page" the feature requires.
-    it("links to the repository root", () => {
-      expect(getVersionGithubUrl()).toBe(GITHUB_REPO_URL);
+  describe("getVersionHref", () => {
+    // Not every package version has a release tag, so the badge links to the
+    // public changelog, which always resolves.
+    it("links to the public changelog", () => {
+      expect(getVersionHref()).toBe(PUBLIC_CHANGELOG_URL);
     });
 
-    it("links to the repository root regardless of the current version", () => {
+    it("links to the changelog regardless of the current version", () => {
       process.env.NEXT_PUBLIC_APP_VERSION = "0.1.0";
-      expect(getVersionGithubUrl()).toBe(GITHUB_REPO_URL);
+      expect(getVersionHref()).toBe(PUBLIC_CHANGELOG_URL);
     });
   });
 });

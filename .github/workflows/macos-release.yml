@@ -14,7 +14,7 @@ name: macOS release
 #
 # Appcast location: the release tagged `mac-appcast` holds one asset,
 # appcast.xml, replaced on every release. Stable URL (the repository is public):
-#   https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml
+#   https://github.com/teenxgrailed/lumen-41/releases/download/mac-appcast/appcast.xml
 on:
   push:
     tags:

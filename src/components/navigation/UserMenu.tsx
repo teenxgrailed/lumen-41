@@ -37,6 +37,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { notify } from "@/lib/notifications";
 
+/** Help lives on the website, opened in a new window like the legal pages. */
+const HELP_URL = "https://needt.app/help/";
+
 export function UserMenu() {
   const { data: session, status } = useAppSession();
   const { theme, setTheme } = useTheme();
@@ -196,7 +199,7 @@ export function UserMenu() {
         )}
         <DropdownMenuItem asChild>
           <a
-            href="https://github.com/teenxgrails/needt/issues"
+            href={HELP_URL}
             target="_blank"
             rel="noreferrer"
             className="cursor-pointer"

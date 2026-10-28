@@ -8,8 +8,8 @@
  * cannot render `.tsx`), while the UI component stays a thin consumer.
  */
 
-/** Canonical GitHub page for the project. */
-export const GITHUB_REPO_URL = "https://github.com/teenxgrails/needt";
+/** Public changelog: where the displayed version links. The source repository is not linked from the app. */
+export const PUBLIC_CHANGELOG_URL = "https://needt.app/changelog/";
 
 /** Shown when the version is unavailable at runtime, so the UI is never empty. */
 export const FALLBACK_APP_VERSION = "0.0.0";
@@ -26,13 +26,9 @@ export function getAppVersion(): string {
 }
 
 /**
- * The GitHub link target for the displayed version.
- *
- * Always the repository root - "the GitHub page" the feature requires. A
- * per-version `/releases/tag/v<version>` link was deliberately avoided: not
- * every package version has a published GitHub release (e.g. `0.1.0` has no
- * tag), so a tag-based link would 404 for the current build.
+ * The link target for the displayed version: the public changelog, which
+ * lists every release, so it never 404s for the current build.
  */
-export function getVersionGithubUrl(): string {
-  return GITHUB_REPO_URL;
+export function getVersionHref(): string {
+  return PUBLIC_CHANGELOG_URL;
 }

@@ -152,7 +152,7 @@ targets:
         NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
         # The fixed release "mac-appcast" holds the one appcast.xml, replaced by
         # .github/workflows/macos-release.yml on every release.
-        SUFeedURL: https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml
+        SUFeedURL: https://github.com/teenxgrailed/lumen-41/releases/download/mac-appcast/appcast.xml
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400

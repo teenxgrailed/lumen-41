@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import Link from "next/link";
 
-import { getAppVersion, getVersionGithubUrl } from "@/lib/version";
+import { getAppVersion, getVersionHref } from "@/lib/version";
 
 export default function NotFound() {
   useEffect(() => {
@@ -24,10 +24,10 @@ export default function NotFound() {
         Return Home
       </Link>
       <a
-        href={getVersionGithubUrl()}
+        href={getVersionHref()}
         target="_blank"
         rel="noopener noreferrer"
-        title="View this version on GitHub"
+        title="What changed in this version"
         className="mt-8 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] hover:underline"
       >
         v{getAppVersion()}
