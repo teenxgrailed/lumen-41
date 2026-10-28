@@ -76,6 +76,12 @@ describe("doc-opened.css", () => {
     ).toEqual(["auto"]);
   });
 
+  it("does not lift the sheet under the pointer", () => {
+    expect(decls(".needt-v3 [data-doc-sheet]:hover", "transform")).toEqual([
+      "none",
+    ]);
+  });
+
   it("styles the Insert drag with tokens only", () => {
     expect(decls(".needt-v3 .docs-insert-drop-line", "background")).toEqual([
       "var(--accent)",

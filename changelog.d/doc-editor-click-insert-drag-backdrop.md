@@ -9,3 +9,4 @@
   the caret clear of itself.
 - Clicking into a document no longer lets the browser slide the page (and the
   app frame sideways) to reveal the focused editor.
+- The document sheet no longer lifts 1.5px when the pointer enters it.
