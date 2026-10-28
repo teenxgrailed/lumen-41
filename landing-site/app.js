@@ -463,6 +463,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
     if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
     if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });
+    if (/needt\.plugin$/.test(h)) return send("plugin_download", { where });
   }, true);
   document.addEventListener("submit", (e) => {
     const f = e.target; if (f.matches && f.matches("[data-dx-notify]")) send("notify_submit", { app: (f.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
@@ -591,4 +592,39 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   addEventListener("load", keep);
   addEventListener("pageshow", keep);
   keep();
+})();
+
+/* ── "More" (v44): the sub-projects deck in the header. Its own motion: the panel opens from the button
+   like a lens, the cards are dealt from a stack and tilt under the pointer. */
+(() => {
+  const x = document.querySelector(".nav-x"); if (!x) return;
+  const btn = x.querySelector(".nav-x-btn"), panel = x.querySelector(".xpanel");
+  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  let tm;
+  const big = matchMedia("(min-width: 861px)");
+  const place = () => { if (big.matches) { if (panel.parentNode !== document.body) document.body.appendChild(panel); } else if (panel.parentNode !== x) x.appendChild(panel); };
+  place(); big.addEventListener ? big.addEventListener("change", place) : big.addListener(place);
+  const set = (v) => {
+    if (v === (btn.getAttribute("aria-expanded") === "true")) return;
+    if (v) document.dispatchEvent(new Event("click"));      // closes Product / Resources
+    btn.setAttribute("aria-expanded", String(v)); x.classList.toggle("is-open", v); panel.classList.toggle("is-open", v);
+    if (v) { const r = btn.getBoundingClientRect(); panel.style.setProperty("--ox", (r.left + r.width / 2) + "px"); }
+  };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); set(fine ? true : btn.getAttribute("aria-expanded") !== "true"); });
+  panel.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => set(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+  if (fine) {
+    x.addEventListener("pointerenter", () => { clearTimeout(tm); set(true); });
+    x.addEventListener("pointerleave", () => { tm = setTimeout(() => set(false), 260); });
+    panel.addEventListener("pointerenter", () => clearTimeout(tm));
+    panel.addEventListener("pointerleave", () => { tm = setTimeout(() => set(false), 260); });
+    document.querySelectorAll(".nav-item:not(.nav-x)").forEach((i) => i.addEventListener("pointerenter", () => set(false)));
+    panel.querySelectorAll(".xp-card").forEach((c) => {
+      c.addEventListener("pointermove", (e) => { const r = c.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - .5, py = (e.clientY - r.top) / r.height - .5;
+        c.style.setProperty("--rx", (-py * 10).toFixed(2) + "deg"); c.style.setProperty("--ry", (px * 12).toFixed(2) + "deg");
+        c.style.setProperty("--gx", ((px + .5) * 100).toFixed(1) + "%"); c.style.setProperty("--gy", ((py + .5) * 100).toFixed(1) + "%"); });
+      c.addEventListener("pointerleave", () => { c.style.setProperty("--rx", "0deg"); c.style.setProperty("--ry", "0deg"); });
+    });
+  }
 })();

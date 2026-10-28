@@ -12,7 +12,7 @@
 <link rel="preload" href="assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="styles.css?v=43">
+<link rel="stylesheet" href="styles.css?v=47">
 <link rel="canonical" href="https://needt.app/">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -40,6 +40,8 @@
           <div class="mega-side">
             <a role="menuitem" class="ms" href="#tour"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19z" fill="rgba(89,93,224,0.259)"></path><path d="M2.6 11.6 12 3.6l9.4 8" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path><rect x="9.6" y="13.5" width="4.8" height="7" rx="1.2" fill="#5a5ce2"></rect></svg></em><b>Product tour</b></a>
             <a role="menuitem" class="ms" href="download/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="12" width="18" height="9" rx="2.6" fill="rgba(89,93,224,0.259)"/><path d="M12 3.5v10" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round"/><path d="M7.8 9.6 12 13.8l4.2-4.2" fill="none" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="6.5" y="16.6" width="11" height="1.9" rx=".95" fill="#5a5ce2"/></svg></em><b>Download</b></a>
+            <a role="menuitem" class="ms" data-new="plugin" href="plugin/"><em class="mi"><img src="assets/plugin/icon.svg" width="26" height="26" alt="" style="border-radius:6px"></em><b>Needt Plugin</b><span class="ms-tag">Free</span></a>
+            <a role="menuitem" class="ms" data-new="budget" href="budget/"><em class="mi"><img src="assets/budget/icon.svg" width="26" height="26" alt="" style="border-radius:7px"></em><b>Needt Budget</b></a>
             <a role="menuitem" class="ms" href="security/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2.6 19.5 5.4v6.2c0 4.6-3.2 8.2-7.5 9.8-4.3-1.6-7.5-5.2-7.5-9.8V5.4z" fill="#098926"/><path d="M8.4 12.2l2.5 2.5 4.8-5.2" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></em><b>Security</b></a>
           </div>
         </div>
@@ -64,6 +66,7 @@
       </div>
       <a class="nav-link" href="pricing/">Pricing</a>
       <a class="nav-link" href="download/">Download</a>
+      <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Seven skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="budget/" style="--n:1"><span class="xp-ic xp-img"><img src="assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><div class="xp-card xp-soon" style="--n:2"><span class="xp-ic"><i></i></span><em>Soon</em><b>Next</b><span>Something new is on its way</span></div></div></div></div></div></div></div></div></div></div></div></div>
     </nav>
     <div class="nav-right">
       <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
@@ -350,9 +353,41 @@
   <div class="wrap"><div class="int-legend rv"><a href="integrations/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3" fill="#ffffff" stroke="rgba(26,26,26,0.078)" stroke-width="1"></rect><path d="M6 4h12a3 3 0 0 1 3 3v2H3V7a3 3 0 0 1 3-3z" fill="#e6000c"></path><text x="12" y="18.4" text-anchor="middle" font-size="8.6" font-weight="600" font-family="Inter, system-ui, sans-serif" fill="#1a1c1e">6</text></svg></em>Calendars &amp; mail</a><a href="resources/mcp/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="#9964e5"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="rgba(153,100,228,0.451)"/></svg></em>AI over MCP</a><a href="resources/api/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4.5" fill="rgba(26,28,31,0.851)"/><path d="M9.4 7.8c-1.6 0-2 .8-2 2v.6c0 .8-.4 1.4-1.2 1.6.8.2 1.2.8 1.2 1.6v.6c0 1.2.4 2 2 2M14.6 7.8c1.6 0 2 .8 2 2v.6c0 .8.4 1.4 1.2 1.6-.8.2-1.2.8-1.2 1.6v.6c0 1.2-.4 2-2 2" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round"/></svg></em>API &amp; webhooks</a><a href="integrations/"><em class="mi"><svg class="g" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true"><path d="M6 22h7l2 4h10l2-4h7v8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" fill="#ed990e"></path><path d="M6 22l4-11a3 3 0 0 1 2.8-2h14.4a3 3 0 0 1 2.8 2l4 11h-7l-2 4H15l-2-4z" fill="#fad7b1"></path><path d="M20 8v11m-4.5-4.5L20 19l4.5-4.5" fill="none" stroke="#774a03" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></em>Imports</a></div></div>
 </section>
 
+<section class="sec lately" id="lately" aria-labelledby="lt-h">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Lately</span>
+      <h2 id="lt-h" class="h2 split" data-split>New in Needt, <i>this month.</i></h2>
+      <p class="lead rv">Shipped, not promised. The full list is in the <a href="changelog/">changelog</a>.</p>
+    </div>
+    <div class="lt-grid">
+      <a class="lt rv" style="--d:0.00s" href="changelog/"><span class="lt-tag">Pro</span><h3>Goals</h3><p>What you are working towards, with a why, a deadline and progress. Link tasks and projects to a goal and answer a short weekly “How’s it going?”. A goal is never scheduled itself; only its tasks are.</p><span class="lt-go">See what changed →</span></a>
+      <a class="lt rv" style="--d:0.05s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Home, your way</h3><p>On a wide window Home fills the width, with Today, Habits, This week, Schedule and Inbox in one column of equal tiles. Pick which blocks show. Hover the weather for rain, wind and the next hours.</p><span class="lt-go">See what changed →</span></a>
+      <a class="lt rv" style="--d:0.10s" href="changelog/"><span class="lt-tag">Pro</span><h3>Ask, docked</h3><p>Ask Needt is a panel on the right that docks like the sidebar. Drag its edge to resize it; it reopens as you left it. It uses the same operations your own AI tools use.</p><span class="lt-go">See what changed →</span></a>
+      <a class="lt rv" style="--d:0.15s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Reminders, and a quieter bell</h3><p>Remind yourself before a task or event, or at a time. Snooze from the bell. Choose what you hear about, where, when it is quiet, and get a daily digest instead of a stream.</p><span class="lt-go">See what changed →</span></a>
+      <a class="lt rv" style="--d:0.20s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Docs with real blocks</h3><p>Toggle, Callout and Columns, tables, links and text colour. A checklist line can be a real task. Export a page as Markdown.</p><span class="lt-go">See what changed →</span></a>
+      <a class="lt rv" style="--d:0.25s" href="resources/mcp/"><span class="lt-tag">Pro</span><h3>32 tools for your AI</h3><p>Claude and ChatGPT can place a task at a time you name, log a habit, set a reminder, keep lunch free, write a goal, and remember what you tell them.</p><span class="lt-go">Connect your AI →</span></a>
+    </div>
+  </div>
+</section>
+
 <!-- ── 7 + 8 · Night zone: one night sky under the dark turn, the final CTA and the footer ── -->
 <div class="night-zone" data-px-scope>
   <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div><div class="dusk-veil" id="dusk-veil"></div></div>
+<section class="sec" id="more-needt" aria-labelledby="mx-h">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">More from Needt</span>
+      <h2 id="mx-h" class="h2 split" data-split>Two more things, <i>made the same way.</i></h2>
+    </div>
+    <div class="mx-grid">
+      <a class="mx mx-plug rv" href="plugin/"><img class="mx-ic" src="assets/plugin/icon.svg" alt="" width="64" height="64"><span class="mx-tag">Free</span><h3>Needt Plugin</h3><p>Seven skills for your AI: a business partner, research, prompts, grill-me and a critic — free. Plus /needt, which runs your day inside Needt on Pro.</p><span class="mx-go">Get the plugin →</span>
+        <div class="mx-cmds"><code>/needt:partner</code><code>/needt:prompt</code><code>/needt:search</code><code>/needt:asking</code><code>/needt:critic</code><code>/needt</code></div></a>
+      <a class="mx mx-bud rv" href="budget/"><div class="mx-txt"><img class="mx-ic" src="assets/budget/icon.svg" alt="" width="64" height="64"><span class="mx-tag">Included in Pro</span><h3>Needt Budget</h3><p>Every wallet in one balance, operations that sort themselves, and one number for how long your money lasts. Or $2 once on its own.</p><span class="mx-go">See Needt Budget →</span></div>
+        <img src="assets/budget/b-home.webp" alt="Needt Budget home screen" loading="lazy" width="402" height="874"></a>
+    </div>
+  </div>
+</section>
 <section class="night" id="night" aria-labelledby="night-h">
   <div class="night-pin">
     <div class="wrap">
@@ -397,7 +432,7 @@
           </div>
         </div>
         <div class="foot-cols">
-          <div><span class="fh">Product</span><a href="#tour">Tour</a><a href="pricing/">Pricing</a><a href="templates/">Templates</a><a href="integrations/">Integrations</a><a href="download/">Download</a><a href="changelog/">Changelog</a></div>
+          <div><span class="fh">Product</span><a href="#tour">Tour</a><a href="pricing/">Pricing</a><a href="templates/">Templates</a><a href="integrations/">Integrations</a><a href="download/">Download</a><a href="plugin/">Needt Plugin</a><a href="budget/">Needt Budget</a><a href="changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="for/freelancers/">Freelancers</a><a href="for/students/">Students</a><a href="for/founders/">Founders</a><a href="for/content-creators/">Creators</a><a href="for/adhd/">ADHD</a><a href="for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="learn/">Learn</a><a href="blog/">Blog</a><a href="resources/mcp/">Connect AI (MCP)</a><a href="resources/api/">API</a><a href="compare/">Compare</a><a href="glossary/">Glossary</a><a href="help/">Help</a></div>
           <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
@@ -416,6 +451,6 @@
 
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="vendor/sky.js?v=27" defer></script>
-<script src="app.js?v=43" defer></script>
+<script src="app.js?v=45" defer></script>
 </body>
 </html>
