@@ -415,6 +415,42 @@ async function scheduleAllTasksForUserLocked(
       addDays(now, DEFAULT_HORIZON_DAYS)
     );
 
+    // A task with fixed times that Needt does not schedule (pinned by hand,
+    // made with a start through MCP, dragged) still occupies its slot.
+    const pinnedRows = await prisma.task.findMany({
+      where: {
+        ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+        isAutoScheduled: false,
+        autoScheduled: false,
+        assigneeId: userId,
+        isArchived: false,
+        trashedAt: null,
+        status: { not: TaskStatus.COMPLETED },
+        scheduledStart: { not: null, lt: addDays(now, DEFAULT_HORIZON_DAYS) },
+        scheduledEnd: { not: null, gt: now },
+        AND: [activeProjectTaskWhere],
+      },
+      select: {
+        id: true,
+        title: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+      },
+    });
+    const pinnedBusy: CalendarBusyBlock[] = pinnedRows.flatMap((task) =>
+      task.scheduledStart && task.scheduledEnd
+        ? [
+            {
+              id: task.id,
+              title: task.title,
+              start: task.scheduledStart,
+              end: task.scheduledEnd,
+              source: "task" as const,
+            },
+          ]
+        : []
+    );
+
     let dbTasks = (await prisma.task.findMany({
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
@@ -426,6 +462,7 @@ async function scheduleAllTasksForUserLocked(
         },
         assigneeId: userId,
         isArchived: false,
+        trashedAt: null,
         AND: [activeProjectTaskWhere],
       },
       include: {
@@ -485,6 +522,7 @@ async function scheduleAllTasksForUserLocked(
         // Personal time (Lunch, Walk, Gym...) is protected: no task is placed
         // in it, repeats and blocks linked to an event included.
         ...personalBusy,
+        ...pinnedBusy,
       ],
       // Energy windows no longer constrain placement. They narrowed the day to
       // a few hours, so tasks either piled into those hours or found no slot at
@@ -542,6 +580,7 @@ async function scheduleAllTasksForUserLocked(
         scheduledStart: null,
         scheduledEnd: null,
         scheduleScore: null,
+        scheduleAtRisk: false,
       },
     });
     await prisma.scheduledBlock.deleteMany({
@@ -563,6 +602,7 @@ async function scheduleAllTasksForUserLocked(
       }
     }
 
+    const atRiskIds = new Set((result.atRisk ?? []).map((t) => t.taskId));
     await Promise.all(
       [...firstBlockByTask.values()].map((block) =>
         prisma.task.update({
@@ -573,6 +613,7 @@ async function scheduleAllTasksForUserLocked(
             isAutoScheduled: true,
             autoScheduled: true,
             scheduleScore: 1,
+            scheduleAtRisk: atRiskIds.has(block.taskId),
             lastScheduled: now,
           },
         })

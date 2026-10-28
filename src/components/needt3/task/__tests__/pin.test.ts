@@ -66,3 +66,15 @@ describe("pin model", () => {
     expect(taskView(base, [], "2026-10-16").pinned).toBe(false);
   });
 });
+
+describe("at risk", () => {
+  it("is on the view for an open task the scheduler placed late", () => {
+    const v = taskView({ ...base, atRisk: true }, [], "2026-10-16");
+    expect(v.atRisk).toBe(true);
+    expect(v.atRiskTitle).toBe("Can't fit before the due date");
+    expect(taskView(base, [], "2026-10-16").atRisk).toBe(false);
+    expect(
+      taskView({ ...base, atRisk: true, done: true }, [], "2026-10-16").atRisk
+    ).toBe(false);
+  });
+});

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { FiFileText, FiMail, FiMessageSquare } from "react-icons/fi";
-import { LuPin } from "react-icons/lu";
+import { LuClockAlert, LuPin } from "react-icons/lu";
 
 import type { TaskView } from "./view";
 
@@ -54,19 +54,38 @@ export function SourceChip({
   );
 }
 
-/** A pinned task: a quiet pin in ink alpha, never an accent fill. */
+/**
+ * The task's schedule marks: a quiet pin in ink alpha when it is held at its
+ * time, and an accent mark (never a fill) when the scheduler had to place it
+ * after its due date.
+ */
 export function PinMark({ view }: { view: TaskView }) {
-  if (!view.pinned) return null;
+  if (!view.pinned && !view.atRisk) return null;
   return (
-    <span
-      className="tk-pin"
-      data-task-pin=""
-      role="img"
-      title={view.pinTitle}
-      aria-label={view.pinTitle}
-    >
-      <LuPin size={12} aria-hidden="true" />
-    </span>
+    <>
+      {view.atRisk ? (
+        <span
+          className="tk-pin tk-risk"
+          data-task-at-risk=""
+          role="img"
+          title={view.atRiskTitle}
+          aria-label={view.atRiskTitle}
+        >
+          <LuClockAlert size={12} aria-hidden="true" />
+        </span>
+      ) : null}
+      {view.pinned ? (
+        <span
+          className="tk-pin"
+          data-task-pin=""
+          role="img"
+          title={view.pinTitle}
+          aria-label={view.pinTitle}
+        >
+          <LuPin size={12} aria-hidden="true" />
+        </span>
+      ) : null}
+    </>
   );
 }
 

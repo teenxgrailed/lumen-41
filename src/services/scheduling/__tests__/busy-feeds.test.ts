@@ -199,10 +199,14 @@ function event(over: Partial<Ev> & { feedId: string }): Ev {
 async function place() {
   const queue: unknown[][] = [[dbTask()], []];
   prisma.task.findMany.mockImplementation(
-    async (args?: { where?: { blockEventId?: unknown } }) =>
+    async (args?: {
+      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+    }) =>
       args?.where?.blockEventId
         ? mockDb.pushedBlockIds.map((blockEventId) => ({ blockEventId }))
-        : (queue.shift() ?? [])
+        : args?.where?.isAutoScheduled === false
+          ? [] // pinned tasks: none here
+          : (queue.shift() ?? [])
   );
   await scheduleAllTasksForUserDetailed("user-1");
   return mockDb.created;

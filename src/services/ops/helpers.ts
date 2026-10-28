@@ -191,6 +191,8 @@ export function taskView(task: {
   estimatedMinutes: number | null;
   scheduledStart: Date | null;
   scheduledEnd: Date | null;
+  /** The scheduler placed it after its due date: nothing fit before. */
+  scheduleAtRisk?: boolean;
   isArchived: boolean;
   completedAt: Date | null;
   updatedAt: Date;
@@ -224,6 +226,7 @@ export function taskView(task: {
     estimateMinutes: task.estimatedMinutes,
     scheduledStart: iso(task.scheduledStart),
     scheduledEnd: iso(task.scheduledEnd),
+    atRisk: task.scheduleAtRisk === true,
     isArchived: task.isArchived,
     completedAt: iso(task.completedAt),
     tagIds: task.tags?.map((tag) => tag.id) ?? [],
