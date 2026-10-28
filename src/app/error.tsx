@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { APP_NAME } from "@/lib/app-config";
 import { logger } from "@/lib/logger";
-import { getAppVersion, getVersionGithubUrl } from "@/lib/version";
+import { getAppVersion, getVersionHref } from "@/lib/version";
 
 import "../app/globals.css";
 
@@ -60,10 +60,10 @@ export default function Error({
             </Link>
           </div>
           <a
-            href={getVersionGithubUrl()}
+            href={getVersionHref()}
             target="_blank"
             rel="noopener noreferrer"
-            title="View this version on GitHub"
+            title="What changed in this version"
             className="mt-8 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] hover:underline"
           >
             v{getAppVersion()}

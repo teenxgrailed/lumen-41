@@ -2,14 +2,12 @@
 
 import { FiExternalLink } from "react-icons/fi";
 
-import { GITHUB_REPO_URL } from "@/lib/version";
-
 import { CopyRow, TokenStep } from "./AiSetup";
 import { strings } from "./strings";
 import type { McpConnect } from "./useMcpConnect";
 
 /** The connector API guide, kept in the repository next to the code. */
-export const API_DOCS_URL = `${GITHUB_REPO_URL}/blob/main/docs/connector-api.md`;
+export const API_DOCS_URL = "https://needt.app/resources/api/";
 
 /**
  * What the "Needt API" tile opens: where a person makes a personal access

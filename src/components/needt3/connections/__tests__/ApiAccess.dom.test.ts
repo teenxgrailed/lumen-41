@@ -65,6 +65,6 @@ describe("the Needt API sheet", () => {
   it("links to the connector API docs", () => {
     const a = host.querySelector<HTMLAnchorElement>("[data-cn-api-docs]");
     expect(a?.href).toBe(API_DOCS_URL);
-    expect(API_DOCS_URL).toMatch(/docs\/connector-api\.md$/);
+    expect(API_DOCS_URL).toBe("https://needt.app/resources/api/");
   });
 });

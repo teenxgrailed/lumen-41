@@ -196,7 +196,7 @@ export function UserMenu() {
         )}
         <DropdownMenuItem asChild>
           <a
-            href="https://github.com/teenxgrails/needt/issues"
+            href="https://needt.app/help/"
             target="_blank"
             rel="noreferrer"
             className="cursor-pointer"

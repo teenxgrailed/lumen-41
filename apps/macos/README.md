@@ -130,7 +130,7 @@ How it fits together:
 | Release workflow      | `.github/workflows/macos-release.yml` (tag `mac-vX.Y.Z` or run by hand with a version)                          |
 | Zip                   | GitHub Release `mac-vX.Y.Z`, asset `Needt-X.Y.Z.zip`                                                            |
 | Appcast               | release `mac-appcast`, asset `appcast.xml`, replaced on every release                                           |
-| Feed URL in the app   | `https://github.com/teenxgrails/needt/releases/download/mac-appcast/appcast.xml` (`SUFeedURL` in `project.yml`) |
+| Feed URL in the app   | `https://github.com/teenxgrailed/lumen-41/releases/download/mac-appcast/appcast.xml` (`SUFeedURL` in `project.yml`) |
 | Public key in the app | build setting `SPARKLE_PUBLIC_ED_KEY`, filled from the repository variable `SPARKLE_ED_PUBLIC_KEY`              |
 | Private key           | secret `SPARKLE_ED_PRIVATE_KEY`, read only by the "Sign the zip" step                                           |
 
@@ -151,8 +151,8 @@ keeps the private key in the login Keychain and prints the public key.
 
 ```bash
 ./bin/generate_keys -x ~/needt-sparkle-private.key
-gh secret set SPARKLE_ED_PRIVATE_KEY -R teenxgrails/needt < ~/needt-sparkle-private.key
-gh variable set SPARKLE_ED_PUBLIC_KEY -R teenxgrails/needt --body "<public key printed by generate_keys>"
+gh secret set SPARKLE_ED_PRIVATE_KEY -R teenxgrailed/lumen-41 < ~/needt-sparkle-private.key
+gh variable set SPARKLE_ED_PUBLIC_KEY -R teenxgrailed/lumen-41 --body "<public key printed by generate_keys>"
 ```
 
 Then keep the private key only in the password manager and delete the file.
