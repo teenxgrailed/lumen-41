@@ -2,6 +2,7 @@ import { Resend } from "resend";
 
 import { APP_NAME } from "@/lib/app-config";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "EmailService";
 const EMAIL_LOCAL_PART =
@@ -35,6 +36,26 @@ export interface EmailJobData {
 }
 
 /**
+ * Sandbox accounts (docs/sandbox-accounts.md) have no inbox anyone reads, so
+ * nothing is mailed to one. A lookup that fails sends the mail as before:
+ * this only saves a bounce, it guards nothing.
+ */
+async function isSandboxRecipient(to: string): Promise<boolean> {
+  const address = (FORMATTED_MAILBOX_PATTERN.exec(to.trim())?.[2] ?? to)
+    .trim()
+    .toLowerCase();
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: address },
+      select: { sandboxKind: true },
+    });
+    return Boolean(user?.sandboxKind);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Email service for sending emails directly in the unified Needt build.
  */
 export class EmailService {
@@ -46,6 +67,11 @@ export class EmailService {
   static async sendEmail(emailData: EmailJobData): Promise<{ jobId: string }> {
     try {
       const { to, subject } = emailData;
+
+      if (await isSandboxRecipient(to)) {
+        logger.info("Email to a sandbox account dropped", {}, LOG_SOURCE);
+        return { jobId: "" };
+      }
 
       logger.info(
         "Sending email",

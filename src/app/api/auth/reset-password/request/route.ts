@@ -54,8 +54,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Don't reveal if the user exists or not
-    if (!user || !user.accounts || user.accounts.length === 0) {
+    // Don't reveal if the user exists or not. A sandbox account's password
+    // comes from the server's env, so it gets the same silent answer.
+    if (
+      !user ||
+      user.sandboxKind ||
+      !user.accounts ||
+      user.accounts.length === 0
+    ) {
       logger.info(
         "Password reset requested for non-existent user",
         { accountHash: accountRule(normalizedEmail, "log", 1, 1).identifier },

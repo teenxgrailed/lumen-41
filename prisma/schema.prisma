@@ -101,7 +101,11 @@ model User {
   // Bumped to sign the person out everywhere: a session token carries the
   // version it was issued under and stops working once the two differ.
   sessionVersion         Int                       @default(0)
-  dataExports            DataExportRequest[]
+  // Set only on accounts the app provisions itself (docs/sandbox-accounts.md):
+  // a directory reviewer now, a public demo later. Null for every real person.
+  // A sandbox account is locked down (src/lib/sandbox) and wiped nightly.
+  sandboxKind            SandboxKind?
+  dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]
   subscription           Subscription?
@@ -3016,6 +3020,12 @@ model PasswordReset {
 
   @@index([token])
   @@index([userId])
+}
+
+/// What kind of app-provisioned account this is; see User.sandboxKind.
+enum SandboxKind {
+  reviewer
+  publicDemo
 }
 
 enum SubscriptionPlan {

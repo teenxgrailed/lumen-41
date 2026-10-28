@@ -1,5 +1,6 @@
 import { getPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import { SANDBOX_AI_DAILY_ACTION_CAP } from "@/lib/sandbox/policy";
 
 import {
   claimHostedAiAction,
@@ -12,6 +13,7 @@ jest.mock("@/lib/entitlements", () => ({ getPlan: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     aiUsage: { findUnique: jest.fn(), upsert: jest.fn() },
+    user: { findUnique: jest.fn() },
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
   },
@@ -77,6 +79,24 @@ describe("hosted AI action claims", () => {
     const sql = (prisma.$queryRaw as jest.Mock).mock.calls[0][0].join(" ");
     expect(sql).toContain("ON CONFLICT");
     expect(sql).toContain('WHERE "AiUsage"."actionCount" <');
+  });
+
+  it("holds a sandbox account to its small daily cap with no slow lane", async () => {
+    jest
+      .mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({ sandboxKind: "reviewer" } as never);
+    jest.mocked(prisma.$queryRaw).mockResolvedValue([{ actionCount: 3 }]);
+
+    await expect(claimHostedAiAction("sandbox-1")).resolves.toMatchObject({
+      claimed: true,
+      mode: "normal",
+      usage: {
+        limit: SANDBOX_AI_DAILY_ACTION_CAP,
+        ceiling: SANDBOX_AI_DAILY_ACTION_CAP,
+      },
+    });
+    const values = (prisma.$queryRaw as jest.Mock).mock.calls[0].slice(1);
+    expect(values).toContain(SANDBOX_AI_DAILY_ACTION_CAP);
   });
 
   it("denies the action when the atomic claim returns no row", async () => {

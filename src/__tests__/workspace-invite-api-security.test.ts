@@ -17,6 +17,9 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { enforceRateLimits } from "@/lib/security/rate-limit";
 
 jest.mock("@/lib/auth/api-auth");
+jest.mock("@/lib/sandbox/guard", () => ({
+  refuseSandbox: jest.fn().mockResolvedValue(null),
+}));
 jest.mock("@/lib/security/rate-limit", () => ({
   accountRule: jest.fn((identifier, namespace, limit, windowSeconds) => ({
     identifier,

@@ -47,6 +47,7 @@ jest.mock("@/lib/auth/workspace-auth", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     connectorSettings: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
     importRun: {
       findFirst: jest.fn(),
       findMany: jest.fn(),

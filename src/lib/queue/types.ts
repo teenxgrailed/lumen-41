@@ -72,7 +72,9 @@ export interface OAuthCleanupJobData {
 export type AccountLifecycleJobData =
   | { kind: "export"; requestId: string }
   | { kind: "delete"; requestId: string }
-  | { kind: "sweep" };
+  | { kind: "sweep" }
+  /** Nightly: wipe and reseed sandbox accounts (docs/sandbox-accounts.md). */
+  | { kind: "sandbox-reset" };
 
 /**
  * A run carries only its id: the source token is read from the run row,

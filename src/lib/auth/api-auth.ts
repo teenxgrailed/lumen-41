@@ -20,6 +20,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { sandboxLockedResponse } from "@/lib/sandbox/guard";
 
 const LOG_SOURCE = "APIAuth";
 
@@ -184,6 +185,7 @@ export async function requireAdmin(
         emailVerified: true,
         isActive: true,
         role: true,
+        sandboxKind: true,
         sessionVersion: true,
       },
     });
@@ -207,6 +209,12 @@ export async function requireAdmin(
         },
         { status: 403 }
       );
+    }
+
+    // A sandbox account never reaches admin, whatever its role says
+    // (docs/sandbox-accounts.md).
+    if (user.sandboxKind) {
+      return sandboxLockedResponse("admin");
     }
 
     if (user.role !== "admin") {

@@ -30,6 +30,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     expiresAt?: number;
     role?: string;
+    /** User.sandboxKind at sign-in; the middleware locks sandbox sessions. */
+    sandboxKind?: string;
     /** User.sessionVersion this token was issued under. */
     sessionVersion?: number;
     /** Epoch ms of the last database check of sessionVersion. */

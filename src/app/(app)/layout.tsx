@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
 import { AppShell } from "@/components/layout/AppShell";
 import { V3Root } from "@/components/needt3/root/V3Root";
+import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
@@ -15,6 +16,7 @@ import {
   phoneUiFrom,
 } from "@/lib/needt3/phone-ui";
 import { requestLook, requestLookCookie } from "@/lib/needt3/request-look";
+import { getSandboxKind } from "@/lib/sandbox/guard";
 
 import { viewport as baseViewport } from "../metadata";
 
@@ -62,8 +64,10 @@ export default async function AppLayout({
     // The saved theme and accent, read here so the first byte of HTML wears
     // them (V3Root's boot script settles System and Time before paint).
     const initialLook = await requestLook(session.user.id);
+    const sandboxKind = await getSandboxKind(session.user.id);
     return (
       <EmailVerificationGate initialStatus={verification}>
+        {sandboxKind ? <SandboxBanner /> : null}
         <V3Root
           initialUi={initialUi}
           initialLook={initialLook}

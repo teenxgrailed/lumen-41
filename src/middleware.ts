@@ -5,6 +5,11 @@ import type { NextRequest } from "next/server";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { mcpHost } from "@/lib/mcp-config";
 import { appRedirectUrl } from "@/lib/public-url";
+import {
+  isSandboxBlockedPage,
+  sandboxApiCapability,
+  sandboxLockedBody,
+} from "@/lib/sandbox/policy";
 import { contentSecurityPolicy } from "@/lib/security/csp";
 import { isBogusActionId } from "@/lib/stale-deployment";
 
@@ -131,6 +136,21 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
+  // Sandbox accounts (docs/sandbox-accounts.md): the session token carries
+  // the kind from sign-in, so a locked route is refused before it runs. Only
+  // a request that matches the route table pays for the token read.
+  if (pathname.startsWith("/api/")) {
+    const capability = sandboxApiCapability(pathname, request.method);
+    if (capability) {
+      const token = await getToken({ req: request, secret: authSecret() });
+      if (token?.sandboxKind) {
+        return NextResponse.json(sandboxLockedBody(capability), {
+          status: 403,
+        });
+      }
+    }
+  }
+
   // Redirect /login to /auth/signin to prevent redirect loops
   if (pathname === "/login") {
     return NextResponse.redirect(appRedirectUrl("/auth/signin", request));
@@ -194,6 +214,9 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     if (token.role !== "admin") {
       return NextResponse.redirect(appRedirectUrl("/", request));
     }
+  }
+  if (token.sandboxKind && isSandboxBlockedPage(pathname)) {
+    return NextResponse.redirect(appRedirectUrl("/", request));
   }
 
   // Continue with the request

@@ -175,6 +175,7 @@ jobs:
           TRIAL_INTEGRATION: "1"
           PAGE_TRASH_INTEGRATION: "1"
           OAUTH_INTEGRATION: "1"
+          SANDBOX_INTEGRATION: "1"
       - run: npm run build:collaboration
       - run: npm run check:collaboration-runtime
 
