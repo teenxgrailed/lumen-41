@@ -16,21 +16,19 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 const OUT = path.join("test-results", "phone-sheet-perf");
 const RUNS = 5;
 const VARIANTS: Record<string, string> = {
+  legacy:
+    ".pk-sheet-solid,.pk-sheet-frost{display:none!important}.pk-sheet{background:var(--pk-glass);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}.pk-scrim.is-static-blur>.pk-scrim-blur{opacity:var(--pk-scrim-k)!important;transition:none!important}",
   asis: "/* none */",
-  frostNoFilterWhileMoving:
-    ".pk-sheet-layer[data-pk-sheet-moving] .pk-sheet-frost{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;visibility:hidden}",
-  noTransitions:
-    ".pk-sheet-solid,.pk-sheet-frost,.pk-scrim.is-static-blur>.pk-scrim-blur{transition:none!important}",
-  scrimPerFrame:
-    ".pk-scrim.is-static-blur>.pk-scrim-blur{opacity:var(--pk-scrim-k)!important;transition:none!important}",
+  scrimHiddenWhileMoving:
+    ".pk-sheet-layer[data-pk-sheet-moving] .pk-scrim-blur{visibility:hidden}",
   noScrimBlur: ".pk-scrim-blur{display:none!important}",
-  noSheetLayers: ".pk-sheet-solid,.pk-sheet-frost{display:none!important}",
 };
 
 type Sample = {
   run: number;
   frames: number;
   slowFrames: number;
+  slowMotion: number;
   worstFrameMs: number;
   longTasks: number;
   longTaskMs: number;
@@ -116,6 +114,15 @@ test("composer sheet rise variants", async ({ browser }) => {
         return {
           frames: p.frames.length,
           slowFrames: p.frames.filter((d) => d > 25).length,
+          slowMotion: (() => {
+            let t = 0;
+            let n = 0;
+            for (const d of p.frames) {
+              t += d;
+              if (t < 700 && d > 25) n++;
+            }
+            return n;
+          })(),
           worstFrameMs: Math.round(Math.max(0, ...p.frames)),
           longTasks: p.longs.length,
           longTaskMs: Math.round(p.longs.reduce((a, b) => a + b, 0)),
@@ -132,6 +139,7 @@ test("composer sheet rise variants", async ({ browser }) => {
       ) / 10;
     results[vname] = {
       slow: avg0("slowFrames"),
+      slowMotion: avg0("slowMotion"),
       worst: avg0("worstFrameMs"),
       frames: avg0("frames"),
       samples: samples.map((x) => [x.frames, x.slowFrames, x.worstFrameMs]),
@@ -144,5 +152,5 @@ test("composer sheet rise variants", async ({ browser }) => {
     JSON.stringify(results, null, 2)
   );
   console.log("PHONE_SHEET_VARIANTS " + JSON.stringify(results));
-  expect(Object.keys(results).length).toBe(6);
+  expect(Object.keys(results).length).toBe(4);
 });
