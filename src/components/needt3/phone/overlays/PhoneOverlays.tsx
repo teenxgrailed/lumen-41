@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -25,29 +25,6 @@ function useOpenedOnce(open: boolean) {
   const [seen, setSeen] = useState(open);
   if (open && !seen) setSeen(true);
   return seen;
-}
-
-/**
- * True a moment after the shell has painted. The two sheets people open most
- * (New task, Ask) are mounted shut by then, so their first opening only slides
- * a tree that is already built: mounting it inside the rise stalled the first
- * frames. Nothing runs for a shut sheet (it is inert and hidden).
- */
-function useIdleWarm() {
-  const [warm, setWarm] = useState(false);
-  useEffect(() => {
-    const w = window as Window & {
-      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-    if (w.requestIdleCallback) {
-      const id = w.requestIdleCallback(() => setWarm(true), { timeout: 4000 });
-      return () => w.cancelIdleCallback?.(id);
-    }
-    const id = window.setTimeout(() => setWarm(true), 2500);
-    return () => window.clearTimeout(id);
-  }, []);
-  return warm;
 }
 
 function TaskHost() {
@@ -112,13 +89,12 @@ export function PhoneOverlays() {
   const event = usePhoneOverlays((s) => s.event);
   const newEvent = usePhoneOverlays((s) => s.newEvent);
   const scheduling = useScheduleSheet((s) => s.task);
-  const warm = useIdleWarm();
   return (
     <>
-      <Lazy open={composerOpen || warm}>
+      <Lazy open={composerOpen}>
         <StoreComposer />
       </Lazy>
-      <Lazy open={askOpen || warm}>
+      <Lazy open={askOpen}>
         <StoreAsk />
       </Lazy>
       <TaskHost />
