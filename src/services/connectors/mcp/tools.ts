@@ -1884,7 +1884,7 @@ MCP_TOOLS.push(
     {
       name: "needt_convert_task_to_goal",
       description:
-        'Turn a task into a goal (Pro). The goal takes the task\'s title (a leading "GOAL:" is dropped), description, due date as deadline and project; each subtask becomes a task linked to the goal (ticked ones stay done); the original task is archived. One actionId undoes all of it.',
+        'Turn a task into a goal (Pro). The goal takes the task\'s title (a leading "GOAL:" is dropped), description, due date as deadline and project (not linked when the project is a goals container: named Goals, or holding other "GOAL:" tasks; "GOAL:" tasks never count as progress); each subtask becomes a task linked to the goal (ticked ones stay done); the original task is archived. One actionId undoes all of it.',
       annotations: {
         title: "Convert task to goal",
         readOnlyHint: false,

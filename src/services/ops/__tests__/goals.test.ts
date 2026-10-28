@@ -427,6 +427,66 @@ describe("goal.convert_from_task", () => {
     }
   });
 
+  it("does not link a goals container project, and its GOAL tasks never count as progress", async () => {
+    const container = await db.seed("project", {
+      name: "Plans",
+      userId: OWNER_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    const first = await seedTask(db, {
+      title: "GOAL: Save money",
+      projectId: container.id,
+    });
+    await seedTask(db, {
+      title: "goal: Learn German",
+      projectId: container.id,
+    });
+    await seedTask(db, {
+      title: "GOAL: Run a marathon",
+      projectId: container.id,
+    });
+    const run = await runOp<{ goal: GoalView }>(
+      "goal.convert_from_task",
+      { taskId: first.id },
+      opts()
+    );
+    expect(run.result.goal.projectIds).toEqual([]);
+    expect((await readGoal(run.result.goal.id)).goal.progress.total).toBe(0);
+  });
+
+  it("does not link a project named Goals", async () => {
+    const container = await db.seed("project", {
+      name: "Goals",
+      userId: OWNER_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    const task = await seedTask(db, { title: "Save", projectId: container.id });
+    const run = await runOp<{ goal: GoalView }>(
+      "goal.convert_from_task",
+      { taskId: task.id },
+      opts()
+    );
+    expect(run.result.goal.projectIds).toEqual([]);
+  });
+
+  it("never counts a GOAL task through a linked project", async () => {
+    const project = await db.seed("project", {
+      name: "Money",
+      userId: OWNER_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    await seedTask(db, { title: "Open account", projectId: project.id });
+    await seedTask(db, { title: "GOAL: Other", projectId: project.id });
+    const created = await runOp<{ goal: GoalView }>(
+      "goal.create",
+      { title: "Save", projectIds: [project.id] },
+      opts()
+    );
+    expect((await readGoal(created.result.goal.id)).goal.progress.total).toBe(
+      1
+    );
+  });
+
   it("refuses undo when a new task was changed afterwards", async () => {
     const task = await seedTask(db, { title: "Learn to swim" });
     await db.seed("taskPart", { taskId: task.id, title: "Book a lesson" });
