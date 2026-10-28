@@ -69,12 +69,16 @@ export function taskView(
   const overdue =
     !event && !done && !!today && !!task.dueDate && task.dueDate < today;
   const pinned = !event && isPinned(task);
+  const atRisk = !event && !done && task.atRisk === true;
   return {
     id: task.id,
     title: task.title || "",
     /** Held at its time by hand: the scheduler will not move it. */
     pinned,
     pinTitle: pinned ? pinTitle(task) : undefined,
+    /** Placed after its due date: nothing fit before it. */
+    atRisk,
+    atRiskTitle: atRisk ? "Can't fit before the due date" : undefined,
     done,
     event,
     calendarName: event ? (task.calendarName ?? "Calendar") : null,

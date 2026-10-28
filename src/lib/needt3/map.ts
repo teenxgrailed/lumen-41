@@ -135,6 +135,7 @@ export interface ApiTask {
   projectId?: string | null;
   scheduleLocked?: boolean;
   isAutoScheduled?: boolean;
+  scheduleAtRisk?: boolean;
   noSlot?: boolean;
   entry?: string | null;
   minChunkMinutes?: number | null;
@@ -296,6 +297,8 @@ export interface V3Task {
   isFixed: boolean;
   auto: boolean;
   noSlot: boolean;
+  /** Placed after its due date because nothing fit before it. */
+  atRisk?: boolean;
   entry: string | null;
   chunk: number | null;
   splitAllowed: boolean;
@@ -363,6 +366,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     isFixed: row.scheduleLocked ?? false,
     auto: row.isAutoScheduled ?? false,
     noSlot: row.noSlot ?? false,
+    atRisk: row.scheduleAtRisk ?? false,
     entry: row.entry ?? null,
     chunk: row.minChunkMinutes ?? null,
     splitAllowed: row.splitAllowed ?? true,

@@ -56,6 +56,7 @@ const baseRow: NeedtTaskRow = {
   scheduledEnd: null,
   scheduleId: null,
   scheduleScore: null,
+  scheduleAtRisk: false,
   lastScheduled: null,
   availableFrom: null,
   postponedUntil: null,

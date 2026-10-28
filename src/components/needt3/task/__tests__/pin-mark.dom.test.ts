@@ -102,3 +102,28 @@ describe("pinned mark", () => {
     expect(host.querySelector("[data-task-pin]")).toBeNull();
   });
 });
+
+const RISK = "Can't fit before the due date";
+
+describe("at-risk mark", () => {
+  const risky = { ...task, isFixed: false, auto: true, atRisk: true } as V3Task;
+
+  it.each([
+    ["row desk", { layout: "row" }],
+    ["row touch", { layout: "row", density: "touch" }],
+    ["card", { layout: "card" }],
+    ["block short", { layout: "block", box: { h: 20 } }],
+    ["block tall", { layout: "block", box: { h: 80 } }],
+  ])("%s shows the mark with its tooltip", (_name, props) => {
+    mount(risky, props);
+    const mark = host.querySelector("[data-task-at-risk]") as HTMLElement;
+    expect(mark).not.toBeNull();
+    expect(mark.getAttribute("title")).toBe(RISK);
+    expect(host.querySelector("[data-task-pin]")).toBeNull();
+  });
+
+  it("draws nothing for a task that fits", () => {
+    mount({ ...risky, atRisk: false } as V3Task, { layout: "row" });
+    expect(host.querySelector("[data-task-at-risk]")).toBeNull();
+  });
+});

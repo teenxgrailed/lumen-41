@@ -861,6 +861,9 @@ model Task {
   scheduleId      String?
   schedule        WorkSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   scheduleScore   Float?
+  // True while the scheduler had to place the task after its due date because
+  // nothing fit before it (DEADLINE_AT_RISK). Rewritten on every run.
+  scheduleAtRisk  Boolean       @default(false)
   lastScheduled   DateTime?
   // Earliest explicit scheduling boundary. The scheduler also respects
   // startDate and postponedUntil and uses the latest of all three.
