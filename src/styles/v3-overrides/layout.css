@@ -63,3 +63,10 @@
   padding-left: var(--v3-gutter);
   padding-right: var(--v3-gutter);
 }
+
+/* Task rows: the last column (project) ends at the same right gutter as the
+ * header tabs. Its 120 px cell used to be left-aligned, so a short project
+ * name stopped ~100 px short of the tabs on a wide window. */
+.needt-v3 .wk-screen .tk-cell-proj {
+  justify-content: flex-end;
+}

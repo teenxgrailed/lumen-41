@@ -105,6 +105,26 @@ export const notificationSettingsV3FieldsSchema = z.object({
   nudges: z.boolean().optional(),
   weeklyReview: z.boolean().optional(),
   focusEnded: z.boolean().optional(),
+  reminders: z.boolean().optional(),
+  mentions: z.boolean().optional(),
+  system: z.boolean().optional(),
+  channelInApp: z.boolean().optional(),
+  channelPush: z.boolean().optional(),
+  channelMac: z.boolean().optional(),
+  quietHours: z.boolean().optional(),
+  quietStart: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  quietEnd: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  digest: z.boolean().optional(),
+  digestTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
 });
 
 type Parsed<S extends z.ZodTypeAny> =

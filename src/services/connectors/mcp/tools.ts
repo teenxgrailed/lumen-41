@@ -11,6 +11,14 @@ import {
 } from "@/app/api/blocking/profiles/route";
 import { POST as controlPost } from "@/app/api/connect/control/route";
 import { POST as opsPost } from "@/app/api/connect/ops/[name]/route";
+import {
+  DELETE as reminderDelete,
+  PATCH as reminderPatch,
+} from "@/app/api/connect/reminders/[id]/route";
+import {
+  GET as remindersGet,
+  POST as remindersPost,
+} from "@/app/api/connect/reminders/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
 import {
   GET as scheduleGet,
@@ -18,11 +26,14 @@ import {
 } from "@/app/api/connect/schedule/route";
 import { POST as createTaskPost } from "@/app/api/connect/tasks/route";
 import {
+  AssistantMemoryError,
+  assistantMemoryResult,
   clearAgentMemories,
   forgetForUser,
   isLearningEnabled,
   listAgentMemories,
   publicMemory,
+  rememberFromAssistant,
   updateMemoryForUser,
 } from "@/services/ai/memory";
 import { blockingProfileFields } from "@/services/blocking/profile";
@@ -30,6 +41,7 @@ import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
+import { type GoalRow, loadGoalViews } from "@/services/goals/progress";
 import {
   HabitCompletionDateError,
   setHabitCompletionToday,
@@ -38,6 +50,7 @@ import {
   getMoodboard,
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
+import { OpError, runOp } from "@/services/ops";
 import {
   AI_PAGE_NOT_EDITABLE,
   AI_PAGE_UNAVAILABLE,
@@ -96,6 +109,13 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
+import {
+  GOAL_AREAS,
+  GOAL_NOTE_MAX,
+  GOAL_PROJECTS_MAX,
+  GOAL_TITLE_MAX,
+  GOAL_UNIT_MAX,
+} from "@/lib/goals";
 import { listMailMessages } from "@/lib/mail-db";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
@@ -129,10 +149,14 @@ export interface McpToolResult {
   isError?: boolean;
 }
 
-interface McpToolAnnotations {
+export interface McpToolAnnotations {
+  /** Human name shown in connector directories and tool pickers. */
+  title: string;
   readOnlyHint?: boolean;
   destructiveHint?: boolean;
   idempotentHint?: boolean;
+  /** Needt only touches the person's own workspace, never the open web. */
+  openWorldHint: boolean;
 }
 
 export interface McpTool<S extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -297,6 +321,7 @@ const LIST_TYPES = [
   "mail",
   "moodboard",
   "personal_time",
+  "goal",
 ] as const;
 type ListType = (typeof LIST_TYPES)[number];
 
@@ -498,6 +523,24 @@ async function listRows(
         ).map(personalBlockView),
         args.limit
       );
+    case "goal": {
+      const rows = page(
+        (await prisma.goal.findMany({
+          where: {
+            ...scope,
+            ...(args.includeArchived ? {} : { archivedAt: null }),
+          },
+          orderBy: order,
+          take,
+          ...cursorArgs(args.cursor),
+        })) as GoalRow[],
+        args.limit
+      );
+      return {
+        ...rows,
+        items: await loadGoalViews(prisma, scope, rows.items),
+      };
+    }
     case "habit":
       return page(
         await prisma.habit.findMany({
@@ -574,6 +617,18 @@ async function getRow(
       return getPage(mcpPageActor(ctx, workspace), id);
     case "habit":
       return prisma.habit.findFirst({ where: { id, ...scope, userId } });
+    case "goal":
+      try {
+        const read = await runOp(
+          "goal.get",
+          { goalId: id },
+          { userId, workspace, actor: "mcp" }
+        );
+        return read.result;
+      } catch (error) {
+        if (error instanceof OpError && error.code === "NOT_FOUND") return null;
+        throw error;
+      }
     case "mail":
       if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.mailMessage.findFirst({
@@ -601,7 +656,12 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_search",
     description:
       "Search everything in the active Needt workspace — tasks, projects, calendar events, pages, habits and mail — by text. Returns ids and titles; read full objects with needt_get. Mail is searched only with the mail.read scope and only in the personal workspace. Private pages are never searched.",
-    annotations: { readOnlyHint: true, destructiveHint: false },
+    annotations: {
+      title: "Search workspace",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z.object({
       query: z.string().min(1).describe("Text to look for."),
       types: z
@@ -642,8 +702,13 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it).",
-    annotations: { readOnlyHint: true, destructiveHint: false },
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled).",
+    annotations: {
+      title: "List objects",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
     input: z.object({
@@ -657,7 +722,7 @@ export const MCP_TOOLS: McpTool[] = [
         .boolean()
         .optional()
         .describe(
-          "Include archived tasks, projects, events, calendars and habits."
+          "Include archived tasks, projects, events, calendars, habits and goals."
         ),
       from: z
         .string()
@@ -684,8 +749,13 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role).",
-    annotations: { readOnlyHint: true, destructiveHint: false },
+      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins).",
+    annotations: {
+      title: "Get object",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
     input: z.object({ type: z.enum(LIST_TYPES), id: z.string().min(1) }),
@@ -708,7 +778,12 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_create_task",
     description: `Create a task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. By default the scheduler picks the time; give start to place the task at a time yourself and pin it there, or autoSchedule: false to keep it off the calendar. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Create task",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z.object({
       title: z
         .string()
@@ -763,6 +838,13 @@ export const MCP_TOOLS: McpTool[] = [
         .describe(
           "A page in this workspace the task came from; the page's to-do and the task then tick together."
         ),
+      goalId: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "The goal this task moves forward (needt_list type goal); its progress counts the task."
+        ),
       start: placementFields.start,
       autoSchedule: placementFields.autoSchedule.describe(
         "false keeps the scheduler off this task: it gets no time until you give it one. Default true; a task created with start is pinned and not auto-scheduled."
@@ -775,7 +857,12 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_schedule",
     description:
       "Return the upcoming schedule. With run: true (default) Needt re-runs the scheduler first, which can move auto-scheduled tasks.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Run scheduler",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: (args) => (args.run ? ["needt.write"] : ["needt.read"]),
     input: z.object({ run: z.boolean().default(true) }),
     invoke: (ctx, args) =>
@@ -787,7 +874,13 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_reschedule",
     description:
       "Re-run the scheduler and send the schedule.changed webhook if one is configured. With taskIds or scope it spreads those tasks over the coming days instead: each goes to the first day from today with room for it (working hours less events, personal time and what is already on that day). scope: today takes today's tasks with no time today, overdue the open tasks due before today. One that fits nowhere stays; the due day moves; the answer lists what moved and carries actionId for undo.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Reschedule tasks",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z.object({
       taskIds: z
         .array(z.string().min(1))
@@ -825,7 +918,12 @@ export const MCP_TOOLS: McpTool[] = [
     name: "needt_control",
     description:
       "Change Needt projects, tasks, local calendars and events. Use action: overview to inspect the workspace. delete_* actions archive the object and require confirm: true; restore_* brings it back.",
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: {
+      title: "Control planner",
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false,
+    },
     // The overview only reads; every other action writes.
     scopes: (args) =>
       args.action === "overview" ? ["needt.read"] : ["needt.write"],
@@ -931,8 +1029,14 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, goalId (the goal it moves forward; null unlinks), entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
+      annotations: {
+        title: "Update task",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       input: z
         .object({
           id: z.string().min(1).describe("Task id."),
@@ -952,7 +1056,12 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_attach_file",
     description:
       "Attach a file to a task: an image (JPEG, PNG, WebP, GIF) or a PDF, up to 4 MB, ten per task. contentBase64 holds the file's bytes; the type is read from them, not from the name. The undo id comes back in the answer.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Attach file",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z
       .object({
         taskId: z.string().min(1),
@@ -974,7 +1083,13 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_remove_attachment",
     description:
       "Remove a file from a task. The file is deleted and cannot be brought back, so it needs confirm: true. Attachment ids are in needt_get type task.",
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: {
+      title: "Remove attachment",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z
       .object({
         taskId: z.string().min(1),
@@ -1005,7 +1120,12 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_add_subtasks",
       description: `Add subtasks to an existing task, after the ones it already has. ${SUBTASK_GUIDANCE} Returns the new subtasks in order. Ticking them is needt_complete_subtask; the task itself is closed last with needt_complete_task.`,
-      annotations: { readOnlyHint: false, destructiveHint: false },
+      annotations: {
+        title: "Add subtasks",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
       input: z
         .object({
           taskId: z.string().min(1).describe("Task id (the closing step)."),
@@ -1036,9 +1156,11 @@ const WRITE_TOOLS: McpTool[] = [
       description:
         "Tick a subtask done, or not done with done: false. Safe to repeat. The answer says allDone: true when no subtask is left open; then the task itself is the last step, so close it with needt_complete_task.",
       annotations: {
+        title: "Complete subtask",
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
+        openWorldHint: false,
       },
       input: z
         .object({
@@ -1077,9 +1199,11 @@ const WRITE_TOOLS: McpTool[] = [
       description:
         "Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence.",
       annotations: {
+        title: "Complete task",
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
+        openWorldHint: false,
       },
       input: z.object({
         id: z.string().min(1).describe("Task id."),
@@ -1097,7 +1221,12 @@ const WRITE_TOOLS: McpTool[] = [
       name: "needt_create_event",
       description:
         "Create an event in a Needt calendar (the first one when feedId is omitted; synced Google, Outlook and CalDAV calendars are refused). Events are personal, so this works in the personal workspace only.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
+      annotations: {
+        title: "Create calendar event",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
       input: z.object({
         title: z.string().min(1).max(500),
         start: isoDate.describe("ISO 8601 start."),
@@ -1133,7 +1262,12 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_create_personal_time",
     description:
       "Keep time for the person: lunch, break, walk, dinner, gym, party, rest or a custom block. No task is ever scheduled inside it. Give start (ISO 8601) and end or minutes (a preset kind has a usual length); rrule repeats it (e.g. FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR). Needt keeps it; nothing is written to Google or iCloud. Personal workspace only. The answer carries actionId for undo.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Create personal time",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z.object({
       kind: z
         .enum([
@@ -1172,9 +1306,11 @@ const WRITE_TOOLS: McpTool[] = [
     description:
       "Mark a calendar event (synced or your own) as personal time. Needt keeps a block linked to it, so no task is scheduled over it and it follows the event if it moves. The event itself is not changed. Find the id with needt_list type event.",
     annotations: {
+      title: "Mark event as personal time",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: false,
     },
     input: z.object({
       eventId: z.string().min(1),
@@ -1199,7 +1335,13 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_update_personal_time",
     description:
       "Change a personal time block: title, emoji, tint (info, success, neutral), start, end or rrule (null stops the repeat). The answer carries actionId for undo.",
-    annotations: { readOnlyHint: false, destructiveHint: false },
+    annotations: {
+      title: "Update personal time",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z.object({
       id: z.string().min(1).describe("Personal time block id."),
       title: z.string().min(1).max(120).optional(),
@@ -1225,7 +1367,13 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_delete_personal_time",
     description:
       "Remove a personal time block (a repeat goes entirely). It is kept, so the actionId in the answer undoes it. The linked calendar event, if any, is untouched.",
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: {
+      title: "Delete personal time",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z.object({ id: z.string().min(1).describe("Block id.") }),
     invoke: (ctx, args) =>
       callRoute(
@@ -1244,7 +1392,12 @@ const WRITE_TOOLS: McpTool[] = [
       name: "needt_create_page",
       description:
         "Create a page in the active workspace, optionally under a parent page you can edit (never one in a private tree), with an optional Markdown or plain-text body.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
+      annotations: {
+        title: "Create page",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
       input: z.object({
         title: z.string().min(1).max(240),
         body: pageText.optional(),
@@ -1290,7 +1443,12 @@ const WRITE_TOOLS: McpTool[] = [
       name: "needt_append_page",
       description:
         "Append Markdown or plain text to the end of a page you can edit. Earlier content is kept, and the previous version stays in the page history. Pages in a private tree cannot be edited.",
-      annotations: { readOnlyHint: false, destructiveHint: false },
+      annotations: {
+        title: "Append to page",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
       input: z.object({
         id: z.string().min(1).describe("Page id."),
         text: pageText,
@@ -1330,9 +1488,11 @@ const WRITE_TOOLS: McpTool[] = [
       description:
         "Mark a habit kept for a day (today in your time zone by default), or not kept with kept: false. Safe to repeat. Future days are refused.",
       annotations: {
+        title: "Log habit",
         readOnlyHint: false,
         destructiveHint: false,
         idempotentHint: true,
+        openWorldHint: false,
       },
       input: z.object({
         id: z.string().min(1).describe("Habit id."),
@@ -1376,7 +1536,12 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_list_memories",
     description:
       'What Needt has learned about the person ("Let Needt learn about me"): each line with its kind, source (chat, habit, document, mail) and dates, and whether the switch is on. Readable with the switch off; while it is off nothing here is used. The switch itself is turned on or off only in the app.',
-    annotations: { readOnlyHint: true, destructiveHint: false },
+    annotations: {
+      title: "List memories",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z.object({}),
     async invoke(ctx) {
       const access = await readAccess(ctx);
@@ -1389,13 +1554,53 @@ const WRITE_TOOLS: McpTool[] = [
     },
   }),
   defineTool({
+    name: "needt_remember",
+    description:
+      'Save one durable line about the person (a stated preference, a pattern, a goal or a stable fact) so Needt and later chats can use it. Use it when the person tells you something lasting about how they work or what they want. A near-identical line is updated instead of added. Never save secrets or credentials, health data, other people\'s personal data, or one-off details. Needs "Let Needt learn about me" on, which is switched only in the app. Remove lines with needt_forget_memory.',
+    annotations: {
+      title: "Remember",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({
+      content: z.string().trim().min(1).max(500),
+      kind: z
+        .enum(["preference", "pattern", "goal", "fact"])
+        .default("preference"),
+    }),
+    async invoke(ctx, args) {
+      const access = await writeAccess(ctx);
+      if ("error" in access) return access.error;
+      try {
+        const result = await rememberFromAssistant(
+          ctx.userId,
+          access.workspace.workspaceId,
+          args
+        );
+        return toolResult(assistantMemoryResult(result));
+      } catch (error) {
+        if (error instanceof AssistantMemoryError) {
+          return toolError({
+            status: error.code === "cap" ? 409 : 400,
+            error: error.message,
+          });
+        }
+        throw error;
+      }
+    },
+  }),
+  defineTool({
     name: "needt_update_memory",
     description:
       "Edit one memory line (its text or kind). An edited line is the person's own and is no longer replaced by later learning.",
     annotations: {
+      title: "Update memory",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: false,
     },
     input: z.object({
       id: z.string().min(1).describe("Memory id from needt_list_memories."),
@@ -1430,7 +1635,13 @@ const WRITE_TOOLS: McpTool[] = [
     name: "needt_forget_memory",
     description:
       "Delete one memory by id, or every memory in the workspace with all: true and confirm: true. Cannot be undone.",
-    annotations: { readOnlyHint: false, destructiveHint: true },
+    annotations: {
+      title: "Forget memory",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z.object({
       id: z.string().min(1).optional(),
       all: z.boolean().optional(),
@@ -1469,6 +1680,206 @@ const WRITE_TOOLS: McpTool[] = [
 
 MCP_TOOLS.push(...WRITE_TOOLS);
 
+/** Runs a goal op through /api/connect/ops, with the caller's own token. */
+function goalOp(ctx: McpToolContext, name: string, body: unknown) {
+  return callRoute(
+    ctx,
+    (req) => opsPost(req, { params: Promise.resolve({ name }) }),
+    `/api/connect/ops/${name}`,
+    "POST",
+    body
+  );
+}
+
+function payloadOf(result: McpToolResult): unknown {
+  try {
+    return JSON.parse(result.content[0]?.text ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+const goalArea = z
+  .string()
+  .min(1)
+  .max(40)
+  .describe(`Life area: ${GOAL_AREAS.join(", ")}, or a short custom label.`);
+const goalCheckInSchedule = z
+  .object({
+    enabled: z.boolean().optional(),
+    weekday: z
+      .number()
+      .int()
+      .min(0)
+      .max(6)
+      .optional()
+      .describe("0 = Sunday … 6 = Saturday. Default Monday."),
+    hour: z
+      .number()
+      .int()
+      .min(0)
+      .max(23)
+      .optional()
+      .describe("Hour in the person's time zone. Default 9."),
+  })
+  .strict()
+  .describe('When Needt asks "How\'s <goal>?" each week.');
+const goalManual = {
+  targetValue: z
+    .number()
+    .nullable()
+    .optional()
+    .describe("Manual target, e.g. 2500 (with unit CHF)."),
+  currentValue: z.number().nullable().optional(),
+  unit: z.string().min(1).max(GOAL_UNIT_MAX).nullable().optional(),
+  percent: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .nullable()
+    .optional()
+    .describe("Manual progress 0-100 when there is no target."),
+};
+
+/**
+ * Goals: their own object, never a task. Progress comes from linked tasks
+ * (goalId on a task, or a linked project), else the manual value, else the
+ * subgoals. Pro to create; every write answers with actionId for undo.
+ */
+MCP_TOOLS.push(
+  defineTool(
+    {
+      name: "needt_create_goal",
+      description:
+        "Create a goal (Pro): what the person is working towards, with description (the why), deadline, area, parentId (one level of subgoals), projectIds (their tasks count towards it) and manual progress (targetValue + currentValue + unit, or percent) for goals no task measures. A goal is never scheduled; link tasks with goalId on needt_create_task or needt_update_task. The answer carries actionId for undo.",
+      annotations: {
+        title: "Create goal",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          title: z.string().min(1).max(GOAL_TITLE_MAX),
+          description: z.string().max(20000).optional(),
+          deadline: z.string().min(1).optional().describe("ISO 8601."),
+          area: goalArea.optional(),
+          parentId: z.string().min(1).optional(),
+          projectIds: z
+            .array(z.string().min(1))
+            .max(GOAL_PROJECTS_MAX)
+            .optional(),
+          ...goalManual,
+          checkIn: goalCheckInSchedule.optional(),
+        })
+        .strict(),
+      invoke: (ctx, args) => goalOp(ctx, "goal.create", args),
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_update_goal",
+      description:
+        'Change a goal: title, description, deadline, area, status (active, achieved, dropped), parentId, projectIds (the full set), manual progress (targetValue, currentValue, unit, percent; null clears), checkInSchedule. Give checkIn to record an answer to "How\'s <goal>?" (value, percent and/or note, kept as a dated history entry; value or percent becomes the manual progress). archive: true archives the goal. Each part answers with its own actionId for undo.',
+      annotations: {
+        title: "Update goal",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          id: z.string().min(1).describe("Goal id."),
+          title: z.string().min(1).max(GOAL_TITLE_MAX).optional(),
+          description: z.string().max(20000).nullable().optional(),
+          deadline: z.string().min(1).nullable().optional(),
+          area: goalArea.nullable().optional(),
+          status: z.enum(["active", "achieved", "dropped"]).optional(),
+          parentId: z.string().min(1).nullable().optional(),
+          projectIds: z
+            .array(z.string().min(1))
+            .max(GOAL_PROJECTS_MAX)
+            .optional(),
+          ...goalManual,
+          checkInSchedule: goalCheckInSchedule.optional(),
+          checkIn: z
+            .object({
+              value: z.number().optional(),
+              percent: z.number().int().min(0).max(100).optional(),
+              note: z.string().min(1).max(GOAL_NOTE_MAX).optional(),
+            })
+            .strict()
+            .optional(),
+          archive: z.boolean().optional(),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const { id, checkIn, checkInSchedule, archive, ...fields } = args;
+        const results: Record<string, unknown> = {};
+        const update = {
+          ...fields,
+          ...(checkInSchedule ? { checkIn: checkInSchedule } : {}),
+        };
+        if (Object.keys(update).length > 0) {
+          const updated = await goalOp(ctx, "goal.update", {
+            goalId: id,
+            ...update,
+          });
+          if (updated.isError) return updated;
+          results.update = payloadOf(updated);
+        }
+        if (checkIn) {
+          const checked = await goalOp(ctx, "goal.check_in", {
+            goalId: id,
+            ...checkIn,
+          });
+          if (checked.isError) return checked;
+          results.checkIn = payloadOf(checked);
+        }
+        if (archive) {
+          const archived = await goalOp(ctx, "goal.archive", { goalId: id });
+          if (archived.isError) return archived;
+          results.archive = payloadOf(archived);
+        }
+        if (Object.keys(results).length === 0) {
+          return toolError({ status: 400, error: "Nothing to change" });
+        }
+        return toolResult(results);
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_convert_task_to_goal",
+      description:
+        'Turn a task into a goal (Pro). The goal takes the task\'s title (a leading "GOAL:" is dropped), description, due date as deadline and project; each subtask becomes a task linked to the goal (ticked ones stay done); the original task is archived. One actionId undoes all of it.',
+      annotations: {
+        title: "Convert task to goal",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          taskId: z.string().min(1),
+          area: goalArea.optional(),
+          parentId: z
+            .string()
+            .min(1)
+            .optional()
+            .describe("Make it a subgoal of this goal."),
+        })
+        .strict(),
+      invoke: (ctx, args) => goalOp(ctx, "goal.convert_from_task", args),
+    },
+    ["tasks-updated"]
+  )
+);
+
 /**
  * Focus blocking: profiles of sites and apps that the browser extension and
  * the Mac app block while a focus session, a matching calendar event or a
@@ -1479,7 +1890,12 @@ MCP_TOOLS.push(
     name: "needt_blocking",
     description:
       "Focus blocking. view 'active' (default): what is blocked right now — mode (BLOCKLIST blocks the sites and apps listed, ALLOWLIST blocks everything else), sites, apps, until, and which profiles hold and why. view 'profiles': every blocking profile with its triggers. Pro.",
-    annotations: { readOnlyHint: true, destructiveHint: false },
+    annotations: {
+      title: "Show focus blocking",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     input: z.object({
       view: z.enum(["active", "profiles"]).default("active"),
     }),
@@ -1493,9 +1909,11 @@ MCP_TOOLS.push(
     description:
       "Create, change or delete a focus blocking profile. A profile blocks its sites (host names, '*.example.com' for subdomains) and macOS apps (bundle ids) while any trigger holds: onFocusSession (a focus session runs), eventKeywords (a calendar event whose title contains one), calendarFeedIds (any event on those calendars), projectIds (a scheduled block of a task in those projects). mode ALLOWLIST blocks everything except the lists. update changes only the fields given. Pro.",
     annotations: {
+      title: "Manage blocking profile",
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: false,
+      openWorldHint: false,
     },
     input: z.object({
       action: z.enum(["create", "update", "delete"]),
@@ -1536,12 +1954,122 @@ MCP_TOOLS.push(
   })
 );
 
+/**
+ * Reminders on tasks, events, or on their own; the worker fires them on time
+ * as a push, a Mac notification or an email (Settings → Notifications
+ * decide), and they land in the bell's Activity. Same service as
+ * /api/reminders and /api/connect/reminders.
+ */
+MCP_TOOLS.push(
+  defineTool(
+    {
+      name: "needt_reminders",
+      description:
+        'Reminders. action "list" (default): upcoming reminders, or one task\'s or event\'s with taskId / eventId; status "all" includes fired ones. "set": a new reminder on taskId or eventId, relative (offsetMinutes before the anchor: the task\'s start, or its deadline with anchor "deadline"; atTime "09:00" with offsetMinutes 1440 is "1 day before, 09:00") or absolute with at (ISO 8601); a reminder on its own needs title and at. "update": change when it fires (same fields). "snooze": fire again at until. "delete": remove it. A moved task or event moves its relative reminders; a completed task\'s reminders do not fire.',
+      annotations: {
+        title: "Manage reminders",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+      scopes: (args) =>
+        (args.action ?? "list") === "list" ? ["needt.read"] : ["needt.write"],
+      input: z.object({
+        action: z
+          .enum(["list", "set", "update", "snooze", "delete"])
+          .default("list"),
+        id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Reminder id, for update, snooze and delete."),
+        taskId: z.string().min(1).optional(),
+        eventId: z.string().min(1).optional(),
+        title: z.string().min(1).max(500).optional(),
+        at: z
+          .string()
+          .optional()
+          .describe("ISO 8601 time for an absolute reminder."),
+        anchor: z.enum(["start", "deadline"]).optional(),
+        offsetMinutes: z.number().int().min(0).max(43_200).optional(),
+        atTime: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+          .optional(),
+        until: z.string().optional().describe("ISO 8601 time, for snooze."),
+        status: z.enum(["upcoming", "all"]).optional(),
+      }),
+      async invoke(ctx, args) {
+        const { action, id, until, status, ...fields } = args;
+        if (action === "list") {
+          const query = new URLSearchParams();
+          if (fields.taskId) query.set("taskId", fields.taskId);
+          if (fields.eventId) query.set("eventId", fields.eventId);
+          if (status) query.set("status", status);
+          const qs = query.toString();
+          return callRoute(
+            ctx,
+            remindersGet,
+            qs ? `/api/connect/reminders?${qs}` : "/api/connect/reminders",
+            "GET"
+          );
+        }
+        if (action === "set") {
+          return callRoute(
+            ctx,
+            remindersPost,
+            "/api/connect/reminders",
+            "POST",
+            fields
+          );
+        }
+        if (!id) return toolError({ status: 400, error: "id is required" });
+        const path = `/api/connect/reminders/${encodeURIComponent(id)}`;
+        if (action === "delete") {
+          return callRoute(ctx, reminderDelete, path, "DELETE", undefined, {
+            id,
+          });
+        }
+        if (action === "snooze") {
+          if (!until) {
+            return toolError({ status: 400, error: "until is required" });
+          }
+          return callRoute(
+            ctx,
+            reminderPatch,
+            path,
+            "PATCH",
+            { snoozeUntil: until },
+            { id }
+          );
+        }
+        const { at, anchor, offsetMinutes, atTime, title } = fields;
+        return callRoute(
+          ctx,
+          reminderPatch,
+          path,
+          "PATCH",
+          { at, anchor, offsetMinutes, atTime, title },
+          { id }
+        );
+      },
+    },
+    (args) => ((args.action ?? "list") === "list" ? [] : ["tasks-updated"])
+  )
+);
+
 MCP_TOOLS.unshift(
   defineTool({
     name: "needt_whoami",
     description:
       "Who this connection acts for: the person, the token kind (personal or OAuth), its scopes, and the workspace calls act in by default. Lists the person's workspaces so later calls can pass workspaceId.",
-    annotations: { readOnlyHint: true, destructiveHint: false },
+    annotations: {
+      title: "Who am I",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     scopes: () => [],
     input: z.object({}),
     async invoke(ctx) {

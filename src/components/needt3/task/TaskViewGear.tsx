@@ -56,17 +56,20 @@ function Row({
   );
 }
 
-function Toggle({
+/** One switch row of the form; a screen can add its own (the Calendar's Hide done). */
+export function TaskViewToggle({
   label,
   on,
   onChange,
+  hint,
 }: {
   label: string;
   on: boolean;
   onChange: (v: boolean) => void;
+  hint?: string;
 }) {
   return (
-    <Row label={label}>
+    <Row label={label} hint={hint}>
       <V3Switch checked={on} onChange={onChange} label={label} />
     </Row>
   );
@@ -77,10 +80,13 @@ export function TaskViewForm({
   view,
   onChange,
   scope,
+  extra,
 }: {
   view: TaskViewSettings;
   onChange: (patch: Partial<TaskViewSettings>) => void;
   scope: TaskViewScope;
+  /** Rows of the screen's own, after the shared ones. */
+  extra?: React.ReactNode;
 }) {
   const lists = scope !== "calendar";
   return (
@@ -107,12 +113,12 @@ export function TaskViewForm({
           ]}
         />
       </Row>
-      <Toggle
+      <TaskViewToggle
         label="Duration"
         on={view.duration}
         onChange={(duration) => onChange({ duration })}
       />
-      <Toggle
+      <TaskViewToggle
         label="Project"
         on={view.project}
         onChange={(project) => onChange({ project })}
@@ -146,12 +152,13 @@ export function TaskViewForm({
         </Row>
       ) : null}
       {lists ? (
-        <Toggle
+        <TaskViewToggle
           label="Overdue first"
           on={view.overdueFirst}
           onChange={(overdueFirst) => onChange({ overdueFirst })}
         />
       ) : null}
+      {extra}
     </div>
   );
 }
@@ -161,7 +168,14 @@ export function TaskViewForm({
  * setting (`prefs.taskView`) for every task list. A change applies to the
  * lists at once and is saved with the rest of the person's settings.
  */
-export function TaskViewGear({ scope }: { scope: TaskViewScope }) {
+export function TaskViewGear({
+  scope,
+  extra,
+}: {
+  scope: TaskViewScope;
+  /** Rows of the screen's own (the Calendar's Hide done), saved by the screen. */
+  extra?: React.ReactNode;
+}) {
   const view = useTaskView();
   const set = useSetTaskView();
   const blocks = useHomeBlocks();
@@ -197,6 +211,7 @@ export function TaskViewGear({ scope }: { scope: TaskViewScope }) {
               view={view}
               onChange={(p) => void set(p)}
               scope={scope}
+              extra={extra}
             />
             {scope === "home" ? (
               <HomeBlocksForm

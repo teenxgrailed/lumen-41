@@ -11,9 +11,11 @@ import {
 import { createPortal } from "react-dom";
 
 import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
+import { useReminderActions, useReminders } from "@/lib/needt3/hooks/reminders";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { ReminderPicker } from "../task/ReminderPicker";
 import { StepsBlock, useTaskSteps } from "../task/TaskSteps";
 import { isTaskEvent, taskView } from "../task/view";
 import { type CalItem, type CalTimed, canEditEvent } from "./blocks";
@@ -89,6 +91,11 @@ export function Peek({
   const [val, setVal] = useState(b.title);
   useEffect(() => setVal(b.title), [b.title]);
   const steps = useTaskSteps(isTaskEvent(b.entry) ? null : b.entry);
+  const [remind, setRemind] = useState(false);
+  // A recurring event's rows are instances: a reminder goes on a real one.
+  const remindable = !!b.event && !b.recurring;
+  const eventReminders = useReminders({ eventId: b.id }, remindable && remind);
+  const reminderActions = useReminderActions();
   const { right, left } = sideOf(rect, PEEK_W);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -189,6 +196,17 @@ export function Peek({
                 </button>
               </>
             ) : null}
+            {remindable ? (
+              <button
+                type="button"
+                data-c2-remind=""
+                aria-expanded={remind}
+                className="nx-btn nx-btn-text nx-btn-sm"
+                onClick={() => setRemind(!remind)}
+              >
+                Remind me
+              </button>
+            ) : null}
             {onPersonal && b.own ? (
               <button
                 type="button"
@@ -226,6 +244,19 @@ export function Peek({
           </>
         )}
       </div>
+      {remind && remindable ? (
+        <ReminderPicker
+          current={eventReminders.data ?? []}
+          onPick={(spec) =>
+            void reminderActions
+              .create({ eventId: b.id }, spec)
+              .then(() => eventReminders.refetch())
+          }
+          onRemove={(id) =>
+            void reminderActions.remove(id).then(() => eventReminders.refetch())
+          }
+        />
+      ) : null}
     </div>,
     container
   );

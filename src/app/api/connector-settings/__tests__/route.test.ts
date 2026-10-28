@@ -19,6 +19,7 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     connectorSettings: { upsert: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn() },
   },
 }));
 

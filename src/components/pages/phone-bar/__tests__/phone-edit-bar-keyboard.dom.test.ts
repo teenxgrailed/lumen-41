@@ -236,4 +236,29 @@ describe("the bar on the keyboard", () => {
     // (ProseMirror scrolls on focus too; ours is the last step: +228)
     expect(sets.at(-1)).toBe(228);
   });
+
+  it("does nothing to the page while the bar is not drawn (the desktop)", async () => {
+    make();
+    let top = 0;
+    const sets: number[] = [];
+    Object.defineProperty(scroller, "scrollTop", {
+      configurable: true,
+      get: () => top,
+      set: (v: number) => {
+        sets.push(v - top);
+        top = v;
+      },
+    });
+    // display: none from 640px: every rect is zeros, so the caret would read
+    // as "below the bar" and the page would be scrolled to its end.
+    bar().style.display = "none";
+    jest
+      .spyOn(editor.view, "coordsAtPos")
+      .mockReturnValue({ top: 300, bottom: 320, left: 0, right: 0 });
+    await focus();
+    await wait(400);
+    // (ProseMirror's own focus scroll is a few px; ours would be hundreds.)
+    expect(Math.max(0, ...sets.map(Math.abs))).toBeLessThan(50);
+    expect(scroller.style.paddingBottom).toBe("7px"); // its own, untouched
+  });
 });

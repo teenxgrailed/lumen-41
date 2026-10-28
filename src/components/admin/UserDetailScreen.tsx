@@ -35,6 +35,7 @@ const AUDIT_LABEL: Record<string, string> = {
   "user.revoke_plan": "Revoked a plan",
   "user.sign_out_everywhere": "Signed out of every device",
   "user.delete": "Deleted the account",
+  "user.reset_sandbox": "Reset the sandbox",
 };
 
 /** What a person is about to confirm: the words in the dialog and the request. */

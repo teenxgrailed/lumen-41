@@ -375,8 +375,8 @@ describe("nothing is written before the source has loaded", () => {
 
   it("Notifications: off until the alert columns load", async () => {
     await mount("alerts");
-    expect(sw("Overdue notification")?.disabled).toBe(true);
-    expect(sw("Focus ended notification")?.disabled).toBe(true);
+    expect(sw("Overdue tasks")?.disabled).toBe(true);
+    expect(sw("Focus ended")?.disabled).toBe(true);
     expect(sw("Daily plan notification")).toBeFalsy();
     expect(sw("Weekly review notification")).toBeFalsy();
     expect(writes).toEqual([]);
@@ -517,7 +517,7 @@ describe("writes once loaded, through the desktop's rules", () => {
 
   it("an alert switch patches the notification columns", async () => {
     await mount("alerts");
-    await tap(sw("Overdue notification"));
+    await tap(sw("Overdue tasks"));
     const w = writes.filter((x) => x.url === URLS.alerts);
     expect(w).toHaveLength(1);
     expect(w[0].body).toEqual({ nudges: true });
@@ -525,7 +525,7 @@ describe("writes once loaded, through the desktop's rules", () => {
 
   it("the Focus ended switch patches focusEnded", async () => {
     await mount("alerts");
-    await tap(sw("Focus ended notification"));
+    await tap(sw("Focus ended"));
     const w = writes.filter((x) => x.url === URLS.alerts);
     expect(w).toHaveLength(1);
     expect(w[0].body).toEqual({ focusEnded: false });

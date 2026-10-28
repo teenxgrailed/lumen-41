@@ -1,0 +1,292 @@
+/* Goals (/goals) and a project's goals under its header.
+ *
+ * PORT.md §0: every grey is the text colour at a ladder alpha (the
+ * --text-* and --fill-* tokens only), chrome type is 13px (--type-ui) and
+ * 12px (--type-meta), the accent appears only as a mark (the 4px progress
+ * line), objects are raised white on the ground with a hairline, no shadow.
+ * The new-goal sheet reuses the habit sheet's form geometry (pl-*).
+ */
+.needt-v3 .gl-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 48px;
+}
+.needt-v3 .gl-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.needt-v3 .gl-body.has-panel {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+}
+@media (max-width: 700px) {
+  .needt-v3 .gl-body.has-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.needt-v3 .gl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .gl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .gl-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.needt-v3 .gl-row:hover {
+  background: color-mix(
+    in oklab,
+    var(--surface-raised),
+    var(--text-primary) 2%
+  );
+}
+.needt-v3 .gl-row.is-on {
+  box-shadow: var(--text-primary) 0 0 0 1px inset;
+}
+.needt-v3 .gl-row.is-sub {
+  min-height: 40px;
+  margin-left: 24px;
+  width: calc(100% - 24px);
+}
+.needt-v3 .gl-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.needt-v3 .gl-row-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .gl-row-meta {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-row-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  width: 140px;
+}
+.needt-v3 .gl-row-progress {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The progress line: track at fill-5, the accent only as the mark. */
+.needt-v3 .gl-bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-5);
+  overflow: hidden;
+}
+.needt-v3 .gl-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+.needt-v3 .gl-closed-toggle {
+  align-self: flex-start;
+}
+
+.needt-v3 .gl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+  min-width: 0;
+}
+.needt-v3 .gl-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .gl-panel-title {
+  margin: 0;
+  font: 600 17px/22px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .gl-why {
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+.needt-v3 .gl-panel-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .gl-panel-percent {
+  font: 600 17px/22px var(--font-sans);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .gl-section-title {
+  font: var(--type-meta-medium);
+  color: var(--text-tertiary);
+}
+.needt-v3 .gl-checkin,
+.needt-v3 .gl-tasks,
+.needt-v3 .gl-subgoals,
+.needt-v3 .gl-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .gl-checkin-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.needt-v3 .gl-checkin-amount {
+  width: 110px;
+  flex: none;
+}
+.needt-v3 .gl-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font: var(--type-ui);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.needt-v3 .gl-task-title.is-done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.needt-v3 .gl-task-via {
+  margin-left: auto;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-task-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-task-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .gl-task-input::placeholder {
+  color: var(--text-disabled);
+}
+.needt-v3 .gl-history-row {
+  display: flex;
+  gap: 8px;
+  font: var(--type-meta);
+  color: var(--text-secondary);
+}
+.needt-v3 .gl-history-day {
+  flex: none;
+  width: 92px;
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .gl-panel-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.needt-v3 .gl-archive {
+  margin-left: auto;
+}
+
+.needt-v3 .gl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.needt-v3 .gl-target {
+  display: grid;
+  grid-template-columns: 1fr 1fr 90px;
+  gap: 6px;
+}
+.needt-v3 .gl-why-field {
+  height: 64px;
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+/* A project's goals, under its header: one quiet row per goal. */
+.needt-v3 .gl-project {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.needt-v3 .gl-project-goal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  font: var(--type-meta);
+  text-decoration: none;
+}
+.needt-v3 .gl-project-goal:hover {
+  background: var(--fill-4);
+}
+.needt-v3 .gl-project-title {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.needt-v3 .gl-project-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.needt-v3 .gl-project-goal .gl-bar {
+  width: 48px;
+}

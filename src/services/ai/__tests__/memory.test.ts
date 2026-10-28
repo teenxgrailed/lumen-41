@@ -3,6 +3,9 @@ import { AgentMemoryKind, AgentMemorySource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import {
+  ASSISTANT_MEMORY_CAP,
+  AssistantMemoryError,
+  assistantMemoryResult,
   clearAgentMemories,
   clearAllAgentMemories,
   forgetForUser,
@@ -14,6 +17,7 @@ import {
   listMemoriesForUse,
   publicMemory,
   rememberForUser,
+  rememberFromAssistant,
   setLearningEnabled,
   updateMemoryForUser,
   upsertKeyedMemory,
@@ -318,4 +322,91 @@ it("reads a row written before encryption existed", async () => {
   });
   expect((await listAgentMemories(U, W))[0].content).toBe("Plain legacy line");
   expect(prisma.agentMemory.findMany).toHaveBeenCalled();
+});
+
+describe("rememberFromAssistant", () => {
+  const on = () => {
+    settings = { userId: U, learnAboutMe: true };
+  };
+
+  it("refuses with a clear error while learning is off", async () => {
+    settings = { userId: U, learnAboutMe: false };
+    await expect(
+      rememberFromAssistant(U, W, { content: "Prefers mornings" })
+    ).rejects.toThrow(/Memory is off/);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("writes a person-owned assistant line with the documented shape", async () => {
+    on();
+    const result = await rememberFromAssistant(U, W, {
+      content: "  Prefers mornings  ",
+    });
+    expect(result.updated).toBe(false);
+    expect(assistantMemoryResult(result)).toEqual({
+      id: "m1",
+      kind: "preference",
+      content: "Prefers mornings",
+      source: "assistant",
+      createdAt: expect.any(Date),
+      updated: false,
+    });
+    expect(rows[0].sourceKey).toBeNull();
+    expect(String(rows[0].content)).toMatch(/^enc:v1:/);
+  });
+
+  it("updates a near-identical line of the same kind and keeps its id", async () => {
+    on();
+    const first = await rememberFromAssistant(U, W, {
+      content: "Prefers  mornings.",
+      kind: AgentMemoryKind.pattern,
+    });
+    const again = await rememberFromAssistant(U, W, {
+      content: "prefers mornings",
+      kind: AgentMemoryKind.pattern,
+    });
+    expect(again.updated).toBe(true);
+    expect(again.memory.id).toBe(first.memory.id);
+    expect(rows).toHaveLength(1);
+    const other = await rememberFromAssistant(U, W, {
+      content: "prefers mornings",
+      kind: AgentMemoryKind.fact,
+    });
+    expect(other.updated).toBe(false);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("stops at the cap but still updates an existing line", async () => {
+    on();
+    await rememberFromAssistant(U, W, { content: "Line zero" });
+    for (let i = 1; i < ASSISTANT_MEMORY_CAP; i++) {
+      rows.push({
+        id: `x${i}`,
+        userId: U,
+        workspaceId: W,
+        kind: "fact",
+        source: "assistant",
+        sourceKey: null,
+        content: "x",
+      });
+    }
+    await expect(
+      rememberFromAssistant(U, W, { content: "One too many" })
+    ).rejects.toThrow(/needt_forget_memory/);
+    const same = await rememberFromAssistant(U, W, { content: "line zero." });
+    expect(same.updated).toBe(true);
+  });
+
+  it("refuses sensitive text and out-of-range content", async () => {
+    on();
+    await expect(
+      rememberFromAssistant(U, W, { content: "my password is hunter2" })
+    ).rejects.toBeInstanceOf(AssistantMemoryError);
+    await expect(
+      rememberFromAssistant(U, W, { content: "   " })
+    ).rejects.toThrow();
+    await expect(
+      rememberFromAssistant(U, W, { content: "a".repeat(501) })
+    ).rejects.toThrow();
+  });
 });

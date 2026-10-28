@@ -1,0 +1,1 @@
+- A task held at its time by hand now wears a small pin in rows and on calendar blocks (hover for "Pinned at 14:00 — the scheduler won't move it"). The task menu, on desktop and phone, gains "Pin here" for a timed task and "Let Needt schedule it" to give a pinned task back to the scheduler, each with Undo.

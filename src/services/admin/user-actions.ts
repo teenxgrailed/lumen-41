@@ -57,7 +57,7 @@ export interface AdminActionResult {
 async function loadTarget(userId: string) {
   const target = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, role: true },
+    select: { id: true, email: true, role: true, sandboxKind: true },
   });
   if (!target) throw new AdminActionError(404, "That account does not exist.");
   return target;
@@ -83,6 +83,9 @@ async function setAdmin(actorId: string, targetId: string, admin: boolean) {
     );
   }
   const target = await loadTarget(targetId);
+  if (admin && target.sandboxKind) {
+    throw new AdminActionError(409, "A sandbox account can never be an admin.");
+  }
   if ((target.role === "admin") === admin) {
     throw new AdminActionError(
       409,

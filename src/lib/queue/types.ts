@@ -42,7 +42,10 @@ export interface BugReportSyncJobData {
 
 export type ReminderJobData =
   | { kind: "sweep" }
-  | { kind: "deliver"; reminderId: string };
+  | { kind: "deliver"; reminderId: string }
+  /** Daily digests and pushes for mentions, shares and system rows. */
+  | { kind: "digest" }
+  | { kind: "activity" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {
@@ -69,7 +72,9 @@ export interface OAuthCleanupJobData {
 export type AccountLifecycleJobData =
   | { kind: "export"; requestId: string }
   | { kind: "delete"; requestId: string }
-  | { kind: "sweep" };
+  | { kind: "sweep" }
+  /** Nightly: wipe and reseed sandbox accounts (docs/sandbox-accounts.md). */
+  | { kind: "sandbox-reset" };
 
 /**
  * A run carries only its id: the source token is read from the run row,

@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/session-version";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { sandboxLockedResponse } from "@/lib/sandbox/guard";
 import {
   accountRule,
   enforceRateLimits,
@@ -102,6 +103,12 @@ export async function POST(request: NextRequest) {
         { error: "Invalid or expired reset token" },
         { status: 400 }
       );
+    }
+
+    // A sandbox account's password comes from the server's env and nothing
+    // else (docs/sandbox-accounts.md).
+    if (resetRequest.user.sandboxKind) {
+      return sandboxLockedResponse("account_identity");
     }
 
     // Hash the new password

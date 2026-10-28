@@ -13,6 +13,10 @@ import {
   processImportRun,
   sweepStuckImportRuns,
 } from "@/services/imports/runner";
+import {
+  deliverActivityPushes,
+  deliverDailyDigests,
+} from "@/services/notifications/digest";
 import { deliverNudgePushes } from "@/services/nudges/nudge-push";
 import { generateProactiveNudges } from "@/services/nudges/proactive-assist";
 import { cleanupOAuth } from "@/services/oauth/cleanup";
@@ -27,6 +31,7 @@ import {
   deliverTaskReminder,
   findDueReminderIds,
 } from "@/services/reminders/reminder-delivery";
+import { resetSandboxAccounts } from "@/services/sandbox/sandbox-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
@@ -235,6 +240,14 @@ async function processReminder(job: Job<ReminderJobData>) {
     await deliverTaskReminder(job.data.reminderId);
     return;
   }
+  if (job.data.kind === "digest") {
+    await deliverDailyDigests();
+    return;
+  }
+  if (job.data.kind === "activity") {
+    await deliverActivityPushes();
+    return;
+  }
   const reminderIds = await findDueReminderIds();
   await Promise.all(
     reminderIds.map((reminderId) => enqueueReminderDelivery(reminderId))
@@ -283,6 +296,19 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   }
   if (job.data.kind === "delete") {
     await finalizeAccountDeletion(job.data.requestId);
+    return;
+  }
+  if (job.data.kind === "sandbox-reset") {
+    const result = await resetSandboxAccounts();
+    await logger.info(
+      "Sandbox reset pass",
+      {
+        enabled: result.enabled,
+        reset: result.reset.length,
+        failed: result.failed,
+      },
+      LOG_SOURCE
+    );
     return;
   }
   await expireAccountExports();
@@ -462,6 +488,16 @@ export async function start(): Promise<void> {
     { every: 60_000 },
     { name: "sweep-reminders", data: { kind: "sweep" } }
   );
+  await getReminderQueue().upsertJobScheduler(
+    "notification-digest-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-digests", data: { kind: "digest" } }
+  );
+  await getReminderQueue().upsertJobScheduler(
+    "notification-activity-push-sweep",
+    { every: 2 * 60_000 },
+    { name: "sweep-activity-pushes", data: { kind: "activity" } }
+  );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",
     { every: 15 * 60_000 },
@@ -486,6 +522,12 @@ export async function start(): Promise<void> {
     "account-lifecycle-sweep",
     { every: 60 * 60_000 },
     { name: "sweep-account-lifecycle", data: { kind: "sweep" } }
+  );
+  // 04:00 UTC: night in Europe, evening in the Americas.
+  await getAccountLifecycleQueue().upsertJobScheduler(
+    "sandbox-nightly-reset",
+    { pattern: "0 4 * * *", tz: "UTC" },
+    { name: "reset-sandbox-accounts", data: { kind: "sandbox-reset" } }
   );
   await getImportQueue().upsertJobScheduler(
     "import-stuck-run-sweep",

@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { decryptSecret, encryptSecret } from "@/lib/security/secret-encryption";
 
 export const AGENT_MEMORY_LIMIT = 100;
+/** Lines an assistant may write per workspace; they sit outside the learning trim. */
+export const ASSISTANT_MEMORY_CAP = 500;
 
 export const memoryInputSchema = z.object({
   kind: z.nativeEnum(AgentMemoryKind),
@@ -103,7 +105,7 @@ export async function listAgentMemories(userId: string, workspaceId: string) {
   const rows = await prisma.agentMemory.findMany({
     where: { userId, workspaceId },
     orderBy: [{ weight: "desc" }, { lastUsedAt: "desc" }],
-    take: AGENT_MEMORY_LIMIT,
+    take: AGENT_MEMORY_LIMIT + ASSISTANT_MEMORY_CAP,
   });
   return toViews(rows as MemoryRow[]);
 }
@@ -132,12 +134,16 @@ export async function listMemoriesForUse(userId: string, workspaceId: string) {
 }
 
 async function trimToLimit(userId: string, workspaceId: string) {
-  const count = await prisma.agentMemory.count({
-    where: { userId, workspaceId },
-  });
+  // Lines an assistant wrote are the person's own and never trimmed away.
+  const scope = {
+    userId,
+    workspaceId,
+    source: { not: AgentMemorySource.assistant },
+  };
+  const count = await prisma.agentMemory.count({ where: scope });
   if (count <= AGENT_MEMORY_LIMIT) return;
   const stale = await prisma.agentMemory.findMany({
-    where: { userId, workspaceId },
+    where: scope,
     orderBy: [{ lastUsedAt: "asc" }, { weight: "asc" }],
     take: count - AGENT_MEMORY_LIMIT,
     select: { id: true },
@@ -184,6 +190,94 @@ export async function rememberForUser(
       });
   await trimToLimit(userId, workspaceId);
   return { ...memory, content: data.content };
+}
+
+export class AssistantMemoryError extends Error {
+  constructor(
+    readonly code: "off" | "sensitive" | "cap",
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+export const assistantMemoryInputSchema = z.object({
+  content: z.string().trim().min(1).max(500),
+  kind: z.nativeEnum(AgentMemoryKind).default(AgentMemoryKind.preference),
+});
+
+/** Lowercase, collapsed whitespace, no trailing punctuation: "near-identical". */
+export function normalizeMemoryText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[\s.,;:!?…]+$/u, "");
+}
+
+/**
+ * An assistant (MCP or the public API) writes one line. Needs "Let Needt learn
+ * about me" on. A near-identical line of the same kind is updated, not added.
+ * The row is the person's own (no sourceKey), so learning never replaces it.
+ */
+export async function rememberFromAssistant(
+  userId: string,
+  workspaceId: string,
+  input: z.input<typeof assistantMemoryInputSchema>
+) {
+  const data = assistantMemoryInputSchema.parse(input);
+  if (!(await isLearningEnabled(userId))) {
+    throw new AssistantMemoryError(
+      "off",
+      'Memory is off. Turn on "Let Needt learn about me" in the Needt app.'
+    );
+  }
+  if (isSensitiveMemory(data.content)) {
+    throw new AssistantMemoryError(
+      "sensitive",
+      "Memories do not hold sensitive information"
+    );
+  }
+  const wanted = normalizeMemoryText(data.content);
+  const sameKind = await prisma.agentMemory.findMany({
+    where: { userId, workspaceId, kind: data.kind, sourceKey: null },
+  });
+  const existing = sameKind.find((row) => {
+    const text = openContent(row.content);
+    return text !== null && normalizeMemoryText(text) === wanted;
+  });
+  if (existing) {
+    const row = await prisma.agentMemory.update({
+      where: { id: existing.id },
+      data: { content: encryptSecret(data.content), lastUsedAt: newDate() },
+    });
+    return {
+      memory: { ...row, content: data.content } as MemoryView,
+      updated: true,
+    };
+  }
+  const written = await prisma.agentMemory.count({
+    where: { userId, workspaceId, source: AgentMemorySource.assistant },
+  });
+  if (written >= ASSISTANT_MEMORY_CAP) {
+    throw new AssistantMemoryError(
+      "cap",
+      `Memory is full: ${ASSISTANT_MEMORY_CAP} assistant-written lines. Clean up with needt_forget_memory.`
+    );
+  }
+  const row = await prisma.agentMemory.create({
+    data: {
+      userId,
+      workspaceId,
+      kind: data.kind,
+      source: AgentMemorySource.assistant,
+      content: encryptSecret(data.content),
+    },
+  });
+  return {
+    memory: { ...row, content: data.content } as MemoryView,
+    updated: false,
+  };
 }
 
 /**
@@ -384,6 +478,15 @@ export function publicMemory(memory: MemoryView) {
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
   };
+}
+
+/** The answer to a write: the public line plus whether it replaced an existing one. */
+export function assistantMemoryResult(result: {
+  memory: MemoryView;
+  updated: boolean;
+}) {
+  const { id, kind, content, source, createdAt } = publicMemory(result.memory);
+  return { id, kind, content, source, createdAt, updated: result.updated };
 }
 
 export function memoryJson(value: unknown): Prisma.InputJsonValue {

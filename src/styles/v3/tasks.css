@@ -18,6 +18,9 @@
 
 /* Shared bits. */
 .needt-v3 .tk-src { display: inline-flex; }
+/* Pinned: held at its time by hand. Ink at a ladder alpha, never an accent. */
+.needt-v3 .tk-pin { flex: none; display: inline-flex; align-self: center; color: var(--text-tertiary); }
+.needt-v3 .tk-block-pin { position: absolute; top: 4px; right: 5px; display: inline-flex; }
 .needt-v3 .tk-dot { flex: none; width: 6px; height: 6px; border-radius: 3px; }
 .needt-v3 .tk-ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .needt-v3 .tk-clip { overflow: hidden; text-overflow: ellipsis; }

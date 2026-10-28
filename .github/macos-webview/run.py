@@ -276,12 +276,15 @@ for theme in THEMES:
         record(("PASS" if ap.get("chatPanel") else "BUG") + f" [{tag}] Command-J opened the Ask panel: {ap.get('chatPanel')}")
         if ask_png and ap.get("chatPanel"):
             check(f"{tag} Ask panel painted", "region", ask_png, s, *ap["chatPanel"], gate=False)
-        send("key:escape", 1.5)
+        # Docked, Escape only hands the focus back to the page; Command-J (or
+        # the panel's X) closes it. Close it, or the open state is remembered
+        # and the next size starts with the pill stepped away.
+        send("key:cmd+j", 1.5)
         closed = probe(f"{tag}-3b-ask-closed")
         shot(wid, f"{tag}-3b-ask-closed")
         cl = page(closed)
         record(("PASS" if not cl.get("ghosts") and not cl.get("chatPanel") else "BUG")
-               + f" [{tag}] after Escape: panel {cl.get('chatPanel')} ghosts {cl.get('ghosts')} corner {(cl.get('corner') or {}).get('visible')}")
+               + f" [{tag}] after Command-J again: panel {cl.get('chatPanel')} ghosts {cl.get('ghosts')} corner {(cl.get('corner') or {}).get('visible')}")
 
         # Connections.
         send("load:/connections", 3)

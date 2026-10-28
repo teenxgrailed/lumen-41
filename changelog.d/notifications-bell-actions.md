@@ -1,0 +1,4 @@
+- The bell is quieter and does more. Each row has a small type icon instead of the checkbox-like drawing, bursts fold into one row ("6 tasks overdue") that opens up, and every row offers Done for a task and Tomorrow, which brings it back at 09:00. "Mark all read" sits in the header while anything is unread. In Reminders, each reminder can be snoozed, changed or deleted.
+- Set a reminder from a task's card (Remind), from an event's peek (Remind me), or while writing a task in New (⋯ → Remind me…): at start, 10 or 30 minutes or an hour before, the day before at 09:00, or at a time.
+- Settings → Notifications chooses what to be told about (reminders, overdue tasks, mentions and shares, weekly check-ins, Focus, system), where (in the app, push, Mac, email), quiet hours, and a daily digest instead of a stream.
+- The Mac app shows Needt's notifications as system notifications; clicking one opens what it is about.

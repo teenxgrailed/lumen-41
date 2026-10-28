@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { rescheduleRemindersFor } from "@/services/reminders/reminders";
 import { TaskReminderKind, WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -9,7 +10,11 @@ import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "task-reminders-route";
 type RouteContext = { params: Promise<{ id: string }> };
-const VALID_KINDS = new Set(Object.values(TaskReminderKind));
+// Relative kinds only; reminders at a time are set through /api/reminders.
+const VALID_KINDS = new Set<TaskReminderKind>([
+  TaskReminderKind.BEFORE_START,
+  TaskReminderKind.BEFORE_DEADLINE,
+]);
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
@@ -97,6 +102,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       channels,
     },
   });
+  await rescheduleRemindersFor({ taskId: id });
   return NextResponse.json({ reminder }, { status: 201 });
 }
 

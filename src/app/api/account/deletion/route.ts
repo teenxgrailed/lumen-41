@@ -7,6 +7,7 @@ import {
 
 import { authenticateAccountRequest } from "@/lib/auth/account-request-auth";
 import { enqueueAccountDeletion, isQueueConfigured } from "@/lib/queue/enqueue";
+import { refuseSandbox } from "@/lib/sandbox/guard";
 import {
   accountRule,
   enforceRateLimits,
@@ -16,6 +17,8 @@ import {
 export async function POST(request: NextRequest) {
   const auth = await authenticateAccountRequest(request);
   if (auth.response) return auth.response;
+  const locked = await refuseSandbox(auth.user.id, "account_delete");
+  if (locked) return locked;
   const limited = await enforceRateLimits(
     [
       ipRule(request, "account-deletion:ip", 10, 60 * 60),

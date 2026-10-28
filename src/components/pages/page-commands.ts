@@ -39,6 +39,12 @@ export type PageCommandId = (typeof PAGE_COMMAND_IDS)[number];
 export interface PageCommandDetail {
   pageId: string;
   command: string;
+  /**
+   * Put the block between top-level blocks: 0 is before the first block,
+   * N is after the last one (a drop from the Insert tab). Omitted, the block
+   * goes at the caret, or after the block the caret is in.
+   */
+  index?: number;
 }
 
 export function runPageCommand(detail: PageCommandDetail) {

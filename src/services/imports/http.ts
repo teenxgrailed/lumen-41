@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { refuseSandbox } from "@/lib/sandbox/guard";
+
 import {
   IMPORT_SOURCES,
   IMPORT_SOURCE_LABEL,
@@ -63,6 +65,10 @@ export async function startImportResponse(input: {
   /** Absolute URL of /api/imports/<source>/authorize on this deployment. */
   authorizeUrl: (workspaceId: string, source: SupportedImportSource) => string;
 }) {
+  // Both routes (session and connector bearer) land here, so MCP cannot
+  // import into a sandbox account either.
+  const locked = await refuseSandbox(input.userId, "providers");
+  if (locked) return locked;
   if (!(await importsEnabled(input.userId))) return notAvailable();
   const parsed = startSchema.safeParse(input.body ?? {});
   if (!parsed.success) {

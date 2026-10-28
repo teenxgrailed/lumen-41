@@ -19,6 +19,7 @@ import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publicAppUrl } from "@/lib/public-url";
+import { refuseSandbox } from "@/lib/sandbox/guard";
 import {
   accountRule,
   enforceRateLimits,
@@ -70,6 +71,8 @@ function checkoutRequestId(
 export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
+  const locked = await refuseSandbox(auth.userId, "billing");
+  if (locked) return locked;
 
   const limited = await enforceRateLimits(
     [

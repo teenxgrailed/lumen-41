@@ -13,6 +13,7 @@ import {
 import * as Dialog from "@radix-ui/react-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  LuAlarmClock,
   LuArchive,
   LuArrowRight,
   LuBan,
@@ -31,6 +32,8 @@ import {
   LuHourglass,
   LuLink,
   LuPaperclip,
+  LuPin,
+  LuPinOff,
   LuPlus,
   LuRepeat,
   LuSearch,
@@ -43,6 +46,13 @@ import {
 } from "react-icons/lu";
 
 import { useStartFocus } from "@/components/needt3/focus/useFocusController";
+import {
+  canPinHere,
+  canUnpin,
+  pinPatch,
+  pinTime,
+  unpinPatch,
+} from "@/components/needt3/task/pin";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -57,8 +67,10 @@ import {
 import { findListItem } from "@/lib/needt3/hooks/core";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useCalendars, useEventLifecycle } from "@/lib/needt3/hooks/events";
+import { convertTaskToGoal, undoGoalAction } from "@/lib/needt3/hooks/goals";
 import { useDayHighlight } from "@/lib/needt3/hooks/highlight";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import { useReminderActions, useReminders } from "@/lib/needt3/hooks/reminders";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
   useCreateLabel,
@@ -87,9 +99,12 @@ import {
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
+import { useIsPro } from "../paywall/Pro";
+import { openPaywall } from "../paywall/store";
 import { useDesignV3 } from "../root/V3Root";
 import { SortableItem, SortableList } from "../sortable/Sortable";
 import { useSortableList } from "../sortable/useSortableList";
+import { ReminderPicker } from "../task/ReminderPicker";
 import { TaskDialogCalendar } from "./TaskDialogCalendar";
 import {
   type ChipBox,
@@ -126,6 +141,7 @@ type PopKey =
   | "priority"
   | "labels"
   | "repeat"
+  | "remind"
   | "deadline"
   | "more";
 interface Pop {
@@ -220,6 +236,8 @@ export function TaskDialog({
   onClose: () => void;
 }) {
   const container = useV3PortalContainer();
+  const qc = useQueryClient();
+  const pro = useIsPro();
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const projects = useProjects().data ?? [];
@@ -249,6 +267,8 @@ export function TaskDialog({
   const [schedOpen, setSchedOpen] = useSchedOpen();
   const [flash, setFlash] = useState(0);
   const checkTick = useTick(t.done, t.id);
+  const taskReminders = useReminders({ taskId: t.id });
+  const reminderActions = useReminderActions();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -456,6 +476,17 @@ export function TaskDialog({
       empty: "Repeat",
       title: provider ? `Repeat is set in ${provider}` : "Repeat",
     },
+    {
+      k: "remind",
+      glyph: <LuAlarmClock size={13} aria-hidden />,
+      value: (() => {
+        const list = taskReminders.data ?? [];
+        if (!list.length) return null;
+        return list.length === 1 ? list[0].label : `${list.length} reminders`;
+      })(),
+      empty: "Remind",
+      title: "Remind me",
+    },
     //todo Who (workspace members) chip.
   ];
   const chipSig = chipDefs.map((c) => `${c.k}:${c.value ?? ""}`).join("|");
@@ -546,6 +577,30 @@ export function TaskDialog({
   };
 
   const act = {
+    /* Pin here / back to the scheduler: one PUT through the update hook,
+       the same path as the Placement switch, with its own Undo notice. */
+    pin: async (pin: boolean) => {
+      setMenu(false);
+      if (timer.current != null) window.clearTimeout(timer.current);
+      timer.current = null;
+      const waiting = pending.current;
+      pending.current = {};
+      const r = await update
+        .mutateAsync({
+          id: t.id,
+          patch: { ...waiting, ...(pin ? pinPatch(t) : unpinPatch()) },
+        })
+        .catch(() => null);
+      if (!r) return;
+      for (const k of Object.keys(waiting) as (keyof V3TaskPatch)[])
+        changed.current.add(k);
+      notify.success(
+        pin ? `Pinned at ${pinTime(t)}` : "Needt will schedule it",
+        {
+          action: { label: "Undo", onClick: () => void r.undo() },
+        }
+      );
+    },
     duplicate: async () => {
       setMenu(false);
       try {
@@ -594,6 +649,31 @@ export function TaskDialog({
         });
       } catch {
         /* reverted by the hook */
+      }
+    },
+    toGoal: async () => {
+      setMenu(false);
+      if (!pro) {
+        openPaywall("Goals");
+        return;
+      }
+      try {
+        const answer = await convertTaskToGoal(t.id);
+        quietClose();
+        void qc.invalidateQueries({ queryKey: qk.tasks() });
+        void qc.invalidateQueries({ queryKey: ["v3", "goals"] });
+        notify.success("Converted to a goal", {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              void undoGoalAction(answer.actionId).then(() => {
+                void qc.invalidateQueries({ queryKey: qk.tasks() });
+                void qc.invalidateQueries({ queryKey: ["v3", "goals"] });
+              }),
+          },
+        });
+      } catch {
+        notify.error("Could not convert the task to a goal. Nothing changed.");
       }
     },
     toDoc: async () => {
@@ -1003,6 +1083,20 @@ export function TaskDialog({
         </div>
       );
     }
+    if (pop.key === "remind")
+      return (
+        <ReminderPicker
+          current={taskReminders.data ?? []}
+          onPick={(spec) =>
+            void reminderActions
+              .create({ taskId: t.id }, spec)
+              .then(() => taskReminders.refetch())
+          }
+          onRemove={(id) =>
+            void reminderActions.remove(id).then(() => taskReminders.refetch())
+          }
+        />
+      );
     if (pop.key === "repeat") {
       const current = repeatKey(t.repeat);
       return (
@@ -1178,6 +1272,11 @@ export function TaskDialog({
       "Convert to document",
       () => void act.toDoc(),
     ],
+    [
+      <LuFlag key="i" size={14} aria-hidden />,
+      pro ? "Convert to goal" : "Convert to goal (Pro)",
+      () => void act.toGoal(),
+    ],
     [<LuFolder key="i" size={14} aria-hidden />, "Move to project…", act.move],
     [
       <LuCalendarClock key="i" size={14} aria-hidden />,
@@ -1185,6 +1284,18 @@ export function TaskDialog({
       act.sched,
     ],
   ];
+  if (canPinHere(t))
+    menuItems.push([
+      <LuPin key="i" size={14} aria-hidden />,
+      "Pin here",
+      () => void act.pin(true),
+    ]);
+  if (canUnpin(t))
+    menuItems.push([
+      <LuPinOff key="i" size={14} aria-hidden />,
+      "Let Needt schedule it",
+      () => void act.pin(false),
+    ]);
   if (!t.done)
     menuItems.push([
       <LuStar key="i" size={14} aria-hidden />,

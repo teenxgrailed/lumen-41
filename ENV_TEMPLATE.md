@@ -117,6 +117,16 @@ NEEDT_AI_CEILING_MULTIPLIER="2"
 NEEDT_ALERT_EMAIL=""
 ```
 
+Sandbox accounts (docs/sandbox-accounts.md). Unset means none; also needs the
+`sandbox_accounts` feature flag at 100%. Set them on the web app and the
+worker alike.
+
+```env
+SANDBOX_REVIEWER_EMAIL=""
+SANDBOX_REVIEWER_PASSWORD=""
+SANDBOX_AI_DAILY_ACTION_CAP="15"
+```
+
 `NEEDT_AI_API_KEY` is the deployment-wide hosted key. The defaults point at
 OpenRouter serving GLM 5.3 Flash; any OpenAI-compatible endpoint works by
 setting `NEEDT_AI_BASE_URL` and `NEEDT_AI_MODEL`.

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  AssistantMemoryError,
+  assistantMemoryInputSchema,
+  assistantMemoryResult,
   clearAgentMemories,
   clearAllAgentMemories,
   forgetForUser,
   isLearningEnabled,
   listAgentMemories,
   publicMemory,
+  rememberFromAssistant,
   setLearningEnabled,
   updateMemoryForUser,
 } from "@/services/ai/memory";
@@ -37,6 +41,53 @@ export async function GET(request: NextRequest) {
     { enabled, memories: memories.map(publicMemory) },
     { headers: NO_STORE }
   );
+}
+
+/**
+ * POST { content, kind? } -> { id, kind, content, source, createdAt, updated }
+ * An assistant or integration saves one line (source `assistant`). Needs the
+ * switch on; a near-identical line of the same kind is updated (201 new, 200
+ * updated). 500 assistant-written lines per workspace.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await authenticateRequest(request, LOG_SOURCE);
+    if ("response" in auth) return auth.response;
+    const body = assistantMemoryInputSchema.safeParse(
+      await request.json().catch(() => null)
+    );
+    if (!body.success) {
+      return NextResponse.json(
+        { error: "Send { content (1-500 characters), kind? }" },
+        { status: 400 }
+      );
+    }
+    const result = await rememberFromAssistant(
+      auth.userId,
+      auth.workspace!.workspaceId,
+      body.data
+    );
+    return NextResponse.json(assistantMemoryResult(result), {
+      status: result.updated ? 200 : 201,
+      headers: NO_STORE,
+    });
+  } catch (error) {
+    if (error instanceof AssistantMemoryError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.code === "cap" ? 409 : 400 }
+      );
+    }
+    logger.error(
+      "Failed to save AI memory",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+    return NextResponse.json(
+      { error: "Failed to save memory" },
+      { status: 500 }
+    );
+  }
 }
 
 const switchSchema = z.object({

@@ -123,36 +123,41 @@ consent; an OAuth grant cannot act in any other.
 
 Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 
-| Tool                         | Scope                                          | What it does                                                                                                                                                                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                                                                                                                                |
-| `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                                                                                                                     |
-| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                                                                                                              |
-| `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                                                                                                        |
-| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId` and `originPageId` (the page it came from), so a task and its steps arrive in one call; `start` places and pins it, `autoSchedule: false` keeps the scheduler off it. See Place and pin |
-| `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                                                                                                         |
-| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`; with `taskIds` or `scope` (today, overdue) and optional `days` it runs `task.spread` instead                                                                                                                                                                        |
-| `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                                                                                                           |
-| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, entry, fullTime, dependsOnId, originPageId, and placement (`start`, `pinned`, `autoSchedule`); other fields are refused. Same body as `PATCH /api/connect/tasks/:id`                                     |
-| `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                                                                                                     |
-| `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                                                                                                                                  |
-| `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                                                                                                                              |
-| `needt_attach_file`          | `needt.write`                                  | Attach an image (JPEG, PNG, WebP, GIF) or a PDF to a task from `contentBase64`, up to 4 MB and ten per task; the type is read from the bytes. `POST /api/connect/ops/task.attach`; the answer carries the undo id                                                                                   |
-| `needt_remove_attachment`    | `needt.write`                                  | Remove a file from a task by `attachmentId` (ids are in `needt_get` with `type: task`). The file is deleted for good, so it needs `confirm: true`. `POST /api/connect/ops/task.detach`                                                                                                              |
-| `needt_create_event`         | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                                                                                                                                     |
-| `needt_create_page`          | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                                                                                                                                |
-| `needt_append_page`          | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                                                                                                                                |
-| `needt_log_habit`            | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                                                                                                                                         |
-| `needt_create_personal_time` | `needt.write`                                  | Keep time for the person (lunch, break, walk, dinner, gym, party, rest, custom); no task is ever scheduled in it. See Personal time                                                                                                                                                                 |
-| `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                                                                                                                                    |
-| `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                                                                                                                                 |
-| `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                                                                                                                                  |
-| `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                                                                                                                        |
-| `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                                                                                                                            |
-| `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                                                                                                                          |
+| Tool                         | Scope                                          | What it does                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces                                                                                                                                                                                                                                          |
+| `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                                                                                                                               |
+| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time, goal); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                                                                                                                  |
+| `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                                                                                                                  |
+| `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId`, `originPageId` (the page it came from) and `goalId`, so a task and its steps arrive in one call; `start` places and pins it, `autoSchedule: false` keeps the scheduler off it. See Place and pin |
+| `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                                                                                                                   |
+| `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`; with `taskIds` or `scope` (today, overdue) and optional `days` it runs `task.spread` instead                                                                                                                                                                                  |
+| `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                                                                                                                     |
+| `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, goalId, entry, fullTime, dependsOnId, originPageId, and placement (`start`, `pinned`, `autoSchedule`); other fields are refused. Same body as `PATCH /api/connect/tasks/:id`                                       |
+| `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                                                                                                               |
+| `needt_complete_subtask`     | `needt.write`                                  | Tick a subtask, or untick with `done: false`; the answer says `allDone` when the task itself is the only step left                                                                                                                                                                                            |
+| `needt_complete_task`        | `needt.write`                                  | Mark a task done, or not done with `done: false`; repeating is a no-op                                                                                                                                                                                                                                        |
+| `needt_attach_file`          | `needt.write`                                  | Attach an image (JPEG, PNG, WebP, GIF) or a PDF to a task from `contentBase64`, up to 4 MB and ten per task; the type is read from the bytes. `POST /api/connect/ops/task.attach`; the answer carries the undo id                                                                                             |
+| `needt_remove_attachment`    | `needt.write`                                  | Remove a file from a task by `attachmentId` (ids are in `needt_get` with `type: task`). The file is deleted for good, so it needs `confirm: true`. `POST /api/connect/ops/task.detach`                                                                                                                        |
+| `needt_create_event`         | `needt.write`                                  | Event in a Needt calendar (personal workspace only; provider calendars refused)                                                                                                                                                                                                                               |
+| `needt_create_page`          | `needt.write`                                  | Page with a Markdown or plain-text body, optionally under `parentId`                                                                                                                                                                                                                                          |
+| `needt_append_page`          | `needt.write`                                  | Append Markdown or plain text to a page you can edit                                                                                                                                                                                                                                                          |
+| `needt_log_habit`            | `needt.write`                                  | Mark a habit kept for a day (default today), or not with `kept: false`; future days refused                                                                                                                                                                                                                   |
+| `needt_create_personal_time` | `needt.write`                                  | Keep time for the person (lunch, break, walk, dinner, gym, party, rest, custom); no task is ever scheduled in it. See Personal time                                                                                                                                                                           |
+| `needt_mark_event_personal`  | `needt.write`                                  | Mark a calendar event (synced or local) as personal time; a linked block, the event is untouched                                                                                                                                                                                                              |
+| `needt_update_personal_time` | `needt.write`                                  | Change a block's title, emoji, tint, time or repeat                                                                                                                                                                                                                                                           |
+| `needt_delete_personal_time` | `needt.write`                                  | Remove a block (a whole repeat); kept, so the `actionId` undoes it                                                                                                                                                                                                                                            |
+| `needt_list_memories`        | `needt.read`                                   | What Needt has learned about the person, with source and dates, and whether "Let Needt learn about me" is on                                                                                                                                                                                                  |
+| `needt_remember`             | `needt.write`                                  | Save one memory line: `content` (1-500 characters), `kind` (`preference` default, `pattern`, `goal`, `fact`). Source `assistant`; a near-identical line of the same kind is updated (`updated: true`); needs the learning switch on; 500 such lines per workspace                                             |
+| `needt_update_memory`        | `needt.write`                                  | Edit one memory line (`content`, `kind`)                                                                                                                                                                                                                                                                      |
+| `needt_forget_memory`        | `needt.write`                                  | Delete one memory by `id`, or all of them in the workspace with `all: true, confirm: true`                                                                                                                                                                                                                    |
 
 | `needt_blocking` | `needt.read` | Focus blocking (Pro): `view: "active"` what is blocked now and why, `view: "profiles"` every profile. See Focus blocking |
 | `needt_blocking_profile` | `needt.write` | Create, update (only the fields given) or delete a focus blocking profile |
+| `needt_reminders` | `needt.read` for `list`, else `needt.write` | Reminders: `list`, `set` (on a task, an event, or on its own), `update`, `snooze` (`until`), `delete`. See Reminders |
+| `needt_create_goal` | `needt.write` | Create a goal (Pro). See Goals |
+| `needt_update_goal` | `needt.write` | Change a goal, record a check-in (`checkIn`), change its weekly check-in (`checkInSchedule`) or archive it (`archive: true`). See Goals |
+| `needt_convert_task_to_goal` | `needt.write` | Turn a task into a goal; its subtasks become linked tasks (Pro, one undo). See Goals |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -653,6 +658,7 @@ export, and is deleted with the account.
 
 ```
 GET    /api/ai/memories
+POST   /api/ai/memories   { "content": "...", "kind": "preference" }
 PATCH  /api/ai/memories   { "enabled": true }
 PATCH  /api/ai/memories   { "enabled": false, "memories": "keep" | "delete" }
 PATCH  /api/ai/memories   { "memoryId": "...", "content": "...", "kind": "preference" }
@@ -662,8 +668,24 @@ DELETE /api/ai/memories   { "all": true }
 
 - `GET` returns `{ "enabled", "memories": [{ id, kind, content, source,
 createdAt, updatedAt }] }` for the current workspace. `kind` is `preference`,
-  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`
-  or `inferred`.
+  `pattern`, `goal` or `fact`; `source` is `chat`, `habit`, `document`, `mail`,
+  `inferred` or `assistant`.
+- `POST { content, kind? }` saves one line with source `assistant` and returns
+  `{ id, kind, content, source, createdAt, updated }` (`201` for a new line,
+  `200` with `updated: true` when a near-identical line of the same kind, compared
+  case-, whitespace- and trailing-punctuation-insensitively, was updated). `kind`
+  defaults to `preference`. The line is the person's own and later learning never
+  replaces it. Answers `400` while the switch is off or for credential, money or
+  health text, and `409` past 500 assistant-written lines per workspace (delete
+  some first). The MCP tool `needt_remember` does the same.
+
+  ```
+  curl -X POST http://localhost:3000/api/ai/memories \
+    --oauth2-bearer "$NEEDT_TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d '{"content":"No meetings before 10","kind":"preference"}'
+  ```
+
 - `PATCH { enabled }` flips the switch. Turning it off keeps the memories
   unless `"memories": "delete"` (every workspace). Turning it on starts a first
   learning pass in the background.
@@ -961,31 +983,38 @@ curl -X POST http://localhost:3000/api/connect/ops/task.create \
 }
 ```
 
-| Operation              | Risk       | Input                                                                                                                                                  | Undo                                 |
-| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `task.list`            | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                                                                      | —                                    |
-| `task.get`             | read       | `taskId`                                                                                                                                               | —                                    |
-| `schedule.get_day`     | read       | `date` (YYYY-MM-DD, user's time zone)                                                                                                                  | —                                    |
-| `task.create`          | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `autoSchedule`                                             | archives the task                    |
-| `task.update`          | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `pinned`, `autoSchedule`              | writes the previous values back      |
-| `task.complete`        | reversible | `taskId` (recurring series are refused for now)                                                                                                        | previous status                      |
-| `task.uncomplete`      | reversible | `taskId`, `status` (todo, in_progress)                                                                                                                 | completed with its original time     |
-| `task.archive`         | reversible | `taskId`                                                                                                                                               | unarchives with placement and blocks |
-| `task.unarchive`       | reversible | `taskId`                                                                                                                                               | archives again                       |
-| `task.move_to_day`     | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                                                                          | previous dates and blocks            |
-| `task.spread`          | reversible | `taskIds` or `scope` (today: no time today; overdue: due before today), `days` (1–14, default 7). Each task goes to the first day from today with room | every task it moved goes back        |
-| `schedule.auto`        | reversible | `{}`                                                                                                                                                   | every task it moved goes back        |
-| `project.create`       | reversible | `name`, `description`, `color`, `icon`                                                                                                                 | archives the project                 |
-| `project.archive`      | reversible | `projectId`                                                                                                                                            | previous status                      |
-| `mail.to_task`         | reversible | `messageId`, `title`, `estimateMinutes`                                                                                                                | archives the task                    |
-| `habit.log`            | reversible | `habitId`, `date` (default today)                                                                                                                      | clears the day                       |
-| `habit.unlog`          | reversible | `habitId`, `date` (default today)                                                                                                                      | marks the day again                  |
-| `personal.list`        | read       | `from`, `to` (ISO; adds every occurrence in the range), `includeArchived`                                                                              | —                                    |
-| `personal.create`      | reversible | `kind`, `title`, `emoji`, `color`, `start`, `end` or `minutes`, `rrule`                                                                                | removes the block                    |
-| `personal.update`      | reversible | `blockId` plus any of `title`, `emoji`, `color`, `start`, `end`, `rrule` (null stops the repeat)                                                       | writes the previous values back      |
-| `personal.delete`      | reversible | `blockId`                                                                                                                                              | brings the block back                |
-| `personal.mark_event`  | reversible | `eventId`, `kind`, `title`, `emoji`                                                                                                                    | removes the linked block             |
-| `personal.set_default` | reversible | `kind`, `enabled`, `at` (HH:mm), `minutes`, `days` (0 = Sunday)                                                                                        | restores the previous default        |
+| Operation                | Risk       | Input                                                                                                                                                  | Undo                                       |
+| ------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| `task.list`              | read       | `status` (open, completed, all), `projectId`, `query`, `includeArchived`, `limit`                                                                      | —                                          |
+| `task.get`               | read       | `taskId`                                                                                                                                               | —                                          |
+| `schedule.get_day`       | read       | `date` (YYYY-MM-DD, user's time zone)                                                                                                                  | —                                          |
+| `task.create`            | reversible | `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `autoSchedule`                                             | archives the task                          |
+| `task.update`            | reversible | `taskId` plus any of `title`, `notes`, `dueDate`, `priority`, `projectId`, `tagIds`, `estimateMinutes`, `start`, `pinned`, `autoSchedule`              | writes the previous values back            |
+| `task.complete`          | reversible | `taskId` (recurring series are refused for now)                                                                                                        | previous status                            |
+| `task.uncomplete`        | reversible | `taskId`, `status` (todo, in_progress)                                                                                                                 | completed with its original time           |
+| `task.archive`           | reversible | `taskId`                                                                                                                                               | unarchives with placement and blocks       |
+| `task.unarchive`         | reversible | `taskId`                                                                                                                                               | archives again                             |
+| `task.move_to_day`       | reversible | `taskId`, `date` (YYYY-MM-DD)                                                                                                                          | previous dates and blocks                  |
+| `task.spread`            | reversible | `taskIds` or `scope` (today: no time today; overdue: due before today), `days` (1–14, default 7). Each task goes to the first day from today with room | every task it moved goes back              |
+| `schedule.auto`          | reversible | `{}`                                                                                                                                                   | every task it moved goes back              |
+| `project.create`         | reversible | `name`, `description`, `color`, `icon`                                                                                                                 | archives the project                       |
+| `project.archive`        | reversible | `projectId`                                                                                                                                            | previous status                            |
+| `mail.to_task`           | reversible | `messageId`, `title`, `estimateMinutes`                                                                                                                | archives the task                          |
+| `habit.log`              | reversible | `habitId`, `date` (default today)                                                                                                                      | clears the day                             |
+| `habit.unlog`            | reversible | `habitId`, `date` (default today)                                                                                                                      | marks the day again                        |
+| `personal.list`          | read       | `from`, `to` (ISO; adds every occurrence in the range), `includeArchived`                                                                              | —                                          |
+| `personal.create`        | reversible | `kind`, `title`, `emoji`, `color`, `start`, `end` or `minutes`, `rrule`                                                                                | removes the block                          |
+| `personal.update`        | reversible | `blockId` plus any of `title`, `emoji`, `color`, `start`, `end`, `rrule` (null stops the repeat)                                                       | writes the previous values back            |
+| `personal.delete`        | reversible | `blockId`                                                                                                                                              | brings the block back                      |
+| `personal.mark_event`    | reversible | `eventId`, `kind`, `title`, `emoji`                                                                                                                    | removes the linked block                   |
+| `personal.set_default`   | reversible | `kind`, `enabled`, `at` (HH:mm), `minutes`, `days` (0 = Sunday)                                                                                        | restores the previous default              |
+| `goal.list`              | read       | `status` (active, achieved, dropped, all), `parentId`, `projectId`, `includeArchived`, `limit`                                                         | —                                          |
+| `goal.get`               | read       | `goalId`                                                                                                                                               | —                                          |
+| `goal.create`            | reversible | `title`, `description`, `deadline`, `area`, `parentId`, `projectIds`, `targetValue`, `currentValue`, `unit`, `percent`, `checkIn`                      | archives the goal                          |
+| `goal.update`            | reversible | `goalId` plus any of the create fields, `status`, `position`                                                                                           | writes the previous values back            |
+| `goal.archive`           | reversible | `goalId`                                                                                                                                               | brings it back                             |
+| `goal.check_in`          | reversible | `goalId`, `value`, `percent`, `note` (at least one)                                                                                                    | removes the check-in, previous value back  |
+| `goal.convert_from_task` | reversible | `taskId`, `area`, `parentId`                                                                                                                           | task back, goal and its new tasks archived |
 
 Errors are JSON `{ "error", "code" }`: `INVALID_INPUT` (400, with
 `details`), `FORBIDDEN` (403, a viewer cannot write), `OP_NOT_FOUND` or
@@ -1112,6 +1141,104 @@ curl -X POST http://localhost:3000/api/connect/ops/personal.create \
 Ask can do the same in words ("block Friday evening for a party"), with Undo.
 In MCP, `needt_list` and `needt_get` take `type: "personal_time"`.
 
+## Goals
+
+What a person is working towards: a title, a why (`description`, plain text
+or the task editor's rich text), an optional `deadline`, a life `area`
+(`work`, `money`, `health`, `learning`, `home`, `relationships`, `personal`,
+or a custom label up to 40 characters) and a `status` (`active`, `achieved`,
+`dropped`). A goal is **never a task**: the scheduler, Focus, Today, the
+overdue lists and Plan my day never read goals. Only the tasks linked to a
+goal are planned.
+
+- **Subgoals** go one level deep (`parentId` names a top-level goal).
+- **Projects**: `projectIds` links projects; every task in them counts towards
+  the goal. A project's header shows its goals.
+- **Tasks**: `goalId` on `POST /api/connect/tasks`, `PATCH
+/api/connect/tasks/:id`, `task.create`, `task.update`, `needt_create_task`
+  and `needt_update_task` links one task (null unlinks). Linking needs no
+  plan.
+
+Progress (`progress` on every goal) comes from, in this order:
+
+1. linked tasks, directly or through a linked project: closed / total
+   (`source: "tasks"`, `done`, `total`; archived, trashed and finished
+   repeat records do not count);
+2. the goal's own manual value: `currentValue / targetValue` (with `unit`,
+   e.g. 2 500 / 2 500 CHF) or `percent` 0–100 (`source: "manual"`);
+3. the average of its subgoals, a dropped one left out, one with no progress
+   counted as zero (`source: "subgoals"`);
+4. nothing yet (`source: "none"`, `ratio: null`).
+
+An achieved goal reads 100%.
+
+```json
+{
+  "id": "…",
+  "title": "Save 2 500 CHF",
+  "description": "So a broken laptop is not a crisis",
+  "deadline": "2026-12-31T00:00:00.000Z",
+  "area": "money",
+  "status": "active",
+  "parentId": null,
+  "projectIds": ["…"],
+  "childIds": [],
+  "targetValue": 2500,
+  "currentValue": 1000,
+  "unit": "CHF",
+  "manualPercent": null,
+  "checkIn": { "enabled": true, "weekday": 1, "hour": 9, "lastAt": null },
+  "progress": {
+    "source": "manual",
+    "ratio": 0.4,
+    "percent": 40,
+    "done": 0,
+    "total": 0,
+    "current": 1000,
+    "target": 2500,
+    "unit": "CHF"
+  },
+  "href": "/goals?goal=…"
+}
+```
+
+**Weekly check-in.** Once a week per goal (default Monday 09:00 in the
+person's time zone; `checkIn: { enabled, weekday (0 = Sunday), hour }`)
+Needt asks "How's <goal>?" as a nudge in Notifications (and a push, when
+nudges are on). The answer, `goal.check_in` (`value`, `percent`, `note`), is
+kept as a dated history entry and its value or percent becomes the manual
+progress; `goal.get` returns the last 20.
+
+**Convert a task.** `goal.convert_from_task` makes a goal from a task: its
+title (a leading `GOAL:` is dropped), description, due date as deadline and
+project as a linked project. Each subtask becomes a task linked to the goal
+(ticked ones stay done) and the original task is archived. One undo puts the
+task back and archives the goal and the new tasks; it is refused as a
+conflict when one of them was changed since.
+
+**Plan.** Goals are Pro: on Free, creating and converting answer `403
+UPGRADE_REQUIRED`. Goals made before a downgrade stay readable, editable and
+closable, but get no check-ins.
+
+The app's routes take the session or a `needt_` token (`needt.read` to read,
+`needt.write` to change); every write answers with an `actionId`:
+
+```http
+GET    /api/goals?status=&parentId=&projectId=&includeArchived=   # goal.list
+POST   /api/goals                                                  # goal.create
+GET    /api/goals/:id                                              # goal.get
+PATCH  /api/goals/:id                                              # goal.update
+DELETE /api/goals/:id                                              # goal.archive
+GET    /api/goals/:id/check-ins                                    # last 20
+POST   /api/goals/:id/check-ins                                    # goal.check_in
+POST   /api/goals/convert-task                                     # goal.convert_from_task
+POST   /api/goals/:id/tasks           { title } | { taskId }       # task.create / task.update with goalId
+PATCH  /api/goals/:id/tasks/:taskId   { done } | { linked: false } # task.complete / uncomplete / unlink
+```
+
+In MCP, `needt_list` and `needt_get` take `type: "goal"`; `needt_get`
+returns `{ goal, subgoals, tasks, checkIns }`.
+
 ## Undo
 
 Every write is recorded in the action log with its inverse, computed when it
@@ -1162,7 +1289,8 @@ curl "http://localhost:3000/api/connect/notifications?group=activity&limit=20" \
       "body": "13/12 everywhere in chrome, agreed.",
       "at": "2026-10-16T09:48:00.000Z",
       "link": "/pages/PAGE_ID",
-      "unread": true
+      "unread": true,
+      "entity": null
     }
   ],
   "nextBefore": "2026-10-16T09:48:00.000Z",
@@ -1184,8 +1312,14 @@ is soonest first, in one page, and has no `nextBefore`.
 | `share`        | activity  | Someone gave you access to a page                             |
 | `sync`         | activity  | A calendar that failed to sync and needs reconnecting         |
 | `import`       | activity  | A Todoist or Notion import that finished or failed            |
-| `reminder`     | reminders | A pending task reminder, with the time it fires in `at`       |
-| `due`          | reminders | A task due within two days or overdue (up to 14 days back)    |
+| `reminder`     | activity  | A reminder that has come due (`at` is when it fired)          |
+| `overdue`      | activity  | A task past its due date (up to 14 days back)                 |
+| `reminder`     | reminders | A pending reminder, with the time it fires in `at`            |
+| `due`          | reminders | A task due within the next two days                           |
+
+`entity` is `{ "type": "task" | "event" | "reminder", "id" }` when the row is
+about one, so a tool can complete the task; reminder rows also carry
+`reminderId` for `/api/connect/reminders/:id`.
 
 `key` is stable and is what the read call takes. `link` is a path in the
 app. `unreadCount` is the number of unread activity items in the window and
@@ -1208,11 +1342,63 @@ Returns `204`. `keys` takes 1 to 200 item keys; anything else is a `400`
 with `{ "error" }`. Marking all covers items that exist now; later ones are
 unread again.
 
+Snooze rows (the bell's "Tomorrow"): they are hidden until `until` and come
+back unread. For a reminder row, snooze the reminder itself instead
+(`PATCH /api/connect/reminders/:id` with `snoozeUntil`), so it fires again.
+
+```bash
+curl -X POST http://localhost:3000/api/connect/notifications/snooze \
+  --oauth2-bearer "$NEEDT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "keys": ["overdue:TASK_ID:1761552000000"], "until": "2026-10-28T09:00:00+01:00" }'
+```
+
 The app itself reads the same feed from `GET /api/notifications?feed=1` (same
 query) and marks with `POST /api/notifications/read`, using the signed-in
 session instead of a token. `GET /api/notifications` without `feed=1` is the
 older nudge delivery the corner tip uses; it marks what it returns as
-delivered, so do not poll it from a script.
+delivered, so do not poll it from a script. `GET /api/notifications/alerts?channel=mac&since=ISO`
+returns what may interrupt now on that channel after Settings → Notifications
+(type switches, channel, quiet hours, daily digest); the Mac app polls it.
+
+## Reminders
+
+A reminder is on a task (`taskId`), a calendar event (`eventId`), or on its
+own (`title` and `at`). The worker fires it on time as a push, a Mac
+notification or an email, as Settings → Notifications allow, and it lands in
+the bell's Activity either way.
+
+```bash
+# 10 minutes before the task starts
+curl -X POST http://localhost:3000/api/connect/reminders \
+  --oauth2-bearer "$NEEDT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "taskId": "TASK_ID", "offsetMinutes": 10 }'
+# 1 day before, at 09:00 in your time zone
+#   -d '{ "taskId": "TASK_ID", "offsetMinutes": 1440, "atTime": "09:00" }'
+# an hour before the deadline
+#   -d '{ "taskId": "TASK_ID", "anchor": "deadline", "offsetMinutes": 60 }'
+# at a time, on its own
+#   -d '{ "title": "Call the tax office", "at": "2026-10-28T14:00:00+01:00" }'
+```
+
+Returns `201` with the reminder: `id`, `taskId`, `eventId`, `title`, `kind`
+(`BEFORE_START`, `BEFORE_DEADLINE`, `AT_TIME`), `anchor`, `offsetMinutes`,
+`atTime`, `at`, `firesAt` (snooze included), `snoozedUntil`, `status`,
+`label` ("1 day before, 09:00") and `link`. Setting the same reminder twice
+returns the one that exists. Free has one reminder per task or event; a
+second is a `403` with `UPGRADE_REQUIRED`.
+
+- `GET /api/connect/reminders?taskId=&eventId=&status=all` lists them
+  (upcoming by default, soonest first).
+- `GET`, `PATCH`, `DELETE /api/connect/reminders/:id`. `PATCH` takes the same
+  timing fields, or `{ "snoozeUntil": ISO }` to fire again then
+  (`null` clears it).
+
+Relative reminders follow their task or event: move it and the reminder
+moves; a reminder already fired on a meeting that moves later fires again. A
+completed task's reminders do not fire. The app uses the same routes at
+`/api/reminders` with the signed-in session.
 
 ## Quick-add parsing
 

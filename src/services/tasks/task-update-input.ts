@@ -104,6 +104,14 @@ export const taskUpdateFields = {
     .nullable()
     .optional()
     .describe("The page the task came from; null detaches it."),
+  goalId: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe(
+      "The goal this task moves forward (from needt_list type goal); null unlinks it. The goal's progress counts it."
+    ),
   ...placementFields,
 };
 
@@ -144,6 +152,7 @@ export function taskFieldPatchFrom(
       fullTime: args.fullTime,
       dependsOnId: args.dependsOnId,
       originPageId: args.originPageId,
+      goalId: args.goalId,
       start: args.start,
       pinned: args.pinned,
       autoSchedule: args.autoSchedule,

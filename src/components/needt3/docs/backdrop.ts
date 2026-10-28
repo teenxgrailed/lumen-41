@@ -80,6 +80,25 @@ function ramp(stops: [number, number[]][], t: number) {
 const marbleCache: Record<string, string> = {};
 
 /**
+ * The marble is drawn for a Retina screen: the field is computed at 1440 x 960
+ * (it used to be 300 x 200 and stretched 4.8x, which smeared the veins) and
+ * the picture is 2880 x 1920, so a full-bleed backdrop on a 2x display is
+ * never scaled up. Every size is a multiple of the 1440 x 960 plane.
+ */
+export const FIELD_W = 1440;
+export const FIELD_H = 960;
+export const BIG_W = 2880;
+export const BIG_H = 1920;
+
+/** WebP where the browser can encode it (Chromium), JPEG otherwise (Safari). */
+function encodeCanvas(canvas: HTMLCanvasElement) {
+  const webp = canvas.toDataURL("image/webp", 0.86);
+  return webp.startsWith("data:image/webp")
+    ? webp
+    : canvas.toDataURL("image/jpeg", 0.86);
+}
+
+/**
  * Marbled noise on a canvas: domain-warped fbm through the palette with thin
  * veins; "sparkle" adds a glitter of tiny lights. Made once, cached; drawn
  * only in the browser (a server render gets the token fallback).
@@ -92,8 +111,8 @@ function marble(kind: "ink" | "sparkle", read: TokenReader) {
   let url = "var(--doc-marble-fallback)";
   try {
     const ink = kind === "ink";
-    const W = 300;
-    const H = 200;
+    const W = FIELD_W;
+    const H = FIELD_H;
     const c = document.createElement("canvas");
     c.width = W;
     c.height = H;
@@ -134,13 +153,15 @@ function marble(kind: "ink" | "sparkle", read: TokenReader) {
     }
     x.putImageData(img, 0, 0);
     const big = document.createElement("canvas");
-    big.width = 1440;
-    big.height = 960;
+    big.width = BIG_W;
+    big.height = BIG_H;
     const g = big.getContext("2d");
     if (!g) throw new Error("no 2d context");
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = "high";
-    g.drawImage(c, 0, 0, 1440, 960);
+    g.drawImage(c, 0, 0, BIG_W, BIG_H);
+    // The glints below are drawn in the 1440 x 960 plane they were designed in.
+    g.scale(BIG_W / 1440, BIG_H / 960);
     const r = rand(ink ? 91 : 57);
     const glint = {
       warm: read("--doc-glint-warm"),
@@ -187,7 +208,7 @@ function marble(kind: "ink" | "sparkle", read: TokenReader) {
         g.fill();
       }
     }
-    url = `url("${big.toDataURL("image/jpeg", 0.86)}") center / cover no-repeat`;
+    url = `url("${encodeCanvas(big)}") center / cover no-repeat`;
   } catch {
     url = "var(--doc-marble-fallback)";
   }

@@ -7,6 +7,7 @@ import {
   markNotificationsRead,
   reminderFiresAt,
   safeLink,
+  snoozeNotifications,
 } from "../feed";
 
 jest.mock("@/lib/prisma", () => ({
@@ -25,8 +26,10 @@ jest.mock("@/lib/prisma", () => ({
     notificationRead: {
       findMany: jest.fn(),
       createMany: jest.fn(),
+      updateMany: jest.fn(),
       upsert: jest.fn(),
     },
+    userSettings: { findUnique: jest.fn() },
   },
 }));
 jest.mock("@/lib/logger", () => ({
@@ -383,17 +386,22 @@ describe("getNotificationFeed (reminders)", () => {
       group: "reminders",
       now,
     });
+    // Overdue tasks moved to Activity; Reminders is what is still ahead.
     expect(page.items.map((i) => [i.key, i.title, i.body])).toEqual([
-      ["due:t4", "Pay rent", "Overdue"],
-      ["reminder:r1", "File taxes", "Due soon"],
+      ["reminder:r1", "File taxes", "1 hour before the deadline"],
     ]);
-    expect(page.items[1].at).toBe("2026-10-16T14:00:00.000Z");
+    expect(page.items[0].at).toBe("2026-10-16T14:00:00.000Z");
+    expect(page.items[0].entity).toEqual({ type: "task", id: "t1" });
+    expect(page.items[0].reminderId).toBe("r1");
     expect(page.items.every((i) => !i.unread)).toBe(true);
     expect(page.nextBefore).toBeNull();
-    expect(db.taskReminder.findMany.mock.calls[0][0].where).toMatchObject({
+    const pending = db.taskReminder.findMany.mock.calls
+      .map((c) => c[0].where)
+      .find((w) => w.deliveredAt === null);
+    expect(pending).toMatchObject({
       userId: "u1",
       canceledAt: null,
-      deliveryStatus: "PENDING",
+      deliveryStatus: { in: ["PENDING", "FAILED"] },
     });
   });
 
@@ -447,5 +455,116 @@ describe("markNotificationsRead", () => {
       markNotificationsRead({ userId: "u1", keys })
     ).rejects.toBeInstanceOf(NotificationReadError);
     expect(db.notificationRead.createMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("getNotificationFeed (fired reminders, overdue, snooze)", () => {
+  const task = (over: object) => ({
+    id: "t1",
+    title: "Send the invoice",
+    status: "todo",
+    isArchived: false,
+    scheduledStart: null,
+    deadline: null,
+    dueDate: null,
+    ...over,
+  });
+
+  it("puts a reminder that came due and an overdue task into Activity", async () => {
+    db.taskReminder.findMany.mockResolvedValue([
+      {
+        id: "r1",
+        kind: "AT_TIME",
+        offsetMinutes: -1,
+        atTime: null,
+        fireAt: at(1),
+        snoozedUntil: null,
+        taskId: "t1",
+        eventId: null,
+        title: null,
+        task: task({}),
+        event: null,
+        deliveredAt: null,
+      },
+      {
+        id: "r2",
+        kind: "AT_TIME",
+        offsetMinutes: -2,
+        atTime: null,
+        fireAt: new Date(now.getTime() + 60_000),
+        snoozedUntil: null,
+        taskId: null,
+        eventId: null,
+        title: "Not yet",
+        task: null,
+        event: null,
+        deliveredAt: null,
+      },
+    ]);
+    db.task.findMany.mockResolvedValue([
+      { id: "t9", title: "Pay rent", dueDate: at(60 * 24) },
+    ]);
+    const page = await getNotificationFeed({
+      userId: "u1",
+      group: "activity",
+      now,
+    });
+    expect(page.items.map((i) => [i.kind, i.title, i.entity])).toEqual([
+      ["reminder", "Send the invoice", { type: "task", id: "t1" }],
+      ["overdue", "Pay rent", { type: "task", id: "t9" }],
+    ]);
+    expect(page.items[0].key).toBe(`fired:r1:${at(1).getTime()}`);
+    expect(page.items[0].reminderId).toBe("r1");
+    expect(page.unreadCount).toBe(2);
+  });
+
+  it("hides a snoozed row until its time and brings it back unread", async () => {
+    db.task.findMany.mockResolvedValue([
+      { id: "t9", title: "Pay rent", dueDate: at(60) },
+    ]);
+    const key = `overdue:t9:${at(60).getTime()}`;
+    db.notificationRead.findMany.mockResolvedValue([
+      {
+        key,
+        readAt: at(30),
+        snoozedUntil: new Date(now.getTime() + 3_600_000),
+      },
+    ]);
+    const hidden = await getNotificationFeed({
+      userId: "u1",
+      group: "activity",
+      now,
+    });
+    expect(hidden.items).toEqual([]);
+
+    db.notificationRead.findMany.mockResolvedValue([
+      { key, readAt: at(30), snoozedUntil: at(5) },
+    ]);
+    const back = await getNotificationFeed({
+      userId: "u1",
+      group: "activity",
+      now,
+    });
+    expect(back.items.map((i) => [i.key, i.unread])).toEqual([[key, true]]);
+  });
+});
+
+describe("snoozeNotifications", () => {
+  it("upserts each key with the time and refuses a past one", async () => {
+    (prisma as unknown as { $transaction: jest.Mock }).$transaction = jest
+      .fn()
+      .mockResolvedValue([]);
+    const until = new Date(now.getTime() + 86_400_000);
+    await expect(
+      snoozeNotifications({ userId: "u1", keys: ["a", "a", "b"], until, now })
+    ).resolves.toEqual({ snoozed: 2 });
+    expect(db.notificationRead.upsert).toHaveBeenCalledTimes(2);
+    expect(db.notificationRead.upsert.mock.calls[0][0]).toMatchObject({
+      where: { userId_key: { userId: "u1", key: "a" } },
+      update: { readAt: now, snoozedUntil: until },
+    });
+    await expect(
+      snoozeNotifications({ userId: "u1", keys: ["a"], until: at(1), now })
+    ).rejects.toBeInstanceOf(NotificationReadError);
   });
 });

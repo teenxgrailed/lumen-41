@@ -1,6 +1,7 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { getPage } from "@/services/pages/page-service";
+import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { deadlineForPatch } from "@/services/tasks/deadline";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
@@ -81,6 +82,8 @@ export interface TaskFieldPatch extends PlacementInput {
   originPageId?: string | null;
   /** "Do for the full time": true/false is the person's choice, null = auto. */
   fullTime?: boolean | null;
+  /** The goal the task moves forward; null unlinks it. */
+  goalId?: string | null;
 }
 
 export type TaskUpdateResult =
@@ -213,6 +216,19 @@ export async function updateTaskFields(input: {
     updates.dependsOnId = patch.dependsOnId;
   }
 
+  if (patch.goalId !== undefined) {
+    if (
+      patch.goalId &&
+      !(await prisma.goal.findFirst({
+        where: { id: patch.goalId, workspaceId, archivedAt: null },
+        select: { id: true },
+      }))
+    ) {
+      return { ok: false, status: 400, error: "Goal not found" };
+    }
+    updates.goalId = patch.goalId;
+  }
+
   if (patch.originPageId !== undefined) {
     if (
       patch.originPageId &&
@@ -337,5 +353,6 @@ export async function updateTaskFields(input: {
     where: { id: taskId, ...scope },
     include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
   });
+  rescheduleRemindersSoon({ taskId });
   return { ok: true, task: fresh ?? updated, changed: true };
 }

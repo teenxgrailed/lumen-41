@@ -3,6 +3,10 @@ import { randomUUID } from "crypto";
 import { newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import {
+  SANDBOX_AI_DAILY_ACTION_CAP,
+  isSandboxUser,
+} from "@/lib/sandbox/guard";
 
 import { DEFAULT_HOSTED_AI_MODEL, resolveHostedAiEndpoint } from "./endpoint";
 import { AIProviderUsage } from "./types";
@@ -140,9 +144,14 @@ export function usageMonth(date = newDate()) {
 export function hostedUsageStatus(
   actionCount: number,
   plan: keyof typeof HOSTED_AI_CONFIG.monthlyActionCaps = "FREE",
-  multiplier = hostedAiCeilingMultiplier()
+  multiplier = hostedAiCeilingMultiplier(),
+  /** Replaces the plan's cap (a sandbox account's small daily one). */
+  limitOverride?: number
 ) {
-  const limit = Math.max(0, HOSTED_AI_CONFIG.monthlyActionCaps[plan]);
+  const limit = Math.max(
+    0,
+    limitOverride ?? HOSTED_AI_CONFIG.monthlyActionCaps[plan]
+  );
   const used = Math.max(0, actionCount);
   const ceiling = Math.ceil(limit * hostedAiCeilingMultiplier(multiplier));
   const mode: HostedAiUsageMode =
@@ -174,14 +183,42 @@ export function resolveAiAccessMode(input: {
   return "none" as const;
 }
 
+/**
+ * The plan and whether the account is a sandbox. A sandbox account
+ * (docs/sandbox-accounts.md) gets `SANDBOX_AI_DAILY_ACTION_CAP` actions with
+ * no slow lane: the nightly reset deletes its usage rows, so the month's
+ * counter is in effect a day's.
+ */
+async function usagePolicy(userId: string) {
+  const [plan, sandbox] = await Promise.all([
+    getPlan(userId),
+    isSandboxUser(userId),
+  ]);
+  return { plan, sandbox };
+}
+
+function usageStatusFor(
+  actionCount: number,
+  policy: Awaited<ReturnType<typeof usagePolicy>>
+) {
+  return policy.sandbox
+    ? hostedUsageStatus(
+        actionCount,
+        policy.plan,
+        1,
+        SANDBOX_AI_DAILY_ACTION_CAP
+      )
+    : hostedUsageStatus(actionCount, policy.plan);
+}
+
 export async function getHostedAiUsage(userId: string) {
-  const [row, plan] = await Promise.all([
+  const [row, policy] = await Promise.all([
     prisma.aiUsage.findUnique({
       where: { userId_yearMonth: { userId, yearMonth: usageMonth() } },
     }),
-    getPlan(userId),
+    usagePolicy(userId),
   ]);
-  return hostedUsageStatus(row?.actionCount ?? 0, plan);
+  return usageStatusFor(row?.actionCount ?? 0, policy);
 }
 
 /**
@@ -209,8 +246,8 @@ export async function canUseHostedAi(userId: string) {
 
 export async function claimHostedAiAction(userId: string) {
   const yearMonth = usageMonth();
-  const plan = await getPlan(userId);
-  const status = hostedUsageStatus(0, plan);
+  const policy = await usagePolicy(userId);
+  const status = usageStatusFor(0, policy);
   if (status.ceiling === 0) {
     return {
       claimed: false,
@@ -235,7 +272,7 @@ export async function claimHostedAiAction(userId: string) {
 
   const actionCount = rows[0]?.actionCount;
   if (actionCount === undefined) {
-    const usage = hostedUsageStatus(status.ceiling, plan);
+    const usage = usageStatusFor(status.ceiling, policy);
     return {
       claimed: false,
       mode: "blocked" as const,
@@ -249,7 +286,7 @@ export async function claimHostedAiAction(userId: string) {
   return {
     claimed: true,
     mode,
-    usage: hostedUsageStatus(actionCount, plan),
+    usage: usageStatusFor(actionCount, policy),
     yearMonth,
   };
 }

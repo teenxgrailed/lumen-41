@@ -38,6 +38,7 @@ const HAS_UPDATED_AT = new Set([
   "calendarEvent",
   "page",
   "personalBlock",
+  "goal",
 ]);
 
 function clone<T>(value: T): T {
@@ -84,6 +85,11 @@ export function createFakePrisma() {
     calendarFeed: [],
     page: [],
     personalBlock: [],
+    goal: [],
+    goalProject: [],
+    goalCheckIn: [],
+    taskPart: [],
+    taskListMapping: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -302,6 +308,29 @@ export function createFakePrisma() {
         });
       }
       if (model === "agentRun") Object.assign(base, { finishedAt: null });
+      if (model === "goal") {
+        Object.assign(base, {
+          description: null,
+          deadline: null,
+          area: null,
+          status: "active",
+          achievedAt: null,
+          parentId: null,
+          position: 0,
+          targetValue: null,
+          currentValue: null,
+          unit: null,
+          manualPercent: null,
+          checkInEnabled: true,
+          checkInWeekday: 1,
+          checkInHour: 9,
+          lastCheckInAt: null,
+          sourceTaskId: null,
+          archivedAt: null,
+        });
+      }
+      if (model === "taskPart")
+        Object.assign(base, { done: false, position: 0 });
       return base;
     };
 

@@ -20,7 +20,7 @@ import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 
 import { TaskCheck } from "./TaskCheck";
 import { StepsBlock, StepsCount, useTaskSteps } from "./TaskSteps";
-import { DeskMeta, LineMeta, TaskValue } from "./chips";
+import { DeskMeta, LineMeta, PinMark, TaskValue } from "./chips";
 import { useCompletionScope } from "./useCompletion";
 import { type TaskEntry, isTaskEvent, taskView } from "./view";
 
@@ -229,6 +229,7 @@ function TaskContent(props: TaskProps) {
             <span className={`tk-block-ltitle${v.done ? " is-done" : ""}`}>
               {v.title}
             </span>
+            <PinMark view={v} />
           </div>
         ) : (
           <>
@@ -240,6 +241,11 @@ function TaskContent(props: TaskProps) {
             </div>
             {!box.tight ? (
               <div className="tk-block-range">{v.range}</div>
+            ) : null}
+            {v.pinned ? (
+              <span className="tk-block-pin">
+                <PinMark view={v} />
+              </span>
             ) : null}
           </>
         )}
@@ -314,6 +320,7 @@ function TaskContent(props: TaskProps) {
               ) : v.time ? (
                 <span>{v.time}</span>
               ) : null}
+              <PinMark view={v} />
               {v.minutes ? <span>{v.dur}</span> : null}
               {v.projectName && !hideProject ? (
                 <span className="tk-card-proj">
@@ -365,6 +372,7 @@ function TaskContent(props: TaskProps) {
             <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
               {v.title}
             </span>
+            <PinMark view={v} />
             {steps ? <StepsCount steps={steps} /> : null}
             <TaskValue view={v} />
           </span>
@@ -389,6 +397,7 @@ function TaskContent(props: TaskProps) {
         >
           {v.title}
         </span>
+        <PinMark view={v} />
         {!compact && v.minutes ? (
           <span className="tk-mini-dur">{v.dur}</span>
         ) : null}
@@ -427,6 +436,7 @@ function TaskContent(props: TaskProps) {
           <span className={`tk-ag-title${v.done ? " is-done" : ""}`}>
             {v.title}
           </span>
+          <PinMark view={v} />
           {compact ? null : (
             <span className="tk-ag-meta">
               {v.minutes ? v.durLong : null}
@@ -479,6 +489,7 @@ function TaskContent(props: TaskProps) {
               >
                 {v.title}
               </span>
+              <PinMark view={v} />
               {steps ? <StepsCount steps={steps} /> : null}
               <TaskValue view={v} />
             </span>

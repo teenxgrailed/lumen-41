@@ -30,6 +30,7 @@ import { runPageCommand } from "@/components/pages/page-commands";
 
 import { docsCopy } from "../docs/DocParts";
 import { DcLabel } from "./StylePanel";
+import { clickIsDragTail, trackInsertPress } from "./insert-drag";
 
 const copy = docsCopy.InsertPanel;
 
@@ -147,7 +148,7 @@ export function InsertPanel({
     <div className="docs-dc-style-panel-1" data-dc-insert="">
       <span className="docs-insert-panel-1">
         {canEdit
-          ? "Click a block, or type / on the page."
+          ? "Click a block, drag it onto the page, or type / on the page."
           : "This page is read-only, so no blocks can be added."}
       </span>
       {INSERT_GROUPS.map((g) => (
@@ -163,7 +164,21 @@ export function InsertPanel({
                 "docs-insert-row-1 dc-row is-press doc-insert-btn" +
                 (i === g.rows.length - 1 ? "" : " dc-hair")
               }
-              onClick={() => runPageCommand({ pageId, command: r.command })}
+              // The caret stays in the page while a row is pressed, so the
+              // block lands where it is and the page does not move.
+              onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) =>
+                trackInsertPress(
+                  e.nativeEvent,
+                  e.currentTarget,
+                  pageId,
+                  r.command
+                )
+              }
+              onClick={() => {
+                if (clickIsDragTail()) return;
+                runPageCommand({ pageId, command: r.command });
+              }}
             >
               <span className="docs-insert-row-2">{r.icon}</span>
               <span className="docs-dc-row-3">{r.label}</span>

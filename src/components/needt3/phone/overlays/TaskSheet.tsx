@@ -10,6 +10,8 @@ import {
   LuClock,
   LuDownload,
   LuPaperclip,
+  LuPin,
+  LuPinOff,
   LuPlus,
   LuRotateCcw,
   LuStar,
@@ -17,6 +19,14 @@ import {
   LuTrash2,
   LuX,
 } from "react-icons/lu";
+
+import {
+  canPinHere,
+  canUnpin,
+  pinPatch,
+  pinTime,
+  unpinPatch,
+} from "@/components/needt3/task/pin";
 
 import { clock } from "@/lib/needt3/day";
 import { addDays, at as hourAt } from "@/lib/needt3/derive";
@@ -927,6 +937,34 @@ function TaskSheetBody({
           </p>
         ) : null}
         <div className="pov-delete-row">
+          {canPinHere(t) ? (
+            <PkButton
+              kind="ghost"
+              icon={<LuPin size={18} />}
+              onClick={() =>
+                void edit(pinPatch(t)).then(
+                  (r) => r && snack(`Pinned at ${pinTime(t)}`, r.undo)
+                )
+              }
+              data-pov-pin=""
+            >
+              Pin here
+            </PkButton>
+          ) : null}
+          {canUnpin(t) ? (
+            <PkButton
+              kind="ghost"
+              icon={<LuPinOff size={18} />}
+              onClick={() =>
+                void edit(unpinPatch()).then(
+                  (r) => r && snack("Needt will schedule it", r.undo)
+                )
+              }
+              data-pov-unpin=""
+            >
+              Let Needt schedule it
+            </PkButton>
+          ) : null}
           {t.done ? null : (
             <PkButton
               kind="ghost"
