@@ -217,6 +217,8 @@
   --v2p-pick: #2b2b31;
   --v2p-pick-ink: #f6f5fa;
   --pk-glass: rgba(20, 20, 22, 0.74);
+  /* the glass over the scrimmed screen it rests on (74 % of 20/20/22 over about 10), opaque */
+  --pk-glass-solid: #111113;
   --pk-glass-edge: inset 0 1px 0 rgba(246, 245, 250, 0.1);
   --pk-sheet-shadow: 0 -18px 44px -20px rgba(0, 0, 0, 0.7);
   --pk-mist: rgba(20, 20, 22, 0.7);
@@ -256,6 +258,8 @@
   --v2p-pick: #121214;
   --v2p-pick-ink: #f6f6f3;
   --pk-glass: rgba(246, 246, 243, 0.78);
+  /* 78 % of 246/246/243 over the plate under the 24 % scrim (about 191), opaque */
+  --pk-glass-solid: #eaeae8;
   --pk-glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   --pk-sheet-shadow: 0 -18px 40px -24px rgba(18, 16, 40, 0.3);
   --pk-mist: rgba(246, 246, 243, 0.72);
@@ -448,6 +452,7 @@
     .pk-edge-blur,
     .pk-scrim-blur,
     .pk-sheet,
+    .pk-sheet-frost,
     .pk-sheet-foot,
     .pk-glass,
     .pk-glyph,
