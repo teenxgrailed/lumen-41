@@ -245,10 +245,28 @@
 /* ── the sheet: frosted glass over the blurred screen ── */
 .needt-v3 .pk-sheet-layer { position: absolute; inset: 0; z-index: 60; pointer-events: none; visibility: hidden; font-family: var(--font-sans); }
 .needt-v3 .pk-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; max-height: 92%; display: flex; flex-direction: column; box-sizing: border-box; pointer-events: auto;
-  border-radius: 34px 34px 0 0; background: var(--pk-glass); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  border-radius: 34px 34px 0 0;
   box-shadow: var(--pk-glass-edge), var(--pk-sheet-shadow); color: var(--v2p-ink); outline: none; transform: translate3d(0, 110%, 0); will-change: transform;
   user-select: none; -webkit-user-select: none; touch-action: none; }
 .needt-v3 .pk-sheet-layer:not(.is-open) .pk-sheet { pointer-events: none; }
+/* The sheet's surface is two layers behind its content (rule 12: one blur at a
+   time, none while it moves). `-solid` is the glass pre-tinted to the colour it
+   shows at rest (--pk-glass-solid); `-frost` is the glass itself with its blur.
+   PkSheet sets data-pk-sheet-moving on the layer while the spring, a drag or the
+   morph runs: solid shows, no blur is live; at rest the frost fades in over the
+   solid (opacity of a layer, never the filter value). */
+.needt-v3 .pk-sheet-solid,
+.needt-v3 .pk-sheet-frost { position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; }
+.needt-v3 .pk-sheet-solid { background: var(--pk-glass-solid); opacity: 0; transition: opacity 120ms ease-out; }
+.needt-v3 .pk-sheet-frost { background: var(--pk-glass); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6); opacity: 1; transition: opacity 120ms ease-out; }
+.needt-v3 .pk-sheet-layer[data-pk-sheet-moving] .pk-sheet-solid { opacity: 1; transition: none; }
+.needt-v3 .pk-sheet-layer[data-pk-sheet-moving] .pk-sheet-frost { opacity: 0; transition: none; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-sheet-solid, .needt-v3 .pk-sheet-frost, .needt-v3 .pk-scrim.is-static-blur > .pk-scrim-blur { transition: none; } }
+/* a sheet with its own ground (paywall) needs neither */
+.needt-v3 .pk-sheet.pov-paywall > :is(.pk-sheet-solid, .pk-sheet-frost) { display: none; }
+/* the scrim of a sheet keeps one static blur layer: it fades in once on open and out once on close (compositor), the per-frame factor drives only the tint */
+.needt-v3 .pk-scrim.is-static-blur > .pk-scrim-blur { opacity: 0; transition: opacity 200ms ease-out; }
+.needt-v3 .pk-scrim.is-static-blur.is-open > .pk-scrim-blur { opacity: 1; }
 .needt-v3 .pk-sheet-layer > .pk-scrim { z-index: 0; }
 .needt-v3 .pk-sheet-grab { flex: none; display: block; width: 36px; height: 5px; margin: 8px auto 2px; border-radius: 3px; background: var(--v2p-ink-3); }
 .needt-v3 .pk-sheet-head { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px 22px 8px; }
@@ -340,7 +358,7 @@
 /* ── the morph (PkSheet from=…): the sheet grows out of menu A's pill — a wash
    in the pill's colour fades as it grows, the content arrives late ── */
 .needt-v3 .pk-sheet-morph { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: var(--nva-bg, var(--v2p-plate)); }
-.needt-v3 .pk-sheet-layer.is-morphing .pk-sheet > :not(.pk-sheet-morph) { opacity: var(--pk-morph-k, 1); }
+.needt-v3 .pk-sheet-layer.is-morphing .pk-sheet > :not(.pk-sheet-morph, .pk-sheet-solid, .pk-sheet-frost) { opacity: var(--pk-morph-k, 1); }
 
 /* glass chips (wave 3): the small chip buttons on the ground are frosted
    glass; inside a plate they keep the plate's raise */
