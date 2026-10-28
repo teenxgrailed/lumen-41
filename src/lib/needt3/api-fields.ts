@@ -4,6 +4,7 @@ import { newDate } from "@/lib/date-utils";
 
 import { appIconPrefsError } from "./app-icon";
 import { parseCityPlace } from "./city";
+import { HOME_BLOCKS_PREF, homeBlocksError } from "./home-blocks";
 import { TASK_VIEW_PREF, taskViewError } from "./task-view";
 
 /**
@@ -83,6 +84,10 @@ export const userSettingsV3FieldsSchema = z.object({
       // the app icon is one of the thirteen; the one-time popup flag a boolean
       const iconError = appIconPrefsError(value);
       if (iconError) ctx.addIssue({ code: "custom", message: iconError });
+      if (HOME_BLOCKS_PREF in value) {
+        const blocks = homeBlocksError(value[HOME_BLOCKS_PREF]);
+        if (blocks) ctx.addIssue({ code: "custom", message: blocks });
+      }
       if (!(TASK_VIEW_PREF in value)) return;
       const message = taskViewError(value[TASK_VIEW_PREF]);
       if (message) ctx.addIssue({ code: "custom", message });

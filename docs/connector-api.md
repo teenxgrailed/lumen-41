@@ -1566,6 +1566,27 @@ curl -X PATCH -H "Content-Type: application/json" \
 Missing keys take their default; an unknown key or value is a `400`. "Until the
 end of the day" counts from the task's `completedAt`.
 
+## Home blocks
+
+Which blocks Home shows (desktop and phone) lives in the same settings map,
+under `prefs.homeBlocks`, read and written with `GET` / `PATCH
+/api/user-settings` (send the whole `prefs` map back with your change merged
+in):
+
+```bash
+curl -X PATCH -H "Content-Type: application/json" \
+  -d '{ "prefs": { "homeBlocks": { "habits": false, "order": ["inbox", "todayBar", "habits", "week", "schedule"] } } }' \
+  https://needt.app/api/user-settings
+```
+
+| Key                                                                    | Values        | Default | Meaning                                                                                                       |
+| ---------------------------------------------------------------------- | ------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| `nextUp`, `todayBar`, `habits`, `week`, `schedule`, `inbox`, `weather` | boolean       | true    | Show the block: the focus card, the Today bar, Habits, This week, Today's schedule, Inbox, the header weather |
+| `order`                                                                | list of tiles | default | The right rail's tiles top to bottom: `todayBar`, `habits`, `week`, `schedule`, `inbox` (each once)           |
+
+With every rail tile off the rail is not drawn and the day takes the full
+width. Missing keys take their default; an unknown key or value is a `400`.
+
 Steps are numbered by position: the task's `entry` (its first two-minute step),
 when it has subtasks, is Step 1, and its subtasks follow in order. Ticking a
 step in a list is the same write as `needt_complete_subtask`.

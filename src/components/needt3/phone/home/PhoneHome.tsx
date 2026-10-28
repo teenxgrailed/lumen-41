@@ -19,6 +19,7 @@ import {
   useToggleHabitToday,
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
+import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -131,6 +132,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const router = useRouter();
   const dailyNote = useDailyNote(today);
   const tz = useTimeZone();
+  const blocks = useHomeBlocks();
   const weekStartDay = useSettings().data?.weekStartDay ?? "monday";
   const tasksQuery = useTasks();
   const projects = useProjects().data;
@@ -393,9 +395,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
   const head =
-    haHabits.length || progress ? (
+    (blocks.habits && haHabits.length) || progress ? (
       <>
-        {haHabits.length ? (
+        {blocks.habits && haHabits.length ? (
           <div className="ha-phone">
             <HaHabits
               habits={haHabits}
@@ -448,7 +450,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
             />
-          ) : hlTask && !hlTask.done ? (
+          ) : !blocks.nextUp ? null : hlTask && !hlTask.done ? (
             <HaHighlight
               phone
               state="set"
@@ -503,21 +505,23 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
             onClose={haBrief.dismiss}
             onUpgrade={() => openPaywall("Morning brief")}
           />
-          <HaWeather wx={wx} />
-          <HaTimeLeft
-            t={haTimeOf({
-              left,
-              nowHour,
-              start: hourOfClock(workCap.start),
-              end: hourOfClock(workCap.end),
-            })}
-            onSpread={
-              spreadAnytime.length
-                ? () => void spreader.spread(spreadAnytime)
-                : undefined
-            }
-            spreadBusy={spreader.busy}
-          />
+          {blocks.weather ? <HaWeather wx={wx} /> : null}
+          {blocks.todayBar ? (
+            <HaTimeLeft
+              t={haTimeOf({
+                left,
+                nowHour,
+                start: hourOfClock(workCap.start),
+                end: hourOfClock(workCap.end),
+              })}
+              onSpread={
+                spreadAnytime.length
+                  ? () => void spreader.spread(spreadAnytime)
+                  : undefined
+              }
+              spreadBusy={spreader.busy}
+            />
+          ) : null}
         </div>
       ) : null}
 
