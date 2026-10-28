@@ -52,6 +52,7 @@ import { CalEmpty } from "./CalEmpty";
 import { CREATE_KINDS, type CreateKind, type CreateSpec } from "./CreateCard";
 import { AGENDA_SIZES, type AgendaSize, DaysView } from "./DaysView";
 import { Seg2 } from "./Seg2";
+import { ClockFormatScope } from "./TimeField";
 import { type Draft, type WeekHandle, WeekView } from "./WeekView";
 import {
   type CalItem,
@@ -625,5 +626,9 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       ) : null}
     </div>
   );
-  return <CompletionScope value={completion}>{content}</CompletionScope>;
+  return (
+    <ClockFormatScope value={settings.data?.timeFormat === "12h"}>
+      <CompletionScope value={completion}>{content}</CompletionScope>
+    </ClockFormatScope>
+  );
 }

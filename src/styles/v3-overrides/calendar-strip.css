@@ -141,11 +141,8 @@
 .needt-v3 .c2-create-range {
   gap: 6px;
 }
-.needt-v3 .c2-create-range .nt-input {
-  width: auto;
-  flex: 1 1 0;
-  min-width: 0;
-  font-variant-numeric: tabular-nums;
+.needt-v3 .c2-create-dash {
+  flex: none;
 }
 .needt-v3 .c2-create-dash,
 .needt-v3 .c2-create-len {
@@ -182,17 +179,103 @@
   background: var(--fill-4);
   color: var(--text-primary);
 }
-/* The hour lines: one repeating gradient per column (a line every 52px, the
-   vendored `.c2-hline` at 70%), so a column is a handful of nodes, not 30. */
+/* The grid lines: one pair of repeating gradients per column, not 48 nodes.
+   An hour is a hairline at the border ladder step; the half hour under it is
+   the next step down (--fill-3), so the hour reads first and the half hour is
+   only felt. Both are the 1px at the top of their slot, every 26px. */
 .needt-v3 .c2-hlines {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--border) 70%, transparent) 0,
-    color-mix(in srgb, var(--border) 70%, transparent) 1px,
-    transparent 1px,
-    transparent 52px
-  );
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      var(--border) 0,
+      var(--border) 1px,
+      transparent 1px,
+      transparent 52px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 26px,
+      var(--fill-3) 26px,
+      var(--fill-3) 27px,
+      transparent 27px,
+      transparent 52px
+    );
+}
+
+/* The creation preview (the ghost while drawing, the draft once drawn): the
+   same face for both so letting go does not change it. Its fill is laid on
+   the raised surface, so no grid line shows through it, and it has one edge,
+   a hairline ring; the draft's old drop shadow made that a double border. */
+.needt-v3 .c2-select,
+.needt-v3 .c2-draft {
+  background:
+    linear-gradient(var(--fill-4), var(--fill-4)), var(--surface-raised);
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
+}
+.needt-v3 .c2-draft-rail {
+  background: var(--text-tertiary);
+}
+
+/* The time field: a text field with a list of quarter hours under it. */
+.needt-v3 .c2-tf {
+  position: relative;
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.needt-v3 .c2-tf-input {
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .c2-tf-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  width: 148px;
+  max-height: 208px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+}
+.needt-v3 .c2-tf[data-align="end"] .c2-tf-list {
+  left: auto;
+  right: 0;
+}
+.needt-v3 .c2-tf-list[data-up] {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+.needt-v3 .c2-tf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+.needt-v3 .c2-tf-row[aria-selected="true"] {
+  color: var(--text-primary);
+}
+.needt-v3 .c2-tf-row[data-active] {
+  background: var(--fill-4);
+  color: var(--text-primary);
+}
+.needt-v3 .c2-tf-hint {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
 }
