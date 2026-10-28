@@ -111,6 +111,11 @@ export interface GoalCheckInView {
   createdAt: string;
 }
 
+/** A task whose title starts with "GOAL:" stands for a goal, not for work. */
+export function isGoalTitle(title: string): boolean {
+  return /^\s*goal\s*[:\-–—]/i.test(title);
+}
+
 /** "GOAL: Save 2 500 CHF" → "Save 2 500 CHF" when a task becomes a goal. */
 export function stripGoalPrefix(title: string): string {
   const stripped = title.replace(/^\s*goal\s*[:\-–—]\s*/i, "").trim();

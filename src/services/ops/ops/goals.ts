@@ -15,6 +15,7 @@ import {
   GOAL_TITLE_MAX,
   GOAL_UNIT_MAX,
   type GoalView,
+  isGoalTitle,
   stripGoalPrefix,
 } from "@/lib/goals";
 import { logger } from "@/lib/logger";
@@ -344,7 +345,7 @@ export const goalGet = defineOp({
       where: { ...ctx.scope, parentId: goal.id, archivedAt: null },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     })) as GoalRow[];
-    const tasks = await ctx.tx.task.findMany({
+    const counted = await ctx.tx.task.findMany({
       where: {
         ...ctx.scope,
         isArchived: false,
@@ -361,6 +362,7 @@ export const goalGet = defineOp({
       take: 200,
       include: taskInclude,
     });
+    const tasks = counted.filter((task) => !isGoalTitle(task.title));
     const checkIns = await ctx.tx.goalCheckIn.findMany({
       where: { goalId: goal.id },
       orderBy: { createdAt: "desc" },
@@ -734,10 +736,37 @@ export const goalCheckInRemove = defineOp({
   },
 });
 
+/**
+ * A project that only holds goals ("GOAL: ..." tasks, or one named Goals) is
+ * a container, not work: linking it would count its other goals as progress.
+ */
+async function isGoalsContainer(
+  ctx: OpContext,
+  task: { id: string; projectId: string | null }
+) {
+  if (!task.projectId) return false;
+  const project = await ctx.tx.project.findFirst({
+    where: { id: task.projectId, ...ctx.scope },
+    select: { name: true },
+  });
+  if (project?.name.trim().toLowerCase() === "goals") return true;
+  const others = await ctx.tx.task.findMany({
+    where: {
+      projectId: task.projectId,
+      ...ctx.scope,
+      isArchived: false,
+      trashedAt: null,
+      id: { not: task.id },
+    },
+    select: { title: true },
+  });
+  return others.some((other) => isGoalTitle(other.title));
+}
+
 export const goalConvertFromTask = defineOp({
   name: "goal.convert_from_task",
   description:
-    "Turn a task into a goal (Pro): the goal takes the task's title (a leading \"GOAL:\" is dropped), description, due date as its deadline and its project as a linked project; each of the task's subtasks becomes a task linked to the goal, ticked ones stay done; the original task is archived. Undo puts the task back and archives the goal and the new tasks.",
+    'Turn a task into a goal (Pro): the goal takes the task\'s title (a leading "GOAL:" is dropped), description, due date as its deadline and its project as a linked project (not when the project is a goals container: named Goals, or holding other "GOAL:" tasks); each of the task\'s subtasks becomes a task linked to the goal, ticked ones stay done; the original task is archived. Undo puts the task back and archives the goal and the new tasks.',
   risk: "reversible",
   input: z
     .object({
@@ -769,7 +798,9 @@ export const goalConvertFromTask = defineOp({
         sourceTaskId: task.id,
       },
     })) as GoalRow;
-    if (task.projectId) await setLinkedProjects(ctx, goal.id, [task.projectId]);
+    if (task.projectId && !(await isGoalsContainer(ctx, task))) {
+      await setLinkedProjects(ctx, goal.id, [task.projectId]);
+    }
 
     const created: Array<Awaited<ReturnType<typeof ctx.tx.task.create>>> = [];
     for (const part of parts) {

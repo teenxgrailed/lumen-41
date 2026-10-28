@@ -1,10 +1,11 @@
 import type { Prisma } from "@prisma/client";
 
-import type {
-  GoalCheckInView,
-  GoalProgress,
-  GoalStatus,
-  GoalView,
+import {
+  type GoalCheckInView,
+  type GoalProgress,
+  type GoalStatus,
+  type GoalView,
+  isGoalTitle,
 } from "@/lib/goals";
 
 /** The Goal columns a view needs. */
@@ -218,7 +219,7 @@ export async function loadGoalViews(
     select: { goalId: true, projectId: true },
   });
   const projectIds = [...new Set(links.map((link) => link.projectId))];
-  const tasks = await client.task.findMany({
+  const rows = await client.task.findMany({
     where: {
       ...scope,
       ...COUNTED_TASK,
@@ -227,8 +228,17 @@ export async function loadGoalViews(
         ...(projectIds.length ? [{ projectId: { in: projectIds } }] : []),
       ],
     },
-    select: { id: true, status: true, goalId: true, projectId: true },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      goalId: true,
+      projectId: true,
+    },
   });
+
+  // A "GOAL:" task stands for a goal, so it is never progress for any goal.
+  const tasks = rows.filter((task) => !isGoalTitle(task.title));
 
   const projectsOf = new Map<string, string[]>();
   for (const link of links) {
