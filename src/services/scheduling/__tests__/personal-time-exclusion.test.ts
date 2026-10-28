@@ -185,8 +185,12 @@ async function runScheduler() {
   const tasks = Array.from({ length: 6 }, (_, i) => dbTask(i));
   const queue: unknown[][] = [tasks, []]; // the tasks to place, then the reload
   prisma.task.findMany.mockImplementation(
-    async (args?: { where?: { blockEventId?: unknown } }) =>
-      args?.where?.blockEventId ? [] : (queue.shift() ?? [])
+    async (args?: {
+      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+    }) =>
+      args?.where?.blockEventId || args?.where?.isAutoScheduled === false
+        ? []
+        : (queue.shift() ?? [])
   );
   await scheduleAllTasksForUserDetailed("user-1");
   return mockDb.created;

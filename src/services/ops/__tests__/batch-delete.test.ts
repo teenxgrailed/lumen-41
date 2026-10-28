@@ -142,7 +142,9 @@ describe("item.delete", () => {
     expect(run.undoable).toBe(true);
     expect(taskRow(db, a.id).trashedAt).toBeInstanceOf(Date);
     expect(taskRow(db, a.id).scheduledStart).toBeNull();
-    expect(taskRow(db, a.id).isAutoScheduled).toBe(false);
+    // The flag stays: a restore from the app clears only trashedAt, and the
+    // scheduler skips trashed tasks by trashedAt.
+    expect(taskRow(db, a.id).isAutoScheduled).toBe(true);
     expect(db.tables.scheduledBlock).toHaveLength(0);
     // Trash, not the archive: the row is still there for Restore.
     expect(taskRow(db, a.id).isArchived).toBe(false);

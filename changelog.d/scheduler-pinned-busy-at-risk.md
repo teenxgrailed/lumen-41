@@ -1,0 +1,3 @@
+- Auto-scheduled tasks no longer land on top of tasks you fixed to a time by hand or from an assistant.
+- A task Needt could only place after its due date now shows a small mark, "Can't fit before the due date", and reads as `atRisk` through the API and MCP.
+- A task restored from Trash goes back to being auto-scheduled, and trashed tasks are never scheduled or counted as busy.

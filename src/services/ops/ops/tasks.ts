@@ -922,8 +922,9 @@ export const taskTrash = defineOp({
         scheduledStart: null,
         scheduledEnd: null,
         scheduleLocked: false,
-        isAutoScheduled: false,
-        autoScheduled: false,
+        // isAutoScheduled / autoScheduled stay as they were: the scheduler
+        // skips trashed tasks by trashedAt, and a restore from the app (which
+        // clears only trashedAt) then hands the task back to the scheduler.
         ...activity(ctx, "ARCHIVED", task.workspaceId),
       },
       include: taskInclude,

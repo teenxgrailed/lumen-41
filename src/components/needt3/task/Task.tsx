@@ -242,7 +242,7 @@ function TaskContent(props: TaskProps) {
             {!box.tight ? (
               <div className="tk-block-range">{v.range}</div>
             ) : null}
-            {v.pinned ? (
+            {v.pinned || v.atRisk ? (
               <span className="tk-block-pin">
                 <PinMark view={v} />
               </span>
