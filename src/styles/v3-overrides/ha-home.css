@@ -322,7 +322,12 @@
 .needt-v3 .hd-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--hd-rail-w, 360px); column-gap: var(--space-20); align-items: start; padding: var(--space-4) 0 48px; }
 .needt-v3 .hd-col { min-width: 0; display: flex; flex-direction: column; gap: var(--space-20); }
 .needt-v3 .hd-cards.ha-cards { grid-template-columns: minmax(0, 1fr); padding: 0; margin: 0; }
-.needt-v3 .hd-col > .hd-main { padding: 0; }
+/* The legacy two-column .hd-main grid (list | 320 px rail, home.css, from 940 px
+   of container) is for a layout where the rail lived inside .hd-main. Here the
+   rail is a sibling of .hd-col, so .hd-main holds only the list: left as a grid
+   it parks the list in the first (1fr - 320 - 40) column, ~310 px, and task
+   titles truncate to one letter. One full-width column instead. */
+.needt-v3 .hd-col > .hd-main { display: flex; flex-direction: column; padding: 0; }
 .needt-v3 .hd-col .hd-list { max-width: none; }
 /* Every rail tile off: no rail, the main column takes the full width. */
 .needt-v3 .hd-body[data-hd-rail="off"] { grid-template-columns: minmax(0, 1fr); }

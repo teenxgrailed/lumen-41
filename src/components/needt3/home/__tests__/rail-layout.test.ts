@@ -31,6 +31,15 @@ describe("Home rail", () => {
     expect(screen).toMatch(/padding-inline: 24px/);
   });
 
+  it("keeps the list one full-width column, not the legacy list | rail grid", () => {
+    // home.css turns .hd-main into `1fr 320px` from 940px of container; with
+    // the rail outside .hd-main the lone list would sit in a ~310px column
+    const main = rule(".needt-v3 .hd-col > .hd-main");
+    expect(main).toMatch(/display: flex/);
+    expect(main).toMatch(/flex-direction: column/);
+    expect(main).not.toMatch(/grid-template-columns/);
+  });
+
   it("gives every tile the rail's width and one 8 px gap", () => {
     const rail = rule(".needt-v3 .hd-body > .hd-rail");
     expect(rail).toMatch(/flex-direction: column/);
