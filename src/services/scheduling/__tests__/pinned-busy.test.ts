@@ -240,4 +240,15 @@ describe("TaskSchedulingService with pinned tasks", () => {
       status: { not: "completed" },
     });
   });
+
+  it("leaves trashed tasks out, both the ones it places and the busy ones", async () => {
+    await runScheduler();
+    const wheres = prisma.task.findMany.mock.calls
+      .map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where)
+      .filter(
+        (w: Record<string, unknown>) => "OR" in w || w.isAutoScheduled === false
+      );
+    expect(wheres).toHaveLength(2);
+    for (const w of wheres) expect(w).toMatchObject({ trashedAt: null });
+  });
 });

@@ -424,6 +424,7 @@ async function scheduleAllTasksForUserLocked(
         autoScheduled: false,
         assigneeId: userId,
         isArchived: false,
+        trashedAt: null,
         status: { not: TaskStatus.COMPLETED },
         scheduledStart: { not: null, lt: addDays(now, DEFAULT_HORIZON_DAYS) },
         scheduledEnd: { not: null, gt: now },
@@ -461,6 +462,7 @@ async function scheduleAllTasksForUserLocked(
         },
         assigneeId: userId,
         isArchived: false,
+        trashedAt: null,
         AND: [activeProjectTaskWhere],
       },
       include: {
