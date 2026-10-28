@@ -138,6 +138,19 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
         if (user) {
           token.sub = user.id;
           token.role = (user as UserWithRole).role;
+          // Sandbox accounts are born with the kind, so every session they
+          // ever get carries it (docs/sandbox-accounts.md). A sandbox is
+          // never an admin, whatever the row says.
+          const sandbox = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { sandboxKind: true },
+          });
+          if (sandbox?.sandboxKind) {
+            token.sandboxKind = sandbox.sandboxKind;
+            token.role = "user";
+          } else {
+            delete token.sandboxKind;
+          }
           token = await issueSessionVersion(token, user.id);
         } else {
           // Throws once the person signed out everywhere; see session-version.

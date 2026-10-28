@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from "@prisma/client";
+import { type SandboxKind, SubscriptionPlan } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
@@ -18,6 +18,8 @@ export interface AdminUserRow {
   /** Whether the email address is confirmed. */
   verified: boolean;
   lastSignInAt: string | null;
+  /** Set on app-provisioned accounts (docs/sandbox-accounts.md). */
+  sandboxKind: SandboxKind | null;
 }
 
 export interface AdminUserDetail extends AdminUserRow {
@@ -75,6 +77,7 @@ export async function searchAdminUsers(
       createdAt: true,
       emailVerified: true,
       lastAuthenticatedAt: true,
+      sandboxKind: true,
       subscription: {
         select: { plan: true, status: true, currentPeriodEnd: true },
       },
@@ -90,6 +93,7 @@ export async function searchAdminUsers(
     plan: effectiveSubscriptionPlan(user.subscription, user.trialGrant, now),
     verified: Boolean(user.emailVerified),
     lastSignInAt: iso(user.lastAuthenticatedAt),
+    sandboxKind: user.sandboxKind,
   }));
 }
 
@@ -108,6 +112,7 @@ export async function getAdminUserDetail(
       createdAt: true,
       emailVerified: true,
       lastAuthenticatedAt: true,
+      sandboxKind: true,
       subscription: {
         select: {
           plan: true,
@@ -138,6 +143,7 @@ export async function getAdminUserDetail(
     createdAt: iso(user.createdAt),
     verified: Boolean(user.emailVerified),
     lastSignInAt: iso(user.lastAuthenticatedAt),
+    sandboxKind: user.sandboxKind,
     trialEndsAt: iso(user.trialGrant?.endsAt),
     plan: effectiveSubscriptionPlan(subscription, user.trialGrant, now),
     subscription: subscription

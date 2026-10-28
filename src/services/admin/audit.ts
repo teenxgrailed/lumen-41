@@ -14,6 +14,8 @@ export type AdminAuditAction =
   | "user.revoke_plan"
   | "user.sign_out_everywhere"
   | "user.delete"
+  /** "Reset sandbox now": a sandbox account wiped and reseeded. */
+  | "user.reset_sandbox"
   | "promo.create"
   | "promo.deactivate"
   /** A read through the MCP admin tools (`needt.admin.read`). */

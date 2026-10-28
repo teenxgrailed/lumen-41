@@ -47,12 +47,23 @@ export const ONBOARDING_V3 = "onboarding_v3";
  * creates the row on the first write, so a flag with no row yet (default off)
  * can still be turned on from `/api/admin/feature-flags/[key]`.
  */
+/**
+ * App-provisioned sandbox accounts (docs/sandbox-accounts.md): the reviewer
+ * account from `SANDBOX_REVIEWER_EMAIL` / `SANDBOX_REVIEWER_PASSWORD` and its
+ * nightly reset. Off unless a FeatureFlag row turns it on for everybody (read
+ * with `isFeatureEnabledForEveryone`). The lockdown of an account that is
+ * already a sandbox never depends on this flag.
+ */
+export const SANDBOX_ACCOUNTS = "sandbox_accounts";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
   [ENERGY_CURVE]: "Chronotype energy curve in auto-scheduling (Pro).",
   [FOCUS_BLOCKING]: "Focus blocking profiles (Pro).",
   [ONBOARDING_V3]: "New accounts start in /start instead of /setup.",
+  [SANDBOX_ACCOUNTS]:
+    "Reviewer sandbox account from env, reset nightly (needs 100% rollout).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

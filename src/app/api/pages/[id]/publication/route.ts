@@ -10,6 +10,7 @@ import { PageAccessRole } from "@prisma/client";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
 import { publicAppUrl } from "@/lib/public-url";
+import { refuseSandbox } from "@/lib/sandbox/guard";
 
 const LOG_SOURCE = "PagePublicationAPI";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -55,6 +56,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Page access denied" }, { status: 403 });
   }
   if ("response" in auth) return auth.response;
+  const locked = await refuseSandbox(auth.userId, "public_share");
+  if (locked) return locked;
   const publication = await publishPage(auth, id);
   if (!publication) {
     return NextResponse.json({ error: "Page access denied" }, { status: 403 });

@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  inviteWorkspaceMember,
+  listWorkspaceInvites,
+} from "@/services/workspaces/workspace-service";
 import { WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import { refuseSandbox } from "@/lib/sandbox/guard";
 import {
   accountRule,
   enforceRateLimits,
   ipRule,
 } from "@/lib/security/rate-limit";
 import { workspaceApiError } from "@/lib/workspaces/api-response";
-import {
-  inviteWorkspaceMember,
-  listWorkspaceInvites,
-} from "@/services/workspaces/workspace-service";
 
 const LOG_SOURCE = "workspace-invites-route";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
+  const locked = await refuseSandbox(auth.userId, "invites");
+  if (locked) return locked;
   const limited = await enforceRateLimits(
     [
       ipRule(request, "workspace-invite:ip", 60, 60 * 60),

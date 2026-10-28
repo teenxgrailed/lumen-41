@@ -1,6 +1,7 @@
 import { sniffImageType } from "@/services/moodboards/moodboard-item-service";
 
 import { prisma } from "@/lib/prisma";
+import { SANDBOX_UPLOAD_MAX_BYTES, isSandboxUser } from "@/lib/sandbox/guard";
 
 /** The client, or a transaction, the file functions run on. */
 type Db = Pick<typeof prisma, "taskAttachment">;
@@ -17,6 +18,7 @@ export const TASK_ATTACHMENT_LIMIT = 10;
 export type TaskAttachmentErrorCode =
   | "EMPTY"
   | "TOO_LARGE"
+  | "SANDBOX_TOO_LARGE"
   | "BAD_TYPE"
   | "TOO_MANY"
   | "NOT_FOUND";
@@ -24,6 +26,8 @@ export type TaskAttachmentErrorCode =
 const MESSAGES: Record<TaskAttachmentErrorCode, string> = {
   EMPTY: "That file is empty.",
   TOO_LARGE: "Attachments must be 4 MB or smaller.",
+  SANDBOX_TOO_LARGE:
+    "This is a sandbox account that resets nightly: files must be 1 MB or smaller.",
   BAD_TYPE: "Only images and PDF files can be attached.",
   TOO_MANY: `A task holds at most ${TASK_ATTACHMENT_LIMIT} files.`,
   NOT_FOUND: "Attachment not found.",
@@ -32,6 +36,7 @@ const MESSAGES: Record<TaskAttachmentErrorCode, string> = {
 export const TASK_ATTACHMENT_STATUS: Record<TaskAttachmentErrorCode, number> = {
   EMPTY: 400,
   TOO_LARGE: 413,
+  SANDBOX_TOO_LARGE: 413,
   BAD_TYPE: 415,
   TOO_MANY: 409,
   NOT_FOUND: 404,
@@ -137,6 +142,13 @@ export async function addTaskAttachment(
   if (input.bytes.length === 0) throw new TaskAttachmentError("EMPTY");
   if (input.bytes.length > TASK_ATTACHMENT_MAX_BYTES)
     throw new TaskAttachmentError("TOO_LARGE");
+  // Sandbox accounts (docs/sandbox-accounts.md) keep files small. Asked only
+  // for a file over the sandbox cap, so a normal upload pays nothing.
+  if (
+    input.bytes.length > SANDBOX_UPLOAD_MAX_BYTES &&
+    (await isSandboxUser(input.userId))
+  )
+    throw new TaskAttachmentError("SANDBOX_TOO_LARGE");
   const mimeType = sniffAttachmentType(input.bytes);
   if (!mimeType) throw new TaskAttachmentError("BAD_TYPE");
   const count = await db.taskAttachment.count({
