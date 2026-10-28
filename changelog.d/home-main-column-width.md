@@ -1,0 +1,1 @@
+- Home: task titles in the main list get the full column width instead of being cut to one letter, and the get-started card is no longer clipped, on desktop widths from about 940 px.
