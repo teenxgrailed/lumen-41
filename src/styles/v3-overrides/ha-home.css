@@ -346,6 +346,14 @@
    control height. Phone is a separate face and is unchanged. */
 .needt-v3 .hd-home .hd-head { height: calc(var(--control-h) + var(--space-16)); }
 .needt-v3 .hd-col .hd-list { gap: var(--space-16); }
+/* Task-row meta ends at the list's right edge. The desk row reserves a 16 px
+   source cell and a 120 px project cell after the time and duration; on a list
+   where no row has a source or a project they were empty and the times stopped
+   ~150 px short of the edge. Reserved only when some row fills them (columns
+   stay aligned), and a project name is right-aligned like on Tasks. */
+.needt-v3 .hd-col .hd-list:not(:has(.tk-cell-src > *)) .tk-cell-src,
+.needt-v3 .hd-col .hd-list:not(:has(.tk-cell-proj > *)) .tk-cell-proj { display: none; }
+.needt-v3 .hd-col .hd-list .tk-cell-proj { justify-content: flex-end; }
 .needt-v3 .hd-home .hd-fold-head { height: var(--control-h-sm); margin-bottom: 0; }
 .needt-v3 .hd-home .hd-fold-note { margin: 0 0 var(--space-4); }
 .needt-v3 .hd-rail .ha-card, .needt-v3 .hd-rail .hd-panel { padding: var(--space-11) var(--space-16); }

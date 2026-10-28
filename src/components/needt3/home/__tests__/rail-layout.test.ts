@@ -74,3 +74,24 @@ describe("Home rail", () => {
     expect(tsx.match(/className="hd-rail"/g)).toHaveLength(1);
   });
 });
+
+describe("Home list meta and the Sort out your day card", () => {
+  it("collapses empty source and project cells so meta reaches the right edge", () => {
+    expect(css).toMatch(
+      /\.hd-list:not\(:has\(\.tk-cell-src > \*\)\) \.tk-cell-src,[\s\S]*?\.tk-cell-proj \{ display: none; \}/
+    );
+    expect(css).toMatch(
+      /\.hd-col \.hd-list \.tk-cell-proj \{ justify-content: flex-end; \}/
+    );
+  });
+
+  it("lets the starter card's text column shrink and its actions wrap", () => {
+    const sg = readFileSync(
+      join(root, "src/styles/v3-overrides/starter-game.css"),
+      "utf8"
+    );
+    expect(sg).toMatch(/\.sg-entry > :first-child \{\s*min-width: 0;/);
+    expect(sg).toMatch(/\.sg-entry-acts \{\s*flex-wrap: wrap;/);
+    expect(sg).not.toMatch(/\.sg-entry-acts \{\s*flex-wrap: nowrap;/);
+  });
+});
