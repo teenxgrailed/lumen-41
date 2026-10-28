@@ -16,7 +16,7 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 const OUT = path.join("test-results", "phone-sheet-perf");
 const RUNS = 5;
 const VARIANTS: Record<string, string> = {
-  asis: "",
+  asis: "/* none */",
   frostNoFilterWhileMoving:
     ".pk-sheet-layer[data-pk-sheet-moving] .pk-sheet-frost{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;visibility:hidden}",
   noTransitions:
