@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 
+import { POST as undoPost } from "@/app/api/agent/actions/[id]/undo/route";
 import { GET as blockingActiveGet } from "@/app/api/blocking/active/route";
 import {
   DELETE as blockingProfileDelete,
@@ -51,6 +52,7 @@ import {
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
 import { OpError, runOp } from "@/services/ops";
+import { BATCH_MAX_ITEMS, DELETE_ITEM_TYPES } from "@/services/ops/ops/batch";
 import {
   AI_PAGE_NOT_EDITABLE,
   AI_PAGE_UNAVAILABLE,
@@ -109,6 +111,7 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
+import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import {
   GOAL_AREAS,
   GOAL_NOTE_MAX,
@@ -119,6 +122,7 @@ import {
 import { listMailMessages } from "@/lib/mail-db";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 import type { RealtimeEventType } from "@/lib/realtime/channels";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
@@ -428,7 +432,9 @@ async function listRows(
           await prisma.task.findMany({
             where: {
               ...scope,
-              ...(args.includeArchived ? {} : { isArchived: false }),
+              ...(args.includeArchived
+                ? {}
+                : { isArchived: false, trashedAt: null }),
               ...(args.originPageId
                 ? { originKind: DOC_ORIGIN, originId: args.originPageId }
                 : {}),
@@ -1029,7 +1035,7 @@ const WRITE_TOOLS: McpTool[] = [
     {
       name: "needt_update_task",
       description:
-        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, goalId (the goal it moves forward; null unlinks), entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put.",
+        "Change a task: title, description, dueDate, deadline, estimatedMinutes, priority (NONE clears it), energy, status, projectId, goalId (the goal it moves forward; null unlinks), entry (its first step), fullTime (do for the full time), dependsOnId (the one open task it waits on), originPageId (the page it came from), recurrenceRule (an RRULE; null stops the repeat), labelIds (the full set of labels) or scheduleId (its work hours). Place it yourself with start (a time; the task is pinned there and the scheduler leaves it), pin it where it already is with pinned: true, or hand it back to the scheduler with pinned: false; autoSchedule: false keeps the scheduler off it. Only these fields are accepted. Files are added with needt_attach_file. Subtasks are changed with needt_add_subtasks and needt_complete_subtask. Needt re-runs the scheduler afterwards; pinned tasks stay put. This changes one task and re-runs the scheduler each time: for more than about 5 tasks use needt_bulk (task.update steps, one write, one undo) instead of calling this repeatedly.",
       annotations: {
         title: "Update task",
         readOnlyHint: false,
@@ -1196,8 +1202,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool(
     {
       name: "needt_complete_task",
-      description:
-        "Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence.",
+      description: `Mark a task done, or not done with done: false. Safe to repeat: a task already in that state is returned unchanged. Completing a recurring task moves it to its next occurrence. For several tasks pass ids (up to ${BATCH_MAX_ITEMS}) instead of id: one call, one write, one actionId for needt_undo; tasks that cannot be changed are listed as failed.`,
       annotations: {
         title: "Complete task",
         readOnlyHint: false,
@@ -1206,13 +1211,36 @@ const WRITE_TOOLS: McpTool[] = [
         openWorldHint: false,
       },
       input: z.object({
-        id: z.string().min(1).describe("Task id."),
+        id: z.string().min(1).optional().describe("Task id."),
+        ids: z
+          .array(z.string().min(1))
+          .max(BATCH_MAX_ITEMS)
+          .optional()
+          .describe("Several task ids, done in one call."),
         done: z.boolean().default(true),
       }),
-      invoke: (ctx, args) =>
-        updateTask(ctx, args.id, {
+      invoke: (ctx, args) => {
+        if (args.ids?.length) {
+          const ids = [
+            ...new Set([...args.ids, ...(args.id ? [args.id] : [])]),
+          ];
+          return goalOp(ctx, "batch.run", {
+            onError: "skip",
+            operations: ids.map((taskId) => ({
+              op: args.done ? "task.complete" : "task.uncomplete",
+              input: { taskId },
+            })),
+          });
+        }
+        if (!args.id) {
+          return Promise.resolve(
+            toolError({ status: 400, error: "Pass id, or ids for several." })
+          );
+        }
+        return updateTask(ctx, args.id, {
           status: args.done ? TaskStatus.COMPLETED : TaskStatus.TODO,
-        }),
+        });
+      },
     },
     ["tasks-updated"]
   ),
@@ -2059,11 +2087,174 @@ MCP_TOOLS.push(
   )
 );
 
+/**
+ * Deleting, bulk work, projects and undo. All of it runs the shared ops, so
+ * the REST routes (`POST /api/connect/ops/<name>`) do exactly the same, and
+ * every write answers with one actionId that `needt_undo` reverses.
+ */
+const deleteType = z.enum(DELETE_ITEM_TYPES);
+
+MCP_TOOLS.push(
+  defineTool({
+    name: "needt_delete",
+    description: `Delete things the person no longer wants. Nothing is lost: a task or page goes to Trash (kept 30 days), a project, habit or goal is archived, an event of a Needt calendar is hidden (events synced from Google, Outlook or CalDAV cannot be deleted here). Pass type with ids, or items to mix kinds, up to ${BATCH_MAX_ITEMS} in one call (prefer one call over many). An id that is not found, or is not the person's, is listed under failed and the rest still go. The answer carries one actionId; needt_undo with it brings everything back. Do not rename things to "[DEL]" or similar; use this.`,
+    annotations: {
+      title: "Delete (to Trash)",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    input: z
+      .object({
+        type: deleteType
+          .optional()
+          .describe("Kind of everything in ids (task, page, project, ...)."),
+        ids: z
+          .array(z.string().min(1))
+          .max(BATCH_MAX_ITEMS)
+          .optional()
+          .describe("Ids of that kind."),
+        items: z
+          .array(z.object({ type: deleteType, id: z.string().min(1) }).strict())
+          .max(BATCH_MAX_ITEMS)
+          .optional()
+          .describe("Mixed kinds: [{ type, id }]."),
+      })
+      .strict(),
+    async invoke(ctx, args) {
+      const items = [
+        ...(args.items ?? []),
+        ...(args.type
+          ? (args.ids ?? []).map((id) => ({ type: args.type!, id }))
+          : []),
+      ];
+      if (!items.length) {
+        return toolError({
+          status: 400,
+          error: "Pass type with ids, or items: [{ type, id }].",
+        });
+      }
+      if (items.length > BATCH_MAX_ITEMS) {
+        return toolError({
+          status: 400,
+          error: `At most ${BATCH_MAX_ITEMS} items per call; send the rest in another call.`,
+        });
+      }
+      return goalOp(ctx, "item.delete", { items });
+    },
+  }),
+  defineTool({
+    name: "needt_bulk",
+    description: `Change many things in one call: up to ${BATCH_MAX_ITEMS} operations, run in order inside one transaction, counted as ONE write (the rate limit is 30 writes a minute), undone together with one actionId. Use it whenever more than about 5 changes are needed instead of calling a tool for each. Each operation is { op, input } with the input as that operation takes it on its own: task.update { taskId, title, notes, dueDate, deadline, priority (NONE clears), projectId, tagIds, estimateMinutes, recurrenceRule, goalId, start, pinned, autoSchedule }, task.create { title, notes, dueDate, priority, projectId, tagIds, estimateMinutes }, task.complete { taskId }, task.uncomplete { taskId }, task.move_to_day { taskId, date: YYYY-MM-DD }, task.trash { taskId }, task.archive { taskId }, project.create { name, description, color, icon }, project.update { projectId, name, description, color, icon, archived }, goal.update { goalId, ... } (goals are Pro), page.trash { pageId }, personal.update, event.update. onError "abort" (default) changes nothing if any step fails and says which; "skip" applies the steps that work and lists the failures. The scheduler is not run: call needt_schedule afterwards if tasks were placed or handed back.`,
+    annotations: {
+      title: "Change many at once",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    input: z
+      .object({
+        operations: z
+          .array(
+            z
+              .object({
+                op: z
+                  .string()
+                  .min(1)
+                  .max(80)
+                  .describe("Operation name, e.g. task.update."),
+                input: z
+                  .record(z.string(), z.unknown())
+                  .describe("That operation's input."),
+              })
+              .strict()
+          )
+          .min(1)
+          .max(BATCH_MAX_ITEMS),
+        onError: z.enum(["abort", "skip"]).default("abort"),
+      })
+      .strict(),
+    invoke: (ctx, args) => goalOp(ctx, "batch.run", args),
+  }),
+  defineTool({
+    name: "needt_undo",
+    description:
+      "Undo a write by its actionId (from needt_delete, needt_bulk, needt_create_project, needt_update_project, goal tools and the other tools that answer with one): deleted things come back from Trash, changed fields go back. Works for seven days. If something was edited after the action, nothing is overwritten and the answer lists the conflicts.",
+    annotations: {
+      title: "Undo",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({
+      actionId: z.string().min(1).describe("The actionId a write returned."),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        undoPost,
+        `/api/agent/actions/${encodeURIComponent(args.actionId)}/undo`,
+        "POST",
+        {},
+        { id: args.actionId }
+      ),
+  }),
+  defineTool({
+    name: "needt_create_project",
+    description:
+      "Create a project (a group of tasks): name, and optionally description, color (a hex like #3b82f6 or a name) and icon. The answer carries actionId for undo. Put tasks in it with projectId on needt_create_task or needt_update_task.",
+    annotations: {
+      title: "Create project",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+    input: z
+      .object({
+        name: z.string().trim().min(1).max(120),
+        description: z.string().max(5000).optional(),
+        color: z.string().max(32).optional(),
+        icon: z.string().max(64).optional(),
+      })
+      .strict(),
+    invoke: (ctx, args) => goalOp(ctx, "project.create", args),
+  }),
+  defineTool({
+    name: "needt_update_project",
+    description:
+      "Change a project: name, description, color, icon (null clears description, color or icon), or archived (true archives it, false brings it back; its tasks stay as they are). Only the fields given change. The answer carries actionId for undo. To delete a project use needt_delete (it archives).",
+    annotations: {
+      title: "Update project",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z
+      .object({
+        id: z.string().min(1).describe("Project id."),
+        name: z.string().trim().min(1).max(120).optional(),
+        description: z.string().max(5000).nullable().optional(),
+        color: z.string().max(32).nullable().optional(),
+        icon: z.string().max(64).nullable().optional(),
+        archived: z.boolean().optional(),
+      })
+      .strict(),
+    invoke: (ctx, args) => {
+      const { id, ...fields } = args;
+      return goalOp(ctx, "project.update", { projectId: id, ...fields });
+    },
+  })
+);
+
 MCP_TOOLS.unshift(
   defineTool({
     name: "needt_whoami",
     description:
-      "Who this connection acts for: the person, the token kind (personal or OAuth), its scopes, and the workspace calls act in by default. Lists the person's workspaces so later calls can pass workspaceId.",
+      "Who this connection acts for: the person, the token kind (personal or OAuth), its scopes, and the workspace calls act in by default. Lists the person's workspaces so later calls can pass workspaceId. Also the person's plan (FREE, PRO or LIFETIME, with whether it comes from a free trial) and which gated features it includes (goals, the AI agent, plan my day, focus stats, advanced nudges and focus modes, habit limit): check it before offering a feature the plan lacks. Also how to delete (needt_delete, restorable with needt_undo) and the write limit (bulk calls count as one write).",
     annotations: {
       title: "Who am I",
       readOnlyHint: true,
@@ -2073,10 +2264,18 @@ MCP_TOOLS.unshift(
     scopes: () => [],
     input: z.object({}),
     async invoke(ctx) {
-      const [user, memberships] = await Promise.all([
+      const [account, memberships] = await Promise.all([
         prisma.user.findUnique({
           where: { id: ctx.userId },
-          select: { id: true, name: true, email: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            subscription: {
+              select: { plan: true, status: true, currentPeriodEnd: true },
+            },
+            trialGrant: { select: { endsAt: true } },
+          },
         }),
         prisma.workspaceMember.findMany({
           where: { userId: ctx.userId },
@@ -2086,9 +2285,55 @@ MCP_TOOLS.unshift(
           },
         }),
       ]);
+      const billing = account;
+      const user = account
+        ? { id: account.id, name: account.name, email: account.email }
+        : null;
       const access = await readAccess(ctx);
+      const plan = effectiveSubscriptionPlan(
+        billing?.subscription ?? null,
+        billing?.trialGrant ?? null
+      );
+      const limits = PLAN_LIMITS[plan];
+      const onTrial =
+        plan === "PRO" &&
+        !(
+          billing?.subscription &&
+          billing.subscription.plan !== "FREE" &&
+          billing.subscription.status === "ACTIVE"
+        ) &&
+        Boolean(billing?.trialGrant);
       return toolResult({
         user,
+        plan: {
+          plan,
+          trial: onTrial,
+          trialEndsAt: onTrial
+            ? (billing?.trialGrant?.endsAt.toISOString() ?? null)
+            : null,
+          features: {
+            goals: limits.goals,
+            aiAgent: limits.aiAgent,
+            planMyDay: limits.planMyDay,
+            focusStats: limits.focusStats,
+            advancedFocusModes: limits.advancedFocusModes,
+            advancedNudges: limits.advancedNudges,
+          },
+          limits: {
+            activeHabits: limits.habits,
+            calendars: limits.calendars,
+            mailboxes: limits.mailboxes,
+            autoScheduledTasksPerMonth: limits.autoScheduledTasks,
+          },
+          upgrade:
+            plan === "FREE"
+              ? "In Needt open Settings > Plan and pick Pro or Lifetime; a free trial can be started there too."
+              : null,
+        },
+        limits: {
+          writesPerMinute: 30,
+          note: "A needt_bulk call or an array of ids counts as one write. On a rate limit the answer says how many seconds to wait.",
+        },
         token: {
           kind: ctx.auth.kind,
           scopes: ctx.auth.scopes,

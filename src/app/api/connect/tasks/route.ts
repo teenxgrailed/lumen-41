@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
       isArchived: false,
+      trashedAt: null,
       ...(originPageId
         ? { originKind: DOC_ORIGIN, originId: originPageId }
         : {}),

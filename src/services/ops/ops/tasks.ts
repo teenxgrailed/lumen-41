@@ -125,6 +125,7 @@ const restorableFields = z
     completedAt: isoOrNull,
     isArchived: z.boolean(),
     archivedAt: isoOrNull,
+    trashedAt: isoOrNull,
     scheduledStart: isoOrNull,
     scheduledEnd: isoOrNull,
     scheduleLocked: z.boolean(),
@@ -145,6 +146,7 @@ const DATE_FIELDS = new Set([
   "deadline",
   "completedAt",
   "archivedAt",
+  "trashedAt",
   "scheduledStart",
   "scheduledEnd",
   "startDate",
@@ -295,7 +297,9 @@ export const taskList = defineOp({
     const tasks = await ctx.tx.task.findMany({
       where: {
         ...ctx.scope,
-        ...(input.includeArchived ? {} : { isArchived: false }),
+        ...(input.includeArchived
+          ? {}
+          : { isArchived: false, trashedAt: null }),
         ...(input.status === "open"
           ? { status: { in: [...OPEN_STATUSES] } }
           : input.status === "completed"
@@ -888,6 +892,66 @@ export const taskUnarchive = defineOp({
   },
 });
 
+export const taskTrash = defineOp({
+  name: "task.trash",
+  description:
+    "Move a task to Trash (the same Trash the app shows, kept 30 days). Its scheduled time is released and the scheduler leaves it alone. Undo, or Restore in Trash, brings it back.",
+  risk: "reversible",
+  input: z.object({ taskId }).strict(),
+  async run(ctx, input) {
+    const task = await findScopedTask(ctx, input.taskId, {
+      includeArchived: true,
+    });
+    if (task.trashedAt) {
+      return { result: { task: taskView(task), changed: false } };
+    }
+    const fields = pickRestorable(task, [
+      "trashedAt",
+      "scheduledStart",
+      "scheduledEnd",
+      "scheduleLocked",
+      "isAutoScheduled",
+      "autoScheduled",
+    ]);
+    const schedulingUserId = task.assigneeId ?? ctx.userId;
+    const blocks = await snapshotBlocks(ctx, task.id, schedulingUserId);
+    const updated = await ctx.tx.task.update({
+      where: { id: task.id },
+      data: {
+        trashedAt: newDate(),
+        scheduledStart: null,
+        scheduledEnd: null,
+        scheduleLocked: false,
+        isAutoScheduled: false,
+        autoScheduled: false,
+        ...activity(ctx, "ARCHIVED", task.workspaceId),
+      },
+      include: taskInclude,
+    });
+    await ctx.tx.scheduledBlock.deleteMany({
+      where: { taskId: task.id, userId: schedulingUserId },
+    });
+    return {
+      result: { task: taskView(updated), changed: true },
+      before: { fields, blocks },
+      inverse: {
+        op: "task.restore",
+        input: {
+          taskId: task.id,
+          fields,
+          blocks,
+          blocksUserId: schedulingUserId,
+        },
+      },
+      touched: [touched("task", updated, task)],
+      afterCommit: [
+        () => schedulePushTaskBlock(schedulingUserId, task.id),
+        publishTasksUpdated(ctx.userId),
+      ],
+    };
+  },
+});
+
 export const taskMoveToDay = defineOp({
   name: "task.move_to_day",
   description:
@@ -1096,6 +1160,7 @@ export const taskSpread = defineOp({
       where: {
         ...ctx.scope,
         isArchived: false,
+        trashedAt: null,
         noSlot: false,
         scheduleLocked: false,
         status: { in: [...OPEN_STATUSES] },
@@ -1328,6 +1393,7 @@ export const taskOps = [
   taskUncomplete,
   taskArchive,
   taskUnarchive,
+  taskTrash,
   taskMoveToDay,
   taskRestore,
   taskRestoreMany,

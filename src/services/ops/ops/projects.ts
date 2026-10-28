@@ -93,28 +93,53 @@ export const projectArchive = defineOp({
   },
 });
 
-/** Inverse-only: writes a project's previous status back. */
-export const projectRestore = defineOp({
-  name: "project.restore",
-  description: "Write a stored project status back. Used only by undo.",
+export const projectUpdate = defineOp({
+  name: "project.update",
+  description:
+    "Change a project: name, description, color, icon, or archived (true archives it, false brings it back). Its tasks stay as they are. Undo writes the previous values back.",
   risk: "reversible",
-  internal: true,
-  input: z.object({ projectId, status: z.string().min(1) }).strict(),
+  input: z
+    .object({
+      projectId,
+      name: z.string().trim().min(1).max(120).optional(),
+      description: z.string().max(5000).nullable().optional(),
+      color: z.string().max(32).nullable().optional(),
+      icon: z.string().max(64).nullable().optional(),
+      archived: z.boolean().optional(),
+    })
+    .strict()
+    .refine((value) => Object.keys(value).length > 1, {
+      message: "Nothing to update",
+    }),
   async run(ctx, input) {
     const project = await findScopedProject(ctx, input.projectId);
-    if (!["active", "archived"].includes(input.status)) {
-      throw new OpError("INVALID_INPUT", "Unknown project status");
+    const data: Record<string, unknown> = {};
+    for (const key of ["name", "description", "color", "icon"] as const) {
+      if (input[key] !== undefined && input[key] !== project[key]) {
+        data[key] = input[key];
+      }
+    }
+    if (input.archived !== undefined) {
+      const status = input.archived ? "archived" : "active";
+      if (status !== project.status) data.status = status;
+    }
+    if (!Object.keys(data).length) {
+      return { result: { project: projectView(project), changed: false } };
     }
     const updated = await ctx.tx.project.update({
       where: { id: project.id },
-      data: { status: input.status },
+      data,
     });
+    const previous: Record<string, unknown> = {};
+    for (const key of Object.keys(data)) {
+      previous[key] = (project as unknown as Record<string, unknown>)[key];
+    }
     return {
-      result: { project: projectView(updated) },
-      before: { status: project.status },
+      result: { project: projectView(updated), changed: true },
+      before: previous,
       inverse: {
         op: "project.restore",
-        input: { projectId: project.id, status: project.status },
+        input: { projectId: project.id, ...previous },
       },
       touched: [touched("project", updated, project)],
       afterCommit: [publishTasksUpdated(ctx.userId)],
@@ -122,4 +147,53 @@ export const projectRestore = defineOp({
   },
 });
 
-export const projectOps = [projectCreate, projectArchive, projectRestore];
+/** Inverse-only: writes a project's previous status back. */
+export const projectRestore = defineOp({
+  name: "project.restore",
+  description: "Write a stored project status back. Used only by undo.",
+  risk: "reversible",
+  internal: true,
+  input: z
+    .object({
+      projectId,
+      status: z.string().min(1).optional(),
+      name: z.string().min(1).max(120).optional(),
+      description: z.string().max(5000).nullable().optional(),
+      color: z.string().max(32).nullable().optional(),
+      icon: z.string().max(64).nullable().optional(),
+    })
+    .strict(),
+  async run(ctx, input) {
+    const project = await findScopedProject(ctx, input.projectId);
+    if (input.status && !["active", "archived"].includes(input.status)) {
+      throw new OpError("INVALID_INPUT", "Unknown project status");
+    }
+    const { projectId: _id, ...fields } = input;
+    void _id;
+    const updated = await ctx.tx.project.update({
+      where: { id: project.id },
+      data: fields,
+    });
+    const previous: Record<string, unknown> = {};
+    for (const key of Object.keys(fields) as (keyof typeof fields)[]) {
+      previous[key] = project[key];
+    }
+    return {
+      result: { project: projectView(updated) },
+      before: previous,
+      inverse: {
+        op: "project.restore",
+        input: { projectId: project.id, ...previous },
+      },
+      touched: [touched("project", updated, project)],
+      afterCommit: [publishTasksUpdated(ctx.userId)],
+    };
+  },
+});
+
+export const projectOps = [
+  projectCreate,
+  projectUpdate,
+  projectArchive,
+  projectRestore,
+];

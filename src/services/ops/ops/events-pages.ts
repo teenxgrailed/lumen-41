@@ -486,6 +486,51 @@ export const pageSetTrashed = defineOp({
   },
 });
 
+export const pageTrash = defineOp({
+  name: "page.trash",
+  description:
+    "Move a page you can edit to Trash (kept 30 days; its sub-pages and links stay as they are). A Private page, or one filed under it, is out of reach for MCP and the agent. Undo, or Restore in Trash, brings it back.",
+  risk: "reversible",
+  transactional: false,
+  input: z.object({ pageId: z.string().min(1) }).strict(),
+  async run(ctx, input) {
+    const actor = pageActor(ctx);
+    const current = await getPage(actor, input.pageId);
+    if (!current) {
+      throw new OpError(
+        "NOT_FOUND",
+        actor.ai
+          ? AI_PAGE_NOT_EDITABLE
+          : "Page not found, or you cannot edit it"
+      );
+    }
+    let page;
+    try {
+      page = await updatePage(actor, input.pageId, { trashed: true });
+    } catch (error) {
+      pageWriteFailure(error);
+    }
+    if (!page) {
+      throw new OpError(
+        "NOT_FOUND",
+        actor.ai
+          ? AI_PAGE_NOT_EDITABLE
+          : "Page not found, or you cannot edit it"
+      );
+    }
+    return {
+      afterCommit: [publishRealtimeAfterCommit(ctx.userId, "docs-updated")],
+      result: { page: pageView(page), changed: true },
+      before: { trashed: false },
+      inverse: {
+        op: "page.set_trashed",
+        input: { pageId: input.pageId, trashed: false },
+      },
+      touched: [touched("page", page, current)],
+    };
+  },
+});
+
 /** Inverse-only: removes blocks an append added. */
 export const pageRemoveBlocks = defineOp({
   name: "page.remove_blocks",
@@ -547,5 +592,6 @@ export const eventPageOps = [
   pageCreate,
   pageAppend,
   pageSetTrashed,
+  pageTrash,
   pageRemoveBlocks,
 ];
