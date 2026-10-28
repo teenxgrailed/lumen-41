@@ -150,6 +150,22 @@ export function PkSheet({
   const dsKey = ds ? ds.join(",") : "";
   S.ds = ds;
 
+  /* The page behind the sheet holds still, but not while the sheet moves:
+     pinning the body (position: fixed) restyles and relays out the whole
+     document, and doing that in the first frames of the rise (or the last of
+     the fall, with the scrollTo that follows) was a visible hitch on a phone.
+     The lock is taken when the sheet has settled open and let go once it is
+     fully put away. The scrim covers the screen meanwhile. */
+  const lock = useRef<(() => void) | null>(null);
+  const holdPage = useCallback(() => {
+    if (!lock.current) lock.current = pkLockScroll();
+  }, []);
+  const releasePage = useCallback(() => {
+    const off = lock.current;
+    lock.current = null;
+    off?.();
+  }, []);
+
   const paint = useCallback(() => {
     const el = sheet.current;
     if (!el) return;
@@ -163,7 +179,10 @@ export function PkSheet({
       layer.current.style.visibility = hidden ? "hidden" : "visible";
     if (hidden !== S.wasHidden) {
       S.wasHidden = hidden;
-      if (hidden) shutRef.current?.();
+      if (hidden) {
+        releasePage();
+        shutRef.current?.();
+      }
     }
     // At a lower detent the sheet's bottom is below the screen: the footer
     // rides up to stay on screen (down to the lowest detent; past it, while
@@ -185,7 +204,7 @@ export function PkSheet({
         bodyEl.current?.classList.toggle("has-pin", pinned);
       }
     }
-  }, [S]);
+  }, [S, releasePage]);
 
   /** The screen's blur bands rest while the sheet moves (one blur at a time). */
   const syncMoving = useCallback(() => {
@@ -209,6 +228,7 @@ export function PkSheet({
         S.raf = 0;
         paint();
         syncMoving();
+        if (S.open) holdPage();
         return;
       }
       paint();
@@ -216,7 +236,7 @@ export function PkSheet({
     };
     S.raf = requestAnimationFrame(tick);
     syncMoving();
-  }, [S, paint, syncMoving]);
+  }, [S, paint, syncMoving, holdPage]);
 
   const go = useCallback(
     (target: number, vel?: number) => {
@@ -229,11 +249,12 @@ export function PkSheet({
         S.y.v = 0;
         paint();
         syncMoving();
+        if (S.open) holdPage();
         return;
       }
       run();
     },
-    [S, paint, run, syncMoving]
+    [S, paint, run, syncMoving, holdPage]
   );
 
   /* The morph (`from`): the sheet grows out of a rect on the screen — menu A's
@@ -361,6 +382,7 @@ export function PkSheet({
         morph(1, () => {
           S.m.rect = null;
           morphPaint();
+          if (S.open) holdPage();
         });
       } else {
         if (S.y.x > S.H + 24 || S.y.x === SHUT_FROM_START) S.y.x = S.H + 24;
@@ -375,6 +397,7 @@ export function PkSheet({
       S.y.x = S.target = S.H + 24;
       S.y.v = 0;
       paint();
+      releasePage();
     } else {
       // closed by a tap, Esc or the primary action while it sits open: back
       // into the rect; closed by a drag: it slides
@@ -430,8 +453,6 @@ export function PkSheet({
   useEffect(() => {
     if (!open) return undefined;
     const opener = document.activeElement as HTMLElement | null;
-    // The page behind the sheet holds still (and keeps its offset on release).
-    const unlock = pkLockScroll();
     const id = stackPush();
     const sheetEl = sheet.current;
     let raf = requestAnimationFrame(() => {
@@ -462,7 +483,6 @@ export function PkSheet({
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", k);
       stackRemove(id);
-      unlock();
       // back to the opener, unless the person already moved on
       const here = document.activeElement;
       if (
@@ -491,8 +511,9 @@ export function PkSheet({
       S.raf = 0;
       m.raf = 0;
       S.open = false;
+      releasePage();
     };
-  }, [S]);
+  }, [S, releasePage]);
 
   const begin = (x: number, y: number, inBody: boolean) => {
     S.drag = {
