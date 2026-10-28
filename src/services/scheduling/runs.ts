@@ -114,7 +114,11 @@ export async function executeSchedulingRun(runId: string) {
     await sendConnectorWebhook({
       userId: run.userId,
       event: "schedule.changed",
-      payload: { changedTaskCount, unscheduledCount: unscheduled.length },
+      payload: {
+        changedTaskCount,
+        unscheduledCount: unscheduled.length,
+        atRiskTaskIds: (scheduleResult.atRisk ?? []).map((t) => t.taskId),
+      },
     });
 
     const completed = await prisma.schedulingRun.update({
