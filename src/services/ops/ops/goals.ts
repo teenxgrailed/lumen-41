@@ -113,9 +113,16 @@ function restorableToData(fields: RestorableFields) {
 async function assertGoalsAllowed(ctx: OpContext) {
   const entitlement = await canUseGoals(ctx.userId);
   if (!entitlement.allowed) {
-    throw new OpError("UPGRADE_REQUIRED", "Goals are part of Pro", {
-      plan: entitlement.plan,
-    });
+    throw new OpError(
+      "UPGRADE_REQUIRED",
+      `Goals need the Pro plan (or Lifetime, or the free trial). This account is on ${entitlement.plan}. To upgrade, open Needt, go to Settings > Plan and pick Pro or Lifetime, then try again.`,
+      {
+        plan: entitlement.plan,
+        requiredPlan: "PRO",
+        feature: "goals",
+        upgrade: "Settings > Plan",
+      }
+    );
   }
 }
 

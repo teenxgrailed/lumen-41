@@ -95,6 +95,11 @@ describe("goal ops", () => {
     const refused = runOp("goal.create", { title: "Run 10k" }, opts());
     await expect(refused).rejects.toBeInstanceOf(OpError);
     await expect(refused).rejects.toMatchObject({ code: "UPGRADE_REQUIRED" });
+    // The answer names the plan the account is on, the plan it needs, and where to upgrade.
+    await expect(refused).rejects.toMatchObject({
+      message: expect.stringMatching(/Pro plan.*FREE.*Settings > Plan/),
+      details: { plan: "FREE", requiredPlan: "PRO", feature: "goals" },
+    });
     expect(db.tables.goal).toHaveLength(0);
   });
 

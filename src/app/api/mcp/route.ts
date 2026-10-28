@@ -64,6 +64,57 @@ function jsonRpcError(status: number, message: string, headers?: HeadersInit) {
   );
 }
 
+/**
+ * A rate-limited answer a model can act on. The limiter's own 429 carries
+ * `Retry-After`, but most MCP clients show only the JSON-RPC body, so the wait
+ * is stated there too, and a tool call gets it as a tool result (not a
+ * transport failure) so the model retries after the wait instead of giving up.
+ */
+function rateLimited(
+  limited: NextResponse,
+  body: unknown,
+  isToolCall: boolean
+) {
+  const retryAfter = Math.max(
+    1,
+    Number(limited.headers.get("Retry-After")) || 1
+  );
+  const message = `Rate limit reached. Wait ${retryAfter} second${retryAfter === 1 ? "" : "s"} and repeat this call; nothing was changed. Use needt_bulk or ids arrays to do many changes in one call.`;
+  const id =
+    body && typeof body === "object" && "id" in body
+      ? ((body as { id?: unknown }).id ?? null)
+      : null;
+  const headers = { "Retry-After": String(retryAfter) };
+  if (isToolCall) {
+    return NextResponse.json(
+      {
+        jsonrpc: "2.0",
+        id,
+        result: {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  status: 429,
+                  error: "RATE_LIMITED",
+                  message,
+                  retryAfterSeconds: retryAfter,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        },
+      },
+      { status: 200, headers }
+    );
+  }
+  return jsonRpcError(429, message, headers);
+}
+
 function unauthorized() {
   return jsonRpcError(401, "Unauthorized", {
     "WWW-Authenticate": bearerChallenge(),
@@ -111,7 +162,11 @@ export async function POST(request: NextRequest) {
     [accountRule(auth.userId, "mcp:user", MCP_USER_LIMIT_PER_MINUTE, 60)],
     { route: ROUTE, userId: auth.userId }
   );
-  if (userLimited) return userLimited;
+  if (userLimited) {
+    return userLimited.status === 429
+      ? rateLimited(userLimited, null, false)
+      : userLimited;
+  }
 
   // Refuse an oversized body before reading it, then measure what came in
   // bytes (a declared length can be absent or wrong).
@@ -154,7 +209,11 @@ export async function POST(request: NextRequest) {
         [accountRule(auth.userId, "mcp:write", MCP_WRITE_LIMIT_PER_MINUTE, 60)],
         { route: ROUTE, userId: auth.userId }
       );
-      if (writeLimited) return writeLimited;
+      if (writeLimited) {
+        return writeLimited.status === 429
+          ? rateLimited(writeLimited, body, true)
+          : writeLimited;
+      }
     }
   }
 

@@ -269,6 +269,7 @@ export function createFakePrisma() {
           noSlot: false,
           isArchived: false,
           archivedAt: null,
+          trashedAt: null,
           completedAt: null,
           isRecurring: false,
           recurrenceRule: null,
