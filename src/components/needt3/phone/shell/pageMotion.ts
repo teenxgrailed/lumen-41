@@ -96,6 +96,16 @@ interface Live {
 
 let pending: Pending | null = null;
 let live: Live | null = null;
+let popAt = -Infinity;
+
+/** The browser reported a popstate (Back/Forward is Safari's own motion). */
+export function pageMotionNotePop(): void {
+  popAt = performance.now();
+}
+/** A route change now is Back/Forward, not a tap of ours. */
+export function pageMotionIsPop(): boolean {
+  return performance.now() - popAt < POP_WINDOW_MS;
+}
 
 /**
  * Animations switched off (the setting, or a hidden tab): no page change.
@@ -120,9 +130,44 @@ const stageOf = (host: HTMLElement | null) =>
 const GHOST_STRIP =
   ".pk-fog, .pk-sweep, .pk-sheet-layer, .pk-scrim, [data-pg-ghost]";
 
+/**
+ * A page tapped away from while it is still arriving is part-way across the
+ * screen. The copy has no animation of its own, so it would snap to its rest
+ * place; this reads where the motion has got to (transform, opacity) so the
+ * copy can start from there. The index is the element's place among the
+ * stage's descendants, which the clone shares.
+ */
+function midMotion(
+  stage: HTMLElement
+): Array<{ i: number; transform: string; opacity: string }> {
+  if (typeof stage.getAnimations !== "function") return [];
+  const out: Array<{ i: number; transform: string; opacity: string }> = [];
+  const all = Array.from(stage.querySelectorAll("*"));
+  for (const a of stage.getAnimations({ subtree: true })) {
+    if (!((a as CSSAnimation).animationName ?? "").startsWith("v3-pg-in"))
+      continue;
+    const el = (a.effect as KeyframeEffect | null)?.target as Element | null;
+    const i = el ? all.indexOf(el) : -1;
+    if (!el || i < 0) continue;
+    const cs = getComputedStyle(el);
+    out.push({ i, transform: cs.transform, opacity: cs.opacity });
+  }
+  return out;
+}
+
 function buildGhost(stage: HTMLElement, scrollY: number): HTMLElement {
+  const frozen = midMotion(stage);
   const clone = stage.cloneNode(true) as HTMLElement;
   clone.removeAttribute("data-pg");
+  if (frozen.length) {
+    const all = clone.querySelectorAll<HTMLElement>("*");
+    for (const f of frozen) {
+      const el = all[f.i];
+      if (!el) continue;
+      el.style.transform = f.transform;
+      el.style.opacity = f.opacity;
+    }
+  }
   clone.querySelectorAll(GHOST_STRIP).forEach((n) => n.remove());
   clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
   // a canvas is cloned blank: copy its pixels
@@ -180,6 +225,18 @@ export function pageMotionCapture(): void {
   };
 }
 
+/**
+ * For a route change that no tap announced (a button that calls the router, a
+ * redirect): called by PageSnapshot just before React replaces the old page,
+ * which is the last moment its DOM is still there. A tap's own copy wins, and
+ * Back/Forward gets none (Safari animates those itself).
+ */
+export function pageMotionCaptureIfNone(): void {
+  if (typeof document === "undefined") return;
+  if (pending?.ghost || pageMotionIsPop()) return;
+  pageMotionCapture();
+}
+
 /** Forget a captured ghost without playing it (Back/Forward, a no-op tap). */
 export function pageMotionDiscard(): void {
   dropPending();
@@ -200,12 +257,17 @@ function finish() {
  * the new stage). Marks the stage so the CSS can move the page, and puts the
  * ghost under it. `null` kind just forgets the ghost.
  */
-export function pageMotionRun(kind: PageMotion | null): void {
+export function pageMotionRun(wanted: PageMotion | null): void {
   if (typeof document === "undefined") return;
   const ghost = pending?.ghost ?? null;
   dropPending();
   finish();
-  if (!kind || motionOff()) return;
+  if (!wanted || motionOff()) return;
+  /* With no copy of the old page (too big, or taken too late) a slide would
+     show bare ground where it was and then move: the page vanishes, then
+     comes back. It fades up from the ground instead, which has no such seam. */
+  const kind: PageMotion =
+    !ghost && (wanted === "forward" || wanted === "back") ? "rise" : wanted;
   const host = hostEl();
   const stage = stageOf(host);
   if (!host || !stage) return;
@@ -252,6 +314,7 @@ export function pageMotionRun(kind: PageMotion | null): void {
 
 /** Test seam: forget everything. */
 export function pageMotionReset(): void {
+  popAt = -Infinity;
   dropPending();
   finish();
 }
