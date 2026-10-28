@@ -93,6 +93,15 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
         : {}),
     });
   }
+  if (schema instanceof z.ZodUnknown || schema instanceof z.ZodAny) {
+    return withDescription(schema, {});
+  }
+  if (schema instanceof z.ZodRecord) {
+    return withDescription(schema, {
+      type: "object",
+      additionalProperties: zodToJsonSchema(schema.valueSchema),
+    });
+  }
   throw new Error(
     `Unsupported zod type for MCP input schema: ${schema.constructor.name}`
   );
