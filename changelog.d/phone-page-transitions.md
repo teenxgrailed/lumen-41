@@ -1,0 +1,1 @@
+- On the phone, moving between places is steadier: a page opened by a button or a redirect no longer slides in over a blank screen, tapping again mid-slide carries on from where the page was instead of snapping, and Back returns to where you left the page even after a quick flick-and-tap or when the page loads late.

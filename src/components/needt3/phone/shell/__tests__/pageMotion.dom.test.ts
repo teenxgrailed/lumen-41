@@ -10,7 +10,9 @@ import {
   GHOST_TTL_MS,
   GHOST_WAIT_MS,
   pageMotionCapture,
+  pageMotionCaptureIfNone,
   pageMotionDiscard,
+  pageMotionNotePop,
   pageMotionReset,
   pageMotionRun,
 } from "../pageMotion";
@@ -137,7 +139,7 @@ describe("the still copy", () => {
     jest.advanceTimersByTime(GHOST_TTL_MS + 1);
     pageMotionRun("forward");
     expect(ghost()).toBeNull();
-    expect(stage().getAttribute("data-pg")).toBe("forward");
+    expect(stage().getAttribute("data-pg")).toBe("rise");
   });
 
   it("is dropped by a discard (Back, Forward)", () => {
@@ -152,7 +154,53 @@ describe("the still copy", () => {
     pageMotionCapture();
     pageMotionRun("forward");
     expect(ghost()).toBeNull();
-    expect(stage().getAttribute("data-pg")).toBe("forward");
+    // no old page to slide over: the new one fades up from the ground instead
+    expect(stage().getAttribute("data-pg")).toBe("rise");
+  });
+
+  it("is taken for a route change no tap announced, unless a tap already did or it is a Back", () => {
+    pageMotionCaptureIfNone();
+    pageMotionRun("forward");
+    expect(ghost()).not.toBeNull();
+    pageMotionReset();
+
+    pageMotionCapture();
+    const drawn = drawImage.mock.calls.length;
+    pageMotionCaptureIfNone();
+    expect(drawImage.mock.calls.length).toBe(drawn);
+    pageMotionReset();
+
+    pageMotionNotePop();
+    pageMotionCaptureIfNone();
+    pageMotionRun("forward");
+    expect(ghost()).toBeNull();
+  });
+
+  it("starts from where an interrupted page had got to", () => {
+    const scroll = document.querySelector<HTMLElement>(".pk-scroll")!;
+    stage().setAttribute("data-pg", "forward");
+    (stage() as unknown as { getAnimations: () => unknown[] }).getAnimations =
+      () => [
+        {
+          animationName: "v3-pg-in-fwd",
+          effect: { target: scroll },
+        },
+      ];
+    const cs = window.getComputedStyle.bind(window);
+    jest.spyOn(window, "getComputedStyle").mockImplementation((el) => {
+      const real = cs(el);
+      if (el !== scroll) return real;
+      return {
+        transform: "matrix(1, 0, 0, 1, 120, 0)",
+        opacity: "0.8",
+      } as unknown as CSSStyleDeclaration;
+    });
+    pageMotionCapture();
+    pageMotionRun("back");
+    const copy = ghost()!.querySelector<HTMLElement>(".pk-scroll")!;
+    expect(copy.style.transform).toBe("matrix(1, 0, 0, 1, 120, 0)");
+    expect(copy.style.opacity).toBe("0.8");
+    jest.restoreAllMocks();
   });
 
   it("is replaced by the next tap, and by the next run", () => {
