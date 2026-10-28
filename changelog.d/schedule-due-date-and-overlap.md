@@ -1,0 +1,2 @@
+- Auto-scheduling now treats a due date as a deadline: a task is placed before it whenever work hours allow, even if that means a lower-scored slot or the daily deep-work limit. When nothing fits, it still gets the earliest slot and is flagged as at risk instead of being silently pushed later.
+- Tasks created back to back (through the connector or the app) no longer land in the same time slot: scheduling runs for one person now queue instead of overlapping.

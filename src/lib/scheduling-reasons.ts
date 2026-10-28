@@ -7,6 +7,8 @@ export const UNSCHEDULED_REASON_MESSAGES = {
   NO_DURATION: "The task needs a valid duration.",
   ENERGY_WINDOW_UNAVAILABLE: "No matching energy window is available.",
   HARD_DEADLINE_MISSED: "No free time remains before the hard deadline.",
+  DEADLINE_AT_RISK:
+    "No free time before the due date, so this is placed at the earliest slot after it.",
 } as const;
 
 export type UnscheduledReason = keyof typeof UNSCHEDULED_REASON_MESSAGES;
