@@ -92,6 +92,14 @@ type DraftBlock = CalTimed & { draft: true };
 
 /** A press that travels this far is a range being drawn, not a click. */
 const DRAW_PX = 5;
+/**
+ * The creation preview (the ghost while drawing, the draft once drawn) sits
+ * between the hour lines: a line is the 1px at the top of its hour, so the
+ * preview starts 2px below it and stops 1px short of the next one, one clear
+ * pixel on each side. Both share it so letting go does not move the block.
+ */
+const PREVIEW_TOP = 2;
+const PREVIEW_CUT = 3;
 /** A quarter hour of the grid. */
 const QUARTER_H = C2_H / 4;
 
@@ -148,8 +156,8 @@ function DraftBlock({
       onClick={(e) => e.stopPropagation()}
       style={{
         ...c2PosStyle(pos),
-        top: (d.at - start) * C2_H + 1,
-        height: Math.max((end - d.at) * C2_H - 3, C2_MIN_H),
+        top: (d.at - start) * C2_H + PREVIEW_TOP,
+        height: Math.max((end - d.at) * C2_H - PREVIEW_CUT, C2_MIN_H),
       }}
     >
       <span aria-hidden="true" className="c2-draft-rail" />
@@ -536,8 +544,11 @@ const DayColumn = memo(function DayColumn({
           className="c2-select"
           data-c2-select=""
           style={{
-            top: drawing.at * C2_H + 1,
-            height: Math.max((drawing.end - drawing.at) * C2_H - 3, C2_MIN_H),
+            top: drawing.at * C2_H + PREVIEW_TOP,
+            height: Math.max(
+              (drawing.end - drawing.at) * C2_H - PREVIEW_CUT,
+              C2_MIN_H
+            ),
           }}
         >
           <span className="c2-select-time">

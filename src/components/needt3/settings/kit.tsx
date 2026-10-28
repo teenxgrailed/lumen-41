@@ -128,7 +128,8 @@ export function SSelect({
   value: string;
   options: readonly (readonly [string, string])[];
   onChange: (value: string) => void;
-  width?: number;
+  /** Pixels, or a CSS length ("100%" fills the row's control column). */
+  width?: number | string;
   label: string;
   /** Off until the value's source has loaded, so nothing writes blind. */
   disabled?: boolean;
@@ -176,7 +177,7 @@ export function SSelect({
             className={"nx-pop is-right" + (leaving ? " is-leaving" : "")}
             style={{
               zIndex: 1100,
-              minWidth: Math.max(w, 160),
+              minWidth: Math.max(typeof w === "number" ? w : 0, 160),
               maxHeight: 280,
               overflowY: "auto",
               padding: 6,

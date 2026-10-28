@@ -4,13 +4,14 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { createPortal } from "react-dom";
 
+import { clockSteps, snapQuarter } from "@/lib/needt3/clock-input";
 import type { ProjectLike } from "@/lib/needt3/derive";
 import { PERSONAL_PRESETS, type PersonalPreset } from "@/lib/personal-time";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { SSelect, V3Switch } from "../settings/kit";
 import { Seg2 } from "./Seg2";
-import { c2Time } from "./layout";
+import { TimeField, useClock12 } from "./TimeField";
 
 /** What the card makes: the main composer's kinds that have a time. */
 export type CreateKind = "task" | "event" | "personal";
@@ -70,13 +71,25 @@ export type CreateSpec =
 
 const CARD_W = 320;
 const QUARTER = 0.25;
+/** The start can be any quarter hour of the day; an end may also be 24:00. */
+const STARTS = clockSteps(0, 24 * 60 - 15);
 
-/** "14:30" → 14.5, or null. */
-export function hourOfInput(v: string) {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(v);
-  if (!m) return null;
-  const h = +m[1] + +m[2] / 60;
-  return h >= 0 && h <= 24 ? Math.round(h / QUARTER) * QUARTER : null;
+/** The range after the start moves to `minutes`: the length stays. */
+export function moveStart(at: number, end: number, minutes: number) {
+  const len = end - at;
+  const next = Math.min(24 - QUARTER, Math.max(0, snapQuarter(minutes) / 60));
+  return { at: next, end: Math.min(24, next + len) };
+}
+
+/**
+ * The range after the end is set to `minutes`. An end at or before the start
+ * is not an end: the length stays (and 00:00 after a start means midnight).
+ */
+export function moveEnd(at: number, end: number, minutes: number) {
+  let b = snapQuarter(minutes) / 60;
+  if (b === 0 && at > 0) b = 24;
+  if (b <= at) b = Math.min(24, at + (end - at));
+  return b > at ? { at, end: b } : { at, end };
 }
 
 /** 90 → "1 h 30 min". */
@@ -127,17 +140,24 @@ export function CreateCard({
   const container = useV3PortalContainer();
   const card = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{
+    left: number;
+    top: number;
+    width: number;
+  } | null>(null);
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [pin, setPin] = useState(true);
   const [calendarId, setCalendarId] = useState<string | null>(
     calendars?.[0]?.id ?? null
   );
-  const [from, setFrom] = useState(c2Time(at));
-  const [to, setTo] = useState(c2Time(end));
-  useEffect(() => setFrom(c2Time(at)), [at]);
-  useEffect(() => setTo(c2Time(end)), [end]);
+  const use12h = useClock12();
+  // The range as last set here: a field commits on blur or Enter, in the same
+  // tick as a click on Create, before the parent has handed the new props back.
+  const range = useRef({ at, end });
+  useEffect(() => {
+    range.current = { at, end };
+  }, [at, end]);
   const done = useRef(false);
 
   // Beside the ghost, flipped near the window's edge; follows it on scroll.
@@ -147,10 +167,13 @@ export function CreateCard({
       if (!el) return;
       const r = el.getBoundingClientRect();
       const h = card.current?.offsetHeight ?? 280;
-      const right = r.right + 8 + CARD_W <= window.innerWidth - 8;
+      // never wider than the window (a phone is 320 wide at its narrowest)
+      const w = Math.min(CARD_W, window.innerWidth - 16);
+      const right = r.right + 8 + w <= window.innerWidth - 8;
       setPos({
-        left: right ? r.right + 8 : Math.max(8, r.left - 8 - CARD_W),
+        left: right ? r.right + 8 : Math.max(8, r.left - 8 - w),
         top: Math.max(8, Math.min(r.top, window.innerHeight - 8 - h)),
+        width: w,
       });
     };
     place();
@@ -188,25 +211,16 @@ export function CreateCard({
     onCancel();
   }
 
-  /** The range as typed, when it reads as one: the end stays after the start. */
-  function typedRange() {
-    const a = hourOfInput(from);
-    let b = hourOfInput(to);
-    if (a == null || b == null) return { at, end };
-    if (b === 0 && a > 0) b = 24;
-    if (b <= a) b = Math.min(24, a + (end - at));
-    return b > a ? { at: a, end: b } : { at, end };
-  }
-
-  function commitRange() {
-    const r = typedRange();
-    if (r.at !== at || r.end !== end) onRange(r.at, r.end);
+  function setRange(r: { at: number; end: number }) {
+    if (r.at === range.current.at && r.end === range.current.end) return;
+    range.current = r;
+    onRange(r.at, r.end);
   }
 
   function create(preset: PersonalPreset | null = null) {
     if (done.current) return;
     const t = title.trim();
-    const { at, end } = typedRange();
+    const { at, end } = range.current;
     if (preset) {
       done.current = true;
       // a click (no range drawn) keeps the preset's own length
@@ -227,6 +241,8 @@ export function CreateCard({
   }
 
   const minutes = Math.round((end - at) * 60);
+  const startMin = Math.round(at * 60);
+  const endSteps = clockSteps(startMin + 15, 24 * 60);
   const placeholder =
     kind === "task"
       ? "Task name"
@@ -246,7 +262,7 @@ export function CreateCard({
       style={{
         left: pos?.left ?? -9999,
         top: pos?.top ?? 0,
-        width: CARD_W,
+        width: pos?.width ?? CARD_W,
         visibility: pos ? undefined : "hidden",
       }}
       onClick={(e) => e.stopPropagation()}
@@ -288,28 +304,30 @@ export function CreateCard({
         <div className="nt-row">
           <span className="nt-row-label">Time</span>
           <div className="nt-row-control c2-create-range">
-            <input
-              type="time"
-              step={900}
-              value={from}
-              aria-label="Start"
-              data-c2-create-from=""
-              className="nt-input"
-              onChange={(e) => setFrom(e.target.value)}
-              onBlur={() => commitRange()}
+            <TimeField
+              label="Start"
+              value={Math.round(at * 60)}
+              options={STARTS}
+              use12h={use12h}
+              data={{ "data-c2-create-from": "" }}
+              onCommit={(m) =>
+                setRange(moveStart(range.current.at, range.current.end, m))
+              }
             />
             <span aria-hidden="true" className="c2-create-dash">
               –
             </span>
-            <input
-              type="time"
-              step={900}
-              value={to}
-              aria-label="End"
-              data-c2-create-to=""
-              className="nt-input"
-              onChange={(e) => setTo(e.target.value)}
-              onBlur={() => commitRange()}
+            <TimeField
+              label="End"
+              align="end"
+              value={Math.round(end * 60)}
+              options={endSteps}
+              use12h={use12h}
+              hint={(m) => lengthText(m - startMin)}
+              data={{ "data-c2-create-to": "" }}
+              onCommit={(m) =>
+                setRange(moveEnd(range.current.at, range.current.end, m))
+              }
             />
           </div>
         </div>
@@ -328,7 +346,7 @@ export function CreateCard({
               <div className="nt-row-control">
                 <SSelect
                   label="Project"
-                  width={200}
+                  width="100%"
                   value={projectId ?? ""}
                   onChange={(v) => setProjectId(v || null)}
                   options={[
@@ -356,7 +374,7 @@ export function CreateCard({
             <div className="nt-row-control">
               <SSelect
                 label="Calendar"
-                width={200}
+                width="100%"
                 value={calendarId ?? ""}
                 onChange={(v) => setCalendarId(v || null)}
                 options={
