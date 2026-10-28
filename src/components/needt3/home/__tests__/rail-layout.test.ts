@@ -37,6 +37,9 @@ describe("Home rail", () => {
     const main = rule(".needt-v3 .hd-col > .hd-main");
     expect(main).toMatch(/display: flex/);
     expect(main).toMatch(/flex-direction: column/);
+    // the legacy rule also sets `align-items: start`, which would shrink the
+    // list to its content instead of the column
+    expect(main).toMatch(/align-items: stretch/);
     expect(main).not.toMatch(/grid-template-columns/);
   });
 
