@@ -6,6 +6,7 @@
  */
 import { type Editor, getMarkRange } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 
 import { blockFlashKey } from "@/components/documents/BlockFlash";
 
@@ -180,4 +181,201 @@ export function rankCommands<T extends { label: string; keywords: string }>(
     .filter((entry) => entry.r < 3)
     .sort((a, b) => a.r - b.r || a.index - b.index)
     .map((entry) => entry.command);
+}
+
+/**
+ * `focus()` options for a focus that must not move the page: the browser and
+ * TipTap both scroll the caret into view on focus, and the page's scroller
+ * animates that (`scroll-behavior: smooth`), which reads as the page springing.
+ */
+export const NO_SCROLL = { scrollIntoView: false } as const;
+
+/** The document position of top-level block boundary number `index` (0 = before the first block). */
+export function boundaryPos(doc: ProseMirrorNode, index: number): number {
+  const count = Math.max(0, Math.min(Math.trunc(index), doc.childCount));
+  let pos = 0;
+  for (let i = 0; i < count; i++) pos += doc.child(i).nodeSize;
+  return pos;
+}
+
+/**
+ * Make room for a block picked from outside the text (the Insert tab, a
+ * drop): the caret goes into an empty paragraph at `pos`: the one it is in
+ * already when that paragraph is empty, otherwise a new one right after the
+ * top-level block holding `pos` (or exactly at `pos` when it is a boundary
+ * between blocks). The command that follows turns that paragraph into the
+ * block. Nothing scrolls.
+ */
+export function openBlockAt(editor: Editor, pos: number): void {
+  if (editor.isDestroyed) return;
+  const { state, view } = editor;
+  const range = blockInsertRange(state.doc, pos);
+  const tr = state.tr;
+  let at = range.from;
+  if (!range.replace) {
+    // Between blocks, an empty paragraph already there is the room.
+    const $at = state.doc.resolve(range.from);
+    const isEmpty = (node: ProseMirrorNode | null | undefined) =>
+      !!node && node.type.name === "paragraph" && node.content.size === 0;
+    if (range.from === pos && isEmpty($at.nodeBefore)) {
+      at = range.from - ($at.nodeBefore as ProseMirrorNode).nodeSize;
+    } else if (range.from === pos && isEmpty($at.nodeAfter)) {
+      at = range.from;
+    } else {
+      tr.insert(range.from, state.schema.nodes.paragraph.create());
+    }
+  }
+  tr.setSelection(TextSelection.near(tr.doc.resolve(at + 1)));
+  view.dispatch(tr);
+}
+
+/** The nearest ancestor that scrolls vertically, or null when the window does. */
+export function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const overflow = getComputedStyle(p).overflowY;
+    if (
+      (overflow === "auto" || overflow === "scroll") &&
+      p.scrollHeight > p.clientHeight
+    ) {
+      return p;
+    }
+  }
+  return null;
+}
+
+/** How far to scroll so a line spanning `top`..`bottom` shows inside `box` with `margin` to spare; 0 when it already does. */
+export function scrollDelta(
+  line: { top: number; bottom: number },
+  box: { top: number; bottom: number },
+  margin: number
+): number {
+  if (line.bottom + margin > box.bottom) {
+    // A line taller than the box shows its top, not its bottom.
+    const need = line.bottom + margin - box.bottom;
+    return Math.min(need, line.top - margin - box.top);
+  }
+  if (line.top - margin < box.top) return line.top - margin - box.top;
+  return 0;
+}
+
+/**
+ * Bring document position `pos` into view by the least scroll that shows it:
+ * nothing when it is on screen already, never a jump to the end of the page.
+ */
+export function revealPosition(editor: Editor, pos: number, margin = 24): void {
+  if (editor.isDestroyed) return;
+  try {
+    const dom = editor.view.dom as HTMLElement;
+    const parent = scrollParent(dom);
+    const line = editor.view.coordsAtPos(pos);
+    const box = parent
+      ? parent.getBoundingClientRect()
+      : { top: 0, bottom: window.innerHeight };
+    const delta = scrollDelta(line, box, margin);
+    if (!delta) return;
+    if (parent) {
+      parent.scrollTo({ top: parent.scrollTop + delta, behavior: "instant" });
+    } else {
+      window.scrollBy({ top: delta, behavior: "instant" });
+    }
+  } catch {
+    // No layout (a detached or not yet painted view): nothing to reveal.
+  }
+}
+
+/**
+ * Where a block belongs when the person has not put the caret in the text: in
+ * the first block that is on screen, so the page stays where it is. The end
+ * of the page when nothing can be measured (no layout yet).
+ */
+export function visibleBlockPos(editor: Editor): number {
+  const end = editor.state.doc.content.size;
+  try {
+    const dom = editor.view.dom as HTMLElement;
+    const parent = scrollParent(dom);
+    const box = parent
+      ? parent.getBoundingClientRect()
+      : { top: 0, bottom: window.innerHeight };
+    for (const child of Array.from(dom.children)) {
+      const rect = child.getBoundingClientRect();
+      if (
+        rect.height > 0 &&
+        rect.bottom > box.top + 24 &&
+        rect.top < box.bottom
+      ) {
+        return editor.view.posAtDOM(child, 0);
+      }
+    }
+  } catch {
+    // Not laid out: fall through to the end.
+  }
+  return end;
+}
+
+/**
+ * Clicking into the text moves focus to the editor, and Chromium then scrolls
+ * the focused element into view on its own: every scrollable ancestor, both
+ * axes, a page that sat still glides several lines (and the app's frame slides
+ * sideways). ProseMirror cannot stop that (it is the browser's, not a
+ * script's: no `scrollIntoView` call exists to patch), so remember where every
+ * ancestor stood at the press and put it back if one moves while focus arrives.
+ * A wheel, a touch or a key ends the guard: the person's own scrolling is left
+ * alone, and so is a press in an editor that already has focus.
+ */
+export function guardFocusScroll(dom: HTMLElement): () => void {
+  const doc = dom.ownerDocument;
+  const win = doc.defaultView;
+  if (!win) return () => undefined;
+  type Stop = { el: Element; top: number; left: number };
+  let saved: Stop[] | null = null;
+  let winAt: { x: number; y: number } | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const end = () => {
+    saved = null;
+    winAt = null;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+  const restore = () => {
+    if (!saved) return;
+    for (const stop of saved) {
+      if (stop.el.scrollTop !== stop.top) stop.el.scrollTop = stop.top;
+      if (stop.el.scrollLeft !== stop.left) stop.el.scrollLeft = stop.left;
+    }
+    if (winAt && (win.scrollX !== winAt.x || win.scrollY !== winAt.y)) {
+      win.scrollTo({ left: winAt.x, top: winAt.y, behavior: "instant" });
+    }
+  };
+  const press = (event: MouseEvent) => {
+    if (event.button !== 0 || doc.activeElement === dom) return;
+    const stops: Stop[] = [];
+    for (let p = dom.parentElement; p; p = p.parentElement) {
+      stops.push({ el: p, top: p.scrollTop, left: p.scrollLeft });
+    }
+    saved = stops;
+    winAt = { x: win.scrollX, y: win.scrollY };
+    if (timer) clearTimeout(timer);
+    // Focus arrives with the press; a drag that autoscrolls comes later.
+    timer = setTimeout(end, 250);
+  };
+  const focused = () => {
+    restore();
+    requestAnimationFrame(restore);
+  };
+  doc.addEventListener("scroll", restore, true);
+  doc.addEventListener("wheel", end, true);
+  doc.addEventListener("touchstart", end, true);
+  doc.addEventListener("keydown", end, true);
+  dom.addEventListener("mousedown", press, true);
+  dom.addEventListener("focus", focused);
+  return () => {
+    end();
+    doc.removeEventListener("scroll", restore, true);
+    doc.removeEventListener("wheel", end, true);
+    doc.removeEventListener("touchstart", end, true);
+    doc.removeEventListener("keydown", end, true);
+    dom.removeEventListener("mousedown", press, true);
+    dom.removeEventListener("focus", focused);
+  };
 }

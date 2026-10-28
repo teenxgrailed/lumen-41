@@ -171,6 +171,10 @@ export function PhoneEditBar({
     // The caret line must never sit under the bar (or the keyboard under it).
     const keepCaret = () => {
       if (editor.isDestroyed || !editor.isFocused) return;
+      // Hidden bar (the desktop, `display: none` from 640px): its rect is all
+      // zeros, so "above the bar" is the top of the screen and every caret
+      // looked hidden: a click scrolled the page to its end and back.
+      if (getComputedStyle(el).display === "none") return;
       const vv = window.visualViewport;
       let caret: { top: number; bottom: number };
       try {
@@ -193,6 +197,7 @@ export function PhoneEditBar({
       else window.scrollBy(0, delta);
     };
     const apply = () => {
+      if (getComputedStyle(el).display === "none") return;
       const inset = barInset(lift.current, el.offsetHeight);
       if (style && style.paddingBottom !== `${inset}px`) {
         style.paddingBottom = `${inset}px`;

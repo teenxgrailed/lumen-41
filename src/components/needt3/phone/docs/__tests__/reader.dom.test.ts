@@ -672,4 +672,17 @@ describe("the editor's action bar", () => {
       /\.pd-reader\.is-editing \.pd-doc\.is-blur::before\s*\{[^}]*filter:\s*none/
     );
   });
+
+  it("does not change the page's length when the editor takes focus", () => {
+    const css = read("src/styles/v3-overrides/docs.css");
+    const rest = read("src/styles/v3/mobile.css").match(
+      /\.mb-doc-card \{[^}]*padding: 8px 20px (\d+)px/
+    );
+    expect(rest).not.toBeNull();
+    expect(css).toMatch(
+      new RegExp(
+        `\\.pd-reader\\.is-editing \\.mb-doc-card\\s*\\{[^}]*padding-bottom:\\s*${rest?.[1]}px`
+      )
+    );
+  });
 });
