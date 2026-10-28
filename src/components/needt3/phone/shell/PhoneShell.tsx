@@ -31,15 +31,25 @@ import {
 } from "../menu/places";
 import { usePhoneCounts } from "../menu/usePhoneCounts";
 import { PhoneOverlays } from "../overlays/PhoneOverlays";
+import { PageSnapshot } from "./PageSnapshot";
 import { useCoverActive } from "./cover";
 import {
-  POP_WINDOW_MS,
   pageMotionCapture,
   pageMotionDiscard,
   pageMotionFor,
+  pageMotionIsPop,
+  pageMotionNotePop,
   pageMotionRun,
   placeKeyOf,
 } from "./pageMotion";
+import {
+  scrollNotePop,
+  scrollNotePush,
+  scrollRecall,
+  scrollRemember,
+  scrollRestore,
+  scrollTakePop,
+} from "./scrollMemory";
 
 /**
  * How long the pill stays out after the composer closes: the sheet goes back
@@ -63,19 +73,15 @@ function useLinger(open: boolean, ms: number) {
   return open || lingering;
 }
 
-const savedScroll = new Map<string, number>();
-
 /**
  * Scroll to the top on a new route, back to the saved offset on back/forward.
- * The offset is remembered per path while the page scrolls.
+ * The offset is remembered per path while the page scrolls, and at the moment
+ * the page is replaced (PageSnapshot); scrollMemory.ts says why.
  */
 function usePageScrollPerRoute(pathname: string) {
   const path = useRef(pathname);
-  const popped = useRef(false);
   useEffect(() => {
-    const pop = () => {
-      popped.current = true;
-    };
+    const pop = () => scrollNotePop(performance.now());
     /* Next scrolls to the top on a navigation before the new pathname
        arrives; committing a position only once the page has rested on the
        same path keeps that jump from overwriting where the screen was left. */
@@ -85,7 +91,7 @@ function usePageScrollPerRoute(pathname: string) {
       const y = pkScrollY();
       window.clearTimeout(pending);
       pending = window.setTimeout(() => {
-        if (path.current === at) savedScroll.set(at, y);
+        if (path.current === at) scrollRemember(at, y);
       }, 150);
     };
     window.addEventListener("popstate", pop);
@@ -101,12 +107,9 @@ function usePageScrollPerRoute(pathname: string) {
   useLayoutEffect(() => {
     if (path.current === pathname) return undefined;
     path.current = pathname;
-    const y = popped.current ? (savedScroll.get(pathname) ?? 0) : 0;
-    popped.current = false;
-    window.scrollTo(0, y);
-    // the content may still be filling in: settle once more a frame later
-    const id = window.requestAnimationFrame(() => window.scrollTo(0, y));
-    return () => window.cancelAnimationFrame(id);
+    const y = scrollTakePop(performance.now()) ? scrollRecall(pathname) : 0;
+    // the content may still be filling in: keep asking until it can hold y
+    return scrollRestore(y);
   }, [pathname]);
 }
 
@@ -158,11 +161,8 @@ export function PhoneShell() {
      dock's side, or rising from the dock for a place of the menu card. Back and
      Forward are Safari's own gesture and are left alone. */
   const motionFrom = useRef({ key: placeKeyOf(pathname), screen });
-  const popAt = useRef(-Infinity);
   useEffect(() => {
-    const onPop = () => {
-      popAt.current = performance.now();
-    };
+    const onPop = () => pageMotionNotePop();
     /* A tap on an internal link into another place keeps a still copy of the
        page first; the click still goes to the link. */
     const onClick = (e: MouseEvent) => {
@@ -180,6 +180,7 @@ export function PhoneShell() {
         return;
       }
       if (url.origin !== window.location.origin) return;
+      scrollNotePush();
       if (placeKeyOf(url.pathname) === placeKeyOf(window.location.pathname))
         return;
       pageMotionCapture();
@@ -197,7 +198,7 @@ export function PhoneShell() {
     motionFrom.current = { key, screen };
     if (key === prev.key) return;
     // the first screen, a redirect into the app, or the browser's own Back
-    if (!prev.key || performance.now() - popAt.current < POP_WINDOW_MS) {
+    if (!prev.key || pageMotionIsPop()) {
       pageMotionDiscard();
       return;
     }
@@ -220,6 +221,7 @@ export function PhoneShell() {
       if (action.kind === "ask") ui.setAskOpen(true);
       else if (action.kind === "settings") ui.openSettings();
       else {
+        scrollNotePush();
         if (placeKeyOf(action.href) !== placeKeyOf(window.location.pathname))
           pageMotionCapture();
         router.push(action.href);
@@ -259,6 +261,7 @@ export function PhoneShell() {
         onMoving={onMoving}
       />
       <PhoneOverlays />
+      <PageSnapshot pathname={pathname} />
     </>
   );
 }

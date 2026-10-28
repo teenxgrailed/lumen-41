@@ -1118,8 +1118,15 @@
     height: 128px;
   }
 }
+/* The actions wrap instead of running on: in the 2-column card (a 640-760 px
+   container) the text column is ~340 px, narrower than Pro button + Not now +
+   Don't show again in one line, and the last button used to land on the
+   preview. The text column may also shrink below its content. */
+.sg-entry > :first-child {
+  min-width: 0;
+}
 .sg-entry-acts {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .sg-entry-menu {
   margin-left: auto;
