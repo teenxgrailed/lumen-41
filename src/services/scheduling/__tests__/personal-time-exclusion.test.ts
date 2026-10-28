@@ -23,6 +23,9 @@ const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(async (fn: (tx: unknown) => unknown) =>
+      fn({ $executeRaw: jest.fn() })
+    ),
     autoScheduleSettings: {
       findUnique: jest.fn().mockResolvedValue({
         selectedCalendars: "[]",

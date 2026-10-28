@@ -6,6 +6,7 @@ import {
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
+import { withUserScheduleLock } from "@/services/scheduling/user-schedule-lock";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
 import { addCalendarDays, formatInTimeZone } from "@/lib/date-utils";
@@ -307,12 +308,27 @@ function summarizeSchedule(result: ScheduleResult) {
     blocks: result.blocks.length,
     frozenBlocks: result.frozenBlocks.length,
     unscheduled: result.unscheduled.length,
+    atRisk: result.atRisk?.length ?? 0,
   };
 }
 
-export async function scheduleAllTasksForUserDetailed(
+/**
+ * Plans and writes the person's schedule. Runs for one person never overlap
+ * (see `withUserScheduleLock`), so a second run sees the first one's blocks
+ * instead of racing it for the same slots.
+ */
+export function scheduleAllTasksForUserDetailed(
   userId: string,
   options: { entitlementUserId?: string; workspaceId?: string } = {}
+): Promise<{ tasks: TaskWithRelations[]; scheduleResult: ScheduleResult }> {
+  return withUserScheduleLock(userId, () =>
+    scheduleAllTasksForUserLocked(userId, options)
+  );
+}
+
+async function scheduleAllTasksForUserLocked(
+  userId: string,
+  options: { entitlementUserId?: string; workspaceId?: string }
 ): Promise<{ tasks: TaskWithRelations[]; scheduleResult: ScheduleResult }> {
   try {
     logger.info("Starting task scheduling for user", { userId }, LOG_SOURCE);
@@ -597,6 +613,14 @@ export async function scheduleAllTasksForUserDetailed(
     const tasksWithRelations = updatedDbTasks.map(
       convertDbTaskToTaskWithRelations
     );
+
+    if (result.atRisk?.length) {
+      logger.warn(
+        "Tasks placed after their due date: no free time before it",
+        { userId, taskIds: result.atRisk.map((task) => task.taskId) },
+        LOG_SOURCE
+      );
+    }
 
     logger.info(
       "Task scheduling completed successfully",

@@ -126,6 +126,20 @@ export interface ScheduleResult {
   blocks: ScheduledBlock[];
   unscheduled: UnscheduledTask[];
   frozenBlocks: ScheduledBlock[];
+  /**
+   * Placed, but after the due date: nothing fit inside work hours before it, so
+   * the task took the earliest slot there was. Not part of `unscheduled`
+   * because the task does have a time.
+   */
+  atRisk?: AtRiskTask[];
+}
+
+export interface AtRiskTask {
+  taskId: string;
+  title: string;
+  reason: "DEADLINE_AT_RISK";
+  /** The instant the task had to finish by. */
+  deadline: Date;
 }
 
 interface OccupiedBlock {
@@ -180,6 +194,20 @@ function nextDayStart(date: Date, timeZone?: string): Date {
     addCalendarDays(startOfDay(date, timeZone), 1, timeZone),
     timeZone
   );
+}
+
+/**
+ * The instant a task must finish by. A date-only due date is stored as UTC
+ * midnight and means the whole day in the person's zone, so it ends when that
+ * day does; reading it as the instant would cut the due day itself off in any
+ * zone ahead of UTC. A date with a time of day is used as it is.
+ */
+export function effectiveDeadline(deadline: Date, timeZone?: string): Date {
+  const iso = deadline.toISOString();
+  if (!iso.endsWith("T00:00:00.000Z")) return deadline;
+  const day = iso.slice(0, 10);
+  if (!timeZone) return new Date(deadline.getTime() + 24 * 60 * 60_000);
+  return nextDayStart(fromZonedTime(`${day}T00:00:00`, timeZone), timeZone);
 }
 
 /** `date`'s calendar day at wall-clock `time` ("HH:mm") in the zone. */
@@ -561,11 +589,12 @@ function findSlot(
   planningHorizonEnd: Date,
   deepWorkByDay: Map<string, number>,
   strictEnergy: boolean,
-  ignoreEnergyLimits = false
+  ignoreEnergyLimits = false,
+  beforeDeadline = true
 ): { start: Date; end: Date } | null {
   const spacingMinutes = Math.max(prefs.bufferMinutes, prefs.minBreakMinutes);
   const searchEnd =
-    chunk.task.hardDeadline && chunk.task.deadline
+    beforeDeadline && chunk.task.deadline
       ? chunk.task.deadline < planningHorizonEnd
         ? chunk.task.deadline
         : planningHorizonEnd
@@ -635,10 +664,11 @@ function findSlot(
 }
 
 /**
- * Last resort for a hard deadline: relax the energy and deep-work limits, but
- * never the work schedule. A hard deadline does not move a task outside the
- * person's work hours; when nothing fits inside them before the deadline the
- * task stays unplaced and is reported as HARD_DEADLINE_MISSED (at risk).
+ * Last resort before a deadline: relax the energy and deep-work limits, but
+ * never the work schedule. A deadline does not move a task outside the
+ * person's work hours. For a hard deadline, when nothing fits inside them
+ * before it the task stays unplaced and is reported as HARD_DEADLINE_MISSED;
+ * for a due date it is placed after it and reported as at risk.
  */
 function findHardDeadlineOverflowSlot(
   chunk: TaskChunk,
@@ -649,7 +679,7 @@ function findHardDeadlineOverflowSlot(
   planningHorizonEnd: Date,
   deepWorkByDay: Map<string, number>
 ): { start: Date; end: Date } | null {
-  if (!chunk.task.hardDeadline || !chunk.task.deadline) return null;
+  if (!chunk.task.deadline) return null;
   return findSlot(
     chunk,
     occupied,
@@ -700,7 +730,16 @@ export function scheduleTasks(input: {
   //    buffers, breaks, hard-stop time, and daily deep-work limits.
   // 5. Try energy-matched slots first, then gracefully fall back to any valid
   //    work slot so the planner reports capacity instead of silently failing.
-  const assignedTasks = input.tasks.filter((task) => Boolean(task.assigneeId));
+  const assignedTasks = input.tasks
+    .filter((task) => Boolean(task.assigneeId))
+    .map((task) =>
+      task.deadline
+        ? {
+            ...task,
+            deadline: effectiveDeadline(task.deadline, input.prefs.timeZone),
+          }
+        : task
+    );
   const frozenBlocks = assignedTasks
     .filter((task) => task.isFrozen)
     .map(toFrozenBlock)
@@ -721,6 +760,7 @@ export function scheduleTasks(input: {
     })),
   ];
 
+  const atRisk: AtRiskTask[] = [];
   const unscheduled: UnscheduledTask[] = input.tasks
     .filter((task) => !isDone(task) && !task.assigneeId)
     .map((task) => ({
@@ -817,6 +857,7 @@ export function scheduleTasks(input: {
     const deepWorkBeforeTask = new Map(deepWorkByDay);
     let cursor = dependencyReadyAt;
     let failedReason: UnscheduledTask["reason"] | null = null;
+    let placedAfterDeadline = false;
 
     for (const chunk of chunks) {
       const strictSlot = findSlot(
@@ -841,7 +882,7 @@ export function scheduleTasks(input: {
           deepWorkByDay,
           false
         );
-      const slot =
+      const withinDeadline =
         workScheduleSlot ??
         findHardDeadlineOverflowSlot(
           chunk,
@@ -852,6 +893,37 @@ export function scheduleTasks(input: {
           planningHorizonEnd,
           deepWorkByDay
         );
+      // A due date is not a hard stop: with no room before it the task still
+      // gets the earliest slot there is, and is flagged instead of dropped.
+      const afterDeadline =
+        withinDeadline || !task.deadline || task.hardDeadline
+          ? null
+          : (findSlot(
+              chunk,
+              occupied,
+              input.energyProfile,
+              input.prefs,
+              cursor,
+              planningHorizonEnd,
+              deepWorkByDay,
+              false,
+              false,
+              false
+            ) ??
+            findSlot(
+              chunk,
+              occupied,
+              input.energyProfile,
+              input.prefs,
+              cursor,
+              planningHorizonEnd,
+              deepWorkByDay,
+              false,
+              true,
+              false
+            ));
+      const slot = withinDeadline ?? afterDeadline;
+      if (afterDeadline) placedAfterDeadline = true;
 
       if (!slot) {
         if (task.hardDeadline && task.deadline) {
@@ -866,7 +938,8 @@ export function scheduleTasks(input: {
             planningHorizonEnd,
             deepWorkByDay,
             false,
-            true
+            true,
+            false
           );
           failedReason = slotWithoutEnergyLimits
             ? "ENERGY_WINDOW_UNAVAILABLE"
@@ -926,6 +999,14 @@ export function scheduleTasks(input: {
     }
 
     blocks.push(...taskBlocks);
+    if (placedAfterDeadline && task.deadline) {
+      atRisk.push({
+        taskId: task.id,
+        title: task.title,
+        reason: "DEADLINE_AT_RISK",
+        deadline: task.deadline,
+      });
+    }
     const latestEnd = taskBlocks.reduce(
       (latest, block) => (block.end > latest ? block.end : latest),
       taskBlocks[0]?.end ?? dependencyReadyAt
@@ -933,7 +1014,7 @@ export function scheduleTasks(input: {
     placedTaskEnds.set(task.id, latestEnd);
   }
 
-  return { blocks, unscheduled, frozenBlocks };
+  return { blocks, unscheduled, frozenBlocks, atRisk };
 }
 
 export function rescheduleFromNow(input: {
