@@ -28,12 +28,17 @@ const DEV_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 const MAX_BODY_BYTES = 2_048;
 const APP_TARGETS = ["mac", "iphone"] as const;
 const appSchema = z.enum(APP_TARGETS);
+/** Stored when the download form names no app: its own value, so (email, "any")
+ * stays unique without a nullable column. */
+const ANY_APP = "any";
+/** The `source` the needt.app /download/ form sends. */
+const APPS_SOURCE = "apps";
 
 const waitlistSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
   /** Referral code from the landing's `?ref=`; stored as `referredBy`. */
   ref: z.string().trim().max(64).optional(),
-  /** Where the sign-up came from. Accepted for the contract; not stored. */
+  /** Where the sign-up came from. Stored on the app list; `apps` with no `app` means "any". */
   source: z.string().trim().max(64).optional(),
   /** Download form: which app the address wants. Present means AppWaitlist. */
   app: z.unknown().optional(),
@@ -115,7 +120,7 @@ async function addToAppWaitlist(
   request: NextRequest,
   origin: string | null,
   email: string,
-  app: (typeof APP_TARGETS)[number],
+  app: (typeof APP_TARGETS)[number] | typeof ANY_APP,
   source: string | undefined
 ) {
   const limited = await enforceRateLimits(
@@ -128,6 +133,7 @@ async function addToAppWaitlist(
     }
     return limited;
   }
+  let created = true;
   try {
     await prisma.appWaitlist.create({
       data: { email, app, source: source || "download" },
@@ -135,7 +141,9 @@ async function addToAppWaitlist(
     logger.info("App waitlist entry added", { app }, LOG_SOURCE);
   } catch (error) {
     // A repeat of (email, app) is a success with no second row.
-    if (!isUniqueViolationOn(error, "email")) {
+    if (isUniqueViolationOn(error, "email")) {
+      created = false;
+    } else {
       logger.error(
         "Failed to add an app waitlist entry",
         { error: error instanceof Error ? error.message : "Unknown error" },
@@ -144,7 +152,7 @@ async function addToAppWaitlist(
       return json({ error: "unavailable" }, 500, origin);
     }
   }
-  return json({ ok: true }, 200, origin);
+  return json({ ok: true }, created ? 201 : 200, origin);
 }
 
 export async function POST(request: NextRequest) {
@@ -193,6 +201,9 @@ export async function POST(request: NextRequest) {
     return json({ ok: true }, 200, origin);
   }
 
+  if (app === undefined && source === APPS_SOURCE) {
+    return addToAppWaitlist(request, origin, email, ANY_APP, source);
+  }
   if (app !== undefined) {
     const target = appSchema.safeParse(app);
     if (!target.success) return json({ error: "invalid_app" }, 400, origin);
