@@ -1902,10 +1902,12 @@ credentials).
 
 ### `POST /api/waitlist`
 
-Body `{ "email": "...", "app": "mac" | "iphone", "source": "download" }`.
+Body `{ "email": "...", "app"?: "mac" | "iphone", "source"?: "download" | "apps" }`.
+A body with `app`, or with `source: "apps"` and no `app`, goes to `AppWaitlist`
+(a missing `app` is stored as `"any"`).
 
-- `200 { "ok": true }` on success, and again for a repeat of the same
-  `(email, app)`; a repeat adds no second row (table `AppWaitlist`).
+- `201 { "ok": true }` when saved; `200 { "ok": true }` for a repeat of the same
+  `(email, app)`, which adds no second row (table `AppWaitlist`).
 - `400 { "error": "invalid_email" | "invalid_app" | "invalid_request" }`.
 - `429` past 10 requests per minute per IP; `403` for a browser on another origin.
 - Without `app` the old body (`{ email, ref?, source?, company? }`) still adds
