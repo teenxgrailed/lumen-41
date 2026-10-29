@@ -38,6 +38,9 @@ const publicRoutes = [
   "/api/auth/age-confirm",
   // One-click unsubscribe from a mailed link; the signed token is the proof.
   "/api/email/unsubscribe",
+  // The student price's confirm link: opened from a university mailbox, often
+  // on another device; the signed token is the proof.
+  "/api/students/confirm",
   // Onboarding: the screens before the account, and the planner they call.
   "/start",
   "/api/onboarding/plan",

@@ -203,7 +203,14 @@ CREEM_PRODUCT_PRO_MONTHLY=""
 CREEM_PRODUCT_PRO_YEARLY=""
 CREEM_PRODUCT_LIFETIME=""
 CREEM_API_URL=""
+CREEM_STUDENT_DISCOUNT_CODE=""
 ```
+
+- `CREEM_STUDENT_DISCOUNT_CODE` is the code of the one Creem discount behind
+  the student price: 40%, duration "forever", restricted to the Pro monthly
+  and Pro yearly products (never Lifetime). Checkout pre-applies it for a
+  verified student. Unset, nobody gets the student price and Settings does not
+  show it as applying. Set it on web and worker. See `docs/students.md`.
 
 - Create three Creem products matching Needt Pro monthly ($6), Needt Pro yearly
   ($60), and Needt Lifetime ($79), then put their product IDs in the matching

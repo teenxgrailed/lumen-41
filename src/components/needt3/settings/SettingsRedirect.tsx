@@ -7,6 +7,10 @@ import { useRouter } from "next/navigation";
 import { takePostAuthPath } from "@/lib/auth/post-auth-path";
 import { startCheckout } from "@/lib/needt3/hooks/account";
 import { notify } from "@/lib/notifications";
+import {
+  rememberStudentOffer,
+  studentOfferFromSearch,
+} from "@/lib/students/offer";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -51,6 +55,9 @@ export function SettingsRedirect() {
       if (n.tone === "error") notify.error(n.title, opts);
       else notify.success(n.title, opts);
     }
+
+    // needt.app/students: Plan opens with the student price in view.
+    if (studentOfferFromSearch(search)) rememberStudentOffer();
 
     const choice = checkoutFromSearch(search);
     if (choice) {

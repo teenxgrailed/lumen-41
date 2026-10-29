@@ -219,6 +219,32 @@ export async function startCheckout(
 }
 
 /**
+ * "Add a university email" (`POST /api/students/email`): mails a confirm
+ * link to the address, or records it at once when it is the account's own
+ * confirmed address ("verified"). A refusal carries the server's sentence.
+ */
+export async function addStudentEmail(
+  email: string
+): Promise<
+  { ok: true; outcome: "sent" | "verified" } | { ok: false; error: string }
+> {
+  try {
+    const { outcome } = await sendJson<{ outcome: "sent" | "verified" }>(
+      "/api/students/email",
+      "POST",
+      { email }
+    );
+    return { ok: true, outcome };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Could not add that address.",
+    };
+  }
+}
+
+/**
  * Start the free trial (`POST /api/billing/trial`): no card, no payment. The
  * server answers 409 when this address has had one, and the sentence it sends
  * is the one to show.

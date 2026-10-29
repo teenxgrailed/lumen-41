@@ -16,6 +16,7 @@ jest.mock("@/lib/auth/api-auth", () => ({
 jest.mock("@/lib/creem/client", () => ({ getCreemClient: jest.fn() }));
 jest.mock("@/lib/creem/config", () => ({
   getCreemProductId: jest.fn().mockReturnValue("prod_lifetime"),
+  getStudentDiscountCode: jest.fn().mockReturnValue(null),
   isCreemConfigured: jest.fn().mockReturnValue(true),
 }));
 jest.mock("@/lib/creem/lifetime-cap", () => ({

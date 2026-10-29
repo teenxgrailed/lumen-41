@@ -24,6 +24,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { freeIncludes, proIncludes } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
+import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { notify } from "@/lib/notifications";
 
 import { PxSky } from "../../scenes";
@@ -176,8 +177,9 @@ export interface PkPaywallProps {
 }
 
 export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
-  const p = useMemo(() => priceStrings(), []);
   const plan = usePlan().data;
+  const student = showsStudentPrices(plan);
+  const p = useMemo(() => priceStrings(undefined, { student }), [student]);
   const online = useOnline();
   const checkout = useCheckout();
   const qc = useQueryClient();
