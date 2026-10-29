@@ -133,6 +133,9 @@ test.describe("clean-database first run", () => {
          switch only appears where public sign-up is allowed, which a clean
          database is. A new account goes on to first-run setup. */
       await page.getByRole("button", { name: /Create one/ }).click();
+      /* Every sign-up confirms 16+ and the Terms first; without the tick the
+         form does not submit. */
+      await page.getByRole("checkbox", { name: /16 or older/ }).check();
       await page.getByRole("textbox", { name: "Email" }).fill(email);
       await page
         .getByRole("textbox", { name: "Password", exact: true })
@@ -148,10 +151,12 @@ test.describe("clean-database first run", () => {
         select: {
           id: true,
           emailVerified: true,
+          ageConfirmedAt: true,
           autoScheduleSettings: { select: { userId: true } },
         },
       });
       expect(user.emailVerified).toBeNull();
+      expect(user.ageConfirmedAt).not.toBeNull();
       expect(user.autoScheduleSettings?.userId).toBe(user.id);
 
       await expectNoHorizontalOverflow(page);
