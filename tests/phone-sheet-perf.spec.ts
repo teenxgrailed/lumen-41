@@ -20,7 +20,6 @@ type Sample = {
   run: number;
   frames: number;
   slowFrames: number;
-  slowMotion: number;
   worstFrameMs: number;
   longTasks: number;
   longTaskMs: number;
@@ -103,16 +102,6 @@ test("composer sheet rise under a 4x CPU throttle", async ({ browser }) => {
       return {
         frames: p.frames.length,
         slowFrames: p.frames.filter((d) => d > 25).length,
-        // slow frames in the first 700 ms: the rise itself, before the sheet rests
-        slowMotion: (() => {
-          let t = 0;
-          let n = 0;
-          for (const d of p.frames) {
-            t += d;
-            if (t < 700 && d > 25) n++;
-          }
-          return n;
-        })(),
         worstFrameMs: Math.round(Math.max(0, ...p.frames)),
         longTasks: p.longs.length,
         longTaskMs: Math.round(p.longs.reduce((a, b) => a + b, 0)),
@@ -132,7 +121,6 @@ test("composer sheet rise under a 4x CPU throttle", async ({ browser }) => {
     cold: samples[0],
     warmAvg: {
       slowFrames: avg("slowFrames", 1),
-      slowMotion: avg("slowMotion", 1),
       worstFrameMs: avg("worstFrameMs", 1),
       longTasks: avg("longTasks", 1),
       longTaskMs: avg("longTaskMs", 1),
