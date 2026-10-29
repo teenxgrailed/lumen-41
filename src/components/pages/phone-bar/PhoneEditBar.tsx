@@ -72,7 +72,7 @@ function Btn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "needt-page-bar-btn grid h-11 flex-none place-items-center rounded-[var(--control-radius)] text-[var(--text-secondary)] active:bg-[var(--surface-hover)] disabled:opacity-35 aria-pressed:bg-[var(--surface-control)] aria-pressed:text-[var(--text-primary)]",
+        "needt-page-bar-btn grid h-11 flex-none place-items-center rounded-[var(--control-radius)] text-[var(--text-secondary)] active:bg-[var(--fill-5,var(--surface-hover))] disabled:opacity-35 aria-pressed:bg-[var(--fill-6,var(--surface-control))] aria-pressed:text-[var(--text-primary)]",
         wide ? "min-w-[104px] grid-flow-col gap-1 px-2.5" : "min-w-11"
       )}
     >
@@ -356,7 +356,7 @@ export function PhoneEditBar({
                     setPanel(null);
                     onCommand(entry.id);
                   }}
-                  className="min-h-11 rounded-[var(--control-radius)] border border-[var(--border-subtle)] px-2 text-[13px] text-[var(--text-secondary)] active:bg-[var(--surface-hover)] aria-checked:bg-[var(--surface-control)] aria-checked:text-[var(--text-primary)]"
+                  className="min-h-11 rounded-[var(--control-radius)] border border-[var(--border-subtle)] px-2 text-[13px] text-[var(--text-secondary)] active:bg-[var(--fill-5,var(--surface-hover))] aria-checked:bg-[var(--fill-6,var(--surface-control))] aria-checked:text-[var(--text-primary)]"
                 >
                   {entry.label}
                 </button>
@@ -479,7 +479,7 @@ export function PhoneEditBar({
           type="button"
           aria-label="Hide keyboard"
           onClick={() => editor?.commands.blur()}
-          className="needt-page-bar-done grid h-11 w-11 flex-none place-items-center text-[var(--text-primary)] active:bg-[var(--surface-hover)]"
+          className="needt-page-bar-done grid h-11 w-11 flex-none place-items-center text-[var(--text-primary)] active:bg-[var(--fill-5,var(--surface-hover))]"
         >
           <Check className="h-5 w-5" aria-hidden />
         </button>
