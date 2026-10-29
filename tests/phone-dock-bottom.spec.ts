@@ -40,11 +40,20 @@ test("phone page ends above the fog under the dock", async ({ browser }) => {
   const room = await page.evaluate(() => {
     const tail = document.querySelector(".pk-tail");
     const fog = document.querySelector(".pk-fog");
+    // --ps-fog-h is a max() expression: a custom property reads back as the
+    // unresolved token string, so resolve it through a probe's used height.
+    let fogH = -1;
+    if (fog) {
+      const probe = document.createElement("div");
+      probe.style.cssText =
+        "position:absolute;visibility:hidden;width:1px;height:var(--ps-fog-h)";
+      fog.appendChild(probe);
+      fogH = probe.getBoundingClientRect().height;
+      probe.remove();
+    }
     return {
       tail: tail ? tail.getBoundingClientRect().height : -1,
-      fog: fog
-        ? parseFloat(getComputedStyle(fog).getPropertyValue("--ps-fog-h"))
-        : -1,
+      fog: fogH,
     };
   });
   expect(room.fog).toBeGreaterThan(0);
