@@ -1,0 +1,1 @@
+Phone: the last row of a page now always ends above the bottom fog (the page tail follows the fog's height), a tucked-away dock comes back when you move to another place or open a sheet, and the dock steps down and away while a sheet is open instead of showing behind its bar.
