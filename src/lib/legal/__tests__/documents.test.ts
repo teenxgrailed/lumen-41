@@ -150,3 +150,31 @@ describe.skip("DataRep contact is filled (un-skip once DataRep assigns it)", () 
     expect(isUnfilled(LEGAL_PLACEHOLDERS.DATAREP_CONTACT)).toBe(false);
   });
 });
+
+describe("DMCA section of the Terms", () => {
+  const saved = process.env.DMCA_AGENT_REG_NO;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.DMCA_AGENT_REG_NO;
+    else process.env.DMCA_AGENT_REG_NO = saved;
+  });
+
+  it("explains notice and counter-notice and names the legal email", () => {
+    const terms = termsMarkdown();
+    expect(terms).toContain("## 18. Copyright complaints (DMCA)");
+    expect(terms).toContain("counter-notice");
+    expect(terms).toContain("privacy@needt.app");
+    expect(terms).toContain("## 19. Contact");
+  });
+
+  it("prints no registration claim until DMCA_AGENT_REG_NO is set", () => {
+    delete process.env.DMCA_AGENT_REG_NO;
+    expect(termsMarkdown()).not.toContain("registration number");
+    expect(render("terms")).not.toContain("registration number");
+  });
+
+  it("prints the registration number once it is set", () => {
+    process.env.DMCA_AGENT_REG_NO = "DMCA-1234567";
+    expect(termsMarkdown()).toContain("registration number **DMCA-1234567**");
+    expect(render("terms")).toContain("DMCA-1234567");
+  });
+});

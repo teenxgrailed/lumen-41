@@ -1,8 +1,14 @@
 import { renderEmail } from "./layout";
 
+/**
+ * Both trial mails ask the person to choose Pro, so they are commercial: they
+ * carry the one-click unsubscribe link and the postal address, and are sent
+ * with `commercial: true` (see EmailService).
+ */
 export function getTrialEmailTemplate(input: {
   milestone: "day11" | "day14";
   payUrl: string;
+  unsubscribeUrl: string;
 }) {
   if (input.milestone === "day11") {
     return renderEmail({
@@ -14,7 +20,8 @@ export function getTrialEmailTemplate(input: {
         "If you do nothing, your account moves to Free and everything you made stays where it is.",
       ],
       button: { label: "Choose Pro", url: input.payUrl },
-      kind: "notification",
+      kind: "commercial",
+      unsubscribeUrl: input.unsubscribeUrl,
     });
   }
   return renderEmail({
@@ -26,6 +33,7 @@ export function getTrialEmailTemplate(input: {
       "Choose Pro whenever you want the Pro features back.",
     ],
     button: { label: "Choose Pro", url: input.payUrl },
-    kind: "notification",
+    kind: "commercial",
+    unsubscribeUrl: input.unsubscribeUrl,
   });
 }

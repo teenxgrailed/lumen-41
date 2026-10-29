@@ -2,6 +2,7 @@ import {
   OPERATOR_COUNTRY,
   PRIVACY_EMAIL,
   SUPPORT_EMAIL,
+  dmcaAgentRegistrationNumber,
   formatLegalDate,
   operatorName,
 } from "../operator";
@@ -13,6 +14,17 @@ export const CREEM_LINKS = {
   customerHelp: "https://docs.creem.io/for-customers/why-creem-charged-me",
   contact: "https://www.creem.io/contact",
 } as const;
+
+/**
+ * The DMCA paragraph about the designated agent: printed only once the owner
+ * has registered the agent with the US Copyright Office and set
+ * `DMCA_AGENT_REG_NO`. Empty before that, so no claim of registration is made.
+ */
+function dmcaAgentLine(): string {
+  const registration = dmcaAgentRegistrationNumber();
+  if (!registration) return "";
+  return `\nOur designated agent for notices under 17 U.S.C. § 512(c) is registered with the US Copyright Office under registration number **${registration}**. Send notices to the address above.\n`;
+}
 
 /** The Terms of Service, as Markdown. Rendered by `src/app/terms/page.tsx`. */
 export function termsMarkdown(): string {
@@ -215,7 +227,31 @@ We may update these terms. We post the new version here and update the date. If 
 
 ---
 
-## 18. Contact
+## 18. Copyright complaints (DMCA)
+
+We respect the rights of copyright owners. Needt stores and, when you publish a page or share a workspace, displays content that people put in. If you believe content on Needt infringes your copyright, send a notice to **${PRIVACY_EMAIL}** (legal and privacy) with:
+
+- your physical or electronic signature;
+- a description of the copyrighted work you say has been infringed;
+- where the material is on Needt (the link to the page or item), enough for us to find it;
+- your name, postal address, telephone number and email;
+- a statement that you believe in good faith that the use is not authorised by the copyright owner, its agent or the law; and
+- a statement that the information in the notice is accurate and, under penalty of perjury, that you are the owner or authorised to act for the owner.
+${dmcaAgentLine()}
+If we remove or disable content because of a notice, we tell the person who put it there. They can send us a counter-notice at the same address with:
+
+- their physical or electronic signature;
+- the material that was removed and where it appeared before removal;
+- a statement, under penalty of perjury, that they believe in good faith that it was removed by mistake or misidentification;
+- their name, postal address and telephone number, and a statement that they consent to the jurisdiction of the federal court for the district of that address (or, outside the United States, any district where we may be found) and will accept service from the person who sent the notice.
+
+We pass a counter-notice to the sender of the notice. Unless they tell us within 10 business days that they have started a court action, we may restore the content 10 to 14 business days after we receive the counter-notice.
+
+Sending a notice or counter-notice you know to be false can make you liable for damages. We close the accounts of people who repeatedly infringe copyright.
+
+---
+
+## 19. Contact
 
 - Support: **${SUPPORT_EMAIL}**
 - Legal and privacy: **${PRIVACY_EMAIL}**

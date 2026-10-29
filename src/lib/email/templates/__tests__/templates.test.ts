@@ -30,10 +30,62 @@ describe("email templates", () => {
   });
 
   it("marks the missing legal address loudly until the owner sets it", () => {
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
     delete process.env.EMAIL_FOOTER_ADDRESS;
     expect(sampleEmails().welcome.text).toContain("[OWNER:");
-    process.env.EMAIL_FOOTER_ADDRESS = "Needt Ltd, 1 Street";
+    process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     expect(sampleEmails().welcome.text).toContain("Needt Ltd, 1 Street");
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
+    process.env.EMAIL_FOOTER_ADDRESS = "Legacy Ltd, 2 Street";
+    expect(sampleEmails().welcome.text).toContain("Legacy Ltd, 2 Street");
     delete process.env.EMAIL_FOOTER_ADDRESS;
+  });
+
+  const COMMERCIAL = ["trial-ending", "trial-ended"] as const;
+  const WITH_UNSUBSCRIBE = [...COMMERCIAL, "daily-digest"] as const;
+
+  it.each(WITH_UNSUBSCRIBE)(
+    "%s carries a one-click unsubscribe link",
+    (name) => {
+      const mail = sampleEmails()[name];
+      expect(mail.text).toContain(
+        "Unsubscribe: https://use.needt.app/api/email/unsubscribe"
+      );
+      expect(mail.html).toContain(">Unsubscribe</a>");
+    }
+  );
+
+  it.each(COMMERCIAL)("%s also carries the postal address", (name) => {
+    process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
+    const mail = sampleEmails()[name];
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
+    expect(mail.text).toContain("Needt Ltd, 1 Street");
+    expect(mail.html).toContain("Needt Ltd, 1 Street");
+  });
+
+  it("transactional mail has no unsubscribe footer", () => {
+    const all = sampleEmails();
+    for (const name of [
+      "verify-email",
+      "password-reset",
+      "welcome",
+      "reminder",
+      "booking-confirmed",
+      "account-export",
+    ] as const) {
+      expect(all[name].text).not.toMatch(/unsubscribe/i);
+    }
+  });
+
+  it("refuses to render a commercial mail without an unsubscribe link", () => {
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+      })
+    ).toThrow("unsubscribe");
   });
 });

@@ -33,6 +33,7 @@ import {
 
 import { useOnline } from "@/lib/needt3/use-online";
 
+import { AgeConfirm, useAgeState } from "../../auth/AgeConfirm";
 import type { AuthScreenProps } from "../../auth/AuthScreen";
 import {
   MIN_PASSWORD,
@@ -91,8 +92,11 @@ export function PhoneAuth({
   seed,
   fields,
   steps,
+  age: ageProp,
 }: PhoneAuthProps) {
   const signup = mode !== "login";
+  const age = useAgeState(ageProp);
+  const [ageMissing, setAgeMissing] = React.useState(false);
   const online = useOnline();
   const offline = !online;
   const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
@@ -160,10 +164,18 @@ export function PhoneAuth({
     });
   }
 
+  /** A new account needs the 16+ / Terms box ticked; sign-in does not. */
+  function ageOk() {
+    if (!signup || age.checked) return true;
+    setAgeMissing(true);
+    return false;
+  }
+
   function submit() {
     if (busy || offline) return;
     setTouched(true);
     if (!formReady({ mail, pass })) return;
+    if (!ageOk()) return;
     void run(send);
   }
 
@@ -394,6 +406,15 @@ export function PhoneAuth({
                 {notice}
               </MaNote>
             ) : null}
+            {signup ? (
+              <AgeConfirm
+                age={age}
+                missing={ageMissing}
+                termsHref={termsHref}
+                privacyHref={privacyHref}
+                className="auth-age mau-age"
+              />
+            ) : null}
             {/* The ways in that need no typing come first: on a phone a
                 password is the most expensive thing on the screen. */}
             {providers.length ? (
@@ -409,7 +430,9 @@ export function PhoneAuth({
                     <MaButton
                       key={p.id}
                       data-provider={p.id}
-                      onClick={() => onProvider?.(p.id)}
+                      onClick={() => {
+                        if (ageOk()) onProvider?.(p.id);
+                      }}
                       disabled={offline || providerBusy !== null}
                     >
                       <p.icon size={17} aria-hidden />
@@ -547,17 +570,19 @@ export function PhoneAuth({
             .
           </p>
         ) : null}
-        <p className="mau-resend" data-px-calm>
-          By continuing you agree to Needt&apos;s{" "}
-          <a className="mau-link" href={termsHref}>
-            Terms
-          </a>{" "}
-          and{" "}
-          <a className="mau-link" href={privacyHref}>
-            Privacy Policy
-          </a>
-          .
-        </p>
+        {signup ? null : (
+          <p className="mau-resend" data-px-calm>
+            By continuing you agree to Needt&apos;s{" "}
+            <a className="mau-link" href={termsHref}>
+              Terms
+            </a>{" "}
+            and{" "}
+            <a className="mau-link" href={privacyHref}>
+              Privacy Policy
+            </a>
+            .
+          </p>
+        )}
       </div>
     </MaScene>
   );

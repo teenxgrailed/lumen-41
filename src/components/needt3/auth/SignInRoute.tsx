@@ -10,6 +10,7 @@ import { type ClientSafeProvider, getProviders, signIn } from "next-auth/react";
 
 import type { IconType } from "react-icons";
 
+import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { oauthErrorMessage } from "@/lib/auth/oauth-error";
 import {
@@ -72,6 +73,16 @@ export function configuredSignInProviders(
   }));
 }
 
+/** Leaves the signed cookie a first OAuth sign-in needs (api/auth/age-confirm). */
+async function confirmAge(): Promise<void> {
+  const response = await fetch("/api/auth/age-confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmed: true }),
+  });
+  if (!response.ok) throw new Error("Could not record the confirmation");
+}
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function V3SignInRoute({
@@ -97,7 +108,16 @@ export function V3SignInRoute({
      same server pick and width listener the frame does. */
   const ui = useResolvedPhoneUi(initialUi, uiForced);
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
-  const [mode, setMode] = React.useState<AuthMode>("login");
+  /* An OAuth return that would have made an account without the 16+ / Terms
+     box lands here in sign-up, where the box is. */
+  const [mode, setMode] = React.useState<AuthMode>(
+    error === "AgeConfirmRequired" ? "signup" : "login"
+  );
+  const [ageChecked, setAgeChecked] = React.useState(false);
+  const age = React.useMemo(
+    () => ({ checked: ageChecked, setChecked: setAgeChecked }),
+    [ageChecked]
+  );
   /* The two fields live here, above the face switch: crossing 700px keeps what
      was typed. */
   const [mail, setMail] = React.useState("");
@@ -190,6 +210,9 @@ export function V3SignInRoute({
         : safeCallbackUrl;
 
       if (input.mode === "signup") {
+        if (!ageChecked) {
+          return { ok: false, message: AGE_CONFIRM_REQUIRED_MESSAGE };
+        }
         try {
           const response = await fetch("/api/auth/register", {
             method: "POST",
@@ -197,6 +220,7 @@ export function V3SignInRoute({
             body: JSON.stringify({
               email,
               password: input.password,
+              ageConfirmed: true,
               ...browserLocale(),
             }),
           });
@@ -247,7 +271,7 @@ export function V3SignInRoute({
       leave();
       return { ok: true };
     },
-    [safeCallbackUrl, leave]
+    [safeCallbackUrl, leave, ageChecked]
   );
 
   const recover = React.useCallback(async (email: string) => {
@@ -302,17 +326,24 @@ export function V3SignInRoute({
   const startProvider = React.useCallback(
     (id: string) => {
       setProviderBusy(id);
-      void signIn(id, { callbackUrl: safeCallbackUrl }).catch((e: unknown) => {
-        void logger.error(
-          "OAuth sign in failed",
-          { provider: id, error: message(e) },
-          LOG_SOURCE
-        );
-        notify.error("Could not continue with that account");
-        setProviderBusy(null);
-      });
+      /* Ticked: leave the signed cookie that lets a first OAuth sign-in create
+         the account. Not ticked (a returning person): the server decides. */
+      const confirmed = ageChecked
+        ? confirmAge().catch(() => undefined)
+        : Promise.resolve();
+      void confirmed
+        .then(() => signIn(id, { callbackUrl: safeCallbackUrl }))
+        .catch((e: unknown) => {
+          void logger.error(
+            "OAuth sign in failed",
+            { provider: id, error: message(e) },
+            LOG_SOURCE
+          );
+          notify.error("Could not continue with that account");
+          setProviderBusy(null);
+        });
     },
-    [safeCallbackUrl]
+    [safeCallbackUrl, ageChecked]
   );
 
   /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to
@@ -352,6 +383,7 @@ export function V3SignInRoute({
         onSubmit={submit}
         onRecover={recover}
         providers={configured}
+        age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}
         notice={oauthErrorMessage(error) || null}

@@ -39,11 +39,14 @@ jest.mock("@/lib/auth/unproven-password", () => ({
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
 jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
 
-function registrationRequest(body: unknown) {
+function registrationRequest(
+  body: Record<string, unknown>,
+  { ageConfirmed = true }: { ageConfirmed?: boolean } = {}
+) {
   return new NextRequest("http://localhost/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(ageConfirmed ? { ageConfirmed: true, ...body } : body),
   });
 }
 
@@ -67,6 +70,29 @@ describe("public registration", () => {
       error: "Registration is closed — join the waitlist at needt.app",
       code: "SIGNUPS_CLOSED",
     });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses to create an account without the 16+ confirmation", async () => {
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+    const body = { email: "user@example.com", password: "secure-password" };
+
+    for (const extra of [
+      {},
+      { ageConfirmed: false },
+      { ageConfirmed: "true" },
+    ]) {
+      const response = await POST(
+        new NextRequest("http://localhost/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...body, ...extra }),
+        })
+      );
+      expect(response.status).toBe(400);
+      const json = (await response.json()) as { error: string };
+      expect(json.error).toMatch(/16 or older/);
+    }
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 

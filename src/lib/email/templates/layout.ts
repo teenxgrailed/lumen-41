@@ -1,4 +1,5 @@
 import { APP_NAME } from "@/lib/app-config";
+import { operatorPostalAddress } from "@/lib/legal/operator";
 
 /**
  * The one layout every Needt email wears: wordmark, one card, 16 px body, at
@@ -22,14 +23,15 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-//todo OWNER: legal entity name and postal address for the email footer. Not
-// invented here; set EMAIL_FOOTER_ADDRESS (one line) once it is decided. The
-// placeholder is deliberately loud so it cannot ship unnoticed.
+//todo OWNER: postal address for the email footer. Not invented here; set
+// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). The
+// placeholder is deliberately loud so it cannot ship unnoticed, and commercial
+// mail is not sent at all while the address is unset (email-service.ts).
 export const FOOTER_ADDRESS_PLACEHOLDER =
   "[OWNER: legal entity name and postal address]";
 
 export function footerAddress(): string {
-  return process.env.EMAIL_FOOTER_ADDRESS?.trim() || FOOTER_ADDRESS_PLACEHOLDER;
+  return operatorPostalAddress() ?? FOOTER_ADDRESS_PLACEHOLDER;
 }
 
 export type EmailContent = {
@@ -45,12 +47,22 @@ export type EmailContent = {
   /** Small print under the button (expiry, "not you?"). */
   note?: string;
   /**
-   * "security" mails (verify, reset) are never optional. "notification" mails
-   * say where to switch them off.
+   * "security" mails (verify, reset, receipts, the data export) are
+   * transactional and never optional. "notification" mails are the ones the
+   * person chose (reminders, the daily digest) and say where to switch them
+   * off. "commercial" mails (trial reminders, anything that sells Pro) always
+   * carry `unsubscribeUrl` and the postal address, and are sent only through
+   * EmailService with `commercial: true`.
    */
-  kind?: "security" | "notification";
+  kind?: "security" | "notification" | "commercial";
   /** Where notification settings live, for kind "notification". */
   settingsUrl?: string;
+  /**
+   * One-click unsubscribe link (src/lib/email/unsubscribe.ts). Required for
+   * "commercial"; also shown on a "notification" mail that has a category of
+   * its own, such as the daily digest.
+   */
+  unsubscribeUrl?: string;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -65,12 +77,23 @@ const FONT =
 
 export function renderEmail(content: EmailContent): RenderedEmail {
   const address = footerAddress();
-  const footerLine =
-    content.kind === "notification"
-      ? content.settingsUrl
-        ? `You get this because of your ${APP_NAME} notification settings. Change them here: ${content.settingsUrl}`
-        : `You get this because of your ${APP_NAME} notification settings. You can change them in Settings.`
-      : `You get this because of activity on your ${APP_NAME} account.`;
+  if (content.kind === "commercial" && !content.unsubscribeUrl) {
+    throw new Error("A commercial email needs an unsubscribe link");
+  }
+  const baseLine =
+    content.kind === "commercial"
+      ? `You get this because you have a ${APP_NAME} account.`
+      : content.kind === "notification"
+        ? content.settingsUrl
+          ? `You get this because of your ${APP_NAME} notification settings. Change them here: ${content.settingsUrl}`
+          : `You get this because of your ${APP_NAME} notification settings. You can change them in Settings.`
+        : `You get this because of activity on your ${APP_NAME} account.`;
+  const footerLine = content.unsubscribeUrl
+    ? `${baseLine} Unsubscribe: ${content.unsubscribeUrl}`
+    : baseLine;
+  const footerHtml = content.unsubscribeUrl
+    ? `${escapeHtml(baseLine)} <a href="${escapeHtml(content.unsubscribeUrl)}" class="muted" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a>`
+    : escapeHtml(footerLine);
 
   const paragraphs = content.paragraphs
     .map(
@@ -122,7 +145,7 @@ export function renderEmail(content: EmailContent): RenderedEmail {
 <h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:${INK};">${escapeHtml(content.heading)}</h1>
 ${paragraphs}${button}${note}
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(footerLine)}<br>${escapeHtml(APP_NAME)} &middot; ${escapeHtml(address)}</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${footerHtml}<br>${escapeHtml(APP_NAME)} &middot; ${escapeHtml(address)}</td></tr>
 </table>
 </td></tr>
 </table>

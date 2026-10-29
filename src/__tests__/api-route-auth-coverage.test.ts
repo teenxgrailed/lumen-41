@@ -41,6 +41,10 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "PWA share_target fallback: redirects to /share with the text and link, saves nothing",
   "auth/[...nextauth]/route.ts": "NextAuth handler, rate limited",
   "auth/register/route.ts": "signup, rate limited",
+  "auth/age-confirm/route.ts":
+    "sets a signed 30-minute cookie recording the 16+ and Terms tick; needs no account, rate limited",
+  "email/unsubscribe/route.ts":
+    "one-click unsubscribe: the signed token in the link is the proof, can only switch mail off, rate limited",
   "auth/desktop/exchange/route.ts":
     "desktop sign-in handoff: single-use 60 s code bound to a PKCE verifier, same-origin JSON with a header, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",

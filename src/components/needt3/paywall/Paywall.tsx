@@ -490,6 +490,11 @@ export function Paywall({
                 {cta.blocked ?? cta.sub}
               </span>
             )}
+            {cta.terms && cta.blocked === null ? (
+              <span className="pw-go-sub" data-pw-terms>
+                {cta.terms}
+              </span>
+            ) : null}
           </div>
           <div className="pw-paywall-text-2">
             <GlassCard pad={20} radius={24} className="pw-feats-card">

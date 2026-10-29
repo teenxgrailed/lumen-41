@@ -3,10 +3,15 @@ import { SubscriptionPlan } from "@prisma/client";
 import { addCalendarDays, addMinutes, newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import { getTrialEmailTemplate } from "@/lib/email/templates/trial";
+import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
+import { operatorPostalAddress } from "@/lib/legal/operator";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 type Milestone = "day11" | "day14";
+
+const LOG_SOURCE = "TrialLifecycle";
 
 const CLAIM_TTL_MINUTES = 15;
 
@@ -42,8 +47,11 @@ async function processMilestone(milestone: Milestone, now: Date) {
       include: {
         user: {
           select: {
+            id: true,
             email: true,
             emailVerified: true,
+            commercialEmailsOptOutAt: true,
+            notificationSettings: { select: { emailNotifications: true } },
             subscription: {
               select: { plan: true, status: true, currentPeriodEnd: true },
             },
@@ -51,12 +59,19 @@ async function processMilestone(milestone: Milestone, now: Date) {
         },
       },
       take: 100,
-      orderBy:
-        milestone === "day11" ? { startedAt: "asc" } : { endsAt: "asc" },
+      orderBy: milestone === "day11" ? { startedAt: "asc" } : { endsAt: "asc" },
     });
 
     for (const grant of grants) {
-      if (!grant.user?.email || !grant.user.emailVerified) {
+      /* The trial mails sell Pro, so they follow the person's choices: the
+         one-click unsubscribe, and the email switch in Settings, Notifications
+         (a missing settings row is the default, on). */
+      if (
+        !grant.user?.email ||
+        !grant.user.emailVerified ||
+        grant.user.commercialEmailsOptOutAt ||
+        grant.user.notificationSettings?.emailNotifications === false
+      ) {
         await prisma.trialGrant.update({
           where: { id: grant.id },
           data: { [sentField]: now },
@@ -86,13 +101,17 @@ async function processMilestone(milestone: Milestone, now: Date) {
       });
       if (claim.count !== 1) continue;
 
+      const unsubscribe = unsubscribeUrl(grant.user.id, "product");
       const template = getTrialEmailTemplate({
         milestone,
         payUrl: payUrl(),
+        unsubscribeUrl: unsubscribe,
       });
       await EmailService.sendEmail({
         to: grant.user.email,
         ...template,
+        commercial: true,
+        unsubscribeUrl: unsubscribe,
       });
       await prisma.trialGrant.update({
         where: { id: grant.id },
@@ -107,6 +126,16 @@ async function processMilestone(milestone: Milestone, now: Date) {
 }
 
 export async function processTrialLifecycle(now = newDate()) {
+  /* Commercial mail carries the operator's postal address. Until it is set
+     nothing is claimed or marked sent, so the mails go out once it is. */
+  if (!operatorPostalAddress()) {
+    logger.warn(
+      "Trial emails paused: OPERATOR_POSTAL_ADDRESS is not set",
+      {},
+      LOG_SOURCE
+    );
+    return { day11: 0, day14: 0 };
+  }
   const day14 = await processMilestone("day14", now);
   const day11 = await processMilestone("day11", now);
   return { day11, day14 };

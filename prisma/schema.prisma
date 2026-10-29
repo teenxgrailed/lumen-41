@@ -105,6 +105,13 @@ model User {
   // a directory reviewer now, a public demo later. Null for every real person.
   // A sandbox account is locked down (src/lib/sandbox) and wiped nightly.
   sandboxKind            SandboxKind?
+  // When the person confirmed at sign-up that they are 16 or older and accept
+  // the Terms and Privacy Policy (audit record). Null for accounts made before
+  // the confirmation existed, and for app-provisioned sandbox accounts.
+  ageConfirmedAt         DateTime?
+  // Set by the one-click unsubscribe link in a commercial email (trial nudges):
+  // no further commercial mail goes to this account. Null means still allowed.
+  commercialEmailsOptOutAt DateTime?
   dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]

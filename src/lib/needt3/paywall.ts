@@ -46,6 +46,12 @@ export interface PaywallCta {
   /** Why the button is off, shown in place of `sub`; null when it works. */
   blocked: string | null;
   /**
+   * The renewal terms under a subscribe button (price, period, automatic
+   * renewal until cancelled, where to cancel; Lifetime: one payment). Null on
+   * the free trial, which has no card and no charge.
+   */
+  terms: string | null;
+  /**
    * What the button does: `trial` starts the free trial (no card, no
    * payment), `checkout` goes to the payment provider.
    */
@@ -83,15 +89,18 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
       ? {
           label: `Get Lifetime · ${PRICE.lifetime}`,
           sub: "One payment · Pro for good",
+          terms: PRICE.renewalLifetime,
         }
       : pick === "monthly"
         ? {
             label: `Choose Pro · ${PRICE.monthly} / month`,
             sub: kind === "trial" ? TRIAL_AFTER : paidSub,
+            terms: PRICE.renewalMonthly,
           }
         : {
             label: `Choose Pro · ${PRICE.yearly} / year`,
             sub: kind === "trial" ? TRIAL_AFTER : paidSub,
+            terms: PRICE.renewalYearly,
           };
 
   if (kind === "lifetime") {
@@ -115,6 +124,7 @@ export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
     return {
       label: PRICE.trialCta,
       sub: PRICE.trialShort,
+      terms: null,
       blocked: null,
       action: "trial",
     };

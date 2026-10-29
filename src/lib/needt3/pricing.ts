@@ -29,8 +29,24 @@ export interface PriceStrings {
   plansShort: string;
   /** Under a paid plan's button when no trial applies: checkout takes a card. */
   paidShort: string;
+  /**
+   * Under every Pro subscribe button: price, period, that it renews until
+   * cancelled, and where to cancel. Lifetime says it is one payment.
+   */
+  renewalMonthly: string;
+  renewalYearly: string;
+  renewalLifetime: string;
+  /** The same in one line for a screen that shows all three plans at once. */
+  renewalAll: string;
   footnote: string;
 }
+
+/**
+ * Where a subscriber cancels: Settings opens on "Plan & billing", and
+ * "Invoices and payment" there opens the Creem billing portal
+ * (`POST /api/billing/portal`). It is the same path on desktop and phone.
+ */
+export const CANCEL_PATH = "Settings → Plan & billing → Invoices and payment";
 
 /** The slice of NEEDT_PRICING the strings need; a test can pass its own. */
 export interface PricingInput {
@@ -62,6 +78,10 @@ export function priceStrings(P: PricingInput = NEEDT_PRICING): PriceStrings {
       "When the trial ends you go back to Free unless you choose a plan — we’ll remind you 3 days before. No card, no automatic charge.",
     plansShort: `Pro from ${money(year / 12)}/mo`,
     paidShort: "Paid by card at checkout",
+    renewalMonthly: `${money(month)} per month, charged at checkout. Renews automatically every month until you cancel. Cancel any time in ${CANCEL_PATH}.`,
+    renewalYearly: `${money(year)} per year, charged at checkout. Renews automatically every year until you cancel. Cancel any time in ${CANCEL_PATH}.`,
+    renewalLifetime: `${money(P.lifetime.amountCents)} one-time payment. No subscription and no renewal.`,
+    renewalAll: `Pro renews automatically every month or year until you cancel; cancel any time in ${CANCEL_PATH}. Lifetime is one payment with no renewal.`,
     footnote: `Prices in ${P.currency}. Taxes may apply.`,
   };
 }

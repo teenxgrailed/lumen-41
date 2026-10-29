@@ -121,15 +121,26 @@ export async function publicSignupOpen(): Promise<boolean> {
 export async function registerEmail(
   email: string,
   password: string,
-  name: string
+  name: string,
+  ageConfirmed: boolean
 ) {
   // The account starts in the browser's zone, week and clock, not UTC.
   const res = await post("/api/auth/register", {
     email,
     password,
+    ageConfirmed,
     ...(name ? { name } : {}),
     ...browserLocale(),
   });
+  await json(res);
+}
+
+/**
+ * Leaves the signed cookie that lets a first OAuth sign-in create an account
+ * (api/auth/age-confirm). Call it only after the box is ticked.
+ */
+export async function confirmAge() {
+  const res = await post("/api/auth/age-confirm", { confirmed: true });
   await json(res);
 }
 

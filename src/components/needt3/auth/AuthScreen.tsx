@@ -36,6 +36,7 @@ import {
   PxSky,
 } from "../scenes";
 import { NeedtLockup } from "../wordmark";
+import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
 import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
@@ -102,6 +103,8 @@ export interface AuthScreenProps {
   signupClosed?: boolean;
   /** One quiet line under the password (resend confirmation). */
   aside?: React.ReactNode;
+  /** The 16+ / Terms box of sign-up; the host owns it so a face swap keeps it. */
+  age?: AgeState;
   /** Where Terms and Privacy go. */
   termsHref?: string;
   privacyHref?: string;
@@ -325,8 +328,11 @@ export function AuthScreen({
   seed,
   fields,
   steps,
+  age: ageProp,
 }: AuthScreenProps) {
   const signup = mode !== "login";
+  const age = useAgeState(ageProp);
+  const [ageMissing, setAgeMissing] = React.useState(false);
   const online = useOnline();
   const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
   const [show, setShow] = React.useState(false);
@@ -397,6 +403,13 @@ export function AuthScreen({
     });
   }
 
+  /** A new account needs the 16+ / Terms box ticked; sign-in does not. */
+  function ageOk() {
+    if (!signup || age.checked) return true;
+    setAgeMissing(true);
+    return false;
+  }
+
   function submit() {
     if (busy || offline) return;
     setTouched(true);
@@ -407,6 +420,7 @@ export function AuthScreen({
       return;
     }
     if (step === "ask-password") return;
+    if (!ageOk()) return;
     void run(send);
   }
 
@@ -656,6 +670,15 @@ export function AuthScreen({
         </p>
       ) : null}
 
+      {signup ? (
+        <AgeConfirm
+          age={age}
+          missing={ageMissing}
+          termsHref={termsHref}
+          privacyHref={privacyHref}
+        />
+      ) : null}
+
       {providers.length ? (
         <>
           <div className="auth-stack-8">
@@ -665,7 +688,9 @@ export function AuthScreen({
                 type="button"
                 data-provider={p.id}
                 disabled={offline || providerBusy !== null}
-                onClick={() => onProvider?.(p.id)}
+                onClick={() => {
+                  if (ageOk()) onProvider?.(p.id);
+                }}
                 className="ax-btn ax-raised auth-oauth"
               >
                 <span className="auth-raised-row">
@@ -793,17 +818,19 @@ export function AuthScreen({
           .
         </p>
       ) : null}
-      <p className="axs-note" data-px-calm>
-        By continuing you agree to Needt&apos;s{" "}
-        <a className="ax-link" href={termsHref}>
-          Terms
-        </a>{" "}
-        and{" "}
-        <a className="ax-link" href={privacyHref}>
-          Privacy Policy
-        </a>
-        .
-      </p>
+      {signup ? null : (
+        <p className="axs-note" data-px-calm>
+          By continuing you agree to Needt&apos;s{" "}
+          <a className="ax-link" href={termsHref}>
+            Terms
+          </a>{" "}
+          and{" "}
+          <a className="ax-link" href={privacyHref}>
+            Privacy Policy
+          </a>
+          .
+        </p>
+      )}
     </>
   );
 }

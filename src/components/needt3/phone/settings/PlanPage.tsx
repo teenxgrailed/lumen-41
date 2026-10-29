@@ -175,7 +175,7 @@ export function PlanPage() {
         ) : null}
       </section>
       {kind === "free" ? (
-        <PsGroup title="Plans" hint={P.footnote}>
+        <PsGroup title="Plans" hint={`${P.renewalAll} ${P.footnote}`}>
           <PsRow
             title="Pro Monthly"
             desc="Cancel any time"

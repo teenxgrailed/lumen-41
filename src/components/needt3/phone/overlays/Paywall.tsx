@@ -457,6 +457,11 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
             <span className="pw-go-sub" data-pw-cta-sub="">
               {cta.blocked ?? cta.sub}
             </span>
+            {cta.terms && cta.blocked === null ? (
+              <span className="pw-go-sub" data-pw-terms="">
+                {cta.terms}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

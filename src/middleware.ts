@@ -35,6 +35,9 @@ const publicRoutes = [
   "/auth/reset-password",
   "/auth/error",
   "/api/auth/register",
+  "/api/auth/age-confirm",
+  // One-click unsubscribe from a mailed link; the signed token is the proof.
+  "/api/email/unsubscribe",
   // Onboarding: the screens before the account, and the planner they call.
   "/start",
   "/api/onboarding/plan",

@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 
-import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
+
+import * as Sentry from "@sentry/nextjs";
 import { FiCloudOff, FiRefreshCw } from "react-icons/fi";
 
 import { logger } from "@/lib/logger";

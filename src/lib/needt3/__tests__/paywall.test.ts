@@ -64,6 +64,33 @@ describe("paywall call to action", () => {
     expect(cta.blocked).toBeNull();
   });
 
+  it("puts the renewal terms under every subscribe button", () => {
+    const monthly = paywallCta("monthly", { kind: "free", ...open });
+    expect(monthly.terms).toContain("$7 per month");
+    expect(monthly.terms).toContain("Renews automatically every month");
+    expect(monthly.terms).toContain("until you cancel");
+    expect(monthly.terms).toContain(
+      "Settings → Plan & billing → Invoices and payment"
+    );
+    const yearly = paywallCta("annual", { kind: "free", ...open });
+    expect(yearly.terms).toContain("$59 per year");
+    expect(yearly.terms).toContain("Renews automatically every year");
+    const lifetime = paywallCta("lifetime", { kind: "free", ...open });
+    expect(lifetime.terms).toBe(
+      "$149 one-time payment. No subscription and no renewal."
+    );
+  });
+
+  it("shows no renewal terms on the free trial, which has no card and no charge", () => {
+    const cta = paywallCta("annual", {
+      kind: "free",
+      trialEligible: true,
+      ...open,
+    });
+    expect(cta.action).toBe("trial");
+    expect(cta.terms).toBeNull();
+  });
+
   it("offers the trial only to a free account the server says can start one", () => {
     expect(offersTrial({ kind: "free", trialEligible: true })).toBe(true);
     expect(offersTrial({ kind: "free", trialEligible: false })).toBe(false);

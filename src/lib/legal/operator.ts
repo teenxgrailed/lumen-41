@@ -29,7 +29,7 @@ export const SUPPORT_EMAIL = "support@needt.app";
  * Effective date of the Privacy Notice, the Terms and the subprocessor list,
  * as YYYY-MM-DD. Set it to the day the publishing change is merged.
  */
-export const LEGAL_EFFECTIVE_DATE = "2026-10-13";
+export const LEGAL_EFFECTIVE_DATE = "2026-10-29";
 
 const PLACEHOLDER = /^\{\{[A-Z_]+\}\}$/;
 
@@ -47,6 +47,31 @@ export function operatorName(): string {
   return isUnfilled(OPERATOR_FULL_NAME)
     ? OPERATOR_SHORT_NAME
     : OPERATOR_FULL_NAME;
+}
+
+/**
+ * The operator's postal address, one line, from `OPERATOR_POSTAL_ADDRESS`
+ * (the owner sets it; it is never invented here). Commercial email carries it
+ * (CAN-SPAM and similar rules ask for a postal address), and while it is unset
+ * no commercial email is sent (src/lib/email/email-service.ts). The older
+ * `EMAIL_FOOTER_ADDRESS` still works as a fallback.
+ */
+export function operatorPostalAddress(): string | null {
+  const value =
+    process.env.OPERATOR_POSTAL_ADDRESS?.trim() ||
+    process.env.EMAIL_FOOTER_ADDRESS?.trim() ||
+    "";
+  return value && !isUnfilled(value) ? value : null;
+}
+
+/**
+ * The US Copyright Office registration number of the designated DMCA agent
+ * (`DMCA_AGENT_REG_NO`, e.g. "DMCA-1234567"), or null until the owner has
+ * registered. The Terms print their DMCA agent line only when it is set.
+ */
+export function dmcaAgentRegistrationNumber(): string | null {
+  const value = process.env.DMCA_AGENT_REG_NO?.trim() ?? "";
+  return value && !isUnfilled(value) ? value : null;
 }
 
 /** The DataRep contact, or null while the agreement is not yet signed. */

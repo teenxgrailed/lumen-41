@@ -114,6 +114,61 @@ Needt - [OWNER: legal entity name and postal address]",
 }
 `;
 
+exports[`email templates daily-digest matches its snapshot 1`] = `
+{
+  "html": "<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>3 things need you</title>
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark;}
+@media (prefers-color-scheme:dark){
+.paper{background-color:#12110f !important;}
+.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
+.ink,.mark{color:#f1ede6 !important;}
+.muted{color:#a29d93 !important;}
+.btn{background-color:#f1ede6 !important;}
+.btn-a{color:#1b1a17 !important;}
+}
+@media only screen and (max-width:620px){
+.wrap{width:100% !important;}
+.pad{padding:24px 20px !important;}
+}
+</style>
+</head>
+<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">A mention, a shared page and a sync problem are waiting.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
+<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">3 things need you</h1>
+<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">A mention, a shared page and a sync problem are waiting.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/today" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open in Needt</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/today" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/today</a></p>
+</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>",
+  "subject": "3 things need you",
+  "text": "3 things need you
+
+A mention, a shared page and a sync problem are waiting.
+
+Open in Needt: https://use.needt.app/today
+
+--
+You get this because of your Needt notification settings. You can change them in Settings. Unsubscribe: https://use.needt.app/api/email/unsubscribe?t=SAMPLE
+Needt - [OWNER: legal entity name and postal address]",
+}
+`;
+
 exports[`email templates password-reset matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
@@ -264,7 +319,7 @@ exports[`email templates trial-ended matches its snapshot 1`] = `
 <h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial has ended</h1>
 <p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt account is now on Free. Your data is still here.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Choose Pro whenever you want the Pro features back.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/pricing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/pricing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/pricing</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings.<br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
 </table>
 </td></tr>
 </table>
@@ -280,7 +335,7 @@ Choose Pro whenever you want the Pro features back.
 Choose Pro: https://use.needt.app/pricing
 
 --
-You get this because of your Needt notification settings. You can change them in Settings.
+You get this because you have a Needt account. Unsubscribe: https://use.needt.app/api/email/unsubscribe?t=SAMPLE
 Needt - [OWNER: legal entity name and postal address]",
 }
 `;
@@ -321,7 +376,7 @@ exports[`email templates trial-ending matches its snapshot 1`] = `
 <h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial ends in 3 days</h1>
 <p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features after that.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">If you do nothing, your account moves to Free and everything you made stays where it is.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/pricing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/pricing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/pricing</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings.<br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
 </table>
 </td></tr>
 </table>
@@ -337,7 +392,7 @@ If you do nothing, your account moves to Free and everything you made stays wher
 Choose Pro: https://use.needt.app/pricing
 
 --
-You get this because of your Needt notification settings. You can change them in Settings.
+You get this because you have a Needt account. Unsubscribe: https://use.needt.app/api/email/unsubscribe?t=SAMPLE
 Needt - [OWNER: legal entity name and postal address]",
 }
 `;
