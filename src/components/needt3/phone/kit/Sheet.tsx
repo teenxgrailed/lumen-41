@@ -194,10 +194,10 @@ export function PkSheet({
 
   /** The screen's blur bands rest while the sheet moves (one blur at a time). */
   const syncMoving = useCallback(() => {
-    const moving = !!(S.raf || S.m.raf || (S.drag && S.drag.kind === "drag"));
-    pkMarkMoving(layer.current, moving);
-    // the sheet's own surface and its scrim carry no live blur while it moves
-    layer.current?.toggleAttribute("data-pk-sheet-moving", moving);
+    pkMarkMoving(
+      layer.current,
+      !!(S.raf || S.m.raf || (S.drag && S.drag.kind === "drag"))
+    );
   }, [S]);
 
   const run = useCallback(() => {
@@ -650,12 +650,7 @@ export function PkSheet({
       inert={open ? undefined : true}
       data-pk-sheet={open ? "open" : "shut"}
     >
-      <PkScrim
-        scrimRef={scrim}
-        open={open}
-        staticBlur
-        onClick={() => onClose?.()}
-      />
+      <PkScrim scrimRef={scrim} open={open} onClick={() => onClose?.()} />
       <div
         ref={sheet}
         className={pkCx("pk-sheet", className)}
@@ -666,8 +661,6 @@ export function PkSheet({
         onPointerDown={onPointerDown}
         onClickCapture={swallow}
       >
-        <span className="pk-sheet-solid" aria-hidden="true" />
-        <span className="pk-sheet-frost" aria-hidden="true" />
         {from ? (
           <span
             ref={morphEl}

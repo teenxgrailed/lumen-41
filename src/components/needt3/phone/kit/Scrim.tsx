@@ -13,22 +13,15 @@ export function PkScrim({
   scrimRef,
   onClick,
   open,
-  staticBlur,
 }: {
   scrimRef?: Ref<HTMLDivElement>;
   onClick?: () => void;
   open?: boolean;
-  /** One blur layer that fades in once on open and out once on close; the factor drives only the tint. */
-  staticBlur?: boolean;
 }) {
   return (
     <div
       ref={scrimRef}
-      className={pkCx(
-        "pk-scrim",
-        open && "is-open",
-        staticBlur && "is-static-blur"
-      )}
+      className={pkCx("pk-scrim", open && "is-open")}
       onClick={onClick}
       aria-hidden="true"
     >
