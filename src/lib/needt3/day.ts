@@ -42,7 +42,8 @@ export function part(hour: number | null | undefined): DayPart {
 type DayTask = Pick<
   V3Task,
   "id" | "done" | "noSlot" | "dueDate" | "scheduledStart" | "isFixed"
->;
+> &
+  Partial<Pick<V3Task, "repeat">>;
 
 /** Open, placed work due before today (`task-day` `isOverdue`, the one rule). */
 export function isLate(t: DayTask, today: string) {

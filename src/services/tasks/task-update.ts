@@ -270,8 +270,17 @@ export async function updateTaskFields(input: {
   let recurringCompletion: RecurringCompletion | null = null;
   if (completing && task.isRecurring && task.recurrenceRule) {
     const plan = planRecurringCompletion(task, newDate());
-    recurringCompletion = plan.completion;
-    if (plan.advance) Object.assign(updates, plan.advance);
+    if (plan.duplicate) {
+      // Already ticked today and the next occurrence is ahead: leave it.
+      delete updates.status;
+      delete updates.completedAt;
+      if (Object.keys(updates).length === 0) {
+        return { ok: true, task, changed: false };
+      }
+    } else {
+      recurringCompletion = plan.completion;
+      if (plan.advance) Object.assign(updates, plan.advance);
+    }
   }
 
   const taskUpdate = {

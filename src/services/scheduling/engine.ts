@@ -210,6 +210,27 @@ export function effectiveDeadline(deadline: Date, timeZone?: string): Date {
   return nextDayStart(fromZonedTime(`${day}T00:00:00`, timeZone), timeZone);
 }
 
+/**
+ * A recurring series row carries its current occurrence in its date-only
+ * deadline (the due date). It may not be placed before that day starts, so a
+ * weekly task completed early comes back on its day and not again today.
+ * Everything else keeps its own earliest start.
+ */
+function recurringOccurrenceStart(
+  task: SchedulableTask,
+  timeZone?: string
+): Date | null | undefined {
+  if (!task.isRecurring || !task.deadline) return task.availableFrom;
+  const iso = task.deadline.toISOString();
+  if (!iso.endsWith("T00:00:00.000Z")) return task.availableFrom;
+  const dayStart = timeZone
+    ? fromZonedTime(`${iso.slice(0, 10)}T00:00:00`, timeZone)
+    : task.deadline;
+  return task.availableFrom && task.availableFrom > dayStart
+    ? task.availableFrom
+    : dayStart;
+}
+
 /** `date`'s calendar day at wall-clock `time` ("HH:mm") in the zone. */
 function setTime(date: Date, time: string, timeZone?: string): Date {
   const [hours, minutes] = time.split(":").map(Number);
@@ -736,6 +757,7 @@ export function scheduleTasks(input: {
       task.deadline
         ? {
             ...task,
+            availableFrom: recurringOccurrenceStart(task, input.prefs.timeZone),
             deadline: effectiveDeadline(task.deadline, input.prefs.timeZone),
           }
         : task

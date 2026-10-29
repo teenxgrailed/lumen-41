@@ -679,6 +679,9 @@ async function completeOccurrence(
   } catch {
     throw new OpError("INVALID_INPUT", "The task's repeat rule cannot be read");
   }
+  if (plan.duplicate) {
+    return { result: { task: taskView(task), changed: false } };
+  }
   const keys: (keyof RestorableFields)[] = [
     "status",
     "completedAt",
