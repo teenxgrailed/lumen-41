@@ -25,10 +25,17 @@ export function planRecurringCompletion(
     | "startDate"
     | "scheduledStart"
     | "scheduledEnd"
-  >,
+  > & { lastCompletedDate?: Date | null },
   completedAt: Date
 ): {
   completion: RecurringCompletion;
+  /**
+   * True when this is a second tick on the day the series was just completed
+   * and its current occurrence is still ahead. The first tick already
+   * recorded the occurrence that was due; completing again would burn the
+   * next one. Callers leave the task as it is.
+   */
+  duplicate: boolean;
   advance: {
     dueDate: Date;
     startDate: Date | undefined;
@@ -63,7 +70,12 @@ export function planRecurringCompletion(
   if (nextOccurrence) nextOccurrence.setUTCHours(0, 0, 0, 0);
 
   const completion = { occurrenceAt: baseDate, completedAt };
-  if (!nextOccurrence) return { completion, advance: null };
+  const duplicate =
+    baseDate.getTime() > today.getTime() &&
+    !!task.lastCompletedDate &&
+    task.lastCompletedDate.toISOString().slice(0, 10) ===
+      completedAt.toISOString().slice(0, 10);
+  if (!nextOccurrence) return { completion, advance: null, duplicate };
 
   const dayMs = 1000 * 60 * 60 * 24;
   // Keep the distance between start date and due date on the next occurrence.
@@ -84,6 +96,7 @@ export function planRecurringCompletion(
     at ? newDate(at.getTime() + shift * dayMs) : at;
   return {
     completion,
+    duplicate,
     advance: {
       dueDate: nextOccurrence,
       startDate: nextStartDate,

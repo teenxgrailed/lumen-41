@@ -336,8 +336,14 @@ export async function PUT(
           task,
           updates.completedAt ?? newDate()
         );
-        recurringCompletion = plan.completion;
-        if (plan.advance) Object.assign(updates, plan.advance);
+        if (plan.duplicate) {
+          // Already ticked today and the next occurrence is ahead: leave it.
+          delete updates.status;
+          delete updates.completedAt;
+        } else {
+          recurringCompletion = plan.completion;
+          if (plan.advance) Object.assign(updates, plan.advance);
+        }
       } catch (error) {
         logger.error(
           "Error handling task completion:",
