@@ -9,6 +9,7 @@ import {
   verifiedProviderEmail,
   withCaseInsensitiveEmailLookup,
 } from "@/lib/auth/account-linking";
+import { ageConfirmationGate } from "@/lib/auth/age-confirmation";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
@@ -119,15 +120,24 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
         /* Registration is closed until launch: an OAuth return that would
            create a user goes back to sign-in instead of into the adapter.
            The same gate covers every provider. */
-        return oauthSignInGate({
+        const open = await oauthSignInGate({
           provider: account?.provider,
           providerAccountId: account?.providerAccountId,
           email: user.email,
         });
+        if (open !== true) return open;
+        /* A would-be new user must have confirmed 16+ and the Terms first
+           (age-confirmation.ts); a returning one is untouched. */
+        return ageConfirmationGate({
+          provider: account?.provider,
+          providerAccountId: account?.providerAccountId,
+          email: user.email,
+          nowMs: newDate().getTime(),
+        });
       },
       // This branch's jwt supersedes main's: it keeps token.sub and the role
       // instead of early-returning a fresh token object that dropped both.
-      async jwt({ token: incoming, account, user, profile }) {
+      async jwt({ token: incoming, account, user, profile, isNewUser }) {
         let token = incoming;
         // Sessions issued before the provider tokens were dropped still carry
         // them; strip them so they stop riding along in the cookie.
@@ -169,6 +179,14 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
             await prisma.user.updateMany({
               where: { id: user.id },
               data: { lastAuthenticatedAt: newDate() },
+            });
+          }
+          if (account.type === "oauth" && user?.id && isNewUser) {
+            /* The signIn callback let this account be created only with the
+               confirmation cookie; record when it was given. */
+            await prisma.user.updateMany({
+              where: { id: user.id, ageConfirmedAt: null },
+              data: { ageConfirmedAt: newDate() },
             });
           }
           if (account.type === "oauth" && user?.id && user.email) {

@@ -6,6 +6,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   OAuthCallback:
     "The provider could not finish signing you in. Please try again.",
   OAuthSignin: "The provider could not start sign-in. Please try again.",
+  AgeConfirmRequired:
+    "To create an account, choose Create one, confirm that you are 16 or older and agree to the Terms and Privacy Policy, then continue.",
   SignupsClosed:
     "Needt isn’t open for new accounts yet. Join the waitlist at needt.app and we’ll write when it opens.",
 };

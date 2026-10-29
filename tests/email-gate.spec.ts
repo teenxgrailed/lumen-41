@@ -50,7 +50,12 @@ test.describe("mandatory email confirmation", () => {
     request,
   }) => {
     const registration = await request.post("/api/auth/register", {
-      data: { email, password: "Needt-gate-Password1", name: "Gate E2E" },
+      data: {
+        email,
+        password: "Needt-gate-Password1",
+        name: "Gate E2E",
+        ageConfirmed: true,
+      },
     });
     expect(registration.status()).toBe(201);
     const user = await prisma.user.findUniqueOrThrow({

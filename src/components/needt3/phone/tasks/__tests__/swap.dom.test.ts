@@ -216,7 +216,9 @@ describe("Tasks across the 700 px swap", () => {
 
     render(client, "desktop", null);
     expect(host.querySelector(".ptk-seg")).toBeNull();
-    expect(q("[role=tab][aria-selected=true]").textContent).toContain("Upcoming");
+    expect(q("[role=tab][aria-selected=true]").textContent).toContain(
+      "Upcoming"
+    );
 
     // changed on the desktop face ...
     act(() => {

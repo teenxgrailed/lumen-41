@@ -1,8 +1,8 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
-import { authSecret } from "@/lib/auth/auth-secret";
 import { requireAuth } from "@/lib/auth/api-auth";
+import { authSecret } from "@/lib/auth/auth-secret";
 import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "CheckAdminAPI";

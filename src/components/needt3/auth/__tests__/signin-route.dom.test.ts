@@ -210,6 +210,11 @@ describe("crossing 700px", () => {
   });
 });
 
+const tickAge = () =>
+  act(async () => {
+    q<HTMLInputElement>("[data-auth-age] input")!.click();
+  });
+
 const submitForm = () =>
   act(async () => {
     q<HTMLFormElement>("form")!.dispatchEvent(
@@ -251,6 +256,7 @@ describe("where a sign-in lands", () => {
     });
     type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
     type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await tickAge();
     await submitForm();
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/auth/register",
@@ -258,6 +264,42 @@ describe("where a sign-in lands", () => {
     );
     // The register mock says nothing about the flow: the resolver decides.
     expect(went).toBe("/api/onboarding/resume");
+  });
+
+  it("a new account is not created until the 16+ box is ticked", async () => {
+    signup = { ok: true, body: { enabled: true } };
+    signIn.mockResolvedValue({ ok: true });
+    await mount();
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-switch]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    expect(q("[data-auth-age]")).not.toBeNull();
+    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+    const registered = (globalThis.fetch as jest.Mock).mock.calls.filter(
+      ([url]) => url === "/api/auth/register"
+    );
+    expect(registered).toHaveLength(0);
+    expect(signIn).not.toHaveBeenCalled();
+    expect(q("[data-auth-age]")?.getAttribute("data-missing")).toBe("true");
+
+    await tickAge();
+    await submitForm();
+    const [, init] = (globalThis.fetch as jest.Mock).mock.calls.find(
+      ([url]) => url === "/api/auth/register"
+    )!;
+    expect(JSON.parse((init as { body: string }).body)).toMatchObject({
+      email: "new@x.ch",
+      ageConfirmed: true,
+    });
+  });
+
+  it("sign-in itself never shows the box", async () => {
+    await mount();
+    expect(q("[data-auth-age]")).toBeNull();
   });
 
   it("a new account goes where the server says (onboarding_v3 on: /start)", async () => {
@@ -272,6 +314,7 @@ describe("where a sign-in lands", () => {
     });
     type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
     type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await tickAge();
     await submitForm();
     expect(went).toBe("/start");
   });
@@ -290,6 +333,7 @@ describe("where a sign-in lands", () => {
     });
     type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
     type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await tickAge();
     await submitForm();
     expect(went).toBe("/api/onboarding/resume");
   });

@@ -30,11 +30,15 @@ import { dur, durH, hhmm } from "@/lib/onboarding/format";
 import type { WeekPlan } from "@/lib/onboarding/plan";
 import type { CommitResult } from "@/lib/onboarding/server";
 
+import { AgeConfirm } from "@/components/needt3/auth/AgeConfirm";
+import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
+
 import { Ob3Sky } from "./Ob3Sky";
 import { DayList, Week } from "./Ob3Week";
 import {
   checkoutAvailable,
   commitWeek,
+  confirmAge,
   emailVerified,
   fetchPlan,
   publicSignupOpen,
@@ -187,6 +191,10 @@ export function Ob3Flow({
   const [authErr, setAuthErr] = useState<string | null>(null);
   const [providers, setProviders] = useState<string[] | null>(null);
   const [signupOpen, setSignupOpen] = useState(true);
+  /* "I'm 16 or older and agree to the Terms and Privacy Policy": every new
+     account asks for it; with sign-up closed there is nothing to confirm. */
+  const [ageChecked, setAgeChecked] = useState(false);
+  const ageOk = ageChecked || !signupOpen;
   const [resent, setResent] = useState(false);
   const [gift, setGift] = useState(false);
   const [giftState, setGiftState] = useState<"on" | "used" | "none">("on");
@@ -331,6 +339,10 @@ export function Ob3Flow({
   }, [step]);
 
   const oauth = (id: "apple" | "google") => {
+    if (!ageOk) {
+      setAuthErr(AGE_CONFIRM_REQUIRED_MESSAGE);
+      return;
+    }
     setAuthBusy(id);
     setAuthErr(null);
     writeDraft({
@@ -340,19 +352,23 @@ export function Ob3Flow({
       acct: id,
       giftEnd: giftEnd.toISOString(),
     });
-    void signIn(id, { callbackUrl: `/start?step=verify&acct=${id}` }).catch(
-      () => {
+    void confirmAge()
+      .then(() => signIn(id, { callbackUrl: `/start?step=verify&acct=${id}` }))
+      .catch(() => {
         setAuthBusy(null);
         setAuthErr("Could not open the sign-in. Try again.");
-      }
-    );
+      });
   };
   const okMail = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email.trim());
   const emailSignUp = async () => {
+    if (!ageOk) {
+      setAuthErr(AGE_CONFIRM_REQUIRED_MESSAGE);
+      return;
+    }
     setAuthBusy("email");
     setAuthErr(null);
     try {
-      await registerEmail(email.trim(), password, nm);
+      await registerEmail(email.trim(), password, nm, true);
       const r = await signIn("credentials", {
         email: email.trim(),
         password,
@@ -1399,6 +1415,13 @@ export function Ob3Flow({
             ))}
           </span>
         </div>
+        {signupOpen ? (
+          <AgeConfirm
+            age={{ checked: ageChecked, setChecked: setAgeChecked }}
+            missing={!!authErr}
+            className="auth-age ob3-age"
+          />
+        ) : null}
         {has("apple") ? (
           <button
             type="button"
@@ -1491,10 +1514,6 @@ export function Ob3Flow({
             {authErr}
           </p>
         ) : null}
-        <p className="ob3-note">
-          By continuing you agree to the <Link href="/terms">Terms</Link> and{" "}
-          <Link href="/privacy">Privacy notice</Link>.
-        </p>
       </div>
     );
   } else if (step === "verify") {

@@ -12,7 +12,7 @@ describe("registerEmail", () => {
     }));
     (globalThis as { fetch?: unknown }).fetch = fetchMock;
 
-    await registerEmail("ana@x.ch", "12345678", "Ana");
+    await registerEmail("ana@x.ch", "12345678", "Ana", true);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [
       string,
@@ -22,6 +22,7 @@ describe("registerEmail", () => {
     expect(JSON.parse(init.body)).toEqual({
       email: "ana@x.ch",
       password: "12345678",
+      ageConfirmed: true,
       name: "Ana",
       timeZone: "Europe/Berlin",
       locale: "de-DE",

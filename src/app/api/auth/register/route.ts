@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import {
   SIGNUPS_CLOSED_CODE,
@@ -37,6 +38,11 @@ const registrationSchema = z.object({
   // The browser's zone and language: the account starts in the right time.
   timeZone: z.string().max(64).optional(),
   locale: z.string().max(35).optional(),
+  // "I'm 16 or older and agree to the Terms and Privacy Policy": required, and
+  // stored as User.ageConfirmedAt. Anything but literal true is refused.
+  ageConfirmed: z.unknown().refine((value) => value === true, {
+    message: AGE_CONFIRM_REQUIRED_MESSAGE,
+  }),
 });
 
 export async function POST(request: NextRequest) {
@@ -158,6 +164,7 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         name: parsed.data.name || email.split("@")[0],
+        ageConfirmedAt: newDate(),
         accounts: {
           create: {
             type: "credentials",

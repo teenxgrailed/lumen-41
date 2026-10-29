@@ -249,3 +249,36 @@
   background: var(--v2p-ink);
   color: var(--v2p-ground);
 }
+
+/* Sign-up asks once: "I'm 16 or older and agree to the Terms and Privacy
+   Policy" (AgeConfirm). Chrome type 12px, one text colour at a ladder alpha;
+   the tick is ink, never the accent. Also worn by the /start onboarding. */
+.auth-age {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary, var(--ink2));
+  text-align: left;
+  text-wrap: pretty;
+}
+.auth-age input {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 2px 0 0;
+  accent-color: var(--text-primary, var(--ink));
+}
+.auth-age a {
+  color: var(--text-primary, var(--ink));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-age[data-missing="true"] {
+  color: var(--destructive, #c0392b);
+}
+.ob3-age {
+  margin: 0 0 4px;
+}

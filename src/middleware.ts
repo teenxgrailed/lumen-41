@@ -35,6 +35,7 @@ const publicRoutes = [
   "/auth/reset-password",
   "/auth/error",
   "/api/auth/register",
+  "/api/auth/age-confirm",
   // Onboarding: the screens before the account, and the planner they call.
   "/start",
   "/api/onboarding/plan",

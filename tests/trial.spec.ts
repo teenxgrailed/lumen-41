@@ -69,6 +69,7 @@ test.describe("no-card Pro trial", () => {
         email,
         password: "Needt-trial-Password1",
         name: "Trial E2E",
+        ageConfirmed: true,
       },
     });
     expect(registration.status()).toBe(201);

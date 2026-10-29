@@ -511,10 +511,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
 
   const c = copy.DocsScreen;
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col"
-      data-v3-screen="docs"
-    >
+    <div className="flex min-h-0 flex-1 flex-col" data-v3-screen="docs">
       {/* Craft's header: [+] title … view switcher and a ⋯ menu. Search is
           the top bar's ⌘K, so the grid has no field of its own. */}
       <header className="docs-docs-screen-1">

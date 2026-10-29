@@ -90,7 +90,10 @@ export function useHabitsController(opts: HabitsControllerOptions) {
   // The long read (124 days); until it arrives the cards' own fourteen.
   const history = historyQuery.data ?? checkins;
   const projects = projectsQuery.data ?? [];
-  const quota = habitQuota(plan.data?.kind, list.filter((h) => !h.isSample).length);
+  const quota = habitQuota(
+    plan.data?.kind,
+    list.filter((h) => !h.isSample).length
+  );
   const kept = keptToday(list, checkins, today);
   const { over, shown } = capHabits(list, all);
 
