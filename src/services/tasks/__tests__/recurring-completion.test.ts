@@ -96,3 +96,46 @@ describe("planRecurringCompletion: the same task jumps to its next date", () => 
     expect(plan.advance?.status).toBe("todo");
   });
 });
+
+describe("planRecurringCompletion: a second tick the same day", () => {
+  const base = {
+    recurrenceRule: "FREQ=WEEKLY;BYDAY=SU",
+    startDate: null,
+    scheduledStart: null,
+    scheduledEnd: null,
+  };
+
+  it("is a duplicate when the series was just completed and its next date is ahead", () => {
+    // Completed Thursday 29 Oct; the master now sits on Sunday 8 Nov.
+    const plan = planRecurringCompletion(
+      {
+        ...base,
+        dueDate: at("2026-11-08T00:00:00.000Z"),
+        lastCompletedDate: at("2026-10-29T09:00:00.000Z"),
+      },
+      at("2026-10-29T14:00:00.000Z")
+    );
+    expect(plan.duplicate).toBe(true);
+  });
+
+  it("is not a duplicate the next day, nor for an occurrence that is due", () => {
+    const early = planRecurringCompletion(
+      {
+        ...base,
+        dueDate: at("2026-11-08T00:00:00.000Z"),
+        lastCompletedDate: at("2026-10-29T09:00:00.000Z"),
+      },
+      at("2026-10-30T14:00:00.000Z")
+    );
+    expect(early.duplicate).toBe(false);
+    const due = planRecurringCompletion(
+      {
+        ...base,
+        dueDate: at("2026-11-01T00:00:00.000Z"),
+        lastCompletedDate: at("2026-11-01T08:00:00.000Z"),
+      },
+      at("2026-11-01T14:00:00.000Z")
+    );
+    expect(due.duplicate).toBe(false);
+  });
+});

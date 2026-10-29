@@ -205,7 +205,13 @@ function toSchedulableTask(task: DbTaskWithRelations): SchedulableTask {
     durationMinutes: task.duration,
     minChunkMinutes: task.minChunkMinutes,
     maxChunkMinutes: task.maxChunkMinutes,
-    deadline: task.deadline ?? task.dueDate,
+    // A series row's date is its current occurrence: the deadline it was
+    // created with is stale after the first completion and would flag it as
+    // at risk for ever.
+    deadline:
+      task.isRecurring && task.recurrenceRule && task.dueDate
+        ? task.dueDate
+        : (task.deadline ?? task.dueDate),
     hardDeadline: task.hardDeadline,
     availableFrom:
       availabilityDates.length > 0
