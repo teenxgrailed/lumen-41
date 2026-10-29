@@ -1,0 +1,1 @@
+- The download form's e-mail sign-up now answers 201 when it saves an address and 200 when it was already there, and an address given without an app is kept once as "any".

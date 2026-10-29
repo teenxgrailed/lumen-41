@@ -225,7 +225,7 @@ describe("POST /api/waitlist with an app (download form)", () => {
   it("stores one AppWaitlist row and answers { ok: true }", async () => {
     const response = await POST(post(body));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(appCreate).toHaveBeenCalledWith({
       data: { email: "person@example.com", app: "mac", source: "download" },
@@ -235,7 +235,7 @@ describe("POST /api/waitlist with an app (download form)", () => {
 
   it("accepts iphone", async () => {
     const response = await POST(post({ ...body, app: "iphone" }));
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
   });
 
   it("refuses an unknown app", async () => {
@@ -302,5 +302,79 @@ describe("POST /api/waitlist with an app (download form)", () => {
     const response = await POST(post(body, "https://evil.example"));
     expect(response.status).toBe(403);
     expect(appCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("the needt.app /download/ contract", () => {
+  const apps = { email: " Person@Example.com ", source: "apps" };
+
+  it("waitlist accepts the same email once per app", async () => {
+    const first = await POST(post({ ...apps, app: "mac" }));
+    expect(first.status).toBe(201);
+
+    appCreate.mockRejectedValue(uniqueViolation("email"));
+    const again = await POST(post({ ...apps, app: "mac" }));
+    expect(again.status).toBe(200);
+
+    appCreate.mockResolvedValue({} as never);
+    const other = await POST(post({ ...apps, app: "iphone" }));
+    expect(other.status).toBe(201);
+    expect(appCreate).toHaveBeenLastCalledWith({
+      data: { email: "person@example.com", app: "iphone", source: "apps" },
+    });
+  });
+
+  it("waitlist stores a missing app as any", async () => {
+    const response = await POST(post(apps));
+    expect(response.status).toBe(201);
+    expect(appCreate).toHaveBeenCalledWith({
+      data: { email: "person@example.com", app: "any", source: "apps" },
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("waitlist answers the needt.app origin", async () => {
+    const preflightResponse = await OPTIONS(preflight("https://needt.app"));
+    expect(preflightResponse.status).toBe(204);
+    expect(preflightResponse.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://needt.app"
+    );
+    expect(preflightResponse.headers.get("Access-Control-Allow-Methods")).toBe(
+      "POST, OPTIONS"
+    );
+    expect(preflightResponse.headers.get("Access-Control-Allow-Headers")).toBe(
+      "Content-Type"
+    );
+
+    const response = await POST(post({ ...apps, app: "mac" }));
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://needt.app"
+    );
+    expect(response.headers.get("Vary")).toBe("Origin");
+  });
+
+  it("waitlist rejects a bad email", async () => {
+    const response = await POST(post({ email: "nope", source: "apps" }));
+    expect(response.status).toBe(400);
+    expect(appCreate).not.toHaveBeenCalled();
+  });
+
+  it("waitlist refuses other origins", async () => {
+    const response = await POST(post(apps, "https://evil.example"));
+    expect(response.status).toBe(403);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    const pre = await OPTIONS(preflight("https://evil.example"));
+    expect(pre.status).toBe(403);
+    expect(appCreate).not.toHaveBeenCalled();
+  });
+
+  it("waitlist answers 429 when rate limited", async () => {
+    jest
+      .mocked(enforceRateLimits)
+      .mockResolvedValue(
+        NextResponse.json({ error: "Too many attempts." }, { status: 429 })
+      );
+    const response = await POST(post(apps));
+    expect(response.status).toBe(429);
   });
 });
