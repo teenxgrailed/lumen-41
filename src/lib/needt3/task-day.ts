@@ -22,6 +22,8 @@ export interface DayFields {
   dueDate: string | null;
   scheduledStart?: string | null;
   noSlot?: boolean;
+  /** RRULE of a repeating series row; null or absent when it does not repeat. */
+  repeat?: string | null;
   trashedAt?: string | null;
 }
 
@@ -45,10 +47,14 @@ export function isOverdue(t: DayFields, today: string): boolean {
  *   has passed on a task with no due date gives it no day — it is not late.
  */
 export function taskDay(
-  t: Pick<DayFields, "dueDate" | "scheduledStart">,
+  t: Pick<DayFields, "dueDate" | "scheduledStart" | "repeat">,
   today: string
 ): string | null {
   if (t.dueDate && t.dueDate <= today) return t.dueDate;
+  // A repeating series row sits on its next occurrence. A block left over
+  // from before that date (the task was ticked early) does not pull it back
+  // into today.
+  if (t.repeat && t.dueDate) return t.dueDate;
   const s = scheduledDay(t);
   if (s && s >= today) return s;
   return t.dueDate ?? null;
@@ -56,7 +62,7 @@ export function taskDay(
 
 /** True when the task sits on today (due or scheduled today, not overdue). */
 export const isOnToday = (
-  t: Pick<DayFields, "dueDate" | "scheduledStart">,
+  t: Pick<DayFields, "dueDate" | "scheduledStart" | "repeat">,
   today: string
 ) => taskDay(t, today) === today;
 
