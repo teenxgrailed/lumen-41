@@ -71,3 +71,25 @@ export function getAccountExportTemplate(input: {
     kind: "security",
   });
 }
+
+/**
+ * The daily digest the person asked for in Settings, Notifications. Not a
+ * transactional mail, so it carries a one-click unsubscribe that turns the
+ * digest off.
+ */
+export function getDigestTemplate(input: {
+  title: string;
+  body: string;
+  openUrl: string;
+  unsubscribeUrl: string;
+}) {
+  return renderEmail({
+    subject: input.title,
+    preheader: input.body,
+    heading: input.title,
+    paragraphs: [input.body],
+    button: { label: `Open in ${APP_NAME}`, url: input.openUrl },
+    kind: "notification",
+    unsubscribeUrl: input.unsubscribeUrl,
+  });
+}

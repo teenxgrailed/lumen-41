@@ -33,6 +33,8 @@ import type { CommitResult } from "@/lib/onboarding/server";
 import { AgeConfirm } from "@/components/needt3/auth/AgeConfirm";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 
+import { priceStrings } from "@/lib/needt3/pricing";
+
 import { Ob3Sky } from "./Ob3Sky";
 import { DayList, Week } from "./Ob3Week";
 import {
@@ -115,6 +117,9 @@ const writeDraft = (d: Draft) => {
     /* private window: the flow still works, it just cannot survive a redirect */
   }
 };
+
+/** Price, period, automatic renewal and where to cancel: the one pricing module. */
+const RENEWAL = priceStrings();
 
 function emptyPlan(a: OnboardingAnswers): WeekPlan {
   const set = new Set(a.workdays);
@@ -1842,6 +1847,13 @@ export function Ob3Flow({
           {life
             ? "Charged now. Refund terms are on the checkout page."
             : `Cancel any time before ${GIFT_END} and nothing is charged.`}
+        </p>
+        <p className="ob3-note" data-ob3-renewal-terms="">
+          {life
+            ? RENEWAL.renewalLifetime
+            : yr
+              ? RENEWAL.renewalYearly
+              : RENEWAL.renewalMonthly}
         </p>
       </div>
     );

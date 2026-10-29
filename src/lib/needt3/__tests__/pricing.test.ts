@@ -13,6 +13,17 @@ describe("priceStrings", () => {
     expect(p.trialCta).toBe("Start 14-day free trial");
     expect(p.trialShort).toBe("14 days free · no card needed");
   });
+  it("states price, period, automatic renewal and how to cancel", () => {
+    const p = priceStrings();
+    expect(p.renewalMonthly).toMatch(/\$7 per month.*Renews automatically/);
+    expect(p.renewalYearly).toMatch(/\$59 per year.*Renews automatically/);
+    for (const line of [p.renewalMonthly, p.renewalYearly, p.renewalAll]) {
+      expect(line).toContain("until you cancel");
+      expect(line).toContain("Plan & billing");
+    }
+    expect(p.renewalLifetime).not.toMatch(/renews automatically/i);
+    expect(p.renewalLifetime).toContain("one-time");
+  });
   it("derives the yearly equivalent and the saving", () => {
     const p = priceStrings();
     expect(p.yearlyPerMonth).toBe("$4.92");

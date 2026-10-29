@@ -97,6 +97,27 @@ RESEND_FROM_EMAIL=""
 
 Resend is optional for local development unless testing password reset or email notification flows.
 
+```bash
+OPERATOR_POSTAL_ADDRESS=""   # one line; the operator's postal address
+```
+
+`OPERATOR_POSTAL_ADDRESS` goes in the footer of every commercial email (trial
+reminders and anything else that sells Pro). While it is empty no commercial
+email is sent at all: the worker logs "Commercial email not sent" and the trial
+reminders wait. Transactional mail (verify, password reset, receipts, data
+export, reminders) does not depend on it. The older `EMAIL_FOOTER_ADDRESS` is
+still read as a fallback.
+
+## Legal
+
+```bash
+DMCA_AGENT_REG_NO=""         # e.g. DMCA-1234567, from the US Copyright Office
+```
+
+The Terms print the designated-agent registration line only when
+`DMCA_AGENT_REG_NO` is set. Register the agent first at
+https://dmca.copyright.gov/ (owner action; there is a fee).
+
 ## AI Configuration
 
 These are not used by the Phase 0 app yet, but are reserved for the planner AI layer:

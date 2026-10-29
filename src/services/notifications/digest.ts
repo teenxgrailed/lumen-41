@@ -14,7 +14,8 @@ import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
-import { escapeHtml } from "@/lib/email/templates/email-verification";
+import { getDigestTemplate } from "@/lib/email/templates/notifications";
+import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { getVapidConfiguration } from "@/lib/push-config";
@@ -98,11 +99,18 @@ export async function deliverDailyDigests(now = newDate()) {
         row.user.emailVerified
       ) {
         const link = `${process.env.NEXTAUTH_URL ?? ""}/today`;
+        /* Not transactional: the layout's footer and the headers carry a
+           one-click unsubscribe that turns the digest off. */
+        const unsubscribe = unsubscribeUrl(row.userId, "digest");
         await EmailService.sendEmail({
           to: row.user.email,
-          subject: summary.title,
-          text: `${summary.body}\n\nOpen Needt: ${link}`,
-          html: `<p>${escapeHtml(summary.body)}</p><p><a href="${escapeHtml(link)}">Open in Needt</a></p>`,
+          ...getDigestTemplate({
+            title: summary.title,
+            body: summary.body,
+            openUrl: link,
+            unsubscribeUrl: unsubscribe,
+          }),
+          unsubscribeUrl: unsubscribe,
         });
       }
       sent += 1;

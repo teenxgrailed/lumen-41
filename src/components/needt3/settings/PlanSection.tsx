@@ -233,6 +233,11 @@ export function PlanSection() {
               </SBtn>
             </span>
           ) : null}
+          {!pro || kind === "trial" ? (
+            <span className="settings-trial-terms" data-settings-renewal-terms>
+              {P.renewalAll}
+            </span>
+          ) : null}
           {offersTrial(b) || kind === "trial" ? (
             <span className="settings-trial-terms" data-settings-trial-terms>
               {P.trialTerms}

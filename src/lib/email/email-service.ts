@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 import { APP_NAME } from "@/lib/app-config";
+import { operatorPostalAddress } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -28,6 +29,21 @@ export interface EmailJobData {
   subject: string;
   html: string;
   text?: string;
+  /**
+   * Set on every email that is not transactional-or-chosen, i.e. one that
+   * sells or promotes (trial reminders, anything about Pro). Such a mail is
+   * dropped, with a log line, when the operator's postal address is not set
+   * (OPERATOR_POSTAL_ADDRESS) or the person unsubscribed. It needs
+   * `unsubscribeUrl`.
+   */
+  commercial?: boolean;
+  /**
+   * One-click unsubscribe (src/lib/email/unsubscribe.ts). Adds the
+   * `List-Unsubscribe` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+   * headers (RFC 8058). Also valid on non-commercial mail with its own
+   * category, such as the daily digest.
+   */
+  unsubscribeUrl?: string;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -36,22 +52,30 @@ export interface EmailJobData {
 }
 
 /**
- * Sandbox accounts (docs/sandbox-accounts.md) have no inbox anyone reads, so
- * nothing is mailed to one. A lookup that fails sends the mail as before:
- * this only saves a bounce, it guards nothing.
+ * What the send needs to know about the recipient. Sandbox accounts
+ * (docs/sandbox-accounts.md) have no inbox anyone reads, so nothing is mailed
+ * to one; an account that unsubscribed from commercial mail gets none. A
+ * lookup that fails sends the mail as before: for a sandbox it only saves a
+ * bounce, and a failed opt-out lookup means the database is down, in which case
+ * the trial worker, which reads the same table, does not send either.
  */
-async function isSandboxRecipient(to: string): Promise<boolean> {
+async function recipientState(
+  to: string
+): Promise<{ sandbox: boolean; commercialOptOut: boolean }> {
   const address = (FORMATTED_MAILBOX_PATTERN.exec(to.trim())?.[2] ?? to)
     .trim()
     .toLowerCase();
   try {
     const user = await prisma.user.findUnique({
       where: { email: address },
-      select: { sandboxKind: true },
+      select: { sandboxKind: true, commercialEmailsOptOutAt: true },
     });
-    return Boolean(user?.sandboxKind);
+    return {
+      sandbox: Boolean(user?.sandboxKind),
+      commercialOptOut: Boolean(user?.commercialEmailsOptOutAt),
+    };
   } catch {
-    return false;
+    return { sandbox: false, commercialOptOut: false };
   }
 }
 
@@ -68,8 +92,31 @@ export class EmailService {
     try {
       const { to, subject } = emailData;
 
-      if (await isSandboxRecipient(to)) {
+      if (emailData.commercial) {
+        if (!emailData.unsubscribeUrl) {
+          throw new Error("A commercial email needs an unsubscribe link");
+        }
+        if (!operatorPostalAddress()) {
+          logger.warn(
+            "Commercial email not sent: OPERATOR_POSTAL_ADDRESS is not set",
+            {},
+            LOG_SOURCE
+          );
+          return { jobId: "" };
+        }
+      }
+
+      const recipient = await recipientState(to);
+      if (recipient.sandbox) {
         logger.info("Email to a sandbox account dropped", {}, LOG_SOURCE);
+        return { jobId: "" };
+      }
+      if (emailData.commercial && recipient.commercialOptOut) {
+        logger.info(
+          "Commercial email to an unsubscribed account dropped",
+          {},
+          LOG_SOURCE
+        );
         return { jobId: "" };
       }
 
@@ -84,13 +131,27 @@ export class EmailService {
 
       const fromEmail = EmailService.formatSender(APP_NAME);
 
-      const emailToSend = {
+      const emailToSend: {
+        from: string;
+        to: string;
+        subject: string;
+        html: string;
+        text?: string;
+        headers?: Record<string, string>;
+      } = {
         from: fromEmail,
         to,
         subject,
         html: emailData.html,
         text: emailData.text,
       };
+
+      if (emailData.unsubscribeUrl) {
+        emailToSend.headers = {
+          "List-Unsubscribe": `<${emailData.unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        };
+      }
 
       // Add attachments if they exist
       if (emailData.attachments && emailData.attachments.length > 0) {
