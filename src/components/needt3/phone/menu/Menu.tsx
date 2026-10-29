@@ -688,9 +688,15 @@ export function Menu(props: MenuProps) {
   /* A full-screen layer of the app took the screen: the menu steps down to the
      pill and slides away under the bottom edge (CSS, .is-away). */
   useEffect(() => {
-    if (away && modeRef.current !== "pill" && modeRef.current !== "hidden")
-      go("pill");
+    if (away && modeRef.current !== "pill") go("pill");
   }, [away, go]);
+
+  /* A tucked-away dock (the handle) comes back on its own when the person
+     moves to another place: a screen never starts with the dock gone, which
+     read as the bottom of the page being cropped. */
+  useEffect(() => {
+    if (modeRef.current === "hidden") go("pill");
+  }, [screen, go]);
 
   /* The composer opens from the pill, wherever the menu was: settle at the pill
      at once (before anything measures it), straight from the store. */

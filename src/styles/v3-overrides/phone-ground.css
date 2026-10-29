@@ -87,6 +87,10 @@ html[data-ground="page"]:has(
   --v3-dock-lift: 20px;
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
+  /* Height of the fog under the dock, from the display edge: 128 px, or the
+   * dock's own tail where the inset is big. The fog and the page's tail both
+   * read it, so the last row always ends above the fog. */
+  --ps-fog-h: max(128px, calc(94px + var(--v3-sab)));
   /* How far the coloured paint (fog wash, scrim) stops short of the display edge. 0
    * everywhere but iOS, which sets it below. */
   --v3-gap-top: 0px;
@@ -127,7 +131,9 @@ html[data-ground="page"]:has(
   padding-top: var(--v3-top);
 }
 .needt-v3[data-ui="phone"] .pk-tail {
-  height: calc(112px + var(--v3-dock-lift));
+  /* The last row ends 16 px above the fog (and above the dock's lift), so it
+   * is never half under the dotted fade, with or without Safari's tab bar. */
+  height: max(calc(112px + var(--v3-dock-lift)), calc(var(--ps-fog-h) + 16px));
 }
 /* In a Safari tab the status bar is Safari's own and lies outside the page
  * (the inset is 0): the header starts at the top of the viewport, right under
@@ -171,8 +177,6 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
 /* Bottom fog (phone-shell .ps-bot, painted in phone-shell.css): its box
  * reaches the display edge; the dots keep their place from the bottom. */
 .needt-v3[data-ui="phone"] .pk-fog {
-  /* 128 px to the screen edge, or the dock's own tail where the inset is big */
-  --ps-fog-h: max(128px, calc(94px + var(--v3-sab)));
   top: auto;
   bottom: var(--ps-fog-h);
   height: 0;
@@ -180,8 +184,7 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
 }
 /* With Safari's tab bar at the bottom the dock is lifted: the fog goes deeper. */
 html[data-display-mode="browser"][data-safari-bar="bottom"]
-  .needt-v3[data-ui="phone"]
-  .pk-fog {
+  .needt-v3[data-ui="phone"] {
   --ps-fog-h: 170px;
 }
 .needt-v3[data-ui="phone"] .pk-fog > :not(.pk-fog-dots) {

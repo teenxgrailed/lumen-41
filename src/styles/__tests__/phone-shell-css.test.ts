@@ -41,7 +41,7 @@ describe("phone shell (ps-)", () => {
   it("the fog is 128 px, 170 px with Safari's tab bar at the bottom", () => {
     expect(ground).toContain("--ps-fog-h: max(128px,");
     expect(ground).toMatch(
-      /html\[data-display-mode="browser"\]\[data-safari-bar="bottom"\]\s+\.needt-v3\[data-ui="phone"\]\s+\.pk-fog \{\s*--ps-fog-h: 170px/
+      /html\[data-display-mode="browser"\]\[data-safari-bar="bottom"\]\s+\.needt-v3\[data-ui="phone"\]\s*\{\s*--ps-fog-h: 170px/
     );
   });
 

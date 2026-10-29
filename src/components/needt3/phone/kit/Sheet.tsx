@@ -24,6 +24,7 @@ import {
 } from "@/lib/needt3/gesture";
 import { springStep } from "@/lib/needt3/spring";
 
+import { usePhoneCover } from "../shell/cover";
 import { PkScrim } from "./Scrim";
 import {
   focusablesIn,
@@ -126,6 +127,10 @@ export function PkSheet({
   const plateCls = usePkInverse();
   const fromRef = useRef(from);
   fromRef.current = from;
+  /* An open sheet takes the screen: the dock steps down and away under it
+     (it would otherwise sit behind the sheet's glass, over its own bar). A
+     sheet that grows out of the pill (`from`) keeps the pill in place. */
+  usePhoneCover(open && !from);
   const shutRef = useRef(onShut);
   shutRef.current = onShut;
   const closeRef = useRef(onClose);
