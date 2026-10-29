@@ -229,3 +229,22 @@ export function keyboardLift(
   const top = Math.min(Math.max(0, vvOffsetTop), room);
   return Math.max(0, Math.round(innerHeight - vvHeight - top));
 }
+
+/**
+ * How far the reader's top chips (‹ Docs, Done) move down while the page is
+ * edited, so they stay where they were on the glass, below the status bar.
+ * With the keyboard up iOS pans the visual viewport (`vvOffsetTop`) and may
+ * scroll the document (the reader's `hostTop` goes negative) to reveal the
+ * caret; either carries the chips up under the status bar's blur, where they
+ * are hard to see and to tap. The pin gives both back, never pulls the chips
+ * above their rest, and a pinch-zoomed page (scale above 1) keeps them still.
+ */
+export function headerPin(input: {
+  vvOffsetTop: number;
+  hostTop: number;
+  scale?: number;
+}) {
+  const { vvOffsetTop, hostTop, scale = 1 } = input;
+  if (scale > 1.02) return 0;
+  return Math.max(0, Math.round(Math.max(0, vvOffsetTop) - hostTop));
+}

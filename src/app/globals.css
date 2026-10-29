@@ -1921,9 +1921,11 @@ html[data-needt-motion="off"] .needt-aurora-blob {
  * margin and lifted onto the keyboard by a translateY the bar writes from the
  * visual viewport (bar-logic trackKeyboard; iOS does not shrink the layout
  * viewport for the keyboard, so `bottom` alone leaves it behind the keys).
- * The visual viewport ends above iOS's own accessory row, so the pill sits
- * above that row and never on the screen edges. Shown only while the editor
- * has focus. BAR_GAP in bar-logic is this `bottom` while the keyboard is up. */
+ * On iOS 26 the system's own "∧ ∨ ✓" pill floats over the visual viewport's
+ * bottom, so the lift adds FLOATING_ACCESSORY_PX there and the pill stays
+ * clear of it (bar-logic barLift). Never on the screen edges. Shown only
+ * while the editor has focus and no "/" sheet holds the keyboard's top edge
+ * (bar-logic barMode). BAR_GAP is this `bottom` while the keyboard is up. */
 .needt-page-bar {
   position: fixed;
   left: 10px;
@@ -1970,6 +1972,12 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 }
 .needt-page-bar[data-kb="rest"] .needt-page-bar-done {
   display: none;
+}
+/* The app-wide check "tick" (v3 app.css) is for checkboxes: a chosen block
+ * type or a pressed mark must not pop and ring. */
+.needt-page-bar.needt-page-bar
+  :is([aria-checked="true"], [aria-pressed="true"]) {
+  animation: none;
 }
 .needt-page-bar-panel {
   max-height: min(46dvh, 320px);

@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import { type BarOffset, NO_KEYBOARD, barOffset } from "./phone-bar/bar-logic";
+import {
+  type BarOffset,
+  NO_KEYBOARD,
+  accessoryRoom,
+  barLift,
+  barOffset,
+} from "./phone-bar/bar-logic";
 
 /**
  * How far the on-screen keyboard covers the bottom of the layout viewport, in
@@ -29,6 +35,8 @@ export function useKeyboardLift(enabled = true): number {
     // re-renders the whole editor, so only the open "/" sheet listens.
     if (!enabled || !vv) return undefined;
     let last: BarOffset = NO_KEYBOARD;
+    // The "/" sheet rides where the bar would: above iOS 26's accessory pill.
+    const accessory = accessoryRoom();
     // Straight from the event, not a frame later: a frame of lag is what made
     // the lifted sheet trail the page while it scrolled.
     const update = () => {
@@ -41,7 +49,7 @@ export function useKeyboardLift(enabled = true): number {
         },
         last
       );
-      setLift(last.lift);
+      setLift(barLift(last, accessory));
     };
     update();
     vv.addEventListener("resize", update);

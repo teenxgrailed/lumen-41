@@ -164,6 +164,7 @@ describe("the bar", () => {
       "Underline",
       "Strikethrough",
       "Link",
+      "Checklist",
       "Colour and highlight",
       "Outdent",
       "Indent",
@@ -192,6 +193,44 @@ describe("formatting", () => {
     press(btn("Bold"));
     expect(editor.isActive("bold")).toBe(false);
     expect(btn("Bold").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("Checklist runs the page's checklist command (it toggles)", () => {
+    make([para("Hello")]);
+    press(btn("Checklist"));
+    expect(onCommand).toHaveBeenCalledWith("checklist");
+  });
+
+  it('steps aside while the "/" sheet holds the keyboard\'s top edge', async () => {
+    make([para("Hello")]);
+    act(() => void editor.commands.focus());
+    await settle();
+    await settle();
+    const bar = document.body.querySelector<HTMLElement>(
+      "[aria-label='Page editing actions']"
+    )!;
+    expect(bar.dataset.mode).toBe("bar");
+    press(btn("Block type"));
+    expect(bar.dataset.mode).toBe("panel");
+    act(() =>
+      root.render(
+        h(PhoneEditBar, {
+          editor,
+          onCommand,
+          onLink,
+          onInsert,
+          suppressed: true,
+        })
+      )
+    );
+    expect(bar.dataset.mode).toBe("off");
+    expect(bar.dataset.shown).toBe("false");
+    // the panel went with it: back from the sheet, the plain bar returns
+    expect(document.body.querySelector("[data-panel]")).toBeNull();
+    act(() =>
+      root.render(h(PhoneEditBar, { editor, onCommand, onLink, onInsert }))
+    );
+    expect(bar.dataset.mode).toBe("bar");
   });
 
   it("Link and Insert hand over to the page", () => {

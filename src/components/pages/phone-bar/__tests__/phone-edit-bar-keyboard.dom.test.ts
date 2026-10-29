@@ -233,8 +233,9 @@ describe("the bar on the keyboard", () => {
     keyboard(450);
     await focus();
     // the line's bottom (720) rises to the bar's top (500) less an 8 px margin
-    // (ProseMirror scrolls on focus too; ours is the last step: +228)
-    expect(sets.at(-1)).toBe(228);
+    // and the lead (a third of the 0..500 band, capped at 120): +348
+    // (ProseMirror scrolls on focus too; ours is the last step)
+    expect(sets.at(-1)).toBe(348);
   });
 
   it("does nothing to the page while the bar is not drawn (the desktop)", async () => {

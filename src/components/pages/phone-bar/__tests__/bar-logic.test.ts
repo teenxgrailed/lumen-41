@@ -4,15 +4,21 @@
 import {
   BLOCK_MENU,
   type CaretFacts,
+  FLOATING_ACCESSORY_PX,
   KEYBOARD_MIN,
   KEYBOARD_STAY,
   NO_KEYBOARD,
+  accessoryRoom,
   barInset,
+  barLift,
+  barMode,
   barOffset,
   barTransform,
   blockLabel,
   blockTypeOf,
+  caretLead,
   caretScrollDelta,
+  hasFloatingAccessory,
   trackKeyboard,
 } from "../bar-logic";
 
@@ -226,5 +232,154 @@ describe("block menu", () => {
     expect(blockTypeOf(facts({ toggle: true }))).toBe("TOGGLE");
     expect(blockLabel("heading1")).toBe("Heading 1");
     expect(blockLabel("taskItem")).toBe("Task");
+  });
+});
+
+describe("iOS 26's floating accessory pill", () => {
+  const probe = (has: string[], coarse = true) => ({
+    coarse,
+    supports: (p: string) => has.includes(p),
+  });
+
+  it("is iOS WebKit with anchor positioning (Safari 26) on a touch screen", () => {
+    expect(
+      hasFloatingAccessory(probe(["-webkit-touch-callout", "anchor-name"]))
+    ).toBe(true);
+    // iOS 18: no anchor positioning; its accessory is an opaque strip the
+    // visual viewport already ends above.
+    expect(hasFloatingAccessory(probe(["-webkit-touch-callout"]))).toBe(false);
+    // Chrome / Android: anchor positioning, no touch callout.
+    expect(hasFloatingAccessory(probe(["anchor-name"]))).toBe(false);
+    // A Mac (fine pointer).
+    expect(
+      hasFloatingAccessory(
+        probe(["-webkit-touch-callout", "anchor-name"], false)
+      )
+    ).toBe(false);
+    expect(hasFloatingAccessory(null)).toBe(false);
+    expect(accessoryRoom(probe(["-webkit-touch-callout", "anchor-name"]))).toBe(
+      FLOATING_ACCESSORY_PX
+    );
+    expect(accessoryRoom(null)).toBe(0);
+  });
+
+  it("lifts the bar over the pill only while the keyboard is up", () => {
+    expect(barLift({ lift: 336, open: true }, FLOATING_ACCESSORY_PX)).toBe(
+      336 + FLOATING_ACCESSORY_PX
+    );
+    expect(barLift({ lift: 336, open: true }, 0)).toBe(336);
+    expect(barLift(NO_KEYBOARD, FLOATING_ACCESSORY_PX)).toBe(0);
+  });
+
+  it("the tracker writes the lift with the pill's room, --page-kb without it", () => {
+    const listeners: Record<string, Array<() => void>> = {};
+    const vv = {
+      height: 844,
+      offsetTop: 0,
+      scale: 1,
+      addEventListener: (type: string, f: () => void) => {
+        (listeners[type] ??= []).push(f);
+      },
+      removeEventListener: () => undefined,
+    };
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: vv,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 844,
+    });
+    const el = document.createElement("div");
+    const heard: number[] = [];
+    trackKeyboard(el, (lift) => heard.push(lift), 52);
+    expect(el.style.transform).toBe(barTransform(0));
+    vv.height = 508;
+    listeners.resize.forEach((f) => f());
+    expect(el.style.transform).toBe(barTransform(336 + 52));
+    expect(el.style.getPropertyValue("--page-kb")).toBe("336px");
+    expect(el.dataset.kbRead).toBe("844/508/0/52");
+    expect(heard.at(-1)).toBe(388);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+});
+
+describe("one bar in every state", () => {
+  it("shows the bar while the editor has focus, and nothing without it", () => {
+    expect(barMode({ focused: true, panel: false, suppressed: false })).toEqual(
+      { mode: "bar", padded: true }
+    );
+    expect(
+      barMode({ focused: false, panel: false, suppressed: false })
+    ).toEqual({ mode: "off", padded: false });
+  });
+
+  it("a panel grows out of the bar (one surface)", () => {
+    expect(barMode({ focused: true, panel: true, suppressed: false })).toEqual({
+      mode: "panel",
+      padded: true,
+    });
+  });
+
+  it('steps aside for the "/" sheet but keeps the page\'s keyboard room', () => {
+    for (const panel of [false, true])
+      expect(barMode({ focused: true, panel, suppressed: true })).toEqual({
+        mode: "off",
+        padded: true,
+      });
+  });
+
+  it("is never drawn on the desktop", () => {
+    expect(
+      barMode({ focused: true, panel: true, suppressed: false, desktop: true })
+    ).toEqual({ mode: "off", padded: false });
+  });
+});
+
+describe("the caret on Enter", () => {
+  it("leaves a lead under a caret brought out from under the bar", () => {
+    // band 100..700: a third is 200, capped at 120
+    expect(caretLead(100, 700)).toBe(120);
+    expect(caretLead(100, 250)).toBe(50);
+    expect(caretLead(300, 200)).toBe(0);
+    expect(
+      caretScrollDelta({
+        caretTop: 680,
+        caretBottom: 708,
+        viewTop: 100,
+        viewBottom: 700,
+        margin: 8,
+        lead: caretLead(100, 700),
+      })
+    ).toBe(708 - (700 - 8 - 120));
+  });
+
+  it("a caret already in sight does not move, lead or not", () => {
+    expect(
+      caretScrollDelta({
+        caretTop: 300,
+        caretBottom: 328,
+        viewTop: 100,
+        viewBottom: 700,
+        margin: 8,
+        lead: 120,
+      })
+    ).toBe(0);
+  });
+
+  it("the lead never applies at the top edge", () => {
+    expect(
+      caretScrollDelta({
+        caretTop: 90,
+        caretBottom: 118,
+        viewTop: 100,
+        viewBottom: 700,
+        margin: 8,
+        lead: 120,
+      })
+    ).toBe(90 - 108);
   });
 });

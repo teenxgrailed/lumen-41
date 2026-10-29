@@ -3314,6 +3314,7 @@ export function PageWorkspace({
           onCommand={(id) => applyCommand(id, false)}
           onLink={openLinkDialog}
           onInsert={() => setMobileInsertOpen(true)}
+          suppressed={slash !== null}
         />
       )}
 

@@ -49,6 +49,95 @@ export function barOffset(
   return open ? { lift, open: true } : NO_KEYBOARD;
 }
 
+/* ── iOS 26's floating form accessory ── */
+
+/**
+ * Room iOS 26 keeps for its own form accessory: the glass "∧ ∨ ✓" pill it
+ * floats above the keyboard for every focused field, contenteditable
+ * included. Up to iOS 18 that row was an opaque strip and the visual viewport
+ * ended above it. In iOS 26 it is Liquid Glass drawn over the page and the
+ * visual viewport runs on under it, so a bar placed on the visual viewport's
+ * bottom sat behind the pill (owner's screenshot, 2026-10-29: the pill on top,
+ * the formatting row blurred under it). A web page can neither hide nor
+ * measure that pill (only a native shell can, through `inputAccessoryView`),
+ * so while the keyboard is up the bar keeps this much clear above it: the
+ * pill's 44 px and the gap iOS leaves around it.
+ */
+export const FLOATING_ACCESSORY_PX = 52;
+
+interface FeatureProbe {
+  supports: (property: string, value: string) => boolean;
+  coarse: boolean;
+}
+
+const browserProbe = (): FeatureProbe | null =>
+  typeof CSS !== "undefined" &&
+  typeof CSS.supports === "function" &&
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function"
+    ? {
+        supports: (p, v) => CSS.supports(p, v),
+        coarse: window.matchMedia("(pointer: coarse)").matches,
+      }
+    : null;
+
+/**
+ * Whether this is WebKit on iOS 26 or later (the floating accessory). The UA
+ * cannot tell (iOS 26 freezes it at 18_6 and the home-screen app drops
+ * `Version/`), so features decide: `-webkit-touch-callout` exists only in
+ * WebKit on iOS / iPadOS, and CSS anchor positioning shipped in Safari 26.0.
+ * A coarse pointer leaves out a Mac.
+ */
+export function hasFloatingAccessory(
+  probe: FeatureProbe | null = browserProbe()
+): boolean {
+  if (!probe) return false;
+  return (
+    probe.coarse &&
+    probe.supports("-webkit-touch-callout", "none") &&
+    probe.supports("anchor-name", "--needt-probe")
+  );
+}
+
+/** The accessory room for this browser (0 where there is no floating pill). */
+export const accessoryRoom = (probe?: FeatureProbe | null) =>
+  hasFloatingAccessory(probe === undefined ? browserProbe() : probe)
+    ? FLOATING_ACCESSORY_PX
+    : 0;
+
+/**
+ * How far the bar rides above the layout viewport's bottom: the keyboard and,
+ * on iOS 26, the accessory pill floating over its top edge. Nothing at rest.
+ */
+export const barLift = (offset: BarOffset, accessory: number) =>
+  offset.open ? offset.lift + Math.max(0, accessory) : 0;
+
+/* ── one bar, in every state ── */
+
+export type BarMode = "off" | "bar" | "panel";
+
+/**
+ * What the phone shows above the keyboard: exactly one of our surfaces.
+ *  - The "/" sheet owns the keyboard's top edge while it is open (it lifts
+ *    itself there), so the bar steps aside instead of stacking under it.
+ *  - An open block-type or colour panel grows out of the bar (one surface).
+ *  - Otherwise the bar shows while the editor has focus; never on the desktop.
+ * `padded`: the scroll area keeps its keyboard room. It stays while the "/"
+ * sheet covers the bar, or the page would jump under the sheet.
+ */
+export function barMode(s: {
+  focused: boolean;
+  panel: boolean;
+  suppressed: boolean;
+  desktop?: boolean;
+}): { mode: BarMode; padded: boolean } {
+  if (s.desktop) return { mode: "off", padded: false };
+  const padded = s.focused || s.panel;
+  if (s.suppressed) return { mode: "off", padded };
+  if (s.panel) return { mode: "panel", padded };
+  return { mode: s.focused ? "bar" : "off", padded };
+}
+
 /** The bar's own row (px); a panel opened above it adds to this. */
 export const BAR_ROW_PX = 48;
 
@@ -68,14 +157,36 @@ export function caretScrollDelta(input: {
   viewTop: number;
   viewBottom: number;
   margin?: number;
+  /** Extra room under the caret once it has to move at all (`caretLead`), so
+   *  the next Enter does not scroll again one line later. */
+  lead?: number;
 }): number {
-  const { caretTop, caretBottom, viewTop, viewBottom, margin = 16 } = input;
+  const {
+    caretTop,
+    caretBottom,
+    viewTop,
+    viewBottom,
+    margin = 16,
+    lead = 0,
+  } = input;
   if (caretBottom > viewBottom - margin)
-    return Math.round(caretBottom - (viewBottom - margin));
+    return Math.round(caretBottom - (viewBottom - margin - lead));
   if (caretTop < viewTop + margin)
     return Math.round(caretTop - (viewTop + margin));
   return 0;
 }
+
+/**
+ * The room left under a caret brought out from under the bar: a third of the
+ * visible band, at most 120 px. The approach is that of Tiptap's Simple Editor
+ * template (`useCursorVisibility`, MIT, github.com/ueberdosis/tiptap-ui-components),
+ * which brings a hidden caret to the middle of the screen rather than to the
+ * toolbar's edge, so typing on does not scroll on every line. A third keeps
+ * more of the text above in sight on a short band. Written for our scroll
+ * area and bar, not copied.
+ */
+export const caretLead = (viewTop: number, viewBottom: number) =>
+  Math.max(0, Math.min(120, Math.round((viewBottom - viewTop) / 3)));
 
 /** The gap under the floating pill while the keyboard is up (px). */
 export const BAR_GAP = 10;
@@ -98,14 +209,16 @@ export function scrollParentOf(el: HTMLElement): HTMLElement | null {
  * `position: fixed; bottom: 0` (laid out against the layout viewport, which
  * iOS does not shrink for the keyboard), so what moves it is the transform
  * written here: `-(innerHeight - vv.height - vv.offsetTop)`, through
- * `barOffset`'s guards. It also writes `--page-kb` and `data-kb`. Written
+ * `barOffset`'s guards, plus iOS 26's floating accessory while the keyboard
+ * is up (`barLift`). It also writes `--page-kb`, `data-kb` and `data-kb-read`. Written
  * straight from the event (no React state, so no frame of lag) and read again
  * one frame later, because iOS reports the final geometry once the keyboard
  * has settled. `onChange` hears each new lift. Returns the cleanup.
  */
 export function trackKeyboard(
   el: HTMLElement,
-  onChange?: (lift: number) => void
+  onChange?: (lift: number) => void,
+  accessory: number = accessoryRoom()
 ): () => void {
   const vv = window.visualViewport;
   if (!vv) return () => undefined;
@@ -123,10 +236,13 @@ export function trackKeyboard(
     );
     if (next.lift === last.lift && next.open === last.open) return;
     last = next;
+    const lift = barLift(next, accessory);
     el.style.setProperty("--page-kb", `${next.lift}px`);
-    el.style.transform = barTransform(next.lift);
+    el.style.transform = barTransform(lift);
     el.dataset.kb = next.open ? "open" : "rest";
-    onChange?.(next.lift);
+    // What the bar read, for a look in Web Inspector on a device.
+    el.dataset.kbRead = `${window.innerHeight}/${Math.round(vv.height)}/${Math.round(vv.offsetTop)}/${accessory}`;
+    onChange?.(lift);
   };
   const onEvent = () => {
     apply();
@@ -145,6 +261,7 @@ export function trackKeyboard(
     el.style.removeProperty("--page-kb");
     el.style.removeProperty("transform");
     delete el.dataset.kb;
+    delete el.dataset.kbRead;
   };
 }
 
