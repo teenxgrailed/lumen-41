@@ -11,6 +11,7 @@ import {
   edgeIntent,
   edgeProgress,
   edgeRelease,
+  headerPin,
   keyboardLift,
   matchDocs,
   needsPro,
@@ -233,5 +234,22 @@ describe("reader scroll", () => {
     expect(keyboardLift(844, 544, 40)).toBe(260);
     expect(keyboardLift(844, 844, 0)).toBe(0);
     expect(keyboardLift(800, 844, 0)).toBe(0);
+  });
+});
+
+describe("the top chips while the page is edited", () => {
+  it("stay at rest while nothing moved", () => {
+    expect(headerPin({ vvOffsetTop: 0, hostTop: 0 })).toBe(0);
+  });
+  it("follow a pan of the visual viewport down to the caret", () => {
+    expect(headerPin({ vvOffsetTop: 120, hostTop: 0 })).toBe(120);
+  });
+  it("give back a scroll of the document", () => {
+    expect(headerPin({ vvOffsetTop: 0, hostTop: -64 })).toBe(64);
+    expect(headerPin({ vvOffsetTop: 40.4, hostTop: -64 })).toBe(104);
+  });
+  it("never pull above their rest, and keep still on a zoomed page", () => {
+    expect(headerPin({ vvOffsetTop: -30, hostTop: 20 })).toBe(0);
+    expect(headerPin({ vvOffsetTop: 200, hostTop: 0, scale: 2 })).toBe(0);
   });
 });

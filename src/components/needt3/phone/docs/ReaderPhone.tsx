@@ -38,7 +38,7 @@ import { usePhoneCover } from "../shell/cover";
 import { PageStyleSheet } from "./PageStyleSheet";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { ShareSheetPhone } from "./ShareSheetPhone";
-import { scrollVars } from "./logic";
+import { headerPin, scrollVars } from "./logic";
 import { useReaderSlide } from "./useReaderSlide";
 
 /** A focus that lands in the editor's text: the keyboard is (about to be) up. */
@@ -198,6 +198,37 @@ export function ReaderPhone({
       r.removeEventListener("focusout", off);
     };
   }, []);
+
+  // While the page is edited the top chips are pinned to the visible screen
+  // (`headerPin`): iOS pans the visual viewport and scrolls the document to
+  // reveal the caret, which carried them up under the status bar. Written to
+  // a custom property straight from the event; the chips only translate.
+  useEffect(() => {
+    const r = root.current;
+    const vv = window.visualViewport;
+    if (!typing || !r || !vv) return undefined;
+    let last = -1;
+    const pin = () => {
+      const next = headerPin({
+        vvOffsetTop: vv.offsetTop,
+        hostTop: r.getBoundingClientRect().top,
+        scale: vv.scale,
+      });
+      if (next === last) return;
+      last = next;
+      r.style.setProperty("--pd-pin", `${next}px`);
+    };
+    pin();
+    vv.addEventListener("resize", pin);
+    vv.addEventListener("scroll", pin);
+    window.addEventListener("scroll", pin, { passive: true });
+    return () => {
+      vv.removeEventListener("resize", pin);
+      vv.removeEventListener("scroll", pin);
+      window.removeEventListener("scroll", pin);
+      r.style.removeProperty("--pd-pin");
+    };
+  }, [typing]);
 
   const done = () => {
     const a = document.activeElement;
@@ -368,7 +399,7 @@ export function ReaderPhone({
             </div>
           )}
         </div>
-        <div className="pd-bar">
+        <div className="pd-bar" data-edit-top-chrome="">
           <PdGlass
             icon={<LuChevronLeft size={20} aria-hidden />}
             label="Back to Docs"

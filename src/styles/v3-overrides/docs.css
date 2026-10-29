@@ -61,6 +61,18 @@
   backdrop-filter: none;
 }
 
+/* While the page is edited the top chips stay where they rest on the visible
+ * screen (ReaderPhone pins them by `--pd-pin`, logic.ts headerPin) instead of
+ * riding up under the status bar when iOS pans to the caret. Their blur rests
+ * then (above), so they wear the page's own colour: crisp, with no line of
+ * text showing through a translucent chip. */
+.needt-v3 .pd-reader.is-editing .pd-bar {
+  transform: translate3d(0, var(--pd-pin, 0px), 0);
+}
+.needt-v3 .pd-reader.is-editing .pd-glass {
+  background: var(--pd-page);
+}
+
 /* Share sheet. */
 .needt-v3 .pd-share {
   display: flex;

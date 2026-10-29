@@ -7,11 +7,13 @@ import { useEditorState } from "@tiptap/react";
 import {
   Baseline,
   Bold,
+  Check,
   ChevronDown,
   IndentDecrease,
   IndentIncrease,
   Italic,
   Link2,
+  ListChecks,
   Plus,
   Redo2,
   Strikethrough,
@@ -29,10 +31,12 @@ import {
   BLOCK_MENU,
   type BlockTypeId,
   barInset,
+  barMode,
   blockLabel,
   blockTypeOf,
   canIndent,
   caretFacts,
+  caretLead,
   caretScrollDelta,
   indent,
   scrollParentOf,
@@ -86,9 +90,13 @@ const Sep = () => (
 
 /**
  * The editing bar above the phone's keyboard (Craft's iPhone bar, in Needt's
- * words): the block type menu, bold, italic, underline, strike, link, colour,
- * indent and outdent, undo and redo, Insert, and a button that puts the
- * keyboard away. The row scrolls sideways when the phone is narrow.
+ * words): the block type menu, bold, italic, underline, strike, link,
+ * checklist, colour, indent and outdent, undo and redo, Insert, and ✓ that
+ * puts the keyboard away. The row scrolls sideways when the phone is narrow.
+ * It is the only bar of ours above the keyboard (`barMode`): it steps aside
+ * while the "/" sheet is open, and its panels grow out of it. On iOS 26 it
+ * stands clear above the system's own floating "∧ ∨ ✓" pill, which a web page
+ * cannot remove (`FLOATING_ACCESSORY_PX`).
  *
  * It is portalled out of the page (to the app's portal layer, else the body),
  * so no transformed ancestor (the reader's slide) becomes its containing
@@ -105,19 +113,31 @@ export function PhoneEditBar({
   onCommand,
   onLink,
   onInsert,
+  suppressed = false,
 }: {
   editor: Editor | null;
   /** The page's own command runner (the "/" menu's), for the block menu. */
   onCommand: (id: BlockTypeId) => void;
   onLink: () => void;
   onInsert: () => void;
+  /** Another surface owns the keyboard's top edge (the "/" sheet): step aside. */
+  suppressed?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const layer = useV3PortalContainer();
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [panel, setPanel] = useState<"blocks" | "color" | null>(null);
   const [focused, setFocused] = useState(false);
-  const shown = focused || panel !== null;
+  const { mode, padded } = barMode({
+    focused,
+    panel: panel !== null,
+    suppressed,
+  });
+  const shown = mode !== "off";
+  // The "/" sheet takes the keyboard's top edge: an open panel goes with it.
+  useEffect(() => {
+    if (suppressed) setPanel(null);
+  }, [suppressed]);
   // Where the bar rides: the app's portal layer (it carries the theme), else
   // the body. Neither sits under a transformed ancestor.
   useEffect(() => {
@@ -161,13 +181,24 @@ export function PhoneEditBar({
 
   useEffect(() => {
     const el = root.current;
-    if (!editor || !el || !shown || !target || editor.isDestroyed)
+    if (!editor || !el || !padded || !target || editor.isDestroyed)
       return undefined;
     const scroller = scrollParentOf(editor.view.dom);
     const style = scroller?.style;
     const before = style
       ? { pad: style.paddingBottom, scroll: style.scrollPaddingBottom }
       : null;
+    // The page's own chrome at the top (the reader's back / Done chips mark
+    // themselves): the caret is kept below it as well as above the bar.
+    const topChrome = () => {
+      let bottom = 0;
+      document
+        .querySelectorAll<HTMLElement>("[data-edit-top-chrome]")
+        .forEach((node) => {
+          bottom = Math.max(bottom, node.getBoundingClientRect().bottom);
+        });
+      return bottom;
+    };
     // The caret line must never sit under the bar (or the keyboard under it).
     const keepCaret = () => {
       if (editor.isDestroyed || !editor.isFocused) return;
@@ -182,20 +213,41 @@ export function PhoneEditBar({
       } catch {
         return;
       }
+      const viewTop = Math.max(
+        scroller?.getBoundingClientRect().top ?? 0,
+        vv?.offsetTop ?? 0,
+        topChrome()
+      );
+      const viewBottom = el.getBoundingClientRect().top;
       const delta = caretScrollDelta({
         caretTop: caret.top,
         caretBottom: caret.bottom,
-        viewTop: Math.max(
-          scroller?.getBoundingClientRect().top ?? 0,
-          vv?.offsetTop ?? 0
-        ),
-        viewBottom: el.getBoundingClientRect().top,
+        viewTop,
+        viewBottom,
         margin: CARET_MARGIN,
+        lead: caretLead(viewTop, viewBottom),
       });
       if (delta === 0) return;
       if (scroller) scroller.scrollTop += delta;
       else window.scrollBy(0, delta);
     };
+    // iOS scrolls the document itself to reveal a caret it thinks is hidden,
+    // even when the page scrolls in its own area: that shoves the whole
+    // screen, the page's header under the status bar with it, and is what
+    // pressing Enter did. While the editor scrolls in a screen-high area of
+    // its own, any document scroll is iOS's: give it back, and let the area
+    // bring the caret clear instead.
+    const homeY = window.scrollY;
+    const ownsScroll =
+      !!scroller && scroller.clientHeight <= window.innerHeight + 1;
+    const holdDocument = () => {
+      if (!ownsScroll || editor.isDestroyed || !editor.isFocused) return;
+      if (Math.abs(window.scrollY - homeY) <= 1) return;
+      if (getComputedStyle(el).display === "none") return;
+      window.scrollTo(0, homeY);
+      keepCaret();
+    };
+    window.addEventListener("scroll", holdDocument, { passive: true });
     const apply = () => {
       if (getComputedStyle(el).display === "none") return;
       const inset = barInset(lift.current, el.offsetHeight);
@@ -221,13 +273,14 @@ export function PhoneEditBar({
       sync.current = () => undefined;
       cancelAnimationFrame(frame);
       clearTimeout(settle);
+      window.removeEventListener("scroll", holdDocument);
       editor.off("update", later);
       if (style && before) {
         style.paddingBottom = before.pad;
         style.scrollPaddingBottom = before.scroll;
       }
     };
-  }, [editor, shown, target, panel]);
+  }, [editor, padded, target, panel]);
 
   useEffect(() => {
     if (!panel) return undefined;
@@ -272,6 +325,7 @@ export function PhoneEditBar({
       ref={root}
       data-assistant-avoid
       data-shown={shown ? "true" : "false"}
+      data-mode={mode}
       inert={!shown}
       data-kb="rest"
       data-page-toolbar=""
@@ -373,6 +427,13 @@ export function PhoneEditBar({
             <Link2 className="h-[18px] w-[18px]" />
           </Btn>
           <Btn
+            label="Checklist"
+            pressed={state?.block === "checklist"}
+            onClick={() => onCommand("checklist")}
+          >
+            <ListChecks className="h-[18px] w-[18px]" />
+          </Btn>
+          <Btn
             label="Colour and highlight"
             pressed={panel === "color"}
             onClick={() => setPanel(panel === "color" ? null : "color")}
@@ -420,7 +481,7 @@ export function PhoneEditBar({
           onClick={() => editor?.commands.blur()}
           className="needt-page-bar-done grid h-11 w-11 flex-none place-items-center text-[var(--text-primary)] active:bg-[var(--surface-hover)]"
         >
-          <ChevronDown className="h-5 w-5" aria-hidden />
+          <Check className="h-5 w-5" aria-hidden />
         </button>
       </div>
     </div>,
