@@ -112,6 +112,19 @@ model User {
   // Set by the one-click unsubscribe link in a commercial email (trial nudges):
   // no further commercial mail goes to this account. Null means still allowed.
   commercialEmailsOptOutAt DateTime?
+  // Student price (docs/students.md). `studentEmail` is the university address
+  // the price rests on, unique so one student address backs one account.
+  // `studentVerifiedAt` is the last time it was proven (sign-in email, a
+  // signed link, the yearly re-check, or support). `studentDiscountCode` is a
+  // per-person code support sent (manual path); checkout uses it instead of
+  // the shared one. `studentRecheckSentAt` is the yearly confirm mail in
+  // flight; `studentLapsedAt` is set when that re-check failed.
+  studentEmail           String?                   @unique
+  studentVerifiedAt      DateTime?
+  studentSource          StudentSource?
+  studentDiscountCode    String?
+  studentRecheckSentAt   DateTime?
+  studentLapsedAt        DateTime?
   dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]
@@ -3036,6 +3049,13 @@ model PasswordReset {
 enum SandboxKind {
   reviewer
   publicDemo
+}
+
+/// How a student price was granted: a recognised university address, or
+/// support after checking proof (students@needt.app).
+enum StudentSource {
+  auto
+  manual
 }
 
 enum SubscriptionPlan {

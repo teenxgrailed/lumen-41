@@ -34,6 +34,7 @@ import {
 import { resetSandboxAccounts } from "@/services/sandbox/sandbox-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
+import { processStudentRechecks } from "@/services/students/student-recheck";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
 import {
   CALDAV_SYNC_INTERVAL_MS,
@@ -276,7 +277,11 @@ async function processOAuthCleanup() {
   await cleanupOAuth();
 }
 
-async function processTrials() {
+async function processTrials(job: Job<TrialJobData>) {
+  if (job.data.kind === "student-recheck") {
+    await processStudentRechecks();
+    return;
+  }
   try {
     await hashLegacyTrialEmailKeys();
   } catch (error) {
@@ -512,6 +517,11 @@ export async function start(): Promise<void> {
     "trial-lifecycle-sweep",
     { every: 60 * 60_000 },
     { name: "sweep-trials", data: { kind: "sweep" } }
+  );
+  await getTrialQueue().upsertJobScheduler(
+    "student-recheck-sweep",
+    { every: 60 * 60_000 },
+    { name: "sweep-student-rechecks", data: { kind: "student-recheck" } }
   );
   await getOAuthCleanupQueue().upsertJobScheduler(
     "oauth-cleanup-sweep",

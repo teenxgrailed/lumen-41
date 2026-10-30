@@ -62,7 +62,8 @@ export interface LifetimeCheckoutReconciliationJobData {
 }
 
 export interface TrialJobData {
-  kind: "sweep";
+  /** "student-recheck": the yearly student-price check (docs/students.md). */
+  kind: "sweep" | "student-recheck";
 }
 
 export interface OAuthCleanupJobData {

@@ -7,11 +7,20 @@ import { LuCheck } from "react-icons/lu";
 import { openBillingPortal, startTrial } from "@/lib/needt3/hooks/account";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
-import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
+import {
+  type PriceStrings,
+  lifetimeLeftLine,
+  priceStrings,
+} from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
 import { PRO_FEATURES, failedPaymentLine } from "../../settings/PlanSection";
 import { isPro, planInfo, trialBarPct } from "../../settings/derive";
+import {
+  showsStudentPrices,
+  studentPanel,
+} from "../../settings/student-derive";
+import { useStudentEmail } from "../../settings/useStudentEmail";
 import { PkButton } from "../kit";
 import { PsGroup, PsProTag, PsRow, usePs } from "./parts";
 
@@ -20,8 +29,10 @@ const P = priceStrings();
 /** The plan card's second line (the desktop's, word for word). */
 export function planLine(
   kind: string,
-  b: { trialDaysLeft?: number | null; trialEligible?: boolean } | undefined
+  b: { trialDaysLeft?: number | null; trialEligible?: boolean } | undefined,
+  prices: PriceStrings = P
 ) {
+  const P = prices;
   switch (kind) {
     case "free":
       return `${offersTrial({ kind, trialEligible: b?.trialEligible }) ? P.trialShort : P.plansShort}.`;
@@ -37,7 +48,8 @@ export function planLine(
 }
 
 /** The grey line under the card on a paid plan. */
-export function planHint(kind: string) {
+export function planHint(kind: string, prices: PriceStrings = P) {
+  const P = prices;
   switch (kind) {
     case "lifetime":
       return `You're one of the first ${P.lifetimeCap}. Every Pro feature, now and later — no renewals.`;
@@ -75,7 +87,11 @@ export function PlanPage() {
   const info = planInfo(kind);
   const pro = isPro(kind);
   const closed = b ? !b.configured : false;
-  const hint = planHint(kind);
+  /* A verified student sees the price checkout will charge. */
+  const SP = priceStrings(undefined, { student: showsStudentPrices(b) });
+  const hint = planHint(kind, SP);
+  const student = useStudentEmail(plan.refetch);
+  const panel = studentPanel(b, student.offer);
 
   const portal = async () => {
     if (going.current) return;
@@ -115,7 +131,7 @@ export function PlanPage() {
     <>
       <section className="ps-plan-card" data-ps-plan-card={kind}>
         <span className="ps-plan-name">Your plan · {info.name}</span>
-        <span className="ps-plan-line">{planLine(kind, b)}</span>
+        <span className="ps-plan-line">{planLine(kind, b, SP)}</span>
         {kind === "trial" ? (
           <span className="ps-trial">
             <span>
@@ -175,18 +191,27 @@ export function PlanPage() {
         ) : null}
       </section>
       {kind === "free" ? (
-        <PsGroup title="Plans" hint={`${P.renewalAll} ${P.footnote}`}>
+        <PsGroup
+          title="Plans"
+          hint={[
+            SP.student ? `${SP.studentLine}. Lifetime is not discounted.` : "",
+            SP.renewalAll,
+            SP.footnote,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <PsRow
             title="Pro Monthly"
             desc="Cancel any time"
-            value={`${P.monthly} / month`}
+            value={`${SP.monthly} / month`}
             onOpen={() => upgrade()}
             data={{ "data-ps-price": "monthly" }}
           />
           <PsRow
             title="Pro Yearly"
-            desc={`${P.yearlyPerMonth}/mo · Save ${P.saveAmount}`}
-            value={`${P.yearly} / year`}
+            desc={`${SP.yearlyPerMonth}/mo · Save ${SP.saveAmount}`}
+            value={`${SP.yearly} / year`}
             onOpen={() => upgrade()}
             data={{ "data-ps-price": "annual" }}
           />
@@ -220,6 +245,68 @@ export function PlanPage() {
           ) : null}
         </PsGroup>
       )}
+      {panel ? (
+        <PsGroup
+          title="Student price"
+          hint={[panel.note, "Lifetime is not discounted."]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <PsRow
+            title="University email"
+            desc={panel.line}
+            value={
+              panel.verified ? (
+                <span className="ps-included">
+                  <LuCheck size={13} aria-hidden />
+                  On
+                </span>
+              ) : undefined
+            }
+          />
+          {panel.canAdd ? (
+            <PsRow
+              title="Add a university email"
+              desc={
+                <>
+                  <input
+                    className="pl-field"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    aria-label="University email"
+                    placeholder="name@university.edu"
+                    maxLength={254}
+                    value={student.draft}
+                    disabled={student.busy}
+                    onChange={(e) => student.setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void student.send();
+                    }}
+                    data-ps-student-email=""
+                  />
+                  {student.error ? (
+                    <span role="alert">{student.error}</span>
+                  ) : student.sentTo ? (
+                    <span role="status" data-ps-student-sent="">
+                      Check {student.sentTo} for a link. It works for 24 hours.
+                    </span>
+                  ) : null}
+                </>
+              }
+              control={
+                <PkButton
+                  kind="chip"
+                  disabled={student.busy || !student.draft.trim()}
+                  onClick={() => void student.send()}
+                >
+                  {student.busy ? "Sending…" : "Send link"}
+                </PkButton>
+              }
+            />
+          ) : null}
+        </PsGroup>
+      ) : null}
       <PsGroup
         title={pro ? "Included in your plan" : "What Pro unlocks"}
         hint={
