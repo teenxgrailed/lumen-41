@@ -1,0 +1,17 @@
+# Keep the graph to the product code: no vendored skills, design archives, snapshots or build output.
+.claude/
+.agents/
+.cursor/
+.mulch/
+.pnpm-store/
+.project-pilot/
+design-refs/
+screens/
+landing/
+openspec/
+public/
+tests/visual/**/*-snapshots/
+**/__snapshots__/
+src/lib/students/data/
+node_modules/
+.next/
