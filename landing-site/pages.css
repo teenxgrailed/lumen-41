@@ -1060,3 +1060,23 @@ sup.ref a { text-decoration: none; font: 600 11px/1 var(--sans); color: var(--in
 .pwb-budget > span > span { font-size: 14.5px; line-height: 1.45; color: rgba(245,246,247,.66); }
 .pwb-budget i { font-style: normal; font-weight: 600; font-size: 14px; color: #7fe0f0; white-space: nowrap; }
 @media (max-width: 640px) { .pwb-budget { flex-wrap: wrap; } }
+
+/* ── v29 (27.10.26): Needt Budget banner on Pricing */
+.pwb-budget { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 20px 24px; border-radius: 22px; background: #141517; color: #f5f6f7; text-decoration: none; box-shadow: 0 30px 60px -36px rgba(10,20,30,.6); transition: transform .25s var(--ease); }
+.pwb-budget:hover { transform: translateY(-2px); }
+.pwb-budget .mi { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #f5f6f7; }
+.pwb-budget > span { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.pwb-budget b { font: 600 18px/1.2 var(--sans); letter-spacing: -0.02em; }
+.pwb-budget > span > span { font-size: 14.5px; line-height: 1.45; color: rgba(245,246,247,.66); }
+.pwb-budget i { font-style: normal; font-weight: 600; font-size: 14px; color: #7fe0f0; white-space: nowrap; }
+@media (max-width: 640px) { .pwb-budget { flex-wrap: wrap; } }
+
+/* ── v29 (27.10.26): Needt Budget banner on Pricing */
+.pwb-budget { display: flex; align-items: center; gap: 18px; margin-top: 18px; padding: 20px 24px; border-radius: 22px; background: #141517; color: #f5f6f7; text-decoration: none; box-shadow: 0 30px 60px -36px rgba(10,20,30,.6); transition: transform .25s var(--ease); }
+.pwb-budget:hover { transform: translateY(-2px); }
+.pwb-budget .mi { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #f5f6f7; }
+.pwb-budget > span { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.pwb-budget b { font: 600 18px/1.2 var(--sans); letter-spacing: -0.02em; }
+.pwb-budget > span > span { font-size: 14.5px; line-height: 1.45; color: rgba(245,246,247,.66); }
+.pwb-budget i { font-style: normal; font-weight: 600; font-size: 14px; color: #7fe0f0; white-space: nowrap; }
+@media (max-width: 640px) { .pwb-budget { flex-wrap: wrap; } }

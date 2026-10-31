@@ -19,13 +19,13 @@
 <link rel="preload" href="../assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="../styles.css?v=47">
+<link rel="stylesheet" href="../styles.css?v=51">
 <link rel="stylesheet" href="../pages.css?v=28">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
 -->
 </head>
-<body class="page">
+<body class="page page-dl">
 <script>window.NEEDT_SIGNUP = "https://use.needt.app/auth/signin";</script>
 <header class="nav" id="nav">
   <div class="nav-pill">
@@ -69,7 +69,7 @@
       </div>
       <a class="nav-link" href="../pricing/">Pricing</a>
       <a class="nav-link is-current" aria-current="page" href="../download/">Download</a>
-      <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="../plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="../assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Seven skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="../budget/" style="--n:1"><span class="xp-ic xp-img"><img src="../assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><div class="xp-card xp-soon" style="--n:2"><span class="xp-ic"><i></i></span><em>Soon</em><b>Next</b><span>Something new is on its way</span></div></div></div></div></div>
+      <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="../plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="../assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Seven skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="../budget/" style="--n:1"><span class="xp-ic xp-img"><img src="../assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><a role="menuitem" class="xp-card xp-stu" href="../students/" style="--n:2"><span class="xp-ic xp-img"><img src="../assets/students/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>40% off</em><b>Students</b><span>Pro for less while you study</span></a></div></div></div></div>
     </nav>
     <div class="nav-right">
       <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
@@ -80,21 +80,42 @@
 </header>
 <main id="top">
 
-<div class="dx">
-  <section class="dx-sec">
-    <div class="dx-vis dx-vis-web" data-px-calm><div class="dx-browser"><div class="dx-btop"><i></i><i></i><i></i><span>use.needt.app</span></div><img src="../assets/today-light.webp" alt="Needt Home in the browser" width="2880" height="1800"></div></div>
-    <div class="dx-txt">
-      <h1>Needt<br>on the web</h1>
-      <p>Everything Needt does, in any browser — nothing to install. Your tasks, calendars, docs and mail in one place, on any computer.</p>
-      <p>Install it from the browser for its own window and Dock icon.</p>
+<section class="dlp-hero">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Download</span>
+      <h1 class="h2 dlp-h1">Needt on <i>every screen.</i></h1>
+      <p class="sub rv">Open it in any browser today, on Windows, Mac, Linux, Android, iPhone and iPad. Native Mac and iPhone apps arrive at the end of November.</p>
+      <div class="cta-row dlp-cta rv"><a class="btn btn-primary btn-lg js-trial" href="https://use.needt.app/auth/signin">Open Needt <span class="arr">→</span></a><a class="btn btn-raised btn-lg" href="#platforms">Every platform</a></div>
+    </div>
+    <div class="dv-stage rv">
+      <img class="dv dv-ipad" src="../assets/devices/ipad.webp" alt="Needt web app on iPad Pro" width="1100" height="783">
+      <img class="dv dv-duo" src="../assets/devices/duo.webp" alt="Needt web app on an unfolded iPhone Duo" width="1100" height="799">
+      <img class="dv dv-mac" src="../assets/devices/mac.webp" alt="Needt Calendar on a MacBook Pro (Mac app coming end of November)" width="1600" height="1053">
+      <img class="dv dv-iph" src="../assets/devices/iphone.webp" alt="Needt Today on iPhone (iPhone app coming end of November)" width="520" height="1063">
+    </div>
+    <ul class="dv-list rv">
+      <li><b>Web app</b><span>Now, in any browser</span></li>
+      <li><b>Windows · Linux · Android</b><span>Now, in the browser</span></li>
+      <li><b>iPad · iPhone · foldables</b><span>Now, in the browser</span></li>
+      <li><b>Mac and iPhone apps</b><span class="dv-soon">End of November</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="dlp-sec" id="platforms" aria-label="Platforms">
+  <div class="wrap dlp-grid">
+    <article class="dlp-card dlp-web rv">
+      <span class="dlp-tag now">Available now</span>
+      <h2>Web app</h2>
+      <p>Everything Needt does, in any browser. Nothing to install, nothing to update.</p>
       <a class="dx-btn" href="https://use.needt.app/auth/signin">Open Needt</a>
       <details class="dx-how"><summary>Install it as an app <span aria-hidden="true">›</span></summary><ol><li>Chrome or Edge: the install icon in the address bar.</li><li>Safari on a Mac: File → Add to Dock.</li><li>Windows: Edge → ⋯ → Apps → Install.</li></ol></details>
-    </div>
-  </section>
-  <section class="dx-sec dx-rev">
-    <div class="dx-txt">
-      <h2>Needt<br>for Mac</h2>
-      <p>A native Mac app with its own window, menu-bar quick add and offline notes. Same account, same day.</p>
+    </article>
+    <article class="dlp-card dlp-mac rv">
+      <span class="dlp-tag later">End of November</span>
+      <h2>Mac app</h2>
+      <p>Its own window, menu-bar quick add and offline notes. Same account, same day.</p>
       <div class="dx-soon" data-dx-soon="mac">
           <div class="dx-soon-row"><span>In the works · end of November</span><b data-dx-pct>0%</b></div>
           <div class="dx-bar"><i data-dx-fill></i><em data-dx-boost></em></div>
@@ -102,13 +123,10 @@
           <form class="dx-notify" data-dx-notify hidden><label>Want an email when it’s out? Optional.</label><div><input type="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email"><button type="submit">Notify me</button></div><p data-dx-msg aria-live="polite"></p></form>
         </div>
       <details class="dx-how"><summary>Use it on a Mac today <span aria-hidden="true">›</span></summary><ol><li>Open use.needt.app in Safari.</li><li>File → Add to Dock.</li><li>Needt opens in its own window.</li></ol></details>
-    </div>
-    <div class="dx-vis dx-vis-mac"><div class="dx-mac"><div class="dx-mac-scr"><img src="../assets/today-dark.webp" alt="Needt on a MacBook" loading="lazy" width="2880" height="1800"></div><div class="dx-mac-base"></div></div></div>
-  </section>
-  <section class="dx-sec">
-    <div class="dx-vis dx-vis-phone"><div class="dx-phone"><img src="../assets/phone-home.webp" alt="Needt on iPhone" loading="lazy" width="402" height="874"></div></div>
-    <div class="dx-txt">
-      <h2>Needt<br>for iPhone</h2>
+    </article>
+    <article class="dlp-card dlp-iph rv">
+      <span class="dlp-tag later">End of November</span>
+      <h2>iPhone app</h2>
       <p>Today, Calendar and quick capture in your pocket, with widgets and notifications.</p>
       <div class="dx-soon" data-dx-soon="iphone">
           <div class="dx-soon-row"><span>In the works · end of November</span><b data-dx-pct>0%</b></div>
@@ -116,11 +134,23 @@
           <button type="button" class="dx-want" data-dx-want><span class="dx-want-ic"><svg class="g" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M11 2.8c.5 3.4 2.2 5.1 5.6 5.6-3.4.5-5.1 2.2-5.6 5.6-.5-3.4-2.2-5.1-5.6-5.6 3.4-.5 5.1-2.2 5.6-5.6Z" fill="#ed990e"/><path d="M17.4 13.4c.3 1.9 1.3 2.9 3.2 3.2-1.9.3-2.9 1.3-3.2 3.2-.3-1.9-1.3-2.9-3.2-3.2 1.9-.3 2.9-1.3 3.2-3.2Z" fill="#e6000c"/><circle cx="5.4" cy="17.6" r="1.8" fill="rgba(89,93,226,0.549)"/></svg></span><span data-dx-label>I want the iPhone app</span></button>
           <form class="dx-notify" data-dx-notify hidden><label>Want an email when it’s out? Optional.</label><div><input type="email" name="email" placeholder="you@email.com" autocomplete="email" required aria-label="Email"><button type="submit">Notify me</button></div><p data-dx-msg aria-live="polite"></p></form>
         </div>
-      <details class="dx-how"><summary>Use it on iPhone today <span aria-hidden="true">›</span></summary><ol><li>Open use.needt.app in Safari.</li><li>Tap Share → Add to Home Screen.</li><li>Open Needt from the new icon — full screen, with notifications.</li></ol></details>
-    </div>
-  </section>
-  <p class="dx-other">Windows and Android: use the web app and install it from Edge or Chrome. Native apps come after Mac and iPhone.</p>
-</div>
+      <details class="dx-how"><summary>Use it on iPhone today <span aria-hidden="true">›</span></summary><ol><li>Open use.needt.app in Safari.</li><li>Tap Share → Add to Home Screen.</li><li>Open Needt from the new icon: full screen, with notifications.</li></ol></details>
+    </article>
+    <article class="dlp-card dlp-other rv">
+      <span class="dlp-tag now">Available now</span>
+      <h2>Windows, Linux, Android</h2>
+      <p>Use the web app and install it from Edge or Chrome. It gets its own window and icon.</p>
+      <details class="dx-how"><summary>Install it <span aria-hidden="true">›</span></summary><ol><li>Windows: Edge → ⋯ → Apps → Install Needt.</li><li>Linux: Chrome → ⋮ → Cast, save and share → Install page as app.</li><li>Android: Chrome → ⋮ → Add to Home screen.</li></ol></details>
+    </article>
+    <a class="dlp-card dlp-plug rv" href="../plugin/">
+      <span class="dlp-tag now">Free</span>
+      <h2>Needt for Claude and Codex</h2>
+      <p>Seven skills for your AI. Type /needt and your planner listens.</p>
+      <span class="dlp-go">Get the plugin →</span>
+    </a>
+  </div>
+</section>
+
 </main>
 <div class="page-night" data-px-scope>
   <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div></div>
@@ -149,7 +179,7 @@
           </div>
         </div>
         <div class="foot-cols">
-          <div><span class="fh">Product</span><a href="../#tour">Tour</a><a href="../pricing/">Pricing</a><a href="../templates/">Templates</a><a href="../integrations/">Integrations</a><a href="../download/">Download</a><a href="../plugin/">Needt Plugin</a><a href="../budget/">Needt Budget</a><a href="../changelog/">Changelog</a></div>
+          <div><span class="fh">Product</span><a href="../#tour">Tour</a><a href="../pricing/">Pricing</a><a href="../templates/">Templates</a><a href="../integrations/">Integrations</a><a href="../download/">Download</a><a href="../plugin/">Needt Plugin</a><a href="../budget/">Needt Budget</a><a href="../students/">Student discount</a><a href="../changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="../for/freelancers/">Freelancers</a><a href="../for/students/">Students</a><a href="../for/founders/">Founders</a><a href="../for/content-creators/">Creators</a><a href="../for/adhd/">ADHD</a><a href="../for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="../learn/">Learn</a><a href="../blog/">Blog</a><a href="../resources/mcp/">Connect AI (MCP)</a><a href="../resources/api/">API</a><a href="../compare/">Compare</a><a href="../best/">Best apps</a><a href="../glossary/">Glossary</a><a href="../help/">Help</a></div>
           <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
@@ -164,7 +194,7 @@
   </section>
 </div>
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
-<script src="../vendor/sky.js?v=27" defer></script>
-<script src="../site.js?v=45" defer></script>
+<script src="../vendor/sky.js?v=28" defer></script>
+<script src="../site.js?v=48" defer></script>
 </body>
 </html>

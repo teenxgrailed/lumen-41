@@ -12,7 +12,7 @@
 <link rel="preload" href="assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="styles.css?v=47">
+<link rel="stylesheet" href="styles.css?v=51">
 <link rel="canonical" href="https://needt.app/">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -66,7 +66,7 @@
       </div>
       <a class="nav-link" href="pricing/">Pricing</a>
       <a class="nav-link" href="download/">Download</a>
-      <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Seven skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="budget/" style="--n:1"><span class="xp-ic xp-img"><img src="assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><div class="xp-card xp-soon" style="--n:2"><span class="xp-ic"><i></i></span><em>Soon</em><b>Next</b><span>Something new is on its way</span></div></div></div></div></div>
+      <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Seven skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="budget/" style="--n:1"><span class="xp-ic xp-img"><img src="assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><a role="menuitem" class="xp-card xp-stu" href="students/" style="--n:2"><span class="xp-ic xp-img"><img src="assets/students/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>40% off</em><b>Students</b><span>Pro for less while you study</span></a></div></div></div></div>
     </nav>
     <div class="nav-right">
       <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
@@ -82,9 +82,8 @@
 <section class="hero" aria-labelledby="hero-h" data-px-scope>
   <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="c"></div></div>
   <div class="wrap hero-in">
-    <span class="chip-tag rv" data-px-calm>Your day, rebuilt when plans move</span>
-    <h1 id="hero-h" class="display split" data-split data-px-calm>Everything you’re working on, <i>in one place.</i></h1>
-    <p class="lead rv" style="--d:.35s" data-px-calm>…and your day plans itself. Tasks, calendar and docs in one calm workspace.</p>
+    <h1 id="hero-h" class="display split" data-split data-px-calm>Plans move.<br> <i>Your day <span class="nw">keeps up.</span></i></h1>
+    <p class="lead rv" style="--d:.35s" data-px-calm>Tasks, calendar and docs in one place. Move a meeting and Needt reshuffles the rest. You press Keep.</p>
     <div class="cta-row rv" style="--d:.5s" data-px-calm>
       <a class="btn btn-primary btn-lg js-signup" href="#">Try it free <span class="arr">→</span></a>
       <a class="btn btn-raised btn-lg" href="#tour">See how it works</a>
@@ -92,37 +91,16 @@
     <p class="cta-note rv" style="--d:.6s">Free plan + 14 days of Pro. Add a card only if you keep Pro.</p>
 
     <!-- Phones get the phone: the real mobile Home in a device frame. -->
-    <div class="hero-phone" data-px-calm><video class="hero-vid" muted loop playsinline preload="none" data-poster="assets/phone-tour-poster.webp" width="600" height="1304" aria-label="Needt on iPhone: Today, then Calendar, Tasks and Docs through the Every place menu" data-mp4="assets/phone-tour.mp4" data-webm="assets/phone-tour.webm"></video></div>
+    <div class="hero-phone" data-px-calm><video class="hero-vid" muted loop playsinline preload="none" data-poster="assets/phone-tour-poster.webp" width="600" height="1304" aria-label="Needt on iPhone: Today, then Calendar, Tasks and Docs through the Every place menu" data-mp4="assets/phone-tour.mp4" data-webm="assets/phone-tour.webm"></video><img class="hp-bezel" src="assets/devices/iphone-bezel.webp" alt="" width="675" height="1380"></div>
     <!-- The real app, with live layers: tick a task; the agent places an overdue one. -->
     <div class="stage rv" style="--d:.7s">
-      <div class="float-card fc-1 depth" data-depth="18" aria-hidden="true">
-        <div class="fc-row"><i class="ck"></i>Reply to Sam<span class="tag">Shop</span></div>
-        <div class="fc-row done"><i class="ck on"></i>Renew the domain</div>
-        <div class="fc-row"><i class="ck"></i>Pack the orders<span class="tag">Shop</span></div>
-        <small>Today · 3 left</small>
-      </div>
-      <div class="float-card fc-2 depth" data-depth="26" aria-hidden="true">
-        <span class="mo">SEP</span><span class="dn">1</span><span class="dw">Tuesday</span><span class="ev">14:00 Pitch deck</span>
-      </div>
-      <div class="float-card fc-3 depth" data-depth="14" aria-hidden="true">
-        <div class="fc-habit"><span class="dots"><i></i><i></i><i></i><i class="off"></i><i></i><i></i></span>Spanish<span class="tag g">6 days</span></div>
-        <small>Habit · day 6</small>
-      </div>
-
       <div class="window" id="window" data-px-calm>
         <div class="win-scale" id="win-scale">
-          <img class="win-shot" src="assets/today-light.webp" alt="Needt Home: next up, overdue tasks and today's schedule" width="1440" height="900">
-          <!-- Live layers, in the screenshot's 1440×900 coordinates -->
-          <button class="live-ck" style="left:345px;top:421px" data-w="179" aria-label="Mark “Send invoices for August” done"></button>
-          <button class="live-ck" style="left:345px;top:455px" data-w="132" aria-label="Mark “Renew the domain” done"></button>
-          <button class="live-ck" id="ck-rep" style="left:345px;top:489px" data-w="167" aria-label="Mark “Send the August report” done"></button>
-          <button class="live-ck" style="left:345px;top:579px" data-w="186" aria-label="Mark “Answer the client email” done"></button>
-          <button class="live-ck" style="left:345px;top:613px" data-w="200" aria-label="Mark “Reply to Sam about the quote” done"></button>
-          <div class="patch" id="patch-rep" style="left:334px;top:478px;width:730px;height:40px"></div>
-          <div class="sched-clip" style="left:1098px;top:787px;width:316px;height:91px">
-            <div class="sched-shift" id="sched-shift" style="background-position:-1098px -787px"></div>
-            <div class="sched-new" id="sched-new"><span class="h">16:30</span><span class="b"></span><span class="n">Send the August report</span><span class="d">35 min</span></div>
-          </div>
+          <img class="win-shot" src="assets/cal-before.webp" alt="Needt Calendar, week view: a client call on Wednesday at 16:00" width="1440" height="900">
+          <img class="win-shot win-after" id="win-after" src="assets/cal-after.webp" alt="" width="1440" height="900" loading="lazy">
+          <!-- Live layers, in the screenshot's 1440×900 coordinates: the call moves to 10:00, two tasks shift, Keep -->
+          <div class="patch" id="patch-call" style="left:680px;top:584px;width:139px;height:27px;background:#fff"></div>
+          <div class="hero-toast" id="hero-toast" aria-hidden="true"><span class="ht-dot"></span><span class="ht-txt"><b>Wed call → 10:00.</b> Products → 16:00, courier → 17:00</span><button type="button" class="ht-undo" tabindex="-1">Undo</button><button type="button" class="ht-keep" id="ht-keep" tabindex="-1">Keep</button></div>
           <div class="agent" id="agent" aria-hidden="true">
             <svg width="22" height="26" viewBox="0 0 20 24"><path d="M2 1.5 L2 19 L6.6 14.8 L9.6 21.6 L12.6 20.3 L9.7 13.6 L16 13.4 Z" fill="#fff" stroke="#141312" stroke-width="1.3" stroke-linejoin="round"/></svg>
             <span class="say"></span><span class="load"></span>
@@ -131,6 +109,7 @@
       </div>
     </div>
   </div>
+  <div class="hero-clouds" aria-hidden="true"></div>
 </section>
 
 <!-- ── 2 · One place: five tabs fold into one ──────────── -->
@@ -155,7 +134,7 @@
     <div class="sec-head center">
       <span class="eyebrow rv">One place</span>
       <h2 id="op-h" class="h2 split" data-split>Tasks, calendar and docs. <i>On one screen.</i></h2>
-      <p class="lead rv">Stop running your day across a task app, a calendar, a notes app and your head. Everything you’re working on lives together — and knows about the rest.</p>
+      <p class="lead rv">A task app, a calendar, a notes app and your head. Needt puts them on one screen, and each one knows about the others.</p>
     </div>
     <div class="three">
       <article class="card tilt rv">
@@ -202,6 +181,49 @@
   </div>
 </section>
 
+<section class="sec sec-white" id="more-needt" aria-labelledby="mx-h">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">New · More from Needt</span>
+      <h2 id="mx-h" class="h2 split" data-split>Two more tools. <i>Same account.</i></h2>
+      <p class="sub rv">A Claude plugin that runs your day from chat, and a money app that sorts itself. Both sign in with Needt.</p>
+    </div>
+    <div class="mx-grid">
+      <a class="mx mx-plug rv" href="plugin/"><div class="mx-row"><img class="mx-ic" src="assets/plugin/icon.svg" alt="" width="56" height="56"><span class="mx-tag">Free</span></div><h3>Needt Plugin</h3><p>Seven skills for Claude and Codex. Type /needt and your planner listens.</p>
+        <div class="mx-chat" aria-hidden="true">
+          <div class="mc-top"><i></i><i></i><i></i><span>Claude · /needt</span></div>
+          <div class="mc-u">/needt the client wants the morning. Move Wednesday’s call.</div>
+          <div class="mc-tool"><span class="mc-spin"></span><code>needt_reschedule</code><em>Client call → Wed 10:00</em><b>✓</b></div>
+          <div class="mc-a">Done. The call is at 10:00. “Photograph the products” moved to 16:00, “Pick the courier” to 17:00. Say “undo” to put them back.</div>
+        </div>
+        <span class="mx-go">Get the plugin →</span></a>
+      <a class="mx mx-bud rv" href="budget/"><div class="mx-txt"><div class="mx-row"><img class="mx-ic" src="assets/budget/icon.svg" alt="" width="56" height="56"><span class="mx-tag">Included in Pro</span></div><h3>Needt Budget</h3><p>Every wallet in one balance, payments that sort themselves, and one number for how long your money lasts. Or $2 once on its own.</p><span class="mx-go">See Needt Budget →</span></div>
+        <img src="assets/budget/b-home.webp" alt="Needt Budget home screen" loading="lazy" width="402" height="874"></a>
+    </div>
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+<section class="sec upd" id="updates" aria-labelledby="up-h">
+  <div class="wrap up-grid">
+    <div class="up-head">
+      <span class="eyebrow rv">Updates</span>
+      <h2 id="up-h" class="h2 split" data-split>Shipped <i>this month.</i></h2>
+      <p class="sub rv">Needt gets better every week. Here is what changed lately, and what comes next.</p>
+      <a class="up-all rv" href="changelog/">All updates →</a>
+    </div>
+    <div class="up-list rv"><a class="up-row up-soon" href="download/"><span class="up-d">End of November</span><span class="up-t"><em>Coming</em><b>Mac and iPhone apps</b><span>Native apps with the same account. Until then, the web app works in any browser.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-soon" href="students/"><span class="up-d">Coming soon</span><span class="up-t"><em>Coming</em><b>40% off Pro for students</b><span>Pro for less while you study. Write to us and we tell you when it is live.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="changelog/"><span class="up-d">28 Oct 2026</span><span class="up-t"><em>New</em><b>Reminders, and Home your way</b><span>Remind yourself before a task or event, a quieter bell, and a Home you arrange.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="plugin/"><span class="up-d">27 Oct 2026</span><span class="up-t"><em>New</em><b>Needt Plugin</b><span>Seven skills for Claude and Codex. Type /needt and your planner listens.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="budget/"><span class="up-d">27 Oct 2026</span><span class="up-t"><em>New</em><b>Needt Budget comes with Pro</b><span>Your money app at budget.needt.app, included in Pro and Lifetime.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-imp" href="changelog/"><span class="up-d">6 Oct 2026</span><span class="up-t"><em>Improved</em><b>A new look, everywhere</b><span>New design end to end, a calmer sign-in and a bottom bar on phones.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="changelog/"><span class="up-d">4 Oct 2026</span><span class="up-t"><em>New</em><b>Your own AI key, on any plan</b><span>The hosted agent is in Pro, Lifetime and the trial. On Free, bring your own key.</span></span><i aria-hidden="true">→</i></a></div>
+  </div>
+</section>
+
+
 <!-- ── 3 · Tour (Ditto-style sticky stage) ─────────────── -->
 <section class="tour" id="tour" aria-label="A tour of Needt">
   <div class="tour-pin">
@@ -232,7 +254,7 @@
   <div class="tour-m">
     <div class="wrap"><span class="eyebrow">Tour</span><h2 class="h2">Every place, <i>one thumb away.</i></h2></div>
     <div class="swipe" aria-label="Screens of the Needt mobile app">
-      <figure><img src="assets/phone-home.webp" alt="Needt Today on iPhone" loading="lazy" width="402" height="874"><figcaption><b>Home starts with one thing.</b> Next up, what’s overdue, and the day as it is.</figcaption></figure>
+      <figure><img src="assets/phone-home.webp" alt="Needt Today on iPhone (iPhone app coming end of November)" loading="lazy" width="402" height="874"><figcaption><b>Home starts with one thing.</b> Next up, what’s overdue, and the day as it is.</figcaption></figure>
       <figure><img src="assets/phone-calendar.webp" alt="Needt Calendar on iPhone" loading="lazy" width="402" height="874"><figcaption><b>Calendar holds tasks and events.</b> What’s now, what’s next, booked hours.</figcaption></figure>
       <figure><img src="assets/phone-tasks.webp" alt="Needt Tasks on iPhone" loading="lazy" width="402" height="874"><figcaption><b>Every task has a time.</b> Overdue, today, upcoming — one tap to move.</figcaption></figure>
       <figure><img src="assets/phone-docs.webp" alt="Needt Docs on iPhone" loading="lazy" width="402" height="874"><figcaption><b>Docs next to the work.</b> Briefs and notes, a tap from the task.</figcaption></figure>
@@ -247,8 +269,8 @@
   <div class="wrap ai-grid">
     <div class="ai-copy">
       <span class="eyebrow on-sky rv">Planning</span>
-      <h2 id="ai-h" class="h2 split" data-split data-px-calm>When plans move, <i>the day rebuilds.</i></h2>
-      <p class="lead rv">A meeting lands or a task runs long — Needt re-slots what’s affected and shows every move before anything is saved.</p>
+      <h2 id="ai-h" class="h2 split" data-split data-px-calm>Something runs long? <i>The rest re-slots.</i></h2>
+      <p class="lead rv">Needt moves only what’s affected and shows you every move. Nothing is saved until you press Keep.</p>
       <ul class="ai-points rv" style="--d:.15s">
         <li><em class="mi"><svg class="g" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="rgba(91,91,228,0.22)"/><path d="M18.2 9.2A6.6 6.6 0 0 0 6.4 8.4" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round"/><path d="M5.8 14.8a6.6 6.6 0 0 0 11.8.8" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round"/><path d="M18.6 5.4v4.2h-4.2" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.4 18.6v-4.2h4.2" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></em><span><b>Only what’s affected moves</b>The rest of your day stays where you put it.</span></li>
         <li><em class="mi"><svg class="g" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="#9964e5"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="rgba(153,100,228,0.451)"/></svg></em><span><b>Every move has a reason</b>“Your 11:00 opened up when Sam moved the call.”</span></li>
@@ -289,7 +311,7 @@
 <!-- ── 5 · Details (bento) ─────────────────────────────── -->
 <section class="sec" aria-labelledby="det-h">
   <div class="wrap">
-    <div class="sec-head">
+    <div class="sec-head center">
       <span class="eyebrow rv">Small details</span>
       <h2 id="det-h" class="h2 split" data-split>Built for the <i>ordinary</i> day.</h2>
     </div>
@@ -353,41 +375,31 @@
   <div class="wrap"><div class="int-legend rv"><a href="integrations/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3" fill="#ffffff" stroke="rgba(26,26,26,0.078)" stroke-width="1"></rect><path d="M6 4h12a3 3 0 0 1 3 3v2H3V7a3 3 0 0 1 3-3z" fill="#e6000c"></path><text x="12" y="18.4" text-anchor="middle" font-size="8.6" font-weight="600" font-family="Inter, system-ui, sans-serif" fill="#1a1c1e">6</text></svg></em>Calendars &amp; mail</a><a href="resources/mcp/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="#9964e5"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="rgba(153,100,228,0.451)"/></svg></em>AI over MCP</a><a href="resources/api/"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4.5" fill="rgba(26,28,31,0.851)"/><path d="M9.4 7.8c-1.6 0-2 .8-2 2v.6c0 .8-.4 1.4-1.2 1.6.8.2 1.2.8 1.2 1.6v.6c0 1.2.4 2 2 2M14.6 7.8c1.6 0 2 .8 2 2v.6c0 .8.4 1.4 1.2 1.6-.8.2-1.2.8-1.2 1.6v.6c0 1.2-.4 2-2 2" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round"/></svg></em>API &amp; webhooks</a><a href="integrations/"><em class="mi"><svg class="g" viewBox="0 0 40 40" width="24" height="24" aria-hidden="true"><path d="M6 22h7l2 4h10l2-4h7v8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" fill="#ed990e"></path><path d="M6 22l4-11a3 3 0 0 1 2.8-2h14.4a3 3 0 0 1 2.8 2l4 11h-7l-2 4H15l-2-4z" fill="#fad7b1"></path><path d="M20 8v11m-4.5-4.5L20 19l4.5-4.5" fill="none" stroke="#774a03" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg></em>Imports</a></div></div>
 </section>
 
-<section class="sec lately" id="lately" aria-labelledby="lt-h">
+<!-- ── 7 + 8 · Night zone: one night sky under the dark turn, the final CTA and the footer ── -->
+<section class="sec devs" id="devices" aria-labelledby="dv-h">
   <div class="wrap">
     <div class="sec-head center">
-      <span class="eyebrow rv">Lately</span>
-      <h2 id="lt-h" class="h2 split" data-split>New in Needt, <i>this month.</i></h2>
-      <p class="lead rv">Shipped, not promised. The full list is in the <a href="changelog/">changelog</a>.</p>
+      <span class="eyebrow rv">Every screen</span>
+      <h2 id="dv-h" class="h2 split" data-split>One account. <i>Every screen.</i></h2>
+      <p class="sub rv">Needt runs in any modern browser on Windows, Mac, Linux, Android, iPhone and iPad. Change something on one screen and it is already on the others.</p>
     </div>
-    <div class="lt-grid">
-      <a class="lt rv" style="--d:0.00s" href="changelog/"><span class="lt-tag">Pro</span><h3>Goals</h3><p>What you are working towards, with a why, a deadline and progress. Link tasks and projects to a goal and answer a short weekly “How’s it going?”. A goal is never scheduled itself; only its tasks are.</p><span class="lt-go">See what changed →</span></a>
-      <a class="lt rv" style="--d:0.05s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Home, your way</h3><p>On a wide window Home fills the width, with Today, Habits, This week, Schedule and Inbox in one column of equal tiles. Pick which blocks show. Hover the weather for rain, wind and the next hours.</p><span class="lt-go">See what changed →</span></a>
-      <a class="lt rv" style="--d:0.10s" href="changelog/"><span class="lt-tag">Pro</span><h3>Ask, docked</h3><p>Ask Needt is a panel on the right that docks like the sidebar. Drag its edge to resize it; it reopens as you left it. It uses the same operations your own AI tools use.</p><span class="lt-go">See what changed →</span></a>
-      <a class="lt rv" style="--d:0.15s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Reminders, and a quieter bell</h3><p>Remind yourself before a task or event, or at a time. Snooze from the bell. Choose what you hear about, where, when it is quiet, and get a daily digest instead of a stream.</p><span class="lt-go">See what changed →</span></a>
-      <a class="lt rv" style="--d:0.20s" href="changelog/"><span class="lt-tag">Everyone</span><h3>Docs with real blocks</h3><p>Toggle, Callout and Columns, tables, links and text colour. A checklist line can be a real task. Export a page as Markdown.</p><span class="lt-go">See what changed →</span></a>
-      <a class="lt rv" style="--d:0.25s" href="resources/mcp/"><span class="lt-tag">Pro</span><h3>32 tools for your AI</h3><p>Claude and ChatGPT can place a task at a time you name, log a habit, set a reminder, keep lunch free, write a goal, and remember what you tell them.</p><span class="lt-go">Connect your AI →</span></a>
+    <div class="dv-stage rv">
+      <img class="dv dv-ipad" src="assets/devices/ipad.webp" alt="Needt web app on iPad Pro" width="1100" height="783" loading="lazy">
+      <img class="dv dv-duo" src="assets/devices/duo.webp" alt="Needt web app on an unfolded iPhone Duo" width="1100" height="799" loading="lazy">
+      <img class="dv dv-mac" src="assets/devices/mac.webp" alt="Needt Calendar on a MacBook Pro (Mac app coming end of November)" width="1600" height="1053" loading="lazy">
+      <img class="dv dv-iph" src="assets/devices/iphone.webp" alt="Needt Today on iPhone (iPhone app coming end of November)" width="520" height="1063" loading="lazy">
     </div>
+    <ul class="dv-list rv">
+      <li><b>Web app</b><span>Now, in any browser</span></li>
+      <li><b>Windows · Linux · Android</b><span>Now, in the browser</span></li>
+      <li><b>iPad · iPhone · foldables</b><span>Now, in the browser</span></li>
+      <li><b>Mac and iPhone apps</b><span class="dv-soon">End of November</span></li>
+    </ul>
+    <p class="dv-more rv"><a href="download/">All downloads →</a></p>
   </div>
 </section>
-
-<!-- ── 7 + 8 · Night zone: one night sky under the dark turn, the final CTA and the footer ── -->
 <div class="night-zone" data-px-scope>
   <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div><div class="dusk-veil" id="dusk-veil"></div></div>
-<section class="sec" id="more-needt" aria-labelledby="mx-h">
-  <div class="wrap">
-    <div class="sec-head center">
-      <span class="eyebrow rv">More from Needt</span>
-      <h2 id="mx-h" class="h2 split" data-split>Two more things, <i>made the same way.</i></h2>
-    </div>
-    <div class="mx-grid">
-      <a class="mx mx-plug rv" href="plugin/"><img class="mx-ic" src="assets/plugin/icon.svg" alt="" width="64" height="64"><span class="mx-tag">Free</span><h3>Needt Plugin</h3><p>Seven skills for your AI: a business partner, research, prompts, grill-me and a critic — free. Plus /needt, which runs your day inside Needt on Pro.</p><span class="mx-go">Get the plugin →</span>
-        <div class="mx-cmds"><code>/needt:partner</code><code>/needt:prompt</code><code>/needt:search</code><code>/needt:asking</code><code>/needt:critic</code><code>/needt</code></div></a>
-      <a class="mx mx-bud rv" href="budget/"><div class="mx-txt"><img class="mx-ic" src="assets/budget/icon.svg" alt="" width="64" height="64"><span class="mx-tag">Included in Pro</span><h3>Needt Budget</h3><p>Every wallet in one balance, operations that sort themselves, and one number for how long your money lasts. Or $2 once on its own.</p><span class="mx-go">See Needt Budget →</span></div>
-        <img src="assets/budget/b-home.webp" alt="Needt Budget home screen" loading="lazy" width="402" height="874"></a>
-    </div>
-  </div>
-</section>
 <section class="night" id="night" aria-labelledby="night-h">
   <div class="night-pin">
     <div class="wrap">
@@ -432,7 +444,7 @@
           </div>
         </div>
         <div class="foot-cols">
-          <div><span class="fh">Product</span><a href="#tour">Tour</a><a href="pricing/">Pricing</a><a href="templates/">Templates</a><a href="integrations/">Integrations</a><a href="download/">Download</a><a href="plugin/">Needt Plugin</a><a href="budget/">Needt Budget</a><a href="changelog/">Changelog</a></div>
+          <div><span class="fh">Product</span><a href="#tour">Tour</a><a href="pricing/">Pricing</a><a href="templates/">Templates</a><a href="integrations/">Integrations</a><a href="download/">Download</a><a href="plugin/">Needt Plugin</a><a href="budget/">Needt Budget</a><a href="students/">Student discount</a><a href="changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="for/freelancers/">Freelancers</a><a href="for/students/">Students</a><a href="for/founders/">Founders</a><a href="for/content-creators/">Creators</a><a href="for/adhd/">ADHD</a><a href="for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="learn/">Learn</a><a href="blog/">Blog</a><a href="resources/mcp/">Connect AI (MCP)</a><a href="resources/api/">API</a><a href="compare/">Compare</a><a href="glossary/">Glossary</a><a href="help/">Help</a></div>
           <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
@@ -450,7 +462,7 @@
 </main>
 
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
-<script src="vendor/sky.js?v=27" defer></script>
-<script src="app.js?v=45" defer></script>
+<script src="vendor/sky.js?v=29" defer></script>
+<script src="app.js?v=47" defer></script>
 </body>
 </html>
