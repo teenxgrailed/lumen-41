@@ -322,6 +322,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* iOS: "budget mode" in styles.css (v34) — nothing sticks to the edges and
      the page keeps one static background, so this script stays out. */
   if (window.CSS && CSS.supports("-webkit-touch-callout", "none")) return;
+  /* v33: only Safari tints its bars from the page; elsewhere this was the most expensive
+     scroll handler (canvas reads every frame). In Safari it runs when the scroll settles. */
+  if (!/^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(navigator.userAgent)) return;
   const root = document.documentElement;
   const FALL = { lavender: [[174, 180, 216], [233, 230, 234]], night: [[18, 17, 38], [58, 55, 96]] };
   const parse = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ""); if (!m) return null; const v = m[1].split(",").map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
@@ -329,7 +332,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* What the sky canvas really shows at viewport row y (the 2D canvas is readable). */
   const skyColour = (sky, y, top) => {
     const cv = sky.querySelector(".px-canvas"), r = sky.getBoundingClientRect();
-    if (cv && cv.width && r.width) {
+    if (false && cv && cv.width && r.width) {
       try {
         const k = cv.width / r.width, row = Math.max(0, Math.min(cv.height - 1, Math.round((y - r.top) * k))), x = cv.getContext("2d");
         const px = [.2, .5, .8].map((f) => x.getImageData(Math.round(cv.width * f), row, 1, 1).data);
@@ -380,7 +383,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       if (c) { if (s.__edge !== c) { s.__edge = c; s.style.setProperty("--sky-edge", c); } }
     });
   };
-  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(apply); } };
+  let settle = 0;
+  const queue = () => { clearTimeout(settle); settle = setTimeout(() => { if (!queued) { queued = true; requestAnimationFrame(apply); } }, 90); };
   addEventListener("scroll", queue, { passive: true });
   addEventListener("resize", queue);
   addEventListener("load", queue);

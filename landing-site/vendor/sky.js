@@ -352,7 +352,11 @@ function pxStart(root, canvas, dotCanvas, opt) {
   const dctx = dotCanvas.getContext("2d");
   const scope = root.closest("[data-px-scope]") || root;
   const mq = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
-  let reduced = !!(mq && mq.matches);
+  /* v33: phones draw the sky once and keep it still (scroll stays smooth). */
+  /* v35: every sky is drawn once and stays still — on phones and on desktop. Moving clouds
+     cost a full-screen redraw per frame (and per scroll step) and made the page stutter. */
+  const coarse = true;
+  let reduced = true;
   let img = null, W = 0, H = 0, kc = 4, cols = 0, rows = 0, gc = 0, gr = 0;
   let pal = null, palSig = "", lastPal = 0;
   let base = null, calmMap = null, ridgeTop = null, stars = [];
@@ -1333,7 +1337,7 @@ function pxStart(root, canvas, dotCanvas, opt) {
   document.addEventListener("visibilitychange", onVis);
   const onTime = () => { readPalette(true); draw(performance.now(), true); };
   window.addEventListener("px-time", onTime);
-  const onMq = () => { reduced = !!(mq && mq.matches); still(); kick(); };
+  const onMq = () => { reduced = true; still(); kick(); };
   if (mq && mq.addEventListener) mq.addEventListener("change", onMq);
   const slow = window.setInterval(() => {
     if (stopped || hidden || !inView || parked || (!raf && (stillMode || pxRest.idle))) return;
@@ -1372,6 +1376,7 @@ function pxStart(root, canvas, dotCanvas, opt) {
   const tOpt = { passive: true };
   let scrollT = 0, scrollEnd = 0;
   const onScroll = () => {
+    if (coarse) return;  /* v35: still skies never redraw on scroll */
     window.clearTimeout(scrollEnd);
     scrollEnd = window.setTimeout(() => { readCalm(); if (reduced) draw(performance.now(), true); else kick(); }, 120);
     const n = performance.now(); if (n - scrollT < 80) return; scrollT = n; readCalm(); if (reduced) draw(n, true); else kick();
@@ -1380,12 +1385,12 @@ function pxStart(root, canvas, dotCanvas, opt) {
   /* Landing: sticky skies under scrolling text re-read the calm rects once the
      scroll settles, and only while on screen — not on every scroll event. */
   let winEnd = 0;
-  window.addEventListener("scroll", () => { if (!inView) return; window.clearTimeout(winEnd); winEnd = window.setTimeout(() => { readCalm(); if (reduced) draw(performance.now(), true); else kick(); }, 140); }, { passive: true });
-  scope.addEventListener("pointermove", onMove, tOpt);
-  scope.addEventListener("pointerleave", onLeave, tOpt);
-  scope.addEventListener("pointerdown", onDown, tOpt);
+  window.addEventListener("scroll", () => { if (coarse || !inView) return; window.clearTimeout(winEnd); winEnd = window.setTimeout(() => { readCalm(); if (reduced) draw(performance.now(), true); else kick(); }, 140); }, { passive: true });
+  if (!coarse) scope.addEventListener("pointermove", onMove, tOpt);
+  if (!coarse) scope.addEventListener("pointerleave", onLeave, tOpt);
+  if (!coarse) scope.addEventListener("pointerdown", onDown, tOpt);
   scope.addEventListener("pointerup", onTouchEnd, tOpt);
-  scope.addEventListener("touchmove", onTouchMove, tOpt);
+  if (!coarse) scope.addEventListener("touchmove", onTouchMove, tOpt);
   scope.addEventListener("touchend", onTouchEnd, tOpt);
   scope.addEventListener("touchcancel", onTouchEnd, tOpt);
   /* Promo hover / keyboard focus: the clouds part and brighten. */

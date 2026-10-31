@@ -150,15 +150,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       cards.forEach((c) => { const d = +c.dataset.depth; c.style.transform = `translate(${-x * d}px, ${-y * d}px)`; }); });
   }
 
-  // Tick a task: check + strike over the screenshot row
-  $$(".live-ck").forEach((b) => {
-    const st = document.createElement("i"); st.className = "live-strike";
-    st.style.left = "372px"; st.style.top = parseFloat(b.style.top) + 9 + "px"; st.style.width = b.dataset.w + "px";
-    b.after(st);
-    b.addEventListener("click", () => { b.classList.toggle("on"); st.classList.toggle("on", b.classList.contains("on")); });
-  });
-
-  // The agent: overdue "Send the August report" → the free stretch after 16:20
+  // The agent: the client call moves 16:00 → 10:00, two tasks shift, toast → Keep
   const agentEl = $("#agent"), say = $(".say", agentEl), load = $(".load", agentEl);
   let ax = 1300, ay = 860;
   const place = () => { agentEl.style.transform = `translate(${ax}px, ${ay}px) scale(${1 / Math.max(K, .55)})`; };
@@ -171,23 +163,30 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       ax = u * u * sx + 2 * u * e * cx + e * e * bx; ay = u * u * sy + 2 * u * e * cy + e * e * by; place(); q < 1 ? requestAnimationFrame(f) : res(); }; requestAnimationFrame(f); });
   }
   let heroVis = true; new IntersectionObserver((es) => (heroVis = es[0].isIntersecting)).observe(win);
-  const patch = $("#patch-rep"), shift = $("#sched-shift"), fresh = $("#sched-new"), ckRep = $("#ck-rep");
-  async function heroLoop() {
+  const after = $("#win-after"), patch = $("#patch-call"), toast = $("#hero-toast"), keep = $("#ht-keep");
+  if (calm) { after.classList.add("on"); }
+  else (async function heroLoop() {
     for (;;) {
-      await wait(2400);
-      if (!heroVis || ckRep.classList.contains("on")) { await wait(1500); continue; }
-      ax = 1330; ay = 870; place(); say.textContent = ""; agentEl.classList.add("on");
-      say.textContent = "Overdue · 35 min"; await go(470, 498);
-      load.textContent = "Send the August report"; agentEl.classList.add("holding"); patch.classList.add("on");
-      say.textContent = "Into the free stretch, 16:30"; await go(1200, 798, 1100);
-      agentEl.classList.remove("holding"); say.textContent = "";
-      shift.classList.add("on"); fresh.classList.add("on");
-      await wait(600); agentEl.classList.remove("on");
+      await wait(1800);
+      if (!heroVis) { await wait(1200); continue; }
+      ax = 1240; ay = 860; place(); say.textContent = ""; agentEl.classList.add("on");
+      say.textContent = "The client asked for the morning"; await go(760, 598);
+      await wait(500);
+      load.textContent = "16:00  Client call"; agentEl.classList.add("holding"); patch.classList.add("on"); say.textContent = "";
+      await go(760, 262, 1200);
+      load.textContent = "10:00  Client call"; await wait(350);
+      agentEl.classList.remove("holding"); patch.classList.remove("on"); after.classList.add("on");
+      say.textContent = "Products to 16:00, courier to 17:00";
+      await wait(700); toast.classList.add("on"); await wait(1100);
+      say.textContent = "";
+      const kr = keep.getBoundingClientRect(), wr = win.getBoundingClientRect();
+      await go((kr.left + kr.width / 2 - wr.left) / K - 6, (kr.top + kr.height / 2 - wr.top) / K - 4, 900);
+      await wait(350); keep.classList.add("press"); await wait(260); keep.classList.remove("press");
+      toast.classList.remove("on"); await wait(400); agentEl.classList.remove("on");
       await wait(5200);
-      fresh.classList.remove("on"); shift.classList.remove("on"); await wait(300); patch.classList.remove("on");
+      after.classList.remove("on"); await wait(900);
     }
-  }
-  heroLoop();
+  })();
 
   /* ── Fold: other apps collapse into one ───────────── */
   const fold = $("#fold"), icons = $$("#fold-icons img:not(.fold-needt)"), needt = $(".fold-needt");
@@ -351,6 +350,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* ── Night ─────────────────────────────────────────── */
   const night = $("#night"), veil = $("#dusk-veil"), nightSky = $(".night-zone .sky"), shotD = $(".duo .shot-d");
   let lastNt = "", lastVt = "";
+  const phoneNight = matchMedia("(max-width: 860px)");
   const onNight = () => {
     const r = night.getBoundingClientRect(), p = clamp(-r.top / (r.height - innerHeight), 0, 1), nt = clamp((p - .1) / .55, 0, 1);
     const vt = r.top < 0 ? nt : 0;
@@ -362,7 +362,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     /* Under a fully opaque veil the night sky has nothing to show: park it. */
     const ns = nightSky && nightSky.__sky; const park = vt < .02 && r.top > -10;
     if (ns && ns.veil !== park) { ns.veil = park; setPark(ns); }
-    document.body.classList.toggle("is-night", (r.top < innerHeight * .1 && nt > .45) || r.bottom < innerHeight * .5);
+    /* v35: phones keep the light header and menu over the night card (the dark theme made the open menu unreadable). */
+    document.body.classList.toggle("is-night", !phoneNight.matches && ((r.top < innerHeight * .1 && nt > .45) || r.bottom < innerHeight * .5));
   };
 
   /* ── The name at the floor — the old site's wordmark, as is ─────
@@ -481,6 +482,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* iOS: "budget mode" in styles.css (v34) — nothing sticks to the edges and
      the page keeps one static background, so this script stays out. */
   if (window.CSS && CSS.supports("-webkit-touch-callout", "none")) return;
+  /* v33: only Safari tints its bars from the page; elsewhere this was the most expensive
+     scroll handler (canvas reads every frame). In Safari it runs when the scroll settles. */
+  if (!/^((?!chrome|chromium|crios|fxios|edg|android).)*safari/i.test(navigator.userAgent)) return;
   const root = document.documentElement;
   const FALL = { lavender: [[174, 180, 216], [233, 230, 234]], night: [[18, 17, 38], [58, 55, 96]] };
   const parse = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ""); if (!m) return null; const v = m[1].split(",").map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
@@ -488,7 +492,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* What the sky canvas really shows at viewport row y (the 2D canvas is readable). */
   const skyColour = (sky, y, top) => {
     const cv = sky.querySelector(".px-canvas"), r = sky.getBoundingClientRect();
-    if (cv && cv.width && r.width) {
+    if (false && cv && cv.width && r.width) {
       try {
         const k = cv.width / r.width, row = Math.max(0, Math.min(cv.height - 1, Math.round((y - r.top) * k))), x = cv.getContext("2d");
         const px = [.2, .5, .8].map((f) => x.getImageData(Math.round(cv.width * f), row, 1, 1).data);
@@ -539,7 +543,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       if (c) { if (s.__edge !== c) { s.__edge = c; s.style.setProperty("--sky-edge", c); } }
     });
   };
-  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(apply); } };
+  let settle = 0;
+  const queue = () => { clearTimeout(settle); settle = setTimeout(() => { if (!queued) { queued = true; requestAnimationFrame(apply); } }, 90); };
   addEventListener("scroll", queue, { passive: true });
   addEventListener("resize", queue);
   addEventListener("load", queue);
