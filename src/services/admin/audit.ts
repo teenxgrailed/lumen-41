@@ -16,6 +16,10 @@ export type AdminAuditAction =
   | "user.delete"
   /** "Reset sandbox now": a sandbox account wiped and reseeded. */
   | "user.reset_sandbox"
+  /** Support granted the student price by hand (docs/students.md). */
+  | "user.mark_student"
+  /** Support removed a student price. */
+  | "user.clear_student"
   | "promo.create"
   | "promo.deactivate"
   /** A read through the MCP admin tools (`needt.admin.read`). */

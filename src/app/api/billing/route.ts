@@ -19,6 +19,7 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { studentSummary } from "@/lib/students/student-service";
 import { isTrialAvailable } from "@/lib/trials/trial-service";
 
 const LOG_SOURCE = "BillingAPI";
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
       lifetime,
       checkoutEnabled,
       account,
+      student,
     ] = await Promise.all([
       prisma.subscription.findUnique({
         where: { userId: auth.userId },
@@ -77,6 +79,7 @@ export async function GET(request: NextRequest) {
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
           creemCustomerId: true,
+          discountApplied: true,
         },
       }),
       prisma.trialGrant.findUnique({
@@ -97,6 +100,7 @@ export async function GET(request: NextRequest) {
         where: { id: auth.userId },
         select: { email: true, emailVerified: true },
       }),
+      studentSummary(auth.userId),
     ]);
 
     const trialEligible = await trialEligibility({
@@ -120,10 +124,13 @@ export async function GET(request: NextRequest) {
       currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
       canManageBilling: Boolean(subscription?.creemCustomerId),
+      /** Creem reported a discount on this subscription (the student code). */
+      discountApplied: subscription?.discountApplied ?? false,
       lifetimeAvailable: lifetime.available,
       lifetimeLeft: lifetime.left,
       checkoutEnabled,
       trialEligible,
+      student,
       usage: {
         calendars,
         autoScheduledTasks,

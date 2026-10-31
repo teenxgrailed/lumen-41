@@ -283,6 +283,185 @@ Needt - [OWNER: legal entity name and postal address]",
 }
 `;
 
+exports[`email templates student-price-ending matches its snapshot 1`] = `
+{
+  "html": "<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Your student price ends at your next renewal</title>
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark;}
+@media (prefers-color-scheme:dark){
+.paper{background-color:#12110f !important;}
+.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
+.ink,.mark{color:#f1ede6 !important;}
+.muted{color:#a29d93 !important;}
+.btn{background-color:#f1ede6 !important;}
+.btn-a{color:#1b1a17 !important;}
+}
+@media only screen and (max-width:620px){
+.wrap{width:100% !important;}
+.pad{padding:24px 20px !important;}
+}
+</style>
+</head>
+<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">From 26 Nov 2026, Needt Pro is $59 / year.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
+<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your student price ends at your next renewal</h1>
+<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">We could not confirm your university email this year.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">From your renewal on 26 Nov 2026, Needt Pro is the regular price, $59 / year.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Still a student? Add your university email again in Settings, Plan, before that date. No university email? Write to students@needt.app with proof of enrolment.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/settings?section=billing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open Settings</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/settings?section=billing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/settings?section=billing</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">You can cancel any time in Settings, Plan &amp; billing, Invoices and payment.</p>
+</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>",
+  "subject": "Your student price ends at your next renewal",
+  "text": "Your student price ends at your next renewal
+
+We could not confirm your university email this year.
+
+From your renewal on 26 Nov 2026, Needt Pro is the regular price, $59 / year.
+
+Still a student? Add your university email again in Settings, Plan, before that date. No university email? Write to students@needt.app with proof of enrolment.
+
+Open Settings: https://use.needt.app/settings?section=billing
+
+You can cancel any time in Settings, Plan & billing, Invoices and payment.
+
+--
+You get this because of activity on your Needt account.
+Needt - [OWNER: legal entity name and postal address]",
+}
+`;
+
+exports[`email templates student-recheck matches its snapshot 1`] = `
+{
+  "html": "<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Are you still a student?</title>
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark;}
+@media (prefers-color-scheme:dark){
+.paper{background-color:#12110f !important;}
+.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
+.ink,.mark{color:#f1ede6 !important;}
+.muted{color:#a29d93 !important;}
+.btn{background-color:#f1ede6 !important;}
+.btn-a{color:#1b1a17 !important;}
+}
+@media only screen and (max-width:620px){
+.wrap{width:100% !important;}
+.pad{padding:24px 20px !important;}
+}
+</style>
+</head>
+<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Keep your Needt student price with one tap.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
+<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Are you still a student?</h1>
+<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Once a year we check that the student price on your Needt Pro plan still applies.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Confirm with the button below before 26 Nov 2026 to keep 40% off.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">I&#39;m still a student</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">If you have finished, there is nothing to do. We will email you before anything changes.</p>
+</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>",
+  "subject": "Are you still a student?",
+  "text": "Are you still a student?
+
+Once a year we check that the student price on your Needt Pro plan still applies.
+
+Confirm with the button below before 26 Nov 2026 to keep 40% off.
+
+I'm still a student: https://use.needt.app/api/students/confirm?t=SAMPLE
+
+If you have finished, there is nothing to do. We will email you before anything changes.
+
+--
+You get this because of activity on your Needt account.
+Needt - [OWNER: legal entity name and postal address]",
+}
+`;
+
+exports[`email templates student-verify matches its snapshot 1`] = `
+{
+  "html": "<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Confirm your university email for Needt</title>
+<style>
+:root{color-scheme:light dark;supported-color-schemes:light dark;}
+@media (prefers-color-scheme:dark){
+.paper{background-color:#12110f !important;}
+.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
+.ink,.mark{color:#f1ede6 !important;}
+.muted{color:#a29d93 !important;}
+.btn{background-color:#f1ede6 !important;}
+.btn-a{color:#1b1a17 !important;}
+}
+@media only screen and (max-width:620px){
+.wrap{width:100% !important;}
+.pad{padding:24px 20px !important;}
+}
+</style>
+</head>
+<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">One tap and Needt Pro is 40% off for you.</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
+<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Confirm your university email</h1>
+<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Someone added this address to a Needt account to get the student price on Pro: 40% off monthly and yearly.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">If that was you, confirm it below.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Confirm</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">The link works for 24 hours. If you did not ask for this, ignore this email and nothing changes.</p>
+</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; [OWNER: legal entity name and postal address]</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>",
+  "subject": "Confirm your university email for Needt",
+  "text": "Confirm your university email
+
+Someone added this address to a Needt account to get the student price on Pro: 40% off monthly and yearly.
+
+If that was you, confirm it below.
+
+Confirm: https://use.needt.app/api/students/confirm?t=SAMPLE
+
+The link works for 24 hours. If you did not ask for this, ignore this email and nothing changes.
+
+--
+You get this because of activity on your Needt account.
+Needt - [OWNER: legal entity name and postal address]",
+}
+`;
+
 exports[`email templates trial-ended matches its snapshot 1`] = `
 {
   "html": "<!doctype html>

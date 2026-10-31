@@ -25,6 +25,7 @@ import {
   enforceRateLimits,
   ipRule,
 } from "@/lib/security/rate-limit";
+import { studentDiscountForCheckout } from "@/lib/students/student-service";
 
 const LOG_SOURCE = "CreemCheckoutAPI";
 
@@ -162,8 +163,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // A verified student (or a confirmed university sign-in address) gets
+    // the student code on Pro monthly and yearly; Lifetime never does.
+    const discountCode = await studentDiscountForCheckout(
+      auth.userId,
+      selection
+    );
+
     const checkout = await getCreemClient().checkouts.create({
       productId,
+      ...(discountCode ? { discountCode } : {}),
       requestId:
         lifetimeReservation?.reservation.requestId ??
         checkoutRequestId(auth.userId, selection),
@@ -177,6 +186,7 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
         plan: selection.plan,
         interval: selection.plan === "pro" ? selection.interval : "once",
+        ...(discountCode ? { student: "true" } : {}),
         ...(lifetimeReservation
           ? { lifetimeReservationId: lifetimeReservation.reservation.id }
           : {}),
