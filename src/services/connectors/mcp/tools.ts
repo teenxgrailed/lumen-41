@@ -982,7 +982,14 @@ async function updateTask(
     patch,
   });
   return result.ok
-    ? toolResult({ changed: result.changed, task: result.task })
+    ? toolResult({
+        changed: result.changed,
+        task: result.task,
+        ...(result.recurringAlreadyDone && {
+          recurringAlreadyDone: result.recurringAlreadyDone,
+          note: "Not completed again: this repeating task was already completed today. It comes due next on nextDueDate.",
+        }),
+      })
     : toolError({ status: result.status, error: result.error });
 }
 
