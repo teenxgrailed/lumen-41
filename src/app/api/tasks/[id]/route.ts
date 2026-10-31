@@ -8,8 +8,10 @@ import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import {
+  type RecurringAlreadyDone,
   type RecurringCompletion,
   planRecurringCompletion,
+  recurringAlreadyDone,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
 import {
@@ -323,6 +325,7 @@ export async function PUT(
     }
 
     let recurringCompletion: RecurringCompletion | null = null;
+    let alreadyDone: RecurringAlreadyDone | undefined;
 
     // Completing the series row records an immutable occurrence snapshot and
     // advances only the future-facing master row.
@@ -337,9 +340,11 @@ export async function PUT(
           updates.completedAt ?? newDate()
         );
         if (plan.duplicate) {
-          // Already ticked today and the next occurrence is ahead: leave it.
+          // Already ticked today and the next occurrence is ahead: leave it,
+          // and tell the client so it does not show a completion.
           delete updates.status;
           delete updates.completedAt;
+          alreadyDone = recurringAlreadyDone(task);
         } else {
           recurringCompletion = plan.completion;
           if (plan.advance) Object.assign(updates, plan.advance);
@@ -565,7 +570,10 @@ export async function PUT(
 
     await completeOfflineMutation(offlineRecordId);
     rescheduleRemindersSoon({ taskId: id });
-    return NextResponse.json(withOriginPageId(updatedTask));
+    return NextResponse.json({
+      ...withOriginPageId(updatedTask),
+      ...(alreadyDone && { recurringAlreadyDone: alreadyDone }),
+    });
   } catch (error) {
     await failOfflineMutation(offlineRecordId);
     logger.error(

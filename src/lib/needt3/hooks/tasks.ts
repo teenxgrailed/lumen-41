@@ -21,6 +21,10 @@ import {
 import { type TaskFilter, qk } from "@/lib/needt3/query-keys";
 import { serialByKey } from "@/lib/needt3/serial";
 import { tickClosesTask } from "@/lib/needt3/steps";
+import {
+  type RecurringAlreadyDoneBody,
+  noticeRecurringAlreadyDone,
+} from "@/lib/recurring-already-done";
 
 import {
   dropListItem,
@@ -76,6 +80,18 @@ interface UpdateVars {
   patch: V3TaskPatch;
 }
 
+/**
+ * The server left a repeating task alone: it was already done today. Thrown
+ * from the write so the optimistic tick is put back and the callers' "Done"
+ * line never shows; the person has already been told why.
+ */
+class RecurringAlreadyDoneError extends Error {
+  constructor() {
+    super("Recurring task already completed today");
+    this.name = "RecurringAlreadyDoneError";
+  }
+}
+
 function applyLocal(t: V3Task, patch: V3TaskPatch): V3Task {
   const next = { ...t, ...patch } as V3Task;
   if ("done" in patch) {
@@ -97,6 +113,7 @@ export function useUpdateTask() {
   return useUndoableMutation<UpdateVars, V3Task>({
     scope: [TASKS, [...qk.task("")].slice(0, 2)],
     label: "update the task",
+    quiet: (error) => error instanceof RecurringAlreadyDoneError,
     inverse: (qc, { id, patch }) => {
       const cur = findListItem<V3Task>(qc, TASKS, id);
       return cur ? { id, patch: previousFields(cur, patch) } : null;
@@ -115,15 +132,23 @@ export function useUpdateTask() {
         const held =
           findListItem<V3Task>(qc, TASKS, id) ??
           qc.getQueryData<V3Task>(qk.task(id));
-        const saved = taskFromApi(
-          await sendJson<ApiTask>(
-            `/api/tasks/${id}`,
-            "PUT",
-            taskPatchToApi(patch, tz),
-            revisionHeader(held?.updatedAt)
-          ),
-          tz
+        const raw = await sendJson<ApiTask & RecurringAlreadyDoneBody>(
+          `/api/tasks/${id}`,
+          "PUT",
+          taskPatchToApi(patch, tz),
+          revisionHeader(held?.updatedAt)
         );
+        if (noticeRecurringAlreadyDone(raw)) {
+          // The failed write restores the list as it was before the tick;
+          // refetch so it also gets the revision the server just stored.
+          await Promise.all(
+            [TASKS, qk.task(id)].map((key) =>
+              qc.invalidateQueries({ queryKey: key })
+            )
+          );
+          throw new RecurringAlreadyDoneError();
+        }
+        const saved = taskFromApi(raw, tz);
         // The server's row carries the new revision; the next edit sends it.
         patchListItem<V3Task>(qc, TASKS, id, () => saved);
         qc.setQueryData<V3Task>(qk.task(id), (t) => (t ? saved : t));

@@ -12,6 +12,23 @@ export interface RecurringCompletion {
 }
 
 /**
+ * What a caller is told when a completion was a repeat tick and nothing was
+ * written: the date the series comes due next, as `YYYY-MM-DD`.
+ */
+export interface RecurringAlreadyDone {
+  nextDueDate: string | null;
+}
+
+/** The answer for a repeat tick on a series whose next occurrence is ahead. */
+export function recurringAlreadyDone(
+  task: Pick<Task, "dueDate">
+): RecurringAlreadyDone {
+  return {
+    nextDueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+  };
+}
+
+/**
  * Completing a recurring series row records the current occurrence and, when
  * the rule has a next one, advances the series to it. Shared by the task API
  * and the connector so both complete a series the same way. Throws when the

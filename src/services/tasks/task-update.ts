@@ -6,8 +6,10 @@ import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingSer
 import { deadlineForPatch } from "@/services/tasks/deadline";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import {
+  type RecurringAlreadyDone,
   type RecurringCompletion,
   planRecurringCompletion,
+  recurringAlreadyDone,
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
 import { checkBlocker } from "@/services/tasks/subtasks";
@@ -87,7 +89,17 @@ export interface TaskFieldPatch extends PlacementInput {
 }
 
 export type TaskUpdateResult =
-  | { ok: true; task: Task; changed: boolean }
+  | {
+      ok: true;
+      task: Task;
+      changed: boolean;
+      /**
+       * Set when the status change was a repeat tick on a recurring task that
+       * is already done for today: the task was left as it is and this says
+       * when it comes due next.
+       */
+      recurringAlreadyDone?: RecurringAlreadyDone;
+    }
   | { ok: false; status: number; error: string };
 
 /**
@@ -268,14 +280,22 @@ export async function updateTaskFields(input: {
   }
 
   let recurringCompletion: RecurringCompletion | null = null;
+  let alreadyDone: RecurringAlreadyDone | undefined;
   if (completing && task.isRecurring && task.recurrenceRule) {
     const plan = planRecurringCompletion(task, newDate());
     if (plan.duplicate) {
-      // Already ticked today and the next occurrence is ahead: leave it.
+      // Already ticked today and the next occurrence is ahead: leave it, and
+      // say so, so the caller does not read the answer as a completion.
       delete updates.status;
       delete updates.completedAt;
+      alreadyDone = recurringAlreadyDone(task);
       if (Object.keys(updates).length === 0) {
-        return { ok: true, task, changed: false };
+        return {
+          ok: true,
+          task,
+          changed: false,
+          recurringAlreadyDone: alreadyDone,
+        };
       }
     } else {
       recurringCompletion = plan.completion;
@@ -363,5 +383,10 @@ export async function updateTaskFields(input: {
     include: { scheduledBlocks: { orderBy: { chunkIndex: "asc" } } },
   });
   rescheduleRemindersSoon({ taskId });
-  return { ok: true, task: fresh ?? updated, changed: true };
+  return {
+    ok: true,
+    task: fresh ?? updated,
+    changed: true,
+    ...(alreadyDone && { recurringAlreadyDone: alreadyDone }),
+  };
 }

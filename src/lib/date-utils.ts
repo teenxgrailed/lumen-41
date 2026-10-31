@@ -104,6 +104,25 @@ export function formatShortDate(date: Date, withYear = false): string {
   });
 }
 
+/**
+ * A date-only value (`YYYY-MM-DD`, as the API sends due dates) as "Sun 1 Nov".
+ * Read in UTC so the day never slips in a zone behind it.
+ */
+export function formatDateOnlyWithWeekday(ymd: string): string {
+  const date = new Date(`${ymd}T00:00:00.000Z`);
+  if (isNaN(date.getTime())) return ymd;
+  const weekday = date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+  const day = date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  return `${weekday} ${day}`;
+}
+
 export function formatDate(date: Date): string {
   // Ensure we have a valid date object
   const validDate =
