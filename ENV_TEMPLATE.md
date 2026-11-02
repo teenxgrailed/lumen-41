@@ -45,8 +45,8 @@ OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
 
 Notes:
 
-- `OIDC_SIGNING_KEY` is a PKCS#8 PEM private key, RSA 2048 bits or larger. Generate it on your own machine (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048`) and put it only in the runtime environment; never commit it. A value whose newlines were flattened into literal `\n` is accepted.
-- `OIDC_BUDGET_REDIRECT_URIS` is a comma-separated list of the exact redirect URIs of the `needt-budget` client (https, or http on a loopback address for local development). The address of Budget's site also becomes the only place `/oauth/logout` may send people back to.
+- `OIDC_SIGNING_KEY` is a PKCS#8 PEM private key, RSA 2048 bits or larger. Generate it on your own machine into a temporary file (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out <tmpfile>`), upload the file's contents to Coolify, then remove the file; never print the key and never commit it. A value whose newlines were flattened into literal `\n` is accepted.
+- `OIDC_BUDGET_REDIRECT_URIS` is a comma-separated list of the exact redirect URIs of the `needt-budget` client (https, or http on a loopback address for local development). Loopback redirect URIs are for local development only and must never be set in production: this client has no consent screen and a loopback URI matches on any port. The address of Budget's site also becomes the only place `/oauth/logout` may send people back to.
 
 ## Human-Supplied Calendar OAuth
 

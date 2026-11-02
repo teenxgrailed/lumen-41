@@ -174,12 +174,15 @@ OIDC_SIGNING_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
 ```
 
-To create the key, run this on your own machine and paste the output into
-Coolify's environment screen as a multi-line value (or with `\n` for the line
-breaks). Do not commit it, paste it into chat or tickets, or print it in CI:
+To create the key, write it to a temporary file on your own machine, upload
+the file's contents to Coolify (environment screen or API), then remove the
+file. Never print the key to a terminal, chat, ticket or CI log, and never
+commit it:
 
 ```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$TMPFILE"
+# upload the contents of "$TMPFILE" to Coolify as OIDC_SIGNING_KEY, then:
+rm -P "$TMPFILE"
 ```
 
 Without `OIDC_SIGNING_KEY` the OpenID Connect requests fail with

@@ -8,6 +8,7 @@ import {
   exchangeAuthorizationCode,
   resolveAccessToken,
 } from "@/services/oauth/grants";
+import { authorizationServerMetadata } from "@/services/oauth/http";
 import { loadSigningKey } from "@/services/oauth/oidc";
 import crypto from "crypto";
 
@@ -366,6 +367,12 @@ describe("discovery", () => {
       grant_types_supported: ["authorization_code"],
     });
     expect(doc.scopes_supported).toEqual(["openid", "email", "profile"]);
+  });
+
+  it("keeps openid out of the MCP authorization server document but publishes its key set", () => {
+    const doc = authorizationServerMetadata();
+    expect(doc.scopes_supported).not.toContain("openid");
+    expect(doc.jwks_uri).toBe(`${ISSUER}/oauth/jwks`);
   });
 
   it("follows the configured issuer", async () => {

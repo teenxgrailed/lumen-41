@@ -56,7 +56,7 @@ export function authorizationServerMetadata() {
     registration_endpoint: `${issuer}/oauth/register`,
     revocation_endpoint: `${issuer}/oauth/revoke`,
     jwks_uri: `${issuer}/oauth/jwks`,
-    scopes_supported: ["openid", ...MCP_SCOPES],
+    scopes_supported: [...MCP_SCOPES],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
     grant_types_supported: ["authorization_code", "refresh_token"],
