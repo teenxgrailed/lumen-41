@@ -13,8 +13,8 @@ result. `ok` means the check ran on that date and passed.
 | Google redirect URIs (3) | Owner | unverified | | |
 | Non-owner Google sign-in + calendar | Owner | unverified | | |
 | `/terms`, `/privacy` final | Claude | ok | 2026-11-02 | 200, no `{{`/`CHECK` |
-| Legal operator decided | Owner | unverified | | |
-| Creem review approved, 3 products live | Owner | unverified | | rejected 2026-10-01 for placeholder legal pages |
+| Legal operator decided | Owner | ok | 2026-11-03 | FOP Nataliia Antoniuk in Terms/Privacy (#505); tax 3rd group pending (deadline 12.11) |
+| Creem review approved, 3 products live | Owner | unverified | 2026-11-03 | 3 live products + 2 discounts created, IDs in Coolify; review answer pending; payee-name question to Creem open |
 | Pricing page shows $7 / $59 / $149 | Claude | ok | 2026-11-02 | all three present |
 | Sign-ups flag on | Claude | ok | 2026-11-02 | `{"enabled":true}` |
 | Checkout flag follows Creem | Owner | unverified | | |
@@ -24,3 +24,9 @@ result. `ok` means the check ran on that date and passed.
 | Backups daily, 30 days | Owner | ok | 2026-11-02 | daily to S3, last success 00:00 UTC, 14 kept locally (checked by Claude via Coolify) |
 | AI action cap set | Owner | ok | 2026-11-02 | `NEEDT_AI_MONTHLY_ACTION_CAP` present on `needt` (value not readable; checked by Claude via Coolify) |
 | Free disk ≥ 1 GB after fan-out | Claude | ok | 2026-11-02 | 4.7 GB free |
+| Creem webhook + live secrets on needt and need-worker | Owner | unverified | 2026-11-03 | owner reports done; webhook delivery not yet seen |
+| `RESEND_WEBHOOK_SECRET` set (bounce/complaint suppression) | Owner | fail | 2026-11-03 | key missing on both apps (Coolify) → /api/webhooks/resend returns 503 |
+| Google Tasks API enabled, redirect URI, `tasks` scope in Data Access | Owner | unverified | 2026-11-03 | API enabled (owner screenshot); redirect + scope not done |
+| Free has no hosted AI | Claude | ok | 2026-11-03 | `NEEDT_AI_FREE_ACTION_CAP=0` on needt and need-worker |
+| DMCA agent registered | Owner | unverified | 2026-11-03 | Needt task; number → `DMCA_AGENT_REG_NO` |
+| Launch sweep findings | Claude | ok | 2026-11-03 | 9 audits + 3 reviews; fixes in #506–#516; Needt page "Launch sweep 2026-11-03" |
