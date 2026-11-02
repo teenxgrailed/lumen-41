@@ -6,7 +6,7 @@ import { z } from "zod";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
-import { canCreateHabit } from "@/lib/entitlements";
+import { withHabitSlot } from "@/lib/entitlements";
 import { habitInputSchema } from "@/lib/habits";
 import { prisma } from "@/lib/prisma";
 
@@ -75,18 +75,19 @@ async function restoreHabit(id: string, body: unknown, auth: HabitAuth) {
   if (!archived)
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
   // A restored habit is one more active habit, so Free's limit applies.
-  const entitlement = await canCreateHabit(auth.userId);
-  if (!entitlement.allowed) {
+  const restored = await withHabitSlot(auth.userId, (tx) =>
+    tx.habit.update({
+      where: { id },
+      data: { archivedAt: null, isActive: true },
+    })
+  );
+  if (!restored.allowed) {
     return NextResponse.json(
-      { error: "UPGRADE_REQUIRED", entitlement },
+      { error: "UPGRADE_REQUIRED", entitlement: restored.entitlement },
       { status: 403 }
     );
   }
-  const habit = await prisma.habit.update({
-    where: { id },
-    data: { archivedAt: null, isActive: true },
-  });
-  return NextResponse.json({ habit });
+  return NextResponse.json({ habit: restored.value });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {

@@ -1,5 +1,6 @@
 import {
   type MailProvider,
+  Prisma,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
@@ -67,8 +68,13 @@ export function effectiveSubscriptionPlan(
   return SubscriptionPlan.FREE;
 }
 
-export async function getPlan(userId: string): Promise<SubscriptionPlan> {
-  const user = await prisma.user.findUnique({
+type EntitlementDb = Pick<Prisma.TransactionClient, "user" | "habit">;
+
+export async function getPlan(
+  userId: string,
+  db: EntitlementDb = prisma
+): Promise<SubscriptionPlan> {
+  const user = await db.user.findUnique({
     where: { id: userId },
     select: {
       subscription: {
@@ -97,14 +103,41 @@ export async function canCreateBoard(userId: string): Promise<LimitStatus> {
  * do not count, and habits above the limit after a downgrade stay editable:
  * only creating or restoring one more is refused.
  */
-export async function canCreateHabit(userId: string): Promise<LimitStatus> {
+export async function canCreateHabit(
+  userId: string,
+  db: EntitlementDb = prisma
+): Promise<LimitStatus> {
   const [plan, used] = await Promise.all([
-    getPlan(userId),
-    prisma.habit.count({
+    getPlan(userId, db),
+    db.habit.count({
       where: { userId, archivedAt: null, isSample: false },
     }),
   ]);
   return limitStatus(plan, PLAN_LIMITS[plan].habits, used);
+}
+
+/**
+ * Check the habit allowance and write in one step. Two parallel requests would
+ * each count the same active habits and both create one, so a Free account
+ * could end above its limit. A Postgres advisory lock per person, held for the
+ * transaction, makes the second request wait and count the first one's habit.
+ * `write` runs only when there is room, on the same transaction client.
+ */
+export async function withHabitSlot<T>(
+  userId: string,
+  write: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<
+  | { allowed: true; value: T }
+  | { allowed: false; entitlement: LimitStatus }
+> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`needt-habit-limit:${userId}`}, 0))`
+    );
+    const entitlement = await canCreateHabit(userId, tx);
+    if (!entitlement.allowed) return { allowed: false, entitlement } as const;
+    return { allowed: true, value: await write(tx) } as const;
+  });
 }
 
 export async function canAutoScheduleMore(

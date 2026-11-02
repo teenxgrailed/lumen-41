@@ -34,18 +34,43 @@ export async function runTrialTransaction<T>(
   throw new Error("Trial transaction retry limit reached");
 }
 
-export function normalizeTrialEmail(email: string): string {
+function splitAddress(email: string) {
   const normalized = email.trim().toLowerCase();
   const at = normalized.lastIndexOf("@");
-  if (at <= 0 || at === normalized.length - 1) return normalized;
+  if (at <= 0 || at === normalized.length - 1) return null;
+  return { local: normalized.slice(0, at), domain: normalized.slice(at + 1) };
+}
 
-  let local = normalized.slice(0, at);
-  let domain = normalized.slice(at + 1);
-  if (domain === "gmail.com" || domain === "googlemail.com") {
-    local = local.split("+", 1)[0].replaceAll(".", "");
+const GMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
+
+/**
+ * One mailbox, one spelling. A `+tag` is dropped on every domain (it is a
+ * free alias at Outlook, iCloud, Fastmail, Proton and most others); dots are
+ * ignored only at Gmail, where they really are.
+ */
+export function normalizeTrialEmail(email: string): string {
+  const parts = splitAddress(email);
+  if (!parts) return email.trim().toLowerCase();
+
+  let { local, domain } = parts;
+  local = local.split("+", 1)[0];
+  if (GMAIL_DOMAINS.has(domain)) {
+    local = local.replaceAll(".", "");
     domain = "gmail.com";
   }
   return `${local}@${domain}`;
+}
+
+/**
+ * The normalization before `+tag` was dropped everywhere: only Gmail was
+ * collapsed. Grants written under it hold keys of this spelling, so lookups
+ * still try it; nothing new is written with it.
+ */
+function gmailOnlyNormalizeTrialEmail(email: string): string {
+  const parts = splitAddress(email);
+  if (!parts) return email.trim().toLowerCase();
+  if (GMAIL_DOMAINS.has(parts.domain)) return normalizeTrialEmail(email);
+  return `${parts.local}@${parts.domain}`;
 }
 
 /**
@@ -58,6 +83,10 @@ export function normalizeTrialEmail(email: string): string {
  * that secret makes every earlier address eligible for one more trial.
  */
 export function trialEmailKey(email: string): string {
+  return hashTrialAddress(normalizeTrialEmail(email));
+}
+
+function hashTrialAddress(address: string): string {
   const secret = process.env.RATE_LIMIT_HASH_SECRET;
   if (!secret) {
     throw new Error("RATE_LIMIT_HASH_SECRET is required.");
@@ -66,8 +95,23 @@ export function trialEmailKey(email: string): string {
     .update("needt:trial-email-key:v1")
     .digest();
   return createHmac("sha256", derivedKey)
-    .update(normalizeTrialEmail(email))
+    .update(address)
     .digest("hex");
+}
+
+/**
+ * Every key a grant for this address might be stored under: the current key,
+ * the plaintext one from before hashing, and the hash under the older
+ * Gmail-only spelling. Reads match any of them; a write uses `trialEmailKey`.
+ */
+export function trialEmailLookupKeys(email: string): string[] {
+  return [
+    ...new Set([
+      trialEmailKey(email),
+      normalizeTrialEmail(email),
+      hashTrialAddress(gmailOnlyNormalizeTrialEmail(email)),
+    ]),
+  ];
 }
 
 /**
@@ -80,13 +124,11 @@ export async function isTrialAvailable(input: {
   userId: string;
   email: string;
 }): Promise<boolean> {
-  const emailKey = trialEmailKey(input.email);
-  const legacyEmailKey = normalizeTrialEmail(input.email);
   const used = await prisma.trialGrant.findFirst({
     where: {
       OR: [
         { userId: input.userId },
-        { emailKey: { in: [emailKey, legacyEmailKey] } },
+        { emailKey: { in: trialEmailLookupKeys(input.email) } },
       ],
     },
     select: { id: true },
@@ -102,7 +144,6 @@ export async function startTrialForVerifiedUser(
   const emailKey = trialEmailKey(input.email);
   /* A grant made before keys were hashed holds the normalized address until
      `hashLegacyTrialEmailKeys` rewrites it, and it still spends the trial. */
-  const legacyEmailKey = normalizeTrialEmail(input.email);
   const endsAt = addCalendarDays(now, TRIAL_DURATION_DAYS);
 
   await tx.subscription.upsert({
@@ -114,7 +155,7 @@ export async function startTrialForVerifiedUser(
     },
   });
   const existing = await tx.trialGrant.findFirst({
-    where: { emailKey: { in: [emailKey, legacyEmailKey] } },
+    where: { emailKey: { in: trialEmailLookupKeys(input.email) } },
   });
   if (existing) return existing.userId === input.userId ? existing : null;
 
