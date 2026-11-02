@@ -32,7 +32,7 @@ If anything here is unclear, write to **${PRIVACY_EMAIL}**.
 
 ## 1. Who we are
 
-Needt is run by a private individual, not a company:
+Needt is run by an individual entrepreneur (FOP) registered in Ukraine, not a company:
 
 - **Controller:** ${operatorName()}
 - **Country:** ${OPERATOR_COUNTRY}

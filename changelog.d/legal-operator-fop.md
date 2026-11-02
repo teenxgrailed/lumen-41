@@ -1,0 +1,1 @@
+- Terms and Privacy name the operator as an individual entrepreneur (FOP) in Ukraine.

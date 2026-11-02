@@ -9,8 +9,16 @@
  * that test.
  */
 
-/** The operator's full legal name (owner, 2026-10-12): a private individual. */
-export const OPERATOR_FULL_NAME = "Maksym Antoniuk";
+/**
+ * The operator's full legal name: a Ukrainian individual entrepreneur
+ * (FOP, 3rd group, registered 2026-11-02 via Diia). Spelling as on the
+ * EDR extract; the owner confirms it before merge.
+ */
+export const OPERATOR_FULL_NAME = "Nataliia Antoniuk";
+
+/** The legal form printed next to the name. */
+export const OPERATOR_LEGAL_FORM =
+  "individual entrepreneur (FOP) registered in Ukraine";
 
 /**
  * The EU representative's contact (GDPR Art. 27): entity name, postal address
@@ -19,7 +27,7 @@ export const OPERATOR_FULL_NAME = "Maksym Antoniuk";
 export const DATAREP_CONTACT = "{{DATAREP_CONTACT}}";
 
 /** Printed while OPERATOR_FULL_NAME is unfilled. */
-export const OPERATOR_SHORT_NAME = "Maksym A.";
+export const OPERATOR_SHORT_NAME = "Nataliia A.";
 
 export const OPERATOR_COUNTRY = "Ukraine";
 export const PRIVACY_EMAIL = "privacy@needt.app";

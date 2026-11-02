@@ -1,5 +1,5 @@
 import {
-  OPERATOR_COUNTRY,
+  OPERATOR_LEGAL_FORM,
   PRIVACY_EMAIL,
   SUPPORT_EMAIL,
   dmcaAgentRegistrationNumber,
@@ -41,7 +41,7 @@ How we handle personal data is described in the [Privacy Notice](/privacy), whic
 
 ## 1. Who we are
 
-Needt is operated by **${operatorName()}**, a private individual based in **${OPERATOR_COUNTRY}** ("Needt", "we", "us"). Our postal address is available on request to ${PRIVACY_EMAIL}.
+Needt is operated by **${operatorName()}**, an ${OPERATOR_LEGAL_FORM} ("Needt", "we", "us"). Our postal address is available on request to ${PRIVACY_EMAIL}.
 
 - Support: **${SUPPORT_EMAIL}**
 - Legal and privacy: **${PRIVACY_EMAIL}**
