@@ -8,8 +8,11 @@ import { PLAN_LIMITS, type PlanLimits } from "@/lib/plan-limits";
 
 import type { V3Plan } from "./hooks/plan";
 import { priceStrings } from "./pricing";
+import { showsStudentPrices } from "./student-prices";
 
-const PRICE = priceStrings();
+const BASE_PRICE = priceStrings();
+const PRICE = BASE_PRICE;
+const STUDENT_PRICE = priceStrings(undefined, { student: true });
 const PRICE_CAP = PRICE.lifetimeCap;
 
 /** The meter's fill, 0-100, or null when the server has not counted. */
@@ -71,7 +74,12 @@ export function paywallNeedsWaiver(
 
 type PlanFacts =
   | (Pick<V3Plan, "kind" | "configured" | "lifetimeAvailable"> &
-      Partial<Pick<V3Plan, "checkoutEnabled" | "trialEligible">>)
+      Partial<
+        Pick<
+          V3Plan,
+          "checkoutEnabled" | "trialEligible" | "student" | "discountApplied"
+        >
+      >)
   | null;
 
 /**
@@ -88,6 +96,9 @@ type PlanFacts =
  */
 export function paywallCta(pick: PaywallPick, plan: PlanFacts): PaywallCta {
   const kind = plan?.kind ?? "free";
+  /* A verified student's Pro buttons name the student price; Lifetime's is
+     the same in both. */
+  const PRICE = showsStudentPrices(plan) ? STUDENT_PRICE : BASE_PRICE;
   const owned =
     (pick === "lifetime" && kind === "lifetime") ||
     (pick !== "lifetime" &&

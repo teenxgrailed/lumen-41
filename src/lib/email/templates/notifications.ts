@@ -26,21 +26,6 @@ export function getWelcomeTemplate(input: {
   });
 }
 
-export function getReminderTemplate(input: {
-  title: string;
-  body: string;
-  openUrl: string;
-}) {
-  return renderEmail({
-    subject: input.title,
-    preheader: input.body,
-    heading: input.title,
-    paragraphs: [input.body],
-    button: { label: `Open in ${APP_NAME}`, url: input.openUrl },
-    kind: "notification",
-  });
-}
-
 export function getBookingConfirmationTemplate(input: {
   title: string;
   startIso: string;

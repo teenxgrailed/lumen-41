@@ -3,10 +3,14 @@ import {
   getAccountExportTemplate,
   getBookingConfirmationTemplate,
   getDigestTemplate,
-  getReminderTemplate,
   getWelcomeTemplate,
 } from "./notifications";
 import { getPasswordResetTemplate } from "./password-reset";
+import {
+  getStudentPriceEndingTemplate,
+  getStudentRecheckTemplate,
+  getStudentVerifyTemplate,
+} from "./student";
 import { getTrialEmailTemplate } from "./trial";
 
 const UNSUBSCRIBE_SAMPLE =
@@ -16,8 +20,8 @@ const UNSUBSCRIBE_SAMPLE =
  * Every email with fixed sample data, for previews and snapshots.
  *
  * Transactional (never optional, no unsubscribe): verify-email, password-reset,
- * welcome, booking-confirmed, account-export, and reminder (a reminder the
- * person set themselves). Not transactional: trial-ending and trial-ended are
+ * welcome, booking-confirmed, account-export, the three student-price mails,
+ * and reminder (a reminder the person set themselves). Not transactional: trial-ending and trial-ended are
  * commercial (they sell Pro; unsubscribe link and postal address, sent only
  * when the address is configured), and daily-digest is an opt-in summary with
  * its own unsubscribe.
@@ -49,11 +53,6 @@ export function sampleEmails() {
       payUrl: "https://use.needt.app/pricing",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
     }),
-    reminder: getReminderTemplate({
-      title: "Reminder: Send the report",
-      body: "Send the report is due at 15:00.",
-      openUrl: "https://use.needt.app/tasks",
-    }),
     "daily-digest": getDigestTemplate({
       title: "3 things need you",
       body: "A mention, a shared page and a sync problem are waiting.",
@@ -68,6 +67,18 @@ export function sampleEmails() {
     "account-export": getAccountExportTemplate({
       link: "https://use.needt.app/api/account/export/download?token=SAMPLE",
       ttlHours: 24,
+    }),
+    "student-verify": getStudentVerifyTemplate({
+      confirmUrl: "https://use.needt.app/api/students/confirm?t=SAMPLE",
+    }),
+    "student-recheck": getStudentRecheckTemplate({
+      confirmUrl: "https://use.needt.app/api/students/confirm?t=SAMPLE",
+      renewsAt: new Date("2026-11-26T12:00:00.000Z"),
+    }),
+    "student-price-ending": getStudentPriceEndingTemplate({
+      renewsAt: new Date("2026-11-26T12:00:00.000Z"),
+      interval: "year",
+      settingsUrl: "https://use.needt.app/settings?section=billing",
     }),
   };
 }

@@ -23,15 +23,15 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-//todo OWNER: postal address for the email footer. Not invented here; set
-// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). The
-// placeholder is deliberately loud so it cannot ship unnoticed, and commercial
-// mail is not sent at all while the address is unset (email-service.ts).
-export const FOOTER_ADDRESS_PLACEHOLDER =
-  "[OWNER: legal entity name and postal address]";
+//todo OWNER: legal entity name and postal address. Not invented here; set
+// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). Until
+// then the footer names the site only: a placeholder token must never reach a
+// reader. Commercial mail is not sent at all while the address is unset
+// (email-service.ts).
+export const FOOTER_FALLBACK = "needt.app";
 
 export function footerAddress(): string {
-  return operatorPostalAddress() ?? FOOTER_ADDRESS_PLACEHOLDER;
+  return operatorPostalAddress() ?? FOOTER_FALLBACK;
 }
 
 export type EmailContent = {

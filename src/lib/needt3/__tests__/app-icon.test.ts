@@ -3,6 +3,10 @@ import { join } from "node:path";
 
 import {
   APP_ICONS,
+  ICON_RELEASE_AT,
+  accountPredatesIcons,
+  iconIntroSeenLocally,
+  markIconIntroSeenLocally,
   APP_ICON_PREF,
   DEFAULT_APP_ICON,
   SEEN_ICON_PICKER_PREF,
@@ -90,13 +94,63 @@ describe("app icon: the one-time popup", () => {
     );
   });
 
+  const base = { loaded: true, seen: false, predatesIcons: true };
+
   it("shows once: only when loaded, unseen, and not under automation", () => {
-    expect(shouldShowIconPicker({ loaded: true, seen: false })).toBe(true);
-    expect(shouldShowIconPicker({ loaded: false, seen: false })).toBe(false);
-    expect(shouldShowIconPicker({ loaded: true, seen: true })).toBe(false);
-    expect(
-      shouldShowIconPicker({ loaded: true, seen: false, automated: true })
-    ).toBe(false);
+    expect(shouldShowIconPicker(base)).toBe(true);
+    expect(shouldShowIconPicker({ ...base, loaded: false })).toBe(false);
+    expect(shouldShowIconPicker({ ...base, seen: true })).toBe(false);
+    expect(shouldShowIconPicker({ ...base, automated: true })).toBe(false);
+  });
+
+  it("is for accounts that predate the icons, never newer ones", () => {
+    expect(accountPredatesIcons("2026-09-01T10:00:00.000Z")).toBe(true);
+    expect(accountPredatesIcons("2026-10-21T03:39:59Z")).toBe(true);
+    expect(accountPredatesIcons(ICON_RELEASE_AT)).toBe(false);
+    expect(accountPredatesIcons("2026-11-02T08:00:00Z")).toBe(false);
+    expect(accountPredatesIcons(null)).toBe(false);
+    expect(accountPredatesIcons("nonsense")).toBe(false);
+    expect(shouldShowIconPicker({ ...base, predatesIcons: false })).toBe(
+      false
+    );
+  });
+
+  it("waits while another overlay is open and stays shut once dismissed here", () => {
+    expect(shouldShowIconPicker({ ...base, overlayOpen: true })).toBe(false);
+    expect(shouldShowIconPicker({ ...base, seenLocally: true })).toBe(false);
+  });
+});
+
+describe("app icon: the per-browser dismissal", () => {
+  const memory = () => {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+    };
+  };
+
+  it("remembers a dismissal per person", () => {
+    const store = memory();
+    expect(iconIntroSeenLocally("u1", store)).toBe(false);
+    markIconIntroSeenLocally("u1", store);
+    expect(iconIntroSeenLocally("u1", store)).toBe(true);
+    expect(iconIntroSeenLocally("u2", store)).toBe(false);
+  });
+
+  it("survives storage that is missing or throws", () => {
+    const broken = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    expect(() => markIconIntroSeenLocally("u1", broken)).not.toThrow();
+    expect(iconIntroSeenLocally("u1", broken)).toBe(false);
+    expect(() => markIconIntroSeenLocally("u1", null)).not.toThrow();
+    expect(iconIntroSeenLocally("u1", null)).toBe(false);
   });
 });
 

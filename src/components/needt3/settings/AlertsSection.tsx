@@ -68,7 +68,6 @@ export function AlertsSection() {
         {toggle("In the app", "channelInApp")}
         {toggle("Push", "channelPush")}
         {isMacApp() ? toggle("Mac notifications", "channelMac") : null}
-        {toggle("Email", "emailNotifications")}
       </SGroup>
       <SGroup
         title="Quiet hours"
@@ -126,6 +125,13 @@ export function AlertsSection() {
             />
           </SRow>
         ) : null}
+        {a?.digest
+          ? toggle(
+              "Also email the digest",
+              "emailNotifications",
+              "Tasks and reminders never send email; only this summary does."
+            )
+          : null}
       </SGroup>
     </>
   );

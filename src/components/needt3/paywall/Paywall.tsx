@@ -43,6 +43,7 @@ import {
 } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
+import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { useOnline } from "@/lib/needt3/use-online";
 import { notify } from "@/lib/notifications";
 
@@ -73,7 +74,7 @@ function Plans({
   onPick: (p: PaywallPick) => void;
   plan: V3Plan | undefined;
 }) {
-  const D = priceStrings();
+  const D = priceStrings(undefined, { student: showsStudentPrices(plan) });
   const lastPro = useRef<"monthly" | "annual">(
     pick === "monthly" ? "monthly" : "annual"
   );
@@ -284,8 +285,8 @@ export function Paywall({
   cycle,
   feature = null,
 }: PaywallProps) {
-  const D = priceStrings();
   const { data: plan } = usePlan();
+  const D = priceStrings(undefined, { student: showsStudentPrices(plan) });
   const qc = useQueryClient();
   const online = useOnline();
   const [pick, setPick] = useState<PaywallPick>(paywallPick(cycle));

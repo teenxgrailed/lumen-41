@@ -19,7 +19,7 @@ export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
 export interface CalendarSyncJobData {
   /** One feed to sync. Absent on the periodic sweep, which fans out per feed. */
   feedId?: string;
-  kind?: "sweep";
+  kind?: "sweep" | "stale-sweep";
 }
 
 export interface RescheduleJobData {
@@ -62,7 +62,8 @@ export interface LifetimeCheckoutReconciliationJobData {
 }
 
 export interface TrialJobData {
-  kind: "sweep";
+  /** "student-recheck": the yearly student-price check (docs/students.md). */
+  kind: "sweep" | "student-recheck";
 }
 
 export interface OAuthCleanupJobData {

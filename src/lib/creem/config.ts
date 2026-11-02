@@ -28,7 +28,29 @@ export const NEEDT_PRICING = {
     cap: 300,
     productEnv: "CREEM_PRODUCT_LIFETIME",
   },
+  /**
+   * 40% off Pro monthly and Pro yearly, for as long as the subscription runs
+   * (docs/students.md). One Creem discount, duration "forever", restricted to
+   * the two Pro products; Lifetime is never discounted. The code's name lives
+   * in an env var so the test and live stores can differ.
+   */
+  student: {
+    percentOff: 40,
+    discountCodeEnv: "CREEM_STUDENT_DISCOUNT_CODE",
+  },
 } as const;
+
+/** A Pro price with the student discount: 700 → 420, 5900 → 3540. */
+export function studentAmountCents(amountCents: number): number {
+  return Math.round(
+    (amountCents * (100 - NEEDT_PRICING.student.percentOff)) / 100
+  );
+}
+
+/** The shared student code checkout pre-applies, or null while it is unset. */
+export function getStudentDiscountCode(): string | null {
+  return envValue(NEEDT_PRICING.student.discountCodeEnv);
+}
 
 export type BillingCheckoutSelection =
   | { plan: "pro"; interval: "month" | "year" }

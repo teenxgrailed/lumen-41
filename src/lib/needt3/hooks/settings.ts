@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { qk } from "@/lib/needt3/query-keys";
+import { serialByKey } from "@/lib/needt3/serial";
 
 import {
   browserTimeZone,
@@ -20,6 +21,10 @@ export interface V3Settings {
   timeFormat: string;
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
   prefs: Record<string, unknown>;
+  /** When the settings row was made (read-only): the account's age. */
+  createdAt?: string | null;
+  /** The owner of the row (read-only). */
+  userId?: string;
 }
 
 type SettingsPatch = Partial<Omit<V3Settings, "prefs">> & {
@@ -41,6 +46,8 @@ export function useSettings() {
           row.prefs && typeof row.prefs === "object"
             ? (row.prefs as Record<string, unknown>)
             : {},
+        createdAt: typeof row.createdAt === "string" ? row.createdAt : null,
+        userId: typeof row.userId === "string" ? row.userId : undefined,
       } satisfies V3Settings;
     },
     staleTime: 5 * 60_000,
@@ -97,13 +104,20 @@ export function useSetPref() {
   return (key: string, value: unknown) => setPrefs({ [key]: value });
 }
 
-/** Several preferences in one write (`city` and `cityPlace` must land together). */
+/**
+ * Several preferences in one write (`city` and `cityPlace` must land together).
+ * The server replaces the whole map, so each write reads the cache only after
+ * the previous one has settled: two writes started together would both merge
+ * into the same stale map and the later one would wipe the earlier key (a
+ * dismissed popup coming back).
+ */
 export function useSetPrefs() {
   const qc = useQueryClient();
   const update = useUpdateSettings();
-  return async (patch: Record<string, unknown>) => {
-    const cur = qc.getQueryData<V3Settings>(qk.settings());
-    if (!cur) return null;
-    return update.mutateAsync({ prefs: { ...cur.prefs, ...patch } });
-  };
+  return (patch: Record<string, unknown>) =>
+    serialByKey("user-settings-prefs", async () => {
+      const cur = qc.getQueryData<V3Settings>(qk.settings());
+      if (!cur) return null;
+      return update.mutateAsync({ prefs: { ...cur.prefs, ...patch } });
+    });
 }
