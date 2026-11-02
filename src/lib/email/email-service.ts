@@ -45,6 +45,15 @@ export interface EmailJobData {
    * category, such as the daily digest.
    */
   unsubscribeUrl?: string;
+  /** Where a reply goes (support), when it should not go to the sender. */
+  replyTo?: string;
+  /**
+   * Set by the email programme (src/services/email-lifecycle): the caller has
+   * already checked the flag, the person's categories and the operator footer
+   * in System Settings, so the environment address and the legacy opt-out
+   * column are not consulted. Suppression and sandbox checks still apply.
+   */
+  programme?: boolean;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -97,7 +106,7 @@ export class EmailService {
         if (!emailData.unsubscribeUrl) {
           throw new Error("A commercial email needs an unsubscribe link");
         }
-        if (!operatorPostalAddress()) {
+        if (!emailData.programme && !operatorPostalAddress()) {
           logger.warn(
             "Commercial email not sent: OPERATOR_POSTAL_ADDRESS is not set",
             {},
@@ -126,7 +135,11 @@ export class EmailService {
         );
         return { jobId: "" };
       }
-      if (emailData.commercial && recipient.commercialOptOut) {
+      if (
+        emailData.commercial &&
+        !emailData.programme &&
+        recipient.commercialOptOut
+      ) {
         logger.info(
           "Commercial email to an unsubscribed account dropped",
           {},
@@ -153,6 +166,7 @@ export class EmailService {
         html: string;
         text?: string;
         headers?: Record<string, string>;
+        replyTo?: string;
       } = {
         from: fromEmail,
         to,
@@ -160,6 +174,10 @@ export class EmailService {
         html: emailData.html,
         text: emailData.text,
       };
+
+      if (emailData.replyTo && !hasUnsafeMailboxCharacters(emailData.replyTo)) {
+        emailToSend.replyTo = emailData.replyTo;
+      }
 
       if (emailData.unsubscribeUrl) {
         emailToSend.headers = {

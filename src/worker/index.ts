@@ -35,6 +35,13 @@ import { resetSandboxAccounts } from "@/services/sandbox/sandbox-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { executeSchedulingRun } from "@/services/scheduling/runs";
 import { processStudentRechecks } from "@/services/students/student-recheck";
+import {
+  applySunset,
+  processGiftEmails,
+  runEmailSweep,
+} from "@/services/email-lifecycle/engine";
+import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
+import { expireProGifts } from "@/services/gifts/gifts";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
 import {
   CALDAV_SYNC_INTERVAL_MS,
@@ -93,6 +100,7 @@ import {
   getAccountLifecycleQueue,
   getBugReportSyncQueue,
   getCalendarSyncQueue,
+  getEmailLifecycleQueue,
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
@@ -105,6 +113,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  EmailLifecycleJobData,
   FocusJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
@@ -333,6 +342,21 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   }
 }
 
+async function processEmailLifecycle(job: Job<EmailLifecycleJobData>) {
+  if (job.data.kind === "gifts") {
+    await expireProGifts();
+    await processGiftEmails();
+    return;
+  }
+  if (job.data.kind === "broadcasts") {
+    await sendDueBroadcasts();
+    return;
+  }
+  const summary = await runEmailSweep();
+  await applySunset();
+  await logger.info("Email lifecycle sweep", { ...summary }, LOG_SOURCE);
+}
+
 async function processImport(job: Job<ImportJobData>) {
   if ("importRunId" in job.data) {
     await processImportRun(job.data.importRunId);
@@ -400,6 +424,11 @@ const workers = [
   new Worker<AccountLifecycleJobData>(
     QUEUE_NAMES.accountLifecycle,
     processAccountLifecycle,
+    { connection, concurrency: 1 }
+  ),
+  new Worker<EmailLifecycleJobData>(
+    QUEUE_NAMES.emailLifecycle,
+    processEmailLifecycle,
     { connection, concurrency: 1 }
   ),
   // One import at a time: a full Todoist account is thousands of writes.
@@ -538,6 +567,21 @@ export async function start(): Promise<void> {
     "sandbox-nightly-reset",
     { pattern: "0 4 * * *", tz: "UTC" },
     { name: "reset-sandbox-accounts", data: { kind: "sandbox-reset" } }
+  );
+  await getEmailLifecycleQueue().upsertJobScheduler(
+    "email-lifecycle-sweep",
+    { every: 15 * 60_000 },
+    { name: "sweep-email", data: { kind: "sweep" } }
+  );
+  await getEmailLifecycleQueue().upsertJobScheduler(
+    "pro-gift-expiry",
+    { every: 60 * 60_000 },
+    { name: "gifts", data: { kind: "gifts" } }
+  );
+  await getEmailLifecycleQueue().upsertJobScheduler(
+    "email-broadcast-sender",
+    { every: 60_000 },
+    { name: "broadcasts", data: { kind: "broadcasts" } }
   );
   await getImportQueue().upsertJobScheduler(
     "import-stuck-run-sweep",

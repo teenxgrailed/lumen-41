@@ -23,6 +23,7 @@ import {
   isProviderConfigured,
   readSignInProviderConfig,
 } from "@/lib/auth/sign-in-providers";
+import { touchLastActive } from "@/lib/auth/last-active";
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -166,6 +167,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
           // Throws once the person signed out everywhere; see session-version.
           token = await enforceSessionVersion(token);
         }
+        // Win-back mail reads this; at most one write an hour.
+        if (token.sub) await touchLastActive(token.sub);
 
         // Initial sign in. The provider's OAuth tokens are deliberately not
         // copied into the JWT: the session callback would hand them to the

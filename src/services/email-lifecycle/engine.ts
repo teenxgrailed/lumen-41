@@ -1,16 +1,14 @@
 import { newDate } from "@/lib/date-utils";
-import {
-  type OptionalCategory,
-  countsTowardsCap,
-  isOptionalCategory,
-} from "@/lib/email/categories";
+import { countsTowardsCap, isOptionalCategory } from "@/lib/email/categories";
 import { EmailService } from "@/lib/email/email-service";
-import { isCategoryEnabled } from "@/lib/email/preferences";
+import {
+  isCategoryEnabled,
+  switchOffAllOptional,
+} from "@/lib/email/preferences";
 import {
   type EmailProgramSettings,
   getEmailProgramSettings,
 } from "@/lib/email/program-settings";
-import { switchOffAllOptional } from "@/lib/email/preferences";
 import {
   type LifecycleBase,
   getGiftTemplate,
@@ -303,7 +301,8 @@ async function finishSend(
 /** Sends one claimed optional mail. Returns true when it went out. */
 async function sendOptional(
   person: Person,
-  rule: Exclude<Rule, { key: "gift" }> & { key: Exclude<RuleKey, "gift"> },
+  ruleKey: Exclude<RuleKey, "gift">,
+  rule: Rule,
   id: string,
   settings: EmailProgramSettings,
   now: Date
@@ -316,13 +315,14 @@ async function sendOptional(
     return false;
   }
   try {
-    const template = await renderForRule(rule.key, person, settings, now);
+    const template = await renderForRule(ruleKey, person, settings, now);
     const result = await EmailService.sendEmail({
       to: person.email as string,
       subject: template.subject,
       html: template.html,
       text: template.text,
       commercial: true,
+      programme: true,
       unsubscribeUrl: unsubscribeUrl(person.userId, category),
       replyTo: SUPPORT_EMAIL,
     });
@@ -423,7 +423,7 @@ export async function runEmailSweep(
         );
       }
       const rules = (wanted.get(id) ?? [])
-        .map((key) => RULES[key as Exclude<RuleKey, "gift">])
+  .map((key) => RULES[key as Exclude<RuleKey, "gift">])
         .sort(byPriority);
       for (const rule of rules) {
         summary.evaluated += 1;
@@ -482,7 +482,8 @@ export async function runEmailSweep(
         if (!claimed) continue;
         const ok = await sendOptional(
           person,
-          rule as Parameters<typeof sendOptional>[1],
+          rule.key as Exclude<RuleKey, "gift">,
+          rule,
           claimed,
           settings,
           now

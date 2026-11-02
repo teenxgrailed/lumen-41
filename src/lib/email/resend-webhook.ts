@@ -1,6 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
+import { switchOffAllOptional } from "@/lib/email/preferences";
+import {
+  getEmailProgramSettings,
+  trackingActive,
+} from "@/lib/email/program-settings";
 import { normalizeMailbox, suppressAddress } from "@/lib/email/suppression";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +56,7 @@ export function verifySvixSignature(input: {
 type ResendEvent = {
   type?: unknown;
   data?: {
+    email_id?: unknown;
     to?: unknown;
     bounce?: { type?: unknown } | null;
   } | null;
@@ -80,6 +86,22 @@ async function switchOptionalMailOff(address: string) {
     where: { userId: user.id },
     data: { digest: false },
   });
+  await switchOffAllOptional(user.id, "complaint");
+}
+
+function emailId(event: ResendEvent): string | null {
+  const id = event.data?.email_id;
+  return typeof id === "string" && id ? id : null;
+}
+
+/** Marks the ledger row of a delivered mail, for the broadcast result page. */
+async function markDelivery(event: ResendEvent, reason: string) {
+  const id = emailId(event);
+  if (!id) return;
+  await prisma.emailSend.updateMany({
+    where: { resendId: id, status: "sent", reason: null },
+    data: { reason },
+  });
 }
 
 export type WebhookOutcome = "applied" | "ignored";
@@ -102,6 +124,7 @@ export async function applyResendEvent(
       return "ignored";
     }
     for (const address of addresses) await suppressAddress(address, "bounce");
+    await markDelivery(event, "bounced");
     return "applied";
   }
   if (type === "email.complained") {
@@ -109,6 +132,23 @@ export async function applyResendEvent(
       await suppressAddress(address, "complaint");
       await switchOptionalMailOff(address);
     }
+    await markDelivery(event, "complained");
+    return "applied";
+  }
+  if (type === "email.opened" || type === "email.clicked") {
+    /* Counted only while the tracking window in System Settings is open
+       (owner decision 9); afterwards the events are acknowledged and dropped. */
+    const id = emailId(event);
+    if (!id) return "ignored";
+    const settings = await getEmailProgramSettings();
+    if (!trackingActive(settings, newDate())) return "ignored";
+    await prisma.emailSend.updateMany({
+      where: { resendId: id },
+      data:
+        type === "email.opened"
+          ? { opens: { increment: 1 } }
+          : { clicks: { increment: 1 } },
+    });
     return "applied";
   }
   if (type === "email.suppressed") {

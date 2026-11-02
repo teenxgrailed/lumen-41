@@ -1,4 +1,5 @@
 import { finalizeAccountDeletion } from "@/services/account/account-deletion";
+import { GiftError, grantGift, revokeGifts } from "@/services/gifts/gifts";
 import {
   BillingGrantError,
   MAX_COMP_DAYS,
@@ -42,6 +43,11 @@ export const adminUserActionSchema = z.discriminatedUnion("action", [
     action: z.literal("grant_plan"),
     kind: z.enum(["pro_days", "lifetime"]),
     days: z.number().int().min(1).max(MAX_COMP_DAYS).optional(),
+  }),
+  z.object({
+    action: z.literal("gift_pro"),
+    months: z.union([z.literal(1), z.literal(3), z.literal(12)]),
+    note: z.string().max(280).optional(),
   }),
   z.object({ action: z.literal("revoke_plan") }),
   z.object({ action: z.literal("sign_out_everywhere") }),
@@ -213,11 +219,36 @@ async function grantPlan(
   };
 }
 
+async function giftPro(
+  actorId: string,
+  targetId: string,
+  months: number,
+  note: string | undefined
+) {
+  try {
+    const gift = await grantGift({
+      actorId,
+      userId: targetId,
+      months,
+      note,
+    });
+    return {
+      message: `Gift of ${months} ${months === 1 ? "month" : "months"} given until ${gift.endsAt.toISOString().slice(0, 10)}. The person is told by email.`,
+    };
+  } catch (error) {
+    if (error instanceof GiftError) {
+      throw new AdminActionError(error.status, error.message);
+    }
+    throw error;
+  }
+}
+
 async function revokePlan(actorId: string, targetId: string) {
   const target = await loadTarget(targetId);
   const { revoked } = await prisma
     .$transaction(async (tx) => {
       const ended = await revokeManualPlan(tx, { userId: targetId });
+      await revokeGifts(tx, targetId);
       await recordAdminAudit(
         {
           actorId,
@@ -328,6 +359,8 @@ export async function runAdminUserAction(
       return extendTrial(actorId, targetId, action.days);
     case "grant_plan":
       return grantPlan(actorId, targetId, action.kind, action.days);
+    case "gift_pro":
+      return giftPro(actorId, targetId, action.months, action.note);
     case "revoke_plan":
       return revokePlan(actorId, targetId);
     case "sign_out_everywhere":

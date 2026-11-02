@@ -12,6 +12,12 @@ export type AdminAuditAction =
   | "user.extend_trial"
   | "user.grant_plan"
   | "user.revoke_plan"
+  /** Pro given as a gift for 1, 3 or 12 months (src/services/gifts). */
+  | "user.gift_pro"
+  /** A broadcast email scheduled, cancelled or sent (src/services/email-broadcasts). */
+  | "email.broadcast_schedule"
+  | "email.broadcast_cancel"
+  | "email.broadcast_send"
   | "user.sign_out_everywhere"
   | "user.delete"
   /** "Reset sandbox now": a sandbox account wiped and reseeded. */

@@ -24,7 +24,7 @@ function toCounts(rows: Array<{ userId: string | null; n: number }>): Counts {
   return out;
 }
 
-async function flagStates(userIds: string[]): Promise<Map<string, boolean>> {
+export async function flagStates(userIds: string[]): Promise<Map<string, boolean>> {
   const flag = await prisma.featureFlag.findUnique({
     where: { key: EMAIL_PROGRAM_FLAG },
     include: {
