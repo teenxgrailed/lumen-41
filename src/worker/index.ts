@@ -39,6 +39,11 @@ import {
   CALDAV_SYNC_INTERVAL_MS,
   sweepCalDavFeeds,
 } from "@/worker/caldav-sweep";
+import {
+  STALE_FEED_SWEEP_INTERVAL_MS,
+  sweepStaleFeeds,
+} from "@/worker/feed-sweep";
+import { syncFeedByType } from "@/worker/feed-sync";
 import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   startWorkerHealthServer,
@@ -49,7 +54,6 @@ import * as Sentry from "@sentry/node";
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { randomUUID } from "node:crypto";
 
-import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import {
   getCalendarFeedForSync,
   updateCalendarFeedSyncState,
@@ -57,7 +61,6 @@ import {
 import { renewCalendarWebhooks } from "@/lib/calendar-webhooks/renew";
 import { reconcileLifetimeCheckoutReservations } from "@/lib/creem/lifetime-reconciliation";
 import { newDate } from "@/lib/date-utils";
-import { syncGoogleCalendar } from "@/lib/google-sync";
 import {
   isGitBuildSha,
   requireProductionBuildSha,
@@ -75,8 +78,6 @@ import {
   ensureImapIdleWatcher,
 } from "@/lib/mail/imap-idle";
 import { syncMailAccount } from "@/lib/mail/sync";
-import { getOutlookClient } from "@/lib/outlook-calendar";
-import { syncOutlookCalendar } from "@/lib/outlook-sync";
 import {
   closeRedisConnection,
   getRedisConnection,
@@ -154,6 +155,11 @@ const WORKER_RELEASE_HEARTBEAT_VALUE = `${newDate().toISOString()}:${randomUUID(
 
 async function processCalendarSync(job: Job<CalendarSyncJobData>) {
   if (!job.data.feedId) {
+    if (job.data.kind === "stale-sweep") {
+      const queued = await sweepStaleFeeds();
+      await logger.info("Queued stale feed syncs", { queued }, LOG_SOURCE);
+      return;
+    }
     const queued = await sweepCalDavFeeds();
     await logger.info("Queued CalDAV feed syncs", { queued }, LOG_SOURCE);
     return;
@@ -174,33 +180,12 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
   }
 
   try {
-    if (feed.type === "CALDAV") {
-      await new CalDAVCalendarService(feed.account).syncCalendar(
-        feed.id,
-        feed.url,
-        feed.userId
-      );
-      await updateCalendarFeedSyncState(feed.id, {
-        lastSync: newDate(),
-        error: null,
-      });
-    } else if (feed.type === "OUTLOOK") {
-      const client = await getOutlookClient(feed.account.id, feed.userId);
-      const result = await syncOutlookCalendar(
-        client,
-        { id: feed.id, url: feed.url },
-        feed.syncToken
-      );
-      await updateCalendarFeedSyncState(feed.id, {
-        lastSync: newDate(),
-        syncToken: result.nextSyncToken ?? feed.syncToken,
-        error: null,
-      });
-    } else if (feed.type === "GOOGLE") {
-      await syncGoogleCalendar(feed);
-    } else {
-      throw new Error(`Unsupported calendar feed type: ${feed.type}`);
-    }
+    await syncFeedByType({
+      ...feed,
+      userId: feed.userId,
+      url: feed.url,
+      account: feed.account,
+    });
 
     await publishRealtimeEvent(feed.userId, "calendar-updated", {
       feedId: feed.id,
@@ -477,6 +462,11 @@ export async function start(): Promise<void> {
     "caldav-sync-sweep",
     { every: CALDAV_SYNC_INTERVAL_MS },
     { name: "sweep-caldav", data: { kind: "sweep" } }
+  );
+  await getCalendarSyncQueue().upsertJobScheduler(
+    "stale-feed-sweep",
+    { every: STALE_FEED_SWEEP_INTERVAL_MS },
+    { name: "sweep-stale-feeds", data: { kind: "stale-sweep" } }
   );
   await getBugReportSyncQueue().upsertJobScheduler(
     "bug-report-retry",
