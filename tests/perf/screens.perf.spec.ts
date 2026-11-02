@@ -189,6 +189,7 @@ const screens: Screen[] = [
           await sleep(p, 700);
           await p
             .getByRole("button", { name: "Ask Needt" })
+            .first()
             .tap({ timeout: 10_000 });
           await sleep(p, 1200);
           await p.keyboard.press("Escape");
