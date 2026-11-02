@@ -18,7 +18,6 @@
 
 /* Hours outside the working window: drawn, not hidden — an evening event has
    to be able to land there. One hairline at 45°, no fill. */
-.needt-v2 .nt-hatch { background-image: repeating-linear-gradient(45deg, rgba(var(--foreground-rgb), 0.05) 0 1px, transparent 1px 7px); }
 
 /* The wordmark breathes — the one perpetual animation besides the spinner,
    and like the spinner it means something: the app is running. It inflates by
@@ -63,19 +62,16 @@
 .needt-v2 .pop-up .nt-popover { top: auto !important; bottom: calc(100% + 6px); transform-origin: bottom left; }
 /* A menu hung above its trigger grows from the edge it is attached to. */
 .needt-v2 .menu-up .nt-menu { animation: needt-pop var(--transition-pop) both; transform-origin: bottom left; }
-.needt-v2 .nt-datepicker { animation: needt-pop var(--transition-pop) both; transform-origin: top left; }
-.needt-v2 .nt-scrim { animation: needt-fade var(--transition-pop) both; }
-.needt-v2 .nt-dialog { animation: needt-pop-modal var(--duration-screen) var(--ease-pop) both; }
+
 /* The command palette drops from the top edge it is pinned to. */
-.needt-v2 .nt-scrim > div { animation: needt-pop-modal var(--duration-screen) var(--ease-pop) both; transform-origin: top center; }
+
 /* A screen replacing another. */
 .needt-v2 .screen-enter { animation: needt-screen var(--duration-screen) var(--ease-pop) both; }
+
 /* A block the app just placed or moved. */
-.needt-v2 .just-landed > * { animation: needt-landed 0.6s var(--ease-pop) both; }
 
 /* The perpetual and the celebratory stop entirely under reduced motion; the
    token-level durations in motion.css handle everything that merely arrives. */
-
 
 /* The agent's caption: it lands beside the pointer, and it tracks the pointer
    without a transition — a lagging label reads as a second cursor. */
@@ -270,20 +266,13 @@
 
 /* An overlay's trigger wrapper shrink-wraps and forwards no style; this makes
    a pinned sidebar row a full-width target. */
-.needt-v2 .needt-stretch { display: flex; width: 100%; }
 /* Popover nests two wrappers — the outer holder and the anchor — so both must
    stretch before the button's own 100% has anything to resolve against. */
-.needt-v2 .needt-stretch > *,
-.needt-v2 .needt-stretch > * > * { flex: 1 1 auto; min-width: 0; width: 100%; }
+
 /* The caret that follows what Needt is writing. */
 @keyframes needt-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
-.needt-v2 .brief-caret { display: inline-block; width: 2px; height: 1em; margin-left: 1px; vertical-align: -2px; background: var(--accent); animation: needt-caret 1s steps(1) infinite; }
 /* Thinking, before there is anything to read. */
 @keyframes needt-dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
-.needt-v2 .chat-dots i { width: 5px; height: 5px; border-radius: 9999px; background: var(--accent); display: block; animation: needt-dot 1s ease-in-out infinite; }
-.needt-v2 .chat-dots i:nth-child(2) { animation-delay: 0.15s; }
-.needt-v2 .chat-dots i:nth-child(3) { animation-delay: 0.3s; }
-.needt-v2 .chat-line { animation: needt-screen var(--duration-screen) var(--ease-pop) both; }
 /* THE ISLAND. The shell is already morphing its width and height, so the
    content only has to arrive after the room exists — otherwise two lines of
    text are laid out inside a 116px pill and reflow as it grows. */
@@ -291,14 +280,12 @@
   0% { opacity: 0; transform: translateY(6px) scale(0.96); }
   100% { opacity: 1; transform: none; }
 }
-.needt-v2 .ci-body { animation: needt-island-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s both; }
 /* A breath of accent around the shell while it is carrying something, so the
    swell is felt at the edge of vision rather than only where you are looking. */
 @keyframes needt-island-ring {
   0%, 100% { box-shadow: var(--shadow-floating), 0 0 0 0 rgba(var(--accent-rgb), 0); }
   45% { box-shadow: var(--shadow-floating), 0 0 0 5px rgba(var(--accent-rgb), 0.13); }
 }
-.needt-v2 .chat-shell.is-island { animation: needt-island-ring 2.6s ease-in-out 2; }
 @media (prefers-reduced-motion: reduce) { .needt-v2 .ci-body,
 .needt-v2 .chat-shell.is-island { animation: none; } }
 
@@ -349,31 +336,17 @@
 .needt-v2 .auth-enter { animation: needt-auth-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes needt-step-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 @keyframes needt-step-back { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
-.needt-v2 .step-enter { animation: needt-step-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-.needt-v2 .step-enter-back { animation: needt-step-back 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes needt-aurora { 0%, 100% { opacity: 0.5; transform: translate3d(0, 0, 0) scale(1); } 50% { opacity: 0.85; transform: translate3d(0, -3%, 0) scale(1.06); } }
-.needt-v2 .auth-aurora { position: absolute; inset: -10%; pointer-events: none;
-  background:
-    radial-gradient(42% 38% at 28% 18%, rgba(var(--accent-rgb), 0.3), transparent 72%),
-    radial-gradient(46% 40% at 78% 72%, rgba(var(--accent-rgb), 0.16), transparent 74%);
-  animation: needt-aurora 9s ease-in-out infinite; }
 @keyframes needt-mini-drop { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
 .needt-v2 .mini-block { animation: needt-mini-drop 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes needt-mini-now { 0% { top: 18%; } 100% { top: 76%; } }
-.needt-v2 .mini-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--accent);
-  box-shadow: rgba(var(--accent-rgb), 0.5) 0 0 6px 0; animation: needt-mini-now 14s linear infinite; }
 
 /* THE LANDING — the shape a dragged task would take, drawn where it would
    land: accent outline, its start time, nothing filled in. */
 @keyframes needt-drop-in { from { opacity: 0; transform: scaleY(0.9); } to { opacity: 1; transform: none; } }
-.needt-v2 .drop-preview { display: flex; align-items: center; gap: 6px; padding: 0 8px; pointer-events: none; overflow: hidden;
-  border-radius: var(--radius-md); background: var(--fill-accent); color: var(--accent);
-  box-shadow: rgba(var(--accent-rgb), 0.55) 0 0 0 1.5px inset; transform-origin: 50% 0;
-  animation: needt-drop-in 0.14s ease both; }
+
 /* Refused: the same shape in the destructive tone, saying what is in the way.
    The outline is dashed, because a refusal is not a place. */
-.needt-v2 .drop-preview-no { background: var(--fill-destructive); color: var(--destructive);
-  box-shadow: none; outline: 1.5px dashed var(--destructive); outline-offset: -1.5px; }
 
 /* Focus is a 2px inset accent ring — on the thumbnails and the section rail
    too, so the whole screen is reachable from the keyboard. */
@@ -382,7 +355,6 @@
 .needt-v2 nav[aria-label="Settings sections"]:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .needt-v2 nav[aria-label="Settings sections"] button[aria-current]:focus-visible,
 .needt-v2 nav[aria-label="Settings sections"] button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
 
 @media (prefers-reduced-motion: reduce) {
   .needt-v2 .veil-mark,
@@ -437,35 +409,25 @@
   35% { transform: scale(1.18); background: var(--fill-accent); color: var(--accent); }
   100% { transform: scale(1); }
 }
-.needt-v2 .count-bump { animation: needt-count-bump 0.32s ease; }
+
 /* The columns strip is dragged and wheeled sideways, so it must not select
    text while being pulled. */
-.needt-v2 .cv-strip { cursor: default; user-select: none; }
 
 @media (prefers-reduced-motion: reduce) { .needt-v2 .count-bump { animation: none; } }
+
 /* A one-line block in a week column cannot hold both a title and a mono time.
    The block measures itself and drops the time; the title never truncates to
    four characters to make room for a value the grid already states. */
 /* An empty editable line says what it is for, in the ink of a hint, and the
    hint never takes a click. */
-.needt-v2 .prose-block:empty::before { content: attr(data-ph); color: var(--text-disabled); pointer-events: none; }
-.needt-v2 .prose-block:focus { outline: none; }
-.needt-v2 .prose-block a { color: var(--accent); }
-.needt-v2 .mark-bar { animation: needt-pop var(--transition-pop) both; transform-origin: 50% 100%; }
 /* The pointer time and the hour gutter sit on the sheet, so their backing
    follows the sheet rather than the page. */
-.needt-v2 .cal-sheet .cal-aim-time { background: var(--background); }
 /* The hour gutter and the head row stay put while the table scrolls under
    them, so a day column is never nameless and an hour is never guessed. */
-.needt-v2 .cal-sheet .scroll-inner { scrollbar-width: none; }
-.needt-v2 .cal-sheet .scroll-inner::-webkit-scrollbar { width: 0; height: 0; }
 /* THE WALLS. What is not today lives in the edge of the room: a 22px lip with
    the name turned on its side, and the column itself parked just outside the
    frame. Reaching the edge slides it in over the day rather than displacing
    it — the thing being read must not move while you look somewhere else. */
-.needt-v2 .hd-wall { position: absolute; top: 0; bottom: 0; width: 292px; z-index: 6; display: flex; }
-.needt-v2 .hd-wall-left { left: 0; }
-.needt-v2 .hd-wall-right { right: 0; flex-direction: row-reverse; }
 /* THE WALL IS NOT A BUTTON. What sits at the edge is the shelf itself, pushed
    almost all the way out and dimmed: a strip of its name and a sliver of the
    cards behind it. Dimmed rather than hidden, because a person has to be able
@@ -473,33 +435,13 @@
    label would be a control promising a click, when the gesture is a reach. */
 /* The lip is the reach, not a label: a bare strip of ground with nothing
    written on it. */
-.needt-v2 .hd-wall-lip { flex: none; width: 22px; }
-.needt-v2 .hd-wall-body {
-  position: relative;
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 0 11px;
-  /* Out of focus, not merely dim. Opacity alone never fixed the sliver: a
-     crisp rounded corner and a coloured ring at the screen edge read as a
-     card that got cut off, at any opacity. Blur removes the edges, so what is
-     behind the wall becomes a shape you can see and cannot read — which is
-     exactly what it is. */
-  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.2s ease;
-}
 /* Pushed out far enough that a strip of the cards still shows — that strip is
    the invitation, and it is the only one. */
-.needt-v2 .hd-wall-left .hd-wall-body { transform: translateX(-100%); opacity: 0; }
-.needt-v2 .hd-wall-right .hd-wall-body { transform: translateX(100%); opacity: 0; }
-
 /* THE HIT AREA IS WHAT IS ON SCREEN, AND NOTHING ELSE. The wall's box is
    292px because that is its width when it is out; as a hover target that box
    was a transparent shield lying across a third of the day. So the wall takes
    no pointer at all: the name strip does, and the body does once it is out —
    which is what keeps it out while you are reading it. */
-.needt-v2 .hd-wall { pointer-events: none; }
-.needt-v2 .hd-wall-lip { pointer-events: auto; }
-.needt-v2 .hd-wall:has(.hd-wall-lip:hover) .hd-wall-body,
-.needt-v2 .hd-wall-body:hover { transform: none; opacity: 1; pointer-events: auto; }
-.needt-v2 .hd-wall:has(.hd-wall-lip:hover) .hd-wall-body,
-.needt-v2 .hd-wall-body:hover { filter: drop-shadow(0 6px 22px rgba(0, 0, 0, 0.22)); }
 
 @media (prefers-reduced-motion: reduce) { .needt-v2 .hd-wall-body { transition: none; } }
 /* The keyboard sheet. A cap is a physical key drawn small: a raised face on a
@@ -520,27 +462,16 @@
    the task is, the right is what the scheduler knows about it. */
 .needt-v2 .td-scrim { position: absolute; inset: 0; z-index: 620; display: grid; place-items: center; padding: 24px;
   background: var(--overlay-scrim); animation: needt-fade var(--transition-pop) both; }
-.needt-v2 .td-box { display: flex; width: min(1040px, 100%); height: min(660px, 100%); overflow: hidden;
-  border-radius: var(--radius-2xl); background: var(--surface-raised); box-shadow: var(--shadow-floating);
-  animation: needt-pop var(--transition-pop) both; }
-.needt-v2 .td-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 11px; padding: 16px 20px; }
-.needt-v2 .td-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 21px; padding-bottom: 8px; }
-.needt-v2 .td-rail { flex: none; width: 340px; display: flex; flex-direction: column; overflow: auto;
-  padding: 0 12px 12px; background: var(--fill-1); box-shadow: var(--border) 1px 0 0 0 inset; }
+
 /* A row lights up under the pointer, which is how a rail of values stays a
    list of values instead of becoming a form of inputs. */
-.needt-v2 .td-row:hover { background: var(--fill-2); }
 
 @media (prefers-reduced-motion: reduce) { .needt-v2 .td-scrim,
 .needt-v2 .td-box { animation: none; } }
-.needt-v2 .cal-stick { position: sticky; left: 0; background: var(--background); z-index: 50; }
+
 /* The rail: a dotted line down the right edge of the margin, one dot every
    quarter hour, so the quarters are countable without ruling the day. */
-.needt-v2 .cal-rail::after {
-  content: ""; position: absolute; top: 0; bottom: 0; right: 8px; left: 0; margin: 0 auto; width: 2px;
-  background-image: radial-gradient(circle, var(--text-quaternary) 0.75px, transparent 0.85px);
-  background-size: 2px 14px; background-repeat: repeat-y;
-}
+
 /* The header has to fit the shell's own floor: under 1320px the inactive tabs
    drop their labels and their icons carry them, so the tail of the row — the
    view toggle and the options gear — is never clipped. */
@@ -555,17 +486,12 @@
 /* A popover anchored to a full-width control in the rail stretches to that
    width — the rail clips, so a panel wider than the rail loses its right edge. */
 .needt-v2 .pop-up > .nt-popover { left: 0; right: 0; }
-.needt-v2 .block-compact { container-type: inline-size; }
 @container (max-width: 150px) { .needt-v2 .block-compact-time { display: none !important; } }
+
 /* THE TWO-MINUTE STRIP. A gap states its length whether or not you fill it,
    so at rest it is a rule with a number in it — and only on hover does it
    look like a control. */
-.needt-v2 .mn-rule { flex: 1; border-top: 1px dashed var(--border); }
-.needt-v2 .mn-box { transition: color var(--transition-hover), background-color var(--transition-hover); }
-.needt-v2 .mn-box:hover { color: var(--text-secondary); background: var(--fill-2); }
-.needt-v2 .mn-label { color: inherit; }
-.needt-v2 .mn-box:hover .mn-rule { border-top-color: var(--text-disabled); }
-.needt-v2 .mn-shelf { animation: needt-pop var(--transition-pop) both; transform-origin: 50% 0; }
+
 .needt-v2 .needt-mark { cursor: default; }
 .needt-v2 .needt-mark text { transform-box: fill-box; transform-origin: 50% 100%; }
 .needt-v2 .needt-mark tspan { stroke-width: 0.2;
@@ -603,8 +529,6 @@
 .needt-v2 [data-depth="flat"] .btn:active { background: var(--fill-5); box-shadow: none; }
 .needt-v2 [data-depth="flat"] .btn.btn-accent { background: var(--fill-accent); color: var(--accent); }
 .needt-v2 [data-depth="flat"] .btn.btn-accent:hover { background: var(--fill-accent-strong); }
-.needt-v2 [data-depth="flat"] .btn.btn-destructive { background: var(--fill-destructive); color: var(--destructive); }
-.needt-v2 [data-depth="flat"] .btn.btn-outline { background: transparent; box-shadow: var(--shadow-inset-ring); }
 .needt-v2 [data-depth="flat"] .btn.btn-ghost { background: transparent; }
 .needt-v2 [data-depth="flat"] .btn.btn-ghost:hover { background: var(--fill-3); }
 .needt-v2 [data-depth="flat"] .btn-icon { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
@@ -615,13 +539,10 @@
 
 .needt-v2 [data-depth="lifted"] .card { box-shadow: var(--shadow-raised); }
 .needt-v2 [data-depth="lifted"] .cal-day { box-shadow: var(--shadow-raised); }
-/* The timeline sets its blocks' ring inline, so this one needs the weight. */
-.needt-v2 [data-depth="lifted"] .nt-timeline .nt-block { box-shadow: var(--shadow-raised) !important; }
-.needt-v2 .nt-block[data-compact="true"] .nt-block-title { flex: 0 1 auto; }
 
+/* The timeline sets its blocks' ring inline, so this one needs the weight. */
 /* Hours outside the working window: drawn, not hidden — an evening event has
    to be able to land there. One hairline at 45°, no fill. */
-.needt-v2 .nt-hatch { background-image: repeating-linear-gradient(45deg, rgba(var(--foreground-rgb), 0.05) 0 1px, transparent 1px 7px); }
 
 /* DEPTH — how far an object sits off the ground. "raised" is the system
    default and needs no rules. The other two are whole-product treatments, not
@@ -633,8 +554,6 @@
 .needt-v2 [data-depth="flat"] .btn:active { background: var(--fill-5); box-shadow: none; }
 .needt-v2 [data-depth="flat"] .btn.btn-accent { background: var(--fill-accent); color: var(--accent); }
 .needt-v2 [data-depth="flat"] .btn.btn-accent:hover { background: var(--fill-accent-strong); }
-.needt-v2 [data-depth="flat"] .btn.btn-destructive { background: var(--fill-destructive); color: var(--destructive); }
-.needt-v2 [data-depth="flat"] .btn.btn-outline { background: transparent; box-shadow: var(--shadow-inset-ring); }
 .needt-v2 [data-depth="flat"] .btn.btn-ghost { background: transparent; }
 .needt-v2 [data-depth="flat"] .btn.btn-ghost:hover { background: var(--fill-3); }
 .needt-v2 [data-depth="flat"] .btn-icon { background: var(--fill-3); color: var(--text-secondary); box-shadow: none; }
@@ -645,8 +564,9 @@
 
 .needt-v2 [data-depth="lifted"] .card { box-shadow: var(--shadow-raised); }
 .needt-v2 [data-depth="lifted"] .cal-day { box-shadow: var(--shadow-raised); }
+
 /* The timeline sets its blocks' ring inline, so this one needs the weight. */
-.needt-v2 [data-depth="lifted"] .nt-timeline .nt-block { box-shadow: var(--shadow-raised) !important; }
+
 /* The shell fills whatever window it is opened in — the way the real app will.
    It was pinned to 1440×900 to make measurement reproducible; the floor keeps
    the two-pane layout honest, and below it the page scrolls rather than
@@ -669,43 +589,19 @@
 /* THE COMPOSER. The scrim is a dimmer, not a wall: the day stays legible
    behind it, because what you are typing is about what you can see. */
 .needt-v2 .auth-enter { overflow-y: auto; }
-.needt-v2 .co-scrim { position: absolute; inset: 0; z-index: 600; display: flex; align-items: flex-end; justify-content: center;
-  padding: 0 20px 26px; background: transparent; }
-.needt-v2 .co-box {
-  --co-neon: 88, 148, 255;
-  position: relative; width: min(680px, 100%); display: flex; flex-direction: column; gap: 9px;
-  padding: 12px 12px 10px; border-radius: var(--radius-2xl);
-  background: var(--surface-raised);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
-    var(--shadow-ring),
-    0 1px 2px 0 rgba(0, 0, 0, 0.04),
-    0 10px 20px -6px rgba(0, 0, 0, 0.06),
-    0 24px 56px -20px rgba(0, 0, 0, 0.14);
-  transition: box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+
 /* Typing brightens the tube, and the tube is the ::after layer — the box keeps
    its own ring and cast shadow throughout. A second is-live box-shadow here
    replaced them with the glow stack, whose tightest layer landed on the edge
    as a crisp blue outline: exactly the ring this surface must not draw. */
-.needt-v2 .co-box.is-live { transition-duration: 0.28s; }
 /* On a dark ground the tube runs at full strength — the core is nearly white,
    which is what makes the blue around it read as emitted rather than painted. */
-.needt-v2[data-theme="dark"] .co-box,
-.needt-v2[data-theme="dim"] .co-box {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.13),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 2px 4px 0 rgba(0, 0, 0, 0.4),
-    0 12px 30px -8px rgba(0, 0, 0, 0.36),
-    0 30px 70px -22px rgba(0, 0, 0, 0.5); }
 
 @keyframes needt-co-arrive {
   0% { transform: translate(var(--co-dx, 0px), var(--co-dy, 0px)) scale(var(--co-sx, 1), var(--co-sy, 1));
        opacity: 0.4; border-radius: var(--radius-floating); }
   100% { transform: none; opacity: 1; border-radius: var(--radius-2xl); }
 }
-.needt-v2 .co-arrive { animation: needt-co-arrive 0.5s cubic-bezier(0.22, 0.68, 0.24, 1) both; transform-origin: 50% 100%; }
 
 /* THE TUBE IS ITS OWN LAYER. It comes up over 0.7s — slow enough to read as
    warming rather than switching — and then breathes on a 5.2s cycle, the same
@@ -716,52 +612,11 @@
    first frame must also be full — a cycle that opened at 0.62 dropped the glow
    a third of the way down the instant it began. Full → dim → full. */
 @keyframes needt-co-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.62; } }
-.needt-v2 .co-box::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
-  opacity: 0; transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow:
-    inset 0 0 18px -1px rgba(var(--co-neon), 0.22),
-    0 0 4px 1px rgba(var(--co-neon), 0.62),
-    0 0 12px 2px rgba(var(--co-neon), 0.4),
-    0 0 34px 6px rgba(var(--co-neon), 0.22),
-    0 0 80px 16px rgba(var(--co-neon), 0.12);
-}
-.needt-v2[data-theme="dark"] .co-box::after,
-.needt-v2[data-theme="dim"] .co-box::after {
-  box-shadow:
-    inset 0 0 30px -1px rgba(var(--co-neon), 0.4),
-    0 0 3px 1px rgba(240, 246, 255, 0.9),
-    0 0 12px 2px rgba(var(--co-neon), 0.92),
-    0 0 30px 5px rgba(var(--co-neon), 0.56),
-    0 0 70px 12px rgba(var(--co-neon), 0.32),
-    0 0 140px 30px rgba(var(--co-neon), 0.16);
-}
-.needt-v2 .co-box.is-live::after { opacity: 1; animation: needt-co-glow 5.2s ease-in-out 0.7s infinite; }
 
 @keyframes needt-co-discharge {
   0%   { opacity: 0.85; transform: scale(1); }
   14%  { opacity: 1; transform: scale(1.012); }
   100% { opacity: 0; transform: scale(1); }
-}
-.needt-v2 .co-discharge {
-  position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
-  box-shadow:
-    inset 0 0 26px -1px rgba(var(--co-neon), 0.34),
-    0 0 6px 1px rgba(var(--co-neon), 0.8),
-    0 0 18px 3px rgba(var(--co-neon), 0.5),
-    0 0 46px 9px rgba(var(--co-neon), 0.28),
-    0 0 110px 22px rgba(var(--co-neon), 0.14);
-  animation: needt-co-discharge 0.56s cubic-bezier(0.22, 0.6, 0.24, 1) both;
-}
-.needt-v2[data-theme="dark"] .co-discharge,
-.needt-v2[data-theme="dim"] .co-discharge {
-  box-shadow:
-    inset 0 0 40px -1px rgba(var(--co-neon), 0.5),
-    0 0 4px 1px rgba(240, 246, 255, 1),
-    0 0 18px 3px rgba(var(--co-neon), 1),
-    0 0 44px 8px rgba(var(--co-neon), 0.66),
-    0 0 96px 18px rgba(var(--co-neon), 0.4),
-    0 0 180px 40px rgba(var(--co-neon), 0.2);
 }
 
 /* The line: one input with its own text made transparent, and the parse drawn
@@ -785,16 +640,12 @@
 .needt-v2 .co-input::placeholder { color: var(--text-disabled); }
 .needt-v2 .co-input::-webkit-scrollbar { display: none; }
 .needt-v2 .co-mirror { color: var(--text-primary); pointer-events: none; }
+
 /* The send key is the loudest control on the surface, and it gets there the
    way this system allows: the accent as a translucent fill with the accent
    itself as the glyph. A solid accent surface on a button is forbidden outright
    — solid accent belongs to a mark, never to a surface. */
-.needt-v2 .co-go { display: grid; place-items: center; width: 32px; height: 32px; border: 0; cursor: default;
-  border-radius: var(--radius-md); background: var(--fill-accent); color: var(--accent);
-  box-shadow: var(--shadow-inset-ring);
-  transition: background-color var(--transition-hover), box-shadow var(--transition-hover); }
-.needt-v2 .co-go:hover { background: var(--fill-accent-strong); }
-.needt-v2 .co-go:active { box-shadow: var(--shadow-focus); }
+
 /* What was made leaves the line and goes to live somewhere: it lifts off and
    fades, so a create is something you watch depart rather than a field going
    blank. */
@@ -824,13 +675,9 @@
    two registers — what the task is above, what you are typing below. */
 .needt-v2 .co-shelf-inner { box-shadow: none; }
 .needt-v2 .co-shelf.is-open .co-shelf-inner { box-shadow: var(--border) 0 1px 0 0 inset; }
-.needt-v2 .co-draft { animation: needt-drop-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 /* Listening: the bars are the level, so they move at different rates rather
    than as one block. */
 @keyframes needt-co-bar { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
-.needt-v2 .co-bars { display: flex; align-items: center; gap: 3px; height: 20px; }
-.needt-v2 .co-bars i { display: block; width: 3px; height: 100%; border-radius: 2px; background: var(--accent);
-  transform-origin: 50% 50%; animation: needt-co-bar 0.72s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .needt-v2 .co-flight,
 .needt-v2 .co-draft,
@@ -854,7 +701,6 @@
  * positions (319.3px at 112px type, 0.0% deviation) — so the layout cannot
  * move and there is no width lock. The previous build's invisible ghost copy
  * is deleted. */
-
 
 .needt-v2 .font-display { font-family: "Exposure VAR", Georgia, serif; }
 

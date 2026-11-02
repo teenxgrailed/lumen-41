@@ -44,7 +44,7 @@ import { type Spring, springStep } from "@/lib/needt3/spring";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Glyph } from "../../glyphs/Glyph";
-import { PxSky } from "../../scenes";
+import { PxSky, type SkyEngine } from "../../scenes";
 import { type EndReason, frameWriter, pkTrack } from "../kit/pointer";
 import { pkEdgeInset } from "../kit/scroll";
 import { usePkSkyMood } from "../kit/theme";
@@ -298,6 +298,9 @@ export function Menu(props: MenuProps) {
   const modeRef = useRef<NvaMode>(mode);
   modeRef.current = mode;
   const cardId = useId();
+  /* The tiles' sky: parked while the card moves (its frames compete with the
+     spring for the main thread), alive again once it rests open. */
+  const skyEng = useRef<SkyEngine | null>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
   S.hereIdx = screen ? top.indexOf(screen) : -1;
@@ -486,6 +489,7 @@ export function Menu(props: MenuProps) {
     window.clearTimeout(S.fadeT);
     el.removeAttribute("data-fade");
     el.setAttribute("data-moving", "");
+    skyEng.current?.park(true);
     propsRef.current.onMoving?.(true);
   }, [R, S]);
   /* Focus back on the "Every place" button that opened the card. It waits for
@@ -506,6 +510,7 @@ export function Menu(props: MenuProps) {
     const was = S.moving;
     S.moving = false;
     el.removeAttribute("data-moving");
+    skyEng.current?.park(!menuIsOpen(modeRef.current));
     // full: the list box is the full height; anywhere else the card's
     if (S.p.x >= 0.999 && S.t.x >= 0.999) el.setAttribute("data-at-full", "");
     else el.removeAttribute("data-at-full");
@@ -1065,6 +1070,7 @@ export function Menu(props: MenuProps) {
                   mood={sky.mood ?? undefined}
                   dark={sky.dark}
                   parked={!isOpen}
+                  engine={skyEng}
                 />
               </div>
               {top.map((id) => {

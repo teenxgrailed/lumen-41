@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { joinRest } from "../../scenes/sky-rest";
 import { PhoneOfflineIndicator } from "../../sync/PhoneOfflineIndicator";
 import { PkGlyph } from "./Material";
 import { pkAdoptDocumentScroll } from "./scroll";
@@ -53,8 +54,11 @@ export function pkFogLive(
 ) {
   if (!el || typeof document === "undefined") return undefined;
   let seen = true;
+  // No input for the sky's rest time (12 s): the dots hold still, as the sky
+  // does, and drift on at the next touch.
+  let idle = false;
   const sync = () => {
-    const v = seen && !document.hidden ? "1" : "0";
+    const v = seen && !idle && !document.hidden ? "1" : "0";
     if (el.getAttribute("data-pk-live") !== v)
       el.setAttribute("data-pk-live", v);
   };
@@ -66,10 +70,16 @@ export function pkFogLive(
         })
       : null;
   io?.observe(el);
+  const joined = joinRest((v) => {
+    idle = v;
+    sync();
+  });
+  idle = joined.rest.idle;
   document.addEventListener("visibilitychange", sync);
   sync();
   return () => {
     io?.disconnect();
+    joined.leave();
     document.removeEventListener("visibilitychange", sync);
   };
 }
@@ -79,6 +89,12 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
   const setEl = useCallback(
     (n: HTMLDivElement | null) => {
       own.current = n;
+      if (n) {
+        // A fog that mounts after the last scroll read starts at the value
+        // the screen already holds.
+        const k = n.closest("[data-pk-fog-k]")?.getAttribute("data-pk-fog-k");
+        if (k) n.style.setProperty("--pk-fog-k", k);
+      }
       if (typeof fogRef === "function") fogRef(n);
       else if (fogRef)
         (fogRef as { current: HTMLDivElement | null }).current = n;
@@ -102,6 +118,19 @@ export function PkFog({ fogRef }: { fogRef?: Ref<HTMLDivElement> }) {
       <span className="pk-fog-dots is-3" />
     </div>
   );
+}
+
+/**
+ * Write the fog's fade on the fog itself (its only reader), not on the screen
+ * root: a custom property set on the root re-resolves for every descendant on
+ * each scroll step. The root keeps the value as a plain attribute (no style
+ * rule reads it) for a fog that mounts later.
+ */
+export function pkSetFogK(root: HTMLElement, key: string) {
+  root.setAttribute("data-pk-fog-k", key);
+  root
+    .querySelectorAll<HTMLElement>(".pk-fog")
+    .forEach((f) => f.style.setProperty("--pk-fog-k", key));
 }
 
 /* ══ The screen scaffold ══════════════════════════════════════════════════ */
@@ -184,7 +213,7 @@ export function PkScreen({
       const key = fog.toFixed(3);
       if (key === last) return;
       last = key;
-      r.style.setProperty("--pk-fog-k", key);
+      pkSetFogK(r, key);
       // The fog's drift and its backdrop blur rest while it is faded out.
       r.setAttribute("data-pk-fog-on", fog > 0.01 ? "1" : "0");
     };

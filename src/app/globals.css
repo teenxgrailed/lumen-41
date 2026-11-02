@@ -1181,6 +1181,12 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   animation: none;
 }
 
+/* A hidden aurora (AppShell hideAurora) paints nothing; its drift still ran
+   three compositor animations for nobody. Paused keeps the same phase. */
+.needt-aurora--hidden .needt-aurora-blob {
+  animation-play-state: paused;
+}
+
 @keyframes needt-aurora-drift {
   from {
     transform: translate3d(-9%, -5%, 0) scale(1);

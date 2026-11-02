@@ -121,7 +121,7 @@
 .ob3-cat-ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 8px; color: var(--cc); background: color-mix(in srgb, var(--cc) 14%, transparent); transition: transform .35s var(--spring), background .25s, color .25s; }
 .ob3-cat b { font-weight: 600; font-size: 13px; }
 .ob3-cat small { color: var(--ink2); font-size: 12px; line-height: 1.35; }
-.ob3-cat-tick { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: all .25s; }
+.ob3-cat-tick { position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: background-color .25s, border-color .25s; }
 .ob3-cat.is-on { background: color-mix(in srgb, var(--cc) 10%, var(--card)); box-shadow: 0 0 0 2px var(--cc), 0 18px 40px -24px var(--cc); }
 .ob3-cat.is-on .ob3-cat-ic { background: var(--cc); color: #fff; transform: rotate(-6deg) scale(1.06); }
 .ob3-cat.is-on .ob3-cat-tick { background: var(--cc); border-color: var(--cc); }
@@ -129,7 +129,7 @@
 /* ── tasks ── */
 .ob3-tabs { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; padding: 4px; scrollbar-width: none; }
 .ob3-tabs::-webkit-scrollbar { display: none; }
-.ob3-tabs button { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border-radius: 19px; border: 1px solid transparent; background: var(--field); font-weight: 600; font-size: 13px; color: var(--ink2); transition: all .25s; }
+.ob3-tabs button { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border-radius: 19px; border: 1px solid transparent; background: var(--field); font-weight: 600; font-size: 13px; color: var(--ink2); transition: background-color .25s, color .25s, border-color .25s, box-shadow .25s; }
 .ob3-tabs button i { width: 8px; height: 8px; border-radius: 50%; background: var(--cc); }
 .ob3-tabs button span { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 12px; display: inline-grid; place-items: center; background: rgba(40,36,90,.08); }
 .ob3-tabs button.is-on { background: var(--card-solid); color: var(--ink); box-shadow: 0 0 0 1.5px var(--cc), var(--shadow); }
@@ -138,7 +138,7 @@
 .ob3-task { display: grid; grid-template-columns: 24px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; padding: 12px 14px; border-radius: 14px;
   transition: transform .2s var(--spring), box-shadow .2s, background .2s; animation: ob3-pop-in .45s var(--spring) both; animation-delay: calc(var(--i) * 40ms); }
 .ob3-task:active { transform: scale(.97); }
-.ob3-task-box { grid-row: span 2; width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: all .2s; }
+.ob3-task-box { grid-row: span 2; width: 22px; height: 22px; border-radius: 7px; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: background-color .2s, border-color .2s; }
 .ob3-task b { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ob3-task small { color: var(--ink3); font-size: 12px; }
 .ob3-task.is-on { background: color-mix(in srgb, var(--cc) 9%, var(--card)); box-shadow: 0 0 0 1.5px var(--cc), var(--shadow); }
@@ -171,7 +171,7 @@
 .ob3-rank-it { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; text-align: left; transition: transform .25s var(--spring), box-shadow .25s; animation: ob3-rise .45s var(--ease) both; animation-delay: calc(.2s + var(--i) * 45ms); }
 .ob3-rank-it .ob3-cat-ic { margin: 0; width: 36px; height: 36px; }
 .ob3-rank-it b { flex: 1; font-weight: 600; } .ob3-rank-it small { color: var(--ink3); font-size: 12px; }
-.ob3-rank-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 500 16px/1 var(--display); border: 1.5px dashed var(--line); transition: all .25s; }
+.ob3-rank-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 500 16px/1 var(--display); border: 1.5px dashed var(--line); transition: background-color .25s, color .25s, border-color .25s, border-width .25s; }
 .ob3-rank-it.is-on { box-shadow: 0 0 0 1.5px var(--cc), var(--shadow); }
 .ob3-rank-it.is-on .ob3-rank-n { background: var(--cc); color: #fff; border: 0; animation: ob3-bump .4s var(--spring); }
 
@@ -182,7 +182,7 @@
 .ob3-inline { display: flex; align-items: center; gap: 12px; } .ob3-inline i { font-style: normal; color: var(--ink3); }
 .ob3-reveal { animation: ob3-rise .4s var(--ease) both !important; }
 .ob3-dayp { display: flex; gap: 6px; }
-.ob3-dayp button { width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--card-b); background: var(--card); font-weight: 600; transition: all .25s var(--spring); }
+.ob3-dayp button { width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--card-b); background: var(--card); font-weight: 600; transition: background-color .25s var(--spring), color .25s var(--spring), border-color .25s var(--spring), transform .25s var(--spring), box-shadow .25s var(--spring); }
 .ob3-dayp button.is-on { background: var(--ink); color: var(--card-solid); border-color: var(--ink); transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--ink); }
 .ob3-stepper { display: inline-flex; align-items: center; height: 50px; border-radius: 15px; }
 .ob3-stepper b { min-width: 72px; text-align: center; font: 600 20px/1 var(--font); font-variant-numeric: tabular-nums; }
@@ -201,7 +201,7 @@
 .ob3-row:active { transform: scale(.98); }
 .ob3-row-art { flex: none; }
 .ob3-row-t { flex: 1; min-width: 0; display: flex; flex-direction: column; } .ob3-row-t b { font-weight: 600; } .ob3-row-t small { color: var(--ink2); font-size: 13px; }
-.ob3-row-tick { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: all .25s; }
+.ob3-row-tick { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; color: #fff; transition: background-color .25s, border-color .25s; }
 .ob3-row-tick.is-on { background: var(--ok); border-color: var(--ok); }
 .ob3-row.is-on { box-shadow: 0 0 0 1.5px var(--ok), var(--shadow); }
 
@@ -383,7 +383,7 @@
   .ob3-foot-c { align-items: stretch; } .ob3-foot-c > .ob3-link, .ob3-foot-info { align-self: center; }
   .ob3-cta { min-width: 0; width: 100%; } .ob3-foot-c { width: 100%; }
 }
-@media (prefers-reduced-motion: reduce) { .ob3 *, .ob3 *::before, .ob3 *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; } }
+@media (prefers-reduced-motion: reduce) { .ob3 *, .ob3 *::before, .ob3 *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; animation-delay: 0ms !important; transition-delay: 0ms !important; } }
 
 /* ── account · email row ── */
 .ob3-mailrow { display: flex; gap: 6px; padding: 5px; border-radius: 27px; background: var(--card); border: 1px solid var(--card-b); box-shadow: 0 0 0 4px var(--acc-soft), var(--shadow); }
@@ -394,7 +394,7 @@
 /* ── verify ── */
 .ob3-verify { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .ob3-code { display: flex; gap: 8px; }
-.ob3-code span { width: 50px; height: 62px; border-radius: 14px; display: grid; place-items: center; font: 500 30px/1 var(--display); background: var(--card); border: 1px solid var(--card-b); box-shadow: var(--shadow); transition: all .25s var(--spring); }
+.ob3-code span { width: 50px; height: 62px; border-radius: 14px; display: grid; place-items: center; font: 500 30px/1 var(--display); background: var(--card); border: 1px solid var(--card-b); box-shadow: var(--shadow); transition: background-color .25s var(--spring), border-color .25s var(--spring), box-shadow .25s var(--spring); }
 .ob3-code span.is-now { box-shadow: 0 0 0 2px var(--acc), var(--shadow); }
 .ob3-code span.is-in { animation: ob3-bump .35s var(--spring); }
 .ob3-code span:nth-child(3) { margin-right: 10px; }
@@ -434,7 +434,7 @@
 .ob3-giftbar { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 16px; text-align: left; color: var(--ink); background: var(--card); border: 1px solid var(--card-b); box-shadow: var(--shadow); }
 .ob3-giftbar-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--acc); background: var(--acc-soft); animation: ob3-wiggle 2.4s ease-in-out infinite; }
 .ob3-giftbar span:last-child { display: flex; flex-direction: column; } .ob3-giftbar b { font-weight: 600; font-size: 13px; } .ob3-giftbar small { font-size: 12px; opacity: .85; }
-.ob3-radio { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid var(--ink3); transition: all .2s; }
+.ob3-radio { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid var(--ink3); transition: border-color .2s, border-width .2s; }
 .is-on > .ob3-radio, .is-on > .ob3-pro-top > .ob3-radio { border: 6px solid var(--acc); }
 .ob3-pro { width: 100%; text-align: left; padding: 18px 18px 14px; border-radius: 22px; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--card-b); box-shadow: var(--shadow); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); transition: box-shadow .25s, transform .25s var(--spring); }
 .ob3-pro.is-on { box-shadow: 0 0 0 2px var(--acc), 0 24px 50px -26px var(--acc); }
