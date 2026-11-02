@@ -1,4 +1,9 @@
-import { Prisma, SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
+import {
+  LifetimeCheckoutReservationStatus,
+  Prisma,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -135,7 +140,13 @@ export async function processCreemRevocationEvent(
             ...(revocation.userId ? [{ userId: revocation.userId }] : []),
           ],
         },
-        select: { id: true, userId: true, plan: true },
+        select: {
+          id: true,
+          userId: true,
+          plan: true,
+          creemSubscriptionId: true,
+          lastCreemEventAt: true,
+        },
       });
 
       const userId = existing?.userId ?? revocation.userId;
@@ -176,6 +187,40 @@ export async function processCreemRevocationEvent(
       }
 
       if (outcome === "revoked") {
+        // The cursor moves to the end state (restriction level 5), so a
+        // subscription.* event for the same subscription that is older than
+        // this one, or equal to it, can no longer re-grant Pro. It never
+        // moves backwards past what the row already recorded.
+        const cursorAt =
+          existing.lastCreemEventAt &&
+          existing.lastCreemEventAt > eventCreatedAt
+            ? existing.lastCreemEventAt
+            : eventCreatedAt;
+        const subscriptionIds = new Set(
+          [existing.creemSubscriptionId, revocation.creemSubscriptionId].filter(
+            (id): id is string => Boolean(id)
+          )
+        );
+        for (const creemSubscriptionId of subscriptionIds) {
+          await tx.creemSubscriptionCursor.upsert({
+            where: {
+              userId_creemSubscriptionId: { userId, creemSubscriptionId },
+            },
+            create: {
+              userId,
+              creemSubscriptionId,
+              lastEventId: event.id,
+              lastEventAt: cursorAt,
+              restrictionLevel: 5,
+            },
+            update: {
+              lastEventId: event.id,
+              lastEventAt: cursorAt,
+              restrictionLevel: 5,
+            },
+          });
+        }
+
         await tx.subscription.update({
           where: { id: existing.id },
           data: {
@@ -184,9 +229,21 @@ export async function processCreemRevocationEvent(
             currentPeriodEnd: null,
             cancelAtPeriodEnd: false,
             lastCreemEventId: event.id,
-            lastCreemEventAt: eventCreatedAt,
+            lastCreemEventAt: cursorAt,
           },
         });
+
+        // Terms 5.5: a refunded Lifetime returns the seat, and the buyer may
+        // buy again. A consumed hold would otherwise lock them out for good.
+        if (existing.plan === SubscriptionPlan.LIFETIME) {
+          await tx.lifetimeHold.updateMany({
+            where: {
+              userId,
+              status: LifetimeCheckoutReservationStatus.CONSUMED,
+            },
+            data: { status: LifetimeCheckoutReservationStatus.EXPIRED },
+          });
+        }
       }
 
       void logger.warn(

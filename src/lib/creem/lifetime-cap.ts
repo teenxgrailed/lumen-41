@@ -123,9 +123,9 @@ export async function reserveLifetimeCheckout(
     if (existing && OPEN_RESERVATION_STATUSES.includes(existing.status)) {
       return { outcome: "reserved", reservation: existing };
     }
-    if (existing?.status === LifetimeCheckoutReservationStatus.CONSUMED) {
-      return { outcome: "already_owned" };
-    }
+    // A CONSUMED hold with the plan no longer LIFETIME (checked above) is a
+    // refunded or disputed purchase: Terms 5.5 returns the seat, so the hold
+    // is recycled below instead of locking the buyer out for good.
 
     if ((await occupiedLifetimeSlots(transaction)) >= LIFETIME_BUYER_CAP) {
       return { outcome: "closed" };

@@ -61,6 +61,45 @@ describe("Lifetime checkout capacity", () => {
     expect(prisma.lifetimeHold.create).not.toHaveBeenCalled();
   });
 
+  it("lets a refunded Lifetime buyer buy again by recycling the consumed hold", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "FREE",
+    });
+    (prisma.lifetimeHold.findUnique as jest.Mock).mockResolvedValue({
+      ...openReservation,
+      status: LifetimeCheckoutReservationStatus.CONSUMED,
+      creemCheckoutId: "checkout_old",
+      checkoutUrl: "https://creem.test/old",
+    });
+    (prisma.lifetimeHold.update as jest.Mock).mockResolvedValue(
+      openReservation
+    );
+
+    await expect(reserveLifetimeCheckout("user_1")).resolves.toMatchObject({
+      outcome: "reserved",
+    });
+    expect(prisma.lifetimeHold.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reservation_1" },
+        data: expect.objectContaining({
+          status: LifetimeCheckoutReservationStatus.CREATING,
+          creemCheckoutId: null,
+          checkoutUrl: null,
+        }),
+      })
+    );
+  });
+
+  it("still refuses a current Lifetime owner", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "LIFETIME",
+    });
+
+    await expect(reserveLifetimeCheckout("user_1")).resolves.toEqual({
+      outcome: "already_owned",
+    });
+  });
+
   it("reuses a user's open hold instead of consuming another slot", async () => {
     (prisma.lifetimeHold.findUnique as jest.Mock).mockResolvedValue(
       openReservation

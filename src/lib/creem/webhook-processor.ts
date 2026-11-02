@@ -4,6 +4,7 @@ import {
   type SubscriptionStatus,
 } from "@prisma/client";
 
+import { getCreemClient } from "@/lib/creem/client";
 import {
   authorizeLifetimeCompletion,
   consumeLifetimeReservation,
@@ -66,6 +67,12 @@ async function serializableTransaction<T>(
 
 export async function processCreemBillingEvent(event: CreemBillingEvent) {
   const result = await applyCreemBillingEvent(event);
+  if ("supersededSubscriptionId" in result && result.supersededSubscriptionId) {
+    await cancelSupersededProSubscription(
+      result.supersededSubscriptionId,
+      result.userId
+    );
+  }
   // One `purchase` per payment: the completed checkout, once it has been
   // applied (a replay, a stale or a refused event answers processed: false).
   // Renewals and plan updates are other event types and are not purchases.
@@ -77,6 +84,32 @@ export async function processCreemBillingEvent(event: CreemBillingEvent) {
     if (plan) void sendUmamiPurchase(plan);
   }
   return result;
+}
+
+/**
+ * A Lifetime grant over a Pro subscription clears creemSubscriptionId, so the
+ * old subscription would keep billing at Creem. Cancel it there. A failure is
+ * logged and never blocks the Lifetime grant: the buyer already paid for it.
+ */
+async function cancelSupersededProSubscription(
+  creemSubscriptionId: string,
+  userId: string
+) {
+  try {
+    await getCreemClient().subscriptions.cancel(creemSubscriptionId, {
+      mode: "immediate",
+    });
+  } catch (error) {
+    await logger.error(
+      "Could not cancel the Pro subscription superseded by Lifetime",
+      {
+        userId,
+        creemSubscriptionId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
 }
 
 async function applyCreemBillingEvent(event: CreemBillingEvent) {
@@ -365,6 +398,13 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
       }
     }
 
-    return { processed: true, subscription };
+    const supersededSubscriptionId =
+      mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      currentSubscription?.plan === SubscriptionPlan.PRO &&
+      currentSubscription.status !== "CANCELED"
+        ? currentSubscription.creemSubscriptionId
+        : null;
+
+    return { processed: true, subscription, supersededSubscriptionId, userId };
   });
 }

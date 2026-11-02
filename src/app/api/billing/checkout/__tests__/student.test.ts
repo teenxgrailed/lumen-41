@@ -38,7 +38,10 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: jest.fn(), update: jest.fn() } },
+  prisma: {
+    user: { findUnique: jest.fn(), update: jest.fn() },
+    subscription: { findUnique: jest.fn().mockResolvedValue(null) },
+  },
 }));
 jest.mock("@/lib/security/rate-limit", () => ({
   accountRule: jest.fn(),

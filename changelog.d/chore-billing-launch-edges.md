@@ -1,0 +1,1 @@
+- Checkout no longer sends an account that already has Lifetime, or an active Pro subscription, to a second payment. Upgrading from Pro to Lifetime cancels the old Pro subscription so it stops billing, and a refund can no longer be undone by a later subscription event. A refunded Lifetime buyer can buy again.

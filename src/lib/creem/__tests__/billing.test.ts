@@ -10,8 +10,16 @@ import {
   effectiveSubscriptionPlan,
   limitStatus,
 } from "@/lib/entitlements";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+jest.mock("@/lib/creem/client", () => {
+  const actual = jest.requireActual("@/lib/creem/client");
+  return { ...actual, getCreemClient: jest.fn(actual.getCreemClient) };
+});
+jest.mock("@/lib/logger", () => ({
+  logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
@@ -968,6 +976,85 @@ describe("Creem webhook processing", () => {
     expect(prisma.lifetimeHold.update).toHaveBeenCalledWith({
       where: { id: "reservation_1" },
       data: { status: "CONSUMED" },
+    });
+  });
+
+  describe("Pro to Lifetime upgrade", () => {
+    const cancel = jest.fn();
+    const proRow = {
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      creemSubscriptionId: "sub_pro_old",
+      currentPeriodEnd: newDate(1_790_000_000_000),
+      cancelAtPeriodEnd: false,
+      lastCreemEventId: "evt_pro",
+      lastCreemEventAt: newDate(1_728_000_000_000),
+    };
+    const lifetimeEvent = {
+      id: "evt_upgrade",
+      createdAt: 1_728_734_327_355,
+      eventType: "checkout.completed" as const,
+      object: {
+        id: "checkout_up",
+        product: { id: products.lifetime },
+        customer: { id: "cust_1" },
+        metadata: { referenceId: "user_1" },
+      },
+    };
+
+    beforeEach(() => {
+      cancel.mockReset().mockResolvedValue({});
+      (getCreemClient as jest.Mock).mockReturnValue({
+        subscriptions: { cancel },
+      });
+    });
+
+    afterEach(() => {
+      (getCreemClient as jest.Mock).mockImplementation(
+        jest.requireActual("@/lib/creem/client").getCreemClient
+      );
+    });
+
+    it("cancels the old Pro subscription at Creem when Lifetime is granted", async () => {
+      (prisma.subscription.findFirst as jest.Mock).mockResolvedValue(proRow);
+
+      const result = await processCreemBillingEvent(lifetimeEvent);
+
+      expect(result.processed).toBe(true);
+      expect(cancel).toHaveBeenCalledWith("sub_pro_old", { mode: "immediate" });
+    });
+
+    it("still grants Lifetime and logs when the cancel fails", async () => {
+      (prisma.subscription.findFirst as jest.Mock).mockResolvedValue(proRow);
+      cancel.mockRejectedValue(new Error("creem down"));
+
+      const result = await processCreemBillingEvent(lifetimeEvent);
+
+      expect(result.processed).toBe(true);
+      expect(prisma.subscription.upsert).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("superseded by Lifetime"),
+        expect.objectContaining({ creemSubscriptionId: "sub_pro_old" }),
+        "CreemWebhookProcessor"
+      );
+    });
+
+    it("does not cancel anything for a first-time Lifetime buyer", async () => {
+      await processCreemBillingEvent(lifetimeEvent);
+
+      expect(cancel).not.toHaveBeenCalled();
+    });
+
+    it("does not cancel an already canceled Pro subscription", async () => {
+      (prisma.subscription.findFirst as jest.Mock).mockResolvedValue({
+        ...proRow,
+        status: SubscriptionStatus.CANCELED,
+      });
+
+      await processCreemBillingEvent(lifetimeEvent);
+
+      expect(cancel).not.toHaveBeenCalled();
     });
   });
 
