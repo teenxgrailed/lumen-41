@@ -11,6 +11,11 @@ on:
         required: false
         default: main
         type: string
+      trace:
+        description: Record a Chrome trace of the phone Every place interaction (iPhone 13 Chromium only)
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: needt-perf-${{ inputs.ref || github.sha }}
@@ -87,7 +92,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Run perf baseline
-        run: npx playwright test --config=playwright.perf.config.ts
+        env:
+          PERF_TRACE: ${{ inputs.trace && '1' || '0' }}
+        run: |
+          if [ "$PERF_TRACE" = "1" ]; then
+            npx playwright test --config=playwright.perf.config.ts --project=iphone13-chromium -g "phone-every-place"
+          else
+            npx playwright test --config=playwright.perf.config.ts
+          fi
       - name: Summarise
         if: always()
         run: node tests/perf/summarize.mjs perf
