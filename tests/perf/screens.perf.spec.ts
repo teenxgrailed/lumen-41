@@ -183,7 +183,9 @@ const screens: Screen[] = [
     signedIn: true,
     ready: shellReady,
     interact: async (p, { phone }) => {
-      for (let i = 0; i < 3; i++) {
+      // The phone's Ask is a sheet that Escape does not dismiss, so it is
+      // opened once per run (the cold open is the cost people feel).
+      for (let i = 0; i < (phone ? 1 : 3); i++) {
         if (phone) {
           await everyPlace(p);
           await sleep(p, 700);
@@ -191,8 +193,7 @@ const screens: Screen[] = [
             .getByRole("button", { name: "Ask Needt" })
             .first()
             .tap({ timeout: 10_000 });
-          await sleep(p, 1200);
-          await p.keyboard.press("Escape");
+          await sleep(p, 2000);
         } else {
           await p.keyboard.press("Control+KeyJ");
           await p
