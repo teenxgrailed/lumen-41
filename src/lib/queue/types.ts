@@ -19,7 +19,7 @@ export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
 export interface CalendarSyncJobData {
   /** One feed to sync. Absent on the periodic sweep, which fans out per feed. */
   feedId?: string;
-  kind?: "sweep";
+  kind?: "sweep" | "stale-sweep";
 }
 
 export interface RescheduleJobData {

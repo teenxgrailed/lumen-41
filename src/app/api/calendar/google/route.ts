@@ -21,6 +21,7 @@ import { getGoogleCalendarClient } from "@/lib/google-calendar";
 import { syncGoogleCalendar } from "@/lib/google-sync";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { enqueueCalendarSync, isQueueConfigured } from "@/lib/queue/enqueue";
 import { publicAppUrl } from "@/lib/public-url";
 import { TokenManager } from "@/lib/token-manager";
 
@@ -39,6 +40,47 @@ function settingsRedirect(
   const response = NextResponse.redirect(url);
   response.cookies.delete(calendarOAuthStateCookie(provider));
   return response;
+}
+
+/**
+ * Webhooks only fire on changes, so a freshly connected calendar stayed empty.
+ * Queue a full sync per feed; without Redis run them in the background so the
+ * redirect is not held up. Failures are logged and the stale-feed sweep retries.
+ */
+async function startFirstGoogleSyncs(feedIds: string[]) {
+  await Promise.all(
+    feedIds.map(async (feedId) => {
+      try {
+        if (isQueueConfigured()) {
+          await enqueueCalendarSync(feedId);
+          return;
+        }
+        const feed = await prisma.calendarFeed.findUnique({
+          where: { id: feedId },
+        });
+        if (!feed) return;
+        void syncGoogleCalendar(feed, { forceFullSync: true }).catch((error) =>
+          logger.error(
+            "First sync of a Google calendar failed",
+            {
+              feedId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            LOG_SOURCE
+          )
+        );
+      } catch (error) {
+        await logger.error(
+          "Could not start the first sync of a Google calendar",
+          {
+            feedId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          LOG_SOURCE
+        );
+      }
+    })
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -138,6 +180,8 @@ export async function GET(request: NextRequest) {
         registerCalendarWebhookBestEffort(feedId, "GOOGLE")
       )
     );
+
+    await startFirstGoogleSyncs(feedIds);
 
     return settingsRedirect(request, "google", { success: "connected" });
   } catch (error) {
