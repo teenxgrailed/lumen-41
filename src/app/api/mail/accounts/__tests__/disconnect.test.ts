@@ -77,7 +77,7 @@ describe("DELETE /api/mail/accounts/[id]", () => {
 
     const res = await call();
 
-    expect(res.status).toBe(204);
+    expect(res?.status).toBe(204);
     expect(revokeGoogleConnectionOnDisconnect).toHaveBeenCalledWith(
       "u1",
       "conn-1"
@@ -103,7 +103,7 @@ describe("DELETE /api/mail/accounts/[id]", () => {
 
     const res = await call();
 
-    expect(res.status).toBe(204);
+    expect(res?.status).toBe(204);
     expect(revokeGoogleConnectionOnDisconnect).not.toHaveBeenCalled();
     expect(db.connectedAccount.deleteMany).not.toHaveBeenCalled();
     expect(db.mailAccount.update).toHaveBeenCalledWith(
@@ -122,7 +122,7 @@ describe("DELETE /api/mail/accounts/[id]", () => {
 
     const res = await call();
 
-    expect(res.status).toBe(204);
+    expect(res?.status).toBe(204);
     expect(revokeGoogleConnectionOnDisconnect).not.toHaveBeenCalled();
     expect(db.mailAccount.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -134,7 +134,7 @@ describe("DELETE /api/mail/accounts/[id]", () => {
   it("answers 404 for a mailbox that is not the caller's", async () => {
     db.mailAccount.findFirst.mockResolvedValue(null);
     const res = await call();
-    expect(res.status).toBe(404);
+    expect(res?.status).toBe(404);
     expect(revokeGoogleConnectionOnDisconnect).not.toHaveBeenCalled();
   });
 });
