@@ -46,7 +46,9 @@ jobs:
       ui: ${{ github.event_name == 'merge_group' && 'true' || steps.filter.outputs.ui }}
       # false when the change touches only docs, markdown, changelog.d or
       # .agents: the heavy e2e job then skips its steps but still reports.
-      code: ${{ github.event_name == 'merge_group' && 'true' || steps.code.outputs.code }}
+      # Only a pull_request may skip: publish diffs against prod, not HEAD~1,
+      # so a docs-only push to main must never hide an untested code commit.
+      code: ${{ github.event_name != 'pull_request' && 'true' || steps.code.outputs.code }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -63,7 +65,7 @@ jobs:
               - "tests/visual/**"
               - ".github/workflows/ci.yml"
       - uses: dorny/paths-filter@v3
-        if: github.event_name != 'merge_group'
+        if: github.event_name == 'pull_request'
         id: code
         with:
           predicate-quantifier: every
