@@ -50,7 +50,7 @@ import { pkEdgeInset } from "../kit/scroll";
 import { usePkSkyMood } from "../kit/theme";
 import { type PkSide, pkReduced } from "../kit/util";
 import { DockGlyph, MenuGlyph } from "./Glyph";
-import { blockScreen, menuFocusMove, menuIsOpen } from "./a11y";
+import { menuFocusMove, menuIsOpen, setInert } from "./a11y";
 import { type MenuPlaceId, menuRows, menuWord } from "./places";
 import { type MenuCounts, menuBadge, menuStatus } from "./status";
 
@@ -750,12 +750,8 @@ export function Menu(props: MenuProps) {
     const host =
       R.root?.closest("[data-v2p-frame]")?.querySelector("[data-v2p-host]") ??
       null;
-    if (!isOpen) return;
-    return blockScreen(host, () => {
-      const first = R.tiles?.querySelector<HTMLElement>("button");
-      if (first) first.focus({ preventScroll: true });
-      else (document.activeElement as HTMLElement | null)?.blur();
-    });
+    setInert(host, isOpen);
+    return () => setInert(host, false);
   }, [R, isOpen]);
 
   /* ── gestures ── */

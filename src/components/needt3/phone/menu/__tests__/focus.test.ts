@@ -75,12 +75,12 @@ describe("Menu A focus and inert", () => {
     mount();
     const dots = q<HTMLButtonElement>("[data-nva-open]");
     expect(dots.getAttribute("aria-expanded")).toBe("false");
-    expect(q("[data-v2p-host]").hasAttribute("data-nva-blocked")).toBe(false);
+    expect(q("[data-v2p-host]").hasAttribute("inert")).toBe(false);
     dots.focus();
     act(() => dots.click());
     expect(q("[data-nva-mode]").getAttribute("data-nva-mode")).toBe("card");
     expect(q("[data-nva-open]").getAttribute("aria-expanded")).toBe("true");
-    expect(q("[data-v2p-host]").hasAttribute("data-nva-blocked")).toBe(true);
+    expect(q("[data-v2p-host]").hasAttribute("inert")).toBe(true);
     expect(document.activeElement).toBe(q("[data-nva-tile]"));
     expect(q("[data-nva-tile]").getAttribute("data-nva-tile")).toBe("home");
   });
@@ -94,7 +94,7 @@ describe("Menu A focus and inert", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(q("[data-nva-mode]").getAttribute("data-nva-mode")).toBe("pill");
-    expect(q("[data-v2p-host]").hasAttribute("data-nva-blocked")).toBe(false);
+    expect(q("[data-v2p-host]").hasAttribute("inert")).toBe(false);
     expect(document.activeElement).toBe(q("[data-nva-open]"));
     expect(q("[data-nva-open]").getAttribute("aria-expanded")).toBe("false");
   });
@@ -118,7 +118,7 @@ describe("Menu A focus and inert", () => {
   it("unmounting while open frees the screen", () => {
     mount();
     act(() => q<HTMLButtonElement>("[data-nva-open]").click());
-    expect(q("[data-v2p-host]").hasAttribute("data-nva-blocked")).toBe(true);
+    expect(q("[data-v2p-host]").hasAttribute("inert")).toBe(true);
     act(() =>
       root.render(
         h(
@@ -128,6 +128,6 @@ describe("Menu A focus and inert", () => {
         )
       )
     );
-    expect(q("[data-v2p-host]").hasAttribute("data-nva-blocked")).toBe(false);
+    expect(q("[data-v2p-host]").hasAttribute("inert")).toBe(false);
   });
 });

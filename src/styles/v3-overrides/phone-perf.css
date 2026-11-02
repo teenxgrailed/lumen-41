@@ -119,10 +119,10 @@
  * the scrim blur (pull-down, sheet) and the sheet's glass. `.pk-scrim-blur` and
  * `.pk-sheet` are not in the list below for that reason. An explicit list, not
  * `*` (see motion.css P2); a new glass class is added here and to the test.
- * The host is also blocked while the menu card is open (a11y.ts blockScreen,
- * `data-nva-blocked`): its glass is under a dimming scrim, so it rests too. */
+ * The host is also inert while the menu card is open: its glass is under a
+ * dimming scrim, so it rests too. */
 .needt-v3
-  :is([data-pk-moving], [data-pd-sliding], [data-v2p-host][data-nva-blocked])
+  :is([data-pk-moving], [data-pd-sliding], [data-v2p-host][inert])
   :is(
     .pk-blur,
     .pk-edge-blur,

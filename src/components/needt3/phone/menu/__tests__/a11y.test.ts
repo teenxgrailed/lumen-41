@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { blockScreen, menuFocusMove, menuIsOpen } from "../a11y";
+import { menuFocusMove, menuIsOpen, setInert } from "../a11y";
 
 describe("menuIsOpen", () => {
   it("card and full are open, handle and pill are not", () => {
@@ -37,53 +37,19 @@ describe("menuFocusMove", () => {
   });
 });
 
-describe("blockScreen", () => {
-  afterEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  it("hides the host from assistive tech and marks it, then undoes both", () => {
-    const host = document.createElement("main");
-    document.body.appendChild(host);
-    const undo = blockScreen(host, () => undefined);
-    expect(host.getAttribute("aria-hidden")).toBe("true");
-    expect(host.hasAttribute("data-nva-blocked")).toBe(true);
-    expect(host.hasAttribute("inert")).toBe(false);
-    undo();
-    expect(host.hasAttribute("aria-hidden")).toBe(false);
-    expect(host.hasAttribute("data-nva-blocked")).toBe(false);
-  });
-
-  it("hands focus back when it lands in the host, and not for anything outside", () => {
-    const host = document.createElement("main");
-    const inside = document.createElement("button");
-    const outside = document.createElement("button");
-    host.appendChild(inside);
-    document.body.append(host, outside);
-    const refocus = jest.fn();
-    const undo = blockScreen(host, refocus);
-    outside.focus();
-    expect(refocus).not.toHaveBeenCalled();
-    inside.focus();
-    expect(refocus).toHaveBeenCalledTimes(1);
-    undo();
-    inside.focus();
-    expect(refocus).toHaveBeenCalledTimes(1);
-  });
-
-  it("takes focus out of the host at once when it is already there", () => {
-    const host = document.createElement("main");
-    const inside = document.createElement("button");
-    host.appendChild(inside);
-    document.body.appendChild(host);
-    inside.focus();
-    const refocus = jest.fn();
-    blockScreen(host, refocus)();
-    expect(refocus).toHaveBeenCalledTimes(1);
+describe("setInert", () => {
+  it("sets and clears the attribute", () => {
+    const el = document.createElement("main");
+    setInert(el, true);
+    expect(el.hasAttribute("inert")).toBe(true);
+    setInert(el, true);
+    expect(el.hasAttribute("inert")).toBe(true);
+    setInert(el, false);
+    expect(el.hasAttribute("inert")).toBe(false);
   });
 
   it("ignores a missing element", () => {
-    expect(() => blockScreen(null, () => undefined)()).not.toThrow();
-    expect(() => blockScreen(undefined, () => undefined)()).not.toThrow();
+    expect(() => setInert(null, true)).not.toThrow();
+    expect(() => setInert(undefined, false)).not.toThrow();
   });
 });

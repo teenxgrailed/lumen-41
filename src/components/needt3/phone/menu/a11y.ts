@@ -24,38 +24,12 @@ export function menuFocusMove(prev: NvaMode, next: NvaMode): MenuFocusMove {
 }
 
 /**
- * Keep the screen behind the open card out of reach, without `inert`.
- *
- * `inert` is an inherited part of the computed style: flipping it on the screen
- * host restyled every element under it (1,432 on Today), once per open and once
- * per close, about 0.3 s each on a 4x-throttled phone (PR "perf: Every place
- * style recalc"). This does the same job without touching style:
- *
- * - screen readers: `aria-hidden` on the host;
- * - keyboard: a `focusin` guard hands focus back to the card the moment it
- *   lands anywhere in the host (and does so now, if it is there already);
- * - pointer: the card's own scrim and shape already cover the screen.
- *
- * `data-nva-blocked` is the CSS hook (the host's glass rests under the dimming
- * scrim, phone-perf.css). Returns the undo.
+ * Set or clear the `inert` attribute on an element that React does not render
+ * (the phone's screen host sits outside the menu). An inert subtree takes no
+ * focus, no clicks and is hidden from assistive tech, which `aria-hidden`
+ * alone does not do for focusable descendants.
  */
-export function blockScreen(
-  host: Element | null | undefined,
-  refocus: () => void
-): () => void {
-  if (!host) return () => undefined;
-  const inside = (n: EventTarget | Node | null) =>
-    n instanceof Node && host.contains(n);
-  const onFocusIn = (e: FocusEvent) => {
-    if (inside(e.target)) refocus();
-  };
-  host.setAttribute("aria-hidden", "true");
-  host.setAttribute("data-nva-blocked", "");
-  document.addEventListener("focusin", onFocusIn);
-  if (inside(document.activeElement)) refocus();
-  return () => {
-    document.removeEventListener("focusin", onFocusIn);
-    host.removeAttribute("aria-hidden");
-    host.removeAttribute("data-nva-blocked");
-  };
+export function setInert(el: Element | null | undefined, on: boolean): void {
+  if (!el) return;
+  el.toggleAttribute("inert", on);
 }

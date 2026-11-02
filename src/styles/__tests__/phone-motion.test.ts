@@ -304,7 +304,7 @@ function strippedClasses(): Set<string> {
     )
       continue;
     if (
-      !/(data-nva-moving|data-pk-moving|\.pd-reader\[data-pd-sliding\]|\.nva\[data-moving\]|data-nva-blocked)/.test(
+      !/(data-nva-moving|data-pk-moving|\.pd-reader\[data-pd-sliding\]|\.nva\[data-moving\]|\[inert\])/.test(
         d.selector
       )
     )
