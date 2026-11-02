@@ -9,6 +9,9 @@ fork. It has one unified Next.js application plus a BullMQ worker built from
 the same image and SHA.
 
 What is left, and in what order: `docs/plans/00-roadmap.md` (2026-09-15).
+What must be true before launch, and how to prove it: `openspec/specs/launch-readiness/`
+(`spec.md` holds the checks, `status.md` the latest results). Read it before a launch step and
+after every production deploy; a daily routine re-runs the Claude checks.
 
 ## What Needt is for
 
