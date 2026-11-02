@@ -27,7 +27,7 @@
 
 A call from a connection without a `HubAgent` row creates one (name from the OAuth client name or the token name, kind `other`, empty capabilities). A personal `needt_` token is accepted too and maps to one agent with `connectionKey = personal`, so Claude Code with the existing token works on day one; the Agents screen suggests replacing it with a named token.
 
-Why not an `X-Needt-Agent` header on the personal token: the name would be self-asserted and could not be revoked or scoped per agent (open question 1).
+Why not an `X-Needt-Agent` header on the personal token: the name would be self-asserted and could not be revoked or scoped per agent.
 
 An agent sees and acts only inside its connection's workspace (the OAuth-bound or token-bound `workspaceId`; for a personal token, the `workspaceId` argument resolved like any tool). An item has one `workspaceId` and is invisible to a connection bound elsewhere.
 
@@ -77,11 +77,15 @@ Terminal: `done`, `failed`, `cancelled`. `blocked` means waiting on something ot
 
 Claim is one atomic statement: `UPDATE HubItem SET status='claimed', claimedByAgentId=$a, leaseExpiresAt=now()+$ttl, version=version+1 WHERE id=$id AND workspaceId=$w AND (status='open' OR (status IN ('claimed','in_progress') AND leaseExpiresAt < now())) AND (assigneeAgentId IS NULL OR assigneeAgentId=$a)`. Zero rows updated means someone else holds it; the tool answers `409 ALREADY_CLAIMED` with the holder's name and lease end. A claim on an "any" item also checks that the claimer's `skills` contain all `requiredSkills`.
 
-Lease: 30 minutes by default, `leaseMinutes` up to 240 on claim; `needt_agent_task_update` with `heartbeat: true` or any update extends it. Expiry is lazy: any read treats `claimed|in_progress` with a past `leaseExpiresAt` as claimable, and the next claim, or the next list that touches the row, writes a `lease_expired` system event. No cron is needed. Update, complete, escalate and fail by the holder require `leaseExpiresAt > now()` or no one else holding the item (an expired holder that returns first may continue); otherwise `409 LEASE_LOST`. All writes carry `expectedVersion` optionally; a mismatch is `409 STALE`.
+Lease (owner decision 4): 30 minutes by default, `leaseMinutes` up to 240 on claim; `needt_agent_task_update` with `heartbeat: true` or any update extends it. Expiry is lazy: any read treats `claimed|in_progress` with a past `leaseExpiresAt` as claimable, and the next claim, or the next list that touches the row, writes a `lease_expired` system event. No cron is needed. Update, complete, escalate and fail by the holder require `leaseExpiresAt > now()` or no one else holding the item (an expired holder that returns first may continue); otherwise `409 LEASE_LOST`. All writes carry `expectedVersion` optionally; a mismatch is `409 STALE`.
 
 ### 5. Routing and the inbox
 
 `needt_agent_inbox` returns, for the calling agent, in this order: items assigned to it in `open` (including after an owner answer), items it holds that are still `claimed|in_progress` (so a restarted routine resumes), then unassigned `open` items whose `requiredSkills` are all in its `skills`. Each row has id, title, status, the whole brief, latest event and `suggestedPollSeconds`. Default limit 10, hard cap 25. It is a read tool, it does not claim. With `view: "created"` it instead returns the items the caller created, newest change first, so a creator finds results, blocks and escalations without a separate tool. Skills match exactly after lowercasing; `capabilities` text is only for humans and for the creator reading `needt_agents_list`. Polling, not push: a webhook per agent (A2A push notifications) can be added later without changing the data model; the existing `ConnectorSettings.webhookUrl` is not reused.
+
+No capable agent (owner decision 5): an open `"any"` item whose `requiredSkills` no registered, enabled agent in the workspace covers is flagged `noCapableAgent` in every list. If it stays that way for 24 hours from creation, the first hub read or screen load after that creates one owner task ("No agent for: <title>", English, short, notes link to `/agents?item=<id>`), stores it in `escalationTaskId`, and writes a `no_capable_agent` system event. The check is lazy and idempotent (a guarded update on `escalationTaskId IS NULL`), so no cron is needed and a second reader cannot create a second task.
+
+Finished items (owner decision 7): `done`, `failed` and `cancelled` items older than 14 days since `closedAt` are left out of the default Work view and default list calls; `includeArchived: true` (and search) still returns them. Nothing is deleted.
 
 ### 6. Result format
 
@@ -103,11 +107,11 @@ What the server cannot do: stop Grok from clicking Buy. The hub makes the rule e
 
 ### 9. Escalation creates a normal Needt task
 
-`needt_agent_task_escalate { id, question, options?[], risk? }`: sets `needs_owner`, releases the lease, writes the event, and creates a task through the same service as `needt_create_task` (title in English, short, from the item title, for example "Decide: <title>"; notes carry the question and a link `/agents?item=<id>`), stored in `escalationTaskId`. Title, due and workspace follow the person's task rules. The task has no authority: completing it neither answers nor approves (open question 2). If the owner answers on the screen, the linked task is completed by the service and the event says so.
+`needt_agent_task_escalate { id, question, options?[], risk? }`: sets `needs_owner`, releases the lease, writes the event, and creates a task through the same service as `needt_create_task` (title in English, short, from the item title, for example "Decide: <title>"; notes carry the question and a link `/agents?item=<id>`), stored in `escalationTaskId`. Title, due and workspace follow the person's task rules. The task has no authority: completing it neither answers nor approves. If the owner answers on the screen, the linked task is completed by the service and the event says so.
 
 ### 10. Notes versus personal memory
 
-`needt_memory_write { text, tags[], itemId?, taskId?, projectId? }` and `needt_memory_search { query?, tags[], itemId?, authorAgent?, limit }` operate on `HubNote` only. Their descriptions say: team notes between agents, not about the person, not `needt_remember`. Writes with a `taskId` or `projectId` check the object is in the workspace; links to a page are refused when it is in a private tree. Search results never include pages' contents, only note rows. Notes do not enter Needt's own AI prompts in v1 (open question 6). Owner edits set `ownerEdited` and an event-like `updatedAt`; an agent cannot overwrite an owner-edited note, it can write a new one (the old text stays).
+`needt_memory_write { text, tags[], itemId?, taskId?, projectId? }` and `needt_memory_search { query?, tags[], itemId?, authorAgent?, limit }` operate on `HubNote` only. Their descriptions say: team notes between agents, not about the person, not `needt_remember`. Writes with a `taskId` or `projectId` check the object is in the workspace; links to a page are refused when it is in a private tree. Search results never include pages' contents, only note rows. Notes do not enter Needt's own AI prompts in v1. Owner edits set `ownerEdited` and an event-like `updatedAt`; an agent cannot overwrite an owner-edited note, it can write a new one (the old text stays).
 
 ### 11. Flag and tool exposure
 

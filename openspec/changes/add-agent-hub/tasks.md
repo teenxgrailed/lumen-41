@@ -14,6 +14,7 @@
 - [ ] 2.2 `items.ts`: create (brief validation, idempotent `clientRef`), claim (single atomic statement), update and heartbeat, block and unblock, complete with outcome, escalate, cancel, owner answer and approve; every transition writes one `HubItemEvent` in the same transaction.
 - [ ] 2.3 Lazy lease expiry and the `lease_expired` event; `expectedVersion` handling.
 - [ ] 2.4 `inbox.ts`: ordering and skill matching from decision 5, `suggestedPollSeconds`, `untrusted: true` wrapper.
+- [ ] 2.4b `sweep.ts`: lazy "no capable agent" flag and the single 24 hour owner task; 14 day archive filter (`includeArchived`).
 - [ ] 2.5 Escalation task creation through the existing task service, English short title, link back to `/agents?item=<id>`.
 - [ ] 2.6 Link validation: task and project in the workspace, page not in a private tree (`isPageInPrivateTree`).
 - [ ] 2.7 `notes.ts`: write, search (`ILIKE` plus tags), owner edit and delete, no overwrite of an owner-edited note by an agent.

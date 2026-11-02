@@ -2,7 +2,7 @@
 
 ### Requirement: Agents screen
 
-When the flag is on, the app SHALL offer an Agents screen at `/agents` with four sections: Agents (name, kind, capabilities, last seen, token management), Needs you (items in `needs_owner` with the question), Work (open, claimed, in progress, blocked, done, failed items, each with its latest update), and Notes (list with tag filter and edit). The screen SHALL use existing components and the four design rules and SHALL work at phone width. With the flag off the route SHALL answer 404 and no navigation entry SHALL show.
+When the flag is on, the app SHALL offer an Agents screen at `/agents` with four sections: Agents (name, kind, capabilities, last seen, token management), Needs you (items in `needs_owner` with the question), Work (open, claimed, in progress, blocked, done, failed items, each with its latest update; finished items older than 14 days are hidden behind a "Show older" control), and Notes (list with tag filter and edit). The screen SHALL use existing components and the four design rules and SHALL work at phone width. With the flag off the route SHALL answer 404 and no navigation entry SHALL show.
 
 #### Scenario: Items by state
 - **WHEN** the owner opens the screen with one open, one claimed and one done item

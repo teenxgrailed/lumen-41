@@ -63,14 +63,12 @@ Findings from the code that changed the design (checked 2026-11-02, `origin/main
 - Private pages: `isPageInPrivateTree` in `src/services/pages/ai-page-access.ts` is the existing check.
 - Writes share one 30 per minute bucket per person in `route.ts`.
 
-## Open questions for the owner
+## Owner decisions (answered 2026-11-02)
 
-Each has a recommended answer first.
-
-1. **How does a non-OAuth agent (Grok Bot, a cloud routine) identify itself?** Recommended: named agent tokens created on the Agents screen, one per agent, carrying only a new `agents.hub` scope plus read, shown once, revocable. Alternative: keep the single personal token and let the agent send an `X-Needt-Agent` name header (no token work, but the name is self-asserted, so any agent can impersonate another and the scope cannot be narrowed).
-2. **How does the owner answer a `needs_owner` item?** Recommended: only on the Agents screen or through an owner-authenticated REST call, with a text answer or an explicit Approve for risky items; completing the linked Needt task does not count as approval. Alternative: completing the linked task also answers it (fewer clicks, but a swiped checkbox could approve a payment).
-3. **Two additions beyond the brief: a `failed` status and a `needt_agent_register` tool (the agent updates its own name, kind, capabilities, skills).** Recommended: yes to both. Alternative: only the nine named tools and seven statuses, failure recorded as `blocked`, profile updated through a parameter on `needt_agents_list`.
-4. **Claim lease length.** Recommended: 30 minutes by default, up to 4 hours on request, extended by `needt_agent_task_update`; an expired lease returns the item to the inbox with a logged `lease_expired` event, evaluated lazily at read time. Alternative: one fixed 2 hour lease with no heartbeat (simpler, slower recovery from a dead routine).
-5. **An "any capable" item that no registered agent can do.** Recommended: show it on the Agents screen as "no capable agent" and, after 24 hours, create one owner task. Alternative: show only, create nothing.
-6. **Do hub notes feed Needt's own assistant and chat in v1?** Recommended: no, they are for agents and the Agents screen only, so personal memory (`needt_remember`) and agent notes cannot leak into each other. Alternative: yes, read-only, behind the same flag.
-7. **Visibility of finished work.** Recommended: done, failed and cancelled items leave the default Agents view after 14 days but stay searchable and are never deleted. Alternative: show everything always.
+1. **Agent identity.** Named agent tokens created on the Agents screen, scope `agents.hub` only (plus read if ticked), shown once, revocable, resolved through the existing `registerBearerResolver`. No self-asserted name header.
+2. **`needs_owner`.** Answered only on the Agents screen or through an owner-authenticated REST call: a text answer, or Approve per declared risk. Completing the linked Needt task does NOT approve or answer.
+3. **Status and tools.** Add the `failed` status, separate from `blocked`. Add `needt_agent_register` so an agent updates its own name, kind, capabilities and skills.
+4. **Claim lease.** 30 minutes by default, up to 4 hours on request, extended by every update. Expiry is lazy (evaluated at read and claim time) and recorded as a `lease_expired` event.
+5. **No capable agent.** An "any capable" item that no registered agent matches is marked "no capable agent"; after 24 hours it creates exactly one owner task (stored on the item, never repeated).
+6. **Memory.** Hub notes are for agents and the Agents screen only, not for Needt's own assistant.
+7. **Finished items.** Done, failed and cancelled items are hidden from the default view after 14 days, stay searchable, and are never deleted.

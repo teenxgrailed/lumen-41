@@ -143,3 +143,23 @@ Every agent operation available over MCP SHALL be available over bearer-authenti
 #### Scenario: Agent token on an owner route
 - **WHEN** an agent token calls the approve route
 - **THEN** the answer is forbidden
+
+### Requirement: No capable agent
+
+An open `"any"` item whose required skills are covered by no registered agent in the workspace SHALL be flagged `noCapableAgent`. If it is still unmatched 24 hours after creation, the server SHALL create exactly one Needt task for the owner and store it on the item, once.
+
+#### Scenario: Unmatched for 24 hours
+- **WHEN** an open item requires `screen-recording`, no agent has that skill, and 24 hours pass
+- **THEN** the next hub read creates one owner task, and later reads create no second task
+
+#### Scenario: An agent registers the skill in time
+- **WHEN** an agent adds `screen-recording` to its skills before 24 hours pass
+- **THEN** the flag clears and no owner task is created
+
+### Requirement: Finished items leave the default view
+
+Items in `done`, `failed` or `cancelled` for more than 14 days SHALL be omitted from default lists and the default Work view, SHALL still be returned when archived items are requested and by search, and SHALL never be deleted.
+
+#### Scenario: Old done item
+- **WHEN** an item was closed 15 days ago
+- **THEN** the default list omits it and a list with `includeArchived` returns it
