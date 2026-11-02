@@ -1,0 +1,1 @@
+- Privacy Policy: Google Tasks access is now listed with its scope and purpose.
