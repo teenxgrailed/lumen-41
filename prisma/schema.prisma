@@ -431,6 +431,11 @@ model CalendarFeed {
   lastSync          DateTime?
   syncToken         String? // For incremental sync
   error             String?
+  // Sweep bookkeeping: the last attempt (success or failure), consecutive
+  // failures, and the earliest time the sweeps may retry a failing feed.
+  lastSyncAttemptAt DateTime?
+  syncFailureCount  Int               @default(0)
+  nextSyncAttemptAt DateTime?
   channelId         String? // Google Calendar webhook channel ID
   resourceId        String? // Google Calendar webhook resource ID
   channelExpiration DateTime? // When the webhook expires
