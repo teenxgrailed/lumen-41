@@ -282,3 +282,14 @@
 .ob3-age {
   margin: 0 0 4px;
 }
+
+/* Touch screens: iOS Safari zooms the page when a focused field is under
+   16px, so sign-in and onboarding fields read at 16px where the pointer is
+   coarse (owner, 2026-11-03). Desktop keeps the 13px chrome type. */
+@media (pointer: coarse) {
+  .needt-v3 .auth-field-input,
+  .ob3-mailrow input,
+  .ob3-mailcol input {
+    font-size: 16px;
+  }
+}

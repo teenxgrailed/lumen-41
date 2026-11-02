@@ -1,0 +1,1 @@
+- Sign-in and onboarding fields are 16px on touch screens, so iOS no longer zooms in on focus.
