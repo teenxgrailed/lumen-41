@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { newDate } from "@/lib/date-utils";
 
+import { SSelect } from "../needt3/settings/kit";
 import { AdminNote, AdminPage } from "./kit";
 import { sendAdminJson, useAdminJson } from "./useAdminJson";
 
@@ -133,18 +134,13 @@ function Templates() {
   return (
     <section className="admin-card p-4" aria-label="Template preview">
       <div className="admin-toolbar">
-        <select
-          className="nt-input"
-          aria-label="Template"
+        <SSelect
+          label="Template"
           value={current.key}
-          onChange={(e) => setKey(e.target.value)}
-        >
-          {data.templates.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+          width={240}
+          options={data.templates.map((t) => [t.key, t.label] as const)}
+          onChange={setKey}
+        />
         <button
           type="button"
           className="nx-btn nx-btn-secondary"
@@ -315,32 +311,26 @@ function Broadcasts() {
           />
         </div>
         <div className="admin-toolbar">
-          <select
-            className="nt-input"
-            aria-label="Segment"
+          <SSelect
+            label="Segment"
             value={segment}
-            onChange={(e) => {
-              setSegment(e.target.value as (typeof SEGMENTS)[number]);
+            width={130}
+            options={SEGMENTS.map((x) => [x, x] as const)}
+            onChange={(v) => {
+              setSegment(v as (typeof SEGMENTS)[number]);
               setCount(null);
             }}
-          >
-            {SEGMENTS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select
-            className="nt-input"
-            aria-label="Category"
+          />
+          <SSelect
+            label="Category"
             value={category}
-            onChange={(e) =>
-              setCategory(e.target.value as "updates" | "offers")
-            }
-          >
-            <option value="updates">updates</option>
-            <option value="offers">offers</option>
-          </select>
+            width={120}
+            options={[
+              ["updates", "updates"],
+              ["offers", "offers"],
+            ]}
+            onChange={(v) => setCategory(v as "updates" | "offers")}
+          />
           <button
             type="button"
             className="nx-btn nx-btn-secondary"
