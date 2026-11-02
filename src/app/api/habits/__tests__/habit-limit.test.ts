@@ -98,11 +98,13 @@ let lockTail: Promise<unknown> = Promise.resolve();
 beforeEach(() => {
   jest.clearAllMocks();
   lockTail = Promise.resolve();
-  db.$transaction.mockImplementation((run: (tx: unknown) => Promise<unknown>) => {
-    const result = lockTail.then(() => run(prisma));
-    lockTail = result.catch(() => undefined);
-    return result;
-  });
+  db.$transaction.mockImplementation(
+    (run: (tx: unknown) => Promise<unknown>) => {
+      const result = lockTail.then(() => run(prisma));
+      lockTail = result.catch(() => undefined);
+      return result;
+    }
+  );
   db.$executeRaw.mockResolvedValue(1);
   jest.mocked(authenticateRequest).mockResolvedValue({
     userId: "user-1",
