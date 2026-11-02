@@ -1,5 +1,5 @@
 import { APP_NAME } from "@/lib/app-config";
-import { operatorPostalAddress } from "@/lib/legal/operator";
+import { operatorName, operatorPostalAddress } from "@/lib/legal/operator";
 
 /**
  * The one layout every Needt email wears: wordmark, one card, 16 px body, at
@@ -23,15 +23,24 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-//todo OWNER: postal address for the email footer. Not invented here; set
-// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). The
-// placeholder is deliberately loud so it cannot ship unnoticed, and commercial
-// mail is not sent at all while the address is unset (email-service.ts).
-export const FOOTER_ADDRESS_PLACEHOLDER =
-  "[OWNER: legal entity name and postal address]";
+/** Who sends the mail, for the footer of optional mail. */
+export type EmailFooter = { name: string; address: string };
 
-export function footerAddress(): string {
-  return operatorPostalAddress() ?? FOOTER_ADDRESS_PLACEHOLDER;
+/** Text that must never reach an inbox: a bracketed or templated placeholder. */
+const PLACEHOLDER_PATTERN = /\[OWNER|\{\{|\}\}|SAMPLE/;
+
+export function containsPlaceholder(value: string): boolean {
+  return PLACEHOLDER_PATTERN.test(value);
+}
+
+/**
+ * The footer line from the environment, or null. A placeholder is never
+ * rendered: without a real address the line is left out of transactional mail
+ * and optional mail refuses to render at all.
+ */
+function envFooter(): EmailFooter | null {
+  const address = operatorPostalAddress();
+  return address ? { name: operatorName(), address } : null;
 }
 
 export type EmailContent = {
@@ -63,6 +72,12 @@ export type EmailContent = {
    * its own, such as the daily digest.
    */
   unsubscribeUrl?: string;
+  /**
+   * Operator name and postal address for the footer, resolved by the caller
+   * (admin System Settings). Falls back to the environment. Optional mail
+   * (kind "commercial") throws without one.
+   */
+  footer?: EmailFooter | null;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -76,10 +91,17 @@ const FONT =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 export function renderEmail(content: EmailContent): RenderedEmail {
-  const address = footerAddress();
+  const footer = content.footer ?? envFooter();
   if (content.kind === "commercial" && !content.unsubscribeUrl) {
     throw new Error("A commercial email needs an unsubscribe link");
   }
+  if (
+    content.kind === "commercial" &&
+    (!footer || containsPlaceholder(`${footer.name} ${footer.address}`))
+  ) {
+    throw new Error("A commercial email needs the operator name and address");
+  }
+  const signature = footer ? `${footer.name}, ${footer.address}` : null;
   const baseLine =
     content.kind === "commercial"
       ? `You get this because you have a ${APP_NAME} account.`
@@ -145,7 +167,7 @@ export function renderEmail(content: EmailContent): RenderedEmail {
 <h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:${INK};">${escapeHtml(content.heading)}</h1>
 ${paragraphs}${button}${note}
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${footerHtml}<br>${escapeHtml(APP_NAME)} &middot; ${escapeHtml(address)}</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${footerHtml}<br>${escapeHtml(APP_NAME)}${signature ? ` &middot; ${escapeHtml(signature)}` : ""}</td></tr>
 </table>
 </td></tr>
 </table>
@@ -162,7 +184,7 @@ ${paragraphs}${button}${note}
     ...(content.note ? [content.note, ""] : []),
     "--",
     footerLine,
-    `${APP_NAME} - ${address}`,
+    signature ? `${APP_NAME} - ${signature}` : APP_NAME,
   ].join("\n");
 
   return { subject: content.subject, html, text };

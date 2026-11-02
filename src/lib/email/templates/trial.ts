@@ -1,4 +1,4 @@
-import { renderEmail } from "./layout";
+import { type EmailFooter, renderEmail } from "./layout";
 
 /**
  * Both trial mails ask the person to choose Pro, so they are commercial: they
@@ -9,6 +9,8 @@ export function getTrialEmailTemplate(input: {
   milestone: "day11" | "day14";
   payUrl: string;
   unsubscribeUrl: string;
+  /** Operator name and address (System Settings); falls back to the env. */
+  footer?: EmailFooter | null;
 }) {
   if (input.milestone === "day11") {
     return renderEmail({
@@ -22,6 +24,7 @@ export function getTrialEmailTemplate(input: {
       button: { label: "Choose Pro", url: input.payUrl },
       kind: "commercial",
       unsubscribeUrl: input.unsubscribeUrl,
+      footer: input.footer,
     });
   }
   return renderEmail({
@@ -35,5 +38,6 @@ export function getTrialEmailTemplate(input: {
     button: { label: "Choose Pro", url: input.payUrl },
     kind: "commercial",
     unsubscribeUrl: input.unsubscribeUrl,
+    footer: input.footer,
   });
 }

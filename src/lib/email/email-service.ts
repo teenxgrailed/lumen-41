@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 import { APP_NAME } from "@/lib/app-config";
+import { isSuppressed } from "@/lib/email/suppression";
 import { operatorPostalAddress } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -109,6 +110,20 @@ export class EmailService {
       const recipient = await recipientState(to);
       if (recipient.sandbox) {
         logger.info("Email to a sandbox account dropped", {}, LOG_SOURCE);
+        return { jobId: "" };
+      }
+      /* Optional mail (commercial, or carrying its own unsubscribe such as the
+         digest) never goes to an address that bounced or complained. Security
+         and account mail is still attempted: the person needs it. */
+      if (
+        (emailData.commercial || emailData.unsubscribeUrl) &&
+        (await isSuppressed(to))
+      ) {
+        logger.info(
+          "Optional email to a suppressed address dropped",
+          {},
+          LOG_SOURCE
+        );
         return { jobId: "" };
       }
       if (emailData.commercial && recipient.commercialOptOut) {

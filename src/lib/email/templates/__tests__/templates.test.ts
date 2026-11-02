@@ -29,16 +29,32 @@ describe("email templates", () => {
     expect(escapeHtml("<&>\"'")).toBe("&lt;&amp;&gt;&quot;&#39;");
   });
 
-  it("marks the missing legal address loudly until the owner sets it", () => {
+  it("never renders a placeholder, with or without an address", () => {
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     delete process.env.EMAIL_FOOTER_ADDRESS;
-    expect(sampleEmails().welcome.text).toContain("[OWNER:");
+    for (const [, mail] of Object.entries(sampleEmails())) {
+      expect(`${mail.html}\n${mail.text}`).not.toMatch(/\[OWNER|\{\{|\}\}/);
+    }
     process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     expect(sampleEmails().welcome.text).toContain("Needt Ltd, 1 Street");
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     process.env.EMAIL_FOOTER_ADDRESS = "Legacy Ltd, 2 Street";
     expect(sampleEmails().welcome.text).toContain("Legacy Ltd, 2 Street");
     delete process.env.EMAIL_FOOTER_ADDRESS;
+  });
+
+  it("refuses to render a commercial mail whose footer is a placeholder", () => {
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
+        footer: { name: "{{NAME}}", address: "[OWNER: address]" },
+      })
+    ).toThrow("operator");
   });
 
   const COMMERCIAL = ["trial-ending", "trial-ended"] as const;
@@ -56,11 +72,9 @@ describe("email templates", () => {
   );
 
   it.each(COMMERCIAL)("%s also carries the postal address", (name) => {
-    process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     const mail = sampleEmails()[name];
-    delete process.env.OPERATOR_POSTAL_ADDRESS;
-    expect(mail.text).toContain("Needt Ltd, 1 Street");
-    expect(mail.html).toContain("Needt Ltd, 1 Street");
+    expect(mail.text).toContain("1 Example Street, Example City");
+    expect(mail.html).toContain("1 Example Street, Example City");
   });
 
   it("transactional mail has no unsubscribe footer", () => {

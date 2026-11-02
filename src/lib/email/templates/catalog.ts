@@ -1,4 +1,5 @@
 import { getEmailVerificationTemplate } from "./email-verification";
+import type { EmailFooter } from "./layout";
 import {
   getAccountExportTemplate,
   getBookingConfirmationTemplate,
@@ -8,6 +9,15 @@ import {
 } from "./notifications";
 import { getPasswordResetTemplate } from "./password-reset";
 import { getTrialEmailTemplate } from "./trial";
+
+/**
+ * Fixed operator lines for previews and snapshots. Plainly example text, never
+ * a bracketed placeholder. Real mail takes the footer from System Settings.
+ */
+export const CATALOG_FOOTER: EmailFooter = {
+  name: "Example Operator",
+  address: "1 Example Street, Example City",
+};
 
 const UNSUBSCRIBE_SAMPLE =
   "https://use.needt.app/api/email/unsubscribe?t=SAMPLE";
@@ -43,11 +53,13 @@ export function sampleEmails() {
       milestone: "day11",
       payUrl: "https://use.needt.app/pricing",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
+      footer: CATALOG_FOOTER,
     }),
     "trial-ended": getTrialEmailTemplate({
       milestone: "day14",
       payUrl: "https://use.needt.app/pricing",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
+      footer: CATALOG_FOOTER,
     }),
     reminder: getReminderTemplate({
       title: "Reminder: Send the report",
