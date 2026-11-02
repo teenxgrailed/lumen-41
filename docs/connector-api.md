@@ -1,7 +1,8 @@
 # Connector API
 
 Needt exposes a private per-user API for scripts, bots, n8n, and personal tools.
-Each user generates their own token in Settings -> Connectors.
+Each user generates their own tokens in Settings -> Connectors, one per tool
+(see "Personal tokens" below).
 
 Use:
 
@@ -28,12 +29,11 @@ POST only, protocol versions `2025-11-25`, `2025-06-18`, `2025-03-26`,
 
 With a personal token:
 
-1. Settings -> Personal API -> Generate token (shown once; rotating it
-   disconnects every agent). A token works for one year and is then refused
-   with `401` like an unknown one; the settings screen and
-   `GET /api/connector-settings` (`tokenExpiresAt`, `tokenExpired`) show the
-   date. Tokens made before 2026-10-23 have `tokenExpiresAt: null` and do not
-   expire until they are rotated.
+1. Connections -> AI tools -> New token. Name it after the tool that will use
+   it (Grok Bot, Chrome, a script); it is shown once. Each token works on its
+   own: making or revoking one never touches the others. A token works for
+   one year and is then refused with `401` like an unknown one; the list shows
+   the date. See "Personal tokens" below.
 2. Connect:
 
 ```bash
@@ -42,6 +42,34 @@ claude mcp add --transport http needt https://use.needt.app/api/mcp \
 ```
 
 Clients that only launch local processes can use the stdio bridge in `mcp/`.
+
+### Personal tokens
+
+A person holds several personal `needt_…` tokens at once, one per tool. Each
+has a name, a preview (`needt_abcd...wxyz`), a last-used time and an expiry
+(one year). They act as the owner with `needt.read`, `needt.write`,
+`mail.read` and `agents.hub` (never the admin scope), exactly as the single
+token did. The token every account had before names existed keeps working and
+is listed as **Default** (`id: "default"`); the older `POST
+/api/connector-settings` still rotates only that one.
+
+Token management is **Session only**: a bearer token cannot list, make or
+revoke tokens. It is rate limited and locked for sandbox accounts.
+
+| Route                              | Does                                                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `GET /api/personal-tokens`         | `{ tokens: [{ id, name, tokenPreview, createdAt, lastUsedAt, expiresAt, expired, legacy }] }`, live only   |
+| `POST /api/personal-tokens`        | Body `{ name }` (1 to 60 characters). `201` with the entry and `token`, the plaintext, **shown only once** |
+| `PATCH /api/personal-tokens/{id}`  | Body `{ name }`. Renames; `Default` cannot be renamed (`400`)                                              |
+| `DELETE /api/personal-tokens/{id}` | Revokes at once (`{ revoked: true }`); `404` if it is not yours or already revoked                         |
+
+Up to 25 live named tokens per person (`409` beyond). "Sign out of all
+devices" and a password reset revoke every token, named ones included.
+`lastUsedAt` is written at most once a minute.
+
+In the agent hub (`agent_hub` flag) each named token is its own agent, keyed
+`token:<id>`, with the token's name as its default agent name; Default stays
+`personal`.
 
 ### Authorization
 
@@ -181,7 +209,7 @@ Ten tools let agents hand each other work: `needt_agents_list`,
 `needt_agent_task_complete`, `needt_agent_task_escalate`,
 `needt_memory_write`, `needt_memory_search`. They are hidden from `tools/list`
 and answer method-not-found (REST: 404) unless the flag is on for the account.
-The scope `agents.hub` is held by the personal token and by agent tokens
+The scope `agents.hub` is held by the personal tokens and by agent tokens
 (`needt_agent_…`, made on the Agents screen, scope `agents.hub` only, shown
 once, revocable); it is never offered through OAuth consent. A client without
 it can still use the hub with `needt.read` (read tools) and `needt.write`

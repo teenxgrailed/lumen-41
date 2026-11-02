@@ -26,14 +26,20 @@ import {
 export { generateConnectorToken, hashConnectorToken } from "./auth-tokens";
 
 /**
- * Invalidates the user's connector token (the `needt_…` bearer external tools
- * use). The webhook settings stay; the person generates a new token and
+ * Invalidates the user's legacy connector token (the "Default" `needt_…`
+ * bearer). The webhook settings stay; the person generates a new token and
  * reconnects their tools. Returned unawaited so it can join a transaction.
+ * Named tokens go with `revokeNamedPersonalTokens` (see `revokeAllAccess`).
  */
 export function revokeConnectorTokens(userId: string) {
   return prisma.connectorSettings.updateMany({
     where: { userId, tokenHash: { not: null } },
-    data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
+    data: {
+      tokenHash: null,
+      tokenPreview: null,
+      tokenExpiresAt: null,
+      tokenLastUsedAt: null,
+    },
   });
 }
 

@@ -16,6 +16,7 @@ jest.mock("@/lib/prisma", () => ({
     $transaction: jest.fn(),
     user: { findUnique: jest.fn(), update: jest.fn() },
     connectorSettings: { updateMany: jest.fn() },
+    personalApiToken: { updateMany: jest.fn() },
     systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
 }));
@@ -27,6 +28,7 @@ const userModel = prisma.user as unknown as {
 const db = prisma as unknown as {
   $transaction: jest.Mock;
   connectorSettings: { updateMany: jest.Mock };
+  personalApiToken: { updateMany: jest.Mock };
 };
 
 function revokeRequest() {
@@ -88,22 +90,37 @@ describe("POST /api/account/sessions/revoke", () => {
     });
     userModel.update.mockReturnValue("session-version-write");
     db.connectorSettings.updateMany.mockReturnValue("connector-revoke");
-    db.$transaction.mockResolvedValue([{ sessionVersion: 3 }, { count: 1 }]);
+    db.personalApiToken.updateMany.mockReturnValue("named-revoke");
+    db.$transaction.mockResolvedValue([
+      { sessionVersion: 3 },
+      { count: 1 },
+      { count: 2 },
+    ]);
 
     const response = await POST(revokeRequest());
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       revoked: true,
-      connectorTokensRevoked: 1,
+      connectorTokensRevoked: 3,
     });
     expect(db.$transaction).toHaveBeenCalledWith([
       "session-version-write",
       "connector-revoke",
+      "named-revoke",
     ]);
     expect(db.connectorSettings.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", tokenHash: { not: null } },
-      data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
+      data: {
+        tokenHash: null,
+        tokenPreview: null,
+        tokenExpiresAt: null,
+        tokenLastUsedAt: null,
+      },
+    });
+    expect(db.personalApiToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
     });
     expect(userModel.update).toHaveBeenCalledWith({
       where: { id: "user-1" },

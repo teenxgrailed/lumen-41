@@ -2,13 +2,13 @@
 
 Manifest V3, plain JavaScript, no build step and no dependencies.
 
-| Feature | What it does | Needt API it uses |
-| --- | --- | --- |
-| Capture | Alt+Shift+N opens the popup with the page's selection as the title. Quick-add syntax: `tomorrow 2h #project !high`, also in Russian (`завтра 30м`). Right-click a selection, link or page to add it. The task is auto-scheduled; its description quotes the selection and links the page | `POST /api/connect/tasks`, `GET /api/extension/projects` |
-| Focus blocking | Every minute, and again when a block ends, it reads what to block and turns it into `declarativeNetRequest` rules. Blocked sites open a page that says why and until when. Needt itself is never blocked | `GET /api/blocking/active` (Pro, `focus_blocking` flag) |
-| YouTube goal filter | During a focus block, video titles are compared on the device with the task or event you are focused on. Videos off the goal are dimmed with "Show anyway", and Shorts are hidden. Snooze is limited per day (15 min by default). The strictness level and always-show and always-dim channel lists are set in the options | — (local only) |
-| New tab | Shows today's date, the current focus, the next event, and the top three tasks with times | `GET /api/connect/today` |
-| Project tabs | "Save tabs to project" keeps the window's tabs (up to 30). They open when a blocking profile with that project starts | `GET /api/blocking/profiles` |
+| Feature             | What it does                                                                                                                                                                                                                                                                                                               | Needt API it uses                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Capture             | Alt+Shift+N opens the popup with the page's selection as the title. Quick-add syntax: `tomorrow 2h #project !high`, also in Russian (`завтра 30м`). Right-click a selection, link or page to add it. The task is auto-scheduled; its description quotes the selection and links the page                                   | `POST /api/connect/tasks`, `GET /api/extension/projects` |
+| Focus blocking      | Every minute, and again when a block ends, it reads what to block and turns it into `declarativeNetRequest` rules. Blocked sites open a page that says why and until when. Needt itself is never blocked                                                                                                                   | `GET /api/blocking/active` (Pro, `focus_blocking` flag)  |
+| YouTube goal filter | During a focus block, video titles are compared on the device with the task or event you are focused on. Videos off the goal are dimmed with "Show anyway", and Shorts are hidden. Snooze is limited per day (15 min by default). The strictness level and always-show and always-dim channel lists are set in the options | — (local only)                                           |
+| New tab             | Shows today's date, the current focus, the next event, and the top three tasks with times                                                                                                                                                                                                                                  | `GET /api/connect/today`                                 |
+| Project tabs        | "Save tabs to project" keeps the window's tabs (up to 30). They open when a blocking profile with that project starts                                                                                                                                                                                                      | `GET /api/blocking/profiles`                             |
 
 The extension does not offer settings for profiles. People keep them with the agent or through
 `needt_blocking_profile` / `/api/blocking/profiles` (see `docs/connector-api.md`, "Focus blocking").
@@ -16,7 +16,7 @@ The extension does not offer settings for profiles. People keep them with the ag
 ## Run it
 
 1. `chrome://extensions` → Developer mode → Load unpacked → this folder.
-2. Options → paste a token from Needt Settings → Personal API → Save and check.
+2. In Needt, Connections → AI tools → New token, name it e.g. `Chrome` and copy it (shown once). Options → paste it → Save and check. The extension has its own token, so revoking or making others never disconnects it.
 
 Tests (pure logic: quick-add parsing, rule building, relevance): `npm test` here (Node 22, no install).
 
@@ -36,7 +36,7 @@ developer dashboard. Publish **unlisted** first; making it public is the owner's
   - When a focus block starts, the sites you chose are blocked until it ends. Profiles are set in Needt, so the Mac app and the browser follow the same plan.
   - During focus, YouTube shows only videos that match what you are working on. Everything else is blurred, with a small daily snooze.
   - A new tab with your next event and your top tasks.
-  Requires a Needt account. Blocking and the filter are part of Needt Pro.
+    Requires a Needt account. Blocking and the filter are part of Needt Pro.
 
 ### Privacy answers (Chrome Web Store form)
 

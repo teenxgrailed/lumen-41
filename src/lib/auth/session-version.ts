@@ -1,6 +1,7 @@
 import type { JWT } from "next-auth/jwt";
 
 import { revokeConnectorTokens } from "@/services/connectors/auth";
+import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -175,13 +176,17 @@ export function forgetSessionState(userId: string) {
 
 /**
  * Everything "sign out of all devices" and a password reset revoke: every
- * session (by version) and the connector token external tools use, which
- * would otherwise keep working with the old credentials. Returned unawaited
- * so the writes can join an array `prisma.$transaction([...])` next to the
- * change that caused them.
+ * session (by version) and every connector token external tools use (the
+ * Default one, then the named ones), which would otherwise keep working with
+ * the old credentials. Returned unawaited so the writes can join an array
+ * `prisma.$transaction([...])` next to the change that caused them.
  */
 export function revokeAllAccess(userId: string) {
-  return [bumpSessionVersion(userId), revokeConnectorTokens(userId)] as const;
+  return [
+    bumpSessionVersion(userId),
+    revokeConnectorTokens(userId),
+    revokeNamedPersonalTokens(userId),
+  ] as const;
 }
 
 /**

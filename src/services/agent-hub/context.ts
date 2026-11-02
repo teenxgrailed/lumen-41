@@ -33,6 +33,9 @@ export function connectionKeyOf(auth: BearerAuth): string {
     return `token:${auth.agentTokenId}`;
   }
   if (auth.kind === "oauth" && auth.clientId) return `oauth:${auth.clientId}`;
+  if (auth.kind === "personal" && auth.personalTokenId) {
+    return `token:${auth.personalTokenId}`;
+  }
   return "personal";
 }
 
@@ -43,6 +46,9 @@ async function defaultAgentName(auth: BearerAuth): Promise<string> {
       select: { name: true },
     });
     if (client?.name.trim()) return client.name.trim().slice(0, 60);
+  }
+  if (auth.kind === "personal" && auth.personalTokenName?.trim()) {
+    return auth.personalTokenName.trim().slice(0, 60);
   }
   if (auth.kind === "agent") return "Agent";
   return auth.kind === "oauth" ? "OAuth client" : "Personal token";

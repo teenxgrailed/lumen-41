@@ -152,26 +152,43 @@ function Connected() {
 let host: HTMLDivElement;
 let root: Root;
 let appsData: unknown[] = [];
+let tokensData: unknown[] = [];
 const fetchMock = jest.fn();
 const flush = () => act(async () => void (await Promise.resolve()));
 beforeEach(() => {
   appsData = [];
+  tokensData = [];
   fetchMock.mockReset();
   fetchMock.mockImplementation(
     async (url: string, init?: { method?: string }) => {
       const ok = (body: unknown) => ({ ok: true, json: async () => body });
       if (url === "/api/oauth/connected-apps") return ok({ apps: appsData });
-      if (url === "/api/connector-settings")
-        return ok(
-          init?.method === "POST"
-            ? {
-                hasToken: true,
-                token: "needt_secret_token_123",
-                tokenExpiresAt: "2027-10-23T12:00:00.000Z",
-                tokenExpired: false,
-              }
-            : { hasToken: false }
-        );
+      if (url === "/api/personal-tokens" && init?.method === "POST") {
+        const { name } = JSON.parse(String((init as { body?: string }).body));
+        const entry = {
+          id: "tok-new",
+          name,
+          tokenPreview: "needt_secr...-123",
+          createdAt: "2026-11-03T10:00:00.000Z",
+          lastUsedAt: null,
+          expiresAt: "2027-10-23T12:00:00.000Z",
+          expired: false,
+          legacy: false,
+        };
+        tokensData = [entry, ...tokensData];
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ ...entry, token: "needt_secret_token_123" }),
+        };
+      }
+      if (url === "/api/personal-tokens" && !init?.method)
+        return ok({ tokens: tokensData });
+      if (
+        String(url).startsWith("/api/personal-tokens/") &&
+        init?.method === "DELETE"
+      )
+        return ok({ revoked: true });
       return ok({});
     }
   );
@@ -511,7 +528,7 @@ describe("the AI tools tab", () => {
     );
     expect(text("[data-cn-status]")).toBe("No AI tools connected yet");
   });
-  it("creates a token once, shows the ready command, and rotating warns", async () => {
+  it("names a token, shows it once with the ready command, and lists it", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
     render();
@@ -520,22 +537,70 @@ describe("the AI tools tab", () => {
     expect(
       document.body.querySelector("[data-cn-steps=othermcp]")
     ).not.toBeNull();
+    click(document.body.querySelector("[data-cn-newkey]"));
+    const input =
+      document.body.querySelector<HTMLInputElement>("#cn-token-name");
+    expect(input).not.toBeNull();
+    // A token needs a name first.
+    expect(
+      document.body.querySelector<HTMLButtonElement>("[data-cn-genkey]")
+        ?.disabled
+    ).toBe(true);
+    type(input as HTMLInputElement, "Chrome");
     click(document.body.querySelector("[data-cn-genkey]"));
     await flush();
-    expect(fetchMock).toHaveBeenCalledWith("/api/connector-settings", {
-      method: "POST",
-    });
+    const post = fetchMock.mock.calls.find(
+      ([u, i]) => u === "/api/personal-tokens" && i?.method === "POST"
+    );
+    expect(JSON.parse(post?.[1].body)).toEqual({ name: "Chrome" });
     expect(
       document.body.querySelector("[data-cn-token=shown]")?.textContent
     ).toBe("needt_secret_token_123");
+    expect(
+      document.body.querySelector("[data-cn-token-name]")?.textContent
+    ).toBe("Chrome");
     const code = document.body.querySelector("[data-cn-code]")?.textContent;
     expect(code).toContain("claude mcp add --transport http needt");
     expect(code).toContain("/api/mcp");
     expect(code).not.toContain("needt_secret_token_123"); // masked on screen
-    expect(document.body.textContent).toContain("disconnects every agent");
+    const row = document.body.querySelector("[data-cn-token-row=tok-new]");
+    expect(row?.textContent).toContain("Chrome");
+    expect(row?.textContent).toContain("needt_secr...-123");
+    expect(row?.textContent).toContain("last used never");
+    expect(row?.textContent).toContain("expires 23 Oct 2027");
+    expect(document.body.textContent).toContain("leaves the others connected");
+  });
+  it("revokes one token and keeps the rest", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    const mk = (id: string, name: string, legacy = false) => ({
+      id,
+      name,
+      tokenPreview: "needt_abcd...wxyz",
+      createdAt: null,
+      lastUsedAt: "2026-11-02T08:00:00.000Z",
+      expiresAt: null,
+      expired: false,
+      legacy,
+    });
+    tokensData = [mk("default", "Default", true), mk("t2", "Grok Bot")];
+    render();
+    await flush();
+    click($("[data-cn-connect=othermcp]"));
+    const rows = () =>
+      [...document.body.querySelectorAll("[data-cn-token-row]")].map(
+        (n) => (n as HTMLElement).dataset.cnTokenRow
+      );
+    expect(rows()).toEqual(["default", "t2"]);
     expect(
-      document.body.querySelector("[data-cn-token-expiry]")?.textContent
-    ).toBe("It expires 23 Oct 2027. ");
+      document.body.querySelector("[data-cn-token-meta]")?.textContent
+    ).toContain("last used 2 Nov 2026");
+    click(document.body.querySelector("[data-cn-token-revoke=t2]"));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith("/api/personal-tokens/t2", {
+      method: "DELETE",
+    });
+    expect(rows()).toEqual(["default"]);
   });
   it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
     planKind = "monthly";

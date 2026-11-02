@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { newDate } from "@/lib/date-utils";
 import { notify } from "@/lib/notifications";
 
 import { oauthUrl, tokenUrl } from "./mcp";
@@ -15,41 +14,32 @@ export interface ConnectedApp {
   lastUsedAt: string | null;
 }
 
-interface TokenSettings {
-  hasToken?: boolean;
-  tokenExpiresAt?: string | null;
-  tokenExpired?: boolean;
-}
-
-/**
- * When the personal token stops working. `at` is null for a token made before
- * expiry existed, which keeps working until it is rotated.
- */
-export interface TokenExpiry {
-  at: Date | null;
+/** One live personal access token, as `/api/personal-tokens` lists it. */
+export interface PersonalToken {
+  id: string;
+  name: string;
+  tokenPreview: string;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+  /** Null: made before expiry existed; works until it is revoked. */
+  expiresAt: string | null;
   expired: boolean;
-}
-
-function tokenExpiry(settings: TokenSettings): TokenExpiry | null {
-  if (!settings.hasToken) return null;
-  const at = settings.tokenExpiresAt ? newDate(settings.tokenExpiresAt) : null;
-  return {
-    at: at && !Number.isNaN(at.getTime()) ? at : null,
-    expired: !!settings.tokenExpired,
-  };
+  /** The one token everybody had before tokens were named ("Default"). */
+  legacy: boolean;
 }
 
 /**
- * Needt MCP for the AI tools tab: the personal token (Settings › Personal API,
- * `/api/connector-settings`) and the OAuth apps (`/api/oauth/connected-apps`).
+ * Needt MCP for the AI tools tab: the named personal tokens (one per tool,
+ * `/api/personal-tokens`) and the OAuth apps (`/api/oauth/connected-apps`).
  * Called inside the connections controller so both faces share it.
  */
 export function useMcpConnect(enabled: boolean) {
   const [origin, setOrigin] = useState("https://use.needt.app");
   const [apps, setApps] = useState<ConnectedApp[] | null>(null);
-  const [hasToken, setHasToken] = useState(false);
+  const [tokens, setTokens] = useState<PersonalToken[] | null>(null);
+  /** The token just made, kept for this view only (shown once). */
   const [token, setToken] = useState<string | null>(null);
-  const [expiry, setExpiry] = useState<TokenExpiry | null>(null);
+  const [tokenName, setTokenName] = useState<string | null>(null);
   const [making, setMaking] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -59,15 +49,14 @@ export function useMcpConnect(enabled: boolean) {
     try {
       const [a, s] = await Promise.all([
         fetch("/api/oauth/connected-apps"),
-        fetch("/api/connector-settings"),
+        fetch("/api/personal-tokens"),
       ]);
       if (!a.ok) throw new Error("apps");
       const body = (await a.json()) as { apps?: ConnectedApp[] };
       setApps(Array.isArray(body.apps) ? body.apps : []);
       if (s.ok) {
-        const settings = (await s.json()) as TokenSettings;
-        setHasToken(!!settings.hasToken);
-        setExpiry(tokenExpiry(settings));
+        const list = (await s.json()) as { tokens?: PersonalToken[] };
+        setTokens(Array.isArray(list.tokens) ? list.tokens : []);
       }
       setFailed(false);
     } catch {
@@ -80,21 +69,64 @@ export function useMcpConnect(enabled: boolean) {
     if (enabled) void load();
   }, [enabled, load]);
 
-  /** Makes (or rotates) the token; the new one is kept for this view only. */
-  const makeToken = async () => {
+  /** Makes a named token; the plaintext is kept for this view only. */
+  const makeToken = async (name: string): Promise<boolean> => {
     setMaking(true);
     try {
-      const r = await fetch("/api/connector-settings", { method: "POST" });
-      if (!r.ok) throw new Error("token");
-      const data = (await r.json()) as TokenSettings & { token?: string };
-      setToken(data.token ?? null);
-      setHasToken(true);
-      setExpiry(tokenExpiry(data));
+      const r = await fetch("/api/personal-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = (await r.json().catch(() => ({}))) as Partial<
+        PersonalToken & { token: string; error: string }
+      >;
+      if (!r.ok || !data.token || !data.id) {
+        notify.error(data.error ?? "Could not create the access token");
+        setMaking(false);
+        return false;
+      }
+      const entry: PersonalToken = {
+        id: data.id,
+        name: data.name ?? name,
+        tokenPreview: data.tokenPreview ?? "",
+        createdAt: data.createdAt ?? null,
+        lastUsedAt: data.lastUsedAt ?? null,
+        expiresAt: data.expiresAt ?? null,
+        expired: false,
+        legacy: false,
+      };
+      setToken(data.token);
+      setTokenName(entry.name);
+      // The Default token leads the list, then the newest.
+      setTokens((cur) => [
+        ...(cur ?? []).filter((t) => t.legacy),
+        entry,
+        ...(cur ?? []).filter((t) => !t.legacy),
+      ]);
       notify.success("Access token created");
+      setMaking(false);
+      return true;
     } catch {
       notify.error("Could not create the access token");
+      setMaking(false);
+      return false;
     }
-    setMaking(false);
+  };
+
+  /** Revokes one token; the others keep working. */
+  const revokeToken = async (entry: PersonalToken) => {
+    try {
+      const r = await fetch(
+        `/api/personal-tokens/${encodeURIComponent(entry.id)}`,
+        { method: "DELETE" }
+      );
+      if (!r.ok) throw new Error("revoke");
+      notify.success(`${entry.name} token revoked`);
+      setTokens((cur) => cur?.filter((t) => t.id !== entry.id) ?? null);
+    } catch {
+      notify.error(`Could not revoke ${entry.name}`);
+    }
   };
 
   const disconnectApp = async (app: ConnectedApp) => {
@@ -111,11 +143,13 @@ export function useMcpConnect(enabled: boolean) {
     apps,
     failed,
     reload: load,
-    hasToken,
+    tokens,
+    hasToken: (tokens?.length ?? 0) > 0,
     token,
-    tokenExpiry: expiry,
+    tokenName,
     making,
     makeToken,
+    revokeToken,
     disconnectApp,
     url: tokenUrl(origin),
     oauthUrl: oauthUrl(),

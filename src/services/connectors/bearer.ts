@@ -12,6 +12,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 import { hashConnectorToken, isConnectorTokenExpired } from "./auth-tokens";
+import { resolveNamedPersonalToken, touchLegacyToken } from "./personal-tokens";
 
 /**
  * Who a bearer token speaks for. Every route that external tools call — the
@@ -19,9 +20,10 @@ import { hashConnectorToken, isConnectorTokenExpired } from "./auth-tokens";
  * the caller through `authenticateBearer`, so a token kind added later works
  * everywhere at once.
  *
- * - `personal`: the `needt_…` connector token from Settings › Connectors.
- *   It acts for its owner with every scope and is not tied to a workspace.
- *   A token past its `tokenExpiresAt` is refused like an unknown one.
+ * - `personal`: a `needt_…` connector token from Settings › Connectors. Either
+ *   a named token (`PersonalApiToken`, one per tool) or the legacy single
+ *   token ("Default"). It acts for its owner with every scope and is not tied
+ *   to a workspace. A revoked or expired token is refused like an unknown one.
  * - `oauth`: an access token issued to an OAuth client
  *   (`src/services/oauth`), with the scopes and the workspace the person
  *   consented to, bound to the canonical MCP resource.
@@ -39,6 +41,10 @@ export interface BearerAuth {
   clientId?: string;
   /** The named agent token (agent hub) this bearer came from. */
   agentTokenId?: string;
+  /** The named personal token this bearer came from; absent for "Default". */
+  personalTokenId?: string;
+  /** That token's name, the default name of its agent. */
+  personalTokenName?: string;
 }
 
 /**
@@ -72,13 +78,25 @@ async function personalToken(token: string): Promise<BearerAuth | null> {
   if (!token.startsWith(PERSONAL_PREFIX)) return null;
   const settings = await prisma.connectorSettings.findUnique({
     where: { tokenHash: hashConnectorToken(token) },
-    select: { userId: true, tokenExpiresAt: true },
+    select: { userId: true, tokenExpiresAt: true, tokenLastUsedAt: true },
   });
-  return settings && !isConnectorTokenExpired(settings.tokenExpiresAt)
+  if (settings) {
+    if (isConnectorTokenExpired(settings.tokenExpiresAt)) return null;
+    await touchLegacyToken(settings.userId, settings.tokenLastUsedAt);
+    return {
+      userId: settings.userId,
+      scopes: [...PERSONAL_TOKEN_SCOPES],
+      kind: "personal",
+    };
+  }
+  const named = await resolveNamedPersonalToken(token);
+  return named
     ? {
-        userId: settings.userId,
+        userId: named.userId,
         scopes: [...PERSONAL_TOKEN_SCOPES],
         kind: "personal",
+        personalTokenId: named.id,
+        personalTokenName: named.name,
       }
     : null;
 }
