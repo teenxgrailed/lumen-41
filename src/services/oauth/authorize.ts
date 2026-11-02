@@ -23,6 +23,7 @@ import {
 import { isCodeChallenge } from "./crypto";
 import { isFirstParty } from "./first-party";
 import { createAuthorizationCode } from "./grants";
+import { loadSigningKey } from "./oidc";
 import { matchesRegisteredRedirect } from "./redirect-uri";
 
 /** A nonce longer than this is not one a client made on purpose. */
@@ -140,6 +141,14 @@ export async function validateAuthorizationRequest(
     const nonce = params.get("nonce");
     if (nonce !== null && nonce.length > MAX_NONCE_LENGTH) {
       return fail("invalid_request", "nonce is too long.");
+    }
+    // Nothing to sign with: say so now, rather than after the person has
+    // signed in. MCP requests never reach this.
+    if (!(await loadSigningKey())) {
+      return fail(
+        "server_error",
+        "Sign-in with a Needt account is not available right now."
+      );
     }
     return {
       ok: true,

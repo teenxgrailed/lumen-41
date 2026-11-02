@@ -185,6 +185,22 @@ describe("openid authorization requests", () => {
     });
   });
 
+  it("an openid request fails with server_error when there is no signing key, and an mcp request does not care", async () => {
+    const key = process.env.OIDC_SIGNING_KEY;
+    delete process.env.OIDC_SIGNING_KEY;
+    try {
+      expect(await validateAuthorizationRequest(openidParams())).toMatchObject({
+        ok: false,
+        kind: "redirect",
+        error: "server_error",
+        redirectUri: BUDGET_REDIRECT,
+        state: "state-1",
+      });
+    } finally {
+      process.env.OIDC_SIGNING_KEY = key;
+    }
+  });
+
   it("refuses openid mixed with MCP scopes and unknown scopes", async () => {
     for (const scope of ["openid needt.read", "openid phone", "openid admin"]) {
       expect(
