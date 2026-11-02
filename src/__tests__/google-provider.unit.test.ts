@@ -21,7 +21,7 @@ describe("GoogleTaskProvider - pagination and retry", () => {
     expect(tasks.map((t) => t.id)).toEqual(["a", "b"]);
   });
 
-  it("maps external `due` to internal startDate and ignores external due as dueDate", async () => {
+  it("reads external `due` as the due date and leaves the start date to Needt", async () => {
     const fakeClient = {
       tasks: {
         list: jest.fn().mockResolvedValue({ data: { items: [{ id: "a", title: "one", due: "2025-07-01T00:00:00.000Z", start: "2025-06-30T00:00:00.000Z" }] } }),
@@ -32,10 +32,9 @@ describe("GoogleTaskProvider - pagination and retry", () => {
     const provider = new GoogleTaskProvider(fakeClient, "acc", "user");
     const tasks = await provider.getTasks("list-1");
 
-    // `due` should map to internal startDate per single-date sync policy
-    expect(tasks[0].startDate).toBeInstanceOf(Date);
-    // dueDate should not be populated from external `due`
-    expect(tasks[0].dueDate).toBeUndefined();
+    // Google's `due` is the due date; the start date is Needt's own.
+    expect(tasks[0].dueDate).toBeInstanceOf(Date);
+    expect(tasks[0].startDate).toBeUndefined();
   });
 
   it("maps startDate in create and sends it as `due` on the external task", async () => {
