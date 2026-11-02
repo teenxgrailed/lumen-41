@@ -1,7 +1,5 @@
 import { ReminderDeliveryStatus, TaskReminderKind } from "@prisma/client";
 
-import { EmailService } from "@/lib/email/email-service";
-import { getReminderTemplate } from "@/lib/email/templates/notifications";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { VapidVariableName, getVapidConfiguration } from "@/lib/push-config";
@@ -43,14 +41,6 @@ export async function warnIfVapidConfigurationIsMissingOnce() {
   const configuration = getVapidConfiguration();
   if (configuration.configured) return;
   await warnAboutMissingVapidConfigurationOnce(configuration.missingVariables);
-}
-
-function parseChannels(channels: unknown): Array<"push" | "email"> {
-  if (!Array.isArray(channels)) return ["push", "email"];
-  return channels.filter(
-    (channel): channel is "push" | "email" =>
-      channel === "push" || channel === "email"
-  );
 }
 
 /** Reminders whose task or event is gone, archived or done never fire. */
@@ -254,8 +244,6 @@ export async function deliverTaskReminder(
       event: { select: { id: true, title: true, archivedAt: true } },
       user: {
         select: {
-          email: true,
-          emailVerified: true,
           pushSubscriptions: true,
         },
       },
@@ -271,7 +259,6 @@ export async function deliverTaskReminder(
   }
 
   const prefs = await getNotificationPrefs(reminder.userId);
-  const channels = parseChannels(reminder.channels);
   const title = reminderTitle(reminder);
   const payload = {
     title:
@@ -290,37 +277,14 @@ export async function deliverTaskReminder(
   try {
     // The bell shows it whatever happens here (the feed reads fired
     // reminders); these are the interruptions Settings allow right now.
-    const pushAllowed =
-      channels.includes("push") && shouldAlert(prefs, "reminder", "push", now);
-    const emailAllowed = shouldAlert(prefs, "reminder", "email", now);
-    let pushDelivered = false;
-    if (pushAllowed) {
-      const results = await Promise.allSettled(
+    // Reminders are push-only, whatever channels are stored on the row: the
+    // only task-related email is the daily digest (digest.ts).
+    if (shouldAlert(prefs, "reminder", "push", now)) {
+      await Promise.allSettled(
         reminder.user.pushSubscriptions.map((subscription) =>
           deliverPush(subscription, payload)
         )
       );
-      pushDelivered = results.some(
-        (result) => result.status === "fulfilled" && result.value
-      );
-    }
-
-    // Email is both an explicit channel and the fallback when web push is
-    // unavailable (notably iOS browsers without an installed PWA).
-    if (
-      emailAllowed &&
-      reminder.user.email &&
-      reminder.user.emailVerified &&
-      (channels.includes("email") || (pushAllowed && !pushDelivered))
-    ) {
-      await EmailService.sendEmail({
-        to: reminder.user.email,
-        ...getReminderTemplate({
-          title: `${payload.title}: ${title}`,
-          body: payload.body,
-          openUrl: `${process.env.NEXTAUTH_URL ?? ""}${payload.url}`,
-        }),
-      });
     }
 
     await prisma.taskReminder.update({

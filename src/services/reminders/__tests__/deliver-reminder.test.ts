@@ -104,13 +104,26 @@ describe("deliverTaskReminder", () => {
     expect(EmailService.sendEmail).not.toHaveBeenCalled();
   });
 
+  it("sends no email for a deadline or reminder, even with an email channel", async () => {
+    for (const channels of [["push", "email"], ["email"], null]) {
+      db.taskReminder.findUnique.mockResolvedValue(
+        reminder({
+          channels,
+          kind: "BEFORE_DEADLINE",
+          task: { ...reminder().task, scheduledStart: null, deadline: start },
+        })
+      );
+      await deliverTaskReminder("r1", now);
+    }
+    expect(EmailService.sendEmail).not.toHaveBeenCalled();
+  });
+
   it("sends when due, and marks it delivered", async () => {
     db.taskReminder.findUnique.mockResolvedValue(reminder());
     await expect(deliverTaskReminder("r1", now)).resolves.toEqual({
       delivered: true,
       skipped: false,
     });
-    expect(EmailService.sendEmail).toHaveBeenCalledTimes(1);
     expect(db.taskReminder.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ deliveryStatus: "DELIVERED" }),

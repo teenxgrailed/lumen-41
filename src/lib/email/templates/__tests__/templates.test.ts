@@ -29,16 +29,25 @@ describe("email templates", () => {
     expect(escapeHtml("<&>\"'")).toBe("&lt;&amp;&gt;&quot;&#39;");
   });
 
-  it("marks the missing legal address loudly until the owner sets it", () => {
+  it("prints the site, never a placeholder, until the owner sets the address", () => {
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     delete process.env.EMAIL_FOOTER_ADDRESS;
-    expect(sampleEmails().welcome.text).toContain("[OWNER:");
+    expect(sampleEmails().welcome.text).toContain("Needt - needt.app");
     process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     expect(sampleEmails().welcome.text).toContain("Needt Ltd, 1 Street");
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     process.env.EMAIL_FOOTER_ADDRESS = "Legacy Ltd, 2 Street";
     expect(sampleEmails().welcome.text).toContain("Legacy Ltd, 2 Street");
     delete process.env.EMAIL_FOOTER_ADDRESS;
+  });
+
+  it.each(emails)("%s renders no [OWNER or {{ placeholder", (_name, mail) => {
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
+    delete process.env.EMAIL_FOOTER_ADDRESS;
+    for (const out of [mail.subject, mail.html, mail.text]) {
+      expect(out).not.toContain("[OWNER");
+      expect(out).not.toContain("{{");
+    }
   });
 
   const COMMERCIAL = ["trial-ending", "trial-ended"] as const;
@@ -69,7 +78,6 @@ describe("email templates", () => {
       "verify-email",
       "password-reset",
       "welcome",
-      "reminder",
       "booking-confirmed",
       "account-export",
     ] as const) {
