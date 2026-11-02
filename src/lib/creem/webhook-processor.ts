@@ -8,6 +8,7 @@ import {
   authorizeLifetimeCompletion,
   consumeLifetimeReservation,
 } from "@/lib/creem/lifetime-cap";
+import { settlePendingCreemCancel } from "@/lib/creem/pending-cancel";
 import { mapCreemEventToSubscription } from "@/lib/creem/webhook-mapping";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -66,6 +67,14 @@ async function serializableTransaction<T>(
 
 export async function processCreemBillingEvent(event: CreemBillingEvent) {
   const result = await applyCreemBillingEvent(event);
+  if ("supersededSubscriptionId" in result && result.supersededSubscriptionId) {
+    // The pending marker is already committed with the grant; this is the first
+    // try. A failure leaves it for the worker sweep (retryPendingCreemCancels).
+    await settlePendingCreemCancel(
+      result.userId,
+      result.supersededSubscriptionId
+    );
+  }
   // One `purchase` per payment: the completed checkout, once it has been
   // applied (a replay, a stale or a refused event answers processed: false).
   // Renewals and plan updates are other event types and are not purchases.
@@ -334,6 +343,13 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           }
         : mutation.data;
 
+    const supersededSubscriptionId =
+      mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      currentSubscription?.plan === SubscriptionPlan.PRO &&
+      currentSubscription.status !== "CANCELED"
+        ? currentSubscription.creemSubscriptionId
+        : null;
+
     const subscription = await transaction.subscription.upsert({
       where: { userId },
       create: {
@@ -346,6 +362,15 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
         ...subscriptionData,
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
+        // Same transaction as the grant: if the post-commit cancel never runs,
+        // the worker still finds this marker and finishes the job.
+        ...(supersededSubscriptionId
+          ? {
+              pendingCreemCancelId: supersededSubscriptionId,
+              pendingCreemCancelAttempts: 0,
+              pendingCreemCancelNextAt: null,
+            }
+          : {}),
       },
     });
     if (mutation.data.plan === SubscriptionPlan.LIFETIME) {
@@ -365,6 +390,6 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
       }
     }
 
-    return { processed: true, subscription };
+    return { processed: true, subscription, supersededSubscriptionId, userId };
   });
 }

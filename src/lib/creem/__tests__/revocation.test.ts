@@ -22,6 +22,8 @@ const tx = {
     findFirst: jest.fn(),
     update: jest.fn(),
   },
+  creemSubscriptionCursor: { upsert: jest.fn() },
+  lifetimeHold: { updateMany: jest.fn() },
   creemWebhookEvent: { createMany: jest.fn() },
 };
 
@@ -72,6 +74,8 @@ beforeEach(() => {
   );
   tx.creemWebhookEvent.createMany.mockResolvedValue({ count: 1 });
   tx.subscription.update.mockResolvedValue({});
+  tx.creemSubscriptionCursor.upsert.mockResolvedValue({});
+  tx.lifetimeHold.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe("mapping a Creem revocation", () => {
@@ -185,6 +189,107 @@ describe("processing a Creem revocation", () => {
       outcome: "replayed_event",
     });
     expect(tx.subscription.update).not.toHaveBeenCalled();
+  });
+
+  it("advances the subscription cursor so a later event cannot re-grant Pro", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_6",
+      userId: "user_6",
+      plan: SubscriptionPlan.PRO,
+      creemSubscriptionId: "sub_1",
+      lastCreemEventAt: new Date(1_789_000_000_000),
+    });
+
+    await processCreemRevocationEvent(refundEvent());
+
+    expect(tx.creemSubscriptionCursor.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_creemSubscriptionId: {
+            userId: "user_6",
+            creemSubscriptionId: "sub_1",
+          },
+        },
+        update: expect.objectContaining({
+          lastEventId: "evt_refund_1",
+          lastEventAt: new Date(1_790_000_000_000),
+          restrictionLevel: 5,
+        }),
+      })
+    );
+    expect(tx.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          currentPeriodEnd: null,
+          lastCreemEventAt: new Date(1_790_000_000_000),
+        }),
+      })
+    );
+  });
+
+  it("never moves the cursor back past what the row already recorded", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_7",
+      userId: "user_7",
+      plan: SubscriptionPlan.PRO,
+      creemSubscriptionId: "sub_1",
+      lastCreemEventAt: new Date(1_795_000_000_000),
+    });
+
+    await processCreemRevocationEvent(refundEvent());
+
+    expect(tx.creemSubscriptionCursor.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          lastEventAt: new Date(1_795_000_000_000),
+        }),
+      })
+    );
+  });
+
+  it("does not touch the cursor for a partial refund", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_8",
+      userId: "user_8",
+      plan: SubscriptionPlan.PRO,
+      creemSubscriptionId: "sub_1",
+      lastCreemEventAt: null,
+    });
+
+    await processCreemRevocationEvent(refundEvent({ refund_amount: 500 }));
+
+    expect(tx.creemSubscriptionCursor.upsert).not.toHaveBeenCalled();
+  });
+
+  it("returns the Lifetime seat: the consumed hold is released on a full refund", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_9",
+      userId: "user_9",
+      plan: SubscriptionPlan.LIFETIME,
+      creemSubscriptionId: null,
+      lastCreemEventAt: null,
+    });
+
+    await processCreemRevocationEvent(refundEvent());
+
+    expect(tx.lifetimeHold.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user_9", status: "CONSUMED" },
+      data: { status: "EXPIRED" },
+    });
+  });
+
+  it("leaves the hold alone when a Pro subscription is refunded", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_10",
+      userId: "user_10",
+      plan: SubscriptionPlan.PRO,
+      creemSubscriptionId: "sub_1",
+      lastCreemEventAt: null,
+    });
+
+    await processCreemRevocationEvent(refundEvent());
+
+    expect(tx.lifetimeHold.updateMany).not.toHaveBeenCalled();
   });
 
   it("does nothing when no subscription of ours matches", async () => {

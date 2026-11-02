@@ -30,7 +30,10 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: jest.fn(), update: jest.fn() } },
+  prisma: {
+    user: { findUnique: jest.fn(), update: jest.fn() },
+    subscription: { findUnique: jest.fn() },
+  },
 }));
 jest.mock("@/lib/security/rate-limit", () => ({
   accountRule: jest.fn(),
@@ -67,9 +70,90 @@ describe("Lifetime checkout route", () => {
       emailVerified: new Date("2026-09-01T00:00:00.000Z"),
       name: "Buyer",
     });
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue(null);
     (getCreemClient as jest.Mock).mockReturnValue({
       checkouts: { create: createCheckout },
     });
+  });
+
+  function proRequest() {
+    return new NextRequest("http://localhost/api/billing/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan: "pro",
+        interval: "month",
+        withdrawalWaiver: true,
+      }),
+    });
+  }
+
+  it("refuses any checkout for a Lifetime owner before touching Creem", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "LIFETIME",
+      status: "ACTIVE",
+    });
+
+    for (const request of [proRequest(), lifetimeRequest()]) {
+      const response = await POST(request);
+      expect(response!.status).toBe(409);
+      expect((await response!.json()).code).toBe("ALREADY_LIFETIME");
+    }
+    expect(createCheckout).not.toHaveBeenCalled();
+    expect(reserveLifetimeCheckout).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["ACTIVE", "PAST_DUE", "PAYMENT_FAILED"])(
+    "refuses a Pro checkout while Pro is %s",
+    async (status) => {
+      (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+        plan: "PRO",
+        status,
+      });
+
+      const response = await POST(proRequest());
+
+      expect(response!.status).toBe(409);
+      expect((await response!.json()).code).toBe("ALREADY_PRO");
+      expect(createCheckout).not.toHaveBeenCalled();
+    }
+  );
+
+  it("lets a Pro subscriber upgrade to Lifetime", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "PRO",
+      status: "ACTIVE",
+    });
+    (reserveLifetimeCheckout as jest.Mock).mockResolvedValue({
+      outcome: "reserved",
+      reservation,
+    });
+    createCheckout.mockResolvedValue({
+      id: "checkout_up",
+      checkoutUrl: "https://creem.test/checkout_up",
+    });
+
+    const response = await POST(lifetimeRequest());
+
+    expect(response!.status).toBe(200);
+    expect(createCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a canceled Pro subscriber buy Pro again", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "PRO",
+      status: "CANCELED",
+    });
+    createCheckout.mockResolvedValue({
+      id: "checkout_re",
+      checkoutUrl: "https://creem.test/checkout_re",
+    });
+
+    const response = await POST(proRequest());
+
+    expect(response!.status).toBe(200);
+    expect(createCheckout).toHaveBeenCalledTimes(1);
   });
 
   it("refuses checkout while the billing_checkout flag is off", async () => {

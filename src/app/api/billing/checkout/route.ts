@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -146,6 +147,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "A verified account email is required for checkout." },
         { status: 400 }
+      );
+    }
+
+    // An account that already pays must not be sent to Creem again: the
+    // webhook would drop the second purchase (lifetime_preserved or
+    // subscription_identity_mismatch) and the customer would be charged for
+    // nothing. Pro to Lifetime is the one allowed upgrade.
+    const current = await prisma.subscription.findUnique({
+      where: { userId: auth.userId },
+      select: { plan: true, status: true },
+    });
+    if (current?.plan === SubscriptionPlan.LIFETIME) {
+      return NextResponse.json(
+        {
+          error: "Lifetime is already active on this account.",
+          code: "ALREADY_LIFETIME",
+        },
+        { status: 409 }
+      );
+    }
+    if (
+      selection.plan === "pro" &&
+      current?.plan === SubscriptionPlan.PRO &&
+      // A canceled subscription may be replaced by a new one; a live or
+      // dunning one is protected from a second subscription id by the webhook.
+      (
+        [
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.PAST_DUE,
+          SubscriptionStatus.PAYMENT_FAILED,
+        ] as SubscriptionStatus[]
+      ).includes(current.status)
+    ) {
+      return NextResponse.json(
+        {
+          error: "Pro is already active on this account.",
+          code: "ALREADY_PRO",
+        },
+        { status: 409 }
       );
     }
 

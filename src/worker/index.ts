@@ -47,22 +47,22 @@ import {
   CALDAV_SYNC_INTERVAL_MS,
   sweepCalDavFeeds,
 } from "@/worker/caldav-sweep";
+import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   STALE_FEED_SWEEP_INTERVAL_MS,
   sweepStaleFeeds,
 } from "@/worker/feed-sweep";
 import { syncFeedByType } from "@/worker/feed-sync";
 import {
-  STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
-  sweepStaleTaskMappings,
-} from "@/worker/task-mapping-sweep";
-import { syncTaskMapping } from "@/worker/task-mapping-sync";
-import { startExternalHeartbeat } from "@/worker/external-heartbeat";
-import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
 } from "@/worker/health-server";
 import { runWorkerStartupChecks } from "@/worker/startup";
+import {
+  STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
+  sweepStaleTaskMappings,
+} from "@/worker/task-mapping-sweep";
+import { syncTaskMapping } from "@/worker/task-mapping-sync";
 import * as Sentry from "@sentry/node";
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { randomUUID } from "node:crypto";
@@ -73,6 +73,7 @@ import {
 } from "@/lib/calendar-db";
 import { renewCalendarWebhooks } from "@/lib/calendar-webhooks/renew";
 import { reconcileLifetimeCheckoutReservations } from "@/lib/creem/lifetime-reconciliation";
+import { retryPendingCreemCancels } from "@/lib/creem/pending-cancel";
 import { newDate } from "@/lib/date-utils";
 import {
   isGitBuildSha,
@@ -279,6 +280,8 @@ async function processNudges() {
 
 async function processLifetimeCheckoutReconciliation() {
   await reconcileLifetimeCheckoutReservations();
+  // Pro subscriptions superseded by Lifetime whose Creem cancel has not landed.
+  await retryPendingCreemCancels();
 }
 
 async function processOAuthCleanup() {

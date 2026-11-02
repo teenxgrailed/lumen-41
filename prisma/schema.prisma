@@ -3530,10 +3530,17 @@ model Subscription {
   discountApplied       Boolean            @default(false)
   lastCreemEventId      String?
   lastCreemEventAt      DateTime?
+  // A Pro subscription superseded by Lifetime that Creem has not yet confirmed
+  // canceled. Written in the Lifetime grant's transaction; the worker retries
+  // until Creem confirms, then clears all three.
+  pendingCreemCancelId       String?
+  pendingCreemCancelAttempts Int @default(0)
+  pendingCreemCancelNextAt   DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
   @@index([creemProductId])
+  @@index([pendingCreemCancelId])
   @@index([stripeCustomerId])
   @@index([stripePaymentIntentId])
 }
