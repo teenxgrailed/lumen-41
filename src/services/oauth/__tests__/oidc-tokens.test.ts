@@ -9,7 +9,7 @@ import {
   resolveAccessToken,
 } from "@/services/oauth/grants";
 import { authorizationServerMetadata } from "@/services/oauth/http";
-import { loadSigningKey } from "@/services/oauth/oidc";
+import { loadSigningKey, resetSigningKeyCache } from "@/services/oauth/oidc";
 import crypto from "crypto";
 
 import { prisma } from "@/lib/prisma";
@@ -26,6 +26,11 @@ jest.mock("@/lib/prisma", () => {
     },
     oAuthClient: { update: jest.fn() },
     user: { findUnique: jest.fn() },
+    systemSettings: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
   prismaMock.$transaction.mockImplementation((cb: (tx: unknown) => unknown) =>
     cb(prismaMock)
@@ -112,6 +117,7 @@ async function exchange(overrides: Record<string, unknown> = {}) {
 const original = { ...process.env };
 beforeEach(() => {
   jest.clearAllMocks();
+  resetSigningKeyCache();
   process.env.NEXTAUTH_URL = ISSUER;
   process.env.RATE_LIMIT_HASH_SECRET = "test-only-rate-limit-secret";
   delete process.env.OAUTH_ISSUER_URL;
@@ -383,10 +389,152 @@ describe("discovery", () => {
   });
 });
 
+/** One SystemSettings row shared by every "process" in a test. */
+function settingsTable(initial: { oidcSigningKey: string | null } | null) {
+  const table: { row: { id: string; oidcSigningKey: string | null } | null } = {
+    row: initial ? { id: "default", ...initial } : null,
+  };
+  const settings = prisma.systemSettings as unknown as Record<
+    string,
+    jest.Mock
+  >;
+  settings.findFirst.mockImplementation(async () =>
+    table.row ? { ...table.row } : null
+  );
+  settings.create.mockImplementation(async () => {
+    if (table.row) throw new Error("Unique constraint failed");
+    table.row = { id: "default", oidcSigningKey: null };
+    return { id: "default" };
+  });
+  settings.updateMany.mockImplementation(
+    async ({
+      where,
+      data,
+    }: {
+      where: { id: string; oidcSigningKey: null };
+      data: { oidcSigningKey: string };
+    }) => {
+      if (
+        !table.row ||
+        table.row.id !== where.id ||
+        table.row.oidcSigningKey !== null
+      ) {
+        return { count: 0 };
+      }
+      table.row.oidcSigningKey = data.oidcSigningKey;
+      return { count: 1 };
+    }
+  );
+  return table;
+}
+
+describe("a signing key Needt keeps for itself", () => {
+  beforeEach(() => {
+    delete process.env.OIDC_SIGNING_KEY;
+    process.env.AI_ENCRYPTION_KEY = "test-only-encryption-key";
+  });
+
+  it("generates and stores one signing key when none is configured", async () => {
+    const table = settingsTable(null);
+    const key = await loadSigningKey();
+    expect(key).not.toBeNull();
+    expect(key?.privateKey.asymmetricKeyDetails?.modulusLength).toBe(2048);
+    expect(table.row?.oidcSigningKey).toEqual(expect.any(String));
+    expect(prisma.systemSettings.updateMany).toHaveBeenCalledTimes(1);
+
+    // A later process reads the stored key instead of making another.
+    resetSigningKeyCache();
+    const again = await loadSigningKey();
+    expect(again?.kid).toBe(key?.kid);
+    expect(prisma.systemSettings.updateMany).toHaveBeenCalledTimes(1);
+
+    // It signs: the published key verifies an id_token from this exchange.
+    const tokens = await exchange();
+    if (!("id_token" in tokens)) throw new Error("no id_token");
+    const [header, payload, signature] = tokens.id_token.split(".");
+    expect(JSON.parse(Buffer.from(header, "base64url").toString()).kid).toBe(
+      key?.kid
+    );
+    expect(
+      crypto.verify(
+        "RSA-SHA256",
+        Buffer.from(`${header}.${payload}`),
+        crypto.createPublicKey({
+          key: key!.publicJwk as unknown as crypto.JsonWebKey,
+          format: "jwk",
+        }),
+        Buffer.from(signature, "base64url")
+      )
+    ).toBe(true);
+  });
+
+  it("two concurrent first uses converge on the same key", async () => {
+    const table = settingsTable({ oidcSigningKey: null });
+    const [a, b] = await Promise.all([loadSigningKey(), loadSigningKey()]);
+    resetSigningKeyCache();
+    const c = await loadSigningKey();
+    expect(a).not.toBeNull();
+    expect(a?.kid).toBe(b?.kid);
+    expect(a?.kid).toBe(c?.kid);
+    // Both tried to write; the database let exactly one land.
+    const results = await Promise.all(
+      (prisma.systemSettings.updateMany as jest.Mock).mock.results.map(
+        (r) => r.value
+      )
+    );
+    expect(results.map((r) => r.count).sort()).toEqual([0, 1]);
+    expect(table.row?.oidcSigningKey).toEqual(expect.any(String));
+  });
+
+  it("env key wins over the stored key", async () => {
+    const stored = settingsTable(null);
+    const fromStore = await loadSigningKey();
+    resetSigningKeyCache();
+
+    process.env.OIDC_SIGNING_KEY = newPem();
+    const fromEnv = await loadSigningKey();
+    expect(fromEnv).not.toBeNull();
+    expect(fromEnv?.kid).not.toBe(fromStore?.kid);
+    expect(stored.row?.oidcSigningKey).not.toBeNull();
+    // The environment decides without reading the database at all.
+    (prisma.systemSettings.findFirst as jest.Mock).mockClear();
+    resetSigningKeyCache();
+    await loadSigningKey();
+    expect(prisma.systemSettings.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("stored key is encrypted at rest", async () => {
+    const table = settingsTable(null);
+    await loadSigningKey();
+    const at_rest = table.row?.oidcSigningKey ?? "";
+    expect(at_rest.startsWith("enc:v1:")).toBe(true);
+    expect(at_rest).not.toContain("PRIVATE KEY");
+    expect(at_rest).not.toContain("BEGIN");
+  });
+
+  it("keeps working from a key stored before this process started", async () => {
+    const table = settingsTable(null);
+    const first = await loadSigningKey();
+    resetSigningKeyCache();
+    (prisma.systemSettings.updateMany as jest.Mock).mockClear();
+    const second = await loadSigningKey();
+    expect(second?.kid).toBe(first?.kid);
+    expect(prisma.systemSettings.updateMany).not.toHaveBeenCalled();
+    expect(table.row?.oidcSigningKey).toEqual(expect.any(String));
+  });
+});
+
 describe("without a signing key", () => {
   it("missing signing key fails openid requests with server_error and leaves mcp exchange working", async () => {
+    // Nothing configured, and the key cannot be encrypted: production with no
+    // AI_ENCRYPTION_KEY / NEXTAUTH_SECRET.
     delete process.env.OIDC_SIGNING_KEY;
+    delete process.env.AI_ENCRYPTION_KEY;
+    delete process.env.NEXTAUTH_SECRET;
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+    const table = settingsTable({ oidcSigningKey: null });
     expect(await loadSigningKey()).toBeNull();
+    expect(table.row?.oidcSigningKey).toBeNull();
 
     // The openid exchange fails before the code is spent.
     const failure = await exchange().catch((error) => error);
@@ -397,6 +545,7 @@ describe("without a signing key", () => {
     // The JWKS endpoint says so too, instead of publishing an empty set.
     const jwks = await jwksGet();
     expect(jwks.status).toBe(503);
+    (process.env as Record<string, string | undefined>).NODE_ENV = "test";
 
     // An MCP exchange never touches the key.
     (prisma.oAuthAuthorizationCode.findUnique as jest.Mock).mockResolvedValue(

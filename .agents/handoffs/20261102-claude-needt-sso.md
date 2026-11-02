@@ -29,7 +29,7 @@ objective: Needt becomes an OpenID Connect provider so Needt Budget can sign peo
 
 ## Decisions and constraints
 
-- Signing key only from env `OIDC_SIGNING_KEY`; missing key fails openid requests with `server_error`, MCP unaffected.
+- Signing key: env `OIDC_SIGNING_KEY` if set, else a key Needt makes once and keeps encrypted in `SystemSettings.oidcSigningKey`; if neither can be had, openid requests fail with `server_error`, MCP unaffected.
 - No consent screen and no refresh token for first-party openid codes.
 - Never run integration code or migrations against the remote Neon database.
 
@@ -39,4 +39,4 @@ objective: Needt becomes an OpenID Connect provider so Needt Budget can sign peo
 
 ## Next action
 
-- Review the PR to `main`; set `OIDC_SIGNING_KEY` and `OIDC_BUDGET_REDIRECT_URIS` before enabling the Budget client (do not merge or deploy from this workstream).
+- Review the PR to `main`; set `OIDC_BUDGET_REDIRECT_URIS` (the signing key is optional and made automatically) before enabling the Budget client (do not merge or deploy from this workstream).

@@ -60,13 +60,18 @@ Needt SHALL publish the public signing key at `/oauth/jwks`, the identity claims
 - **WHEN** `/oauth/userinfo` receives an access token issued for the MCP resource
 - **THEN** it answers 401 with `invalid_token`
 
-### Requirement: Missing signing key disables only OpenID Connect
+### Requirement: Needt keeps its own signing key; failing to have one disables only OpenID Connect
 
-The signing key SHALL come only from the `OIDC_SIGNING_KEY` environment variable (PKCS#8 PEM, RSA, at least 2048 bits) and SHALL NOT be logged. When it is missing or unusable, `openid` authorization and token requests SHALL fail with `server_error` without spending the authorization code, `/oauth/jwks` SHALL answer 503, and MCP authorization SHALL be unaffected.
+The signing key SHALL be the `OIDC_SIGNING_KEY` environment variable (PKCS#8 PEM, RSA, at least 2048 bits) when it is set. Otherwise it SHALL be the RSA 2048 key stored encrypted (`enc:v1`) in `SystemSettings.oidcSigningKey`; when none is stored, Needt SHALL generate one and write it only where the column is still null, then read it back, so that concurrent first uses converge on one key. The key SHALL NOT be logged or returned by any API. When no usable key can be read or made (for example no encryption key is configured in production), `openid` authorization and token requests SHALL fail with `server_error` without spending the authorization code, `/oauth/jwks` SHALL answer 503, and MCP authorization SHALL be unaffected.
 
 #### Scenario: No key configured
 
-- **WHEN** `OIDC_SIGNING_KEY` is not set
+- **WHEN** `OIDC_SIGNING_KEY` is not set and no key is stored
+- **THEN** a key is generated, stored encrypted and used
+
+#### Scenario: No key can be made
+
+- **WHEN** `OIDC_SIGNING_KEY` is not set and the key cannot be encrypted
 - **THEN** an `openid` authorization request is answered with `server_error` to the client
 - **AND** an MCP code exchange still succeeds
 

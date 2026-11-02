@@ -1,9 +1,11 @@
 import crypto from "crypto";
+import { promisify } from "util";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { oauthIssuer } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
+import { decryptSecret, encryptSecret } from "@/lib/security/secret-encryption";
 
 import { sha256Hex } from "./crypto";
 
@@ -48,46 +50,124 @@ function thumbprint(jwk: { e: string; n: string }): string {
     .digest("base64url");
 }
 
-let cache: { pem: string; key: SigningKey | null } | null = null;
-
-/**
- * The key id_tokens are signed with: env `OIDC_SIGNING_KEY`, a PKCS#8 PEM of
- * an RSA key of at least 2048 bits. null when it is missing or unusable —
- * OpenID Connect then fails with `server_error` and nothing else is affected.
- * Parsed once per distinct value. The key itself is never logged.
- */
-export async function loadSigningKey(): Promise<SigningKey | null> {
-  const raw = process.env.OIDC_SIGNING_KEY?.trim();
-  if (!raw) return null;
-  if (cache?.pem === raw) return cache.key;
-  let key: SigningKey | null = null;
+/** Parses a PKCS#8 PEM into the signing key; null when it is not a usable RSA key. */
+async function parseSigningKey(
+  raw: string,
+  label: string
+): Promise<SigningKey | null> {
   try {
     const privateKey = crypto.createPrivateKey(normalizePem(raw));
     const bits = privateKey.asymmetricKeyDetails?.modulusLength ?? 0;
     if (privateKey.asymmetricKeyType !== "rsa" || bits < 2048) {
       await logger.error(
-        "OIDC_SIGNING_KEY is not an RSA key of at least 2048 bits",
+        `${label} is not an RSA key of at least 2048 bits`,
         { type: privateKey.asymmetricKeyType ?? "unknown", bits },
         LOG_SOURCE
       );
-    } else {
-      const { n, e } = crypto
-        .createPublicKey(privateKey)
-        .export({ format: "jwk" });
-      if (n && e) {
-        const kid = thumbprint({ n, e });
-        key = {
-          privateKey,
-          kid,
-          publicJwk: { kty: "RSA", n, e, kid, alg: "RS256", use: "sig" },
-        };
-      }
+      return null;
     }
+    const { n, e } = crypto
+      .createPublicKey(privateKey)
+      .export({ format: "jwk" });
+    if (!n || !e) return null;
+    const kid = thumbprint({ n, e });
+    return {
+      privateKey,
+      kid,
+      publicJwk: { kty: "RSA", n, e, kid, alg: "RS256", use: "sig" },
+    };
   } catch {
-    await logger.error("OIDC_SIGNING_KEY could not be read", {}, LOG_SOURCE);
+    await logger.error(`${label} could not be read`, {}, LOG_SOURCE);
+    return null;
   }
-  cache = { pem: raw, key };
-  return key;
+}
+
+const generateRsaKeyPair = promisify(crypto.generateKeyPair);
+
+/**
+ * The key kept in SystemSettings.oidcSigningKey, encrypted (enc:v1) like the
+ * other stored secrets. The first use makes one and stores it with
+ * `updateMany ... where oidcSigningKey is null`, so when several processes
+ * race only one write lands; every process then reads the column back and
+ * signs with whatever won. Only the failure class is logged, never a value:
+ * a database error can carry the data it was given.
+ */
+async function loadStoredSigningKey(): Promise<SigningKey | null> {
+  try {
+    const find = () =>
+      prisma.systemSettings.findFirst({
+        orderBy: { id: "asc" },
+        select: { id: true, oidcSigningKey: true },
+      });
+    let row = await find();
+    if (!row) {
+      // Same id the settings screen uses, so a concurrent create collides on
+      // the primary key instead of making a second row.
+      await prisma.systemSettings
+        .create({ data: { id: "default" }, select: { id: true } })
+        .catch(() => undefined);
+      row = await find();
+    }
+    if (!row) return null;
+
+    if (!row.oidcSigningKey) {
+      const { privateKey } = await generateRsaKeyPair("rsa", {
+        modulusLength: 2048,
+        privateKeyEncoding: { type: "pkcs8", format: "pem" },
+        publicKeyEncoding: { type: "spki", format: "pem" },
+      });
+      const sealed = encryptSecret(privateKey);
+      await prisma.systemSettings.updateMany({
+        where: { id: row.id, oidcSigningKey: null },
+        data: { oidcSigningKey: sealed },
+      });
+      row = await find();
+      if (!row?.oidcSigningKey) return null;
+    }
+    return await parseSigningKey(
+      decryptSecret(row.oidcSigningKey),
+      "The stored OIDC signing key"
+    );
+  } catch (error) {
+    await logger.error(
+      "The OIDC signing key could not be loaded or created",
+      { reason: error instanceof Error ? error.name : "unknown" },
+      LOG_SOURCE
+    );
+    return null;
+  }
+}
+
+let envCache: { pem: string; key: SigningKey | null } | null = null;
+let storedCache: SigningKey | null = null;
+
+/** Forgets the parsed keys. For tests; a process keeps its key for life. */
+export function resetSigningKeyCache(): void {
+  envCache = null;
+  storedCache = null;
+}
+
+/**
+ * The key id_tokens are signed with. Env `OIDC_SIGNING_KEY` (a PKCS#8 PEM of
+ * an RSA key of at least 2048 bits) wins when set; otherwise Needt makes its
+ * own key once and keeps it encrypted in SystemSettings. null only when the
+ * env value is unusable or the stored key cannot be read, made or encrypted
+ * (for example no encryption key in production) — OpenID Connect then fails
+ * with `server_error` and nothing else is affected. Parsed once; a failure to
+ * load the stored key is not cached, so the next request tries again. The key
+ * itself is never logged.
+ */
+export async function loadSigningKey(): Promise<SigningKey | null> {
+  const raw = process.env.OIDC_SIGNING_KEY?.trim();
+  if (raw) {
+    if (envCache?.pem === raw) return envCache.key;
+    const key = await parseSigningKey(raw, "OIDC_SIGNING_KEY");
+    envCache = { pem: raw, key };
+    return key;
+  }
+  if (storedCache) return storedCache;
+  storedCache = await loadStoredSigningKey();
+  return storedCache;
 }
 
 const base64url = (value: string) => Buffer.from(value).toString("base64url");

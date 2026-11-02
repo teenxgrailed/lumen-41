@@ -36,7 +36,7 @@ Notes:
 
 ## Sign in to Needt Budget With a Needt Account
 
-Needt is an OpenID Connect provider for its own apps (`docs/deploy.md`, openspec change `needt-oidc-provider`). Both values are optional: without `OIDC_SIGNING_KEY`, sign-in requests from Budget fail with `server_error` and nothing else (MCP included) is affected.
+Needt is an OpenID Connect provider for its own apps (`docs/deploy.md`, openspec change `needt-oidc-provider`). `OIDC_BUDGET_REDIRECT_URIS` is needed to enable the Budget client; `OIDC_SIGNING_KEY` is optional. If the signing key can be neither read nor made, sign-in requests from Budget fail with `server_error` and nothing else (MCP included) is affected.
 
 ```bash
 OIDC_SIGNING_KEY=""
@@ -45,7 +45,7 @@ OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
 
 Notes:
 
-- `OIDC_SIGNING_KEY` is a PKCS#8 PEM private key, RSA 2048 bits or larger. Generate it on your own machine into a temporary file (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out <tmpfile>`), upload the file's contents to Coolify, then remove the file; never print the key and never commit it. A value whose newlines were flattened into literal `\n` is accepted.
+- `OIDC_SIGNING_KEY` is optional. Leave it empty and Needt makes its own RSA 2048 key on first use and keeps it encrypted in the database (`SystemSettings.oidcSigningKey`, encrypted with `AI_ENCRYPTION_KEY`, else `NEXTAUTH_SECRET`). If you set it, it must be a PKCS#8 PEM private key, RSA 2048 bits or larger, and it wins over the stored key. Generate it on your own machine into a temporary file (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out <tmpfile>`), upload the file's contents to Coolify, then remove the file; never print the key and never commit it. A value whose newlines were flattened into literal `\n` is accepted.
 - `OIDC_BUDGET_REDIRECT_URIS` is a comma-separated list of the exact redirect URIs of the `needt-budget` client (https, or http on a loopback address for local development). Loopback redirect URIs are for local development only and must never be set in production: this client has no consent screen and a loopback URI matches on any port. The address of Budget's site also becomes the only place `/oauth/logout` may send people back to.
 
 ## Human-Supplied Calendar OAuth

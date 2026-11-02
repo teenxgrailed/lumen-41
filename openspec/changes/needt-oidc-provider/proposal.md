@@ -8,7 +8,7 @@ Needt Budget has its own accounts and passwords. One Needt account should open e
 - Accept the `openid` scope (with `email`, `profile`) at `/oauth/authorize` from first-party clients only. An `openid` request needs no `resource`, carries a `nonce`, and shows no consent screen: a signed-in person is sent back with a code at once; a signed-out person goes through the existing sign-in redirect.
 - Answer an `openid` code exchange with an RS256 `id_token` and a one-hour access token for `/oauth/userinfo`, and no refresh token.
 - Publish `GET /oauth/jwks`, `GET /oauth/userinfo`, `GET /.well-known/openid-configuration`, and `GET /oauth/logout`; add `jwks_uri` to the existing `oauth-authorization-server` document (`openid` is advertised only in `openid-configuration`, so MCP clients never see a scope they cannot use).
-- Add `OAuthAuthorizationCode.nonce` and `OAuthAuthorizationCode.authTime` (additive, nullable).
+- Add `OAuthAuthorizationCode.nonce` and `OAuthAuthorizationCode.authTime` and `SystemSettings.oidcSigningKey` (additive, nullable).
 - MCP OAuth is unchanged: same endpoints, same consent, `resource` still required, existing tokens keep working.
 
 ## Capabilities
@@ -25,8 +25,8 @@ Needt Budget has its own accounts and passwords. One Needt account should open e
 
 - `src/services/oauth/{first-party,oidc,logout}.ts` new; `authorize.ts`, `clients.ts`, `constants.ts`, `grants.ts`, `consent.ts`, `http.ts` extended.
 - `src/app/oauth/{jwks,userinfo,logout}`, `src/app/.well-known/openid-configuration` new; `src/app/oauth/{authorize,token}` extended.
-- `prisma/migrations/20261102120000_oauth_oidc_nonce` (two nullable columns).
-- New environment: `OIDC_SIGNING_KEY` (PKCS#8 PEM, RSA 2048 or larger) and `OIDC_BUDGET_REDIRECT_URIS` (comma-separated). Without the key, `openid` requests fail with `server_error` and nothing else is affected.
+- `prisma/migrations/20261102120000_oauth_oidc_nonce` (two nullable columns) and `prisma/migrations/20261102140000_system_settings_oidc_signing_key` (one nullable column).
+- New environment: `OIDC_BUDGET_REDIRECT_URIS` (comma-separated) and the optional `OIDC_SIGNING_KEY` (PKCS#8 PEM, RSA 2048 or larger). By default Needt makes and keeps its own key; if the key can be neither read nor made, `openid` requests fail with `server_error` and nothing else is affected.
 - The consumer is Needt Budget (separate repository); its client is not part of this change.
 
 ## Known limits

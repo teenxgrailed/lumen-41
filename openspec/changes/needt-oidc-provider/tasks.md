@@ -11,7 +11,7 @@
 ## Wave 2 - Tokens
 
 - [x] **N2 - id_token, token exchange, JWKS, userinfo, discovery**
-  - RS256 id_token (`exp` = `iat` + 300 s, `kid` = RFC 7638 thumbprint) signed with `OIDC_SIGNING_KEY`.
+  - RS256 id_token (`exp` = `iat` + 300 s, `kid` = RFC 7638 thumbprint) signed with `OIDC_SIGNING_KEY` when set, else with a key Needt makes once and keeps encrypted in `SystemSettings.oidcSigningKey`.
   - `openid` code exchange: id_token and a one-hour userinfo access token, no refresh token.
   - `/oauth/jwks`, `/oauth/userinfo`, `/.well-known/openid-configuration`.
   - Completion: id_token verifies against the published JWKS; an MCP token is refused by userinfo and an OIDC token by the MCP server.
@@ -25,6 +25,6 @@
 
 ## Deploy order (not part of this change)
 
-1. Set `OIDC_SIGNING_KEY` and `OIDC_BUDGET_REDIRECT_URIS` on the web service.
+1. Set `OIDC_BUDGET_REDIRECT_URIS` on the web service (`OIDC_SIGNING_KEY` is optional; Needt makes its own key).
 2. Deploy; the migration is additive.
 3. Check `/.well-known/openid-configuration` and `/oauth/jwks`, then enable the Budget client.
