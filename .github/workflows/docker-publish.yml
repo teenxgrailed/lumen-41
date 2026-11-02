@@ -89,9 +89,16 @@ jobs:
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # A release that follows a successful CI run on main (workflow_run) already
+  # passed lint, branding, type-check, unit, worker bundle, collaboration
+  # build/runtime and the production build on this exact SHA (the run is
+  # matched by head_sha in `changes`), so repeating them here cost ~8 minutes
+  # per merge. A manual dispatch has no CI run behind it and keeps the gates.
   gates:
     needs: changes
-    if: needs.changes.outputs.deploy == 'true'
+    if: >-
+      needs.changes.outputs.deploy == 'true' &&
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,6 +126,11 @@ jobs:
 
   images:
     needs: [changes, gates]
+    if: >-
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.deploy == 'true' &&
+      (needs.gates.result == 'success' || needs.gates.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
     permissions:
