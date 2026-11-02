@@ -12,9 +12,6 @@ jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueTaskListSync: jest.fn() }));
-jest.mock("@/lib/google-oauth-scopes", () => ({
-  GOOGLE_TASKS_SYNC_ENABLED: true,
-}));
 jest.mock("@/lib/task-sync/task-sync-manager", () => ({
   TaskSyncManager: jest.fn(),
 }));
@@ -37,7 +34,10 @@ describe("stale task mapping sweep", () => {
       .calls[0][0];
     expect(args.take).toBe(STALE_TASK_MAPPING_BATCH);
     expect(args.where.AND[0].OR[0]).toEqual({ lastSyncedAt: null });
-    expect(args.where.provider.OR).toHaveLength(2);
+    expect(args.where.provider.OR).toEqual([
+      { type: { equals: "OUTLOOK", mode: "insensitive" } },
+      { type: { equals: "GOOGLE", mode: "insensitive" } },
+    ]);
     expect(enqueueTaskListSync).toHaveBeenCalledWith("m1");
     expect(enqueueTaskListSync).toHaveBeenCalledWith("m2");
   });
