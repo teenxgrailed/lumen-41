@@ -2841,6 +2841,29 @@ model SystemSettings {
   updatedAt                            DateTime @updatedAt
 }
 
+/// Addresses that bounced or complained (Resend webhook). The address is stored
+/// as an HMAC of its lower-cased form, like the trial keys. Optional mail to a
+/// suppressed address is skipped (src/lib/email/suppression.ts).
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  emailHash String   @unique
+  reason    String // bounce | complaint | provider
+  source    String   @default("resend-webhook")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Svix event ids already applied, so a retried delivery is acknowledged and
+/// not applied twice.
+model ResendWebhookEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model Log {
   id        String   @id @default(cuid())
   timestamp DateTime @default(now())

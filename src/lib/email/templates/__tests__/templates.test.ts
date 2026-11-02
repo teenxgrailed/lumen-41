@@ -65,11 +65,38 @@ describe("email templates", () => {
   );
 
   it.each(COMMERCIAL)("%s also carries the postal address", (name) => {
-    process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     const mail = sampleEmails()[name];
+    expect(mail.text).toContain("1 Example Street, Example City");
+    expect(mail.html).toContain("1 Example Street, Example City");
+  });
+
+  it("refuses to render a commercial mail whose footer is a placeholder", () => {
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
+        footer: { name: "{{NAME}}", address: "[OWNER: address]" },
+      })
+    ).toThrow("operator");
+  });
+
+  it("refuses to render a commercial mail with no footer and no address", () => {
     delete process.env.OPERATOR_POSTAL_ADDRESS;
-    expect(mail.text).toContain("Needt Ltd, 1 Street");
-    expect(mail.html).toContain("Needt Ltd, 1 Street");
+    delete process.env.EMAIL_FOOTER_ADDRESS;
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
+      })
+    ).toThrow("operator");
   });
 
   it("transactional mail has no unsubscribe footer", () => {

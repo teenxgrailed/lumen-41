@@ -12,7 +12,10 @@ jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: jest.fn() } },
+  prisma: {
+    user: { findUnique: jest.fn() },
+    emailSuppression: { findUnique: jest.fn() },
+  },
 }));
 
 const UNSUBSCRIBE = "https://use.needt.app/api/email/unsubscribe?t=abc";
@@ -33,6 +36,7 @@ describe("commercial email", () => {
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     delete process.env.EMAIL_FOOTER_ADDRESS;
     mockSend.mockResolvedValue({ data: { id: "m1" }, error: null });
+    jest.mocked(prisma.emailSuppression.findUnique).mockResolvedValue(null);
     jest.mocked(prisma.user.findUnique).mockResolvedValue({
       sandboxKind: null,
       commercialEmailsOptOutAt: null,
@@ -87,6 +91,30 @@ describe("commercial email", () => {
       })
     ).resolves.toEqual({ jobId: "" });
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("is dropped for an address that bounced or complained", async () => {
+    process.env.OPERATOR_POSTAL_ADDRESS = "1 Example Street, Kyiv, Ukraine";
+    jest
+      .mocked(prisma.emailSuppression.findUnique)
+      .mockResolvedValue({ id: "s1" } as never);
+    await expect(
+      EmailService.sendEmail({
+        ...base,
+        commercial: true,
+        unsubscribeUrl: UNSUBSCRIBE,
+      })
+    ).resolves.toEqual({ jobId: "" });
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("still sends transactional mail to a suppressed address", async () => {
+    jest
+      .mocked(prisma.emailSuppression.findUnique)
+      .mockResolvedValue({ id: "s1" } as never);
+    await expect(
+      EmailService.sendEmail({ ...base, subject: "Reset your password" })
+    ).resolves.toEqual({ jobId: "m1" });
   });
 
   it("refuses a commercial email without an unsubscribe link", async () => {
