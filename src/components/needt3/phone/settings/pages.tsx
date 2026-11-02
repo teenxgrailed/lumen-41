@@ -295,7 +295,6 @@ export function AlertsPage() {
       >
         {row("In the app", "channelInApp")}
         {row("Push", "channelPush")}
-        {row("Email", "emailNotifications")}
       </PsGroup>
       <PsGroup
         title="Quiet"
@@ -307,6 +306,7 @@ export function AlertsPage() {
       >
         {row("Quiet hours", "quietHours")}
         {row("Daily digest instead of a stream", "digest")}
+        {a?.digest ? row("Also email the digest", "emailNotifications") : null}
       </PsGroup>
     </>
   );

@@ -3,7 +3,6 @@ import {
   getAccountExportTemplate,
   getBookingConfirmationTemplate,
   getDigestTemplate,
-  getReminderTemplate,
   getWelcomeTemplate,
 } from "./notifications";
 import { getPasswordResetTemplate } from "./password-reset";
@@ -48,11 +47,6 @@ export function sampleEmails() {
       milestone: "day14",
       payUrl: "https://use.needt.app/pricing",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
-    }),
-    reminder: getReminderTemplate({
-      title: "Reminder: Send the report",
-      body: "Send the report is due at 15:00.",
-      openUrl: "https://use.needt.app/tasks",
     }),
     "daily-digest": getDigestTemplate({
       title: "3 things need you",
