@@ -131,7 +131,7 @@ it("still creates on a Needt (LOCAL) calendar through /api/events", async () => 
 });
 
 it("undo of a create on Google deletes the event at the provider", async () => {
-  let made: Awaited<ReturnType<typeof api.create>> | undefined;
+  let made: Awaited<ReturnType<NonNullable<typeof api.create>>> | undefined;
   await act(async () => {
     made = await api.create!({ ...FIELDS, calendarId: "goog" });
   });
