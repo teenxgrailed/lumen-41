@@ -59,9 +59,11 @@ export async function PATCH(request: NextRequest) {
   try {
     // Fields still carrying the mask are dropped so a stored secret survives a
     // form that echoes back what it loaded; real values are encrypted.
-    const updates = sealSystemSettingsSecrets(
-      withoutMaskedSecrets(await request.json())
-    );
+    // `id` and the OpenID Connect signing key are never writable from here.
+    const writable = withoutMaskedSecrets(await request.json());
+    delete writable.id;
+    delete writable.oidcSigningKey;
+    const updates = sealSystemSettingsSecrets(writable);
 
     const settings = await prisma.$transaction(async (tx) => {
       // Check if any SystemSettings record exists

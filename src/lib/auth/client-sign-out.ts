@@ -12,3 +12,13 @@ export async function signOutOfNeedt(callbackUrl = "/auth/signin") {
   await prepareNeedtSignOut();
   await signOut({ callbackUrl });
 }
+
+/**
+ * The same sign-out, without NextAuth's redirect: the caller goes on by
+ * itself, so it can follow an address NextAuth would refuse as foreign (the
+ * post-logout address of a first-party app). Rejects when signing out fails.
+ */
+export async function endNeedtSession() {
+  await prepareNeedtSignOut();
+  await signOut({ redirect: false });
+}

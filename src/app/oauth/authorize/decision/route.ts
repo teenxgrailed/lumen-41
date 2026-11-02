@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   clientRedirect,
+  completeFirstPartyAuthorization,
+  mcpScopesOf,
   validateAuthorizationRequest,
 } from "@/services/oauth/authorize";
 import {
@@ -84,9 +86,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // A first-party sign-in has nothing to decide; it is the same answer the
+  // authorize page gives, so a hand-made POST gains nothing from it.
+  if (authz.oidc) {
+    return NextResponse.redirect(
+      await completeFirstPartyAuthorization(authz, userId),
+      303
+    );
+  }
+
   const wantsAdmin = form.get("admin") === "on";
   const scopes = grantedScopes(
-    authz.scopes,
+    mcpScopesOf(authz),
     {
       write: form.get("write") === "on",
       mail: form.get("mail") === "on",

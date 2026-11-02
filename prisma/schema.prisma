@@ -2821,6 +2821,9 @@ model SystemSettings {
   requireEmailVerificationBeforeAccess Boolean  @default(true)
   disableHomepage                      Boolean  @default(false) // Whether to disable the homepage and redirect to login/calendar
   resendApiKey                         String? // API key for Resend email service
+  /// OpenID Connect id_token signing key (PKCS#8 PEM), made on first use and
+  /// stored encrypted (enc:v1). Never returned by an API; see src/services/oauth/oidc.ts.
+  oidcSigningKey                       String?
   createdAt                            DateTime @default(now())
   updatedAt                            DateTime @updatedAt
 }
@@ -3721,6 +3724,10 @@ model OAuthAuthorizationCode {
   scope         String
   resource      String
   workspaceId   String?
+  /// OpenID Connect only: the client's nonce, echoed into the id_token.
+  nonce         String?
+  /// OpenID Connect only: when the person authenticated (id_token auth_time).
+  authTime      DateTime?
   familyId      String
   expiresAt     DateTime
   usedAt        DateTime?

@@ -165,6 +165,43 @@ AI_CUSTOM_URL=""
 AI_ENCRYPTION_KEY=""
 ```
 
+### Sign in with a Needt account (web; optional)
+
+Needt Budget signs people in through Needt. Set this on the web service only:
+
+```bash
+OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
+```
+
+`OIDC_SIGNING_KEY` is optional. By default Needt makes its own RSA 2048 signing
+key the first time it needs one and keeps it, encrypted with the same key as
+the other stored credentials (`AI_ENCRYPTION_KEY`, else `NEXTAUTH_SECRET`), in
+`SystemSettings.oidcSigningKey`. Several servers starting at once end up with
+one key. Nobody has to create, see or paste it. If `AI_ENCRYPTION_KEY` later
+changes, the stored key can no longer be read and sign-in fails with
+`server_error` until the column is cleared (a new key is then made).
+
+Only set `OIDC_SIGNING_KEY` (PKCS#8 PEM, RSA 2048 or larger) when you must
+bring your own key; it takes precedence over the stored one. Write it to a
+temporary file on your own machine, upload the file's contents to Coolify
+(environment screen or API), then remove the file. Never print the key to a
+terminal, chat, ticket or CI log, and never commit it:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$TMPFILE"
+# upload the contents of "$TMPFILE" to Coolify as OIDC_SIGNING_KEY, then:
+rm -P "$TMPFILE"
+```
+
+If the key can be neither read nor made (for example no encryption key is
+configured in production), OpenID Connect requests fail with `server_error` and
+MCP is unaffected. After a deploy, check `/.well-known/openid-configuration` and
+that `/oauth/jwks` answers 200 with one key. To rotate the key, replace
+`OIDC_SIGNING_KEY`, or set `SystemSettings.oidcSigningKey` to NULL for the
+stored one, and restart the web service: Budget fetches the key set again when
+it meets an unknown `kid`; id_tokens are valid for five minutes, so a rotation
+costs at most the sign-ins in flight.
+
 ### Web Push (required for push delivery; web and worker)
 
 ```bash
