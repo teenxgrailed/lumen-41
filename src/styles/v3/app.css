@@ -836,7 +836,7 @@
 .needt-v3 .sb-count { position: absolute; top: 8px; right: 8px; z-index: 1; height: 18px; border-radius: 9999px; overflow: hidden;
   background: var(--fill-5); color: var(--text-secondary); font: var(--type-meta-medium); line-height: 18px; font-variant-numeric: tabular-nums; }
 .needt-v3 .sb-count-label { display: inline-flex; align-items: center; gap: 2px; height: 18px; padding: 0 6px; white-space: nowrap; }
-.needt-v3 .sb-count-fill { position: absolute; inset: 0; background: var(--accent-fill, var(--accent)); color: #fff;
+.needt-v3 .sb-count-fill { position: absolute; inset: 0; background: color-mix(in oklab, var(--accent) 24%, transparent); color: var(--accent);
   transition: clip-path 520ms cubic-bezier(0.2, 0.9, 0.24, 1); }
 .needt-v3 .sb-count.is-full .sb-count-fill { clip-path: none !important; }
 

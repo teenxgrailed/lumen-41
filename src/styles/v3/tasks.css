@@ -459,7 +459,7 @@
   font-variant-numeric: tabular-nums; transition: background-color var(--transition-hover); }
 .needt-v3 .tdc-cal-day:hover { background: var(--fill-3); }
 .needt-v3 .tdc-cal-day.is-today { color: var(--accent); font-weight: 600; }
-.needt-v3 .tdc-cal-day.is-on { background: var(--accent-fill); color: var(--accent-contrast); }
+.needt-v3 .tdc-cal-day.is-on { color: var(--text-primary); box-shadow: var(--text-primary) 0 0 0 1.5px inset; }
 .needt-v3 .tdc-pop-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px 0; box-shadow: var(--border) 0 1px 0 0 inset; }
 .needt-v3 .tdc-pop-label { flex: 1; display: inline-flex; align-items: center; gap: 6px; font: var(--type-ui); color: var(--text-secondary); }
 .needt-v3 .tdc-time { height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--fill-2); outline: none; font: var(--type-ui); color: var(--text-primary); font-variant-numeric: tabular-nums; color-scheme: light dark; }
