@@ -1,7 +1,13 @@
-import { countsTowardsCap, isOptionalCategory } from "@/lib/email/categories";
 import { newDate } from "@/lib/date-utils";
+import { countsTowardsCap, isOptionalCategory } from "@/lib/email/categories";
 
-import type { Decision, ExistingSend, Person, Rule, RuleContext } from "./types";
+import type {
+  Decision,
+  ExistingSend,
+  Person,
+  Rule,
+  RuleContext,
+} from "./types";
 import {
   STANDARD_WINDOW,
   type SendWindow,
@@ -82,7 +88,8 @@ export function decide(input: DecideInput): Decision {
   if (!person.verifiedAt) {
     return { kind: "skip", reason: "unverified", record: true };
   }
-  if (person.deleting) return { kind: "skip", reason: "deleting", record: true };
+  if (person.deleting)
+    return { kind: "skip", reason: "deleting", record: true };
   if (person.suppressed) {
     return { kind: "skip", reason: "suppressed", record: true };
   }
@@ -114,7 +121,11 @@ export function decide(input: DecideInput): Decision {
   // 7. the global cap
   let earliest = now;
   let capped = false;
-  if (!rule.exempt && countsTowardsCap(rule.category) && person.lastMarketingSentAt) {
+  if (
+    !rule.exempt &&
+    countsTowardsCap(rule.category) &&
+    person.lastMarketingSentAt
+  ) {
     const days = person.preferences.fewer ? CAP_DAYS.fewer : CAP_DAYS.normal;
     const until = newDate(person.lastMarketingSentAt.getTime() + days * DAY_MS);
     if (until > now) {

@@ -17,7 +17,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 function failure(error: unknown, message: string) {
   if (error instanceof BroadcastError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.status }
+    );
   }
   return routeErrorResponse(error, message, LOG_SOURCE, message);
 }

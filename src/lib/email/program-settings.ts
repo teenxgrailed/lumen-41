@@ -1,3 +1,4 @@
+import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -26,12 +27,14 @@ export function cleanSetting(value: string | null | undefined): string | null {
   return text;
 }
 
-export function buildProgramSettings(row: {
-  emailFooterName?: string | null;
-  emailFooterAddress?: string | null;
-  emailTrialPromoCode?: string | null;
-  emailTrackingEndsAt?: Date | null;
-} | null): EmailProgramSettings {
+export function buildProgramSettings(
+  row: {
+    emailFooterName?: string | null;
+    emailFooterAddress?: string | null;
+    emailTrialPromoCode?: string | null;
+    emailTrackingEndsAt?: Date | null;
+  } | null
+): EmailProgramSettings {
   const name = cleanSetting(row?.emailFooterName);
   const address = cleanSetting(row?.emailFooterAddress);
   const footerMissing: Array<"name" | "address"> = [];
@@ -68,4 +71,37 @@ export function trackingActive(
   now: Date
 ): boolean {
   return Boolean(settings.trackingEndsAt && settings.trackingEndsAt > now);
+}
+
+/**
+ * Prepares the four programme fields of a System Settings PATCH in place:
+ * text is trimmed and an empty or placeholder value becomes null, and the
+ * tracking end date (a date or an ISO instant) becomes a Date or null. A value
+ * that is not a date is dropped so the stored one is kept.
+ */
+export function coerceEmailProgramFields(body: Record<string, unknown>): void {
+  for (const key of [
+    "emailFooterName",
+    "emailFooterAddress",
+    "emailTrialPromoCode",
+  ] as const) {
+    if (!(key in body)) continue;
+    const value = body[key];
+    body[key] = typeof value === "string" ? cleanSetting(value) : null;
+  }
+  if ("emailTrackingEndsAt" in body) {
+    const value = body.emailTrackingEndsAt;
+    if (value === null || value === "") {
+      body.emailTrackingEndsAt = null;
+    } else if (typeof value === "string") {
+      /* A date alone means the end of that day, UTC. */
+      const date = newDate(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59.999Z` : value
+      );
+      if (Number.isNaN(date.getTime())) delete body.emailTrackingEndsAt;
+      else body.emailTrackingEndsAt = date;
+    } else {
+      delete body.emailTrackingEndsAt;
+    }
+  }
 }

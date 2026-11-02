@@ -1,10 +1,10 @@
+import { flagStates } from "@/services/email-lifecycle/people";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import { prisma } from "@/lib/prisma";
-import { flagStates } from "@/services/email-lifecycle/people";
 
 jest.mock("@/services/email-lifecycle/people", () => ({
   flagStates: jest.fn(),
@@ -53,9 +53,7 @@ describe("trial lifecycle worker", () => {
   });
 
   it("leaves a person on the email programme to the programme", async () => {
-    jest
-      .mocked(flagStates)
-      .mockResolvedValue(new Map([["user-1", true]]));
+    jest.mocked(flagStates).mockResolvedValue(new Map([["user-1", true]]));
     jest
       .mocked(prisma.trialGrant.findMany)
       .mockResolvedValueOnce([expiredGrant] as never)

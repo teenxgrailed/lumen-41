@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { countRecipients } from "@/services/email-broadcasts/service";
 import { SEGMENTS, type Segment } from "@/services/email-broadcasts/rules";
+import { countRecipients } from "@/services/email-broadcasts/service";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { requireAdmin } from "@/lib/auth/api-auth";

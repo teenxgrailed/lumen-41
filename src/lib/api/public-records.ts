@@ -200,6 +200,10 @@ export function toPublicSystemSettings(settings: SystemSettings) {
       settings.requireEmailVerificationBeforeAccess,
     disableHomepage: settings.disableHomepage,
     resendApiKey: maskSecret(settings.resendApiKey),
+    emailFooterName: settings.emailFooterName,
+    emailFooterAddress: settings.emailFooterAddress,
+    emailTrialPromoCode: settings.emailTrialPromoCode,
+    emailTrackingEndsAt: settings.emailTrackingEndsAt,
     createdAt: settings.createdAt,
     updatedAt: settings.updatedAt,
   };

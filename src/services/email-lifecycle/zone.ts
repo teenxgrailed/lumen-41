@@ -3,7 +3,6 @@
  * found by looking at the wall clock of an instant in the person's IANA zone,
  * never by adding a fixed offset.
  */
-
 import { newDate } from "@/lib/date-utils";
 
 export type LocalParts = {
@@ -112,7 +111,11 @@ function inQuiet(
 }
 
 /** Whether `at` is a moment mail may be sent, in the person's zone. */
-export function isInWindow(at: Date, zone: string, window: SendWindow): boolean {
+export function isInWindow(
+  at: Date,
+  zone: string,
+  window: SendWindow
+): boolean {
   const parts = localParts(at, zone);
   if (!window.weekends && (parts.weekday === 0 || parts.weekday === 6)) {
     return false;
@@ -154,10 +157,22 @@ function offsetMinutes(date: Date, zone: string): number {
 
 /** The UTC instant at which the wall clock in `zone` reads this time. */
 export function zonedTimeToUtc(
-  wall: { year: number; month: number; day: number; hour: number; minute: number },
+  wall: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+  },
   zone: string
 ): Date {
-  const guess = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute);
+  const guess = Date.UTC(
+    wall.year,
+    wall.month - 1,
+    wall.day,
+    wall.hour,
+    wall.minute
+  );
   const first = offsetMinutes(newDate(guess), zone);
   let time = guess - first * 60_000;
   const second = offsetMinutes(newDate(time), zone);
@@ -169,7 +184,11 @@ export function zonedTimeToUtc(
  * The first weekday (Monday to Friday) of the month that `at` falls in, at
  * `hour:00` local time, as a UTC instant.
  */
-export function firstWeekdayOfMonth(at: Date, zone: string, hour: number): Date {
+export function firstWeekdayOfMonth(
+  at: Date,
+  zone: string,
+  hour: number
+): Date {
   const parts = localParts(at, zone);
   for (let day = 1; day <= 7; day += 1) {
     const noon = zonedTimeToUtc(

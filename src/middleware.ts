@@ -38,6 +38,8 @@ const publicRoutes = [
   "/api/auth/age-confirm",
   // One-click unsubscribe from a mailed link; the signed token is the proof.
   "/api/email/unsubscribe",
+  // The email preference page; same signed token, can only change that account.
+  "/api/email/preferences",
   // The student price's confirm link: opened from a university mailbox, often
   // on another device; the signed token is the proof.
   "/api/students/confirm",

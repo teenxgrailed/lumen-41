@@ -1,5 +1,4 @@
 import { finalizeAccountDeletion } from "@/services/account/account-deletion";
-import { GiftError, grantGift, revokeGifts } from "@/services/gifts/gifts";
 import {
   BillingGrantError,
   MAX_COMP_DAYS,
@@ -7,6 +6,7 @@ import {
   grantManualPlan,
   revokeManualPlan,
 } from "@/services/billing/manual-grant";
+import { GiftError, grantGift, revokeGifts } from "@/services/gifts/gifts";
 import { AccountDeletionStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 

@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 
 import { useSettingsStore } from "@/store/settings";
 
+import { EmailProgramSettings } from "./EmailProgramSettings";
 import { SecretInput } from "./SecretInput";
 import { SettingRow, SettingsSection } from "./SettingsSection";
 import {
@@ -307,6 +308,13 @@ export function SystemSettings() {
               API key for the Resend email service. Required for sending emails.
             </p>
           </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Email programme"
+          description="Who the optional email is from, the trial-ending code, and when tracking stops."
+        >
+          <EmailProgramSettings />
         </SettingRow>
       </SettingsSection>
     </AdminOnly>

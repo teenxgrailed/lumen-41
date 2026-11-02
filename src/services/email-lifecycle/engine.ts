@@ -85,11 +85,15 @@ export function dryRunFromEnv(): boolean {
  * sent or skipped row end the rule; a failure waits an hour and stops after
  * three tries; a stale claim is a crash and is retried.
  */
-export function existingFor(row: LedgerRow | undefined, now: Date): ExistingSend {
+export function existingFor(
+  row: LedgerRow | undefined,
+  now: Date
+): ExistingSend {
   if (!row) return null;
   if (row.status === "claimed") {
     const stale =
-      !row.claimedAt || row.claimedAt < plus(now, -CLAIM_TTL_MINUTES * MINUTE_MS);
+      !row.claimedAt ||
+      row.claimedAt < plus(now, -CLAIM_TTL_MINUTES * MINUTE_MS);
     return stale ? { status: "retry", deferUntil: null } : row;
   }
   if (row.status === "failed") {
@@ -187,7 +191,10 @@ export async function renderForRule(
       if (!person.trial) throw new Error("No trial");
       return getTrialEnding3dTemplate({ ...base, endsAt: person.trial.endsAt });
     case "trial-ending-0d":
-      return getTrialEnding0dTemplate({ ...base, promoCode: settings.promoCode });
+      return getTrialEnding0dTemplate({
+        ...base,
+        promoCode: settings.promoCode,
+      });
     case "winback-14d":
       return getWinback14Template(base);
     case "winback-30d":
@@ -195,9 +202,9 @@ export async function renderForRule(
     case "still-want":
       return getStillWantTemplate({
         ...base,
-        keepUrl: `${appUrl()}/email/preferences?t=${encodeURIComponent(
+        keepUrl: `${appUrl()}/api/email/preferences?keep=1&t=${encodeURIComponent(
           signUnsubscribeToken(person.userId, "all")
-        )}&keep=1`,
+        )}`,
       });
     case "recap-monthly":
       return getRecapTemplate({
@@ -310,7 +317,10 @@ async function sendOptional(
   const category = rule.category;
   /* The person may have switched the category off since the sweep began: a
      claimed mail is cancelled, not sent. */
-  if (!isOptionalCategory(category) || !(await isCategoryEnabled(person.userId, category))) {
+  if (
+    !isOptionalCategory(category) ||
+    !(await isCategoryEnabled(person.userId, category))
+  ) {
     await finishSend(id, { status: "cancelled", reason: "category-off" });
     return false;
   }
@@ -343,7 +353,10 @@ async function sendOptional(
     });
     await logger.warn(
       "Lifecycle email failed",
-      { rule: rule.key, error: error instanceof Error ? error.message : "Unknown" },
+      {
+        rule: rule.key,
+        error: error instanceof Error ? error.message : "Unknown",
+      },
       LOG_SOURCE
     );
     return false;
@@ -392,7 +405,10 @@ export async function runEmailSweep(
     );
     const people = await loadPeople(chunk, now, { withRecapStats: needsRecap });
     const rows = await prisma.emailSend.findMany({
-      where: { userId: { in: chunk }, ruleKey: { in: [...OPTIONAL_RULE_KEYS] } },
+      where: {
+        userId: { in: chunk },
+        ruleKey: { in: [...OPTIONAL_RULE_KEYS] },
+      },
       select: {
         id: true,
         userId: true,
@@ -423,7 +439,7 @@ export async function runEmailSweep(
         );
       }
       const rules = (wanted.get(id) ?? [])
-  .map((key) => RULES[key as Exclude<RuleKey, "gift">])
+        .map((key) => RULES[key as Exclude<RuleKey, "gift">])
         .sort(byPriority);
       for (const rule of rules) {
         summary.evaluated += 1;
@@ -650,7 +666,9 @@ export async function applySunset(now = newDate()): Promise<number> {
   for (const row of rows) {
     if (!row.userId) continue;
     const returned =
-      row.user?.lastActiveAt && row.sentAt && row.user.lastActiveAt > row.sentAt;
+      row.user?.lastActiveAt &&
+      row.sentAt &&
+      row.user.lastActiveAt > row.sentAt;
     if (returned) {
       await prisma.emailSend.update({
         where: { id: row.id },
@@ -666,12 +684,4 @@ export async function applySunset(now = newDate()): Promise<number> {
     applied += 1;
   }
   return applied;
-}
-
-/** Marks the latest quarterly check as answered. */
-export async function recordKeep(userId: string, now = newDate()) {
-  await prisma.emailSend.updateMany({
-    where: { userId, ruleKey: "still-want", status: "sent", keptAt: null },
-    data: { keptAt: now },
-  });
 }

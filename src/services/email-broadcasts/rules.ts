@@ -1,7 +1,3 @@
-import { z } from "zod";
-
-import { newDate } from "@/lib/date-utils";
-import { emailDomain } from "@/lib/students/university-domains";
 import { CAP_DAYS } from "@/services/email-lifecycle/decide";
 import type { Person } from "@/services/email-lifecycle/types";
 import {
@@ -10,6 +6,10 @@ import {
   nextWindowStart,
   safeTimeZone,
 } from "@/services/email-lifecycle/zone";
+import { z } from "zod";
+
+import { newDate } from "@/lib/date-utils";
+import { emailDomain } from "@/lib/students/university-domains";
 
 /**
  * Pure rules of a broadcast (openspec add-email-program, email-broadcasts).
@@ -37,10 +37,20 @@ export const BATCH_SIZE = 100;
 export const REQUESTS_PER_SECOND = 5;
 
 export const broadcastInputSchema = z.object({
-  subject: z.string().trim().min(1, "The subject is empty.").max(100, "The subject is over 100 characters."),
-  preheader: z.string().trim().max(150, "The preheader is over 150 characters.").default(""),
+  subject: z
+    .string()
+    .trim()
+    .min(1, "The subject is empty.")
+    .max(100, "The subject is over 100 characters."),
+  preheader: z
+    .string()
+    .trim()
+    .max(150, "The preheader is over 150 characters.")
+    .default(""),
   paragraphs: z
-    .array(z.string().trim().min(1).max(1000, "A paragraph is over 1000 characters."))
+    .array(
+      z.string().trim().min(1).max(1000, "A paragraph is over 1000 characters.")
+    )
     .min(1, "Write at least one paragraph.")
     .max(12, "Use at most 12 paragraphs."),
   buttonLabel: z.string().trim().min(1).max(40).nullish(),
@@ -115,9 +125,7 @@ export function exclusionReason(
   return null;
 }
 
-export type ScheduleCheck =
-  | { ok: true }
-  | { ok: false; reason: string };
+export type ScheduleCheck = { ok: true } | { ok: false; reason: string };
 
 /** The rules for putting a broadcast on the calendar. */
 export function checkSchedule(input: {
@@ -200,7 +208,9 @@ export function decideBroadcastSend(input: {
     return { kind: "skip", reason: "broadcast-cap" };
   }
 
-  const giveUpAt = newDate(input.startedAt.getTime() + DEFER_LIMIT_DAYS * DAY_MS);
+  const giveUpAt = newDate(
+    input.startedAt.getTime() + DEFER_LIMIT_DAYS * DAY_MS
+  );
   let earliest = now;
   let capped = false;
   if (person.lastMarketingSentAt) {

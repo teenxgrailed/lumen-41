@@ -141,3 +141,14 @@ export async function backfillLegacyOptOuts(batch = 500): Promise<number> {
   }
   return users.length;
 }
+
+/** Marks the latest "still want these?" mail as answered (the keep button). */
+export async function recordKeep(
+  userId: string,
+  now: Date = newDate()
+): Promise<void> {
+  await prisma.emailSend.updateMany({
+    where: { userId, ruleKey: "still-want", status: "sent", keptAt: null },
+    data: { keptAt: now },
+  });
+}

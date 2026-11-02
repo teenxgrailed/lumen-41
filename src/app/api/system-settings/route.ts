@@ -5,6 +5,7 @@ import {
   withoutMaskedSecrets,
 } from "@/lib/api/public-records";
 import { requireAdmin } from "@/lib/auth/api-auth";
+import { coerceEmailProgramFields } from "@/lib/email/program-settings";
 import { clearResendInstance } from "@/lib/email/resend";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -63,6 +64,7 @@ export async function PATCH(request: NextRequest) {
     const writable = withoutMaskedSecrets(await request.json());
     delete writable.id;
     delete writable.oidcSigningKey;
+    coerceEmailProgramFields(writable);
     const updates = sealSystemSettingsSecrets(writable);
 
     const settings = await prisma.$transaction(async (tx) => {

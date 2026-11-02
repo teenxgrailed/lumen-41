@@ -24,7 +24,9 @@ function toCounts(rows: Array<{ userId: string | null; n: number }>): Counts {
   return out;
 }
 
-export async function flagStates(userIds: string[]): Promise<Map<string, boolean>> {
+export async function flagStates(
+  userIds: string[]
+): Promise<Map<string, boolean>> {
   const flag = await prisma.featureFlag.findUnique({
     where: { key: EMAIL_PROGRAM_FLAG },
     include: {
@@ -42,7 +44,10 @@ export async function flagStates(userIds: string[]): Promise<Map<string, boolean
     } else if (!flag?.enabled) {
       states.set(id, false);
     } else {
-      states.set(id, rolloutBucket(EMAIL_PROGRAM_FLAG, id) < flag.rolloutPercentage);
+      states.set(
+        id,
+        rolloutBucket(EMAIL_PROGRAM_FLAG, id) < flag.rolloutPercentage
+      );
     }
   }
   return states;
@@ -51,7 +56,9 @@ export async function flagStates(userIds: string[]): Promise<Map<string, boolean
 /** The start of last calendar month and of this one, in UTC. */
 export function lastMonthRange(now: Date): { from: Date; to: Date } {
   const to = newDate(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const from = newDate(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const from = newDate(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)
+  );
   return { from, to };
 }
 

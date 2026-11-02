@@ -1,3 +1,4 @@
+import { flagStates } from "@/services/email-lifecycle/people";
 import { SubscriptionPlan } from "@prisma/client";
 
 import { addCalendarDays, addMinutes, newDate } from "@/lib/date-utils";
@@ -9,7 +10,6 @@ import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import { operatorPostalAddress } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { flagStates } from "@/services/email-lifecycle/people";
 
 type Milestone = "day11" | "day14";
 

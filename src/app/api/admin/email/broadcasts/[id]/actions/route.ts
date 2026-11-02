@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
 
 import { adminActorId } from "@/services/admin/audit";
 import {
@@ -9,6 +8,7 @@ import {
   scheduleBroadcast,
   sendTest,
 } from "@/services/email-broadcasts/service";
+import { z } from "zod";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { requireAdmin } from "@/lib/auth/api-auth";
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const broadcast = await scheduleBroadcast(
         actor,
         id,
-        new Date(parsed.data.at),
+        newDate(parsed.data.at),
         parsed.data.confirmCount ?? null,
         newDate()
       );

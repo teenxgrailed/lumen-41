@@ -1,3 +1,6 @@
+import { recordAdminAudit } from "@/services/admin/audit";
+import { loadPeople } from "@/services/email-lifecycle/people";
+
 import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import { getEmailProgramSettings } from "@/lib/email/program-settings";
@@ -5,15 +8,7 @@ import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { SUPPORT_EMAIL } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { recordAdminAudit } from "@/services/admin/audit";
-import { loadPeople } from "@/services/email-lifecycle/people";
 
-import {
-  BROADCAST_RULE_KEY,
-  broadcastDedupeKey,
-  renderBroadcast,
-  resolveRecipientIds,
-} from "./service";
 import {
   BATCH_SIZE,
   BROADCAST_CAP_DAYS,
@@ -22,6 +17,12 @@ import {
   type Segment,
   decideBroadcastSend,
 } from "./rules";
+import {
+  BROADCAST_RULE_KEY,
+  broadcastDedupeKey,
+  renderBroadcast,
+  resolveRecipientIds,
+} from "./service";
 
 const LOG_SOURCE = "EmailBroadcasts";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,7 +69,7 @@ async function lastBroadcasts(
       ruleKey: BROADCAST_RULE_KEY,
       status: "sent",
       dedupeKey: { not: broadcastDedupeKey(excludeId) },
-      sentAt: { gte: new Date(now.getTime() - BROADCAST_CAP_DAYS * DAY_MS) },
+      sentAt: { gte: newDate(now.getTime() - BROADCAST_CAP_DAYS * DAY_MS) },
     },
     _max: { sentAt: true },
   });

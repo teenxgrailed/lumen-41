@@ -103,8 +103,7 @@ export function getTrialEnding3dTemplate(
     paragraphs: [
       hello(base.name),
       `Your ${APP_NAME} Pro trial ends on ${longDate(base.endsAt)}. After that your account moves to Free, and everything you made stays where it is.`,
-      base.priceLine ??
-        "Pro is $7 a month. The early $7 price is still open.",
+      base.priceLine ?? "Pro is $7 a month. The early $7 price is still open.",
     ],
     button: { label: "Choose Pro", url: at(base, "/settings#billing") },
   });
@@ -191,7 +190,8 @@ export function recapObservation(input: {
 }): string | null {
   const { tasksCompleted: now, previousTasksCompleted: before } = input;
   if (now === null || before === null || before <= 0) return null;
-  if (now > before) return `That is ${now - before} more than the month before.`;
+  if (now > before)
+    return `That is ${now - before} more than the month before.`;
   if (now < before) return `The month before it was ${before}.`;
   return "The same as the month before.";
 }

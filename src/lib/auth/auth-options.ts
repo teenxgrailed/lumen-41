@@ -13,6 +13,7 @@ import { ageConfirmationGate } from "@/lib/auth/age-confirmation";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
+import { touchLastActive } from "@/lib/auth/last-active";
 import {
   enforceSessionVersion,
   issueSessionVersion,
@@ -23,7 +24,6 @@ import {
   isProviderConfigured,
   readSignInProviderConfig,
 } from "@/lib/auth/sign-in-providers";
-import { touchLastActive } from "@/lib/auth/last-active";
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";

@@ -32,7 +32,8 @@ export const CATEGORY_COPY: Record<
 > = {
   tips: {
     label: "Tips",
-    description: "A few short mails in your first weeks about one step at a time.",
+    description:
+      "A few short mails in your first weeks about one step at a time.",
   },
   offers: {
     label: "Offers",

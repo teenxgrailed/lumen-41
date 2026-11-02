@@ -1,5 +1,6 @@
 import { newDate } from "@/lib/date-utils";
 
+import type { Person, Rule, RuleContext, RuleKey } from "./types";
 import {
   firstWeekdayOfMonth,
   localMonthKey,
@@ -7,7 +8,6 @@ import {
   safeTimeZone,
   zonedTimeToUtc,
 } from "./zone";
-import type { Person, Rule, RuleContext, RuleKey } from "./types";
 
 /**
  * The v1 rules of the email programme (openspec add-email-program, design
@@ -120,7 +120,8 @@ export const RULES: Record<Exclude<RuleKey, "gift">, Rule> = {
     weekends: false,
     dueAt: onboardingDue(5),
     expiresAt: onboardingExpiry,
-    skip: (person) => (person.facts.scheduledTaskCount > 0 ? "step-done" : null),
+    skip: (person) =>
+      person.facts.scheduledTaskCount > 0 ? "step-done" : null,
     dedupeKey: () => "",
   },
   "onboard-day9": {

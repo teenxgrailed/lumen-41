@@ -1,3 +1,5 @@
+import { recordAdminAudit } from "@/services/admin/audit";
+import { loadPeople } from "@/services/email-lifecycle/people";
 import type { EmailBroadcast, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -7,8 +9,6 @@ import { getBroadcastTemplate } from "@/lib/email/templates/lifecycle";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { SUPPORT_EMAIL } from "@/lib/legal/operator";
 import { prisma } from "@/lib/prisma";
-import { recordAdminAudit } from "@/services/admin/audit";
-import { loadPeople } from "@/services/email-lifecycle/people";
 
 import {
   type BroadcastInput,
@@ -89,7 +89,10 @@ export async function resolveRecipientIds(
       now
     );
     for (const person of people.values()) {
-      if (inSegment(segment, person, now) && !exclusionReason(person, category)) {
+      if (
+        inSegment(segment, person, now) &&
+        !exclusionReason(person, category)
+      ) {
         out.push(person.userId);
       }
     }
@@ -149,7 +152,10 @@ export async function createBroadcast(actor: Actor, raw: unknown) {
 export async function updateBroadcast(id: string, raw: unknown) {
   const current = await load(id);
   if (current.status !== "draft" && current.status !== "scheduled") {
-    throw new BroadcastError(409, "Only a draft or scheduled broadcast can be edited.");
+    throw new BroadcastError(
+      409,
+      "Only a draft or scheduled broadcast can be edited."
+    );
   }
   const input = parseInput(raw);
   return prisma.emailBroadcast.update({
@@ -172,7 +178,9 @@ export async function updateBroadcast(id: string, raw: unknown) {
 }
 
 /** The template input of a stored broadcast, for a preview and for sending. */
-export function paragraphsOf(row: Pick<EmailBroadcast, "paragraphs">): string[] {
+export function paragraphsOf(
+  row: Pick<EmailBroadcast, "paragraphs">
+): string[] {
   return Array.isArray(row.paragraphs)
     ? row.paragraphs.filter((p): p is string => typeof p === "string")
     : [];
@@ -217,7 +225,10 @@ export async function sendTest(id: string, adminEmail: string) {
   const rendered = renderBroadcast(
     row,
     footer,
-    unsubscribeUrl(`test-${row.id}`, row.category === "offers" ? "offers" : "updates"),
+    unsubscribeUrl(
+      `test-${row.id}`,
+      row.category === "offers" ? "offers" : "updates"
+    ),
     true
   );
   const result = await EmailService.sendEmail({
@@ -234,7 +245,10 @@ export async function sendTest(id: string, adminEmail: string) {
     replyTo: SUPPORT_EMAIL,
   });
   if (!result.jobId) {
-    throw new BroadcastError(409, "The test was not sent (suppressed address or sandbox account).");
+    throw new BroadcastError(
+      409,
+      "The test was not sent (suppressed address or sandbox account)."
+    );
   }
   await prisma.emailBroadcast.update({
     where: { id },
