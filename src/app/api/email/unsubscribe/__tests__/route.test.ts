@@ -33,12 +33,37 @@ describe("one-click unsubscribe route", () => {
       .mockResolvedValue({ id: "u1" } as never);
   });
 
-  it("GET from the footer link unsubscribes without a login", async () => {
+  it("GET changes nothing and shows a confirm button, so link scanners cannot unsubscribe anyone", async () => {
     const response = await GET(
       request(signUnsubscribeToken("u1", "product"), "GET")
     );
     expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("Unsubscribe from these emails?");
+    expect(html).toContain('method="post"');
+    expect(html).toContain("List-Unsubscribe");
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.notificationSettings.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("POST of the confirm button shows the done page", async () => {
+    const response = await POST(
+      new NextRequest(
+        `http://localhost/api/email/unsubscribe?t=${signUnsubscribeToken("u1", "product")}`,
+        { method: "POST", headers: { accept: "text/html" } }
+      )
+    );
+    expect(response.status).toBe(200);
     expect(await response.text()).toContain("You are unsubscribed");
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST (RFC 8058 one-click) answers a blank 200 and unsubscribes", async () => {
+    const response = await POST(
+      request(signUnsubscribeToken("u1", "product"), "POST")
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("");
     expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
   });
 

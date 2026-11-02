@@ -86,11 +86,12 @@ prerequisites for realtime webhooks.
 ## Google Cloud Setup
 
 Set `NEXTAUTH_URL` to the exact public URL users open. It drives OAuth redirects
-and must match the public URL, including scheme and port. Register both redirect
-URIs:
+and must match the public URL, including scheme and port. Register these
+redirect URIs (the last one only if you connect Google Tasks):
 
 - `${NEXTAUTH_URL}/api/calendar/google`
 - `${NEXTAUTH_URL}/api/auth/callback/google`
+- `${NEXTAUTH_URL}/api/task-sync/google/callback`
 
 Google rejects private IP and `.local` redirect hosts. Use `localhost` for local
 development or a verified HTTPS domain for remote deployments.
@@ -100,10 +101,13 @@ Configure the OAuth consent screen with the scopes Needt requests:
 - `https://www.googleapis.com/auth/calendar`
 - `https://www.googleapis.com/auth/calendar.events`
 - `https://www.googleapis.com/auth/userinfo.email`
+- `https://www.googleapis.com/auth/tasks`
 
 Google sign-in itself requests only `openid email profile`. Calendar access is
-requested later, when the user connects a Google calendar. Google Tasks sync is
-temporarily deferred and its scope is not requested.
+requested later, when the user connects a Google calendar. Google Tasks has its
+own consent, asked only when the user connects Google Tasks in Connections (the
+`tasks` scope, plus `userinfo.email` to know which account); the lists the user
+picks are imported one way, from Google into Needt.
 
 ## AI and connectors
 

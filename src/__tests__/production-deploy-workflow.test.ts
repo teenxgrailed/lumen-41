@@ -174,7 +174,19 @@ describe("production deployment workflow", () => {
     const web = job("deploy-web");
     const runtimes = job("deploy-runtimes");
     expect(web).toContain('healthy_sha" = "$DEPLOY_SHA');
-    expect(runtimes).toContain("needs: [changes, images, deploy-web]");
+    expect(runtimes).toContain("needs: [changes, gates, images, deploy-web]");
+    expect(runtimes).toContain("needs.deploy-web.result == 'success'");
+  });
+
+  it("deploys automatic releases even though gates is skipped on workflow_run", () => {
+    for (const name of ["deploy-web", "deploy-runtimes"]) {
+      const deploy = job(name);
+      expect(deploy).toContain("always() && !cancelled()");
+      expect(deploy).toContain(
+        "(needs.gates.result == 'success' || needs.gates.result == 'skipped')"
+      );
+      expect(deploy).toContain("needs.images.result == 'success'");
+    }
   });
 
   it("checks runtime parity through public web and collaboration health", () => {

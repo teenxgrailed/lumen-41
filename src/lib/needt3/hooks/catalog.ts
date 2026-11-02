@@ -41,6 +41,8 @@ export interface IntegrationRow {
   id: string;
   toolkit: string;
   status: string;
+  /** The account a native connection belongs to (Google Tasks: the address). */
+  label?: string;
 }
 
 export interface V3Catalog {

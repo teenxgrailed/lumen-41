@@ -12,9 +12,11 @@ import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
 import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
+import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
 import {
   CATEGORY_LABEL,
   type CnItem,
+  canChooseLists,
   canSyncNow,
   disconnectTitle,
 } from "../../connections/derive";
@@ -374,6 +376,18 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         footer={
           !A ? null : A.state === "connected" ? (
             <>
+              {canChooseLists(A) ? (
+                <PkButton
+                  disabled={aBusy}
+                  onClick={() => {
+                    closeAcct();
+                    c.openTasksLists(A);
+                  }}
+                  data-ppl-lists={A.slug}
+                >
+                  Choose lists
+                </PkButton>
+              ) : null}
               {canSyncNow(A) ? (
                 <PkButton
                   disabled={aBusy}
@@ -510,6 +524,36 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         }
       >
         {c.api ? <ApiAccess mcp={c.mcp} /> : null}
+      </PkSheet>
+
+      {/* Google Tasks: which lists come into Needt, as on the desktop */}
+      <PkSheet
+        open={!!c.tasksLists}
+        onClose={c.closeTasksLists}
+        detents={[0.92]}
+        title={strings.tasksTitle}
+        label={strings.tasksTitle}
+        className="ppl-acct"
+        footer={
+          <PkButton
+            kind="primary"
+            onClick={c.closeTasksLists}
+            data-ppl-lists-done=""
+          >
+            {strings.tasksDone}
+          </PkButton>
+        }
+      >
+        {c.tasksLists?.accountId ? (
+          <GoogleTasksLists
+            providerId={c.tasksLists.accountId}
+            onReconnect={() => {
+              const item = c.tasksLists;
+              c.closeTasksLists();
+              if (item) void c.connect(item);
+            }}
+          />
+        ) : null}
       </PkSheet>
 
       {/* Apple / iCloud takes a CalDAV login, as on the desktop */}

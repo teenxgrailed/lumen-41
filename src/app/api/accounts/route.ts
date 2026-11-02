@@ -31,11 +31,20 @@ export async function GET(request: NextRequest) {
             lastSync: true,
           },
         },
+        TaskProvider: { select: { id: true } },
       },
     });
 
+    // A Google account connected only for Tasks has no calendars: it belongs
+    // to the Google Tasks card, and is not a connected Google Calendar.
+    const calendarAccounts = accounts.filter(
+      (account) =>
+        account.calendars.length > 0 ||
+        (account.TaskProvider?.length ?? 0) === 0
+    );
+
     return NextResponse.json(
-      accounts.map((account) => ({
+      calendarAccounts.map((account) => ({
         id: account.id,
         provider: account.provider,
         email: account.email,

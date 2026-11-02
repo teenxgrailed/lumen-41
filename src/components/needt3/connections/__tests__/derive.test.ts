@@ -6,6 +6,8 @@ import {
   type CnItem,
   aiToolsLocked,
   buildItems,
+  canChooseLists,
+  canSyncNow,
   categoriesOf,
   chipOf,
   chipsOf,
@@ -456,5 +458,46 @@ describe("Pinterest", () => {
       []
     );
     expect(dead[0].state).toBe("disconnected");
+  });
+});
+
+describe("Google Tasks", () => {
+  const tasks = entry("google-tasks", "Google Tasks", "tasks", {
+    native: true,
+  });
+  const on: IntegrationRow[] = [
+    {
+      id: "prov-1",
+      toolkit: "google-tasks",
+      status: "CONNECTED",
+      label: "me@example.com",
+    },
+  ];
+
+  it("is a connected tasks card when the server reports the provider", () => {
+    const [item] = buildItems([tasks], on, []);
+    expect(item).toMatchObject({
+      kind: "tasks",
+      state: "connected",
+      account: "me@example.com",
+      accountId: "prov-1",
+    });
+  });
+  it("needs attention when the provider has an error", () => {
+    const [item] = buildItems([tasks], [{ ...on[0], status: "ERROR" }], []);
+    expect(item.state).toBe("disconnected");
+  });
+  it("connects through its own consent, not the calendar one", () => {
+    expect(
+      connectPlan({ slug: "google-tasks", configured: true, native: true })
+    ).toEqual({ kind: "navigate", href: "/api/task-sync/google/auth" });
+  });
+  it("syncs, picks lists and disconnects as tasks", () => {
+    const [item] = buildItems([tasks], on, []);
+    expect(canSyncNow(item)).toBe(true);
+    expect(canChooseLists(item)).toBe(true);
+    expect(disconnectKind(item)).toBe("tasks");
+    const [off] = buildItems([tasks], [], []);
+    expect(canChooseLists(off)).toBe(false);
   });
 });

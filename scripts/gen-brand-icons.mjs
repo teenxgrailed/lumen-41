@@ -42,6 +42,7 @@ const SPEC = {
   gcal: ["Google Calendar", "logos:google-calendar-2020", W, 0.6],
   gdrive: ["Google Drive", "logos:google-drive-2020", W, 0.6],
   gsheets: ["Google Sheets", "si:googlesheets", W, 0.58, "#34A853"],
+  gtasks: ["Google Tasks", "si:googletasks", W, 0.58, "#2684FC"],
   gemini: [
     "Gemini",
     "si:googlegemini",

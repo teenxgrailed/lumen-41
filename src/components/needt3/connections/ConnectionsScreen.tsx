@@ -14,6 +14,7 @@ import {
   FiAlertTriangle,
   FiCheckCircle,
   FiLink2,
+  FiList,
   FiLock,
   FiMoreHorizontal,
   FiPlus,
@@ -39,10 +40,12 @@ import { AiSetup } from "./AiSetup";
 import { AiToolsPanel } from "./AiToolsPanel";
 import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
+import { GoogleTasksLists } from "./GoogleTasksLists";
 import {
   CATEGORY_LABEL,
   CHIP_LABEL,
   type CnItem,
+  canChooseLists,
   canSyncNow,
   chipsOf,
   disconnectTitle,
@@ -237,6 +240,7 @@ function Card({
   onConnect,
   onDisconnect,
   onSync,
+  onLists,
 }: {
   item: CnItem;
   i: number;
@@ -244,6 +248,7 @@ function Card({
   onConnect: () => void;
   onDisconnect: () => void;
   onSync: () => void;
+  onLists: () => void;
 }) {
   const on = item.state === "connected";
   const down = item.state === "disconnected";
@@ -317,6 +322,16 @@ function Card({
           >
             {busy ? <Spinner /> : <FiPlus size={13} aria-hidden />}
             {busy ? "Connecting" : "Connect"}
+          </button>
+        ) : canChooseLists(item) && !busy ? (
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary nx-btn-sm cn-card-btn-2"
+            data-cn-lists={item.slug}
+            onClick={onLists}
+          >
+            <FiList size={13} aria-hidden />
+            Choose lists
           </button>
         ) : null}
       </div>
@@ -473,6 +488,9 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
     connect,
     disconnect,
     syncNow,
+    tasksLists,
+    openTasksLists,
+    closeTasksLists,
     caldavDone,
   } = ctl;
 
@@ -765,6 +783,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                           onConnect={() => void connect(item)}
                           onDisconnect={() => setConfirm(item)}
                           onSync={() => void syncNow(item)}
+                          onLists={() => openTasksLists(item)}
                         />
                       ))}
                     </div>
@@ -890,6 +909,39 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 }}
               >
                 Done
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Sheet>
+      <Sheet
+        open={!!tasksLists}
+        onClose={closeTasksLists}
+        title={strings.tasksTitle}
+        scrimClassName="nx-scrim cn-sheet-grid"
+        className="nx-sheet cn-sheet-col"
+        style={{ width: 400 }}
+      >
+        {tasksLists?.accountId ? (
+          <>
+            <span className="cn-sheet-title">{strings.tasksTitle}</span>
+            <GoogleTasksLists
+              providerId={tasksLists.accountId}
+              onReconnect={() => {
+                closeTasksLists();
+                void connect(tasksLists);
+              }}
+            />
+            <div className="cn-setup-row-2">
+              <span className="cn-setup-el-2" />
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary"
+                data-cn-lists-done=""
+                autoFocus
+                onClick={closeTasksLists}
+              >
+                {strings.tasksDone}
               </button>
             </div>
           </>

@@ -59,6 +59,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "browsers post CSP reports without credentials; logs a reduced line only, size capped, rate limited",
   "webhooks/google/route.ts": "Google channel id, resource id and token match",
   "webhooks/outlook/route.ts": "Outlook subscription id and clientState match",
+  "webhooks/resend/route.ts":
+    "Resend delivery events: Svix signature on the raw body, 5 minute tolerance, deduped on svix-id",
   "public/booking/[slug]/route.ts": "public booking page, rate limited",
   "public/booking/[slug]/slots/route.ts": "public booking page, rate limited",
   "public/booking/cancel/[token]/route.ts": "capability token, rate limited",
