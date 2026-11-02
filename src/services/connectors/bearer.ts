@@ -25,15 +25,20 @@ import { hashConnectorToken, isConnectorTokenExpired } from "./auth-tokens";
  * - `oauth`: an access token issued to an OAuth client
  *   (`src/services/oauth`), with the scopes and the workspace the person
  *   consented to, bound to the canonical MCP resource.
+ * - `agent`: a named agent token from the Agents screen (agent hub, resolver
+ *   registered by `src/services/agent-hub/register.ts`), with the
+ *   `agents.hub` scope and the workspace it was made for.
  */
 export interface BearerAuth {
   userId: string;
   scopes: McpScope[];
-  kind: "personal" | "oauth";
+  kind: "personal" | "oauth" | "agent";
   /** The workspace an OAuth grant is bound to; personal tokens have none. */
   workspaceId?: string;
   /** The OAuth client the token was issued to. */
   clientId?: string;
+  /** The named agent token (agent hub) this bearer came from. */
+  agentTokenId?: string;
 }
 
 /**

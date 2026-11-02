@@ -16,14 +16,23 @@
  * `needt.admin.read` is the read-only view of the Admin area: never a
  * default, never on a personal token, offered at consent only to an admin,
  * and the admin role is checked again on every call.
+ * `agents.hub` opens only the agent hub tools; it is carried by named agent
+ * tokens and the personal token, not granted through OAuth consent (an OAuth
+ * connection reaches the hub with needt.read / needt.write).
  */
 export const MCP_SCOPES = [
   "needt.read",
   "needt.write",
   "mail.read",
   "needt.admin.read",
+  "agents.hub",
 ] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
+
+/** Scopes advertised in public metadata: the hub scope is behind a flag. */
+export const PUBLIC_MCP_SCOPES = MCP_SCOPES.filter(
+  (scope) => scope !== "agents.hub"
+);
 
 export const ADMIN_READ_SCOPE = "needt.admin.read" satisfies McpScope;
 
@@ -92,7 +101,7 @@ export function mcpResourceMetadata() {
   return {
     resource: mcpResource(),
     authorization_servers: [oauthIssuer()],
-    scopes_supported: [...MCP_SCOPES],
+    scopes_supported: [...PUBLIC_MCP_SCOPES],
     bearer_methods_supported: ["header"],
     resource_name: "Needt",
     resource_documentation: `${oauthIssuer()}/docs/connector-api`,

@@ -52,6 +52,7 @@ export const SCOPE_LABELS: Record<McpScope, string> = {
   "mail.read": "See your mail: senders, subjects and snippets",
   "needt.admin.read":
     "Read admin data: users, sign-ups, plans, flags, logs and bug reports",
+  "agents.hub": "Use the agent hub: hand work to other agents and leave notes",
 };
 
 /**

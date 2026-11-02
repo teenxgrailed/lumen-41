@@ -173,6 +173,27 @@ editor role, so validation, plan limits and side effects match the app. Pages
 and blocks written through MCP are marked as AI-authored. MCP calls are not
 metered as AI actions.
 
+### Agent hub (`agents.hub`, behind the `agent_hub` flag)
+
+Ten tools let agents hand each other work: `needt_agents_list`,
+`needt_agent_register`, `needt_agent_task_create`, `needt_agent_inbox`,
+`needt_agent_task_claim`, `needt_agent_task_update`,
+`needt_agent_task_complete`, `needt_agent_task_escalate`,
+`needt_memory_write`, `needt_memory_search`. They are hidden from `tools/list`
+and answer method-not-found (REST: 404) unless the flag is on for the account.
+The scope `agents.hub` is held by the personal token and by agent tokens
+(`needt_agent_…`, made on the Agents screen, scope `agents.hub` only, shown
+once, revocable); it is never offered through OAuth consent. A client without
+it can still use the hub with `needt.read` (read tools) and `needt.write`
+(write tools).
+
+REST parity under `/api/connect/agent-hub/`: `agents`, `inbox`, `items`,
+`items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`, `notes`,
+`notes/{id}`. The owner's own actions (answer, approve, reassign, token
+create/revoke, note edit/delete) are session-only routes under
+`/api/agent-hub/` and no bearer token can call them. Protocol for agents:
+`docs/agents/hub-protocol.md`.
+
 ### Admin read (`needt.admin.read`)
 
 Read-only access to what the Admin area shows, for an admin's own AI client,

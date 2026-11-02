@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 
+import { AGENT_HUB } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
 export function rolloutBucket(flagKey: string, userId: string) {
@@ -36,4 +37,9 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
     select: { enabled: true, rolloutPercentage: true },
   });
   return Boolean(flag?.enabled) && (flag?.rolloutPercentage ?? 0) >= 100;
+}
+
+/** The agent hub is on for this account (server-side only; see `AGENT_HUB`). */
+export function agentHubEnabled(userId: string) {
+  return isFeatureEnabled(AGENT_HUB, userId);
 }

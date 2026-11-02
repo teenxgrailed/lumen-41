@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Makes bearer auth understand agent hub tokens on every /api/connect/* route.
+import "@/services/agent-hub/register";
 import { WorkspaceRole } from "@prisma/client";
 
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
