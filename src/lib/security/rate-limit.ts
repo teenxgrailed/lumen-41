@@ -44,6 +44,9 @@ export interface RateLimitRule {
   windowSeconds: number;
 }
 
+//todo: the first X-Forwarded-For hop is client-controlled unless the edge
+// proxy overwrites it; trusting it here must match what the proxy does (which
+// hop it appends, whether it strips a client-sent header).
 export function requestIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   return (
