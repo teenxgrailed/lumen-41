@@ -252,6 +252,28 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - **Mobile menu:** Pricing and Download are two centred tiles side by side.
 - **Cache:** `styles.css?v=51`.
 
+## v37 (02.11.26) — pass with Emil Kowalski's skills
+- **Bugs found:**
+  - The v35 regex clean-up broke CSS. It merged a selector into the next rule (`.mx.rv.in /* … */ .devs .sub`), so the devices sub-heading lost its styles. It also deleted the reduced-motion rule for the Plugin chat mock. Both fixed; the add-styles.css brace balance is checked (303/303).
+- **remove-animations:**
+  - Scroll reveals were 0.9s slides on every section; now 0.5s, a 10px lift and a strong ease-out.
+  - Word-by-word headline reveals stay in the hero only.
+  - Persistent loops (final icon bob, "want" pulse, sub-page app icon float) run once or three times.
+- **mobile-native:**
+  - No tap highlight; `touch-action: manipulation` on links and buttons; no text selection on controls.
+  - Hover lift is off on touch.
+  - The Download notify input is 16px (no iOS zoom).
+  - Pinned scenes and skies use `100svh` on phones.
+- **animation-performance:** `transition: all` on the tour rail dot replaced with explicit properties.
+- **emil-design-eng:** press feedback `scale(.97)` on sx/dx buttons.
+- **break-ui:** long unbroken names wrap (`overflow-wrap: anywhere`). The worst-case text test at 320px gives no horizontal scroll.
+- **Cache:** `styles.css?v=52`, `sub.css?v=7`.
+- **v37b, pass 2:**
+  - Every hover that moves something (31 selectors in styles, pages and sub CSS) is off on touch screens; the Budget card's tilted image keeps its tilt.
+  - Brace balance: styles.css 922/922.
+  - Cache: `styles.css?v=53`.
+  - Scroll profile, Chromium, phone with 4× slowdown: frame p95 33 → 17 ms.
+
 ## Deployed as one release (31.10.26)
 - The owner's export (v32–v36 above) was merged onto branch `landing`. Branch facts the export did not have were kept:
   - Trial copy: "14 days of Pro, free. Add a card only if you keep Pro." (#394). The export said "no card" again.
