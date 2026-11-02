@@ -6,6 +6,7 @@ import {
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
+import { AutoScheduleSettingsMissingError } from "@/services/scheduling/errors";
 import { withUserScheduleLock } from "@/services/scheduling/user-schedule-lock";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
 
@@ -344,7 +345,7 @@ async function scheduleAllTasksForUserLocked(
     });
 
     if (!legacySettings) {
-      throw new Error("Auto-schedule settings not found for user");
+      throw new AutoScheduleSettingsMissingError();
     }
 
     // Hours and days are wall-clock in the person's zone; the server runs UTC.

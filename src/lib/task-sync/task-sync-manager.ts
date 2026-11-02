@@ -14,11 +14,13 @@ import {
   TaskListMapping,
 } from "@prisma/client";
 
+import { calendarProviderNeedsReconnect } from "@/lib/calendar-connection-status";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 // Import utility to get Microsoft Graph client
 import { getMsGraphClient } from "@/lib/outlook-utils";
 import { prisma } from "@/lib/prisma";
+import { nextSyncAttemptAfterFailure } from "@/lib/sync-backoff";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 
 import { TaskStatus } from "@/types/task";
@@ -228,6 +230,8 @@ export class TaskSyncManager {
           lastSyncedAt: newDate(),
           syncStatus: "OK",
           lastError: null,
+          syncFailureCount: 0,
+          nextSyncAttemptAt: null,
         },
       });
 
@@ -253,6 +257,12 @@ export class TaskSyncManager {
         data: {
           syncStatus: "ERROR",
           lastError: errorMessage,
+          syncFailureCount: { increment: 1 },
+          nextSyncAttemptAt: nextSyncAttemptAfterFailure(
+            newDate(),
+            (mapping.syncFailureCount ?? 0) + 1,
+            calendarProviderNeedsReconnect(error)
+          ),
         },
       });
 

@@ -280,11 +280,24 @@ export async function deliverTaskReminder(
     // Reminders are push-only, whatever channels are stored on the row: the
     // only task-related email is the daily digest (digest.ts).
     if (shouldAlert(prefs, "reminder", "push", now)) {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         reminder.user.pushSubscriptions.map((subscription) =>
           deliverPush(subscription, payload)
         )
       );
+      // Every push was rejected by its provider: nothing reached the person,
+      // so fail (the job retries) instead of marking it delivered. A dead
+      // subscription resolves false, it is not a rejection.
+      const rejected = results.filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected"
+      );
+      if (results.length > 0 && rejected.length === results.length) {
+        const reason = rejected[0].reason;
+        throw reason instanceof Error
+          ? reason
+          : new Error("Every push delivery was rejected");
+      }
     }
 
     await prisma.taskReminder.update({

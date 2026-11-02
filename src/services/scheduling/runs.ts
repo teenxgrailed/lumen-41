@@ -1,5 +1,6 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
+import { isAutoScheduleSettingsMissing } from "@/services/scheduling/errors";
 import { SchedulingRunSource, SchedulingRunStatus } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -139,6 +140,26 @@ export async function executeSchedulingRun(runId: string) {
     await publishRealtimeEvent(run.userId, "tasks-updated");
     return completed;
   } catch (error) {
+    // Nothing to schedule for a person without settings: close the run as a
+    // no-op success so the job does not retry.
+    if (isAutoScheduleSettingsMissing(error)) {
+      const skipped = await prisma.schedulingRun.update({
+        where: { id: run.id },
+        data: {
+          status: SchedulingRunStatus.SUCCEEDED,
+          changedTaskCount: 0,
+          placedBlockCount: 0,
+          unchangedTaskCount: 0,
+          unscheduled: [],
+          finishedAt: newDate(),
+        },
+      });
+      await publishRealtimeEvent(run.userId, "schedule-run-updated", {
+        runId: run.id,
+        status: skipped.status,
+      });
+      return skipped;
+    }
     const message = error instanceof Error ? error.message : String(error);
     const failed = await prisma.schedulingRun.update({
       where: { id: run.id },

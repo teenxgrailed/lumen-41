@@ -22,6 +22,10 @@ export async function renewCalendarWebhooks(options?: {
   const renewalDeadline = addMinutes(newDate(), RENEWAL_WINDOW_MINUTES);
   const results: Array<{ feedId: string; provider: string; renewed: boolean }> =
     [];
+  // One broken feed must not stop the rest from renewing: collect and throw
+  // once at the end so the job still fails (and retries) visibly.
+  const failures: Array<{ feedId: string; provider: string; error: unknown }> =
+    [];
 
   for (const webhook of webhooks) {
     const forced = Boolean(options?.feedId);
@@ -55,7 +59,11 @@ export async function renewCalendarWebhooks(options?: {
         },
         LOG_SOURCE
       );
-      throw error;
+      failures.push({
+        feedId: webhook.feedId,
+        provider: webhook.provider,
+        error,
+      });
     }
   }
 
@@ -73,13 +81,37 @@ export async function renewCalendarWebhooks(options?: {
       (candidate) => candidate.webhooks.length === 0
     )) {
       if (options?.provider && feed.type !== options.provider) continue;
-      if (feed.type === "GOOGLE") {
-        await registerGoogleWatch(feed.id);
-      } else if (feed.type === "OUTLOOK") {
-        await registerOutlookSubscription(feed.id);
+      try {
+        if (feed.type === "GOOGLE") {
+          await registerGoogleWatch(feed.id);
+        } else if (feed.type === "OUTLOOK") {
+          await registerOutlookSubscription(feed.id);
+        }
+        results.push({ feedId: feed.id, provider: feed.type, renewed: true });
+      } catch (error) {
+        await logger.error(
+          "Calendar webhook registration failed",
+          {
+            feedId: feed.id,
+            provider: feed.type,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          LOG_SOURCE
+        );
+        failures.push({ feedId: feed.id, provider: feed.type, error });
       }
-      results.push({ feedId: feed.id, provider: feed.type, renewed: true });
     }
+  }
+
+  if (failures.length > 0) {
+    const first = failures[0].error;
+    throw new Error(
+      `Calendar webhook renewal failed for ${failures.length} feed(s): ${failures
+        .map((failure) => failure.feedId)
+        .join(", ")}. First error: ${
+        first instanceof Error ? first.message : String(first)
+      }`
+    );
   }
 
   return results;

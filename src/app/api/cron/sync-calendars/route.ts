@@ -4,6 +4,9 @@ import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { requireCronSecret } from "@/lib/cron/auth";
 import { prisma } from "@/lib/prisma";
 
+//todo: this CalDAV branch duplicates the worker's caldav-sweep
+// (src/worker/caldav-sweep.ts) and has no time budget: it syncs every enabled
+// feed in one request. Retire it once the worker sweep is the only path.
 export async function GET(request: NextRequest) {
   const unauthorized = requireCronSecret(request);
   if (unauthorized) return unauthorized;

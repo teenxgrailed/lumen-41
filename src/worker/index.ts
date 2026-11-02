@@ -40,29 +40,29 @@ import {
   CALDAV_SYNC_INTERVAL_MS,
   sweepCalDavFeeds,
 } from "@/worker/caldav-sweep";
+import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   STALE_FEED_SWEEP_INTERVAL_MS,
   sweepStaleFeeds,
 } from "@/worker/feed-sweep";
 import { syncFeedByType } from "@/worker/feed-sync";
 import {
-  STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
-  sweepStaleTaskMappings,
-} from "@/worker/task-mapping-sweep";
-import { syncTaskMapping } from "@/worker/task-mapping-sync";
-import { startExternalHeartbeat } from "@/worker/external-heartbeat";
-import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
 } from "@/worker/health-server";
 import { runWorkerStartupChecks } from "@/worker/startup";
+import {
+  STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
+  sweepStaleTaskMappings,
+} from "@/worker/task-mapping-sweep";
+import { syncTaskMapping } from "@/worker/task-mapping-sync";
 import * as Sentry from "@sentry/node";
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { randomUUID } from "node:crypto";
 
 import {
   getCalendarFeedForSync,
-  updateCalendarFeedSyncState,
+  recordCalendarFeedSyncFailure,
 } from "@/lib/calendar-db";
 import { renewCalendarWebhooks } from "@/lib/calendar-webhooks/renew";
 import { reconcileLifetimeCheckoutReservations } from "@/lib/creem/lifetime-reconciliation";
@@ -189,9 +189,11 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
     return;
   }
   if (!feed.userId || !feed.url || !feed.account) {
-    const message = "Calendar feed is missing user, URL, or account data.";
-    await updateCalendarFeedSyncState(feed.id, { error: message });
-    throw new Error(message);
+    const failure = new Error(
+      "Calendar feed is missing user, URL, or account data."
+    );
+    await recordCalendarFeedSyncFailure(feed.id, failure);
+    throw failure;
   }
 
   try {
@@ -207,8 +209,9 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
     });
     await enqueueReschedule(feed.userId);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await updateCalendarFeedSyncState(feed.id, { error: message });
+    // Records the error, the attempt and the backoff; a failure already
+    // recorded further down (Google) is not counted twice.
+    await recordCalendarFeedSyncFailure(feed.id, error);
     throw error;
   }
 }

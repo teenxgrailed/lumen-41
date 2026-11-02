@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 
 import { Prisma } from "@prisma/client";
 
+import { calendarProviderNeedsReconnect } from "@/lib/calendar-connection-status";
 import { newDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { nextSyncAttemptAfterFailure } from "@/lib/sync-backoff";
 
 import {
   AttendeeStatus,
@@ -53,8 +56,30 @@ export async function getCalendarFeedForSync(feedId: string) {
   });
 }
 
-/** Enabled CALDAV feeds that can be synced: they have an owner, a URL and a login. */
-export async function listCalDavFeedIdsForSweep(): Promise<string[]> {
+/** Feeds whose backoff (set after a failed sync) has passed. */
+function outOfBackoff(now: Date): Prisma.CalendarFeedWhereInput {
+  return {
+    OR: [{ nextSyncAttemptAt: null }, { nextSyncAttemptAt: { lte: now } }],
+  };
+}
+
+/** Oldest last attempt first (a failed attempt counts), never-tried first. */
+const OLDEST_ATTEMPT_FIRST: Prisma.CalendarFeedOrderByWithRelationInput[] = [
+  { lastSyncAttemptAt: { sort: "asc", nulls: "first" } },
+  { lastSync: { sort: "asc", nulls: "first" } },
+];
+
+/**
+ * Enabled CALDAV feeds that can be synced (an owner, a URL and a login), were
+ * not synced in the last `staleAfterMs`, and are not backing off after a
+ * failure. At most `limit`, oldest attempt first, so a big backlog drains over
+ * several runs instead of one burst.
+ */
+export async function listCalDavFeedIdsForSweep(
+  staleAfterMs = 0,
+  limit = 50
+): Promise<string[]> {
+  const now = newDate();
   const feeds = await prisma.calendarFeed.findMany({
     where: {
       type: "CALDAV",
@@ -62,7 +87,18 @@ export async function listCalDavFeedIdsForSweep(): Promise<string[]> {
       userId: { not: null },
       url: { not: null },
       accountId: { not: null },
+      AND: [
+        outOfBackoff(now),
+        {
+          OR: [
+            { lastSync: null },
+            { lastSync: { lt: newDate(now.getTime() - staleAfterMs) } },
+          ],
+        },
+      ],
     },
+    orderBy: OLDEST_ATTEMPT_FIRST,
+    take: limit,
     select: { id: true },
   });
   return feeds.map((feed) => feed.id);
@@ -78,8 +114,10 @@ export async function listStaleWebhookFeedIds(
   staleAfterMs: number,
   limit: number
 ): Promise<string[]> {
+  const now = newDate();
   const feeds = await prisma.calendarFeed.findMany({
     where: {
+      AND: [outOfBackoff(now)],
       type: { in: ["GOOGLE", "OUTLOOK"] },
       enabled: true,
       userId: { not: null },
@@ -90,7 +128,7 @@ export async function listStaleWebhookFeedIds(
         { lastSync: { lt: newDate(newDate().getTime() - staleAfterMs) } },
       ],
     },
-    orderBy: { lastSync: { sort: "asc", nulls: "first" } },
+    orderBy: OLDEST_ATTEMPT_FIRST,
     take: limit,
     select: { id: true },
   });
@@ -103,8 +141,71 @@ export async function updateCalendarFeedSyncState(
 ) {
   return prisma.calendarFeed.update({
     where: { id: feedId },
-    data,
+    // A successful sync (it stamps lastSync) is also the latest attempt and
+    // ends any backoff.
+    data: data.lastSync
+      ? {
+          ...data,
+          lastSyncAttemptAt: data.lastSync,
+          syncFailureCount: 0,
+          nextSyncAttemptAt: null,
+        }
+      : data,
   });
+}
+
+/** Errors already recorded, so a rethrow through two layers counts once. */
+const recordedFailures = new WeakSet<object>();
+
+/**
+ * A sync failed: keep the error, stamp the attempt, count the failure and set
+ * when the sweeps may try again (exponential; a day when the sign-in was
+ * revoked, which the account then shows as needing a reconnect). Never throws:
+ * the caller is already handling the original error.
+ */
+export async function recordCalendarFeedSyncFailure(
+  feedId: string,
+  error: unknown
+): Promise<void> {
+  if (typeof error === "object" && error !== null) {
+    if (recordedFailures.has(error)) return;
+    recordedFailures.add(error);
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  const now = newDate();
+  try {
+    const updated = await prisma.calendarFeed.update({
+      where: { id: feedId },
+      data: {
+        error: message,
+        lastSyncAttemptAt: now,
+        syncFailureCount: { increment: 1 },
+      },
+      select: { syncFailureCount: true },
+    });
+    await prisma.calendarFeed.update({
+      where: { id: feedId },
+      data: {
+        nextSyncAttemptAt: nextSyncAttemptAfterFailure(
+          now,
+          updated.syncFailureCount,
+          calendarProviderNeedsReconnect(error)
+        ),
+      },
+    });
+  } catch (recordError) {
+    await logger.warn(
+      "Could not record calendar feed sync failure",
+      {
+        feedId,
+        error:
+          recordError instanceof Error
+            ? recordError.message
+            : String(recordError),
+      },
+      "CalendarDb"
+    );
+  }
 }
 
 export async function persistGoogleCalendarEvents(options: {

@@ -3032,6 +3032,9 @@ model TaskListMapping {
   lastSyncedAt     DateTime?
   syncStatus       String?
   lastError        String?
+  // Sweep bookkeeping: consecutive failures and the earliest retry time.
+  syncFailureCount Int          @default(0)
+  nextSyncAttemptAt DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   TaskChange       TaskChange[]

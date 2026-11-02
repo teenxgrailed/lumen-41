@@ -3,6 +3,7 @@ import { calendar_v3 } from "googleapis";
 import {
   CalendarEventSyncInput,
   persistGoogleCalendarEvents,
+  recordCalendarFeedSyncFailure,
   updateCalendarFeedSyncState,
 } from "@/lib/calendar-db";
 import { createAllDayDate, newDate, newDateFromYMD } from "@/lib/date-utils";
@@ -248,7 +249,7 @@ export async function syncGoogleCalendar(
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    await updateCalendarFeedSyncState(feed.id, { error: message });
+    await recordCalendarFeedSyncFailure(feed.id, error);
     await logger.error(
       "Google calendar sync failed",
       { feedId: feed.id, error: message },

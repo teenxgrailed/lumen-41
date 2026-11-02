@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { SchedulingRunSource } from "@prisma/client";
-
 import {
   createSchedulingRun,
   executeSchedulingRun,
   reapSchedulingRuns,
 } from "@/services/scheduling/runs";
+import { SchedulingRunSource } from "@prisma/client";
 
 import { requireCronSecret } from "@/lib/cron/auth";
 import { prisma } from "@/lib/prisma";
 import { reapExpiredIdempotencyRecords } from "@/lib/pwa/offline-mutation";
-import {
-  enqueueReschedule,
-  isQueueConfigured,
-} from "@/lib/queue/enqueue";
+import { enqueueReschedule, isQueueConfigured } from "@/lib/queue/enqueue";
 
 const CRON_STATE_ID = "reschedule";
 const BATCH_SIZE = 50;
@@ -32,11 +28,17 @@ export async function GET(request: NextRequest) {
     create: { id: CRON_STATE_ID, lastStartedAt: new Date() },
   });
   let userIds = Array.isArray(state.pendingUserIds)
-    ? state.pendingUserIds.filter((value): value is string => typeof value === "string")
+    ? state.pendingUserIds.filter(
+        (value): value is string => typeof value === "string"
+      )
     : [];
   if (userIds.length === 0) {
     const users = await prisma.user.findMany({
-      where: state.completedCursor ? { id: { gt: state.completedCursor } } : {},
+      where: {
+        // No settings row means nothing to schedule; skip instead of failing.
+        autoScheduleSettings: { isNot: null },
+        ...(state.completedCursor ? { id: { gt: state.completedCursor } } : {}),
+      },
       orderBy: { id: "asc" },
       take: BATCH_SIZE,
       select: { id: true },
@@ -58,7 +60,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const results: Array<{ userId: string; runId?: string; ok: boolean; error?: string }> = [];
+  const results: Array<{
+    userId: string;
+    runId?: string;
+    ok: boolean;
+    error?: string;
+  }> = [];
   const cronWindow = Math.floor(Date.now() / (30 * 60 * 1_000));
   for (const userId of userIds) {
     if (Date.now() - startedAt >= BUDGET_MS) break;
@@ -89,7 +96,10 @@ export async function GET(request: NextRequest) {
     where: { id: CRON_STATE_ID },
     data:
       remaining.length > 0
-        ? { pendingUserIds: remaining, lastError: results.find((r) => !r.ok)?.error }
+        ? {
+            pendingUserIds: remaining,
+            lastError: results.find((r) => !r.ok)?.error,
+          }
         : {
             completedCursor: userIds.at(-1) ?? state.completedCursor,
             pendingCursor: null,
