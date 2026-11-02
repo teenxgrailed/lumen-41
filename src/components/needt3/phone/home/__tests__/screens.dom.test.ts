@@ -645,8 +645,12 @@ describe("Calendar", () => {
       const added = add.mock.calls.filter((c) => /^pointer/.test(String(c[0])));
       expect(added.length).toBe(3);
       act(() => root.unmount());
-      const removed = remove.mock.calls.filter((c) =>
-        /^pointer/.test(String(c[0]))
+      // Only the swipe's own listeners: the idle detector the fog joins
+      // (sky-rest) adds and drops its own window listeners at mount/unmount.
+      const removed = remove.mock.calls.filter(
+        (c) =>
+          /^pointer/.test(String(c[0])) &&
+          added.some((a) => a[0] === c[0] && a[1] === c[1])
       );
       expect(removed.length).toBe(3);
       root = createRoot(host);
