@@ -1,4 +1,9 @@
 import { recordAdminAudit } from "@/services/admin/audit";
+import {
+  CLAIM_TTL_MINUTES,
+  RETRY_AFTER_HOURS,
+  dryRunFromEnv,
+} from "@/services/email-lifecycle/engine";
 import { loadPeople } from "@/services/email-lifecycle/people";
 
 import { newDate } from "@/lib/date-utils";
@@ -13,6 +18,7 @@ import {
   BATCH_SIZE,
   BROADCAST_CAP_DAYS,
   type BroadcastCategory,
+  DEFER_LIMIT_DAYS,
   REQUESTS_PER_SECOND,
   type Segment,
   decideBroadcastSend,
@@ -30,6 +36,31 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TICK_BUDGET_MS = 45_000;
 const GAP_MS = Math.ceil(1000 / REQUESTS_PER_SECOND);
 const MAX_ATTEMPTS = 3;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+/** A cancel must stop the send within about this many mails (~2 s at 5/s). */
+const STILL_SENDING_EVERY = 10;
+
+/**
+ * Who a sending broadcast goes to, resolved once per worker process and kept
+ * until the broadcast ends. Each person is still re-checked when their turn
+ * comes (`decideBroadcastSend`), so a stale entry can only be skipped, never
+ * mailed wrongly. A restart resolves again.
+ */
+const recipientSnapshots = new Map<string, string[]>();
+
+async function recipientsOf(
+  broadcastId: string,
+  segment: Segment,
+  category: BroadcastCategory,
+  now: Date
+): Promise<string[]> {
+  const cached = recipientSnapshots.get(broadcastId);
+  if (cached) return cached;
+  const ids = await resolveRecipientIds(segment, category, now);
+  recipientSnapshots.set(broadcastId, ids);
+  return ids;
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,7 +111,12 @@ async function lastBroadcasts(
   return out;
 }
 
-type Counts = { sent: number; skipped: number; pending: number };
+type Counts = {
+  sent: number;
+  skipped: number;
+  pending: number;
+  dry: number;
+};
 
 /**
  * One tick for one broadcast: send up to a few batches of 100 at no more than
@@ -94,7 +130,8 @@ async function work(
     startedAt: Date | null;
     createdBy: string;
   },
-  deadline: number
+  deadline: number,
+  dryRun: boolean
 ): Promise<Counts> {
   const dedupe = broadcastDedupeKey(broadcast.id);
   const now = newDate();
@@ -105,11 +142,31 @@ async function work(
   });
   if (!full || !settings.footer) {
     // Without the footer nothing optional goes out; try again next tick.
-    return { sent: 0, skipped: 0, pending: 1 };
+    return { sent: 0, skipped: 0, pending: 1, dry: 0 };
   }
   const segment = broadcast.segment as Segment;
   const category = broadcast.category as BroadcastCategory;
-  const ids = await resolveRecipientIds(segment, category, now);
+  const ids = await recipientsOf(broadcast.id, segment, category, now);
+
+  /* A claim with no result after the TTL is a crash between Resend and the
+     ledger. Whether the mail left is unknown, so it is closed as skipped and
+     never resent blindly. */
+  await prisma.emailSend.updateMany({
+    where: {
+      ruleKey: BROADCAST_RULE_KEY,
+      dedupeKey: dedupe,
+      status: "claimed",
+      OR: [
+        { claimedAt: null },
+        {
+          claimedAt: {
+            lt: newDate(now.getTime() - CLAIM_TTL_MINUTES * MINUTE_MS),
+          },
+        },
+      ],
+    },
+    data: { status: "skipped", reason: "unknown-send" },
+  });
 
   const settled = await prisma.emailSend.findMany({
     where: {
@@ -117,7 +174,13 @@ async function work(
       dedupeKey: dedupe,
       userId: { in: ids },
     },
-    select: { userId: true, status: true, deferUntil: true, attempts: true },
+    select: {
+      userId: true,
+      status: true,
+      deferUntil: true,
+      attempts: true,
+      updatedAt: true,
+    },
   });
   const done = new Set<string>();
   const waiting = new Map<string, Date>();
@@ -126,14 +189,30 @@ async function work(
     if (row.status === "deferred" && row.deferUntil && row.deferUntil > now) {
       waiting.set(row.userId, row.deferUntil);
     } else if (row.status === "failed") {
-      if (row.attempts >= MAX_ATTEMPTS) done.add(row.userId);
+      if (row.attempts >= MAX_ATTEMPTS) {
+        done.add(row.userId);
+      } else {
+        // Back off like the lifecycle engine: retry no sooner than an hour on.
+        const retryAt = newDate(
+          row.updatedAt.getTime() + RETRY_AFTER_HOURS * HOUR_MS
+        );
+        if (retryAt > now) waiting.set(row.userId, retryAt);
+      }
+    } else if (row.status === "dry") {
+      // A rehearsal row does not settle a real send.
+      if (dryRun) done.add(row.userId);
     } else if (row.status !== "deferred") {
       done.add(row.userId);
     }
   }
   let todo = ids.filter((id) => !done.has(id) && !waiting.has(id));
+  /* People the flag switched off mid-send get no row: they wait, and the
+     broadcast stays `sending` so it resumes when the flag is back. */
+  let flagWaiting = 0;
+  const giveUpAt = startedAt.getTime() + DEFER_LIMIT_DAYS * DAY_MS;
+  let stopped = false;
 
-  while (todo.length > 0 && Date.now() < deadline) {
+  while (todo.length > 0 && Date.now() < deadline && !stopped) {
     if (!(await isStillSending(broadcast.id))) break;
     const batch = todo.slice(0, BATCH_SIZE);
     todo = todo.slice(BATCH_SIZE);
@@ -142,6 +221,14 @@ async function work(
     let processed = 0;
     for (const userId of batch) {
       if (Date.now() >= deadline) break;
+      if (
+        processed > 0 &&
+        processed % STILL_SENDING_EVERY === 0 &&
+        !(await isStillSending(broadcast.id))
+      ) {
+        stopped = true;
+        break;
+      }
       processed += 1;
       const person = people.get(userId);
       if (!person) continue;
@@ -160,6 +247,14 @@ async function work(
           dedupeKey: dedupe,
         },
       };
+      if (
+        decision.kind === "skip" &&
+        decision.reason === "flag-off" &&
+        now.getTime() < giveUpAt
+      ) {
+        flagWaiting += 1;
+        continue;
+      }
       if (decision.kind === "skip") {
         await prisma.emailSend.upsert({
           where: key,
@@ -197,8 +292,26 @@ async function work(
         });
         continue;
       }
+      if (dryRun) {
+        // A rehearsal: write the row, never call Resend.
+        await prisma.emailSend.upsert({
+          where: key,
+          create: {
+            userId,
+            ruleKey: BROADCAST_RULE_KEY,
+            dedupeKey: dedupe,
+            category,
+            status: "dry",
+            reason: "would-send",
+            broadcastId: broadcast.id,
+          },
+          update: { status: "dry", reason: "would-send" },
+        });
+        continue;
+      }
       // Claim first, send second: the unique slot is the exactly-once guard.
       let claimId: string | null = null;
+      let attempt = 1;
       try {
         const existing = await prisma.emailSend.findUnique({ where: key });
         if (existing) {
@@ -206,7 +319,7 @@ async function work(
             where: {
               id: existing.id,
               updatedAt: existing.updatedAt,
-              status: { in: ["deferred", "failed"] },
+              status: { in: ["deferred", "failed", "dry"] },
             },
             data: {
               status: "claimed",
@@ -216,6 +329,7 @@ async function work(
             },
           });
           claimId = taken.count === 1 ? existing.id : null;
+          attempt = existing.attempts + 1;
         } else {
           const created = await prisma.emailSend.create({
             data: {
@@ -251,6 +365,7 @@ async function work(
           programme: true,
           unsubscribeUrl: link,
           replyTo: SUPPORT_EMAIL,
+          idempotencyKey: `${claimId}:${attempt}`,
         });
         await prisma.emailSend.update({
           where: { id: claimId },
@@ -275,7 +390,8 @@ async function work(
       await sleep(GAP_MS);
     }
     // Anyone the deadline cut off goes back to the front for the next tick.
-    if (processed < batch.length) todo = [...batch.slice(processed), ...todo];
+    if (processed < batch.length && !stopped)
+      todo = [...batch.slice(processed), ...todo];
     if (Date.now() >= deadline) break;
   }
 
@@ -305,16 +421,27 @@ async function work(
     where: { ruleKey: BROADCAST_RULE_KEY, dedupeKey: dedupe },
     _count: { _all: true },
   });
-  const counts: Counts = { sent: 0, skipped: 0, pending: 0 };
+  const counts: Counts = { sent: 0, skipped: 0, pending: 0, dry: 0 };
   for (const row of tallies) {
     const n = row._count._all;
     if (row.status === "sent") counts.sent += n;
-    else if (row.status === "skipped" || row.status === "cancelled") {
+    else if (row.status === "dry") {
+      // In a real send a leftover rehearsal row is still owed a mail.
+      if (dryRun) counts.dry += n;
+      else counts.pending += n;
+    } else if (row.status === "skipped" || row.status === "cancelled") {
       counts.skipped += n;
     } else counts.pending += n;
   }
   // People not yet written at all are still pending.
-  counts.pending += todo.length;
+  counts.pending += todo.length + flagWaiting;
+  if (flagWaiting > 0) {
+    await logger.warn(
+      "Broadcast waiting: the email programme flag is off for some recipients",
+      { broadcastId: broadcast.id, waiting: flagWaiting },
+      LOG_SOURCE
+    );
+  }
   return counts;
 }
 
@@ -324,9 +451,10 @@ async function work(
  * deferred person is retried until the deferral limit drops them.
  */
 export async function sendDueBroadcasts(
-  options: { now?: Date } = {}
+  options: { now?: Date; dryRun?: boolean } = {}
 ): Promise<void> {
   const now = options.now ?? newDate();
+  const dryRun = options.dryRun ?? dryRunFromEnv();
   await startDue(now);
   const sending = await prisma.emailBroadcast.findMany({
     where: { status: "sending" },
@@ -338,10 +466,15 @@ export async function sendDueBroadcasts(
       createdBy: true,
     },
   });
+  const live = new Set(sending.map((row) => row.id));
+  for (const id of recipientSnapshots.keys()) {
+    if (!live.has(id)) recipientSnapshots.delete(id);
+  }
   const deadline = Date.now() + TICK_BUDGET_MS;
   for (const broadcast of sending) {
-    const counts = await work(broadcast, deadline);
+    const counts = await work(broadcast, deadline, dryRun);
     const finished = counts.pending === 0;
+    if (finished) recipientSnapshots.delete(broadcast.id);
     const updated = await prisma.emailBroadcast.updateMany({
       where: { id: broadcast.id, status: "sending" },
       data: {
@@ -358,6 +491,7 @@ export async function sendDueBroadcasts(
           broadcastId: broadcast.id,
           sent: counts.sent,
           skipped: counts.skipped,
+          ...(dryRun ? { dry: counts.dry } : {}),
         },
       });
       await logger.info(

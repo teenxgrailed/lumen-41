@@ -70,6 +70,11 @@ export type Rule = {
   /** Ignores the global cap and does not count towards it. */
   exempt: boolean;
   window: "standard" | "gift";
+  /**
+   * The rule is about the whole relationship (the quarterly check), not one
+   * topic: it is allowed while any optional category is on.
+   */
+  anyCategory?: boolean;
   /** Sent on Saturday and Sunday too (trial ending). */
   weekends: boolean;
   /** When the rule becomes due for this person, or null if never. */

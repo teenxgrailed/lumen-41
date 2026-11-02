@@ -259,4 +259,45 @@ describe("runEmailSweep", () => {
       })
     );
   });
+
+  it("sends the idempotency key <ledgerId>:<attempt> to Resend", async () => {
+    await runEmailSweep({ now: NOW, dryRun: false });
+    expect(sendEmail.mock.calls[0][0].idempotencyKey).toBe("r1:1");
+  });
+
+  it("retries a crashed (stale) claim as the same attempt, so the key repeats", async () => {
+    const stale = new Date(NOW.getTime() - (CLAIM_TTL_MINUTES + 5) * 60_000);
+    jest.mocked(prisma.emailSend.findMany).mockResolvedValue([
+      row({
+        id: "r9",
+        status: "claimed",
+        attempts: 2,
+        claimedAt: stale,
+      }),
+    ] as never);
+    jest
+      .mocked(prisma.emailSend.updateMany)
+      .mockResolvedValue({ count: 1 } as never);
+    await runEmailSweep({ now: NOW, dryRun: false });
+    const claim = jest.mocked(prisma.emailSend.updateMany).mock.calls[0][0];
+    expect(claim.data).not.toHaveProperty("attempts");
+    expect(sendEmail.mock.calls[0][0].idempotencyKey).toBe("r9:2");
+  });
+
+  it("counts a new attempt after a failure", async () => {
+    const earlier = new Date(NOW.getTime() - 3 * 3_600_000);
+    jest.mocked(prisma.emailSend.findMany).mockResolvedValue([
+      row({
+        id: "r8",
+        status: "failed",
+        attempts: 1,
+        updatedAt: earlier,
+      }),
+    ] as never);
+    jest
+      .mocked(prisma.emailSend.updateMany)
+      .mockResolvedValue({ count: 1 } as never);
+    await runEmailSweep({ now: NOW, dryRun: false });
+    expect(sendEmail.mock.calls[0][0].idempotencyKey).toBe("r8:2");
+  });
 });

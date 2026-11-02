@@ -33,6 +33,28 @@ function notDoneYet(rule: RuleKey): Prisma.UserWhereInput {
 }
 
 /**
+ * For rules that repeat per lapse: nobody with a terminal row of this rule
+ * created in the last `days`. Without it the 5000 cap, ordered by id, fills
+ * with people already handled and later ids are never evaluated. A row older
+ * than the window belongs to an earlier lapse, so it does not exclude.
+ */
+function notDoneSince(
+  rule: RuleKey,
+  now: Date,
+  days: number
+): Prisma.UserWhereInput {
+  return {
+    emailSends: {
+      none: {
+        ruleKey: rule,
+        status: { in: TERMINAL_STATUSES },
+        createdAt: { gte: ago(now, days) },
+      },
+    },
+  };
+}
+
+/**
  * The accounts a rule could be due for right now, found with a bounded query
  * on the trigger column. This only narrows the field: `decide` makes the real
  * call for each one. Gift mail is not found here (see gifts.ts).
@@ -70,6 +92,8 @@ function whereFor(
     case "winback-14d":
       return {
         ...base,
+        // A row for this lapse is written on or after day 14 of it.
+        ...notDoneSince(rule, now, DAYS.winback14Until - 14),
         lastActiveAt: {
           gte: ago(now, DAYS.winback14Until),
           lte: ago(now, 14),
@@ -78,6 +102,7 @@ function whereFor(
     case "winback-30d":
       return {
         ...base,
+        ...notDoneSince(rule, now, DAYS.winback30Until - 30),
         lastActiveAt: {
           gte: ago(now, DAYS.winback30Until),
           lte: ago(now, 30),
@@ -86,6 +111,8 @@ function whereFor(
     case "still-want":
       return {
         ...base,
+        // One check per quarter: a row in the last quarter settles this one.
+        ...notDoneSince(rule, now, DAYS.stillWantEvery),
         lastActiveAt: { not: null, lte: ago(now, DAYS.stillWantEvery) },
       };
     case "recap-monthly":

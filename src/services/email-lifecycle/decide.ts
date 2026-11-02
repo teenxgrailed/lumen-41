@@ -104,7 +104,10 @@ export function decide(input: DecideInput): Decision {
     if (person.preferences.paused) {
       return { kind: "skip", reason: "email-paused", record: true };
     }
-    if (!person.preferences.categories[rule.category]) {
+    const allowed = rule.anyCategory
+      ? Object.values(person.preferences.categories).some(Boolean)
+      : person.preferences.categories[rule.category];
+    if (!allowed) {
       return { kind: "skip", reason: "category-off", record: true };
     }
   }

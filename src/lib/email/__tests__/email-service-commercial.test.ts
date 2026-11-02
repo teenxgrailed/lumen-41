@@ -145,4 +145,19 @@ describe("commercial email", () => {
       EmailService.sendEmail({ ...base, subject: "Reset your password" })
     ).resolves.toEqual({ jobId: "" });
   });
+
+  it("sends the idempotency key to Resend as a header, and only when given", async () => {
+    await EmailService.sendEmail({
+      ...base,
+      subject: "Reset your password",
+      idempotencyKey: "row1:2",
+    });
+    const options = mockSend.mock.calls[0][1] as { headers: Headers };
+    expect(options.headers.get("Idempotency-Key")).toBe("row1:2");
+    expect(options.headers.get("Authorization")).toBe("Bearer key");
+
+    mockSend.mockClear();
+    await EmailService.sendEmail({ ...base, subject: "Reset your password" });
+    expect(mockSend.mock.calls[0]).toHaveLength(1);
+  });
 });

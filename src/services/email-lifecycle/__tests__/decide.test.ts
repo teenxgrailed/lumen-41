@@ -449,6 +449,32 @@ describe("decide: the other rules", () => {
     expect(RULES["still-want"].dedupeKey(person, {}, NOW)).toMatch(/:q1$/);
   });
 
+  it("asks 'still want these?' while any optional category is on, even with offers off", () => {
+    const categories = (offers: boolean, tips: boolean) => ({
+      ...makePerson().preferences,
+      categories: {
+        ...makePerson().preferences.categories,
+        offers,
+        tips,
+        updates: false,
+        recap: false,
+      },
+    });
+    const away = { lastActiveAt: daysBefore(NOW, 95) };
+    expect(
+      run(
+        makePerson({ ...away, preferences: categories(false, true) }),
+        RULES["still-want"]
+      )
+    ).toEqual({ kind: "send" });
+    expect(
+      run(
+        makePerson({ ...away, preferences: categories(false, false) }),
+        RULES["still-want"]
+      )
+    ).toEqual({ kind: "skip", reason: "category-off", record: true });
+  });
+
   it("sends the recap only with real activity", () => {
     const base = makePerson();
     const withRecap = (activity: number) =>

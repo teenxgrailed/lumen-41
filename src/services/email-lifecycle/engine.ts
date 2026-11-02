@@ -1,5 +1,10 @@
 import { newDate } from "@/lib/date-utils";
-import { countsTowardsCap, isOptionalCategory } from "@/lib/email/categories";
+import {
+  OPTIONAL_CATEGORIES,
+  type OptionalCategory,
+  countsTowardsCap,
+  isOptionalCategory,
+} from "@/lib/email/categories";
 import { EmailService } from "@/lib/email/email-service";
 import {
   isCategoryEnabled,
@@ -256,8 +261,11 @@ async function claim(
   dedupe: string,
   existing: LedgerRow | undefined,
   now: Date
-): Promise<string | null> {
+): Promise<{ id: string; attempt: number } | null> {
   if (existing) {
+    /* A stale claim is a crash mid-send: the retry is the same attempt, so it
+       carries the same idempotency key and Resend returns the first send. */
+    const sameAttempt = existing.status === "claimed";
     const taken = await prisma.emailSend.updateMany({
       where: {
         id: existing.id,
@@ -267,11 +275,16 @@ async function claim(
       data: {
         status: "claimed",
         claimedAt: now,
-        attempts: { increment: 1 },
+        ...(sameAttempt ? {} : { attempts: { increment: 1 } }),
         reason: null,
       },
     });
-    return taken.count === 1 ? existing.id : null;
+    return taken.count === 1
+      ? {
+          id: existing.id,
+          attempt: Math.max(existing.attempts + (sameAttempt ? 0 : 1), 1),
+        }
+      : null;
   }
   try {
     const created = await prisma.emailSend.create({
@@ -286,7 +299,7 @@ async function claim(
       },
       select: { id: true },
     });
-    return created.id;
+    return { id: created.id, attempt: 1 };
   } catch (error) {
     if ((error as { code?: unknown }).code === "P2002") return null;
     throw error;
@@ -305,21 +318,35 @@ async function finishSend(
   await prisma.emailSend.update({ where: { id }, data });
 }
 
+async function categoryAllowed(
+  userId: string,
+  category: OptionalCategory,
+  anyCategory?: boolean
+): Promise<boolean> {
+  if (!anyCategory) return isCategoryEnabled(userId, category);
+  for (const each of OPTIONAL_CATEGORIES) {
+    if (await isCategoryEnabled(userId, each)) return true;
+  }
+  return false;
+}
+
 /** Sends one claimed optional mail. Returns true when it went out. */
 async function sendOptional(
   person: Person,
   ruleKey: Exclude<RuleKey, "gift">,
   rule: Rule,
-  id: string,
+  claimed: { id: string; attempt: number },
   settings: EmailProgramSettings,
   now: Date
 ): Promise<boolean> {
+  const { id } = claimed;
   const category = rule.category;
   /* The person may have switched the category off since the sweep began: a
-     claimed mail is cancelled, not sent. */
+     claimed mail is cancelled, not sent. A whole-relationship rule needs any
+     optional category to be on. */
   if (
     !isOptionalCategory(category) ||
-    !(await isCategoryEnabled(person.userId, category))
+    !(await categoryAllowed(person.userId, category, rule.anyCategory))
   ) {
     await finishSend(id, { status: "cancelled", reason: "category-off" });
     return false;
@@ -335,6 +362,7 @@ async function sendOptional(
       programme: true,
       unsubscribeUrl: unsubscribeUrl(person.userId, category),
       replyTo: SUPPORT_EMAIL,
+      idempotencyKey: `${id}:${claimed.attempt}`,
     });
     if (!result.jobId) {
       await finishSend(id, { status: "skipped", reason: "dropped" });
@@ -606,8 +634,15 @@ export async function processGiftEmails(
       });
       continue;
     }
-    const id = await claim(person, GIFT_RULE, gift.id, row ?? undefined, now);
-    if (!id) continue;
+    const claimed = await claim(
+      person,
+      GIFT_RULE,
+      gift.id,
+      row ?? undefined,
+      now
+    );
+    if (!claimed) continue;
+    const id = claimed.id;
     try {
       const template = getGiftTemplate({
         name: firstName(person),
@@ -623,6 +658,7 @@ export async function processGiftEmails(
         html: template.html,
         text: template.text,
         replyTo: SUPPORT_EMAIL,
+        idempotencyKey: `${id}:${claimed.attempt}`,
       });
       if (!result.jobId) {
         await finishSend(id, { status: "skipped", reason: "dropped" });

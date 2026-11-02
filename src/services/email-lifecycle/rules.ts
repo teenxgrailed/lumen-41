@@ -212,6 +212,7 @@ export const RULES: Record<Exclude<RuleKey, "gift">, Rule> = {
   "still-want": {
     key: "still-want",
     category: "offers",
+    anyCategory: true,
     priority: 2,
     exempt: false,
     window: "standard",

@@ -158,8 +158,14 @@ export async function updateBroadcast(id: string, raw: unknown) {
     );
   }
   const input = parseInput(raw);
-  return prisma.emailBroadcast.update({
-    where: { id },
+  /* Conditional on the state read above, so a start or another edit that
+     landed in between is not overwritten. */
+  const updated = await prisma.emailBroadcast.updateMany({
+    where: {
+      id,
+      status: { in: ["draft", "scheduled"] },
+      contentUpdatedAt: current.contentUpdatedAt,
+    },
     data: {
       subject: input.subject,
       preheader: input.preheader,
@@ -175,6 +181,13 @@ export async function updateBroadcast(id: string, raw: unknown) {
       contentUpdatedAt: newDate(),
     },
   });
+  if (updated.count !== 1) {
+    throw new BroadcastError(
+      409,
+      "This broadcast changed while you were editing. Reload and try again."
+    );
+  }
+  return load(id);
 }
 
 /** The template input of a stored broadcast, for a preview and for sending. */
@@ -292,9 +305,23 @@ export async function scheduleBroadcast(
   });
   if (!check.ok) throw new BroadcastError(409, check.reason);
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.emailBroadcast.update({
-      where: { id },
+    // Conditional: not if it started, was cancelled or was edited meanwhile.
+    const moved = await tx.emailBroadcast.updateMany({
+      where: {
+        id,
+        status: { in: ["draft", "scheduled"] },
+        contentUpdatedAt: row.contentUpdatedAt,
+      },
       data: { status: "scheduled", scheduledAt: at, recipientCount },
+    });
+    if (moved.count !== 1) {
+      throw new BroadcastError(
+        409,
+        "This broadcast changed while you were scheduling it. Reload and try again."
+      );
+    }
+    const updated = await tx.emailBroadcast.findUniqueOrThrow({
+      where: { id },
     });
     await recordAdminAudit(
       {
