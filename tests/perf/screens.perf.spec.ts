@@ -340,12 +340,17 @@ async function startTrace(cdp: CDPSession) {
     transferMode: "ReportEvents",
     traceConfig: {
       recordMode: "recordAsMuchAsPossible",
-      includedCategories: [
-        "devtools.timeline",
-        "disabled-by-default-devtools.timeline",
-        "disabled-by-default-devtools.timeline.invalidationTracking",
-        "disabled-by-default-blink.debug",
-      ],
+      // lite: the timeline alone, so UpdateLayoutTree durations are close to
+      // real ones (the tracking categories inflate them by roughly 10x).
+      includedCategories:
+        process.env.PERF_TRACE === "lite"
+          ? ["devtools.timeline"]
+          : [
+              "devtools.timeline",
+              "disabled-by-default-devtools.timeline",
+              "disabled-by-default-devtools.timeline.invalidationTracking",
+              "disabled-by-default-blink.debug",
+            ],
       enableSampling: false,
     },
   });
@@ -460,7 +465,7 @@ for (const screen of screens) {
       // Opt-in trace (PERF_TRACE=1): only the Every place interaction, only
       // on iPhone 13 Chromium. The trace JSON lands in perf/trace.
       const tracing =
-        process.env.PERF_TRACE === "1" &&
+        ["1", "lite"].includes(process.env.PERF_TRACE ?? "") &&
         cdp !== null &&
         phone &&
         screen.id === "phone-every-place";
