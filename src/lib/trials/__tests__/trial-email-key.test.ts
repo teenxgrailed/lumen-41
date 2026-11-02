@@ -84,7 +84,7 @@ describe("trial email key", () => {
   });
 
   it("still finds a key stored under the Gmail-only spelling", () => {
-    process.env.RATE_LIMIT_HASH_SECRET = "trial-test-secret";
+    const secret = process.env.RATE_LIMIT_HASH_SECRET ?? "";
     const keys = trialEmailLookupKeys("a+1@outlook.com");
 
     expect(keys).toContain(trialEmailKey("a@outlook.com"));
@@ -92,7 +92,7 @@ describe("trial email key", () => {
     expect(keys).toContain(
       createHmac(
         "sha256",
-        createHmac("sha256", "trial-test-secret")
+        createHmac("sha256", secret)
           .update("needt:trial-email-key:v1")
           .digest()
       )
