@@ -23,6 +23,7 @@ import {
 import { WorkspaceKind } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { closeRedisConnection } from "@/lib/queue/connection";
 
 import { createAgentToken } from "../tokens";
 
@@ -193,6 +194,9 @@ describeIntegration("Agent hub (real database)", () => {
       where: { id: { in: [ownerWorkspace, otherWorkspace] } },
     });
     await prisma.user.deleteMany({ where: { id: { in: [ownerId, otherId] } } });
+    // Hub writes publish realtime events over the shared Redis connection;
+    // left open it keeps Jest alive after the run.
+    await closeRedisConnection();
     await prisma.$disconnect();
   });
 

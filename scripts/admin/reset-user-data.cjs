@@ -20,8 +20,8 @@
  *
  * Every model with a workspace column is filtered to the personal workspace
  * only: AgentAction, AgentRun, AiConversation, AiMessage, AgentMemory,
- * ImportRun, SchedulingRun and WeeklyFocusTarget rows in shared workspaces
- * are kept. TimeEntry goes only with personal tasks. A Tag goes only if none
+ * HubAgent, HubItem, HubNote, ImportRun, SchedulingRun and
+ * WeeklyFocusTarget rows in shared workspaces are kept. TimeEntry goes only with personal tasks. A Tag goes only if none
  * of its tasks lives outside the personal workspace. Rows without a
  * workspace column (settings, calendars, mail, AiUsage, notifications, ...)
  * are deleted by user id. Side effect in shared workspaces: deleting the
@@ -107,6 +107,10 @@ function buildPlan(userId, workspaceId) {
     ["AiMessage", "aiMessage", any(ws, viaWs("conversation"))],
     ["AiConversation", "aiConversation", wsOnly],
     ["AgentMemory", "agentMemory", wsOnly],
+    // Agent hub. HubItemEvent and HubAgentToken go with their parents (cascade).
+    ["HubNote", "hubNote", wsOnly],
+    ["HubItem", "hubItem", wsOnly],
+    ["HubAgent", "hubAgent", wsOnly],
     ["AiUsage", "aiUsage", uid],
     ["MorningBrief", "morningBrief", uid],
     ["StarterGameState", "starterGameState", uid],

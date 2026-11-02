@@ -1168,14 +1168,14 @@ export async function ownerApprove(
   assertOwner(scope);
   assertNoSecrets({ note: input.note });
   const updated = await mutateItem(scope, id, undefined, (item, _tx, now) => {
-    if (TERMINAL_STATUSES.includes(item.status)) {
-      throw new HubError("TERMINAL", `This item is already ${item.status}.`);
-    }
     if (!item.risks.length) {
       throw new HubError(
         "INVALID",
         "This item declares no risks, so there is nothing to approve."
       );
+    }
+    if (TERMINAL_STATUSES.includes(item.status)) {
+      throw new HubError("TERMINAL", `This item is already ${item.status}.`);
     }
     const unknown = input.risks.filter((risk) => !item.risks.includes(risk));
     if (unknown.length) {
