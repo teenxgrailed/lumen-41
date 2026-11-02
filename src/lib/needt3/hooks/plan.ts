@@ -18,6 +18,8 @@ export interface ApiBilling {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   canManageBilling: boolean;
+  /** The running subscription carries a discount (the student price). */
+  discountApplied?: boolean;
   lifetimeAvailable: boolean;
   /** Lifetime seats still open (cap minus buyers and holds); null if unknown. */
   lifetimeLeft?: number | null;
@@ -25,6 +27,21 @@ export interface ApiBilling {
   checkoutEnabled?: boolean;
   /** Free, address confirmed, and no trial yet under it: "Start trial" works. */
   trialEligible?: boolean;
+  /** The student price (docs/students.md); absent from an older server. */
+  student?: ApiStudent | null;
+}
+
+/** `GET /api/billing` → `student`. */
+export interface ApiStudent {
+  status: "none" | "verified" | "lapsed";
+  /** The sign-in address is confirmed and at a recognised university. */
+  accountEmailQualifies: boolean;
+  /** Checkout applies the student price to Pro monthly and yearly. */
+  priceApplies: boolean;
+  email: string | null;
+  source: "auto" | "manual" | null;
+  percentOff: number;
+  supportEmail: string;
 }
 
 export type V3PlanKind = "free" | "trial" | "monthly" | "yearly" | "lifetime";

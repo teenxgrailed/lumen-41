@@ -29,12 +29,10 @@ describe("email templates", () => {
     expect(escapeHtml("<&>\"'")).toBe("&lt;&amp;&gt;&quot;&#39;");
   });
 
-  it("never renders a placeholder, with or without an address", () => {
+  it("prints the site, never a placeholder, until the owner sets the address", () => {
     delete process.env.OPERATOR_POSTAL_ADDRESS;
     delete process.env.EMAIL_FOOTER_ADDRESS;
-    for (const [, mail] of Object.entries(sampleEmails())) {
-      expect(`${mail.html}\n${mail.text}`).not.toMatch(/\[OWNER|\{\{|\}\}/);
-    }
+    expect(sampleEmails().welcome.text).toContain("Needt - needt.app");
     process.env.OPERATOR_POSTAL_ADDRESS = "Needt Ltd, 1 Street";
     expect(sampleEmails().welcome.text).toContain("Needt Ltd, 1 Street");
     delete process.env.OPERATOR_POSTAL_ADDRESS;
@@ -43,18 +41,13 @@ describe("email templates", () => {
     delete process.env.EMAIL_FOOTER_ADDRESS;
   });
 
-  it("refuses to render a commercial mail whose footer is a placeholder", () => {
-    expect(() =>
-      renderEmail({
-        subject: "s",
-        preheader: "p",
-        heading: "h",
-        paragraphs: ["x"],
-        kind: "commercial",
-        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
-        footer: { name: "{{NAME}}", address: "[OWNER: address]" },
-      })
-    ).toThrow("operator");
+  it.each(emails)("%s renders no [OWNER or {{ placeholder", (_name, mail) => {
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
+    delete process.env.EMAIL_FOOTER_ADDRESS;
+    for (const out of [mail.subject, mail.html, mail.text]) {
+      expect(out).not.toContain("[OWNER");
+      expect(out).not.toContain("{{");
+    }
   });
 
   const COMMERCIAL = ["trial-ending", "trial-ended"] as const;
@@ -77,15 +70,46 @@ describe("email templates", () => {
     expect(mail.html).toContain("1 Example Street, Example City");
   });
 
+  it("refuses to render a commercial mail whose footer is a placeholder", () => {
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
+        footer: { name: "{{NAME}}", address: "[OWNER: address]" },
+      })
+    ).toThrow("operator");
+  });
+
+  it("refuses to render a commercial mail with no footer and no address", () => {
+    delete process.env.OPERATOR_POSTAL_ADDRESS;
+    delete process.env.EMAIL_FOOTER_ADDRESS;
+    expect(() =>
+      renderEmail({
+        subject: "s",
+        preheader: "p",
+        heading: "h",
+        paragraphs: ["x"],
+        kind: "commercial",
+        unsubscribeUrl: "https://use.needt.app/api/email/unsubscribe?t=x",
+      })
+    ).toThrow("operator");
+  });
+
   it("transactional mail has no unsubscribe footer", () => {
     const all = sampleEmails();
     for (const name of [
       "verify-email",
       "password-reset",
       "welcome",
-      "reminder",
       "booking-confirmed",
       "account-export",
+      "student-verify",
+      "student-recheck",
+      "student-price-ending",
     ] as const) {
       expect(all[name].text).not.toMatch(/unsubscribe/i);
     }
