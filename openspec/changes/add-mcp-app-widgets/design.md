@@ -37,9 +37,11 @@ Each description says what a model should use it for ("Show ... to the person") 
 
 `needt_complete_task` and `needt_undo` keep default visibility `["model","app"]`, which is what lets a view call them. We do not add an app-only twin: a second write path is a second place for scope, workspace, role and undo rules to drift.
 
-### 3. A hand-written bridge, not the SDK
+### 3. The official SDK for the bridge (owner decision 2026-11-02)
 
-The view side needs a `ui/initialize` request and `ui/notifications/initialized`, a `ui/notifications/tool-result` listener, `tools/call`, and a response matcher by id. That is a small amount of code (`widgets/bridge.ts`, inlined into each HTML as a string). It matches how `server.ts` is written, avoids a dependency and a bundler step, and is easy to test with a fake host. Cost: we follow spec changes by hand. If the SDK is preferred, only `bridge.ts` changes.
+The view side uses the `App` class from `@modelcontextprotocol/ext-apps` (pinned exact version, added to `package.json`) for the `ui/initialize` handshake, `tool-result` delivery and `tools/call`. The owner chose it so the bridge follows the standard as it moves (the 2026-07-28 core revision already changes negotiation) instead of us tracking it by hand.
+
+There is no bundler for widget HTML, so `widgets/bridge.ts` reads the package's prebuilt browser ESM build once at module load and inlines it into each HTML as a `<script type="module">`. First task: confirm the package ships a standalone browser build with no bare imports; if it does not, add a one-file esbuild step at build time that writes `widgets/bridge.generated.js`, checked in and verified by a test that rebuilds it. Our own code in the view only calls `App` methods, so a version bump touches one line.
 
 ### 4. Resources: static HTML, data never in the template
 
@@ -84,7 +86,7 @@ Rules come from PORT.md section 0 and CLAUDE.md, applied to a small iframe.
 
 ```
 src/services/connectors/mcp/widgets/
-  bridge.ts      // postMessage JSON-RPC client, exported as a string for inlining
+  bridge.ts      // inlines the ext-apps App browser build as a string
   tokens.ts      // copied tokens
   base.ts        // shared reset and row styles
   today.ts  tasks.ts  project.ts   // each exports { uri, name, html }

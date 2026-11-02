@@ -17,7 +17,8 @@
 
 ## 3. Bridge and shared view code
 
-- [ ] 3.1 `widgets/bridge.ts`: `ui/initialize` handshake, `tool-result` listener (text, with `structuredContent` fallback), `tools/call` with id matching and timeout, host theme, size reporting coalesced to one rAF.
+- [ ] 3.0 Add `@modelcontextprotocol/ext-apps` at an exact version; confirm it ships a standalone browser ESM build (else add the one-file esbuild step from design.md §3).
+- [ ] 3.1 `widgets/bridge.ts` (wrapping the SDK `App` class): `ui/initialize` handshake, `tool-result` listener (text, with `structuredContent` fallback), `tools/call` with id matching and timeout, host theme, size reporting coalesced to one rAF.
 - [ ] 3.2 Test the bridge against a fake host (handshake order, out-of-order replies, host that never answers, malformed messages ignored).
 - [ ] 3.3 `widgets/tokens.ts` plus a drift test that parses `needt-ds-tokens.css` and `needt-themes.css` and compares every copied value.
 - [ ] 3.4 `widgets/base.ts`: reset, 13px and 12px scale, ring-first surfaces, 32px row, tick control, focus ring, reduced-motion.

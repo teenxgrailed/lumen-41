@@ -30,7 +30,7 @@ Out of scope for this slice: habit streak, goals, pages, mail, forms that create
 - Code: `src/services/connectors/mcp/server.ts` (initialize result, `resources/*`), `tools.ts` (three tools, `_meta` on `tools/list`), new `src/services/connectors/mcp/widgets/` (bridge, tokens, three views, registry), `src/app/api/mcp/route.ts` (`resources/*` pass auth; no scope change for tools).
 - Docs: `docs/connector-api.md`, `CHANGELOG.md` under `[unreleased]`.
 - Tests: Jest unit tests for the registry, the `resources/*` handlers, scope and workspace behaviour of the view tools, the private-page and mail rules, a token-drift test, and a fake-host test of the widget bridge. No browser is needed in CI for the first slice.
-- Dependencies: none added. The widget bridge is a small hand-written postMessage JSON-RPC client (design.md, decision 3).
+- Dependencies: `@modelcontextprotocol/ext-apps`, exact version pinned, for the widget bridge (design.md, decision 3; owner decision 2026-11-02).
 - Risk: client support is uneven and changes monthly (see below). The feature must be invisible when unsupported, and `tools/list` grows by three tools and some `_meta` bytes.
 
 ## Research: where MCP Apps stands (checked 2026-11-02)
@@ -62,12 +62,14 @@ Client support, as of 2026-11-02. The official matrix at modelcontextprotocol.io
 
 Conclusion: the clients that matter to Needt's users (Claude, ChatGPT, VS Code) render MCP Apps, with Claude the only unconditional one. Support is not uniform, so every view must degrade to text and no tool may depend on its view.
 
-## Open questions for the owner
+## Owner decisions (2026-11-02)
 
-1. **New tools or UI on existing ones?** A `ui://` link is per tool, and `needt_list` returns many unrelated types, so a task widget cannot hang off it. This proposal adds `needt_view_today`, `needt_view_tasks`, `needt_view_project` (three more tools in every client's picker). The alternative is no new tools and a UI only on a rebuilt `needt_list`, which loses the project and schedule views. Default if you say nothing: three new tools.
-2. **Plan gate.** Are widgets for every plan, or only for plans that already have MCP access? Free has no AI; this proposal assumes widgets follow whatever MCP access a plan already has and add no new gate.
-3. **Write consent.** A tick calls a write tool on the person's behalf. Hosts differ on whether they prompt for a call that a view makes (Claude lets Team and Enterprise owners switch tool calls off). This proposal adds no Needt-side confirmation for a tick: it is idempotent, rate-limited and undoable (an Undo link for 8 seconds, `needt_undo`). Say if you want a confirm step for anything beyond ticking.
-4. **Bridge: write our own or depend on the SDK?** Default is about 100 lines of hand-written postMessage code, matching the hand-written JSON-RPC server and adding no dependency while disk is tight. The cost is that we track spec changes ourselves; the 2026-07-28 core revision is already moving negotiation.
-5. **Who checks on real hosts?** Agents here may not open browsers on your Mac, so CI covers the protocol with a fake host and nothing exercises claude.ai or ChatGPT. Do you want to check the first build yourself in claude.ai and ChatGPT, or should a hosted preview be arranged?
-6. **Done mark colour.** The design rules allow solid accent only on a mark, and `--success` means done. The tick box uses a `--success` check glyph inside a ring, never a filled green button. Confirm, or name another.
-7. **Shared workspaces.** Events and mail are personal-only today. In a Team workspace the Today view shows tasks only and says events are personal. Confirm that is acceptable and not a reason to hide the view.
+All seven open questions were answered with the recommended option:
+
+1. **Tools:** three new read tools, `needt_view_today`, `needt_view_tasks`, `needt_view_project`; `needt_list` stays plain for API use.
+2. **Plan gate:** none added. Widgets follow whatever MCP access a plan already has.
+3. **Write consent:** no Needt-side confirmation for a tick. It is idempotent, rate-limited and undoable via `needt_undo`.
+4. **Bridge:** the official `@modelcontextprotocol/ext-apps` SDK, exact version pinned (design.md, decision 3).
+5. **Real-host check:** the owner checks the first build in claude.ai and ChatGPT from a 5-step list that ships with the PR. Agents do not open browsers.
+6. **Done mark:** a `--success` check glyph inside a ring. Accent is never a fill.
+7. **Team workspaces:** the Today view shows tasks only and says that events are personal.
