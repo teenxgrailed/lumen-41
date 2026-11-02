@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { useRouter } from "next/navigation";
 
 import { takePostAuthPath } from "@/lib/auth/post-auth-path";
-import { startCheckout } from "@/lib/needt3/hooks/account";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -27,18 +26,14 @@ import {
  * URL drops it. The hash only exists in the browser, so this is a client step
  * after the server has decided the route exists.
  *
- * `?checkout=pro-year|pro-month|lifetime` (the landing's buy links) starts
- * that plan's checkout at once, the way the Plan section's button does. The
- * param is removed from the address first, so a reload or Back cannot start a
- * second one. When checkout is closed ("Checkout opens soon.", "Billing is not
- * configured.") the server's sentence is said and the sheet opens on Plan.
+ * `?checkout=pro-year|pro-month|lifetime` (the landing's buy links) opens the
+ * Plan section. It does not start checkout itself: a purchase first needs the
+ * withdrawal-right box (Terms 5.5) ticked, and that box is in the Plan
+ * section. The param is removed from the address either way.
  */
 export function SettingsRedirect() {
   const router = useRouter();
-  const checkoutStarted = useRef(false);
   useEffect(() => {
-    // A checkout is on its way; do not navigate away from under it.
-    if (checkoutStarted.current) return;
     const { pathname, search, hash } = window.location;
     // The sign-in detours are over once a Settings link has opened.
     takePostAuthPath();
@@ -52,20 +47,14 @@ export function SettingsRedirect() {
       else notify.success(n.title, opts);
     }
 
-    const choice = checkoutFromSearch(search);
-    if (choice) {
-      checkoutStarted.current = true;
+    if (checkoutFromSearch(search)) {
       window.history.replaceState(
         window.history.state,
         "",
         withoutCheckoutParam(`${pathname}${search}${hash}`)
       );
-      void startCheckout(choice).then((r) => {
-        if (r.ok) return; // the browser is on its way to the payment page
-        notify.error(r.error, { dedupeKey: "settings-redirect:checkout" });
-        useNeedt3Ui.getState().openSettings("plan");
-        router.replace("/today");
-      });
+      useNeedt3Ui.getState().openSettings("plan");
+      router.replace("/today");
       return;
     }
 

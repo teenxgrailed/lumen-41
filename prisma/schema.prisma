@@ -112,6 +112,12 @@ model User {
   // Set by the one-click unsubscribe link in a commercial email (trial nudges):
   // no further commercial mail goes to this account. Null means still allowed.
   commercialEmailsOptOutAt DateTime?
+  // The EU/UK "start now, lose the 14-day withdrawal right" acknowledgement
+  // (Terms 5.5), taken at the last paid checkout: when, and the Terms version
+  // (LEGAL_EFFECTIVE_DATE) it was shown against. Overwritten on each checkout.
+  // Null for accounts that never started one.
+  withdrawalWaiverAt     DateTime?
+  withdrawalWaiverTermsVersion String?
   dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]
