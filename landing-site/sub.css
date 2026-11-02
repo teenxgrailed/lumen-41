@@ -236,7 +236,7 @@ body.sub main { background: #fff; }
 }
 .sx-skill > *, .sx-main > *, .lv-in > *, .sx-steps > *, .sx-trio > * { min-width: 0; }
 @media (max-width: 960px) { .lv-in, .sx-main, .sx-skill, .sx-steps, .bx-feat, .bx-plans { grid-template-columns: minmax(0, 1fr); } }
-.sx-appicon { display: block; width: 112px; height: 112px; margin: 0 auto 22px; border-radius: 26px; box-shadow: 0 30px 60px -24px rgba(20,22,60,.55); animation: sxFloat 6s ease-in-out infinite; }
+.sx-appicon { display: block; width: 112px; height: 112px; margin: 0 auto 22px; border-radius: 26px; box-shadow: 0 30px 60px -24px rgba(20,22,60,.55); animation: sxFloat 6s ease-in-out 1; }
 @keyframes sxFloat { 50% { transform: translateY(-6px) rotate(-2deg); } }
 .sx-budget .sx-appicon { border-radius: 30px; box-shadow: 0 30px 60px -24px rgba(15,120,140,.55); }
 .sx-link { color: var(--acc); text-decoration: none; font-weight: 600; } .sx-link:hover { text-decoration: underline; }

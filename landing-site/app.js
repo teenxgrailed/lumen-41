@@ -254,7 +254,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   /* ── AI block ──────────────────────────────────────── */
   const call = $("#b-call"), ghost = $("#b-ghost"), rev = $("#b-rev"), inv = $("#b-inv"), c1 = $("#c1"), c2 = $("#c2");
   const apply = $("#ai-apply"), undo = $("#ai-undo"), status = $("#ai-status");
-  const setTop = (el, k) => { el.style.top = el.dataset[k] + "px"; };
+  /* v37: move by transform (composite only), not `top` (layout every frame) */
+  const setTop = (el, k) => { el.style.transform = `translateY(${(+el.dataset[k]) - (+el.dataset.a)}px)`; };
   async function aiRun() {
     await wait(600);
     ghost.style.opacity = 1; setTop(call, "b"); $("#b-call-t").textContent = "14:00–15:00"; call.classList.add("moved");
