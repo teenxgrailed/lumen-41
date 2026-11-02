@@ -189,10 +189,12 @@ const screens: Screen[] = [
         if (phone) {
           await everyPlace(p);
           await sleep(p, 700);
+          // The row sits in the menu's own scroller, behind its fog: a tap
+          // cannot always reach it, a click event on it opens the same sheet.
           await p
-            .getByRole("button", { name: "Ask Needt" })
+            .locator('[data-nva-row="ask"], [data-nva-tile="ask"]')
             .first()
-            .tap({ timeout: 10_000 });
+            .dispatchEvent("click", undefined, { timeout: 10_000 });
           await sleep(p, 2000);
         } else {
           await p.keyboard.press("Control+KeyJ");
