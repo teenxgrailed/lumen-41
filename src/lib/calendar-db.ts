@@ -68,6 +68,35 @@ export async function listCalDavFeedIdsForSweep(): Promise<string[]> {
   return feeds.map((feed) => feed.id);
 }
 
+/**
+ * Enabled Google and Outlook feeds that were never synced, or not for
+ * `staleAfterMs`. They normally update from push webhooks, which only fire on
+ * changes: a new feed, a missed webhook or an expired channel leaves them
+ * empty. Never-synced feeds come first; the batch is small on purpose.
+ */
+export async function listStaleWebhookFeedIds(
+  staleAfterMs: number,
+  limit: number
+): Promise<string[]> {
+  const feeds = await prisma.calendarFeed.findMany({
+    where: {
+      type: { in: ["GOOGLE", "OUTLOOK"] },
+      enabled: true,
+      userId: { not: null },
+      url: { not: null },
+      accountId: { not: null },
+      OR: [
+        { lastSync: null },
+        { lastSync: { lt: newDate(newDate().getTime() - staleAfterMs) } },
+      ],
+    },
+    orderBy: { lastSync: { sort: "asc", nulls: "first" } },
+    take: limit,
+    select: { id: true },
+  });
+  return feeds.map((feed) => feed.id);
+}
+
 export async function updateCalendarFeedSyncState(
   feedId: string,
   data: { lastSync?: Date; syncToken?: string | null; error?: string | null }
