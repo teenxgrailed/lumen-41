@@ -7,8 +7,7 @@
 
    Differs from the prototype, and why: the link carries a token, not the
    address, so the page cannot sign the person in afterwards ("Save and sign
-   in" becomes "Save password", then Sign in); and the server also asks for an
-   uppercase letter, a lowercase letter and a number, so the hint says so. */
+   in" becomes "Save password", then Sign in). */
 import * as React from "react";
 
 import {

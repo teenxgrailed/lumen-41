@@ -4,25 +4,18 @@
    (desktop, phone) and the tests read the same rules. */
 import { MIN_PASSWORD } from "./auth-logic";
 
-/** The server's rule for a new password (POST /api/auth/reset-password/reset). */
-const PASSWORD_MIX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/;
-
-export type NewPasswordProblem = null | "short" | "mix";
+export type NewPasswordProblem = null | "short";
 
 /** What is wrong with a new password, judged the way the server judges it. */
 export function newPasswordProblem(pass: string): NewPasswordProblem {
   if (pass.length < MIN_PASSWORD) return "short";
-  if (!PASSWORD_MIX.test(pass)) return "mix";
   return null;
 }
 
-export const NEW_PASSWORD_HINT =
-  "At least 8 characters, with an uppercase letter, a lowercase letter and a number.";
+export const NEW_PASSWORD_HINT = "At least 8 characters.";
 
 export function newPasswordText(problem: NewPasswordProblem): string {
   if (problem === "short") return "Use at least 8 characters.";
-  if (problem === "mix")
-    return "Add an uppercase letter, a lowercase letter and a number.";
   return NEW_PASSWORD_HINT;
 }
 

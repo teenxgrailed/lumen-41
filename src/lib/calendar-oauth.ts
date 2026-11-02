@@ -1,4 +1,8 @@
+import { NextResponse } from "next/server";
+
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+
+import { publicAppUrl } from "@/lib/public-url";
 
 export type CalendarProvider = "google" | "outlook";
 
@@ -48,4 +52,24 @@ export function calendarOAuthCookieOptions() {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
   };
+}
+
+/**
+ * Back to Settings > Calendars with the outcome in the query string, clearing
+ * the OAuth state cookie. Every calendar connect branch ends here, so a person
+ * never lands on a bare JSON page mid-redirect.
+ */
+export function calendarSettingsRedirect(
+  request: Parameters<typeof publicAppUrl>[1],
+  provider: CalendarProvider,
+  result: { error?: string; success?: string }
+) {
+  const url = publicAppUrl("/settings", request);
+  url.searchParams.set("provider", provider);
+  if (result.error) url.searchParams.set("calendarError", result.error);
+  if (result.success) url.searchParams.set("calendarSuccess", result.success);
+  url.hash = "calendars";
+  const response = NextResponse.redirect(url);
+  response.cookies.delete(calendarOAuthStateCookie(provider));
+  return response;
 }

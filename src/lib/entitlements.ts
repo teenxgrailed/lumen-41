@@ -154,12 +154,40 @@ export async function canAddMailbox(
     : status;
 }
 
-export async function canAddCalendar(userId: string): Promise<LimitStatus> {
-  const [plan, used] = await Promise.all([
+/**
+ * Whether another calendar account fits the plan. Only accounts that carry a
+ * calendar count: the same Google row also holds Tasks and Gmail tokens, and
+ * those must not use up the calendar slot. `identity` is the account being
+ * (re)authorised; one that already carries calendars is a reconnect, not an
+ * addition. Without `email` it matches any account of that provider, which
+ * lets the OAuth start route let a reconnect through before the address is
+ * known (the callback judges the exact account).
+ */
+export async function canAddCalendar(
+  userId: string,
+  identity?: { provider: string; email?: string }
+): Promise<LimitStatus> {
+  const [plan, used, existing] = await Promise.all([
     getPlan(userId),
-    prisma.connectedAccount.count({ where: { userId } }),
+    prisma.connectedAccount.count({
+      where: { userId, calendars: { some: {} } },
+    }),
+    identity
+      ? prisma.connectedAccount.findFirst({
+          where: {
+            userId,
+            provider: identity.provider,
+            ...(identity.email ? { email: identity.email } : {}),
+            calendars: { some: {} },
+          },
+          select: { id: true },
+        })
+      : null,
   ]);
-  return limitStatus(plan, PLAN_LIMITS[plan].calendars, used);
+  const status = limitStatus(plan, PLAN_LIMITS[plan].calendars, used);
+  return existing
+    ? { ...status, allowed: true, upgradeRequired: false }
+    : status;
 }
 
 export async function canUseAiAgent(userId: string) {

@@ -46,6 +46,15 @@ export function calendarConnectionNotice(
       tone: "error",
     };
   }
+  if (errorCode === "limit_reached") {
+    return {
+      title: `${providerName} wasn’t connected`,
+      description:
+        "Your plan has no room for another calendar account. Disconnect one or upgrade, then try again.",
+      provider: safeProvider,
+      tone: "error",
+    };
+  }
   if (errorCode === "missing_code") {
     return {
       title: `${providerName} didn’t finish connecting`,

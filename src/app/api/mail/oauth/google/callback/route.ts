@@ -13,11 +13,14 @@ import {
   invalidMailOAuthStateResponse,
   verifyMailOAuthCallback,
 } from "@/lib/mail/oauth-state";
+import { GMAIL_OAUTH_SCOPES } from "@/lib/mail/scopes";
 import { publicAppUrl } from "@/lib/public-url";
 import { enqueueMailSync, ensureMailSyncSchedule } from "@/lib/queue/enqueue";
 import { TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "GoogleMailOAuthCallback";
+
+const GMAIL_READ_SCOPE = GMAIL_OAUTH_SCOPES[1];
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
@@ -46,12 +49,26 @@ async function connectGoogleMailbox(
   codeVerifier: string
 ) {
   try {
+    // Cancelling on Google's consent screen is a choice, not a failure.
+    if (request.nextUrl.searchParams.get("error") === "access_denied") {
+      return NextResponse.redirect(
+        publicAppUrl("/mail?error=google-denied", request)
+      );
+    }
     const code = request.nextUrl.searchParams.get("code");
     if (!code) throw new Error("Google OAuth code is missing.");
     const redirectUrl = `${process.env.NEXTAUTH_URL}/api/mail/oauth/google/callback`;
     const oauth2Client = await createGoogleOAuthClient({ redirectUrl });
     const { tokens } = await oauth2Client.getToken({ code, codeVerifier });
     oauth2Client.setCredentials(tokens);
+    // Granular consent lets the person untick the mail box. Without the scope
+    // there is nothing to read, so say so instead of connecting an empty mailbox.
+    const granted = (tokens.scope ?? "").split(/\s+/);
+    if (!granted.includes(GMAIL_READ_SCOPE)) {
+      return NextResponse.redirect(
+        publicAppUrl("/mail?error=google-scope", request)
+      );
+    }
     const profile = await google
       .oauth2({ version: "v2", auth: oauth2Client })
       .userinfo.get();

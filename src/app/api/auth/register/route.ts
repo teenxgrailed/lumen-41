@@ -5,6 +5,7 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
+import { passwordSchema } from "@/lib/auth/password-schema";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import {
   SIGNUPS_CLOSED_CODE,
@@ -33,7 +34,7 @@ const LOG_SOURCE = "RegisterAPI";
 
 const registrationSchema = z.object({
   email: z.string().trim().email().max(254),
-  password: z.string().min(8).max(128),
+  password: passwordSchema,
   name: z.string().trim().max(100).optional(),
   // The browser's zone and language: the account starts in the right time.
   timeZone: z.string().max(64).optional(),

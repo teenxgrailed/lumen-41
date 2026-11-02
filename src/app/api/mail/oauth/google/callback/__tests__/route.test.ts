@@ -98,7 +98,13 @@ describe("google mail OAuth callback", () => {
     process.env.NEXTAUTH_URL = "https://use.needt.app";
     getToken.mockReset();
     getToken.mockResolvedValue({
-      tokens: { access_token: "at", refresh_token: "rt", expiry_date: 1 },
+      tokens: {
+        access_token: "at",
+        refresh_token: "rt",
+        expiry_date: 1,
+        scope:
+          "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
+      },
     });
     (createGoogleOAuthClient as jest.Mock).mockResolvedValue({
       getToken,
@@ -191,7 +197,7 @@ describe("google mail OAuth callback", () => {
     const { session, cookies } = boundCookies();
     const res = await call(
       callbackRequest({
-        query: { error: "access_denied", state: session.state },
+        query: { error: "server_error", state: session.state },
         cookies,
       })
     );
@@ -200,5 +206,40 @@ describe("google mail OAuth callback", () => {
     );
     expect(createOAuthMailAccount).not.toHaveBeenCalled();
     expectCookiesCleared(res);
+  });
+
+  it("treats cancelling the consent screen as a denial, not a failure", async () => {
+    const { session, cookies } = boundCookies();
+    const res = await call(
+      callbackRequest({
+        query: { error: "access_denied", state: session.state },
+        cookies,
+      })
+    );
+    expect(res.headers.get("location")).toBe(
+      "https://use.needt.app/mail?error=google-denied"
+    );
+    expect(getToken).not.toHaveBeenCalled();
+    expect(createOAuthMailAccount).not.toHaveBeenCalled();
+    expectCookiesCleared(res);
+  });
+
+  it("does not connect a mailbox when the mail scope was unticked", async () => {
+    getToken.mockResolvedValue({
+      tokens: {
+        access_token: "at",
+        refresh_token: "rt",
+        expiry_date: 1,
+        scope: "https://www.googleapis.com/auth/userinfo.email",
+      },
+    });
+    const { session, cookies } = boundCookies();
+    const res = await call(
+      callbackRequest({ query: { code: "c", state: session.state }, cookies })
+    );
+    expect(res.headers.get("location")).toBe(
+      "https://use.needt.app/mail?error=google-scope"
+    );
+    expect(createOAuthMailAccount).not.toHaveBeenCalled();
   });
 });

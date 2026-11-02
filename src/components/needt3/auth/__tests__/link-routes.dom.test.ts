@@ -137,11 +137,6 @@ describe.each(["desktop", "phone"] as const)("on the %s face", (ui) => {
       type(password(), "short");
       await click("[data-auth-save-password]");
       expect(host.textContent).toContain("Use at least 8 characters.");
-      type(password(), "alllowercase1");
-      await click("[data-auth-save-password]");
-      expect(host.textContent).toContain(
-        "Add an uppercase letter, a lowercase letter and a number."
-      );
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
