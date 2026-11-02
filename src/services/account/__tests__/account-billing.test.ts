@@ -57,4 +57,40 @@ describe("account deletion billing", () => {
 
     expect(cancel).not.toHaveBeenCalled();
   });
+
+  describe("provider errors", () => {
+    beforeEach(() => {
+      jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
+        creemSubscriptionId: "sub_gone",
+        plan: SubscriptionPlan.PRO,
+        status: SubscriptionStatus.ACTIVE,
+      } as never);
+    });
+
+    it("treats a 404 from Creem as cancelled", async () => {
+      cancel.mockRejectedValue({ statusCode: 404, body: "not found" });
+      await expect(
+        cancelRecurringBillingForDeletion("user-1")
+      ).resolves.toBeUndefined();
+      expect(prisma.subscription.updateMany).toHaveBeenCalled();
+    });
+
+    it("treats an already-cancelled subscription as cancelled", async () => {
+      cancel.mockRejectedValue({
+        statusCode: 400,
+        body: '{"message":"Subscription is already canceled"}',
+      });
+      await expect(
+        cancelRecurringBillingForDeletion("user-1")
+      ).resolves.toBeUndefined();
+    });
+
+    it("rethrows any other provider error and leaves the row alone", async () => {
+      cancel.mockRejectedValue({ statusCode: 500, body: "boom" });
+      await expect(cancelRecurringBillingForDeletion("user-1")).rejects.toEqual(
+        expect.objectContaining({ statusCode: 500 })
+      );
+      expect(prisma.subscription.updateMany).not.toHaveBeenCalled();
+    });
+  });
 });

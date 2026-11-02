@@ -210,6 +210,30 @@ async function tombstoneSharedContent(
         bytes: Buffer.alloc(0),
       },
     }),
+    /* Files the person attached to tasks and moodboards in a workspace that
+       outlives them: the bytes and links go, the rows stay so the shared
+       task or moodboard keeps its shape. */
+    tx.taskAttachment.updateMany({
+      where: { userId },
+      data: {
+        userId: null,
+        name: "deleted-attachment",
+        mimeType: null,
+        size: null,
+        bytes: null,
+        url: null,
+      },
+    }),
+    tx.moodboardAsset.updateMany({
+      where: { userId },
+      data: {
+        userId: null,
+        originalName: "deleted-asset",
+        mimeType: "application/octet-stream",
+        size: 0,
+        bytes: Buffer.alloc(0),
+      },
+    }),
     tx.pageRevision.updateMany({
       where: { userId },
       data: { userId: null, snapshot: {} },
@@ -540,7 +564,21 @@ export async function finalizeAccountDeletion(
       select: { userId: true },
     });
     if (billingRequest?.userId) {
-      await cancelRecurringBillingForDeletion(billingRequest.userId);
+      /* A billing provider outage must not hold the person's data: a failed
+         cancel is logged (and visible there) and the deletion goes on. */
+      await cancelRecurringBillingForDeletion(billingRequest.userId).catch(
+        async (error) => {
+          await logger.error(
+            "Billing cancel failed during account deletion; deletion continues",
+            {
+              requestId,
+              userId: billingRequest.userId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            LOG_SOURCE
+          );
+        }
+      );
       /* Before the rows go: stopping a calendar channel and revoking a grant
          both need the tokens the transaction below deletes. */
       await revokeExternalAccessForDeletion(billingRequest.userId).catch(
@@ -610,6 +648,9 @@ export async function finalizeAccountDeletion(
               where: { email: { equals: email, mode: "insensitive" } },
             }),
             tx.waitlist.deleteMany({
+              where: { email: { equals: email, mode: "insensitive" } },
+            }),
+            tx.appWaitlist.deleteMany({
               where: { email: { equals: email, mode: "insensitive" } },
             }),
           ]);

@@ -80,4 +80,20 @@ describe("account deletion order", () => {
 
     expect(order).toEqual(["billing", "revoke", "transaction"]);
   });
+
+  it("erases even when the billing cancel throws", async () => {
+    jest
+      .mocked(cancelRecurringBillingForDeletion)
+      .mockRejectedValue(new Error("creem down"));
+    jest
+      .mocked(revokeExternalAccessForDeletion)
+      .mockImplementation(async () => {
+        order.push("revoke");
+        return {} as never;
+      });
+
+    await finalizeAccountDeletion("request-1");
+
+    expect(order).toEqual(["revoke", "transaction"]);
+  });
 });

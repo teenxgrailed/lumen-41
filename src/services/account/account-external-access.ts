@@ -50,10 +50,11 @@ async function revokeGoogleToken(token: string): Promise<boolean> {
 
 async function stopCalendarWebhooks(
   userId: string,
-  report: ExternalAccessRevocationReport
+  report: ExternalAccessRevocationReport,
+  accountId?: string
 ) {
   const webhooks = await prisma.calendarWebhook.findMany({
-    where: { feed: { userId } },
+    where: { feed: accountId ? { userId, accountId } : { userId } },
     select: {
       provider: true,
       feedId: true,
@@ -97,7 +98,7 @@ async function stopCalendarWebhooks(
     } catch (error) {
       report.failures.push(`webhook:${webhook.provider}`);
       await logger.warn(
-        "Could not stop calendar webhook before account deletion",
+        "Could not stop calendar webhook before disconnect or deletion",
         {
           feedId: webhook.feedId,
           provider: webhook.provider,
@@ -215,6 +216,136 @@ async function revokeGoogleGrants(
       );
     }
   }
+}
+
+export const DISCONNECT_REVOCATION_BUDGET_MS = 20_000;
+
+export interface GoogleDisconnectReport {
+  webhooksStopped: number;
+  revoked: boolean;
+  /** The grant is shared with another connection or account, so it was kept. */
+  grantKept: boolean;
+  failures: string[];
+}
+
+/**
+ * Another connection of the same person holding the same Google identity (a
+ * calendar and a mailbox each own a row), or another Needt account holding
+ * it. Google revokes per identity and client, so revoking here would cut that
+ * connection off too.
+ */
+async function googleIdentityUsedByOtherConnection(
+  userId: string,
+  accountId: string,
+  email: string | null
+): Promise<boolean> {
+  if (!email) return false;
+  const sameUser = await prisma.connectedAccount.count({
+    where: {
+      userId,
+      provider: "GOOGLE",
+      email: { equals: email, mode: "insensitive" },
+      NOT: { id: accountId },
+    },
+  });
+  return sameUser > 0 || (await googleIdentityUsedElsewhere(userId, email));
+}
+
+/**
+ * Ends one Google connection's access at Google when the person disconnects
+ * it: stops the push channels of its calendars (when asked), then revokes the
+ * grant, refresh token preferred. Same rules as account deletion:
+ * `invalid_token` counts as already revoked, a grant that another connection
+ * or account still uses is kept, and every provider call is bounded. It never
+ * throws, so a Google outage cannot block the disconnect; failures are logged
+ * and reported.
+ *
+ * Call it before the feeds are detached and the row is deleted: both steps
+ * need the stored tokens.
+ */
+export async function revokeGoogleConnectionOnDisconnect(
+  userId: string,
+  accountId: string,
+  options: { stopWebhooks?: boolean; budgetMs?: number } = {}
+): Promise<GoogleDisconnectReport> {
+  const report: GoogleDisconnectReport = {
+    webhooksStopped: 0,
+    revoked: false,
+    grantKept: false,
+    failures: [],
+  };
+  const run = async () => {
+    const account = await prisma.connectedAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, provider: true, email: true },
+    });
+    if (!account || account.provider !== "GOOGLE") return;
+    if (options.stopWebhooks) {
+      const webhookReport: ExternalAccessRevocationReport = {
+        webhooksStopped: 0,
+        googleGrantsRevoked: 0,
+        composioConnectionsDeleted: 0,
+        pushSubscriptionsDeleted: 0,
+        sharedAccessKept: 0,
+        failures: [],
+      };
+      await stopCalendarWebhooks(userId, webhookReport, accountId);
+      report.webhooksStopped = webhookReport.webhooksStopped;
+      report.failures.push(...webhookReport.failures);
+    }
+    if (
+      await googleIdentityUsedByOtherConnection(
+        userId,
+        accountId,
+        account.email
+      )
+    ) {
+      report.grantKept = true;
+      return;
+    }
+    const stored = await TokenManager.getInstance().getTokens(
+      accountId,
+      userId
+    );
+    const token = stored?.refreshToken || stored?.accessToken;
+    if (!token) return;
+    /* Ciphertext is never sent: Google would answer `invalid_token`, which
+       reads as "already revoked", and the grant would stay live. */
+    if (isEncryptedSecret(token)) {
+      report.failures.push("google:ciphertext");
+      return;
+    }
+    report.revoked = await revokeGoogleToken(token);
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      run(),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          report.failures.push("budget");
+          resolve();
+        }, options.budgetMs ?? DISCONNECT_REVOCATION_BUDGET_MS);
+      }),
+    ]);
+  } catch (error) {
+    report.failures.push("google:revoke");
+    await logger.warn(
+      "Could not revoke a Google grant on disconnect",
+      { accountId, error: errorMessage(error) },
+      LOG_SOURCE
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+  if (report.failures.length > 0) {
+    await logger.warn(
+      "Google disconnect finished with failures; disconnect continues",
+      { accountId, failures: report.failures },
+      LOG_SOURCE
+    );
+  }
+  return report;
 }
 
 async function deleteComposioConnections(
