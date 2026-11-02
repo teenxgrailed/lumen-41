@@ -65,8 +65,8 @@ export async function GET(request: NextRequest) {
         toolkit: "google-tasks",
         status:
           googleTasks.accountId && !googleTasks.error ? "CONNECTED" : "ERROR",
-        externalConnectionId: googleTasks.accountId,
-        label: googleTasks.account?.email,
+        externalConnectionId: googleTasks.accountId ?? googleTasks.id,
+        label: googleTasks.account?.email ?? undefined,
       });
     }
     return NextResponse.json({ catalog, connections: rows, isAdmin });
