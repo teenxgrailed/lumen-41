@@ -77,4 +77,23 @@ describe("useSetPref", () => {
       prefs: { accent: "green", docsSort: "viewed", usage: false },
     });
   });
+
+  it("keeps both keys when two writes start together (the dismissed popup stays dismissed)", async () => {
+    const qc = new QueryClient();
+    qc.setQueryData(qk.settings(), settings);
+    await withSetPref(qc, async (setPref) => {
+      await Promise.all([
+        setPref("seenIconPicker", true),
+        setPref("sidebar", { open: true }),
+      ]);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const last = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(last.prefs).toEqual({
+      accent: "green",
+      docsSort: "viewed",
+      seenIconPicker: true,
+      sidebar: { open: true },
+    });
+  });
 });
