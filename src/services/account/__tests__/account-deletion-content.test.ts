@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
+import { cancelRecurringBillingForDeletion } from "../account-billing";
 import { finalizeAccountDeletion } from "../account-deletion";
+import { revokeExternalAccessForDeletion } from "../account-external-access";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -88,6 +90,8 @@ describe("account deletion of file and waitlist rows", () => {
       userId: "user-1",
     });
     db.accountDeletionRequest.update.mockResolvedValue({});
+    jest.mocked(cancelRecurringBillingForDeletion).mockResolvedValue();
+    jest.mocked(revokeExternalAccessForDeletion).mockResolvedValue({} as never);
     db.$transaction.mockImplementation(
       async (run: (tx: unknown) => Promise<void>) => run(fakeTransaction(calls))
     );
