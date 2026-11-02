@@ -55,6 +55,11 @@ import {
 
 import { newDate, toLocalDateKey } from "@/lib/date-utils";
 import { BUILTIN_TEMPLATES } from "@/lib/needt3/builtin-templates";
+import {
+  defaultFeed,
+  feedSubtitle,
+  writableFeeds,
+} from "@/lib/needt3/calendars";
 import { dayLabel } from "@/lib/needt3/derive";
 import {
   useCreateDoc,
@@ -82,6 +87,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
+import { TaskDialogCalendar } from "../dialogs/TaskDialogCalendar";
 import { Tooltip } from "../menu/Tooltip";
 import { templatePageTitle } from "../places/derive";
 import { ReminderPicker, specLabel } from "../task/ReminderPicker";
@@ -95,6 +101,7 @@ import {
   composerDraft,
   composerParse,
   lengthLabel,
+  moveEventToDay,
   pickEnd,
   pickFacet,
   rangeWords,
@@ -148,6 +155,8 @@ interface PickRow {
   Icon: Icon;
   words: string;
   tone?: string;
+  /** A quieter second line: which account a calendar belongs to. */
+  sub?: string;
 }
 
 const PICK: Record<
@@ -353,6 +362,7 @@ function PickMenu({
   current,
   onPick,
   onClear,
+  children,
 }: {
   open: boolean;
   kind: PickKind;
@@ -360,6 +370,8 @@ function PickMenu({
   current: string | null;
   onPick: (words: string) => void;
   onClear: () => void;
+  /** Below the rows: the month grid of the date picker. */
+  children?: ReactNode;
 }) {
   // nx-pop exits in 130 ms; the prototype's 120 cut its last frames (V-D18).
   const [shown, leaving] = useExit(open, 130);
@@ -378,7 +390,7 @@ function PickMenu({
           <span key={`s${i}`} className="cmp-sep" />
         ) : (
           <button
-            key={r.label}
+            key={`${r.words}:${r.label}`}
             type="button"
             role="menuitem"
             className="cmp-row"
@@ -398,6 +410,7 @@ function PickMenu({
               <r.Icon size={14} />
             </span>
             {r.label}
+            {r.sub ? <span className="cmp-sub">{r.sub}</span> : null}
             {current && current.toLowerCase() === r.label.toLowerCase() ? (
               <span className="cmp-hint">
                 <LuCheck size={13} />
@@ -406,6 +419,7 @@ function PickMenu({
           </button>
         )
       )}
+      {children}
       {current ? (
         <>
           <span className="cmp-sep" />
@@ -554,6 +568,8 @@ export function Composer({ open, onClose }: ComposerProps) {
   /* Per-type fields. They live beside the line, not in it: a doc has no
      "tomorrow" and an event's place is not a facet of the sentence. */
   const [calendarId, setCalendarId] = useState<string | null>(null);
+  /* A day picked on the month grid; it overrules the day the line said. */
+  const [pickedDay, setPickedDay] = useState<string | null>(null);
   const [location, setLocation] = useState("");
   const [docProject, setDocProject] = useState<string | null>(null);
   const [template, setTemplate] = useState<string | null>(null);
@@ -585,17 +601,17 @@ export function Composer({ open, onClose }: ComposerProps) {
   /* The sentence read as the chosen type: only a task or an event reads days
      and clocks, so a doc title keeps them as words. */
   const p = useMemo(() => scopeParse(said, kind), [said, kind]);
-  /* v3 writes only into Needt (LOCAL) calendars; synced ones are read-only. */
-  const calendars = useMemo(
-    () => feeds.filter((f) => f.type === "LOCAL" && f.enabled !== false),
-    [feeds]
-  );
+  /* Needt calendars and the writable synced ones (Google, Outlook, CalDAV). */
+  const calendars = useMemo(() => writableFeeds(feeds), [feeds]);
+  const lastCalendarId = useNeedt3Ui((s) => s.lastCalendarId);
+  const setLastCalendarId = useNeedt3Ui((s) => s.setLastCalendarId);
   const templateName =
     BUILTIN_TEMPLATES.find((b) => b.id === template)?.title ??
     saved.find((t) => t.id === template)?.name ??
     null;
   const calendar =
-    calendars.find((f) => f.id === calendarId) ?? calendars[0] ?? null;
+    calendars.find((f) => f.id === calendarId) ??
+    defaultFeed(calendars, lastCalendarId);
 
   useEffect(() => {
     if (!open) {
@@ -613,6 +629,7 @@ export function Composer({ open, onClose }: ComposerProps) {
     setDocProject(null);
     setTemplate(null);
     setCalendarId(null);
+    setPickedDay(null);
   }, [open]);
 
   /* A picker closes on any press outside the footer. */
@@ -685,7 +702,7 @@ export function Composer({ open, onClose }: ComposerProps) {
         undoable("Habit added", undo);
       } else if (draft.kind === "event") {
         const { undo } = await createEvent({
-          ...draft.event,
+          ...(pickedDay ? moveEventToDay(draft.event, pickedDay) : draft.event),
           calendarId: calendar?.id ?? null,
           location: location.trim() || null,
         });
@@ -761,6 +778,7 @@ export function Composer({ open, onClose }: ComposerProps) {
     setType(null);
     setNote(null);
     setLocation("");
+    setPickedDay(null);
     setMenu(null);
     input.current?.focus();
   }
@@ -775,17 +793,21 @@ export function Composer({ open, onClose }: ComposerProps) {
 
   if (!shown || !container) return null;
   const out = leaving ? " is-leaving" : "";
-  const chips = chipsOf(p, kind);
+  /* A day picked on the grid replaces the day chip the line would show. */
+  const chips = chipsOf(p, kind).filter(
+    (c) => !(pickedDay && kind === "event" && c.key === "date")
+  );
   const assumeToday =
     (kind === "task" || kind === "habit" || kind === "event") &&
     !p.date &&
+    !pickedDay &&
     !p.repeat &&
     !!text.trim();
 
   /** A picker whose choice is state beside the line, not words in it. */
   interface Custom {
     value: string | null;
-    rows: PickRow[];
+    rows: (PickRow | null)[];
     onPick: (id: string) => void;
     onClear: () => void;
   }
@@ -827,12 +849,38 @@ export function Composer({ open, onClose }: ComposerProps) {
         onClear: () => edit((t) => stripFacet(t, p.time)),
       }
     : undefined;
+  /* The Date button of an Event: the quick days, plus a month grid. A day
+     picked on the grid is shown here and overrules the day in the line. */
+  const datePick: Custom = {
+    value: pickedDay ? dayLabel(pickedDay) : (p.date?.label ?? null),
+    rows: PICK.date,
+    onPick: (words) => {
+      setPickedDay(null);
+      edit((t) => pickFacet(t, p.date, words));
+    },
+    onClear: () => {
+      setPickedDay(null);
+      edit((t) => stripFacet(t, p.date));
+    },
+  };
+  const dateGrid = (
+    <TaskDialogCalendar
+      value={pickedDay ?? p.date?.day ?? null}
+      today={toLocalDateKey(newDate())}
+      onPick={(day) => {
+        setPickedDay(day);
+        setMenu(null);
+        refocus();
+      }}
+    />
+  );
   const footBtn = (
     k: PickKind,
     Glyph: Icon,
     label: string,
     tone: string,
-    custom?: Custom
+    custom?: Custom,
+    after?: ReactNode
   ) => {
     const word = k === "calendar" || k === "template" || k === "end" ? null : k;
     const value = custom
@@ -888,7 +936,9 @@ export function Composer({ open, onClose }: ComposerProps) {
               ? (setMenu(null), custom.onClear(), refocus())
               : word && edit((t) => stripFacet(t, facetOf(word)))
           }
-        />
+        >
+          {after}
+        </PickMenu>
       </span>
     );
   };
@@ -1162,7 +1212,14 @@ export function Composer({ open, onClose }: ComposerProps) {
             <div className="cmp-foot" ref={foot}>
               {kind === "event" ? (
                 <>
-                  {footBtn("date", LuCalendar, T.date, ACCENT)}
+                  {footBtn(
+                    "date",
+                    LuCalendar,
+                    T.date,
+                    ACCENT,
+                    datePick,
+                    dateGrid
+                  )}
                   {footBtn("time", LuClock, "Time", ACCENT, startPick)}
                   {footBtn("end", LuClock, "End", ACCENT, endPick)}
                   {footBtn(
@@ -1184,9 +1241,13 @@ export function Composer({ open, onClose }: ComposerProps) {
                           Icon: LuCalendarDays,
                           words: f.id,
                           tone: f.color ?? ACCENT,
+                          sub: feedSubtitle(f),
                         })
                       ),
-                      onPick: setCalendarId,
+                      onPick: (id) => {
+                        setCalendarId(id);
+                        setLastCalendarId(id);
+                      },
                       onClear: () => setCalendarId(null),
                     }
                   )}

@@ -683,3 +683,28 @@ export function pickEnd(text: string, p: ComposerParse, end: number): string {
   const base = out.replace(/\s+$/, "");
   return base ? `${base} ${words}` : words;
 }
+
+/** Minutes from one "YYYY-MM-DDTHH:mm" to another (wall-clock, no zone). */
+function minutesBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}:00Z`) - Date.parse(`${from}:00Z`)) / 60000
+  );
+}
+
+/**
+ * An event moved to another day, keeping its clock and its length. The date
+ * field of the Composer uses it: a day picked there overrules whatever day
+ * the sentence said ("fri 11:00" picked onto 6 Nov is 6 Nov 11:00).
+ */
+export function moveEventToDay<E extends { startAt: string; endAt: string }>(
+  event: E,
+  day: string
+): E {
+  const startAt = `${day}${event.startAt.slice(10)}`;
+  const length = minutesBetween(event.startAt, event.endAt);
+  return {
+    ...event,
+    startAt,
+    endAt: addMinutes(startAt, length) ?? startAt,
+  };
+}
