@@ -119,7 +119,7 @@ describe("grantGift", () => {
 
   it("refuses an account that already pays or has Lifetime", async () => {
     grantManualPlan.mockRejectedValueOnce(
-      new BillingGrantError("Has a purchase")
+      new BillingGrantError("PAID_SUBSCRIPTION", "Has a purchase")
     );
     await expect(grantGift(input)).rejects.toMatchObject({ status: 409 });
     grantManualPlan.mockResolvedValueOnce({ currentPeriodEnd: null });

@@ -354,7 +354,11 @@ async function processEmailLifecycle(job: Job<EmailLifecycleJobData>) {
   }
   const summary = await runEmailSweep();
   await applySunset();
-  await logger.info("Email lifecycle sweep", { ...summary }, LOG_SOURCE);
+  await logger.info(
+    "Email lifecycle sweep",
+    { ...summary, skipped: JSON.stringify(summary.skipped) },
+    LOG_SOURCE
+  );
 }
 
 async function processImport(job: Job<ImportJobData>) {

@@ -513,7 +513,11 @@ export async function runEmailSweep(
       }
     }
   }
-  await logger.info("Email sweep finished", { ...summary }, LOG_SOURCE);
+  await logger.info(
+    "Email sweep finished",
+    { ...summary, skipped: JSON.stringify(summary.skipped) },
+    LOG_SOURCE
+  );
   return summary;
 }
 
