@@ -9,10 +9,14 @@ import "@/styles/onboarding/ob3-desk.css";
 import "@/styles/onboarding/ob3.css";
 import "@/styles/v3-entry.css";
 
+import { AgeConfirm } from "@/components/needt3/auth/AgeConfirm";
 import { BrandIcon } from "@/components/needt3/brand/BrandIcon";
 import { Glyph, type GlyphName } from "@/components/needt3/glyphs/Glyph";
+import { WithdrawalWaiver } from "@/components/needt3/paywall/WithdrawalWaiver";
 
+import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
+import { priceStrings } from "@/lib/needt3/pricing";
 import {
   type OnboardingAnswers,
   planTasks,
@@ -29,11 +33,6 @@ import {
 import { dur, durH, hhmm } from "@/lib/onboarding/format";
 import type { WeekPlan } from "@/lib/onboarding/plan";
 import type { CommitResult } from "@/lib/onboarding/server";
-
-import { AgeConfirm } from "@/components/needt3/auth/AgeConfirm";
-import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
-
-import { priceStrings } from "@/lib/needt3/pricing";
 
 import { Ob3Sky } from "./Ob3Sky";
 import { DayList, Week } from "./Ob3Week";
@@ -207,6 +206,7 @@ export function Ob3Flow({
   const [payOpen, setPayOpen] = useState<boolean | null>(null);
   const [paying, setPaying] = useState<"busy" | null>(null);
   const [payErr, setPayErr] = useState<string | null>(null);
+  const [waiver, setWaiver] = useState(false);
   const [commit, setCommit] = useState<
     | { state: "run" }
     | { state: "ok"; r: CommitResult }
@@ -267,7 +267,7 @@ export function Ob3Flow({
 
   const canNext =
     step === "card"
-      ? !paying
+      ? !paying && (payOpen === false || waiver)
       : step === "cats"
         ? a.areas.length > 0
         : step === "tasks"
@@ -454,7 +454,8 @@ export function Ob3Flow({
     try {
       const url = await startCheckout(
         planSel === "life" ? "lifetime" : "pro",
-        billing
+        billing,
+        true
       );
       window.location.assign(url);
     } catch (e) {
@@ -1838,6 +1839,14 @@ export function Ob3Flow({
             </small>
           </span>
         </div>
+        {payOpen !== false ? (
+          <WithdrawalWaiver
+            checked={waiver}
+            onChange={setWaiver}
+            product={life ? "Lifetime" : "Pro"}
+            className="auth-age pw-waiver"
+          />
+        ) : null}
         {payErr ? (
           <p className="ob3-err" role="alert">
             {payErr}

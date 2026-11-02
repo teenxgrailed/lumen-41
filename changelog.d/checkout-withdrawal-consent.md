@@ -1,0 +1,1 @@
+- Before paying for Pro or Lifetime you now confirm that Needt starts at once and that the 14-day withdrawal right ends when it does. The buy buttons stay off until the box is ticked, and the time and Terms version are saved with your account.

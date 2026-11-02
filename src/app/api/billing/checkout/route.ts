@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { WITHDRAWAL_WAIVER_REQUIRED_MESSAGE } from "@/lib/billing/withdrawal-waiver";
 import { getCreemClient } from "@/lib/creem/client";
 import {
   BillingCheckoutSelection,
@@ -16,6 +17,7 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { BILLING_CHECKOUT } from "@/lib/feature-flags-keys";
+import { LEGAL_EFFECTIVE_DATE } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publicAppUrl } from "@/lib/public-url";
@@ -31,15 +33,24 @@ const LOG_SOURCE = "CreemCheckoutAPI";
 /** `from: "onboarding"` returns the buyer to the onboarding's last screen. */
 const fromSchema = z.literal("onboarding").optional();
 
+/**
+ * Terms 5.5: the buyer's acknowledgement that Needt starts now and the 14-day
+ * withdrawal right ends once it has. Checked after the plan is valid, so a
+ * wrong plan still says so; see `withdrawal-waiver.ts`.
+ */
+const waiverSchema = z.boolean().optional();
+
 const checkoutSchema = z.discriminatedUnion("plan", [
   z.object({
     plan: z.literal("pro"),
     interval: z.enum(["month", "year"]),
     from: fromSchema,
+    withdrawalWaiver: waiverSchema,
   }),
   z.object({
     plan: z.literal("lifetime"),
     from: fromSchema,
+    withdrawalWaiver: waiverSchema,
   }),
 ]);
 
@@ -109,6 +120,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (parsed.data.withdrawalWaiver !== true) {
+    return NextResponse.json(
+      { error: WITHDRAWAL_WAIVER_REQUIRED_MESSAGE },
+      { status: 400 }
+    );
+  }
+
   try {
     const selection = parsed.data as BillingCheckoutSelection;
     const productId = getCreemProductId(selection);
@@ -129,6 +147,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // The acknowledgement is recorded before anything is reserved or created:
+    // when, and the Terms version it was shown against.
+    const waiverAt = newDate();
+    await prisma.user.update({
+      where: { id: auth.userId },
+      data: {
+        withdrawalWaiverAt: waiverAt,
+        withdrawalWaiverTermsVersion: LEGAL_EFFECTIVE_DATE,
+      },
+    });
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL?.trim() ||
@@ -177,6 +206,9 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
         plan: selection.plan,
         interval: selection.plan === "pro" ? selection.interval : "once",
+        withdrawalWaiver: "true",
+        withdrawalWaiverAt: waiverAt.toISOString(),
+        termsVersion: LEGAL_EFFECTIVE_DATE,
         ...(lifetimeReservation
           ? { lifetimeReservationId: lifetimeReservation.reservation.id }
           : {}),

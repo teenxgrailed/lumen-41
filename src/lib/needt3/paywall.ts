@@ -58,6 +58,17 @@ export interface PaywallCta {
   action: "trial" | "checkout";
 }
 
+/**
+ * Whether the button needs the withdrawal-right box ticked first (Terms 5.5):
+ * only a button that goes to the payment provider. The free trial takes no
+ * payment, and a blocked button does nothing.
+ */
+export function paywallNeedsWaiver(
+  cta: Pick<PaywallCta, "action" | "blocked">
+): boolean {
+  return cta.action === "checkout" && cta.blocked === null;
+}
+
 type PlanFacts =
   | (Pick<V3Plan, "kind" | "configured" | "lifetimeAvailable"> &
       Partial<Pick<V3Plan, "checkoutEnabled" | "trialEligible">>)

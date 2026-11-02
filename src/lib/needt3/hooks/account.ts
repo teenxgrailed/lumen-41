@@ -196,16 +196,19 @@ export type CheckoutChoice =
  * Start Creem checkout (`POST /api/billing/checkout`) and go to its page.
  * Resolves with the server's error text instead of throwing when checkout is
  * closed (Creem is not configured, lifetime is sold out), so the sheet can
- * say so next to the button.
+ * say so next to the button. `withdrawalWaiver` is the ticked Terms 5.5 box
+ * (src/lib/billing/withdrawal-waiver.ts): the server refuses checkout without
+ * it, so a caller asks the person first.
  */
 export async function startCheckout(
-  choice: CheckoutChoice
+  choice: CheckoutChoice,
+  withdrawalWaiver: true
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const { url } = await sendJson<{ url: string }>(
       "/api/billing/checkout",
       "POST",
-      choice
+      { ...choice, withdrawalWaiver }
     );
     window.location.assign(url);
     return { ok: true };

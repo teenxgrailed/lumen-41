@@ -37,6 +37,7 @@ import {
   lifetimeLeftPct,
   offersTrial,
   paywallCta,
+  paywallNeedsWaiver,
   paywallPick,
   proIncludes,
 } from "@/lib/needt3/paywall";
@@ -55,6 +56,7 @@ import {
   PxSky,
 } from "../scenes";
 import { NeedtAppIcon } from "../wordmark";
+import { WithdrawalWaiver } from "./WithdrawalWaiver";
 
 const LOG_SOURCE = "needt3-paywall";
 
@@ -290,6 +292,8 @@ export function Paywall({
   const [leaving, setLeaving] = useState(false);
   const [shown, setShown] = useState(open);
   const [busy, setBusy] = useState(false);
+  /* Terms 5.5: unticked on every open; checkout stays off until it is ticked. */
+  const [waiver, setWaiver] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   /* What failed, so the sheet names the right thing. */
   const [failedWhat, setFailedWhat] = useState<"trial" | "checkout">(
@@ -303,6 +307,7 @@ export function Paywall({
       setLeaving(false);
       setFailed(null);
       setBusy(false);
+      setWaiver(false);
       if (cycle) setPick(paywallPick(cycle));
       return undefined;
     }
@@ -338,7 +343,13 @@ export function Paywall({
 
   const cta = paywallCta(pick, plan ?? null);
   /* Off until the plan (and with it the checkout switch) has loaded. */
-  const off = !online || !plan || cta.blocked !== null || busy;
+  const needsWaiver = paywallNeedsWaiver(cta);
+  const off =
+    !online ||
+    !plan ||
+    cta.blocked !== null ||
+    busy ||
+    (needsWaiver && !waiver);
 
   /* "Start 14-day free trial": no card and no payment, so it works while
      checkout is closed. The server decides who may have one. */
@@ -383,7 +394,7 @@ export function Paywall({
       const { url } = await sendJson<{ url?: string }>(
         "/api/billing/checkout",
         "POST",
-        checkoutSelection(pick)
+        { ...checkoutSelection(pick), withdrawalWaiver: true }
       );
       if (!url) throw new Error("No checkout URL");
       window.location.assign(url);
@@ -435,6 +446,14 @@ export function Paywall({
           </div>
           <Plans pick={pick} onPick={setPick} plan={plan} />
           <div className="pw-go">
+            {needsWaiver ? (
+              <WithdrawalWaiver
+                checked={waiver}
+                onChange={setWaiver}
+                product={pick === "lifetime" ? "Lifetime" : "Pro"}
+                className="auth-age pw-waiver"
+              />
+            ) : null}
             <button
               type="button"
               className="pw-btn is-primary pw-btn-lg"

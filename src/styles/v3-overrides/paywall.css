@@ -656,3 +656,11 @@
     transition: none;
   }
 }
+
+/* Terms 5.5 box above a buy button (WithdrawalWaiver): worn like .auth-age
+ * but legible over the sky and the settings card. One text colour. */
+.needt-v3 .pw-waiver {
+  max-width: 460px;
+  margin: 0 auto;
+  color: var(--text-primary, var(--ink));
+}
