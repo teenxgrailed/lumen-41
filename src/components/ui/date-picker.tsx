@@ -191,7 +191,7 @@ function DatePickerPanel({
       >
         <div
           className={cn(
-            "flex items-center justify-between gap-1 border-b border-[var(--menu-border)] px-3 text-[14px] text-[var(--text-primary)]",
+            "flex items-center justify-between gap-1 border-b border-[var(--menu-border)] px-3 text-[13px] text-[var(--text-primary)]",
             mobile ? "h-12" : "h-[30px] pb-2"
           )}
         >
@@ -250,7 +250,7 @@ function DatePickerPanel({
               onClick={onDone}
               className={cn(
                 "rounded-md border border-[var(--button-primary-border)] bg-[var(--button-primary-bg)] px-3 font-medium text-[var(--button-primary-fg)] shadow-[var(--button-primary-shadow)] hover:bg-[var(--button-primary-bg-hover)]",
-                mobile ? "h-11 text-[14px]" : "h-7 text-[13px]"
+                mobile ? "h-11 text-[13px]" : "h-7 text-[13px]"
               )}
             >
               Done
@@ -276,7 +276,7 @@ function DatePickerPanel({
               if (!includeTime) onDone();
             }}
             className={cn(
-              "flex items-center justify-between gap-2 rounded-md text-left text-[14px] leading-[18px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--menu-item-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--control-border)]",
+              "flex items-center justify-between gap-2 rounded-md text-left text-[13px] leading-[18px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--menu-item-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--control-border)]",
               mobile
                 ? "min-h-12 px-3 last:col-span-2"
                 : "h-[30px] px-2 py-1.5"

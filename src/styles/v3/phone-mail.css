@@ -26,7 +26,7 @@
 .needt-v3 .pml-from.is-unread { font-weight: 650; }
 .needt-v3 .pml-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .needt-v3 .pml-tag { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--v2p-ink); font-weight: 500; }
-.needt-v3 .pml-time { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.needt-v3 .pml-time { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
 .needt-v3 .pml-dot { flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--v2p-lav); }
 .needt-v3 .pml-sec .pk-row { gap: 14px; }
 
