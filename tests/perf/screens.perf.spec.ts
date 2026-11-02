@@ -79,7 +79,46 @@ async function scrollMain(page: Page) {
     }
     return room;
   });
-  if (max < 40) throw new Error("nothing scrollable on this screen");
+  if (max >= 40) return;
+  // No element scrolls by script: try a real wheel (desktop only).
+  if (!page.viewportSize() || page.viewportSize()!.width < 800)
+    throw new Error("nothing scrollable on this screen");
+  await page.mouse.move(720, 450);
+  for (let i = 0; i < 30; i++) {
+    await page.mouse.wheel(0, 80);
+    await sleep(page, 16);
+  }
+  for (let i = 0; i < 30; i++) {
+    await page.mouse.wheel(0, -80);
+    await sleep(page, 16);
+  }
+}
+
+/* What is on the page when a screen could not be driven. */
+async function diagnose(page: Page) {
+  return page
+    .evaluate(() => ({
+      url: location.pathname,
+      ui: document.querySelector(".needt-v3")?.getAttribute("data-ui") ?? null,
+      docHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+      overflowY: Array.from(document.querySelectorAll<HTMLElement>("*"))
+        .filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY))
+        .slice(0, 12)
+        .map(
+          (e) =>
+            `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 40)} ${e.scrollHeight}/${e.clientHeight}`
+        ),
+      buttons: Array.from(document.querySelectorAll("button,[role=button],a"))
+        .map((e) => e.getAttribute("aria-label") || e.textContent?.trim() || "")
+        .filter(Boolean)
+        .slice(0, 40),
+      inputs: Array.from(document.querySelectorAll("input")).map(
+        (e) => e.getAttribute("placeholder") || e.type
+      ),
+      text: document.body.innerText.replace(/\s+/g, " ").slice(0, 300),
+    }))
+    .catch((e) => ({ error: String(e) }));
 }
 
 async function everyPlace(p: Page) {
@@ -386,15 +425,23 @@ for (const screen of screens) {
       await write({
         status: interaction ? "ok" : "interaction-unreachable",
         reason,
+        diag: interaction ? undefined : await diagnose(page),
         throttle: cdp ? rate : "n/a",
         screenshot: shot,
         idle,
         interaction,
       });
     } catch (e) {
+      await mkdir(path.join(OUT, "shots"), { recursive: true });
+      await page
+        .screenshot({
+          path: path.join(OUT, "shots", `${project}__${screen.id}__fail.png`),
+        })
+        .catch(() => undefined);
       await write({
         status: "unreachable",
         reason: (e as Error).message.split("\n")[0],
+        diag: await diagnose(page),
       });
     }
   });
