@@ -2,20 +2,9 @@ import {
   OPERATOR_COUNTRY,
   PRIVACY_EMAIL,
   SUPPORT_EMAIL,
-  eu27Representative,
   formatLegalDate,
   operatorName,
 } from "../operator";
-
-function representativeSection(): string {
-  const contact = eu27Representative();
-  if (contact) {
-    return `We are established outside the European Union and offer Needt to people in it, so we have appointed a representative in the EU under GDPR Article 27. You can contact them instead of us about anything in this notice:
-
-> ${contact}`;
-  }
-  return `We are established outside the European Union and offer Needt to people in it, so we are appointing **DataRep** as our representative in the EU under GDPR Article 27. Their contact details will appear here as soon as the appointment is complete. Until then, write to **${PRIVACY_EMAIL}** with "EU representative" in the subject, and we will answer as the representative would.`;
-}
 
 /** The Privacy Notice, as Markdown. Rendered by `src/app/privacy/page.tsx`. */
 export function privacyMarkdown(): string {
@@ -41,10 +30,6 @@ Needt is run by an individual entrepreneur (FOP) registered in Ukraine, not a co
 - **Postal address:** available on request to ${PRIVACY_EMAIL}
 
 "Needt", "we" and "us" mean the operator above. "You" means anyone who uses Needt or joins the waitlist.
-
-### EU representative (GDPR Article 27)
-
-${representativeSection()}
 
 ---
 
@@ -352,7 +337,6 @@ We post any change here and update the date at the top. If a change materially a
 
 - Privacy and legal: **${PRIVACY_EMAIL}**
 - Support: **${SUPPORT_EMAIL}**
-- EU representative: see Section 1
 - Postal address: available on request
 `;
 }
