@@ -280,7 +280,10 @@ export function AccountMenu() {
             className="shell-dot-layer sb-profile-dot"
             aria-hidden="true"
             data-sb-news-dot={unseenNews ? "" : undefined}
-            style={{ transform: unseenNews ? "scale(1)" : "scale(0)" }}
+            style={{
+              transform: unseenNews ? "scale(1)" : "scale(0.5)",
+              opacity: unseenNews ? 1 : 0,
+            }}
           />
         </span>
         <span className="sb-profile-text">
