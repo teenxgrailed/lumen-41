@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { GaxiosError } from "gaxios";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
-import { GOOGLE_TASKS_SYNC_ENABLED } from "@/lib/google-oauth-scopes";
 import { logger } from "@/lib/logger";
 import { getMsGraphClient } from "@/lib/outlook-utils";
 import { prisma } from "@/lib/prisma";
@@ -46,13 +47,6 @@ export async function GET(
       return NextResponse.json(
         { error: "Provider not found" },
         { status: 404 }
-      );
-    }
-
-    if (provider.type === "GOOGLE" && !GOOGLE_TASKS_SYNC_ENABLED) {
-      return NextResponse.json(
-        { error: "Google Tasks sync is temporarily unavailable." },
-        { status: 503 }
       );
     }
 
@@ -153,9 +147,32 @@ export async function GET(
       LOG_SOURCE
     );
 
+    if (isGoogleReauthorizationError(error)) {
+      return NextResponse.json(
+        {
+          code: "TASKS_REAUTHORIZATION_REQUIRED",
+          error: "Google Tasks needs to be reconnected.",
+        },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to get task lists" },
       { status: 500 }
     );
   }
+}
+
+/** Revoked or expired grant, or a grant that never included the Tasks scope. */
+function isGoogleReauthorizationError(error: unknown) {
+  if (error instanceof GaxiosError) {
+    return [401, 403].includes(Number(error.response?.status ?? error.code));
+  }
+  return (
+    error instanceof Error &&
+    /invalid_grant|No tokens found|Failed to refresh tokens/i.test(
+      error.message
+    )
+  );
 }

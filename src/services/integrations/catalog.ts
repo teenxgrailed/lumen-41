@@ -42,6 +42,15 @@ async function nativeIntegrations(): Promise<IntegrationCatalogItem[]> {
       requires: googleOk ? undefined : REQUIRES.google,
     },
     {
+      slug: "google-tasks",
+      name: "Google Tasks",
+      description: "Import your task lists",
+      category: "tasks",
+      native: true,
+      configured: googleOk,
+      requires: googleOk ? undefined : REQUIRES.google,
+    },
+    {
       slug: "outlook-calendar",
       name: "Outlook Calendar",
       description: "Microsoft calendar sync",

@@ -28,6 +28,8 @@ describe("brand ids", () => {
 
   it("maps our provider and toolkit ids to one mark each", () => {
     expect(brandIdFor("google-calendar")).toBe("gcal");
+    expect(brandIdFor("google-tasks")).toBe("gtasks");
+    expect(brandIdFor("googletasks")).toBe("gtasks");
     expect(brandIdFor("outlook-calendar")).toBe("ocal");
     expect(brandIdFor("icloud-calendar")).toBe("ical");
     expect(brandIdFor("needt-api")).toBe("needt");

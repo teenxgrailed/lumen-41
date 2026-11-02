@@ -6,9 +6,18 @@ export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
 ] as const;
 
-// Google Tasks is intentionally deferred. Restore the integration by adding
-// this list to a dedicated connect flow and enabling task sync together.
+// Google Tasks has its own consent, separate from the calendar one: the
+// dedicated connect flow at /api/task-sync/google/auth asks for it, and only
+// when the person connects Google Tasks.
 export const GOOGLE_TASKS_SCOPES = [
   "https://www.googleapis.com/auth/tasks",
 ] as const;
-export const GOOGLE_TASKS_SYNC_ENABLED = false;
+
+// What the Google Tasks connect asks for: the Tasks scope, plus the
+// non-sensitive email scope the calendar consent already lists, because the
+// callback must know which Google account the grant belongs to (the Tasks
+// scope alone returns no identity).
+export const GOOGLE_TASKS_CONNECT_SCOPES = [
+  ...GOOGLE_TASKS_SCOPES,
+  "https://www.googleapis.com/auth/userinfo.email",
+] as const;

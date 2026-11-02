@@ -238,6 +238,8 @@ Google:
 ```text
 https://use.needt.app/api/auth/callback/google
 https://use.needt.app/api/calendar/google
+https://use.needt.app/api/mail/oauth/google/callback
+https://use.needt.app/api/task-sync/google/callback
 ```
 
 Microsoft/Azure:

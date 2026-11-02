@@ -15,7 +15,6 @@ import {
 } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
-import { GOOGLE_TASKS_SYNC_ENABLED } from "@/lib/google-oauth-scopes";
 import { logger } from "@/lib/logger";
 // Import utility to get Microsoft Graph client
 import { getMsGraphClient } from "@/lib/outlook-utils";
@@ -106,11 +105,6 @@ export class TaskSyncManager {
         const client = await getMsGraphClient(dbProvider.accountId);
         return new OutlookTaskProvider(client, dbProvider.accountId);
       case "GOOGLE":
-        if (!GOOGLE_TASKS_SYNC_ENABLED) {
-          throw new Error(
-            "Google Tasks not connected. Google Tasks sync is temporarily unavailable."
-          );
-        }
         if (!dbProvider.accountId || !dbProvider.account?.userId) {
           throw new Error(
             `Missing account information for Google provider ${providerId}`
@@ -671,7 +665,10 @@ export class TaskSyncManager {
               task.externalListId === mapping.externalListId
             ) {
               localTaskByExternalId.set(
-                externalTaskSyncKey(mapping.externalListId, task.externalTaskId),
+                externalTaskSyncKey(
+                  mapping.externalListId,
+                  task.externalTaskId
+                ),
                 task
               );
             }
