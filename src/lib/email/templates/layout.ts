@@ -23,15 +23,23 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-//todo OWNER: postal address for the email footer. Not invented here; set
-// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). The
-// placeholder is deliberately loud so it cannot ship unnoticed, and commercial
-// mail is not sent at all while the address is unset (email-service.ts).
-export const FOOTER_ADDRESS_PLACEHOLDER =
-  "[OWNER: legal entity name and postal address]";
+//todo OWNER: legal entity name and postal address. Not invented here; set
+// OPERATOR_POSTAL_ADDRESS (one line, read in src/lib/legal/operator.ts). Until
+// then the footer names the site only: a placeholder token must never reach a
+// reader. Commercial mail is not sent at all while the address is unset
+// (email-service.ts).
+export const FOOTER_FALLBACK = "needt.app";
 
 export function footerAddress(): string {
-  return operatorPostalAddress() ?? FOOTER_ADDRESS_PLACEHOLDER;
+  return operatorPostalAddress() ?? FOOTER_FALLBACK;
+}
+
+/** Who sends the mail, for the footer of optional mail. */
+export type EmailFooter = { name: string; address: string };
+
+/** Text that must never reach an inbox: a bracketed or templated placeholder. */
+export function containsPlaceholder(value: string): boolean {
+  return /\[OWNER|\{\{|\}\}/.test(value);
 }
 
 export type EmailContent = {
@@ -63,6 +71,13 @@ export type EmailContent = {
    * its own, such as the daily digest.
    */
   unsubscribeUrl?: string;
+  /**
+   * Operator name and postal address for the footer, resolved by the caller
+   * from admin System Settings (src/lib/email/program-settings.ts). Optional
+   * mail ("commercial") refuses to render without a real one, from here or
+   * from the environment.
+   */
+  footer?: EmailFooter | null;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -76,10 +91,21 @@ const FONT =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 export function renderEmail(content: EmailContent): RenderedEmail {
-  const address = footerAddress();
   if (content.kind === "commercial" && !content.unsubscribeUrl) {
     throw new Error("A commercial email needs an unsubscribe link");
   }
+  const footer = content.footer ?? null;
+  if (
+    content.kind === "commercial" &&
+    (footer
+      ? containsPlaceholder(`${footer.name} ${footer.address}`)
+      : !operatorPostalAddress())
+  ) {
+    throw new Error("A commercial email needs the operator name and address");
+  }
+  const address = footer
+    ? `${footer.name}, ${footer.address}`
+    : footerAddress();
   const baseLine =
     content.kind === "commercial"
       ? `You get this because you have a ${APP_NAME} account.`

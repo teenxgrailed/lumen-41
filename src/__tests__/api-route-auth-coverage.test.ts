@@ -45,6 +45,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "sets a signed 30-minute cookie recording the 16+ and Terms tick; needs no account, rate limited",
   "email/unsubscribe/route.ts":
     "one-click unsubscribe: the signed token in the link is the proof, can only switch mail off, rate limited",
+  "students/confirm/route.ts":
+    "student-email confirm link: GET only draws a button, POST needs the signed token in the mail, which can only confirm that address for that account, rate limited",
   "auth/desktop/exchange/route.ts":
     "desktop sign-in handoff: single-use 60 s code bound to a PKCE verifier, same-origin JSON with a header, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",
@@ -57,6 +59,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "browsers post CSP reports without credentials; logs a reduced line only, size capped, rate limited",
   "webhooks/google/route.ts": "Google channel id, resource id and token match",
   "webhooks/outlook/route.ts": "Outlook subscription id and clientState match",
+  "webhooks/resend/route.ts":
+    "Resend delivery events: Svix signature on the raw body, 5 minute tolerance, deduped on svix-id",
   "public/booking/[slug]/route.ts": "public booking page, rate limited",
   "public/booking/[slug]/slots/route.ts": "public booking page, rate limited",
   "public/booking/cancel/[token]/route.ts": "capability token, rate limited",
