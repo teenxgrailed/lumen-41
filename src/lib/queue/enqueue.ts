@@ -68,6 +68,14 @@ export async function enqueueCalendarSync(feedId: string) {
   return queue.add("sync-feed", { feedId }, { jobId });
 }
 
+export async function enqueueTaskListSync(mappingId: string) {
+  if (await skipWhenUnconfigured("task-list-sync")) return null;
+  const queue = getCalendarSyncQueue();
+  const jobId = `task-list-sync-${mappingId}`;
+  await clearFinishedJob(queue, jobId);
+  return queue.add("sync-task-list", { taskMappingId: mappingId }, { jobId });
+}
+
 export async function enqueueReschedule(userId: string, runId?: string) {
   if (await skipWhenUnconfigured("reschedule")) return null;
   const queue = getRescheduleQueue();
