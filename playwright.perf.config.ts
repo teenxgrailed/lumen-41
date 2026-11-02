@@ -10,6 +10,10 @@ import { configureE2eEnvironment } from "./tests/e2e/environment";
 configureE2eEnvironment();
 
 const baseURL = process.env.TEST_BASE_URL || "http://127.0.0.1:3000";
+// The session cookie helper scopes its cookie to TEST_BASE_URL (default
+// localhost): without this it would be set for a host the pages never visit
+// and every "signed-in" screen would be the sign-in page.
+process.env.TEST_BASE_URL = baseURL;
 const productionServerCommand = `${JSON.stringify(
   process.execPath
 )} ./node_modules/next/dist/bin/next start`;

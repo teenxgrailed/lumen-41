@@ -47,6 +47,8 @@ const sleep = (page: Page, ms: number) => page.waitForTimeout(ms);
 
 const shellReady = async (p: Page) => {
   await p.locator(".needt-v3").waitFor({ timeout: 45_000 });
+  if (p.url().includes("/auth/"))
+    throw new Error("redirected to sign-in: the session was not accepted");
 };
 
 async function scrollMain(page: Page) {
@@ -207,11 +209,11 @@ const screens: Screen[] = [
     path: "/auth/signin",
     signedIn: false,
     ready: async (p) => {
-      await p.getByPlaceholder("you@example.com").waitFor({ timeout: 45_000 });
+      await p.locator("input").first().waitFor({ timeout: 45_000 });
     },
     interact: async (p) => {
       // No list to scroll: type into the address field and clear it.
-      const email = p.getByPlaceholder("you@example.com");
+      const email = p.locator("input").first();
       await email.click();
       await email.pressSequentially("someone@example.com", { delay: 40 });
       await email.fill("");
