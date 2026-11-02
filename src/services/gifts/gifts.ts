@@ -38,7 +38,6 @@ export function cleanGiftNote(value: string | null | undefined): string | null {
       `The note can be at most ${GIFT_NOTE_MAX} characters.`
     );
   }
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f<>]/.test(text)) {
     throw new GiftError(
       400,
