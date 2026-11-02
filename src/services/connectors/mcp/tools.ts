@@ -130,6 +130,7 @@ import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { TaskStatus } from "@/types/task";
 
 import { ADMIN_TOOLS, isAdminTool } from "./admin-tools";
+import { HUB_TOOLS, isHubTool } from "./hub-tools";
 import { type JsonSchema, zodToJsonSchema } from "./json-schema";
 
 /** Hard ceiling on rows returned by one list or search call. */
@@ -2370,6 +2371,9 @@ MCP_TOOLS.unshift(
 // Read-only Admin area tools; listed and callable only with needt.admin.read.
 MCP_TOOLS.push(...ADMIN_TOOLS);
 
+// Agent hub tools; listed and callable only for accounts with the agent_hub flag.
+MCP_TOOLS.push(...HUB_TOOLS);
+
 /** Every tool also takes an optional workspaceId (see McpToolContext). */
 const WORKSPACE_ARG = z
   .string()
@@ -2390,8 +2394,20 @@ export function findMcpTool(name: unknown): McpTool | undefined {
   return tool ? { ...tool, input: inputWithWorkspace(tool) } : undefined;
 }
 
-/** The scopes a call needs, from the tool's own rule or its read/write kind. */
-export function requiredScopes(tool: McpTool, args: unknown): McpScope[] {
+/**
+ * The scopes a call needs, from the tool's own rule or its read/write kind.
+ * A hub tool needs `agents.hub` when the connection carries it (an agent
+ * token), else the ordinary read or write scope of a personal or OAuth one.
+ */
+export function requiredScopes(
+  tool: McpTool,
+  args: unknown,
+  auth?: Pick<BearerAuth, "scopes">
+): McpScope[] {
+  if (isHubTool(tool)) {
+    if (auth?.scopes.includes("agents.hub")) return ["agents.hub"];
+    return tool.annotations.readOnlyHint ? ["needt.read"] : ["needt.write"];
+  }
   if (tool.scopes) return tool.scopes(args as never);
   return tool.annotations.readOnlyHint ? ["needt.read"] : ["needt.write"];
 }
@@ -2402,6 +2418,8 @@ export function requiredScopes(tool: McpTool, args: unknown): McpScope[] {
  * stay outside the write limit.
  */
 export function isWriteCall(tool: McpTool, args: unknown): boolean {
+  // A hub write is a write whichever scope the connection carries.
+  if (isHubTool(tool)) return !tool.annotations.readOnlyHint;
   return requiredScopes(tool, args).includes("needt.write");
 }
 
@@ -2409,19 +2427,22 @@ export function isWriteCall(tool: McpTool, args: unknown): boolean {
  * The tools a connection is shown. Admin tools appear only to a token that
  * carries needt.admin.read; the role itself is checked when one is called.
  */
-export function listMcpTools(scopes: readonly McpScope[] = []): {
+export function listMcpTools(
+  scopes: readonly McpScope[] = [],
+  options: { hub?: boolean } = {}
+): {
   name: string;
   description: string;
   inputSchema: JsonSchema;
   annotations?: McpToolAnnotations;
 }[] {
   const admin = scopes.includes(ADMIN_READ_SCOPE);
-  return MCP_TOOLS.filter((tool) => admin || !isAdminTool(tool)).map(
-    (tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: zodToJsonSchema(inputWithWorkspace(tool)),
-      annotations: tool.annotations,
-    })
-  );
+  return MCP_TOOLS.filter(
+    (tool) => (admin || !isAdminTool(tool)) && (options.hub || !isHubTool(tool))
+  ).map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: zodToJsonSchema(inputWithWorkspace(tool)),
+    annotations: tool.annotations,
+  }));
 }

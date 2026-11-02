@@ -157,6 +157,9 @@ model User {
   aiConversations        AiConversation[]
   aiMessages             AiMessage[]
   agentMemories          AgentMemory[]
+  hubAgents              HubAgent[]
+  hubItems               HubItem[]
+  hubNotes               HubNote[]
   agentRuns              AgentRun[]
   agentActions           AgentAction[]
   aiUsage                AiUsage[]
@@ -3795,4 +3798,137 @@ model AdminAuditLog {
 
   @@index([targetUserId, createdAt])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Agent hub (openspec add-agent-hub). Behind the server-side `agent_hub` flag.
+// Not Needt's own AgentMemory: these are handoffs and notes between agents.
+// Status and kind are text, not enums, so later values need no migration.
+// ---------------------------------------------------------------------------
+
+/// One MCP connection: an OAuth client, a named agent token, or the personal token.
+model HubAgent {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  /// `oauth:<clientId>`, `token:<HubAgentToken.id>` or `personal`.
+  connectionKey String
+  name          String
+  /// claude | codex | grok | routine | other
+  kind          String         @default("other")
+  capabilities  String         @default("")
+  /// Lowercase tags the agent keeps about itself; "any capable" items match on them.
+  skills        String[]
+  lastSeenAt    DateTime?
+  disabledAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  token         HubAgentToken?
+
+  @@unique([userId, workspaceId, connectionKey])
+  @@index([workspaceId, userId])
+}
+
+/// A named agent token (`needt_agent_...`): shown once, stored only as a sha256.
+model HubAgentToken {
+  id           String    @id
+  agentId      String    @unique
+  agent        HubAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique
+  tokenPreview String
+  scopes       String[]
+  workspaceId  String
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+/// A self-contained piece of work one agent leaves for another.
+model HubItem {
+  id                  String         @id @default(cuid())
+  userId              String
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId         String
+  title               String
+  goal                String
+  doneCriteria        String
+  context             String
+  links               Json           @default("[]")
+  /// Subset of money | send_message | publish | delete; empty is an explicit none.
+  risks               String[]
+  /// risk -> { approvedAt, note? }, written only by the owner.
+  approvals           Json           @default("{}")
+  /// open | claimed | in_progress | blocked | needs_owner | done | failed | cancelled
+  status              String         @default("open")
+  assigneeAgentId     String?
+  requiredSkills      String[]
+  /// agent | owner
+  creatorKind         String
+  creatorAgentId      String?
+  claimedByAgentId    String?
+  leaseExpiresAt      DateTime?
+  /// Set once when an expired lease was written to the log; cleared by any lease extension.
+  leaseExpiredNotedAt DateTime?
+  due                 DateTime?
+  result              Json?
+  blockedOn           String?
+  question            String?
+  taskId              String?
+  projectId           String?
+  escalationTaskId    String?
+  noAgentTaskId       String?
+  clientRef           String?
+  version             Int            @default(1)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  closedAt            DateTime?
+  events              HubItemEvent[]
+  notes               HubNote[]
+
+  @@unique([userId, creatorAgentId, clientRef])
+  @@index([workspaceId, status, assigneeAgentId])
+  @@index([status, leaseExpiresAt])
+  @@index([workspaceId, closedAt])
+}
+
+/// Append-only log of an item. Rows are never updated or deleted.
+model HubItemEvent {
+  id           String   @id @default(cuid())
+  itemId       String
+  item         HubItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  at           DateTime @default(now())
+  /// agent | owner | system
+  actorKind    String
+  actorAgentId String?
+  type         String
+  fromStatus   String?
+  toStatus     String?
+  message      String   @default("")
+  data         Json?
+
+  @@index([itemId, at])
+}
+
+/// A note between agents, searchable by all of them in the workspace.
+model HubNote {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  text          String
+  tags          String[]
+  authorKind    String
+  authorAgentId String?
+  itemId        String?
+  item          HubItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  taskId        String?
+  projectId     String?
+  ownerEdited   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([workspaceId, createdAt])
+  @@index([tags], type: Gin)
 }

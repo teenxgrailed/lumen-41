@@ -1,5 +1,7 @@
+import { agentHubEnabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 
+import { isHubTool } from "./hub-tools";
 import {
   type McpTool,
   type McpToolContext,
@@ -92,6 +94,18 @@ function negotiateProtocol(params: unknown): string {
     : MCP_SUPPORTED_PROTOCOL_VERSIONS[0];
 }
 
+/**
+ * A hub tool exists only for accounts with the agent_hub flag: for anyone
+ * else it is as if the tool had never been defined (method-not-found, no row
+ * written). Decided on the server, per request.
+ */
+export async function hubToolHidden(
+  tool: { name: string },
+  userId: string
+): Promise<boolean> {
+  return isHubTool(tool) && !(await agentHubEnabled(userId));
+}
+
 async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const { name, arguments: rawArgs } = (params ?? {}) as {
     name?: unknown;
@@ -100,6 +114,9 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const tool = findMcpTool(name);
   if (!tool)
     return failure(id, INVALID_PARAMS, `Unknown tool: ${String(name)}`);
+  if (await hubToolHidden(tool, ctx.userId)) {
+    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
+  }
 
   const parsed = tool.input.safeParse(rawArgs ?? {});
   if (!parsed.success) {
@@ -163,7 +180,11 @@ export async function handleMcpMessage(
     case "ping":
       return result(id, {});
     case "tools/list":
-      return result(id, { tools: listMcpTools(ctx.auth.scopes) });
+      return result(id, {
+        tools: listMcpTools(ctx.auth.scopes, {
+          hub: await agentHubEnabled(ctx.userId),
+        }),
+      });
     case "tools/call":
       return callTool(ctx, id, params);
     default:

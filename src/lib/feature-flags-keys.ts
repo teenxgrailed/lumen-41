@@ -56,6 +56,15 @@ export const ONBOARDING_V3 = "onboarding_v3";
  */
 export const SANDBOX_ACCOUNTS = "sandbox_accounts";
 
+/**
+ * The agent hub: handoffs and notes between agents (`needt_agent_*` and
+ * `needt_memory_*` MCP tools, `/api/connect/agent-hub/*`, the Agents screen).
+ * Off for everybody; turned on for one account with a per-user override
+ * (`scripts/admin/set-flag-override.cjs` or the admin feature-flags API),
+ * never by hard-coding an account.
+ */
+export const AGENT_HUB = "agent_hub";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -64,6 +73,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [ONBOARDING_V3]: "New accounts start in /start instead of /setup.",
   [SANDBOX_ACCOUNTS]:
     "Reviewer sandbox account from env, reset nightly (needs 100% rollout).",
+  [AGENT_HUB]:
+    "Agent hub: handoffs and notes between agents (per-user override).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

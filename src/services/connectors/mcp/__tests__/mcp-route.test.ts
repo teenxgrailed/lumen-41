@@ -13,6 +13,7 @@ import {
   authenticateBearer,
 } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
+import { isHubTool } from "@/services/connectors/mcp/hub-tools";
 import { MCP_TOOLS } from "@/services/connectors/mcp/tools";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
@@ -59,6 +60,7 @@ jest.mock("@/lib/prisma", () => ({
     task: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     habit: { findMany: jest.fn() },
     mailMessage: { findFirst: jest.fn() },
+    featureFlag: { findUnique: jest.fn().mockResolvedValue(null) },
     scheduledBlock: { deleteMany: jest.fn() },
     user: { findUnique: jest.fn() },
     workspaceMember: { findMany: jest.fn() },
@@ -163,9 +165,9 @@ describe("remote MCP endpoint", () => {
     const { result } = await list.json();
     // A personal token never carries needt.admin.read: admin tools stay hidden.
     expect(result.tools.map((tool: { name: string }) => tool.name)).toEqual(
-      MCP_TOOLS.filter((tool) => !tool.name.startsWith("needt_admin_")).map(
-        (tool) => tool.name
-      )
+      MCP_TOOLS.filter(
+        (tool) => !tool.name.startsWith("needt_admin_") && !isHubTool(tool)
+      ).map((tool) => tool.name)
     );
     expect(result.tools[0].name).toBe("needt_whoami");
     for (const tool of result.tools) {

@@ -34,6 +34,7 @@ export const SECTION_TITLES = {
   adminBugs: "Bug reports",
   system: "System settings",
   connectApp: "Connect an app",
+  agents: "Agents",
   notFound: "Not found",
 } as const;
 

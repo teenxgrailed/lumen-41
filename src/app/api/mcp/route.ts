@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import "@/services/agent-hub/register";
 import {
   authenticateBearer,
   hasScopes,
@@ -12,6 +13,7 @@ import {
 import {
   batchRejectedResponse,
   handleMcpMessage,
+  hubToolHidden,
   parseErrorResponse,
   toolCallOf,
 } from "@/services/connectors/mcp/server";
@@ -188,9 +190,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(batchRejectedResponse(), { status: 400 });
   }
 
-  const call = toolCallOf(body);
+  let call = toolCallOf(body);
+  // A hub tool does not exist for an account without the flag: skip the scope
+  // and limit checks so the answer is the same method-not-found as any
+  // unknown method and the call leaves no trace.
+  if (call && (await hubToolHidden(call.tool, auth.userId))) call = null;
   if (call) {
-    const needed = requiredScopes(call.tool, call.args);
+    const needed = requiredScopes(call.tool, call.args, auth);
     if (!hasScopes(auth, needed)) return insufficientScopeResponse(needed);
     if (needed.includes(ADMIN_READ_SCOPE)) {
       // The scope was granted to an admin; the role is read again on every

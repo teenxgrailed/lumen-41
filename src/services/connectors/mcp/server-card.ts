@@ -1,5 +1,5 @@
 import {
-  MCP_SCOPES,
+  PUBLIC_MCP_SCOPES,
   mcpResource,
   mcpResourceMetadataUrl,
   oauthIssuer,
@@ -31,7 +31,7 @@ export function mcpServerCard() {
       version: "2.1",
       dynamic_client_registration: true,
       resource_metadata: mcpResourceMetadataUrl(),
-      scopes_supported: MCP_SCOPES.filter(
+      scopes_supported: PUBLIC_MCP_SCOPES.filter(
         (scope) => scope !== "needt.admin.read"
       ),
     },
