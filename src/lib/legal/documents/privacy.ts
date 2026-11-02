@@ -171,14 +171,13 @@ Needt's use and transfer to any other app of information received from Google AP
 | Sign in with Google | \`openid\`, \`email\`, \`profile\` | To create and sign in to your account |
 | Connect Google Calendar | \`https://www.googleapis.com/auth/calendar\`, \`https://www.googleapis.com/auth/calendar.events\`, \`https://www.googleapis.com/auth/userinfo.email\` | To list your calendars, sync their events, and create or change the events you manage in Needt |
 | Connect Gmail | \`https://www.googleapis.com/auth/gmail.readonly\`, \`https://www.googleapis.com/auth/userinfo.email\` | To show your mail in Needt. Needt never sends, changes or deletes anything in your mailbox; read and archived marks are kept in Needt only |
-
-Needt does not request Google Tasks access.
+| Connect Google Tasks | \`https://www.googleapis.com/auth/tasks\` | To bring the task lists you choose into Needt and keep them in step: a task you complete, rename or re-date in Needt is changed in Google Tasks too, and a task you create in a synced list is added there |
 
 **Gmail availability.** Google requires an app that reads Gmail to pass its verification and an annual security assessment before anyone can connect a mailbox. Until Needt has completed both, connecting Gmail is limited to accounts we have added as testers.
 
 **How we use it.**
 
-- Only to provide the features you can see in Needt: showing and syncing your calendar and mail, scheduling around your events, turning an email into a task, and letting the AI assistant answer questions about them when you ask.
+- Only to provide the features you can see in Needt: showing and syncing your calendar, tasks and mail, scheduling around your events, turning an email into a task, and letting the AI assistant answer questions about them when you ask.
 - We transfer it only as needed to provide those features (for example to the AI model handling your request, Section 6), to comply with the law, for security, or in a merger or acquisition with notice to you.
 - We do not use it for advertising, and we do not sell it.
 - We do not use it to train or improve general AI or machine-learning models, and the AI routing we use excludes hosts that would.
