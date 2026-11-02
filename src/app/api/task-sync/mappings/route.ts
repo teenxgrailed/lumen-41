@@ -6,6 +6,8 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { enqueueTaskListSync, isQueueConfigured } from "@/lib/queue/enqueue";
+import { TaskSyncManager } from "@/lib/task-sync/task-sync-manager";
 
 const LOG_SOURCE = "task-sync-mapping-api";
 
@@ -21,6 +23,40 @@ const createMappingSchema = z.object({
     .optional()
     .default("incoming"),
 });
+
+/**
+ * Task providers have no push, so a new mapping stayed empty until something
+ * else synced it. Queue the first sync; without Redis run it in the background
+ * so the response is not held up. Failures are logged and the stale-mapping
+ * sweep retries.
+ */
+async function startFirstTaskSync(mappingId: string) {
+  try {
+    if (isQueueConfigured()) {
+      await enqueueTaskListSync(mappingId);
+      return;
+    }
+    void new TaskSyncManager().syncTaskList(mappingId).catch((error) =>
+      logger.error(
+        "First sync of a task list failed",
+        {
+          mappingId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      )
+    );
+  } catch (error) {
+    await logger.error(
+      "Could not start the first sync of a task list",
+      {
+        mappingId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
+}
 
 /**
  * GET /api/task-sync/mappings
@@ -191,6 +227,10 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    if (mapping.syncEnabled && provider.enabled && provider.syncEnabled) {
+      await startFirstTaskSync(mapping.id);
+    }
 
     return NextResponse.json({
       mapping: {
