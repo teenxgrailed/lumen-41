@@ -101,6 +101,7 @@ jest.mock("@/lib/security/rate-limit", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     task: { findFirst: jest.fn(), update: jest.fn() },
+    featureFlag: { findUnique: jest.fn().mockResolvedValue(null) },
     project: { findFirst: jest.fn() },
     taskListMapping: { findFirst: jest.fn() },
     calendarFeed: { findFirst: jest.fn(), create: jest.fn() },

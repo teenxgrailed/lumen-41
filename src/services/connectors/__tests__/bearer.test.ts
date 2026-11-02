@@ -96,12 +96,13 @@ describe("authenticateBearer", () => {
     ).resolves.toEqual({
       userId: "user-1",
       kind: "personal",
-      scopes: ["needt.read", "needt.write", "mail.read"],
+      scopes: ["needt.read", "needt.write", "mail.read", "agents.hub"],
     });
     expect(PERSONAL_TOKEN_SCOPES).toEqual([
       "needt.read",
       "needt.write",
       "mail.read",
+      "agents.hub",
     ]);
   });
 

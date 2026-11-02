@@ -1,5 +1,6 @@
 import { GET } from "@/app/.well-known/mcp/server-card.json/route";
 import { ADMIN_TOOLS } from "@/services/connectors/mcp/admin-tools";
+import { isHubTool } from "@/services/connectors/mcp/hub-tools";
 import { mcpServerCard } from "@/services/connectors/mcp/server-card";
 import { MCP_TOOLS } from "@/services/connectors/mcp/tools";
 
@@ -50,7 +51,7 @@ describe("MCP server card", () => {
       "https://mcp.needt.app/.well-known/oauth-protected-resource/mcp"
     );
     const publicTools = MCP_TOOLS.filter(
-      (t) => !ADMIN_TOOLS.some((a) => a.name === t.name)
+      (t) => !ADMIN_TOOLS.some((a) => a.name === t.name) && !isHubTool(t)
     );
     expect(card.tools.map((t: { name: string }) => t.name)).toEqual(
       publicTools.map((t) => t.name)
