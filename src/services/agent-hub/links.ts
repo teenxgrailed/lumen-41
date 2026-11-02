@@ -7,10 +7,19 @@ import type { WorkspaceKey } from "./context";
 import { HubError } from "./errors";
 import type { HubLinkInput } from "./schemas";
 
-/** A task, project or page reference must sit in the hub's workspace. */
+/**
+ * A task, project or page reference must sit in the hub's workspace. A task
+ * must also be the owner's own: in a shared workspace another member's task
+ * is not theirs to link from an agent's brief.
+ */
 export async function assertTaskInWorkspace(key: WorkspaceKey, id: string) {
   const task = await prisma.task.findFirst({
-    where: { id, workspaceId: key.workspaceId, trashedAt: null },
+    where: {
+      id,
+      workspaceId: key.workspaceId,
+      userId: key.userId,
+      trashedAt: null,
+    },
     select: { id: true },
   });
   if (!task) {

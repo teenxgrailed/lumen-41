@@ -1,4 +1,4 @@
-import type { HubItem } from "@prisma/client";
+import { type HubItem, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -13,13 +13,7 @@ import {
   SUGGESTED_POLL_SECONDS_IDLE,
 } from "./constants";
 import type { AgentScope } from "./context";
-import {
-  agentNames,
-  getItem,
-  itemView,
-  skillsCover,
-  unmatchedItemIds,
-} from "./items";
+import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
 import type { InboxInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
@@ -37,6 +31,34 @@ function fetchEvents(itemId: string) {
       take: INBOX_EVENTS_PER_ITEM,
     })
     .then((rows) => rows.reverse());
+}
+
+/**
+ * Items whose required skills are all among `skills` (`requiredSkills <@
+ * skills`), chosen in the database so the page is not cut before the filter.
+ * Prisma has no subset operator, so this reads ids with SQL and loads the rows
+ * through the client.
+ */
+async function capableItems(
+  base: { userId: string; workspaceId: string },
+  skills: readonly string[],
+  where: Prisma.Sql,
+  limit: number
+): Promise<HubItem[]> {
+  const rows = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+    SELECT "id" FROM "HubItem"
+    WHERE "userId" = ${base.userId}
+      AND "workspaceId" = ${base.workspaceId}
+      AND "requiredSkills" <@ ${[...skills]}::text[]
+      AND ${where}
+    ORDER BY "due" ASC NULLS LAST, "createdAt" ASC
+    LIMIT ${limit}`);
+  if (!rows.length) return [];
+  const found = await prisma.hubItem.findMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+  });
+  const byId = new Map(found.map((item) => [item.id, item]));
+  return rows.flatMap((row) => byId.get(row.id) ?? []);
 }
 
 /**
@@ -85,34 +107,24 @@ export async function agentInbox(scope: AgentScope, input: InboxInput) {
         orderBy: [{ createdAt: "asc" }],
         take: INBOX_MAX_LIMIT,
       }),
-      prisma.hubItem.findMany({
-        where: { ...base, status: "open", assigneeAgentId: null },
-        orderBy: [{ due: "asc" }, { createdAt: "asc" }],
-        take: 100,
-      }),
-      prisma.hubItem.findMany({
-        where: {
-          ...base,
-          status: { in: [...HELD_STATUSES] },
-          leaseExpiresAt: { lt: now },
-          claimedByAgentId: { not: agent.id },
-          OR: [{ assigneeAgentId: null }, { assigneeAgentId: agent.id }],
-        },
-        orderBy: [{ createdAt: "asc" }],
-        take: 100,
-      }),
+      capableItems(
+        base,
+        agent.skills,
+        Prisma.sql`"status" = 'open' AND "assigneeAgentId" IS NULL`,
+        limit
+      ),
+      capableItems(
+        base,
+        agent.skills,
+        Prisma.sql`"status" IN (${Prisma.join([...HELD_STATUSES])})
+          AND "leaseExpiresAt" < ${now}
+          AND "claimedByAgentId" <> ${agent.id}
+          AND ("assigneeAgentId" IS NULL OR "assigneeAgentId" = ${agent.id})`,
+        limit
+      ),
     ]);
     const seen = new Set<string>();
-    items = [
-      ...assigned,
-      ...held,
-      ...unassigned.filter((item) =>
-        skillsCover(agent.skills, item.requiredSkills)
-      ),
-      ...expired.filter((item) =>
-        skillsCover(agent.skills, item.requiredSkills)
-      ),
-    ]
+    items = [...assigned, ...held, ...unassigned, ...expired]
       .filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)))
       .slice(0, limit);
   }

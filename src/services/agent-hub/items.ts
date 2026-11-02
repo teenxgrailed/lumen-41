@@ -990,15 +990,19 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
     input.expectedVersion,
     async (item, tx) => {
       assertOpenForAgents(item);
+      const holds = item.claimedByAgentId === agent.id;
+      // While open, the assignee escalates; the creator only when nobody is
+      // assigned. Escalating never moves an item between agents.
       const allowed =
-        item.claimedByAgentId === agent.id ||
+        holds ||
         (item.status === "open" &&
           (item.assigneeAgentId === agent.id ||
-            item.creatorAgentId === agent.id));
+            (item.assigneeAgentId === null &&
+              item.creatorAgentId === agent.id)));
       if (!allowed) {
         throw new HubError(
           "NOT_HELD",
-          "Only the agent holding the item (or its creator or assignee while it is open) can escalate it."
+          "Only the agent holding the item, or its assignee while it is open (its creator only while nobody is assigned), can escalate it."
         );
       }
       const options = (input.options ?? []).map((option) => option.trim());
@@ -1022,8 +1026,9 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
           claimedByAgentId: null,
           leaseExpiresAt: null,
           leaseExpiredNotedAt: null,
-          // The answer returns to the agent that asked.
-          assigneeAgentId: agent.id,
+          // The answer returns to the agent that asked: the holder, who was
+          // assigned or took an unassigned item. Otherwise the assignee stays.
+          ...(holds ? { assigneeAgentId: agent.id } : {}),
           escalationTaskId: task.id,
           blockedOn: null,
         },
@@ -1057,7 +1062,7 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
     scope,
     input.id,
     undefined,
-    (item, _tx, now) => {
+    async (item, tx, now) => {
       if (TERMINAL_STATUSES.includes(item.status)) {
         throw new HubError("TERMINAL", `This item is already ${item.status}.`);
       }
@@ -1069,6 +1074,18 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
           "FORBIDDEN",
           "Only the agent that created an item (or the owner) can cancel it."
         );
+      }
+      // A withdrawn item has nothing left to decide: close the owner's task.
+      let taskCompleted = false;
+      if (item.status === "needs_owner" && item.escalationTaskId) {
+        const done = await tx.task.updateMany({
+          where: {
+            id: item.escalationTaskId,
+            status: { not: TaskStatus.COMPLETED },
+          },
+          data: { status: TaskStatus.COMPLETED, completedAt: now },
+        });
+        taskCompleted = done.count > 0;
       }
       return {
         data: {
@@ -1084,11 +1101,13 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
             from: item.status,
             to: "cancelled",
             message: input.reason?.trim() ?? "",
+            ...(taskCompleted ? { data: { taskCompleted } } : {}),
           },
         ],
       };
     }
   );
+  await publishRealtimeEventSafe(scope.userId, "tasks-updated");
   return {
     item: await viewOne(scope, updated, {
       recent: 3,

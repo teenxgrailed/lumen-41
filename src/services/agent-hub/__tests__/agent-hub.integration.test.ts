@@ -9,13 +9,13 @@
  */
 import { NextRequest } from "next/server";
 
-import { POST as mcpPost } from "@/app/api/mcp/route";
-import { GET as overviewGet } from "@/app/api/agent-hub/overview/route";
+import { DELETE as agentDelete } from "@/app/api/agent-hub/agents/[id]/route";
+import { POST as agentsPost } from "@/app/api/agent-hub/agents/route";
 import { POST as ownerItemAction } from "@/app/api/agent-hub/items/[id]/[action]/route";
 import { PATCH as ownerNotePatch } from "@/app/api/agent-hub/notes/[id]/route";
-import { POST as agentsPost } from "@/app/api/agent-hub/agents/route";
-import { DELETE as agentDelete } from "@/app/api/agent-hub/agents/[id]/route";
+import { GET as overviewGet } from "@/app/api/agent-hub/overview/route";
 import { GET as restInboxGet } from "@/app/api/connect/agent-hub/inbox/route";
+import { POST as mcpPost } from "@/app/api/mcp/route";
 import {
   generateConnectorToken,
   hashConnectorToken,
@@ -206,9 +206,9 @@ describeIntegration("Agent hub (real database)", () => {
       const names: string[] = body.result.tools.map(
         (t: { name: string }) => t.name
       );
-      expect(names.filter((n) => /^needt_(agent|agents|memory)_/.test(n))).toHaveLength(
-        10
-      );
+      expect(
+        names.filter((n) => /^needt_(agent|agents|memory)_/.test(n))
+      ).toHaveLength(10);
     }
     const { body } = await rpc(otherPersonal, "tools/list");
     const names: string[] = body.result.tools.map(
@@ -253,7 +253,10 @@ describeIntegration("Agent hub (real database)", () => {
       skills: ["browser", "youtube-upload", "screen-recording"],
       self: true,
     });
-    await tool(codex, "needt_agent_register", { kind: "codex", skills: ["code"] });
+    await tool(codex, "needt_agent_register", {
+      kind: "codex",
+      skills: ["code"],
+    });
 
     const list = await tool(grok, "needt_agents_list");
     const rows: Json[] = list.data.agents;
@@ -262,7 +265,9 @@ describeIntegration("Agent hub (real database)", () => {
     expect(JSON.stringify(list.data)).not.toMatch(/tokenHash|needt_agent_/);
 
     // Another agent's profile is refused.
-    const other = await tool(codex, "needt_agent_register", { agentId: grokId });
+    const other = await tool(codex, "needt_agent_register", {
+      agentId: grokId,
+    });
     expect(other.isError).toBe(true);
     expect(other.data.error).toBe("FORBIDDEN");
   });
@@ -282,7 +287,9 @@ describeIntegration("Agent hub (real database)", () => {
         clientRef: "publish-1",
       })
     );
-    expect(a.isError ? JSON.stringify(a.data ?? a.rpcError) : false).toBe(false);
+    expect(a.isError ? JSON.stringify(a.data ?? a.rpcError) : false).toBe(
+      false
+    );
     expect(a.data.created).toBe(true);
     itemA = a.data.item.id;
     expect(a.data.item.untrusted).toBe(true);
@@ -302,7 +309,9 @@ describeIntegration("Agent hub (real database)", () => {
     expect(again.data.item.id).toBe(itemA);
 
     const b = await tool(claude, "needt_agent_task_create", brief());
-    expect(b.isError ? JSON.stringify(b.data ?? b.rpcError) : false).toBe(false);
+    expect(b.isError ? JSON.stringify(b.data ?? b.rpcError) : false).toBe(
+      false
+    );
     itemB = b.data.item.id;
 
     const missing = await tool(
@@ -352,22 +361,26 @@ describeIntegration("Agent hub (real database)", () => {
     expect(c.data.items).toEqual([]);
 
     // Not eligible: no skill, or assigned elsewhere.
-    expect((await tool(codex, "needt_agent_task_claim", { id: itemB })).data.error).toBe(
-      "NOT_ELIGIBLE"
-    );
-    expect((await tool(codex, "needt_agent_task_claim", { id: itemA })).data.error).toBe(
-      "NOT_ELIGIBLE"
-    );
+    expect(
+      (await tool(codex, "needt_agent_task_claim", { id: itemB })).data.error
+    ).toBe("NOT_ELIGIBLE");
+    expect(
+      (await tool(codex, "needt_agent_task_claim", { id: itemA })).data.error
+    ).toBe("NOT_ELIGIBLE");
   });
 
   it("refuses a second claim while the lease is live and extends it on update", async () => {
     const claimed = await tool(grok, "needt_agent_task_claim", { id: itemB });
-    expect(claimed.isError ? JSON.stringify(claimed.data ?? claimed.rpcError) : false).toBe(false);
+    expect(
+      claimed.isError ? JSON.stringify(claimed.data ?? claimed.rpcError) : false
+    ).toBe(false);
     expect(claimed.data.item.status).toBe("claimed");
     const firstEnd = new Date(claimed.data.item.leaseExpiresAt).getTime();
     expect(firstEnd).toBeGreaterThan(Date.now() + 25 * 60 * 1000);
 
-    await tool(codex, "needt_agent_register", { skills: ["code", "youtube-upload"] });
+    await tool(codex, "needt_agent_register", {
+      skills: ["code", "youtube-upload"],
+    });
     const second = await tool(codex, "needt_agent_task_claim", { id: itemB });
     expect(second.isError).toBe(true);
     expect(second.data.error).toBe("ALREADY_CLAIMED");
@@ -386,11 +399,13 @@ describeIntegration("Agent hub (real database)", () => {
       message: "Recording started",
       leaseMinutes: 120,
     });
-    expect(updated.isError ? JSON.stringify(updated.data ?? updated.rpcError) : false).toBe(false);
+    expect(
+      updated.isError ? JSON.stringify(updated.data ?? updated.rpcError) : false
+    ).toBe(false);
     expect(updated.data.item.status).toBe("in_progress");
-    expect(new Date(updated.data.item.leaseExpiresAt).getTime()).toBeGreaterThan(
-      firstEnd + 60 * 60 * 1000
-    );
+    expect(
+      new Date(updated.data.item.leaseExpiresAt).getTime()
+    ).toBeGreaterThan(firstEnd + 60 * 60 * 1000);
 
     // A stale write is refused.
     const stale = await tool(grok, "needt_agent_task_update", {
@@ -427,7 +442,9 @@ describeIntegration("Agent hub (real database)", () => {
       id,
       message: "Still on it",
     });
-    expect(back.isError ? JSON.stringify(back.data ?? back.rpcError) : false).toBe(false);
+    expect(
+      back.isError ? JSON.stringify(back.data ?? back.rpcError) : false
+    ).toBe(false);
 
     // The lease passes again and the other agent takes over.
     await prisma.hubItem.update({
@@ -435,7 +452,11 @@ describeIntegration("Agent hub (real database)", () => {
       data: { leaseExpiresAt: new Date(Date.now() - 60_000) },
     });
     const takeover = await tool(other, "needt_agent_task_claim", { id });
-    expect(takeover.isError ? JSON.stringify(takeover.data ?? takeover.rpcError) : false).toBe(false);
+    expect(
+      takeover.isError
+        ? JSON.stringify(takeover.data ?? takeover.rpcError)
+        : false
+    ).toBe(false);
     const lost = await tool(winner, "needt_agent_task_update", {
       id,
       message: "I am back",
@@ -477,10 +498,14 @@ describeIntegration("Agent hub (real database)", () => {
         data: { seconds: 118 },
       },
     });
-    expect(done.isError ? JSON.stringify(done.data ?? done.rpcError) : false).toBe(false);
+    expect(
+      done.isError ? JSON.stringify(done.data ?? done.rpcError) : false
+    ).toBe(false);
     expect(done.data.item.status).toBe("done");
 
-    const created = await tool(claude, "needt_agent_inbox", { view: "created" });
+    const created = await tool(claude, "needt_agent_inbox", {
+      view: "created",
+    });
     const mine = created.data.items.find((i: Json) => i.id === itemB);
     expect(mine.result.links[0].url).toBe("https://youtu.be/abc123");
     expect(mine.result.summary).toBe("Recorded and uploaded.");
@@ -496,7 +521,9 @@ describeIntegration("Agent hub (real database)", () => {
       tags: ["YouTube"],
       itemId: itemB,
     });
-    expect(note.isError ? JSON.stringify(note.data ?? note.rpcError) : false).toBe(false);
+    expect(
+      note.isError ? JSON.stringify(note.data ?? note.rpcError) : false
+    ).toBe(false);
     expect(note.data.note.tags).toEqual(["youtube"]);
 
     const found = await tool(claude, "needt_memory_search", {
@@ -524,7 +551,9 @@ describeIntegration("Agent hub (real database)", () => {
       options: ["Brand channel", "Personal channel"],
       risk: "publish",
     });
-    expect(esc.isError ? JSON.stringify(esc.data ?? esc.rpcError) : false).toBe(false);
+    expect(esc.isError ? JSON.stringify(esc.data ?? esc.rpcError) : false).toBe(
+      false
+    );
     expect(esc.data.item.status).toBe("needs_owner");
     expect(esc.data.item.heldBy).toBeNull();
 
@@ -551,7 +580,9 @@ describeIntegration("Agent hub (real database)", () => {
       where: { id: tasks[0].id },
       data: { status: "completed", completedAt: new Date() },
     });
-    const still = await prisma.hubItem.findUniqueOrThrow({ where: { id: itemA } });
+    const still = await prisma.hubItem.findUniqueOrThrow({
+      where: { id: itemA },
+    });
     expect(still.status).toBe("needs_owner");
     await prisma.task.update({
       where: { id: tasks[0].id },
@@ -561,19 +592,25 @@ describeIntegration("Agent hub (real database)", () => {
     // No agent credential, not even the personal token, is an owner.
     for (const token of [grok, claude]) {
       const response = await ownerItemAction(
-        new NextRequest(`http://localhost/api/agent-hub/items/${itemA}/approve`, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${token}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ risks: ["publish"] }),
-        }),
+        new NextRequest(
+          `http://localhost/api/agent-hub/items/${itemA}/approve`,
+          {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${token}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ risks: ["publish"] }),
+          }
+        ),
         { params: Promise.resolve({ id: itemA, action: "approve" }) }
       );
       expect([401, 403]).toContain(response.status);
     }
-    expect((await prisma.hubItem.findUniqueOrThrow({ where: { id: itemA } })).approvals).toEqual({});
+    expect(
+      (await prisma.hubItem.findUniqueOrThrow({ where: { id: itemA } }))
+        .approvals
+    ).toEqual({});
 
     // Owner answers; the item is open again for the same agent, the task done.
     const answered = await ownerAction(itemA, "answer", {
@@ -583,13 +620,14 @@ describeIntegration("Agent hub (real database)", () => {
     expect(answered.data.item.status).toBe("open");
     expect(answered.data.item.assignee.name).toBe("Grok Bot");
     expect(
-      (await prisma.task.findUniqueOrThrow({ where: { id: tasks[0].id } })).status
+      (await prisma.task.findUniqueOrThrow({ where: { id: tasks[0].id } }))
+        .status
     ).toBe("completed");
     const inbox = await tool(grok, "needt_agent_inbox");
     const row = inbox.data.items.find((i: Json) => i.id === itemA);
-    expect(row.events.some((e: Json) => e.message === "Use the brand channel.")).toBe(
-      true
-    );
+    expect(
+      row.events.some((e: Json) => e.message === "Use the brand channel.")
+    ).toBe(true);
 
     // Done is refused until every declared risk is approved by the owner.
     await tool(grok, "needt_agent_task_claim", { id: itemA });
@@ -613,7 +651,9 @@ describeIntegration("Agent hub (real database)", () => {
       criteriaMet: true,
       result: { summary: "Published on the brand channel." },
     });
-    expect(ok.isError ? JSON.stringify(ok.data ?? ok.rpcError) : false).toBe(false);
+    expect(ok.isError ? JSON.stringify(ok.data ?? ok.rpcError) : false).toBe(
+      false
+    );
     expect(ok.data.item.status).toBe("done");
 
     // Approve is disabled for an item with no declared risks.
@@ -625,7 +665,10 @@ describeIntegration("Agent hub (real database)", () => {
     const made = await tool(
       claude,
       "needt_agent_task_create",
-      brief({ title: "Needs a screen recorder", requiredSkills: ["holo-camera"] })
+      brief({
+        title: "Needs a screen recorder",
+        requiredSkills: ["holo-camera"],
+      })
     );
     const id = made.data.item.id as string;
     const first = (await overview()).items.find((i: Json) => i.id === id);
@@ -665,21 +708,32 @@ describeIntegration("Agent hub (real database)", () => {
         closedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
       },
     });
-    expect((await overview()).items.map((i: Json) => i.id)).not.toContain(old.id);
-    expect((await overview(true)).items.map((i: Json) => i.id)).toContain(old.id);
+    expect((await overview()).items.map((i: Json) => i.id)).not.toContain(
+      old.id
+    );
+    expect((await overview(true)).items.map((i: Json) => i.id)).toContain(
+      old.id
+    );
   });
 
   it("lets the owner edit notes, and an agent cannot overwrite an edited one", async () => {
-    const note = await tool(grok, "needt_memory_write", { text: "Draft fact", tags: ["draft"] });
+    const note = await tool(grok, "needt_memory_write", {
+      text: "Draft fact",
+      tags: ["draft"],
+    });
     const id = note.data.note.id as string;
     const edited = await ownerNotePatch(
-      ownerRequest(`/api/agent-hub/notes/${id}`, "PATCH", { text: "Fixed fact" }),
+      ownerRequest(`/api/agent-hub/notes/${id}`, "PATCH", {
+        text: "Fixed fact",
+      }),
       { params: Promise.resolve({ id }) }
     );
     expect(edited.status).toBe(200);
     expect((await edited.json()).note.ownerEdited).toBe(true);
 
-    const { PATCH } = await import("@/app/api/connect/agent-hub/notes/[id]/route");
+    const { PATCH } = await import(
+      "@/app/api/connect/agent-hub/notes/[id]/route"
+    );
     const refused = await PATCH(
       new NextRequest(`http://localhost/api/connect/agent-hub/notes/${id}`, {
         method: "PATCH",
@@ -699,7 +753,10 @@ describeIntegration("Agent hub (real database)", () => {
 
   it("shows the token once, then only a preview, and a revoked token stops working", async () => {
     const response = await agentsPost(
-      ownerRequest("/api/agent-hub/agents", "POST", { name: "Cloud routine", kind: "routine" })
+      ownerRequest("/api/agent-hub/agents", "POST", {
+        name: "Cloud routine",
+        kind: "routine",
+      })
     );
     expect(response.status).toBe(201);
     const made = (await response.json()) as Json;
@@ -723,5 +780,155 @@ describeIntegration("Agent hub (real database)", () => {
     expect(revoked.status).toBe(200);
     const after = await rpc(made.token, "tools/list");
     expect(after.status).toBe(401);
+  });
+
+  it("keeps the assignee on escalation and lets only the assignee (or the creator of an unassigned item) escalate an open item", async () => {
+    const codexAgent = await prisma.hubAgent.findFirstOrThrow({
+      where: { userId: ownerId, name: "Codex" },
+    });
+    const made = await tool(
+      grok,
+      "needt_agent_task_create",
+      brief({
+        title: "Fix the sync",
+        assignee: "Codex",
+        requiredSkills: undefined,
+      })
+    );
+    expect(
+      made.isError ? JSON.stringify(made.data ?? made.rpcError) : false
+    ).toBe(false);
+    const id = made.data.item.id as string;
+
+    // The creator cannot take an assigned item over by escalating it.
+    const stolen = await tool(grok, "needt_agent_task_escalate", {
+      id,
+      question: "Which branch should this go to?",
+    });
+    expect(stolen.data.error).toBe("NOT_HELD");
+    expect(
+      (await prisma.hubItem.findUniqueOrThrow({ where: { id } })).status
+    ).toBe("open");
+
+    const ok = await tool(codex, "needt_agent_task_escalate", {
+      id,
+      question: "Which branch should this go to?",
+    });
+    expect(ok.data.item.status).toBe("needs_owner");
+    const row = await prisma.hubItem.findUniqueOrThrow({ where: { id } });
+    expect(row.assigneeAgentId).toBe(codexAgent.id);
+
+    // An unassigned item: its creator may escalate, and it stays unassigned.
+    const open = await tool(
+      grok,
+      "needt_agent_task_create",
+      brief({ title: "Anyone with code", requiredSkills: ["code"] })
+    );
+    const openId = open.data.item.id as string;
+    const byCreator = await tool(grok, "needt_agent_task_escalate", {
+      id: openId,
+      question: "Is this still wanted?",
+    });
+    expect(byCreator.data.item.status).toBe("needs_owner");
+    expect(
+      (await prisma.hubItem.findUniqueOrThrow({ where: { id: openId } }))
+        .assigneeAgentId
+    ).toBeNull();
+  });
+
+  it("completes the owner task when a needs_owner item is cancelled", async () => {
+    const made = await tool(
+      grok,
+      "needt_agent_task_create",
+      brief({
+        title: "Cancel while waiting",
+        assignee: "Grok Bot",
+        requiredSkills: undefined,
+      })
+    );
+    const id = made.data.item.id as string;
+    const esc = await tool(grok, "needt_agent_task_escalate", {
+      id,
+      question: "Proceed?",
+    });
+    const taskId = esc.data.ownerTaskId as string;
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status
+    ).not.toBe("completed");
+
+    const cancelled = await ownerAction(id, "cancel", {
+      reason: "No longer needed",
+    });
+    expect(cancelled.status).toBe(200);
+    expect(cancelled.data.item.status).toBe("cancelled");
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status
+    ).toBe("completed");
+  });
+
+  it("links only the owner's own tasks", async () => {
+    const mine = await prisma.task.create({
+      data: {
+        title: "Mine",
+        status: "todo",
+        userId: ownerId,
+        workspaceId: ownerWorkspace,
+      },
+    });
+    // A shared-workspace member's task: same workspace, someone else's.
+    const theirs = await prisma.task.create({
+      data: {
+        title: "Theirs",
+        status: "todo",
+        userId: otherId,
+        workspaceId: ownerWorkspace,
+      },
+    });
+    const ok = await tool(
+      claude,
+      "needt_agent_task_create",
+      brief({ title: "Link mine", links: [{ type: "task", id: mine.id }] })
+    );
+    expect(ok.isError ? JSON.stringify(ok.data ?? ok.rpcError) : false).toBe(
+      false
+    );
+    const refused = await tool(
+      claude,
+      "needt_agent_task_create",
+      brief({ title: "Link theirs", links: [{ type: "task", id: theirs.id }] })
+    );
+    expect(refused.data.error).toBe("INVALID");
+  });
+
+  it("finds a capable item even when more than 100 items the agent cannot do come first", async () => {
+    const early = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const common = {
+      userId: ownerId,
+      workspaceId: ownerWorkspace,
+      title: "Bulk",
+      goal: "g",
+      doneCriteria: "d",
+      context: "c",
+      risks: [],
+      creatorKind: "owner",
+      status: "open",
+    };
+    await prisma.hubItem.createMany({
+      data: Array.from({ length: 105 }, (_, i) => ({
+        ...common,
+        title: `Cannot do ${i}`,
+        requiredSkills: ["holo-camera"],
+        createdAt: early,
+      })),
+    });
+    const wanted = await prisma.hubItem.create({
+      data: { ...common, title: "Can do", requiredSkills: ["code"] },
+    });
+    const inbox = await tool(codex, "needt_agent_inbox", { limit: 50 });
+    const ids = inbox.data.items.map((i: Json) => i.id);
+    expect(ids).toContain(wanted.id);
+    expect(
+      inbox.data.items.every((i: Json) => !i.title.startsWith("Cannot do"))
+    ).toBe(true);
   });
 });

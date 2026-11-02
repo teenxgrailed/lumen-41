@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { formatDateToLocal, newDate } from "@/lib/date-utils";
 import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { notify } from "@/lib/notifications";
 
@@ -48,7 +49,11 @@ interface HubAgentRow {
   heldItems: number;
   lastSeenAt: string | null;
   disabledAt?: string | null;
-  token: { preview: string; revoked: boolean; lastUsedAt: string | null } | null;
+  token: {
+    preview: string;
+    revoked: boolean;
+    lastUsedAt: string | null;
+  } | null;
 }
 
 interface HubNoteRow {
@@ -90,7 +95,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 function when(iso: string | null | undefined) {
   if (!iso) return "never";
-  return new Date(iso).toLocaleString();
+  return formatDateToLocal(newDate(iso));
 }
 
 function latest(item: HubItemRow) {
@@ -205,7 +210,8 @@ export function AgentsScreen() {
                 tone="danger"
                 onClick={() =>
                   run(
-                    () => sendJson(`/api/agent-hub/agents/${agent.id}`, "DELETE"),
+                    () =>
+                      sendJson(`/api/agent-hub/agents/${agent.id}`, "DELETE"),
                     "Token revoked"
                   )
                 }
@@ -288,7 +294,10 @@ export function AgentsScreen() {
 
       <SGroup title="Work">
         {items.length === 0 ? (
-          <SRow title="Nothing here yet" desc="Items agents create or receive show up here." />
+          <SRow
+            title="Nothing here yet"
+            desc="Items agents create or receive show up here."
+          />
         ) : null}
         {STATUS_ORDER.map((status) =>
           items
@@ -312,9 +321,13 @@ export function AgentsScreen() {
                 {open === item.id ? (
                   <ItemDetail id={item.id} fallback={item} />
                 ) : null}
-                {["open", "claimed", "in_progress", "blocked", "needs_owner"].includes(
-                  item.status
-                ) ? (
+                {[
+                  "open",
+                  "claimed",
+                  "in_progress",
+                  "blocked",
+                  "needs_owner",
+                ].includes(item.status) ? (
                   <SBtn
                     tone="danger"
                     onClick={() =>
@@ -341,7 +354,10 @@ export function AgentsScreen() {
         />
       </SGroup>
 
-      <SGroup title="Notes" hint="Shared between agents. Not visible to Needt's own assistant.">
+      <SGroup
+        title="Notes"
+        hint="Shared between agents. Not visible to Needt's own assistant."
+      >
         {tags.length > 0 ? (
           <SRow title="Tag">
             <SBtn onClick={() => setTag("")} disabled={!tag}>
@@ -355,7 +371,10 @@ export function AgentsScreen() {
           </SRow>
         ) : null}
         {notes.length === 0 ? (
-          <SRow title="No notes yet" desc="Agents write what they learn here." />
+          <SRow
+            title="No notes yet"
+            desc="Agents write what they learn here."
+          />
         ) : null}
         {notes.map((note) => (
           <SRow
@@ -391,7 +410,9 @@ export function AgentsScreen() {
                 Save
               </SBtn>
             ) : (
-              <SBtn onClick={() => setEditing({ id: note.id, text: note.text })}>
+              <SBtn
+                onClick={() => setEditing({ id: note.id, text: note.text })}
+              >
                 Edit
               </SBtn>
             )}
@@ -418,14 +439,19 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
   const detail = useQuery({
     queryKey: ["agent-hub", "item", id],
     queryFn: () =>
-      sendJson<{ item: HubItemRow }>(`/api/agent-hub/items/${id}/detail`, "POST"),
+      sendJson<{ item: HubItemRow }>(
+        `/api/agent-hub/items/${id}/detail`,
+        "POST"
+      ),
   });
   const item = detail.data?.item ?? fallback;
   return (
     <div className="base-stack base-meta">
       <span>{`Goal: ${item.goal}`}</span>
       <span>{`Done when: ${item.doneCriteria}`}</span>
-      {item.result?.summary ? <span>{`Result: ${item.result.summary}`}</span> : null}
+      {item.result?.summary ? (
+        <span>{`Result: ${item.result.summary}`}</span>
+      ) : null}
       {(item.events ?? []).map((event, index) => (
         <span key={index}>
           {`${when(event.at)} ${event.actor?.name ?? event.actor?.kind ?? "system"}: ${

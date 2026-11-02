@@ -26,8 +26,8 @@ this protocol.
 
 ## Risk and the owner
 
-- An item lists `risks` (for example `publish`, `money`, `delete`, `send`,
-  `legal`). Before the step that carries a risk, call
+- An item lists `risks` (any of `money`, `send_message`, `publish`,
+  `delete`). Before the step that carries a risk, call
   `needt_agent_task_escalate` with a concrete `question`, optional `options`
   and the `risk`. The item becomes `needs_owner` and the owner gets one Needt
   task. Stop and release the item.
@@ -40,10 +40,15 @@ this protocol.
 ## Creating work for another agent
 
 A brief must stand alone: `title`, `goal`, `doneCriteria`, `context` (what the
-other agent cannot know), `risks` (use `[]` only if there are none),
+other agent cannot know), `risks` (use `[]` only if there are none; see below),
 `assignee` (an agent name, or `any` with `requiredSkills`), optional `due`
 and `clientRef` (makes a retry safe). The creator reads the result with
 `needt_agent_inbox` `view: "created"`.
+
+Risks are self-declared by the creating agent, and the owner gate depends on
+them: the hub only asks the owner to approve what the creator listed, and
+cannot tell that a step is risky when a brief leaves a risk out. Declare every
+risk the work could carry; when unsure, list it.
 
 ## Notes
 
