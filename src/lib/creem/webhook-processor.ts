@@ -4,11 +4,11 @@ import {
   type SubscriptionStatus,
 } from "@prisma/client";
 
-import { getCreemClient } from "@/lib/creem/client";
 import {
   authorizeLifetimeCompletion,
   consumeLifetimeReservation,
 } from "@/lib/creem/lifetime-cap";
+import { settlePendingCreemCancel } from "@/lib/creem/pending-cancel";
 import { mapCreemEventToSubscription } from "@/lib/creem/webhook-mapping";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -68,9 +68,11 @@ async function serializableTransaction<T>(
 export async function processCreemBillingEvent(event: CreemBillingEvent) {
   const result = await applyCreemBillingEvent(event);
   if ("supersededSubscriptionId" in result && result.supersededSubscriptionId) {
-    await cancelSupersededProSubscription(
-      result.supersededSubscriptionId,
-      result.userId
+    // The pending marker is already committed with the grant; this is the first
+    // try. A failure leaves it for the worker sweep (retryPendingCreemCancels).
+    await settlePendingCreemCancel(
+      result.userId,
+      result.supersededSubscriptionId
     );
   }
   // One `purchase` per payment: the completed checkout, once it has been
@@ -84,32 +86,6 @@ export async function processCreemBillingEvent(event: CreemBillingEvent) {
     if (plan) void sendUmamiPurchase(plan);
   }
   return result;
-}
-
-/**
- * A Lifetime grant over a Pro subscription clears creemSubscriptionId, so the
- * old subscription would keep billing at Creem. Cancel it there. A failure is
- * logged and never blocks the Lifetime grant: the buyer already paid for it.
- */
-async function cancelSupersededProSubscription(
-  creemSubscriptionId: string,
-  userId: string
-) {
-  try {
-    await getCreemClient().subscriptions.cancel(creemSubscriptionId, {
-      mode: "immediate",
-    });
-  } catch (error) {
-    await logger.error(
-      "Could not cancel the Pro subscription superseded by Lifetime",
-      {
-        userId,
-        creemSubscriptionId,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      LOG_SOURCE
-    );
-  }
 }
 
 async function applyCreemBillingEvent(event: CreemBillingEvent) {
@@ -367,6 +343,13 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           }
         : mutation.data;
 
+    const supersededSubscriptionId =
+      mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      currentSubscription?.plan === SubscriptionPlan.PRO &&
+      currentSubscription.status !== "CANCELED"
+        ? currentSubscription.creemSubscriptionId
+        : null;
+
     const subscription = await transaction.subscription.upsert({
       where: { userId },
       create: {
@@ -379,6 +362,15 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
         ...subscriptionData,
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
+        // Same transaction as the grant: if the post-commit cancel never runs,
+        // the worker still finds this marker and finishes the job.
+        ...(supersededSubscriptionId
+          ? {
+              pendingCreemCancelId: supersededSubscriptionId,
+              pendingCreemCancelAttempts: 0,
+              pendingCreemCancelNextAt: null,
+            }
+          : {}),
       },
     });
     if (mutation.data.plan === SubscriptionPlan.LIFETIME) {
@@ -397,13 +389,6 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
         );
       }
     }
-
-    const supersededSubscriptionId =
-      mutation.data.plan === SubscriptionPlan.LIFETIME &&
-      currentSubscription?.plan === SubscriptionPlan.PRO &&
-      currentSubscription.status !== "CANCELED"
-        ? currentSubscription.creemSubscriptionId
-        : null;
 
     return { processed: true, subscription, supersededSubscriptionId, userId };
   });

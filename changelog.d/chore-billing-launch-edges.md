@@ -1,1 +1,2 @@
 - Checkout no longer sends an account that already has Lifetime, or an active Pro subscription, to a second payment. Upgrading from Pro to Lifetime cancels the old Pro subscription so it stops billing, and a refund can no longer be undone by a later subscription event. A refunded Lifetime buyer can buy again.
+- If cancelling the old Pro subscription fails when Lifetime is granted, the cancel is now saved with the purchase and retried in the background until Creem confirms, so the buyer is not billed twice.

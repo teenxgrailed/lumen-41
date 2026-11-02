@@ -29,6 +29,7 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
       count: jest.fn(),
       upsert: jest.fn(),
+      updateMany: jest.fn(),
     },
     lifetimeHold: {
       findFirst: jest.fn(),
@@ -1023,6 +1024,31 @@ describe("Creem webhook processing", () => {
 
       expect(result.processed).toBe(true);
       expect(cancel).toHaveBeenCalledWith("sub_pro_old", { mode: "immediate" });
+      // Cleared once Creem confirms.
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user_1", pendingCreemCancelId: "sub_pro_old" },
+        data: {
+          pendingCreemCancelId: null,
+          pendingCreemCancelAttempts: 0,
+          pendingCreemCancelNextAt: null,
+        },
+      });
+    });
+
+    it("persists the pending cancel in the grant's own upsert", async () => {
+      (prisma.subscription.findFirst as jest.Mock).mockResolvedValue(proRow);
+
+      await processCreemBillingEvent(lifetimeEvent);
+
+      expect(prisma.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            plan: SubscriptionPlan.LIFETIME,
+            pendingCreemCancelId: "sub_pro_old",
+            pendingCreemCancelAttempts: 0,
+          }),
+        })
+      );
     });
 
     it("still grants Lifetime and logs when the cancel fails", async () => {
@@ -1036,7 +1062,18 @@ describe("Creem webhook processing", () => {
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("superseded by Lifetime"),
         expect.objectContaining({ creemSubscriptionId: "sub_pro_old" }),
-        "CreemWebhookProcessor"
+        "CreemPendingCancel"
+      );
+      // The marker stays for the worker: attempts recorded, never cleared.
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ pendingCreemCancelAttempts: 1 }),
+        })
+      );
+      expect(prisma.subscription.updateMany).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ pendingCreemCancelId: null }),
+        })
       );
     });
 
