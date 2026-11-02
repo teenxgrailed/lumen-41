@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { revokeGoogleConnectionOnDisconnect } from "@/services/account/account-external-access";
+
 import { accountNeedsReconnect } from "@/lib/account-reconnect";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
@@ -113,6 +115,19 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    /* Stop push channels and revoke the Google grant while the tokens still
+       exist. Best-effort and bounded: a failure is logged and never blocks
+       the disconnect. */
+    await revokeGoogleConnectionOnDisconnect(userId, accountId, {
+      stopWebhooks: true,
+    }).catch((error: unknown) => {
+      logger.warn(
+        "Google revoke threw on disconnect; disconnect continues",
+        { error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
+      );
+    });
 
     // Keep local calendar history recoverable while revoking credentials.
     await prisma.calendarFeed.updateMany({

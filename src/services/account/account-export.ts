@@ -24,6 +24,55 @@ function publicAppUrl(): string {
   ).replace(/\/+$/, "");
 }
 
+/**
+ * File rows are exported as metadata only. A `Bytes` column serializes as
+ * `{"type":"Buffer","data":[...]}`, roughly four times the file's size in
+ * JSON, so the contents stay out of the archive and each file is listed by
+ * id, name, size and type instead.
+ */
+export const FILE_METADATA_SELECT = {
+  pageAsset: {
+    id: true,
+    pageId: true,
+    originalName: true,
+    mimeType: true,
+    size: true,
+    createdAt: true,
+  },
+  taskAttachment: {
+    id: true,
+    taskId: true,
+    name: true,
+    mimeType: true,
+    size: true,
+    url: true,
+    createdAt: true,
+  },
+  moodboardAsset: {
+    id: true,
+    moodboardId: true,
+    originalName: true,
+    mimeType: true,
+    size: true,
+    createdAt: true,
+  },
+  bugReportAttachment: {
+    id: true,
+    bugReportId: true,
+    fileName: true,
+    mimeType: true,
+    size: true,
+    createdAt: true,
+  },
+  collaborationState: {
+    id: true,
+    moodboardId: true,
+    lastSnapshotAt: true,
+    createdAt: true,
+    updatedAt: true,
+  },
+} as const;
+
 function accountMetadataSelect() {
   return {
     id: true,
@@ -37,6 +86,10 @@ function accountMetadataSelect() {
  * Build an ownership-anchored export. Shared workspace membership never widens
  * the query to other members' private rows, and credentials/tokens are omitted.
  */
+//todo: the export is built in memory and gzipped in one piece. Mail
+// messages, calendar events and page revisions are unbounded for a large
+// account; stream them (or page them into several archive parts) before an
+// account big enough to exhaust memory exists.
 export async function collectAccountExport(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -143,6 +196,8 @@ export async function collectAccountExport(userId: string) {
     savedViews,
     pages,
     pageAssets,
+    taskAttachments,
+    moodboardAssets,
     pageAccessReceived,
     pageAccessGranted,
     pagePublications,
@@ -282,7 +337,18 @@ export async function collectAccountExport(userId: string) {
         },
       },
     }),
-    prisma.pageAsset.findMany({ where: { userId } }),
+    prisma.pageAsset.findMany({
+      where: { userId },
+      select: FILE_METADATA_SELECT.pageAsset,
+    }),
+    prisma.taskAttachment.findMany({
+      where: { userId },
+      select: FILE_METADATA_SELECT.taskAttachment,
+    }),
+    prisma.moodboardAsset.findMany({
+      where: { userId },
+      select: FILE_METADATA_SELECT.moodboardAsset,
+    }),
     prisma.pageAccessGrant.findMany({
       where: { userId },
       select: { pageId: true, role: true, createdAt: true, updatedAt: true },
@@ -309,7 +375,10 @@ export async function collectAccountExport(userId: string) {
     prisma.pageRevision.findMany({ where: { userId } }),
     prisma.moodboard.findMany({
       where: { createdById: userId },
-      include: { snapshots: true, collaborationState: true },
+      include: {
+        snapshots: true,
+        collaborationState: { select: FILE_METADATA_SELECT.collaborationState },
+      },
     }),
     prisma.moodboardAccessGrant.findMany({
       where: { userId },
@@ -357,7 +426,9 @@ export async function collectAccountExport(userId: string) {
     prisma.flexibleHoursOverride.findMany({ where: { userId } }),
     prisma.bugReport.findMany({
       where: { userId },
-      include: { attachments: true },
+      include: {
+        attachments: { select: FILE_METADATA_SELECT.bugReportAttachment },
+      },
     }),
     prisma.taskProvider.findMany({
       where: { userId },
@@ -387,6 +458,8 @@ export async function collectAccountExport(userId: string) {
       generatedAt: newDate().toISOString(),
       security:
         "Credentials, access tokens, refresh tokens, session secrets, reset tokens, webhook secrets, push secrets, and other people's private profile data are excluded.",
+      files:
+        "File contents are not inlined. pageAssets, taskAttachments, moodboardAssets and bugReports[].attachments list each file by id, name, size and type; ask support for the files themselves.",
     },
     account: user,
     data: {
@@ -413,6 +486,8 @@ export async function collectAccountExport(userId: string) {
       savedViews,
       pages,
       pageAssets,
+      taskAttachments,
+      moodboardAssets,
       pageAccessReceived,
       pageAccessGranted,
       pagePublications,
