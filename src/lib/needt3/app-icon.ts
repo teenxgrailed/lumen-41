@@ -76,16 +76,85 @@ export function appIconLocked(
   return appIconDef(id).tier === "pro" && (planKind ?? "free") === "free";
 }
 
+/** When the 13 icons shipped (commit 4d7833c). The popup announces them. */
+export const ICON_RELEASE_AT = "2026-10-21T03:40:00Z";
+
 /**
- * The one-time popup shows when settings and the plan have loaded, the person
- * has not seen it, and the window is not driven by a test runner.
+ * The popup is news for people who knew the old icon: an account created
+ * before the release. A missing or unreadable date counts as new.
+ */
+export function accountPredatesIcons(
+  createdAt: string | null | undefined
+): boolean {
+  if (!createdAt) return false;
+  const t = Date.parse(createdAt);
+  return !Number.isNaN(t) && t < Date.parse(ICON_RELEASE_AT);
+}
+
+const LOCAL_SEEN_KEY = "needt:icon-intro-seen:";
+
+type KeyValueStore = Pick<Storage, "getItem" | "setItem">;
+
+function browserStore(): KeyValueStore | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A per-person, per-browser memory of the dismissal, so the popup does not
+ * come back on the next load while `prefs.seenIconPicker` is still unsaved.
+ * Storage can be missing or throw (private window); then it is simply false.
+ */
+export function iconIntroSeenLocally(
+  userId: string | null | undefined,
+  store: KeyValueStore | null = browserStore()
+): boolean {
+  try {
+    return store?.getItem(LOCAL_SEEN_KEY + (userId ?? "me")) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markIconIntroSeenLocally(
+  userId: string | null | undefined,
+  store: KeyValueStore | null = browserStore()
+): void {
+  try {
+    store?.setItem(LOCAL_SEEN_KEY + (userId ?? "me"), "1");
+  } catch {
+    // storage is only a convenience
+  }
+}
+
+/**
+ * The one-time popup shows when settings and the plan have loaded, the
+ * account is older than the icon release, the person has not seen it (saved
+ * or in this browser), no other overlay is open, and the window is not driven
+ * by a test runner.
  */
 export function shouldShowIconPicker(input: {
   loaded: boolean;
   seen: boolean;
   automated?: boolean;
+  /** Created before the release; new accounts never get the announcement. */
+  predatesIcons: boolean;
+  /** Dismissed in this browser, whether or not the pref write landed. */
+  seenLocally?: boolean;
+  /** Settings, paywall, focus, palette, composer, or a picker is open. */
+  overlayOpen?: boolean;
 }): boolean {
-  return input.loaded && !input.seen && !input.automated;
+  return (
+    input.loaded &&
+    !input.seen &&
+    !input.automated &&
+    input.predatesIcons &&
+    !input.seenLocally &&
+    !input.overlayOpen
+  );
 }
 
 /** Why a `prefs` write about the icon is invalid, or null. For the API. */
