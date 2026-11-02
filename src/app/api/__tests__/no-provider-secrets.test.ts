@@ -502,6 +502,45 @@ describe("API responses never carry provider secrets", () => {
     expect(json).toMatchObject({ githubClientSecret: SECRET_MASK });
   });
 
+  it("system settings patch cannot overwrite the oidc signing key", async () => {
+    let written: Record<string, unknown> | null = null;
+    let created: Record<string, unknown> | null = null;
+    db.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) =>
+        callback({
+          systemSettings: {
+            findFirst: jest.fn().mockResolvedValue(systemSettings),
+            update: jest.fn().mockImplementation(({ data }) => {
+              written = data;
+              return { ...systemSettings, ...data };
+            }),
+            create: jest.fn().mockImplementation(({ data }) => {
+              created = data;
+              return { ...systemSettings, ...data };
+            }),
+          },
+        })
+    );
+
+    const { status, text } = await bodyOf(
+      await patchSystemSettings(
+        new NextRequest("http://localhost/api/system-settings", {
+          method: "PATCH",
+          body: JSON.stringify({
+            id: "another-row",
+            oidcSigningKey: "attacker-chosen-key",
+            logLevel: "info",
+          }),
+        })
+      )
+    );
+
+    expect(status).toBe(200);
+    expect(written).toEqual({ logLevel: "info" });
+    expect(created).toBeNull();
+    expect(text).not.toContain("attacker-chosen-key");
+  });
+
   it("PATCH /api/system-settings keeps secrets when the mask is echoed back", async () => {
     let written: Record<string, unknown> = {};
     db.$transaction.mockImplementation(

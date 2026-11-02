@@ -10,6 +10,7 @@ export const AUTHORIZE_PARAMS = [
   "code_challenge",
   "code_challenge_method",
   "resource",
+  "nonce",
 ] as const;
 
 /**

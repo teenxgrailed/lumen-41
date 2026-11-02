@@ -21,6 +21,12 @@ import {
   parseScopes,
 } from "./constants";
 import { randomToken, sha256Hex, verifyPkce } from "./crypto";
+import {
+  identityClaims,
+  loadSigningKey,
+  signIdToken,
+  userinfoResource,
+} from "./oidc";
 
 /** An RFC 6749 §5.2 error the token endpoint answers with. */
 export class OAuthError extends Error {
@@ -31,7 +37,8 @@ export class OAuthError extends Error {
       | "invalid_client"
       | "invalid_scope"
       | "invalid_target"
-      | "unsupported_grant_type",
+      | "unsupported_grant_type"
+      | "server_error",
     public readonly description: string,
     public readonly status = 400
   ) {
@@ -46,6 +53,19 @@ export interface TokenResponse {
   expires_in: number;
   refresh_token: string;
   scope: string;
+}
+
+/**
+ * What an OpenID Connect code buys: a one-hour access token for the userinfo
+ * endpoint and an id_token. No refresh token — a first-party app signs the
+ * person in once and keeps its own session.
+ */
+export interface OidcTokenResponse {
+  access_token: string;
+  token_type: "Bearer";
+  expires_in: number;
+  scope: string;
+  id_token: string;
 }
 
 /** `resource` must be the canonical MCP resource or its alias, byte for byte. */
@@ -63,9 +83,13 @@ export async function createAuthorizationCode(input: {
   userId: string;
   redirectUri: string;
   codeChallenge: string;
-  scopes: McpScope[];
+  scopes: readonly string[];
   resource: string;
   workspaceId?: string | null;
+  /** OpenID Connect only: echoed into the id_token. */
+  nonce?: string | null;
+  /** OpenID Connect only: when the person authenticated. */
+  authTime?: Date | null;
 }): Promise<string> {
   const code = randomToken(AUTHORIZATION_CODE_PREFIX);
   await prisma.oAuthAuthorizationCode.create({
@@ -78,6 +102,8 @@ export async function createAuthorizationCode(input: {
       scope: formatScopes(input.scopes),
       resource: input.resource,
       workspaceId: input.workspaceId ?? null,
+      nonce: input.nonce ?? null,
+      authTime: input.authTime ?? null,
       familyId: crypto.randomUUID(),
       expiresAt: new Date(newDate().getTime() + AUTHORIZATION_CODE_TTL_MS),
     },
@@ -86,6 +112,43 @@ export async function createAuthorizationCode(input: {
 }
 
 type Tx = Prisma.TransactionClient;
+
+async function issueOidcAccessToken(
+  tx: Tx,
+  input: {
+    familyId: string;
+    clientDbId: string;
+    userId: string;
+    scope: string;
+  }
+): Promise<Omit<OidcTokenResponse, "id_token">> {
+  const access = randomToken(ACCESS_TOKEN_PREFIX);
+  await tx.oAuthToken.createMany({
+    data: [
+      {
+        familyId: input.familyId,
+        clientId: input.clientDbId,
+        userId: input.userId,
+        scope: input.scope,
+        resource: userinfoResource(),
+        workspaceId: null,
+        tokenHash: sha256Hex(access),
+        type: "access",
+        expiresAt: new Date(newDate().getTime() + ACCESS_TOKEN_TTL_MS),
+      },
+    ],
+  });
+  await tx.oAuthClient.update({
+    where: { id: input.clientDbId },
+    data: { lastUsedAt: newDate() },
+  });
+  return {
+    access_token: access,
+    token_type: "Bearer",
+    expires_in: Math.floor(ACCESS_TOKEN_TTL_MS / 1000),
+    scope: input.scope,
+  };
+}
 
 async function issueTokens(
   tx: Tx,
@@ -166,53 +229,95 @@ export async function exchangeAuthorizationCode(input: {
   redirectUri: string;
   codeVerifier: string;
   resource: string | null;
-}): Promise<TokenResponse> {
-  checkResource(input.resource);
-  const outcome = await prisma.$transaction(
-    async (tx): Promise<TokenResponse | OAuthError | { replay: string }> => {
-      const stored = await tx.oAuthAuthorizationCode.findUnique({
-        where: { codeHash: sha256Hex(input.code) },
-      });
-      if (!stored || stored.clientId !== input.clientDbId) {
+  /**
+   * Set for a first-party client (its external client_id): the code is an
+   * OpenID Connect one and is answered with an id_token. Left out, nothing
+   * about the MCP exchange differs from before.
+   */
+  firstPartyClientId?: string | null;
+}): Promise<TokenResponse | OidcTokenResponse> {
+  const oidcClientId = input.firstPartyClientId ?? null;
+  if (oidcClientId === null) {
+    checkResource(input.resource);
+  } else if (!(await loadSigningKey())) {
+    // Before the code is claimed: it stays good for the retry.
+    throw new OAuthError(
+      "server_error",
+      "Sign-in with a Needt account is not available right now.",
+      500
+    );
+  }
+  type Outcome =
+    | TokenResponse
+    | OAuthError
+    | { replay: string }
+    | {
+        oidc: Omit<OidcTokenResponse, "id_token">;
+        userId: string;
+        nonce: string | null;
+        authTime: Date;
+      };
+  const outcome = await prisma.$transaction(async (tx): Promise<Outcome> => {
+    const stored = await tx.oAuthAuthorizationCode.findUnique({
+      where: { codeHash: sha256Hex(input.code) },
+    });
+    if (!stored || stored.clientId !== input.clientDbId) {
+      return new OAuthError("invalid_grant", "Unknown authorization code.");
+    }
+    const claimed = await tx.oAuthAuthorizationCode.updateMany({
+      where: { id: stored.id, usedAt: null },
+      data: { usedAt: newDate() },
+    });
+    // Used before: the code leaked; whatever it produced is revoked
+    // (OAuth 2.1 §4.1.3), after this transaction.
+    if (claimed.count === 0) return { replay: stored.familyId };
+    if (stored.expiresAt.getTime() <= newDate().getTime()) {
+      return new OAuthError("invalid_grant", "The authorization code expired.");
+    }
+    // Exactly the redirect_uri of the authorization request (a loopback
+    // port is free only when matching the registered URIs, not here).
+    if (stored.redirectUri !== input.redirectUri) {
+      return new OAuthError("invalid_grant", "redirect_uri does not match.");
+    }
+    if (!verifyPkce(input.codeVerifier, stored.codeChallenge)) {
+      return new OAuthError("invalid_grant", "PKCE verification failed.");
+    }
+    if (oidcClientId !== null) {
+      // A first-party client has only OpenID Connect codes, which name no
+      // MCP resource; anything else is not ours to turn into an id_token.
+      if (
+        stored.resource !== "" ||
+        !stored.scope.split(" ").includes("openid")
+      ) {
         return new OAuthError("invalid_grant", "Unknown authorization code.");
       }
-      const claimed = await tx.oAuthAuthorizationCode.updateMany({
-        where: { id: stored.id, usedAt: null },
-        data: { usedAt: newDate() },
-      });
-      // Used before: the code leaked; whatever it produced is revoked
-      // (OAuth 2.1 §4.1.3), after this transaction.
-      if (claimed.count === 0) return { replay: stored.familyId };
-      if (stored.expiresAt.getTime() <= newDate().getTime()) {
-        return new OAuthError(
-          "invalid_grant",
-          "The authorization code expired."
-        );
-      }
-      // Exactly the redirect_uri of the authorization request (a loopback
-      // port is free only when matching the registered URIs, not here).
-      if (stored.redirectUri !== input.redirectUri) {
-        return new OAuthError("invalid_grant", "redirect_uri does not match.");
-      }
-      if (!verifyPkce(input.codeVerifier, stored.codeChallenge)) {
-        return new OAuthError("invalid_grant", "PKCE verification failed.");
-      }
-      if (stored.resource !== input.resource) {
-        return new OAuthError(
-          "invalid_target",
-          "resource differs from the authorization request."
-        );
-      }
-      return issueTokens(tx, {
-        familyId: stored.familyId,
-        clientDbId: stored.clientId,
+      return {
+        oidc: await issueOidcAccessToken(tx, {
+          familyId: stored.familyId,
+          clientDbId: stored.clientId,
+          userId: stored.userId,
+          scope: stored.scope,
+        }),
         userId: stored.userId,
-        scope: stored.scope,
-        resource: stored.resource,
-        workspaceId: stored.workspaceId,
-      });
+        nonce: stored.nonce,
+        authTime: stored.authTime ?? newDate(),
+      };
     }
-  );
+    if (stored.resource !== input.resource) {
+      return new OAuthError(
+        "invalid_target",
+        "resource differs from the authorization request."
+      );
+    }
+    return issueTokens(tx, {
+      familyId: stored.familyId,
+      clientDbId: stored.clientId,
+      userId: stored.userId,
+      scope: stored.scope,
+      resource: stored.resource,
+      workspaceId: stored.workspaceId,
+    });
+  });
   if ("replay" in outcome) {
     await revokeFamily(outcome.replay);
     throw new OAuthError(
@@ -221,7 +326,24 @@ export async function exchangeAuthorizationCode(input: {
     );
   }
   if (outcome instanceof OAuthError) throw outcome;
-  return outcome;
+  if ("oidc" in outcome && oidcClientId !== null) {
+    const claims = await identityClaims(outcome.userId);
+    if (!claims) {
+      throw new OAuthError("invalid_grant", "The account no longer exists.");
+    }
+    const asked = outcome.oidc.scope.split(" ");
+    const id_token = await signIdToken({
+      userId: claims.sub,
+      clientId: oidcClientId,
+      nonce: outcome.nonce,
+      authTime: outcome.authTime,
+      email: asked.includes("email") ? claims.email : null,
+      emailVerified: claims.email_verified,
+      name: asked.includes("profile") ? claims.name : null,
+    });
+    return { ...outcome.oidc, id_token };
+  }
+  return outcome as TokenResponse;
 }
 
 /**

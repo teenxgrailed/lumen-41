@@ -25,6 +25,34 @@ export function parseScopes(raw: string | null | undefined): McpScope[] | null {
     : null;
 }
 
-export function formatScopes(scopes: readonly McpScope[]): string {
-  return MCP_SCOPES.filter((scope) => scopes.includes(scope)).join(" ");
+export function formatScopes(scopes: readonly string[]): string {
+  return [...OIDC_SCOPES, ...MCP_SCOPES]
+    .filter((scope) => scopes.includes(scope))
+    .join(" ");
+}
+
+/** OpenID Connect scopes: only first-party clients may ask for them. */
+export const OIDC_SCOPES = ["openid", "email", "profile"] as const;
+export type OidcScope = (typeof OIDC_SCOPES)[number];
+
+/** Whether a scope parameter names `openid` (the switch into OIDC). */
+export function wantsOpenid(raw: string | null | undefined): boolean {
+  return !!raw && raw.trim().split(/\s+/).includes("openid");
+}
+
+/**
+ * An OIDC scope parameter: `openid`, optionally with `email` and `profile`.
+ * null when it names anything else (MCP scopes do not mix with openid) or
+ * does not name `openid`.
+ */
+export function parseOidcScopes(
+  raw: string | null | undefined
+): OidcScope[] | null {
+  if (!wantsOpenid(raw)) return null;
+  const asked = [...new Set((raw as string).trim().split(/\s+/))];
+  return asked.every((scope) =>
+    (OIDC_SCOPES as readonly string[]).includes(scope)
+  )
+    ? (asked as OidcScope[])
+    : null;
 }

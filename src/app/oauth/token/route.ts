@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { ClientError, resolveClient } from "@/services/oauth/clients";
+import { isFirstParty } from "@/services/oauth/first-party";
 import {
   OAuthError,
   exchangeAuthorizationCode,
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
             redirectUri: form.get("redirect_uri") ?? "",
             codeVerifier: form.get("code_verifier") ?? "",
             resource: form.get("resource"),
+            firstPartyClientId: isFirstParty(client) ? client.clientId : null,
           })
         : grantType === "refresh_token"
           ? await refreshTokens({
