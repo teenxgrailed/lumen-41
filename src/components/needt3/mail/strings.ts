@@ -24,6 +24,9 @@ export const notices = {
   connectedGmail: "Gmail connected. Importing your mail…",
   connectedOutlook: "Outlook connected. Importing your mail…",
   connectFailed: "Could not connect the mailbox.",
+  gmailDenied: "Gmail wasn’t connected. You can try again any time.",
+  gmailScopeMissing:
+    "Gmail needs permission to read your mail. Connect again and leave the mail box ticked.",
   mailboxLimit: "Your plan has no room for another mailbox.",
   nothingToSync: "There is no connected account to sync.",
   syncFailed: "Could not start the sync. Try again in a moment.",

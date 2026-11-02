@@ -20,13 +20,27 @@ describe("calendar connection recovery", () => {
     });
   });
 
+  it("explains a calendar-limit refusal on the settings screen", () => {
+    expect(
+      calendarConnectionNotice("limit_reached", null, "outlook")
+    ).toMatchObject({
+      title: "Outlook Calendar wasn’t connected",
+      description: expect.stringContaining("no room for another calendar"),
+      tone: "error",
+    });
+  });
+
   it("recognizes revoked and expired provider credentials", () => {
     expect(calendarProviderNeedsReconnect({ statusCode: 401 })).toBe(true);
     expect(
-      calendarProviderNeedsReconnect({ message: "invalid_grant: token revoked" })
+      calendarProviderNeedsReconnect({
+        message: "invalid_grant: token revoked",
+      })
     ).toBe(true);
     expect(
-      calendarProviderNeedsReconnect({ message: "Token refresh failed: Bad Request" })
+      calendarProviderNeedsReconnect({
+        message: "Token refresh failed: Bad Request",
+      })
     ).toBe(true);
     expect(calendarProviderNeedsReconnect({ statusCode: 503 })).toBe(false);
   });

@@ -10,9 +10,9 @@ describe("a new password, judged as the server judges it", () => {
   it.each([
     ["", "short"],
     ["Ab1", "short"],
-    ["abcdefgh", "mix"],
-    ["ABCDEFG1", "mix"],
-    ["Abcdefgh", "mix"],
+    ["abcdefgh", null],
+    ["ABCDEFG1", null],
+    ["Abcdefgh", null],
     ["Abcdefg1", null],
   ] as const)("%j → %s", (pass, problem) => {
     expect(newPasswordProblem(pass)).toBe(problem);
@@ -20,7 +20,6 @@ describe("a new password, judged as the server judges it", () => {
 
   it("says what to fix, or the rule when nothing is wrong", () => {
     expect(newPasswordText("short")).toBe("Use at least 8 characters.");
-    expect(newPasswordText("mix")).toMatch(/uppercase.*lowercase.*number/);
     expect(newPasswordText(null)).toMatch(/^At least 8 characters/);
   });
 });

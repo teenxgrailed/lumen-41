@@ -5,6 +5,7 @@ import {
   calendarOAuthCookieOptions,
   calendarOAuthStateCookie,
   calendarOAuthStateCookieValue,
+  calendarSettingsRedirect,
   createCalendarOAuthState,
 } from "@/lib/calendar-oauth";
 import { canAddCalendar } from "@/lib/entitlements";
@@ -20,12 +21,15 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
-    const entitlement = await canAddCalendar(auth.userId);
+    // A reconnect of an account that already carries calendars is not an
+    // addition; the callback judges the exact address.
+    const entitlement = await canAddCalendar(auth.userId, {
+      provider: "GOOGLE",
+    });
     if (!entitlement.allowed) {
-      return NextResponse.json(
-        { error: "Calendar limit reached.", entitlement },
-        { status: 403 }
-      );
+      return calendarSettingsRedirect(request, "google", {
+        error: "limit_reached",
+      });
     }
 
     const redirectUrl = buildCalendarOAuthRedirectUrl("google");

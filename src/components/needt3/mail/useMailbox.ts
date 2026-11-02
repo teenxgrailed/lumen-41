@@ -77,6 +77,9 @@ export function useMailbox() {
     if (connected === "gmail") notify.success(notices.connectedGmail);
     else if (connected === "outlook") notify.success(notices.connectedOutlook);
     else if (error === "mailbox-limit") notify.warning(notices.mailboxLimit);
+    else if (error === "google-denied") notify.info(notices.gmailDenied);
+    else if (error === "google-scope")
+      notify.warning(notices.gmailScopeMissing);
     else if (error) notify.error(notices.connectFailed);
     void queryClient.invalidateQueries();
     params.delete("connected");

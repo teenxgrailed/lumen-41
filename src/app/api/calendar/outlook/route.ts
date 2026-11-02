@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { getOutlookCredentials } from "@/lib/auth";
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import { type CalendarProvider } from "@/lib/calendar-connection-status";
 import {
   calendarOAuthStateCookie,
+  calendarSettingsRedirect,
   isValidCalendarOAuthState,
 } from "@/lib/calendar-oauth";
 import { newDate } from "@/lib/date-utils";
@@ -15,25 +15,11 @@ import {
   resolveOutlookAccountEmail,
 } from "@/lib/outlook";
 import { OutlookCalendarService } from "@/lib/outlook-calendar";
-import { publicAppUrl } from "@/lib/public-url";
 import { TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "OutlookCalendarAPI";
 
-function settingsRedirect(
-  request: NextRequest,
-  provider: CalendarProvider,
-  result: { error?: string; success?: string }
-) {
-  const url = publicAppUrl("/settings", request);
-  url.searchParams.set("provider", provider);
-  if (result.error) url.searchParams.set("calendarError", result.error);
-  if (result.success) url.searchParams.set("calendarSuccess", result.success);
-  url.hash = "calendars";
-  const response = NextResponse.redirect(url);
-  response.cookies.delete(calendarOAuthStateCookie(provider));
-  return response;
-}
+const settingsRedirect = calendarSettingsRedirect;
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,14 +52,6 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = auth.userId;
-    const entitlement = await canAddCalendar(userId);
-    if (!entitlement.allowed) {
-      return NextResponse.json(
-        { error: "Calendar limit reached.", entitlement },
-        { status: 403 }
-      );
-    }
-
     const { clientId, clientSecret } = await getOutlookCredentials();
     const redirectUrl = `${process.env.NEXTAUTH_URL}/api/calendar/outlook`;
 
@@ -137,6 +115,16 @@ export async function GET(req: NextRequest) {
           LOG_SOURCE
         );
         return settingsRedirect(req, "outlook", { error: "callback_failed" });
+      }
+
+      // Judged once the address is known, so re-authorising a connected
+      // account is not an addition.
+      const entitlement = await canAddCalendar(userId, {
+        provider: "OUTLOOK",
+        email,
+      });
+      if (!entitlement.allowed) {
+        return settingsRedirect(req, "outlook", { error: "limit_reached" });
       }
 
       // Store tokens

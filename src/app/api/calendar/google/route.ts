@@ -5,12 +5,10 @@ import { google } from "googleapis";
 import { v4 as uuidv4 } from "uuid";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
-import {
-  type CalendarProvider,
-  calendarProviderNeedsReconnect,
-} from "@/lib/calendar-connection-status";
+import { calendarProviderNeedsReconnect } from "@/lib/calendar-connection-status";
 import {
   calendarOAuthStateCookie,
+  calendarSettingsRedirect,
   isValidCalendarOAuthState,
 } from "@/lib/calendar-oauth";
 import { registerCalendarWebhookBestEffort } from "@/lib/calendar-webhooks/register";
@@ -22,25 +20,11 @@ import { syncGoogleCalendar } from "@/lib/google-sync";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { enqueueCalendarSync, isQueueConfigured } from "@/lib/queue/enqueue";
-import { publicAppUrl } from "@/lib/public-url";
 import { TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "GoogleCalendarAPI";
 
-function settingsRedirect(
-  request: NextRequest,
-  provider: CalendarProvider,
-  result: { error?: string; success?: string }
-) {
-  const url = publicAppUrl("/settings", request);
-  url.searchParams.set("provider", provider);
-  if (result.error) url.searchParams.set("calendarError", result.error);
-  if (result.success) url.searchParams.set("calendarSuccess", result.success);
-  url.hash = "calendars";
-  const response = NextResponse.redirect(url);
-  response.cookies.delete(calendarOAuthStateCookie(provider));
-  return response;
-}
+const settingsRedirect = calendarSettingsRedirect;
 
 /**
  * Webhooks only fire on changes, so a freshly connected calendar stayed empty.
@@ -107,13 +91,6 @@ export async function GET(request: NextRequest) {
     if (!code) {
       return settingsRedirect(request, "google", { error: "missing_code" });
     }
-    const entitlement = await canAddCalendar(auth.userId);
-    if (!entitlement.allowed) {
-      return NextResponse.json(
-        { error: "Calendar limit reached.", entitlement },
-        { status: 403 }
-      );
-    }
 
     const oauth2Client = await createGoogleOAuthClient({
       redirectUrl: `${process.env.NEXTAUTH_URL}/api/calendar/google`,
@@ -129,6 +106,16 @@ export async function GET(request: NextRequest) {
         { error: "Could not retrieve Google account details" },
         { status: 400 }
       );
+    }
+
+    // Judged here, not before the token exchange: only now is the address
+    // known, so re-authorising a connected account is not an addition.
+    const entitlement = await canAddCalendar(auth.userId, {
+      provider: "GOOGLE",
+      email: userInfo.data.email,
+    });
+    if (!entitlement.allowed) {
+      return settingsRedirect(request, "google", { error: "limit_reached" });
     }
 
     const tokenManager = TokenManager.getInstance();

@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { z } from "zod";
-
+import { passwordSchema } from "@/lib/auth/password-schema";
 import { isSigningUpSession } from "@/lib/auth/signing-up-session";
 import { confirmEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "EmailVerificationConfirmAPI";
 
-/* Same rule as the reset-password route. */
-const newPasswordSchema = z
-  .string()
-  .min(8)
-  .max(128)
-  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/);
+/* Same rule as sign-up and the reset-password route. */
+const newPasswordSchema = passwordSchema;
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {

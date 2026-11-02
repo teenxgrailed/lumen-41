@@ -4,6 +4,7 @@ import {
   calendarOAuthStateCookie,
   calendarOAuthStateCookieValue,
 } from "@/lib/calendar-oauth";
+import { canAddCalendar } from "@/lib/entitlements";
 import { enqueueCalendarSync } from "@/lib/queue/enqueue";
 
 import { GET } from "../route";
@@ -90,5 +91,32 @@ describe("Google Calendar OAuth callback first sync", () => {
     expect(res?.status).toBe(307);
     expect(res?.headers.get("location")).toContain("calendarSuccess=connected");
     expect(enqueueCalendarSync).toHaveBeenCalledTimes(CALENDARS.length);
+  });
+
+  it("sends a capped new account back to Settings with limit_reached and stores nothing", async () => {
+    process.env.NEXTAUTH_URL = "https://use.needt.app";
+    jest.mocked(canAddCalendar).mockResolvedValueOnce({
+      allowed: false,
+    } as never);
+    const cookie = calendarOAuthStateCookieValue("state-1", "user-1");
+    const request = new NextRequest(
+      "http://0.0.0.0:3000/api/calendar/google?code=c&state=state-1",
+      {
+        headers: { cookie: `${calendarOAuthStateCookie("google")}=${cookie}` },
+      }
+    );
+    jest.mocked(enqueueCalendarSync).mockClear();
+
+    const res = await GET(request);
+
+    expect(canAddCalendar).toHaveBeenCalledWith("user-1", {
+      provider: "GOOGLE",
+      email: "me@example.com",
+    });
+    expect(res?.status).toBe(307);
+    expect(res?.headers.get("location")).toContain(
+      "calendarError=limit_reached"
+    );
+    expect(enqueueCalendarSync).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,4 @@
+- Reconnecting a calendar, or connecting Google Tasks or Gmail, no longer uses up the Free calendar slot: only accounts that carry a calendar count, and re-authorising one you already have is never blocked.
+- Hitting the calendar limit while connecting Google or Outlook now returns you to Settings with an explanation instead of a raw error page.
+- One password rule everywhere: at least 8 characters (sign-up, reset and confirm-email no longer disagree, so nobody is locked out of resetting).
+- Cancelling the Gmail consent screen is shown as a cancel, not an error, and a Gmail grant without the mail permission is refused with a clear message.
