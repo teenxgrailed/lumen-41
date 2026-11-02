@@ -62,14 +62,20 @@ async function startFirstGoogleSyncs(feedIds: string[]) {
         void syncGoogleCalendar(feed, { forceFullSync: true }).catch((error) =>
           logger.error(
             "First sync of a Google calendar failed",
-            { feedId, error: error instanceof Error ? error.message : error },
+            {
+              feedId,
+              error: error instanceof Error ? error.message : String(error),
+            },
             LOG_SOURCE
           )
         );
       } catch (error) {
         await logger.error(
           "Could not start the first sync of a Google calendar",
-          { feedId, error: error instanceof Error ? error.message : error },
+          {
+            feedId,
+            error: error instanceof Error ? error.message : String(error),
+          },
           LOG_SOURCE
         );
       }
