@@ -292,7 +292,7 @@ export function projectStats(
 /** "3 tasks to do" / "All done" / "No tasks yet" (project card). */
 export function cardLine(s: Pick<ProjectStats, "open" | "total">) {
   return s.open
-    ? `${s.open} tasks to do`
+    ? `${s.open} ${s.open === 1 ? "task" : "tasks"} to do`
     : s.total
       ? "All done"
       : "No tasks yet";

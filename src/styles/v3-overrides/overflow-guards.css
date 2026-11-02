@@ -1,0 +1,111 @@
+/* Design v3 — worst-case data. HAND-WRITTEN, loaded last.
+ *
+ * Every rule here changes nothing for ordinary text: a long unbroken word
+ * (a URL, a file name, a title pasted without spaces), a very long project or
+ * attachment name, or a mixed-direction title no longer pushes a sheet, a row
+ * or a card past its edge. The rule that does the work is named with the sheet
+ * it corrects. The vendored sheets (src/styles/v3/) are not edited. */
+
+/* An inner span that takes the ellipsis. `text-overflow` does not apply to the
+ * text of an inline-flex box, so the name sits in a flex item of its own. */
+.needt-v3 .nx-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* phone-kit.css:255-256, phone sheets */
+.needt-v3 .pk-sheet-title,
+.needt-v3 .pk-sheet-meta {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* mobile-v2-plates.css:106-107, the event plate: three lines, then a clip */
+.needt-v3 .v2p-ev-title {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.needt-v3 .v2p-ev-line {
+  overflow-wrap: anywhere;
+}
+
+/* phone-overlays.css:31-32, :99, the task sheet's top row and the parts list */
+.needt-v3 .pov-task-proj {
+  min-width: 0;
+  overflow: hidden;
+}
+.needt-v3 .pov-saved {
+  flex: none;
+}
+.needt-v3 .pov-part-title {
+  overflow-wrap: anywhere;
+}
+
+/* phone-kit.css:166, phone-docs.css:81: the name is the .nx-ellipsis span */
+.needt-v3 .pk-row-proj > .nx-ellipsis,
+.needt-v3 .pd-card-proj > .nx-ellipsis {
+  flex: 0 1 auto;
+}
+
+/* A row's title reads in its own direction (Arabic, Hebrew) wherever it sits. */
+.needt-v3 .pk-row-title {
+  unicode-bidi: plaintext;
+}
+
+/* mail.css:71, :74, :13, :77: the desktop reading pane */
+.needt-v3 .ml-subject,
+.needt-v3 .ml-from-name,
+.needt-v3 .ml-meta {
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ml-attach {
+  max-width: 100%;
+  min-width: 0;
+}
+.needt-v3 .ml-attach > .ml-attach-ico {
+  flex: none;
+}
+/* The body takes the phone reader's constraints (motion.css, .pml-html). */
+.needt-v3 .ml-body img,
+.needt-v3 .ml-body table,
+.needt-v3 .ml-body video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* phone-mail.css:41-44, the phone reader */
+.needt-v3 .pml-file {
+  max-width: 100%;
+  min-width: 0;
+}
+.needt-v3 .pml-file > svg {
+  flex: none;
+}
+.needt-v3 .pml-para,
+.needt-v3 .pml-as-task {
+  overflow-wrap: anywhere;
+}
+
+/* tasks.css:137-139, "Make a task" preview card */
+.needt-v3 .tk-prev-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .tk-prev-where {
+  flex: none;
+}
+
+/* calendar.css:71, :117 */
+.needt-v3 .c2-peek-where,
+.needt-v3 .c2-slot-meta {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}

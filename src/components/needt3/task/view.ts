@@ -72,7 +72,7 @@ export function taskView(
   const atRisk = !event && !done && task.atRisk === true;
   return {
     id: task.id,
-    title: task.title || "",
+    title: task.title || "Untitled",
     /** Held at its time by hand: the scheduler will not move it. */
     pinned,
     pinTitle: pinned ? pinTitle(task) : undefined,

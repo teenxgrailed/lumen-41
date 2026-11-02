@@ -5,6 +5,7 @@
  * Forward open the message at the provider.
  */
 import { mailDayLabel } from "@/lib/needt3/derive";
+import { initialsOf } from "@/lib/needt3/initials";
 import type { V3MailThread, V3Task } from "@/lib/needt3/map";
 
 /** The tabs a read-only Mailbox keeps (Sent and Drafts need sending). */
@@ -61,13 +62,7 @@ export function groupByDay<M extends Pick<V3MailThread, "receivedAt">>(
 
 /** Up to two initials for the avatar. */
 export function initials(name: string | null | undefined) {
-  return (name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return initialsOf(name);
 }
 
 export function firstName(name: string | null | undefined) {

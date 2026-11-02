@@ -215,6 +215,7 @@ describe("projects", () => {
       pct: 0.25,
     });
     expect(cardLine(s)).toBe("3 tasks to do");
+    expect(cardLine({ open: 1, total: 4 })).toBe("1 task to do");
     expect(openLine({ open: 0, total: 2 })).toBe("All done");
     expect(openLine({ open: 0, total: 0 })).toBe("No tasks yet");
   });

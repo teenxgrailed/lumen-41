@@ -694,7 +694,7 @@ export function MailScreen({ box }: { box: Mailbox }) {
                   <span className="ml-attach-ico is-file">
                     <FiPaperclip size={12} aria-hidden />
                   </span>
-                  {f.name}
+                  <span className="nx-ellipsis">{f.name}</span>
                 </span>
               ))}
               {link ? (

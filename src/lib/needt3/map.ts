@@ -764,7 +764,7 @@ export function mailFromApi(row: ApiMailMessage, tz: string): V3MailThread {
     accountId: row.accountId,
     threadId: row.threadId ?? null,
     subject: row.subject,
-    from: row.fromName || row.fromAddress || "",
+    from: row.fromName || row.fromAddress || "Unknown sender",
     fromEmail: row.fromAddress ?? null,
     receivedAt: isoToStamp(row.date, tz) ?? "",
     preview: row.snippet,

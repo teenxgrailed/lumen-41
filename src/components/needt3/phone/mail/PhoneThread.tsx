@@ -179,7 +179,7 @@ export function PhoneThread({
       {m.attachments.map((f, i) => (
         <span key={`${f.name}${i}`} className="pml-file">
           <LuPaperclip size={14} aria-hidden />
-          {f.name}
+          <span className="nx-ellipsis">{f.name}</span>
         </span>
       ))}
       <p className="pml-as-task">

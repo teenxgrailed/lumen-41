@@ -1,3 +1,9 @@
+"use client";
+
+import { useState } from "react";
+
+import { initialsOf as initialsOfName } from "@/lib/needt3/initials";
+
 /** The design system's Avatar: raised square, initials, never a picture of
  *  something else. Radius md up to 28px, 2xl above. */
 export function Avatar({
@@ -11,6 +17,10 @@ export function Avatar({
   size?: number;
   src?: string | null;
 }) {
+  // A picture that fails to load (a dead URL, a blocked host) gives way to the
+  // initials, and tries again when the address changes.
+  const [broken, setBroken] = useState<string | null>(null);
+  const failed = !!src && broken === src;
   return (
     <span
       className="raised"
@@ -27,12 +37,13 @@ export function Avatar({
         overflow: "hidden",
       }}
     >
-      {src ? (
+      {src && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt=""
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={() => setBroken(src)}
         />
       ) : (
         initials
@@ -42,12 +53,5 @@ export function Avatar({
 }
 
 export function initialsOf(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
+  return initialsOfName(name);
 }

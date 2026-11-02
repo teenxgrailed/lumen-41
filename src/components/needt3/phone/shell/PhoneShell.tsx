@@ -14,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useFocusSession } from "@/lib/needt3/hooks/focus";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
+import { initialsOf } from "@/lib/needt3/initials";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -239,7 +240,7 @@ export function PhoneShell() {
   const kind = plan.data?.kind ?? "free";
   const me = {
     name,
-    initial: name.trim().charAt(0).toUpperCase() || "?",
+    initial: initialsOf(name, 1),
     plan: planPill(kind, plan.data?.trialDaysLeft ?? null).text,
     pro: kind !== "free",
   };
