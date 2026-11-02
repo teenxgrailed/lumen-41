@@ -45,6 +45,8 @@ export interface Needt3UiState {
   askRemembered: boolean;
   /** The docked Ask panel's width, dragged from its left edge. */
   askWidth: number;
+  /** The calendar the person last picked for a new event (a CalendarFeed id). */
+  lastCalendarId: string | null;
   focusOpen: boolean;
   theme: ThemeChoice;
   accent: AccentId;
@@ -64,6 +66,7 @@ export interface Needt3UiState {
   setAskOpen: (open: boolean) => void;
   setAskRemembered: (remembered: boolean) => void;
   setAskWidth: (width: number) => void;
+  setLastCalendarId: (id: string | null) => void;
   setFocusOpen: (open: boolean) => void;
   setTheme: (theme: ThemeChoice) => void;
   setAccent: (accent: AccentId) => void;
@@ -86,6 +89,7 @@ export const useNeedt3Ui = create<Needt3UiState>()(
       askOpen: false,
       askRemembered: false,
       askWidth: CHAT_DOCK_W,
+      lastCalendarId: null,
       focusOpen: false,
       theme: DEFAULT_THEME,
       accent: DEFAULT_ACCENT,
@@ -105,6 +109,7 @@ export const useNeedt3Ui = create<Needt3UiState>()(
       setAskOpen: (askOpen) => set({ askOpen }),
       setAskRemembered: (askRemembered) => set({ askRemembered }),
       setAskWidth: (askWidth) => set({ askWidth: clampDockW(askWidth) }),
+      setLastCalendarId: (lastCalendarId) => set({ lastCalendarId }),
       setFocusOpen: (focusOpen) => set({ focusOpen }),
       setTheme: (theme) => set({ theme: normalizeTheme(theme) }),
       setAccent: (accent) => set({ accent: normalizeAccent(accent) }),
@@ -126,6 +131,7 @@ export const useNeedt3Ui = create<Needt3UiState>()(
         sidebarOpen: s.sidebarOpen,
         askRemembered: s.askRemembered,
         askWidth: s.askWidth,
+        lastCalendarId: s.lastCalendarId,
         theme: s.theme,
         accent: s.accent,
       }),
@@ -142,6 +148,10 @@ export const useNeedt3Ui = create<Needt3UiState>()(
               ? p.askRemembered
               : current.askRemembered,
           askWidth: clampDockW(p.askWidth ?? current.askWidth),
+          lastCalendarId:
+            typeof p.lastCalendarId === "string"
+              ? p.lastCalendarId
+              : current.lastCalendarId,
           theme: normalizeTheme(p.theme ?? current.theme),
           accent: normalizeAccent(p.accent ?? current.accent),
         };

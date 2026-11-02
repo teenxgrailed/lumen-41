@@ -8,6 +8,7 @@ import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { LuPlus } from "react-icons/lu";
 
 import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
+import { feedSubtitle, writableFeeds } from "@/lib/needt3/calendars";
 import { addDays, addMinutes, hhmm, hourOf, stamp } from "@/lib/needt3/derive";
 import { useSchedule } from "@/lib/needt3/hooks/account";
 import {
@@ -202,12 +203,14 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const work = useMemo(() => workHoursOf(schedule), [schedule]);
   const projects = useProjects().data;
   const calendars = useCalendars().data;
-  // where an event can be written: the person's enabled Needt calendars
+  // where an event can be written: Needt calendars and writable synced ones
   const writable = useMemo(
     () =>
-      (calendars ?? [])
-        .filter((c) => c.type === "LOCAL" && c.enabled !== false)
-        .map((c) => ({ id: c.id, name: c.name })),
+      writableFeeds(calendars ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        detail: feedSubtitle(c),
+      })),
     [calendars]
   );
   const calendarNames = useMemo(
@@ -357,7 +360,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       return;
     }
     if (spec.kind === "event") {
-      // a Needt (LOCAL) calendar, created once if missing — never a synced one
+      // the picked calendar, else a Needt (LOCAL) one, created once if missing
       void createEvent({
         title: spec.title,
         startAt,

@@ -64,7 +64,21 @@ jest.mock("@/lib/needt3/hooks/events", () => ({
     data: [
       { id: "cal-a", type: "LOCAL", name: "Needt", enabled: true },
       { id: "cal-b", type: "LOCAL", name: "Side", enabled: true },
-      { id: "cal-g", type: "GOOGLE", name: "Work Google", enabled: true },
+      {
+        id: "cal-g",
+        type: "GOOGLE",
+        name: "Needt",
+        enabled: true,
+        url: "me@gmail.com",
+        account: { email: "me@gmail.com" },
+      },
+      {
+        id: "cal-h",
+        type: "GOOGLE",
+        name: "Holidays",
+        enabled: true,
+        url: "x#holiday@group.v.calendar.google.com",
+      },
     ],
   }),
 }));
@@ -185,8 +199,11 @@ describe("Composer: each type is its own form", () => {
     const rows = Array.from(document.querySelectorAll('[role="menuitem"]')).map(
       (r) => r.textContent
     );
-    expect(rows).toEqual(expect.arrayContaining(["Needt", "Side"]));
-    expect(rows.join()).not.toContain("Work Google");
+    expect(rows).toEqual(
+      expect.arrayContaining(["NeedtOnly in Needt", "SideOnly in Needt"])
+    );
+    // a read-only (holiday) calendar is never offered
+    expect(rows.join()).not.toContain("Holidays");
   });
 
   it("Doc: Untitled doc, folder and template, Create doc, nothing task-shaped", () => {
@@ -276,6 +293,59 @@ describe("Composer: Enter makes the current type", () => {
     expect(ev.calendarId).toBe("cal-a");
     expect(createTask).not.toHaveBeenCalled();
     expect(createDoc).not.toHaveBeenCalled();
+  });
+
+  const footBtn = (name: RegExp) =>
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".cmp-foot .cmp-btn")
+    ).find((b) => name.test(b.textContent ?? ""))!;
+
+  it("Event: the Calendar picker lists writable Google calendars with their account", () => {
+    mount();
+    act(() => tab("Event").click());
+    act(() => footBtn(/^Calendar$|Needt/).click());
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"].cmp-row')
+    ).map((r) => r.textContent);
+    expect(rows).toEqual([
+      "NeedtOnly in Needt",
+      "SideOnly in Needt",
+      "Needtme@gmail.com",
+      "No calendar",
+    ]);
+  });
+
+  it("Event: picking the Google calendar writes there and is remembered", async () => {
+    mount();
+    act(() => tab("Event").click());
+    type("demo fri 11:00");
+    act(() => footBtn(/^Calendar$|Needt/).click());
+    const google = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitem"].cmp-row')
+    ).find((r) => r.textContent?.includes("me@gmail.com"))!;
+    act(() => google.click());
+    await act(async () => enter());
+    expect(createEvent.mock.calls[0][0].calendarId).toBe("cal-g");
+    // the next sheet opens on the same calendar
+    createEvent.mockClear();
+    type("again fri 12:00");
+    await act(async () => enter());
+    expect(createEvent.mock.calls[0][0].calendarId).toBe("cal-g");
+  });
+
+  it("Event: a day picked on the month grid overrules the day in the line", async () => {
+    mount();
+    act(() => tab("Event").click());
+    type("demo fri 11:00");
+    act(() => footBtn(/Date|Fri/).click());
+    const day = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(".tdc-cal-day")
+    ).find((b) => b.textContent === "20")!;
+    act(() => day.click());
+    await act(async () => enter());
+    const ev = createEvent.mock.calls[0][0];
+    expect(ev.startAt).toMatch(/-20T11:00$/);
+    expect(ev.endAt).toMatch(/-20T12:00$/);
   });
 
   it("Doc: createDoc with the whole title, then opens the new doc", async () => {

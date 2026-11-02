@@ -8,6 +8,8 @@ import { clockSteps, snapQuarter } from "@/lib/needt3/clock-input";
 import type { ProjectLike } from "@/lib/needt3/derive";
 import { PERSONAL_PRESETS, type PersonalPreset } from "@/lib/personal-time";
 
+import { useNeedt3Ui } from "@/store/needt3-ui";
+
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { SSelect, V3Switch } from "../settings/kit";
 import { Seg2 } from "./Seg2";
@@ -28,10 +30,12 @@ export const CREATE_CHIPS: readonly PersonalPreset[] = PERSONAL_PRESETS.filter(
   (p) => CHIP_KINDS.includes(p.kind)
 );
 
-/** A calendar an event can be written to (a Needt calendar; synced ones are read-only). */
+/** A calendar an event can be written to (a Needt calendar or a synced one). */
 export interface WritableCalendar {
   id: string;
   name: string;
+  /** Tells same-named calendars apart: the account's email, or "Only in Needt". */
+  detail?: string;
 }
 
 /**
@@ -148,8 +152,11 @@ export function CreateCard({
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [pin, setPin] = useState(true);
+  const lastCalendarId = useNeedt3Ui((s) => s.lastCalendarId);
+  const setLastCalendarId = useNeedt3Ui((s) => s.setLastCalendarId);
   const [calendarId, setCalendarId] = useState<string | null>(
-    calendars?.[0]?.id ?? null
+    (calendars?.find((c) => c.id === lastCalendarId) ?? calendars?.[0])?.id ??
+      null
   );
   const use12h = useClock12();
   // The range as last set here: a field commits on blur or Enter, in the same
@@ -376,10 +383,19 @@ export function CreateCard({
                 label="Calendar"
                 width="100%"
                 value={calendarId ?? ""}
-                onChange={(v) => setCalendarId(v || null)}
+                onChange={(v) => {
+                  setCalendarId(v || null);
+                  if (v) setLastCalendarId(v);
+                }}
                 options={
                   calendars && calendars.length > 0
-                    ? calendars.map((c) => [c.id, c.name] as const)
+                    ? calendars.map(
+                        (c) =>
+                          [
+                            c.id,
+                            c.detail ? `${c.name} · ${c.detail}` : c.name,
+                          ] as const
+                      )
                     : [["", "Needt"] as const]
                 }
               />

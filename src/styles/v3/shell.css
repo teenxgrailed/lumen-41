@@ -195,6 +195,18 @@
   font: 400 12px/1 var(--font-sans);
   color: var(--text-muted);
 }
+.needt-v3 .cmp-row .cmp-sub {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/1 var(--font-sans);
+  color: var(--text-muted);
+}
+.needt-v3 .cmp-row .cmp-sub + .cmp-hint {
+  margin-left: 4px;
+}
 .needt-v3 .cmp-sep {
   display: block;
   height: 1px;
