@@ -1,0 +1,27 @@
+/* Design v3 — unread dots grow from half size, not from a point. HAND-WRITTEN.
+ *
+ * The dots were hidden at scale(0), a degenerate transform (the box has no
+ * area, so it is re-rasterised from nothing when it grows). Hidden is now
+ * scale(0.5) with opacity 0 and shown is scale(1) at opacity 1: the same end
+ * states, and the grow still reads as a dot appearing. The topbar dots and the
+ * profile dot write opacity inline (TopIcons, AccountMenu); the notes panel
+ * dot takes it from data-unread-dot: an inline opacity would beat the row's
+ * hover rule (shell.css .shell-note:hover), which hides the dot. */
+.needt-v3 .shell-dot-layer {
+  transition:
+    transform 200ms var(--nx-ease),
+    opacity 200ms var(--nx-ease);
+}
+.needt-v3 .shell-notes-panel-span {
+  transition:
+    transform 180ms var(--nx-ease),
+    opacity 180ms var(--nx-ease);
+}
+.needt-v3 .shell-notes-panel-span[data-unread-dot="false"] {
+  opacity: 0;
+}
+/* Hovering a row swaps its dot for the row's actions at once, as before. */
+.needt-v3 .shell-note:hover > .shell-notes-panel-span,
+.needt-v3 .shell-note:focus-within > .shell-notes-panel-span {
+  transition: transform 180ms var(--nx-ease);
+}

@@ -103,6 +103,9 @@ interface Mouse {
   touch: boolean;
 }
 
+/** Quiet time after the last scroll event before a sky draws again. */
+const SCROLL_QUIET_MS = 150;
+
 /* Halftone dot stamps: NL sizes, antialiased by 4x4 supersampling. Each
    stamp is [dx, dy, coverage, ...]. Dot area grows with the weight. */
 const PITCH = 4;
@@ -1849,6 +1852,9 @@ export function startSky(
     raf = 0;
     if (stopped || !mayAnimate({ hidden, inView, reduced, covered, parked }))
       return;
+    /* A scroll is moving the page: no frame (the last one stays) until it has
+       been quiet for SCROLL_QUIET_MS; the end-of-scroll timer kicks the loop. */
+    if (scrolling) return;
     /* Rest: the page is idle, the drift has eased to 0 and every hover / calm
        easing has settled: paint one full frame and stop scheduling. The next
        input wakes it (the shared detector calls kick). */
@@ -1897,6 +1903,8 @@ export function startSky(
     );
   }
   let restDrawn = false;
+  /* True from the first scroll event until SCROLL_QUIET_MS after the last. */
+  let scrolling = false;
   function kick() {
     if (
       booted &&
@@ -2054,7 +2062,14 @@ export function startSky(
   };
   if (mq && mq.addEventListener) mq.addEventListener("change", onMq);
   const slow = window.setInterval(() => {
-    if (stopped || hidden || !inView || parked || (!raf && pageRest.idle))
+    if (
+      stopped ||
+      hidden ||
+      !inView ||
+      parked ||
+      scrolling ||
+      (!raf && pageRest.idle)
+    )
       return;
     if (reduced) {
       const a = readCalm();
@@ -2124,11 +2139,13 @@ export function startSky(
   let scrollEnd = 0;
   const onScroll = () => {
     window.clearTimeout(scrollEnd);
+    scrolling = !reduced;
     scrollEnd = window.setTimeout(() => {
+      scrolling = false;
       readCalm();
       if (reduced) draw(performance.now(), true);
       else kick();
-    }, 120);
+    }, SCROLL_QUIET_MS);
     const n = performance.now();
     if (n - scrollT < 80) return;
     scrollT = n;

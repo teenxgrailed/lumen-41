@@ -40,7 +40,7 @@ export function CommandPaletteFab() {
       className={cn(
         "fixed bottom-4 right-4 z-40 rounded-full bg-primary p-3 text-primary-foreground shadow-lg",
         "hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-        "transition-all duration-300 ease-in-out",
+        "transition-[transform,opacity,background-color,box-shadow] duration-300 ease-in-out",
         isVisible
           ? "translate-y-0 opacity-100"
           : "pointer-events-none translate-y-10 opacity-0"

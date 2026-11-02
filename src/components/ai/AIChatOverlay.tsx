@@ -30,7 +30,7 @@ export function AIChatOverlay({ open, onOpenChange }: AIChatOverlayProps) {
           onMouseDown={() => onOpenChange(false)}
         >
           <motion.aside
-            className="needt-overlay-depth m-2 flex h-[calc(100vh-1rem)] w-full max-w-[420px] flex-col rounded-md border border-[var(--dialog-border)] text-[var(--text-primary)] shadow-2xl"
+            className="needt-overlay-depth m-2 flex h-[calc(100vh-1rem)] supports-[height:100dvh]:h-[calc(100dvh-1rem)] w-full max-w-[420px] flex-col rounded-md border border-[var(--dialog-border)] text-[var(--text-primary)] shadow-2xl"
             initial={prefersReducedMotion ? false : { x: 16, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={prefersReducedMotion ? { opacity: 1 } : { x: 12, opacity: 0 }}

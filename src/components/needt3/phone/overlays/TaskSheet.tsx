@@ -452,7 +452,9 @@ function TaskSheetBody({
             aria-hidden="true"
           />
         ) : null}
-        {project ? project.name : copy.no_project}
+        <span className="nx-ellipsis">
+          {project ? project.name : copy.no_project}
+        </span>
       </span>
       <span
         className="pov-saved"
@@ -528,6 +530,7 @@ function TaskSheetBody({
           </label>
           <PkField
             className="pov-title"
+            dir="auto"
             id={`pov-title-${idSuffix}`}
             multiline
             grow

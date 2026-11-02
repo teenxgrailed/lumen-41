@@ -30,6 +30,7 @@ import {
   pkCx,
   usePkExit,
 } from "../kit";
+import { badgeCount } from "../menu/status";
 import { PhoneThread } from "./PhoneThread";
 import { PmlAvatar } from "./PmlAvatar";
 import { holdActions } from "./actions";
@@ -224,7 +225,7 @@ export function PhoneMail({ box }: { box: Mailbox }) {
                 data-pml-view={k}
               >
                 {TAB_LABEL[k]}
-                <span className="pml-view-n">{box.counts[k]}</span>
+                <span className="pml-view-n">{badgeCount(box.counts[k])}</span>
               </PkGlass>
             ))}
           </PkChips>

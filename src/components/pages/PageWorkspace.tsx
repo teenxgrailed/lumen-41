@@ -3031,6 +3031,7 @@ export function PageWorkspace({
           <textarea
             ref={titleRef}
             data-page-title=""
+            dir="auto"
             rows={1}
             spellCheck={false}
             value={page.title}
@@ -3060,6 +3061,7 @@ export function PageWorkspace({
         ) : (
           <input
             data-page-title={inV3 ? "" : undefined}
+            dir="auto"
             value={page.title}
             readOnly={!canEdit}
             onChange={(event) => {

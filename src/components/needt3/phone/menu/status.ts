@@ -117,16 +117,21 @@ export interface MenuBadge {
   alert?: boolean;
 }
 
+/** A count on a badge: 1 to 99, then "99+" (a four-digit count breaks the pill). */
+export function badgeCount(n: number): string {
+  return n > 99 ? "99+" : String(n);
+}
+
 /** The small mark on a top tile. */
 export function menuBadge(
   id: MenuPlaceId,
   c: MenuCounts = {}
 ): MenuBadge | null {
-  if (id === "mail" && c.mail) return { text: String(c.mail) };
+  if (id === "mail" && c.mail) return { text: badgeCount(c.mail) };
   if (id === "home" && c.overdue)
-    return { text: String(c.overdue), alert: true };
+    return { text: badgeCount(c.overdue), alert: true };
   if (id === "tasks" && c.overdue)
-    return { text: String(c.overdue), alert: true };
+    return { text: badgeCount(c.overdue), alert: true };
   if (
     id === "calendar" &&
     c.nextEvent &&

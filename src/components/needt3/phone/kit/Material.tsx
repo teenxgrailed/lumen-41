@@ -428,6 +428,7 @@ export function PkField({
   grow,
   readOnly,
   className,
+  dir,
   inputProps,
 }: {
   label?: string;
@@ -441,6 +442,8 @@ export function PkField({
   /** Shown, selectable, not editable (a title a provider owns). */
   readOnly?: boolean;
   className?: string;
+  /** Text direction of the field; "auto" follows the first strong letter typed. */
+  dir?: "auto" | "ltr" | "rtl";
   inputProps?: Omit<
     InputHTMLAttributes<HTMLInputElement>,
     "value" | "onChange"
@@ -474,6 +477,7 @@ export function PkField({
           placeholder={placeholder}
           className={cls}
           readOnly={readOnly}
+          dir={dir}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
@@ -483,6 +487,7 @@ export function PkField({
           placeholder={placeholder}
           className={cls}
           readOnly={readOnly}
+          dir={dir}
           {...inputProps}
           onChange={(e) => onChange(e.target.value)}
         />

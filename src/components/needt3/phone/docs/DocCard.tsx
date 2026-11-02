@@ -116,7 +116,7 @@ export function DocCard({
                     } as CSSProperties
                   }
                 />
-                {meta.project.name}
+                <span className="nx-ellipsis">{meta.project.name}</span>
               </span>
             ) : null}
             {meta.age ? <span>{meta.age}</span> : null}

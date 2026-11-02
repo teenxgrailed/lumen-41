@@ -31,7 +31,7 @@ import { fontOf, pageVars, styleOf } from "../../docs/style";
 import { StError, StNoAccess } from "../../states/StScreen";
 import { screenState } from "../../states/status";
 import { SyncStatus } from "../../sync/SyncStatus";
-import { PkFog } from "../kit/Screen";
+import { PkFog, pkSetFogK } from "../kit/Screen";
 import { pkCx } from "../kit/util";
 import { snack } from "../overlays/snack";
 import { usePhoneCover } from "../shell/cover";
@@ -120,7 +120,7 @@ export function ReaderPhone({
       const key = v.fog.toFixed(3);
       if (key === last) return;
       last = key;
-      r.style.setProperty("--pk-fog-k", key);
+      pkSetFogK(r, key);
       r.setAttribute("data-pk-fog-on", v.fog > 0.01 ? "1" : "0");
     };
     readScroll();

@@ -43,7 +43,7 @@ const BottomSheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "needt-overlay-depth needt-overlay-shadow bottom-sheet-anim fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-[var(--dialog-border)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-[var(--text-primary)]",
+        "needt-overlay-depth needt-overlay-shadow bottom-sheet-anim fixed inset-x-0 bottom-0 z-50 max-h-[85vh] supports-[height:100dvh]:max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-[var(--dialog-border)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-[var(--text-primary)]",
         className
       )}
       {...props}

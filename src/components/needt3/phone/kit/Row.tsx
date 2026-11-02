@@ -542,7 +542,7 @@ export function PkTaskRow({
                 } as React.CSSProperties
               }
             />
-            {proj.name}
+            <span className="nx-ellipsis">{proj.name}</span>
           </span>
         ) : null}
       </>

@@ -3,6 +3,9 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {
+  // `hover:` utilities apply only where the primary input can hover, so a tap
+  // on a phone does not leave a hover state stuck on the element.
+  future: { hoverOnlyWhenSupported: true },
   darkMode: ["class", "[data-theme='dark']"],
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",

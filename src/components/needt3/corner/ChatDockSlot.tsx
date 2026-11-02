@@ -5,6 +5,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
 } from "react";
@@ -122,14 +123,29 @@ function ResizeEdge() {
   const width = useNeedt3Ui((s) => s.askWidth);
   const setWidth = useNeedt3Ui((s) => s.setAskWidth);
   const drag = useRef(false);
+  /* The row's right edge, read once at pointerdown (it cannot move while the
+     edge is held), and the newest pointer x, applied once per frame: a drag
+     used to read layout and write the store on every pointermove. */
+  const rightEdge = useRef(0);
+  const pendingX = useRef(0);
+  const frame = useRef(0);
 
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
+  const flush = () => {
+    frame.current = 0;
+    setWidth(rightEdge.current - pendingX.current);
+  };
   const move = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
-    const row = rowOf(e.currentTarget);
-    const right = row ? row.getBoundingClientRect().right : window.innerWidth;
-    setWidth(right - e.clientX);
+    pendingX.current = e.clientX;
+    if (!frame.current) frame.current = requestAnimationFrame(flush);
   };
   const stop = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (frame.current) {
+      cancelAnimationFrame(frame.current);
+      flush();
+    }
     drag.current = false;
     delete e.currentTarget.dataset.dragging;
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
@@ -156,6 +172,10 @@ function ResizeEdge() {
       tabIndex={0}
       data-chat-dock-edge
       onPointerDown={(e) => {
+        const row = rowOf(e.currentTarget);
+        rightEdge.current = row
+          ? row.getBoundingClientRect().right
+          : window.innerWidth;
         drag.current = true;
         e.currentTarget.setPointerCapture?.(e.pointerId);
         e.currentTarget.dataset.dragging = "";

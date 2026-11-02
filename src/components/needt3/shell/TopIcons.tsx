@@ -92,7 +92,10 @@ function Dot({ show }: { show: boolean }) {
     <span
       className="shell-dot-layer"
       aria-hidden="true"
-      style={{ transform: show ? "scale(1)" : "scale(0)" }}
+      style={{
+        transform: show ? "scale(1)" : "scale(0.5)",
+        opacity: show ? 1 : 0,
+      }}
     />
   );
 }
@@ -299,7 +302,7 @@ export function NotesPanel({ close }: { close: () => void }) {
           className="shell-notes-panel-span"
           aria-hidden="true"
           data-unread-dot={n.unread ? "true" : "false"}
-          style={{ transform: n.unread ? "scale(1)" : "scale(0)" }}
+          style={{ transform: n.unread ? "scale(1)" : "scale(0.5)" }}
         />
       </div>
     );
@@ -353,7 +356,7 @@ export function NotesPanel({ close }: { close: () => void }) {
             className="shell-notes-panel-span"
             aria-hidden="true"
             data-unread-dot={row.unread ? "true" : "false"}
-            style={{ transform: row.unread ? "scale(1)" : "scale(0)" }}
+            style={{ transform: row.unread ? "scale(1)" : "scale(0.5)" }}
           />
         </div>
         {expanded ? row.items.map((i, j) => itemRow(i, j, true)) : null}
