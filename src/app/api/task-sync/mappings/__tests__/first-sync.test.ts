@@ -64,7 +64,7 @@ describe("task list mapping first sync", () => {
   it("enqueues the first sync when the queue is configured", async () => {
     (isQueueConfigured as jest.Mock).mockReturnValue(true);
     const response = await POST(request());
-    expect(response.status).toBe(200);
+    expect(response?.status).toBe(200);
     expect(enqueueTaskListSync).toHaveBeenCalledWith("m1");
     expect(TaskSyncManager).not.toHaveBeenCalled();
   });
@@ -74,7 +74,7 @@ describe("task list mapping first sync", () => {
     const syncTaskList = jest.fn().mockResolvedValue({});
     (TaskSyncManager as jest.Mock).mockImplementation(() => ({ syncTaskList }));
     const response = await POST(request());
-    expect(response.status).toBe(200);
+    expect(response?.status).toBe(200);
     expect(enqueueTaskListSync).not.toHaveBeenCalled();
     expect(syncTaskList).toHaveBeenCalledWith("m1");
   });
