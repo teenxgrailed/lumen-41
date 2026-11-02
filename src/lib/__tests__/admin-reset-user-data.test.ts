@@ -28,6 +28,9 @@ const KEPT = [
   "WorkspaceMember",
   "FeatureFlagOverride",
   "BugReport",
+  "EmailPreference",
+  "EmailSend",
+  "ProGift",
 ];
 
 function delegateName(model: string) {

@@ -16,6 +16,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn(), updateMany: jest.fn() },
     notificationSettings: { updateMany: jest.fn() },
+    emailPreference: { upsert: jest.fn() },
   },
 }));
 
