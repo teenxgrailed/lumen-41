@@ -17,6 +17,9 @@ jest.mock("@/lib/prisma", () => ({
     emailSuppression: { upsert: jest.fn() },
     user: { findUnique: jest.fn(), updateMany: jest.fn() },
     notificationSettings: { updateMany: jest.fn() },
+    emailPreference: { upsert: jest.fn() },
+    emailSend: { updateMany: jest.fn() },
+    systemSettings: { findFirst: jest.fn() },
   },
 }));
 
@@ -128,6 +131,57 @@ describe("Resend webhook", () => {
       where: { userId: "u1" },
       data: { digest: false },
     });
+  });
+
+  it("switches every optional category off on a complaint, source complaint", async () => {
+    const body = JSON.stringify({
+      type: "email.complained",
+      data: { to: ["person@example.com"], email_id: "re_1" },
+    });
+    await POST(signed(body));
+    const sources = jest
+      .mocked(prisma.emailPreference.upsert)
+      .mock.calls.map((call) => call[0].create.source);
+    expect(sources).toHaveLength(4);
+    expect(new Set(sources)).toEqual(new Set(["complaint"]));
+    expect(prisma.emailSend.updateMany).toHaveBeenCalledWith({
+      where: { resendId: "re_1", status: "sent", reason: null },
+      data: { reason: "complained" },
+    });
+  });
+
+  it("counts opens and clicks only while the tracking window is open", async () => {
+    const opened = JSON.stringify({
+      type: "email.opened",
+      data: { email_id: "re_2" },
+    });
+    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
+      emailTrackingEndsAt: new Date(Date.now() + 86_400_000),
+    } as never);
+    await POST(signed(opened, { id: "msg_open_1" }));
+    expect(prisma.emailSend.updateMany).toHaveBeenCalledWith({
+      where: { resendId: "re_2" },
+      data: { opens: { increment: 1 } },
+    });
+
+    jest.mocked(prisma.emailSend.updateMany).mockClear();
+    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
+      emailTrackingEndsAt: new Date(Date.now() - 1000),
+    } as never);
+    await POST(signed(opened, { id: "msg_open_2" }));
+    expect(prisma.emailSend.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not count tracking events when no end date is set", async () => {
+    jest.mocked(prisma.systemSettings.findFirst).mockResolvedValue({
+      emailTrackingEndsAt: null,
+    } as never);
+    const clicked = JSON.stringify({
+      type: "email.clicked",
+      data: { email_id: "re_3" },
+    });
+    await POST(signed(clicked, { id: "msg_click_1" }));
+    expect(prisma.emailSend.updateMany).not.toHaveBeenCalled();
   });
 
   it("acknowledges a retried event without applying it twice", async () => {

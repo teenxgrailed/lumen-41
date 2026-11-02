@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { cookies, headers } from "next/headers";
 
 import { EmailVerificationGate } from "@/components/auth/EmailVerificationGate";
+import { GiftWelcome } from "@/components/gift/GiftWelcome";
 import { AppShell } from "@/components/layout/AppShell";
 import { V3Root } from "@/components/needt3/root/V3Root";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
@@ -68,6 +69,7 @@ export default async function AppLayout({
     return (
       <EmailVerificationGate initialStatus={verification}>
         {sandboxKind ? <SandboxBanner /> : null}
+        {sandboxKind ? null : <GiftWelcome />}
         <V3Root
           initialUi={initialUi}
           initialLook={initialLook}

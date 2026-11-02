@@ -1,3 +1,4 @@
+import { flagStates } from "@/services/email-lifecycle/people";
 import { processTrialLifecycle } from "@/services/trials/trial-lifecycle";
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
@@ -5,6 +6,9 @@ import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import { prisma } from "@/lib/prisma";
 
+jest.mock("@/services/email-lifecycle/people", () => ({
+  flagStates: jest.fn(),
+}));
 jest.mock("@/lib/email/email-service", () => ({
   EmailService: { sendEmail: jest.fn() },
 }));
@@ -28,6 +32,7 @@ const expiredGrant = {
     email: "person@example.com",
     commercialEmailsOptOutAt: null,
     notificationSettings: null,
+    emailPreferences: [],
     emailVerified: newDate("2026-09-01T00:00:00.000Z"),
     subscription: {
       plan: SubscriptionPlan.FREE,
@@ -44,6 +49,47 @@ describe("trial lifecycle worker", () => {
     jest.mocked(prisma.trialGrant.updateMany).mockResolvedValue({ count: 1 });
     jest.mocked(prisma.trialGrant.update).mockResolvedValue({} as never);
     jest.mocked(EmailService.sendEmail).mockResolvedValue({ jobId: "email-1" });
+    jest.mocked(flagStates).mockResolvedValue(new Map());
+  });
+
+  it("leaves a person on the email programme to the programme", async () => {
+    jest.mocked(flagStates).mockResolvedValue(new Map([["user-1", true]]));
+    jest
+      .mocked(prisma.trialGrant.findMany)
+      .mockResolvedValueOnce([expiredGrant] as never)
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      processTrialLifecycle(newDate("2026-09-16T12:00:00.000Z"))
+    ).resolves.toEqual({ day11: 0, day14: 0 });
+    expect(EmailService.sendEmail).not.toHaveBeenCalled();
+    // Claimed so the loop moves on, never marked sent.
+    expect(prisma.trialGrant.update).toHaveBeenCalledWith({
+      where: { id: "trial-1" },
+      data: { day14ClaimedAt: newDate("2026-09-16T12:00:00.000Z") },
+    });
+  });
+
+  it("does not send the trial mail to someone who turned offers off", async () => {
+    jest
+      .mocked(prisma.trialGrant.findMany)
+      .mockResolvedValueOnce([
+        {
+          ...expiredGrant,
+          user: {
+            ...expiredGrant.user,
+            emailPreferences: [{ category: "offers", enabled: false }],
+          },
+        },
+      ] as never)
+      .mockResolvedValueOnce([]);
+
+    await processTrialLifecycle(newDate("2026-09-16T12:00:00.000Z"));
+    expect(EmailService.sendEmail).not.toHaveBeenCalled();
+    expect(prisma.trialGrant.update).toHaveBeenCalledWith({
+      where: { id: "trial-1" },
+      data: { day14SentAt: newDate("2026-09-16T12:00:00.000Z") },
+    });
   });
 
   it("sends the expiry email once after claiming the milestone", async () => {

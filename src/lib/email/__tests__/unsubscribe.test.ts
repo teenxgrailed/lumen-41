@@ -10,6 +10,7 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn(), updateMany: jest.fn() },
     notificationSettings: { updateMany: jest.fn() },
+    emailPreference: { upsert: jest.fn() },
   },
 }));
 
@@ -43,6 +44,17 @@ describe("unsubscribe tokens", () => {
   });
 });
 
+describe("new categories in tokens", () => {
+  it.each(["tips", "offers", "updates", "recap", "all"] as const)(
+    "%s round-trips",
+    (category) => {
+      expect(
+        verifyUnsubscribeToken(signUnsubscribeToken("u1", category))
+      ).toEqual({ userId: "u1", category });
+    }
+  );
+});
+
 describe("applyUnsubscribe", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -55,6 +67,42 @@ describe("applyUnsubscribe", () => {
       where: { id: "u", commercialEmailsOptOutAt: null },
       data: { commercialEmailsOptOutAt: expect.any(Date) },
     });
+  });
+
+  it("product (old links): also switches tips, offers and updates off", async () => {
+    await applyUnsubscribe("u", "product");
+    const categories = jest
+      .mocked(prisma.emailPreference.upsert)
+      .mock.calls.map((call) => call[0].create.category)
+      .sort();
+    expect(categories).toEqual(["offers", "tips", "updates"]);
+  });
+
+  it("one category: switches only that category off, source unsubscribe-link", async () => {
+    await applyUnsubscribe("u", "offers");
+    expect(prisma.emailPreference.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.emailPreference.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: {
+          userId: "u",
+          category: "offers",
+          enabled: false,
+          source: "unsubscribe-link",
+        },
+      })
+    );
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.notificationSettings.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("all: switches every optional category off and leaves the digest", async () => {
+    await applyUnsubscribe("u", "all");
+    const categories = jest
+      .mocked(prisma.emailPreference.upsert)
+      .mock.calls.map((call) => call[0].create.category)
+      .sort();
+    expect(categories).toEqual(["offers", "recap", "tips", "updates"]);
+    expect(prisma.notificationSettings.updateMany).not.toHaveBeenCalled();
   });
 
   it("digest: turns the daily digest off", async () => {

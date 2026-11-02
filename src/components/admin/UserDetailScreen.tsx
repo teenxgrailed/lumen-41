@@ -33,6 +33,7 @@ const AUDIT_LABEL: Record<string, string> = {
   "user.extend_trial": "Extended trial",
   "user.grant_plan": "Granted a plan",
   "user.revoke_plan": "Revoked a plan",
+  "user.gift_pro": "Gave a Pro gift",
   "user.sign_out_everywhere": "Signed out of every device",
   "user.delete": "Deleted the account",
   "user.reset_sandbox": "Reset the sandbox",
@@ -89,6 +90,8 @@ export function UserDetailScreen({ userId }: { userId: string }) {
   const [trialDays, setTrialDays] = useState("7");
   const [compKind, setCompKind] = useState<"pro_days" | "lifetime">("pro_days");
   const [compDays, setCompDays] = useState("30");
+  const [giftMonths, setGiftMonths] = useState<"1" | "3" | "12">("1");
+  const [giftNote, setGiftNote] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -286,6 +289,50 @@ export function UserDetailScreen({ userId }: { userId: string }) {
                 }
               >
                 Grant
+              </button>
+            </ActionRow>
+
+            <ActionRow
+              title="Give Pro as a gift"
+              hint="Free, with an email that says so. An optional line of yours goes in it."
+            >
+              <SSelect
+                value={giftMonths}
+                label="Gift length"
+                width={130}
+                options={[
+                  ["1", "1 month"],
+                  ["3", "3 months"],
+                  ["12", "12 months"],
+                ]}
+                onChange={(v) => setGiftMonths(v as "1" | "3" | "12")}
+              />
+              <input
+                className="nt-input"
+                value={giftNote}
+                maxLength={280}
+                placeholder="A line from you (optional)"
+                aria-label="Personal line"
+                onChange={(e) => setGiftNote(e.target.value)}
+              />
+              <button
+                type="button"
+                className="nx-btn nx-btn-secondary"
+                data-admin-act="gift-pro"
+                onClick={() =>
+                  ask({
+                    title: "Give Pro as a gift",
+                    body: `Give ${email} ${giftMonths} ${giftMonths === "1" ? "month" : "months"} of Pro, free of charge. They get an email about it.`,
+                    confirmLabel: "Give",
+                    action: {
+                      action: "gift_pro",
+                      months: Number(giftMonths) as 1 | 3 | 12,
+                      ...(giftNote.trim() ? { note: giftNote.trim() } : {}),
+                    },
+                  })
+                }
+              >
+                Give
               </button>
             </ActionRow>
 

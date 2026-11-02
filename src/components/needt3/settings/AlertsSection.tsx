@@ -3,6 +3,7 @@
 import { isMacApp } from "@/lib/desktop";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 
+import { EmailGroup } from "./EmailGroup";
 import { PushGroup } from "./PushGroup";
 import { useMark } from "./SettingsContext";
 import { SGroup, SRow, SSelect, V3Switch } from "./kit";
@@ -133,6 +134,7 @@ export function AlertsSection() {
             )
           : null}
       </SGroup>
+      <EmailGroup />
     </>
   );
 }

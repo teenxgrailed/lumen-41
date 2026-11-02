@@ -45,6 +45,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "sets a signed 30-minute cookie recording the 16+ and Terms tick; needs no account, rate limited",
   "email/unsubscribe/route.ts":
     "one-click unsubscribe: the signed token in the link is the proof, can only switch mail off, rate limited",
+  "email/preferences/route.ts":
+    "email preference page: the signed token in the mail is the proof, GET only draws the form, POST can only change that account's own email choices, rate limited",
   "students/confirm/route.ts":
     "student-email confirm link: GET only draws a button, POST needs the signed token in the mail, which can only confirm that address for that account, rate limited",
   "auth/desktop/exchange/route.ts":

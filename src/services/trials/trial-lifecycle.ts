@@ -1,7 +1,9 @@
+import { flagStates } from "@/services/email-lifecycle/people";
 import { SubscriptionPlan } from "@prisma/client";
 
 import { addCalendarDays, addMinutes, newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
+import { resolveCategories } from "@/lib/email/preferences";
 import { getTrialEmailTemplate } from "@/lib/email/templates/trial";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
@@ -52,6 +54,7 @@ async function processMilestone(milestone: Milestone, now: Date) {
             emailVerified: true,
             commercialEmailsOptOutAt: true,
             notificationSettings: { select: { emailNotifications: true } },
+            emailPreferences: { select: { category: true, enabled: true } },
             subscription: {
               select: { plan: true, status: true, currentPeriodEnd: true },
             },
@@ -62,7 +65,20 @@ async function processMilestone(milestone: Milestone, now: Date) {
       orderBy: milestone === "day11" ? { startedAt: "asc" } : { endsAt: "asc" },
     });
 
+    /* People on the email programme get their trial mails from it (the
+       lifecycle engine), so these are left alone for them. The claim keeps
+       them out of this pass without marking anything sent. */
+    const programme = await flagStates(
+      grants.flatMap((grant) => (grant.user ? [grant.user.id] : []))
+    );
     for (const grant of grants) {
+      if (grant.user && programme.get(grant.user.id)) {
+        await prisma.trialGrant.update({
+          where: { id: grant.id },
+          data: { [claimedField]: now },
+        });
+        continue;
+      }
       /* The trial mails sell Pro, so they follow the person's choices: the
          one-click unsubscribe, and the email switch in Settings, Notifications
          (a missing settings row is the default, on). */
@@ -70,7 +86,8 @@ async function processMilestone(milestone: Milestone, now: Date) {
         !grant.user?.email ||
         !grant.user.emailVerified ||
         grant.user.commercialEmailsOptOutAt ||
-        grant.user.notificationSettings?.emailNotifications === false
+        grant.user.notificationSettings?.emailNotifications === false ||
+        !resolveCategories(grant.user.emailPreferences, false).offers
       ) {
         await prisma.trialGrant.update({
           where: { id: grant.id },

@@ -7,6 +7,7 @@ import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
   CalendarSyncJobData,
+  EmailLifecycleJobData,
   FocusJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
@@ -34,6 +35,7 @@ let oauthCleanupQueue: Queue<OAuthCleanupJobData> | null = null;
 let accountLifecycleQueue: Queue<AccountLifecycleJobData> | null = null;
 let importQueue: Queue<ImportJobData> | null = null;
 let focusQueue: Queue<FocusJobData> | null = null;
+let emailLifecycleQueue: Queue<EmailLifecycleJobData> | null = null;
 
 const defaultJobOptions = {
   attempts: 4,
@@ -163,6 +165,14 @@ export function getFocusQueue(): Queue<FocusJobData> {
   return focusQueue;
 }
 
+export function getEmailLifecycleQueue(): Queue<EmailLifecycleJobData> {
+  emailLifecycleQueue ??= new Queue(QUEUE_NAMES.emailLifecycle, {
+    connection: getBullConnection(),
+    defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
+  });
+  return emailLifecycleQueue;
+}
+
 export async function closeQueues(): Promise<void> {
   const queues = [
     calendarSyncQueue,
@@ -178,6 +188,7 @@ export async function closeQueues(): Promise<void> {
     accountLifecycleQueue,
     importQueue,
     focusQueue,
+    emailLifecycleQueue,
   ].filter((queue): queue is Queue => queue !== null);
   await Promise.all(queues.map((queue) => queue.close()));
   calendarSyncQueue = null;
@@ -193,4 +204,5 @@ export async function closeQueues(): Promise<void> {
   accountLifecycleQueue = null;
   importQueue = null;
   focusQueue = null;
+  emailLifecycleQueue = null;
 }

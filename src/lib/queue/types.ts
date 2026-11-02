@@ -12,6 +12,7 @@ export const QUEUE_NAMES = {
   imports: "imports",
   oauthCleanup: "oauth-cleanup",
   focus: "focus",
+  emailLifecycle: "email-lifecycle",
 } as const;
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
@@ -66,6 +67,15 @@ export interface LifetimeCheckoutReconciliationJobData {
 export interface TrialJobData {
   /** "student-recheck": the yearly student-price check (docs/students.md). */
   kind: "sweep" | "student-recheck";
+}
+
+/**
+ * The email programme (src/services/email-lifecycle). "sweep" decides and
+ * sends lifecycle mail, "gifts" expires Pro gifts and sends gift notices,
+ * "broadcasts" sends due broadcasts in batches.
+ */
+export interface EmailLifecycleJobData {
+  kind: "sweep" | "gifts" | "broadcasts";
 }
 
 export interface OAuthCleanupJobData {

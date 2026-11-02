@@ -112,6 +112,15 @@ model User {
   // Set by the one-click unsubscribe link in a commercial email (trial nudges):
   // no further commercial mail goes to this account. Null means still allowed.
   commercialEmailsOptOutAt DateTime?
+  // Last time the person used the app, written at most once an hour from the
+  // session path (src/lib/auth/last-active.ts). Win-back mail reads it.
+  lastActiveAt           DateTime?
+  // "Fewer emails" on the preference page: the optional-mail cap is 7 days
+  // instead of 3.
+  emailFewer             Boolean                   @default(false)
+  emailPreferences       EmailPreference[]
+  emailSends             EmailSend[]
+  proGifts               ProGift[]
   // Student price (docs/students.md). `studentEmail` is the university address
   // the price rests on, unique so one student address backs one account.
   // `studentVerifiedAt` is the last time it was proven (sign-in email, a
@@ -2834,6 +2843,16 @@ model SystemSettings {
   requireEmailVerificationBeforeAccess Boolean  @default(true)
   disableHomepage                      Boolean  @default(false) // Whether to disable the homepage and redirect to login/calendar
   resendApiKey                         String? // API key for Resend email service
+  /// Email programme (openspec add-email-program). The owner's name and a
+  /// virtual mailbox address for the footer of optional mail; until both are
+  /// set only transactional mail goes out.
+  emailFooterName                      String?
+  emailFooterAddress                   String?
+  /// Creem discount code for 20% off the first year, used by the trial-ending
+  /// mail on the day. Empty: the mail shows the early-price copy instead.
+  emailTrialPromoCode                  String?
+  /// Open and click tracking is on until this date, then switched off.
+  emailTrackingEndsAt                  DateTime?
   /// OpenID Connect id_token signing key (PKCS#8 PEM), made on first use and
   /// stored encrypted (enc:v1). Never returned by an API; see src/services/oauth/oidc.ts.
   oidcSigningKey                       String?
@@ -2876,6 +2895,106 @@ model Log {
   @@index([timestamp, level])
   @@index([expiresAt])
   @@index([source, level])
+}
+
+/// One person's choice for one optional email category (tips, offers, updates,
+/// recap). No row means the category default. `source` records how it came to
+/// be, for consent history.
+model EmailPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String
+  enabled   Boolean
+  source    String   @default("settings")
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, category])
+}
+
+/// The send ledger of the email programme: one row per (person, rule, dedupe
+/// key), claimed before the send so a rule fires exactly once.
+model EmailSend {
+  id          String    @id @default(cuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ruleKey     String
+  dedupeKey   String    @default("")
+  category    String
+  // claimed | sent | skipped | deferred | failed | dry | cancelled
+  status      String
+  reason      String?
+  deferUntil  DateTime?
+  attempts    Int       @default(0)
+  claimedAt   DateTime?
+  sentAt      DateTime?
+  resendId    String?
+  broadcastId String?
+  // "Still want these?" answered: set when the person presses keep.
+  keptAt      DateTime?
+  opens       Int       @default(0)
+  clicks      Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, ruleKey, dedupeKey])
+  @@index([userId, sentAt])
+  @@index([ruleKey, status])
+  @@index([status, deferUntil])
+  @@index([broadcastId])
+  @@index([resendId])
+}
+
+/// A message the owner or Claude writes to a segment. Content lives in plain
+/// paragraphs plus one optional button; see src/services/email-broadcasts.
+model EmailBroadcast {
+  id               String    @id @default(cuid())
+  subject          String
+  preheader        String    @default("")
+  paragraphs       Json
+  buttonLabel      String?
+  buttonUrl        String?
+  category         String    @default("updates") // updates | offers
+  segment          String // free | pro | trial | students | all
+  // draft | scheduled | sending | sent | cancelled
+  status           String    @default("draft")
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  cancelledAt      DateTime?
+  createdBy        String
+  createdByKind    String    @default("admin") // admin | claude
+  // Last test send to the owner, and the last edit of content or segment. A
+  // broadcast is schedulable only when testedAt >= contentUpdatedAt.
+  testedAt         DateTime?
+  contentUpdatedAt DateTime  @default(now())
+  recipientCount   Int?
+  sentCount        Int       @default(0)
+  skippedCount     Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, scheduledAt])
+}
+
+/// A gift of Pro time from an admin. The subscription row carries the plan
+/// (the sandbox comp shape, no payment ids); this row carries the story.
+model ProGift {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy    String?
+  months       Int
+  personalNote String?
+  startsAt     DateTime
+  endsAt       DateTime
+  seenAt       DateTime?
+  revokedAt    DateTime?
+  expiredAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, endsAt])
+  @@index([endsAt])
 }
 
 model PendingWaitlist {

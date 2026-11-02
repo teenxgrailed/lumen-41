@@ -13,6 +13,7 @@ import { ageConfirmationGate } from "@/lib/auth/age-confirmation";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
+import { touchLastActive } from "@/lib/auth/last-active";
 import {
   enforceSessionVersion,
   issueSessionVersion,
@@ -166,6 +167,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
           // Throws once the person signed out everywhere; see session-version.
           token = await enforceSessionVersion(token);
         }
+        // Win-back mail reads this; at most one write an hour.
+        if (token.sub) await touchLastActive(token.sub);
 
         // Initial sign in. The provider's OAuth tokens are deliberately not
         // copied into the JWT: the session callback would hand them to the

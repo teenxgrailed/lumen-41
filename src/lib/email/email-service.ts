@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import { type CreateEmailRequestOptions, Resend } from "resend";
 
 import { APP_NAME } from "@/lib/app-config";
 import { isSuppressed } from "@/lib/email/suppression";
@@ -45,6 +45,21 @@ export interface EmailJobData {
    * category, such as the daily digest.
    */
   unsubscribeUrl?: string;
+  /** Where a reply goes (support), when it should not go to the sender. */
+  replyTo?: string;
+  /**
+   * Set by the email programme (src/services/email-lifecycle): the caller has
+   * already checked the flag, the person's categories and the operator footer
+   * in System Settings, so the environment address and the legacy opt-out
+   * column are not consulted. Suppression and sandbox checks still apply.
+   */
+  programme?: boolean;
+  /**
+   * Sent to Resend as the `Idempotency-Key`: the same key within 24 hours
+   * returns the first send instead of mailing again. Callers use
+   * `<ledgerId>:<attempt>`, stable across a crash-and-retry of one attempt.
+   */
+  idempotencyKey?: string;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -97,7 +112,7 @@ export class EmailService {
         if (!emailData.unsubscribeUrl) {
           throw new Error("A commercial email needs an unsubscribe link");
         }
-        if (!operatorPostalAddress()) {
+        if (!emailData.programme && !operatorPostalAddress()) {
           logger.warn(
             "Commercial email not sent: OPERATOR_POSTAL_ADDRESS is not set",
             {},
@@ -126,7 +141,11 @@ export class EmailService {
         );
         return { jobId: "" };
       }
-      if (emailData.commercial && recipient.commercialOptOut) {
+      if (
+        emailData.commercial &&
+        !emailData.programme &&
+        recipient.commercialOptOut
+      ) {
         logger.info(
           "Commercial email to an unsubscribed account dropped",
           {},
@@ -153,6 +172,7 @@ export class EmailService {
         html: string;
         text?: string;
         headers?: Record<string, string>;
+        replyTo?: string;
       } = {
         from: fromEmail,
         to,
@@ -160,6 +180,10 @@ export class EmailService {
         html: emailData.html,
         text: emailData.text,
       };
+
+      if (emailData.replyTo && !hasUnsafeMailboxCharacters(emailData.replyTo)) {
+        emailToSend.replyTo = emailData.replyTo;
+      }
 
       if (emailData.unsubscribeUrl) {
         emailToSend.headers = {
@@ -187,7 +211,21 @@ export class EmailService {
       }
 
       const resend = new Resend(resendApiKey);
-      const { data, error } = await resend.emails.send(emailToSend);
+      /* resend 4.1.2 has no `idempotencyKey` option, but it spreads the
+         request options into `fetch`, so the header is set directly. Replace
+         this with `{ idempotencyKey }` when the SDK is upgraded. */
+      const requestOptions = emailData.idempotencyKey
+        ? ({
+            headers: new Headers({
+              Authorization: `Bearer ${resendApiKey}`,
+              "Content-Type": "application/json",
+              "Idempotency-Key": emailData.idempotencyKey,
+            }),
+          } as CreateEmailRequestOptions)
+        : undefined;
+      const { data, error } = requestOptions
+        ? await resend.emails.send(emailToSend, requestOptions)
+        : await resend.emails.send(emailToSend);
 
       if (error) {
         throw new Error(`Resend API error: ${error.message}`);
