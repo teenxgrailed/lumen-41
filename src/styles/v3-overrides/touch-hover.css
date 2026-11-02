@@ -1,0 +1,38 @@
+/* Design v3 — hover lifts that stick on touch. HAND-WRITTEN, loaded last.
+ *
+ * iOS fires :hover on a tap and keeps it until the next tap elsewhere, so a
+ * card that lifts, or a dot that grows, on :hover stays lifted after the
+ * finger has gone. On a device with no hover the resting look is the only
+ * look: each lift below is put back to its resting transform. `:not(:active)`
+ * leaves the press feedback (the :active rules) in charge while the finger is
+ * down. Pointer devices are untouched: the media query does not match them.
+ * The sheets that set the lifts are vendored (src/styles/v3/) or live in
+ * their own override file; the list says which. */
+@media (hover: none) {
+  /* v3/app.css:154 */
+  .needt-v3 article:hover:not(:active),
+  /* v3/app.css:830 */
+  .needt-v3 .sb-place:hover:not(:active),
+  /* v3/chat.css:111 */
+  .needt-v3 .chat-suggest-card:hover:not(:active),
+  /* v3/docs.css:317 */
+  .needt-v3 .docs-card:hover:not(:active),
+  /* v3/habits.css:42, 44 */
+  .needt-v3 .hb-dot.is-today:hover:not(:active),
+  .needt-v3 .hb-dot.is-tappable:hover:not(:active) {
+    transform: none;
+  }
+
+  /* v3/app.css:307, 727: the lifted child */
+  .needt-v3 .thumb:hover:not(:active) > span:first-child,
+  .needt-v3 .mb-card:hover:not(:active) > span:first-child,
+  /* v3-overrides/app-icon-picker.css:40 */
+  .needt-v3 .ai-opt:hover:not(:active) img {
+    transform: none;
+  }
+
+  /* globals.css:668 */
+  .motion-button:hover:not(:active) {
+    background: var(--surface-raised);
+  }
+}

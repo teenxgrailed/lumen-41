@@ -1,0 +1,45 @@
+/* Design v3 — dialogs sized from the large viewport. HAND-WRITTEN, loaded last.
+ *
+ * `100vh` is the viewport with the browser's toolbars retracted, so on a phone
+ * a `calc(100vh - N)` dialog is taller than what shows while Safari's bars are
+ * out and its bottom is cut off. Each rule below repeats the original
+ * max-height with `dvh`, which follows the bars. Where `dvh` is unknown the
+ * original `vh` line stays in force.
+ *
+ * Not in the Swift desktop shell: its WKWebView lays the scope out taller than
+ * the area it shows when measured in dvh (desktop-app.css, "FIXED FRAME"), so
+ * `html[data-desktop-shell="swift"]` keeps the `vh` values. The leading
+ * `html:not(...)` also lifts every selector above the sheet it corrects. */
+@supports (height: 100dvh) {
+  /* connections.css:15, places.css:67, docs.css:341, starter-game.css:1185 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .cn-sheet-col,
+  html:not([data-desktop-shell="swift"]) .needt-v3 .pl-dialog-col,
+  html:not([data-desktop-shell="swift"]) .needt-v3 .docs-dialog,
+  html:not([data-desktop-shell="swift"]) .sg-desk .sg-shell {
+    max-height: calc(100dvh - 32px);
+  }
+
+  /* ha-home.css:377, paywall.css:18 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .ha-dialog,
+  html:not([data-desktop-shell="swift"]) .needt-v3 .pw-sheet {
+    max-height: calc(100dvh - 48px);
+  }
+
+  /* mail.css:90 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .ml-co {
+    max-height: calc(100dvh - 96px);
+  }
+
+  /* shell.css:606, 2294 */
+  html:not([data-desktop-shell="swift"])
+    .needt-v3
+    .shell-customize-sidebar-customize-sidebar,
+  html:not([data-desktop-shell="swift"]) .needt-v3 .sb-acct {
+    max-height: calc(100dvh - 80px);
+  }
+
+  /* auth.css:50 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .auth-onboarding-col-2 {
+    max-height: calc(100dvh - 210px);
+  }
+}
