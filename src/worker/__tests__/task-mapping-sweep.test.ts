@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/prisma";
-import { enqueueTaskListSync } from "@/lib/queue/enqueue";
-import { TaskSyncManager } from "@/lib/task-sync/task-sync-manager";
-
 import {
   STALE_TASK_MAPPING_BATCH,
   sweepStaleTaskMappings,
 } from "@/worker/task-mapping-sweep";
 import { syncTaskMapping } from "@/worker/task-mapping-sync";
+
+import { prisma } from "@/lib/prisma";
+import { enqueueTaskListSync } from "@/lib/queue/enqueue";
+import { TaskSyncManager } from "@/lib/task-sync/task-sync-manager";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -34,6 +34,13 @@ describe("stale task mapping sweep", () => {
       .calls[0][0];
     expect(args.take).toBe(STALE_TASK_MAPPING_BATCH);
     expect(args.where.AND[0].OR[0]).toEqual({ lastSyncedAt: null });
+    // A list that keeps failing waits out its backoff.
+    expect(args.where.AND[1]).toEqual({
+      OR: [
+        { nextSyncAttemptAt: null },
+        { nextSyncAttemptAt: { lte: expect.any(Date) } },
+      ],
+    });
     expect(args.where.provider.OR).toEqual([
       { type: { equals: "OUTLOOK", mode: "insensitive" } },
       { type: { equals: "GOOGLE", mode: "insensitive" } },

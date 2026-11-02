@@ -27,6 +27,14 @@ export async function sweepStaleTaskMappings(): Promise<number> {
       },
       AND: [
         { OR: [{ lastSyncedAt: null }, { lastSyncedAt: { lt: cutoff } }] },
+        // A list that keeps failing waits out its backoff instead of being
+        // picked first on every run.
+        {
+          OR: [
+            { nextSyncAttemptAt: null },
+            { nextSyncAttemptAt: { lte: newDate() } },
+          ],
+        },
       ],
     },
     select: { id: true },

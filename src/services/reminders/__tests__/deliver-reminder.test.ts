@@ -17,6 +17,11 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/email/email-service", () => ({
   EmailService: { sendEmail: jest.fn() },
 }));
+jest.mock("@block65/webcrypto-web-push", () => ({
+  buildPushPayload: jest
+    .fn()
+    .mockResolvedValue({ method: "POST", headers: {}, body: "x" }),
+}));
 jest.mock("@/lib/queue/enqueue", () => ({
   scheduleReminderDelivery: jest.fn(),
 }));
@@ -143,5 +148,55 @@ describe("deliverTaskReminder", () => {
       skipped: false,
     });
     expect(EmailService.sendEmail).not.toHaveBeenCalled();
+  });
+
+  describe("push delivery", () => {
+    const fetchMock = jest.fn();
+    const sub = (id: string) => ({
+      id,
+      endpoint: `https://push.example.test/${id}`,
+      p256dh: "p",
+      auth: "a",
+    });
+    const withSubs = (ids: string[]) =>
+      reminder({
+        user: { ...reminder().user, pushSubscriptions: ids.map(sub) },
+      });
+    const saved = { ...process.env };
+
+    beforeEach(() => {
+      process.env.VAPID_SUBJECT = "mailto:push@example.com";
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = "public-key";
+      process.env.VAPID_PRIVATE_KEY = "private-key";
+      fetchMock.mockReset();
+      global.fetch = fetchMock as unknown as typeof fetch;
+    });
+    afterAll(() => {
+      process.env = saved;
+    });
+
+    it("throws and marks FAILED when every push is rejected, so the job retries", async () => {
+      fetchMock.mockResolvedValue({ ok: false, status: 500 });
+      db.taskReminder.findUnique.mockResolvedValue(withSubs(["a", "b"]));
+      await expect(deliverTaskReminder("r1", now)).rejects.toThrow(
+        "Push provider returned 500"
+      );
+      expect(db.taskReminder.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ deliveryStatus: "FAILED" }),
+        })
+      );
+    });
+
+    it("is still delivered when at least one push got through", async () => {
+      fetchMock
+        .mockResolvedValueOnce({ ok: false, status: 500 })
+        .mockResolvedValueOnce({ ok: true, status: 201 });
+      db.taskReminder.findUnique.mockResolvedValue(withSubs(["a", "b"]));
+      await expect(deliverTaskReminder("r1", now)).resolves.toEqual({
+        delivered: true,
+        skipped: false,
+      });
+    });
   });
 });

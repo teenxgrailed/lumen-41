@@ -69,7 +69,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   getCalendarFeedForSync,
-  updateCalendarFeedSyncState,
+  recordCalendarFeedSyncFailure,
 } from "@/lib/calendar-db";
 import { renewCalendarWebhooks } from "@/lib/calendar-webhooks/renew";
 import { reconcileLifetimeCheckoutReservations } from "@/lib/creem/lifetime-reconciliation";
@@ -199,9 +199,11 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
     return;
   }
   if (!feed.userId || !feed.url || !feed.account) {
-    const message = "Calendar feed is missing user, URL, or account data.";
-    await updateCalendarFeedSyncState(feed.id, { error: message });
-    throw new Error(message);
+    const failure = new Error(
+      "Calendar feed is missing user, URL, or account data."
+    );
+    await recordCalendarFeedSyncFailure(feed.id, failure);
+    throw failure;
   }
 
   try {
@@ -217,8 +219,9 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
     });
     await enqueueReschedule(feed.userId);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await updateCalendarFeedSyncState(feed.id, { error: message });
+    // Records the error, the attempt and the backoff; a failure already
+    // recorded further down (Google) is not counted twice.
+    await recordCalendarFeedSyncFailure(feed.id, error);
     throw error;
   }
 }
