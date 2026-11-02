@@ -323,6 +323,47 @@ async function measure(
   };
 }
 
+/*
+ * Chrome trace through CDP Tracing. The invalidation-tracking category is what
+ * names the attribute, class or pseudo that dirtied which node; SelectorStats
+ * (when the Chrome build supports it) ranks selectors by match attempts.
+ */
+async function startTrace(cdp: CDPSession) {
+  const events: unknown[] = [];
+  cdp.on("Tracing.dataCollected", (d: { value: unknown[] }) => {
+    events.push(...d.value);
+  });
+  const done = new Promise<void>((resolve) =>
+    cdp.on("Tracing.tracingComplete", () => resolve())
+  );
+  await cdp.send("Tracing.start", {
+    transferMode: "ReportEvents",
+    traceConfig: {
+      recordMode: "recordAsMuchAsPossible",
+      // lite: the timeline alone, so UpdateLayoutTree durations are close to
+      // real ones (the tracking categories inflate them by roughly 10x).
+      includedCategories:
+        process.env.PERF_TRACE === "lite"
+          ? ["devtools.timeline"]
+          : [
+              "devtools.timeline",
+              "disabled-by-default-devtools.timeline",
+              "disabled-by-default-devtools.timeline.invalidationTracking",
+              "disabled-by-default-blink.debug",
+            ],
+      enableSampling: false,
+    },
+  });
+  return {
+    async stop(file: string) {
+      await cdp.send("Tracing.end");
+      await done;
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, JSON.stringify({ traceEvents: events }));
+    },
+  };
+}
+
 async function seedData(user: V3User) {
   const now = new Date();
   const day = new Date(
@@ -421,6 +462,14 @@ for (const screen of screens) {
       const idle = await measure(page, cdp, () => sleep(page, IDLE_MS));
       let interaction: Metrics | null = null;
       let reason: string | null = null;
+      // Opt-in trace (PERF_TRACE=1): only the Every place interaction, only
+      // on iPhone 13 Chromium. The trace JSON lands in perf/trace.
+      const tracing =
+        ["1", "lite"].includes(process.env.PERF_TRACE ?? "") &&
+        cdp !== null &&
+        phone &&
+        screen.id === "phone-every-place";
+      const trace = tracing && cdp ? await startTrace(cdp) : null;
       try {
         interaction = await measure(page, cdp, () =>
           screen.interact(page, { phone })
@@ -428,6 +477,10 @@ for (const screen of screens) {
       } catch (e) {
         reason = (e as Error).message.split("\n")[0];
       }
+      if (trace)
+        await trace.stop(
+          path.join(OUT, "trace", `${project}__${screen.id}.json`)
+        );
       await write({
         status: interaction ? "ok" : "interaction-unreachable",
         reason,
