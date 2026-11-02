@@ -45,6 +45,11 @@ import {
   sweepStaleFeeds,
 } from "@/worker/feed-sweep";
 import { syncFeedByType } from "@/worker/feed-sync";
+import {
+  STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
+  sweepStaleTaskMappings,
+} from "@/worker/task-mapping-sweep";
+import { syncTaskMapping } from "@/worker/task-mapping-sync";
 import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   startWorkerHealthServer,
@@ -155,7 +160,16 @@ const BUILD_SHA = requireProductionBuildSha();
 const WORKER_RELEASE_HEARTBEAT_VALUE = `${newDate().toISOString()}:${randomUUID()}`;
 
 async function processCalendarSync(job: Job<CalendarSyncJobData>) {
+  if (job.data.taskMappingId) {
+    await syncTaskMapping(job.data.taskMappingId);
+    return;
+  }
   if (!job.data.feedId) {
+    if (job.data.kind === "task-stale-sweep") {
+      const queued = await sweepStaleTaskMappings();
+      await logger.info("Queued stale task list syncs", { queued }, LOG_SOURCE);
+      return;
+    }
     if (job.data.kind === "stale-sweep") {
       const queued = await sweepStaleFeeds();
       await logger.info("Queued stale feed syncs", { queued }, LOG_SOURCE);
@@ -472,6 +486,11 @@ export async function start(): Promise<void> {
     "stale-feed-sweep",
     { every: STALE_FEED_SWEEP_INTERVAL_MS },
     { name: "sweep-stale-feeds", data: { kind: "stale-sweep" } }
+  );
+  await getCalendarSyncQueue().upsertJobScheduler(
+    "stale-task-mapping-sweep",
+    { every: STALE_TASK_MAPPING_SWEEP_INTERVAL_MS },
+    { name: "sweep-stale-task-mappings", data: { kind: "task-stale-sweep" } }
   );
   await getBugReportSyncQueue().upsertJobScheduler(
     "bug-report-retry",
