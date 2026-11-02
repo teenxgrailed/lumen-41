@@ -51,11 +51,12 @@ jest.mock("@/lib/sandbox/guard", () => ({
 
 const CODE = "NEEDT-STUDENT-40";
 
-function request(body: unknown) {
+// Every paid checkout carries the withdrawal-right acknowledgement (Terms 5.5).
+function request(body: Record<string, unknown>) {
   return new NextRequest("http://localhost/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ withdrawalWaiver: true, ...body }),
   });
 }
 

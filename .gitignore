@@ -112,3 +112,6 @@ Needt - Design : App, Landing/**/*.woff2
 # What's new feed, compiled from changelog.d before dev and build
 /public/whats-new.json
 /.whats-new-git-log
+
+# graphify knowledge graph (built locally, ~70 MB)
+graphify-out/

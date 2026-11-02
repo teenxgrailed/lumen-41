@@ -9,6 +9,9 @@ fork. It has one unified Next.js application plus a BullMQ worker built from
 the same image and SHA.
 
 What is left, and in what order: `docs/plans/00-roadmap.md` (2026-09-15).
+What must be true before launch, and how to prove it: `openspec/specs/launch-readiness/`
+(`spec.md` holds the checks, `status.md` the latest results). Read it before a launch step and
+after every production deploy; a daily routine re-runs the Claude checks.
 
 ## What Needt is for
 
@@ -112,6 +115,7 @@ server-controlled through `src/lib/feature-flags.ts`.
 - **Design authority (2026-09-11), in this order**: `docs/handoff/PORT.md` first — it is the newest brief and the only one that records _why_ each decision beat the obvious alternative, so read it before touching any design work; then `Content height and label fixes/needt-app/HANDOFF.md` in the downloaded bundle for per-subsystem detail; then the bound design system under `Content height and label fixes/_ds/`. Where the two briefs disagree, `docs/handoff/design-reconciliation-2026-09-11.md` holds the rulings, and where either disagrees with the vendored CSS the CSS wins, because it is the shipped artefact. `/DESIGN.md` and everything in `design-refs/` are superseded and carry a banner saying so; read them for history, never for a value.
 - **Design work flows one way per artefact**: screens move from Claude Design into `src/`, tokens move back up to the design-system project. A shipped screen is edited in code, never re-exported. See `docs/handoff/design-workflow.md`.
 - **Do not re-derive a design decision from its result.** PORT.md §0 and §6 may not be changed without asking the owner. Five alternatives that look like improvements and are not: a damped spring for the agent cursor (it oscillates, people do not sway), a toast instead of the growing island (a second object arriving is what makes toasts ignorable; the owner's 2026-10-14 override moves only the transient action/Undo/status notices to a compact inverted pill at the bottom centre, `ActionToasts`, while the AI-nudge island in the Ask Needt corner stays as it is), a sheet under a whole screen (then every object on it is a card on a card), a count above rows that are already visible (a tally of what you can see is noise), and a `ResizeObserver` per card (it fires through entry staggers and re-measures everything).
+- **Generic design and motion skills rank below PORT.md.** Skills such as `apple-design`, `animate`, `emil-design-eng` or `mobile-native` give good defaults for code that PORT.md does not cover. Where they disagree with PORT.md, the design reconciliation or the vendored CSS, the Needt sources win. Example: `apple-design` recommends spring motion, but the agent cursor must not use a damped spring (see above).
 - **Four rules outrank everything**: every grey is one text colour at a ladder alpha; the chrome type scale is 13px and 12px with no 14px; the accent is never a solid fill on a button or surface, only on a mark; one form-row geometry, and a label that does not fit gets shortened rather than the column widened.
 - **Brand marks**: the owner has cleared using third-party brand logos/marks in the product (Connections, calendars, sign-in providers); use the real marks, not letter tiles. (2026-10-12)
 - **Notifications**: product code calls the typed `notify` facade in `src/lib/notifications.ts`; only the facade and shared Toaster import Sonner. Default `surface` is `toast` (bottom-centre pill); pass `surface: "island"` only for Needt speaking on its own initiative.
@@ -177,3 +181,14 @@ Mulch write commands use file locking and atomic writes — multiple agents can 
    mulch sync
    ```
    <!-- mulch:end -->
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- graphify-out/ is not committed (about 70 MB). Build it once per checkout or worktree with `graphify update .` (AST only, about 35 s, no API cost; needs the CLI: `uv tool install --python 3.12 graphifyy`). `.graphifyignore` keeps it to product code.

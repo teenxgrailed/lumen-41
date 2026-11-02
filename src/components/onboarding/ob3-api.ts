@@ -89,10 +89,12 @@ export async function checkoutAvailable(): Promise<boolean> {
 
 export async function startCheckout(
   plan: "pro" | "lifetime",
-  interval: "month" | "year"
+  interval: "month" | "year",
+  withdrawalWaiver: true
 ): Promise<string> {
   const res = await post("/api/billing/checkout", {
     plan,
+    withdrawalWaiver,
     from: "onboarding",
     ...(plan === "pro" ? { interval } : {}),
   });

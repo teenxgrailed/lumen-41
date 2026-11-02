@@ -125,6 +125,12 @@ model User {
   studentDiscountCode    String?
   studentRecheckSentAt   DateTime?
   studentLapsedAt        DateTime?
+  // The EU/UK "start now, lose the 14-day withdrawal right" acknowledgement
+  // (Terms 5.5), taken at the last paid checkout: when, and the Terms version
+  // (LEGAL_EFFECTIVE_DATE) it was shown against. Overwritten on each checkout.
+  // Null for accounts that never started one.
+  withdrawalWaiverAt     DateTime?
+  withdrawalWaiverTermsVersion String?
   dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]

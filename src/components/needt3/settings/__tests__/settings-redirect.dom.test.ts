@@ -2,14 +2,13 @@
  * @jest-environment jsdom
  *
  * `/settings?section=billing&checkout=…` with design_v3 on: the sheet opens on
- * Plan, the checkout starts once, and the param is gone from the address.
+ * Plan, no checkout starts, and the param is gone from the address.
  */
 import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
 import { startCheckout } from "@/lib/needt3/hooks/account";
-import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -64,65 +63,20 @@ describe("SettingsRedirect", () => {
     expect(replace).toHaveBeenCalledWith("/today");
   });
 
-  it.each([
-    ["pro-year", { plan: "pro", interval: "year" }],
-    ["pro-month", { plan: "pro", interval: "month" }],
-    ["lifetime", { plan: "lifetime" }],
-  ])(
-    "?checkout=%s starts that checkout once and strips the param",
-    async (value, choice) => {
-      checkout.mockResolvedValue({ ok: true });
+  it.each(["pro-year", "pro-month", "lifetime"])(
+    "?checkout=%s opens Plan without starting checkout and strips the param",
+    async (value) => {
       await open(`/settings?section=billing&checkout=${value}`);
 
-      expect(checkout).toHaveBeenCalledTimes(1);
-      expect(checkout).toHaveBeenCalledWith(choice);
+      // The withdrawal-right box (Terms 5.5) is in the Plan section, so the
+      // link cannot start a purchase on its own.
+      expect(checkout).not.toHaveBeenCalled();
       expect(window.location.search).toBe("?section=billing");
-      expect(replace).not.toHaveBeenCalled();
+      expect(useNeedt3Ui.getState().settingsOpen).toBe(true);
+      expect(useNeedt3Ui.getState().settingsSection).toBe("plan");
+      expect(replace).toHaveBeenCalledWith("/today");
     }
   );
-
-  it("does not start a second checkout when the effect runs twice", async () => {
-    checkout.mockResolvedValue({ ok: true });
-    window.history.replaceState(
-      {},
-      "",
-      "/settings?section=billing&checkout=lifetime"
-    );
-    await act(async () => {
-      root.render(h(SettingsRedirect));
-    });
-    await act(async () => {
-      root.render(h(SettingsRedirect));
-    });
-    expect(checkout).toHaveBeenCalledTimes(1);
-  });
-
-  it("when checkout is closed, says the server's sentence and opens Plan", async () => {
-    checkout.mockResolvedValue({ ok: false, error: "Checkout opens soon." });
-    await open("/settings?section=billing&checkout=pro-year");
-
-    expect(notify.error).toHaveBeenCalledWith(
-      "Checkout opens soon.",
-      expect.anything()
-    );
-    expect(useNeedt3Ui.getState().settingsOpen).toBe(true);
-    expect(useNeedt3Ui.getState().settingsSection).toBe("plan");
-    expect(replace).toHaveBeenCalledWith("/today");
-  });
-
-  it("when billing is not configured, the same", async () => {
-    checkout.mockResolvedValue({
-      ok: false,
-      error: "Billing is not configured.",
-    });
-    await open("/settings?section=billing&checkout=lifetime");
-
-    expect(notify.error).toHaveBeenCalledWith(
-      "Billing is not configured.",
-      expect.anything()
-    );
-    expect(useNeedt3Ui.getState().settingsSection).toBe("plan");
-  });
 
   it("ignores an unknown checkout value", async () => {
     await open("/settings?section=billing&checkout=free-money");

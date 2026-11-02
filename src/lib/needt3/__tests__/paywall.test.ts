@@ -5,6 +5,7 @@ import {
   lifetimeLeftPct,
   offersTrial,
   paywallCta,
+  paywallNeedsWaiver,
   paywallPick,
   planLine,
   proIncludes,
@@ -253,5 +254,17 @@ describe("what each plan includes", () => {
       "Every connection",
     ])
       expect(all).not.toContain(gone);
+  });
+});
+
+describe("paywallNeedsWaiver", () => {
+  it("is true only for an open checkout button", () => {
+    expect(paywallNeedsWaiver({ action: "checkout", blocked: null })).toBe(
+      true
+    );
+    expect(paywallNeedsWaiver({ action: "trial", blocked: null })).toBe(false);
+    expect(paywallNeedsWaiver({ action: "checkout", blocked: "closed" })).toBe(
+      false
+    );
   });
 });

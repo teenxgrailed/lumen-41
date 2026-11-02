@@ -30,7 +30,7 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: jest.fn() } },
+  prisma: { user: { findUnique: jest.fn(), update: jest.fn() } },
 }));
 jest.mock("@/lib/security/rate-limit", () => ({
   accountRule: jest.fn(),
@@ -50,7 +50,7 @@ function lifetimeRequest() {
   return new NextRequest("http://localhost/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ plan: "lifetime" }),
+    body: JSON.stringify({ plan: "lifetime", withdrawalWaiver: true }),
   });
 }
 
@@ -171,6 +171,7 @@ describe("Lifetime checkout route", () => {
           plan: "pro",
           interval: "year",
           from: "onboarding",
+          withdrawalWaiver: true,
         }),
       })
     );
@@ -181,5 +182,52 @@ describe("Lifetime checkout route", () => {
     expect(url.pathname).toBe("/start");
     expect(url.searchParams.get("billing")).toBe("success");
     expect(url.searchParams.get("step")).toBe("opening");
+  });
+
+  it("refuses a checkout without the withdrawal acknowledgement", async () => {
+    const response = await POST(
+      new NextRequest("http://localhost/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "pro", interval: "month" }),
+      })
+    );
+
+    expect(response!.status).toBe(400);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(createCheckout).not.toHaveBeenCalled();
+  });
+
+  it("stores the acknowledgement and sends it to Creem", async () => {
+    createCheckout.mockResolvedValue({
+      id: "checkout_3",
+      checkoutUrl: "https://creem.test/checkout_3",
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: "pro",
+          interval: "month",
+          withdrawalWaiver: true,
+        }),
+      })
+    );
+
+    expect(response!.status).toBe(200);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user_1" },
+      data: {
+        withdrawalWaiverAt: expect.any(Date),
+        withdrawalWaiverTermsVersion: expect.any(String),
+      },
+    });
+    expect(createCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ withdrawalWaiver: "true" }),
+      })
+    );
   });
 });

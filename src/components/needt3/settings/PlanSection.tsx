@@ -17,6 +17,7 @@ import { offersTrial } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
+import { WithdrawalWaiver } from "../paywall/WithdrawalWaiver";
 import { StudentGroup } from "./StudentGroup";
 import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
@@ -65,6 +66,7 @@ export function PlanSection() {
   const plan = usePlan();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [waiver, setWaiver] = useState(false);
   const b = plan.data;
   const kind = b?.kind ?? "free";
   const info = planInfo(kind);
@@ -77,7 +79,7 @@ export function PlanSection() {
   const buy = async (id: string, choice: CheckoutChoice) => {
     setBusy(id);
     setError(null);
-    const r = await startCheckout(choice);
+    const r = await startCheckout(choice, true);
     if (!r.ok) setError(r.error);
     setBusy(null);
   };
@@ -170,6 +172,14 @@ export function PlanSection() {
             ) : null}
           </span>
           {!pro || kind === "trial" ? (
+            <WithdrawalWaiver
+              checked={waiver}
+              onChange={setWaiver}
+              product="my plan"
+              className="auth-age pw-waiver"
+            />
+          ) : null}
+          {!pro || kind === "trial" ? (
             <span className="settings-grid-2">
               {chips
                 .filter((c) => !c.hidden)
@@ -179,7 +189,7 @@ export function PlanSection() {
                     type="button"
                     className="base-stack settings-price"
                     data-settings-price={c.id}
-                    disabled={busy !== null}
+                    disabled={busy !== null || !waiver}
                     onClick={() => void buy(c.id, c.choice)}
                   >
                     <span className="settings-text-10">{c.name}</span>

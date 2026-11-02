@@ -11,6 +11,8 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { newDate } from "@/lib/date-utils";
+
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { usePhoneOverlays } from "../../overlays/store";
 import {
@@ -19,6 +21,10 @@ import {
   TemplatesFace,
   TrashFace,
 } from "../Faces";
+
+/** Trash rows are dated relative to today, so "days left" never runs out. */
+const daysAgo = (days: number) =>
+  newDate(newDate().getTime() - days * 86_400_000).toISOString();
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -215,19 +221,19 @@ const seed = () => {
     {
       id: "k1",
       title: "Old task",
-      trashedAt: "2026-10-01T09:00:00.000Z",
+      trashedAt: daysAgo(20),
       projectId: "p1",
     },
   ]);
   boardsQ = ok([
-    { id: "b1", title: "Ideas", trashedAt: "2026-10-10T09:00:00.000Z" },
+    { id: "b1", title: "Ideas", trashedAt: daysAgo(11) },
     { id: "b2", title: "Live", trashedAt: null },
   ]);
   docsQ = ok([
     {
       id: "pg1",
       title: "Brief",
-      trashedAt: "2026-10-12T09:00:00.000Z",
+      trashedAt: daysAgo(9),
       projectId: null,
       coverUrl: null,
       style: null,

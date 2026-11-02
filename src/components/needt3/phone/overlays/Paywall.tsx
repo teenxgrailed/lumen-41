@@ -21,12 +21,17 @@ import {
 import { startTrial } from "@/lib/needt3/hooks/account";
 import { ApiError, sendJson } from "@/lib/needt3/hooks/core";
 import { usePlan } from "@/lib/needt3/hooks/plan";
-import { freeIncludes, proIncludes } from "@/lib/needt3/paywall";
+import {
+  freeIncludes,
+  paywallNeedsWaiver,
+  proIncludes,
+} from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { notify } from "@/lib/notifications";
 
+import { WithdrawalWaiver } from "../../paywall/WithdrawalWaiver";
 import { PxSky } from "../../scenes";
 import { PkButton, PkGlass, PkSheet, pkCx } from "../kit";
 import {
@@ -91,7 +96,7 @@ function useCheckout() {
       const res = await sendJson<{ url?: string }>(
         "/api/billing/checkout",
         "POST",
-        checkoutBody(pick)
+        { ...checkoutBody(pick), withdrawalWaiver: true }
       );
       if (!res?.url) throw new Error("No checkout address.");
       window.location.assign(res.url);
@@ -198,13 +203,19 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
      desktop paywall's: `paywallCta(pick, plan)` and the server's count. */
   const view = pwView(pick, plan, p.lifetimeCap);
   const cta = view.cta;
-  const off = pwDisabled(view, { online, busy: checkout.busy });
+  /* Terms 5.5: unticked on every open; checkout stays off until it is ticked. */
+  const [waiver, setWaiver] = useState(false);
+  const needsWaiver = paywallNeedsWaiver(cta);
+  const off =
+    pwDisabled(view, { online, busy: checkout.busy }) ||
+    (needsWaiver && !waiver);
 
   // A fresh open starts from the cycle asked for, with no stale error.
   const { clear } = checkout;
   useEffect(() => {
     if (!open) return;
     setPicked(pickOf(cycle));
+    setWaiver(false);
     clear();
   }, [open, cycle, clear]);
 
@@ -443,6 +454,14 @@ export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
           </div>
           <div className="pw-bar">
             {status}
+            {needsWaiver ? (
+              <WithdrawalWaiver
+                checked={waiver}
+                onChange={setWaiver}
+                product={pick === "lifetime" ? "Lifetime" : "Pro"}
+                className="auth-age pw-waiver"
+              />
+            ) : null}
             <PkButton
               kind="primary"
               block

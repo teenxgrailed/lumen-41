@@ -111,6 +111,10 @@ const dayOf = (iso: string) => formatInTimeZone(newDate(iso), TZ, "yyyy-MM-dd");
 /**
  * The visible day column next to the band's own: tomorrow's, or yesterday's
  * on the last day of the week. Returns its centre x and the day step (+1/-1).
+ * The strip keeps a week of columns drawn past each edge, so a column in the
+ * DOM is not a column on screen: on the last day of the week tomorrow's
+ * exists but sits right of the viewport, and a drop there lands nowhere.
+ * Only a column whose centre is inside the scroller counts.
  */
 async function neighbourColumn(page: Page, today: string) {
   const at = (n: number) =>
@@ -119,10 +123,14 @@ async function neighbourColumn(page: Page, today: string) {
       .slice(0, 10);
   for (const step of [1, -1]) {
     const col = page.locator(`[data-drop="timeline"][data-date="${at(step)}"]`);
-    if (await col.count()) {
-      const box = (await col.first().boundingBox())!;
-      return { x: box.x + box.width / 2, step };
-    }
+    if (!(await col.count())) continue;
+    const box = (await col.first().boundingBox())!;
+    const x = box.x + box.width / 2;
+    const onScreen = await col.first().evaluate((el, cx) => {
+      const r = el.closest("[data-c2-wscroll]")!.getBoundingClientRect();
+      return cx > r.left && cx < r.right;
+    }, x);
+    if (onScreen) return { x, step };
   }
   throw new Error("no neighbouring day column");
 }

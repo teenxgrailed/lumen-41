@@ -1,4 +1,8 @@
 import { newDate } from "@/lib/date-utils";
+import {
+  type RecurringAlreadyDoneBody,
+  noticeRecurringAlreadyDone,
+} from "@/lib/recurring-already-done";
 
 import { NewTask, Task, UpdateTask } from "@/types/task";
 
@@ -64,7 +68,11 @@ export async function updateTaskRequest(
   }
   if (response.status === 202) return null;
 
-  return response.json() as Promise<Task>;
+  const task = (await response.json()) as Task & RecurringAlreadyDoneBody;
+  // A repeat tick on a recurring task changed nothing; the row that came back
+  // is the task as it is, so it also puts the optimistic tick back.
+  noticeRecurringAlreadyDone(task);
+  return task;
 }
 
 export async function deleteTaskRequest(
