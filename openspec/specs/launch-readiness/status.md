@@ -9,7 +9,7 @@ result. `ok` means the check ran on that date and passed.
 | Production SHA = `origin/main` | Claude | ok | 2026-11-02 | `26a5173` |
 | Google provider in `/api/auth/providers` | Claude | ok | 2026-11-02 | `google` listed |
 | Google consent screen In production | Owner | unverified | | |
-| Google scopes verified (calendar, `gmail.readonly`) | Owner | unverified | | |
+| Google scopes verified (calendar, `gmail.readonly`) | Owner | fail | 2026-11-02 | blocked on "App functionality": demo video, reviewer access |
 | Google redirect URIs (3) | Owner | unverified | | |
 | Non-owner Google sign-in + calendar | Owner | unverified | | |
 | `/terms`, `/privacy` final | Claude | ok | 2026-11-02 | 200, no `{{`/`CHECK` |
@@ -21,6 +21,6 @@ result. `ok` means the check ran on that date and passed.
 | Worker alive | Claude | ok | 2026-11-02 | `workerBuildSha` present |
 | Resend delivers | Owner | unverified | | |
 | Sentry events and alerts | Owner | unverified | | |
-| Backups daily, 30 days | Owner | unverified | | |
-| AI action cap set | Owner | unverified | | |
+| Backups daily, 30 days | Owner | ok | 2026-11-02 | daily to S3, last success 00:00 UTC, 14 kept locally (checked by Claude via Coolify) |
+| AI action cap set | Owner | ok | 2026-11-02 | `NEEDT_AI_MONTHLY_ACTION_CAP` present on `needt` (value not readable; checked by Claude via Coolify) |
 | Free disk ≥ 1 GB after fan-out | Claude | ok | 2026-11-02 | 4.7 GB free |
