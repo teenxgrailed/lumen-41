@@ -42,4 +42,20 @@
   html:not([data-desktop-shell="swift"]) .needt-v3 .auth-onboarding-col-2 {
     max-height: calc(100dvh - 210px);
   }
+
+  /* The desktop face also shows on a phone held sideways (it takes over from
+   * 700 px wide), where the bars still take height. focus.css:16 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .fc-window {
+    height: min(760px, calc(100dvh - 48px));
+  }
+
+  /* settings.css:46 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .settings-settings {
+    height: min(696px, calc(100dvh - 64px));
+  }
+
+  /* calendar.css:104 */
+  html:not([data-desktop-shell="swift"]) .needt-v3 .c2-slot-pop {
+    max-height: min(420px, calc(100dvh - 16px));
+  }
 }

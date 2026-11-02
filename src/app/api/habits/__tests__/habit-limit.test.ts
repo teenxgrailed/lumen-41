@@ -22,10 +22,14 @@ jest.mock("@/lib/prisma", () => ({
       update: jest.fn(),
     },
     workSchedule: { findFirst: jest.fn() },
+    $transaction: jest.fn(),
+    $executeRaw: jest.fn(),
   },
 }));
 
 const db = prisma as unknown as {
+  $transaction: jest.Mock;
+  $executeRaw: jest.Mock;
   user: { findUnique: jest.Mock };
   habit: {
     count: jest.Mock;
@@ -87,8 +91,21 @@ async function patch(id: string, body: unknown) {
   );
 }
 
+// Stands in for the per-user advisory lock: a transaction starts only after
+// the one before it has finished, as Postgres does for `pg_advisory_xact_lock`.
+let lockTail: Promise<unknown> = Promise.resolve();
+
 beforeEach(() => {
   jest.clearAllMocks();
+  lockTail = Promise.resolve();
+  db.$transaction.mockImplementation(
+    (run: (tx: unknown) => Promise<unknown>) => {
+      const result = lockTail.then(() => run(prisma));
+      lockTail = result.catch(() => undefined);
+      return result;
+    }
+  );
+  db.$executeRaw.mockResolvedValue(1);
   jest.mocked(authenticateRequest).mockResolvedValue({
     userId: "user-1",
     workspace: { workspaceId: "ws-1" },
@@ -156,6 +173,38 @@ describe("POST /api/habits", () => {
     const response = await post(newHabit);
 
     expect(response.status).toBe(201);
+  });
+
+  it("takes the per-user lock before it counts", async () => {
+    onPlan(SubscriptionPlan.FREE);
+    withActiveHabits(0);
+
+    await post(newHabit);
+
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      db.habit.count.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("lets only one of two parallel requests take the last Free slot", async () => {
+    onPlan(SubscriptionPlan.FREE);
+    let active = 2;
+    db.habit.count.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return active;
+    });
+    db.habit.create.mockImplementation(async ({ data }) => {
+      active += 1;
+      return { id: `habit-${active}`, ...data };
+    });
+
+    const statuses = (await Promise.all([post(newHabit), post(newHabit)]))
+      .map((response) => response.status)
+      .sort();
+
+    expect(statuses).toEqual([201, 403]);
+    expect(active).toBe(3);
   });
 
   it("limits again once the trial is over", async () => {

@@ -9,7 +9,7 @@ describe("trial email normalization", () => {
     [" Person@Example.COM ", "person@example.com"],
     ["first.last+promo@gmail.com", "firstlast@gmail.com"],
     ["f.i.r.s.t.l.a.s.t@googlemail.com", "firstlast@gmail.com"],
-    ["first.last+promo@outlook.com", "first.last+promo@outlook.com"],
+    ["first.last+promo@outlook.com", "first.last@outlook.com"],
   ])("normalizes %s", (input, expected) => {
     expect(normalizeTrialEmail(input)).toBe(expected);
   });

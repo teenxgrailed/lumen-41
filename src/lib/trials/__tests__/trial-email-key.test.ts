@@ -1,11 +1,14 @@
 import { Prisma } from "@prisma/client";
+import { createHmac } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import {
   hashLegacyTrialEmailKeys,
+  normalizeTrialEmail,
   startTrialForVerifiedUser,
   trialEmailKey,
+  trialEmailLookupKeys,
 } from "@/lib/trials/trial-service";
 
 jest.mock("@/lib/logger", () => ({
@@ -60,6 +63,41 @@ describe("trial email key", () => {
     );
     expect(trialEmailKey("a@example.com")).not.toBe(
       trialEmailKey("b@example.com")
+    );
+  });
+
+  it("drops a +tag on every domain, so a plus alias is not a new trial", () => {
+    expect(trialEmailKey("a+1@outlook.com")).toBe(
+      trialEmailKey("a+2@outlook.com")
+    );
+    expect(trialEmailKey("a+1@icloud.com")).toBe(trialEmailKey("a@icloud.com"));
+    expect(normalizeTrialEmail("A+promo@Proton.me")).toBe("a@proton.me");
+  });
+
+  it("keeps dots meaningful outside Gmail", () => {
+    expect(normalizeTrialEmail("first.last@outlook.com")).toBe(
+      "first.last@outlook.com"
+    );
+    expect(trialEmailKey("first.last@outlook.com")).not.toBe(
+      trialEmailKey("firstlast@outlook.com")
+    );
+  });
+
+  it("still finds a key stored under the Gmail-only spelling", () => {
+    const secret = process.env.RATE_LIMIT_HASH_SECRET ?? "";
+    const keys = trialEmailLookupKeys("a+1@outlook.com");
+
+    expect(keys).toContain(trialEmailKey("a@outlook.com"));
+    // What an earlier release stored for this exact address.
+    expect(keys).toContain(
+      createHmac(
+        "sha256",
+        createHmac("sha256", secret)
+          .update("needt:trial-email-key:v1")
+          .digest()
+      )
+        .update("a+1@outlook.com")
+        .digest("hex")
     );
   });
 
