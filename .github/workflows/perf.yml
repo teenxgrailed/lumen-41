@@ -4,6 +4,9 @@ name: Perf baseline
 # never attached to pull_request or push. Compare runs of this workflow only
 # with each other (shared runners, software rasteriser).
 on:
+  # TEMP-PROOF: removed before merge. workflow_dispatch needs the file on main.
+  push:
+    branches: [perf/baseline-harness]
   workflow_dispatch:
     inputs:
       ref:
@@ -13,7 +16,7 @@ on:
         type: string
 
 concurrency:
-  group: needt-perf-${{ inputs.ref }}
+  group: needt-perf-${{ inputs.ref || github.sha }}
   cancel-in-progress: false
 
 env:
@@ -57,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || 'main' }}
       - name: Short SHA
         id: sha
         run: echo "short=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
