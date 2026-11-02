@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.ref || 'main' }}
+          ref: ${{ inputs.ref || github.sha }}
       - name: Short SHA
         id: sha
         run: echo "short=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
