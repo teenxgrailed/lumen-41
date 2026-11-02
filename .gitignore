@@ -115,3 +115,6 @@ Needt - Design : App, Landing/**/*.woff2
 
 # graphify knowledge graph (built locally, ~70 MB)
 graphify-out/
+
+# performance baseline output (CI artifact only)
+/perf/
