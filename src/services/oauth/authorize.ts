@@ -1,5 +1,6 @@
 import type { OAuthClient } from "@prisma/client";
 
+import { newDate } from "@/lib/date-utils";
 import {
   type McpScope,
   isMcpResource,
@@ -12,9 +13,20 @@ import {
   type ResolveClientOptions,
   resolveClient,
 } from "./clients";
-import { DEFAULT_SCOPES, parseScopes } from "./constants";
+import {
+  DEFAULT_SCOPES,
+  type OidcScope,
+  parseOidcScopes,
+  parseScopes,
+  wantsOpenid,
+} from "./constants";
 import { isCodeChallenge } from "./crypto";
+import { isFirstParty } from "./first-party";
+import { createAuthorizationCode } from "./grants";
 import { matchesRegisteredRedirect } from "./redirect-uri";
+
+/** A nonce longer than this is not one a client made on purpose. */
+const MAX_NONCE_LENGTH = 512;
 
 export interface AuthorizationRequest {
   client: OAuthClient;
@@ -22,8 +34,16 @@ export interface AuthorizationRequest {
   state: string | null;
   codeChallenge: string;
   /** What the client asked for (defaults when it asked for nothing). */
-  scopes: McpScope[];
+  scopes: (McpScope | OidcScope)[];
+  /** The MCP resource; "" for an OpenID Connect request, which has none. */
   resource: string;
+  /** Non-null exactly when the scope contains `openid`. */
+  oidc: { nonce: string | null } | null;
+}
+
+/** The MCP scopes of a request (none for an OpenID Connect one). */
+export function mcpScopesOf(request: AuthorizationRequest): McpScope[] {
+  return request.oidc ? [] : (request.scopes as McpScope[]);
 }
 
 /**
@@ -102,6 +122,42 @@ export async function validateAuthorizationRequest(
       "PKCE with code_challenge_method=S256 is required."
     );
   }
+  const scopeParam = params.get("scope");
+  if (wantsOpenid(scopeParam)) {
+    // Sign in with a Needt account: Needt's own apps only. No resource, no
+    // MCP scopes; the nonce is echoed into the id_token at the token endpoint.
+    const oidcScopes = isFirstParty(client)
+      ? parseOidcScopes(scopeParam)
+      : null;
+    if (!oidcScopes) {
+      return fail(
+        "invalid_scope",
+        isFirstParty(client)
+          ? "openid can only be combined with email and profile."
+          : "openid is not available to this client."
+      );
+    }
+    const nonce = params.get("nonce");
+    if (nonce !== null && nonce.length > MAX_NONCE_LENGTH) {
+      return fail("invalid_request", "nonce is too long.");
+    }
+    return {
+      ok: true,
+      request: {
+        client,
+        redirectUri,
+        state,
+        codeChallenge,
+        scopes: oidcScopes,
+        resource: "",
+        oidc: { nonce: nonce || null },
+      },
+    };
+  }
+  // A first-party client signs people in and does nothing else.
+  if (isFirstParty(client)) {
+    return fail("invalid_scope", "This client must ask for the openid scope.");
+  }
   // Required (MCP authorization): a token is only ever minted for the
   // resource the client names, and it must be ours.
   const resource = params.get("resource");
@@ -111,7 +167,7 @@ export async function validateAuthorizationRequest(
       `resource must be one of ${mcpResourceAliases().join(", ")}.`
     );
   }
-  const asked = parseScopes(params.get("scope"));
+  const asked = parseScopes(scopeParam);
   if (asked === null) {
     return fail("invalid_scope", "Unknown scope requested.");
   }
@@ -124,8 +180,32 @@ export async function validateAuthorizationRequest(
       codeChallenge,
       scopes: asked.length ? asked : [...DEFAULT_SCOPES],
       resource: resource as string,
+      oidc: null,
     },
   };
+}
+
+/**
+ * A first-party client needs no consent: once the person is signed in, the
+ * code is issued at once and this is where they are sent back to the client.
+ * `auth_time` is the moment of this authorization (the session does not carry
+ * the moment of the original sign-in).
+ */
+export async function completeFirstPartyAuthorization(
+  request: AuthorizationRequest,
+  userId: string
+): Promise<string> {
+  const code = await createAuthorizationCode({
+    clientDbId: request.client.id,
+    userId,
+    redirectUri: request.redirectUri,
+    codeChallenge: request.codeChallenge,
+    scopes: request.scopes,
+    resource: request.resource,
+    nonce: request.oidc?.nonce ?? null,
+    authTime: newDate(),
+  });
+  return clientRedirect(request.redirectUri, { code, state: request.state });
 }
 
 /** The redirect back to the client, always carrying `iss` (RFC 9207). */

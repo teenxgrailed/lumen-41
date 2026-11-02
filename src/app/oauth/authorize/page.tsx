@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import {
   clientRedirect,
+  completeFirstPartyAuthorization,
   validateAuthorizationRequest,
 } from "@/services/oauth/authorize";
 import { clientOrigin } from "@/services/oauth/clients";
@@ -106,6 +107,10 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   }
 
   const { request } = result;
+  // Needt's own apps (sign in with a Needt account) get no consent screen.
+  if (request.oidc) {
+    redirect(await completeFirstPartyAuthorization(request, session.user.id));
+  }
   const [workspaces, offerAdmin] = await Promise.all([
     consentWorkspaces(session.user.id),
     isAdminUserId(session.user.id),

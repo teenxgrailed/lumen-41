@@ -7,6 +7,12 @@ import { prisma } from "@/lib/prisma";
 
 import { UNUSED_CLIENT_TTL_MS } from "./constants";
 import { randomToken } from "./crypto";
+import {
+  FIRST_PARTY_CLIENTS,
+  FIRST_PARTY_KIND,
+  firstPartyRedirectUris,
+  isFirstPartyClientId,
+} from "./first-party";
 import { isAllowedRedirectUri } from "./redirect-uri";
 import { type SafeFetchDeps, safeFetchJson } from "./safe-fetch";
 
@@ -208,6 +214,32 @@ export interface ResolveClientOptions {
 }
 
 /**
+ * A first-party client's row, made on first use and refreshed whenever the
+ * redirect URIs in the environment change, so codes and tokens keep a
+ * foreign key to it. Nothing is written while the row already matches.
+ */
+async function resolveFirstPartyClient(clientId: string): Promise<OAuthClient> {
+  const { name } = FIRST_PARTY_CLIENTS[clientId];
+  const redirectUris = firstPartyRedirectUris(clientId);
+  const existing = await prisma.oAuthClient.findUnique({ where: { clientId } });
+  if (
+    existing &&
+    existing.kind === FIRST_PARTY_KIND &&
+    existing.name === name &&
+    existing.redirectUris.length === redirectUris.length &&
+    existing.redirectUris.every((uri, i) => uri === redirectUris[i])
+  ) {
+    return existing;
+  }
+  const data = { kind: FIRST_PARTY_KIND, name, redirectUris };
+  return prisma.oAuthClient.upsert({
+    where: { clientId },
+    update: data,
+    create: { clientId, ...data },
+  });
+}
+
+/**
  * The client behind a client_id: a registered one, or — for an https URL —
  * the client its metadata document describes (fetched safely, cached a day,
  * failures remembered for five minutes).
@@ -243,6 +275,7 @@ export async function resolveClient(
       throw error;
     }
   }
+  if (isFirstPartyClientId(clientId)) return resolveFirstPartyClient(clientId);
   const client = await prisma.oAuthClient.findUnique({ where: { clientId } });
   if (!client || client.kind !== "dcr") {
     throw new ClientError("invalid_client", "Unknown client.");

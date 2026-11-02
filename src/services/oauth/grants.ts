@@ -63,9 +63,13 @@ export async function createAuthorizationCode(input: {
   userId: string;
   redirectUri: string;
   codeChallenge: string;
-  scopes: McpScope[];
+  scopes: readonly string[];
   resource: string;
   workspaceId?: string | null;
+  /** OpenID Connect only: echoed into the id_token. */
+  nonce?: string | null;
+  /** OpenID Connect only: when the person authenticated. */
+  authTime?: Date | null;
 }): Promise<string> {
   const code = randomToken(AUTHORIZATION_CODE_PREFIX);
   await prisma.oAuthAuthorizationCode.create({
@@ -78,6 +82,8 @@ export async function createAuthorizationCode(input: {
       scope: formatScopes(input.scopes),
       resource: input.resource,
       workspaceId: input.workspaceId ?? null,
+      nonce: input.nonce ?? null,
+      authTime: input.authTime ?? null,
       familyId: crypto.randomUUID(),
       expiresAt: new Date(newDate().getTime() + AUTHORIZATION_CODE_TTL_MS),
     },

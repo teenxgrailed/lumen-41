@@ -3715,6 +3715,10 @@ model OAuthAuthorizationCode {
   scope         String
   resource      String
   workspaceId   String?
+  /// OpenID Connect only: the client's nonce, echoed into the id_token.
+  nonce         String?
+  /// OpenID Connect only: when the person authenticated (id_token auth_time).
+  authTime      DateTime?
   familyId      String
   expiresAt     DateTime
   usedAt        DateTime?
