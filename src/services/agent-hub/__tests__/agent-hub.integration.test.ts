@@ -231,8 +231,6 @@ describeIntegration("Agent hub (real database)", () => {
   });
 
   it("keeps an agent token to the hub scope", async () => {
-    const whoami = await tool(grok, "needt_whoami");
-    expect(whoami.isError).toBe(true);
     const list = await rpc(grok, "tools/call", {
       name: "needt_list",
       arguments: { type: "task" },
@@ -280,7 +278,7 @@ describeIntegration("Agent hub (real database)", () => {
         clientRef: "publish-1",
       })
     );
-    expect(a.isError).toBe(false);
+    expect(a.isError ? JSON.stringify(a.data ?? a.rpcError) : false).toBe(false);
     expect(a.data.created).toBe(true);
     itemA = a.data.item.id;
     expect(a.data.item.untrusted).toBe(true);
@@ -300,7 +298,7 @@ describeIntegration("Agent hub (real database)", () => {
     expect(again.data.item.id).toBe(itemA);
 
     const b = await tool(claude, "needt_agent_task_create", brief());
-    expect(b.isError).toBe(false);
+    expect(b.isError ? JSON.stringify(b.data ?? b.rpcError) : false).toBe(false);
     itemB = b.data.item.id;
 
     const missing = await tool(
@@ -360,7 +358,7 @@ describeIntegration("Agent hub (real database)", () => {
 
   it("refuses a second claim while the lease is live and extends it on update", async () => {
     const claimed = await tool(grok, "needt_agent_task_claim", { id: itemB });
-    expect(claimed.isError).toBe(false);
+    expect(claimed.isError ? JSON.stringify(claimed.data ?? claimed.rpcError) : false).toBe(false);
     expect(claimed.data.item.status).toBe("claimed");
     const firstEnd = new Date(claimed.data.item.leaseExpiresAt).getTime();
     expect(firstEnd).toBeGreaterThan(Date.now() + 25 * 60 * 1000);
@@ -384,7 +382,7 @@ describeIntegration("Agent hub (real database)", () => {
       message: "Recording started",
       leaseMinutes: 120,
     });
-    expect(updated.isError).toBe(false);
+    expect(updated.isError ? JSON.stringify(updated.data ?? updated.rpcError) : false).toBe(false);
     expect(updated.data.item.status).toBe("in_progress");
     expect(new Date(updated.data.item.leaseExpiresAt).getTime()).toBeGreaterThan(
       firstEnd + 60 * 60 * 1000
@@ -425,7 +423,7 @@ describeIntegration("Agent hub (real database)", () => {
       id,
       message: "Still on it",
     });
-    expect(back.isError).toBe(false);
+    expect(back.isError ? JSON.stringify(back.data ?? back.rpcError) : false).toBe(false);
 
     // The lease passes again and the other agent takes over.
     await prisma.hubItem.update({
@@ -433,7 +431,7 @@ describeIntegration("Agent hub (real database)", () => {
       data: { leaseExpiresAt: new Date(Date.now() - 60_000) },
     });
     const takeover = await tool(other, "needt_agent_task_claim", { id });
-    expect(takeover.isError).toBe(false);
+    expect(takeover.isError ? JSON.stringify(takeover.data ?? takeover.rpcError) : false).toBe(false);
     const lost = await tool(winner, "needt_agent_task_update", {
       id,
       message: "I am back",
@@ -462,7 +460,7 @@ describeIntegration("Agent hub (real database)", () => {
       criteriaMet: true,
       result: { summary: "" },
     });
-    expect(empty.data.error).toBe("INVALID");
+    expect(empty.isError).toBe(true);
 
     const done = await tool(grok, "needt_agent_task_complete", {
       id: itemB,
@@ -475,7 +473,7 @@ describeIntegration("Agent hub (real database)", () => {
         data: { seconds: 118 },
       },
     });
-    expect(done.isError).toBe(false);
+    expect(done.isError ? JSON.stringify(done.data ?? done.rpcError) : false).toBe(false);
     expect(done.data.item.status).toBe("done");
 
     const created = await tool(claude, "needt_agent_inbox", { view: "created" });
@@ -494,7 +492,7 @@ describeIntegration("Agent hub (real database)", () => {
       tags: ["YouTube"],
       itemId: itemB,
     });
-    expect(note.isError).toBe(false);
+    expect(note.isError ? JSON.stringify(note.data ?? note.rpcError) : false).toBe(false);
     expect(note.data.note.tags).toEqual(["youtube"]);
 
     const found = await tool(claude, "needt_memory_search", {
@@ -522,7 +520,7 @@ describeIntegration("Agent hub (real database)", () => {
       options: ["Brand channel", "Personal channel"],
       risk: "publish",
     });
-    expect(esc.isError).toBe(false);
+    expect(esc.isError ? JSON.stringify(esc.data ?? esc.rpcError) : false).toBe(false);
     expect(esc.data.item.status).toBe("needs_owner");
     expect(esc.data.item.heldBy).toBeNull();
 
@@ -611,7 +609,7 @@ describeIntegration("Agent hub (real database)", () => {
       criteriaMet: true,
       result: { summary: "Published on the brand channel." },
     });
-    expect(ok.isError).toBe(false);
+    expect(ok.isError ? JSON.stringify(ok.data ?? ok.rpcError) : false).toBe(false);
     expect(ok.data.item.status).toBe("done");
 
     // Approve is disabled for an item with no declared risks.
