@@ -2,10 +2,11 @@ name: CI
 
 on:
   push:
-    # The merge queue builds gh-readonly-queue/* branches and reports through
-    # merge_group below; a push run on the same commit would only duplicate it.
-    branches-ignore:
-      - "gh-readonly-queue/**"
+    # Branches are covered by pull_request below, so a push run on a PR branch
+    # would only repeat the same SHA. The merge queue reports through
+    # merge_group. Only main needs a push run (publish follows it).
+    branches:
+      - main
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -18,7 +19,9 @@ on:
 
 concurrency:
   group: needt-ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel main: a burst of merges would cancel the earlier run, and the
+  # publish workflow skips when the CI run it follows was not successful.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CI: "true"
@@ -41,9 +44,14 @@ jobs:
       # A merge-queue group is the last gate before main: run the visual
       # suites in full instead of diffing paths against a queue base.
       ui: ${{ github.event_name == 'merge_group' && 'true' || steps.filter.outputs.ui }}
+      # false when the change touches only docs, markdown, changelog.d or
+      # .agents: the heavy e2e job then skips its steps but still reports.
+      # Only a pull_request may skip: publish diffs against prod, not HEAD~1,
+      # so a docs-only push to main must never hide an untested code commit.
+      code: ${{ github.event_name != 'pull_request' && 'true' || steps.code.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         if: github.event_name != 'merge_group'
         id: filter
         with:
@@ -56,6 +64,18 @@ jobs:
               - "tailwind.config.*"
               - "tests/visual/**"
               - ".github/workflows/ci.yml"
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        if: github.event_name == 'pull_request'
+        id: code
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - "**"
+              - "!docs/**"
+              - "!**/*.md"
+              - "!changelog.d/**"
+              - "!.agents/**"
 
   security:
     if: github.event_name != 'workflow_dispatch'
@@ -137,8 +157,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -197,8 +217,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -216,7 +236,7 @@ jobs:
 
   e2e:
     if: github.event_name != 'workflow_dispatch'
-    needs: [quality-gates, schema-drift]
+    needs: [changes, quality-gates, schema-drift]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -242,32 +262,40 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - if: needs.changes.outputs.code == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npx prisma migrate deploy
-      - run: npx tsx prisma/ci-seed.ts
-      - run: npx playwright install --with-deps
-      - name: Build E2E application
+      - if: needs.changes.outputs.code == 'true'
+        run: npm ci
+      - if: needs.changes.outputs.code == 'true'
+        run: npx prisma generate
+      - if: needs.changes.outputs.code == 'true'
+        run: npx prisma migrate deploy
+      - if: needs.changes.outputs.code == 'true'
+        run: npx tsx prisma/ci-seed.ts
+      - if: needs.changes.outputs.code == 'true'
+        run: npx playwright install --with-deps
+      - if: needs.changes.outputs.code == 'true'
+        name: Build E2E application
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
-      - name: Run E2E and collaboration authorization smoke
+      - if: needs.changes.outputs.code == 'true'
+        name: Run E2E and collaboration authorization smoke
         env:
           NEEDT_E2E_PRODUCTION_SERVER: "1"
         run: npm run test:e2e
       - name: Upload task-completion motion frames
-        if: always()
+        if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: completion-frames
           path: test-results/completion-frames
           if-no-files-found: ignore
-      - if: always()
+      - if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-swift-shell-shots
@@ -275,7 +303,7 @@ jobs:
           if-no-files-found: ignore
       # Always: the onboarding spec attaches a screenshot of every screen
       # (desktop and phone) for visual review, not only on failure.
-      - if: always()
+      - if: always() && needs.changes.outputs.code == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-e2e-report
@@ -307,7 +335,7 @@ jobs:
         ports:
           - 6379:6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -442,7 +470,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - if: needs.changes.outputs.ui == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm

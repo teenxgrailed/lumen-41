@@ -1,0 +1,1 @@
+- CI now runs each PR commit once, no longer cancels main CI, skips the heavy e2e steps for docs-only changes, and publish no longer repeats the gates CI already passed.
