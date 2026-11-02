@@ -18,10 +18,10 @@ import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
 
 import { WithdrawalWaiver } from "../paywall/WithdrawalWaiver";
+import { StudentGroup } from "./StudentGroup";
 import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
-
-const P = priceStrings();
+import { showsStudentPrices } from "./student-derive";
 
 /** What Pro unlocks (paywall.jsx `PRO_FEATURES`); each is marked PRO where it lives. */
 export const PRO_FEATURES: readonly (readonly [string, string])[] = [
@@ -73,6 +73,8 @@ export function PlanSection() {
   const pro = isPro(kind);
   const closed = b ? !b.configured : false;
   const paymentFailed = b?.paymentFailed ?? false;
+  /* A verified student sees the price checkout will charge. */
+  const P = priceStrings(undefined, { student: showsStudentPrices(b) });
 
   const buy = async (id: string, choice: CheckoutChoice) => {
     setBusy(id);
@@ -285,9 +287,15 @@ export function PlanSection() {
               </SBtn>
             </span>
           ) : null}
+          {P.student && (!pro || kind === "trial") ? (
+            <span className="base-meta" data-settings-student-prices="">
+              {P.studentLine}. Lifetime is not discounted.
+            </span>
+          ) : null}
           <span className="base-meta">{P.footnote}</span>
         </div>
       </SGroup>
+      <StudentGroup plan={b} refetch={plan.refetch} />
       <SGroup
         title={pro ? "Included in your plan" : "What Pro unlocks"}
         hint={

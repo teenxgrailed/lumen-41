@@ -80,6 +80,9 @@ describe("email templates", () => {
       "welcome",
       "booking-confirmed",
       "account-export",
+      "student-verify",
+      "student-recheck",
+      "student-price-ending",
     ] as const) {
       expect(all[name].text).not.toMatch(/unsubscribe/i);
     }

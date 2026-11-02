@@ -9,6 +9,7 @@ import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { isSignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
+import { signInCallbackFor } from "@/lib/students/offer";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +25,17 @@ export default async function SignInPage({
     callbackUrl?: string;
     error?: string;
     provider?: string;
+    /** "student": needt.app/students; opens Plan with the student price. */
+    plan?: string;
   }>;
 }) {
   // Check if user is already signed in
   const authOptions = await getAuthOptions();
   const session = await getServerSession(authOptions);
 
-  const { callbackUrl, error, provider } = await searchParams;
+  const params = await searchParams;
+  const { error, provider } = params;
+  const callbackUrl = signInCallbackFor(params.plan, params.callbackUrl);
 
   if (session) {
     // Already signed in: go where the link was going, not always Calendar.

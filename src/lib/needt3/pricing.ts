@@ -3,7 +3,7 @@
  * derived from the one `NEEDT_PRICING` module. Nothing here hard-codes a
  * price, the lifetime cap or the trial length.
  */
-import { NEEDT_PRICING } from "@/lib/creem/config";
+import { NEEDT_PRICING, studentAmountCents } from "@/lib/creem/config";
 
 /** "$7", "$4.92": whole dollars when whole, cents when not. */
 export function money(cents: number) {
@@ -39,6 +39,10 @@ export interface PriceStrings {
   /** The same in one line for a screen that shows all three plans at once. */
   renewalAll: string;
   footnote: string;
+  /** The Pro prices above are the student price (40% off; Lifetime never). */
+  student: boolean;
+  /** "Student price · 40% off Pro", shown when `student` is set. */
+  studentLine: string;
 }
 
 /**
@@ -59,9 +63,19 @@ export interface PricingInput {
   lifetime: { amountCents: number; cap: number };
 }
 
-export function priceStrings(P: PricingInput = NEEDT_PRICING): PriceStrings {
-  const month = P.pro.month.amountCents;
-  const year = P.pro.year.amountCents;
+/**
+ * `student`: the Pro prices with the student discount ($4.20 / month,
+ * $35.40 / year); Lifetime stays as it is. Every Pro line, the renewal terms
+ * included, then names the price the person will actually pay.
+ */
+export function priceStrings(
+  P: PricingInput = NEEDT_PRICING,
+  opts: { student?: boolean } = {}
+): PriceStrings {
+  const student = opts.student === true;
+  const pro = (cents: number) => (student ? studentAmountCents(cents) : cents);
+  const month = pro(P.pro.month.amountCents);
+  const year = pro(P.pro.year.amountCents);
   const save = month * 12 - year;
   return {
     monthly: money(month),
@@ -83,6 +97,8 @@ export function priceStrings(P: PricingInput = NEEDT_PRICING): PriceStrings {
     renewalLifetime: `${money(P.lifetime.amountCents)} one-time payment. No subscription and no renewal.`,
     renewalAll: `Pro renews automatically every month or year until you cancel; cancel any time in ${CANCEL_PATH}. Lifetime is one payment with no renewal.`,
     footnote: `Prices in ${P.currency}. Taxes may apply.`,
+    student,
+    studentLine: `Student price · ${NEEDT_PRICING.student.percentOff}% off Pro`,
   };
 }
 
