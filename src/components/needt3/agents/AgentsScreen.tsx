@@ -344,18 +344,14 @@ export function AgentsScreen() {
       <SGroup title="Notes" hint="Shared between agents. Not visible to Needt's own assistant.">
         {tags.length > 0 ? (
           <SRow title="Tag">
-            <select
-              aria-label="Tag"
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
-            >
-              <option value="">All</option>
-              {tags.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <SBtn onClick={() => setTag("")} disabled={!tag}>
+              All
+            </SBtn>
+            {tags.map((t) => (
+              <SBtn key={t} onClick={() => setTag(t)} disabled={t === tag}>
+                {t}
+              </SBtn>
+            ))}
           </SRow>
         ) : null}
         {notes.length === 0 ? (
