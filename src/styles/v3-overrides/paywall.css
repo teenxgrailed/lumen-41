@@ -660,7 +660,10 @@
 /* Terms 5.5 box above a buy button (WithdrawalWaiver): worn like .auth-age
  * but legible over the sky and the settings card. One text colour. */
 .needt-v3 .pw-waiver {
-  max-width: 460px;
-  margin: 0 auto;
+  /* Full row width, left edge shared with the rows around it: a 460px box
+   * with auto margins centred itself in the wider column and sat ~75px in. */
+  align-self: stretch;
+  max-width: none;
+  margin: 0;
   color: var(--text-primary, var(--ink));
 }

@@ -1,0 +1,1 @@
+- The withdrawal-waiver checkbox on the paywall and in Settings → Plan now lines up with the rows around it instead of sitting indented.
