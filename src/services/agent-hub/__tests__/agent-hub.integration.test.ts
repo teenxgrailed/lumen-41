@@ -140,7 +140,7 @@ describeIntegration("Agent hub (real database)", () => {
       [otherId, otherWorkspace],
     ] as const) {
       await prisma.user.create({
-        data: { id, email: `${id}@example.test` },
+        data: { id, email: `${id}@example.test`, emailVerified: new Date() },
       });
       await prisma.workspace.create({
         data: {
