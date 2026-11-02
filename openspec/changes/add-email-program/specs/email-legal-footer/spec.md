@@ -2,15 +2,15 @@
 
 ### Requirement: Operator identity from one source
 
-The footer of every optional email SHALL show the operator name and a postal address resolved from `src/lib/legal/operator.ts` and `OPERATOR_POSTAL_ADDRESS`, and nowhere else.
+The footer of every optional email SHALL show the owner's name and a virtual mailbox address, both read from admin System Settings (`email.footerName`, `email.footerAddress`), and nowhere else.
 
 #### Scenario: Resolved
-- **WHEN** the operator name is filled and the address is set to a real one-line value
+- **WHEN** both settings hold real values
 - **THEN** the footer shows the name, the address, the reason the person receives the mail, the unsubscribe link and the preference link, in both HTML and plain text
 
 #### Scenario: Address unset
-- **WHEN** `OPERATOR_POSTAL_ADDRESS` is unset
-- **THEN** no optional email is claimed or sent, a single warning is logged per sweep, and the Admin Email page shows a banner "Optional email is paused: set the operator address"
+- **WHEN** either System Settings value is unset or blank
+- **THEN** only transactional email is sent, no optional email is claimed, a single warning is logged per sweep, and the Admin Email page shows a banner naming the missing setting
 
 #### Scenario: Placeholder value
 - **WHEN** the address or name still matches the `{{NAME}}` placeholder pattern

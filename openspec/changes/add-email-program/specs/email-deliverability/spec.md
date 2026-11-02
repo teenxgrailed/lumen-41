@@ -80,10 +80,18 @@ The sending domain SHALL have aligned SPF and DKIM and a DMARC policy of at leas
 - **WHEN** a one-click POST arrives
 - **THEN** the preference is written in the same request, well inside the 48 hours the providers allow
 
-### Requirement: No tracking pixels or rewritten links
+### Requirement: Tracking only in the first month
 
-The system SHALL NOT add open-tracking pixels or click-tracking redirects to any email in v1.
+Open and click tracking SHALL be on for the first month after launch and then switch off automatically, driven by the date in System Settings `email.trackingEndsAt`. Our own templates SHALL NOT contain pixels or rewritten links; tracking is Resend's domain feature.
 
-#### Scenario: Resend tracking
-- **WHEN** the sending domain is configured
-- **THEN** open and click tracking are off, and a test fails if a rendered template contains a tracking pixel
+#### Scenario: Window open
+- **WHEN** now is before `email.trackingEndsAt`
+- **THEN** opened and clicked events are counted on the ledger row
+
+#### Scenario: Window closed
+- **WHEN** the date has passed
+- **THEN** a daily step turns tracking off at the domain (Resend API, when `RESEND_DOMAIN_ID` is set), events are ignored, and Admin shows a banner until the dashboard is confirmed off
+
+#### Scenario: Templates
+- **WHEN** the catalog is rendered
+- **THEN** a test fails if any output contains a tracking pixel

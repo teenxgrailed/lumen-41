@@ -42,7 +42,7 @@ Each email SHALL contain at most one button and one question or step.
 
 ### Requirement: Template set for v1
 
-The system SHALL provide templates for welcome, onboarding day 2, 5 and 9, trial ending 3 days and 0 days, win-back 14 and 30 days, sunset, gift, monthly recap and broadcast, in addition to the existing templates.
+The system SHALL provide templates for welcome, onboarding day 2, 5 and 9, trial ending 3 days and 0 days, win-back 14 and 30 days, still-want-these, gift, monthly recap and broadcast, in addition to the existing templates.
 
 #### Scenario: Catalog completeness
 - **WHEN** `sampleEmails()` is called

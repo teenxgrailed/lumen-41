@@ -60,6 +60,10 @@ The system SHALL send a mail 3 days before a trial ends and a mail on the day it
 - **WHEN** the trial ends today and the person has not paid
 - **THEN** one mail is sent in the morning of their local time, before the downgrade applies
 
+#### Scenario: Promo code
+- **WHEN** the on-the-day mail is rendered and a promo code is set in System Settings
+- **THEN** it offers 20% off the first year with that code; with no code it shows the early-$7-lock copy instead and never a blank or placeholder code
+
 #### Scenario: Offers off
 - **WHEN** `offers` is disabled
 - **THEN** no trial-ending mail is sent and the in-app banner still shows the end date
@@ -72,9 +76,9 @@ The system SHALL send a mail 3 days before a trial ends and a mail on the day it
 - **WHEN** a person has an active Pro gift
 - **THEN** trial-ending mails are skipped with reason `gift-active`
 
-### Requirement: Win-back and sunset
+### Requirement: Win-back and still-want-these check
 
-The system SHALL send a win-back mail after 14 days and after 30 days without activity, and a final sunset mail, and SHALL stop optional mail for a person who does not respond.
+The system SHALL send a win-back mail after 14 days and after 30 days without activity, then a quarterly "still want these?" mail, and SHALL stop optional mail for a person who does not respond.
 
 #### Scenario: Fourteen days
 - **WHEN** a free person has had no activity for 14 days
@@ -88,12 +92,12 @@ The system SHALL send a win-back mail after 14 days and after 30 days without ac
 - **WHEN** a person is on a paid plan
 - **THEN** win-back rules never fire
 
-#### Scenario: Sunset
-- **WHEN** 60 days pass after the 30-day mail with no activity
-- **THEN** one "Should we stop?" mail is sent, and if there is no click `tips`, `offers`, `updates` and `recap` are switched off with source `sunset`
+#### Scenario: Quarterly check
+- **WHEN** 60 days pass after the 30-day mail with no activity, and then every 90 days
+- **THEN** one "Still want these?" mail is sent, and if there is no click within 14 days `tips`, `offers`, `updates` and `recap` are switched off with source `sunset`
 
 #### Scenario: No guilt copy
-- **WHEN** a win-back or sunset template is added
+- **WHEN** a win-back or still-want-these template is added
 - **THEN** a review check rejects subject lines or bodies that name an absence as a loss or a feeling of the product
 
 ### Requirement: Global cap

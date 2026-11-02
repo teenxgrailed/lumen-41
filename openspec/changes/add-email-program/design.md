@@ -25,7 +25,7 @@ Non-goals:
 
 - Per-task emails (hotfix `fix/stop-task-emails`), push or in-app notifications, SMS.
 - A visual editor. Broadcast bodies are plain paragraphs plus one optional button, rendered by the one layout.
-- Open and click analytics, A/B testing, cohorts.
+- Open and click analytics beyond raw counts on the ledger, A/B testing, cohorts.
 - Replacing verify, reset, reminder or digest delivery. They keep their code path and gain only the shared footer and header rules.
 
 ## Decisions
@@ -94,18 +94,18 @@ Send path: insert the ledger row `status = claimed` (unique key makes it exactly
 | `trial-ending-0d` | offers | `endsAt` day, morning local time | already paid; the 3d mail has not been sent and the person signed up within the last day | 1 |
 | `winback-14d` | offers | 14 days since `lastActiveAt` | any paid plan; a trial or gift ends in less than 3 days; previous winback sent | 2 |
 | `winback-30d` | offers | 30 days since `lastActiveAt` | returned since the 14d mail (active again) | 2 |
-| `sunset` | offers | after `winback-30d` with no return for 60 days | returned | 2 |
+| `still-want` | offers | 60 days after `winback-30d`, then every 90 days while inactive | active since the last check | 2 |
 | `recap-monthly` | recap | first weekday of the month, local 10:00 | fewer than 3 completed tasks or habit logs in the month; category off | 4 |
 
 Which step each onboarding mail teaches is a product decision for the template copy, not for this spec; each mail names exactly one step: connect a calendar, plan a day, turn on a habit (Free keeps up to 3 habits). The skip predicates read tables that already exist (calendar feeds, tasks, habits); `lastActiveAt` is the only possible new column, set at most once an hour from the session refresh path.
 
 Why "about days 0/2/5/9" and why each mail can vanish: the Meisa data (research item 1) shows the generic day-2 mail has the worst unsubscribe rate, so the rule is a coach for one undone step, not a drip. If a person has done all three steps by day 2, they get no onboarding mail at all, and that is the best outcome.
 
-Trial promo: the 3-day mail states the end date, the price, what Free keeps, and that the early $7 lock is open. The 0-day mail (sent the morning the trial ends, before the downgrade is applied by `effectiveSubscriptionPlan`) repeats it once. If the owner approves a discount (open question 2) it appears in the 0-day mail only and comes from a Creem discount code; the `Subscription.discountApplied` column already exists for that bookkeeping.
+Trial promo (owner decision 2): the 3-day mail states the end date, the price, what Free keeps, and that the early $7 lock is open. The 0-day mail (sent the morning the trial ends, before the downgrade is applied by `effectiveSubscriptionPlan`) offers 20% off the first year using the Creem discount code in System Settings (`email.trialPromoCode`). With no code set it falls back to the early-$7-lock copy. The Terms need a line for the promo (drafted in the implementation PR, published only by the owner).
 
 Win-back: from Needt, signed "Needt", one question ("What got in the way?") with reply-to set to support so a reply reaches a human; the 30-day mail shows what shipped since, taken from the changelog by hand, not generated. The fun element is not here (see recap and gift).
 
-Sunset: after the 30-day mail and 60 more days with no return, one mail "Should we stop?" with a single button to keep; no click means `tips`, `offers`, `updates`, `recap` are switched off with `source = sunset`. Account mail stays.
+Still-want-these check (owner decision 10, replaces a hard stop): after the 30-day mail, and then once per quarter (90 days after the previous check) for a person who has not returned, one mail "Still want these?" with a single button to keep. No click within 14 days means `tips`, `offers`, `updates`, `recap` are switched off with `source = sunset`. A person who returns to the app resets the clock. Account mail stays.
 
 ### 6. Fun, kept small
 
@@ -115,9 +115,9 @@ Sunset: after the 30-day mail and 60 more days with no return, one mail "Should 
 
 ### 7. Operator identity and the footer
 
-`resolveOperatorFooter()` returns `{ name, address, country } | null`. Name comes from `operatorName()`; address from `operatorPostalAddress()` (`OPERATOR_POSTAL_ADDRESS`, one line). It returns null when the address is unset or still matches the `{{...}}` placeholder pattern (`isUnfilled`). `renderEmail` for any non-transactional mail throws when it returns null, and `EmailService` already refuses commercial mail in that case; the engine checks it before claiming so nothing is marked sent. `FOOTER_ADDRESS_PLACEHOLDER` is deleted. Transactional mail keeps rendering without an address: CAN-SPAM exempts it and the existing behaviour is retained.
+`resolveOperatorFooter()` returns `{ name, address } | null`. Owner decision 1: both values are set in admin System Settings (`email.footerName`, `email.footerAddress`), not hard-coded and not read from a placeholder file. It returns null when either is unset, blank, or still matches the `{{...}}` / `[OWNER` placeholder pattern. `renderEmail` for any non-transactional mail throws when it returns null, and `EmailService` already refuses commercial mail in that case; the engine checks it before claiming so nothing is marked sent. `FOOTER_ADDRESS_PLACEHOLDER` is deleted. Transactional mail keeps rendering without an address: CAN-SPAM exempts it and the existing behaviour is retained.
 
-The address must be one the FTC accepts (street, USPS PO box, or CMRA mailbox). Whether it also satisfies EU provider-identification rules for an individual operator is a legal question for the owner (proposal question 1); the code only needs a non-placeholder string.
+The address is a virtual mailbox (CMRA) the FTC accepts. Whether it also satisfies EU provider-identification rules for an individual operator stays a legal question for the owner; the code only needs a non-placeholder string. While the footer is unresolved, only transactional mail is sent, and Admin shows a banner saying which setting is missing.
 
 ### 8. Gifts reuse the comp row, with an expiry
 
@@ -144,7 +144,7 @@ The email "You've got a gift from Needt" is sent by the engine as a transactiona
 | `students` | verified address on a `.edu` or `.ac.*` domain (list kept in code) |
 | `all` | everyone eligible; owner-confirmed with a typed count |
 
-Recipients are resolved at send time, minus: category off, `all` unsubscribed, suppressed, sandbox, unverified, deleted, and anyone who received a marketing mail inside the cap window (their send is deferred to the next window, not dropped, for up to 7 days). Flow: draft, **Send test to me** (sends to the signed-in admin's own address with a `[TEST]` subject prefix and a real unsubscribe link that does nothing to a real account), then **Schedule** or **Send now**, with the recipient count shown and re-confirmed. Broadcast sends use the same ledger rule key `broadcast:<id>` so a retry cannot double-send. Claude may create and test-send drafts through the admin API; `scheduled` and `sending` require a human admin action (proposal question 7).
+Recipients are resolved at send time, minus: category off, `all` unsubscribed, suppressed, sandbox, unverified, deleted, anyone who received a broadcast in the last 7 days (hard cap, dropped with reason `broadcast-cap`), and anyone who received a marketing mail inside the global cap window (their send is deferred to the next window, not dropped, for up to 7 days). Flow: draft, **Send test to me** (sends to the signed-in admin's own address with a `[TEST]` subject prefix and a real unsubscribe link that does nothing to a real account), then **Schedule** or **Send now**, with the recipient count shown and re-confirmed. Broadcast sends use the same ledger rule key `broadcast:<id>` so a retry cannot double-send. Owner decision 7: Claude composes and schedules broadcasts itself through the admin API and MCP, with no owner click. The safeguards are code, not convention: (a) a broadcast cannot be scheduled until a test went to the owner's address after the last edit; (b) scheduling and sending write a log row with segment, recipient count and actor; (c) `scheduledAt` must be at least 15 minutes ahead and the broadcast can be cancelled until it starts, so "Send now" is replaced by "Schedule in 15 minutes"; (d) one broadcast per 7 days per recipient. Segment `all` still needs the typed count.
 
 ### 10. Webhooks and suppression
 
@@ -154,7 +154,9 @@ Recipients are resolved at send time, minus: category off, `all` unsubscribed, s
 - `email.complained`: insert suppression with reason `complaint` and set all optional categories off with `source = complaint`;
 - `email.delivered` and `email.failed`: update the ledger status;
 - `email.suppressed`: mirror into `EmailSuppression` (Resend already refuses the send);
-- opened and clicked: ignored (tracking off, proposal question 9).
+- opened and clicked: counted on the ledger row only while the tracking window is open (owner decision 9); ignored afterwards.
+
+Tracking: open and click tracking are on for the first month after launch only. The end date is a System Settings value (`email.trackingEndsAt`). A daily worker step compares it with now; when passed it switches tracking off at the domain through the Resend API if `RESEND_DOMAIN_ID` is configured, and Admin shows a banner until the dashboard setting is confirmed off. Our own code never adds pixels or rewrites links; tracking is Resend's domain feature.
 
 Resend suppresses a bounced or complained address provider-wide, including transactional mail; our table mirrors that so the engine skips instead of repeatedly asking. There is no suppression-list API in the docs read on 2026-11-02, so removal is a manual step in the Resend dashboard plus deleting our row from admin, and the spec says so. The endpoint needs a second webhook secret in env (`RESEND_WEBHOOK_SECRET`); the Free plan allows 1 endpoint, enough.
 
@@ -177,15 +179,16 @@ New `/admin/email` area, admin only (`requireAdmin`): **Templates** (every entry
 
 ## Migration Plan
 
+0. Compliance fixes first, unflagged: unsubscribe on POST with a GET confirm page, `List-Unsubscribe` headers, placeholder guard.
 1. Land tables and preference helpers behind no flag (additive, unread).
 2. Land the unsubscribe changes (POST immediate, GET confirm page, new categories, `product` alias) and the preference page.
 3. Land the webhook and suppression; configure the endpoint in Resend; verify with a test event.
 4. Land the engine with the rules but `email-lifecycle` off; run in dry-run (ledger rows with `status = dry`) for a week and review skip reasons in admin.
 5. Resolve the operator identity; switch `email-lifecycle` on at 10%, then 100%; retire the `trials` sender after one release.
-6. Land gifts and broadcasts behind their flags.
+6. Land gifts and broadcasts behind the one flag `email_program`.
 
 Rollback: switch the flags off; nothing is destructive. The legacy opt-out column is kept until a later contract change.
 
 ## Open Questions
 
-See the end of `proposal.md`. Implementation also has to confirm: which existing field best means "person was active" (session refresh or a UI event), and whether Resend adds RFC 8058 headers on its own for Broadcasts (not relevant while we send through the Emails API).
+All product questions are answered (Owner decisions in `proposal.md`). Implementation also has to confirm: which existing field best means "person was active" (session refresh or a UI event), and whether Resend adds RFC 8058 headers on its own for Broadcasts (not relevant while we send through the Emails API).

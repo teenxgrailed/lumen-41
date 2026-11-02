@@ -13,15 +13,15 @@ The programme must be quiet. The owner said "not pushy", and the research below 
 
 - **Preferences.** `transactional` is always on. Four optional categories: `tips` (onboarding and product tips), `offers` (trial ending, promo, win-back), `updates` (broadcasts the owner writes), `recap` (monthly "your month in Needt", off by default). The daily digest keeps its own toggle. Every optional mail carries RFC 8058 one-click unsubscribe for its category and a link to a preference page.
 - **Lifecycle engine** in the BullMQ worker: a rule table (trigger, skip condition, category, priority), a send ledger, quiet hours in the person's time zone, and a global cap of one marketing email per 3 days.
-- **v1 automated mail:** welcome and three onboarding mails (about days 0 / 2 / 5 / 9, each skipped when the person already did the step), trial ending (3 days before and on the day), win-back (14 and 30 days inactive), then a sunset.
+- **v1 automated mail:** welcome and three onboarding mails (about days 0 / 2 / 5 / 9, each skipped when the person already did the step), trial ending (3 days before and on the day), win-back (14 and 30 days inactive), then a quarterly "still want these?" check.
 - **Gifts:** admin grants 1 month / 3 months / 1 year of Pro with an optional personal line. Pro turns on at once with no card. The person gets one email and a gift screen in the app. Reuses the sandbox comp mechanism (an ACTIVE `Subscription` with no payment ids).
-- **Broadcasts:** the owner (or Claude, through admin) writes a message, picks a segment (Free / Pro / trial / students), sends a test to himself, then sends or schedules.
+- **Broadcasts:** Claude (or the owner) writes a message in admin, picks a segment (Free / Pro / trial / students), a test goes to the owner first, then Claude schedules it with a cancel window of at least 15 minutes; one broadcast per 7 days per recipient at most.
 - **Webhooks:** Resend `bounced` and `complained` events feed a suppression list in Postgres; a complaint also opts the person out of every optional category.
 - **Admin preview** of every template with sample data, light and dark, HTML and plain text.
-- **Legal footer** is built from a resolved operator identity. When it cannot be resolved, no optional mail is sent. A placeholder is never rendered.
+- **Legal footer** is built from the owner's name and a virtual mailbox address in System Settings. When either is unset, only transactional mail is sent. A placeholder is never rendered.
 - **Tooling decision:** stay on Resend. Preferences, suppression and segments live in Postgres; Resend is the sender and the bounce source.
 
-Docs-only. This change alters no product code, schema or flag; `tasks.md` lists the implementation in order. The per-task email switch-off is a separate hotfix (`fix/stop-task-emails`) and is not repeated here; only the daily digest remains of task mail.
+This PR is docs-only; `tasks.md` lists the implementation in order. The implementation sits behind the flag `email_program`; transactional and compliance fixes ship unflagged. The per-task email switch-off is a separate hotfix (`fix/stop-task-emails`) and is not repeated here; only the daily digest remains of task mail.
 
 ## Research that shaped this
 
@@ -64,7 +64,7 @@ Recommendation: A as the shell for every mail, B's tone for welcome, win-back an
 ### New Capabilities
 
 - `email-preferences`: categories, storage, preference page, one-click unsubscribe per category, migration from today's two switches.
-- `email-lifecycle-engine`: rules, skip conditions, quiet hours, cap, ledger, the v1 sequences, sunset.
+- `email-lifecycle-engine`: rules, skip conditions, quiet hours, cap, ledger, the v1 sequences, the quarterly check.
 - `email-templates`: one layout, plain-text parts, voice, accessibility, recap, admin preview.
 - `email-gifts`: admin grant, entitlement, email, in-app gift screen, expiry.
 - `email-broadcasts`: composer, segments, test send, schedule, send, exclusions.
@@ -79,21 +79,21 @@ None. There is no existing email spec; verify, reset and reminder mail behave as
 
 - New tables (additive): `EmailPreference`, `EmailSend` (ledger), `EmailSuppression`, `EmailBroadcast`, `ProGift`; one column `User.lastActiveAt` if no usable activity signal exists (to confirm in implementation).
 - Code: `src/lib/email/` (preferences, rules, suppression, headers), `src/lib/email/templates/` (new templates), `src/services/email-lifecycle/` (engine), `src/worker/index.ts` and `src/lib/queue/types.ts` (new queue `email-lifecycle`), `src/app/api/webhooks/resend/`, `src/app/api/email/unsubscribe/` (GET becomes a confirm page), Settings (preferences), `src/app/(app)/admin/email/` (preview, broadcasts, gifts), `src/services/admin/user-actions.ts` (grant gift), `src/services/trials/trial-lifecycle.ts` (moves into the engine).
-- Feature flags (`src/lib/feature-flags.ts`, server-controlled, off at merge): `email-lifecycle`, `email-broadcasts`, `email-gifts`.
+- Feature flag (`src/lib/feature-flags.ts`, server-controlled, off at merge): `email_program` gates everything optional. Transactional mail and compliance fixes are unflagged.
 - Cost: Resend Pro $20/mo from the first broadcast.
 - Docs: `docs/email-programme.md` operations note; CHANGELOG under `[unreleased]` in each implementation PR.
 
-## Open questions for the owner
+## Owner decisions (2026-11-02)
 
-Format: question | recommended | alternative.
+The owner answered every open question. These replace the earlier recommendations; the design and specs follow them.
 
-1. **Who is the sender in the footer?** (Blocks every optional mail.) | Recommended: the operator identity already in `src/lib/legal/operator.ts` (Maksym Antoniuk, Ukraine) plus a CMRA or virtual mailbox address once the owner picks one; no optional mail is sent until then. | Alternative: incorporate first and use the registered office; slower, cleaner for EU rules. A registered-agent address may not satisfy EU rules; ask a lawyer.
-2. **Which promo in the trial-ending mail?** | Recommended: no percentage discount. The 3-day mail states the date and that the early $7 price lock is still open; the on-the-day mail repeats it. | Alternative: a one-time 20% off the first year in the on-the-day mail only (needs a Creem discount code and a Terms line).
-3. **Is trial-ending optional?** | Recommended: yes, it sits in `offers` and respects unsubscribe; the in-app banner covers people who opted out. | Alternative: treat the 3-day notice as a service message that cannot be switched off (safer for the person's money, riskier under EU rules because it promotes Pro).
-4. **Consent basis for EU and UK people.** | Recommended: soft opt-in with a clear opt-out at signup and in every mail for onboarding and trial mail; double opt-in only for a future public newsletter list. | Alternative: an opt-in checkbox at signup for everyone; lower reach, no legal argument.
-5. **Does the monthly recap ship in v1?** | Recommended: yes, off by default, only with real activity; it is the fun part. | Alternative: ship v1 without it and add it after a month of data.
-6. **Students segment now?** | Recommended: by address domain (`.edu`, `.ac.*`) at send time, no stored flag. | Alternative: wait for a student verification flow; then a student broadcast cannot go out in v1.
-7. **Who may send broadcasts?** | Recommended: the owner or Claude drafts in admin; nothing sends until the owner presses Send after a test to himself. | Alternative: Claude may schedule a capped number alone; this breaks the rule that public messages need the owner.
-8. **Sender name and address.** | Recommended: `Needt <hello@needt.app>`, replies go to support. | Alternative: a no-reply address; worse for deliverability and for the personal tone.
-9. **Open and click tracking.** | Recommended: off; the ledger records sent, delivered, bounced, complained. | Alternative: on for the first month to tune copy.
-10. **Sunset.** | Recommended: after the 30-day win-back, no more optional mail; account mail stays. | Alternative: a quarterly "still want these?" mail.
+1. **Footer.** The footer shows the owner's name and a virtual mailbox address, both set in admin System Settings (`email.footerName`, `email.footerAddress`), not hard-coded. Until both are set, only transactional email is sent; optional categories are blocked and Admin shows why. A placeholder is never rendered.
+2. **Trial-ending promo.** The on-the-day email carries 20% off the first year. It uses a Creem discount code stored in System Settings (`email.trialPromoCode`, created by the owner in Creem) and needs a line in the Terms (drafted in the implementation PR, not published). With no code set, the email falls back to the early-$7-lock copy.
+3. **Trial-ending is in `offers`.** People can unsubscribe from it. The in-app banner stays.
+4. **EU and UK.** Soft opt-in with a one-click unsubscribe in every optional email. Double opt-in only for a future newsletter, which is out of scope.
+5. **Monthly recap** ships in v1, off by default, sent only with real activity.
+6. **Students segment** by `.edu` / `.ac.*` domain at send time.
+7. **Broadcasts.** Claude composes and schedules them with no owner click. Mandatory safeguards: a test send to the owner's address first; a log with segment and count; a cancel window of at least 15 minutes before the send; a hard cap of one broadcast per 7 days per recipient.
+8. **Sender.** `Needt <hello@needt.app>`, reply-to the support address.
+9. **Tracking.** Open and click tracking are on for the first month after launch only, then off automatically, driven by a date in System Settings (`email.trackingEndsAt`).
+10. **Sunset.** Instead of stopping optional mail after the 30-day win-back, a quarterly "still want these?" email goes out. No reply (no click) means optional mail stops for that person.

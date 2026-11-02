@@ -10,7 +10,7 @@ An admin SHALL be able to write a broadcast with a subject, a preheader, plain p
 
 #### Scenario: Claude drafts
 - **WHEN** Claude creates a draft through the admin API
-- **THEN** the draft is stored with `createdBy` naming the actor and cannot be scheduled or sent by that actor
+- **THEN** the draft is stored with `createdBy` naming the actor
 
 #### Scenario: Validation
 - **WHEN** the subject is empty, longer than 100 characters, or the button URL is not `https`
@@ -50,7 +50,7 @@ The system SHALL exclude from every broadcast anyone with the category off, who 
 
 ### Requirement: Test send
 
-An admin SHALL send a test to their own address before a broadcast can be scheduled.
+A test SHALL go to the owner's address before a broadcast can be scheduled. Claude may schedule broadcasts itself, without an owner click, but only through these safeguards.
 
 #### Scenario: Test send
 - **WHEN** an admin presses "Send test to me"
@@ -58,7 +58,7 @@ An admin SHALL send a test to their own address before a broadcast can be schedu
 
 #### Scenario: No test, no send
 - **WHEN** a broadcast has never been test-sent, or was edited after its last test
-- **THEN** Schedule and Send now are disabled
+- **THEN** scheduling is refused
 
 #### Scenario: Test link is harmless
 - **WHEN** the unsubscribe link in a test mail is used
@@ -69,12 +69,20 @@ An admin SHALL send a test to their own address before a broadcast can be schedu
 An admin SHALL be able to schedule or send a broadcast, and the worker SHALL send it in paced batches.
 
 #### Scenario: Schedule
-- **WHEN** an admin schedules for a future time within 30 days
-- **THEN** status becomes `scheduled`, the time is shown in the admin's zone, and the broadcast can be cancelled until it starts
+- **WHEN** an admin or Claude schedules for a time at least 15 minutes ahead and within 30 days
+- **THEN** status becomes `scheduled`, a log row records actor, segment and recipient count, and the broadcast can be cancelled until it starts
+
+#### Scenario: Cancel window
+- **WHEN** the requested time is less than 15 minutes ahead
+- **THEN** scheduling is refused with the reason
 
 #### Scenario: Send now
-- **WHEN** an admin presses Send now and confirms the count
+- **WHEN** a scheduled time arrives
 - **THEN** status becomes `sending` and the worker sends in batches of up to 100 at no more than 5 requests per second
+
+#### Scenario: One broadcast per 7 days
+- **WHEN** a person received a broadcast in the last 7 days
+- **THEN** they are skipped with reason `broadcast-cap`
 
 #### Scenario: Exactly once
 - **WHEN** the worker restarts mid-send
@@ -89,5 +97,5 @@ An admin SHALL be able to schedule or send a broadcast, and the worker SHALL sen
 - **THEN** the response is 403 through `requireAdmin`
 
 #### Scenario: Stop
-- **WHEN** an admin cancels a `sending` broadcast
+- **WHEN** an admin or Claude cancels a `sending` broadcast
 - **THEN** no further batches are sent and the count already sent is kept
