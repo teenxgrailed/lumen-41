@@ -15,6 +15,10 @@ import {
   useCatalog,
 } from "@/lib/needt3/hooks/catalog";
 import { useConnections } from "@/lib/needt3/hooks/connections";
+import {
+  disconnectGoogleTasks,
+  syncGoogleTasksNow,
+} from "@/lib/needt3/hooks/google-tasks";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -34,6 +38,7 @@ import {
   visibleItems,
 } from "./derive";
 import type { AiToolId } from "./mcp";
+import { strings } from "./strings";
 import { useMcpConnect } from "./useMcpConnect";
 
 export const TAB_KEY = "needt.connections.tab";
@@ -61,6 +66,9 @@ export function useConnectionsController() {
   const [caldav, setCaldav] = useState(false);
   const [api, setApi] = useState(false);
   const [setup, setSetup] = useState<AiToolId | null>(null);
+  // Google Tasks: the lists sheet (by card key), and what Google sent us back with.
+  const [listsKey, setListsKey] = useState<string | null>(null);
+  const [returned, setReturned] = useState<string | null>(null);
 
   useEffect(() => {
     // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
@@ -70,6 +78,23 @@ export function useConnectionsController() {
     } catch {
       /* private mode: the tab starts on Apps */
     }
+  }, []);
+  useEffect(() => {
+    // The Google Tasks callback lands here as `?googleTasks=<result>`: say what
+    // happened (or open the lists to import) and take it off the address.
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("googleTasks");
+    if (!result) return;
+    url.searchParams.delete("googleTasks");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    if (result === "lists") return setReturned("lists");
+    notify.error(
+      result === "denied"
+        ? strings.tasksDenied
+        : result === "scope_missing"
+          ? strings.tasksScopeMissing
+          : strings.tasksConnectFailed
+    );
   }, []);
   const pickTab = (t: ConnectionsTab) => {
     setTab(t);
@@ -95,6 +120,19 @@ export function useConnectionsController() {
         : [],
     [catalog.data, accounts.data]
   );
+  useEffect(() => {
+    if (returned !== "lists") return;
+    const card = items.find(
+      (i) => i.kind === "tasks" && i.state === "connected"
+    );
+    if (!card) return;
+    setReturned(null);
+    setListsKey(card.key);
+    notify.success("Google Tasks connected");
+  }, [returned, items]);
+  const tasksLists = listsKey
+    ? (items.find((i) => i.key === listsKey) ?? null)
+    : null;
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
@@ -128,7 +166,9 @@ export function useConnectionsController() {
           ? await disconnectMailbox(item.accountId)
           : kind === "pinterest"
             ? await disconnectPinterest()
-            : await disconnectToolkit(item.accountId);
+            : kind === "tasks"
+              ? await disconnectGoogleTasks(item.accountId)
+              : await disconnectToolkit(item.accountId);
     setBusy(null);
     setConfirm(null);
     if (!r.ok) return void notify.error(r.error);
@@ -147,6 +187,14 @@ export function useConnectionsController() {
    */
   const syncNow = async (item: CnItem) => {
     if (!canSyncNow(item) || !item.accountId) return;
+    if (item.kind === "tasks") {
+      const t = await syncGoogleTasksNow(item.accountId);
+      if (!t.ok) return void notify.error(t.error);
+      notify.success(strings.tasksSynced);
+      void qc.invalidateQueries({ queryKey: qk.tasks() });
+      void refresh();
+      return;
+    }
     const kind = item.kind === "mail" ? "mail" : "calendar";
     const r = await syncAccountNow(kind, item.accountId);
     if (!r.ok) return void notify.error(r.error);
@@ -193,6 +241,9 @@ export function useConnectionsController() {
     connect,
     disconnect,
     syncNow,
+    tasksLists,
+    openTasksLists: (item: CnItem) => setListsKey(item.key),
+    closeTasksLists: () => setListsKey(null),
     caldavDone,
     mcp,
     setup,

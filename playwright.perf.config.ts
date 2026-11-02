@@ -52,7 +52,17 @@ export default defineConfig({
         // iPhone 13 geometry, touch and user agent, on Chromium.
         ...devices["iPhone 13"],
         defaultBrowserType: "chromium",
-        launchOptions: { args: ["--no-sandbox", "--disable-dev-shm-usage"] },
+        launchOptions: {
+          args: [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            // Blink's per-selector match statistics, read from the trace
+            // (PERF_TRACE=1 only). An unknown feature name is ignored.
+            ...(process.env.PERF_TRACE === "1"
+              ? ["--enable-blink-features=SelectorStats"]
+              : []),
+          ],
+        },
       },
     },
     {

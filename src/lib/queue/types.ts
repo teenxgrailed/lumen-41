@@ -20,7 +20,9 @@ export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
 export interface CalendarSyncJobData {
   /** One feed to sync. Absent on the periodic sweep, which fans out per feed. */
   feedId?: string;
-  kind?: "sweep";
+  /** One task-list mapping to sync (Google Tasks, Outlook Tasks, CalDAV). */
+  taskMappingId?: string;
+  kind?: "sweep" | "stale-sweep" | "task-stale-sweep";
 }
 
 export interface RescheduleJobData {

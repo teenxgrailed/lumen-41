@@ -35,6 +35,18 @@ describe("the connector catalog", () => {
     expect((await find("outlook-calendar", true)).configured).toBe(true);
   });
 
+  it("lists Google Tasks as a native connector that rides on the Google client", async () => {
+    credentials.google = { clientId: "id", clientSecret: "secret" };
+    expect(await find("google-tasks", true)).toMatchObject({
+      name: "Google Tasks",
+      category: "tasks",
+      native: true,
+      configured: true,
+    });
+    credentials.google = { clientId: "", clientSecret: "" };
+    expect((await find("google-tasks", true)).configured).toBe(false);
+  });
+
   it("is not configured with only half a client", async () => {
     credentials.google = { clientId: "id", clientSecret: "" };
     expect((await find("google-calendar", true)).configured).toBe(false);

@@ -11,6 +11,15 @@ on:
         required: false
         default: main
         type: string
+      trace:
+        description: "Chrome trace of the phone Every place interaction (iPhone 13 Chromium only): full = invalidation tracking and selector stats (slow, inflates durations), lite = timeline only (real durations)"
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - full
+          - lite
 
 concurrency:
   group: needt-perf-${{ inputs.ref || github.sha }}
@@ -87,7 +96,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npm run build
       - name: Run perf baseline
-        run: npx playwright test --config=playwright.perf.config.ts
+        env:
+          PERF_TRACE: ${{ inputs.trace == 'full' && '1' || inputs.trace == 'lite' && 'lite' || '0' }}
+        run: |
+          if [ "$PERF_TRACE" != "0" ]; then
+            npx playwright test --config=playwright.perf.config.ts --project=iphone13-chromium -g "phone-every-place"
+          else
+            npx playwright test --config=playwright.perf.config.ts
+          fi
       - name: Summarise
         if: always()
         run: node tests/perf/summarize.mjs perf

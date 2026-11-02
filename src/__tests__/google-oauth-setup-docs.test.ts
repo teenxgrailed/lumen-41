@@ -49,18 +49,21 @@ describe("Google OAuth setup docs (issue #76)", () => {
       expect(googleSection).toContain("localhost");
     });
 
+    it("documents the Google Tasks connect redirect URI", () => {
+      expect(googleSection).toContain("/api/task-sync/google/callback");
+    });
+
     it("lists the OAuth consent scopes the app actually requests (canonical URLs)", () => {
-      // These are the sensitive scopes requested only by calendar connection.
+      // The sensitive scopes: calendar connection and, on its own consent,
+      // Google Tasks.
       for (const scope of [
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/calendar.events",
         "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/tasks",
       ]) {
         expect(googleSection).toContain(scope);
       }
-      expect(googleSection).not.toContain(
-        "https://www.googleapis.com/auth/tasks"
-      );
       // The malformed shorthand with a leading "./" should no longer be present.
       expect(googleSection).not.toContain("./auth/calendar");
     });

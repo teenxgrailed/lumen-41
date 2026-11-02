@@ -14,7 +14,7 @@ Use this checklist before opening an issue or buying a setup review. It focuses 
 
 - Google Calendar API and Google People API are enabled in the same Google Cloud project.
 - OAuth consent screen has the correct app name, support email, and developer contact.
-- Both OAuth redirect URIs are registered on the deployed domain: `/api/auth/callback/google` (Google sign-in) and `/api/calendar/google` (calendar connect).
+- The OAuth redirect URIs are registered on the deployed domain: `/api/auth/callback/google` (Google sign-in), `/api/calendar/google` (calendar connect) and, for Google Tasks, `/api/task-sync/google/callback`.
 - `NEXTAUTH_URL` (not `NEXT_PUBLIC_APP_URL`) matches that domain - it drives the OAuth redirect host. Bare private IPs and `.local` hostnames are rejected by Google; use `localhost` or a public domain.
 - Required scopes are configured, including calendar read/write and user info.
 - Test users are added if the OAuth app is still in testing mode.

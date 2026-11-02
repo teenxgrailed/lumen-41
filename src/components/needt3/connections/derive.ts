@@ -18,13 +18,13 @@ export interface CnItem extends CatalogEntry {
   /** Unique per card: the slug, plus the account when a provider has several. */
   key: string;
   /** Mail entries are not in the server catalog; the screen adds them. */
-  kind: "calendar" | "mail" | "app";
+  kind: "calendar" | "mail" | "tasks" | "app";
   state: CardState;
   /** The account behind a connected card: an email, or the toolkit. */
   account: string | null;
   /** Needs reconnecting (`state === "disconnected"`), with the reason. */
   detail: string | null;
-  /** Id to disconnect with (calendar account, mailbox or integration). */
+  /** Id to disconnect with (calendar account, mailbox, task provider or integration). */
   accountId: string | null;
 }
 
@@ -146,6 +146,9 @@ const CAL_SIBLING: Record<string, string> = {
   "outlook-mail": "outlook-calendar",
 };
 
+/** Native task lists: the card reads the person's task provider, not a calendar. */
+const TASKS_SLUGS: readonly string[] = ["google-tasks"];
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
@@ -190,7 +193,9 @@ export function buildItems(
         ? "calendar"
         : mailProvider
           ? "mail"
-          : "app") as CnItem["kind"],
+          : TASKS_SLUGS.includes(entry.slug)
+            ? "tasks"
+            : "app") as CnItem["kind"],
       state: "none",
       account: null,
       detail: null,
@@ -225,7 +230,7 @@ export function buildItems(
       {
         ...base,
         state: live ? "connected" : "disconnected",
-        account: row.toolkit,
+        account: row.label ?? row.toolkit,
         detail: live ? null : "Access ended — reconnect to sync",
         accountId: row.id,
       },
@@ -329,6 +334,8 @@ export function connectPlan(
       return { kind: "navigate", href: "/api/mail/oauth/google/auth" };
     case "outlook-mail":
       return { kind: "navigate", href: "/api/mail/oauth/outlook/auth" };
+    case "google-tasks":
+      return { kind: "navigate", href: "/api/task-sync/google/auth" };
     case "icloud-calendar":
       return { kind: "caldav" };
     case "pinterest":
@@ -342,12 +349,23 @@ export function connectPlan(
   }
 }
 
-/** A connected calendar or mailbox can be synced on request; apps cannot. */
+/** A connected calendar, mailbox or task list syncs on request; apps do not. */
 export function canSyncNow(item: Pick<CnItem, "kind" | "state" | "accountId">) {
   return (
     item.state === "connected" &&
-    (item.kind === "calendar" || item.kind === "mail") &&
+    (item.kind === "calendar" ||
+      item.kind === "mail" ||
+      item.kind === "tasks") &&
     !!item.accountId
+  );
+}
+
+/** Which task lists to import is chosen on the card, once it is connected. */
+export function canChooseLists(
+  item: Pick<CnItem, "kind" | "state" | "accountId">
+) {
+  return (
+    item.kind === "tasks" && item.state === "connected" && !!item.accountId
   );
 }
 
@@ -357,9 +375,11 @@ export function disconnectKind(item: Pick<CnItem, "kind"> & { slug?: string }) {
     ? "calendar"
     : item.kind === "mail"
       ? "mailbox"
-      : item.slug === "pinterest"
-        ? "pinterest"
-        : "toolkit";
+      : item.kind === "tasks"
+        ? "tasks"
+        : item.slug === "pinterest"
+          ? "pinterest"
+          : "toolkit";
 }
 
 export function pillOf(state: CardState, busy: boolean) {

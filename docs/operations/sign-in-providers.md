@@ -65,9 +65,13 @@ Already set up for the calendar connection; sign-in reuses the same client.
    application_).
 2. **Authorized redirect URIs**: make sure
    `https://use.needt.app/api/auth/callback/google` is listed (next to the
-   calendar one, `https://use.needt.app/api/calendar/google`).
+   calendar one, `https://use.needt.app/api/calendar/google`, the Gmail one,
+   `https://use.needt.app/api/mail/oauth/google/callback`, and the Google Tasks
+   one, `https://use.needt.app/api/task-sync/google/callback`).
 3. **OAuth consent screen**: sign-in uses only `openid`, `email`, `profile`
-   (non-sensitive). Button: "Continue with Google".
+   (non-sensitive). Button: "Continue with Google". Google Tasks has its own
+   consent (`https://www.googleapis.com/auth/tasks`), asked only when a person
+   connects Google Tasks in Connections.
 4. System Settings → _Google Calendar Integration_: **Google Client ID**,
    **Google Client Secret** (already filled if calendar works).
 
