@@ -47,7 +47,7 @@ describe("published legal pages", () => {
     const privacy = render("privacy");
     const terms = render("terms");
     expect(privacy).toContain("privacy@needt.app");
-    expect(privacy).toContain("DataRep");
+    expect(privacy).not.toContain("DataRep");
     expect(terms).toContain("Armitage Labs OÜ");
     expect(terms).toContain("https://www.creem.io/buyer-terms");
     expect(terms).toContain("Kyiv, Ukraine");
@@ -136,18 +136,6 @@ describe("operator name", () => {
     expect(isUnfilled(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME)).toBe(false);
     expect(render("privacy")).toContain(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME);
     expect(render("terms")).toContain(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME);
-  });
-});
-
-/*
- * Ships skipped on purpose (owner decision 2026-10-12): DataRep has not
- * assigned Needt a contact yet, and CI must stay green while the pages go
- * live with the interim wording. Fill DATAREP_CONTACT in
- * src/lib/legal/operator.ts, then change `describe.skip` to `describe`.
- */
-describe.skip("DataRep contact is filled (un-skip once DataRep assigns it)", () => {
-  it("DATAREP_CONTACT is filled", () => {
-    expect(isUnfilled(LEGAL_PLACEHOLDERS.DATAREP_CONTACT)).toBe(false);
   });
 });
 

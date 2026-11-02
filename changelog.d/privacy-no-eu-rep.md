@@ -1,0 +1,1 @@
+- Privacy Notice: the EU representative section is removed.
