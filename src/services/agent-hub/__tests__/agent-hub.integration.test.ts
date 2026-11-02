@@ -924,7 +924,7 @@ describeIntegration("Agent hub (real database)", () => {
     const wanted = await prisma.hubItem.create({
       data: { ...common, title: "Can do", requiredSkills: ["code"] },
     });
-    const inbox = await tool(codex, "needt_agent_inbox", { limit: 50 });
+    const inbox = await tool(codex, "needt_agent_inbox", { limit: 25 });
     const ids = inbox.data.items.map((i: Json) => i.id);
     expect(ids).toContain(wanted.id);
     expect(
