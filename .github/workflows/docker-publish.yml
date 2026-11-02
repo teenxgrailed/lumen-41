@@ -223,7 +223,16 @@ jobs:
           cache-to: type=gha,scope=${{ matrix.target }},mode=max
 
   deploy-web:
-    needs: [changes, images]
+    needs: [changes, gates, images]
+    # `success()` is false when any job up the `needs` chain was skipped, and
+    # `gates` is skipped on every automatic (workflow_run) release by design.
+    # State the condition outright so those releases deploy.
+    if: >-
+      always() && !cancelled() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.deploy == 'true' &&
+      needs.images.result == 'success' &&
+      (needs.gates.result == 'success' || needs.gates.result == 'skipped')
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -299,7 +308,17 @@ jobs:
           echo "::error::Production deployment failed; see the run summary."
 
   deploy-runtimes:
-    needs: [changes, images, deploy-web]
+    needs: [changes, gates, images, deploy-web]
+    # `success()` is false when any job up the `needs` chain was skipped, and
+    # `gates` is skipped on every automatic (workflow_run) release by design.
+    # State the condition outright so those releases deploy.
+    if: >-
+      always() && !cancelled() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.deploy == 'true' &&
+      needs.images.result == 'success' &&
+      (needs.gates.result == 'success' || needs.gates.result == 'skipped') &&
+      needs.deploy-web.result == 'success'
     runs-on: ubuntu-latest
     environment: production
     permissions:
