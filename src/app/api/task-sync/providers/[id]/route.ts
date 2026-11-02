@@ -236,12 +236,36 @@ export async function DELETE(
       );
     }
 
-    // Delete the provider
+    // Delete the provider (its list mappings go with it; imported tasks stay)
     await prisma.taskProvider.delete({
       where: {
         id: id,
       },
     });
+
+    // A Google account connected only for Tasks has nothing left to do once
+    // its provider is gone, so its tokens go too. One that a calendar, a
+    // mailbox or another provider still uses is kept.
+    if (existingProvider.type === "GOOGLE" && existingProvider.accountId) {
+      const account = await prisma.connectedAccount.findUnique({
+        where: { id: existingProvider.accountId },
+        select: {
+          _count: {
+            select: { calendars: true, mailAccounts: true, TaskProvider: true },
+          },
+        },
+      });
+      const uses = account
+        ? account._count.calendars +
+          account._count.mailAccounts +
+          account._count.TaskProvider
+        : 1;
+      if (uses === 0) {
+        await prisma.connectedAccount.delete({
+          where: { id: existingProvider.accountId, userId },
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

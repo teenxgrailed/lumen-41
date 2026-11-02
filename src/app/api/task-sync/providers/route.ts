@@ -9,7 +9,6 @@ import {
 } from "@/lib/api/public-records";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
-import { GOOGLE_TASKS_SYNC_ENABLED } from "@/lib/google-oauth-scopes";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -79,12 +78,6 @@ export async function POST(request: NextRequest) {
     // Parse and validate the request body
     const body = await request.json().catch(() => null);
     const validatedData = createProviderSchema.parse(body);
-    if (validatedData.type === "GOOGLE" && !GOOGLE_TASKS_SYNC_ENABLED) {
-      return NextResponse.json(
-        { error: "Google Tasks sync is temporarily unavailable." },
-        { status: 503 }
-      );
-    }
     if (validatedData.defaultProjectId) {
       if (auth.workspace?.role === WorkspaceRole.VIEWER) {
         return NextResponse.json(

@@ -1,7 +1,10 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
-import { buildCalendarOAuthRedirectUrl } from "@/lib/oauth-redirects";
+import {
+  buildCalendarOAuthRedirectUrl,
+  buildGoogleTasksRedirectUrl,
+} from "@/lib/oauth-redirects";
 
 const deployGuide = readFileSync(
   join(__dirname, "..", "..", "docs", "deploy.md"),
@@ -17,6 +20,12 @@ describe("production OAuth redirect documentation", () => {
       );
     }
   );
+
+  it("documents the exact Google Tasks callback built by the runtime", () => {
+    expect(deployGuide).toContain(
+      buildGoogleTasksRedirectUrl("https://use.needt.app")
+    );
+  });
 
   it("does not document auth-start routes as provider callbacks", () => {
     expect(deployGuide).not.toContain(

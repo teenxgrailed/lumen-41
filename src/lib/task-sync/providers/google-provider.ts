@@ -44,6 +44,40 @@ export class GoogleTaskProvider implements TaskProviderInterface {
     return "Google Tasks";
   }
 
+  /**
+   * Google Tasks is imported one way: Google to Needt. Local tasks of the
+   * chosen project are never pushed into the Google list, and a task that
+   * disappears from Google is not deleted here. The selective field sync
+   * decides what an import may overwrite.
+   */
+  supportsWriteBack(): boolean {
+    return false;
+  }
+
+  /**
+   * One Google task as the sync engine reads it. Google's `due` is the due
+   * date (external-owned); the start date is Needt's own and stays unset so a
+   * re-sync cannot overwrite it. `completedDate` is null for an open task so
+   * reopening a task in Google clears the completion here too.
+   */
+  private toExternalTask(
+    t: tasks_v1.Schema$Task,
+    listId: string
+  ): ExternalTask {
+    return {
+      id: t.id || "",
+      title: t.title || "",
+      description: t.notes || null,
+      status: t.status || undefined,
+      listId,
+      dueDate: t.due ? new Date(t.due) : null,
+      completedDate: t.completed ? new Date(t.completed) : null,
+      lastModified: t.updated ? new Date(t.updated) : undefined,
+      lastModifiedDateTime: t.updated || undefined,
+      url: t.selfLink || undefined,
+    };
+  }
+
   async getTaskLists(): Promise<ExternalTaskList[]> {
     // Use retry wrapper for resiliency
     return this.apiCall(async () => {
@@ -79,9 +113,14 @@ export class GoogleTaskProvider implements TaskProviderInterface {
 
       do {
         type TasksListParams = tasks_v1.Params$Resource$Tasks$List;
+        // showHidden: tasks completed in Google's own apps are "hidden" and
+        // come back only with it, so without it a completed task never syncs.
         const params: TasksListParams = {
           tasklist: listId,
           pageToken,
+          maxResults: 100,
+          showCompleted: true,
+          showHidden: true,
         } as TasksListParams;
 
         if (options) {
@@ -92,21 +131,7 @@ export class GoogleTaskProvider implements TaskProviderInterface {
         const res = await this.client.tasks.list(params);
         const items = res.data.items || [];
 
-        tasks.push(
-          ...items.map((t) => ({
-            id: t.id || "",
-            title: t.title || "",
-            description: t.notes || null,
-            status: t.status || undefined,
-            listId,
-            startDate: t.due ? new Date(t.due as string) : undefined,
-            completedDate:
-              (t.completed && new Date(t.completed as string)) || undefined,
-            lastModified: t.updated ? new Date(t.updated as string) : undefined,
-            lastModifiedDateTime: t.updated as string | undefined,
-            url: t.selfLink as string | undefined,
-          }))
-        );
+        tasks.push(...items.map((t) => this.toExternalTask(t, listId)));
 
         pageToken = res.data.nextPageToken || undefined;
       } while (pageToken);
@@ -133,19 +158,7 @@ export class GoogleTaskProvider implements TaskProviderInterface {
 
       const t = res.data;
 
-      return {
-        id: t.id || "",
-        title: t.title || "",
-        description: t.notes || null,
-        status: t.status || undefined,
-        listId,
-        startDate: t.due ? new Date(t.due as string) : undefined,
-        completedDate:
-          (t.completed && new Date(t.completed as string)) || undefined,
-        lastModified: t.updated ? new Date(t.updated as string) : undefined,
-        lastModifiedDateTime: t.updated as string | undefined,
-        url: t.selfLink as string | undefined,
-      };
+      return this.toExternalTask(t, listId);
     }, "createTask");
   }
 
@@ -175,19 +188,7 @@ export class GoogleTaskProvider implements TaskProviderInterface {
 
       const t = res.data;
 
-      return {
-        id: t.id || "",
-        title: t.title || "",
-        description: t.notes || null,
-        status: t.status || undefined,
-        listId,
-        startDate: t.due ? new Date(t.due as string) : undefined,
-        completedDate:
-          (t.completed && new Date(t.completed as string)) || undefined,
-        lastModified: t.updated ? new Date(t.updated as string) : undefined,
-        lastModifiedDateTime: t.updated as string | undefined,
-        url: t.selfLink as string | undefined,
-      };
+      return this.toExternalTask(t, listId);
     }, "updateTask");
   }
 
@@ -242,8 +243,8 @@ export class GoogleTaskProvider implements TaskProviderInterface {
       status: this.mapStatusFromGoogle(externalTask.status as string | null),
       priority: Priority.MEDIUM,
       projectId,
-      dueDate: null,
-      startDate: externalTask.startDate || null,
+      dueDate: externalTask.dueDate || null,
+      startDate: null,
       completedAt: externalTask.completedDate || null,
       isRecurring: externalTask.isRecurring || false,
       recurrenceRule: externalTask.recurrenceRule || null,

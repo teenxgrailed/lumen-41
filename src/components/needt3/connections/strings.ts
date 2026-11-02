@@ -16,6 +16,34 @@ export const strings = {
   apiMcpUrl: "MCP server URL",
   apiDocs: "Connector API docs",
 
+  // Google Tasks: the lists to import
+  tasksTitle: "Google Tasks lists",
+  tasksLead:
+    "Pick the lists to bring into Needt. Title, notes, due date and done state follow Google; dates, priority and scheduling you set in Needt stay yours. Nothing is written back to Google.",
+  tasksProject: "Import into",
+  tasksProjectLabel: "Project to import into",
+  tasksLoading: "Loading your lists…",
+  tasksNoLists: "No task lists in this Google account yet.",
+  tasksNoProjects: "Create a project first, then pick the lists to import.",
+  tasksReauth:
+    "Google Tasks needs to be reconnected before Needt can read your lists.",
+  tasksReconnect: "Reconnect",
+  tasksFailed: "Could not load your Google task lists.",
+  tasksRetry: "Try again",
+  tasksDone: "Done",
+  tasksImported: (name: string) => `${name} imported`,
+  tasksStopped: (name: string) => `${name} no longer imported`,
+  tasksSummary: (n: number) =>
+    n === 0
+      ? "No list is imported yet."
+      : `${n} ${n === 1 ? "list is" : "lists are"} imported.`,
+  tasksSynced: "Google Tasks synced",
+  // Where Google sent the person back from (?googleTasks=…)
+  tasksDenied: "Google Tasks was not connected: access was not given.",
+  tasksScopeMissing:
+    "Google Tasks was not connected: allow Needt to see and edit your tasks on the Google screen, then try again.",
+  tasksConnectFailed: "Could not connect Google Tasks. Try again.",
+
   // Apple / iCloud (CalDAV) connect dialog
   caldavTitle: "Connect Apple / iCloud",
   caldavLead: "Use an app-specific password, not your Apple ID password.",

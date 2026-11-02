@@ -35,6 +35,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const ALIASES: Readonly<Record<string, BrandId>> = {
   // Native calendar entries (src/services/integrations/catalog.ts)
   googlecalendar: "gcal",
+  googletasks: "gtasks",
   outlookcalendar: "ocal",
   icloudcalendar: "ical",
   needtapi: "needt",
