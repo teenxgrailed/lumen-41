@@ -17,3 +17,42 @@
 }
 #needt-banner .needt-goal::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2e6de9; margin-right: 8px; vertical-align: 2px; }
 #needt-banner button { font: inherit; font-size: 12px; color: rgba(26, 28, 30, 0.7); background: rgba(26, 28, 30, 0.04); border: 0; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+
+/* Always-on mode (youtube-rules.js). Classes sit on <html>; no token needed. */
+.needt-yt-gone { display: none !important; }
+html.needt-yt-noshorts ytd-reel-shelf-renderer,
+html.needt-yt-noshorts ytd-rich-shelf-renderer[is-shorts],
+html.needt-yt-noshorts ytm-reel-shelf-renderer,
+html.needt-yt-noshorts ytd-guide-entry-renderer:has(a[title="Shorts"]),
+html.needt-yt-noshorts ytd-mini-guide-entry-renderer[aria-label="Shorts"],
+html.needt-yt-noshorts ytm-pivot-bar-item-renderer:has(a[href^="/shorts"]),
+html.needt-yt-noshorts yt-tab-shape[tab-title="Shorts"],
+html.needt-yt-noshorts ytd-video-renderer:has(a[href^="/shorts/"]),
+html.needt-yt-noshorts ytd-rich-item-renderer:has(a[href^="/shorts/"]),
+html.needt-yt-noshorts ytd-grid-video-renderer:has(a[href^="/shorts/"]),
+html.needt-yt-noshorts ytd-compact-video-renderer:has(a[href^="/shorts/"]),
+html.needt-yt-noshorts yt-lockup-view-model:has(a[href^="/shorts/"]),
+html.needt-yt-noshorts ytm-video-with-context-renderer:has(a[href^="/shorts/"]) { display: none !important; }
+html.needt-yt-nohome ytd-browse[page-subtype="home"] #primary,
+html.needt-yt-nohome ytd-browse[page-subtype="home"] ytd-rich-grid-renderer,
+html.needt-yt-nohome ytm-browse ytm-rich-grid-renderer { display: none !important; }
+html.needt-yt-nosidebar ytd-watch-flexy #secondary,
+html.needt-yt-nosidebar ytd-watch-next-secondary-results-renderer,
+html.needt-yt-nosidebar ytm-item-section-renderer[section-identifier="related-items"] { display: none !important; }
+html.needt-yt-noendscreen .ytp-endscreen-content,
+html.needt-yt-noendscreen .ytp-ce-element,
+html.needt-yt-noendscreen .ytp-videowall-still,
+html.needt-yt-noendscreen .ytp-suggestion-set,
+html.needt-yt-noendscreen .ytp-cards-teaser { display: none !important; }
+html.needt-yt-nocomments ytd-comments,
+html.needt-yt-nocomments ytm-comments-entry-point-header-renderer { display: none !important; }
+.needt-yt-block {
+  display: none; margin-left: 6px; vertical-align: middle;
+  font: 500 11px/14px -apple-system, system-ui, sans-serif;
+  color: rgba(26, 28, 30, 0.7); background: rgba(26, 28, 30, 0.06);
+  border: 0; border-radius: 4px; padding: 1px 5px; cursor: pointer;
+}
+:is(ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, ytd-grid-video-renderer, yt-lockup-view-model, ytm-video-with-context-renderer):hover .needt-yt-block,
+.needt-yt-block:focus-visible,
+ytd-watch-metadata .needt-yt-block { display: inline-block; }
+.needt-yt-block:hover { background: rgba(26, 28, 30, 0.12); }
