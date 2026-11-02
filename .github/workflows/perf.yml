@@ -1,0 +1,99 @@
+name: Perf baseline
+
+# Manual only: a perf run builds the app and drives three browsers, so it is
+# never attached to pull_request or push. Compare runs of this workflow only
+# with each other (shared runners, software rasteriser).
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to measure
+        required: false
+        default: main
+        type: string
+
+concurrency:
+  group: needt-perf-${{ inputs.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: "true"
+  DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_test
+  DIRECT_URL: postgresql://needt:needt@localhost:5432/needt_test
+  REDIS_URL: redis://localhost:6379
+  NEXTAUTH_URL: http://127.0.0.1:3000
+  NEXTAUTH_SECRET: needt-ci-only-secret-not-valid-outside-github-actions
+  RATE_LIMIT_HASH_SECRET: needt-ci-rate-limit-hash-secret
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: mirror.gcr.io/library/postgres:16-alpine
+        env:
+          POSTGRES_USER: needt
+          POSTGRES_PASSWORD: needt
+          POSTGRES_DB: needt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U needt -d needt_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: mirror.gcr.io/library/redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
+      # The harness comes from the ref this workflow was dispatched on, so an
+      # older ref (main before the harness merged) can be measured with it.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+      - name: Overlay the harness
+        run: |
+          mkdir -p tests/perf
+          cp harness/playwright.perf.config.ts .
+          cp harness/tests/perf/* tests/perf/
+          rm -rf harness
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/ci-seed.ts
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Build application
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npm run build
+      - name: Run perf baseline
+        run: npx playwright test --config=playwright.perf.config.ts
+      - name: Summarise
+        if: always()
+        run: node tests/perf/summarize.mjs perf
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: perf-${{ steps.sha.outputs.short }}
+          path: perf/
+          if-no-files-found: warn
