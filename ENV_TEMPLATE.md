@@ -34,6 +34,20 @@ Notes:
 - `SENTRY_DSN` and `SENTRY_ENVIRONMENT` configure server, edge, worker, and collaboration telemetry at runtime. `NEXT_PUBLIC_SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT` are public browser configuration: Next.js inlines them during `npm run build`, so changing them after an image is built does not enable browser telemetry for that image.
 - `NEEDT_BUILD_SHA` is injected by the production CI image build. Do not set it manually in Coolify. Sentry source-map settings (`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT`) are build-only and are intentionally not configured here; a later authorized pipeline must use a BuildKit secret for the token, never a build argument or runtime image environment variable.
 
+## Sign in to Needt Budget With a Needt Account
+
+Needt is an OpenID Connect provider for its own apps (`docs/deploy.md`, openspec change `needt-oidc-provider`). Both values are optional: without `OIDC_SIGNING_KEY`, sign-in requests from Budget fail with `server_error` and nothing else (MCP included) is affected.
+
+```bash
+OIDC_SIGNING_KEY=""
+OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
+```
+
+Notes:
+
+- `OIDC_SIGNING_KEY` is a PKCS#8 PEM private key, RSA 2048 bits or larger. Generate it on your own machine (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048`) and put it only in the runtime environment; never commit it. A value whose newlines were flattened into literal `\n` is accepted.
+- `OIDC_BUDGET_REDIRECT_URIS` is a comma-separated list of the exact redirect URIs of the `needt-budget` client (https, or http on a loopback address for local development). The address of Budget's site also becomes the only place `/oauth/logout` may send people back to.
+
 ## Human-Supplied Calendar OAuth
 
 ```bash

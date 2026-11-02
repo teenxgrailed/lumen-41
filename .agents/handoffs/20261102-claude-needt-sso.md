@@ -3,7 +3,7 @@ id: 20261102-claude-needt-sso
 owner: claude
 branch: codex/needt-sso
 status: active
-updated: 2026-11-02T12:00:00Z
+updated: 2026-11-02T16:00:00Z
 objective: Needt becomes an OpenID Connect provider so Needt Budget can sign people in with a Needt account
 ---
 
@@ -15,17 +15,17 @@ objective: Needt becomes an OpenID Connect provider so Needt Budget can sign peo
 
 ## Completed
 
-- None yet (N1 in progress).
+- N1 c34f5ad, N2 02757d7, N3 (logout, openspec change, docs) in the next commit.
 
 ## Working state
 
-- Files currently dirty or expected to change: `src/services/oauth/*`, `src/app/oauth/*`, `src/app/.well-known/*`, `prisma/schema.prisma`, `prisma/migrations/20261102120000_oauth_oidc_nonce/`.
+- Files currently dirty or expected to change: none after the N3 commit.
 - Foreign changes that must remain untouched: everything in `/Users/lol/Needt` (another session writes there).
 
 ## Verification
 
-- Passed: none yet.
-- Not run / still required: full gates (type-check, lint, unit suite, build) before the PR.
+- Passed: type-check, lint, check:branding, check:ui-contracts, check:worker-bundle, full unit suite (809 suites, with the oauth integration tests on a throwaway local Postgres).
+- Not run / still required: `npm run build` finished compiling and page generation but ran out of disk at the trace step (machine disk full); CI must confirm.
 
 ## Decisions and constraints
 
@@ -39,4 +39,4 @@ objective: Needt becomes an OpenID Connect provider so Needt Budget can sign peo
 
 ## Next action
 
-- Finish N1-N3 per the plan, then open the PR to `main` (do not merge or deploy).
+- Review the PR to `main`; set `OIDC_SIGNING_KEY` and `OIDC_BUDGET_REDIRECT_URIS` before enabling the Budget client (do not merge or deploy from this workstream).

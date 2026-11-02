@@ -165,6 +165,30 @@ AI_CUSTOM_URL=""
 AI_ENCRYPTION_KEY=""
 ```
 
+### Sign in with a Needt account (web; optional)
+
+Needt Budget signs people in through Needt. Set these on the web service only:
+
+```bash
+OIDC_SIGNING_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+OIDC_BUDGET_REDIRECT_URIS="https://budget.needt.app/auth/needt/callback"
+```
+
+To create the key, run this on your own machine and paste the output into
+Coolify's environment screen as a multi-line value (or with `\n` for the line
+breaks). Do not commit it, paste it into chat or tickets, or print it in CI:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+```
+
+Without `OIDC_SIGNING_KEY` the OpenID Connect requests fail with
+`server_error` and MCP is unaffected. After a deploy, check
+`/.well-known/openid-configuration` and that `/oauth/jwks` answers 200 with one
+key. To rotate the key, replace the value and restart the web service: Budget
+fetches the key set again when it meets an unknown `kid`; id_tokens are valid
+for five minutes, so a rotation costs at most the sign-ins in flight.
+
 ### Web Push (required for push delivery; web and worker)
 
 ```bash
