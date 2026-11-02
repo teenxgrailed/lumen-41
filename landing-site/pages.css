@@ -863,7 +863,7 @@ sup.ref a { text-decoration: none; font: 600 11px/1 var(--sans); color: var(--in
 .dx-notify { margin-top: 14px; }
 .dx-notify label { display: block; font-size: 14px; color: var(--ink-2); }
 .dx-notify div { display: flex; gap: 8px; margin-top: 8px; }
-.dx-notify input { flex: 1; min-width: 0; height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(10,13,18,.14); font: 15px var(--sans); background: #fff; }
+.dx-notify input { flex: 1; min-width: 0; height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(10,13,18,.14); font: 16px var(--sans); background: #fff; }
 .dx-notify button { height: 42px; padding: 0 16px; border: 0; border-radius: 12px; background: #111214; color: #fff; font: 600 14px var(--sans); cursor: pointer; }
 .dx-notify p { margin: 8px 0 0 !important; font-size: 13.5px !important; min-height: 18px; }
 .dx-other { text-align: center; color: var(--ink-3); font-size: 15px; margin: 0 0 40px; }
