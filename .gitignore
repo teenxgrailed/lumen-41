@@ -89,6 +89,16 @@ Needt Design System/**/*.woff2
 !.claude/skills/hallmark/
 !.claude/skills/needt-critique/
 !.claude/skills/content-principles/
+!.claude/skills/find-community/
+!.claude/skills/validate-idea/
+!.claude/skills/processize/
+!.claude/skills/mvp/
+!.claude/skills/first-customers/
+!.claude/skills/pricing/
+!.claude/skills/marketing-plan/
+!.claude/skills/grow-sustainably/
+!.claude/skills/company-values/
+!.claude/skills/minimalist-review/
 !.claude/skills/slides/
 !.claude/skills/ui-styling/
 !.claude/skills/ui-ux-pro-max/

@@ -49,6 +49,7 @@ skills instead of going idle.
 ## Hard rules
 
 - For any short-form video, hook or social post, use the `content-principles` skill (`.claude/skills/content-principles/`).
+- For Needt sales, pricing and marketing decisions, check the Minimalist Entrepreneur skills in `.claude/skills/` (find-community, validate-idea, processize, mvp, first-customers, pricing, marketing-plan, grow-sustainably, company-values, minimalist-review), especially `first-customers` and `pricing`.
 
 - Never write in the primary checkout `/Users/lol/Needt` or in another session's
   worktree. To push to someone else's branch, use a detached worktree and tell
