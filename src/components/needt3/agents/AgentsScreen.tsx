@@ -16,6 +16,7 @@ import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
+import { ConnectGuide } from "./ConnectGuide";
 import { ItemFiles } from "./ItemFiles";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 
@@ -217,6 +218,8 @@ export function AgentsScreen() {
     null
   );
   const [open, setOpen] = useState<string | null>(null);
+  // Only a manual choice lives in state; otherwise the guide follows the data.
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(
     null
@@ -280,6 +283,8 @@ export function AgentsScreen() {
     });
 
   const { agents, items, notes } = overview.data ?? EMPTY;
+  const showGuide =
+    manualOpen ?? (overview.data !== undefined && agents.length === 0);
   const reservations = overview.data?.reservations ?? [];
   const threadRows = threads.data?.threads ?? [];
   const unreadThreads = threadRows.filter((t) => t.ownerUnread).length;
@@ -408,6 +413,17 @@ export function AgentsScreen() {
         art="stack"
         title="Agents"
         meta="Agents and their work stay out of Today, Tasks and the Calendar"
+        actions={
+          <AgBtn
+            pressed={showGuide}
+            onClick={() => {
+              setManualOpen(!showGuide);
+              setTab("agents");
+            }}
+          >
+            Connect an agent
+          </AgBtn>
+        }
       />
       <div className="ag-tabs">
         <Segmented
@@ -483,13 +499,6 @@ export function AgentsScreen() {
                   }
                 />
               ))}
-              {agents.length === 0 ? (
-                <AgEmpty
-                  art="stack"
-                  title="No agents yet"
-                  line="Create a token to connect one."
-                />
-              ) : null}
               <div className="ag-form">
                 <input
                   className="nt-input"
@@ -504,6 +513,11 @@ export function AgentsScreen() {
                 </AgBtn>
               </div>
             </AgSection>
+            {showGuide ? (
+              <ConnectGuide
+                onClose={manualOpen ? () => setManualOpen(false) : undefined}
+              />
+            ) : null}
             {reservations.length > 0 ? (
               <AgSection
                 title="Reserved now"

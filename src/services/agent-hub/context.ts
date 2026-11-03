@@ -9,7 +9,9 @@ import { newDate } from "@/lib/date-utils";
 import { agentHubEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
+import { ASSISTANT_CONNECTION_KEY } from "./constants";
 import { HubError } from "./errors";
+import { trackHub } from "./metrics";
 
 /** Who is acting: an agent behind one connection, or the signed-in owner. */
 export type Actor = { kind: "agent"; agent: HubAgent } | { kind: "owner" };
@@ -81,6 +83,11 @@ export async function agentForConnection(
           skills: [],
           lastSeenAt: newDate(),
         },
+      });
+      trackHub({
+        name: "agent_registered",
+        agentId: agent.id,
+        kind: agent.kind,
       });
     } catch (error) {
       // Two first calls at once: the loser reads the winner's row.
@@ -166,8 +173,7 @@ export async function resolveAgentScope(input: {
   };
 }
 
-/** The connection key of the in-app assistant's own agent row. */
-export const ASSISTANT_CONNECTION_KEY = "assistant";
+export { ASSISTANT_CONNECTION_KEY };
 
 /**
  * The scope for Needt's own in-app assistant (Ask). It is an agent like any

@@ -1,0 +1,1 @@
+- The Agents screen explains how to connect an agent: make a named token, copy the setup line for Claude Code, an MCP client or plain HTTP, and paste the hub protocol into the agent.

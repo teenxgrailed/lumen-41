@@ -5,6 +5,8 @@ import {
 } from "@prisma/client";
 import { z } from "zod";
 
+import { partialWithoutDefaults } from "@/lib/zod-patch";
+
 export const savedViewInputSchema = z.object({
   name: z.string().trim().min(1).max(80),
   visibility: z.nativeEnum(SavedViewVisibility),
@@ -28,7 +30,15 @@ export const savedViewInputSchema = z.object({
           "due",
           "archived",
         ]),
-        operator: z.enum(["eq", "neq", "in", "not_in", "before", "after", "is"]),
+        operator: z.enum([
+          "eq",
+          "neq",
+          "in",
+          "not_in",
+          "before",
+          "after",
+          "is",
+        ]),
         value: z.union([
           z.string().max(200),
           z.array(z.string().max(200)).max(50),
@@ -60,7 +70,9 @@ export const savedViewInputSchema = z.object({
   position: z.number().finite().default(0),
 });
 
-export const savedViewPatchSchema = savedViewInputSchema.partial().extend({
+export const savedViewPatchSchema = partialWithoutDefaults(
+  savedViewInputSchema
+).extend({
   queryVersion: z.literal(1).optional(),
 });
 

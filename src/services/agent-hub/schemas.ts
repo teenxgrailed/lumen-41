@@ -171,7 +171,7 @@ export const resultSchema = z.object({
     )
     .max(20)
     .optional(),
-  data: z.record(z.unknown()).optional().describe("JSON, at most 8 KB."),
+  data: z.record(z.string(), z.unknown()).optional().describe("JSON, at most 8 KB."),
 });
 
 export const completeInput = z.object({
