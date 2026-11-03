@@ -10,7 +10,8 @@ export type HubErrorCode =
   | "NEEDS_OWNER"
   | "APPROVAL_REQUIRED"
   | "NOT_ELIGIBLE"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "CONFLICT";
 
 const STATUS: Record<HubErrorCode, number> = {
   NOT_FOUND: 404,
@@ -25,6 +26,7 @@ const STATUS: Record<HubErrorCode, number> = {
   APPROVAL_REQUIRED: 409,
   NOT_ELIGIBLE: 403,
   RATE_LIMITED: 429,
+  CONFLICT: 409,
 };
 
 /** A refusal a caller can act on: a code, a status and what to do next. */

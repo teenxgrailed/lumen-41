@@ -26,6 +26,7 @@ import {
 } from "@/services/agent-hub/schemas";
 import { z } from "zod";
 
+import { buildHubMailTools } from "./hub-mail-tools";
 import type { McpTool, McpToolContext, McpToolResult } from "./tools";
 
 /**
@@ -214,6 +215,8 @@ export const HUB_TOOLS: McpTool[] = [
     },
     (scope, args) => searchNotes(scope, args)
   ),
+  // Mail and reservations: their own block in hub-mail-tools.ts.
+  ...buildHubMailTools(hubTool),
 ];
 
 export const HUB_TOOL_NAMES: ReadonlySet<string> = new Set(

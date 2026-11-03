@@ -24,6 +24,7 @@ const db = {
     hubItemEvent: { create: jest.fn() },
   },
   hubItem: { count: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+  hubThread: { count: jest.fn().mockResolvedValue(0) },
   hubAgent: { findMany: jest.fn() },
   hubItemEvent: { findMany: jest.fn() },
   pushSubscription: { findMany: jest.fn() },

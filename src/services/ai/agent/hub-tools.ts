@@ -8,11 +8,18 @@ import {
   listItems,
   readItemAsOwner,
 } from "@/services/agent-hub/items";
+import {
+  listThreadsForOwner,
+  readThreadAsOwner,
+  sendMessage,
+} from "@/services/agent-hub/messages";
 import { searchNotes, writeNote } from "@/services/agent-hub/notes";
+import { listReservations } from "@/services/agent-hub/reservations";
 import {
   cancelInput,
   createItemInput,
   editItemInput,
+  messageSendInput,
   noteSearchInput,
   noteWriteInput,
 } from "@/services/agent-hub/schemas";
@@ -50,6 +57,9 @@ export const HUB_AGENT_TOOL_NAMES = [
   "hub_cancel_item",
   "needt_memory_search",
   "needt_memory_write",
+  "hub_read_messages",
+  "hub_send_message",
+  "hub_list_reservations",
 ] as const;
 
 const NOT_OWNER =
@@ -327,6 +337,78 @@ export const HUB_AGENT_TOOLS: AgentTool[] = [
     },
   },
 ];
+
+/** Mail and reservations. The assistant reads both and sends mail; it never reserves for others. */
+const HUB_MAIL_AGENT_TOOLS: AgentTool[] = [
+  {
+    name: "hub_read_messages",
+    kind: "read",
+    progress: "Reading agent messages",
+    description: `Read the messages between agents and to the person: with no id, the threads (newest first, unread ones to the person marked); with a thread id, that whole thread. Reading here does not mark anything read for the person.${UNTRUSTED}`,
+    schema: z
+      .object({ threadId: z.string().min(1).max(100).optional() })
+      .strict(),
+    async run(ctx, args) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        if (args.threadId) {
+          const thread = await readThreadAsOwner(scope, String(args.threadId), {
+            markSeen: false,
+          });
+          return done(`Read the thread “${thread.thread.subject}”`, thread);
+        }
+        const { threads } = await listThreadsForOwner(scope);
+        return done(
+          `Read ${threads.length} message ${
+            threads.length === 1 ? "thread" : "threads"
+          }`,
+          { threads }
+        );
+      });
+    },
+  },
+  {
+    name: "hub_send_message",
+    kind: "write",
+    progress: "Messaging an agent",
+    description: `Send a message to other agents: "to" takes agent names or ids, or "any" with skills. Use it to ask or tell an agent something; use hub_create_item to hand it work. You message agents as the Needt assistant, never as the person.${NOT_OWNER} No secrets.`,
+    schema: messageSendInput.strict(),
+    async run(ctx, args) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        const sent = await sendMessage(scope, messageSendInput.parse(args));
+        return done(`Sent a message in “${sent.thread.subject}”`, sent);
+      });
+    },
+  },
+  {
+    name: "hub_list_reservations",
+    kind: "read",
+    progress: "Looking at reservations",
+    description:
+      "List who currently holds which shared resource (an account, a file glob) and until when. Agents reserve for themselves; you only read this.",
+    schema: z.object({}).strict(),
+    async run(ctx) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        const { reservations } = await listReservations(scope);
+        return done(`Read ${reservations.length} reservations`, {
+          reservations,
+        });
+      });
+    },
+  },
+];
+HUB_AGENT_TOOLS.push(...HUB_MAIL_AGENT_TOOLS);
 
 const byName = new Map(HUB_AGENT_TOOLS.map((tool) => [tool.name, tool]));
 

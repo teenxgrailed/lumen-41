@@ -14,6 +14,8 @@ import {
 } from "./constants";
 import type { AgentScope } from "./context";
 import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
+import { unreadMessageCount } from "./messages";
+import { myReservations } from "./reservations";
 import type { InboxInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
@@ -129,7 +131,7 @@ export async function agentInbox(scope: AgentScope, input: InboxInput) {
       .slice(0, limit);
   }
 
-  const [names, events, unmatched] = await Promise.all([
+  const [names, events, unmatched, reservations, unreadMessages] = await Promise.all([
     agentNames(
       scope,
       items.flatMap((item) => [
@@ -140,6 +142,8 @@ export async function agentInbox(scope: AgentScope, input: InboxInput) {
     ),
     eventsFor(items.map((item) => item.id)),
     unmatchedItemIds(scope, items),
+    myReservations(scope),
+    unreadMessageCount(scope),
   ]);
   const eventAgents = await agentNames(
     scope,
@@ -160,6 +164,8 @@ export async function agentInbox(scope: AgentScope, input: InboxInput) {
         now,
       });
     }),
+    reservations,
+    unreadMessages,
     suggestedPollSeconds: items.length
       ? SUGGESTED_POLL_SECONDS_BUSY
       : SUGGESTED_POLL_SECONDS_IDLE,
