@@ -164,7 +164,7 @@ export function roleLabel(role: string | null | undefined) {
 /* ---------- trash ---------- */
 
 /** Whole days until Trash lets go of an item; 0 on the last day, never negative. */
-export function trashDaysLeft(trashedAt: string, now: Date) {
+export function trashDaysLeft(trashedAt: string | null | undefined, now: Date) {
   const gone = newDate(time(trashedAt));
   const left = TRASH_DAYS - calendarDayDifference(now, gone);
   return Math.min(TRASH_DAYS, Math.max(0, left));
@@ -181,18 +181,23 @@ export function trashAgo(
   const min = (now.getTime() - t) / 60000;
   if (min < 60) return "Just now";
   if (min < 24 * 60) return "today";
-  return formatInTimeZone(newDate(t), timeZone, "d MMM");
+  try {
+    return formatInTimeZone(newDate(t), timeZone, "d MMM");
+  } catch {
+    // An unknown zone name must not take Trash down; the date is enough.
+    return newDate(t).toISOString().slice(0, 10);
+  }
 }
 
 /** "Deleted today · 30 days left". */
 export function trashMeta(
-  trashedAt: string,
+  trashedAt: string | null | undefined,
   now: Date,
   timeZone: string,
   extra?: string
 ) {
   const left = trashDaysLeft(trashedAt, now);
-  const when = trashAgo(trashedAt, now, timeZone);
+  const when = trashAgo(trashedAt ?? null, now, timeZone);
   return [
     `Deleted ${when}`,
     extra,

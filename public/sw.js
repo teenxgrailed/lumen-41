@@ -1,4 +1,14 @@
-const STATIC_CACHE_NAME = "needt-static-v7";
+// The page registers /sw.js?v=<build sha>, so each deploy is a new worker and
+// a new static cache; activate deletes every other cache of the older builds
+// (the private, signed-in caches excepted).
+const BUILD = (() => {
+  try {
+    return new URL(self.location.href).searchParams.get("v") || "dev";
+  } catch {
+    return "dev";
+  }
+})();
+const STATIC_CACHE_NAME = `needt-static-v8-${BUILD}`;
 const PRIVATE_CACHE_PREFIX = "needt-private-v5:";
 const DB_NAME = "needt-offline-v2";
 const DB_VERSION = 2;
@@ -302,30 +312,49 @@ async function cacheFirstStatic(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  if (response.ok) {
+  // A proxy answering a chunk URL mid-deploy can send an HTML page with 200;
+  // that must never be kept as the file.
+  const type = response.headers.get("content-type") || "";
+  if (response.ok && !type.includes("text/html")) {
     const cache = await caches.open(STATIC_CACHE_NAME);
     await cache.put(request, response.clone());
   }
   return response;
 }
 
+function isHtml(response) {
+  return (response.headers.get("content-type") || "").includes("text/html");
+}
+
+// Pages are network-first: the server is always asked. The saved copy is only
+// for a network that is gone, or for a deploy swapping containers (5xx), so
+// it never wins over a working server.
 async function networkFirstPrivate(request) {
   const cacheName = privateCacheName("pages");
+  const fallback = async () => {
+    if (!cacheName) return undefined;
+    const cache = await caches.open(cacheName);
+    return cache.match(request);
+  };
   try {
     // "no-cache": the HTML of a page is never taken from the browser's own
     // HTTP cache without asking the server; the copy below is only for offline.
-    const response = await fetch(request, { cache: "no-cache" });
-    if (response.ok && cacheName) {
+    let response = await fetch(request, { cache: "no-cache" });
+    if (response.status >= 502 && response.status <= 504) {
+      // A container swap lasts a moment: ask once more before giving up.
+      const first = response;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      response = await fetch(request, { cache: "no-cache" }).catch(() => first);
+    }
+    if (response.ok && cacheName && isHtml(response)) {
       const cache = await caches.open(cacheName);
       await cache.put(request, response.clone());
     }
+    if (response.status >= 500) return (await fallback()) || response;
     return response;
   } catch {
-    if (cacheName) {
-      const cache = await caches.open(cacheName);
-      const cached = await cache.match(request);
-      if (cached) return cached;
-    }
+    const cached = await fallback();
+    if (cached) return cached;
     return new Response("Needt is offline. Reconnect and try again.", {
       status: 503,
       headers: { "content-type": "text/plain; charset=utf-8" },
