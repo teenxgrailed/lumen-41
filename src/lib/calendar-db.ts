@@ -361,11 +361,23 @@ export async function listPushEnabledCalendarFeeds() {
 export async function markCalendarFeedPushUnsupported(
   feedId: string
 ): Promise<void> {
+  await prisma.$transaction([
+    prisma.calendarFeed.update({
+      where: { id: feedId },
+      data: { pushUnsupportedAt: newDate() },
+    }),
+    prisma.calendarWebhook.deleteMany({ where: { feedId } }),
+  ]);
+}
+
+/** The provider accepted a watch after all: let the sweeps handle the feed again. */
+export async function clearCalendarFeedPushUnsupported(
+  feedId: string
+): Promise<void> {
   await prisma.calendarFeed.update({
     where: { id: feedId },
-    data: { pushUnsupportedAt: newDate() },
+    data: { pushUnsupportedAt: null },
   });
-  await prisma.calendarWebhook.deleteMany({ where: { feedId } });
 }
 
 export async function deleteCalendarWebhook(

@@ -7,6 +7,7 @@ import {
 import {
   GoogleWatchIneligibleError,
   GoogleWatchUnsupportedError,
+  disableGoogleWatch,
   registerGoogleWatch,
 } from "@/lib/calendar-webhooks/google";
 import {
@@ -65,11 +66,27 @@ export async function renewCalendarWebhooks(options?: {
   for (const webhook of webhooks) {
     const forced = Boolean(options?.feedId);
     // Disabled or push-unsupported feeds hold no live watch worth renewing.
+    // Clean up the row (and its Google channel) once instead of skipping it
+    // on every run.
     if (
       !forced &&
       webhook.feed &&
       (!webhook.feed.enabled || webhook.feed.pushUnsupportedAt)
     ) {
+      if (webhook.provider === "GOOGLE") {
+        try {
+          await disableGoogleWatch(webhook.feedId);
+        } catch (error) {
+          await logger.warn(
+            "Could not clean up webhook of a disabled or push-unsupported feed",
+            {
+              feedId: webhook.feedId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            LOG_SOURCE
+          );
+        }
+      }
       results.push({
         feedId: webhook.feedId,
         provider: webhook.provider,

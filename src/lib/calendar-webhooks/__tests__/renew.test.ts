@@ -6,6 +6,7 @@ import {
 import {
   GoogleWatchIneligibleError,
   GoogleWatchUnsupportedError,
+  disableGoogleWatch,
   registerGoogleWatch,
 } from "@/lib/calendar-webhooks/google";
 import { renewOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
@@ -29,6 +30,7 @@ jest.mock("@/lib/calendar-webhooks/google", () => {
   return {
     GoogleWatchIneligibleError,
     GoogleWatchUnsupportedError,
+    disableGoogleWatch: jest.fn(),
     registerGoogleWatch: jest.fn(),
   };
 });
@@ -86,7 +88,7 @@ describe("renewCalendarWebhooks", () => {
     await expect(renewCalendarWebhooks()).resolves.toEqual([]);
   });
 
-  it("skips disabled and push-unsupported feeds without calling Google", async () => {
+  it("cleans up disabled and push-unsupported feeds instead of renewing them", async () => {
     (listCalendarWebhooks as jest.Mock).mockResolvedValue([
       {
         feedId: "off",
@@ -106,6 +108,30 @@ describe("renewCalendarWebhooks", () => {
       { feedId: "marked", provider: "GOOGLE", renewed: false },
     ]);
     expect(registerGoogleWatch).not.toHaveBeenCalled();
+    expect(disableGoogleWatch).toHaveBeenCalledTimes(2);
+    expect(disableGoogleWatch).toHaveBeenCalledWith("off");
+    expect(disableGoogleWatch).toHaveBeenCalledWith("marked");
+  });
+
+  it("attempts registration on a forced renew of a marked feed", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([]);
+    await renewCalendarWebhooks({ provider: "GOOGLE", feedId: "marked" });
+    expect(registerGoogleWatch).toHaveBeenCalledWith("marked");
+    expect(disableGoogleWatch).not.toHaveBeenCalled();
+  });
+
+  it("attempts registration on a forced renew when a row still exists", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      {
+        feedId: "marked",
+        provider: "GOOGLE",
+        expiration: new Date(Date.now() + 10 * 86_400_000),
+        feed: { enabled: true, pushUnsupportedAt: new Date() },
+      },
+    ]);
+    await renewCalendarWebhooks({ provider: "GOOGLE", feedId: "marked" });
+    expect(registerGoogleWatch).toHaveBeenCalledWith("marked");
+    expect(disableGoogleWatch).not.toHaveBeenCalled();
   });
 
   it("returns the results when nothing fails", async () => {

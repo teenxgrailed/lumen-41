@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
 import {
+  clearCalendarFeedPushUnsupported,
   deleteCalendarWebhook,
   getCalendarFeedForSync,
   getCalendarWebhookForFeed,
@@ -32,8 +33,9 @@ export class GoogleWatchUnsupportedError extends Error {
 
 /**
  * Permanent refusals from events.watch: 400 pushNotSupportedForRequestedResource
- * (holiday, birthday, read-only subscribed calendars) and 404 notFound (the
- * calendar no longer exists). Retrying either can never succeed.
+ * (holiday, birthday, read-only subscribed calendars) and 404 with the Google
+ * reason notFound (the calendar no longer exists). A bare 404 (a proxy, an auth
+ * edge, a calendar not yet visible) is an ordinary failure and is not matched.
  */
 export function isGoogleWatchPermanentRefusal(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -63,9 +65,7 @@ export function isGoogleWatchPermanentRefusal(error: unknown): boolean {
   ) {
     return true;
   }
-  return (
-    status === 404 && (reasons.length === 0 || reasons.includes("notFound"))
-  );
+  return status === 404 && reasons.includes("notFound");
 }
 
 export async function registerGoogleWatch(feedId: string) {
@@ -101,6 +101,20 @@ export async function registerGoogleWatch(feedId: string) {
     });
   } catch (error) {
     if (!isGoogleWatchPermanentRefusal(error)) throw error;
+    // Stop any live channel first so it stops delivering to a row we delete.
+    try {
+      await disableGoogleWatch(feedId);
+    } catch (stopError) {
+      await logger.warn(
+        "Could not stop Google watch before marking feed push-unsupported",
+        {
+          feedId,
+          error:
+            stopError instanceof Error ? stopError.message : String(stopError),
+        },
+        LOG_SOURCE
+      );
+    }
     await markCalendarFeedPushUnsupported(feedId);
     await logger.info(
       "Google refused push for this calendar; marked it and will not retry",
@@ -125,6 +139,11 @@ export async function registerGoogleWatch(feedId: string) {
     expiration,
     channelToken,
   });
+  // Explicit paths (re-enable, re-add, forced renew) reach here even for a
+  // marked feed; a working watch means the mark was wrong or is outdated.
+  if (feed.pushUnsupportedAt) {
+    await clearCalendarFeedPushUnsupported(feedId);
+  }
 
   if (existing?.channelId && existing.resourceId) {
     try {
