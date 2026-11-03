@@ -1,0 +1,30 @@
+Needt is the place you keep everything you are working on and thinking about: tasks, calendar, documents, habits and focus time. It is the same Needt on your iPhone, iPad, Mac and the web, so what you write down in one place is there in the others.
+
+TODAY
+Open Needt and see the day: your tasks and your calendar events together. Add a task in a line, finish it with a tap.
+
+TASKS AND PROJECTS
+Tasks with subtasks, due dates, time estimates and priorities. Group them into projects, boards and saved views. Tell Needt how long a task takes and when you work, and it finds the time for it around your events. When the day changes, it plans again.
+
+CALENDAR
+Connect the calendars you already use (Outlook, iCloud, CalDAV and Google) and see them next to your tasks. Events you create or change in Needt are written back to the calendar they belong to.
+
+PAGES
+Write notes and documents next to the work they belong to. Pages keep their history.
+
+HABITS
+Set the habits you want to keep, tick them off each day and watch the streak.
+
+FOCUS
+Start a focus session on a task and follow the countdown as a Live Activity on the Lock Screen.
+
+WIDGETS AND CONTROLS
+Today, Next event, Focus timer, Habits and Quick add as Home Screen and Lock Screen widgets, in eight styles. Add a task or start a focus session from Control Center. Widgets and Live Activities need iOS 17 or later; Controls need iOS 18 or later.
+
+ASSISTANT
+Ask the built-in assistant to add, move or find things. It asks before it deletes or changes many things at once, and you can undo what it did for 7 days.
+
+YOURS TO KEEP
+Export your data from Settings at any time. Delete your account from Settings, Account. There are no ads and no tracking.
+
+Needt works with your Needt account. Create one in the app, or sign in with Apple, Google or email.
