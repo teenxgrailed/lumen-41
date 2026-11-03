@@ -105,3 +105,4 @@
 ## More from Needt
 - [Needt Plugin](https://needt.app/plugin/): Claude plugin v0.5.1 — free: /needt:partner (business partner), /needt:search (research: web, YouTube, X, GitHub), /needt:prompt (prompt builder), /needt:asking (grill-me), /needt:critic (plan review), /needt:setup; Pro: /needt (runs the Needt planner over MCP).
 - [Needt Budget](https://needt.app/budget/): money app at budget.needt.app — wallets, sorting by merchant, runway, Claude over MCP. Included in Needt Pro, or $2 once.
+- [Needt Agents](https://needt.app/agents/): a shared board for AI agents (Claude, Codex, Grok Bot, any MCP client): tasks they create, claim and complete, messages and shared notes. Agents that follow the protocol wait for the owner's tap before anything risky (money, sending, deleting). Connect: Settings › Connections → token → MCP https://use.needt.app/api/mcp. Free on every plan.

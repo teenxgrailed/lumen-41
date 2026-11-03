@@ -814,7 +814,7 @@ drives --nt on the veil, which ::before inherits. */
 .nx-orb i:nth-child(1) { background: #5a5ce2; } .nx-orb i:nth-child(4) { background: #12a7bf; }
 .nav-x.is-open .nx-orb, .nav-x-btn:hover .nx-orb { transform: rotate(45deg) scale(1.08); }
 .nav-x.is-open .nx-orb i { border-radius: 50%; }
-.xpanel { position: fixed; z-index: 120; top: 84px; left: 50%; width: min(680px, calc(100vw - 24px)); transform: translateX(-50%); pointer-events: none; visibility: hidden;
+.xpanel { position: fixed; z-index: 120; top: 84px; left: 50%; width: min(860px, calc(100vw - 24px)); transform: translateX(-50%); pointer-events: none; visibility: hidden;
   clip-path: circle(0px at calc(var(--ox, 50vw) - 50vw + 50%) -10px); transition: clip-path .6s cubic-bezier(.7,0,.2,1), visibility 0s .6s; }
 .xpanel.is-open { pointer-events: auto; visibility: visible; clip-path: circle(140% at calc(var(--ox, 50vw) - 50vw + 50%) -10px); transition: clip-path .7s cubic-bezier(.2,.8,.2,1), visibility 0s; }
 .xp-in { position: relative; padding: 22px; border-radius: 30px; color: #fff; overflow: hidden;
@@ -824,10 +824,10 @@ drives --nt on the veil, which ::before inherits. */
 .xp-head { position: relative; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 2px 6px 16px; }
 .xp-head b { font: 500 26px/1 var(--display); letter-spacing: -0.03em; }
 .xp-head span { font: 600 11px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.5); }
-.xp-deck { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; perspective: 900px; }
+.xp-deck { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: 900px; }
 .xp-card { --rx: 0deg; --ry: 0deg; position: relative; display: flex; flex-direction: column; min-height: 178px; padding: 18px; border-radius: 22px; text-decoration: none; color: inherit; overflow: hidden;
   transform-style: preserve-3d; opacity: 0;
-  transform: translateX(calc((1 - var(--n)) * 104%)) translateY(26px) rotate(calc((var(--n) - 1) * -10deg)) scale(.84);
+  transform: translateX(calc((1.5 - var(--n)) * 104%)) translateY(26px) rotate(calc((var(--n) - 1.5) * -10deg)) scale(.84);
   transition: transform .2s ease, opacity .25s ease; }
 .xpanel.is-open .xp-card { opacity: 1; transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
   transition: transform .75s cubic-bezier(.2,1.25,.3,1) calc(.14s + var(--n) * .07s), opacity .35s ease calc(.12s + var(--n) * .07s); }
@@ -934,7 +934,7 @@ drives --nt on the veil, which ::before inherits. */
 .pwc-stu { display: block; margin-top: 12px; text-align: center; font-size: 14px; color: var(--ink-2); text-decoration: none; }
 .pwc-stu b { color: #c4520f; font-weight: 600; }
 .pwc-stu:hover b { text-decoration: underline; }
-@media (max-width: 860px) { body.nav-open .xp-stu { grid-column: 1 / -1; min-height: 0; } }
+
 
 /* ── v33 (29.10.26): calmer, roomier, smoother ─────────────────────────
    Desktop: more air between sections, the hero loses its floating cards, the wordmark in the
@@ -1565,3 +1565,7 @@ div.up-row { cursor: default; }
   @keyframes fd-ph { from { opacity: 0; translate: 0 60px; } }
 }
 /* ⟦v42 end⟧ */
+
+/* v44 (03.11.26): fourth card, Needt Agents */
+.xp-agt { background: radial-gradient(ellipse 80% 70% at 30% 0%, rgba(109,111,240,.45), transparent 65%), #10111a; box-shadow: inset 0 0 0 1px rgba(185,186,255,.22); }
+.xp-agt em { background: #b9baff; color: #15163a; }
