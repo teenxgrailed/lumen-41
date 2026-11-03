@@ -183,6 +183,7 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
     usage: usageView(item),
     risks: item.risks,
     approvals: item.approvals,
+    recurrenceId: item.recurrenceId,
     assignee: item.assigneeAgentId
       ? {
           id: item.assigneeAgentId,
@@ -664,7 +665,19 @@ export function createdMessage(prepared: PreparedItem) {
     : `Created for any agent with: ${prepared.requiredSkills.join(", ")}.`;
 }
 
-export async function createItem(scope: HubScope, input: CreateItemInput) {
+export interface CreateItemHooks {
+  /** Runs inside the create transaction; returns the row to answer with. */
+  afterCreate?: (
+    tx: Prisma.TransactionClient,
+    created: HubItem
+  ) => Promise<HubItem>;
+}
+
+export async function createItem(
+  scope: HubScope,
+  input: CreateItemInput,
+  hooks: CreateItemHooks = {}
+) {
   const prepared = await prepareItem(scope, input);
   const creatorAgentId = actorAgentId(scope.actor);
 
@@ -688,15 +701,15 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
   const now = newDate();
   try {
     const item = await prisma.$transaction(async (tx) => {
-      const created = await tx.hubItem.create({ data: prepared.data });
+      const made = await tx.hubItem.create({ data: prepared.data });
       await writeEvents(
         tx,
-        created.id,
+        made.id,
         scope.actor,
         [{ type: "created", to: "open", message: createdMessage(prepared) }],
         now
       );
-      return created;
+      return hooks.afterCreate ? hooks.afterCreate(tx, made) : made;
     });
     trackHub({
       name: "hub_item_created",

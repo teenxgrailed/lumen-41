@@ -114,6 +114,7 @@ function buildPlan(userId, workspaceId) {
     // their parents (cascade); HubWebhookDelivery goes with its webhook.
     ["HubReservation", "hubReservation", wsOnly],
     ["HubThread", "hubThread", wsOnly],
+    ["HubRecurrence", "hubRecurrence", wsOnly],
     ["HubNote", "hubNote", wsOnly],
     ["HubWebhook", "hubWebhook", wsOnly],
     ["HubItem", "hubItem", wsOnly],

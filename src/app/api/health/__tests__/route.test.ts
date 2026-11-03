@@ -1,8 +1,12 @@
 import { GET } from "@/app/api/health/route";
 
+import { handleShutdownSignal, resetDrainStateForTests } from "@/lib/drain";
 import { getMigrationStatus } from "@/lib/health/migrations";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
 
+jest.mock("@/lib/logger", () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 jest.mock("@/lib/health/migrations", () => ({
   getMigrationStatus: jest.fn(),
 }));
@@ -114,5 +118,28 @@ describe("GET /api/health", () => {
       buildSha: TEST_SHA,
     });
     expect(JSON.stringify(body)).not.toContain("password=");
+  });
+
+  it("returns 503 with draining:true while the process is shutting down", async () => {
+    jest.useFakeTimers();
+    const exitSpy = jest
+      .spyOn(process, "exit")
+      .mockImplementation((() => undefined) as never);
+    try {
+      handleShutdownSignal("SIGTERM");
+
+      const response = await GET();
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        draining: true,
+      });
+      expect(mockGetMigrationStatus).not.toHaveBeenCalled();
+    } finally {
+      resetDrainStateForTests();
+      exitSpy.mockRestore();
+      jest.useRealTimers();
+    }
   });
 });

@@ -12,7 +12,7 @@ import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
-import { ProLimit } from "../paywall/Pro";
+import { ProGate, ProLimit, useIsPro } from "../paywall/Pro";
 import { PlaceHeader } from "../places/PlaceHeader";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
@@ -40,10 +40,23 @@ interface HubRelation {
   item: { id: string; title: string; status: string };
 }
 
+interface HubRecurrenceRow {
+  id: string;
+  state: "active" | "paused" | "ended";
+  /** Plain-language schedule, for example "every week on Monday at 09:00". */
+  repeats: string;
+  timezone: string;
+  nextRunAt: string | null;
+  allowOverlap: boolean;
+  lastSkip: { reason: string; message: string; at: string } | null;
+}
+
 interface HubItemRow {
   id: string;
   title: string;
   status: string;
+  /** Set when the item was opened by a recurrence (or is its first occurrence). */
+  recurrenceId?: string | null;
   goal: string;
   doneCriteria: string;
   /** The done-criteria as a checklist; `met` is null until the item is done. */
@@ -174,6 +187,28 @@ function usageLine(usage: NonNullable<HubItemRow["usage"]>) {
     usage.minutes != null ? `${usage.minutes} min` : "",
   ].filter(Boolean);
   return parts.length ? `Usage: ${parts.join(", ")}` : "";
+}
+
+/** The recurrences of the workspace, shared by the rows and the detail line. */
+function useRecurrences() {
+  return useQuery({
+    queryKey: ["agent-hub", "recurrences"],
+    queryFn: () =>
+      fetchJson<{ recurrences: HubRecurrenceRow[] }>(
+        "/api/agent-hub/recurrences"
+      ),
+    select: (data) => new Map(data.recurrences.map((r) => [r.id, r])),
+  });
+}
+
+function repeatsLine(recurrence: HubRecurrenceRow) {
+  const parts = [`Repeats ${recurrence.repeats} (${recurrence.timezone})`];
+  if (recurrence.state === "paused") parts.push("paused");
+  else if (recurrence.state === "ended") parts.push("ended");
+  else if (recurrence.nextRunAt) {
+    parts.push(`next run ${when(recurrence.nextRunAt)}`);
+  }
+  return parts.join(", ");
 }
 
 function latest(item: HubItemRow) {
@@ -312,6 +347,39 @@ export function AgentsScreen() {
   const openItems = items.filter(isActive).length;
   const tags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
 
+  const recurrences = useRecurrences().data;
+  const pro = useIsPro();
+  const repeatToggle = (item: HubItemRow) => {
+    const recurrence = item.recurrenceId
+      ? recurrences?.get(item.recurrenceId)
+      : undefined;
+    if (!recurrence || recurrence.state === "ended") return null;
+    const action = recurrence.state === "active" ? "pause" : "resume";
+    // Resuming a repeat is Pro (the server answers PLAN_LIMIT); pausing stays free.
+    if (action === "resume" && !pro)
+      return (
+        <ProGate feature="recurring hub items">
+          <AgBtn>Resume repeat</AgBtn>
+        </ProGate>
+      );
+    return (
+      <AgBtn
+        onClick={() =>
+          run(
+            () =>
+              sendJson(
+                `/api/agent-hub/recurrences/${recurrence.id}/${action}`,
+                "POST",
+                {}
+              ),
+            action === "pause" ? "Repeat paused" : "Repeat resumed"
+          )
+        }
+      >
+        {action === "pause" ? "Pause repeat" : "Resume repeat"}
+      </AgBtn>
+    );
+  };
   const itemRow = (item: HubItemRow) => (
     <AgRow
       key={item.id}
@@ -326,23 +394,28 @@ export function AgentsScreen() {
       }}
       detail={<ItemDetail id={item.id} fallback={item} />}
       actions={
-        isActive(item) ? (
-          <AgBtn
-            tone="danger"
-            onClick={() =>
-              run(
-                () =>
-                  sendJson(
-                    `/api/agent-hub/items/${item.id}/cancel`,
-                    "POST",
-                    {}
-                  ),
-                "Cancelled"
-              )
-            }
-          >
-            Cancel
-          </AgBtn>
+        isActive(item) || repeatToggle(item) ? (
+          <>
+            {repeatToggle(item)}
+            {isActive(item) ? (
+              <AgBtn
+                tone="danger"
+                onClick={() =>
+                  run(
+                    () =>
+                      sendJson(
+                        `/api/agent-hub/items/${item.id}/cancel`,
+                        "POST",
+                        {}
+                      ),
+                    "Cancelled"
+                  )
+                }
+              >
+                Cancel
+              </AgBtn>
+            ) : null}
+          </>
         ) : null
       }
     />
@@ -804,8 +877,17 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
       ),
   });
   const item = detail.data?.item ?? fallback;
+  const recurrence = useRecurrences().data?.get(item.recurrenceId ?? "");
   return (
     <>
+      {recurrence ? (
+        <span>
+          <span className="ag-detail-k">{repeatsLine(recurrence)}</span>
+          {recurrence.lastSkip
+            ? ` Last skipped ${when(recurrence.lastSkip.at)}: ${recurrence.lastSkip.message}`
+            : null}
+        </span>
+      ) : null}
       <span>
         <span className="ag-detail-k">Goal: </span>
         {item.goal}

@@ -80,6 +80,7 @@ const QUEUE_NAMES = Object.freeze([
   "focus",
   "email-lifecycle",
   "hub-webhooks",
+  "hub-recurrence",
 ]);
 
 function parseArgs(argv) {

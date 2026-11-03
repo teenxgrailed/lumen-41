@@ -11,6 +11,8 @@ import {
   processWebhookDelivery,
   sweepPendingDeliveries,
 } from "@/services/agent-hub/webhooks";
+import { RECURRENCE_SWEEP_INTERVAL_MS } from "@/services/agent-hub/constants";
+import { spawnDueRecurrences } from "@/services/agent-hub/recurrences";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
@@ -113,6 +115,7 @@ import {
   getCalendarSyncQueue,
   getEmailLifecycleQueue,
   getHubWebhookQueue,
+  getHubRecurrenceQueue,
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
@@ -128,6 +131,7 @@ import {
   EmailLifecycleJobData,
   FocusJobData,
   HubWebhookJobData,
+  HubRecurrenceJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
@@ -282,6 +286,10 @@ async function processFocus(job: Job<FocusJobData>) {
   );
 }
 
+async function processHubRecurrences() {
+  await spawnDueRecurrences();
+}
+
 async function processNudges() {
   await generateProactiveNudges();
   await deliverNudgePushes();
@@ -433,6 +441,11 @@ const workers = [
     connection,
     concurrency: 1,
   }),
+  new Worker<HubRecurrenceJobData>(
+    QUEUE_NAMES.hubRecurrence,
+    processHubRecurrences,
+    { connection, concurrency: 1 }
+  ),
   new Worker<LifetimeCheckoutReconciliationJobData>(
     QUEUE_NAMES.lifetimeCheckoutReconciliation,
     processLifetimeCheckoutReconciliation,
@@ -576,6 +589,11 @@ export async function start(): Promise<void> {
     "proactive-nudge-sweep",
     { every: 15 * 60_000 },
     { name: "sweep-nudges", data: { kind: "sweep" } }
+  );
+  await getHubRecurrenceQueue().upsertJobScheduler(
+    "hub-recurrence-sweep",
+    { every: RECURRENCE_SWEEP_INTERVAL_MS },
+    { name: "sweep-hub-recurrences", data: { kind: "sweep" } }
   );
   await getLifetimeCheckoutReconciliationQueue().upsertJobScheduler(
     "lifetime-checkout-reconciliation",

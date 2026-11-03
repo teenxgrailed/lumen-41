@@ -1,0 +1,1 @@
+- Deploys no longer cause a short 502. The web container now keeps serving for about 8 seconds after it is told to stop (`NEEDT_DRAIN_MS`, default 8000, capped at 9000), while `/api/health` answers 503 `{ok:false, draining:true}` so the proxy moves traffic to the new container; a second signal exits at once. The image also ships `curl`, which Coolify's healthcheck expects.

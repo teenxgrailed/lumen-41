@@ -9,15 +9,19 @@ import { agentInbox, nextItem } from "@/services/agent-hub/inbox";
 import {
   claimItem,
   completeItem,
-  createItem,
   escalateItem,
   updateItem,
 } from "@/services/agent-hub/items";
 import { searchNotes, writeNote } from "@/services/agent-hub/notes";
 import {
+  createItemWithRecurrence,
+  listRecurrences,
+  updateRecurrence,
+} from "@/services/agent-hub/recurrences";
+import {
   claimInput,
   completeInput,
-  createItemInput,
+  createItemWithRecurrenceInput,
   escalateInput,
   inboxInput,
   linkInput,
@@ -25,6 +29,8 @@ import {
   noteSearchInput,
   noteWriteInput,
   planCreateInput,
+  recurrenceUpdateInput,
+  recurrencesListInput,
   registerInput,
   updateInput,
 } from "@/services/agent-hub/schemas";
@@ -147,12 +153,36 @@ export const HUB_TOOLS: McpTool[] = [
     {
       name: "needt_agent_task_create",
       title: "Hand work to an agent",
-      description: `Leave a self-contained piece of work for another agent. The brief must stand alone: title, goal (20+ chars), doneCriteria, context (40+ chars), explicit risks (money, send_message, publish, delete; [] for none), and an assignee (agent id or name) or "any" with requiredSkills. doneCriteria is a sentence or a checklist (a list of short checks the other agent answers one by one). The other agent cannot ask you questions. No secrets in any field. Order work with needt_agent_task_link (blocks) or create a whole sequence with needt_agent_plan_create. ${NOT_TASKS} Repeat-safe with clientRef.`,
-      input: createItemInput,
+      description: `Leave a self-contained piece of work for another agent. The brief must stand alone: title, goal (20+ chars), doneCriteria, context (40+ chars), explicit risks (money, send_message, publish, delete; [] for none), and an assignee (agent id or name) or "any" with requiredSkills. doneCriteria is a sentence or a checklist (a list of short checks the other agent answers one by one). The other agent cannot ask you questions. No secrets in any field. Order work with needt_agent_task_link (blocks) or create a whole sequence with needt_agent_plan_create. ${NOT_TASKS} Repeat-safe with clientRef. Add recurrence (rrule such as FREQ=WEEKLY;BYDAY=MO;BYHOUR=9, optional timezone and allowOverlap) to make it a standing job (Pro): this item is the first occurrence, and the hub opens a fresh copy on each later one, but never while the previous one is still open unless allowOverlap is true.`,
+      input: createItemWithRecurrenceInput,
       write: true,
       idempotent: false,
     },
-    (scope, args) => createItem(scope, args)
+    (scope, args) => createItemWithRecurrence(scope, args)
+  ),
+  hubTool(
+    {
+      name: "needt_agent_recurrences",
+      title: "List recurring items",
+      description:
+        "List the standing jobs (recurring hub items) you created or that are assigned to you: rrule, timezone, next run time, state (active, paused, ended), the latest item it opened and, when an occurrence was skipped, why (plan, plan_limit, previous_open, ...). Active ones by default; includeInactive adds paused and ended. Agent hub only.",
+      input: recurrencesListInput,
+      write: false,
+    },
+    (scope, args) => listRecurrences(scope, args)
+  ),
+  hubTool(
+    {
+      name: "needt_agent_recurrence_update",
+      title: "Pause, resume or delete a recurrence",
+      description:
+        "pause stops new occurrences, resume continues from the next one (no catch-up for missed runs; Pro), delete removes the recurrence (items it already opened stay). You can change only recurrences you created. Agent hub only.",
+      input: recurrenceUpdateInput,
+      write: true,
+      idempotent: true,
+      destructive: true,
+    },
+    (scope, args) => updateRecurrence(scope, args)
   ),
   hubTool(
     {

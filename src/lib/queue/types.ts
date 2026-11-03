@@ -14,6 +14,7 @@ export const QUEUE_NAMES = {
   focus: "focus",
   emailLifecycle: "email-lifecycle",
   hubWebhooks: "hub-webhooks",
+  hubRecurrence: "hub-recurrence",
 } as const;
 
 /** Agent hub webhook deliveries: "deliver" one, "sweep" re-queues lost ones. */
@@ -63,6 +64,10 @@ export interface FocusJobData {
 }
 
 export interface NudgeJobData {
+  kind: "sweep";
+}
+
+export interface HubRecurrenceJobData {
   kind: "sweep";
 }
 

@@ -101,3 +101,9 @@ export const CHECKLIST_MAX_ITEMS = 20;
 
 /** A held item with no update for this long is flagged stale in views. */
 export const STALE_AFTER_MS = 4 * 60 * 60 * 1000;
+
+/** Recurring items (openspec add-agent-hub, standing jobs). */
+export const RECURRENCE_MAX_PER_USER = 50;
+/** Due recurrences handled in one worker sweep; the rest wait for the next. */
+export const RECURRENCE_SWEEP_BATCH = 50;
+export const RECURRENCE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;

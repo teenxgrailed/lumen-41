@@ -153,6 +153,7 @@ describe("reset-user-data plan", () => {
       "HubItem",
       "HubNote",
       "HubWebhook",
+      "HubRecurrence",
       "HubThread",
       "HubReservation",
       "ImportRun",

@@ -175,6 +175,7 @@ model User {
   hubItems               HubItem[]
   hubNotes               HubNote[]
   hubWebhooks            HubWebhook[]
+  hubRecurrences         HubRecurrence[]
   hubThreads             HubThread[]
   hubReservations        HubReservation[]
   agentRuns              AgentRun[]
@@ -4121,6 +4122,10 @@ model HubItem {
   /// Set once when the 24 hour "no capable agent" alert was raised; makes it idempotent.
   noAgentAlertedAt    DateTime?
   clientRef           String?
+  /// Set on an item made by (or as the first occurrence of) a HubRecurrence.
+  recurrenceId        String?
+  /// The scheduled moment of that occurrence; unique per recurrence, so a retried spawn cannot double up.
+  occurrenceAt        DateTime?
   /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
   criteriaItems       String[]       @default([])
   /// Reported by the agent on update / complete: running totals for the item.
@@ -4137,10 +4142,52 @@ model HubItem {
   linksIn             HubItemLink[]  @relation("HubLinkTo")
 
   @@unique([userId, creatorAgentId, clientRef])
+  @@unique([recurrenceId, occurrenceAt])
+  @@index([recurrenceId, status])
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])
   @@index([userId, workspaceId, ownerUnread])
+}
+
+/// A standing job: the brief of an item plus an RRULE. The worker spawns a fresh
+/// open HubItem from it whenever nextRunAt is due (src/services/agent-hub/recurrences.ts).
+model HubRecurrence {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId      String
+  title            String
+  goal             String
+  doneCriteria     String
+  criteriaItems    String[]  @default([])
+  context          String
+  links            Json      @default("[]")
+  risks            String[]
+  assigneeAgentId  String?
+  requiredSkills   String[]
+  /// agent | owner
+  creatorKind      String
+  creatorAgentId   String?
+  rrule            String
+  timezone         String
+  /// The next occurrence to spawn; null once the rule has no more.
+  nextRunAt        DateTime?
+  active           Boolean   @default(true)
+  /// false: no new occurrence while the previous one is still open.
+  allowOverlap     Boolean   @default(false)
+  lastSpawnedItemId String?
+  lastSpawnedAt    DateTime?
+  spawnCount       Int       @default(0)
+  skipCount        Int       @default(0)
+  /// Why the latest due occurrence was not spawned (plan, plan_limit, previous_open, ...).
+  lastSkipReason   String?
+  lastSkipAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([active, nextRunAt])
+  @@index([userId, workspaceId])
 }
 
 /// A directed edge between two items of one workspace. blocks: `from` must be

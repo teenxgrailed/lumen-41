@@ -69,6 +69,27 @@ export function addCalendarDays(
   return fromZonedTime(`${shifted}${wall.slice(10)}`, timeZone);
 }
 
+/**
+ * The wall-clock time of `date` in `timeZone`, written into the UTC fields of
+ * a Date ("floating" time). Lets a recurrence rule run on wall-clock fields
+ * without the process's own zone or DST leaking in; undo with
+ * `zonedWallToDate`.
+ */
+export function wallClockAsUtc(date: Date, timeZone: string): Date {
+  return new Date(
+    `${formatInTimeZone(date, timeZone, "yyyy-MM-dd'T'HH:mm:ss.SSS")}Z`
+  );
+}
+
+/**
+ * The instant at which `timeZone`'s wall clock reads the UTC fields of
+ * `floating`. A wall time skipped by a clock change moves forward by the gap;
+ * one that happens twice resolves to the first.
+ */
+export function zonedWallToDate(floating: Date, timeZone: string): Date {
+  return fromZonedTime(floating.toISOString().slice(0, 23), timeZone);
+}
+
 /** Midnight at the start of the date's day in the given zone. */
 export function startOfDayInTimeZone(date: Date, timeZone: string): Date {
   return fromZonedTime(
