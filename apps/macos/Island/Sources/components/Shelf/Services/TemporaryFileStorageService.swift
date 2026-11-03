@@ -120,6 +120,10 @@ class TemporaryFileStorageService {
         }
     }
     func createZip(from urls: [URL], suggestedName: String? = nil) async -> URL? {
+#if APPSTORE
+        // Mac App Store build: no /usr/bin/zip subprocess. The menu entry is hidden too.
+        return nil
+#else
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
         let uuid = UUID().uuidString
         let workingDir = tempDir.appendingPathComponent("zip_\(uuid)", isDirectory: true)
@@ -217,6 +221,7 @@ class TemporaryFileStorageService {
         } else {
             return nil
         }
+#endif
     }
     
     // MARK: - Content Creation Helpers

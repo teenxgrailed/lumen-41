@@ -77,7 +77,6 @@ final class WidgetBridge: NSObject, WKHTTPCookieStoreObserver {
     }
 
     func reconcileFocus() {
-        guard #available(iOS 16.2, *) else { return }
         Task {
             let load = await WidgetRepository().load()
             await FocusActivityController.shared.reconcile(snapshot: load.snapshot)
@@ -90,7 +89,6 @@ final class WidgetBridge: NSObject, WKHTTPCookieStoreObserver {
 enum FocusWidgetKind { static let value = "app.needt.widget.focus" }
 
 /// Lets the metadata extractor find the LiveActivityIntent that lives in NeedtKit.
-@available(iOS 17.0, *)
 struct NeedtAppIntents: AppIntentsPackage {
     static var includedPackages: [any AppIntentsPackage.Type] { [NeedtKitIntentsPackage.self] }
 }

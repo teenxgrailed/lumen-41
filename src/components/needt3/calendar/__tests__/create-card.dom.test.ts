@@ -23,6 +23,10 @@ let mockPortal: HTMLDivElement;
 jest.mock("../../ctx/PortalScope", () => ({
   useV3PortalContainer: () => mockPortal,
 }));
+jest.mock("@/lib/needt3/hooks/settings", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/settings"),
+  useWeekStartDay: () => "monday",
+}));
 
 class RO {
   observe() {}

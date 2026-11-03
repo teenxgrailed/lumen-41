@@ -1,3 +1,6 @@
+import { splitHome } from "@/components/needt3/home/derive";
+import type { V3Task } from "@/lib/needt3/map";
+
 import {
   dayProgress,
   nextEventBadge,
@@ -77,5 +80,43 @@ describe("sidebar live badges", () => {
     );
     expect(urgentIssue("3 overdue")).not.toBe(urgentIssue("4 overdue"));
     expect(urgentIssue(null)).toBe("");
+  });
+});
+
+describe("sidebar counts match what Home lists", () => {
+  const today = "2026-09-01";
+  const row = (over: Partial<V3Task>) =>
+    ({
+      id: String(Math.random()),
+      done: false,
+      noSlot: false,
+      dueDate: null,
+      scheduledStart: null,
+      trashedAt: null,
+      ...over,
+    }) as V3Task;
+  const tasks = [
+    row({ dueDate: "2026-08-30" }),
+    row({ dueDate: "2026-08-29", done: true }),
+    row({ dueDate: "2026-08-28", trashedAt: "2026-08-31T10:00:00" }),
+    row({ dueDate: "2026-08-27", noSlot: true }),
+    row({ dueDate: today }),
+    row({ dueDate: today, done: true }),
+    row({ dueDate: today, trashedAt: "2026-08-31T10:00:00" }),
+    row({ dueDate: "2026-09-05" }),
+  ];
+
+  it("overdue badge equals Home's Overdue list", () => {
+    expect(overdueCount(tasks, today)).toBe(
+      splitHome(tasks, today).late.length
+    );
+  });
+
+  it("Home progress equals Home's Today list", () => {
+    const day = splitHome(tasks, today).day;
+    expect(dayProgress(tasks, today)).toEqual({
+      done: day.filter((x) => x.done).length,
+      total: day.length,
+    });
   });
 });

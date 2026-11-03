@@ -52,6 +52,8 @@ export const taskV3FieldsSchema = z.object({
 export const projectV3FieldsSchema = z.object({
   ground: nullableShort(64).optional(),
   position: z.number().finite().optional(),
+  /** Move to Trash (true) or restore from it (false). */
+  trashed: z.boolean().optional(),
 });
 
 export const pageV3FieldsSchema = z.object({

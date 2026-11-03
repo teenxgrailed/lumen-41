@@ -5,9 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "Signups";
 
-export const SIGNUPS_CLOSED_CODE = "SIGNUPS_CLOSED";
-export const SIGNUPS_CLOSED_MESSAGE =
-  "Registration is closed — join the waitlist at needt.app";
+export { SIGNUPS_CLOSED_CODE, SIGNUPS_CLOSED_MESSAGE } from "./signups-copy";
 /** Where an OAuth return that would have made a new account is sent. */
 export const SIGNUPS_CLOSED_REDIRECT = "/auth/signin?error=SignupsClosed";
 

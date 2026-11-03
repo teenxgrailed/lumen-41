@@ -29,6 +29,7 @@ import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -135,6 +136,7 @@ function placeAt(el: HTMLElement | null) {
 export function AccountMenu() {
   const session = useSession();
   const plan = usePlan();
+  const store = useStoreDistribution();
   const theme = useNeedt3Ui((s) => s.theme);
   const setTheme = useNeedt3Ui((s) => s.setTheme);
   const openSettings = useNeedt3Ui((s) => s.openSettings);
@@ -343,9 +345,9 @@ export function AccountMenu() {
                     className="nx-btn nx-btn-text nx-btn-sm sb-acct-plan-btn"
                     onClick={run(() => openSettings("plan"))}
                   >
-                    Manage
+                    {store ? "Plan" : "Manage"}
                   </button>
-                ) : (
+                ) : store ? null : (
                   <button
                     type="button"
                     role="menuitem"
@@ -406,12 +408,15 @@ export function AccountMenu() {
                 dot={unseenNews}
                 onClick={run(() => shell.openWhatsNew())}
               />
-              <AcctRow
-                icon={<LuBookOpen size={16} />}
-                label="Help"
-                out
-                onClick={run(openHelp)}
-              />
+              {/* Help is the website: a store build links nowhere off the app. */}
+              {store ? null : (
+                <AcctRow
+                  icon={<LuBookOpen size={16} />}
+                  label="Help"
+                  out
+                  onClick={run(openHelp)}
+                />
+              )}
               <AcctRow
                 icon={<LuKeyboard size={16} />}
                 label="Keyboard shortcuts"

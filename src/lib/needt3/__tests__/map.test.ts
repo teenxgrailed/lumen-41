@@ -193,6 +193,21 @@ describe("project, habit, event, mail and board mapping", () => {
     });
   });
 
+  it("projects carry Trash: trashedAt in, { trashed } out", () => {
+    const gone = projectFromApi({
+      id: "ops",
+      name: "Operations",
+      status: "active",
+      trashedAt: "2026-11-03T08:00:00.000Z",
+    });
+    expect(gone.trashedAt).toBe("2026-11-03T08:00:00.000Z");
+    expect(projectFromApi({ id: "x", name: "X" }).trashedAt).toBeNull();
+    expect(projectPatchToApi({ trashedAt: "2026-11-03T08:00:00.000Z" })).toEqual(
+      { trashed: true }
+    );
+    expect(projectPatchToApi({ trashedAt: null })).toEqual({ trashed: false });
+  });
+
   it("habit schedule ↔ at / quota", () => {
     const h = habitFromApi({
       id: "gym",

@@ -76,6 +76,8 @@ Needt connects to services you already use: Google, Microsoft, Apple iCloud and 
 
 ## 5. Plans, trial and payment
 
+::: web-only
+
 ### 5.1 Plans
 
 - **Free:** $0. The core features, with limits (for example on connected calendars, boards, habits and auto-scheduled tasks). The current limits are shown in the app.
@@ -87,6 +89,8 @@ Prices are in US dollars and are shown before you pay. VAT or sales tax may be a
 ### 5.2 Free trial
 
 A new account can try **Pro free for 14 days, without a card**. There is one trial per person; we check this by email address. When the trial ends, the account moves to Free by itself. Nothing is charged, and you keep all your data, but features and limits beyond Free stop working until you upgrade.
+
+:::
 
 ### 5.3 Who sells to you: Creem
 
@@ -114,7 +118,7 @@ We may change prices for future periods. We tell Pro subscribers at least 30 day
 
 ## 6. AI features and fair use
 
-- AI features are included in Needt, with a monthly **fair-use allowance** that depends on your plan. The Free allowance is small and lets you try the assistant; Pro and Lifetime are sized so that daily personal use of the assistant does not reach it. If you go over it, AI responses slow down, and well past it they pause until the next calendar month. Nothing else in Needt stops working, and you can add your own AI provider key to keep going without a limit from us. If we reduce the allowance for a plan you pay for, we tell you at least 30 days in advance, and you can cancel and ask for a refund of the unused prepaid period.
+- AI features are included in Needt, with a monthly **fair-use allowance** that depends on your plan. The Free plan does not include the assistant (the free trial lets you try it); Pro and Lifetime are sized so that daily personal use of the assistant does not reach it. If you go over it, AI responses slow down, and well past it they pause until the next calendar month. Nothing else in Needt stops working, and you can add your own AI provider key to keep going without a limit from us. If we reduce the allowance for a plan you pay for, we tell you at least 30 days in advance, and you can cancel and ask for a refund of the unused prepaid period.
 - **AI can be wrong.** Answers, summaries, schedules and suggestions are generated automatically and may be inaccurate, incomplete or out of date. Check anything important before you rely on it. Needt does not give legal, medical, financial or other professional advice.
 - When you ask the assistant to act, for example to create, move or delete tasks, it acts on your behalf. Destructive or bulk actions ask for your confirmation first.
 - If you use your own AI provider key, your use of that provider is governed by your agreement with them, and any charges they make are yours.

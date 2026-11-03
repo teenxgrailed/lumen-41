@@ -2,6 +2,8 @@
 
 import { FiExternalLink } from "react-icons/fi";
 
+import { useStoreDistribution } from "@/lib/use-store-distribution";
+
 import { CopyRow, TokenStep } from "./AiSetup";
 import { strings } from "./strings";
 import type { McpConnect } from "./useMcpConnect";
@@ -15,6 +17,7 @@ export const API_DOCS_URL = "https://needt.app/resources/api/";
  * and the connector API docs. Shared by the desktop sheet and the phone sheet.
  */
 export function ApiAccess({ mcp }: { mcp: McpConnect }) {
+  const store = useStoreDistribution();
   return (
     <div data-cn-api="">
       <span className="cn-sheet-title">{strings.apiTitle}</span>
@@ -47,16 +50,19 @@ export function ApiAccess({ mcp }: { mcp: McpConnect }) {
           </div>
         </li>
       </ol>
-      <a
-        className="nx-btn nx-btn-secondary nx-btn-sm"
-        data-cn-api-docs=""
-        href={API_DOCS_URL}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <FiExternalLink size={13} aria-hidden />
-        {strings.apiDocs}
-      </a>
+      {/* The docs live on the website: a store build links nowhere off the app. */}
+      {store ? null : (
+        <a
+          className="nx-btn nx-btn-secondary nx-btn-sm"
+          data-cn-api-docs=""
+          href={API_DOCS_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <FiExternalLink size={13} aria-hidden />
+          {strings.apiDocs}
+        </a>
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { useSettings } from "@/lib/needt3/hooks/settings";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { ACCENTS } from "@/lib/needt3/theme";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -127,6 +128,7 @@ function PageBody({ id }: { id: PsPageId }) {
  */
 function MainList({ go }: { go: (id: PsPageId) => void }) {
   const { upgrade, leave } = usePs();
+  const store = useStoreDistribution();
   const session = useSession();
   const plan = usePlan();
   const settings = useSettings();
@@ -253,7 +255,8 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
         </span>
       </button>
 
-      {pro ? null : (
+      {/* The Pro plate is a pitch to buy: a store build does not carry it. */}
+      {pro || store ? null : (
         <PkSkyPlate
           as="section"
           className="ps-pro-plate"

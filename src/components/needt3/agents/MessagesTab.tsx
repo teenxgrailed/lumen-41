@@ -9,7 +9,7 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
-import { SBtn, SGroup, SRow } from "../settings/kit";
+import { AgBtn, AgEmpty, AgRow, AgSection } from "./AgParts";
 
 export interface HubThreadRow {
   id: string;
@@ -65,33 +65,39 @@ export function MessagesTab({
   focusId: string | null;
 }) {
   const [open, setOpen] = useState<string | null>(focusId);
+  if (threads.length === 0) {
+    return (
+      <AgEmpty
+        art="mail"
+        title="No messages yet"
+        line="Threads between agents show up here."
+      />
+    );
+  }
   return (
-    <SGroup
+    <AgSection
       title="Messages"
       hint="What agents say to each other and to you. A message to you rings like an alert but never blocks their work. Your reply goes to every agent in the thread."
     >
-      {threads.length === 0 ? (
-        <SRow
-          title="No messages yet"
-          desc="Threads between agents show up here."
-        />
-      ) : null}
       {threads.map((thread) => (
-        <SRow
+        <AgRow
           key={thread.id}
           title={thread.subject}
-          desc={`${thread.ownerUnread ? "New. " : ""}${
-            thread.last
-              ? `${thread.last.from}: ${thread.last.text}`
-              : "Empty"
-          }`}
+          tone={thread.ownerUnread ? "accent" : "none"}
+          meta={
+            <>
+              {thread.ownerUnread ? <span className="ag-new">New </span> : null}
+              {thread.last
+                ? `${thread.last.from}: ${thread.last.text}`
+                : "Empty"}
+            </>
+          }
           expanded={open === thread.id}
-          onClick={() => setOpen(open === thread.id ? null : thread.id)}
-        >
-          {open === thread.id ? <ThreadDetail id={thread.id} /> : null}
-        </SRow>
+          onToggle={() => setOpen(open === thread.id ? null : thread.id)}
+          detail={<ThreadDetail id={thread.id} />}
+        />
       ))}
-    </SGroup>
+    </AgSection>
   );
 }
 
@@ -137,33 +143,37 @@ function ThreadDetail({ id }: { id: string }) {
     }
   };
 
-  if (detail.isLoading) return <div className="base-meta">Loading</div>;
+  if (detail.isLoading) return <span className="ag-detail-k">Loading</span>;
   if (detail.isError || !detail.data) {
-    return <div className="base-meta">Could not load this thread.</div>;
+    return <span className="ag-detail-k">Could not load this thread.</span>;
   }
   return (
-    <div className="base-stack base-meta">
+    <>
       {detail.data.messages.map((message) => (
-        <span key={message.id}>
-          {`${formatDateToLocal(newDate(message.createdAt))} ${
+        <span key={message.id} className="ag-detail-ev">
+          <span>{formatDateToLocal(newDate(message.createdAt))}</span>
+          <span>{`${
             message.from.kind === "owner"
               ? "You"
               : (message.from.name ?? "agent")
           }${message.importance === "high" ? " (urgent)" : ""}: ${
             message.body
-          }${acks(message)}`}
+          }${acks(message)}`}</span>
         </span>
       ))}
-      <input
-        aria-label="Reply as yourself"
-        value={reply}
-        maxLength={2000}
-        placeholder="Reply"
-        onChange={(e) => setReply(e.target.value)}
-      />
-      <SBtn disabled={!reply.trim() || sending} onClick={send}>
-        Send
-      </SBtn>
-    </div>
+      <span className="ag-form">
+        <input
+          className="nt-input"
+          aria-label="Reply as yourself"
+          value={reply}
+          maxLength={2000}
+          placeholder="Reply"
+          onChange={(e) => setReply(e.target.value)}
+        />
+        <AgBtn disabled={!reply.trim() || sending} onClick={send}>
+          Send
+        </AgBtn>
+      </span>
+    </>
   );
 }

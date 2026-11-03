@@ -45,6 +45,7 @@ import {
 } from "@/lib/needt3/hooks/reminders";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -613,6 +614,7 @@ function useAnchored(open: boolean) {
 /** Top right on every screen: the bell and the help mark. */
 export function TopIcons() {
   const shell = useShellApi();
+  const store = useStoreDistribution();
   const unreadCount = useNotificationFeed("activity").data?.unreadCount ?? 0;
   const unread = unreadCount > 0;
   const container = useV3PortalContainer();
@@ -653,7 +655,7 @@ export function TopIcons() {
      drawn. Its FAQ is Help: the guides on the website, in a new tab.
      //todo: add them in the prototype's order (feedback first, Markdown
      last) once the pages exist. */
-  const help: [React.ReactNode, string, () => void, boolean, string?][] = [
+  const helpRows: [React.ReactNode, string, () => void, boolean, string?][] = [
     [<LuSparkles key="i" size={15} />, "What's new", openNews, unseenNews],
     [
       <LuBookOpen key="i" size={15} />,
@@ -684,6 +686,10 @@ export function TopIcons() {
       "?",
     ],
   ];
+  /* Help is the website: a store build links nowhere off the app. */
+  const help = store
+    ? helpRows.filter(([, label]) => label !== "Help")
+    : helpRows;
 
   const bell = (
     <button

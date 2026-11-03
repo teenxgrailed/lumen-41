@@ -25,6 +25,7 @@ import {
 } from "react-icons/lu";
 
 import { useOnline } from "@/lib/needt3/use-online";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import {
   GlassCard,
@@ -331,6 +332,7 @@ export function AuthScreen({
   age: ageProp,
 }: AuthScreenProps) {
   const signup = mode !== "login";
+  const store = useStoreDistribution();
   const age = useAgeState(ageProp);
   const [ageMissing, setAgeMissing] = React.useState(false);
   const online = useOnline();
@@ -809,7 +811,8 @@ export function AuthScreen({
           </button>
         </p>
       ) : null}
-      {showWaitlist({ mode, signupClosed }) ? (
+      {/* The waitlist is the website: a store build links nowhere off the app. */}
+      {!store && showWaitlist({ mode, signupClosed }) ? (
         <p className="axs-switch" data-px-calm data-auth-waitlist>
           {WAITLIST.lead}
           <a className="ax-link auth-signin-text-4" href={WAITLIST.href}>

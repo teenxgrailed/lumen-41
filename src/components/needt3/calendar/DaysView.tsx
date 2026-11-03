@@ -2,8 +2,6 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-
 import type { ProjectLike } from "@/lib/needt3/derive";
 import type { DayBand } from "@/lib/personal-time-days";
 
@@ -18,7 +16,6 @@ import {
   c2AgendaFold,
   c2Time,
   c2WithGaps,
-  spanLabel,
 } from "./layout";
 import { MoreRow, type SlotMore, SlotPop, useSlot } from "./popovers";
 
@@ -68,7 +65,6 @@ export interface DaysViewProps {
   today: string;
   n: AgendaSize;
   onN: (n: AgendaSize) => void;
-  onPage: (dir: -1 | 1) => void;
   projects?: readonly ProjectLike[];
   onOpen?: (id: string) => void;
   dragProps?: DragProps;
@@ -81,7 +77,8 @@ export interface DaysViewProps {
 
 /**
  * AGENDA (internal value "days") — a column per day: header, all-day items,
- * then timed rows, 3 / 5 / 7 at a time, paged with ‹ ›. Each column is a
+ * then timed rows, 3 / 5 / 7 at a time. Paging (‹ ›) and the span label live
+ * once, in the calendar header above; the bar here only picks how many days. Each column is a
  * "day" drop target (time kept); the gap between two timed rows is a
  * "timeline" strip at the time between them ($P/calendar2.jsx AGENDA DROP).
  */
@@ -92,7 +89,6 @@ export function DaysView({
   today,
   n,
   onN,
-  onPage,
   projects,
   onOpen,
   dragProps,
@@ -125,25 +121,6 @@ export function DaysView({
   return (
     <div className="c2-stack">
       <div className="c2-days-bar">
-        <button
-          type="button"
-          aria-label="Previous days"
-          className="nx-btn nx-btn-text nx-btn-sm c2-days-page"
-          onClick={() => onPage(-1)}
-        >
-          <FiChevronLeft size={15} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label="Next days"
-          className="nx-btn nx-btn-text nx-btn-sm c2-days-page"
-          onClick={() => onPage(1)}
-        >
-          <FiChevronRight size={15} aria-hidden="true" />
-        </button>
-        <span data-c2-range="1" className="c2-days-range">
-          {spanLabel(days, false)}
-        </span>
         <span className="c2-days-seg">
           <Seg2
             value={String(n)}

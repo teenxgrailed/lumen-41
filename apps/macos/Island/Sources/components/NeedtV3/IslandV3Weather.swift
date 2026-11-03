@@ -1,4 +1,6 @@
+#if !APPSTORE
 import CoreLocation
+#endif
 import Foundation
 import NeedtKit
 import SwiftUI
@@ -33,6 +35,10 @@ enum IslandV3WeatherState: Equatable {
     case unavailable(String)
 }
 
+// Mac App Store build: no location, no WeatherKit (it needs its own App ID
+// capability) and no weather tile. The reading and state types above stay
+// because the CI renderer carries them.
+#if !APPSTORE
 @MainActor
 final class IslandV3Weather: NSObject, ObservableObject, CLLocationManagerDelegate {
     static let shared = IslandV3Weather()
@@ -181,3 +187,5 @@ struct IslandV3WeatherTile: View {
         Text("Weather").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.5))
     }
 }
+
+#endif

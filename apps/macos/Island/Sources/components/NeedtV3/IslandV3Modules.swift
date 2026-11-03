@@ -425,7 +425,9 @@ struct IslandV3DevicesModule: View {
 struct IslandV3ToolsModule: View {
     @State private var end: Date?
     @State private var minutes = 5
+#if !APPSTORE
     @ObservedObject private var weather = IslandV3Weather.shared
+#endif
     @Environment(\.islandStatic) private var isStatic
 
     var body: some View {
@@ -465,10 +467,16 @@ struct IslandV3ToolsModule: View {
             .padding(12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.06)))
+#if !APPSTORE
             IslandV3WeatherTile(weather: weather)
+#endif
         }
         .frame(height: 140)
-        .onAppear { if !isStatic { weather.refresh() } }
+        .onAppear {
+#if !APPSTORE
+            if !isStatic { weather.refresh() }
+#endif
+        }
     }
 }
 

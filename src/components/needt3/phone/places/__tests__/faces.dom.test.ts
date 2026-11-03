@@ -129,6 +129,8 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({ data: [] }),
+  useTrashedProjects: () => ({ data: [] }),
+  useTrashProject: () => ({ trash: jest.fn(), restore: jest.fn() }),
 }));
 
 let host: HTMLDivElement;

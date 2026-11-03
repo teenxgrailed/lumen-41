@@ -30,10 +30,12 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { WithdrawalWaiver } from "../../paywall/WithdrawalWaiver";
 import { PxSky } from "../../scenes";
 import { PkButton, PkGlass, PkSheet, pkCx } from "../kit";
+import { PkStoreProSheet } from "./StoreProSheet";
 import {
   type PwPick,
   checkoutBody,
@@ -181,7 +183,19 @@ export interface PkPaywallProps {
   cycle?: string | null;
 }
 
-export function PkPaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
+/**
+ * In a store build (iOS app) the sheet is one sentence and Close: the
+ * purchase sheet below, with its prices, checkout call and trial step, is not
+ * mounted at all.
+ */
+export function PkPaywall(props: PkPaywallProps) {
+  const store = useStoreDistribution();
+  if (store)
+    return <PkStoreProSheet open={props.open} onClose={props.onClose} />;
+  return <PkPurchasePaywall {...props} />;
+}
+
+function PkPurchasePaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
   const plan = usePlan().data;
   const student = showsStudentPrices(plan);
   const p = useMemo(() => priceStrings(undefined, { student }), [student]);

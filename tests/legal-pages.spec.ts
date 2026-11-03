@@ -4,6 +4,7 @@ for (const [path, title] of [
   ["/terms", "Needt Terms of Service"],
   ["/privacy", "Needt Privacy Notice"],
   ["/subprocessors", "Needt Subprocessors"],
+  ["/support", "Support"],
 ] as const) {
   test(`${path} publishes the final document`, async ({ page }) => {
     await page.goto(path);

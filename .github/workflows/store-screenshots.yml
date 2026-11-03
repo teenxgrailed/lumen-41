@@ -1,0 +1,373 @@
+name: Store screenshots
+
+# App Store screenshots for the iPhone, iPad and Mac listings (apps/ios/store,
+# apps/macos/store). Run by hand: Actions > Store screenshots > Run workflow.
+# Nothing is published or signed; the artifact `needt-store-screenshots` is for
+# a person to upload to App Store Connect.
+#
+#  - ios-app:  the iOS shell built for the Simulator with a CI-only Capacitor
+#              config (apps/ios/ci/capacitor.config.ci.json) that opens
+#              http://127.0.0.1:3001/ instead of https://use.needt.app.
+#  - mac-app:  the Mac app with the CI harness, as in macos-webview.yml.
+#  - widgets:  the widget renders of widgets.yml.
+#  - shots:    a throwaway Postgres/Redis/Next server on the runner (the same
+#              CI-only secrets as safari-phone.yml, nothing touches production),
+#              the sample planner the App Review demo account gets, a session
+#              from the credentials endpoint, then the shots; sizes are checked.
+#
+# Sizes: iPhone 6.9" 1320x2868, 6.5" 1284x2778, iPad 13" 2064x2752, Mac
+# 2880x1800. Files: <device>_<W>x<H>_<NN>-<screen>.png.
+#
+# //todo iPhone and iPad shots show the web app's global error page until
+# PWARegister stops using navigator.serviceWorker where it is undefined (WKWebView):
+# see apps/ios/store/README.md. login-server.mjs logs what the page throws to
+# login.log in the artifact (lines starting PAGE). Mac and widget shots are good.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: needt-store-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ios-app:
+    name: iOS shell for the Simulator (CI config)
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/ios/package-lock.json
+
+      - run: npm ci
+
+      - name: Sync native project
+        run: npx cap sync ios
+
+      # The committed config opens https://use.needt.app. This run's copy opens
+      # the local login redirect instead; the committed files are not changed.
+      - name: CI config and local-network exception (runner copy only)
+        run: |
+          set -euo pipefail
+          cp ci/capacitor.config.ci.json ios/App/App/capacitor.config.json
+          grep '"url"' ios/App/App/capacitor.config.json
+          /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" ios/App/App/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent bool true" ios/App/App/Info.plist
+          plutil -p ios/App/App/Info.plist | grep -A3 NSAppTransportSecurity
+
+      - name: Build for the Simulator (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tail -n 60
+
+      - name: Zip the app
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Debug-iphonesimulator/App.app out/Needt-store-sim.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: store-ios-app
+          path: apps/ios/out/Needt-store-sim.zip
+          retention-days: 3
+
+  mac-app:
+    name: Needt.app with the CI harness
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      - name: Build (no signing, CI harness on)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Needt.xcodeproj \
+            -scheme Needt \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build-ci \
+            NEEDT_CI_CONDITION=NEEDT_CI \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build-ci.log | tail -n 60
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build-ci.log | sort -u | head -80 || true
+
+      - name: Zip the CI app
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build-ci/Build/Products/Release/Needt.app
+          strings "$APP/Contents/MacOS/Needt" > "$RUNNER_TEMP/ci-strings.txt"
+          grep -q -- "--ci-session-cookie" "$RUNNER_TEMP/ci-strings.txt"
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Needt-ci.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: store-mac-app
+          path: apps/macos/out/Needt-ci.zip
+          retention-days: 3
+
+  widgets:
+    name: Widget renders
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Render every widget (NeedtWidgetKit snapshot test)
+        working-directory: apps/shared/NeedtWidgetKit
+        env:
+          NEEDT_SNAPSHOT_DIR: ${{ runner.temp }}/needt-widget-snapshots
+        run: swift test
+
+      - name: Keep the ones the store shot uses
+        run: |
+          set -euo pipefail
+          mkdir -p widgets
+          for f in ink-today-medium-normal-light ink-next-medium-normal-light ink-focus-medium-running-light ink-habits-medium-pro3-light; do
+            cp "$RUNNER_TEMP/needt-widget-snapshots/$f.png" widgets/
+          done
+          ls -l widgets
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: store-widgets
+          path: widgets
+          retention-days: 3
+
+  shots:
+    name: Screenshots (iPhone, iPad, Mac)
+    needs: [ios-app, mac-app, widgets]
+    if: ${{ !cancelled() }}
+    runs-on: macos-26
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_test
+      DIRECT_URL: postgresql://needt:needt@localhost:5432/needt_test
+      SHADOW_DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_shadow
+      REDIS_URL: redis://localhost:6379
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_SECRET: needt-ci-only-secret-not-valid-outside-github-actions
+      RATE_LIMIT_HASH_SECRET: needt-ci-rate-limit-hash-secret
+      NODE_OPTIONS: --max-old-space-size=5120
+      PROBE_EMAIL: ci-pro@needt.local
+      PROBE_PASSWORD: Needt-ci-Password1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Start PostgreSQL and Redis
+        run: |
+          set -euo pipefail
+          brew install postgresql@16 redis
+          brew services start postgresql@16
+          brew services start redis
+          PGBIN="$(brew --prefix postgresql@16)/bin"
+          echo "$PGBIN" >> "$GITHUB_PATH"
+          for i in $(seq 1 30); do "$PGBIN/pg_isready" -h localhost && break; sleep 2; done
+          "$PGBIN/psql" -h localhost -d postgres -c "CREATE ROLE needt LOGIN SUPERUSER PASSWORD 'needt'"
+          "$PGBIN/createdb" -h localhost -O needt needt_test
+          "$PGBIN/createdb" -h localhost -O needt needt_shadow
+          redis-cli ping
+
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/ci-seed.ts
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build and start the web app
+        run: |
+          set -euo pipefail
+          npm run build
+          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          disown
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/next.log"
+          exit 1
+
+      # What the sign-in form posts. The session cookie goes to the Mac app
+      # (--ci-session-cookie) and to the iOS login redirect (login-server.mjs).
+      - name: Session
+        run: |
+          set -euo pipefail
+          HOST=http://127.0.0.1:3000
+          JAR="$RUNNER_TEMP/jar.txt"
+          curl -fsS -c "$JAR" -b "$JAR" -o "$RUNNER_TEMP/csrf.json" "$HOST/api/auth/csrf"
+          CSRF="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["csrfToken"])' "$RUNNER_TEMP/csrf.json")"
+          curl -sS -c "$JAR" -b "$JAR" -o /dev/null -w "callback %{http_code}\n" \
+            -X POST "$HOST/api/auth/callback/credentials" \
+            --data-urlencode "csrfToken=$CSRF" \
+            --data-urlencode "email=$PROBE_EMAIL" \
+            --data-urlencode "password=$PROBE_PASSWORD" \
+            --data-urlencode "callbackUrl=$HOST/today" \
+            --data-urlencode "json=true"
+          curl -fsS -b "$JAR" -o "$RUNNER_TEMP/session.json" "$HOST/api/auth/session"
+          python3 -c "import json,sys; u=(json.load(open(sys.argv[1])).get('user') or {}); print('session for', u.get('email')); sys.exit(0 if u.get('email')==sys.argv[2] else 1)" "$RUNNER_TEMP/session.json" "$PROBE_EMAIL"
+          awk -F'\t' '$6 ~ /^next-auth\.session-token/ {print $6"="$7}' "$JAR" | head -n 1 > "$RUNNER_TEMP/cookie.txt"
+          test -s "$RUNNER_TEMP/cookie.txt"
+          echo "cookie $(cut -d= -f1 "$RUNNER_TEMP/cookie.txt"), $(wc -c < "$RUNNER_TEMP/cookie.txt") bytes"
+          # The first signed-in API request creates the personal workspace the
+          # seeded rows belong to.
+          curl -fsS -b "$JAR" -o /dev/null -w "tasks %{http_code}\n" "$HOST/api/tasks"
+
+      - name: The sample planner (what the App Review demo account gets)
+        env:
+          STORE_IDS_FILE: ${{ runner.temp }}/ids.json
+        run: |
+          npx tsx .github/store-screenshots/seed.ts all
+          cat "$RUNNER_TEMP/ids.json"
+
+      - name: Artifacts from the build jobs
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/ios" "$RUNNER_TEMP/mac" "$RUNNER_TEMP/widgets"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n store-ios-app -D "$RUNNER_TEMP/ios" || echo "no iOS app"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n store-mac-app -D "$RUNNER_TEMP/mac" || echo "no Mac app"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n store-widgets -D "$RUNNER_TEMP/widgets" || echo "no widget renders"
+          [ -f "$RUNNER_TEMP/ios/Needt-store-sim.zip" ] && ditto -x -k "$RUNNER_TEMP/ios/Needt-store-sim.zip" "$RUNNER_TEMP/ios"
+          [ -f "$RUNNER_TEMP/mac/Needt-ci.zip" ] && ditto -x -k "$RUNNER_TEMP/mac/Needt-ci.zip" "$RUNNER_TEMP/mac"
+          ls "$RUNNER_TEMP/ios" "$RUNNER_TEMP/mac" "$RUNNER_TEMP/widgets"
+
+      - name: Login redirect for the iOS shell
+        run: |
+          set -euo pipefail
+          echo -n /today > "$RUNNER_TEMP/target"
+          nohup node .github/store-screenshots/login-server.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/target" 3001 > "$RUNNER_TEMP/login.log" 2>&1 < /dev/null &
+          disown
+          sleep 2
+          curl -sS -o /dev/null -D - http://127.0.0.1:3001/ | head -5
+          # The signed-in page as the server sends it (a cookie that did not take
+          # would show the sign-in page here).
+          curl -sS -b "$RUNNER_TEMP/jar.txt" -o "$RUNNER_TEMP/today.html" -w "today %{http_code} %{size_download} bytes\n" http://127.0.0.1:3000/today
+          grep -o '<title>[^<]*</title>' "$RUNNER_TEMP/today.html" || true
+
+      - name: iPhone and iPad shots
+        timeout-minutes: 50
+        continue-on-error: true
+        run: bash .github/store-screenshots/ios-shots.sh "$RUNNER_TEMP/ios/App.app" store "$RUNNER_TEMP/iostmp" "$RUNNER_TEMP/ids.json"
+
+      - name: Mac display and helper tool
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          swiftc -O .github/macos-webview/NeedtCI.swift -o "$RUNNER_TEMP/needt-ci"
+          "$RUNNER_TEMP/needt-ci" display 1600 1000 || true
+
+      - name: Mac shots
+        timeout-minutes: 20
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          xattr -dr com.apple.quarantine "$RUNNER_TEMP/mac/Needt.app" || true
+          python3 -I .github/store-screenshots/mac-shots.py "$RUNNER_TEMP/mac/Needt.app" "$RUNNER_TEMP/needt-ci" "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/ids.json" store
+
+      - name: Widgets shot
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet pillow
+          "$RUNNER_TEMP/venv/bin/python" .github/store-screenshots/compose.py widgets "$RUNNER_TEMP/widgets" store
+
+      - name: Sizes
+        id: verify
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mkdir -p store
+          rm -f store/raw-*.png
+          "$RUNNER_TEMP/venv/bin/python" .github/store-screenshots/compose.py verify store | tee store/sizes.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Store screenshots"
+            echo '```'
+            ls -l store 2>/dev/null | awk '{print $5, $9}' | sort -k2
+            echo '```'
+            echo "Sizes check:"
+            echo '```'
+            cat store/sizes.txt 2>/dev/null || echo "not run"
+            echo '```'
+            echo "Notes (scaled shots are marked):"
+            echo '```'
+            grep -h "SCALED\|NOTE\|NO DEVICE\|WARN\|FAIL" store/ios-shots.log store/mac-shots.log 2>/dev/null || echo "none"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cp "$RUNNER_TEMP/next.log" store/next.log 2>/dev/null || true
+          cp "$RUNNER_TEMP/login.log" store/login.log 2>/dev/null || true
+          cp "$RUNNER_TEMP/today.html" store/today.html 2>/dev/null || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-store-screenshots
+          path: store
+          if-no-files-found: warn
+
+      - name: Gate
+        if: always()
+        run: |
+          if [ "${{ steps.verify.outcome }}" != "success" ]; then
+            echo "::error::Some screenshots are missing or the wrong size (store/sizes.txt in the artifact)"
+            exit 1
+          fi

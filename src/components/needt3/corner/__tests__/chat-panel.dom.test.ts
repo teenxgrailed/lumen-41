@@ -56,7 +56,7 @@ describe("Ask Needt panel", () => {
       "Task: Tank graphic"
     );
     expect(host.querySelector(".chat-hello")?.textContent).toMatch(
-      /^Good (morning|afternoon|evening), Maksym$/
+      /^(Good (morning|afternoon|evening)|Up late), Maksym$/
     );
     expect(host.querySelector(".chat-hello-sub")?.textContent).toBe(
       "I'm looking at “Tank graphic”. Ask what to do with it."
@@ -88,6 +88,62 @@ describe("Ask Needt panel", () => {
       false,
       "Break the task “Tank graphic” into steps"
     );
+  });
+
+  describe("when Needt's own AI cannot answer", () => {
+    const input = () =>
+      host.querySelector<HTMLTextAreaElement>("[data-chat-input]")!;
+
+    it("Free: the composer and all six cards are disabled, Pro is offered", () => {
+      const onUpgrade = jest.fn();
+      const props = render({ gate: { kind: "pro" }, onUpgrade });
+      expect(input().disabled).toBe(true);
+      expect(input().placeholder).toBe("AI is part of Pro");
+      const cards = [
+        ...host.querySelectorAll<HTMLButtonElement>("[data-chat-suggest]"),
+      ];
+      expect(cards).toHaveLength(6);
+      expect(cards.every((c) => c.disabled)).toBe(true);
+      expect(
+        host.querySelector<HTMLButtonElement>("[data-chat-send]")?.disabled
+      ).toBe(true);
+      expect(host.querySelector("[data-chat-gate]")?.textContent).toContain(
+        "AI is part of Pro"
+      );
+      act(() => cards[0].click());
+      expect(props.onSend).not.toHaveBeenCalled();
+      act(() =>
+        host
+          .querySelector<HTMLButtonElement>("[data-chat-gate-upgrade]")
+          ?.click()
+      );
+      expect(onUpgrade).toHaveBeenCalledTimes(1);
+    });
+
+    it("a used allowance names the renewal day, not a provider outage", () => {
+      const onOwnAi = jest.fn();
+      render({ gate: { kind: "allowance", until: "1 Dec" }, onOwnAi });
+      expect(input().disabled).toBe(true);
+      expect(input().placeholder).toBe("AI allowance used until 1 Dec");
+      const note = host.querySelector("[data-chat-gate='allowance']");
+      expect(note?.textContent).toContain("used until 1 Dec");
+      expect(note?.textContent).not.toMatch(/could not reach/i);
+      expect(host.querySelector("[data-chat-gate-upgrade]")).toBeNull();
+      act(() =>
+        host.querySelector<HTMLButtonElement>("[data-chat-gate-own]")?.click()
+      );
+      expect(onOwnAi).toHaveBeenCalledTimes(1);
+    });
+
+    it("without a gate everything stays live", () => {
+      render();
+      expect(input().disabled).toBe(false);
+      expect(host.querySelector("[data-chat-gate]")).toBeNull();
+      const cards = [
+        ...host.querySelectorAll<HTMLButtonElement>("[data-chat-suggest]"),
+      ];
+      expect(cards.some((c) => c.disabled)).toBe(false);
+    });
   });
 
   describe("opening", () => {

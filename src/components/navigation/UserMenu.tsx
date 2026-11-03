@@ -36,11 +36,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { signOutOfNeedt } from "@/lib/auth/client-sign-out";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 /** Help lives on the website, opened in a new window like the legal pages. */
 const HELP_URL = "https://needt.app/help/";
 
 export function UserMenu() {
+  const store = useStoreDistribution();
   const { data: session, status } = useAppSession();
   const { theme, setTheme } = useTheme();
   const {
@@ -197,17 +199,20 @@ export function UserMenu() {
             </DropdownMenuItem>
           </>
         )}
-        <DropdownMenuItem asChild>
-          <a
-            href={HELP_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="cursor-pointer"
-          >
-            <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Help</span>
-          </a>
-        </DropdownMenuItem>
+        {/* Help is the website: a store build links nowhere off the app. */}
+        {store ? null : (
+          <DropdownMenuItem asChild>
+            <a
+              href={HELP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="cursor-pointer"
+            >
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Help</span>
+            </a>
+          </DropdownMenuItem>
+        )}
         <div className="px-2 py-2">
           <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
             Theme

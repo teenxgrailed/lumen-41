@@ -7,6 +7,7 @@ import { LuLock, LuSearch, LuX } from "react-icons/lu";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
@@ -73,6 +74,7 @@ function useLast<T>(value: T | null) {
 export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const plan = usePlan();
+  const store = useStoreDistribution();
   const [acctKey, setAcctKey] = useState<string | null>(null);
   const acctNow = acctKey
     ? (c.items.find((i) => i.key === acctKey) ?? null)
@@ -260,19 +262,24 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         Your tasks, calendar and notes {"—"} right where you already ask
         questions.
       </span>
-      <PkButton
-        kind="primary"
-        block
-        onClick={() => openPaywall("AI tools")}
-        data-ppl-promo-try=""
-      >
-        {offersTrial(plan.data)
-          ? `Try Pro free for ${P.trialDays} days`
-          : "Get Pro"}
-      </PkButton>
-      <PkButton block onClick={() => openPaywall()} data-ppl-promo-plans="">
-        See plans
-      </PkButton>
+      {/* No buttons to buy or try Pro in a store build. */}
+      {store ? null : (
+        <>
+          <PkButton
+            kind="primary"
+            block
+            onClick={() => openPaywall("AI tools")}
+            data-ppl-promo-try=""
+          >
+            {offersTrial(plan.data)
+              ? `Try Pro free for ${P.trialDays} days`
+              : "Get Pro"}
+          </PkButton>
+          <PkButton block onClick={() => openPaywall()} data-ppl-promo-plans="">
+            See plans
+          </PkButton>
+        </>
+      )}
     </PkGlass>
   ) : (
     <div className="ppl-list" data-ppl-ai-list="">

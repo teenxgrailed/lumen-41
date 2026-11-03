@@ -49,7 +49,7 @@ export function useUpdateProject() {
       return cur ? { id, patch: previousFields(cur, patch) } : null;
     },
     optimistic: (qc, { id, patch }) =>
-      patch.archived
+      patch.archived || patch.trashedAt
         ? dropListItem<V3Project>(qc, PROJECTS, id)
         : patchListItem<V3Project>(qc, PROJECTS, id, (p) => ({
             ...p,
@@ -74,6 +74,35 @@ export function useArchiveProject() {
     archive: (id: string) =>
       update.mutateAsync({ id, patch: { archived: true } }),
   };
+}
+
+/**
+ * Move a project to Trash (soft delete) and back. Undo restores it; Restore in
+ * Trash is the same write. Trashed projects leave `useProjects`, and
+ * `useTrashedProjects` lists them.
+ */
+export function useTrashProject() {
+  const update = useUpdateProject();
+  return {
+    ...update,
+    trash: (id: string, at: string) =>
+      update.mutateAsync({ id, patch: { trashedAt: at } }),
+    restore: (id: string) =>
+      update.mutateAsync({ id, patch: { trashedAt: null } }),
+  };
+}
+
+/** Projects in Trash, newest first. */
+export function useTrashedProjects() {
+  return useQuery({
+    queryKey: [...PROJECTS, "trash"] as const,
+    queryFn: async () => {
+      const rows = await fetchJson<ApiProject[]>("/api/projects?trashed=1");
+      return rows
+        .map(projectFromApi)
+        .sort((a, b) => (b.trashedAt ?? "").localeCompare(a.trashedAt ?? ""));
+    },
+  });
 }
 
 type ProjectDraft = Partial<Omit<V3Project, "id" | "archived">> & {

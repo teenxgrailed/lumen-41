@@ -1,0 +1,77 @@
+{
+  "identifier": "7E1C0A11",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "149.00",
+      "familyShareable": false,
+      "internalID": "61890003",
+      "localizations": [
+        {
+          "description": "Needt Pro, paid once, yours for good.",
+          "displayName": "Needt Lifetime",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "app.needt.lifetime",
+      "referenceName": "Needt Lifetime",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {},
+  "subscriptionGroups": [
+    {
+      "id": "21890001",
+      "localizations": [],
+      "name": "Needt Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "59.00",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "61890002",
+          "localizations": [
+            {
+              "description": "Everything in Needt Pro, billed yearly.",
+              "displayName": "Needt Pro Yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "app.needt.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Needt Pro Yearly",
+          "subscriptionGroupID": "21890001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "7.00",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "61890001",
+          "localizations": [
+            {
+              "description": "Everything in Needt Pro, billed monthly.",
+              "displayName": "Needt Pro Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "app.needt.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Needt Pro Monthly",
+          "subscriptionGroupID": "21890001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

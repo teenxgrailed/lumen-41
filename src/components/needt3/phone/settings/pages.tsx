@@ -17,6 +17,7 @@ import {
 } from "@/lib/needt3/hooks/settings";
 import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { CityField } from "../../settings/CityField";
 import { useMark } from "../../settings/SettingsContext";
@@ -446,6 +447,7 @@ export function KeysPage() {
 export function AboutPage() {
   const { news } = usePs();
   const unseen = useWhatsNewUnseen();
+  const store = useStoreDistribution();
   return (
     <PsGroup>
       <PsRow title="Version" value={currentBuildLabel()} />
@@ -459,12 +461,17 @@ export function AboutPage() {
         onOpen={news}
         data={{ "data-ps-news-open": "" }}
       />
-      <PsRow title="Help" out onOpen={openHelp} />
+      {store ? null : <PsRow title="Help" out onOpen={openHelp} />}
       <PsRow title="Terms" out onOpen={() => window.open("/terms", "_blank")} />
       <PsRow
         title="Privacy"
         out
         onOpen={() => window.open("/privacy", "_blank")}
+      />
+      <PsRow
+        title="Support"
+        out
+        onOpen={() => window.open("/support", "_blank")}
       />
       <PsRow
         title="Subprocessors"

@@ -16,6 +16,7 @@ import {
   proLimitFull,
   proLimitText,
 } from "@/lib/needt3/paywall";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { openPaywall } from "./store";
 
@@ -147,8 +148,11 @@ export function ProUpsell({
   const { data: plan } = usePlan();
   const settings = useSettings();
   const setPref = useSetPref();
+  const store = useStoreDistribution();
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
+  /* A store build carries no call to action to buy or try Pro. */
+  if (store) return null;
   if (!plan || isPro(plan.kind) || !settings.data) return null;
   if (gone || settings.data.prefs[upsellKey(id)] === true) return null;
   const dismiss = (e: React.MouseEvent) => {
@@ -209,6 +213,7 @@ export function ProLimit({
   className,
 }: ProLimitFacts & { feature?: string; className?: string }) {
   const pro = useIsPro();
+  const store = useStoreDistribution();
   if (pro) return null;
   const facts = { used, max, noun };
   return (
@@ -221,7 +226,8 @@ export function ProLimit({
       data-pro-limit={noun}
     >
       <span>{proLimitText(facts)}</span>
-      {proLimitFull(facts) ? (
+      {/* The limit stays; the "Upgrade for more" button does not (store build). */}
+      {proLimitFull(facts) && !store ? (
         <button
           type="button"
           className="pro-limit-up"

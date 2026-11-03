@@ -2,6 +2,7 @@
 import AppKit
 import Combine
 import Defaults
+import Observation
 import SwiftUI
 
 // The Mac App Store build of the island.
@@ -243,5 +244,114 @@ public struct LiquidGlassBackground<Content: View>: View {
     public var body: some View {
         content.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
+}
+
+// MARK: features the store build leaves out (see the excludes in project.yml)
+//
+// The island here is the Needt modules, the calendar and music through
+// AppleScript. These stand-ins keep the rest of the island compiling; none of
+// them runs a subprocess, opens a socket or talks to a server.
+
+// Chromium download watcher (watches ~/Downloads, outside the sandbox)
+@Observable
+@MainActor
+class DownloadManager {
+    static let shared = DownloadManager()
+    private(set) var isDownloading: Bool = false
+    private(set) var isDownloadCompleted: Bool = false
+    init() {}
+}
+
+struct DownloadLiveActivity: View {
+    var body: some View { EmptyView() }
+}
+
+// LocalSend (multicast discovery, arp, local server)
+struct LocalSendDeviceInfo: Identifiable, Hashable, Sendable {
+    let id: String
+    let alias: String
+    let ip: String
+    let port: Int
+    let https: Bool
+    let model: String?
+}
+
+enum LocalSendTransferState: Equatable {
+    case idle
+    case sending
+    case completed
+    case failed(String)
+    case rejected(deviceID: String)
+}
+
+@MainActor
+final class LocalSendService: NSObject, ObservableObject {
+    static let shared = LocalSendService()
+    @Published private(set) var isSending = false
+    @Published private(set) var sendProgress: Double = 0
+    @Published private(set) var transferState: LocalSendTransferState = .idle
+    @Published var selectedDeviceID: String = ""
+    func startDiscovery() {}
+    func send(items: [Any]) async throws {}
+}
+
+@MainActor
+final class LocalSendDevicePickerWindowManager {
+    static let shared = LocalSendDevicePickerWindowManager()
+    private init() {}
+    func show(
+        onDeviceSelected: @escaping (LocalSendDeviceInfo) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {}
+    func hide() {}
+}
+
+struct LocalSendLiveActivity: View {
+    var body: some View { EmptyView() }
+}
+
+// Spotify canvas session (the web-player token manager is not compiled)
+extension Notification.Name {
+    static let spotifyCanvasSessionDidChange = Notification.Name("SpotifyCanvasSessionDidChange")
+}
+
+// Third-party extension API (websocket server, XPC listener)
+@MainActor
+final class ExtensionXPCServiceHost {
+    static let shared = ExtensionXPCServiceHost()
+    private init() {}
+    func start() {}
+    func stop() {}
+    func notifyAuthorizationChange(bundleIdentifier: String, isAuthorized: Bool) {}
+    func notifyActivityDismiss(bundleIdentifier: String, activityID: String) {}
+    func notifyWidgetDismiss(bundleIdentifier: String, widgetID: String) {}
+    func notifyNotchExperienceDismiss(bundleIdentifier: String, experienceID: String) {}
+}
+
+@MainActor
+final class ExtensionRPCServer {
+    static let shared = ExtensionRPCServer()
+    private init() {}
+    func start() {}
+    func stop() {}
+    func notifyActivityDismiss(bundleIdentifier: String, activityID: String) {}
+    func notifyWidgetDismiss(bundleIdentifier: String, widgetID: String) {}
+    func notifyNotchExperienceDismiss(bundleIdentifier: String, experienceID: String) {}
+    func notifyAuthorizationChange(bundleIdentifier: String, isAuthorized: Bool) {}
+    func notifyShelfItemsChanged(itemIDs: [String], action: String) {}
+}
+
+// Lock screen artwork as wallpaper (edits the wallpaper store, runs killall)
+@MainActor
+final class FullScreenArtworkWindowManager: ObservableObject {
+    static let shared = FullScreenArtworkWindowManager()
+    @Published private(set) var isShowing = false
+    @Published private(set) var isShowingSpotifyCanvasFallback = false
+    var onDismiss: (() -> Void)?
+    private init() {}
+    func show(artwork: NSImage, videoURL: URL? = nil, allowLiveWallpaper: Bool = false) {}
+    func hide() {}
+    func spotifyCanvasFallbackInterItemSpacing(screenFrame: NSRect) -> CGFloat { 0 }
+    func spotifyCanvasFallbackArtworkSideLength(screenFrame: NSRect, panelSize: CGSize) -> CGFloat { 0 }
 }
 #endif

@@ -279,3 +279,31 @@
   font: var(--type-meta);
   color: var(--text-tertiary);
 }
+
+/* The scrollbar is hidden, so the card says when there are more hours: a soft
+   fade at the bottom while the grid can still
+   scroll. Grey on the card colour, no accent. */
+.needt-v3 .c2-week {
+  position: relative;
+}
+.needt-v3 .c2-week::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  pointer-events: none;
+  z-index: 7;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: linear-gradient(to top, var(--surface-raised), transparent);
+}
+.needt-v3 .c2-week[data-more-below]::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .c2-week::after {
+    transition: none;
+  }
+}

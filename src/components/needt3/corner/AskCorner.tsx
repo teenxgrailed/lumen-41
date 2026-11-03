@@ -77,7 +77,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 import { useExit } from "../ctx/useExit";
 import { agentBusy } from "../cursor/hand";
 import { AiOrb } from "../orb/AiOrb";
-import { usePaywallStore } from "../paywall/store";
+import { openPaywall, usePaywallStore } from "../paywall/store";
 import { useShellApi } from "../shell/ShellContext";
 import { useAsk } from "./AskProvider";
 import { PANEL_EXIT_MS } from "./ChatDockSlot";
@@ -94,6 +94,7 @@ import {
   quietPlace,
 } from "./nudge-tip";
 import { firstName } from "./scope";
+import { useAskGate } from "./useAskGate";
 
 /** The entrance is over: the layer hints and the glass header may come back. */
 function settle(e: React.AnimationEvent<HTMLElement>) {
@@ -195,6 +196,7 @@ function Corner() {
   const paletteOpen = useNeedt3Ui((s) => s.paletteOpen);
   const composerOpen = useNeedt3Ui((s) => s.composerOpen);
   const paywallOpen = usePaywallStore((s) => s.open);
+  const gate = useAskGate();
   const [hovering, setHovering] = React.useState(false);
   /* Keyboard focus inside the island, kept apart from the mouse so a mouse
      leaving does not drop a held focus and a focus leaving does not drop a
@@ -413,6 +415,9 @@ function Corner() {
       onPopLast={ask.popLast}
       onUndo={(id, actionId) => void ask.undo(id, actionId)}
       onUndoAll={(id, runId) => void ask.undoAll(id, runId)}
+      gate={gate}
+      onUpgrade={() => openPaywall("Ask Needt")}
+      onOwnAi={() => router.push("/connections#ai")}
     />
   );
   const panelFrame = narrow ? (

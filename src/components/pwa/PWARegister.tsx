@@ -41,7 +41,7 @@ export function PWARegister() {
       ? "standalone"
       : "browser";
 
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    if (typeof navigator !== "undefined" && navigator.serviceWorker) {
       if (
         process.env.NODE_ENV === "development" &&
         process.env.NEXT_PUBLIC_PWA_IN_DEV !== "1"
@@ -116,7 +116,7 @@ export function PWARegister() {
   }, []);
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker) {
       return;
     }
     const handleWorkerMessage = (event: MessageEvent) => {
@@ -151,6 +151,9 @@ export function PWARegister() {
       return () => window.removeEventListener("online", retryCleanup);
     }
 
+    // WKWebView (the iOS and Mac apps) has `serviceWorker` in navigator but
+    // leaves it undefined outside app-bound domains.
+    if (!navigator.serviceWorker) return;
     let cancelled = false;
     const configureScope = async () => {
       try {

@@ -27,6 +27,7 @@ import {
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { BrandIcon, brandIdFor } from "../brand";
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -349,6 +350,7 @@ function Card({
  */
 function AiPromo() {
   const plan = usePlan();
+  const store = useStoreDistribution();
   return (
     <GlassCard
       className="cn-promo nx-swap"
@@ -374,26 +376,29 @@ function AiPromo() {
             questions.
           </p>
         </div>
-        <div className="cn-promo-cta">
-          <button
-            type="button"
-            className="nx-btn nx-btn-primary cn-promo-btn"
-            data-cn-promo-try=""
-            onClick={() => openPaywall("AI tools")}
-          >
-            {offersTrial(plan.data)
-              ? `Try Pro free for ${P.trialDays} days`
-              : "Get Pro"}
-          </button>
-          <button
-            type="button"
-            className="nx-btn nx-btn-secondary cn-promo-btn"
-            data-cn-promo-plans=""
-            onClick={() => openPaywall()}
-          >
-            See plans
-          </button>
-        </div>
+        {/* No buttons to buy or try Pro in a store build. */}
+        {store ? null : (
+          <div className="cn-promo-cta">
+            <button
+              type="button"
+              className="nx-btn nx-btn-primary cn-promo-btn"
+              data-cn-promo-try=""
+              onClick={() => openPaywall("AI tools")}
+            >
+              {offersTrial(plan.data)
+                ? `Try Pro free for ${P.trialDays} days`
+                : "Get Pro"}
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary cn-promo-btn"
+              data-cn-promo-plans=""
+              onClick={() => openPaywall()}
+            >
+              See plans
+            </button>
+          </div>
+        )}
       </div>
     </GlassCard>
   );

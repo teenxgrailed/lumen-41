@@ -1,6 +1,8 @@
 import Foundation
 import Defaults
+#if !APPSTORE
 import CoreLocation
+#endif
 import Combine
 
 @MainActor
@@ -9,8 +11,10 @@ final class LockScreenWeatherManager: ObservableObject {
 
     @Published private(set) var snapshot: LockScreenWeatherSnapshot?
 
+#if !APPSTORE
     private let provider = LockScreenWeatherProvider()
     private let locationProvider = LockScreenWeatherLocationProvider()
+#endif
     private var lastFetchDate: Date?
     private var latestWeatherPayload: LockScreenWeatherSnapshot?
     private var cancellables = Set<AnyCancellable>()
@@ -26,7 +30,9 @@ final class LockScreenWeatherManager: ObservableObject {
     }
 
     func prepareLocationAccess() {
+#if !APPSTORE
         locationProvider.prepareAuthorization()
+#endif
     }
 
     func showWeatherWidget() {
@@ -35,7 +41,7 @@ final class LockScreenWeatherManager: ObservableObject {
             return
         }
 
-        locationProvider.prepareAuthorization()
+        prepareLocationAccess()
         let existingSnapshot = snapshot
         let hadSnapshot = existingSnapshot != nil
         var cachedSnapshot = existingSnapshot
@@ -73,6 +79,11 @@ final class LockScreenWeatherManager: ObservableObject {
 
     @discardableResult
     func refresh(force: Bool = false) async -> LockScreenWeatherSnapshot? {
+#if APPSTORE
+        // Mac App Store build: no location and no weather service. The lock screen
+        // widget keeps its battery and charging parts and shows no weather.
+        return nil
+#else
         NSLog("LockScreenWeatherManager: refresh requested (force=%@)", force ? "true" : "false")
         let interval = Defaults[.lockScreenWeatherRefreshInterval]
         if !force, let lastFetchDate, Date().timeIntervalSince(lastFetchDate) < interval {
@@ -146,8 +157,10 @@ final class LockScreenWeatherManager: ObservableObject {
             deliver(fallback, forceShow: false)
             return fallback
         }
+#endif
     }
 
+#if !APPSTORE
     private func fetchWeatherPayload(location: CLLocation?) async throws -> LockScreenWeatherSnapshot {
         let primarySource = Defaults[.lockScreenWeatherProviderSource]
 
@@ -166,6 +179,8 @@ final class LockScreenWeatherManager: ObservableObject {
             throw error
         }
     }
+
+#endif
 
     private func observeAccessoryChanges() {
         let bluetoothManager = BluetoothAudioManager.shared
@@ -272,7 +287,7 @@ final class LockScreenWeatherManager: ObservableObject {
                 Task { @MainActor in
                     if change.newValue {
                         NSLog("LockScreenWeatherManager: widget enabled, triggering refresh")
-                        self.locationProvider.prepareAuthorization()
+                        self.prepareLocationAccess()
                         _ = await self.refresh(force: true)
                     } else {
                         LockScreenWeatherPanelManager.shared.hide()
@@ -566,6 +581,7 @@ extension LockScreenWeatherSnapshot.AirQualityInfo.Category {
     }
 }
 
+#if !APPSTORE
 private actor LockScreenWeatherProvider {
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -1127,3 +1143,4 @@ private final class LockScreenWeatherLocationProvider: NSObject, CLLocationManag
         continuations.forEach { $0.resume(returning: location) }
     }
 }
+#endif

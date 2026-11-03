@@ -59,6 +59,31 @@ export function isIosApp(): boolean {
   }
 }
 
+/**
+ * True when this window is a store build: the iOS shell (every iOS build ships
+ * through the App Store) or the Mac App Store build of the Mac app, whose shell
+ * injects `window.__needtNative = { platform: "mac-swift", distribution:
+ * "appstore" }` before the page runs. The direct-download Mac build reports
+ * `distribution: "direct"` (or nothing) and keeps its purchase screens.
+ *
+ * In a store build the page shows no price, no checkout, no "Upgrade", no
+ * trial-with-card step and no link to the pricing or landing page (App Store
+ * Review Guidelines 3.1.1 and 3.1.3(f)). Pro is unlocked by the account alone.
+ * False on the server and in every browser tab.
+ */
+export function isStoreDistribution(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isIosApp()) return true;
+  try {
+    const native = (
+      window as unknown as { __needtNative?: { distribution?: unknown } }
+    ).__needtNative;
+    return native?.distribution === "appstore";
+  } catch {
+    return false;
+  }
+}
+
 export type NativeAuthResult =
   | { ok: true; url: string }
   | { ok: false; reason: "cancelled" | "unavailable" | "failed" };

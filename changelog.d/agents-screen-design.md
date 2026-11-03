@@ -1,0 +1,1 @@
+- The Agents screen now looks like the rest of Needt: the same header, rows, empty states and mobile layout.

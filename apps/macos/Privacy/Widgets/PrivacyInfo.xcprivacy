@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Privacy manifest of the widgets extension. It reads the person's tasks,
+  events and habits from the Needt service to draw them; that data is declared
+  in the app's manifest (Privacy/AppStore/PrivacyInfo.xcprivacy). It uses no
+  Required Reason API (scripts/check-appstore-privacy.py checks
+  Widgets/Sources, NeedtKit and NeedtWidgetKit).
+-->
+<dict>
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array/>
+</dict>
+</plist>

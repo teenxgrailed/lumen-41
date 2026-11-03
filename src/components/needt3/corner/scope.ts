@@ -167,11 +167,15 @@ export function suggestionsFor(sc: AskScope): Suggestion[] {
   return [S.plan, S.overdue, S.summary, S.draft, S.free, S.low];
 }
 
-/** "Good evening, Maksym": by the hour (prototype `chatGreeting`). */
+/**
+ * "Good evening, Maksym": by the hour (prototype `chatGreeting`). Night is
+ * 00:00-04:59 and says "Up late": "Good night" is a goodbye, and "Good
+ * evening" at 01:30 is wrong.
+ */
 export function greetingFor(hour: number, name: string | null): string {
   const word =
     hour < 5
-      ? "Good evening"
+      ? "Up late"
       : hour < 12
         ? "Good morning"
         : hour < 18

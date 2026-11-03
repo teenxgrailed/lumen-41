@@ -9,6 +9,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { isMacApp } from "@/lib/desktop";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { Glyph, type GlyphName } from "../glyphs/Glyph";
 import { useIsPro } from "../paywall/Pro";
@@ -47,6 +48,7 @@ function useMacApp() {
 
 /** Every section outside the Mac app: one row, and the way to the app. */
 function Elsewhere() {
+  const store = useStoreDistribution();
   return (
     <SGroup>
       <SRow
@@ -58,20 +60,25 @@ function Elsewhere() {
         title="These settings live in the Mac app"
         desc="The island, the quick-add hotkey, the menu bar, widgets and Siri & Shortcuts run on your Mac. Open Settings there to change them."
       >
-        <a
-          className="nx-btn nx-btn-primary nx-btn-sm"
-          href={MAC_DOWNLOAD_URL}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Get Needt for Mac
-        </a>
+        {/* The download page is the website: a store build links nowhere off the app. */}
+        {store ? null : (
+          <a
+            className="nx-btn nx-btn-primary nx-btn-sm"
+            href={MAC_DOWNLOAD_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Get Needt for Mac
+          </a>
+        )}
       </SRow>
-      <SRow title="Already installed?" desc="Opens this page in the app.">
-        <a className="nx-btn nx-btn-secondary" href={MAC_APP_URL}>
-          Open in the app
-        </a>
-      </SRow>
+      {store ? null : (
+        <SRow title="Already installed?" desc="Opens this page in the app.">
+          <a className="nx-btn nx-btn-secondary" href={MAC_APP_URL}>
+            Open in the app
+          </a>
+        </SRow>
+      )}
     </SGroup>
   );
 }

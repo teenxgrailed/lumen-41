@@ -149,6 +149,10 @@ describe("Week strip", () => {
       (e) => e.textContent
     );
     expect(labels).toHaveLength(24);
+    // the first hour is labelled too, and inside the grid (not above it)
+    expect(labels[0]).toBe("00:00");
+    const first = host.querySelector(".c2-hour") as HTMLElement;
+    expect(parseInt(first.style.top, 10)).toBeGreaterThanOrEqual(0);
     expect(labels[1]).toBe("01:00");
     expect(labels[23]).toBe("23:00");
     // the grid is the whole day tall: 24 × 52px

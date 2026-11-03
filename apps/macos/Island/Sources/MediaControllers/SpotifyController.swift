@@ -394,6 +394,11 @@ private actor SpotifyTrackMetadataResolver {
     }
 
     private func fetchArtistDisplayName(for trackURI: String, retryOnUnauthorized: Bool) async -> String? {
+#if APPSTORE
+        // Mac App Store build: Spotify is read through AppleScript only. No web
+        // endpoints, no token, no scraping of open.spotify.com.
+        return nil
+#else
         guard let trackID = Self.trackID(from: trackURI) else {
             return nil
         }
@@ -447,8 +452,10 @@ private actor SpotifyTrackMetadataResolver {
         } catch {
             return nil
         }
+#endif
     }
 
+#if !APPSTORE
     private func fetchPublicEmbedArtistDisplayName(for trackID: String) async -> String? {
         guard let url = URL(string: "https://open.spotify.com/embed/track/\(trackID)") else {
             return nil
@@ -474,6 +481,8 @@ private actor SpotifyTrackMetadataResolver {
             return nil
         }
     }
+
+#endif
 
     static func artistDisplayNameFromEmbedHTML(_ html: String) -> String? {
         guard let scriptStart = html.range(of: #"<script id="__NEXT_DATA__""#),
@@ -547,6 +556,10 @@ private actor SpotifyCanvasResolver {
     }
 
     private func fetchCanvasURL(for trackURI: String, retryOnUnauthorized: Bool) async -> URL? {
+#if APPSTORE
+        // Mac App Store build: no Spotify web-player endpoints.
+        return nil
+#else
         guard let accessToken = await SpotifyAuthManager.shared.validAccessToken() else {
             return nil
         }
@@ -579,6 +592,7 @@ private actor SpotifyCanvasResolver {
         } catch {
             return nil
         }
+#endif
     }
 }
 

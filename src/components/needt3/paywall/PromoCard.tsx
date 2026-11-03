@@ -8,6 +8,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { isPro, offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { PxBadge, PxSky } from "../scenes";
 import { openPaywall } from "./store";
@@ -20,8 +21,11 @@ export function PromoCard() {
   const { data: plan } = usePlan();
   const settings = useSettings();
   const setPref = useSetPref();
+  const store = useStoreDistribution();
   const [gone, setGone] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  /* A store build carries no promo for Pro. */
+  if (store) return null;
   if (!plan || !settings.data || isPro(plan.kind)) return null;
   if (gone || settings.data.prefs[KEY] === true) return null;
   const dismiss = (e: React.MouseEvent) => {
