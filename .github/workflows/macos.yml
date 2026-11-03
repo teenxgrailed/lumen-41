@@ -4,7 +4,9 @@ name: macOS
 # WKWebView, with the notch island compiled in from apps/macos/Island) and a
 # test run of the shared Swift package (apps/shared/NeedtKit).
 # Two builds run side by side: Needt (direct download, full island, Sparkle)
-# and NeedtAppStore (sandboxed, no private interfaces, no Sparkle).
+# and NeedtAppStore (sandboxed, no private interfaces, no Sparkle), which is
+# archived the way Xcode archives it (universal, Release) and the .xcarchive is
+# uploaded as needt-macos-appstore-archive for the owner to sign and upload.
 # Not part of the release pipeline: nothing here signs, notarizes or publishes.
 # The Windows app is still the Tauri one (desktop.yml).
 on:
@@ -70,37 +72,6 @@ jobs:
         if: failure()
         working-directory: apps/macos
         run: grep -E "error:" build.log | sort -u | head -80 || true
-
-      - name: App Store build has no Sparkle, direct build embeds the Share extension
-        working-directory: apps/macos
-        run: |
-          set -euo pipefail
-          xcodebuild \
-            -project Needt.xcodeproj \
-            -scheme NeedtAppStore \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath build-appstore \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            build | tail -n 40
-          STORE=build-appstore/Build/Products/Release/Needt.app
-          DIRECT=build/Build/Products/Release/Needt.app
-          test -d "$STORE"
-          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
-          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
-          test -d "$DIRECT/Contents/PlugIns/NeedtShare.appex"
-          test -d "$DIRECT/Contents/PlugIns/NeedtWidgets.appex"
-          plutil -p "$DIRECT/Contents/PlugIns/NeedtWidgets.appex/Contents/Info.plist" | grep -E "com.apple.widgetkit-extension"
-          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
-            echo "Sparkle is inside the App Store build"; exit 1
-          fi
-          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
-          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
-            echo "Sparkle symbols are inside the App Store build"; exit 1
-          fi
-          test -d "$DIRECT/Contents/Frameworks/Sparkle.framework"
 
       - name: Entitlements and private APIs
         working-directory: apps/macos
@@ -331,7 +302,7 @@ jobs:
           if-no-files-found: warn
 
   appstore:
-    name: Build NeedtAppStore (unsigned, sandboxed)
+    name: Archive NeedtAppStore (unsigned, universal)
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -344,60 +315,189 @@ jobs:
         working-directory: apps/macos
         run: xcodegen generate
 
+      # xcodegen must leave a shared scheme for NeedtAppStore whose Archive
+      # action builds Release: `xcodebuild archive -scheme NeedtAppStore`.
+      - name: NeedtAppStore has a shared scheme with an Archive action
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          SCHEME=Needt.xcodeproj/xcshareddata/xcschemes/NeedtAppStore.xcscheme
+          test -f "$SCHEME"
+          grep -A3 "<ArchiveAction" "$SCHEME" | tee "$RUNNER_TEMP/archive-action.txt"
+          grep -q 'buildConfiguration = "Release"' "$RUNNER_TEMP/archive-action.txt"
+
       # Runs before the build: it reads project.yml and the sources, so a
-      # private interface fails fast and does not need a compile to find.
+      # private interface, a missing privacy declaration or a bad plist fails
+      # in seconds and does not need a compile to find.
       - name: No private interface in the sources compiled into NeedtAppStore
         working-directory: apps/macos
         run: python3 scripts/check-appstore-private-api.py
 
-      - name: Build NeedtAppStore (no signing)
+      - name: Property lists and privacy manifests are valid and match the sources
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          plutil -lint ExportOptions-AppStore.plist Privacy/*/PrivacyInfo.xcprivacy \
+            Generated/NeedtAppStore.entitlements Generated/NeedtShare.entitlements \
+            Generated/NeedtWidgets.entitlements Generated/NeedtAppStore-Info.plist \
+            Generated/NeedtShare-Info.plist Generated/NeedtWidgets-Info.plist
+          python3 scripts/check-appstore-privacy.py --list out/island-sources-in-appstore.txt
+
+      - name: Cache Swift packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: apps/macos/SourcePackages
+          key: spm-macos-${{ hashFiles('apps/macos/project.yml', 'apps/shared/NeedtKit/Package.swift', 'apps/shared/NeedtWidgetKit/Package.swift') }}
+          restore-keys: spm-macos-
+
+      # The same archive the owner makes in Xcode (Product > Archive), minus
+      # signing: both architectures, Release, the shared scheme.
+      - name: Archive NeedtAppStore (no signing, arm64 + x86_64)
         working-directory: apps/macos
         run: |
           set -o pipefail
-          xcodebuild \
+          xcodebuild archive \
             -project Needt.xcodeproj \
             -scheme NeedtAppStore \
             -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath build-appstore \
+            -destination 'generic/platform=macOS' \
+            -archivePath build-appstore/NeedtAppStore.xcarchive \
+            -derivedDataPath build-appstore/derived \
+            -clonedSourcePackagesDirPath "$PWD/SourcePackages" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee build-appstore.log | tail -n 60
+            2>&1 | tee build-appstore.log | tail -n 60
 
       - name: Compiler errors
         if: failure()
         working-directory: apps/macos
         run: grep -E "error:" build-appstore.log | sort -u | head -120 || true
 
-      - name: App Store build has no Sparkle and no private framework
+      - name: Archive contents
         working-directory: apps/macos
         run: |
           set -euo pipefail
-          STORE=build-appstore/Build/Products/Release/Needt.app
-          test -d "$STORE"
-          test -d "$STORE/Contents/PlugIns/NeedtShare.appex"
-          test -d "$STORE/Contents/PlugIns/NeedtWidgets.appex"
-          if [ -e "$STORE/Contents/Frameworks/Sparkle.framework" ]; then
+          ARCHIVE=build-appstore/NeedtAppStore.xcarchive
+          APP="$ARCHIVE/Products/Applications/Needt.app"
+          test -d "$APP"
+          test -d "$APP/Contents/PlugIns/NeedtShare.appex"
+          test -d "$APP/Contents/PlugIns/NeedtWidgets.appex"
+          test -d "$ARCHIVE/dSYMs"
+          plutil -p "$ARCHIVE/Info.plist"
+          find "$ARCHIVE" -name PrivacyInfo.xcprivacy
+          # Info.plist, entitlements, universal binaries, privacy manifests, icon.
+          python3 scripts/check-appstore-bundle.py "$APP" Generated/NeedtAppStore.entitlements
+          # What Xcode will sign with (informational: an unsigned build may not write it).
+          find build-appstore/derived -name "*.xcent" | head -5 | while read -r f; do echo "$f"; plutil -p "$f"; done
+          # No Sparkle, no private framework, no private interface named in the binary.
+          if [ -e "$APP/Contents/Frameworks/Sparkle.framework" ]; then
             echo "Sparkle is inside the App Store build"; exit 1
           fi
-          strings "$STORE/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
+          strings "$APP/Contents/MacOS/Needt" > "$RUNNER_TEMP/store-strings.txt"
           if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/store-strings.txt"; then
             echo "Sparkle symbols are inside the App Store build"; exit 1
           fi
-          # Linked libraries: nothing from PrivateFrameworks.
-          otool -L "$STORE/Contents/MacOS/Needt" | tee "$RUNNER_TEMP/store-libs.txt"
+          otool -L "$APP/Contents/MacOS/Needt" | tee "$RUNNER_TEMP/store-libs.txt"
           if grep -q "PrivateFrameworks" "$RUNNER_TEMP/store-libs.txt"; then
             echo "The App Store binary links a private framework"; exit 1
           fi
-          # Private paths and symbols named in the binary.
           if grep -E "PrivateFrameworks|SkyLight|MediaRemote|IOReport|DisplayServices|CoreBrightness" "$RUNNER_TEMP/store-strings.txt" | head -20 | grep .; then
             echo "A private interface is named in the App Store binary"; exit 1
           fi
+          # No upsell wording from the upstream island in the binary (App Review 3.1.1).
+          if grep -E "Upgrade now|Buy us a coffee|Unlock advanced features" "$RUNNER_TEMP/store-strings.txt"; then
+            echo "Purchase wording is inside the App Store build"; exit 1
+          fi
+
+      # Required Reason APIs in the resolved packages, next to what the app
+      # declares. Information: each package carries its own manifest.
+      - name: Required Reason APIs in the Swift packages
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-privacy.py --packages SourcePackages/checkouts | sed -n '/Swift packages/,$p'
+
+      # The scripting-targets entitlement only works when the group names are
+      # in the target app's scripting definition. Music.app is on the runner;
+      # Spotify is installed from its cask for this check.
+      - name: Scripting access groups exist in Music.app and Spotify.app
+        working-directory: apps/macos
+        run: |
+          set -u
+          brew install --cask spotify > "$RUNNER_TEMP/spotify-install.log" 2>&1 || tail -n 5 "$RUNNER_TEMP/spotify-install.log"
+          python3 - <<'PY'
+          import plistlib, re, subprocess, sys, os
+          want = plistlib.load(open("Generated/NeedtAppStore.entitlements", "rb"))["com.apple.security.scripting-targets"]
+          apps = {"com.apple.Music": "/System/Applications/Music.app", "com.spotify.client": "/Applications/Spotify.app"}
+          failed = False
+          for bundle, groups in want.items():
+              path = apps[bundle]
+              if not os.path.isdir(path):
+                  print(f"::warning::{path} not installed on the runner; {bundle} groups {groups} NOT verified")
+                  if bundle == "com.apple.Music":
+                      failed = True
+                  continue
+              sdef = subprocess.run(["sdef", path], capture_output=True, text=True).stdout
+              have = sorted(set(re.findall(r'access-group identifier="([^"]*)"', sdef)))
+              print(bundle, "declares", have)
+              missing = [g for g in groups if g not in have]
+              if missing:
+                  print(f"::error::{bundle} declares no access group {missing}; the entitlement is invalid for it")
+                  failed = True
+              else:
+                  print(f"{bundle}: {groups} verified in the scripting definition")
+          sys.exit(1 if failed else 0)
+          PY
+
+      # Proves ExportOptions-AppStore.plist is read by xcodebuild. Signing
+      # cannot work here (no team, certificate or account), so the export is
+      # expected to fail, and only on signing or provisioning. An options
+      # error (bad key or value) comes before that and fails this step.
+      - name: Export options are accepted (fails only on signing)
+        working-directory: apps/macos
+        run: |
+          set -u
+          xcodebuild -exportArchive \
+            -archivePath build-appstore/NeedtAppStore.xcarchive \
+            -exportOptionsPlist ExportOptions-AppStore.plist \
+            -exportPath out/export > out/export.log 2>&1 && STATUS=0 || STATUS=$?
+          cat out/export.log
+          echo "exportArchive exit status: $STATUS"
+          if grep -iE "exportOptionsPlist error|unrecognized|unknown key|invalid (key|value|method)|expected one of|couldn.t be (opened|read)|not in the correct format" out/export.log; then
+            echo "xcodebuild rejected ExportOptions-AppStore.plist"; exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            if ! grep -E "error:" out/export.log | grep -iE "sign|provision|certificate|account|team|profile|entitlement"; then
+              echo "exportArchive failed for a reason that is not signing or provisioning"; exit 1
+            fi
+            if grep -E "error:" out/export.log | grep -ivE "sign|provision|certificate|account|team|profile|entitlement"; then
+              echo "exportArchive reported an error that is not about signing or provisioning"; exit 1
+            fi
+            echo "exportArchive failed only on signing and provisioning, as expected without a team"
+          fi
+
+      - name: Zip the archive
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          ditto -c -k --sequesterRsrc --keepParent build-appstore/NeedtAppStore.xcarchive out/NeedtAppStore.xcarchive.zip
+          ls -lh out/NeedtAppStore.xcarchive.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: needt-macos-appstore-archive
+          path: apps/macos/out/NeedtAppStore.xcarchive.zip
+          retention-days: 14
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: needt-macos-appstore-log
-          path: apps/macos/build-appstore.log
+          path: |
+            apps/macos/build-appstore.log
+            apps/macos/out/export.log
+            apps/macos/out/island-sources-in-appstore.txt
           if-no-files-found: warn

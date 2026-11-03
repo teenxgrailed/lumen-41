@@ -26,7 +26,8 @@ pattern = re.compile("|".join(FORBIDDEN))
 def store_excludes():
     """The `excludes:` of the Island/Sources entry under NeedtAppStore."""
     text = open("project.yml").read()
-    start = text.index("\n  NeedtAppStore:")
+    # The target, not the scheme of the same name (both are "  NeedtAppStore:").
+    start = text.index("\n  NeedtAppStore:\n    type: application")
     end = text.index("\n  # \"Add to Needt\"", start)
     block = text[start:end]
     src = block.index("- path: Island/Sources")

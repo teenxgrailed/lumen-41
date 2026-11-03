@@ -241,15 +241,44 @@ Share extension cannot see the session.
 
 `xcodegen generate` makes two app targets from the same sources: `Needt`
 (Developer ID, Sparkle) and `NeedtAppStore` (compilation flag `APPSTORE`, no
-Sparkle package, no update menu item, no mach-lookup exception). Both embed the
-Share extension. CI builds both unsigned, checks that the store build has no
-Sparkle, checks the generated entitlements, and fails on private-API patterns
-(the old `drawsBackground` KVC is gone; the window is opaque).
+Sparkle package, no update menu item, no Help menu with a website link, no
+mach-lookup exception, no purchase link or price). `window.__needtNative`
+carries `distribution: "appstore"` or `"direct"`. Sign-in runs in the system
+browser (`AuthFlow`, PKCE, `needt://auth`), never in the web view.
+
+What is in the store target: the `NeedtAppStore` scheme (shared, Archive =
+Release), `Privacy/AppStore/PrivacyInfo.xcprivacy` (and one each for the Share
+and Widgets extensions), `ITSAppUsesNonExemptEncryption = false`, and these
+entitlements, each with the code that needs it:
+
+| Entitlement                          | Why                                                          |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `app-sandbox`, `network.client`      | the web view and `NeedtAPI`                                  |
+| `files.user-selected.read-only`      | file picker for uploads in the page, island shelf            |
+| `files.bookmarks.app-scope`          | island shelf keeps `.withSecurityScope` bookmarks            |
+| `device.camera`, `device.audio-input` | the page (camera, voice), island mirror                      |
+| `personal-information.calendars`     | EventKit: calendar and reminders in the island               |
+| `personal-information.location`      | island weather                                               |
+| `scripting-targets`                  | Apple Music (`com.apple.Music.playback`) and Spotify         |
+| `application-groups`                 | Share extension and widgets                                  |
+
+CI (`appstore` job in `.github/workflows/macos.yml`) archives `NeedtAppStore`
+unsigned, universal (arm64 + x86_64), and checks: the archive holds the app,
+both extensions and the privacy manifests; no Sparkle; entitlements and usage
+strings match (`scripts/check-appstore-bundle.py`); Required Reason APIs in
+the compiled sources are declared (`scripts/check-appstore-privacy.py`); no
+private interface (`scripts/check-appstore-private-api.py`); the scripting
+access groups exist in Music.app and Spotify.app; `ExportOptions-AppStore.plist`
+is accepted by `xcodebuild -exportArchive`, which then fails only on signing.
+The unsigned archive is the artifact `needt-macos-appstore-archive`. That an
+unsigned export fails only on signing shows the options file is read, not that
+the signed export works.
 
 Needs the owner: an Apple Developer Program team, the App ID `app.needt.mac`
-and `app.needt.mac.share`, the app group `<TeamID>.app.needt.mac`, a Mac App
-Distribution certificate and provisioning profiles, then archive
-`NeedtAppStore` and upload with Transporter. Pro is sold on the site only.
+and `app.needt.mac.share` (and the widgets), the app group
+`<TeamID>.app.needt.mac`, a Mac App Distribution certificate and provisioning
+profiles. Then set `teamID` in `ExportOptions-AppStore.plist`, archive
+`NeedtAppStore`, and upload with Transporter. Pro is sold on the site only.
 
 ## Phase 2 (not in this PR)
 

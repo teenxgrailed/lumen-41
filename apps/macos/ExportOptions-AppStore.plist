@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  xcodebuild -exportArchive options for the Mac App Store build (NeedtAppStore).
+  The only value to fill in is teamID. See README.md, "Mac App Store".
+
+  destination "export" writes a signed .pkg to the export folder (upload it
+  with Transporter); "upload" sends the build to App Store Connect directly.
+-->
+<dict>
+  <key>method</key>
+  <string>app-store-connect</string>
+  <key>teamID</key>
+  <string>YOUR_TEAM_ID</string>
+  <key>signingStyle</key>
+  <string>automatic</string>
+  <key>destination</key>
+  <string>export</string>
+  <key>uploadSymbols</key>
+  <true/>
+  <key>manageAppVersionAndBuildNumber</key>
+  <false/>
+</dict>
+</plist>
