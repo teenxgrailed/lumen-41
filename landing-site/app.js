@@ -188,18 +188,58 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     }
   })();
 
-  /* ── Fold: other apps collapse into one ───────────── */
-  const fold = $("#fold"), icons = $$("#fold-icons img:not(.fold-needt)"), needt = $(".fold-needt");
+  /* v45 relay */
+  /* ── Fold: agents hand one task along the board, then ask you ── */
+  const fold = $("#fold"), rl = $("#rl");
+  const tiles = $$(".rl-tile", rl), core = $(".rl-core", rl), svg = $(".rl-lines", rl);
+  const chipA = $('.rl-chip[data-k="a"]', rl), chipB = $('.rl-chip[data-k="b"]', rl);
+  const narrow = matchMedia("(max-width: 640px)");
+  /* positions in % of the stage: the arc of agents, the Needt mark, where a task sits on the board */
+  const L = () => narrow.matches
+    ? { t: [[14, 22], [38, 9], [62, 9], [86, 22]], c: [50, 42], board: [50, 86], near: () => [50, 66] }
+    : { t: [[14, 36], [34, 14], [66, 14], [86, 36]], c: [50, 50], board: [50, 82], near: (i) => [[25, 58], [34, 31], [66, 31]][i] };
+  const at = (el, [x, y]) => { el.style.left = x + "%"; el.style.top = y + "%"; };
+  const layout = () => {
+    const l = L();
+    tiles.forEach((t, i) => at(t, l.t[i])); at(core, l.c);
+    svg.innerHTML = l.t.map(([x, y]) => `<path d="M${l.c[0]} ${l.c[1]} Q ${(x + l.c[0]) / 2} ${y + 14} ${x} ${y}"/>`).join("");
+  };
+  layout(); narrow.addEventListener("change", () => { layout(); last = -1; onFold(); });
+  const set = (chip, o) => {
+    chip.classList.toggle("on", !!o.on);
+    if (o.at) at(chip, o.at);
+    if (o.pill) { const p = $("[data-p]", chip); p.className = "rl-pill " + o.pill[0]; p.textContent = o.pill[1]; }
+    if (o.sub) $("[data-s]", chip).textContent = o.sub;
+    ["done", "asking", "tap", "answered"].forEach((k) => chip.classList.toggle(k, !!o[k]));
+  };
+  /* one state per stretch of scroll */
+  const STEPS = [.08, .2, .32, .44, .56, .68, .8, .88];
+  const show = (n) => {
+    const l = L(), hot = [-1, 0, -1, 1, 1, 2, -1, -1, -1][n];
+    tiles.forEach((t, i) => t.classList.toggle("hot", i === hot));
+    $$("path", svg).forEach((p, i) => p.classList.toggle("hot", i === hot));
+    const a = [
+      { on: false, at: l.near(0) },
+      { on: true, at: l.near(0), pill: ["", "Created by Claude"], sub: "Shop · from the board" },
+      { on: true, at: l.board, pill: ["", "On the board"], sub: "Shop · from the board" },
+      { on: true, at: l.near(1), pill: ["claim", "Claimed by Grok Bot"], sub: "Shop · from the board" },
+      { on: true, at: l.near(1), pill: ["ok", "Done ✓"], sub: "14 orders sorted", done: true },
+    ];
+    set(chipA, a[Math.min(n, 4)].on && n > 4 ? { on: false, done: true } : a[Math.min(n, 4)]);
+    const b = n < 5 ? { on: false, at: l.near(2), pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails" }
+      : n === 5 ? { on: true, at: l.near(2), pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true }
+      : n === 6 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true }
+      : n === 7 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true, tap: true }
+      : { on: true, at: l.board, pill: ["ok", "Approved ✓"], sub: "Codex sends them now", answered: true };
+    set(chipB, b);
+    fold.classList.toggle("done", n >= 5);
+  };
+  let last = -1;
   const onFold = () => {
-    const r = fold.getBoundingClientRect(), total = r.height - innerHeight, p = clamp(-r.top / total, 0, 1);
-    const vw = Math.min(innerWidth, 1200) / 100, e = p * p * (3 - 2 * p);
-    icons.forEach((im) => {
-      const x = +im.dataset.x * vw * (1 - e), y = +im.dataset.y * vw * .62 * (1 - e), rot = +im.dataset.r * (1 - e), s = 1 - e * .55;
-      im.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg) scale(${s})`; im.style.opacity = String(clamp(1.25 - e * 1.3, 0, 1));
-    });
-    const n = clamp((p - .45) / .4, 0, 1);
-    needt.style.transform = `scale(${.4 + n * .6}) rotate(${(1 - n) * -12}deg)`; needt.style.opacity = String(n);
-    fold.classList.toggle("done", p > .7);
+    let n;
+    if (calm) n = 6;
+    else { const r = fold.getBoundingClientRect(), total = r.height - innerHeight, p = clamp(-r.top / total, 0, 1); n = STEPS.filter((s) => p >= s).length; }
+    if (n !== last) { last = n; show(n); }
   };
 
   /* ── Composer ──────────────────────────────────────── */
