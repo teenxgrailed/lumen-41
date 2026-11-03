@@ -137,7 +137,7 @@ export const SANDBOX_DOCS: readonly SandboxDoc[] = [
       "## Before launch",
       "",
       "- Announcement drafted and reviewed",
-      "- Pricing page final",
+      "- Launch checklist final",
       "- Demo recorded",
       "",
       "## Launch day",
