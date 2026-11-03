@@ -46,11 +46,11 @@ export const SANDBOX_TASKS: readonly SandboxTask[] = [
   },
   {
     project: "launch",
-    title: "Review the pricing page copy",
+    title: "Review the launch checklist",
     estimate: 30,
     due: 0,
     at: "14:00",
-    note: "Check the yearly price and the FAQ.",
+    note: "Check every item and the owners.",
   },
   {
     project: "launch",
