@@ -70,7 +70,7 @@ the **Team ID** (Membership details, 10 characters).
 
 | Identifier               | Capabilities to tick                                         |
 | ------------------------ | ------------------------------------------------------------ |
-| `app.needt.ios`          | App Groups (`group.app.needt.ios`), Sign in with Apple (only so the key in step 3 can name it; the app carries no entitlement, sign-in is a web flow), In-App Purchase. Push Notifications later, when native push is wired |
+| `app.needt.ios`          | App Groups (`group.app.needt.ios`), Sign in with Apple (only so the key in step 3 can name it; the app carries no entitlement, sign-in is a web flow), In-App Purchase, Push Notifications |
 | `app.needt.ios.widgets`  | App Groups (`group.app.needt.ios`)                            |
 | `app.needt.ios.share`    | App Groups (`group.app.needt.ios`)                            |
 | `app.needt.mac`          | App Groups (`<TeamID>.app.needt.mac`), In-App Purchase        |
@@ -88,8 +88,14 @@ Groups). The Mac groups are team-prefixed and need no registration.
   `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`. Until this is set the
   Apple button says it is not set up, and App Review will reject the build
   (2.1 completeness; 4.8 needs an equivalent login next to Google).
-- Push (APNs): Keys → `+` → Apple Push Notifications service. Needed only when
-  native push is wired; see apps/ios/README.md.
+- Push (APNs): Keys → `+` → Apple Push Notifications service (one key serves
+  production and sandbox). Download the `.p8` once. Coolify env on `needt`
+  and on the worker: `APNS_KEY_ID` (the key's id), `APNS_TEAM_ID` (your Team
+  ID) and `APNS_PRIVATE_KEY` (the whole `.p8`, newlines as `\n`). Redeploy.
+  Until these are set the app's Settings, Notifications says "Not available
+  yet" and nothing is sent; reminders still show in the bell. Then on the
+  phone: Settings, Notifications, Enable notifications, Send test
+  notification. Not checked yet on a device (no signed build exists).
 
 ### 4. App Store Connect API key and GitHub secrets
 

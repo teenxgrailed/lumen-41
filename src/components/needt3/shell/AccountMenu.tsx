@@ -25,6 +25,7 @@ import {
 
 import { openHelp } from "@/lib/needt3/help";
 import { type V3PlanKind, usePlan } from "@/lib/needt3/hooks/plan";
+import { releaseNativePushToken } from "@/lib/needt3/hooks/push";
 import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
 import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
@@ -428,7 +429,10 @@ export function AccountMenu() {
                 icon={<LuLogOut size={16} />}
                 label="Sign out"
                 onClick={run(
-                  () => void signOut({ callbackUrl: "/auth/signin" })
+                  () =>
+                    void releaseNativePushToken().then(() =>
+                      signOut({ callbackUrl: "/auth/signin" })
+                    )
                 )}
               />
             </div>,

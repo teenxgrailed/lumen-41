@@ -41,6 +41,13 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/services/reminders/reminder-delivery", () => ({
   deliverPush: jest.fn(),
 }));
+// Every device of the account: the browsers here (no iOS tokens in this file).
+jest.mock("@/services/push/targets", () => ({
+  loadPushTargets: (userId: string) =>
+    jest
+      .requireMock("@/lib/prisma")
+      .prisma.pushSubscription.findMany({ where: { userId } }),
+}));
 
 type Handler = (request: NextRequest) => Promise<Response | undefined>;
 const defined =

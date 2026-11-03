@@ -425,10 +425,11 @@ export async function revokeExternalAccessForDeletion(
     [
       "push",
       async () => {
-        const removed = await prisma.pushSubscription.deleteMany({
-          where: { userId },
-        });
-        report.pushSubscriptionsDeleted += removed.count;
+        const [web, native] = await Promise.all([
+          prisma.pushSubscription.deleteMany({ where: { userId } }),
+          prisma.nativePushToken.deleteMany({ where: { userId } }),
+        ]);
+        report.pushSubscriptionsDeleted += web.count + native.count;
       },
     ],
   ];

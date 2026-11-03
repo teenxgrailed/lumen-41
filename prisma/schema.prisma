@@ -236,6 +236,7 @@ model User {
   taskReminders          TaskReminder[]
   proactiveNudges        ProactiveNudge[]
   pushSubscriptions      PushSubscription[]
+  nativePushTokens       NativePushToken[]
   bookingPages           BookingPage[]
   bookings               Booking[]                 @relation("BookingOwner")
   featureFlagOverrides   FeatureFlagOverride[]
@@ -1636,6 +1637,26 @@ model PushSubscription {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+/// An APNs device token from the iOS app. One row per device: a token that
+/// moves to another account on the same phone is rebound, not duplicated.
+model NativePushToken {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  /// "ios" today; the Mac app joins later.
+  platform    String
+  /// The bundle id the token belongs to; it is the APNs topic.
+  bundleId    String
+  /// "production" or "sandbox". A debug build's token is a sandbox token and
+  /// is only learned when production refuses it.
+  environment String   @default("production")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
 }

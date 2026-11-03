@@ -174,29 +174,156 @@ export async function share(data: {
   return false;
 }
 
-/**
- * Asks for notification permission and asks the OS to register with APNs.
- * Resolves true when registration was requested (false in a browser or when
- * permission is denied). The device token arrives later on the plugin's
- * "registration" event.
- *
- * //todo APNs needs the paid Apple Developer account (push entitlement and an
- * APNs key). Until then registration cannot succeed; nothing calls this yet and
- * web push stays as it is. After the account exists, send the token to the
- * server and let the worker deliver through APNs.
- */
-export async function registerNativePush(): Promise<boolean> {
-  if (!isNativeApp()) return false;
-  const push = capacitor()?.Plugins?.PushNotifications;
-  if (!push) return false;
+type ListenerHandle = { remove?: () => unknown };
+type PushPlugin = {
+  checkPermissions?: () => Promise<{ receive?: string }>;
+  requestPermissions?: () => Promise<{ receive?: string }>;
+  register?: () => Promise<void>;
+  unregister?: () => Promise<void>;
+  addListener?: (
+    event: string,
+    listener: (data: unknown) => void
+  ) => Promise<ListenerHandle> | ListenerHandle;
+};
+
+function pushPlugin(): PushPlugin | null {
+  if (!isIosApp()) return null;
+  return (capacitor()?.Plugins?.PushNotifications as PushPlugin) ?? null;
+}
+
+export type NativePushPermission = "granted" | "denied" | "prompt";
+
+/** The iOS notification permission; null outside the iOS app. */
+export async function nativePushPermission(): Promise<NativePushPermission | null> {
+  const push = pushPlugin();
+  if (!push?.checkPermissions) return null;
   try {
-    const perm = (await call("PushNotifications", "requestPermissions")) as
-      | { receive?: string }
-      | undefined;
-    if (perm?.receive !== "granted") return false;
-    await call("PushNotifications", "register");
-    return true;
+    const { receive } = await push.checkPermissions();
+    return receive === "granted" || receive === "denied" ? receive : "prompt";
   } catch {
-    return false;
+    return null;
   }
+}
+
+let tokenListeners: Promise<void> | null = null;
+let lastToken: string | null = null;
+const tokenWaiters = new Set<(token: string | null) => void>();
+
+function listenForTokens(push: PushPlugin) {
+  if (!tokenListeners) {
+    tokenListeners = (async () => {
+      const settle = (token: string | null) => {
+        if (token) lastToken = token;
+        for (const resolve of tokenWaiters) resolve(token);
+        tokenWaiters.clear();
+      };
+      await push.addListener?.("registration", (data) => {
+        const value = (data as { value?: unknown } | null)?.value;
+        settle(typeof value === "string" ? value : null);
+      });
+      await push.addListener?.("registrationError", () => settle(null));
+    })().catch(() => undefined);
+  }
+  return tokenListeners;
+}
+
+/**
+ * Registers with APNs and resolves with this device's token (hex), or null
+ * when there is no iOS app, no permission, or Apple did not answer in time.
+ * Ask for permission first (`requestNativePushPermission`).
+ */
+export async function nativePushToken(
+  timeoutMs = 10_000
+): Promise<string | null> {
+  const push = pushPlugin();
+  if (!push?.register) return null;
+  await listenForTokens(push);
+  const token = new Promise<string | null>((resolve) => {
+    tokenWaiters.add(resolve);
+    setTimeout(() => {
+      if (tokenWaiters.delete(resolve)) resolve(lastToken);
+    }, timeoutMs);
+  });
+  try {
+    await push.register();
+  } catch {
+    return null;
+  }
+  return token;
+}
+
+/** The system prompt; resolves with what the person chose. Null outside the iOS app. */
+export async function requestNativePushPermission(): Promise<NativePushPermission | null> {
+  const push = pushPlugin();
+  if (!push?.requestPermissions) return null;
+  try {
+    const { receive } = await push.requestPermissions();
+    return receive === "granted" || receive === "denied" ? receive : "prompt";
+  } catch {
+    return null;
+  }
+}
+
+/** Stops APNs delivery to this install until it registers again. */
+export async function unregisterNativePush(): Promise<void> {
+  try {
+    await pushPlugin()?.unregister?.();
+  } catch {
+    // nothing to undo
+  }
+}
+
+/**
+ * The path of `url` when it stays on this origin, else null. Parsed, not
+ * pattern-matched: the URL parser drops tabs and reads `\` as `/`, so
+ * "/\t/evil.example" would pass a regex and still leave the site.
+ */
+export function sameOriginPath(url: unknown): string | null {
+  if (typeof url !== "string" || !url.startsWith("/") || url.length > 2000) {
+    return null;
+  }
+  try {
+    const origin = window.location.origin;
+    const parsed = new URL(url, origin);
+    return parsed.origin === origin
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The token this install registered with, once Apple has answered. */
+export function currentNativePushToken(): string | null {
+  return lastToken;
+}
+
+/**
+ * Calls `open` with the same-origin path a tapped notification carries
+ * (`url` in the APNs payload). Anything that is not a path inside the app is
+ * dropped. Returns the cleanup; a no-op outside the iOS app.
+ */
+export function onNativePushTap(open: (path: string) => void): () => void {
+  const push = pushPlugin();
+  if (!push?.addListener) return () => undefined;
+  let handle: ListenerHandle | null = null;
+  let removed = false;
+  void Promise.resolve(
+    push.addListener("pushNotificationActionPerformed", (data) => {
+      const url = (
+        data as { notification?: { data?: { url?: unknown } } } | null
+      )?.notification?.data?.url;
+      const path = sameOriginPath(url);
+      if (path) open(path);
+    })
+  )
+    .then((h) => {
+      handle = h;
+      if (removed) void h?.remove?.();
+    })
+    .catch(() => undefined);
+  return () => {
+    removed = true;
+    void handle?.remove?.();
+  };
 }

@@ -28,7 +28,7 @@ const db = {
   hubAgent: { findMany: jest.fn() },
   hubItemEvent: { findMany: jest.fn() },
   hubItemLink: { findMany: jest.fn() },
-  pushSubscription: { findMany: jest.fn() },
+  user: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -129,7 +129,10 @@ beforeEach(() => {
   getPrefs.mockResolvedValue({});
   shouldAlert.mockReturnValue(true);
   deliverPush.mockResolvedValue(true);
-  db.pushSubscription.findMany.mockResolvedValue([subscription]);
+  db.user.findUnique.mockResolvedValue({
+    pushSubscriptions: [subscription],
+    nativePushTokens: [],
+  });
   db.hubAgent.findMany.mockResolvedValue([]);
   db.hubItemEvent.findMany.mockResolvedValue([]);
   db.hubItemLink.findMany.mockResolvedValue([]);

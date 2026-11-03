@@ -121,6 +121,7 @@ If you send a bug report from inside Needt, we store what you wrote, any file yo
 - **Server access logs** kept by our reverse proxy contain your IP address and browser user-agent, and are kept for up to 30 days.
 - **Error monitoring.** When something breaks, an error report goes to Sentry. Reports are reduced before they leave to the error type, the place in our code and the app version: request data, messages, local variables, breadcrumbs and user details are removed, and Sentry's collection of personal data is turned off. Reports from your browser go to Sentry directly, so Sentry sees your IP address when it receives them; the report itself does not contain it.
 - **Browser notifications.** If you allow notifications, we store your browser's push subscription (an endpoint address and keys) and its user-agent string.
+- **Notifications in the iOS app.** If you allow notifications in the app, we store the device token Apple gives that install of the app, the app it belongs to, and whether it is a test build. The token identifies that install of the app, is linked to your account so notifications reach you, and changes when the app is reinstalled.
 
 The only analytics script is **Umami**, self-hosted on our own server at stats.needt.app. It sets no cookies, keeps no personal profile, and counts aggregate page views (page address, referrer, browser, operating system, device type and country, derived from the request). It does not collect your name, email or account, does not follow you across sites, and honours your browser's Do Not Track setting. It runs on needt.app and can run in the app. Fonts are served from our own server.
 
@@ -136,7 +137,7 @@ The only analytics script is **Umami**, self-hosted on our own server at stats.n
 | Sell and manage paid plans; run trials; handle refunds and chargebacks | Contract; legal obligation for accounting records |
 | Allow one trial per person | Legitimate interest in keeping the trial available to everyone |
 | Service email: confirmation, password reset, export ready, trial ending, reminders, booking confirmations | Contract |
-| Push notifications | Consent, which you give in your browser and can withdraw in Settings |
+| Push notifications | Consent, which you give in your browser or in iOS and can withdraw in Settings |
 | Security: rate limits, re-authentication, logs, error monitoring | Legitimate interest in a secure and working service |
 | Fix bugs you report | Legitimate interest; contract |
 | Run the waitlist and invite you | Consent; you can withdraw it at any time |
@@ -215,6 +216,7 @@ The full list, with links to each provider's terms, is on the [subprocessors pag
 | OpenRouter, Inc. | Gateway for the included AI | What Section 6.1 lists | United States |
 | AI model hosts reached through OpenRouter | Running the model | The same, processed transiently | United States or EU (Section 6.2) |
 | Zoho Corporation (Zoho Mail) | Our support and privacy mailboxes | Whatever you write to us | EU data centre |
+| Apple Inc. (Apple Push Notification service) | Delivering notifications to the iOS app, if you turn them on there | The device token, and each notification's title, text and the Needt address it opens (which can contain a task or item id); not end-to-end encrypted | United States |
 
 **Creem** (Armitage Labs OÜ, Estonia) sells paid plans as merchant of record. It is the seller in your purchase and handles your payment data as a controller under its own [privacy notice](https://www.creem.io/privacy), not as our processor (Section 3.6).
 
@@ -222,7 +224,7 @@ The full list, with links to each provider's terms, is on the [subprocessors pag
 
 ### 7.2 Services you connect yourself
 
-Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any app you import from are not our processors. When you connect them, Needt exchanges data with them on your instruction, and you have your own agreement with each. The same applies to an AI provider whose key you add, and to the push service your browser uses (Google, Mozilla or Apple) to deliver notifications if you turn them on; notification content is encrypted for your browser.
+Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any app you import from are not our processors. When you connect them, Needt exchanges data with them on your instruction, and you have your own agreement with each. The same applies to an AI provider whose key you add, and to the push service your browser uses (Google, Mozilla or Apple) to deliver notifications if you turn them on; notification content is encrypted for your browser. Notifications in the iOS app go through Apple Push Notification service, which we use as a processor (Section 7.1).
 
 ### 7.3 Others
 
@@ -252,7 +254,7 @@ Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any 
 | Bug reports | Until you delete your account, or sooner if you ask us |
 | Support email | Two years after the conversation ends |
 
-**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription bought on the website (an App Store subscription is cancelled only in the App Store, and keeps billing until you do), revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, disconnect any apps you connected through Composio, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
+**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription bought on the website (an App Store subscription is cancelled only in the App Store, and keeps billing until you do), revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, disconnect any apps you connected through Composio, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions and device tokens, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
 
 ---
 

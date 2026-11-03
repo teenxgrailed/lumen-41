@@ -67,6 +67,7 @@ function reminder(over: object = {}) {
       email: "a@b.test",
       emailVerified: new Date(),
       pushSubscriptions: [],
+      nativePushTokens: [],
       userSettings: { timeZone: "UTC" },
     },
     ...over,
@@ -160,7 +161,11 @@ describe("deliverTaskReminder", () => {
     });
     const withSubs = (ids: string[]) =>
       reminder({
-        user: { ...reminder().user, pushSubscriptions: ids.map(sub) },
+        user: {
+          ...reminder().user,
+          pushSubscriptions: ids.map(sub),
+          nativePushTokens: [],
+        },
       });
     const saved = { ...process.env };
 

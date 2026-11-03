@@ -48,7 +48,7 @@ const nudge = (id: string, userId = "u1") => ({
   title: `Title ${id}`,
   body: `Body ${id}`,
   deepLink: `/today?task=${id}`,
-  user: { pushSubscriptions: [sub] },
+  user: { pushSubscriptions: [sub], nativePushTokens: [] },
 });
 
 beforeEach(() => {
@@ -56,6 +56,10 @@ beforeEach(() => {
   process.env.VAPID_SUBJECT = "mailto:a@b.test";
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = "pub";
   process.env.VAPID_PRIVATE_KEY = "priv";
+  // An APNs key alone would also count as a push channel.
+  delete process.env.APNS_KEY_ID;
+  delete process.env.APNS_TEAM_ID;
+  delete process.env.APNS_PRIVATE_KEY;
   mockDeliver.mockResolvedValue(true);
 });
 
@@ -66,7 +70,7 @@ afterAll(() => {
 });
 
 describe("deliverNudgePushes", () => {
-  it("does nothing without VAPID configuration", async () => {
+  it("does nothing without a VAPID or APNs key", async () => {
     delete process.env.VAPID_PRIVATE_KEY;
     await expect(deliverNudgePushes()).resolves.toEqual({ pushed: 0 });
     expect(nudges.findMany).not.toHaveBeenCalled();
@@ -81,7 +85,10 @@ describe("deliverNudgePushes", () => {
           deliveredAt: null,
           user: {
             notificationSettings: { is: { nudges: true } },
-            pushSubscriptions: { some: {} },
+            OR: [
+              { pushSubscriptions: { some: {} } },
+              { nativePushTokens: { some: {} } },
+            ],
           },
         }),
       })

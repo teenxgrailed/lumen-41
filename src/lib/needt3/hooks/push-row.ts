@@ -2,7 +2,7 @@
 
 import { notify } from "@/lib/notifications";
 
-import { PUSH_COPY, usePushNotifications } from "./push";
+import { NATIVE_PUSH_COPY, PUSH_COPY, usePushNotifications } from "./push";
 
 export type PushAction = {
   key: "enable" | "test" | "disable";
@@ -17,7 +17,9 @@ export type PushAction = {
  */
 export function usePushRow() {
   const push = usePushNotifications();
-  const { title, desc } = PUSH_COPY[push.state];
+  const { title, desc } =
+    (push.native ? NATIVE_PUSH_COPY[push.state] : undefined) ??
+    PUSH_COPY[push.state];
 
   const enable = () =>
     void push.enable().then((result) => {

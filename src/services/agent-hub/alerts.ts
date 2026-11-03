@@ -2,6 +2,7 @@ import {
   getNotificationPrefs,
   shouldAlert,
 } from "@/services/notifications/preferences";
+import { loadPushTargets } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { newDate } from "@/lib/date-utils";
@@ -42,9 +43,7 @@ export async function pushOwnerAlert(
     if (!shouldAlert(prefs, "system", "push", now)) {
       return { sent: 0, skipped: true };
     }
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId },
-    });
+    const subscriptions = await loadPushTargets(userId);
     if (!subscriptions.length) return { sent: 0, skipped: false };
     const payload = {
       title: oneLine(alert.title, 60),

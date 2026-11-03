@@ -40,8 +40,9 @@ archives the Release build (see Store readiness).
 `src/lib/native.ts` detects `window.Capacitor` and is a no-op in browsers. The
 shell exposes plugins on `window.Capacitor.Plugins`, so the web bundle ships no
 `@capacitor/*` code. Wired today: haptic on task complete, status bar style
-follows the resolved theme. Available but not called yet: `share()`,
-`registerNativePush()`.
+follows the resolved theme, notifications through APNs (Settings,
+Notifications; `NativePushHost` opens a tapped notification's path and saves
+the token again at start). Available but not called yet: `share()`.
 
 ## Widgets, Controls and the Live Activity
 
@@ -73,13 +74,12 @@ the data layer `apps/shared/NeedtKit` (snapshot, models, timelines, cache).
 
 ## Waiting for the Apple Developer account
 
-| Item                      | Why it waits                                                                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Signing and a real device | Needs a team id and a development certificate                                                                                                                                               |
-| Push (APNs)               | Needs the Push Notifications capability and an APNs key; add `aps-environment` entitlement, send the device token to the server, deliver from the worker. Web push stays as it is meanwhile |
-| TestFlight / App Store    | Needs App Store Connect record, distribution signing, privacy answers and review notes                                                                                                      |
-| Bundle id registration    | `app.needt.ios`, `app.needt.ios.widgets` and `app.needt.ios.share` must be registered, each with the App Groups capability and `group.app.needt.ios`                                        |
-| Sign in with Apple        | No entitlement needed (web flow). The Apple provider must be configured in production before submission: App Review 4.8 and 2.1 (see Icon, launch screen, sign-in)                          |
+| Item                      | Why it waits                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Signing and a real device | Needs a team id and a development certificate                                                                                                                      |
+| TestFlight / App Store    | Needs App Store Connect record, distribution signing, privacy answers and review notes                                                                             |
+| Bundle id registration    | `app.needt.ios`, `app.needt.ios.widgets` and `app.needt.ios.share` must be registered, each with the App Groups capability and `group.app.needt.ios`               |
+| Sign in with Apple        | No entitlement needed (web flow). The Apple provider must be configured in production before submission: App Review 4.8 and 2.1 (see Icon, launch screen, sign-in) |
 
 ## Store readiness
 
@@ -93,13 +93,13 @@ push to `apps/ios/**` or `apps/shared/**`, checks the archive, and keeps it as t
 - **Encryption.** `ITSAppUsesNonExemptEncryption = false`: only HTTPS through the system; the session cookies sit in a 0600 file in the App Group container (the Keychain path in `CookieVault` is not used on iOS); no CryptoKit or custom crypto in the app
 - **Device.** `UIRequiredDeviceCapabilities = arm64`; minimum iOS 18.0 (was 15; the widgets were 17). The extension entry point lists the widgets and Controls directly instead of `NeedtWidgetBundle().body`, whose `if #available(iOS 18.0, *)` does not link in a Release device build (SwiftUI `WidgetBundleBuilder.buildOptional`, Xcode 26.6). Controls are `@available(iOS 18)`, so the list compiles only because the target is 18; a widget added to `NeedtWidgetBundle` must be added there too (//todo). The three targets deploy to 18; the project-level value stays 17 because `cap sync` copies it into `CapApp-SPM/Package.swift`, a tools-version 5.9 file where `.v18` does not exist (ios-sim and ios-archive failed with "'v18' is unavailable"). The shared packages keep their own lower macOS-driven minimums
 - **Usage strings.** Camera (Take Photo in the file picker), microphone and speech (dictation in text fields), Photos add (Save Image)
-- **Entitlements.** App Group only, on all three targets. No `aps-environment`: push is not wired (`AppDelegate` does not forward the device token and nothing calls `registerNativePush`). No `applesignin` entitlement is needed: sign-in is the web flow in `ASWebAuthenticationSession`, not native `ASAuthorization`. The Apple provider still has to be configured in production before submission (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`): the app offers Google, so guideline 4.8 requires Sign in with Apple, and a button that says it is not set up fails 2.1. Push is added with its capability when it is built
+- **Entitlements.** App Group on all three targets. `aps-environment` on the app only (`development`; App Store signing writes `production`): `AppDelegate` forwards the device token to the Capacitor push plugin, the page saves it at `/api/push-subscriptions/native`, and the worker sends through APNs (`src/services/push/apns.ts`) once `APNS_KEY_ID`, `APNS_TEAM_ID` and `APNS_PRIVATE_KEY` are set. No `applesignin` entitlement is needed: sign-in is the web flow in `ASWebAuthenticationSession`, not native `ASAuthorization`. The Apple provider still has to be configured in production before submission (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`): the app offers Google, so guideline 4.8 requires Sign in with Apple, and a button that says it is not set up fails 2.1
 - **Icon, launch.** 1024 px icon and all 12 alternates have no alpha (checked by `scripts/check-static.sh`); `LaunchScreen.storyboard` exists
 - **4.2, not just a website.** Native offline screen, App Shortcuts (add task, start focus, what is today), Share extension (link or text becomes a task), widgets, Controls, Live Activity, alternate icons, haptics
 
 The three bundle ids to register, each with the App Groups capability and
 `group.app.needt.ios`: `app.needt.ios`, `app.needt.ios.widgets`,
-`app.needt.ios.share`. Do not enable the Sign in with Apple capability on them (web flow); Push stays off until built.
+`app.needt.ios.share`. Do not enable the Sign in with Apple capability on them (web flow). Push Notifications goes on `app.needt.ios` only.
 
 ### Native pieces added for review
 

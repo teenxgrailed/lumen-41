@@ -268,6 +268,7 @@ function buildPlan(userId, workspaceId) {
     ["PersonalApiToken", "personalApiToken", uid],
     ["AccessLink", "accessLink", uid],
     ["PushSubscription", "pushSubscription", uid],
+    ["NativePushToken", "nativePushToken", uid],
     ["Notification", "notification", uid],
     ["NotificationRead", "notificationRead", uid],
     ["Booking", "booking", any({ ownerId: userId }, { bookingPage: uid })],

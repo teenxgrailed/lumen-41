@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  currentNativePushToken,
+  isIosApp,
+  nativePushPermission,
+  nativePushToken,
+  requestNativePushPermission,
+  unregisterNativePush,
+} from "@/lib/native";
+
 /**
  * Browser notifications on this device, as one small state machine:
  *
@@ -14,6 +23,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *
  * The VAPID public key comes from `GET /api/push-subscriptions` at runtime,
  * never from the client bundle.
+ *
+ * Inside the iOS app the same states come from APNs instead (the WebView has
+ * no Push API): the system permission, and a device token saved through
+ * `/api/push-subscriptions/native`. `unconfigured` then means the server has
+ * no APNs key.
  */
 export type PushState =
   | "loading"
@@ -95,6 +109,8 @@ async function saveSubscription(subscription: PushSubscription) {
 
 export type PushController = {
   state: PushState;
+  /** True inside the iOS app, where this is APNs and not Web Push. */
+  native: boolean;
   busy: boolean;
   /** Must be called from a click: iOS only shows the prompt from a gesture. */
   enable: () => Promise<"ok" | "denied" | "failed">;
@@ -103,11 +119,20 @@ export type PushController = {
 };
 
 export function usePushNotifications(): PushController {
+  // Not rendered, so the server's `false` here cannot mismatch.
+  const [native] = useState(() => typeof window !== "undefined" && isIosApp());
+  const web = useWebPush(!native);
+  const app = useNativePush(native);
+  return native ? app : web;
+}
+
+function useWebPush(active: boolean): PushController {
   const [state, setState] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
   const config = useRef<ServerConfig | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!active) return;
     const env = readPushEnv();
     if (env.isIos && !env.standalone) return setState("needs-install");
     if (!env.supported) return setState("unsupported");
@@ -127,7 +152,7 @@ export function usePushNotifications(): PushController {
     // Re-save quietly so the server copy is never older than the browser's.
     void saveSubscription(subscription).catch(() => undefined);
     setState("on");
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     void refresh();
@@ -218,8 +243,196 @@ export function usePushNotifications(): PushController {
     }
   }, []);
 
-  return { state, busy, enable, disable, sendTest };
+  return { state, busy, native: false, enable, disable, sendTest };
 }
+
+/** Set when the person turned notifications off here; the permission stays. */
+const NATIVE_OFF_KEY = "needt.push.native.off";
+
+function nativeOptedOut() {
+  try {
+    return localStorage.getItem(NATIVE_OFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setNativeOptedOut(off: boolean) {
+  try {
+    if (off) localStorage.setItem(NATIVE_OFF_KEY, "1");
+    else localStorage.removeItem(NATIVE_OFF_KEY);
+  } catch {
+    // private storage: the switch only lasts this session
+  }
+}
+
+async function nativeConfigured() {
+  const response = await fetch("/api/push-subscriptions/native", {
+    credentials: "same-origin",
+  });
+  if (!response.ok) throw new Error("config");
+  return (
+    ((await response.json()) as { configured?: boolean }).configured === true
+  );
+}
+
+async function saveNativeToken(token: string) {
+  const response = await fetch("/api/push-subscriptions/native", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, platform: "ios" }),
+  });
+  if (!response.ok) throw new Error("save");
+}
+
+/**
+ * At app start: when notifications are allowed and not turned off here,
+ * register again and save the token, which Apple may have changed. Returns
+ * the token, or null when nothing was saved.
+ */
+export async function syncNativePushToken(): Promise<string | null> {
+  if (!isIosApp() || nativeOptedOut()) return null;
+  if ((await nativePushPermission()) !== "granted") return null;
+  const token = await nativePushToken();
+  if (!token) return null;
+  await saveNativeToken(token);
+  return token;
+}
+
+/**
+ * Signing out: this phone stops getting the account's notifications, so a
+ * shared phone's lock screen does not keep showing them. Bounded, because it
+ * must never hold the sign-out up; the next account to sign in here saves the
+ * token again for itself.
+ */
+export async function releaseNativePushToken(): Promise<void> {
+  const token = currentNativePushToken();
+  if (!token) return;
+  try {
+    await fetch(
+      `/api/push-subscriptions/native?token=${encodeURIComponent(token)}`,
+      {
+        method: "DELETE",
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(3000),
+      }
+    );
+  } catch {
+    // Offline or slow: the server forgets the token when Apple reports it dead
+    // or the next account takes it over.
+  }
+}
+
+function useNativePush(active: boolean): PushController {
+  const [state, setState] = useState<PushState>("loading");
+  const [busy, setBusy] = useState(false);
+  const token = useRef<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!active) return;
+    try {
+      if (!(await nativeConfigured())) return setState("unconfigured");
+    } catch {
+      return setState("off");
+    }
+    const permission = await nativePushPermission();
+    if (permission === "denied") return setState("blocked");
+    if (permission !== "granted" || nativeOptedOut()) return setState("off");
+    try {
+      token.current = await syncNativePushToken();
+    } catch {
+      token.current = null;
+    }
+    setState(token.current ? "on" : "off");
+  }, [active]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const enable = useCallback(async () => {
+    const permission = await requestNativePushPermission();
+    if (permission !== "granted") {
+      setState(permission === "denied" ? "blocked" : "off");
+      return "denied" as const;
+    }
+    setBusy(true);
+    try {
+      setNativeOptedOut(false);
+      const next = await nativePushToken();
+      if (!next) return "failed" as const;
+      await saveNativeToken(next);
+      token.current = next;
+      setState("on");
+      return "ok" as const;
+    } catch {
+      return "failed" as const;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const disable = useCallback(async () => {
+    setBusy(true);
+    try {
+      const current = token.current;
+      if (current) {
+        await fetch(
+          `/api/push-subscriptions/native?token=${encodeURIComponent(current)}`,
+          { method: "DELETE", credentials: "same-origin" }
+        );
+      }
+      setNativeOptedOut(true);
+      await unregisterNativePush();
+      token.current = null;
+      setState("off");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const sendTest = useCallback(async () => {
+    setBusy(true);
+    try {
+      const current = token.current;
+      if (!current) return "expired" as const;
+      const response = await fetch("/api/push-subscriptions/test", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: current }),
+      });
+      if (response.ok) return "ok" as const;
+      if (response.status === 404 || response.status === 410) {
+        token.current = null;
+        setState("off");
+        return "expired" as const;
+      }
+      return "failed" as const;
+    } catch {
+      return "failed" as const;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  return { state, busy, native: true, enable, disable, sendTest };
+}
+
+/** The iOS app's wording where the browser's would be wrong. */
+export const NATIVE_PUSH_COPY: Partial<
+  Record<PushState, { title: string; desc: string }>
+> = {
+  blocked: {
+    title: "Turned off in iOS Settings",
+    desc: "Notifications are off for Needt. Allow them in Settings, Notifications, Needt, then come back here.",
+  },
+  unconfigured: {
+    title: "Not available yet",
+    desc: "Notifications in the app are not set up on the server yet.",
+  },
+};
 
 /** What the person reads for each state, shared by desktop and phone. */
 export const PUSH_COPY: Record<PushState, { title: string; desc: string }> = {

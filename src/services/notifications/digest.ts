@@ -10,6 +10,12 @@
  *
  * Both read Settings → Notifications through preferences.ts first.
  */
+import {
+  PUSH_TARGET_SELECT,
+  PushTarget,
+  pushConfigured,
+  pushTargetsOf,
+} from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { newDate } from "@/lib/date-utils";
@@ -18,7 +24,6 @@ import { getDigestTemplate } from "@/lib/email/templates/notifications";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { getVapidConfiguration } from "@/lib/push-config";
 
 import { alertable, digestSummary } from "./alerts";
 import { getNotificationFeed } from "./feed";
@@ -28,15 +33,8 @@ const LOG_SOURCE = "NotificationSweeps";
 const USERS_PER_SWEEP = 200;
 const PUSHES_PER_PERSON = 3;
 
-type Subscription = {
-  id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-};
-
 async function pushAll(
-  subscriptions: Subscription[],
+  subscriptions: PushTarget[],
   payload: { title: string; body: string; url: string }
 ) {
   const results = await Promise.allSettled(
@@ -57,9 +55,7 @@ export async function deliverDailyDigests(now = newDate()) {
         select: {
           email: true,
           emailVerified: true,
-          pushSubscriptions: {
-            select: { id: true, endpoint: true, p256dh: true, auth: true },
-          },
+          ...PUSH_TARGET_SELECT,
         },
       },
     },
@@ -85,10 +81,10 @@ export async function deliverDailyDigests(now = newDate()) {
     try {
       if (
         prefs.channelPush &&
-        row.user.pushSubscriptions.length &&
-        getVapidConfiguration().configured
+        pushTargetsOf(row.user).length &&
+        pushConfigured()
       ) {
-        await pushAll(row.user.pushSubscriptions, {
+        await pushAll(pushTargetsOf(row.user), {
           ...summary,
           url: "/today",
         });
@@ -129,13 +125,18 @@ export async function deliverDailyDigests(now = newDate()) {
 }
 
 export async function deliverActivityPushes(now = newDate()) {
-  if (!getVapidConfiguration().configured) return { pushed: 0 };
+  if (!pushConfigured()) return { pushed: 0 };
   const rows = await prisma.notificationSettings.findMany({
     where: {
       channelPush: true,
       digest: false,
       OR: [{ mentions: true }, { system: true }],
-      user: { pushSubscriptions: { some: {} } },
+      user: {
+        OR: [
+          { pushSubscriptions: { some: {} } },
+          { nativePushTokens: { some: {} } },
+        ],
+      },
     },
     take: USERS_PER_SWEEP,
     orderBy: { activityPushedAt: { sort: "asc", nulls: "first" } },
@@ -144,9 +145,7 @@ export async function deliverActivityPushes(now = newDate()) {
       activityPushedAt: true,
       user: {
         select: {
-          pushSubscriptions: {
-            select: { id: true, endpoint: true, p256dh: true, auth: true },
-          },
+          ...PUSH_TARGET_SELECT,
         },
       },
     },
@@ -182,7 +181,7 @@ export async function deliverActivityPushes(now = newDate()) {
       .slice(0, PUSHES_PER_PERSON);
     for (const item of items) {
       if (
-        await pushAll(row.user.pushSubscriptions, {
+        await pushAll(pushTargetsOf(row.user), {
           title: item.title,
           body: item.body ?? "",
           url: item.link,

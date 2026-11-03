@@ -2,11 +2,15 @@ import {
   getNotificationPrefs,
   shouldAlert,
 } from "@/services/notifications/preferences";
+import {
+  PUSH_TARGET_SELECT,
+  pushConfigured,
+  pushTargetsOf,
+} from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { getVapidConfiguration } from "@/lib/push-config";
 
 const LOG_SOURCE = "NudgePush";
 /** At most this many pushes per person per sweep (every 15 minutes). */
@@ -23,7 +27,7 @@ const STALE_AFTER_MS = 2 * 60 * 60_000;
  * "Overdue tasks" on, and who have a device subscribed, get anything.
  */
 export async function deliverNudgePushes(now = new Date()) {
-  if (!getVapidConfiguration().configured) return { pushed: 0 };
+  if (!pushConfigured()) return { pushed: 0 };
 
   const nudges = await prisma.proactiveNudge.findMany({
     where: {
@@ -34,7 +38,10 @@ export async function deliverNudgePushes(now = new Date()) {
       },
       user: {
         notificationSettings: { is: { nudges: true } },
-        pushSubscriptions: { some: {} },
+        OR: [
+          { pushSubscriptions: { some: {} } },
+          { nativePushTokens: { some: {} } },
+        ],
       },
     },
     orderBy: { createdAt: "desc" },
@@ -45,13 +52,7 @@ export async function deliverNudgePushes(now = new Date()) {
       title: true,
       body: true,
       deepLink: true,
-      user: {
-        select: {
-          pushSubscriptions: {
-            select: { id: true, endpoint: true, p256dh: true, auth: true },
-          },
-        },
-      },
+      user: { select: PUSH_TARGET_SELECT },
     },
   });
 
@@ -73,7 +74,7 @@ export async function deliverNudgePushes(now = new Date()) {
     let anyDelivered = false;
     for (const nudge of chosen) {
       const results = await Promise.allSettled(
-        nudge.user.pushSubscriptions.map((subscription) =>
+        pushTargetsOf(nudge.user).map((subscription) =>
           deliverPush(subscription, {
             title: nudge.title,
             body: nudge.body,
