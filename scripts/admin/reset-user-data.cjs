@@ -114,6 +114,7 @@ function buildPlan(userId, workspaceId) {
     // their parents (cascade).
     ["HubReservation", "hubReservation", wsOnly],
     ["HubThread", "hubThread", wsOnly],
+    ["HubRecurrence", "hubRecurrence", wsOnly],
     ["HubNote", "hubNote", wsOnly],
     ["HubItem", "hubItem", wsOnly],
     ["HubAgent", "hubAgent", wsOnly],

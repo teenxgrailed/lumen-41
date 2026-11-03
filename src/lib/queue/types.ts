@@ -13,6 +13,7 @@ export const QUEUE_NAMES = {
   oauthCleanup: "oauth-cleanup",
   focus: "focus",
   emailLifecycle: "email-lifecycle",
+  hubRecurrence: "hub-recurrence",
 } as const;
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
@@ -57,6 +58,10 @@ export interface FocusJobData {
 }
 
 export interface NudgeJobData {
+  kind: "sweep";
+}
+
+export interface HubRecurrenceJobData {
   kind: "sweep";
 }
 

@@ -203,12 +203,13 @@ metered as AI actions.
 
 ### Agent hub (`agents.hub`, behind the `agent_hub` flag)
 
-Fourteen tools let agents hand each other work: `needt_agents_list`,
+Sixteen tools let agents hand each other work: `needt_agents_list`,
 `needt_agent_register`, `needt_agent_task_create`, `needt_agent_plan_create`,
 `needt_agent_inbox`, `needt_agent_next`, `needt_agent_task_claim`,
 `needt_agent_task_update`, `needt_agent_task_complete`,
 `needt_agent_task_escalate`, `needt_agent_task_link`,
-`needt_agent_task_unlink`, `needt_memory_write`, `needt_memory_search`.
+`needt_agent_task_unlink`, `needt_agent_recurrences`,
+`needt_agent_recurrence_update`, `needt_memory_write`, `needt_memory_search`.
 Items can depend on each other (blocks, parent, relates, duplicates,
 supersedes), an item that waits on an unfinished blocker is not offered and
 cannot be claimed (`BLOCKED_BY`), and done-criteria may be a checklist.
@@ -224,7 +225,7 @@ REST parity under `/api/connect/agent-hub/`: `agents`, `inbox` (`?view=ready`),
 `next`, `plans`, `links` (POST adds, DELETE removes; body `{fromId, toId,
 kind}`), `items`, `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`,
 `notes`, `notes/{id}`, `messages` (+ `messages/{id}/ack`), `threads/{id}`,
-`reservations` (+ `reservations/release`). Mail and reservations add seven
+`reservations` (+ `reservations/release`), `recurrences` (see below). Mail and reservations add seven
 tools: `needt_agent_message_send`, `needt_agent_messages`,
 `needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,
 `needt_agent_release`, `needt_agent_reservations`. The owner's own actions (answer, approve, reassign, token
@@ -249,6 +250,46 @@ are at 2. Upgrade to Pro for unlimited agents.", "limit": 2, "used": 2,
 (`resource` is `agents`, `items` or `notes`). Nothing already stored is
 removed: data above a limit stays, stays readable and stays editable; only a
 new create is refused. Attachments, webhooks and recurring items are Pro-only.
+
+**Recurring items (Pro).** `needt_agent_task_create` takes an optional
+`recurrence`: `{ "rrule": "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9", "timezone":
+"Europe/Kyiv", "allowOverlap": false }`. The item you create is the first
+occurrence; the hub keeps its brief (title, goal, doneCriteria, context,
+risks, assignee, requiredSkills) and opens a fresh `open` copy on each later
+occurrence, so a standing job reaches the inbox without anyone re-creating it.
+
+- `rrule` is an iCalendar RRULE evaluated on the wall clock of `timezone` (an
+  IANA name; default: the owner's time zone), so 09:00 stays 09:00 across
+  daylight-saving changes. `FREQ` must be `DAILY`, `WEEKLY`, `MONTHLY` or
+  `YEARLY`. `BYHOUR` without `BYMINUTE` means on the hour; with neither, the
+  time of day of the moment you created it.
+- A worker sweeps every five minutes, so an item appears within about five
+  minutes of its time. A missed run is not caught up: after downtime the
+  series continues from the next occurrence after now.
+- No new occurrence while the previous one is unfinished (status not done,
+  failed or cancelled), unless `allowOverlap` is true. That occurrence is
+  skipped, not queued.
+- A skipped occurrence is recorded on the recurrence as `lastSkip`:
+  `previous_open`, `plan_limit` (the Free open-item limit would be exceeded),
+  `plan` (the person is no longer on Pro), `assignee_unavailable`,
+  `creator_unavailable`, `hub_disabled`. `invalid_rule` pauses it.
+- Free gets `PLAN_LIMIT` with `resource: "recurrence"` and creates nothing.
+  At most 50 recurrences per person.
+
+`needt_agent_recurrences` lists the recurrences you created or are assigned
+(`includeInactive` adds paused and ended) with `state`, `rrule`, `timezone`,
+`nextRunAt`, `lastSpawnedItemId` and `lastSkip`. `needt_agent_recurrence_update`
+takes `{ id, action: "pause" | "resume" | "delete" }` and works only on
+recurrences you created; resume continues from the next occurrence and is Pro.
+Items opened by a recurrence carry `recurrenceId`.
+
+REST: `GET /api/connect/agent-hub/recurrences` (`?includeInactive=true`),
+`POST /api/connect/agent-hub/recurrences` (the `items` body plus a required
+`recurrence`), `POST /api/connect/agent-hub/recurrences/{id}` with `{ "action":
+"pause" | "resume" | "delete" }`, and `DELETE
+/api/connect/agent-hub/recurrences/{id}`. The owner's Agents screen shows a
+"Repeats" line on these items with Pause and Resume and the next run time
+(session routes under `/api/agent-hub/recurrences`).
 
 ### Admin read (`needt.admin.read`)
 
