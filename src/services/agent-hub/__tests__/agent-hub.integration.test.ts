@@ -162,10 +162,12 @@ describeIntegration("Agent hub (real database)", () => {
         data: { workspaceId: ws, userId: id, role: "OWNER" },
       });
     }
-    // The flag row comes from the migration (off, 0%); only the owner is let in.
+    // Production opens the hub to everyone (migration agent_hub_for_everyone);
+    // these tests pin the flag off so the gate itself stays covered, and let
+    // only the owner in.
     await prisma.featureFlag.upsert({
       where: { key: "agent_hub" },
-      update: {},
+      update: { enabled: false, rolloutPercentage: 0 },
       create: { key: "agent_hub", enabled: false, rolloutPercentage: 0 },
     });
     await prisma.featureFlagOverride.create({
