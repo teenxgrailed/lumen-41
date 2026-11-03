@@ -15,4 +15,4 @@ export const WITHDRAWAL_WAIVER_TERMS_HREF =
   "/terms#5-5-refunds-and-the-right-of-withdrawal";
 
 export const WITHDRAWAL_WAIVER_REQUIRED_MESSAGE =
-  "Tick the box to confirm that Needt starts now and you lose the 14-day withdrawal right.";
+  "Tick the box to confirm that Needt starts now and the statutory withdrawal right ends (our 14-day refund still applies).";

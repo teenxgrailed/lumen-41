@@ -36,7 +36,7 @@ Needt is run by an individual entrepreneur (FOP) registered in Ukraine, not a co
 ## 2. The short version
 
 - Needt keeps the things you put in it, and copies of the calendars, task lists and mailboxes you choose to connect, in **our own database on a server in Helsinki, Finland (EU)**.
-- We do not sell your data, we show no ads, and we use no advertising, analytics or tracking cookies.
+- We do not sell your data, we show no ads, and we use no advertising or tracking cookies. The only analytics is a cookieless, self-hosted page-view counter (Umami) on needt.app and, where we switch it on, in the app (Section 11).
 - When you use the AI assistant, the text needed to answer your request is sent to an AI model through OpenRouter, restricted to hosts in the United States and the EU that do not keep or train on it (Section 6).
 - Payments are handled by **Creem** as merchant of record. We never see your card number.
 - You can export your data and delete your account from Settings. Deletion takes effect after a 7-day grace period.
@@ -119,7 +119,7 @@ If you send a bug report from inside Needt, we store what you wrote, any file yo
 - **Error monitoring.** When something breaks, an error report goes to Sentry. Reports are reduced before they leave to the error type, the place in our code and the app version: request data, messages, local variables, breadcrumbs and user details are removed, and Sentry's collection of personal data is turned off. Reports from your browser go to Sentry directly, so Sentry sees your IP address when it receives them; the report itself does not contain it.
 - **Browser notifications.** If you allow notifications, we store your browser's push subscription (an endpoint address and keys) and its user-agent string.
 
-There is no analytics or tracking script in the app or on needt.app, and the fonts are served from our own server.
+The only analytics script is **Umami**, self-hosted on our own server at stats.needt.app. It sets no cookies, keeps no personal profile, and counts aggregate page views (page address, referrer, browser, operating system, device type and country, derived from the request). It does not collect your name, email or account, does not follow you across sites, and honours your browser's Do Not Track setting. It runs on needt.app and can run in the app. Fonts are served from our own server.
 
 ---
 
@@ -280,7 +280,7 @@ No system is perfectly secure. If a personal-data breach is likely to put you at
 
 ## 11. Cookies and storage on your device
 
-We use only what is needed to run Needt: no advertising, analytics or cross-site tracking cookies, and so no cookie banner.
+We use only what is needed to run Needt: no advertising or cross-site tracking cookies, no cookies for analytics, and so no cookie banner. Our self-hosted Umami counter (stats.needt.app, Section 2) sets no cookie and stores nothing on your device.
 
 | Name | Type | Purpose | Lifetime |
 | --- | --- | --- | --- |
@@ -292,6 +292,7 @@ We use only what is needed to run Needt: no advertising, analytics or cross-site
 | \`needt-account-reauth\` | Cookie, essential | Confirms it is you before account deletion and similar actions | 15 minutes |
 | \`needt-ui\` | Cookie, preference | Remembers whether you chose the phone or desktop layout, if you choose one | Until you change it or clear site data |
 | \`theme\` and interface settings (calendar, task list, focus timer and similar) | Local storage | Remembers your interface preferences | Until you sign out or clear site data |
+| \`needt.dl.boost\` | Local storage, needt.app only | Keeps a decorative counter on the download page; it stays on your device | Until you clear site data |
 | \`task-data-storage\`, \`project-store\`, and the service worker's offline cache | Local storage, cache, IndexedDB | Lets Needt open quickly and work offline; holds copies of your tasks, projects and pages | Until you sign out or clear site data |
 
 ---

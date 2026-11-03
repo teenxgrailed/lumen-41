@@ -43,6 +43,27 @@ describe("published legal pages", () => {
     }
   );
 
+  it("promises an unconditional 14-day refund and states the real cancel path", () => {
+    const terms = termsMarkdown();
+    expect(terms).toContain("14-day refund, no questions asked");
+    expect(terms).toContain("including Lifetime");
+    expect(terms).not.toContain("We do not refund automatically");
+    expect(terms).not.toContain("We look at each request");
+    expect(terms).toContain("Settings → Plan & billing → Invoices and payment");
+    expect(terms).not.toContain("Settings → Billing → Manage billing");
+  });
+
+  it("discloses the self-hosted Umami counter instead of denying analytics", () => {
+    const privacy = privacyMarkdown();
+    const subs = subprocessorsMarkdown();
+    expect(privacy).toContain("Umami");
+    expect(privacy).toContain("stats.needt.app");
+    expect(privacy).toContain("needt.dl.boost");
+    expect(privacy).not.toContain("There is no analytics or tracking script");
+    expect(subs).toContain("Umami");
+    expect(subs).not.toContain("no analytics or tracking scripts in the app");
+  });
+
   it("names the operator, the seller and the governing law", () => {
     const privacy = render("privacy");
     const terms = render("terms");
