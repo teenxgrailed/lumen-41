@@ -208,6 +208,8 @@
 .needt-v3 .ha-proj-r em { font-style: normal; text-align: right; color: var(--ha-ink-2); font-variant-numeric: tabular-nums; }
 .needt-v3 .ha-track { height: 6px; border-radius: 3px; background: var(--ha-raise); overflow: hidden; }
 .needt-v3 .ha-track > span { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: 3px; background: var(--ha-ink); opacity: .78; }
+/* Desktop: ink at .78 is off the ladder; the nearest step is 85 (text-secondary). */
+.needt-v3 .ha-desk .ha-track > span { background: var(--text-secondary); opacity: 1; }
 .needt-v3 .ha-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .needt-v3 .ha-kpi { border-radius: 16px; background: var(--ha-raise); padding: 12px 14px; }
 .needt-v3 .ha-desk .ha-kpi { border-radius: 11px; }
@@ -225,6 +227,7 @@
 .needt-v3 .ha-tl-bar > span { position: absolute; top: 0; height: 6px; }
 .needt-v3 .ha-tl-bar .past { left: 0; border-radius: 3px; background: var(--ha-raise-2); }
 .needt-v3 .ha-tl-bar .plan { border-radius: 3px; background: var(--ha-ink); opacity: .82; }
+.needt-v3 .ha-desk .ha-tl-bar .plan { background: var(--text-secondary); opacity: 1; }
 /* The track that is still free, and the part that does not fit: dashes, so
    they read as room and as overflow, not as work already placed. */
 .needt-v3 .ha-tl-bar .free,
