@@ -41,7 +41,7 @@ final class LockScreenWeatherManager: ObservableObject {
             return
         }
 
-        locationProvider.prepareAuthorization()
+        prepareLocationAccess()
         let existingSnapshot = snapshot
         let hadSnapshot = existingSnapshot != nil
         var cachedSnapshot = existingSnapshot
@@ -287,7 +287,7 @@ final class LockScreenWeatherManager: ObservableObject {
                 Task { @MainActor in
                     if change.newValue {
                         NSLog("LockScreenWeatherManager: widget enabled, triggering refresh")
-                        self.locationProvider.prepareAuthorization()
+                        self.prepareLocationAccess()
                         _ = await self.refresh(force: true)
                     } else {
                         LockScreenWeatherPanelManager.shared.hide()
