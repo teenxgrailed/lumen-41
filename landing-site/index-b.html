@@ -89,14 +89,23 @@
 <!-- ── 1 · Hero (the app's own sky) ───────────────────── -->
 <section class="hero" aria-labelledby="hero-h" data-px-scope>
     <div class="hb-bg" aria-hidden="true"><video muted loop playsinline autoplay preload="auto" poster="assets/hero/garden.jpg" width="1280" height="960"><source src="assets/hero/garden.mp4" type="video/mp4"></video><img src="assets/hero/garden.jpg" alt="" hidden></div>
+  <div class="hb-float hb-f1" aria-hidden="true"><h4>Today</h4>
+    <div class="row"><i class="done"></i><span>Answer the client email<small>Done 08:12</small></span></div>
+    <div class="row"><i></i><span>Pack the orders<small>10:00 · 25 min</small></span></div>
+    <div class="row"><i></i><span>Call the accountant<small>12:00 · 20 min</small></span></div>
+  </div>
+  <div class="hb-float hb-f2" aria-hidden="true"><h4>Agents</h4>
+    <div class="row"><span>Grok Bot claimed it<small>Sort the new orders</small></span></div>
+    <div class="row"><span>Send 3 invoices?<small>Codex asks first</small></span><span class="tag">Needs you</span></div>
+  </div>
   <div class="wrap hero-in">
     <h1 id="hero-h" class="hb-h1"><span id="hb-greet">Good day.</span>
       <span class="hb-say"><span class="hb-d">It’s</span> <span class="hb-w clock" style="--d:.5s;--r:-6deg" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#fff" stroke="rgba(12,14,20,.12)"/><line id="hb-hh" x1="20" y1="20" x2="20" y2="11" stroke="#0b0c10" stroke-width="2.6" stroke-linecap="round"/><line id="hb-mh" x1="20" y1="20" x2="20" y2="7" stroke="#0b0c10" stroke-width="1.8" stroke-linecap="round"/><circle cx="20" cy="20" r="1.8" fill="#e4572e"/></svg></span> <b id="hb-time">09:41</b>
       <span class="hb-d">in</span> <span class="hb-w place" style="--d:.7s;--r:3deg" aria-hidden="true"><i></i></span> <b id="hb-city">your city</b>.
       <br><span class="hb-d">You have</span> <span class="hb-w card" style="--d:.9s;--r:-2deg" aria-hidden="true"><span class="chk"></span><span>Pack the orders<small>10:00 · 25 min</small></span></span> <b>3 tasks</b> <span class="hb-d">and</span>
       <span class="hb-w card" style="--d:1.05s;--r:2deg" aria-hidden="true"><span class="bar"></span><span>Client call<small>Wed 10:00</small></span></span> <b class="hb-nw">2&nbsp;meetings</b><span class="hb-d">.</span>
-      <br><span class="hb-w card" style="--d:1.2s;--r:-3deg" aria-hidden="true"><span class="av">G</span><span>Grok Bot</span><span class="ok">Done ✓</span></span> <span class="hb-d">finished one.</span> <em>Needt planned <span class="hb-nw">the rest.</span></em></span></h1>
-    <p class="lead rv" style="--d:.35s" data-px-calm>Tasks, calendar, docs and your AI agents in one place. Move a meeting and Needt reshuffles the rest.</p>
+      <br><span class="hb-w card" style="--d:1.2s;--r:-3deg" aria-hidden="true"><span class="av">G</span><span>Grok Bot</span><span class="ok">Done ✓</span></span> <span class="hb-d hb-fin">finished one.</span> <em>Needt planned <span class="hb-nw">the rest.</span></em></span></h1>
+    <p class="lead rv" style="--d:.35s" data-px-calm>Tasks, calendar, docs and your AI agents in one place. <b>Free to start.</b></p>
     <div class="cta-row rv" style="--d:.5s" data-px-calm>
       <a class="btn btn-primary btn-lg js-signup" href="#">Try it free <span class="arr">→</span></a>
       <a class="btn btn-raised btn-lg" href="#tour">See how it works</a>
@@ -519,6 +528,6 @@ document.addEventListener("click",function(e){var a=e.target.closest&&e.target.c
 document.getElementById("hb-greet").innerHTML=p+'<span class="hb-d">, happy '+n.toLocaleDateString("en-US",{weekday:"long"})+".</span>";
 function t(){var d=new Date(),m=d.getMinutes();document.getElementById("hb-time").textContent=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
 document.getElementById("hb-mh").setAttribute("transform","rotate("+m*6+" 20 20)");document.getElementById("hb-hh").setAttribute("transform","rotate("+(d.getHours()%12+m/60)*30+" 20 20)");}
-t();setInterval(t,15000);try{var c=(Intl.DateTimeFormat().resolvedOptions().timeZone||"").split("/").pop().replace(/_/g," ");if(c&&!/UTC|GMT/.test(c))document.getElementById("hb-city").textContent=c;}catch(e){}})();</script>
+t();setInterval(t,15000);var fl=document.querySelectorAll('.hb-float');if(matchMedia('(hover: hover)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches)addEventListener('pointermove',function(e){var x=e.clientX/innerWidth-.5,y=e.clientY/innerHeight-.5;fl.forEach(function(f,i){var k=i?-18:24;f.style.setProperty('--x',x*k+'px');f.style.setProperty('--y',y*k+'px');});});try{var c=(Intl.DateTimeFormat().resolvedOptions().timeZone||"").split("/").pop().replace(/_/g," ");if(c&&!/UTC|GMT/.test(c))document.getElementById("hb-city").textContent=c;}catch(e){}})();</script>
 </body>
 </html>

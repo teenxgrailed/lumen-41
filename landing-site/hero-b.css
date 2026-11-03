@@ -32,3 +32,40 @@ body.home-b .hero .lead, body.home-b .hero .cta-note { color: rgba(255,255,255,.
 /* on the dark film the primary turns white and the secondary turns to glass */
 body.home-b .hero .btn-primary { background: #fff; color: #0b0c10; box-shadow: 0 14px 30px -14px rgba(0,0,0,.6); }
 body.home-b .hero .btn-raised { background: rgba(255,255,255,.12); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+/* v2 (owner pick, 03.11): the prototype's look. No app window in the hero, two glass cards beside
+   the sentence, "Free to start" under it. The window stays in the DOM (app.js drives it) but is hidden. */
+body.home-b .hero .stage, body.home-b .hero .cta-note, body.home-b .hero .hero-clouds { display: none !important; }
+body.home-b .hero { min-height: 100vh; min-height: 100svh; padding-bottom: 140px; display: flex; flex-direction: column; justify-content: center; }
+body.home-b .hero > .hero-in { width: 100%; }
+body.home-b .hero .lead b { color: #fff; font-weight: 600; white-space: nowrap; }
+.hb-float { position: absolute; z-index: 1; width: clamp(190px, 16vw, 236px); padding: 14px; border-radius: 20px; text-align: left; color: #fff;
+  background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 30px 60px -30px rgba(0,0,0,.5);
+  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  transform: translate3d(var(--x, 0), var(--y, 0), 0) rotate(var(--r)); transition: transform .9s cubic-bezier(.22,1,.36,1); animation: hbIn 1.2s cubic-bezier(.22,1,.36,1) var(--d) both; }
+@keyframes hbIn { from { opacity: 0; } to { opacity: 1; } }
+.hb-float h4 { margin: 0 0 8px; font: 600 12px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.hb-float .row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.12); font: 500 14px/1.25 var(--sans); }
+.hb-float .row + .row { margin-top: 6px; }
+.hb-float .row small { display: block; opacity: .65; font-size: 12px; }
+.hb-float .row i { width: 14px; height: 14px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; opacity: .7; }
+.hb-float .row i.done { background: #2fbf71; box-shadow: none; opacity: 1; }
+.hb-float .tag { margin-left: auto; font-size: 11px; font-weight: 600; padding: 4px 7px; border-radius: 999px; background: rgba(255,170,120,.25); white-space: nowrap; }
+.hb-f1 { left: 3vw; top: 56%; --r: -4deg; --d: 1.1s; }
+.hb-f2 { right: 3vw; top: 18%; --r: 3deg; --d: 1.3s; }
+@media (max-width: 1180px) { .hb-float { display: none; } }
+
+/* phones: the sentence keeps its two small marks (clock, pin); the three cards leave the line and
+   sit as one glass "Today" card under the buttons, so the words read as words */
+@media (max-width: 640px) {
+  body.home-b .hero { justify-content: flex-start; padding-top: 112px; padding-bottom: 96px; }
+  body.home-b .hero h1 { font-size: clamp(26px, 7.4vw, 32px); line-height: 1.22; }
+  .hb-say { font-size: .9em; max-width: 12em; }
+  .hb-say br { display: none; }
+  .hb-w.card, .hb-fin { display: none; }
+  .hb-bg video, .hb-bg img { object-position: 50% 70%; }
+  .hb-bg::after { background: linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,.35) 55%, rgba(0,0,0,.6)); }
+  body.home-b .hero .lead { font-size: 16px; margin-top: 18px; }
+  body.home-b .hero .cta-row { flex-direction: column; align-items: stretch; width: min(320px, 100%); margin-left: auto; margin-right: auto; }
+  .hb-float.hb-f1 { display: block; position: relative; left: auto; top: auto; width: min(320px, 100%); margin: 26px auto 0; transform: none; order: 2; }
+}
