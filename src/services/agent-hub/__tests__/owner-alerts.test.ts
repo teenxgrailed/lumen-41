@@ -26,6 +26,7 @@ const db = {
   hubItem: { count: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
   hubAgent: { findMany: jest.fn() },
   hubItemEvent: { findMany: jest.fn() },
+  hubItemLink: { findMany: jest.fn() },
   pushSubscription: { findMany: jest.fn() },
   $transaction: jest.fn(),
 };
@@ -124,6 +125,7 @@ beforeEach(() => {
   db.pushSubscription.findMany.mockResolvedValue([subscription]);
   db.hubAgent.findMany.mockResolvedValue([]);
   db.hubItemEvent.findMany.mockResolvedValue([]);
+  db.hubItemLink.findMany.mockResolvedValue([]);
   db.$transaction.mockImplementation(async (work: (tx: unknown) => unknown) =>
     work(db.tx)
   );
