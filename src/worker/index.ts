@@ -7,12 +7,12 @@ import {
   processAccountExport,
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
+import { RECURRENCE_SWEEP_INTERVAL_MS } from "@/services/agent-hub/constants";
+import { spawnDueRecurrences } from "@/services/agent-hub/recurrences";
 import {
   processWebhookDelivery,
   sweepPendingDeliveries,
 } from "@/services/agent-hub/webhooks";
-import { RECURRENCE_SWEEP_INTERVAL_MS } from "@/services/agent-hub/constants";
-import { spawnDueRecurrences } from "@/services/agent-hub/recurrences";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
@@ -40,6 +40,7 @@ import {
   purgeExpiredTrash,
 } from "@/services/ops/retention";
 import { syncPinterestBoards } from "@/services/pinterest/import";
+import { pruneStaleNativePushTokens } from "@/services/push/apns";
 import {
   deliverTaskReminder,
   findDueReminderIds,
@@ -114,8 +115,8 @@ import {
   getBugReportSyncQueue,
   getCalendarSyncQueue,
   getEmailLifecycleQueue,
-  getHubWebhookQueue,
   getHubRecurrenceQueue,
+  getHubWebhookQueue,
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
   getNudgeQueue,
@@ -130,8 +131,8 @@ import {
   CalendarSyncJobData,
   EmailLifecycleJobData,
   FocusJobData,
-  HubWebhookJobData,
   HubRecurrenceJobData,
+  HubWebhookJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
@@ -264,6 +265,7 @@ async function processReminder(job: Job<ReminderJobData>) {
     return;
   }
   if (job.data.kind === "digest") {
+    await pruneStaleNativePushTokens();
     await deliverDailyDigests();
     return;
   }
