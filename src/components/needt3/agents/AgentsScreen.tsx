@@ -217,7 +217,8 @@ export function AgentsScreen() {
     null
   );
   const [open, setOpen] = useState<string | null>(null);
-  const [guide, setGuide] = useState(false);
+  // Only a manual choice lives in state; otherwise the guide follows the data.
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(
     null
@@ -281,6 +282,8 @@ export function AgentsScreen() {
     });
 
   const { agents, items, notes } = overview.data ?? EMPTY;
+  const showGuide =
+    manualOpen ?? (overview.data !== undefined && agents.length === 0);
   const reservations = overview.data?.reservations ?? [];
   const threadRows = threads.data?.threads ?? [];
   const unreadThreads = threadRows.filter((t) => t.ownerUnread).length;
@@ -411,9 +414,9 @@ export function AgentsScreen() {
         meta="Agents and their work stay out of Today, Tasks and the Calendar"
         actions={
           <AgBtn
-            pressed={guide}
+            pressed={showGuide}
             onClick={() => {
-              setGuide(!guide);
+              setManualOpen(!showGuide);
               setTab("agents");
             }}
           >
@@ -509,9 +512,9 @@ export function AgentsScreen() {
                 </AgBtn>
               </div>
             </AgSection>
-            {guide || agents.length === 0 ? (
+            {showGuide ? (
               <ConnectGuide
-                onClose={guide ? () => setGuide(false) : undefined}
+                onClose={manualOpen ? () => setManualOpen(false) : undefined}
               />
             ) : null}
             {reservations.length > 0 ? (

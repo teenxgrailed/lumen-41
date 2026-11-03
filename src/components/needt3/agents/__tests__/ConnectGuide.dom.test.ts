@@ -68,12 +68,18 @@ async function mount(agents: unknown[]) {
       h(QueryClientProvider, { client: qc }, h(AgentsScreen as never))
     );
   });
-  await act(async () => {
-    await Promise.resolve();
-  });
+  // Let the overview query settle (fetch mock -> react-query -> render).
+  for (let i = 0; i < 5; i++) {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
 }
 
 beforeEach(() => {
+  jest.clearAllMocks();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
