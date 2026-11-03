@@ -11,6 +11,7 @@ import { Task } from "@/components/needt3/task/Task";
 import type { CompletionPhase } from "@/components/needt3/task/useCompletion";
 
 import type { V3Task } from "@/lib/needt3/map";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import {
   type Capacity,
@@ -344,6 +345,7 @@ export function PlanButton({
   /** The plan is running: one at a time. */
   busy?: boolean;
 }) {
+  const store = useStoreDistribution();
   return (
     <button
       type="button"
@@ -357,7 +359,9 @@ export function PlanButton({
         pro === null
           ? "Checking your plan"
           : !pro
-            ? "Unlock Plan my day with Pro"
+            ? store
+              ? "Plan my day is part of Pro"
+              : "Unlock Plan my day with Pro"
             : canPlan
               ? "Place what has no time yet into today's free hours"
               : "Everything already has a time"
@@ -476,6 +480,7 @@ export function WeekLoad({
   onCalendar: () => void;
   onUpgrade: () => void;
 }) {
+  const store = useStoreDistribution();
   const scale =
     Math.max(cap.min, ...days.map((d) => Math.max(d.cap, d.planned))) || 1;
   const over = days.filter((d) => d.cap && d.planned > d.cap);
@@ -585,14 +590,16 @@ export function WeekLoad({
           <span className="hd-load-lock-line">
             See which days are over capacity before they happen.
           </span>
-          <button
-            type="button"
-            className="nx-btn nx-btn-secondary nx-btn-sm"
-            onClick={onUpgrade}
-          >
-            <FiLock size={13} aria-hidden />
-            Upgrade
-          </button>
+          {store ? null : (
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary nx-btn-sm"
+              onClick={onUpgrade}
+            >
+              <FiLock size={13} aria-hidden />
+              Upgrade
+            </button>
+          )}
         </div>
       ) : (
         <p className="hd-load-note">

@@ -16,10 +16,17 @@ import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { WithdrawalWaiver } from "../paywall/WithdrawalWaiver";
 import { StudentGroup } from "./StudentGroup";
-import { isPro, planInfo, renewsText, trialBarPct } from "./derive";
+import {
+  isPro,
+  planInfo,
+  renewsText,
+  storePlanLine,
+  trialBarPct,
+} from "./derive";
 import { ProPill, SBtn, SGroup, SRow } from "./kit";
 import { showsStudentPrices } from "./student-derive";
 
@@ -63,6 +70,86 @@ export function failedPaymentLine(
  * `POST /api/billing/trial`. Invoices open the Creem portal.
  */
 export function PlanSection() {
+  const store = useStoreDistribution();
+  return store ? <StorePlanSection /> : <PurchasePlanSection />;
+}
+
+/**
+ * The plan in a store build (iOS app, Mac App Store): the current plan and
+ * its renewal state, read-only. No price, no plan to pick, no checkout, no
+ * trial button, no billing portal, no student price: Pro is bought on the
+ * account elsewhere (App Store Review Guidelines 3.1.1 and 3.1.3(f)).
+ */
+function StorePlanSection() {
+  const plan = usePlan();
+  const b = plan.data;
+  const kind = b?.kind ?? "free";
+  const info = planInfo(kind);
+  const pro = isPro(kind);
+  const days = priceStrings().trialDays;
+  return (
+    <>
+      <SGroup>
+        <div className="settings-plan-card" data-settings-plan-card={kind}>
+          <span className="settings-row-12">
+            <span className="settings-stack-6">
+              <span className="settings-text-7">Your plan · {info.name}</span>
+              <span className="settings-text-8">
+                {storePlanLine(kind, b, newDate())}
+              </span>
+            </span>
+          </span>
+          {kind === "trial" ? (
+            <span className="settings-row-13">
+              <span>
+                <b className="settings-b">{b?.trialDaysLeft ?? 0}</b> of{" "}
+                <b className="settings-b">{days}</b> trial days left
+              </span>
+              <span className="settings-span-7">
+                <span
+                  className="settings-bar"
+                  style={{
+                    width: `${trialBarPct(b?.trialDaysLeft ?? null, days)}%`,
+                  }}
+                />
+              </span>
+            </span>
+          ) : null}
+        </div>
+      </SGroup>
+      <SGroup
+        title={pro ? "Included in your plan" : "What Pro includes"}
+        hint={
+          pro
+            ? "Everything marked PRO across Needt."
+            : "Each one is marked PRO where it lives."
+        }
+      >
+        {PRO_FEATURES.map(([title, desc]) => (
+          <SRow
+            key={title}
+            title={
+              <span className="settings-pro-title">
+                {title}
+                <ProPill locked={!pro} feature={title} />
+              </span>
+            }
+            desc={desc}
+          >
+            {pro ? (
+              <span className="settings-pro-on">
+                <FiCheck size={13} aria-hidden />
+                Included
+              </span>
+            ) : null}
+          </SRow>
+        ))}
+      </SGroup>
+    </>
+  );
+}
+
+function PurchasePlanSection() {
   const plan = usePlan();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

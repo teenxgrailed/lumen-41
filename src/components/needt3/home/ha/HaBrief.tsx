@@ -5,6 +5,8 @@ import { useState } from "react";
 import { AiOrb } from "@/components/needt3/orb/AiOrb";
 import { ProBadge } from "@/components/needt3/paywall/Pro";
 
+import { useStoreDistribution } from "@/lib/use-store-distribution";
+
 import { HaI } from "./ui";
 
 /**
@@ -29,6 +31,7 @@ export function HaBrief({
   onClose?: () => void;
   onUpgrade?: () => void;
 }) {
+  const store = useStoreDistribution();
   const [open, setOpen] = useState(true);
   const said = (lines ?? []).filter(Boolean);
   if (!open) return null;
@@ -42,9 +45,11 @@ export function HaBrief({
           </div>
           <p>Two lines each morning: what&apos;s on, what to start with.</p>
         </div>
-        <button type="button" className="ha-btn" onClick={onUpgrade}>
-          Try Pro
-        </button>
+        {store ? null : (
+          <button type="button" className="ha-btn" onClick={onUpgrade}>
+            Try Pro
+          </button>
+        )}
       </div>
     );
   if (!said.length && !note) return null;

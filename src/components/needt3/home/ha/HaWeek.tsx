@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 
 import { ProBadge } from "@/components/needt3/paywall/Pro";
 
+import { useStoreDistribution } from "@/lib/use-store-distribution";
+
 import { HaI, haCx } from "./ui";
 
 export interface HaWeekData {
@@ -136,6 +138,7 @@ export function HaStats({
   locked?: boolean;
   onUpgrade?: () => void;
 }) {
+  const store = useStoreDistribution();
   const body = (
     <div className="ha-blur-host">
       <div className="ha-week-n">
@@ -194,13 +197,15 @@ export function HaStats({
             <div className="ha-lock-in">
               <ProBadge size="sm" />
               See where your week went — by project, weekday and focus time.
-              <button
-                type="button"
-                className="ha-btn is-primary"
-                onClick={onUpgrade}
-              >
-                Try Pro free for 14 days
-              </button>
+              {store ? null : (
+                <button
+                  type="button"
+                  className="ha-btn is-primary"
+                  onClick={onUpgrade}
+                >
+                  Try Pro free for 14 days
+                </button>
+              )}
             </div>
           </div>
         </div>

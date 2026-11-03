@@ -33,6 +33,7 @@ import {
 import { dur, durH, hhmm } from "@/lib/onboarding/format";
 import type { WeekPlan } from "@/lib/onboarding/plan";
 import type { CommitResult } from "@/lib/onboarding/server";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { Ob3Sky } from "./Ob3Sky";
 import { DayList, Week } from "./Ob3Week";
@@ -167,6 +168,9 @@ export function Ob3Flow({
   /* Read inside `go`, so a sign-up that just succeeded can move on before
      the next render; the server's session prop is only the starting value. */
   const signedIn = useRef(Boolean(session));
+  /* A store build (iOS app, Mac App Store) never shows the plan or the card
+     step: the flow ends after the gift, on the plan the account already has. */
+  const store = useStoreDistribution();
   const [k, setK] = useState(() => {
     const i = isStep(startStep) ? STEPS3.indexOf(startStep) : 0;
     return clampStepForSession(Math.max(0, i), signedIn.current);
@@ -264,6 +268,13 @@ export function Ob3Flow({
     go(
       step === "gift" || step === "verify" ? STEPS3.indexOf("account") : k - 1
     );
+
+  /* Landing on the plan or card screen (a saved link, the checkout return)
+     skips to the end. */
+  useEffect(() => {
+    if (store && (step === "plans" || step === "card")) goTo("opening");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, step]);
 
   const canNext =
     step === "card"
@@ -554,7 +565,16 @@ export function Ob3Flow({
     setDraft("");
   };
 
-  const ci = (COUNTED3 as readonly Step3[]).indexOf(step);
+  const counted: readonly Step3[] = store
+    ? COUNTED3.filter((s) => s !== "plans" && s !== "card")
+    : COUNTED3;
+  const phases = store
+    ? PHASES.map(
+        ([name, ids]) =>
+          [name, ids.filter((s) => s !== "plans" && s !== "card")] as const
+      )
+    : PHASES;
+  const ci = counted.indexOf(step);
   const pickT = plan?.placed.find((p) => p.key === pick) ?? null;
   const shown = plan ?? emptyPlan(a);
 
@@ -613,7 +633,9 @@ export function Ob3Flow({
     ],
     gift: [
       "A gift for *you*",
-      `Confirmed accounts get Pro free for ${PRICES.trialDays} days. Nothing is charged unless you choose a plan.`,
+      store
+        ? `Confirmed accounts get Pro free for ${PRICES.trialDays} days.`
+        : `Confirmed accounts get Pro free for ${PRICES.trialDays} days. Nothing is charged unless you choose a plan.`,
     ],
     plans: [
       "Keep Pro after the *gift*?",
@@ -1583,7 +1605,7 @@ export function Ob3Flow({
         </div>
       );
   } else if (step === "gift") {
-    cta = gift ? "See what’s in Pro" : null;
+    cta = gift ? (store ? "Continue" : "See what’s in Pro") : null;
     body = (
       <div
         className={cx3("ob3-gift", gift && "is-open")}
@@ -1642,7 +1664,7 @@ export function Ob3Flow({
         </span>
       </div>
     );
-  } else if (step === "plans") {
+  } else if (step === "plans" && !store) {
     const yr = billing === "year";
     cta =
       planSel === "free"
@@ -1771,7 +1793,7 @@ export function Ob3Flow({
         </p>
       </>
     );
-  } else if (step === "card") {
+  } else if (step === "card" && !store) {
     const life = planSel === "life";
     const yr = billing === "year";
     cta =
@@ -1873,9 +1895,9 @@ export function Ob3Flow({
       ? [
           "Saving your answers",
           `Writing ${r.tasks} tasks into next week`,
-          planSel === "life"
+          !store && planSel === "life"
             ? "Lifetime checkout done"
-            : planSel === "pro"
+            : !store && planSel === "pro"
               ? `Pro is set, first charge ${GIFT_END}`
               : giftState === "on"
                 ? `Gift on: Pro until ${GIFT_END}`
@@ -1918,6 +1940,10 @@ export function Ob3Flow({
   }
 
   function onCta() {
+    if (store && step === "gift") {
+      goTo("opening");
+      return;
+    }
     if (step === "plans" && planSel === "free") {
       goTo("opening");
       return;
@@ -1959,21 +1985,21 @@ export function Ob3Flow({
                   <span className="ob3-prog-bar">
                     <i
                       style={{
-                        width: ((ci + 1) / COUNTED3.length) * 100 + "%",
+                        width: ((ci + 1) / counted.length) * 100 + "%",
                       }}
                     />
                   </span>
                   <small>
-                    {ci + 1} of {COUNTED3.length}
+                    {ci + 1} of {counted.length}
                   </small>
                 </>
               ) : null}
             </span>
             <nav className="ob3-phases" aria-label="Setup">
-              {PHASES.map(([name, ids], pi) => {
+              {phases.map(([name, ids], pi) => {
                 const at = ids.indexOf(step);
                 const done =
-                  PHASES.slice(pi + 1).some(([, l]) => l.includes(step)) ||
+                  phases.slice(pi + 1).some(([, l]) => l.includes(step)) ||
                   step === "opening";
                 const fill = done ? 1 : at >= 0 ? (at + 1) / ids.length : 0;
                 return (

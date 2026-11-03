@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import { LuCheck } from "react-icons/lu";
 
+import { newDate } from "@/lib/date-utils";
 import { openBillingPortal, startTrial } from "@/lib/needt3/hooks/account";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
@@ -13,9 +14,15 @@ import {
   priceStrings,
 } from "@/lib/needt3/pricing";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { PRO_FEATURES, failedPaymentLine } from "../../settings/PlanSection";
-import { isPro, planInfo, trialBarPct } from "../../settings/derive";
+import {
+  isPro,
+  planInfo,
+  storePlanLine,
+  trialBarPct,
+} from "../../settings/derive";
 import {
   showsStudentPrices,
   studentPanel,
@@ -77,6 +84,85 @@ export function planHint(kind: string, prices: PriceStrings = P) {
  * prototype are not drawn.
  */
 export function PlanPage() {
+  const store = useStoreDistribution();
+  return store ? <StorePlanPage /> : <PurchasePlanPage />;
+}
+
+/**
+ * The plan in a store build (iOS app): the current plan and its renewal state,
+ * read-only. No price, no plan to pick, no trial button, no billing portal, no
+ * student price (App Store Review Guidelines 3.1.1 and 3.1.3(f)).
+ */
+function StorePlanPage() {
+  const plan = usePlan();
+  const b = plan.data;
+  const kind = b?.kind ?? "free";
+  const info = planInfo(kind);
+  const pro = isPro(kind);
+  const days = priceStrings().trialDays;
+  return (
+    <>
+      <section className="ps-plan-card" data-ps-plan-card={kind}>
+        <span className="ps-plan-name">Your plan · {info.name}</span>
+        <span className="ps-plan-line">
+          {storePlanLine(kind, b, newDate())}
+        </span>
+        {kind === "trial" ? (
+          <span className="ps-trial">
+            <span>
+              <b>{b?.trialDaysLeft ?? 0}</b> of <b>{days}</b> trial days left
+            </span>
+            <span className="ps-trial-bar">
+              <span
+                className="ps-trial-fill"
+                style={{
+                  width: `${trialBarPct(b?.trialDaysLeft ?? null, days)}%`,
+                }}
+              />
+            </span>
+          </span>
+        ) : null}
+      </section>
+      <PsGroup
+        title={pro ? "Included in your plan" : "What Pro includes"}
+        hint={
+          pro
+            ? "Everything marked PRO across Needt."
+            : "Each one is marked PRO where it lives."
+        }
+      >
+        {PRO_FEATURES.map(([title, desc]) =>
+          pro ? (
+            <PsRow
+              key={title}
+              title={title}
+              desc={desc}
+              value={
+                <span className="ps-included">
+                  <LuCheck size={13} aria-hidden />
+                  Included
+                </span>
+              }
+            />
+          ) : (
+            <PsRow
+              key={title}
+              title={
+                <span className="ps-title-pro">
+                  {title}
+                  <PsProTag locked />
+                </span>
+              }
+              desc={desc}
+            />
+          )
+        )}
+      </PsGroup>
+    </>
+  );
+}
+
+function PurchasePlanPage() {
   const { upgrade } = usePs();
   const plan = usePlan();
   const [busy, setBusy] = useState(false);

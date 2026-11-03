@@ -17,6 +17,7 @@ import { ProLimit, useIsPro } from "@/components/needt3/paywall/Pro";
 import { PlEmpty, StScreen } from "@/components/needt3/states/StScreen";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { isStoreDistribution } from "@/lib/native";
 import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
 import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
@@ -518,6 +519,11 @@ function HabitSheet({
 
 /** The desktop's notice when a new habit is refused by the Free allowance. */
 export function notifyHabitsBlocked() {
+  /* A store build states the limit and points nowhere. */
+  if (isStoreDistribution()) {
+    notify.info(`Free keeps ${FREE_HABITS} habits.`);
+    return;
+  }
   notify.info(`Free keeps ${FREE_HABITS} habits. Upgrade to Pro for more.`, {
     action: {
       label: "See plans",

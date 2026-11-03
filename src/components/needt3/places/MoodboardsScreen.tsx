@@ -14,6 +14,7 @@ import {
 import { ProLimit, ProUpsell, useIsPro } from "@/components/needt3/paywall/Pro";
 import { openPaywall } from "@/components/needt3/paywall/store";
 
+import { isStoreDistribution } from "@/lib/native";
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
@@ -64,10 +65,15 @@ const upgrade = () => openPaywall(mb.unlimited_moodboards);
 
 /** The desktop's notice when a new board is refused by the Free allowance. */
 export function notifyBoardsBlocked() {
-  notify.info(
-    `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}. Upgrade to Pro for more.`,
-    { action: { label: "See plans", onClick: upgrade } }
-  );
+  const kept = `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}.`;
+  /* A store build states the limit and points nowhere. */
+  if (isStoreDistribution()) {
+    notify.info(kept);
+    return;
+  }
+  notify.info(`${kept} Upgrade to Pro for more.`, {
+    action: { label: "See plans", onClick: upgrade },
+  });
 }
 
 /**

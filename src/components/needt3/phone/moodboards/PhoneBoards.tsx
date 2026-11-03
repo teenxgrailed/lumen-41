@@ -14,6 +14,7 @@ import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Board } from "@/lib/needt3/map";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { isPrivateBoard } from "../../places/board/logic";
@@ -102,6 +103,7 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
   const plan = usePlan();
   const tz = useTimeZone();
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
+  const store = useStoreDistribution();
   const [acts, setActs] = useState<PkActs | null>(null);
 
   const live = (boards.data ?? []).filter((b) => !b.trashedAt);
@@ -157,7 +159,7 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
               <div className="phb-head">
                 <span className="phb-head-text" data-phb-quota={quota.text}>
                   {quota.text}
-                  {quota.full ? (
+                  {quota.full && !store ? (
                     <>
                       {" · "}
                       <PkButton

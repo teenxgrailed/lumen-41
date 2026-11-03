@@ -4,6 +4,7 @@ import { FiChevronRight, FiExternalLink } from "react-icons/fi";
 
 import { currentBuildLabel } from "@/lib/build-info";
 import { openHelp } from "@/lib/needt3/help";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -18,6 +19,7 @@ import { SGroup, SRow } from "./kit";
  */
 export function AboutSection() {
   const shell = useShellApi();
+  const store = useStoreDistribution();
   const close = useNeedt3Ui((s) => s.closeSettings);
   return (
     <SGroup>
@@ -31,9 +33,11 @@ export function AboutSection() {
       >
         <FiChevronRight size={14} aria-hidden />
       </SRow>
-      <SRow title="Help" onClick={openHelp}>
-        <FiExternalLink size={14} aria-hidden />
-      </SRow>
+      {store ? null : (
+        <SRow title="Help" onClick={openHelp}>
+          <FiExternalLink size={14} aria-hidden />
+        </SRow>
+      )}
       <SRow title="Terms" onClick={() => window.open("/terms", "_blank")}>
         <FiExternalLink size={14} aria-hidden />
       </SRow>

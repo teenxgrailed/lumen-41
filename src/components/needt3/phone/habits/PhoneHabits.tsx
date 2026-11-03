@@ -13,6 +13,7 @@ import { LuArchive, LuCheck, LuPencil, LuPlus } from "react-icons/lu";
 import { newDate } from "@/lib/date-utils";
 import { type Checkin, habitColor } from "@/lib/needt3/derive";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import {
@@ -465,6 +466,7 @@ function HabitSheet({
 export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
   const sc = useRef<HTMLElement | null>(null);
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
+  const store = useStoreDistribution();
   const [acts, setActs] = useState<PkActs | null>(null);
   const { list, shown, checkins, projects, today, quota, kept } = ctl;
 
@@ -532,7 +534,7 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
         {quota.text ? (
           <span className="phb-head-text" data-phb-quota={quota.text}>
             {quota.text}
-            {quota.full ? (
+            {quota.full && !store ? (
               <>
                 {" · "}
                 <PkButton

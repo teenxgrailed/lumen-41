@@ -20,6 +20,7 @@ import {
   readTimePalettes,
   timeThemeAt,
 } from "@/lib/needt3/theme";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { openAppIconPicker, useAppIcon } from "@/store/app-icon";
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -198,6 +199,7 @@ export function AppearanceSection({
   onUpgrade: (feature?: string) => void;
 }) {
   const mark = useMark();
+  const store = useStoreDistribution();
   const theme = useNeedt3Ui((s) => s.theme);
   const accent = useNeedt3Ui((s) => s.accent);
   const setLook = useNeedt3Ui((s) => s.setLook);
@@ -247,7 +249,13 @@ export function AppearanceSection({
                 aria-pressed={theme === id}
                 data-theme-tile={id}
                 data-pro-locked={locked ? "" : undefined}
-                title={locked ? "Unlock the Time theme with Pro" : undefined}
+                title={
+                  locked
+                    ? store
+                      ? "The Time theme is part of Pro"
+                      : "Unlock the Time theme with Pro"
+                    : undefined
+                }
                 className={
                   "nx-press settings-theme-tile-theme-tile" +
                   (theme === id ? " is-active" : "")
@@ -300,7 +308,9 @@ export function AppearanceSection({
                         aria-pressed={accent === a.id}
                         title={
                           locked
-                            ? `${a.label} — unlock accent colours with Pro`
+                            ? store
+                              ? `${a.label} — part of Pro`
+                              : `${a.label} — unlock accent colours with Pro`
                             : a.label
                         }
                         data-pro-locked={locked ? "" : undefined}
@@ -327,13 +337,15 @@ export function AppearanceSection({
             <div className="settings-accent-lock" data-settings-accent-lock>
               <FiLock size={12} aria-hidden />
               <span>Blue is yours on Free. The other eight come with Pro.</span>
-              <button
-                type="button"
-                className="pro-limit-up"
-                onClick={() => onUpgrade("Accent colours")}
-              >
-                Upgrade
-              </button>
+              {store ? null : (
+                <button
+                  type="button"
+                  className="pro-limit-up"
+                  onClick={() => onUpgrade("Accent colours")}
+                >
+                  Upgrade
+                </button>
+              )}
             </div>
           ) : null}
           <div className="settings-accent-card-row-3">

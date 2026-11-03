@@ -46,6 +46,7 @@ import { qk } from "@/lib/needt3/query-keys";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { useOnline } from "@/lib/needt3/use-online";
 import { notify } from "@/lib/notifications";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import {
   GlassCard,
@@ -57,6 +58,7 @@ import {
   PxSky,
 } from "../scenes";
 import { NeedtAppIcon } from "../wordmark";
+import { StoreProSheet } from "./StoreProSheet";
 import { WithdrawalWaiver } from "./WithdrawalWaiver";
 
 const LOG_SOURCE = "needt3-paywall";
@@ -279,7 +281,18 @@ export interface PaywallProps {
   feature?: string | null;
 }
 
-export function Paywall({
+/**
+ * In a store build (iOS app, Mac App Store) the sheet is one sentence and
+ * Close: the purchase sheet below, with its prices, checkout call and trial
+ * step, is not mounted at all.
+ */
+export function Paywall(props: PaywallProps) {
+  const store = useStoreDistribution();
+  if (store) return <StoreProSheet open={props.open} onClose={props.onClose} />;
+  return <PurchasePaywall {...props} />;
+}
+
+function PurchasePaywall({
   open,
   onClose,
   cycle,
